@@ -2,6 +2,10 @@
 
 ## 2026-06-30
 
+### Highlights
+
+- feat(Groups): **In-progress trades on the overview** — the group page now lists the trades you're waiting to finish, so a request you sent or a deal awaiting hand-off no longer disappears until it's complete.
+
 ### Other
 
 - feat(App): **Link previews on WordPress** — deck, collection, list, and profile share links now unfurl to their preview image when posted on a WordPress site (via oEmbed).

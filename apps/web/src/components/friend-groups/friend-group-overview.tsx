@@ -1,21 +1,28 @@
-import type { FriendGroupDetailResponse } from "@openrift/shared";
+import type { CardTradeResponse, FriendGroupDetailResponse } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { ChevronRightIcon, FolderIcon, TrophyIcon, UsersIcon, ZapIcon } from "lucide-react";
 import type { ComponentType, ReactNode, SVGProps } from "react";
 
+import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { UserAvatar } from "@/components/user-avatar";
 import { useGroupTrades, useTradeActionCounts } from "@/hooks/use-card-trades";
+import { useCards } from "@/hooks/use-cards";
 import { useCollections } from "@/hooks/use-collections";
 import { useMyTournamentDecks } from "@/hooks/use-deck-check-player";
 import { useFriendGroupMatches } from "@/hooks/use-friend-groups";
 import { useGroupTournaments } from "@/hooks/use-tournaments";
 import { useRequiredUserId } from "@/lib/auth-session";
 import { countOpenTournaments } from "@/lib/tournament-display";
-import { countTradeSuggestions, withoutLiveTradeMatches } from "@/lib/trade-derivation";
+import {
+  countTradeSuggestions,
+  tradeSection,
+  withoutLiveTradeMatches,
+} from "@/lib/trade-derivation";
 import { cn } from "@/lib/utils";
 
 import { FriendGroupActivityFeed } from "./friend-group-activity-feed";
-import { canManageGroupTournaments } from "./friend-group-shell";
+import { canManageGroupTournaments, SECTION_HEADING } from "./friend-group-shell";
+import { TradeDirectionIcon, TradeExpiry, TradeStatusBadge } from "./trade-row-parts";
 
 /**
  * The group overview / dashboard: an optional "trades need you" banner, a grid
@@ -27,6 +34,7 @@ export function OverviewContent({ slug, data }: { slug: string; data: FriendGrou
   return (
     <div className="flex flex-col gap-8">
       <ActionCards slug={slug} data={data} />
+      <InProgressTrades groupId={data.group.id} />
       <FriendGroupActivityFeed slug={slug} />
     </div>
   );
@@ -50,6 +58,11 @@ function ActionCards({ slug, data }: { slug: string; data: FriendGroupDetailResp
   // Count what the Trades page renders: per-copy match rows collapsed into
   // suggestion tiles, minus suggestions already covered by a live trade.
   const trades = tradesData?.items ?? [];
+  // In-flight trades the viewer has already acted on (a request they sent and
+  // is awaiting the other side, or a reserved trade not yet handed over). These
+  // don't count as "needs your action", so without surfacing them here they'd
+  // be invisible on the overview until completed.
+  const inProgressCount = trades.filter((trade) => tradeSection(trade) === "active").length;
   const matchCount = countTradeSuggestions(
     withoutLiveTradeMatches(matches.othersHaveYourWants, trades),
     withoutLiveTradeMatches(matches.othersWantYourHaves, trades),
@@ -69,21 +82,26 @@ function ActionCards({ slug, data }: { slug: string; data: FriendGroupDetailResp
   // hides itself for plain members.
   const pendingRequestCount = data.pendingRequests.length;
 
-  // The most urgent number wins the big slot: trades waiting on the viewer
-  // when there are any, otherwise the possible trades the matcher found.
-  const needsYou = tradesActionCount === 1 ? "needs you" : "need you";
-  const tradesValue = tradesActionCount > 0 ? tradesActionCount : matchCount;
-  const tradesHint =
-    tradesActionCount > 0
+  // The tile only renders when nothing needs the viewer's action (otherwise the
+  // banner takes over). The big slot then goes to in-progress trades when there
+  // are any, falling back to the possible trades the matcher found.
+  const tradesTileValue = inProgressCount > 0 ? inProgressCount : matchCount;
+  const tradesTileHint =
+    inProgressCount > 0
       ? matchCount > 0
-        ? `${needsYou} · ${matchCount} possible`
-        : needsYou
+        ? `in progress · ${matchCount} possible`
+        : "in progress"
       : `${matchCount === 1 ? "possible trade" : "possible trades"} · none waiting on you`;
 
   return (
     <div className="flex flex-col gap-4">
       {tradesActionCount > 0 ? (
-        <TradesActionBanner slug={slug} count={tradesActionCount} possible={matchCount} />
+        <TradesActionBanner
+          slug={slug}
+          count={tradesActionCount}
+          possible={matchCount}
+          inProgress={inProgressCount}
+        />
       ) : null}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {/* When the banner is up it already carries the trade counts, so the tile
@@ -94,8 +112,8 @@ function ActionCards({ slug, data }: { slug: string; data: FriendGroupDetailResp
             slug={slug}
             icon={ZapIcon}
             label="Trades"
-            value={tradesValue}
-            hint={tradesHint}
+            value={tradesTileValue}
+            hint={tradesTileHint}
           />
         ) : null}
         <StatCard
@@ -143,11 +161,22 @@ function TradesActionBanner({
   slug,
   count,
   possible,
+  inProgress,
 }: {
   slug: string;
   count: number;
   possible: number;
+  inProgress: number;
 }) {
+  // Roll any possible matches and in-flight trades into one "plus …" subline so
+  // the banner stays a single compact call-to-action.
+  const extras: string[] = [];
+  if (possible > 0) {
+    extras.push(`${possible} possible ${possible === 1 ? "trade" : "trades"}`);
+  }
+  if (inProgress > 0) {
+    extras.push(`${inProgress} in progress`);
+  }
   return (
     <Link
       to="/groups/$slug/trades"
@@ -161,16 +190,87 @@ function TradesActionBanner({
         <p className="font-medium">
           {count} {count === 1 ? "trade needs" : "trades need"} your action
         </p>
-        {possible > 0 ? (
-          <p className="text-primary-foreground/80 text-sm">
-            plus {possible} possible {possible === 1 ? "trade" : "trades"} waiting
-          </p>
+        {extras.length > 0 ? (
+          <p className="text-primary-foreground/80 text-sm">plus {extras.join(" · ")}</p>
         ) : null}
       </div>
       <span className="bg-primary-foreground/15 group-hover:bg-primary-foreground/25 inline-flex shrink-0 items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors">
         View trades
         <ChevronRightIcon className="size-4 transition-transform group-hover:translate-x-0.5" />
       </span>
+    </Link>
+  );
+}
+
+/**
+ * The viewer's in-flight trades in this group as a compact, read-only strip:
+ * the requests they've sent that are awaiting the other side, and the reserved
+ * trades waiting to be handed over. Each row links to the Trades page where the
+ * actual cancel / mark-traded controls live. Renders nothing when there are
+ * none. The "needs your action" trades live in the banner above, not here.
+ * @returns The in-progress section, or null when empty.
+ */
+function InProgressTrades({ groupId }: { groupId: string }) {
+  const { data } = useGroupTrades(groupId);
+  const active = (data?.items ?? []).filter((trade) => tradeSection(trade) === "active");
+  if (active.length === 0) {
+    return null;
+  }
+  return (
+    <section className="flex flex-col gap-3">
+      <h2 className={SECTION_HEADING}>Trades in progress</h2>
+      <ul className="flex max-w-3xl flex-col">
+        {active.map((trade) => (
+          <li key={trade.id}>
+            <InProgressTradeRow trade={trade} />
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/**
+ * One in-progress trade as a single-line row mirroring the activity feed: the
+ * direction arrow, the card thumb, the card name, then the status badge and any
+ * expiry countdown on the right. The whole row links to the Trades page.
+ * @returns The trade row.
+ */
+function InProgressTradeRow({ trade }: { trade: CardTradeResponse }) {
+  const { cardsById, printingsById } = useCards();
+  const card = cardsById[trade.cardId];
+  const printing = printingsById[trade.printingId];
+  const cardName = card?.name ?? "Card";
+  const imageId = printing?.images.find((image) => image.face === "front")?.imageId ?? null;
+  const incoming = trade.role === "receiver";
+  // A pending trade's badge already reads "Waiting for {name}", so only name the
+  // member in the row text when the badge doesn't (a reserved "Ready to swap").
+  const showCounterparty = trade.status === "reserved";
+  return (
+    <Link
+      to="/groups/$slug/trades"
+      params={{ slug: trade.groupSlug }}
+      className="hover:bg-muted/50 flex items-center gap-3 rounded-md px-2 py-2.5"
+    >
+      <TradeDirectionIcon incoming={incoming} />
+      <CardArtThumb imageId={imageId} alt={cardName} className="w-7" loading="lazy" />
+      <span className="min-w-0 flex-1 truncate text-sm">
+        <span className="font-medium">
+          {trade.quantity}× {cardName}
+        </span>
+        {showCounterparty ? (
+          <span className="text-muted-foreground">
+            {" "}
+            · with {trade.counterparty.name ?? "a member"}
+          </span>
+        ) : null}
+      </span>
+      <TradeExpiry status={trade.status} expiresAt={trade.expiresAt} />
+      <TradeStatusBadge
+        status={trade.status}
+        counterpartyName={trade.counterparty.name}
+        awaitingViewer={false}
+      />
     </Link>
   );
 }
