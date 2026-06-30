@@ -58,3 +58,4 @@ The MADR documentation is available at <https://adr.github.io/madr/> while gener
 - **[ADR-027](027-deck-check-entry-states.md)**: Deck-Check Entry Lifecycle States (supersedes ADR-026's edit gate and edit-takeover stances)
 - **[ADR-029](029-deck-plans.md)**: Deck Plans (Strategy, Mulligan, Battlefields, Sideboard)
 - **[ADR-033](033-unified-tournaments.md)**: Unified Tournaments — Hosts, Participants, and Capability Modules (supersedes ADR-022's single-owner/free-text-player stance and re-parents ADR-025/026/027 deck check)
+- **[ADR-035](035-anonymous-deck-builder.md)**: Anonymous (Logged-Out) Deck Builder
