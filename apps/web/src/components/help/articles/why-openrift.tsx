@@ -230,6 +230,7 @@ export default function WhyOpenRiftArticle() {
           </DefinitionRow>
           <DefinitionRow label="Backend">
             <TechLink href="https://hono.dev">Hono</TechLink> +{" "}
+            <TechLink href="https://orpc.unnoq.com">oRPC</TechLink> +{" "}
             <TechLink href="https://www.better-auth.com">better-auth</TechLink>
           </DefinitionRow>
           <DefinitionRow label="Database">
@@ -408,6 +409,14 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
         "Shows the current (post-errata) text but doesn't flag which cards were erratad.",
     },
   },
+  {
+    kind: "row",
+    feature: "Rules reference pages",
+    values: ["yes", "no", "no", "no", "yes"],
+    detail: {
+      general: "Browsable in-app rules reference for the game.",
+    },
+  },
   { kind: "section", title: "Collection" },
   {
     kind: "row",
@@ -415,6 +424,23 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
     values: ["yes", "yes", "yes", "yes", "yes"],
     detail: {
       general: "Track which cards you own and how many copies.",
+    },
+  },
+  {
+    kind: "row",
+    feature: "Add by browsing the catalog",
+    values: ["yes", "yes", "yes", "yes", "yes"],
+    detail: {
+      general: "Add cards to a collection by browsing the catalog and clicking to add.",
+    },
+  },
+  {
+    kind: "row",
+    feature: "Quick card entry (keyboard palette)",
+    values: ["yes", "no", "no", "no", "no"],
+    detail: {
+      general:
+        "Add cards by name from a fast keyboard search palette, without browsing: type, press Enter to add, Shift+Enter to undo.",
     },
   },
   {
@@ -433,7 +459,8 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
     detail: {
       general:
         "Create named collections like 'Trade binder', 'Main deck staples', etc. Move cards between them.",
-      piltoverArchive: "Called binders.",
+      piltoverArchive:
+        "Called binders. The free tier allows 3; unlimited binders need a paid tier.",
       riftmana: "Called binders.",
       riftcore: "View-only binders generated from rules, not user-created named collections.",
     },
@@ -444,6 +471,15 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
     values: ["yes", "yes", "yes", "yes", "yes"],
     detail: {
       general: "Share a collection via public link.",
+    },
+  },
+  {
+    kind: "row",
+    feature: "Shared group collections",
+    values: ["yes", "no", "no", "no", "no"],
+    detail: {
+      general:
+        "Pool cards into a collection shared with a private group of friends, so members see the combined pool.",
     },
   },
   {
@@ -504,11 +540,22 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
       general:
         "Dedicated lists for cards you want, and sometimes cards you're willing to trade away.",
       openrift:
-        "Multiple wishlists and tradelists, each shareable via public link or with a group, and each able to fill itself from rules (like a playset of every card) and stay current on its own.",
+        "Multiple wishlists and tradelists, each shareable via public link or with a group.",
       piltoverArchive: "Single wishlist, not shareable.",
       riftmana: "One wishlist and one tradelist, not shareable.",
       riftboundGg: "One wishlist and one tradelist, both shareable.",
-      riftcore: "Automatic trade binder plus multiple manual and dynamic want lists.",
+      riftcore: "Automatic trade binder plus multiple want lists.",
+    },
+  },
+  {
+    kind: "row",
+    feature: "Dynamic wishlists / tradelists",
+    values: ["yes", "no", "no", "no", "yes"],
+    detail: {
+      general:
+        "Lists that fill and update themselves from rules (like a playset of every card) instead of being edited by hand.",
+      openrift: "Any wishlist or tradelist can be made dynamic and stays current on its own.",
+      riftcore: "Automatic trade binder plus dynamic want lists.",
     },
   },
   {
@@ -593,12 +640,53 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
   },
   {
     kind: "row",
+    feature: "Proxy printing (PDF)",
+    values: ["yes", "yes", "no", "no", "no"],
+    detail: {
+      general:
+        "Generate a printable PDF of proxy cards from a deck for playtesting, with card images or text placeholders.",
+    },
+  },
+  {
+    kind: "row",
     feature: "Deck plans / sideboard guides",
-    values: ["yes", "unknown", "unknown", "unknown", "unknown"],
+    values: ["yes", "yes", "no", "no", "no"],
     detail: {
       general:
         "Document how to pilot a deck (gameplan, opening hand, battlefield) with per-matchup sideboarding, shown on the shared deck page.",
       openrift: "Available on every deck and included when you share it.",
+    },
+  },
+  {
+    kind: "row",
+    feature: "Sample hand simulator",
+    values: ["no", "yes", "no", "no", "yes"],
+    detail: {
+      general: "Draw a sample opening hand from a deck to test its consistency.",
+      openrift: "Not available yet.",
+    },
+  },
+  {
+    kind: "row",
+    feature: "Deck versioning",
+    values: ["no", "yes", "no", "no", "no"],
+    detail: {
+      general: "Keep a revision history of a deck and roll back to earlier versions.",
+      openrift: "Not available yet.",
+    },
+  },
+  {
+    kind: "row",
+    feature: "Deck building without login",
+    values: ["yes", "partial", "yes", "partial", "partial"],
+    detail: {
+      general: "Build and edit a deck without an account.",
+      openrift:
+        "Saved on your device, survives a reload, and can optionally be moved to your account later.",
+      piltoverArchive: "Can build without login, but saving requires an account.",
+      riftboundGg: "Can build and save anonymous decks without an account.",
+      riftmana: "Can build without login, but saving requires an account.",
+      riftcore: "Can build without login, but saving requires an account.",
     },
   },
   { kind: "section", title: "User Experience" },
@@ -615,7 +703,7 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
   {
     kind: "row",
     feature: "Keyboard shortcuts",
-    values: ["yes", "unknown", "unknown", "unknown", "unknown"],
+    values: ["yes", "yes", "no", "no", "no"],
     detail: {
       general: "Cmd+K / Ctrl+K command palette for quick navigation and search.",
     },
@@ -641,7 +729,7 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
   {
     kind: "row",
     feature: "Pack opener simulator",
-    values: ["yes", "unknown", "unknown", "unknown", "unknown"],
+    values: ["yes", "no", "no", "no", "no"],
     detail: {
       general:
         "Open virtual boosters at the real published pull rates, flip cards one at a time or crack a whole display, and see the rarity breakdown and best pulls.",
@@ -714,7 +802,7 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
       general: "Every feature available without paying.",
       openrift: "Fully free. If this ever changes, I'll be upfront about it.",
       piltoverArchive:
-        "Pay-what-you-want community tiers on Metafy.gg unlock perks like 'no ads' and profile badges. Base site is free.",
+        "Paid tiers on Metafy.gg from $1.99 to $99.99 per month unlock perks: no ads ($1.99), better deck image exports ($4.99), unlimited collection binders ($9.99), and an exclusive Discord ($99.99). Base site is free.",
       riftboundGg:
         "$4.99/month or $19.99/year DotGG Premium subscription removes ads across the DotGG Network. Base site is free.",
       riftcore:
@@ -724,7 +812,7 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
   {
     kind: "row",
     feature: "Public roadmap",
-    values: ["yes", "yes", "unknown", "unknown", "unknown"],
+    values: ["yes", "yes", "no", "no", "no"],
     detail: {
       general: "A public roadmap on the site showing what's being worked on and what's planned.",
     },
@@ -732,11 +820,21 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
   { kind: "section", title: "Community & Freshness" },
   {
     kind: "row",
-    feature: "Shared decklists",
+    feature: "Deck catalog",
     values: ["no", "yes", "yes", "yes", "yes"],
     detail: {
       general: "A public hub where users can browse community-submitted decks.",
       openrift: "Not planned.",
+    },
+  },
+  {
+    kind: "row",
+    feature: "Public user profiles",
+    values: ["no", "yes", "yes", "no", "yes"],
+    detail: {
+      general:
+        "A shareable public profile page for a user, beyond a single collection or deck link.",
+      openrift: "Not available yet.",
     },
   },
   {
@@ -755,7 +853,7 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
   {
     kind: "row",
     feature: "Tournament organizer tools",
-    values: ["yes", "unknown", "unknown", "unknown", "unknown"],
+    values: ["yes", "no", "no", "no", "no"],
     detail: {
       general:
         "Run an event yourself: free-for-all pod scoring and standings, player deck submission via a per-event link, and judge deck-check tools.",
@@ -777,7 +875,7 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
   {
     kind: "row",
     feature: "Discord members",
-    values: [4, 9772, 1624, 182, 307],
+    values: [7, 10_946, 1911, 213, 319],
     detail: {
       general:
         "Approximate member count of each site's official Discord server, as a rough proxy for community size.",
