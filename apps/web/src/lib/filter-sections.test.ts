@@ -2,12 +2,15 @@ import type { AvailableFilters } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
 import {
-  CORE_FILTER_SECTIONS,
   getApplicableToggleableSections,
   keepToggleableSections,
   mergeHiddenSections,
   TOGGLEABLE_FILTER_SECTIONS,
 } from "./filter-sections";
+
+// Filter-panel sections the user can never hide, so they must never appear in
+// the toggleable list. Mirrors the anchored sections in filter-panel-content.tsx.
+const CORE_FILTER_SECTIONS = ["sets", "domains", "rarity", "types"] as const;
 
 function makeAvailable(overrides: Partial<AvailableFilters> = {}): AvailableFilters {
   return {

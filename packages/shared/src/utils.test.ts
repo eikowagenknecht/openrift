@@ -9,7 +9,6 @@ import {
   centsToDollars,
   emptyToNull,
   formatDateUTC,
-  formatShortCodes,
   getOrientation,
   legendDisplayName,
   mostCommonValue,
@@ -427,40 +426,6 @@ describe("mostCommonValue", () => {
 
   it("handles all-unique values (returns first)", () => {
     expect(mostCommonValue(["a", "b", "c"])).toBe("a");
-  });
-});
-
-describe("formatShortCodes", () => {
-  it("returns empty string for empty array", () => {
-    expect(formatShortCodes([])).toBe("");
-  });
-
-  it("returns a single code without count", () => {
-    expect(formatShortCodes(["OGN-027"])).toBe("OGN-027");
-  });
-
-  it("returns multiple unique codes preserving input order", () => {
-    expect(formatShortCodes(["OGN-027", "OGN-001"])).toBe("OGN-027, OGN-001");
-  });
-
-  it("adds count for duplicates", () => {
-    expect(formatShortCodes(["OGN-027", "OGN-027"])).toBe("OGN-027 ×2");
-  });
-
-  it("mixes single and duplicate codes preserving first-occurrence order", () => {
-    expect(formatShortCodes(["OGN-027", "OGN-001", "OGN-027"])).toBe("OGN-027 ×2, OGN-001");
-  });
-
-  it("preserves input order", () => {
-    expect(formatShortCodes(["ZZZ-001", "AAA-001", "MMM-001"])).toBe("ZZZ-001, AAA-001, MMM-001");
-  });
-
-  it("handles triple duplicates", () => {
-    expect(formatShortCodes(["OGN-027", "OGN-027", "OGN-027"])).toBe("OGN-027 ×3");
-  });
-
-  it("handles codes with variant suffixes", () => {
-    expect(formatShortCodes(["OGN-027a", "OGN-027", "OGN-027a"])).toBe("OGN-027a ×2, OGN-027");
   });
 });
 

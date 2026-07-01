@@ -1,10 +1,8 @@
 import type { Logger } from "@openrift/shared/logger";
 import { beforeAll, describe, expect, it } from "vitest";
 
-import { createRepos } from "../../deps.js";
 import { priceRefreshRepo } from "../../repositories/price-refresh.js";
 import { createTestContext } from "../../test/integration-context.js";
-import { loadReferenceData } from "./reference-data.js";
 import type { PriceUpsertConfig, StagingRow } from "./types.js";
 import { upsertPriceData } from "./upsert.js";
 
@@ -153,55 +151,6 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
         },
       ])
       .execute();
-  });
-
-  // ── loadReferenceData ─────────────────────────────────────────────────
-
-  describe("loadReferenceData", () => {
-    it("loads sets, cards, and printings", async () => {
-      const ref = await loadReferenceData(createRepos(db));
-
-      expect(ref.sets.length).toBeGreaterThanOrEqual(1);
-      expect(ref.cards.length).toBeGreaterThanOrEqual(1);
-      expect(ref.printings.length).toBeGreaterThanOrEqual(2);
-    });
-
-    it("builds setNameById map", async () => {
-      const ref = await loadReferenceData(createRepos(db));
-
-      expect(ref.setNameById.get(setId)).toBe("UPS Integration Set");
-    });
-
-    it("builds cardNameById map", async () => {
-      const ref = await loadReferenceData(createRepos(db));
-
-      expect(ref.cardNameById.get(cardId)).toBe("UPS Test Card");
-    });
-
-    it("builds namesBySet with normalized card names", async () => {
-      const ref = await loadReferenceData(createRepos(db));
-
-      const setMap = ref.namesBySet.get(setId);
-      expect(setMap).toBeDefined();
-      // "UPS Test Card" normalizes to "upstestcard"
-      expect(setMap?.get("upstestcard")).toBe(cardId);
-    });
-
-    it("builds printingsByCardSetFinish map", async () => {
-      const ref = await loadReferenceData(createRepos(db));
-
-      const normalKey = `${cardId}|${setId}|normal`;
-      const foilKey = `${cardId}|${setId}|foil`;
-      expect(ref.printingsByCardSetFinish.get(normalKey)).toContain(printingId);
-      expect(ref.printingsByCardSetFinish.get(foilKey)).toContain(printingId2);
-    });
-
-    it("builds printingByFullKey map", async () => {
-      const ref = await loadReferenceData(createRepos(db));
-
-      const fullKey = `${cardId}|${setId}|normal|normal|false`;
-      expect(ref.printingByFullKey.get(fullKey)).toBe(printingId);
-    });
   });
 
   // ── upsertPriceData ───────────────────────────────────────────────────

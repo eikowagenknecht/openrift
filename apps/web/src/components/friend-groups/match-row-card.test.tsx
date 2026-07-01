@@ -1,5 +1,3 @@
-import type { Marketplace, MarketplaceInfo } from "@openrift/shared";
-import { render } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -29,9 +27,9 @@ vi.mock("@tanstack/react-router", () => ({
   },
 }));
 
-const { MatchRowCard, groupTradeMatches } = await import("./match-row-card");
-type AggregatedMatch = Parameters<typeof MatchRowCard>[0]["match"];
+const { groupTradeMatches } = await import("./match-row-card");
 type DirectedMatch = Parameters<typeof groupTradeMatches>[0][number];
+type AggregatedMatch = Omit<DirectedMatch, "direction">;
 
 function makeMatch(): AggregatedMatch {
   return {
@@ -77,14 +75,6 @@ function makeMatch(): AggregatedMatch {
   };
 }
 
-function makeMarketplaceInfos(): Record<Marketplace, MarketplaceInfo> {
-  return {
-    tcgplayer: { available: true, productId: 42 },
-    cardmarket: { available: true, productId: 99 },
-    cardtrader: { available: false, productId: null },
-  };
-}
-
 function makeDirected(overrides: Partial<DirectedMatch> = {}): DirectedMatch {
   return { ...makeMatch(), direction: "incoming", ...overrides };
 }
@@ -125,30 +115,5 @@ describe("groupTradeMatches", () => {
       makeDirected({ direction: "outgoing", printingId: "printing-a" }),
     ]);
     expect(groups).toHaveLength(2);
-  });
-});
-
-describe("MatchRowCard", () => {
-  // Regression test: the card used to wrap everything in a single <Link>,
-  // which caused a hydration error because MatchPreferenceCell renders its
-  // marketplace text as an external <a>. Nested anchors are invalid HTML.
-  it("does not nest anchors when preference lines render marketplace links", () => {
-    const { container } = render(
-      <MatchRowCard match={makeMatch()} marketplaceInfos={makeMarketplaceInfos()} />,
-    );
-    expect(container.querySelectorAll("a").length).toBeGreaterThan(1);
-    expect(container.querySelector("a a")).toBeNull();
-  });
-
-  it("prefixes the title with the wanted quantity and labels the available count", () => {
-    const { container } = render(
-      <MatchRowCard
-        match={{ ...makeMatch(), buyQuantity: 2, availableCount: 7 }}
-        marketplaceInfos={makeMarketplaceInfos()}
-      />,
-    );
-    const text = container.textContent ?? "";
-    expect(text).toContain("2× Fury Rune");
-    expect(text).toContain("×7 available");
   });
 });

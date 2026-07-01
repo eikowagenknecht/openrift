@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   computeDomainDisabled,
-  formatDomainDisplay,
   formatDomainFilterLabel,
   getDomainGradientStyle,
   getDomainTintStyle,
@@ -83,26 +82,6 @@ describe("getDomainTintStyle", () => {
     const style = getDomainTintStyle(["Unknown", "AlsoUnknown"]);
     expect(style.backgroundImage).toContain("#737373");
     expect(style.backgroundImage).toContain("135deg");
-  });
-});
-
-// ---------------------------------------------------------------------------
-// formatDomainDisplay
-// ---------------------------------------------------------------------------
-
-describe("formatDomainDisplay", () => {
-  it('returns "No Domain" for Colorless', () => {
-    expect(formatDomainDisplay(["colorless"])).toBe("No Domain");
-  });
-
-  it("returns the domain name for a single domain", () => {
-    expect(formatDomainDisplay(["fury"])).toBe("fury");
-  });
-
-  it("joins dual domains with spaced slash", () => {
-    expect(formatDomainDisplay(["mind", "chaos"], { mind: "Mind", chaos: "Chaos" })).toBe(
-      "Mind / Chaos",
-    );
   });
 });
 

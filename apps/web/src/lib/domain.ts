@@ -88,13 +88,6 @@ export function getPipGlyphTint(
   return contrastGlyphTint(resolve(colors, domains[0] ?? WellKnown.domain.COLORLESS));
 }
 
-export function formatDomainDisplay(domains: string[], labels?: Record<string, string>): string {
-  if (domains.length === 1 && domains[0] === WellKnown.domain.COLORLESS) {
-    return "No Domain";
-  }
-  return domains.map((domain) => labels?.[domain] ?? domain).join(" / ");
-}
-
 export function formatDomainFilterLabel(value: string, labels?: Record<string, string>): string {
   return value === WellKnown.domain.COLORLESS ? "None" : (labels?.[value] ?? value);
 }

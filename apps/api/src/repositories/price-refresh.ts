@@ -59,16 +59,6 @@ export function priceRefreshRepo(db: Db) {
   return {
     // ── Reference data ──────────────────────────────────────────────────────
 
-    /** @returns All sets (id + name). */
-    allSets(): Promise<{ id: string; name: string }[]> {
-      return db.selectFrom("sets").select(["id", "name"]).execute();
-    },
-
-    /** @returns All cards (id + name). */
-    allCards(): Promise<{ id: string; name: string }[]> {
-      return db.selectFrom("cards").select(["id", "name"]).execute();
-    },
-
     /** @returns All printings with fields needed for price matching. */
     allPrintingsForPriceMatch() {
       return db

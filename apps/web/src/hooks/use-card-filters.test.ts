@@ -30,7 +30,16 @@ import { FilterSearchProvider } from "@/lib/search-schemas";
 import { useDisplayStore } from "@/stores/display-store";
 
 // oxlint-disable-next-line import/first -- must import after vi.mock
-import { useCardFilters, useStaleGroupByGuard } from "./use-card-filters";
+import { useFilterActions, useFilterValues, useStaleGroupByGuard } from "./use-card-filters";
+
+/**
+ * Test harness that merges the focused filter hooks so a single `renderHook`
+ * exposes both values and actions.
+ * @returns Combined filter values and action functions.
+ */
+function useCardFilters() {
+  return { ...useFilterValues(), ...useFilterActions() };
+}
 
 let mockSearch: Record<string, unknown> = {};
 

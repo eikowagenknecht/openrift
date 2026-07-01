@@ -1,13 +1,5 @@
 import type { AvailableFilters } from "@openrift/shared";
 
-/**
- * Filter-panel sections the user can never hide. They anchor the panel so the
- * customize control can't leave it empty or unusable. Not offered in the
- * customize popover. Keys match the section identifiers used in
- * `filter-panel-content.tsx`.
- */
-export const CORE_FILTER_SECTIONS: readonly string[] = ["sets", "domains", "rarity", "types"];
-
 export interface ToggleableFilterSection {
   key: string;
   /** Label shown in the customize popover (matches the panel's section label). */

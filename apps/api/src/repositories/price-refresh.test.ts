@@ -4,16 +4,6 @@ import { createMockDb } from "../test/mock-db.js";
 import { priceRefreshRepo } from "./price-refresh.js";
 
 describe("priceRefreshRepo", () => {
-  it("allSets returns sets", async () => {
-    const db = createMockDb([{ id: "s-1", name: "Proving Grounds" }]);
-    expect(await priceRefreshRepo(db).allSets()).toHaveLength(1);
-  });
-
-  it("allCards returns cards", async () => {
-    const db = createMockDb([{ id: "c-1", name: "Annie" }]);
-    expect(await priceRefreshRepo(db).allCards()).toHaveLength(1);
-  });
-
   it("allPrintingsForPriceMatch returns printings", async () => {
     const db = createMockDb([{ id: "p-1" }]);
     expect(await priceRefreshRepo(db).allPrintingsForPriceMatch()).toHaveLength(1);

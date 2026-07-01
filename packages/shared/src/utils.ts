@@ -303,11 +303,3 @@ export function formatShortCodesArray(ids: string[]): string[] {
   }
   return [...counts.entries()].map(([id, n]) => (n > 1 ? `${id} ×${n}` : id));
 }
-
-/**
- * Format short codes as "OGN-027, OGN-027a ×2" (counted, input order preserved).
- * @returns A formatted string, or `""` if the array is empty.
- */
-export function formatShortCodes(ids: string[]): string {
-  return formatShortCodesArray(ids).join(", ");
-}

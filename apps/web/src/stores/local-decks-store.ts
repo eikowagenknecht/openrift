@@ -254,14 +254,3 @@ export const useLocalDecksStore = create<LocalDecksState>()(
     },
   ),
 );
-
-/**
- * Non-reactive read of a single local deck, for module-scope callers (the draft
- * autosave sink, the import flow). React components should subscribe with a
- * selector instead.
- *
- * @returns The local deck, or undefined when absent.
- */
-export function getLocalDeck(id: string): LocalDeck | undefined {
-  return useLocalDecksStore.getState().decks[id];
-}

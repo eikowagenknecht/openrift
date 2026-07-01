@@ -5,12 +5,10 @@ import type { EnumLabels } from "@/hooks/use-enums";
 
 import {
   formatCardId,
-  formatCardIdCompact,
   formatImportPrintingLabel,
   formatPrice,
   formatPriceCompact,
   formatPriceEur,
-  formatPriceRange,
   formatPrintingLabel,
   formatPublicCode,
   priceColorClass,
@@ -113,24 +111,6 @@ describe("formatCardId", () => {
 });
 
 // ---------------------------------------------------------------------------
-// formatCardIdCompact
-// ---------------------------------------------------------------------------
-
-describe("formatCardIdCompact", () => {
-  it("returns suffix after last dash prefixed with #", () => {
-    expect(formatCardIdCompact(stub({ shortCode: "OGS-042" }))).toBe("#042");
-  });
-
-  it("handles multi-dash ids (uses last dash)", () => {
-    expect(formatCardIdCompact(stub({ shortCode: "SET-A-123" }))).toBe("#123");
-  });
-
-  it("returns full id with # when no dash present", () => {
-    expect(formatCardIdCompact(stub({ shortCode: "NODASH" }))).toBe("#NODASH");
-  });
-});
-
-// ---------------------------------------------------------------------------
 // formatPublicCode
 // ---------------------------------------------------------------------------
 
@@ -199,28 +179,6 @@ describe("priceColorClass", () => {
 // ---------------------------------------------------------------------------
 // formatPriceCompact
 // ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// formatPriceRange
-// ---------------------------------------------------------------------------
-
-describe("formatPriceRange", () => {
-  it("returns single value when min equals max", () => {
-    expect(formatPriceRange(2.5, 2.5)).toBe("$2.50");
-  });
-
-  it("returns range with en dash for different values", () => {
-    expect(formatPriceRange(1.5, 9.99)).toBe("$1.50\u2009\u2013\u2009$9.99");
-  });
-
-  it("handles different tiers", () => {
-    expect(formatPriceRange(0.5, 42)).toBe("$0.50\u2009\u2013\u2009$42");
-  });
-
-  it("handles k-tier ranges", () => {
-    expect(formatPriceRange(1000, 5000)).toBe("$1.0k\u2009\u2013\u2009$5.0k");
-  });
-});
 
 // ---------------------------------------------------------------------------
 // formatPriceCompact

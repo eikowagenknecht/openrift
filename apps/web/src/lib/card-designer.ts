@@ -168,13 +168,3 @@ export function scaledDimensions(
   const ratio = maxEdge / longest;
   return { width: Math.round(width * ratio), height: Math.round(height * ratio) };
 }
-
-/**
- * Pixel dimensions of the exported card at a given render width, preserving the
- * standard card aspect ratio.
- *
- * @returns The `{ width, height }` of the exported image.
- */
-export function cardExportDimensions(renderWidth: number): { width: number; height: number } {
-  return { width: renderWidth, height: Math.round((renderWidth * CARD_ASPECT_H) / CARD_ASPECT_W) };
-}

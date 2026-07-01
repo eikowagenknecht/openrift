@@ -548,19 +548,3 @@ export function useStaleGroupByGuard() {
     }
   }, [isStaleGrouping]);
 }
-
-/**
- * Convenience wrapper that merges `useFilterValues()` and `useFilterActions()`.
- * Existing consumers can use this without changes, but new code should prefer
- * the focused hooks to minimise re-renders.
- * @returns Combined filter values and action functions.
- */
-export function useCardFilters() {
-  const values = useFilterValues();
-  const actions = useFilterActions();
-
-  return {
-    ...values,
-    ...actions,
-  };
-}

@@ -203,49 +203,6 @@ function MatchRowMeta({ match }: { match: AggregatedMatch }) {
   );
 }
 
-interface MatchRowCardProps {
-  match: AggregatedMatch;
-  marketplaceInfos: Record<Marketplace, MarketplaceInfo> | null;
-}
-
-export function MatchRowCard({ match, marketplaceInfos }: MatchRowCardProps) {
-  return (
-    <div className="bg-card hover:bg-muted hover:text-foreground group relative flex items-stretch gap-3 rounded-md border p-2 transition-colors">
-      <CardArtThumb
-        imageId={match.imageId}
-        alt={match.cardName}
-        className="w-12 self-start"
-        loading="lazy"
-      />
-      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-        <div className="flex flex-col gap-0.5">
-          <span className="truncate font-medium">
-            {match.buyQuantity}× {match.cardName}
-          </span>
-          <MatchRowMeta match={match} />
-          <span className="text-muted-foreground truncate text-xs">
-            from {match.counterpartyListName}
-          </span>
-        </div>
-        <div className="divide-border/60 border-border/60 grid grid-cols-2 divide-x overflow-hidden rounded border">
-          <MatchPreferenceCell
-            label="They want"
-            pref={match.sellPref}
-            marketplaceInfos={marketplaceInfos}
-            searchQuery={match.cardName}
-          />
-          <MatchPreferenceCell
-            label="You'd pay"
-            pref={match.buyPref}
-            marketplaceInfos={marketplaceInfos}
-            searchQuery={match.cardName}
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
 /**
  * One wide row in the unified "Possible trades" list. The direction arrow
  * tells you which way the card flows; the price hint shows the *counterparty's*

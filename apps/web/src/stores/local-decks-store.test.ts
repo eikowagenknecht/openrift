@@ -4,9 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createStoreResetter } from "@/test/store-helpers";
 
-import type { LocalDeckCard } from "./local-decks-store";
+import type { LocalDeck, LocalDeckCard } from "./local-decks-store";
 import {
-  getLocalDeck,
   isLocalDeckId,
   LOCAL_DECK_PREFIX,
   useLocalDecksStore,
@@ -14,6 +13,14 @@ import {
 } from "./local-decks-store";
 
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
+
+/**
+ * Non-reactive read of a single local deck, for assertions.
+ * @returns The local deck, or undefined when absent.
+ */
+function getLocalDeck(id: string): LocalDeck | undefined {
+  return useLocalDecksStore.getState().decks[id];
+}
 
 let resetStore: () => void;
 

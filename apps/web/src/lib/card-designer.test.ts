@@ -6,7 +6,6 @@ import {
   CARD_ASPECT,
   CARD_MAX_ZOOM,
   CARD_MIN_ZOOM,
-  cardExportDimensions,
   clampImageTransform,
   coverScale,
   isAcceptedImageType,
@@ -146,13 +145,5 @@ describe("shouldDownscale / scaledDimensions", () => {
 
   it("uses the taller edge to drive the scale", () => {
     expect(scaledDimensions(1000, 4000, 2000)).toEqual({ width: 500, height: 2000 });
-  });
-});
-
-describe("cardExportDimensions", () => {
-  it("derives height from the 63:88 card aspect", () => {
-    expect(cardExportDimensions(63)).toEqual({ width: 63, height: 88 });
-    // 750 * 88 / 63 = 1047.6 -> 1048
-    expect(cardExportDimensions(750)).toEqual({ width: 750, height: 1048 });
   });
 });

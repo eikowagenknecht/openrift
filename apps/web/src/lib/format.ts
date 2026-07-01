@@ -69,15 +69,6 @@ export function formatImportPrintingLabel(printing: Printing, labels: EnumLabels
   return parts.join(" · ");
 }
 
-/**
- * Short card ID for compact layouts: `#001` instead of `OGS-001`.
- * @returns The numeric suffix prefixed with `#`.
- */
-export function formatCardIdCompact(printing: Printing): string {
-  const dashIndex = printing.shortCode.lastIndexOf("-");
-  return `#${dashIndex === -1 ? printing.shortCode : printing.shortCode.slice(dashIndex + 1)}`;
-}
-
 export function formatPublicCode(printing: Printing): string {
   return printing.publicCode;
 }
@@ -104,22 +95,6 @@ export function priceColorClass(value?: number | null): string {
     return "text-amber-600 dark:text-amber-400";
   }
   return "text-rose-600 dark:text-rose-400";
-}
-
-/**
- * Compact price for grid thumbnails: max 4 characters after the `$`.
- * @returns Formatted price string like `$1.50`, `$42`, or `$1.2k`.
- */
-/**
- * Price range for grid thumbnails when showing grouped cards.
- * Same price → single value; different → "min – max" with thin spaces.
- * @returns Formatted price range string.
- */
-export function formatPriceRange(min: number, max: number): string {
-  if (min === max) {
-    return formatPriceCompact(min);
-  }
-  return `${formatPriceCompact(min)}\u2009\u2013\u2009${formatPriceCompact(max)}`;
 }
 
 export function formatPriceEur(value?: number | null): string {
