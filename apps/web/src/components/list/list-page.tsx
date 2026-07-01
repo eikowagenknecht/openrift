@@ -48,6 +48,7 @@ import { ListHeader } from "@/components/list/list-header";
 import { ListImportDialog } from "@/components/list/list-import-dialog";
 import { ListRemoveDialog } from "@/components/list/list-remove-dialog";
 import { ListShareDialog } from "@/components/list/list-share-dialog";
+import { ListVisibilityButton } from "@/components/list/list-visibility-button";
 import { MoveToListDialog } from "@/components/list/move-to-list-dialog";
 import { RuleEditorDialog } from "@/components/list/rule-editor-dialog";
 import { RuleSourceBadge } from "@/components/list/rule-source-badge";
@@ -100,6 +101,7 @@ import type { RuleExcludeTarget } from "@/lib/rule-exclude";
 import { entryToExcludeTarget, excludeEntryFromRules } from "@/lib/rule-exclude";
 import { FilterSearchProvider, useFilterSearch } from "@/lib/search-schemas";
 import { resolveContextActionTarget } from "@/lib/stack-selection";
+import { cn } from "@/lib/utils";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 import type { ListBulkAction } from "@/stores/card-row-actions-store";
 import { dispatchExcludeFromRule, useCardRowActionsStore } from "@/stores/card-row-actions-store";
@@ -224,22 +226,31 @@ export function ListPage({ listId }: ListPageProps) {
   };
 
   const entriesCount = data.entries.length;
+  const activeRuleCount = data.list.rules.length;
 
   const topBar = (
     <ListHeader
       list={data.list}
       entries={data.entries}
-      attribution={{ kind: "shares" }}
-      onManageVisibility={() => setShareOpen(true)}
+      attribution={{ kind: "none" }}
       onToggleSidebar={toggleSidebar}
       actions={
         <>
           {data.list.intent !== "organize" && (
-            <PageTopBarButton onClick={() => setRuleOpen(true)}>
+            <PageTopBarButton
+              onClick={() => setRuleOpen(true)}
+              className={cn(activeRuleCount > 0 && "text-primary")}
+            >
               <SparklesIcon className="size-4" />
               {data.list.intent === "wish" ? "Dynamic rules" : "Dynamic rule"}
+              {data.list.intent === "wish" && activeRuleCount > 0 ? ` · ${activeRuleCount}` : null}
             </PageTopBarButton>
           )}
+          <ListVisibilityButton
+            listId={data.list.id}
+            intent={data.list.intent}
+            onManageVisibility={() => setShareOpen(true)}
+          />
           <DropdownMenu>
             <DropdownMenuTrigger render={<PageTopBarIconButton />}>
               <EllipsisVerticalIcon className="size-4" />

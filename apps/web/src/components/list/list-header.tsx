@@ -5,7 +5,6 @@ import type { ComponentType, ReactNode, SVGProps } from "react";
 import { PageTopBar, PageTopBarActions, PageTopBarTitle } from "@/components/layout/page-top-bar";
 import { TopBarBreadcrumbSeparator } from "@/components/layout/top-bar-breadcrumb";
 import { listKindIcon } from "@/components/list/create-list-dialog";
-import { ListGroupSharesBadge } from "@/components/list/list-group-shares-badge";
 import { ListValueLabel } from "@/components/list/list-value-label";
 import { useHydrated } from "@/hooks/use-hydrated";
 
@@ -36,10 +35,7 @@ interface ListSummary {
   kind: ListKind;
 }
 
-type ListHeaderAttribution =
-  | { kind: "owner"; ownerName: string | null }
-  | { kind: "shares" }
-  | { kind: "none" };
+type ListHeaderAttribution = { kind: "owner"; ownerName: string | null } | { kind: "none" };
 
 interface ListHeaderProps {
   list: ListSummary;
@@ -47,8 +43,6 @@ interface ListHeaderProps {
   attribution: ListHeaderAttribution;
   backLink?: ReactNode;
   onToggleSidebar?: () => void;
-  /** Opens the list's group-visibility control; wired to the shares badge. */
-  onManageVisibility?: () => void;
   actions?: ReactNode;
 }
 
@@ -67,7 +61,6 @@ export function ListHeader({
   attribution,
   backLink,
   onToggleSidebar,
-  onManageVisibility,
   actions,
 }: ListHeaderProps) {
   const hydrated = useHydrated();
@@ -95,13 +88,6 @@ export function ListHeader({
           <span className="text-muted-foreground hidden shrink-0 text-xs sm:inline">
             · by {attribution.ownerName}
           </span>
-        ) : null}
-        {attribution.kind === "shares" && hydrated ? (
-          <ListGroupSharesBadge
-            listId={list.id}
-            intent={list.intent}
-            onManageVisibility={onManageVisibility}
-          />
         ) : null}
       </div>
       {actions ? <PageTopBarActions>{actions}</PageTopBarActions> : null}
