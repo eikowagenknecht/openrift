@@ -1,3 +1,4 @@
+import { getDeckFromCode } from "@piltoverarchive/riftbound-deck-codes";
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -25,6 +26,15 @@ const mockCatalogRepo = {
 
 const mockCanonicalPrintingsRepo = {
   resolvePrintingMetaForRows: vi.fn(() => Promise.resolve([] as object[])),
+  shortCodesForRows: vi.fn((rows: { cardId: string; preferredPrintingId: string | null }[]) =>
+    Promise.resolve(
+      rows.map((row) => ({
+        cardId: row.cardId,
+        preferredPrintingId: row.preferredPrintingId,
+        shortCode: null as string | null,
+      })),
+    ),
+  ),
 };
 
 const mockCustomTagsRepo = {
@@ -180,5 +190,109 @@ describe("GET /api/v1/decks/share/:token", () => {
 
     await app.request("/api/v1/decks/share/tok-abc");
     expect(mockRepo.cardsForDeck).toHaveBeenCalledWith(DECK_ID, USER_ID);
+  });
+});
+
+describe("POST /api/v1/decks/encode", () => {
+  // Sequential short codes (already 3-digit, so they round-trip through the
+  // Piltover codec unchanged), or null for cards listed in `missing`.
+  function stubShortCodes(missing = new Set<string>()) {
+    mockCanonicalPrintingsRepo.shortCodesForRows.mockImplementation((rows) =>
+      Promise.resolve(
+        rows.map((row, index) => ({
+          cardId: row.cardId,
+          preferredPrintingId: row.preferredPrintingId,
+          shortCode: missing.has(row.cardId) ? null : `OGN-00${index + 1}`,
+        })),
+      ),
+    );
+  }
+
+  const encodeCards = [
+    {
+      cardId: "leg",
+      zone: "legend",
+      quantity: 1,
+      preferredPrintingId: null,
+      cardName: "The Legend",
+      cardType: "legend",
+      superTypes: [],
+      domains: ["fury"],
+    },
+    {
+      cardId: "champ",
+      zone: "champion",
+      quantity: 1,
+      preferredPrintingId: null,
+      cardName: "A Champion",
+      cardType: "unit",
+      superTypes: ["champion"],
+      domains: ["fury"],
+    },
+    {
+      cardId: "unit-a",
+      zone: "main",
+      quantity: 3,
+      preferredPrintingId: null,
+      cardName: "Unit A",
+      cardType: "unit",
+      superTypes: [],
+      domains: ["fury"],
+    },
+  ];
+
+  function encodeRequest(body: unknown) {
+    return app.request("/api/v1/decks/encode", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+
+  beforeEach(() => {
+    mockCanonicalPrintingsRepo.shortCodesForRows.mockReset();
+    stubShortCodes();
+  });
+
+  it("encodes a Piltover deck code (default format) that decodes back to the cards", async () => {
+    const res = await encodeRequest({ cards: encodeCards });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.warnings).toEqual([]);
+
+    const decoded = getDeckFromCode(json.code);
+    // Champion is counted into mainDeck (+1) and marked as the chosen champion.
+    expect(decoded.chosenChampion).toBe("OGN-002");
+    const mainCounts = new Map(
+      decoded.mainDeck.map((card: { cardCode: string; count: number }) => [
+        card.cardCode,
+        card.count,
+      ]),
+    );
+    expect(mainCounts.get("OGN-001")).toBe(1); // legend
+    expect(mainCounts.get("OGN-002")).toBe(1); // champion marker
+    expect(mainCounts.get("OGN-003")).toBe(3); // unit A x3
+  });
+
+  it("encodes the human-readable text format", async () => {
+    const res = await encodeRequest({ format: "text", cards: encodeCards });
+    const json = await res.json();
+    expect(json.code).toContain("Legend:");
+    expect(json.code).toContain("MainDeck:");
+    expect(json.code).toContain("3 Unit A");
+  });
+
+  it("warns about cards with no resolvable short code", async () => {
+    stubShortCodes(new Set(["unit-a"]));
+    const res = await encodeRequest({ format: "tts", cards: encodeCards });
+    const json = await res.json();
+    expect(json.warnings).toEqual([`Skipped "Unit A": no canonical printing found`]);
+    expect(json.code).not.toContain("OGN-003");
+  });
+
+  it("rejects a malformed payload with a 4xx", async () => {
+    const res = await encodeRequest({ cards: [{ cardId: "x" }] });
+    expect(res.status).toBeGreaterThanOrEqual(400);
+    expect(res.status).toBeLessThan(500);
   });
 });
