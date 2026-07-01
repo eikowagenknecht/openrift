@@ -26,8 +26,7 @@ import type { ApiContext } from "../../orpc/context.js";
 import { buildPatchUpdates } from "../../patch.js";
 import type { FieldMapping } from "../../patch.js";
 import type { DeckUpdateInput } from "../../repositories/decks.js";
-import { encodeText, encodeTTS, piltoverCodec } from "../../services/deck-codecs/index.js";
-import type { TextCodecCard } from "../../services/deck-codecs/index.js";
+import { encodeDeck } from "../../services/deck-codecs/encode-deck.js";
 import { assertDeleted, assertFound } from "../../utils/assertions.js";
 import {
   toDeck,
@@ -522,44 +521,10 @@ export const decksRouter = {
     ]);
     assertFound(deck, "Not found");
 
-    const resolvedShortCodes = await canonicalPrintings.shortCodesForRows(
-      cardRows.map((row) => ({
-        cardId: row.cardId,
-        preferredPrintingId: row.preferredPrintingId,
-      })),
-    );
-
-    const warnings: string[] = [];
-    const codecCards: TextCodecCard[] = [];
-    for (const [index, row] of cardRows.entries()) {
-      const shortCode = resolvedShortCodes[index]?.shortCode;
-      if (!shortCode) {
-        warnings.push(`Skipped "${row.cardName}": no canonical printing found`);
-        continue;
-      }
-      codecCards.push({
-        cardId: row.cardId,
-        shortCode,
-        zone: row.zone,
-        quantity: row.quantity,
-        cardType: row.cardType,
-        superTypes: row.superTypes,
-        domains: row.domains,
-        cardName: row.cardName,
-        preferredPrintingId: row.preferredPrintingId,
-      });
-    }
-
-    let result;
-    if (input.format === "text") {
-      result = encodeText(codecCards);
-    } else if (input.format === "tts") {
-      result = encodeTTS(codecCards);
-    } else {
-      result = piltoverCodec.encode(codecCards);
-    }
-
-    return { code: result.code, warnings: [...warnings, ...result.warnings] };
+    // Shared resolve-then-encode path (also used by the public `encode` endpoint
+    // for logged-out local decks). cardRows already carry the metadata the
+    // codecs need.
+    return encodeDeck(canonicalPrintings, cardRows, input.format ?? "piltover");
   }),
 
   // ── PATCH /decks/:id/pin ──────────────────────────────────────────────────

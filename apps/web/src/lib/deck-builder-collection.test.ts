@@ -1,9 +1,22 @@
+import { WellKnown } from "@openrift/shared";
 import { QueryClient } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { useLocalDecksStore } from "@/stores/local-decks-store";
 import { resetIdCounter, stubDeckBuilderCard } from "@/test/factories";
+import { createStoreResetter } from "@/test/store-helpers";
 
 import { getDeckDraftCollection, hydrateDeckDraft } from "./deck-builder-collection";
+
+// The server save sink calls this; mock it so the server branch is observable
+// and the local branch is proven NOT to touch the network. `vi.hoisted` keeps
+// the spy available to the hoisted `vi.mock` factory.
+const { saveDeckCardsSpy } = vi.hoisted(() => ({
+  saveDeckCardsSpy: vi.fn(async (_arg: unknown) => ({ cards: [] })),
+}));
+vi.mock("@/hooks/use-decks", () => ({
+  saveDeckCardsFn: (arg: unknown) => saveDeckCardsSpy(arg),
+}));
 
 let queryClient: QueryClient;
 
@@ -104,5 +117,46 @@ describe("hydrateDeckDraft", () => {
     ]);
     const second = getDeckDraftCollection(queryClient, userA, "deck-hydrate-same");
     expect(second).toBe(first);
+  });
+});
+
+describe("persistence sink (ADR-035 local decks)", () => {
+  let resetStore: () => void;
+
+  beforeEach(() => {
+    resetStore = createStoreResetter(useLocalDecksStore);
+    vi.useFakeTimers();
+    saveDeckCardsSpy.mockClear();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    resetStore();
+  });
+
+  it("writes a local deck's cards to the local store and never calls the server", async () => {
+    const localId = useLocalDecksStore.getState().createDeck(WellKnown.deckFormat.CONSTRUCTED);
+    const collection = getDeckDraftCollection(queryClient, "local", localId);
+
+    collection.insert(stubDeckBuilderCard({ cardId: "card-a", zone: "main", quantity: 2 }));
+    // Debounced save fires after SAVE_DEBOUNCE_MS.
+    await vi.advanceTimersByTimeAsync(1000);
+
+    expect(saveDeckCardsSpy).not.toHaveBeenCalled();
+    expect(useLocalDecksStore.getState().decks[localId]?.cards).toEqual([
+      { cardId: "card-a", zone: "main", quantity: 2, preferredPrintingId: null },
+    ]);
+  });
+
+  it("sends a server deck's cards through saveDeckCardsFn", async () => {
+    const collection = getDeckDraftCollection(queryClient, "user-save", "server-deck-1");
+
+    collection.insert(stubDeckBuilderCard({ cardId: "card-b", zone: "main", quantity: 1 }));
+    await vi.advanceTimersByTimeAsync(1000);
+
+    expect(saveDeckCardsSpy).toHaveBeenCalledOnce();
+    expect(saveDeckCardsSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ deckId: "server-deck-1" }) }),
+    );
   });
 });

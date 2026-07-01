@@ -10,6 +10,7 @@
 
 ### Highlights
 
+- feat(Decks): **Build decks without signing in** — start a deck right away, save it on this device, and import a deck code while logged out; sign in later to keep the ones you pick.
 - feat(Groups): **In-progress trades on the overview** — the group page now lists the trades you're waiting to finish, so a request you sent or a deal awaiting hand-off no longer disappears until it's complete.
 - feat(Collection): **Drop a card from a list rule** — a card a dynamic rule added can now be excluded so it stays off the list, and you can put it back from the rule editor.
 - feat(Cards): **Exclude values from filters** — click any filter value a second time to exclude it (sets, types, rarities, domains, and the rest, in the dropdowns too), hiding it from the catalog, with each exclusion shown as a chip you can clear.

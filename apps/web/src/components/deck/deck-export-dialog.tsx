@@ -25,12 +25,14 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useDeckCards } from "@/hooks/use-deck-builder";
-import { useExportDeck } from "@/hooks/use-decks";
+import { useEncodeDeckCards, useExportDeck } from "@/hooks/use-decks";
 import { useSession } from "@/lib/auth-session";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
+import { toEncodeDeckCards } from "@/lib/deck-encode-input";
 import type { RegistrationFields, RegistrationPageSize } from "@/lib/registration-pdf";
 import { generateRegistrationPdf } from "@/lib/registration-pdf";
 import { getSiteUrl } from "@/lib/site-config";
+import { isLocalDeckId } from "@/stores/local-decks-store";
 
 type ExportFormat = "piltover" | "text" | "tts";
 type ExportTab = ExportFormat | "registration";
@@ -123,6 +125,10 @@ export function DeckExportDialog({
   const setOpen = controlledOnOpenChange ?? setInternalOpen;
   const isControlled = controlledOpen !== undefined;
   const exportDeck = useExportDeck();
+  // A browser-local deck (ADR-035) has no server row to export by id; encode its
+  // cards through the public endpoint instead. Same codecs, same output.
+  const encodeDeck = useEncodeDeckCards();
+  const isLocal = isLocalDeckId(deckId);
   const { data: session } = useSession();
   const liveCards = useDeckCards(deckId);
   const [copied, setCopied] = useState(false);
@@ -144,6 +150,7 @@ export function DeckExportDialog({
   useEffect(() => {
     if (!open) {
       exportDeck.reset();
+      encodeDeck.reset();
       setTab("text");
       setFormats({});
       setCopied(false);
@@ -167,17 +174,22 @@ export function DeckExportDialog({
       return;
     }
     setFormats((prev) => ({ ...prev, [tab]: { loading: true } }));
-    exportDeck.mutate(
-      { deckId, format: tab },
-      {
-        onSuccess: (data) => {
-          setFormats((prev) => ({ ...prev, [tab]: { data } }));
-        },
-        onError: () => {
-          setFormats((prev) => ({ ...prev, [tab]: { error: true } }));
-        },
-      },
-    );
+    const onSuccess = (data: DeckExportResponse) => {
+      setFormats((prev) => ({ ...prev, [tab]: { data } }));
+    };
+    const onError = () => {
+      setFormats((prev) => ({ ...prev, [tab]: { error: true } }));
+    };
+    if (isLocal) {
+      // Use the passed-in cards when available (the list menu, where the draft
+      // collection isn't hydrated); fall back to the live editor draft.
+      encodeDeck.mutate(
+        { format: tab, cards: toEncodeDeckCards(cardsProp ?? liveCards) },
+        { onSuccess, onError },
+      );
+    } else {
+      exportDeck.mutate({ deckId, format: tab }, { onSuccess, onError });
+    }
   }, [open, tab]); // oxlint-disable-line react-hooks/exhaustive-deps -- formats read via closure, not reactively
 
   const handleTabChange = (newTab: ExportTab) => {

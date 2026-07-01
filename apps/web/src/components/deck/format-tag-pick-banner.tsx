@@ -6,7 +6,7 @@ import { Heading } from "@/components/heading";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useFilterActions } from "@/hooks/use-card-filters";
-import { useUpdateDeck } from "@/hooks/use-decks";
+import { useUpdateDeckMeta } from "@/hooks/use-decks";
 import { getFormatTagConfig } from "@/lib/format-tag-config";
 import { capitalize } from "@/lib/utils";
 
@@ -27,7 +27,7 @@ import { capitalize } from "@/lib/utils";
 export function FormatTagPickBanner({ deck }: { deck: DeckResponse }) {
   const config = getFormatTagConfig(deck.format);
   const availableSlugs = useCategoryTagSlugs(config?.category ?? "");
-  const updateDeck = useUpdateDeck();
+  const { update: updateDeckMeta, isPending } = useUpdateDeckMeta(deck.id);
   const { setArrayFilter } = useFilterActions();
   const [selected, setSelected] = useState<string[]>([]);
 
@@ -48,8 +48,8 @@ export function FormatTagPickBanner({ deck }: { deck: DeckResponse }) {
   }
 
   const handleConfirm = () => {
-    updateDeck.mutate(
-      { deckId: deck.id, formatConfig: { tagSlugs: selected } },
+    updateDeckMeta(
+      { formatConfig: { tagSlugs: selected } },
       {
         // Seed the Custom Tags filter to match the chosen tags so the user
         // lands in the builder with only legal cards visible. The URL is the
@@ -79,8 +79,8 @@ export function FormatTagPickBanner({ deck }: { deck: DeckResponse }) {
           onChange={setSelected}
         />
       </div>
-      <Button disabled={selected.length === 0 || updateDeck.isPending} onClick={handleConfirm}>
-        {updateDeck.isPending
+      <Button disabled={selected.length === 0 || isPending} onClick={handleConfirm}>
+        {isPending
           ? "Saving…"
           : `Start building${selected.length > 1 ? ` (${selected.length} ${config.nounPlural})` : ""}`}
       </Button>

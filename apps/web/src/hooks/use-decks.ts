@@ -1,4 +1,5 @@
 import type {
+  CardType,
   DeckCardResponse,
   DeckCloneResponse,
   DeckDetailResponse,
@@ -9,8 +10,11 @@ import type {
   DeckResponse,
   DeckShareResponse,
   DeckZone,
+  Domain,
   PublicDeckDetailResponse,
+  SuperType,
 } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared";
 import { decksContract, publicDecksContract } from "@openrift/shared/contracts";
 import { isDefinedError, safe } from "@orpc/client";
 import { useMutation, useQueryClient, queryOptions, useSuspenseQuery } from "@tanstack/react-query";
@@ -21,6 +25,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
+import { isLocalDeckId, useLocalDecksStore } from "@/stores/local-decks-store";
 
 const fetchDecks = createServerFn({ method: "GET" })
   .middleware([withCookies])
@@ -71,9 +76,65 @@ export function useDecks() {
   return useSuspenseQuery(decksQueryOptions(userId));
 }
 
-export function useDeckDetail(deckId: string) {
-  const userId = useRequiredUserId();
-  return useSuspenseQuery(deckDetailQueryOptions(userId, deckId));
+/**
+ * Synthesize a deck-detail response for a browser-local deck (ADR-035) from the
+ * local store — no server fetch, no session. Mirrors {@link DeckDetailResponse}
+ * so every read-only builder consumer works unchanged; the owner-only fields
+ * (isPublic / shareToken / isPinned / archivedAt / isWanted) are constants
+ * because a local deck has no server-side state.
+ *
+ * @returns The synthesized detail in `{ data }` form, matching `useDeckDetail`.
+ */
+export function useLocalDeckDetail(deckId: string): { data: DeckDetailResponse } {
+  const deck = useLocalDecksStore((state) => state.decks[deckId]);
+  // The editor subtree is keyed on deckId and the builder route renders a
+  // not-found for a missing local id before mounting the editor, so `deck` is
+  // present in practice; the fallbacks just keep the type total during the
+  // brief pre-hydration window.
+  const data: DeckDetailResponse = {
+    deck: {
+      id: deckId,
+      name: deck?.name ?? "Deck",
+      description: deck?.description ?? null,
+      format: deck?.format ?? WellKnown.deckFormat.CONSTRUCTED,
+      formatConfig: deck?.formatConfig ?? null,
+      isWanted: false,
+      isPublic: false,
+      shareToken: null,
+      isPinned: false,
+      archivedAt: null,
+      createdAt: deck?.createdAt ?? "",
+      updatedAt: deck?.updatedAt ?? "",
+    },
+    cards: deck?.cards ?? [],
+  };
+  return { data };
+}
+
+/**
+ * Deck detail for the builder. A `local:` id resolves reactively from the local
+ * store (works logged out); a server id keeps the suspense query. All hooks are
+ * called unconditionally (rules-of-hooks): for a local id the suspense query is
+ * inert — seeded with `initialData` and never revalidated — and the reactive
+ * store value is returned instead.
+ *
+ * @returns The deck detail in `{ data }` form.
+ */
+export function useDeckDetail(deckId: string): { data: DeckDetailResponse } {
+  const isLocal = isLocalDeckId(deckId);
+  const userId = useUserId();
+  const local = useLocalDeckDetail(deckId);
+  const query = useSuspenseQuery(
+    isLocal
+      ? {
+          queryKey: queryKeys.decks.detail("local", deckId),
+          queryFn: () => local.data,
+          initialData: local.data,
+          staleTime: Number.POSITIVE_INFINITY,
+        }
+      : deckDetailQueryOptions(userId ?? "", deckId),
+  );
+  return isLocal ? local : query;
 }
 
 const createDeckFn = createServerFn({ method: "POST" })
@@ -93,7 +154,10 @@ const createDeckFn = createServerFn({ method: "POST" })
   );
 
 export function useCreateDeck() {
-  const userId = useRequiredUserId();
+  // Logged-out-safe: a local-only visitor instantiates this hook (the create
+  // dialog / import page branch on session before ever calling `.mutate`), so
+  // gate the invalidation on a present userId instead of throwing on mount.
+  const userId = useUserId();
   return useMutationWithInvalidation({
     mutationFn: (body: {
       name: string;
@@ -102,7 +166,7 @@ export function useCreateDeck() {
       isWanted?: boolean;
       isPublic?: boolean;
     }) => createDeckFn({ data: body }),
-    invalidates: [queryKeys.decks.all(userId)],
+    invalidates: userId ? [queryKeys.decks.all(userId)] : [],
   });
 }
 
@@ -155,7 +219,10 @@ export const saveDeckCardsFn = createServerFn({ method: "POST" })
   );
 
 export function useSaveDeckCards() {
-  const userId = useRequiredUserId();
+  // Logged-out-safe: the claim-on-login flow is the only caller and always runs
+  // with a session, but the import page instantiates the hook before knowing
+  // the session, so don't throw on mount.
+  const userId = useUserId();
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -172,6 +239,9 @@ export function useSaveDeckCards() {
       }[];
     }): Promise<{ cards: DeckCardResponse[] }> => saveDeckCardsFn({ data: { deckId, cards } }),
     onSuccess: (data, variables) => {
+      if (!userId) {
+        return;
+      }
       // Update deck detail cache with the returned cards
       queryClient.setQueryData<DeckDetailResponse>(
         queryKeys.decks.detail(userId, variables.deckId),
@@ -216,7 +286,10 @@ const updateDeckFn = createServerFn({ method: "POST" })
   });
 
 export function useUpdateDeck() {
-  const userId = useRequiredUserId();
+  // Logged-out-safe: the rename / description / change-format dialogs are shared
+  // with local decks, which branch to the local store before `.mutate`; gate the
+  // cache writes on a present userId instead of throwing on mount.
+  const userId = useUserId();
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -231,6 +304,9 @@ export function useUpdateDeck() {
       formatConfig?: DeckFormatConfig | null;
     }): Promise<DeckResponse> => updateDeckFn({ data: { deckId, ...fields } }),
     onSuccess: (data, variables) => {
+      if (!userId) {
+        return;
+      }
       // Update deck detail cache with the returned metadata
       queryClient.setQueryData<DeckDetailResponse>(
         queryKeys.decks.detail(userId, variables.deckId),
@@ -255,6 +331,41 @@ export function useUpdateDeck() {
       });
     },
   });
+}
+
+/** Metadata patch shared by rename / description / change-format surfaces. */
+export interface DeckMetaPatch {
+  name?: string;
+  description?: string | null;
+  format?: DeckFormat;
+  formatConfig?: DeckFormatConfig | null;
+}
+
+/**
+ * One metadata-update entry point that branches on the `local:` prefix: a local
+ * deck writes straight to the local store (synchronous); a server deck goes
+ * through {@link useUpdateDeck}. Lets the shared rename / description /
+ * change-format surfaces stay single-code-path instead of forking per deck kind.
+ *
+ * @returns `update(patch, opts?)` plus the server mutation's pending flag.
+ */
+export function useUpdateDeckMeta(deckId: string): {
+  update: (patch: DeckMetaPatch, opts?: { onSuccess?: () => void }) => void;
+  isPending: boolean;
+} {
+  const serverUpdate = useUpdateDeck();
+  const isLocal = isLocalDeckId(deckId);
+  return {
+    update: (patch, opts) => {
+      if (isLocal) {
+        useLocalDecksStore.getState().updateDeck(deckId, patch);
+        opts?.onSuccess?.();
+        return;
+      }
+      serverUpdate.mutate({ deckId, ...patch }, opts);
+    },
+    isPending: isLocal ? false : serverUpdate.isPending,
+  };
 }
 
 const setDeckPinnedFn = createServerFn({ method: "POST" })
@@ -359,6 +470,36 @@ export function useExportDeck() {
       invalidates: [],
     },
   );
+}
+
+/** A single card sent to the public, stateless deck-code encoder (local decks). */
+export interface EncodeDeckCardInput {
+  cardId: string;
+  zone: DeckZone;
+  quantity: number;
+  preferredPrintingId: string | null;
+  cardName: string;
+  cardType: CardType;
+  superTypes: SuperType[];
+  domains: Domain[];
+}
+
+// Public (no-cookie) encoder for browser-local decks, which have no server row
+// to `export` by id. Reuses the same server codecs as the authenticated export.
+const encodeDeckCardsFn = createServerFn({ method: "POST" })
+  .validator((input: { format?: ExportFormat; cards: EncodeDeckCardInput[] }) => input)
+  .handler(
+    ({ data }): Promise<DeckExportResponse> => apiOrpcClient(publicDecksContract).encode(data),
+  );
+
+export function useEncodeDeckCards() {
+  return useMutationWithInvalidation<
+    DeckExportResponse,
+    { format?: ExportFormat; cards: EncodeDeckCardInput[] }
+  >({
+    mutationFn: (input) => encodeDeckCardsFn({ data: input }),
+    invalidates: [],
+  });
 }
 
 // ── Deck sharing ────────────────────────────────────────────────────────────

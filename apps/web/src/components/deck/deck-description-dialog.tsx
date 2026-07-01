@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { useUpdateDeck } from "@/hooks/use-decks";
+import { useUpdateDeckMeta } from "@/hooks/use-decks";
 
 interface DeckDescriptionDialogProps {
   deckId: string;
@@ -26,13 +26,13 @@ export function DeckDescriptionDialog({
   onOpenChange,
 }: DeckDescriptionDialogProps) {
   const [draft, setDraft] = useState(currentDescription ?? "");
-  const updateDeck = useUpdateDeck();
+  const { update } = useUpdateDeckMeta(deckId);
 
   const handleSubmit = () => {
     const trimmed = draft.trim();
     const current = currentDescription ?? "";
     if (trimmed !== current) {
-      updateDeck.mutate({ deckId, description: trimmed === "" ? null : trimmed });
+      update({ description: trimmed === "" ? null : trimmed });
     }
     onOpenChange(false);
   };

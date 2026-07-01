@@ -1,4 +1,5 @@
 import type { DeckListItemResponse, DeckResponse } from "@openrift/shared";
+import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { CircleHelpIcon, DownloadIcon, PlusIcon, SwordsIcon } from "lucide-react";
 import { useState } from "react";
@@ -38,10 +39,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useCreateDeck, useDecks } from "@/hooks/use-decks";
+import { useCards } from "@/hooks/use-cards";
+import { decksQueryOptions, useCreateDeck } from "@/hooks/use-decks";
 import { useDeckFormatList, useEnumOrders } from "@/hooks/use-enums";
 import { useHeaderHeight } from "@/hooks/use-header-height";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
+import { useUserId } from "@/lib/auth-session";
 import type { DeckListItemWithNames } from "@/lib/deck-list-utils";
 import {
   availableDomainsFrom,
@@ -52,9 +56,12 @@ import {
   partitionByArchived,
   sortDecks,
 } from "@/lib/deck-list-utils";
+import { localDeckToListItem } from "@/lib/local-deck-list-item";
 import { cn, CONTAINER_WIDTH, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 import { useDeckListPrefsStore } from "@/stores/deck-list-prefs-store";
+import { useLocalDecksStore } from "@/stores/local-decks-store";
 
+import { ClaimLocalDecksPrompt } from "./claim-local-decks-prompt";
 import { DeckListRow } from "./deck-list-row";
 import { DeckListToolbar } from "./deck-list-toolbar";
 import { DeckTile } from "./deck-tile";
@@ -67,12 +74,21 @@ function CreateDeckDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const navigate = useNavigate();
+  const userId = useUserId();
   const createDeck = useCreateDeck();
+  const createLocalDeck = useLocalDecksStore((state) => state.createDeck);
   const { formats, labels: formatLabels } = useDeckFormatList();
   const [name, setName] = useState("New Deck");
   const [format, setFormat] = useState<string>(formats[0]?.slug ?? "");
 
   const handleCreate = () => {
+    // Logged out (ADR-035): create a browser-local deck instead of a server one.
+    if (!userId) {
+      const localId = createLocalDeck(format, name);
+      void navigate({ to: "/decks/$deckId", params: { deckId: localId } });
+      onOpenChange(false);
+      return;
+    }
     createDeck.mutate(
       { name, format },
       {
@@ -173,7 +189,29 @@ function GroupHeader({ label, count }: { label: string; count: number }) {
 }
 
 export function DeckListPage() {
-  const { data: deckItems } = useDecks();
+  // Auth-optional (ADR-035): server decks load only when signed in; browser-local
+  // decks always render (client-only, gated behind hydration). The two merge
+  // into one list. Non-suspense query so a logged-out visitor doesn't suspend.
+  const userId = useUserId();
+  const serverQuery = useQuery({ ...decksQueryOptions(userId ?? ""), enabled: Boolean(userId) });
+  const serverItems = serverQuery.data ?? [];
+
+  const hydrated = useHydrated();
+  const localDecks = useLocalDecksStore((state) => state.decks);
+  const { cardsById } = useCards();
+  const { orders, labels } = useEnumOrders();
+  const localItems: DeckListItemResponse[] =
+    hydrated && Object.keys(localDecks).length > 0
+      ? Object.values(localDecks).map((deck) =>
+          localDeckToListItem(deck, {
+            cardsById,
+            cardTypeOrder: orders.cardTypes,
+            domainOrder: orders.domains,
+          }),
+        )
+      : [];
+
+  const deckItems: DeckListItemResponse[] = [...localItems, ...serverItems];
   const [createOpen, setCreateOpen] = useState(false);
   // Stick the toolbar directly below the title bar: measure the title bar and
   // add its height to the header height, mirroring CardBrowserLayout's offset.
@@ -191,7 +229,6 @@ export function DeckListPage() {
   const validityFilter = useDeckListPrefsStore((state) => state.validityFilter);
   const domainFilter = useDeckListPrefsStore((state) => state.domainFilter);
   const showArchived = useDeckListPrefsStore((state) => state.showArchived);
-  const { labels } = useEnumOrders();
   const { labels: formatLabels } = useDeckFormatList();
 
   const enriched = useEnrichedItems(deckItems);
@@ -305,6 +342,7 @@ export function DeckListPage() {
       )}
 
       <CreateDeckDialog open={createOpen} onOpenChange={setCreateOpen} />
+      <ClaimLocalDecksPrompt />
     </div>
   );
 }

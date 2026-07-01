@@ -53,7 +53,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useCards } from "@/hooks/use-cards";
 import { deckDetailQueryOptions, useCreateDeck, useSaveDeckCards } from "@/hooks/use-decks";
 import { useDeckFormatList, useZoneOrder } from "@/hooks/use-enums";
-import { useRequiredUserId } from "@/lib/auth-session";
+import { useUserId } from "@/lib/auth-session";
 import type { DeckMatchStatus, DeckMatchedEntry, ResolvedCard } from "@/lib/deck-import-matcher";
 import { matchDeckEntries } from "@/lib/deck-import-matcher";
 import type { DeckImportFormat } from "@/lib/deck-import-parsers";
@@ -63,8 +63,9 @@ import { classifyBucket } from "@/lib/import-summary";
 import { matchesAllTokens, searchTokens } from "@/lib/search-match";
 import { SOCIAL_LINKS } from "@/lib/social-links";
 import { cn } from "@/lib/utils";
+import { useLocalDecksStore } from "@/stores/local-decks-store";
 
-export const Route = createLazyFileRoute("/_app/_authenticated/decks/import")({
+export const Route = createLazyFileRoute("/_app/decks/import")({
   component: DeckImportPage,
 });
 
@@ -152,7 +153,8 @@ const IMPORT_DESCRIPTIONS: Record<DeckImportFormat, React.ReactNode> = {
 };
 
 function DeckImportPage() {
-  const userId = useRequiredUserId();
+  // Auth-optional (ADR-035): logged out, an import creates a browser-local deck.
+  const userId = useUserId();
   const { replaceDeckId } = Route.useSearch();
   const { allPrintings } = useCards();
   const { zoneOrder, zoneLabels } = useZoneOrder();
@@ -162,11 +164,13 @@ function DeckImportPage() {
   const navigate = useNavigate();
 
   const replaceDeckQuery = useQuery({
-    ...deckDetailQueryOptions(userId, replaceDeckId ?? ""),
-    enabled: Boolean(replaceDeckId),
+    ...deckDetailQueryOptions(userId ?? "", replaceDeckId ?? ""),
+    enabled: Boolean(replaceDeckId) && Boolean(userId),
   });
   const replaceDeckName = replaceDeckQuery.data?.deck.name;
-  const isReplaceMode = Boolean(replaceDeckId);
+  // Replace targets a server deck, which requires a session; logged out always
+  // creates a new local deck instead.
+  const isReplaceMode = Boolean(replaceDeckId) && Boolean(userId);
 
   const [step, setStep] = useState<ImportStep>("input");
   const [rawText, setRawText] = useState("");
@@ -321,6 +325,15 @@ function DeckImportPage() {
 
     setIsImporting(true);
     const cards = buildCards();
+
+    // Logged out: build a browser-local deck instead of a server deck.
+    if (!userId) {
+      const localId = useLocalDecksStore.getState().createDeck(deckFormat, trimmedName);
+      useLocalDecksStore.getState().setCards(localId, cards);
+      toast.success(`Imported deck "${trimmedName}" with ${totalCards} cards.`);
+      void navigate({ to: "/decks/$deckId", params: { deckId: localId } });
+      return;
+    }
 
     createDeck.mutate(
       { name: trimmedName, format: deckFormat },

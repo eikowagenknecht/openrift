@@ -11,7 +11,26 @@ import {
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
+import { deckExportResponseSchema } from "./decks.js";
+
 extendZodWithOpenApi(z);
+
+/** Per-card input for the public deck-code encoder (no server deck row). */
+const encodeDeckCardSchema = z.object({
+  cardId: z.string(),
+  zone: deckZoneSchema,
+  quantity: z.number().int().positive(),
+  preferredPrintingId: z.string().nullable(),
+  cardName: z.string(),
+  cardType: cardTypeSchema,
+  superTypes: z.array(superTypeSchema),
+  domains: z.array(domainSchema),
+});
+
+const encodeDeckInputSchema = z.object({
+  format: z.enum(["piltover", "text", "tts"]).optional(),
+  cards: z.array(encodeDeckCardSchema),
+});
 
 export const publicDeckResponseSchema = z
   .object({
@@ -78,6 +97,16 @@ export const publicDecksContract = {
     .input(z.object({ token: z.string().min(1) }))
     .errors({ NOT_FOUND: { message: "Not found" } })
     .output(publicDeckDetailResponseSchema),
+
+  // Stateless deck-code encoder for logged-out (local) decks, which have no
+  // server row. Pure compute over public catalog data — no DB write — so it
+  // opens no anonymous write surface. Reuses the same codecs as the by-id
+  // authenticated `export`.
+  encode: oc
+    .route({ method: "POST", path: "/api/v1/decks/encode", tags: ["Decks"] })
+    .meta({ auth: "public" })
+    .input(encodeDeckInputSchema)
+    .output(deckExportResponseSchema),
 };
 
 export type PublicDecksContract = typeof publicDecksContract;

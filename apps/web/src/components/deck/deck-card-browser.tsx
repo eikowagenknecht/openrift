@@ -50,6 +50,7 @@ import { maxOwnedCount } from "@/lib/owned-bucket";
 import { useCardRowActionsStore } from "@/stores/card-row-actions-store";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 import { useDisplayStore } from "@/stores/display-store";
+import { isLocalDeckId } from "@/stores/local-decks-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
 interface DeckActionsCellProps {
@@ -273,11 +274,14 @@ function DeckOverviewForEditor({
         onCardClick={onCardClick}
         description={deck.description ?? undefined}
       />
-      <DeckOverviewPlanSection
-        deckId={deck.id}
-        onHoverCard={onHoverCard}
-        onCardClick={handlePlanCardClick}
-      />
+      {/* Deck plans are a logged-in feature (ADR-035); local decks have none. */}
+      {!isLocalDeckId(deck.id) && (
+        <DeckOverviewPlanSection
+          deckId={deck.id}
+          onHoverCard={onHoverCard}
+          onCardClick={handlePlanCardClick}
+        />
+      )}
     </div>
   );
 }

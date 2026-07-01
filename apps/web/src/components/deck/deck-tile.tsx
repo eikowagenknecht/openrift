@@ -13,9 +13,11 @@ import { formatterForMarketplace } from "@/lib/format";
 import { resolveFormatTagSummary } from "@/lib/format-tag-config";
 import { getFilterIconPath } from "@/lib/icons";
 import { useDisplayStore } from "@/stores/display-store";
+import { isLocalDeckId } from "@/stores/local-decks-store";
 
 import { DeckActionsMenu } from "./deck-actions-menu";
 import { DeckDomainBar } from "./deck-domain-bar";
+import { LocalDeckActionsMenu } from "./local-deck-actions-menu";
 
 /**
  * Domain icon with a tooltip, as used on the deck tiles.
@@ -190,6 +192,7 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
     isValid,
     totalValueCents,
   } = item;
+  const isLocal = isLocalDeckId(deck.id);
   const { getPreferredPrinting, getPreferredFrontImage } = usePreferredPrinting();
   const { all: customTags } = useCustomTagList();
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
@@ -265,7 +268,14 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
               <span className="text-muted-foreground text-2xs ml-1">{typeSummary}</span>
             )}
           </span>
-          <FormatStateBadge format={deck.format} isValid={isValid} />
+          <span className="flex items-center gap-1">
+            {isLocal && (
+              <Badge variant="secondary" className="text-2xs">
+                On this device
+              </Badge>
+            )}
+            <FormatStateBadge format={deck.format} isValid={isValid} />
+          </span>
         </div>
 
         {/* Domain distribution */}
@@ -290,7 +300,7 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
             </>
           )}
           <span className="flex-1" />
-          <DeckActionsMenu item={item} />
+          {isLocal ? <LocalDeckActionsMenu item={item} /> : <DeckActionsMenu item={item} />}
         </div>
       </div>
     </Link>

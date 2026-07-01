@@ -24,6 +24,12 @@ import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { getDeckCardKey } from "@/lib/deck-builder-card";
 import { queryKeys } from "@/lib/query-keys";
 import { withTimeout } from "@/lib/with-timeout";
+import { isLocalDeckId, useLocalDecksStore } from "@/stores/local-decks-store";
+
+// Cache scope for a browser-local draft. Local drafts are keyed under this
+// fixed sentinel (in place of a userId) so they work logged out and survive a
+// logged-in user's brief null-userId window during session load.
+const LOCAL_SCOPE = "local";
 
 const SAVE_DEBOUNCE_MS = 1000;
 
@@ -79,18 +85,42 @@ function setStatus(entry: DraftEntry, partial: Partial<DeckSaveStatus>): void {
   notify(entry);
 }
 
-async function runSave(queryClient: QueryClient, userId: string, entry: DraftEntry): Promise<void> {
-  entry.saveController?.abort();
-  const controller = new AbortController();
-  entry.saveController = controller;
-  const seq = ++entry.saveSeq;
-
-  const cards = [...entry.collection.values()].map((card) => ({
+function collectionCards(entry: DraftEntry): {
+  cardId: string;
+  zone: DeckBuilderCard["zone"];
+  quantity: number;
+  preferredPrintingId: string | null;
+}[] {
+  return [...entry.collection.values()].map((card) => ({
     cardId: card.cardId,
     zone: card.zone,
     quantity: card.quantity,
     preferredPrintingId: card.preferredPrintingId,
   }));
+}
+
+// Persistence sink for a browser-local deck (ADR-035): write the full card set
+// into `local-decks-store` instead of the server. Synchronous, so no abort /
+// sequencing dance is needed — the debounce in `scheduleSave` already coalesces
+// rapid edits.
+function runLocalSave(entry: DraftEntry): void {
+  useLocalDecksStore.getState().setCards(entry.deckId, collectionCards(entry));
+  // A fresh edit may have re-armed the timer while we wrote; keep dirty if so.
+  setStatus(entry, { isSaving: false, isDirty: entry.saveTimer !== null, error: null });
+}
+
+async function runSave(queryClient: QueryClient, userId: string, entry: DraftEntry): Promise<void> {
+  if (isLocalDeckId(entry.deckId)) {
+    runLocalSave(entry);
+    return;
+  }
+
+  entry.saveController?.abort();
+  const controller = new AbortController();
+  entry.saveController = controller;
+  const seq = ++entry.saveSeq;
+
+  const cards = collectionCards(entry);
 
   setStatus(entry, { isSaving: true, error: null });
 
@@ -306,9 +336,12 @@ export function useDeckDraftCollection(
 ): Collection<DeckBuilderCard, string | number> | null {
   const queryClient = useQueryClient();
   const userId = useUserId();
+  // Gate on the `local:` prefix, not on userId: a local deck always resolves
+  // (even logged out), while a server deck needs a real user.
+  const scope = isLocalDeckId(deckId) ? LOCAL_SCOPE : userId;
   return useMemo(
-    () => (userId ? getDeckDraftCollection(queryClient, userId, deckId) : null),
-    [queryClient, userId, deckId],
+    () => (scope ? getDeckDraftCollection(queryClient, scope, deckId) : null),
+    [queryClient, scope, deckId],
   );
 }
 

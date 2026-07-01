@@ -13,8 +13,10 @@ import { formatterForMarketplace } from "@/lib/format";
 import { resolveFormatTagSummary } from "@/lib/format-tag-config";
 import { getFilterIconPath } from "@/lib/icons";
 import { useDisplayStore } from "@/stores/display-store";
+import { isLocalDeckId } from "@/stores/local-decks-store";
 
 import { DeckActionsMenu } from "./deck-actions-menu";
+import { LocalDeckActionsMenu } from "./local-deck-actions-menu";
 
 function DomainDot({ domain }: { domain: string }) {
   const domainIcon = getFilterIconPath("domains", domain);
@@ -37,6 +39,7 @@ function DomainDot({ domain }: { domain: string }) {
  */
 export function DeckListRow({ item }: { item: DeckListItemResponse }) {
   const { deck, legendCardId, championCardId, totalCards, isValid, totalValueCents } = item;
+  const isLocal = isLocalDeckId(deck.id);
   const { getPreferredPrinting } = usePreferredPrinting();
   const { labels: formatLabels } = useDeckFormatList();
   const { all: customTags } = useCustomTagList();
@@ -100,6 +103,11 @@ export function DeckListRow({ item }: { item: DeckListItemResponse }) {
       </div>
 
       <div className="flex shrink-0 items-center gap-1">
+        {isLocal && (
+          <Badge variant="secondary" className="hidden text-xs sm:inline-flex">
+            On this device
+          </Badge>
+        )}
         {deck.format === WellKnown.deckFormat.FREEFORM ? (
           <Badge variant="outline" className="text-xs">
             {formatLabels[deck.format] ?? deck.format}
@@ -121,7 +129,7 @@ export function DeckListRow({ item }: { item: DeckListItemResponse }) {
             Invalid
           </Badge>
         )}
-        <DeckActionsMenu item={item} />
+        {isLocal ? <LocalDeckActionsMenu item={item} /> : <DeckActionsMenu item={item} />}
       </div>
     </Link>
   );

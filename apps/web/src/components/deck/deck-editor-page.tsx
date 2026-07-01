@@ -1,7 +1,7 @@
 import type { DeckZone } from "@openrift/shared";
 import { imageUrl, WellKnown } from "@openrift/shared";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import {
   ClipboardListIcon,
   CornerLeftUpIcon,
@@ -50,6 +50,7 @@ import {
 } from "@/components/section-header";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -73,20 +74,27 @@ import { useDeckCards } from "@/hooks/use-deck-builder";
 import { useDeckItems } from "@/hooks/use-deck-items";
 import { useDeckOwnership } from "@/hooks/use-deck-ownership";
 import { deckPlanQueryOptions } from "@/hooks/use-deck-plan";
-import { useDeckDetail, useExportDeck, useUpdateDeck } from "@/hooks/use-decks";
+import {
+  useDeckDetail,
+  useEncodeDeckCards,
+  useExportDeck,
+  useUpdateDeckMeta,
+} from "@/hooks/use-decks";
 import { useDeckFormatList } from "@/hooks/use-enums";
 import { useHeaderHeight } from "@/hooks/use-header-height";
 import { useDeckBuildingCounts } from "@/hooks/use-owned-count";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
-import { useRequiredUserId, useSession } from "@/lib/auth-session";
+import { useSession, useUserId } from "@/lib/auth-session";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { toDeckBuilderCard } from "@/lib/deck-builder-card";
 import { hydrateDeckDraft, useDeckSaveStatus } from "@/lib/deck-builder-collection";
+import { toEncodeDeckCards } from "@/lib/deck-encode-input";
 import { isPlanDraftEmpty, planResponseToDraft } from "@/lib/deck-plan";
 import { ZONE_LABELS } from "@/lib/deck-zone-labels";
 import { cn, CONTAINER_WIDTH } from "@/lib/utils";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 import { useDisplayStore } from "@/stores/display-store";
+import { isLocalDeckId } from "@/stores/local-decks-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
 interface DeckEditorPageProps {
@@ -135,23 +143,34 @@ function DeckEditorContent({
   topBarSlot: HTMLDivElement | null;
 }) {
   const queryClient = useQueryClient();
-  const userId = useRequiredUserId();
+  const userId = useUserId();
+  // Browser-local deck (ADR-035): drafts persist to localStorage, no account
+  // features (plan, server share). The draft cache is keyed under a "local"
+  // sentinel scope so it works logged out; a server deck keys under its userId.
+  const isLocal = isLocalDeckId(deckId);
+  const scope = isLocal ? "local" : (userId ?? "");
   const navigate = useNavigate();
   const { data } = useDeckDetail(deckId);
   const { cardsById, allPrintings } = useCards();
   const { getPreferredPrinting } = usePreferredPrinting();
   const [hydratedId, setHydratedId] = useState<string | null>(null);
   const deckCards = useDeckCards(deckId);
-  const saveStatus = useDeckSaveStatus(queryClient, userId, deckId);
+  const saveStatus = useDeckSaveStatus(queryClient, scope, deckId);
   const { isMobile, setOpenMobile, toggleSidebar } = useSidebar();
   const activeZone = useDeckBuilderUiStore((state) => state.activeZone);
   const setActiveZone = useDeckBuilderUiStore((state) => state.setActiveZone);
   const planActive = useDeckBuilderUiStore((state) => state.planActive);
   const setPlanActive = useDeckBuilderUiStore((state) => state.setPlanActive);
-  const showPlan = planActive;
+  // Deck plans are a logged-in feature (ADR-035): never show the plan view for a
+  // local deck, even if planActive lingered from a previous server deck.
+  const showPlan = planActive && !isLocal;
   // Non-blocking read so the sidebar entry can show whether a plan exists yet
   // (dashed when empty). The editor itself loads the plan via its own suspense.
-  const planQuery = useQuery(deckPlanQueryOptions(userId, deckId));
+  // Local decks have no plan, so skip the (auth-only) query entirely.
+  const planQuery = useQuery({
+    ...deckPlanQueryOptions(userId ?? "", deckId),
+    enabled: !isLocal && Boolean(userId),
+  });
   const hasPlan = planQuery.data
     ? !isPlanDraftEmpty(planResponseToDraft(planQuery.data.plan))
     : false;
@@ -163,12 +182,13 @@ function DeckEditorContent({
   const [proxyOpen, setProxyOpen] = useState(false);
   const [missingOpen, setMissingOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
-  const updateDeck = useUpdateDeck();
+  const { update: updateDeckMeta } = useUpdateDeckMeta(deckId);
   const exportDeck = useExportDeck();
+  const encodeDeck = useEncodeDeckCards();
   const { formats } = useDeckFormatList();
   const otherFormats = formats.filter((entry) => entry.slug !== data.deck.format);
   const handleFormatChange = (slug: string) => {
-    updateDeck.mutate({ deckId, format: slug });
+    updateDeckMeta({ format: slug });
   };
 
   const handlePlayOnRiftAtlas = () => {
@@ -179,17 +199,20 @@ function DeckEditorContent({
       return;
     }
     playTab.opener = null;
-    exportDeck.mutate(
-      { deckId, format: "piltover" },
-      {
-        onSuccess: ({ code }) => {
-          playTab.location.href = `https://play.riftatlas.com/?deckCode=${encodeURIComponent(code)}`;
-        },
-        onError: () => {
-          playTab.close();
-        },
-      },
-    );
+    const onSuccess = ({ code }: { code: string }) => {
+      playTab.location.href = `https://play.riftatlas.com/?deckCode=${encodeURIComponent(code)}`;
+    };
+    const onError = () => playTab.close();
+    // A local deck has no server row to export by id — encode its cards via the
+    // public endpoint instead.
+    if (isLocal) {
+      encodeDeck.mutate(
+        { format: "piltover", cards: toEncodeDeckCards(deckCards) },
+        { onSuccess, onError },
+      );
+      return;
+    }
+    exportDeck.mutate({ deckId, format: "piltover" }, { onSuccess, onError });
   };
 
   // Ownership data — split available vs locked so the deck builder respects
@@ -224,10 +247,10 @@ function DeckEditorContent({
       const builderCards = data.cards
         .map((card) => toDeckBuilderCard(card, cardsById))
         .filter((card): card is DeckBuilderCard => card !== null);
-      hydrateDeckDraft(queryClient, userId, deckId, builderCards);
+      hydrateDeckDraft(queryClient, scope, deckId, builderCards);
       setHydratedId(deckId);
     }
-  }, [data, deckId, hydratedId, queryClient, userId, cardsById]);
+  }, [data, deckId, hydratedId, queryClient, scope, cardsById]);
 
   // On unmount, reset UI scalars (active zone, runes catalog) so the next
   // deck load starts clean. The draft collection itself is intentionally
@@ -464,6 +487,11 @@ function DeckEditorContent({
                 <span className="hidden md:inline">{data.deck.name}</span>
               </PageTopBarTitle>
               <DeckFormatBadge deckId={deckId} />
+              {isLocal && (
+                <Badge variant="secondary" className="hidden shrink-0 sm:inline-flex">
+                  On this device
+                </Badge>
+              )}
             </div>
             <PageTopBarActions>
               <div className="hidden md:flex md:items-center md:gap-1">
@@ -483,10 +511,13 @@ function DeckEditorContent({
                     <PencilIcon className="size-4" />
                     Rename
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setDescriptionOpen(true)}>
-                    <FileTextIcon className="size-4" />
-                    Edit description
-                  </DropdownMenuItem>
+                  {/* Descriptions are a signed-in feature (ADR-035). */}
+                  {!isLocal && (
+                    <DropdownMenuItem onClick={() => setDescriptionOpen(true)}>
+                      <FileTextIcon className="size-4" />
+                      Edit description
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem
                     onClick={() =>
                       void navigate({
@@ -516,10 +547,14 @@ function DeckEditorContent({
                       </DropdownMenuSubContent>
                     </DropdownMenuSub>
                   )}
-                  <DropdownMenuItem onClick={() => setShareOpen(true)}>
-                    <LinkIcon className="size-4" />
-                    Share deck
-                  </DropdownMenuItem>
+                  {/* Local decks have no server share link/image; the deck code
+                      lives in Export, so only server decks get "Share deck". */}
+                  {!isLocal && (
+                    <DropdownMenuItem onClick={() => setShareOpen(true)}>
+                      <LinkIcon className="size-4" />
+                      Share deck
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem onClick={handlePlayOnRiftAtlas}>
                     <PlayIcon className="size-4" />
                     Play on RiftAtlas
@@ -547,21 +582,25 @@ function DeckEditorContent({
         open={renameOpen}
         onOpenChange={setRenameOpen}
       />
-      <DeckDescriptionDialog
-        deckId={deckId}
-        currentDescription={data.deck.description ?? null}
-        open={descriptionOpen}
-        onOpenChange={setDescriptionOpen}
-      />
-      <DeckShareDialog
-        deckId={deckId}
-        deckName={data.deck.name}
-        isPublic={data.deck.isPublic}
-        shareToken={data.deck.shareToken}
-        updatedAt={data.deck.updatedAt}
-        open={shareOpen}
-        onOpenChange={setShareOpen}
-      />
+      {!isLocal && (
+        <DeckDescriptionDialog
+          deckId={deckId}
+          currentDescription={data.deck.description ?? null}
+          open={descriptionOpen}
+          onOpenChange={setDescriptionOpen}
+        />
+      )}
+      {!isLocal && (
+        <DeckShareDialog
+          deckId={deckId}
+          deckName={data.deck.name}
+          isPublic={data.deck.isPublic}
+          shareToken={data.deck.shareToken}
+          updatedAt={data.deck.updatedAt}
+          open={shareOpen}
+          onOpenChange={setShareOpen}
+        />
+      )}
       <DeckExportDialog
         deckId={deckId}
         deckName={data.deck.name}
@@ -608,31 +647,48 @@ function DeckEditorContent({
                   onViewMissing={() => setMissingOpen(true)}
                   hideStatsAndOwnership={activeZone === null}
                   afterOverview={
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setPlanActive(true);
-                        // Close any open card detail so the hover preview isn't suppressed.
-                        useSelectionStore.getState().closeDetail();
-                        if (isMobile) {
-                          setOpenMobile(false);
-                        }
-                      }}
-                      className={cn(
-                        "h-auto justify-start gap-2 rounded-lg px-2.5 py-2 text-left",
-                        !hasPlan && "border-dashed",
-                        showPlan && "bg-primary/10 font-bold",
-                      )}
-                    >
-                      <ClipboardListIcon className="size-3.5" />
-                      <span>Plan</span>
-                      {hasPlan ? null : (
-                        <span className="text-muted-foreground ml-auto text-xs font-normal">
-                          empty
-                        </span>
-                      )}
-                    </Button>
+                    // Deck plans are a logged-in feature (ADR-035). For a local
+                    // deck the Plan row isn't a button — it's a muted label with
+                    // an actual "Sign in" link.
+                    isLocal ? (
+                      <div className="border-input text-muted-foreground flex h-auto items-center gap-2 rounded-lg border px-2.5 py-2 text-left">
+                        <ClipboardListIcon className="size-3.5" />
+                        <span>Plan</span>
+                        <Link
+                          to="/login"
+                          search={{ redirect: undefined, email: undefined }}
+                          className="hover:text-foreground ml-auto text-xs font-normal underline"
+                        >
+                          Sign in
+                        </Link>
+                      </div>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setPlanActive(true);
+                          // Close any open card detail so the hover preview isn't suppressed.
+                          useSelectionStore.getState().closeDetail();
+                          if (isMobile) {
+                            setOpenMobile(false);
+                          }
+                        }}
+                        className={cn(
+                          "h-auto justify-start gap-2 rounded-lg px-2.5 py-2 text-left",
+                          !hasPlan && "border-dashed",
+                          showPlan && "bg-primary/10 font-bold",
+                        )}
+                      >
+                        <ClipboardListIcon className="size-3.5" />
+                        <span>Plan</span>
+                        {hasPlan ? null : (
+                          <span className="text-muted-foreground ml-auto text-xs font-normal">
+                            empty
+                          </span>
+                        )}
+                      </Button>
+                    )
                   }
                   deckItems={deckItems}
                 />

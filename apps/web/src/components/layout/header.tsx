@@ -645,7 +645,9 @@ export function Header() {
   const isLoggedIn = Boolean(session?.user);
   const showTournaments = isLoggedIn;
   const showCollection = isLoggedIn;
-  const showDecks = isLoggedIn;
+  // Decks are available logged out (ADR-035: build local decks without an
+  // account), so the nav entry shows for everyone.
+  const showDecks = true;
   const showGroups = isLoggedIn;
   const { data: pendingInvitesData } = useFriendGroupPendingInvitesCount({ enabled: isLoggedIn });
   const { data: pendingRequestsData } = useFriendGroupPendingRequestsCount({ enabled: isLoggedIn });

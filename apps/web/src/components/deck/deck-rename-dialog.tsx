@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { useUpdateDeck } from "@/hooks/use-decks";
+import { useUpdateDeckMeta } from "@/hooks/use-decks";
 
 interface DeckRenameDialogProps {
   deckId: string;
@@ -25,12 +25,12 @@ export function DeckRenameDialog({
   onOpenChange,
 }: DeckRenameDialogProps) {
   const [draft, setDraft] = useState(currentName);
-  const updateDeck = useUpdateDeck();
+  const { update } = useUpdateDeckMeta(deckId);
 
   const handleSubmit = () => {
     const trimmed = draft.trim();
     if (trimmed && trimmed !== currentName) {
-      updateDeck.mutate({ deckId, name: trimmed });
+      update({ name: trimmed });
     }
     onOpenChange(false);
   };

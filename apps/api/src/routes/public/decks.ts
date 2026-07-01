@@ -1,10 +1,15 @@
-import type { DeckPlanCardMetaResponse, PublicDeckDetailResponse } from "@openrift/shared";
+import type {
+  DeckExportResponse,
+  DeckPlanCardMetaResponse,
+  PublicDeckDetailResponse,
+} from "@openrift/shared";
 import { publicDecksContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
 import { gravatarHashForEmail } from "../../lib/gravatar.js";
 import { requireUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
+import { encodeDeck } from "../../services/deck-codecs/encode-deck.js";
 import {
   isEmptyDeckPlan,
   toDeckPlan,
@@ -107,5 +112,10 @@ export const publicDecksRouter = {
       planCardMeta,
       customTagAssignments: Object.fromEntries(customTagAssignmentsMap),
     };
+  }),
+
+  encode: os.encode.handler(({ input, context }): Promise<DeckExportResponse> => {
+    const { canonicalPrintings } = context.repos;
+    return encodeDeck(canonicalPrintings, input.cards, input.format ?? "piltover");
   }),
 };
