@@ -1,5 +1,5 @@
 import type { Marketplace, Printing } from "@openrift/shared";
-import { EUR_MARKETPLACES } from "@openrift/shared";
+import { EUR_MARKETPLACES, WellKnown } from "@openrift/shared";
 
 import type { EnumLabels } from "@/hooks/use-enums";
 
@@ -24,10 +24,10 @@ export function formatPrintingLabel(
   if (siblings && !allSame((c) => c.language)) {
     parts.push(`[${printing.language}]`);
   }
-  if (printing.artVariant !== "normal") {
+  if (printing.artVariant !== WellKnown.artVariant.NORMAL) {
     parts.push(labels.artVariants[printing.artVariant] ?? printing.artVariant);
   }
-  if (printing.finish !== "normal" && !allSame((c) => c.finish)) {
+  if (printing.finish !== WellKnown.finish.NORMAL && !allSame((c) => c.finish)) {
     parts.push(labels.finishes[printing.finish] ?? printing.finish);
   }
   // Oversized is always labeled when present (like art variant): the larger

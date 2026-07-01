@@ -1,4 +1,4 @@
-import { straightenApostrophes } from "@openrift/shared";
+import { straightenApostrophes, WellKnown } from "@openrift/shared";
 import type { DeckZone } from "@openrift/shared/types";
 
 import type { DeckCodecCard, EncodeResult } from "./types.js";
@@ -15,7 +15,14 @@ const ZONE_LABELS: Record<DeckZone, string> = {
 };
 
 /** Ordered zones for text output. */
-const ZONE_ORDER: DeckZone[] = ["legend", "champion", "main", "battlefield", "runes", "sideboard"];
+const ZONE_ORDER: DeckZone[] = [
+  WellKnown.deckZone.LEGEND,
+  WellKnown.deckZone.CHAMPION,
+  WellKnown.deckZone.MAIN,
+  WellKnown.deckZone.BATTLEFIELD,
+  WellKnown.deckZone.RUNES,
+  WellKnown.deckZone.SIDEBOARD,
+];
 
 /** A card entry with its name, used for text encode. */
 export interface TextCodecCard extends DeckCodecCard {

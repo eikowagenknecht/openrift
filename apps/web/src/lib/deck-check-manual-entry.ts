@@ -1,3 +1,5 @@
+import { WellKnown } from "@openrift/shared";
+
 import { parseDeckImportData } from "./deck-import-parsers";
 
 /** One card line ready to post to the manual deck-check entry endpoint. */
@@ -32,7 +34,7 @@ export function parseManualDecklist(text: string): ParsedManualDecklist {
     if (!name) {
       continue;
     }
-    const section = entry.explicitZone ?? "main";
+    const section = entry.explicitZone ?? WellKnown.deckZone.MAIN;
     const key = `${name.toLowerCase()}|${section}`;
     const existing = merged.get(key);
     if (existing) {

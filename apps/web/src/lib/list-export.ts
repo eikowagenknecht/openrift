@@ -4,7 +4,11 @@ import type {
   ListKind,
   TradePreference,
 } from "@openrift/shared";
-import { resolveEffectiveTradePreference, straightenApostrophes } from "@openrift/shared";
+import {
+  resolveEffectiveTradePreference,
+  straightenApostrophes,
+  WellKnown,
+} from "@openrift/shared";
 
 import { formatPrice, formatPriceEur } from "./format";
 
@@ -46,7 +50,7 @@ function variantSuffix(
   const finishVaries = siblings.some(
     (other) => other.kind !== "card" && other.finish !== entry.finish,
   );
-  if (entry.finish !== "normal" && finishVaries) {
+  if (entry.finish !== WellKnown.finish.NORMAL && finishVaries) {
     parts.push(titleCaseSlug(entry.finish));
   }
   if (entry.language !== "EN") {

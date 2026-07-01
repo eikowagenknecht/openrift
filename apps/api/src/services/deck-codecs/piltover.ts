@@ -1,3 +1,4 @@
+import { WellKnown } from "@openrift/shared";
 import { getCodeFromDeck } from "@piltoverarchive/riftbound-deck-codes";
 import type { Card as PiltoverCard } from "@piltoverarchive/riftbound-deck-codes";
 
@@ -20,7 +21,7 @@ export const piltoverCodec: DeckCodec = {
     let chosenChampion: string | undefined;
 
     for (const card of cards) {
-      if (card.zone === "overflow") {
+      if (card.zone === WellKnown.deckZone.OVERFLOW) {
         continue;
       }
 
@@ -29,7 +30,7 @@ export const piltoverCodec: DeckCodec = {
         continue;
       }
 
-      if (card.zone === "champion") {
+      if (card.zone === WellKnown.deckZone.CHAMPION) {
         chosenChampion = card.shortCode;
         // The Piltover format expects the chosen champion counted in mainDeck
         // (it's a marker, not an extra slot), so include 1 copy.
@@ -37,7 +38,7 @@ export const piltoverCodec: DeckCodec = {
         continue;
       }
 
-      if (card.zone === "sideboard") {
+      if (card.zone === WellKnown.deckZone.SIDEBOARD) {
         sideboard.push({ cardCode: card.shortCode, count: card.quantity });
       } else {
         // main, runes, legend, battlefield all go into mainDeck

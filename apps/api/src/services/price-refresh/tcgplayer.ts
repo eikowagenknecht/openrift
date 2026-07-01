@@ -8,6 +8,7 @@
  * Usage: bun scripts/refresh-tcgplayer-prices.ts
  */
 
+import { WellKnown } from "@openrift/shared";
 import type { PriceRefreshResponse } from "@openrift/shared";
 import type { Logger } from "@openrift/shared/logger";
 import { toCents } from "@openrift/shared/utils";
@@ -143,7 +144,8 @@ function buildTcgplayerStaging(
         if (marketCents === null) {
           continue;
         }
-        const finish = entry.subTypeName === "Foil" ? "foil" : "normal";
+        const finish =
+          entry.subTypeName === "Foil" ? WellKnown.finish.FOIL : WellKnown.finish.NORMAL;
         if (ignoredKeys.variantKeys.has(`${product.productId}::${finish}::`)) {
           continue;
         }

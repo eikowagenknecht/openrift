@@ -9,7 +9,7 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { snapCenterToCursor } from "@dnd-kit/modifiers";
-import { imageUrl, legendDisplayName } from "@openrift/shared";
+import { imageUrl, legendDisplayName, WellKnown } from "@openrift/shared";
 import type { DeckZone } from "@openrift/shared";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -43,7 +43,12 @@ const DRAG_ACTIVATION = { distance: 8 };
 // Zones that accept deck-card drops. Champion is included so a unit can be
 // dragged from main/sideboard/overflow into the chosen-champion slot; the
 // move action handles replacing whatever's currently there.
-const DRAG_ZONES = new Set<DeckZone>(["main", "sideboard", "overflow", "champion"]);
+const DRAG_ZONES = new Set<DeckZone>([
+  WellKnown.deckZone.MAIN,
+  WellKnown.deckZone.SIDEBOARD,
+  WellKnown.deckZone.OVERFLOW,
+  WellKnown.deckZone.CHAMPION,
+]);
 const MODIFIERS = [snapCenterToCursor];
 const EDGE_SIZE = 40;
 const SCROLL_SPEED = 15;
@@ -260,9 +265,9 @@ export function DeckDndContext({ deckId, children }: { deckId: string; children:
 
     if (activeData.type === "browser-card") {
       if (moveAll) {
-        if (overData.zone === "runes") {
+        if (overData.zone === WellKnown.deckZone.RUNES) {
           const runeTotal = deckCards
-            .filter((card) => card.zone === "runes")
+            .filter((card) => card.zone === WellKnown.deckZone.RUNES)
             .reduce((sum, card) => sum + card.quantity, 0);
           actions.addCard(activeData.card, overData.zone, Math.max(0, 12 - runeTotal));
         } else {
@@ -303,7 +308,8 @@ export function DeckDndContext({ deckId, children }: { deckId: string; children:
       deckCards
         .filter(
           (card) =>
-            card.cardId === dragInfo.cardId && (card.zone === "main" || card.zone === "sideboard"),
+            card.cardId === dragInfo.cardId &&
+            (card.zone === WellKnown.deckZone.MAIN || card.zone === WellKnown.deckZone.SIDEBOARD),
         )
         .reduce((sum, card) => sum + card.quantity, 0)
     : 0;

@@ -323,7 +323,7 @@ function DeckEditorContent({
     // then apply the new preset.
     setSearch("");
 
-    const legend = deckCards.find((card) => card.zone === "legend");
+    const legend = deckCards.find((card) => card.zone === WellKnown.deckZone.LEGEND);
     const legendDomains = legend?.domains ?? [];
     const domainsWithColorless =
       legendDomains.length > 0 ? [...legendDomains, WellKnown.domain.COLORLESS] : [];
@@ -352,7 +352,7 @@ function DeckEditorContent({
     };
 
     switch (zone) {
-      case "legend": {
+      case WellKnown.deckZone.LEGEND: {
         setArrayFilters({
           types: [WellKnown.cardType.LEGEND],
           superTypes: [],
@@ -362,7 +362,7 @@ function DeckEditorContent({
         clearStatRanges();
         break;
       }
-      case "champion": {
+      case WellKnown.deckZone.CHAMPION: {
         setArrayFilters({
           types: [WellKnown.cardType.UNIT],
           superTypes: [WellKnown.superType.CHAMPION],
@@ -374,7 +374,7 @@ function DeckEditorContent({
         }
         break;
       }
-      case "runes": {
+      case WellKnown.deckZone.RUNES: {
         setArrayFilters({
           types: [WellKnown.cardType.RUNE],
           superTypes: [],
@@ -384,7 +384,7 @@ function DeckEditorContent({
         clearStatRanges();
         break;
       }
-      case "battlefield": {
+      case WellKnown.deckZone.BATTLEFIELD: {
         setArrayFilters({
           types: [WellKnown.cardType.BATTLEFIELD],
           superTypes: [],
@@ -394,19 +394,24 @@ function DeckEditorContent({
         clearStatRanges();
         break;
       }
-      case "main":
-      case "sideboard": {
+      case WellKnown.deckZone.MAIN:
+      case WellKnown.deckZone.SIDEBOARD: {
         setArrayFilters({
-          types: [WellKnown.cardType.UNIT, "spell", "gear"],
+          types: [WellKnown.cardType.UNIT, "spell", WellKnown.cardType.GEAR],
           superTypes: [],
           domains: mainDomainFilter,
           customTags: formatTagSlugs,
         });
         break;
       }
-      case "overflow": {
+      case WellKnown.deckZone.OVERFLOW: {
         setArrayFilters({
-          types: [WellKnown.cardType.UNIT, "spell", "gear", WellKnown.cardType.BATTLEFIELD],
+          types: [
+            WellKnown.cardType.UNIT,
+            "spell",
+            WellKnown.cardType.GEAR,
+            WellKnown.cardType.BATTLEFIELD,
+          ],
           superTypes: [],
           domains: mainDomainFilter,
           customTags: formatTagSlugs,
@@ -451,7 +456,7 @@ function DeckEditorContent({
       ? {
           thumbnailUrl: imageUrl(hoveredFrontImage.imageId, "400w"),
           fullUrl: imageUrl(hoveredFrontImage.imageId, "full"),
-          landscape: hoveredPrinting.card.type === "battlefield",
+          landscape: hoveredPrinting.card.type === WellKnown.cardType.BATTLEFIELD,
         }
       : null;
 

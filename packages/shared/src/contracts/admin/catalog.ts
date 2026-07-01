@@ -1,6 +1,7 @@
 import { idParamSchema, isoDate, withParams } from "@openrift/shared/schemas";
 import { z } from "zod";
 
+import { WellKnown } from "../../well-known.js";
 import { authedRoute } from "../_base.js";
 
 const TAG = "Admin - Catalog";
@@ -13,7 +14,7 @@ const setFieldRules = {
   slug: z.string().min(1),
   name: z.string().min(1),
   printedTotal: z.number().int().min(0).nullable(),
-  setType: z.enum(["main", "supplemental"]),
+  setType: z.enum([WellKnown.setType.MAIN, WellKnown.setType.SUPPLEMENTAL]),
 };
 
 const adminSetSchema = z.object({

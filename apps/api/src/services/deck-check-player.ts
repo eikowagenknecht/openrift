@@ -178,7 +178,7 @@ async function linesFromCardList(
     return { name: card.name, zone, quantity: card.quantity };
   });
 
-  const mainLines = lines.filter((line) => line.zone === "main");
+  const mainLines = lines.filter((line) => line.zone === WellKnown.deckZone.MAIN);
   if (mainLines.length === 0) {
     return lines;
   }
@@ -247,7 +247,7 @@ async function linesFromDeckCode(repos: Repos, deckCode: string): Promise<DeckCh
     }
     const card = cardsByShortCode.get(cardCode);
     if (!card) {
-      lines.push({ name: cardCode, zone: "main", quantity: count });
+      lines.push({ name: cardCode, zone: WellKnown.deckZone.MAIN, quantity: count });
       return;
     }
     lines.push({

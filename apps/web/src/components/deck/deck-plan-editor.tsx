@@ -1,4 +1,4 @@
-import { imageUrl, legendDisplayName } from "@openrift/shared";
+import { imageUrl, legendDisplayName, WellKnown } from "@openrift/shared";
 import {
   AlertTriangleIcon,
   ArrowDownIcon,
@@ -52,11 +52,11 @@ function buildContext(deckCards: DeckBuilderCard[]): DeckPlanContext {
   const sideboard = new Map<string, number>();
   const battlefieldCardIds = new Set<string>();
   for (const card of deckCards) {
-    if (card.zone === "main") {
+    if (card.zone === WellKnown.deckZone.MAIN) {
       maindeck.set(card.cardId, card.quantity);
-    } else if (card.zone === "sideboard") {
+    } else if (card.zone === WellKnown.deckZone.SIDEBOARD) {
       sideboard.set(card.cardId, card.quantity);
-    } else if (card.zone === "battlefield") {
+    } else if (card.zone === WellKnown.deckZone.BATTLEFIELD) {
       battlefieldCardIds.add(card.cardId);
     }
   }
@@ -92,7 +92,7 @@ function CardChip({
   const { getPreferredPrinting } = usePreferredPrinting();
   const printing = getPreferredPrinting(cardId);
   const frontImage = printing?.images.find((image) => image.face === "front");
-  const landscape = printing?.card.type === "battlefield";
+  const landscape = printing?.card.type === WellKnown.cardType.BATTLEFIELD;
   const field = variant === "field";
   return (
     <span
@@ -505,13 +505,13 @@ export function DeckPlanEditor({
     }
   }
   const maindeckCandidates = deckCards
-    .filter((card) => card.zone === "main")
+    .filter((card) => card.zone === WellKnown.deckZone.MAIN)
     .map((card) => ({ cardId: card.cardId, cardName: card.cardName }));
   const sideboardCandidates = deckCards
-    .filter((card) => card.zone === "sideboard")
+    .filter((card) => card.zone === WellKnown.deckZone.SIDEBOARD)
     .map((card) => ({ cardId: card.cardId, cardName: card.cardName }));
   const battlefieldCandidates = deckCards
-    .filter((card) => card.zone === "battlefield")
+    .filter((card) => card.zone === WellKnown.deckZone.BATTLEFIELD)
     .map((card) => ({ cardId: card.cardId, cardName: card.cardName }));
 
   const savedPayload = JSON.stringify(planDraftToSaveInput(planResponseToDraft(data.plan)));

@@ -1,4 +1,4 @@
-import { ERROR_CODES } from "@openrift/shared";
+import { ERROR_CODES, WellKnown } from "@openrift/shared";
 
 import type { Transact } from "../deps.js";
 import { AppError } from "../errors.js";
@@ -142,7 +142,7 @@ export async function acceptFavoritePrintingsForCard(
           setId,
           setName: first.setName,
           rarity,
-          artVariant: first.artVariant ?? "normal",
+          artVariant: first.artVariant ?? WellKnown.artVariant.NORMAL,
           isSigned: first.isSigned ?? false,
           markerSlugs: first.markerSlugs ?? [],
           finish,

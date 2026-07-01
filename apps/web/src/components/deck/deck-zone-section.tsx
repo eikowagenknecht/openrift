@@ -30,11 +30,19 @@ import { cn } from "@/lib/utils";
 import { useSelectionStore } from "@/stores/selection-store";
 
 // Zones that only allow a single card — show remove button instead of +/-
-const SINGLE_CARD_ZONES = new Set<DeckZone>(["legend", "champion"]);
-const UNIQUE_ONLY_ZONES = new Set<DeckZone>(["battlefield"]);
+const SINGLE_CARD_ZONES = new Set<DeckZone>([
+  WellKnown.deckZone.LEGEND,
+  WellKnown.deckZone.CHAMPION,
+]);
+const UNIQUE_ONLY_ZONES = new Set<DeckZone>([WellKnown.deckZone.BATTLEFIELD]);
 // Zones whose rows can be picked up and dragged out. Drop-target validity is
 // gated separately (see deck-dnd-context.tsx + isCardAllowedInZone).
-const DRAG_ZONES = new Set<DeckZone>(["main", "sideboard", "overflow", "champion"]);
+const DRAG_ZONES = new Set<DeckZone>([
+  WellKnown.deckZone.MAIN,
+  WellKnown.deckZone.SIDEBOARD,
+  WellKnown.deckZone.OVERFLOW,
+  WellKnown.deckZone.CHAMPION,
+]);
 
 interface DeckZoneSectionProps {
   deckId: string;
@@ -61,7 +69,9 @@ export function DeckZoneSection({
   onHoverCard,
   deckItems,
 }: DeckZoneSectionProps) {
-  const [open, setOpen] = useState(zone !== "sideboard" && zone !== "overflow");
+  const [open, setOpen] = useState(
+    zone !== WellKnown.deckZone.SIDEBOARD && zone !== WellKnown.deckZone.OVERFLOW,
+  );
   const { addCard, removeCard, setQuantity } = useDeckBuilderActions(deckId);
   const allCards = useDeckCards(deckId);
   const { data: deckDetail } = useDeckDetail(deckId);
@@ -87,7 +97,11 @@ export function DeckZoneSection({
 
   // Cross-zone copy totals — champion counts toward the 3-copy limit too;
   // overflow is excluded since it is a free parking zone with no copy cap.
-  const copyLimitZones = new Set(["main", "sideboard", "champion"]);
+  const copyLimitZones = new Set<DeckZone>([
+    WellKnown.deckZone.MAIN,
+    WellKnown.deckZone.SIDEBOARD,
+    WellKnown.deckZone.CHAMPION,
+  ]);
   const crossZoneTotal = (cardId: string) =>
     allCards
       .filter((entry) => entry.cardId === cardId && copyLimitZones.has(entry.zone))
@@ -166,11 +180,11 @@ export function DeckZoneSection({
         controlMode={isSingleCard || isUniqueOnly ? "remove-only" : "quantity"}
         maxQuantity={maxCardQuantity}
         draggable={DRAG_ZONES.has(zone)}
-        shiftHeld={zone === "runes" ? undefined : shiftHeld}
+        shiftHeld={zone === WellKnown.deckZone.RUNES ? undefined : shiftHeld}
         onIncrement={
           !isFreeform &&
           ((copyLimitZones.has(zone) && crossZoneTotal(card.cardId) >= 3) ||
-            (zone === "runes" && !canAddRune(card, allCards)))
+            (zone === WellKnown.deckZone.RUNES && !canAddRune(card, allCards)))
             ? undefined
             : (event) => addCard(card, zone, event.shiftKey ? 3 : undefined)
         }

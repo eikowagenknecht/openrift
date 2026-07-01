@@ -8,6 +8,7 @@
  * stages unmatched products in marketplace_staging for admin mapping.
  */
 
+import { WellKnown } from "@openrift/shared";
 import type { PriceRefreshResponse } from "@openrift/shared";
 import type { Logger } from "@openrift/shared/logger";
 
@@ -203,7 +204,10 @@ async function fetchCardtraderData(
       const byLangFinish = new Map<string, CtMarketplaceProduct[]>();
       for (const listing of eligible) {
         const lang = normalizeCtLanguage(listing.properties_hash?.riftbound_language);
-        const finish = listing.properties_hash?.riftbound_foil === true ? "foil" : "normal";
+        const finish =
+          listing.properties_hash?.riftbound_foil === true
+            ? WellKnown.finish.FOIL
+            : WellKnown.finish.NORMAL;
         const key = `${lang}::${finish}`;
         const list = byLangFinish.get(key) ?? [];
         list.push(listing);

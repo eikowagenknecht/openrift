@@ -8,6 +8,7 @@ import {
   MANUAL_ENTRY_EXTERNAL_ID_PREFIX,
   mapSectionToZone,
   SELF_SUBMIT_EXTERNAL_ID_PREFIX,
+  WellKnown,
 } from "@openrift/shared";
 import type { DeckCheckCardLine, DeckCheckIngestResultResponse } from "@openrift/shared";
 import type { createDeckCheckEntrySchema } from "@openrift/shared/contracts/deck-check";
@@ -48,7 +49,7 @@ function mapAllSections(entries: IngestEntry[]): DeckCheckCardLine[][] {
       }
       return {
         name: card.name,
-        zone: zone ?? ("main" as const),
+        zone: zone ?? WellKnown.deckZone.MAIN,
         quantity: card.quantity,
       };
     }),
@@ -175,7 +176,7 @@ export async function ingestDeckCheckPush(
         sortOrder,
         rawName: card.name,
         section: card.section,
-        zone: lines[sortOrder]?.zone ?? "main",
+        zone: lines[sortOrder]?.zone ?? WellKnown.deckZone.MAIN,
         quantity: card.quantity,
         ...resolution,
       };

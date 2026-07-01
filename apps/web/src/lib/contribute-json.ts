@@ -9,6 +9,7 @@
  * unique against `check-uniqueness.mjs`.
  */
 import type { Card, Printing } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared";
 import { contributionFileSchema } from "@openrift/shared/contribute-schema";
 import type { ZodIssue } from "zod";
 
@@ -335,7 +336,7 @@ export function buildContributionJson(
   const card = buildCardJson(state.card, cardExternalId);
   const cardName = state.card.name.trim();
   const printings = state.printings.map((printing, index) => {
-    const finish = trimOrNull(printing.finish) ?? "normal";
+    const finish = trimOrNull(printing.finish) ?? WellKnown.finish.NORMAL;
     const language = (trimOrNull(printing.language) ?? "EN").toLowerCase();
     const shortCode = trimOrNull(printing.publicCode)?.split("/", 1)[0];
     const disambiguator = shortCode || index.toString();

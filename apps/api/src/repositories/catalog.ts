@@ -120,7 +120,7 @@ export function catalogRepo(db: Kysely<Database>) {
       const result = await sql<{ tag: string }>`
         SELECT DISTINCT unnest(tags) AS tag
         FROM cards
-        WHERE type = 'legend'
+        WHERE type = ${WellKnown.cardType.LEGEND}
         ORDER BY tag
       `.execute(db);
       return result.rows.map((row) => row.tag);

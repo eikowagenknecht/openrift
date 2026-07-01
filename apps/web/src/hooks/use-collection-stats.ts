@@ -7,7 +7,7 @@ import type {
   PriceLookup,
   SetListEntry,
 } from "@openrift/shared";
-import { getPlaysetSize, imageUrl } from "@openrift/shared";
+import { WellKnown, getPlaysetSize, imageUrl } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 
 import { useCards } from "@/hooks/use-cards";
@@ -148,7 +148,7 @@ export function computeCompletion(input: CompletionInput): CompletionEntry[] {
   if (groupBy === "set") {
     return entries.toSorted((a, b) => {
       if (a.setType !== b.setType) {
-        return a.setType === "main" ? -1 : 1;
+        return a.setType === WellKnown.setType.MAIN ? -1 : 1;
       }
       return 0;
     });

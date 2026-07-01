@@ -1,3 +1,5 @@
+import { WellKnown } from "@openrift/shared";
+
 import type { DeckCodecCard, EncodeResult } from "./types.js";
 
 /** TTS zone order: legend, champion, main, battlefield, runes, sideboard. */
@@ -26,7 +28,7 @@ export function encodeTTS(cards: DeckCodecCard[]): EncodeResult {
   );
 
   for (const card of sorted) {
-    if (card.zone === "overflow") {
+    if (card.zone === WellKnown.deckZone.OVERFLOW) {
       continue;
     }
 

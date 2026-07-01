@@ -1,6 +1,6 @@
 import { Accordion as AccordionPrimitive } from "@base-ui/react/accordion";
 import type { DeckFormat, DeckResponse, DeckZone, Printing } from "@openrift/shared";
-import { legendDisplayName } from "@openrift/shared";
+import { WellKnown, legendDisplayName } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 import { createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import {
@@ -913,7 +913,7 @@ function ZonePicker({
   onZoneChange: (zone: DeckZone) => void;
 }) {
   // Overflow is not user-assignable
-  const assignableZones = zoneOrder.filter((zoneSlug) => zoneSlug !== "overflow");
+  const assignableZones = zoneOrder.filter((zoneSlug) => zoneSlug !== WellKnown.deckZone.OVERFLOW);
 
   return (
     <Select

@@ -221,7 +221,7 @@ function parsePiltoverArchive(text: string): ParseResult {
       "Source Code": variantNumber,
       Set: record["Set"],
       Rarity: record["Rarity"],
-      Finish: finish === "foil" ? "Foil" : "Normal",
+      Finish: finish === WellKnown.finish.FOIL ? "Foil" : "Normal",
       "Variant Type": record["Variant Type"],
       "Variant Label": variantLabel,
       Language: record["Language"],
@@ -231,7 +231,7 @@ function parsePiltoverArchive(text: string): ParseResult {
     const entry: ImportEntry = {
       setPrefix: parsed?.setPrefix ?? record["Set Prefix"]?.trim() ?? "",
       finish,
-      artVariant: parsed?.artVariant ?? "normal",
+      artVariant: parsed?.artVariant ?? WellKnown.artVariant.NORMAL,
       quantity,
       cardName,
       sourceCode: parsed?.shortCode ?? variantNumber,
@@ -442,11 +442,11 @@ function resolveCardModifier(
 ): { artVariant: ArtVariant; shortCode: string } {
   let artVariant: ArtVariant;
   if (modifier === "*") {
-    artVariant = "overnumbered";
+    artVariant = WellKnown.artVariant.OVERNUMBERED;
   } else if (modifier) {
-    artVariant = "altart";
+    artVariant = WellKnown.artVariant.ALTART;
   } else {
-    artVariant = "normal";
+    artVariant = WellKnown.artVariant.NORMAL;
   }
 
   const shortCode = `${setPrefix}-${cardNumber}${modifier}`;

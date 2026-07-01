@@ -246,7 +246,7 @@ export function buildDeckQuantityByCell(
 export function catalogCardToDeckBuilderCard(cardId: string, card: Card): DeckBuilderCard {
   return {
     cardId,
-    zone: "main",
+    zone: WellKnown.deckZone.MAIN,
     quantity: 1,
     preferredPrintingId: null,
     cardName: card.name,

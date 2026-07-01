@@ -1,4 +1,5 @@
 import type { DeckZone } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared";
 import { jsPDF } from "jspdf";
 
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
@@ -524,12 +525,12 @@ export async function generateRegistrationPdf(
   let rightY = cardAreaTop + padding;
 
   // Prepare card data
-  const legendCards = cardsForZone(cards, "legend");
-  const battlefieldCards = cardsForZone(cards, "battlefield");
-  const championCards = cardsForZone(cards, "champion");
-  const mainCards = cardsForZone(cards, "main");
-  const runeCards = cardsForZone(cards, "runes");
-  const sideboardCards = cardsForZone(cards, "sideboard");
+  const legendCards = cardsForZone(cards, WellKnown.deckZone.LEGEND);
+  const battlefieldCards = cardsForZone(cards, WellKnown.deckZone.BATTLEFIELD);
+  const championCards = cardsForZone(cards, WellKnown.deckZone.CHAMPION);
+  const mainCards = cardsForZone(cards, WellKnown.deckZone.MAIN);
+  const runeCards = cardsForZone(cards, WellKnown.deckZone.RUNES);
+  const sideboardCards = cardsForZone(cards, WellKnown.deckZone.SIDEBOARD);
 
   // ── LEFT COLUMN ─────────────────────────────────────────────────────────
 

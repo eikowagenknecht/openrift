@@ -1,4 +1,4 @@
-import { slugifyName } from "@openrift/shared";
+import { slugifyName, WellKnown } from "@openrift/shared";
 import type { CardType, Domain, SuperType } from "@openrift/shared/types";
 
 import type { Transact } from "../deps.js";
@@ -122,10 +122,10 @@ export async function acceptFavoriteNewCard(
           setId: first.setId,
           setName: first.setName,
           rarity: first.rarity,
-          artVariant: first.artVariant ?? "normal",
+          artVariant: first.artVariant ?? WellKnown.artVariant.NORMAL,
           isSigned: first.isSigned ?? false,
           markerSlugs: first.markerSlugs ?? [],
-          finish: first.finish ?? "normal",
+          finish: first.finish ?? WellKnown.finish.NORMAL,
           artist: first.artist ?? "",
           publicCode: first.publicCode ?? "",
           printedRulesText: first.printedRulesText,

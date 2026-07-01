@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { ERROR_CODES } from "./error-codes.js";
 import type { ErrorCode } from "./error-codes.js";
+import { WellKnown } from "./well-known.js";
 
 // Register `.openapi()` on the shared Zod singleton. Idempotent, so it is safe
 // alongside `@hono/zod-openapi` (which also extends Zod). Done here rather than
@@ -52,15 +53,20 @@ export const finishSchema = z.string().openapi({ example: "foil" });
 export const cardSizeSchema = z.string().openapi({ example: "standard" });
 
 export const deckFormatSchema = z.string().openapi({ example: "constructed" });
-export const deckZoneSchema = z.enum([
-  "main",
-  "sideboard",
-  "legend",
-  "champion",
-  "runes",
-  "battlefield",
-  "overflow",
-]);
+
+// The closed deck-zone vocabulary, sourced from the WellKnown taxonomy (which is
+// checked against the `deck_zones` reference table at API startup) so the schema
+// stays in lockstep with the slugs the code branches on.
+const DECK_ZONE_VALUES = [
+  WellKnown.deckZone.MAIN,
+  WellKnown.deckZone.SIDEBOARD,
+  WellKnown.deckZone.LEGEND,
+  WellKnown.deckZone.CHAMPION,
+  WellKnown.deckZone.RUNES,
+  WellKnown.deckZone.BATTLEFIELD,
+  WellKnown.deckZone.OVERFLOW,
+] as const;
+export const deckZoneSchema = z.enum(DECK_ZONE_VALUES);
 const cardFaceSchema = z.enum(["front", "back"]);
 
 // ── Health ───────────────────────────────────────────────────────────────────
@@ -539,7 +545,7 @@ export const deckCheckEntryCardResponseSchema = z.object({
   sortOrder: z.number().int().nonnegative(),
   rawName: z.string(),
   section: z.string(),
-  zone: z.enum(["main", "sideboard", "legend", "champion", "runes", "battlefield", "overflow"]),
+  zone: deckZoneSchema,
   quantity: z.number().int().positive(),
   matchStatus: deckCheckMatchStatusSchema,
   foundCopies: z.array(z.boolean()),
@@ -548,16 +554,8 @@ export const deckCheckEntryCardResponseSchema = z.object({
 });
 
 export const deckViolationSchema = z.object({
-  zone: z.enum([
-    "main",
-    "sideboard",
-    "legend",
-    "champion",
-    "runes",
-    "battlefield",
-    "overflow",
-    "deck",
-  ]),
+  // Every deck zone, plus "deck" for whole-deck-scope violations (not a zone).
+  zone: z.enum([...DECK_ZONE_VALUES, "deck"]),
   code: z.string(),
   message: z.string(),
   cardId: z.string().optional(),

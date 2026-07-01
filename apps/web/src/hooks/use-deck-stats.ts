@@ -1,4 +1,4 @@
-import type { Domain } from "@openrift/shared";
+import type { DeckZone, Domain } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
 
 import { useEnumOrders } from "@/hooks/use-enums";
@@ -34,7 +34,7 @@ interface DeckStats {
 }
 
 // Stats cover only main deck cards (champion counts toward main)
-const MAIN_ZONES = new Set(["main", "champion"]);
+const MAIN_ZONES = new Set<DeckZone>([WellKnown.deckZone.MAIN, WellKnown.deckZone.CHAMPION]);
 
 // Types with dedicated zones are excluded from the type breakdown chart
 const EXCLUDED_CARD_TYPES = new Set<string>([

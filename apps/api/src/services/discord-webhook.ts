@@ -1,4 +1,4 @@
-import { humanizePrintingField, imageUrl } from "@openrift/shared";
+import { humanizePrintingField, imageUrl, WellKnown } from "@openrift/shared";
 import type { Logger } from "@openrift/shared/logger";
 
 import type { FieldChange } from "../db/index.js";
@@ -144,7 +144,7 @@ export function buildNewPrintingPayloads(
     if (event.rarity) {
       headerParts.push(event.rarityLabel ?? event.rarity);
     }
-    if (event.finish && event.finish !== "normal") {
+    if (event.finish && event.finish !== WellKnown.finish.NORMAL) {
       headerParts.push(event.finishLabel ?? event.finish);
     }
     if (event.language && event.language !== "EN") {

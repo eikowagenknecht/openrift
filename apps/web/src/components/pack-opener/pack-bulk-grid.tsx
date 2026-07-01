@@ -1,4 +1,5 @@
 import type { CatalogPrintingResponse, PackResult } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared";
 
 import { PullCard } from "@/components/pack-opener/pull-card";
 
@@ -24,8 +25,8 @@ export function PackBulkGrid({ packs, imagesByPrintingId, shimmer }: PackBulkGri
     <div className="space-y-6">
       {packs.map((pack, packIndex) => {
         const sorted = pack.pulls.toSorted((a, b) => {
-          const keyA = a.slot === "ultimate" ? "Ultimate" : a.printing.rarity;
-          const keyB = b.slot === "ultimate" ? "Ultimate" : b.printing.rarity;
+          const keyA = a.slot === WellKnown.packSlot.ULTIMATE ? "Ultimate" : a.printing.rarity;
+          const keyB = b.slot === WellKnown.packSlot.ULTIMATE ? "Ultimate" : b.printing.rarity;
           return (RARITY_RANK[keyA] ?? 99) - (RARITY_RANK[keyB] ?? 99);
         });
         return (

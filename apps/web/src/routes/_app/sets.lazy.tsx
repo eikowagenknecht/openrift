@@ -1,5 +1,5 @@
 import type { SetListEntry } from "@openrift/shared";
-import { imageUrl } from "@openrift/shared";
+import { WellKnown, imageUrl } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createLazyFileRoute } from "@tanstack/react-router";
 import { CalendarIcon, LayersIcon } from "lucide-react";
@@ -70,8 +70,8 @@ const SET_GRID = "grid gap-4 min-[1920px]:grid-cols-4 sm:grid-cols-2 xl:grid-col
 function SetsPage() {
   const { data } = useSuspenseQuery(publicSetListQueryOptions);
 
-  const mainSets = data.sets.filter((s) => s.setType === "main");
-  const supplementalSets = data.sets.filter((s) => s.setType !== "main");
+  const mainSets = data.sets.filter((s) => s.setType === WellKnown.setType.MAIN);
+  const supplementalSets = data.sets.filter((s) => s.setType !== WellKnown.setType.MAIN);
 
   return (
     <div className={PAGE_PADDING}>

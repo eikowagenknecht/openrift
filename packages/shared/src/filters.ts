@@ -330,7 +330,7 @@ export function filterCards(
     const markerSlugs = printing.markers.map((m) => m.slug);
     const channelSlugs = printing.distributionChannels.map((dc) => dc.channel.slug);
     const customTagSlugs = options.customTagAssignments?.[printing.cardId] ?? [];
-    const artVariant = printing.artVariant || "normal";
+    const artVariant = printing.artVariant || WellKnown.artVariant.NORMAL;
     return (
       matchesSearch(printing, terms, hasPrefixes, filters.searchScope, options.keywordReverseMap) &&
       includes(filters.sets, printing.setSlug) &&
@@ -478,9 +478,9 @@ export function getAvailableFilters(
   const rarities = unique(printings.map((p) => p.rarity)).sort(
     (a, b) => orderIndex(orders.rarities, a) - orderIndex(orders.rarities, b),
   );
-  const artVariants = unique(printings.map((p) => p.artVariant || "normal")).sort(
-    (a, b) => orderIndex(orders.artVariants, a) - orderIndex(orders.artVariants, b),
-  );
+  const artVariants = unique(
+    printings.map((p) => p.artVariant || WellKnown.artVariant.NORMAL),
+  ).sort((a, b) => orderIndex(orders.artVariants, a) - orderIndex(orders.artVariants, b));
   const finishes = unique(printings.map((p) => p.finish)).sort(
     (a, b) => orderIndex(orders.finishes, a) - orderIndex(orders.finishes, b),
   );
@@ -628,7 +628,7 @@ const COUNTABLE_DIMENSIONS: readonly CountableDimension[] = [
     key: "artVariants",
     filterField: "artVariants",
     excludeField: "artVariantsExclude",
-    values: (p) => [p.artVariant || "normal"],
+    values: (p) => [p.artVariant || WellKnown.artVariant.NORMAL],
   },
   {
     key: "finishes",

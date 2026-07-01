@@ -5,6 +5,7 @@ import {
   isPoolOpenable,
   mathRandom,
   openPacks,
+  WellKnown,
 } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { PackagePlusIcon, SparklesIcon } from "lucide-react";
@@ -67,7 +68,7 @@ function languagesWithEnoughPrintings(printings: readonly Printing[]): string[] 
 export function PackOpenerPage() {
   const { data: setList } = useSuspenseQuery(publicSetListQueryOptions);
   const mainSets = useMemo(
-    () => setList.sets.filter((set) => set.setType === "main"),
+    () => setList.sets.filter((set) => set.setType === WellKnown.setType.MAIN),
     [setList.sets],
   );
 

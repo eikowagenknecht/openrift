@@ -364,7 +364,8 @@ function CardLayoutHelp({
   const cardName = state.card.name || "Your card name";
   const cardDomains = state.card.domains.length > 0 ? state.card.domains : ["fury"];
   const cardType = state.card.type ?? WellKnown.cardType.UNIT;
-  const cardSuperTypes = state.card.superTypes.length > 0 ? state.card.superTypes : ["champion"];
+  const cardSuperTypes =
+    state.card.superTypes.length > 0 ? state.card.superTypes : [WellKnown.superType.CHAMPION];
   const cardTags = state.card.tags.length > 0 ? state.card.tags : ["Tag"];
   const cardEnergy = state.card.energy ?? 3;
   const cardMight = state.card.might ?? 4;

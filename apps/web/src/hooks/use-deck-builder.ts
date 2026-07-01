@@ -34,7 +34,7 @@ function allCards(collection: DeckCollection): DeckBuilderCard[] {
 function runeTotalOf(cards: DeckBuilderCard[]): number {
   let total = 0;
   for (const card of cards) {
-    if (card.zone === "runes") {
+    if (card.zone === WellKnown.deckZone.RUNES) {
       total += card.quantity;
     }
   }
@@ -79,7 +79,7 @@ function rebalanceRunes(
     return;
   }
 
-  const legend = cards.find((card) => card.zone === "legend");
+  const legend = cards.find((card) => card.zone === WellKnown.deckZone.LEGEND);
   if (!legend || legend.domains.length < 2) {
     return;
   }
@@ -91,12 +91,18 @@ function rebalanceRunes(
 
   if (runeTotal > RUNE_TARGET) {
     const otherRune = cards.find(
-      (card) => card.zone === "runes" && card.domains.some((domain) => domain === otherDomain),
+      (card) =>
+        card.zone === WellKnown.deckZone.RUNES &&
+        card.domains.some((domain) => domain === otherDomain),
     );
     if (!otherRune) {
       return;
     }
-    const key = deckCardKey(otherRune.cardId, "runes", otherRune.preferredPrintingId);
+    const key = deckCardKey(
+      otherRune.cardId,
+      WellKnown.deckZone.RUNES,
+      otherRune.preferredPrintingId,
+    );
     if (otherRune.quantity > 1) {
       collection.update(key, (draft) => {
         draft.quantity -= 1;
@@ -110,11 +116,17 @@ function rebalanceRunes(
   // Under target — increment an opposite-domain rune already in the deck,
   // or add a fresh one from the catalog.
   const existingOther = cards.find(
-    (card) => card.zone === "runes" && card.domains.some((domain) => domain === otherDomain),
+    (card) =>
+      card.zone === WellKnown.deckZone.RUNES &&
+      card.domains.some((domain) => domain === otherDomain),
   );
   if (existingOther) {
     collection.update(
-      deckCardKey(existingOther.cardId, "runes", existingOther.preferredPrintingId),
+      deckCardKey(
+        existingOther.cardId,
+        WellKnown.deckZone.RUNES,
+        existingOther.preferredPrintingId,
+      ),
       (draft) => {
         draft.quantity += 1;
       },
@@ -125,7 +137,7 @@ function rebalanceRunes(
   if (catalogRunes.length > 0) {
     collection.insert({
       ...catalogRunes[0],
-      zone: "runes",
+      zone: WellKnown.deckZone.RUNES,
       quantity: 1,
       preferredPrintingId: null,
     });
@@ -157,7 +169,7 @@ export function canAddRune(card: DeckBuilderCard, deckCards: DeckBuilderCard[]):
   if (runeTotal < RUNE_TARGET) {
     return true;
   }
-  const legend = deckCards.find((entry) => entry.zone === "legend");
+  const legend = deckCards.find((entry) => entry.zone === WellKnown.deckZone.LEGEND);
   if (!legend || legend.domains.length < 2) {
     return false;
   }
@@ -166,7 +178,9 @@ export function canAddRune(card: DeckBuilderCard, deckCards: DeckBuilderCard[]):
     return false;
   }
   return deckCards.some(
-    (entry) => entry.zone === "runes" && entry.domains.some((domain) => domain === otherDomain),
+    (entry) =>
+      entry.zone === WellKnown.deckZone.RUNES &&
+      entry.domains.some((domain) => domain === otherDomain),
   );
 }
 
@@ -204,7 +218,7 @@ export function addCardAction(
   const preferredPrintingId = card.preferredPrintingId;
   const freeform = format === WellKnown.deckFormat.FREEFORM;
 
-  if (zone === "legend" || zone === "champion") {
+  if (zone === WellKnown.deckZone.LEGEND || zone === WellKnown.deckZone.CHAMPION) {
     if (freeform) {
       incrementOrInsert(collection, card, zone, preferredPrintingId, count ?? 1);
       return;
@@ -219,13 +233,13 @@ export function addCardAction(
     return;
   }
 
-  if (zone === "battlefield") {
+  if (zone === WellKnown.deckZone.BATTLEFIELD) {
     if (freeform) {
       incrementOrInsert(collection, card, zone, preferredPrintingId, count ?? 1);
       return;
     }
     const cards = allCards(collection);
-    const zoneCards = cards.filter((entry) => entry.zone === "battlefield");
+    const zoneCards = cards.filter((entry) => entry.zone === WellKnown.deckZone.BATTLEFIELD);
     if (zoneCards.some((entry) => entry.cardId === card.cardId)) {
       return;
     }
@@ -236,7 +250,7 @@ export function addCardAction(
     return;
   }
 
-  if (zone === "runes") {
+  if (zone === WellKnown.deckZone.RUNES) {
     if (freeform) {
       incrementOrInsert(collection, card, zone, preferredPrintingId, count ?? 1);
       return;
@@ -250,15 +264,23 @@ export function addCardAction(
       const existing = cards.find(
         (entry) =>
           entry.cardId === card.cardId &&
-          entry.zone === "runes" &&
+          entry.zone === WellKnown.deckZone.RUNES &&
           entry.preferredPrintingId === preferredPrintingId,
       );
       if (existing) {
-        collection.update(deckCardKey(card.cardId, "runes", preferredPrintingId), (draft) => {
-          draft.quantity += 1;
-        });
+        collection.update(
+          deckCardKey(card.cardId, WellKnown.deckZone.RUNES, preferredPrintingId),
+          (draft) => {
+            draft.quantity += 1;
+          },
+        );
       } else {
-        collection.insert({ ...card, zone: "runes", quantity: 1, preferredPrintingId });
+        collection.insert({
+          ...card,
+          zone: WellKnown.deckZone.RUNES,
+          quantity: 1,
+          preferredPrintingId,
+        });
       }
       rebalanceRunes(collection, card.domains, runesByDomain);
     }
@@ -306,7 +328,7 @@ export function removeCardAction(
   } else {
     collection.delete(key);
   }
-  if (zone === "runes" && format !== WellKnown.deckFormat.FREEFORM) {
+  if (zone === WellKnown.deckZone.RUNES && format !== WellKnown.deckFormat.FREEFORM) {
     rebalanceRunes(collection, target.domains, runesByDomain);
   }
 }
@@ -355,7 +377,8 @@ export function moveCardAction(
     return;
   }
   const singleSlot =
-    (toZone === "legend" || toZone === "champion") && format !== WellKnown.deckFormat.FREEFORM;
+    (toZone === WellKnown.deckZone.LEGEND || toZone === WellKnown.deckZone.CHAMPION) &&
+    format !== WellKnown.deckFormat.FREEFORM;
   if (singleSlot) {
     moveIntoSingleSlot(collection, source, sourceKey, toZone);
     return;
@@ -387,7 +410,8 @@ export function moveOneCardAction(
     return;
   }
   const singleSlot =
-    (toZone === "legend" || toZone === "champion") && format !== WellKnown.deckFormat.FREEFORM;
+    (toZone === WellKnown.deckZone.LEGEND || toZone === WellKnown.deckZone.CHAMPION) &&
+    format !== WellKnown.deckFormat.FREEFORM;
   if (singleSlot) {
     moveIntoSingleSlot(collection, source, sourceKey, toZone);
     return;
@@ -494,20 +518,22 @@ export function setLegendAction(
 ): void {
   if (format === WellKnown.deckFormat.FREEFORM) {
     // Freeform: legends are a multi-card zone, no rune autofill or domain swap.
-    incrementOrInsert(collection, card, "legend", card.preferredPrintingId, 1);
+    incrementOrInsert(collection, card, WellKnown.deckZone.LEGEND, card.preferredPrintingId, 1);
     return;
   }
   const cards = allCards(collection);
 
   // Replace legend slot (across all printings).
   for (const existing of cards) {
-    if (existing.zone === "legend") {
-      collection.delete(deckCardKey(existing.cardId, "legend", existing.preferredPrintingId));
+    if (existing.zone === WellKnown.deckZone.LEGEND) {
+      collection.delete(
+        deckCardKey(existing.cardId, WellKnown.deckZone.LEGEND, existing.preferredPrintingId),
+      );
     }
   }
   collection.insert({
     ...card,
-    zone: "legend",
+    zone: WellKnown.deckZone.LEGEND,
     quantity: 1,
     preferredPrintingId: card.preferredPrintingId,
   });
@@ -515,20 +541,26 @@ export function setLegendAction(
   // Drop runes that don't match the new legend's domains. Handles both
   // direct swaps and remove-then-add.
   const legendDomainSet = new Set(card.domains);
-  const runesAfter = allCards(collection).filter((entry) => entry.zone === "runes");
+  const runesAfter = allCards(collection).filter(
+    (entry) => entry.zone === WellKnown.deckZone.RUNES,
+  );
   const hasIncompatibleRunes = runesAfter.some(
     (entry) => !entry.domains.every((domain) => legendDomainSet.has(domain)),
   );
   if (hasIncompatibleRunes) {
     for (const rune of runesAfter) {
-      collection.delete(deckCardKey(rune.cardId, "runes", rune.preferredPrintingId));
+      collection.delete(
+        deckCardKey(rune.cardId, WellKnown.deckZone.RUNES, rune.preferredPrintingId),
+      );
     }
   }
 
   // Auto-populate runes if runes zone is now empty and the legend has two
   // domains. Distribute 6 slots per domain across available rune cards,
   // grouping by cardId so each unique rune gets a single entry.
-  const remainingRunes = allCards(collection).filter((entry) => entry.zone === "runes");
+  const remainingRunes = allCards(collection).filter(
+    (entry) => entry.zone === WellKnown.deckZone.RUNES,
+  );
   if (remainingRunes.length > 0 || card.domains.length < 2) {
     return;
   }
@@ -549,7 +581,7 @@ export function setLegendAction(
       } else {
         runeEntries.set(rune.cardId, {
           ...rune,
-          zone: "runes",
+          zone: WellKnown.deckZone.RUNES,
           quantity: 1,
           preferredPrintingId: null,
         });

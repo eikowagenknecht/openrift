@@ -4,10 +4,18 @@ import { WellKnown } from "@openrift/shared";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 
 /** Zones where cards are grouped by type and sorted within each type. */
-export const GROUPED_ZONES: ReadonlySet<DeckZone> = new Set(["main", "sideboard", "overflow"]);
+export const GROUPED_ZONES: ReadonlySet<DeckZone> = new Set([
+  WellKnown.deckZone.MAIN,
+  WellKnown.deckZone.SIDEBOARD,
+  WellKnown.deckZone.OVERFLOW,
+]);
 
 /** Display order for type groups inside grouped zones. */
-export const TYPE_GROUP_ORDER: CardType[] = [WellKnown.cardType.UNIT, "spell", "gear"];
+export const TYPE_GROUP_ORDER: CardType[] = [
+  WellKnown.cardType.UNIT,
+  "spell",
+  WellKnown.cardType.GEAR,
+];
 
 /**
  * Stable comparator for deck cards inside a single type group:

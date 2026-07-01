@@ -1,4 +1,5 @@
 import type { DeckZone, Printing } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
 import { useCards } from "@/hooks/use-cards";
@@ -12,13 +13,13 @@ import { sortOverviewCards } from "@/lib/deck-card-sort";
  * user sees it.
  */
 const ZONE_ORDER: DeckZone[] = [
-  "legend",
-  "champion",
-  "runes",
-  "battlefield",
-  "main",
-  "sideboard",
-  "overflow",
+  WellKnown.deckZone.LEGEND,
+  WellKnown.deckZone.CHAMPION,
+  WellKnown.deckZone.RUNES,
+  WellKnown.deckZone.BATTLEFIELD,
+  WellKnown.deckZone.MAIN,
+  WellKnown.deckZone.SIDEBOARD,
+  WellKnown.deckZone.OVERFLOW,
 ];
 
 interface UseDeckItemsResult {

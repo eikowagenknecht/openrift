@@ -113,7 +113,7 @@ function DeckActionsCell({
       removeLabel={isInActiveSingleZone ? "Remove" : undefined}
       shiftHeld={shiftHeld}
       remainingCount={
-        activeZone === "runes"
+        activeZone === WellKnown.deckZone.RUNES
           ? Math.max(0, RUNE_TARGET - runeTotal)
           : 3 - (copyLimitTotalByCard.get(cardId) ?? 0)
       }
@@ -130,7 +130,7 @@ function DeckActionsCell({
 export function buildRunesByDomain(allPrintings: Printing[]): Map<string, DeckBuilderCard[]> {
   const runesByDomain = new Map<string, DeckBuilderCard[]>();
   for (const entry of allPrintings) {
-    if (entry.card.type !== "rune") {
+    if (entry.card.type !== WellKnown.cardType.RUNE) {
       continue;
     }
     const runeCard = catalogCardToDeckBuilderCard(entry.cardId, entry.card);
@@ -329,7 +329,9 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
   // Wrapper only renders this component when activeZone is set
   const activeZone = useDeckBuilderUiStore((state) => state.activeZone) as DeckZone;
   // Single-card zones only apply in constructed — freeform legend/champion are multi-card.
-  const isSingleCardZone = !isFreeform && (activeZone === "legend" || activeZone === "champion");
+  const isSingleCardZone =
+    !isFreeform &&
+    (activeZone === WellKnown.deckZone.LEGEND || activeZone === WellKnown.deckZone.CHAMPION);
 
   // Track Shift key for "add max" visual hint
   const [shiftHeld, setShiftHeld] = useState(false);
@@ -451,14 +453,14 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
       ),
     };
 
-    if (activeZone === "legend" && !isFreeform) {
+    if (activeZone === WellKnown.deckZone.LEGEND && !isFreeform) {
       setLegend(builderCard, buildRunesByDomain(allPrintings));
     } else {
       // Shift+click adds up to the zone maximum (or +3 in freeform where there's no max).
       const count = event?.shiftKey
         ? isFreeform
           ? 3
-          : activeZone === "runes"
+          : activeZone === WellKnown.deckZone.RUNES
             ? Math.max(0, RUNE_TARGET - runeTotal)
             : 3
         : undefined;
@@ -506,7 +508,7 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
   // the 3-copy cap that disables the browser's add button.
   const copyLimitTotalByCard = new Map<string, number>();
   for (const card of deckCards) {
-    if (card.zone === "main" || card.zone === "sideboard") {
+    if (card.zone === WellKnown.deckZone.MAIN || card.zone === WellKnown.deckZone.SIDEBOARD) {
       copyLimitTotalByCard.set(
         card.cardId,
         (copyLimitTotalByCard.get(card.cardId) ?? 0) + card.quantity,
@@ -515,7 +517,7 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
   }
 
   const runeTotal = deckCards
-    .filter((card) => card.zone === "runes")
+    .filter((card) => card.zone === WellKnown.deckZone.RUNES)
     .reduce((sum, card) => sum + card.quantity, 0);
 
   // Register the row-body click handler so the virtualized CardTable can
@@ -538,20 +540,21 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
       return false;
     }
     const cardId = item.printing.cardId;
-    if (activeZone === "legend" || activeZone === "champion") {
+    if (activeZone === WellKnown.deckZone.LEGEND || activeZone === WellKnown.deckZone.CHAMPION) {
       return deckCards.some((card) => card.cardId === cardId && card.zone === activeZone);
     }
-    if (activeZone === "battlefield") {
+    if (activeZone === WellKnown.deckZone.BATTLEFIELD) {
       const alreadyInZone = deckCards.some(
-        (card) => card.cardId === cardId && card.zone === "battlefield",
+        (card) => card.cardId === cardId && card.zone === WellKnown.deckZone.BATTLEFIELD,
       );
-      const zoneFull = deckCards.filter((card) => card.zone === "battlefield").length >= 3;
+      const zoneFull =
+        deckCards.filter((card) => card.zone === WellKnown.deckZone.BATTLEFIELD).length >= 3;
       return alreadyInZone || zoneFull;
     }
-    if (activeZone === "runes") {
+    if (activeZone === WellKnown.deckZone.RUNES) {
       return !canAddRune(catalogCardToDeckBuilderCard(cardId, item.printing.card), deckCards);
     }
-    if (activeZone === "overflow") {
+    if (activeZone === WellKnown.deckZone.OVERFLOW) {
       // Free parking zone — never capped.
       return false;
     }
@@ -615,7 +618,7 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
             remainingCount={
               isFreeform
                 ? undefined
-                : activeZone === "runes"
+                : activeZone === WellKnown.deckZone.RUNES
                   ? Math.max(0, RUNE_TARGET - runeTotal)
                   : 3 - (copyLimitTotalByCard.get(cardId) ?? 0)
             }

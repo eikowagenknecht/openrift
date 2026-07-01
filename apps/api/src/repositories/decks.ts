@@ -1,3 +1,4 @@
+import { WellKnown } from "@openrift/shared";
 import type {
   CardType,
   DeckFormat,
@@ -227,10 +228,10 @@ export function decksRepo(db: Kysely<Database>) {
             JOIN image_files ci ON ci.id = pi.image_file_id
             WHERE p.card_id = dc.card_id
             ORDER BY
-              (p.art_variant = 'normal')::int DESC,
+              (p.art_variant = ${WellKnown.artVariant.NORMAL})::int DESC,
               (cardinality(p.marker_slugs) = 0)::int DESC,
               (p.is_signed = false)::int DESC,
-              (p.finish = 'normal')::int DESC,
+              (p.finish = ${WellKnown.finish.NORMAL})::int DESC,
               s.sort_order ASC,
               p.short_code ASC
             LIMIT 1

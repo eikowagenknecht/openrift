@@ -1,4 +1,5 @@
 import type { DeckZone, SourceSlot } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared";
 import { getDeckFromCode } from "@piltoverarchive/riftbound-deck-codes";
 
 /** A single entry produced by any deck format parser. */
@@ -92,7 +93,7 @@ function parsePiltoverDeckCode(code: string): DeckParseResult {
         shortCode: decoded.chosenChampion,
         quantity: 1,
         sourceSlot: "chosenChampion",
-        explicitZone: "champion",
+        explicitZone: WellKnown.deckZone.CHAMPION,
         rawFields: { "Source Code": decoded.chosenChampion, Slot: "Chosen Champion" },
       });
     }
@@ -109,17 +110,17 @@ function parsePiltoverDeckCode(code: string): DeckParseResult {
 
 /** Reverse map from zone label to DeckZone. */
 const LABEL_TO_ZONE: Record<string, DeckZone> = {
-  legend: "legend",
-  champion: "champion",
-  maindeck: "main",
-  "main deck": "main",
-  main: "main",
-  battlefields: "battlefield",
-  battlefield: "battlefield",
-  runes: "runes",
-  "rune pool": "runes",
-  sideboard: "sideboard",
-  overflow: "overflow",
+  legend: WellKnown.deckZone.LEGEND,
+  champion: WellKnown.deckZone.CHAMPION,
+  maindeck: WellKnown.deckZone.MAIN,
+  "main deck": WellKnown.deckZone.MAIN,
+  main: WellKnown.deckZone.MAIN,
+  battlefields: WellKnown.deckZone.BATTLEFIELD,
+  battlefield: WellKnown.deckZone.BATTLEFIELD,
+  runes: WellKnown.deckZone.RUNES,
+  "rune pool": WellKnown.deckZone.RUNES,
+  sideboard: WellKnown.deckZone.SIDEBOARD,
+  overflow: WellKnown.deckZone.OVERFLOW,
 };
 
 /** Maps explicit zones to the SourceSlot used for fallback zone inference. */
@@ -174,7 +175,7 @@ function parseTextFormat(code: string): DeckParseResult {
     // count is treated as quantity 1 so users can paste plain name lists
     // without prefixing every row.
     const match = line.match(/^(?<quantity>\d+)\s+(?<name>.+)$/u);
-    const effectiveZone = currentZone ?? "main";
+    const effectiveZone = currentZone ?? WellKnown.deckZone.MAIN;
     const quantity = match ? Number(match[1]) : 1;
     const cardName = match ? match[2].trim() : line;
     entries.push({
@@ -258,7 +259,7 @@ function parseTTSFormat(code: string): DeckParseResult {
       shortCode,
       quantity,
       sourceSlot,
-      explicitZone: sourceSlot === "chosenChampion" ? ("champion" as const) : undefined,
+      explicitZone: sourceSlot === "chosenChampion" ? WellKnown.deckZone.CHAMPION : undefined,
       rawFields: { "Source Code": shortCode, Slot: TTS_SLOT_LABELS[sourceSlot] },
     }),
   );

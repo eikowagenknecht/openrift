@@ -352,19 +352,19 @@ function UnpricedPullsList({ pulls }: { pulls: UnpricedPull[] }) {
 
 function slotLabel(pull: PackPull, rarityLabel: (slug: string) => string): string {
   switch (pull.slot) {
-    case "common": {
+    case WellKnown.packSlot.COMMON: {
       return "Common";
     }
-    case "uncommon": {
+    case WellKnown.packSlot.UNCOMMON: {
       return "Uncommon";
     }
-    case "flex": {
+    case WellKnown.packSlot.FLEX: {
       return rarityLabel(pull.printing.rarity);
     }
-    case "foil": {
+    case WellKnown.packSlot.FOIL: {
       return `Foil ${rarityLabel(pull.printing.rarity)}`;
     }
-    case "token": {
+    case WellKnown.packSlot.TOKEN: {
       if (pull.printing.cardSuperTypes.includes(WellKnown.superType.TOKEN)) {
         return "Token";
       }
@@ -376,16 +376,16 @@ function slotLabel(pull: PackPull, rarityLabel: (slug: string) => string): strin
       }
       return "Rune";
     }
-    case "showcase": {
+    case WellKnown.packSlot.SHOWCASE: {
       if (pull.printing.isSigned) {
         return "Signed";
       }
-      if (pull.printing.artVariant === "overnumbered") {
+      if (pull.printing.artVariant === WellKnown.artVariant.OVERNUMBERED) {
         return "Overnumbered";
       }
       return "Alt Art";
     }
-    case "ultimate": {
+    case WellKnown.packSlot.ULTIMATE: {
       return "Ultimate";
     }
   }

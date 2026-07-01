@@ -56,16 +56,27 @@ import { cn } from "@/lib/utils";
 import { useOnboardingStore } from "@/stores/onboarding-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
-const LANDSCAPE_ZONES: ReadonlySet<DeckZone> = new Set(["battlefield"]);
+const LANDSCAPE_ZONES: ReadonlySet<DeckZone> = new Set([WellKnown.deckZone.BATTLEFIELD]);
 
 // Zones that contribute to the "X / Y" completion count on the Cards KPI
-const REQUIRED_ZONES: DeckZone[] = ["legend", "champion", "runes", "battlefield", "main"];
+const REQUIRED_ZONES: DeckZone[] = [
+  WellKnown.deckZone.LEGEND,
+  WellKnown.deckZone.CHAMPION,
+  WellKnown.deckZone.RUNES,
+  WellKnown.deckZone.BATTLEFIELD,
+  WellKnown.deckZone.MAIN,
+];
 const REQUIRED_TOTAL = REQUIRED_ZONES.reduce((sum, zone) => sum + (ZONE_EXPECTED[zone] ?? 0), 0);
 
 // Small-zone row layout:
 //  • @lg: 3 columns — Legend / Champion / Runes on row 1, Battlefield on row 2
 //  • @5xl: 5 columns — all four on a single row (1+1+1+2)
-const SMALL_ZONES: DeckZone[] = ["legend", "champion", "runes", "battlefield"];
+const SMALL_ZONES: DeckZone[] = [
+  WellKnown.deckZone.LEGEND,
+  WellKnown.deckZone.CHAMPION,
+  WellKnown.deckZone.RUNES,
+  WellKnown.deckZone.BATTLEFIELD,
+];
 const SMALL_ZONE_SPAN: Partial<Record<DeckZone, string>> = {
   legend: "@lg:col-span-1 @5xl:col-span-1",
   champion: "@lg:col-span-1 @5xl:col-span-1",
@@ -301,7 +312,7 @@ export function DeckOverview({
         </div>
         <ZoneTile
           deckId={deck.id}
-          zone="main"
+          zone={WellKnown.deckZone.MAIN}
           label={ZONE_LABELS.main}
           cards={cards.filter((card) => card.zone === WellKnown.deckZone.MAIN)}
           allCards={cards}
@@ -311,7 +322,7 @@ export function DeckOverview({
           zoneViolations={violations.filter(
             (violation) => violation.zone === WellKnown.deckZone.MAIN && !violation.cardId,
           )}
-          onClick={onZoneClick ? () => onZoneClick("main") : undefined}
+          onClick={onZoneClick ? () => onZoneClick(WellKnown.deckZone.MAIN) : undefined}
           onHoverCard={onHoverCard}
           getThumbnail={getThumbnail}
           readOnly={readOnly}
@@ -319,7 +330,7 @@ export function DeckOverview({
         />
         <ZoneTile
           deckId={deck.id}
-          zone="sideboard"
+          zone={WellKnown.deckZone.SIDEBOARD}
           label={ZONE_LABELS.sideboard}
           cards={cards.filter((card) => card.zone === WellKnown.deckZone.SIDEBOARD)}
           allCards={cards}
@@ -329,7 +340,7 @@ export function DeckOverview({
           zoneViolations={violations.filter(
             (violation) => violation.zone === WellKnown.deckZone.SIDEBOARD && !violation.cardId,
           )}
-          onClick={onZoneClick ? () => onZoneClick("sideboard") : undefined}
+          onClick={onZoneClick ? () => onZoneClick(WellKnown.deckZone.SIDEBOARD) : undefined}
           onHoverCard={onHoverCard}
           getThumbnail={getThumbnail}
           readOnly={readOnly}
@@ -338,7 +349,7 @@ export function DeckOverview({
         {cards.some((card) => card.zone === WellKnown.deckZone.OVERFLOW) && (
           <ZoneTile
             deckId={deck.id}
-            zone="overflow"
+            zone={WellKnown.deckZone.OVERFLOW}
             label={ZONE_LABELS.overflow}
             cards={cards.filter((card) => card.zone === WellKnown.deckZone.OVERFLOW)}
             allCards={cards}
@@ -348,7 +359,7 @@ export function DeckOverview({
             zoneViolations={violations.filter(
               (violation) => violation.zone === WellKnown.deckZone.OVERFLOW && !violation.cardId,
             )}
-            onClick={onZoneClick ? () => onZoneClick("overflow") : undefined}
+            onClick={onZoneClick ? () => onZoneClick(WellKnown.deckZone.OVERFLOW) : undefined}
             onHoverCard={onHoverCard}
             getThumbnail={getThumbnail}
             readOnly={readOnly}
@@ -527,7 +538,11 @@ function SignInKpi({ href }: { href: string }) {
 
 // Zones where cards can be freely re-homed via drag. Mirrors the sidebar's
 // DRAG_ZONES so the two surfaces behave the same.
-const DRAG_SOURCE_ZONES: ReadonlySet<DeckZone> = new Set(["main", "sideboard", "overflow"]);
+const DRAG_SOURCE_ZONES: ReadonlySet<DeckZone> = new Set([
+  WellKnown.deckZone.MAIN,
+  WellKnown.deckZone.SIDEBOARD,
+  WellKnown.deckZone.OVERFLOW,
+]);
 
 interface ZoneTileProps {
   deckId: string;

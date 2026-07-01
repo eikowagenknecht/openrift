@@ -116,19 +116,19 @@ export function PullCard({ pull, image, className, shimmer = true }: PullCardPro
 function slotLabel(pull: PackPull, rarityLabels: Record<string, string>): string {
   const rarityLabel = rarityLabels[pull.printing.rarity] ?? pull.printing.rarity;
   switch (pull.slot) {
-    case "common": {
+    case WellKnown.packSlot.COMMON: {
       return "Common";
     }
-    case "uncommon": {
+    case WellKnown.packSlot.UNCOMMON: {
       return "Uncommon";
     }
-    case "flex": {
+    case WellKnown.packSlot.FLEX: {
       return rarityLabel;
     }
-    case "foil": {
+    case WellKnown.packSlot.FOIL: {
       return `Foil ${rarityLabel}`;
     }
-    case "token": {
+    case WellKnown.packSlot.TOKEN: {
       if (pull.printing.cardSuperTypes.includes(WellKnown.superType.TOKEN)) {
         return "Token";
       }
@@ -140,7 +140,7 @@ function slotLabel(pull: PackPull, rarityLabels: Record<string, string>): string
       }
       return "Rune";
     }
-    case "showcase": {
+    case WellKnown.packSlot.SHOWCASE: {
       if (pull.printing.isSigned) {
         return "Signed";
       }
@@ -149,7 +149,7 @@ function slotLabel(pull: PackPull, rarityLabels: Record<string, string>): string
       }
       return "Alt Art";
     }
-    case "ultimate": {
+    case WellKnown.packSlot.ULTIMATE: {
       return "Ultimate";
     }
   }

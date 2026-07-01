@@ -8,6 +8,7 @@
  * Usage: bun scripts/refresh-cardmarket-prices.ts
  */
 
+import { WellKnown } from "@openrift/shared";
 import type { PriceRefreshResponse } from "@openrift/shared";
 import type { Logger } from "@openrift/shared/logger";
 import { toCents } from "@openrift/shared/utils";
@@ -117,7 +118,7 @@ function buildCardmarketStaging(
         externalId: product.idProduct,
         groupId: product.idExpansion,
         productName: product.name,
-        finish: "normal",
+        finish: WellKnown.finish.NORMAL,
         language: null,
         recordedAt,
         marketCents: normalMarket,
@@ -141,7 +142,7 @@ function buildCardmarketStaging(
         externalId: product.idProduct,
         groupId: product.idExpansion,
         productName: product.name,
-        finish: "foil",
+        finish: WellKnown.finish.FOIL,
         language: null,
         recordedAt,
         marketCents: foilMarket,

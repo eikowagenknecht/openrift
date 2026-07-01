@@ -2,6 +2,7 @@ import type {
   DeckCheckEntryCardResponse,
   PlayerDeckCheckEntryDetailResponse,
 } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared";
 import { TriangleAlertIcon } from "lucide-react";
 import { useState } from "react";
 
@@ -249,7 +250,15 @@ function PlayerCardGrid({ cards }: { cards: DeckCheckEntryCardResponse[] }) {
   const { zoneLabels } = useZoneOrder();
   const cardsByZone = Map.groupBy(cards, (card) => card.zone);
   const zones = (
-    ["legend", "champion", "battlefield", "main", "sideboard", "overflow", "runes"] as const
+    [
+      WellKnown.deckZone.LEGEND,
+      WellKnown.deckZone.CHAMPION,
+      WellKnown.deckZone.BATTLEFIELD,
+      WellKnown.deckZone.MAIN,
+      WellKnown.deckZone.SIDEBOARD,
+      WellKnown.deckZone.OVERFLOW,
+      WellKnown.deckZone.RUNES,
+    ] as const
   ).filter((zone) => cardsByZone.has(zone));
 
   return (

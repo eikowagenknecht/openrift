@@ -149,10 +149,10 @@ function formatEntrySpecialties(
   if (entry.entry.finish !== WellKnown.finish.NORMAL) {
     parts.push(finishLabels[entry.entry.finish] ?? entry.entry.finish);
   }
-  if (entry.entry.artVariant === "altart") {
+  if (entry.entry.artVariant === WellKnown.artVariant.ALTART) {
     parts.push("Alt Art");
   }
-  if (entry.entry.artVariant === "overnumbered") {
+  if (entry.entry.artVariant === WellKnown.artVariant.OVERNUMBERED) {
     parts.push("Overnumbered");
   }
   return parts.length > 0 ? parts.join(" · ") : null;

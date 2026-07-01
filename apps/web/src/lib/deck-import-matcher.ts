@@ -191,10 +191,10 @@ function inferEntryZone(entry: DeckImportEntry, card: ResolvedCard | null): Deck
   }
   if (!card) {
     return entry.sourceSlot === "sideboard"
-      ? "sideboard"
+      ? WellKnown.deckZone.SIDEBOARD
       : entry.sourceSlot === "chosenChampion"
-        ? "champion"
-        : "main";
+        ? WellKnown.deckZone.CHAMPION
+        : WellKnown.deckZone.MAIN;
   }
 
   return inferZone(card.cardType, card.superTypes, entry.sourceSlot);
@@ -216,16 +216,18 @@ export function matchDeckEntries(
   // zone was set explicitly by the user (e.g. a "Legend:" text header) —
   // otherwise the promote silently overrides the user's choice and the card
   // lands in Champion even though the import text declared Legend.
-  const hasExplicitChampion = matched.some((m) => m.entry.explicitZone === "champion");
+  const hasExplicitChampion = matched.some(
+    (m) => m.entry.explicitZone === WellKnown.deckZone.CHAMPION,
+  );
   if (!hasExplicitChampion) {
     const firstChampion = matched.find(
       (m) =>
         m.resolvedCard?.superTypes.includes(WellKnown.superType.CHAMPION) &&
-        m.zone !== "sideboard" &&
+        m.zone !== WellKnown.deckZone.SIDEBOARD &&
         !m.entry.explicitZone,
     );
     if (firstChampion) {
-      firstChampion.zone = "champion";
+      firstChampion.zone = WellKnown.deckZone.CHAMPION;
       if (firstChampion.entry.quantity > 1) {
         // Split: 1 copy goes to champion zone, rest stay in main
         const originalEntry = firstChampion.entry;

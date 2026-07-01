@@ -1,4 +1,5 @@
 import type { AdminSetResponse } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 
 import { AdminTable } from "@/components/admin/admin-table";
@@ -79,7 +80,11 @@ function SetTypeCell({ row }: AdminCellSlotProps<AdminSetResponse>) {
   if (!row) {
     return null;
   }
-  return <Badge variant={row.setType === "main" ? "default" : "secondary"}>{row.setType}</Badge>;
+  return (
+    <Badge variant={row.setType === WellKnown.setType.MAIN ? "default" : "secondary"}>
+      {row.setType}
+    </Badge>
+  );
 }
 
 function CardsCell({ row }: AdminCellSlotProps<AdminSetResponse>) {
@@ -345,7 +350,7 @@ export function SetsPage() {
           printedTotal: "",
           releasedAt: "",
           released: true,
-          setType: "main" as const,
+          setType: WellKnown.setType.MAIN,
         },
         onSave: (d) => {
           const printedTotal = parseInt(d.printedTotal, 10);

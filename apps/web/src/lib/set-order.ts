@@ -1,3 +1,5 @@
+import { WellKnown } from "@openrift/shared";
+
 /**
  * Stable-sorts sets main-first, then supplemental, preserving the source
  * (release) order within each set type. Shared by the live grid's
@@ -9,5 +11,7 @@
 export function orderSetsMainFirst<SetLike extends { setType?: "main" | "supplemental" }>(
   sets: readonly SetLike[],
 ): SetLike[] {
-  return sets.toSorted((a, b) => (a.setType === b.setType ? 0 : a.setType === "main" ? -1 : 1));
+  return sets.toSorted((a, b) =>
+    a.setType === b.setType ? 0 : a.setType === WellKnown.setType.MAIN ? -1 : 1,
+  );
 }

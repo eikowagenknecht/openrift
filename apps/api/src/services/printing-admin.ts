@@ -216,7 +216,7 @@ export async function acceptPrinting(
     throw new AppError(404, ERROR_CODES.NOT_FOUND, "Card not found");
   }
 
-  const finish = (printingFields.finish ?? "normal") as Finish;
+  const finish = (printingFields.finish ?? WellKnown.finish.NORMAL) as Finish;
   const size = (printingFields.size ?? WellKnown.cardSize.STANDARD) as CardSize;
   const language = printingFields.language ?? "EN";
   const existing = await mut.getPrintingCardIdByComposite(
@@ -273,7 +273,7 @@ export async function acceptPrinting(
       setId: setUuid,
       shortCode: printingFields.shortCode,
       rarity: normalizedRarity as Rarity,
-      artVariant: (printingFields.artVariant ?? "normal") as ArtVariant,
+      artVariant: (printingFields.artVariant ?? WellKnown.artVariant.NORMAL) as ArtVariant,
       isSigned: printingFields.isSigned ?? false,
       markerSlugs,
       finish,

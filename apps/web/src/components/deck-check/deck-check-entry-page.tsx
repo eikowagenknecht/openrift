@@ -4,7 +4,7 @@ import type {
   DeckCheckEntryDetailResponse,
   Printing,
 } from "@openrift/shared";
-import { imageUrl, legendDisplayName } from "@openrift/shared";
+import { WellKnown, imageUrl, legendDisplayName } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   BanIcon,
@@ -512,10 +512,10 @@ function EntryPreview({ cards }: { cards: DeckCheckEntryCardResponse[] }) {
   const domainColors = useDomainColors();
 
   const legendCardId = cards.find(
-    (card) => card.zone === "legend" && card.resolvedCardId,
+    (card) => card.zone === WellKnown.deckZone.LEGEND && card.resolvedCardId,
   )?.resolvedCardId;
   const championCardId = cards.find(
-    (card) => card.zone === "champion" && card.resolvedCardId,
+    (card) => card.zone === WellKnown.deckZone.CHAMPION && card.resolvedCardId,
   )?.resolvedCardId;
   const legendDomains = legendCardId ? getPreferredPrinting(legendCardId)?.card.domains : undefined;
   const gradientStyle =
@@ -1178,7 +1178,7 @@ function AddCardDialog({
   const { zoneOrder, zoneLabels } = useZoneOrder();
   const [name, setName] = useState("");
   const [quantity, setQuantity] = useState("1");
-  const [section, setSection] = useState("main");
+  const [section, setSection] = useState<string>(WellKnown.deckZone.MAIN);
   const addCard = useAddTournamentDeckCheckCard();
 
   const handleAdd = async () => {
@@ -1240,7 +1240,10 @@ function AddCardDialog({
             </div>
             <div className="flex flex-1 flex-col gap-1.5">
               <Label>Zone</Label>
-              <Select value={section} onValueChange={(value) => setSection(value ?? "main")}>
+              <Select
+                value={section}
+                onValueChange={(value) => setSection(value ?? WellKnown.deckZone.MAIN)}
+              >
                 <SelectTrigger className="w-full">
                   <SelectValue>
                     {(value: string) => zoneLabels[value as never] ?? value}
@@ -1477,8 +1480,8 @@ function FixZonesDialog({
 function StatsSummary({ detail }: { detail: DeckCheckEntryDetailResponse }) {
   const { getPreferredPrinting } = usePreferredPrinting();
 
-  const legendLine = detail.cards.find((card) => card.zone === "legend");
-  const championLine = detail.cards.find((card) => card.zone === "champion");
+  const legendLine = detail.cards.find((card) => card.zone === WellKnown.deckZone.LEGEND);
+  const championLine = detail.cards.find((card) => card.zone === WellKnown.deckZone.CHAMPION);
   const legendDomains = legendLine?.resolvedCardId
     ? getPreferredPrinting(legendLine.resolvedCardId)?.card.domains
     : undefined;
@@ -1579,7 +1582,7 @@ function CardChecklist({
         ? {
             thumbnailUrl: imageUrl(front.imageId, "400w"),
             fullUrl: imageUrl(front.imageId, "full"),
-            landscape: printing.card.type === "battlefield",
+            landscape: printing.card.type === WellKnown.cardType.BATTLEFIELD,
           }
         : null,
     );
@@ -1592,12 +1595,21 @@ function CardChecklist({
   // The small zones (one to three cards each) flow on a shared wrapping row,
   // so on wide screens legend, champion, and battlefields share one line and
   // fall onto separate lines only when they no longer fit.
-  const flowZones = (["legend", "champion", "battlefield"] as const).filter((zone) =>
-    cardsByZone.has(zone),
-  );
-  const stackedZones = (["main", "sideboard", "overflow", "runes"] as const).filter((zone) =>
-    cardsByZone.has(zone),
-  );
+  const flowZones = (
+    [
+      WellKnown.deckZone.LEGEND,
+      WellKnown.deckZone.CHAMPION,
+      WellKnown.deckZone.BATTLEFIELD,
+    ] as const
+  ).filter((zone) => cardsByZone.has(zone));
+  const stackedZones = (
+    [
+      WellKnown.deckZone.MAIN,
+      WellKnown.deckZone.SIDEBOARD,
+      WellKnown.deckZone.OVERFLOW,
+      WellKnown.deckZone.RUNES,
+    ] as const
+  ).filter((zone) => cardsByZone.has(zone));
 
   if (displayMode === "list") {
     // List view stacks every zone vertically — the flow/stacked split only

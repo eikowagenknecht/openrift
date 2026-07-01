@@ -1,6 +1,7 @@
 import type { DeckCheckChangeSummary } from "./types/api/deck-check.js";
 import type { DeckZone } from "./types/enums.js";
 import { normalizeNameForMatching } from "./utils.js";
+import { WellKnown } from "./well-known.js";
 
 /** One card line of a deck-check entry after section→zone mapping. */
 export interface DeckCheckCardLine {
@@ -16,21 +17,21 @@ export interface DeckCheckCardLine {
  * whole push with 422 rather than guessing a zone.
  */
 const SECTION_ZONE_MAP: Record<string, DeckZone> = {
-  legend: "legend",
-  legends: "legend",
-  champion: "champion",
-  champions: "champion",
-  chosenchampion: "champion",
-  main: "main",
-  maindeck: "main",
-  deck: "main",
-  rune: "runes",
-  runes: "runes",
-  battlefield: "battlefield",
-  battlefields: "battlefield",
-  side: "sideboard",
-  sideboard: "sideboard",
-  overflow: "overflow",
+  legend: WellKnown.deckZone.LEGEND,
+  legends: WellKnown.deckZone.LEGEND,
+  champion: WellKnown.deckZone.CHAMPION,
+  champions: WellKnown.deckZone.CHAMPION,
+  chosenchampion: WellKnown.deckZone.CHAMPION,
+  main: WellKnown.deckZone.MAIN,
+  maindeck: WellKnown.deckZone.MAIN,
+  deck: WellKnown.deckZone.MAIN,
+  rune: WellKnown.deckZone.RUNES,
+  runes: WellKnown.deckZone.RUNES,
+  battlefield: WellKnown.deckZone.BATTLEFIELD,
+  battlefields: WellKnown.deckZone.BATTLEFIELD,
+  side: WellKnown.deckZone.SIDEBOARD,
+  sideboard: WellKnown.deckZone.SIDEBOARD,
+  overflow: WellKnown.deckZone.OVERFLOW,
 };
 
 /**
