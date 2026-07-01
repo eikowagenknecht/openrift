@@ -85,7 +85,7 @@ export function useDecks() {
  *
  * @returns The synthesized detail in `{ data }` form, matching `useDeckDetail`.
  */
-export function useLocalDeckDetail(deckId: string): { data: DeckDetailResponse } {
+function useLocalDeckDetail(deckId: string): { data: DeckDetailResponse } {
   const deck = useLocalDecksStore((state) => state.decks[deckId]);
   // The editor subtree is keyed on deckId and the builder route renders a
   // not-found for a missing local id before mounting the editor, so `deck` is

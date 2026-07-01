@@ -103,7 +103,7 @@ export async function assembleCatalogResponse(repos: Repos): Promise<CatalogResp
  * join). Printings whose set or card is missing are dropped.
  * @returns Every printing with its card + set slug attached.
  */
-export function catalogResponseToPrintings(catalog: CatalogResponse): Printing[] {
+function catalogResponseToPrintings(catalog: CatalogResponse): Printing[] {
   const setsById = new Map(catalog.sets.map((s) => [s.id, s]));
   const cardsById = catalog.cards;
   const printings: Printing[] = [];
@@ -115,14 +115,6 @@ export function catalogResponseToPrintings(catalog: CatalogResponse): Printing[]
     }
   }
   return printings;
-}
-
-/**
- * Convenience: assemble the catalog and flatten it to `Printing[]` in one call.
- * @returns The server-assembled printings for rule evaluation.
- */
-export async function assembleCatalogPrintings(repos: Repos): Promise<Printing[]> {
-  return catalogResponseToPrintings(await assembleCatalogResponse(repos));
 }
 
 /**
