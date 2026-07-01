@@ -66,7 +66,8 @@ export interface DeckImageCard {
 /** Everything the renderer needs to draw a deck share image. */
 export interface DeckImageInput {
   deckName: string;
-  ownerName: string;
+  /** Owner display name shown next to the title; the chip is dropped when empty. */
+  ownerName?: string;
   /** Presentable format label, e.g. "Constructed". */
   formatLabel: string;
   cards: readonly DeckImageCard[];
@@ -181,7 +182,7 @@ function cardTile(
       position: "relative",
       width: tileW,
       height: tileH,
-      borderRadius: 12,
+      borderRadius: CARD_RADIUS,
       overflow: "hidden",
       backgroundColor: COLORS.surface,
       border: `1px solid ${COLORS.surfaceBorder}`,
@@ -247,7 +248,7 @@ function runeSummary(
         });
     return element(
       "div",
-      { display: "flex", flexDirection: "row", alignItems: "center", marginRight: 16 },
+      { display: "flex", flexDirection: "row", alignItems: "center" },
       icon,
       element(
         "div",
@@ -256,9 +257,18 @@ function runeSummary(
       ),
     );
   });
+  // Centered below the legend hero; `gap` (not a per-item margin) keeps the row
+  // optically centered instead of biased left by a trailing margin.
   return element(
     "div",
-    { display: "flex", flexDirection: "row", flexWrap: "wrap", alignItems: "center" },
+    {
+      display: "flex",
+      flexDirection: "row",
+      flexWrap: "wrap",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 16,
+    },
     ...items,
   );
 }
@@ -277,17 +287,26 @@ function byEnergyThenName(left: DeckImageCard, right: DeckImageCard): number {
   return (left.energy ?? 99) - (right.energy ?? 99) || left.cardName.localeCompare(right.cardName);
 }
 
+/** A deck card reference the renderer can enrich: identity, printing, zone, count. */
+export interface DeckImageCardRef {
+  cardId: string;
+  preferredPrintingId: string | null;
+  quantity: number;
+  zone: string;
+}
+
 /**
- * Resolves the printing art for a deck's cards and maps them to the render
- * shape, mirroring how the public deck route enriches cards.
- * @returns The deck's cards with names, energy, domains, and art ids.
+ * Resolves the printing art and card meta for a set of card references and maps
+ * them to the render shape, mirroring how the public deck route enriches cards.
+ * Shared by the by-id builder (server decks) and the from-cards render endpoint
+ * (browser-local decks, which have no server row — ADR-035).
+ * @returns The cards with names, energy, domains, and art ids.
  */
-export async function buildDeckImageCards(
-  repos: Pick<Repos, "decks" | "catalog" | "canonicalPrintings">,
-  deckId: string,
-  userId: string,
+export async function buildDeckImageCardsFromRefs(
+  repos: Pick<Repos, "catalog" | "canonicalPrintings">,
+  cards: readonly DeckImageCardRef[],
+  options: { skipUnknown?: boolean } = {},
 ): Promise<DeckImageCard[]> {
-  const cards = await repos.decks.cardsForDeck(deckId, userId);
   const uniqueCardIds = [...new Set(cards.map((card) => card.cardId))];
   const [cardMetas, printingMetas] = await Promise.all([
     repos.catalog.cardsByIds(uniqueCardIds),
@@ -296,20 +315,41 @@ export async function buildDeckImageCards(
     ),
   ]);
   const metaById = new Map(cardMetas.map((meta) => [meta.id, meta]));
-  return cards.map((row, index) => {
+  const result: DeckImageCard[] = [];
+  for (const [index, row] of cards.entries()) {
     const meta = metaById.get(row.cardId);
     if (!meta) {
+      // The by-id caller treats a missing card as a broken invariant; the
+      // public from-cards endpoint tolerates a stale/unknown id and drops it.
+      if (options.skipUnknown) {
+        continue;
+      }
       throw new Error(`Missing enrichment for deck card ${row.cardId}`);
     }
-    return {
+    result.push({
       cardName: meta.name,
       quantity: row.quantity,
       imageId: printingMetas[index]?.imageId ?? null,
       energy: meta.energy,
       domains: meta.domains,
       zone: row.zone,
-    };
-  });
+    });
+  }
+  return result;
+}
+
+/**
+ * Resolves the printing art for a saved deck's cards and maps them to the render
+ * shape.
+ * @returns The deck's cards with names, energy, domains, and art ids.
+ */
+export async function buildDeckImageCards(
+  repos: Pick<Repos, "decks" | "catalog" | "canonicalPrintings">,
+  deckId: string,
+  userId: string,
+): Promise<DeckImageCard[]> {
+  const cards = await repos.decks.cardsForDeck(deckId, userId);
+  return buildDeckImageCardsFromRefs(repos, cards);
 }
 
 /**
@@ -411,18 +451,20 @@ export async function renderDeckImage(io: Io, input: DeckImageInput, scale = 1):
       },
       input.deckName,
     ),
-    element(
-      "div",
-      {
-        display: "flex",
-        flexShrink: 0,
-        marginLeft: 12,
-        fontSize: 22,
-        fontWeight: 600,
-        color: COLORS.gold,
-      },
-      `· ${input.ownerName}`,
-    ),
+    input.ownerName
+      ? element(
+          "div",
+          {
+            display: "flex",
+            flexShrink: 0,
+            marginLeft: 12,
+            fontSize: 22,
+            fontWeight: 600,
+            color: COLORS.gold,
+          },
+          `· ${input.ownerName}`,
+        )
+      : false,
     element("div", { display: "flex", flexGrow: 1, minWidth: 24 }),
     element(
       "div",

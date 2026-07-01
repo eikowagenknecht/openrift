@@ -75,6 +75,15 @@ describe("renderDeckImage", () => {
     });
     expect(png.subarray(0, 8)).toEqual(PNG_MAGIC);
   });
+
+  it("renders without the owner chip when no owner name is given (logged-out local deck)", async () => {
+    const png = await renderDeckImage(defaultIo, {
+      ...baseInput,
+      ownerName: undefined,
+      cards: constructedDeck,
+    });
+    expect(png.subarray(0, 8)).toEqual(PNG_MAGIC);
+  });
 });
 
 describe("formatLabelFromSlug", () => {

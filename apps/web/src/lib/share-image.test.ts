@@ -3,7 +3,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   bundleShareImageUrl,
   collectionShareImageUrl,
+  deckImageFromCardsUrl,
+  deckOwnerImageUrl,
   deckShareImageUrl,
+  downloadImageFromPost,
   downloadImageFromUrl,
   listShareImageUrl,
   shareImageVersion,
@@ -47,6 +50,34 @@ describe("deckShareImageUrl", () => {
   it("appends size=hq for the high-resolution download variant", () => {
     expect(deckShareImageUrl("https://openrift.app", "tok123", 42, "hq")).toBe(
       "https://openrift.app/api/v1/decks/share/tok123/image.png?v=42&size=hq",
+    );
+  });
+});
+
+describe("deckOwnerImageUrl", () => {
+  it("builds the owner-authenticated deck image URL by deck id", () => {
+    expect(deckOwnerImageUrl("https://openrift.app", "deck-1")).toBe(
+      "https://openrift.app/api/v1/decks/deck-1/image.png",
+    );
+  });
+
+  it("appends size=hq for the high-resolution download variant", () => {
+    expect(deckOwnerImageUrl("https://openrift.app", "deck-1", "hq")).toBe(
+      "https://openrift.app/api/v1/decks/deck-1/image.png?size=hq",
+    );
+  });
+});
+
+describe("deckImageFromCardsUrl", () => {
+  it("builds the public from-cards render endpoint URL", () => {
+    expect(deckImageFromCardsUrl("https://openrift.app")).toBe(
+      "https://openrift.app/api/v1/decks/image",
+    );
+  });
+
+  it("appends size=hq for the high-resolution download variant", () => {
+    expect(deckImageFromCardsUrl("https://openrift.app", "hq")).toBe(
+      "https://openrift.app/api/v1/decks/image?size=hq",
     );
   });
 });
@@ -113,5 +144,48 @@ describe("downloadImageFromUrl", () => {
     await expect(downloadImageFromUrl("https://example.test/img.png", "x.png")).rejects.toThrow(
       /500/u,
     );
+  });
+});
+
+describe("downloadImageFromPost", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it("POSTs the JSON body and downloads the returned image", async () => {
+    const click = vi.fn();
+    const anchor = { href: "", download: "", click } as unknown as HTMLAnchorElement;
+    vi.spyOn(document, "createElement").mockReturnValue(anchor);
+    URL.createObjectURL = vi.fn(() => "blob:fake") as typeof URL.createObjectURL;
+    URL.revokeObjectURL = vi.fn() as typeof URL.revokeObjectURL;
+    const fetchMock = vi.fn(() =>
+      Promise.resolve({ ok: true, blob: () => Promise.resolve(new Blob(["x"])) }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await downloadImageFromPost(
+      "https://example.test/decks/image",
+      { deckName: "Azir", cards: [] },
+      "azir.png",
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith("https://example.test/decks/image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deckName: "Azir", cards: [] }),
+    });
+    expect(anchor.download).toBe("azir.png");
+    expect(click).toHaveBeenCalledOnce();
+  });
+
+  it("throws when the render response is not ok", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve({ ok: false, status: 400 })),
+    );
+    await expect(
+      downloadImageFromPost("https://example.test/decks/image", {}, "x.png"),
+    ).rejects.toThrow(/400/u);
   });
 });

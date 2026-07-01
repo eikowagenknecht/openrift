@@ -598,10 +598,8 @@ function DeckEditorContent({
       {!isLocal && (
         <DeckShareDialog
           deckId={deckId}
-          deckName={data.deck.name}
           isPublic={data.deck.isPublic}
           shareToken={data.deck.shareToken}
-          updatedAt={data.deck.updatedAt}
           open={shareOpen}
           onOpenChange={setShareOpen}
         />

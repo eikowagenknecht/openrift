@@ -1,6 +1,14 @@
 import type { DeckExportResponse } from "@openrift/shared";
-import { CheckIcon, CopyIcon, FileTextIcon, Loader2Icon, Share2Icon } from "lucide-react";
+import {
+  CheckIcon,
+  CopyIcon,
+  FileTextIcon,
+  ImageDownIcon,
+  Loader2Icon,
+  Share2Icon,
+} from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { PageTopBarButton } from "@/components/layout/page-top-bar";
 import { Button } from "@/components/ui/button";
@@ -31,11 +39,17 @@ import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { toEncodeDeckCards } from "@/lib/deck-encode-input";
 import type { RegistrationFields, RegistrationPageSize } from "@/lib/registration-pdf";
 import { generateRegistrationPdf } from "@/lib/registration-pdf";
+import {
+  deckImageFromCardsUrl,
+  deckOwnerImageUrl,
+  downloadImageFromPost,
+  downloadImageFromUrl,
+} from "@/lib/share-image";
 import { getSiteUrl } from "@/lib/site-config";
-import { isLocalDeckId } from "@/stores/local-decks-store";
+import { isLocalDeckId, useLocalDecksStore } from "@/stores/local-decks-store";
 
 type ExportFormat = "piltover" | "text" | "tts";
-type ExportTab = ExportFormat | "registration";
+type ExportTab = ExportFormat | "registration" | "image";
 interface FormatState {
   data?: DeckExportResponse;
   loading?: boolean;
@@ -95,6 +109,7 @@ const FORMAT_DESCRIPTIONS: Record<ExportTab, React.ReactNode> = {
     </>
   ),
   registration: "Generate a printable tournament deck registration sheet.",
+  image: "A shareable deck image for WhatsApp, Discord, or printing.",
 };
 
 const PAGE_SIZE_LABELS: Record<RegistrationPageSize, string> = {
@@ -131,7 +146,13 @@ export function DeckExportDialog({
   const isLocal = isLocalDeckId(deckId);
   const { data: session } = useSession();
   const liveCards = useDeckCards(deckId);
+  // A browser-local deck holds its format client-side (no server row to read it
+  // from); the from-cards image render needs it for the title's format label.
+  const localDeckFormat = useLocalDecksStore((state) =>
+    isLocal ? state.decks[deckId]?.format : undefined,
+  );
   const [copied, setCopied] = useState(false);
+  const [downloadingImage, setDownloadingImage] = useState(false);
   const [tab, setTab] = useState<ExportTab>("text");
   const [formats, setFormats] = useState<Partial<Record<ExportFormat, FormatState>>>({});
   const [registrationPageSize, setRegistrationPageSize] = useState<RegistrationPageSize>("a4");
@@ -154,6 +175,7 @@ export function DeckExportDialog({
       setTab("text");
       setFormats({});
       setCopied(false);
+      setDownloadingImage(false);
       return;
     }
     setRegDeckName(deckName ?? "");
@@ -166,7 +188,7 @@ export function DeckExportDialog({
   }, [open]); // oxlint-disable-line react-hooks/exhaustive-deps -- only trigger on open/close
 
   useEffect(() => {
-    if (!open || tab === "registration") {
+    if (!open || tab === "registration" || tab === "image") {
       return;
     }
     const current = formats[tab];
@@ -197,7 +219,7 @@ export function DeckExportDialog({
     setCopied(false);
   };
 
-  const currentFormat = tab === "registration" ? {} : (formats[tab] ?? {});
+  const currentFormat = tab === "registration" || tab === "image" ? {} : (formats[tab] ?? {});
   const currentData = currentFormat.data;
   const currentLoading = currentFormat.loading ?? false;
   const currentError = currentFormat.error ?? false;
@@ -238,6 +260,34 @@ export function DeckExportDialog({
     setGenerating(false);
   };
 
+  const handleDownloadImage = async () => {
+    setDownloadingImage(true);
+    const safeName = (deckName ?? "deck").replaceAll(/[^\w -]+/gu, "_").trim() || "deck";
+    // Local decks have no server row, so render from the current cards (the
+    // server enriches names/art/energy from the posted ids); saved decks resolve
+    // by id through the owner-authenticated route.
+    const download = isLocal
+      ? downloadImageFromPost(
+          deckImageFromCardsUrl(getSiteUrl(), "hq"),
+          {
+            deckName: deckName ?? "",
+            format: localDeckFormat,
+            ownerName: session?.user?.name ?? "",
+            cards: toEncodeDeckCards(cardsProp ?? liveCards),
+          },
+          `${safeName}.png`,
+        )
+      : downloadImageFromUrl(deckOwnerImageUrl(getSiteUrl(), deckId, "hq"), `${safeName}.png`);
+    // React Compiler can't yet lower try/finally, so reset in both paths.
+    try {
+      await download;
+      setDownloadingImage(false);
+    } catch {
+      toast.error("Couldn't prepare the image. Please try again.");
+      setDownloadingImage(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {!isControlled && (
@@ -258,18 +308,51 @@ export function DeckExportDialog({
               <TabsTrigger value="text">Text</TabsTrigger>
               <TabsTrigger value="piltover">Deck Code</TabsTrigger>
               <TabsTrigger value="tts">TTS</TabsTrigger>
+              <TabsTrigger value="image">Image</TabsTrigger>
               <TabsTrigger value="registration">Registration</TabsTrigger>
             </TabsList>
             <DialogDescription>{FORMAT_DESCRIPTIONS[tab]}</DialogDescription>
           </DialogHeader>
 
-          {isDirty && tab !== "registration" && (
+          {isDirty && tab !== "registration" && tab !== "image" && (
             <p className="text-muted-foreground text-sm">
               You have unsaved changes. The exported code reflects the last saved state.
             </p>
           )}
 
-          {tab === "registration" ? (
+          {isDirty && tab === "image" && !isLocal && (
+            <p className="text-muted-foreground text-sm">
+              You have unsaved changes. The image reflects the last saved state.
+            </p>
+          )}
+
+          {tab === "image" ? (
+            <TabsContent value="image">
+              <div className="flex flex-col gap-3">
+                <p className="text-muted-foreground text-sm">
+                  This is the same preview that appears when you paste a shared deck link into
+                  WhatsApp, Discord, or Signal.
+                </p>
+                <Button
+                  className="self-start"
+                  onClick={handleDownloadImage}
+                  disabled={downloadingImage}
+                >
+                  {downloadingImage ? (
+                    <>
+                      <Loader2Icon className="size-4 animate-spin" />
+                      Preparing…
+                    </>
+                  ) : (
+                    <>
+                      <ImageDownIcon className="size-4" />
+                      Download image
+                    </>
+                  )}
+                </Button>
+              </div>
+            </TabsContent>
+          ) : tab === "registration" ? (
             <TabsContent value="registration">
               <div className="flex flex-col gap-4">
                 <div className="grid grid-cols-2 gap-3">

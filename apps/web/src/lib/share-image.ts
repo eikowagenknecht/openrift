@@ -54,6 +54,27 @@ export function deckShareImageUrl(
 }
 
 /**
+ * Absolute URL of the owner-authenticated image for one of the caller's own
+ * decks (ADR-031). The export dialog's "Image" download uses this so it works
+ * whether or not the deck is shared. `size: "hq"` requests the 2× download.
+ * @returns The deck image URL.
+ */
+export function deckOwnerImageUrl(siteUrl: string, deckId: string, size?: "hq"): string {
+  const base = `${siteUrl}${API_BASE}/decks/${deckId}/image.png`;
+  return size === "hq" ? `${base}?size=hq` : base;
+}
+
+/**
+ * Absolute URL of the public from-cards deck image renderer (ADR-031), used to
+ * download an image of a browser-local deck that has no server row.
+ * @returns The render endpoint URL.
+ */
+export function deckImageFromCardsUrl(siteUrl: string, size?: "hq"): string {
+  const base = `${siteUrl}${API_BASE}/decks/image`;
+  return size === "hq" ? `${base}?size=hq` : base;
+}
+
+/**
  * Absolute URL of the server-rendered share image for a user's share bundle.
  * @returns The image URL, used as the og:image and the download source.
  */
@@ -89,6 +110,33 @@ export function collectionShareImageUrl(
  */
 export async function downloadImageFromUrl(url: string, filename: string): Promise<void> {
   const response = await fetch(url);
+  await triggerBlobDownload(response, filename);
+}
+
+/**
+ * Fetches a from-cards deck image (`POST`) and triggers a browser download.
+ * Used for browser-local decks, which have no server row to resolve by id.
+ * @returns A promise that resolves once the download has been triggered.
+ */
+export async function downloadImageFromPost(
+  url: string,
+  body: unknown,
+  filename: string,
+): Promise<void> {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  await triggerBlobDownload(response, filename);
+}
+
+/**
+ * Reads a fetched image response into a blob and triggers a browser download
+ * with the given filename via an object URL.
+ * @returns A promise that resolves once the download has been triggered.
+ */
+async function triggerBlobDownload(response: Response, filename: string): Promise<void> {
   if (!response.ok) {
     throw new Error(`Image request failed: ${response.status}`);
   }

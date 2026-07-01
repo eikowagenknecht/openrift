@@ -29,6 +29,7 @@ import { ETAG_PATHS } from "./orpc/cache-policy.js";
 import { buildApiContext } from "./orpc/context.js";
 import { createApiHandler } from "./orpc/router.js";
 import { mountAdminSentryTest } from "./routes/admin/sentry-test.js";
+import { deckImageRoute } from "./routes/authenticated/deck-image.js";
 import { listImageRoute } from "./routes/authenticated/list-image.js";
 import { mountDeckCheckIngestMiddleware } from "./routes/public/deck-check-ingest.js";
 import { healthRoute } from "./routes/public/health.js";
@@ -418,7 +419,8 @@ export function createApp(deps: AppDeps) {
     .route("/api/v1", publicOembedRoute)
     .route("/api/v1", sentryTunnelRoute)
     .route("/api/v1", unsubscribeOneClickRoute)
-    .route("/api/v1", listImageRoute);
+    .route("/api/v1", listImageRoute)
+    .route("/api/v1", deckImageRoute);
 
   // ── Auth + caching middleware for the oRPC routes ─────────────────────────
   // Auth is enforced per-procedure by the `requireUser` middleware on every

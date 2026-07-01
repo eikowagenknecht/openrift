@@ -2,6 +2,7 @@ import { Hono } from "hono";
 
 import {
   buildDeckImageCards,
+  buildDeckImageCardsFromRefs,
   formatLabelFromSlug,
   renderDeckImage,
 } from "../../services/deck-image.js";
@@ -37,6 +38,9 @@ const IMAGE_CACHE_CONTROL = "public, immutable, max-age=31536000";
  * more" count comes from a separate distinct count, not this slice.
  */
 const COLLECTION_SHARE_CARD_CAP = 60;
+
+/** Upper bound on card rows the from-cards render endpoint will accept. */
+const MAX_RENDER_CARD_ROWS = 300;
 
 /** @returns A PNG response with the immutable share-image cache headers. */
 function pngResponse(png: Buffer): Response {
@@ -185,4 +189,57 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
     );
 
     return pngResponse(png);
+  })
+
+  // ── POST /decks/image ──────────────────────────────────────────────────────
+  // Renders a deck image from posted cards for browser-local decks (ADR-035),
+  // which have no server row and no session — saved decks use the owner-auth GET
+  // route (`deck-image.ts`) instead. Enriches names/art/energy server-side from
+  // the posted card ids, so the client sends only identity, printing, zone, and
+  // count. Served `no-store`: the body is the content, there is nothing to cache.
+  .post("/decks/image", async (c) => {
+    const repos = c.get("repos");
+    const config = c.get("config");
+    const io = c.get("io");
+
+    const body = (await c.req.json().catch(() => null)) as {
+      deckName?: unknown;
+      format?: unknown;
+      ownerName?: unknown;
+      cards?: unknown;
+    } | null;
+    const rawCards = Array.isArray(body?.cards) ? body.cards : null;
+    if (!rawCards || rawCards.length === 0 || rawCards.length > MAX_RENDER_CARD_ROWS) {
+      return c.json({ error: "Invalid deck" }, 400);
+    }
+
+    const refs = rawCards.map((card: Record<string, unknown>) => ({
+      cardId: String(card.cardId),
+      preferredPrintingId:
+        typeof card.preferredPrintingId === "string" ? card.preferredPrintingId : null,
+      quantity: Number(card.quantity) || 1,
+      zone: String(card.zone),
+    }));
+
+    const scale = c.req.query("size") === "hq" ? 2 : 1;
+    const imageCards = await buildDeckImageCardsFromRefs(repos, refs, { skipUnknown: true });
+    const png = await renderDeckImage(
+      io,
+      {
+        deckName: typeof body?.deckName === "string" ? body.deckName : "Deck",
+        ownerName:
+          typeof body?.ownerName === "string" && body.ownerName ? body.ownerName : undefined,
+        formatLabel: formatLabelFromSlug(
+          typeof body?.format === "string" ? body.format : "constructed",
+        ),
+        cards: imageCards,
+        siteHost: siteHostFromOrigin(config.corsOrigin),
+      },
+      scale,
+    );
+
+    return new Response(png, {
+      status: 200,
+      headers: { "Content-Type": "image/png", "Cache-Control": "private, no-store" },
+    });
   });
