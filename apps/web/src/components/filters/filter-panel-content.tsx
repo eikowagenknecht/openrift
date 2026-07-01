@@ -15,6 +15,8 @@ import { buildChannelBreadcrumbs } from "@/lib/channel-breadcrumbs";
 import { formatDomainFilterLabel } from "@/lib/domain";
 import { compactFormatterForMarketplace } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
+import { nextOversize, oversizeCount, oversizeState } from "@/lib/oversize-filter";
+import { PRESENCE_LABELS, presenceFlagCount, presenceToFlagState } from "@/lib/presence-filter";
 import type { OwnedBucket } from "@/lib/search-schemas";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
@@ -139,7 +141,7 @@ export function FilterBadgeSections({
 }: FilterPanelContentProps) {
   const { labels } = useEnumOrders();
   const { filterState } = useFilterValues();
-  const { toggleArrayFilter, cycleArrayFilter, toggleSigned } = useFilterActions();
+  const { cycleArrayFilter, toggleSigned } = useFilterActions();
   const languageLabels = useLanguageLabels();
   // Signed rides inside the Art Variant section (a signed card is, in effect, a
   // variant) when both are shown; otherwise it stays in the More group.
@@ -257,16 +259,6 @@ export function FilterBadgeSections({
           counts={filterCounts?.finishes}
         />
       )}
-      {availableFilters.cardSizes.length > 1 && !hiddenSections?.has("cardSizes") && (
-        <FilterSection
-          label="Size"
-          options={availableFilters.cardSizes}
-          selected={filterState.cardSizes}
-          onToggle={(v) => toggleArrayFilter("cardSizes", v)}
-          displayLabel={(v) => labels.cardSizes[v] ?? v}
-          counts={filterCounts?.cardSizes}
-        />
-      )}
       <FilterMoreSection
         availableFilters={availableFilters}
         hiddenSections={hiddenSections}
@@ -305,10 +297,11 @@ export function useHasMoreSectionContent({
   return (
     !hiddenSections?.has("owned") ||
     (!hideSigned && availableFilters.hasSigned && !hiddenSections?.has("signed")) ||
-    (availableFilters.hasAnyMarker && !hiddenSections?.has("promo")) ||
     (availableFilters.hasBanned && !hiddenSections?.has("banned")) ||
     (availableFilters.hasErrata && !hiddenSections?.has("errata")) ||
     (availableFilters.hasNonStandard && !hiddenSections?.has("standard")) ||
+    (availableFilters.keywords.length > 0 && !hiddenSections?.has("keywords")) ||
+    (availableFilters.cardSizes.length > 1 && !hiddenSections?.has("cardSizes")) ||
     (!hiddenSections?.has("markers") && availableFilters.markers.length > 0) ||
     (!hiddenSections?.has("channels") && availableFilters.distributionChannels.length > 0) ||
     (!hiddenSections?.has("customTags") && visibleCategoryCount > 0)
@@ -316,9 +309,10 @@ export function useHasMoreSectionContent({
 }
 
 /**
- * The filter panel's "More" group: promo/signed/banned/errata/standard flag toggles,
- * the markers / distribution-channels / custom-tag comboboxes, and the owned
- * bucket combobox. Self-contained (sources its own enum/tag data) so both the
+ * The filter panel's "More" group: signed/banned/errata/standard flag toggles,
+ * the markers / distribution-channels / custom-tag comboboxes (each folding in
+ * its any/none presence), the keyword-presence chip, and the owned bucket
+ * combobox. Self-contained (sources its own enum/tag data) so both the
  * expanded panel and the compact filter bar render the identical controls.
  *
  * Returns null when no More content applies on this surface. `variant`
@@ -355,7 +349,7 @@ function FilterMoreSection({
     setArrayFilter,
     cycleArrayFilter,
     toggleSigned,
-    togglePromo,
+    cyclePresence,
     toggleBanned,
     toggleErrata,
     toggleStandard,
@@ -398,18 +392,13 @@ function FilterMoreSection({
     value: c.slug,
     label: channelBreadcrumbs.get(c.id) ?? c.label,
   }));
+  const keywordOptions = availableFilters.keywords.map((keyword) => ({
+    value: keyword,
+    label: keyword,
+  }));
 
   const items = (
     <>
-      {availableFilters.hasAnyMarker && !hiddenSections?.has("promo") && (
-        <FlagBadge
-          label="Promo"
-          state={filterState.promo}
-          count={filterCounts?.flags.promo}
-          onClick={togglePromo}
-          triggerStyle={triggerStyle}
-        />
-      )}
       {!hiddenSections?.has("markers") && availableFilters.markers.length > 0 && (
         <MultiSelectCombobox
           label="Markers"
@@ -421,6 +410,16 @@ function FilterMoreSection({
           onCycle={(value) => cycleArrayFilter("markers", "markersEx", value)}
           counts={filterCounts?.markers}
           triggerStyle={triggerStyle}
+          flagPosition="top"
+          flag={{
+            label: PRESENCE_LABELS.markers,
+            state: presenceToFlagState(filterState.markersPresence),
+            count: presenceFlagCount(
+              filterCounts?.presence.markers,
+              presenceToFlagState(filterState.markersPresence),
+            ),
+            onToggle: () => cyclePresence("markers"),
+          }}
         />
       )}
       {!hiddenSections?.has("channels") && availableFilters.distributionChannels.length > 0 && (
@@ -434,6 +433,16 @@ function FilterMoreSection({
           onCycle={(value) => cycleArrayFilter("channels", "channelsEx", value)}
           counts={filterCounts?.channels}
           triggerStyle={triggerStyle}
+          flagPosition="top"
+          flag={{
+            label: PRESENCE_LABELS.distributionChannels,
+            state: presenceToFlagState(filterState.channelsPresence),
+            count: presenceFlagCount(
+              filterCounts?.presence.distributionChannels,
+              presenceToFlagState(filterState.channelsPresence),
+            ),
+            onToggle: () => cyclePresence("distributionChannels"),
+          }}
         />
       )}
       {!hiddenSections?.has("customTags") &&
@@ -471,6 +480,55 @@ function FilterMoreSection({
             />
           );
         })}
+      {/* Custom tags render as one combobox per category, so their card-level
+          any/none presence can't fold into a single picker — it rides as a
+          standalone chip beside them. */}
+      {!hiddenSections?.has("customTags") && visibleCategories.length > 0 && (
+        <FlagBadge
+          label={PRESENCE_LABELS.customTags}
+          state={presenceToFlagState(filterState.customTagsPresence)}
+          count={presenceFlagCount(
+            filterCounts?.presence.customTags,
+            presenceToFlagState(filterState.customTagsPresence),
+          )}
+          onClick={() => cyclePresence("customTags")}
+          triggerStyle={triggerStyle}
+        />
+      )}
+      {!hiddenSections?.has("keywords") && availableFilters.keywords.length > 0 && (
+        <MultiSelectCombobox
+          label="Keywords"
+          searchPlaceholder="Search keywords…"
+          emptyText="No keywords match."
+          options={keywordOptions}
+          selected={filterState.keywords}
+          excluded={filterState.keywordsEx}
+          onCycle={(value) => cycleArrayFilter("keywords", "keywordsEx", value)}
+          counts={filterCounts?.keywords}
+          triggerStyle={triggerStyle}
+          flagPosition="top"
+          flag={{
+            label: PRESENCE_LABELS.keywords,
+            state: presenceToFlagState(filterState.keywordsPresence),
+            count: presenceFlagCount(
+              filterCounts?.presence.keywords,
+              presenceToFlagState(filterState.keywordsPresence),
+            ),
+            onToggle: () => cyclePresence("keywords"),
+          }}
+        />
+      )}
+      {/* Two physical sizes exist, so Size is a single Oversized tri-state
+          (require oversized / require standard / off) rather than a value list. */}
+      {!hiddenSections?.has("cardSizes") && availableFilters.cardSizes.length > 1 && (
+        <FlagBadge
+          label="Oversized"
+          state={oversizeState(filterState.cardSizes)}
+          count={oversizeCount(filterCounts?.cardSizes, oversizeState(filterState.cardSizes))}
+          onClick={() => setArrayFilter("cardSizes", nextOversize(filterState.cardSizes))}
+          triggerStyle={triggerStyle}
+        />
+      )}
       {!hideSigned && availableFilters.hasSigned && !hiddenSections?.has("signed") && (
         <FlagBadge
           label="Signed"

@@ -1,4 +1,4 @@
-import type { AvailableFilters, FilterCounts } from "@openrift/shared";
+import type { AvailableFilters, FilterCounts, PresenceDimension } from "@openrift/shared";
 import { CheckIcon, ChevronDownIcon, MinusIcon } from "lucide-react";
 import { Fragment } from "react";
 
@@ -28,6 +28,9 @@ import {
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCustomTagList } from "@/hooks/use-enums";
 import { buildChannelBreadcrumbs } from "@/lib/channel-breadcrumbs";
+import { nextOversize, oversizeCount, oversizeState } from "@/lib/oversize-filter";
+import type { PresenceParamValue } from "@/lib/presence-filter";
+import { PRESENCE_LABELS, presenceFlagCount, presenceToFlagState } from "@/lib/presence-filter";
 import { cn } from "@/lib/utils";
 
 interface FilterMoreMenuProps {
@@ -181,6 +184,7 @@ function MoreDimension({
   onCycle,
   searchPlaceholder,
   emptyText,
+  flag,
 }: {
   label: string;
   options: readonly DimensionOption[];
@@ -194,6 +198,12 @@ function MoreDimension({
   onCycle?: (value: string) => void;
   searchPlaceholder: string;
   emptyText: string;
+  /**
+   * Optional tri-state flag folded into the top of the combobox (e.g. a "Has
+   * any …" presence toggle above the specific values). Only honoured on the
+   * combobox path (exclude-capable dimensions like Markers / Channels).
+   */
+  flag?: { label: string; state: boolean | null; count?: number; onToggle: () => void };
 }) {
   if (options.length === 0) {
     return null;
@@ -219,6 +229,8 @@ function MoreDimension({
         searchPlaceholder={searchPlaceholder}
         emptyText={emptyText}
         counts={facetedCounts}
+        flag={flag}
+        flagPosition="top"
       />
     );
   }
@@ -302,7 +314,7 @@ export function FilterMoreMenu({
     cycleArrayFilter,
     toggleArrayFilter,
     toggleSigned,
-    togglePromo,
+    cyclePresence,
     toggleBanned,
     toggleErrata,
     toggleStandard,
@@ -332,7 +344,6 @@ export function FilterMoreMenu({
     return null;
   }
 
-  const showPromo = availableFilters.hasAnyMarker && !hiddenSections?.has("promo");
   const showSigned = !hideSigned && availableFilters.hasSigned && !hiddenSections?.has("signed");
   const showBanned = availableFilters.hasBanned && !hiddenSections?.has("banned");
   const showErrata = availableFilters.hasErrata && !hiddenSections?.has("errata");
@@ -343,13 +354,50 @@ export function FilterMoreMenu({
   const showCustomTags = !hiddenSections?.has("customTags") && visibleCategories.length > 0;
   const showOwned = !hiddenSections?.has("owned");
 
-  const promoNode = showPromo ? (
+  const showKeywords = !hiddenSections?.has("keywords") && availableFilters.keywords.length > 0;
+
+  // A dimension's any/none presence folds into the top of its combobox (Markers,
+  // Distribution Channels, Keywords), matching the expanded panel. Custom tags
+  // (many category pickers) have no single picker to fold into, so they ride as
+  // their own tri-state row.
+  const presenceFlag = (dimension: PresenceDimension, value: PresenceParamValue) => {
+    const state = presenceToFlagState(value);
+    return {
+      label: PRESENCE_LABELS[dimension],
+      state,
+      count: presenceFlagCount(filterCounts?.presence[dimension], state),
+      onToggle: () => cyclePresence(dimension),
+    };
+  };
+  const presenceRow = (dimension: PresenceDimension, value: PresenceParamValue, shown: boolean) => {
+    if (!shown) {
+      return null;
+    }
+    const state = presenceToFlagState(value);
+    return (
+      <FlagMenuItem
+        key={`presence-${dimension}`}
+        label={PRESENCE_LABELS[dimension]}
+        state={state}
+        count={presenceFlagCount(filterCounts?.presence[dimension], state)}
+        onToggle={() => cyclePresence(dimension)}
+      />
+    );
+  };
+  const customTagsPresenceNode = presenceRow(
+    "customTags",
+    filterState.customTagsPresence,
+    showCustomTags,
+  );
+  const showCardSizes = !hiddenSections?.has("cardSizes") && availableFilters.cardSizes.length > 1;
+  const oversizeState_ = oversizeState(filterState.cardSizes);
+  const oversizeNode = showCardSizes ? (
     <FlagMenuItem
-      key="promo"
-      label="Promo"
-      state={filterState.promo}
-      count={filterCounts?.flags.promo}
-      onToggle={togglePromo}
+      key="oversize"
+      label="Oversized"
+      state={oversizeState_}
+      count={oversizeCount(filterCounts?.cardSizes, oversizeState_)}
+      onToggle={() => setArrayFilter("cardSizes", nextOversize(filterState.cardSizes))}
     />
   ) : null;
   const signedNode = showSigned ? (
@@ -403,6 +451,7 @@ export function FilterMoreMenu({
       onCycle={(value) => cycleArrayFilter("markers", "markersEx", value)}
       searchPlaceholder="Search markers…"
       emptyText="No markers match."
+      flag={presenceFlag("markers", filterState.markersPresence)}
     />
   ) : null;
   const channelsNode = showChannels ? (
@@ -419,6 +468,24 @@ export function FilterMoreMenu({
       onCycle={(value) => cycleArrayFilter("channels", "channelsEx", value)}
       searchPlaceholder="Search distribution channels…"
       emptyText="No distribution channels match."
+      flag={presenceFlag("distributionChannels", filterState.channelsPresence)}
+    />
+  ) : null;
+  const keywordsNode = showKeywords ? (
+    <MoreDimension
+      key="keywords"
+      label="Keywords"
+      options={availableFilters.keywords.map((keyword) => ({
+        value: keyword,
+        label: keyword,
+        count: filterCounts?.keywords.get(keyword),
+      }))}
+      included={filterState.keywords}
+      excluded={filterState.keywordsEx}
+      onCycle={(value) => cycleArrayFilter("keywords", "keywordsEx", value)}
+      searchPlaceholder="Search keywords…"
+      emptyText="No keywords match."
+      flag={presenceFlag("keywords", filterState.keywordsPresence)}
     />
   ) : null;
   const customTagNodes = showCustomTags
@@ -480,15 +547,26 @@ export function FilterMoreMenu({
     />
   ) : null;
 
-  // Themed blocks, separated by dividers; empty blocks collapse away.
-  //  • Distribution: Promo, Signed, Markers, Distribution Channels, custom tags
+  // Themed blocks, separated by dividers; empty blocks collapse away. Markers /
+  // Distribution Channels fold their any/none presence into the picker itself;
+  // custom-tag and keyword presence ride as their own rows.
+  //  • Distribution: Signed, Markers, Distribution Channels, Keywords, custom tags
   //  • Collection:   Owned, Copies
   //  • Legality:     Banned, Errata
   //  • Price on its own
   const blocks = [
     {
       id: "distribution",
-      items: [promoNode, signedNode, standardNode, markersNode, channelsNode, ...customTagNodes],
+      items: [
+        signedNode,
+        standardNode,
+        oversizeNode,
+        markersNode,
+        channelsNode,
+        keywordsNode,
+        ...customTagNodes,
+        customTagsPresenceNode,
+      ],
     },
     { id: "collection", items: [ownedNode, copiesNode] },
     { id: "legality", items: [bannedNode, errataNode] },
@@ -518,10 +596,21 @@ export function FilterMoreMenu({
     );
     const ownedLabels = new Map(OWNED_BUCKETS.map((bucket) => [bucket.value, bucket.label]));
     const entries: string[] = [];
-    // Trait name for include, minus-prefixed for exclude ("−Promo"), matching the
-    // include/exclude language the badges and chips use.
-    if (filterState.promo !== null) {
-      entries.push(filterState.promo === false ? "−Promo" : "Promo");
+    // Trait name for "any", minus-prefixed for "none" ("−Has any marker"),
+    // matching the include/exclude language the badges and chips use.
+    const presenceEntries: [PresenceDimension, PresenceParamValue][] = [
+      ["markers", filterState.markersPresence],
+      ["superTypes", filterState.superTypesPresence],
+      ["customTags", filterState.customTagsPresence],
+      ["distributionChannels", filterState.channelsPresence],
+      ["keywords", filterState.keywordsPresence],
+    ];
+    for (const [dimension, value] of presenceEntries) {
+      if (value !== null) {
+        entries.push(
+          value === "none" ? `−${PRESENCE_LABELS[dimension]}` : PRESENCE_LABELS[dimension],
+        );
+      }
     }
     if (!hideSigned && filterState.signed !== null) {
       entries.push(filterState.signed === false ? "−Signed" : "Signed");
@@ -535,6 +624,9 @@ export function FilterMoreMenu({
     if (filterState.standard === true || filterState.standard === false) {
       entries.push(filterState.standard === false ? "−Standard" : "Standard");
     }
+    if (oversizeState_ !== null) {
+      entries.push(oversizeState_ ? "Oversized" : "−Oversized");
+    }
     for (const slug of filterState.markers) {
       entries.push(markerLabels.get(slug) ?? slug);
     }
@@ -546,6 +638,13 @@ export function FilterMoreMenu({
     }
     for (const slug of filterState.channelsEx) {
       entries.push(`−${channelLabels.get(slug) ?? slug}`);
+    }
+    // Keyword filter values are their own names, so no label lookup is needed.
+    for (const keyword of filterState.keywords) {
+      entries.push(keyword);
+    }
+    for (const keyword of filterState.keywordsEx) {
+      entries.push(`−${keyword}`);
     }
     for (const slug of filterState.customTags) {
       entries.push(tagLabels.get(slug) ?? slug);

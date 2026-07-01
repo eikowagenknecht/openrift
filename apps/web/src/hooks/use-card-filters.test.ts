@@ -363,32 +363,55 @@ describe("useCardFilters", () => {
     expect(lastNavigateSearch()).not.toHaveProperty("signed");
   });
 
-  it("togglePromo cycles null → true → false → null", () => {
+  it("cyclePresence('markers') cycles null → any → none → null", () => {
     const { result } = renderHook(() => useCardFilters(), { wrapper });
 
-    act(() => result.current.togglePromo());
-    expect(lastNavigateSearch()).toMatchObject({ promo: true });
+    act(() => result.current.cyclePresence("markers"));
+    expect(lastNavigateSearch()).toMatchObject({ markersPresence: "any" });
 
-    mockSearch = { promo: true };
+    mockSearch = { markersPresence: "any" };
     mockNavigate.mockClear();
     const { result: r2 } = renderHook(() => useCardFilters(), { wrapper });
-    act(() => r2.current.togglePromo());
-    expect(lastNavigateSearch()).toMatchObject({ promo: false });
+    act(() => r2.current.cyclePresence("markers"));
+    expect(lastNavigateSearch()).toMatchObject({ markersPresence: "none" });
 
-    mockSearch = { promo: false };
+    mockSearch = { markersPresence: "none" };
     mockNavigate.mockClear();
     const { result: r3 } = renderHook(() => useCardFilters(), { wrapper });
-    act(() => r3.current.togglePromo());
-    expect(lastNavigateSearch()).not.toHaveProperty("promo");
+    act(() => r3.current.cyclePresence("markers"));
+    expect(lastNavigateSearch()).not.toHaveProperty("markersPresence");
   });
 
-  it("clearPromo removes promo from search", () => {
-    mockSearch = { promo: false };
+  it("cyclePresence to 'none' clears the dimension's specific value selection", () => {
+    mockSearch = { markersPresence: "any", markers: ["top-8"], markersEx: ["promo"] };
     const { result } = renderHook(() => useCardFilters(), { wrapper });
 
-    act(() => result.current.clearPromo());
+    act(() => result.current.cyclePresence("markers"));
 
-    expect(lastNavigateSearch()).not.toHaveProperty("promo");
+    const search = lastNavigateSearch();
+    expect(search).toMatchObject({ markersPresence: "none" });
+    expect(search).not.toHaveProperty("markers");
+    expect(search).not.toHaveProperty("markersEx");
+  });
+
+  it("cycling a specific value clears a lingering 'none' presence for that dimension", () => {
+    mockSearch = { markersPresence: "none" };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+
+    act(() => result.current.cycleArrayFilter("markers", "markersEx", "top-8"));
+
+    const search = lastNavigateSearch();
+    expect(search).toMatchObject({ markers: ["top-8"] });
+    expect(search).not.toHaveProperty("markersPresence");
+  });
+
+  it("clearPresence removes the dimension's presence from search", () => {
+    mockSearch = { markersPresence: "none" };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+
+    act(() => result.current.clearPresence("markers"));
+
+    expect(lastNavigateSearch()).not.toHaveProperty("markersPresence");
   });
 
   it("detects active filters when signed is set", () => {
@@ -397,8 +420,8 @@ describe("useCardFilters", () => {
     expect(result.current.hasActiveFilters).toBe(true);
   });
 
-  it("detects active filters when promo is set", () => {
-    mockSearch = { promo: true };
+  it("detects active filters when a presence constraint is set", () => {
+    mockSearch = { keywordsPresence: "any" };
     const { result } = renderHook(() => useCardFilters(), { wrapper });
     expect(result.current.hasActiveFilters).toBe(true);
   });

@@ -130,7 +130,7 @@ describe("buildMissingSearch", () => {
       languages: ["en"],
       finishes: ["foil"],
       artVariants: ["full-art"],
-      promo: false,
+      markersPresence: "none",
       signed: true,
       banned: false,
       errata: true,
@@ -138,7 +138,7 @@ describe("buildMissingSearch", () => {
     });
   });
 
-  it("maps promos='only' to promo=true", () => {
+  it("maps promos='only' to markersPresence='any'", () => {
     const search = buildMissingSearch({
       countMode: "cards",
       groupBy: "domain",
@@ -146,7 +146,7 @@ describe("buildMissingSearch", () => {
       scope: { promos: "only" },
       setIdToSlug,
     });
-    expect(search?.promo).toBe(true);
+    expect(search?.markersPresence).toBe("any");
   });
 
   it("omits empty scope arrays from the payload", () => {

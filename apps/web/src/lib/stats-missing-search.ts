@@ -54,9 +54,9 @@ export function buildMissingSearch({
     search.artVariants = scope.artVariants;
   }
   if (scope.promos === "only") {
-    search.promo = true;
+    search.markersPresence = "any";
   } else if (scope.promos === "exclude") {
-    search.promo = false;
+    search.markersPresence = "none";
   }
   if (scope.signed !== undefined) {
     search.signed = scope.signed;

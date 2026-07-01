@@ -120,6 +120,12 @@ interface MultiSelectComboboxProps {
    */
   flag?: MultiSelectFlag;
   /**
+   * Where the {@link flag} row sits relative to the options: "bottom" (default,
+   * e.g. Signed under Art Variant) or "top" (e.g. a "Has any …" presence toggle
+   * that should read before the specific values it generalises).
+   */
+  flagPosition?: "top" | "bottom";
+  /**
    * Size the option list to its content and only scroll once it would overflow
    * the viewport — like a dropdown menu — instead of the default fixed cap
    * (~18rem) that scrolls early. Use for short, grouped dropdowns (e.g. Variant)
@@ -266,6 +272,7 @@ export function MultiSelectCombobox({
   primaryLabel,
   groups,
   flag,
+  flagPosition = "bottom",
   fitContent,
   placeholder,
   triggerClassName,
@@ -302,11 +309,14 @@ export function MultiSelectCombobox({
   ];
 
   // Flatten every section's options into the combobox's id-keyed item list (and
-  // a lookup back to the owning section/option), with the flag riding last via
-  // its sentinel. The flag never enters the selection — its click is translated
-  // to flag.onToggle below.
+  // a lookup back to the owning section/option), with the flag riding first or
+  // last via its sentinel per `flagPosition`. The flag never enters the
+  // selection — its click is translated to flag.onToggle below.
   const items: string[] = [];
   const idMeta = new Map<string, { section: Section; option: MultiSelectOption }>();
+  if (flag && flagPosition === "top") {
+    items.push(FLAG_VALUE);
+  }
   for (const section of sections) {
     for (const option of section.options) {
       const id = encodeId(section.index, option.value);
@@ -328,7 +338,7 @@ export function MultiSelectCombobox({
       }
     }
   }
-  if (flag) {
+  if (flag && flagPosition === "bottom") {
     items.push(FLAG_VALUE);
   }
 
@@ -468,10 +478,11 @@ export function MultiSelectCombobox({
     }
   }
 
-  // The flag row (e.g. Signed inside Art Variant) is a distinct concern from the
-  // options above it, so set it off with a divider — but only while at least one
-  // option is still visible above, so a search that filters every option away
-  // (or matches only the flag itself) doesn't leave a stray divider at the top.
+  // The flag row (e.g. Signed inside Art Variant, or a "Has any …" presence
+  // toggle) is a distinct concern from the options, so set it off with a divider
+  // — below it when it leads the list, above it when it trails — but only while
+  // at least one option is still visible, so a search that filters every option
+  // away (or matches only the flag itself) doesn't leave a stray divider.
   const showFlagDivider =
     flag !== undefined && items.some((id) => id !== FLAG_VALUE && isVisible(id));
 
@@ -634,8 +645,9 @@ export function MultiSelectCombobox({
               if (showFlagDivider) {
                 return (
                   <Fragment key={value}>
-                    <ComboboxSeparator />
+                    {flagPosition === "bottom" && <ComboboxSeparator />}
                     {flagItem}
+                    {flagPosition === "top" && <ComboboxSeparator />}
                   </Fragment>
                 );
               }

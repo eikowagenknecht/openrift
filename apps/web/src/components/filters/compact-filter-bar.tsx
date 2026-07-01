@@ -209,7 +209,7 @@ export function CompactFilterBar({
 }: CompactFilterBarProps) {
   const { labels } = useEnumOrders();
   const { filterState, hasActiveFilters } = useFilterValues();
-  const { setArrayFilter, cycleArrayFilter, toggleSigned, clearAllFilters } = useFilterActions();
+  const { cycleArrayFilter, toggleSigned, clearAllFilters } = useFilterActions();
   const languageLabels = useLanguageLabels();
 
   // Art Variant, Finish, and Signed are all printing-variant axes, so they share
@@ -291,7 +291,11 @@ export function CompactFilterBar({
   const hasMore = hasMoreContent || showMarketRanges;
 
   const moreActiveCount =
-    Number(filterState.promo !== null) +
+    Number(filterState.markersPresence !== null) +
+    Number(filterState.superTypesPresence !== null) +
+    Number(filterState.customTagsPresence !== null) +
+    Number(filterState.channelsPresence !== null) +
+    Number(filterState.keywordsPresence !== null) +
     Number(!signedInVariantMenu && filterState.signed !== null) +
     Number(filterState.banned !== null) +
     Number(filterState.errata !== null) +
@@ -304,6 +308,9 @@ export function CompactFilterBar({
     filterState.channelsEx.length +
     filterState.customTags.length +
     filterState.customTagsEx.length +
+    filterState.keywords.length +
+    filterState.keywordsEx.length +
+    filterState.cardSizes.length +
     filterState.owned.length +
     Number(filterState.priceMin !== null || filterState.priceMax !== null) +
     Number(filterState.ownedCountMin !== null || filterState.ownedCountMax !== null);
@@ -480,21 +487,6 @@ export function CompactFilterBar({
               />
             );
           })()}
-        {!hiddenSections?.has("cardSizes") && availableFilters.cardSizes.length > 1 && (
-          <MultiSelectCombobox
-            triggerStyle="button"
-            label="Size"
-            searchPlaceholder="Search sizes…"
-            emptyText="No sizes match."
-            options={availableFilters.cardSizes.map((value) => ({
-              value,
-              label: labels.cardSizes[value] ?? value,
-            }))}
-            selected={filterState.cardSizes}
-            onChange={(next) => setArrayFilter("cardSizes", next)}
-            counts={filterCounts?.cardSizes}
-          />
-        )}
         {showStats && (
           <FilterDropdownChip
             label="Stats"

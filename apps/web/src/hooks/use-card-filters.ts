@@ -6,6 +6,8 @@ import type {
   Domain,
   Finish,
   GroupByField,
+  PresenceDimension,
+  PresenceState,
   RangeKey,
   Rarity,
   SortDirection,
@@ -36,6 +38,7 @@ type ArrayKey =
   | "markers"
   | "channels"
   | "customTags"
+  | "keywords"
   | "owned"
   // Negation companions (ADR-034). No exclude axis for `cardSizes` / `owned`.
   | "setsEx"
@@ -48,7 +51,49 @@ type ArrayKey =
   | "finishesEx"
   | "markersEx"
   | "channelsEx"
-  | "customTagsEx";
+  | "customTagsEx"
+  | "keywordsEx";
+
+/** URL search-param name that stores each presence dimension's any/none state. */
+type PresenceParam =
+  | "markersPresence"
+  | "superTypesPresence"
+  | "customTagsPresence"
+  | "channelsPresence"
+  | "keywordsPresence";
+
+/** Maps each presence dimension to its URL param (channels → distributionChannels). */
+const PRESENCE_PARAMS: Record<PresenceDimension, PresenceParam> = {
+  markers: "markersPresence",
+  superTypes: "superTypesPresence",
+  customTags: "customTagsPresence",
+  distributionChannels: "channelsPresence",
+  keywords: "keywordsPresence",
+};
+
+/**
+ * The include/exclude value params tied to a presence dimension, cleared when
+ * that dimension is set to "none" (contradictory) and — reading in reverse —
+ * consulted so picking a specific value clears a lingering "none". Keywords have
+ * no value picker.
+ */
+const PRESENCE_VALUE_PARAMS: Record<PresenceDimension, { include?: ArrayKey; exclude?: ArrayKey }> =
+  {
+    markers: { include: "markers", exclude: "markersEx" },
+    superTypes: { include: "superTypes", exclude: "superTypesEx" },
+    customTags: { include: "customTags", exclude: "customTagsEx" },
+    distributionChannels: { include: "channels", exclude: "channelsEx" },
+    keywords: { include: "keywords", exclude: "keywordsEx" },
+  };
+
+/** Reverse of PRESENCE_VALUE_PARAMS include side: value array key → presence param. */
+const ARRAY_KEY_PRESENCE_PARAM: Partial<Record<ArrayKey, PresenceParam>> = {
+  markers: "markersPresence",
+  superTypes: "superTypesPresence",
+  customTags: "customTagsPresence",
+  channels: "channelsPresence",
+  keywords: "keywordsPresence",
+};
 
 /**
  * Build a `filterState` object from raw search params that matches the shape
@@ -71,6 +116,7 @@ function toFilterState(raw: FilterSearch, defaultView: DefaultCardView) {
     markers: raw.markers ?? [],
     channels: raw.channels ?? [],
     customTags: raw.customTags ?? [],
+    keywords: raw.keywords ?? [],
     // Negation companions + standard (ADR-034).
     setsEx: raw.setsEx ?? [],
     languagesEx: raw.languagesEx ?? [],
@@ -83,6 +129,7 @@ function toFilterState(raw: FilterSearch, defaultView: DefaultCardView) {
     markersEx: raw.markersEx ?? [],
     channelsEx: raw.channelsEx ?? [],
     customTagsEx: raw.customTagsEx ?? [],
+    keywordsEx: raw.keywordsEx ?? [],
     standard: raw.standard ?? null,
     energyMin: raw.energyMin ?? null,
     energyMax: raw.energyMax ?? null,
@@ -96,7 +143,11 @@ function toFilterState(raw: FilterSearch, defaultView: DefaultCardView) {
     ownedCountMax: raw.ownedCountMax ?? null,
     owned: raw.owned ?? [],
     signed: raw.signed ?? null,
-    promo: raw.promo ?? null,
+    markersPresence: raw.markersPresence ?? null,
+    superTypesPresence: raw.superTypesPresence ?? null,
+    customTagsPresence: raw.customTagsPresence ?? null,
+    channelsPresence: raw.channelsPresence ?? null,
+    keywordsPresence: raw.keywordsPresence ?? null,
     banned: raw.banned ?? null,
     errata: raw.errata ?? null,
     sort: raw.sort ?? "id",
@@ -105,6 +156,24 @@ function toFilterState(raw: FilterSearch, defaultView: DefaultCardView) {
     groupBy: raw.groupBy ?? "set",
     groupDir: raw.groupDir ?? "asc",
   };
+}
+
+/**
+ * Collapses the per-dimension presence params into the shared `CardFilters`
+ * presence map, dropping dimensions with no constraint (null).
+ * @returns The presence map keyed by dimension.
+ */
+function buildPresence(
+  filterState: ReturnType<typeof toFilterState>,
+): Partial<Record<PresenceDimension, PresenceState>> {
+  const presence: Partial<Record<PresenceDimension, PresenceState>> = {};
+  for (const dimension of Object.keys(PRESENCE_PARAMS) as PresenceDimension[]) {
+    const value = filterState[PRESENCE_PARAMS[dimension]];
+    if (value) {
+      presence[dimension] = value;
+    }
+  }
+  return presence;
 }
 
 /**
@@ -138,12 +207,13 @@ export function useFilterValues() {
     ownedCountMin: filterState.ownedCountMin,
     ownedCountMax: filterState.ownedCountMax,
     isSigned: filterState.signed ?? null,
-    hasAnyMarker: filterState.promo ?? null,
+    presence: buildPresence(filterState),
     markers: filterState.markers,
     channels: filterState.channels,
     markerSlugs: filterState.markers,
     distributionChannelSlugs: filterState.channels,
     customTagSlugs: filterState.customTags,
+    keywords: filterState.keywords,
     isBanned: filterState.banned ?? null,
     hasErrata: filterState.errata ?? null,
     // Negation companions + standard (ADR-034).
@@ -158,6 +228,7 @@ export function useFilterValues() {
     markerSlugsExclude: filterState.markersEx,
     distributionChannelSlugsExclude: filterState.channelsEx,
     customTagSlugsExclude: filterState.customTagsEx,
+    keywordsExclude: filterState.keywordsEx,
     isStandard: filterState.standard ?? null,
     energy: { min: filterState.energyMin, max: filterState.energyMax },
     might: { min: filterState.mightMin, max: filterState.mightMax },
@@ -192,6 +263,7 @@ export function useFilterValues() {
     filterState.markers.length > 0 ||
     filterState.channels.length > 0 ||
     filterState.customTags.length > 0 ||
+    filterState.keywords.length > 0 ||
     filterState.energyMin !== null ||
     filterState.energyMax !== null ||
     filterState.mightMin !== null ||
@@ -204,7 +276,11 @@ export function useFilterValues() {
     filterState.ownedCountMax !== null ||
     filterState.owned.length > 0 ||
     filterState.signed !== null ||
-    filterState.promo !== null ||
+    filterState.markersPresence !== null ||
+    filterState.superTypesPresence !== null ||
+    filterState.customTagsPresence !== null ||
+    filterState.channelsPresence !== null ||
+    filterState.keywordsPresence !== null ||
     filterState.banned !== null ||
     filterState.errata !== null ||
     // Standard-printing flag + every negation array (ADR-034). Without these,
@@ -221,7 +297,8 @@ export function useFilterValues() {
     filterState.finishesEx.length > 0 ||
     filterState.markersEx.length > 0 ||
     filterState.channelsEx.length > 0 ||
-    filterState.customTagsEx.length > 0;
+    filterState.customTagsEx.length > 0 ||
+    filterState.keywordsEx.length > 0;
 
   return {
     filters,
@@ -280,6 +357,7 @@ export function useFilterActions() {
       markers: undefined,
       channels: undefined,
       customTags: undefined,
+      keywords: undefined,
       energyMin: undefined,
       energyMax: undefined,
       mightMin: undefined,
@@ -292,7 +370,11 @@ export function useFilterActions() {
       ownedCountMax: undefined,
       owned: undefined,
       signed: undefined,
-      promo: undefined,
+      markersPresence: undefined,
+      superTypesPresence: undefined,
+      customTagsPresence: undefined,
+      channelsPresence: undefined,
+      keywordsPresence: undefined,
       banned: undefined,
       errata: undefined,
       standard: undefined,
@@ -308,6 +390,7 @@ export function useFilterActions() {
       markersEx: undefined,
       channelsEx: undefined,
       customTagsEx: undefined,
+      keywordsEx: undefined,
       sort: undefined,
       sortDir: undefined,
     });
@@ -363,11 +446,21 @@ export function useFilterActions() {
           exclude,
           value,
         );
+        // Naming a specific value clears a lingering "none" presence for the
+        // same dimension (the two contradict). Widening includes/excludes only.
+        const presenceParam = ARRAY_KEY_PRESENCE_PARAM[includeKey];
+        const clearNone =
+          presenceParam &&
+          (nextInclude.length > 0 || nextExclude.length > 0) &&
+          prev[presenceParam] === "none"
+            ? { [presenceParam]: undefined }
+            : {};
         return Object.fromEntries(
           Object.entries({
             ...prev,
             [includeKey]: nextInclude.length > 0 ? nextInclude : undefined,
             [excludeKey]: nextExclude.length > 0 ? nextExclude : undefined,
+            ...clearNone,
           }).filter(([, entry]) => entry !== undefined),
         );
       },
@@ -419,13 +512,33 @@ export function useFilterActions() {
       filterState.signed === null ? true : filterState.signed === true ? false : undefined;
     updateSearch({ signed: next });
   };
-  const togglePromo = () => {
-    trackEvent("filter-apply", { type: "promo" });
-    const next = filterState.promo === null ? true : filterState.promo === true ? false : undefined;
-    updateSearch({ promo: next });
+  // Writes a presence state for a dimension. Setting "none" also clears any
+  // specific value selection for the dimension, since requiring "no values"
+  // contradicts naming values.
+  const applyPresence = (dimension: PresenceDimension, next: PresenceState | undefined) => {
+    const patch: Partial<FilterSearch> = { [PRESENCE_PARAMS[dimension]]: next };
+    if (next === "none") {
+      const valueParams = PRESENCE_VALUE_PARAMS[dimension];
+      if (valueParams.include) {
+        patch[valueParams.include] = undefined;
+      }
+      if (valueParams.exclude) {
+        patch[valueParams.exclude] = undefined;
+      }
+    }
+    updateSearch(patch);
   };
+  // Tri-state presence cycle (folded into each dimension's picker): off → any
+  // (require at least one value) → none (require zero) → off.
+  const cyclePresence = (dimension: PresenceDimension) => {
+    trackEvent("filter-apply", { type: "presence" });
+    const current = filterState[PRESENCE_PARAMS[dimension]];
+    const next = current === null ? "any" : current === "any" ? "none" : undefined;
+    applyPresence(dimension, next);
+  };
+  const clearPresence = (dimension: PresenceDimension) =>
+    updateSearch({ [PRESENCE_PARAMS[dimension]]: undefined });
   const clearSigned = () => updateSearch({ signed: undefined });
-  const clearPromo = () => updateSearch({ promo: undefined });
   const toggleBanned = () => {
     trackEvent("filter-apply", { type: "banned" });
     const next =
@@ -488,12 +601,12 @@ export function useFilterActions() {
     setOwnedCountRange,
     clearOwned,
     toggleSigned,
-    togglePromo,
+    cyclePresence,
+    clearPresence,
     toggleBanned,
     toggleErrata,
     toggleStandard,
     clearSigned,
-    clearPromo,
     clearBanned,
     clearErrata,
     clearStandard,

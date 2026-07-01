@@ -49,10 +49,10 @@ function makeAvailable(overrides: Partial<AvailableFilters> = {}): AvailableFilt
     finishes: [],
     cardSizes: [],
     hasSigned: false,
-    hasAnyMarker: false,
     hasNonStandard: false,
     hasBanned: false,
     hasErrata: false,
+    keywords: [],
     hasNullEnergy: false,
     hasNullMight: false,
     hasNullPower: false,
@@ -83,7 +83,15 @@ function makeFilterCounts(
     cardSizes: new Map(),
     markers: dimensionOverrides.markers ?? new Map(),
     channels: dimensionOverrides.channels ?? new Map(),
-    flags: { signed: 0, promo: 3, banned: 0, errata: 0, standard: 0 },
+    keywords: new Map(),
+    flags: { signed: 0, banned: 0, errata: 0, standard: 0 },
+    presence: {
+      markers: { any: 3, none: 0 },
+      superTypes: { any: 0, none: 0 },
+      customTags: { any: 0, none: 0 },
+      distributionChannels: { any: 0, none: 0 },
+      keywords: { any: 0, none: 0 },
+    },
     ranges: {
       energy: { min: 1, max: 7, hasNullStat: false },
       might: { min: 1, max: 7, hasNullStat: false },
@@ -97,11 +105,18 @@ interface MoreFilterState {
   markers: string[];
   channels: string[];
   customTags: string[];
+  keywords: string[];
+  cardSizes: string[];
   owned: string[];
   markersEx: string[];
   channelsEx: string[];
   customTagsEx: string[];
-  promo: boolean | null;
+  keywordsEx: string[];
+  markersPresence: "any" | "none" | null;
+  superTypesPresence: "any" | "none" | null;
+  customTagsPresence: "any" | "none" | null;
+  channelsPresence: "any" | "none" | null;
+  keywordsPresence: "any" | "none" | null;
   signed: boolean | null;
   banned: boolean | null;
   errata: boolean | null;
@@ -113,7 +128,7 @@ function setupHooks(filterStateOverrides: Partial<MoreFilterState> = {}) {
     toggleArrayFilter: vi.fn(),
     setArrayFilter: vi.fn(),
     toggleSigned: vi.fn(),
-    togglePromo: vi.fn(),
+    cyclePresence: vi.fn(),
     toggleBanned: vi.fn(),
     toggleErrata: vi.fn(),
     toggleStandard: vi.fn(),
@@ -131,11 +146,18 @@ function setupHooks(filterStateOverrides: Partial<MoreFilterState> = {}) {
       markers: [],
       channels: [],
       customTags: [],
+      keywords: [],
+      cardSizes: [],
       owned: [],
       markersEx: [],
       channelsEx: [],
       customTagsEx: [],
-      promo: null,
+      keywordsEx: [],
+      markersPresence: null,
+      superTypesPresence: null,
+      customTagsPresence: null,
+      channelsPresence: null,
+      keywordsPresence: null,
       signed: null,
       banned: null,
       errata: null,
@@ -207,7 +229,6 @@ describe("FilterMoreMenu", () => {
     render(
       <FilterMoreMenu
         availableFilters={makeAvailable({
-          hasAnyMarker: true,
           markers: [{ id: "marker-foil", slug: "foil", label: "Foil", description: "" }],
         })}
         filterCounts={makeFilterCounts()}
@@ -228,7 +249,6 @@ describe("FilterMoreMenu", () => {
     render(
       <FilterMoreMenu
         availableFilters={makeAvailable({
-          hasAnyMarker: true,
           hasSigned: true,
           markers: [{ id: "marker-foil", slug: "foil", label: "Foil", description: "" }],
         })}
@@ -237,13 +257,15 @@ describe("FilterMoreMenu", () => {
       />,
     );
     await user.click(screen.getByRole("button", { name: "More" }));
-    // Flags cycle in place; the promo count rides the label.
-    expect(await screen.findByRole("menuitem", { name: /Promo/u })).toBeInTheDocument();
-    expect(screen.getByRole("menuitem", { name: /Signed/u })).toBeInTheDocument();
+    expect(await screen.findByRole("menuitem", { name: /Signed/u })).toBeInTheDocument();
     // Markers is exclude-capable, so it renders as an include/exclude combobox
     // row (found by text, not a submenu menuitem). Owned stays a submenu.
     expect(screen.getByText("Markers")).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Owned" })).toBeInTheDocument();
+    // Marker presence folds into the top of the Markers combobox, not a
+    // standalone row — open it and the "Has any marker" toggle leads the list.
+    await user.click(screen.getByText("Markers"));
+    expect(await screen.findByRole("option", { name: /Has any marker/u })).toBeInTheDocument();
   });
 
   it("shows faceted counts next to marker options in the combobox", async () => {
@@ -252,7 +274,6 @@ describe("FilterMoreMenu", () => {
     render(
       <FilterMoreMenu
         availableFilters={makeAvailable({
-          hasAnyMarker: true,
           markers: [{ id: "marker-foil", slug: "foil", label: "Foil", description: "" }],
         })}
         filterCounts={makeFilterCounts({ markers: new Map([["foil", 5]]) })}
@@ -307,19 +328,22 @@ describe("FilterMoreMenu", () => {
     ).toBeInTheDocument();
   });
 
-  it("cycles a flag in place when its item is clicked", async () => {
+  it("cycles a folded presence flag when its combobox option is clicked", async () => {
     const user = userEvent.setup();
     const actions = setupHooks();
     render(
       <FilterMoreMenu
-        availableFilters={makeAvailable({ hasAnyMarker: true })}
+        availableFilters={makeAvailable({ keywords: ["Shield"] })}
         filterCounts={makeFilterCounts()}
         activeCount={0}
       />,
     );
     await user.click(screen.getByRole("button", { name: "More" }));
-    await user.click(await screen.findByRole("menuitem", { name: /Promo/u }));
-    expect(actions.togglePromo).toHaveBeenCalledOnce();
+    // Keyword presence folds into the Keywords combobox — open it, then click
+    // the "Has any keyword" toggle that leads the list.
+    await user.click(await screen.findByText("Keywords"));
+    await user.click(await screen.findByRole("option", { name: /Has any keyword/u }));
+    expect(actions.cyclePresence).toHaveBeenCalledWith("keywords");
   });
 
   it("shows and cycles the Standard flag when non-standard printings exist (ADR-034)", async () => {

@@ -128,6 +128,7 @@ import * as m179 from "./179-tournament-drop-deck-check-toggle.js";
 import * as m180 from "./180-card-size.js";
 import * as m181 from "./181-tournament-follow-token.js";
 import * as m182 from "./182-list-rules.js";
+import * as m183 from "./183-basic-super-type-well-known.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -315,4 +316,5 @@ export const migrations: Record<string, Migration> = {
   "180-card-size": m180,
   "181-tournament-follow-token": m181,
   "182-list-rules": m182,
+  "183-basic-super-type-well-known": m183,
 };

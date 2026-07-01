@@ -5,9 +5,12 @@
 ### Highlights
 
 - feat(Decks): **Deck image in the Export menu** — download the shareable deck picture from a new Image tab in Export, for any deck, without turning on link sharing first.
+- feat(Cards): **Filter by "has any" or "none"** — require a card to have at least one (or zero) markers, custom tags, distribution channels, or keywords, without naming specific values. The old Promo filter is now "Has any marker", and dynamic list rules get the same options (including supertypes) so a saved rule stays correct as the catalog grows.
 
 ### Other
 
+- feat(Cards): **Filter by keyword** — a new Keywords filter in the More menu narrows to cards with a given ability keyword (Shield, Ambush, and the rest), alongside its has-any / none options.
+- feat(Cards): **Simpler size filter** — Size moved into the More menu as a single "Oversized" toggle (require oversized, require standard, or off), instead of a separate size picker.
 - feat(Collection): **Clearer list sharing** — sharing a public link and choosing which groups can see a list are now two focused dialogs that link to each other, instead of one crowded panel.
 - feat(Collection): **Dynamic-rule status on lists** — a wishlist or tradelist with active dynamic rules now highlights its rules button and shows how many are running.
 - fix(Account): **Trade-status email toggle** — the profile setting for trade status update emails didn't save, so opting out never took effect, and now your choice persists.

@@ -605,7 +605,7 @@ describe("filterCards", () => {
 
   // -- markers filter --
 
-  it("filters by hasAnyMarker=true", () => {
+  it("filters by presence.markers=any", () => {
     const withPromo = [
       makePrinting({
         markers: [{ id: "1", slug: "promo", label: "Promo", description: null }],
@@ -642,7 +642,7 @@ describe("filterCards", () => {
         },
       }),
     ];
-    const result = filterCards(withPromo, emptyFilters({ hasAnyMarker: true }));
+    const result = filterCards(withPromo, emptyFilters({ presence: { markers: "any" } }));
     expect(result).toHaveLength(1);
     expect(result[0].card.name).toBe("Promo Card");
   });
@@ -806,9 +806,9 @@ describe("filterCards", () => {
     expect(result[0].card.name).toBe("Unsigned Card");
   });
 
-  // -- Edge cases: hasAnyMarker filter set to false --
+  // -- Edge cases: presence.markers set to "none" --
 
-  it("filters by hasAnyMarker=false excludes marked cards", () => {
+  it("filters by presence.markers=none excludes marked cards", () => {
     const cards = [
       makePrinting({
         markers: [{ id: "1", slug: "promo", label: "Promo", description: null }],
@@ -821,7 +821,7 @@ describe("filterCards", () => {
         card: { name: "Regular Card" },
       }),
     ];
-    const result = filterCards(cards, emptyFilters({ hasAnyMarker: false }));
+    const result = filterCards(cards, emptyFilters({ presence: { markers: "none" } }));
     expect(result).toHaveLength(1);
     expect(result[0].card.name).toBe("Regular Card");
   });
@@ -1087,7 +1087,7 @@ describe("filterCards", () => {
     expect(result[0].card.name).toBe("Nexus Card");
   });
 
-  it("filters by hasAnyMarker=true with specific markerSlugs", () => {
+  it("filters by presence.markers=any with specific markerSlugs", () => {
     const cards = [
       makePrinting({
         markers: [{ id: "1", slug: "top-8", label: "Top 8", description: null }],
@@ -1100,12 +1100,15 @@ describe("filterCards", () => {
         card: { name: "Promo Card" },
       }),
     ];
-    const result = filterCards(cards, emptyFilters({ hasAnyMarker: true, markerSlugs: ["top-8"] }));
+    const result = filterCards(
+      cards,
+      emptyFilters({ presence: { markers: "any" }, markerSlugs: ["top-8"] }),
+    );
     expect(result).toHaveLength(1);
     expect(result[0].card.name).toBe("Top 8 Card");
   });
 
-  it("filters by hasAnyMarker=true with empty markerSlugs returns all marked", () => {
+  it("filters by presence.markers=any with empty markerSlugs returns all marked", () => {
     const cards = [
       makePrinting({
         markers: [{ id: "1", slug: "promo", label: "Promo", description: null }],
@@ -1118,9 +1121,136 @@ describe("filterCards", () => {
         card: { name: "Regular Card" },
       }),
     ];
-    const result = filterCards(cards, emptyFilters({ hasAnyMarker: true, markerSlugs: [] }));
+    const result = filterCards(
+      cards,
+      emptyFilters({ presence: { markers: "any" }, markerSlugs: [] }),
+    );
     expect(result).toHaveLength(1);
     expect(result[0].card.name).toBe("Promo Card");
+  });
+
+  // -- Generic presence predicate: any / none per dimension --
+
+  describe("presence predicate", () => {
+    const channel = {
+      id: "ch1",
+      slug: "nexus-night",
+      label: "Nexus Night",
+      description: null,
+      kind: "event" as const,
+      parentId: null,
+      childrenLabel: null,
+    };
+
+    // For each dimension: a printing that HAS a value and one that has NONE.
+    const withMarker = makePrinting({
+      cardId: "has-marker",
+      markers: [{ id: "1", slug: "promo", label: "Promo", description: null }],
+    });
+    const withoutMarker = makePrinting({ cardId: "no-marker", markers: [] });
+    const withSuperType = makePrinting({ cardId: "has-super", card: { superTypes: ["champion"] } });
+    // "basic" is the placeholder supertype — it must count as "no supertype".
+    const onlyBasic = makePrinting({ cardId: "basic-only", card: { superTypes: ["basic"] } });
+    const withChannel = makePrinting({
+      cardId: "has-channel",
+      distributionChannels: [{ channel, distributionNote: null, ancestorLabels: [] }],
+    });
+    const withoutChannel = makePrinting({ cardId: "no-channel", distributionChannels: [] });
+    const withKeyword = makePrinting({ cardId: "has-kw", card: { keywords: ["Shield"] } });
+    const withoutKeyword = makePrinting({ cardId: "no-kw", card: { keywords: [] } });
+
+    it("markers: any keeps marked, none keeps unmarked", () => {
+      const cards = [withMarker, withoutMarker];
+      expect(
+        filterCards(cards, emptyFilters({ presence: { markers: "any" } })).map((p) => p.cardId),
+      ).toEqual(["has-marker"]);
+      expect(
+        filterCards(cards, emptyFilters({ presence: { markers: "none" } })).map((p) => p.cardId),
+      ).toEqual(["no-marker"]);
+    });
+
+    it("superTypes: 'basic' placeholder counts as no supertype", () => {
+      const cards = [withSuperType, onlyBasic];
+      expect(
+        filterCards(cards, emptyFilters({ presence: { superTypes: "any" } })).map((p) => p.cardId),
+      ).toEqual(["has-super"]);
+      expect(
+        filterCards(cards, emptyFilters({ presence: { superTypes: "none" } })).map((p) => p.cardId),
+      ).toEqual(["basic-only"]);
+    });
+
+    it("distributionChannels: any keeps distributed, none keeps undistributed", () => {
+      const cards = [withChannel, withoutChannel];
+      expect(
+        filterCards(cards, emptyFilters({ presence: { distributionChannels: "any" } })).map(
+          (p) => p.cardId,
+        ),
+      ).toEqual(["has-channel"]);
+      expect(
+        filterCards(cards, emptyFilters({ presence: { distributionChannels: "none" } })).map(
+          (p) => p.cardId,
+        ),
+      ).toEqual(["no-channel"]);
+    });
+
+    it("keywords: any keeps keyworded, none keeps keyword-less", () => {
+      const cards = [withKeyword, withoutKeyword];
+      expect(
+        filterCards(cards, emptyFilters({ presence: { keywords: "any" } })).map((p) => p.cardId),
+      ).toEqual(["has-kw"]);
+      expect(
+        filterCards(cards, emptyFilters({ presence: { keywords: "none" } })).map((p) => p.cardId),
+      ).toEqual(["no-kw"]);
+    });
+
+    it("customTags: any/none use the customTagAssignments lookup", () => {
+      const tagged = makePrinting({ cardId: "tagged" });
+      const untagged = makePrinting({ cardId: "untagged" });
+      const cards = [tagged, untagged];
+      const options = { customTagAssignments: { tagged: ["foil-hunt"] } };
+      expect(
+        filterCards(cards, emptyFilters({ presence: { customTags: "any" } }), options).map(
+          (p) => p.cardId,
+        ),
+      ).toEqual(["tagged"]);
+      expect(
+        filterCards(cards, emptyFilters({ presence: { customTags: "none" } }), options).map(
+          (p) => p.cardId,
+        ),
+      ).toEqual(["untagged"]);
+    });
+
+    it("constraints across dimensions combine (AND)", () => {
+      const both = makePrinting({
+        cardId: "both",
+        markers: [{ id: "1", slug: "promo", label: "Promo", description: null }],
+        card: { keywords: [] },
+      });
+      const cards = [both, withMarker, withoutKeyword];
+      // markers=any AND keywords=none: only "both" qualifies (withMarker has a keyword).
+      expect(
+        filterCards(cards, emptyFilters({ presence: { markers: "any", keywords: "none" } })).map(
+          (p) => p.cardId,
+        ),
+      ).toEqual(["both"]);
+    });
+
+    it("empty presence map imposes no constraint", () => {
+      const cards = [withMarker, withoutMarker];
+      expect(filterCards(cards, emptyFilters({ presence: {} }))).toHaveLength(2);
+    });
+
+    it("matches the old hasAnyMarker semantics (migration equivalence)", () => {
+      const cards = [withMarker, withoutMarker];
+      // Old hasAnyMarker=true ⇔ presence.markers=any; false ⇔ none; null ⇔ absent.
+      expect(filterCards(cards, emptyFilters({ presence: { markers: "any" } }))).toEqual(
+        cards.filter((p) => p.markers.length > 0),
+      );
+      expect(filterCards(cards, emptyFilters({ presence: { markers: "none" } }))).toEqual(
+        cards.filter((p) => p.markers.length === 0),
+      );
+      expect(filterCards(cards, emptyFilters())).toEqual(cards);
+    });
   });
 
   it("markerSlugs filter excludes unmarked cards", () => {
@@ -1133,6 +1263,45 @@ describe("filterCards", () => {
     ];
     const result = filterCards(cards, emptyFilters({ markerSlugs: ["promo"] }));
     expect(result).toHaveLength(0);
+  });
+
+  // -- keywords filter --
+
+  describe("keywords filter", () => {
+    const shieldCard = makePrinting({ cardId: "shield", card: { keywords: ["Shield", "Tank"] } });
+    const ambushCard = makePrinting({ cardId: "ambush", card: { keywords: ["Ambush"] } });
+    const plainCard = makePrinting({ cardId: "plain", card: { keywords: [] } });
+    const cards = [shieldCard, ambushCard, plainCard];
+
+    it("passes everything when no keyword is selected", () => {
+      expect(filterCards(cards, emptyFilters({ keywords: [] }))).toHaveLength(3);
+    });
+
+    it("keeps cards carrying any of the selected keywords", () => {
+      expect(
+        filterCards(cards, emptyFilters({ keywords: ["Shield"] })).map((p) => p.cardId),
+      ).toEqual(["shield"]);
+      expect(
+        filterCards(cards, emptyFilters({ keywords: ["Shield", "Ambush"] })).map((p) => p.cardId),
+      ).toEqual(["shield", "ambush"]);
+    });
+
+    it("excludes cards carrying an excluded keyword", () => {
+      expect(
+        filterCards(cards, emptyFilters({ keywordsExclude: ["Shield"] })).map((p) => p.cardId),
+      ).toEqual(["ambush", "plain"]);
+    });
+
+    it("lists distinct keywords in getAvailableFilters, sorted", () => {
+      expect(getAvailableFilters(cards).keywords).toEqual(["Ambush", "Shield", "Tank"]);
+    });
+
+    it("faceted counts reflect keyword usage", () => {
+      const counts = computeFilterCounts(cards, emptyFilters(), { countBy: "card" });
+      expect(counts.keywords.get("Shield")).toBe(1);
+      expect(counts.keywords.get("Tank")).toBe(1);
+      expect(counts.keywords.get("Ambush")).toBe(1);
+    });
   });
 
   // -- customTagSlugs filter --
@@ -1483,21 +1652,19 @@ describe("getAvailableFilters", () => {
     expect(result.hasSigned).toBe(false);
   });
 
-  it("computes hasAnyMarker true when marked printings exist", () => {
+  it("lists markers when marked printings exist", () => {
     const result = getAvailableFilters([
       makePrinting({
         markers: [{ id: "1", slug: "promo", label: "Promo", description: null }],
       }),
       makePrinting({ markers: [] }),
     ]);
-    expect(result.hasAnyMarker).toBe(true);
     expect(result.markers).toHaveLength(1);
     expect(result.markers[0].slug).toBe("promo");
   });
 
-  it("computes hasAnyMarker false when no marked printings", () => {
+  it("lists no markers when no marked printings", () => {
     const result = getAvailableFilters([makePrinting({ markers: [] })]);
-    expect(result.hasAnyMarker).toBe(false);
     expect(result.markers).toHaveLength(0);
   });
 
@@ -2427,7 +2594,7 @@ describe("computeFilterCounts", () => {
     it("counts flags at their primary-on state when the chip is null/true", () => {
       const counts = computeFilterCounts(flagSample, emptyFilters(), { countBy: "printing" });
       expect(counts.flags.signed).toBe(1); // only p-signed has isSigned=true
-      expect(counts.flags.promo).toBe(1); // only p-promo has any marker
+      expect(counts.presence.markers.any).toBe(1); // only p-promo has any marker
       expect(counts.flags.banned).toBe(1); // only c-plain has bans
       expect(counts.flags.errata).toBe(1); // only c-plain has errata
     });
@@ -2449,9 +2616,66 @@ describe("computeFilterCounts", () => {
         countBy: "printing",
       });
       expect(counts.flags.signed).toBe(0);
-      expect(counts.flags.promo).toBe(0);
+      expect(counts.presence.markers.any).toBe(0);
       expect(counts.flags.banned).toBe(0);
       expect(counts.flags.errata).toBe(0);
+    });
+  });
+
+  describe("presence counts", () => {
+    const presenceSample = [
+      makePrinting({
+        id: "pm1",
+        cardId: "cm1",
+        markers: [{ id: "1", slug: "promo", label: "Promo", description: null }],
+        card: { slug: "cm1", keywords: ["Shield"] },
+      }),
+      makePrinting({
+        id: "pm2",
+        cardId: "cm2",
+        markers: [{ id: "2", slug: "top-8", label: "Top 8", description: null }],
+        card: { slug: "cm2", keywords: [] },
+      }),
+      makePrinting({
+        id: "pm3",
+        cardId: "cm3",
+        markers: [],
+        card: { slug: "cm3", keywords: [] },
+      }),
+    ];
+
+    it("partitions each dimension into any / none", () => {
+      const counts = computeFilterCounts(presenceSample, emptyFilters(), { countBy: "printing" });
+      expect(counts.presence.markers).toEqual({ any: 2, none: 1 });
+      expect(counts.presence.keywords).toEqual({ any: 1, none: 2 });
+    });
+
+    it("ignores the dimension's own presence selection so counts still widen", () => {
+      // Selecting markers=none must not collapse the markers any/none counts.
+      const counts = computeFilterCounts(
+        presenceSample,
+        emptyFilters({ presence: { markers: "none" } }),
+        { countBy: "printing" },
+      );
+      expect(counts.presence.markers).toEqual({ any: 2, none: 1 });
+    });
+
+    it("ignores the dimension's own value selection when counting presence", () => {
+      // A specific marker selected must not skew markers presence counts.
+      const counts = computeFilterCounts(presenceSample, emptyFilters({ markerSlugs: ["promo"] }), {
+        countBy: "printing",
+      });
+      expect(counts.presence.markers).toEqual({ any: 2, none: 1 });
+    });
+
+    it("respects other active filters", () => {
+      const counts = computeFilterCounts(
+        presenceSample,
+        emptyFilters({ presence: { keywords: "any" } }),
+        { countBy: "printing" },
+      );
+      // keywords=any leaves only cm1, which has a marker.
+      expect(counts.presence.markers).toEqual({ any: 1, none: 0 });
     });
   });
 

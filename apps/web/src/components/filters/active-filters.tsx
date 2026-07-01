@@ -1,4 +1,4 @@
-import type { AvailableFilters, RangeKey } from "@openrift/shared";
+import type { AvailableFilters, PresenceDimension, RangeKey } from "@openrift/shared";
 import { MinusIcon, XIcon } from "lucide-react";
 
 import { CardIcon } from "@/components/card-icon";
@@ -10,6 +10,7 @@ import { buildChannelBreadcrumbsBySlug } from "@/lib/channel-breadcrumbs";
 import { formatDomainFilterLabel } from "@/lib/domain";
 import { compactFormatterForMarketplace } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
+import { PRESENCE_LABELS } from "@/lib/presence-filter";
 import { rangeBadgeLabel } from "@/lib/range-label";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
@@ -48,13 +49,22 @@ export function ActiveFilters({
     setRange,
     setOwnedCountRange,
     clearSigned,
-    clearPromo,
+    clearPresence,
     clearBanned,
     clearErrata,
     clearStandard,
     clearAllFilters,
     setSearch,
   } = useFilterActions();
+  // Presence chips, one per dimension, each cleared independently. Coalesce to
+  // null so an unset param (undefined) never reads as an active constraint.
+  const presenceChips: [PresenceDimension, "any" | "none" | null][] = [
+    ["markers", filterState.markersPresence ?? null],
+    ["superTypes", filterState.superTypesPresence ?? null],
+    ["customTags", filterState.customTagsPresence ?? null],
+    ["distributionChannels", filterState.channelsPresence ?? null],
+    ["keywords", filterState.keywordsPresence ?? null],
+  ];
   const ownedBucketLabels: Record<string, string> = {
     none: "None",
     partial: "Partial Playset",
@@ -82,6 +92,7 @@ export function ActiveFilters({
     | "cardSizes"
     | "markers"
     | "channels"
+    | "keywords"
     | "owned";
 
   const markerLabel = (slug: string) =>
@@ -119,7 +130,8 @@ export function ActiveFilters({
     | "artVariantsEx"
     | "finishesEx"
     | "markersEx"
-    | "channelsEx";
+    | "channelsEx"
+    | "keywordsEx";
   // Section keys an exclude chip can carry. Excludes the icon-less "owned" /
   // "cardSizes" so the value passes straight to `getFilterIconPath` once the
   // markers/channels rows (which also lack icons) are guarded out.
@@ -132,7 +144,8 @@ export function ActiveFilters({
     | "artVariants"
     | "finishes"
     | "markers"
-    | "channels";
+    | "channels"
+    | "keywords";
   const excludeGroupDefs: {
     key: ExcludeKey;
     section: ExcludeSection;
@@ -196,6 +209,12 @@ export function ActiveFilters({
       label: "Distribution Channel",
       values: filterState.channelsEx,
       displayLabel: channelLabel,
+    },
+    {
+      key: "keywordsEx",
+      section: "keywords",
+      label: "Keyword",
+      values: filterState.keywordsEx,
     },
   ];
   const excludeGroups = excludeGroupDefs.filter(
@@ -282,6 +301,11 @@ export function ActiveFilters({
       displayLabel: channelLabel,
     },
     {
+      key: "keywords",
+      label: "Keyword",
+      values: filterState.keywords,
+    },
+    {
       key: "owned",
       label: "Owned",
       values: filterState.owned,
@@ -307,7 +331,7 @@ export function ActiveFilters({
     rangeBadgeSections.some(({ key }) => ranges[key].min !== null || ranges[key].max !== null) ||
     copiesRangeActive ||
     filterState.signed !== null ||
-    filterState.promo !== null ||
+    presenceChips.some(([, value]) => value !== null) ||
     filterState.banned !== null ||
     filterState.errata !== null ||
     filterState.standard !== null;
@@ -341,7 +365,7 @@ export function ActiveFilters({
               // Markers, channels, and owned buckets don't have icon assets —
               // skip the lookup so we can pass `key` straight through.
               const icon =
-                key === "markers" || key === "channels" || key === "owned"
+                key === "markers" || key === "channels" || key === "owned" || key === "keywords"
                   ? undefined
                   : getFilterIconPath(key, value);
               const displayFn =
@@ -394,7 +418,7 @@ export function ActiveFilters({
             <span className="text-muted-foreground hidden text-xs sm:inline">{label}:</span>
             {values.map((value) => {
               const icon =
-                section === "markers" || section === "channels"
+                section === "markers" || section === "channels" || section === "keywords"
                   ? undefined
                   : getFilterIconPath(section, value);
               const displayFn =
@@ -485,8 +509,15 @@ export function ActiveFilters({
         {filterState.signed !== null && (
           <FlagChip label="Signed" state={filterState.signed} onClear={clearSigned} />
         )}
-        {filterState.promo !== null && (
-          <FlagChip label="Promo" state={filterState.promo} onClear={clearPromo} />
+        {presenceChips.map(([dimension, value]) =>
+          value === null ? null : (
+            <FlagChip
+              key={dimension}
+              label={PRESENCE_LABELS[dimension]}
+              state={value === "any"}
+              onClear={() => clearPresence(dimension)}
+            />
+          ),
         )}
         {filterState.banned !== null && (
           <FlagChip label="Banned" state={filterState.banned} onClear={clearBanned} />

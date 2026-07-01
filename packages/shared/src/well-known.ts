@@ -35,6 +35,8 @@ export const WellKnown = {
     COLORLESS: "colorless",
   },
   superType: {
+    /** The domain Runes' supertype; hidden from the supertype filter list and the "has any supertype" presence predicate. */
+    BASIC: "basic",
     /** Champion detection for zone inference and icon display. */
     CHAMPION: "champion",
     /** Signature detection for icon display. */

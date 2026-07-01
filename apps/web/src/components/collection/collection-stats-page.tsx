@@ -193,9 +193,9 @@ function useScopeFromFilters(): CompletionScopePreference {
   if (filters.artVariants.length > 0) {
     scope.artVariants = filters.artVariants;
   }
-  if (filters.hasAnyMarker === true) {
+  if (filters.presence.markers === "any") {
     scope.promos = "only";
-  } else if (filters.hasAnyMarker === false) {
+  } else if (filters.presence.markers === "none") {
     scope.promos = "exclude";
   }
   if (filters.isSigned !== null) {

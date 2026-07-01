@@ -9,6 +9,7 @@ const stringField = () => z.string().optional().catch(undefined);
 const numberField = () => z.number().optional().catch(undefined);
 const stringArray = () => z.array(z.string()).optional().catch(undefined);
 const boolFlag = () => z.boolean().optional().catch(undefined);
+const presenceField = () => z.enum(["any", "none"]).optional().catch(undefined);
 const ownedFilter = () =>
   z
     .array(z.enum(["none", "partial", "full", "extra"]))
@@ -38,6 +39,7 @@ export const filterSearchSchema = z.object({
   markers: stringArray(),
   channels: stringArray(),
   customTags: stringArray(),
+  keywords: stringArray(),
   // Negation companions (ADR-034): exclude params per multi-select facet.
   setsEx: stringArray(),
   languagesEx: stringArray(),
@@ -50,6 +52,7 @@ export const filterSearchSchema = z.object({
   markersEx: stringArray(),
   channelsEx: stringArray(),
   customTagsEx: stringArray(),
+  keywordsEx: stringArray(),
   // Tri-state "standard printing" constraint (ADR-034).
   standard: boolFlag(),
   energyMin: numberField(),
@@ -64,7 +67,13 @@ export const filterSearchSchema = z.object({
   ownedCountMax: numberField(),
   owned: ownedFilter(),
   signed: boolFlag(),
-  promo: boolFlag(),
+  // Generic presence (any/none) params, one per PRESENCE_DIMENSIONS entry.
+  // `markersPresence` supersedes the old `promo` boolean flag.
+  markersPresence: presenceField(),
+  superTypesPresence: presenceField(),
+  customTagsPresence: presenceField(),
+  channelsPresence: presenceField(),
+  keywordsPresence: presenceField(),
   banned: boolFlag(),
   errata: boolFlag(),
   sort: stringField(),

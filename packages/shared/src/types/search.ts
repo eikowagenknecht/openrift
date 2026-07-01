@@ -62,6 +62,26 @@ export interface FilterRange {
 
 export type RangeKey = "energy" | "might" | "power" | "price";
 
+/**
+ * The multi-valued, optionally-empty dimensions a presence predicate can target.
+ * For each, a filter can require the card/printing to have at least one value
+ * ("any") or none ("none"), independent of which specific values. Single-valued
+ * or always-present dimensions (rarity, type, finish, …) are excluded — "any /
+ * none" is meaningless there.
+ */
+export const PRESENCE_DIMENSIONS = [
+  "markers",
+  "superTypes",
+  "customTags",
+  "distributionChannels",
+  "keywords",
+] as const;
+
+export type PresenceDimension = (typeof PRESENCE_DIMENSIONS)[number];
+
+/** "any" = has at least one value in the dimension; "none" = has none. */
+export type PresenceState = "any" | "none";
+
 const filterRangeSchema = z.object({
   min: z.number().nullable(),
   max: z.number().nullable(),
@@ -96,9 +116,12 @@ export const cardFiltersSchema = z.object({
   // Filter to printings of these physical sizes (e.g. `standard`, `oversized`).
   cardSizes: stringArray(),
   isSigned: z.boolean().nullable(),
-  // Replaces the old `isPromo` boolean. `true` = printing has at least one
-  // marker (any stamp); `false` = unmarked printing; `null` = no constraint.
-  hasAnyMarker: z.boolean().nullable(),
+  // Generic per-dimension presence predicate. For each listed dimension, "any"
+  // requires the card/printing to carry at least one value, "none" requires it
+  // to carry none — independent of which specific values. Absent key = no
+  // constraint for that dimension. Supersedes the old `hasAnyMarker` boolean
+  // (which is now `presence.markers`). See PRESENCE_DIMENSIONS.
+  presence: z.partialRecord(z.enum(PRESENCE_DIMENSIONS), z.enum(["any", "none"])),
   // Filter to printings that have at least one of these marker slugs.
   markerSlugs: stringArray(),
   // Filter to printings distributed through at least one of these channel slugs.
@@ -107,6 +130,8 @@ export const cardFiltersSchema = z.object({
   // Admin-curated tags only relevant in the freeform deck builder; standard
   // filtering should leave this empty.
   customTagSlugs: stringArray(),
+  // Filter to cards that carry at least one of these keyword names.
+  keywords: stringArray(),
   isBanned: z.boolean().nullable(),
   hasErrata: z.boolean().nullable(),
   // ── Negation companions (ADR-034) ─────────────────────────────────────────
@@ -126,6 +151,7 @@ export const cardFiltersSchema = z.object({
   markerSlugsExclude: stringArray(),
   distributionChannelSlugsExclude: stringArray(),
   customTagSlugsExclude: stringArray(),
+  keywordsExclude: stringArray(),
   // Derived tri-state "standard printing" constraint (ADR-034).
   // null = no constraint; true = standard only; false = non-standard only.
   isStandard: z.boolean().nullable(),
@@ -155,10 +181,11 @@ export const EMPTY_CARD_FILTERS: CardFilters = {
   finishes: [],
   cardSizes: [],
   isSigned: null,
-  hasAnyMarker: null,
+  presence: {},
   markerSlugs: [],
   distributionChannelSlugs: [],
   customTagSlugs: [],
+  keywords: [],
   isBanned: null,
   hasErrata: null,
   setsExclude: [],
@@ -172,5 +199,6 @@ export const EMPTY_CARD_FILTERS: CardFilters = {
   markerSlugsExclude: [],
   distributionChannelSlugsExclude: [],
   customTagSlugsExclude: [],
+  keywordsExclude: [],
   isStandard: null,
 };

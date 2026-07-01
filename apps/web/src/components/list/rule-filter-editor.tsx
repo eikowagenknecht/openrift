@@ -1,4 +1,4 @@
-import type { CardFilters } from "@openrift/shared";
+import type { CardFilters, PresenceDimension, PresenceState } from "@openrift/shared";
 import { getAvailableFilters } from "@openrift/shared";
 import { InfoIcon, PlusIcon, XIcon } from "lucide-react";
 import type { ReactNode } from "react";
@@ -20,6 +20,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useCards } from "@/hooks/use-cards";
 import { useCustomTagList, useEnumOrders, useLanguageLabels } from "@/hooks/use-enums";
 import { cycleIncludeExclude } from "@/lib/filter-cycle";
+import { PRESENCE_LABELS } from "@/lib/presence-filter";
 
 /**
  * Makes the `button`-style combobox trigger match the SelectTrigger on the other
@@ -150,6 +151,24 @@ export function RuleFilterEditor({
 
   const patch = (next: Partial<CardFilters>) => onChange({ ...value, ...next });
 
+  // Writes a presence dimension's any/none state (or clears it) into the map,
+  // rebuilding without the target key rather than a dynamic delete.
+  const patchPresence = (dimension: PresenceDimension, state?: PresenceState) => {
+    const nextPresence: Partial<Record<PresenceDimension, PresenceState>> = {};
+    for (const [existing, existingState] of Object.entries(value.presence) as [
+      PresenceDimension,
+      PresenceState,
+    ][]) {
+      if (existing !== dimension) {
+        nextPresence[existing] = existingState;
+      }
+    }
+    if (state !== undefined) {
+      nextPresence[dimension] = state;
+    }
+    patch({ presence: nextPresence });
+  };
+
   const languageOptions: Option[] = [...new Set(allPrintings.map((printing) => printing.language))]
     .sort((first, second) => first.localeCompare(second))
     .map((language) => ({ value: language, label: languageLabels[language] ?? language }));
@@ -262,6 +281,62 @@ export function RuleFilterEditor({
     };
   };
 
+  /**
+   * A presence entry: the same cycling dropdown as the flags, but bound to a
+   * presence dimension's any/none state (off → any → none → off) instead of a
+   * boolean field. Stays correct as the catalog grows because it never names
+   * specific values (ADR-034). Removing it clears the dimension's presence.
+   * @returns The presence entry.
+   */
+  const presence = (
+    key: string,
+    presenceDimension: PresenceDimension,
+    group: DimGroup,
+    isAvailable: boolean,
+  ): DimEntry => {
+    const label = PRESENCE_LABELS[presenceDimension];
+    const current = value.presence[presenceDimension];
+    const options: Option[] = [{ value: "1", label }];
+    return {
+      key,
+      label,
+      group,
+      available: isAvailable,
+      active: current !== undefined,
+      node: (
+        <FilterRow
+          key={key}
+          label={label}
+          onRemove={() => {
+            patchPresence(presenceDimension);
+            setAdded((entries) => entries.filter((entry) => entry !== key));
+          }}
+        >
+          <MultiSelectCombobox
+            triggerStyle="button"
+            triggerClassName={CONTROL_WIDTH}
+            placeholder="Any"
+            label={label}
+            options={options}
+            selected={current === "any" ? ["1"] : []}
+            excluded={current === "none" ? ["1"] : []}
+            onCycle={() => {
+              const next = cycleIncludeExclude(
+                current === "any" ? ["1"] : [],
+                current === "none" ? ["1"] : [],
+                "1",
+              );
+              patchPresence(
+                presenceDimension,
+                next.included.length > 0 ? "any" : next.excluded.length > 0 ? "none" : undefined,
+              );
+            }}
+          />
+        </FilterRow>
+      ),
+    };
+  };
+
   const searchEntry: DimEntry = {
     key: "search",
     label: "Search",
@@ -312,12 +387,13 @@ export function RuleFilterEditor({
     ),
     dimension(
       "superTypes",
-      "Super-types",
+      "Supertype",
       "card",
       "superTypes",
       "superTypesExclude",
       namedOptions(available.superTypes, labels.superTypes),
     ),
+    presence("superTypesPresence", "superTypes", "card", available.superTypes.length > 0),
     dimension(
       "domains",
       "Domains",
@@ -328,12 +404,22 @@ export function RuleFilterEditor({
     ),
     dimension(
       "customTags",
-      "Tags",
+      "Custom Tags",
       "card",
       "customTagSlugs",
       "customTagSlugsExclude",
       customTags.map((tag) => ({ value: tag.slug, label: tag.label })),
     ),
+    presence("customTagsPresence", "customTags", "card", customTags.length > 0),
+    dimension(
+      "keywords",
+      "Keywords",
+      "card",
+      "keywords",
+      "keywordsExclude",
+      available.keywords.map((keyword) => ({ value: keyword, label: keyword })),
+    ),
+    presence("keywordsPresence", "keywords", "card", available.keywords.length > 0),
     flag("banned", "Banned", "Banned", "isBanned", "card", available.hasBanned),
     dimension(
       "sets",
@@ -383,9 +469,10 @@ export function RuleFilterEditor({
       "markerSlugsExclude",
       available.markers.map((marker) => ({ value: marker.slug, label: marker.label })),
     ),
+    presence("markersPresence", "markers", "printing", available.markers.length > 0),
     dimension(
       "channels",
-      "Channels",
+      "Distribution Channels",
       "printing",
       "distributionChannelSlugs",
       "distributionChannelSlugsExclude",
@@ -394,8 +481,13 @@ export function RuleFilterEditor({
         label: channel.label,
       })),
     ),
+    presence(
+      "channelsPresence",
+      "distributionChannels",
+      "printing",
+      available.distributionChannels.length > 0,
+    ),
     flag("signed", "Signed", "Signed", "isSigned", "printing", available.hasSigned),
-    flag("promo", "Promo", "Promo", "hasAnyMarker", "printing", available.hasAnyMarker),
   ];
 
   const addedSet = new Set(added);

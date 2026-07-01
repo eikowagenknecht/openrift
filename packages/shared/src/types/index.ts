@@ -33,6 +33,8 @@ export type {
   CardFilters,
   FilterRange,
   GroupByField,
+  PresenceDimension,
+  PresenceState,
   RangeKey,
   SearchField,
   SortDirection,
@@ -44,6 +46,7 @@ export {
   DEFAULT_SEARCH_SCOPE,
   EMPTY_CARD_FILTERS,
   NONE,
+  PRESENCE_DIMENSIONS,
   SEARCH_PREFIX_MAP,
 } from "./search.js";
 

@@ -5,12 +5,13 @@ import type {
   EnumOrders,
   FilterRange,
   Marker,
+  PresenceDimension,
   Printing,
   SearchField,
   SortDirection,
   SortOption,
 } from "./types/index.js";
-import { ALL_SEARCH_FIELDS, NONE, SEARCH_PREFIX_MAP } from "./types/index.js";
+import { ALL_SEARCH_FIELDS, NONE, PRESENCE_DIMENSIONS, SEARCH_PREFIX_MAP } from "./types/index.js";
 import { boundsOf, unique } from "./utils.js";
 import { WellKnown } from "./well-known.js";
 
@@ -204,22 +205,58 @@ function matchesFlag(filter: boolean | null, actual: boolean): boolean {
   return filter === null || actual === filter;
 }
 
-function matchesMarkers(
-  hasAnyMarker: boolean | null,
-  markerSlugs: string[],
-  actualSlugs: string[],
-): boolean {
-  const hasMarker = actualSlugs.length > 0;
-  if (hasAnyMarker === false) {
-    return !hasMarker;
-  }
-  if (hasAnyMarker === true && !hasMarker) {
-    return false;
-  }
+function matchesMarkers(markerSlugs: string[], actualSlugs: string[]): boolean {
   if (markerSlugs.length === 0) {
     return true;
   }
   return markerSlugs.some((slug) => actualSlugs.includes(slug));
+}
+
+/**
+ * The values a printing/card carries for each presence dimension, extracted once
+ * so `matchesPresence` and the presence facet counts share one definition:
+ * markers/channels/custom-tags by slug, supertypes minus the `basic` placeholder
+ * (matching the filterable supertype list), and keywords verbatim.
+ * @returns The value list keyed by presence dimension.
+ */
+function presenceValues(
+  printing: Printing,
+  markerSlugs: string[],
+  channelSlugs: string[],
+  customTagSlugs: readonly string[],
+): Record<PresenceDimension, readonly string[]> {
+  return {
+    markers: markerSlugs,
+    superTypes: printing.card.superTypes.filter(
+      (superType) => superType !== WellKnown.superType.BASIC,
+    ),
+    customTags: customTagSlugs,
+    distributionChannels: channelSlugs,
+    keywords: printing.card.keywords,
+  };
+}
+
+/**
+ * Applies the generic presence predicate: for each constrained dimension, "any"
+ * requires at least one value and "none" requires zero. Dimensions with no
+ * constraint (absent key) always pass.
+ * @returns Whether the printing satisfies every presence constraint.
+ */
+function matchesPresence(
+  presence: CardFilters["presence"],
+  values: Record<PresenceDimension, readonly string[]>,
+): boolean {
+  for (const dimension of PRESENCE_DIMENSIONS) {
+    const state = presence[dimension];
+    if (!state) {
+      continue;
+    }
+    const has = values[dimension].length > 0;
+    if (state === "any" ? !has : has) {
+      return false;
+    }
+  }
+  return true;
 }
 
 function matchesDistributionChannels(channelSlugs: string[], actualSlugs: string[]): boolean {
@@ -331,6 +368,7 @@ export function filterCards(
     const channelSlugs = printing.distributionChannels.map((dc) => dc.channel.slug);
     const customTagSlugs = options.customTagAssignments?.[printing.cardId] ?? [];
     const artVariant = printing.artVariant || WellKnown.artVariant.NORMAL;
+    const presenceVals = presenceValues(printing, markerSlugs, channelSlugs, customTagSlugs);
     return (
       matchesSearch(printing, terms, hasPrefixes, filters.searchScope, options.keywordReverseMap) &&
       includes(filters.sets, printing.setSlug) &&
@@ -353,11 +391,14 @@ export function filterCards(
       noneExcluded(filters.markerSlugsExclude, markerSlugs) &&
       noneExcluded(filters.distributionChannelSlugsExclude, channelSlugs) &&
       noneExcluded(filters.customTagSlugsExclude, customTagSlugs) &&
+      noneExcluded(filters.keywordsExclude, card.keywords) &&
       matchesFlag(filters.isStandard, isStandardPrinting(printing)) &&
       matchesFlag(filters.isSigned, printing.isSigned) &&
-      matchesMarkers(filters.hasAnyMarker, filters.markerSlugs, markerSlugs) &&
+      matchesMarkers(filters.markerSlugs, markerSlugs) &&
       matchesDistributionChannels(filters.distributionChannelSlugs, channelSlugs) &&
       matchesCustomTags(filters.customTagSlugs, customTagSlugs) &&
+      overlaps(filters.keywords, card.keywords) &&
+      matchesPresence(filters.presence, presenceVals) &&
       matchesRange(card.energy, filters.energy) &&
       matchesRange(card.might, filters.might) &&
       matchesRange(card.power, filters.power) &&
@@ -389,7 +430,6 @@ export interface AvailableFilters {
   finishes: string[];
   cardSizes: string[];
   hasSigned: boolean;
-  hasAnyMarker: boolean;
   hasNonStandard: boolean;
   hasBanned: boolean;
   hasErrata: boolean;
@@ -398,6 +438,8 @@ export interface AvailableFilters {
   hasNullPower: boolean;
   markers: Marker[];
   distributionChannels: DistributionChannel[];
+  /** Distinct keyword names across the printings' cards, sorted alphabetically. */
+  keywords: string[];
   energy: { min: number; max: number };
   might: { min: number; max: number };
   power: { min: number; max: number };
@@ -473,7 +515,7 @@ export function getAvailableFilters(
     (a, b) => orderIndex(orders.cardTypes, a) - orderIndex(orders.cardTypes, b),
   );
   const superTypes = unique(printings.flatMap((p) => p.card.superTypes))
-    .filter((st) => st !== "basic")
+    .filter((st) => st !== WellKnown.superType.BASIC)
     .sort((a, b) => orderIndex(orders.superTypes, a) - orderIndex(orders.superTypes, b));
   const rarities = unique(printings.map((p) => p.rarity)).sort(
     (a, b) => orderIndex(orders.rarities, a) - orderIndex(orders.rarities, b),
@@ -508,7 +550,6 @@ export function getAvailableFilters(
     finishes,
     cardSizes,
     hasSigned: printings.some((p) => p.isSigned),
-    hasAnyMarker: printings.some((p) => p.markers.length > 0),
     hasNonStandard: printings.some((p) => !isStandardPrinting(p)),
     hasBanned: printings.some((p) => p.card.bans.length > 0),
     hasErrata: printings.some((p) => p.card.errata !== null),
@@ -527,6 +568,7 @@ export function getAvailableFilters(
         ).values(),
       ]
     ).toSorted((a, b) => a.slug.localeCompare(b.slug)),
+    keywords: unique(printings.flatMap((p) => p.card.keywords)).sort((a, b) => a.localeCompare(b)),
     energy: boundsOf(energies),
     might: boundsOf(mights),
     power: boundsOf(powers),
@@ -546,6 +588,7 @@ export interface FilterCounts {
   cardSizes: Map<string, number>;
   markers: Map<string, number>;
   channels: Map<string, number>;
+  keywords: Map<string, number>;
   /**
    * Counts for the single-chip "More"-section flags. Each value reflects the
    * count *if the chip's currently-displayed state were applied*, combined
@@ -553,11 +596,18 @@ export interface FilterCounts {
    */
   flags: {
     signed: number;
-    promo: number;
     banned: number;
     errata: number;
     standard: number;
   };
+  /**
+   * Counts for the generic presence options. For each dimension, `any` is the
+   * count if "has any" were applied and `none` if "has none" were applied,
+   * combined with every other active filter but ignoring this dimension's own
+   * presence and value selection (same widen-as-you-toggle rule as the value
+   * facets).
+   */
+  presence: Record<PresenceDimension, { any: number; none: number }>;
   /**
    * Bounds for each range slider, faceted to the subset that matches every
    * other active filter (the slider's own filter is excluded so the user can
@@ -582,7 +632,7 @@ interface ComputeFilterCountsOptions extends FilterCardsOptions {
 }
 
 interface CountableDimension {
-  key: Exclude<keyof FilterCounts, "flags" | "ranges">;
+  key: Exclude<keyof FilterCounts, "flags" | "ranges" | "presence">;
   filterField: keyof CardFilters;
   /**
    * The negation companion field, cleared alongside `filterField` when faceting.
@@ -650,20 +700,44 @@ const COUNTABLE_DIMENSIONS: readonly CountableDimension[] = [
     excludeField: "distributionChannelSlugsExclude",
     values: (p) => p.distributionChannels.map((dc) => dc.channel.slug),
   },
+  {
+    key: "keywords",
+    filterField: "keywords",
+    excludeField: "keywordsExclude",
+    values: (p) => p.card.keywords,
+  },
 ];
 
 interface FlagDimension {
   key: keyof FilterCounts["flags"];
-  filterField: "isSigned" | "hasAnyMarker" | "isBanned" | "hasErrata" | "isStandard";
+  filterField: "isSigned" | "isBanned" | "hasErrata" | "isStandard";
 }
 
 const FLAG_DIMENSIONS: readonly FlagDimension[] = [
   { key: "signed", filterField: "isSigned" },
-  { key: "promo", filterField: "hasAnyMarker" },
   { key: "banned", filterField: "isBanned" },
   { key: "errata", filterField: "hasErrata" },
   { key: "standard", filterField: "isStandard" },
 ];
+
+/**
+ * The include/exclude value fields tied to each presence dimension, cleared
+ * alongside the dimension's presence when faceting its any/none counts so the
+ * facet widens as the user toggles (keywords has no value filter).
+ */
+const PRESENCE_VALUE_FIELDS: Record<
+  PresenceDimension,
+  { include?: keyof CardFilters; exclude?: keyof CardFilters }
+> = {
+  markers: { include: "markerSlugs", exclude: "markerSlugsExclude" },
+  superTypes: { include: "superTypes", exclude: "superTypesExclude" },
+  customTags: { include: "customTagSlugs", exclude: "customTagSlugsExclude" },
+  distributionChannels: {
+    include: "distributionChannelSlugs",
+    exclude: "distributionChannelSlugsExclude",
+  },
+  keywords: {},
+};
 
 function countMatches(matched: Printing[], countBy: "printing" | "card"): number {
   if (countBy === "card") {
@@ -699,7 +773,14 @@ export function computeFilterCounts(
   options: ComputeFilterCountsOptions,
 ): FilterCounts {
   const result = {
-    flags: { signed: 0, promo: 0, banned: 0, errata: 0, standard: 0 },
+    flags: { signed: 0, banned: 0, errata: 0, standard: 0 },
+    presence: {
+      markers: { any: 0, none: 0 },
+      superTypes: { any: 0, none: 0 },
+      customTags: { any: 0, none: 0 },
+      distributionChannels: { any: 0, none: 0 },
+      keywords: { any: 0, none: 0 },
+    },
     ranges: {
       energy: { min: 0, max: 0, hasNullStat: false },
       might: { min: 0, max: 0, hasNullStat: false },
@@ -745,6 +826,33 @@ export function computeFilterCounts(
     const targetValue = filters[filterField] !== false;
     const matched = filterCards(printings, { ...filters, [filterField]: targetValue }, options);
     result.flags[key] = countMatches(matched, options.countBy);
+  }
+  // Presence any/none counts: clear this dimension's presence AND its value
+  // selection, then partition the survivors by whether they carry any value in
+  // the dimension. So toggling "has any markers" (or specific markers) never
+  // makes the presence options collapse to zero.
+  for (const dimension of PRESENCE_DIMENSIONS) {
+    const valueFields = PRESENCE_VALUE_FIELDS[dimension];
+    const cleared: CardFilters = {
+      ...filters,
+      presence: { ...filters.presence, [dimension]: undefined },
+      ...(valueFields.include ? { [valueFields.include]: [] } : {}),
+      ...(valueFields.exclude ? { [valueFields.exclude]: [] } : {}),
+    };
+    const matched = filterCards(printings, cleared, options);
+    const withValue: Printing[] = [];
+    const withoutValue: Printing[] = [];
+    for (const printing of matched) {
+      const markerSlugs = printing.markers.map((m) => m.slug);
+      const channelSlugs = printing.distributionChannels.map((dc) => dc.channel.slug);
+      const customTagSlugs = options.customTagAssignments?.[printing.cardId] ?? [];
+      const values = presenceValues(printing, markerSlugs, channelSlugs, customTagSlugs)[dimension];
+      (values.length > 0 ? withValue : withoutValue).push(printing);
+    }
+    result.presence[dimension] = {
+      any: countMatches(withValue, options.countBy),
+      none: countMatches(withoutValue, options.countBy),
+    };
   }
   // Per-dimension faceted slider bounds: filter with this dim's range
   // cleared, then derive bounds from what's left. The user's selected range

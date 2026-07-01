@@ -10,6 +10,8 @@ import type {
   Finish,
   InitResponse,
   Marketplace,
+  PresenceDimension,
+  PresenceState,
   PricesResponse,
   Printing,
   Rarity,
@@ -121,6 +123,34 @@ export function extractSetLabels(catalog: CatalogResponse): Record<string, strin
  *
  * @returns A `CardFilters` object suitable for passing to shared `filterCards`.
  */
+/**
+ * Builds the shared presence map from the URL presence params (channels →
+ * distributionChannels), dropping unset dimensions. Mirrors `buildPresence` in
+ * `use-card-filters.ts` for the server path.
+ * @returns The presence map keyed by dimension.
+ */
+function presenceFromSearch(
+  search: FilterSearch,
+): Partial<Record<PresenceDimension, PresenceState>> {
+  const presence: Partial<Record<PresenceDimension, PresenceState>> = {};
+  if (search.markersPresence) {
+    presence.markers = search.markersPresence;
+  }
+  if (search.superTypesPresence) {
+    presence.superTypes = search.superTypesPresence;
+  }
+  if (search.customTagsPresence) {
+    presence.customTags = search.customTagsPresence;
+  }
+  if (search.channelsPresence) {
+    presence.distributionChannels = search.channelsPresence;
+  }
+  if (search.keywordsPresence) {
+    presence.keywords = search.keywordsPresence;
+  }
+  return presence;
+}
+
 export function searchToFilters(search: FilterSearch) {
   return {
     ...EMPTY_CARD_FILTERS,
@@ -136,9 +166,10 @@ export function searchToFilters(search: FilterSearch) {
     finishes: (search.finishes ?? []) as Finish[],
     cardSizes: (search.cardSizes ?? []) as CardSize[],
     isSigned: search.signed ?? null,
-    hasAnyMarker: search.promo ?? null,
+    presence: presenceFromSearch(search),
     markerSlugs: search.markers ?? [],
     distributionChannelSlugs: search.channels ?? [],
+    keywords: search.keywords ?? [],
     // The public SSR catalog carries no per-user custom-tag assignments, so
     // neither the include nor the `customTagsEx` exclude can match here — both
     // stay inert until `useCardData` recomputes after hydration (ADR-034).
@@ -157,6 +188,7 @@ export function searchToFilters(search: FilterSearch) {
     markerSlugsExclude: search.markersEx ?? [],
     distributionChannelSlugsExclude: search.channelsEx ?? [],
     customTagSlugsExclude: search.customTagsEx ?? [],
+    keywordsExclude: search.keywordsEx ?? [],
     isStandard: search.standard ?? null,
     energy: { min: search.energyMin ?? null, max: search.energyMax ?? null },
     might: { min: search.mightMin ?? null, max: search.mightMax ?? null },
@@ -235,9 +267,9 @@ export interface FilterCountsWire {
   cardSizes: CountMapWire;
   markers: CountMapWire;
   channels: CountMapWire;
+  keywords: CountMapWire;
   flags: {
     signed: number;
-    promo: number;
     banned: number;
     errata: number;
     standard: number;
@@ -245,6 +277,8 @@ export interface FilterCountsWire {
     // counts, which the SSR layer doesn't have. The live `useCardData`
     // call fills it in after hydration.
   };
+  // Presence counts are already plain objects, so they cross the wire as-is.
+  presence: FilterCounts["presence"];
   ranges: FilterCounts["ranges"];
 }
 
@@ -261,13 +295,14 @@ function toWireFilterCounts(counts: FilterCounts): FilterCountsWire {
     cardSizes: Object.fromEntries(counts.cardSizes),
     markers: Object.fromEntries(counts.markers),
     channels: Object.fromEntries(counts.channels),
+    keywords: Object.fromEntries(counts.keywords),
     flags: {
       signed: counts.flags.signed,
-      promo: counts.flags.promo,
       banned: counts.flags.banned,
       errata: counts.flags.errata,
       standard: counts.flags.standard,
     },
+    presence: counts.presence,
     ranges: counts.ranges,
   };
 }
@@ -285,7 +320,9 @@ export function fromWireFilterCounts(wire: FilterCountsWire): FilterCounts {
     cardSizes: new Map(Object.entries(wire.cardSizes)),
     markers: new Map(Object.entries(wire.markers)),
     channels: new Map(Object.entries(wire.channels)),
+    keywords: new Map(Object.entries(wire.keywords)),
     flags: { ...wire.flags },
+    presence: wire.presence,
     ranges: wire.ranges,
   };
 }
