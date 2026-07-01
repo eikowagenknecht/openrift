@@ -313,9 +313,11 @@ export function ProxyExportDialog({
   // Hook must run unconditionally; when deckId is absent we still call it
   // with an empty string and end up reading an empty collection.
   const liveCards = useDeckCards(deckId ?? "");
+  const resolvedCards = cardsProp ?? liveCards;
+  const isEmpty = resolvedCards.length === 0;
 
   const handleGenerate = async () => {
-    const cards = cardsProp ?? liveCards;
+    const cards = resolvedCards;
     if (cards.length === 0) {
       return;
     }
@@ -357,7 +359,7 @@ export function ProxyExportDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      {!isControlled && (
+      {!isControlled && !isEmpty && (
         <DialogTrigger render={<PageTopBarButton />}>
           <PrinterIcon className="size-4" />
           Proxies

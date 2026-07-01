@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-07-01
+
+### Other
+
+- fix(Decks): **Proxies hidden for empty decks** — the Proxies button did nothing on a deck with no cards, and now it only appears once the deck has cards to print.
+
 ## 2026-06-30
 
 ### Highlights

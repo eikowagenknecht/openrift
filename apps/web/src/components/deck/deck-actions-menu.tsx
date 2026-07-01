@@ -175,15 +175,17 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
             <Share2Icon className="size-4" />
             Export
           </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={(event: React.MouseEvent) => {
-              stop(event);
-              setProxyOpen(true);
-            }}
-          >
-            <PrinterIcon className="size-4" />
-            Proxies
-          </DropdownMenuItem>
+          {item.totalCards > 0 && (
+            <DropdownMenuItem
+              onClick={(event: React.MouseEvent) => {
+                stop(event);
+                setProxyOpen(true);
+              }}
+            >
+              <PrinterIcon className="size-4" />
+              Proxies
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem
             onClick={(event: React.MouseEvent) => {
               stop(event);
