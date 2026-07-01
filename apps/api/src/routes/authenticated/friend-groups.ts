@@ -648,6 +648,7 @@ export const friendGroupsRouter = {
               row.defaultTradeType as FriendGroupShareableListsResponse["items"][number]["tradeDefaults"]["tradeType"],
           },
           currency: row.currency as FriendGroupShareableListsResponse["items"][number]["currency"],
+          hasRule: row.hasRule,
         })),
       };
     },

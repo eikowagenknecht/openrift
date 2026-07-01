@@ -110,7 +110,9 @@ export type {
 export type { SiteSettingsResponse } from "./site-settings.js";
 
 export type {
+  EntrySource,
   ListBulkAddResponse,
+  ListDetailListResponse,
   ListDetailResponse,
   ListEntryDetailResponse,
   ListEntryResponse,

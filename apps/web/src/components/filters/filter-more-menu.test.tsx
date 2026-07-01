@@ -50,6 +50,7 @@ function makeAvailable(overrides: Partial<AvailableFilters> = {}): AvailableFilt
     cardSizes: [],
     hasSigned: false,
     hasAnyMarker: false,
+    hasNonStandard: false,
     hasBanned: false,
     hasErrata: false,
     hasNullEnergy: false,
@@ -82,7 +83,7 @@ function makeFilterCounts(
     cardSizes: new Map(),
     markers: dimensionOverrides.markers ?? new Map(),
     channels: dimensionOverrides.channels ?? new Map(),
-    flags: { signed: 0, promo: 3, banned: 0, errata: 0 },
+    flags: { signed: 0, promo: 3, banned: 0, errata: 0, standard: 0 },
     ranges: {
       energy: { min: 1, max: 7, hasNullStat: false },
       might: { min: 1, max: 7, hasNullStat: false },
@@ -97,10 +98,14 @@ interface MoreFilterState {
   channels: string[];
   customTags: string[];
   owned: string[];
+  markersEx: string[];
+  channelsEx: string[];
+  customTagsEx: string[];
   promo: boolean | null;
   signed: boolean | null;
   banned: boolean | null;
   errata: boolean | null;
+  standard: boolean | null;
 }
 
 function setupHooks(filterStateOverrides: Partial<MoreFilterState> = {}) {
@@ -111,6 +116,7 @@ function setupHooks(filterStateOverrides: Partial<MoreFilterState> = {}) {
     togglePromo: vi.fn(),
     toggleBanned: vi.fn(),
     toggleErrata: vi.fn(),
+    toggleStandard: vi.fn(),
   };
   mockUseFilterValues.mockReturnValue({
     // `ranges` and the ownedCount fields back the market sliders rendered at
@@ -126,10 +132,14 @@ function setupHooks(filterStateOverrides: Partial<MoreFilterState> = {}) {
       channels: [],
       customTags: [],
       owned: [],
+      markersEx: [],
+      channelsEx: [],
+      customTagsEx: [],
       promo: null,
       signed: null,
       banned: null,
       errata: null,
+      standard: null,
       priceMin: null,
       priceMax: null,
       ownedCountMin: null,
@@ -212,7 +222,7 @@ describe("FilterMoreMenu", () => {
     expect(trigger.textContent).not.toContain("(");
   });
 
-  it("reveals the flag items and dimension submenus when opened", async () => {
+  it("reveals the flag items and dimension rows when opened", async () => {
     const user = userEvent.setup();
     setupHooks();
     render(
@@ -230,12 +240,13 @@ describe("FilterMoreMenu", () => {
     // Flags cycle in place; the promo count rides the label.
     expect(await screen.findByRole("menuitem", { name: /Promo/u })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: /Signed/u })).toBeInTheDocument();
-    // Multi-value dimensions become submenu triggers, not nested popovers.
-    expect(screen.getByRole("menuitem", { name: /Markers/u })).toBeInTheDocument();
+    // Markers is exclude-capable, so it renders as an include/exclude combobox
+    // row (found by text, not a submenu menuitem). Owned stays a submenu.
+    expect(screen.getByText("Markers")).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Owned" })).toBeInTheDocument();
   });
 
-  it("shows faceted counts next to marker options in the submenu", async () => {
+  it("shows faceted counts next to marker options in the combobox", async () => {
     const user = userEvent.setup();
     setupHooks();
     render(
@@ -249,10 +260,9 @@ describe("FilterMoreMenu", () => {
       />,
     );
     await user.click(screen.getByRole("button", { name: "More" }));
-    await user.click(await screen.findByRole("menuitem", { name: /Markers/u }));
-    expect(
-      await screen.findByRole("menuitemcheckbox", { name: /Foil.*\(5\)/u }),
-    ).toBeInTheDocument();
+    // Markers opens an include/exclude combobox; its option carries the count.
+    await user.click(await screen.findByText("Markers"));
+    expect(await screen.findByRole("option", { name: /Foil.*\(5\)/u })).toBeInTheDocument();
   });
 
   it("renders a long dimension as a searchable combobox row, not a submenu", async () => {
@@ -284,29 +294,16 @@ describe("FilterMoreMenu", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("keeps a short dimension as a submenu", async () => {
+  it("keeps a short include-only dimension as a submenu", async () => {
     const user = userEvent.setup();
     setupHooks();
-    // Two channels stays under the threshold → a submenu (menuitem) trigger.
-    const channels = Array.from({ length: 2 }, (_, index) => ({
-      id: `channel-${index}`,
-      slug: `channel-${index}`,
-      label: `Channel ${index}`,
-      description: null,
-      kind: "event" as const,
-      parentId: null,
-      childrenLabel: null,
-    }));
-    render(
-      <FilterMoreMenu
-        availableFilters={makeAvailable({ distributionChannels: channels })}
-        hiddenSections={new Set(["owned"])}
-        activeCount={0}
-      />,
-    );
+    // Owned (4 buckets, include-only — it has no exclude axis) stays a checkbox
+    // submenu; exclude-capable dimensions always use the combobox instead.
+    render(<FilterMoreMenu availableFilters={makeAvailable()} activeCount={0} />);
     await user.click(screen.getByRole("button", { name: "More" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Owned" }));
     expect(
-      await screen.findByRole("menuitem", { name: /Distribution Channels/u }),
+      await screen.findByRole("menuitemcheckbox", { name: /Full Playset/u }),
     ).toBeInTheDocument();
   });
 
@@ -323,6 +320,35 @@ describe("FilterMoreMenu", () => {
     await user.click(screen.getByRole("button", { name: "More" }));
     await user.click(await screen.findByRole("menuitem", { name: /Promo/u }));
     expect(actions.togglePromo).toHaveBeenCalledOnce();
+  });
+
+  it("shows and cycles the Standard flag when non-standard printings exist (ADR-034)", async () => {
+    const user = userEvent.setup();
+    const actions = setupHooks();
+    render(
+      <FilterMoreMenu
+        availableFilters={makeAvailable({ hasNonStandard: true })}
+        filterCounts={makeFilterCounts()}
+        activeCount={0}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "More" }));
+    await user.click(await screen.findByRole("menuitem", { name: /Standard/u }));
+    expect(actions.toggleStandard).toHaveBeenCalledOnce();
+  });
+
+  it("hides the Standard flag when every printing is standard", async () => {
+    const user = userEvent.setup();
+    setupHooks();
+    render(
+      <FilterMoreMenu
+        availableFilters={makeAvailable({ hasNonStandard: false })}
+        filterCounts={makeFilterCounts()}
+        activeCount={0}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "More" }));
+    expect(screen.queryByRole("menuitem", { name: /Standard/u })).not.toBeInTheDocument();
   });
 
   it("hides the Signed flag when it is surfaced elsewhere (hideSigned)", async () => {

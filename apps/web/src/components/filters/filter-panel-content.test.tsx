@@ -56,6 +56,7 @@ function makeAvailable(overrides: Partial<AvailableFilters> = {}): AvailableFilt
     cardSizes: [],
     hasSigned: false,
     hasAnyMarker: false,
+    hasNonStandard: false,
     hasBanned: false,
     hasErrata: false,
     hasNullEnergy: false,
@@ -87,7 +88,7 @@ function makeFilterCounts(
     cardSizes: new Map(),
     markers: dimensionOverrides.markers ?? new Map(),
     channels: dimensionOverrides.channels ?? new Map(),
-    flags: { signed: 0, promo: 0, banned: 0, errata: 0 },
+    flags: { signed: 0, promo: 0, banned: 0, errata: 0, standard: 0 },
     ranges: {
       energy: { min: 1, max: 7, hasNullStat: false },
       might: { min: 1, max: 7, hasNullStat: false },
@@ -203,6 +204,7 @@ interface BadgeFilterState {
   signed: boolean | null;
   banned: boolean | null;
   errata: boolean | null;
+  standard: boolean | null;
   search: string;
 }
 
@@ -225,6 +227,7 @@ function setupBadgeHooks(filterStateOverrides: Partial<BadgeFilterState> = {}) {
       signed: null,
       banned: null,
       errata: null,
+      standard: null,
       search: "",
       ...filterStateOverrides,
     },
@@ -236,6 +239,7 @@ function setupBadgeHooks(filterStateOverrides: Partial<BadgeFilterState> = {}) {
     togglePromo: vi.fn(),
     toggleBanned: vi.fn(),
     toggleErrata: vi.fn(),
+    toggleStandard: vi.fn(),
   });
   mockUseEnumOrders.mockReturnValue({
     labels: {
@@ -291,6 +295,30 @@ describe("FilterBadgeSections — hiddenSections gating", () => {
       />,
     );
     expect(queryByText("More")).not.toBeNull();
+    expect(queryByText("Signed")).not.toBeNull();
+  });
+
+  it("renders the Standard flag when non-standard printings exist and it isn't hidden", () => {
+    setupBadgeHooks();
+    const { queryByText } = render(
+      <FilterBadgeSections
+        availableFilters={makeAvailable({ hasNonStandard: true })}
+        hiddenSections={new Set(["owned"])}
+      />,
+    );
+    expect(queryByText("Standard")).not.toBeNull();
+  });
+
+  it("hides the Standard flag when the standard section is hidden", () => {
+    setupBadgeHooks();
+    const { queryByText } = render(
+      <FilterBadgeSections
+        availableFilters={makeAvailable({ hasNonStandard: true, hasSigned: true })}
+        hiddenSections={new Set(["owned", "standard"])}
+      />,
+    );
+    expect(queryByText("Standard")).toBeNull();
+    // Another More child keeps the section mounted, proving the gating is per-flag.
     expect(queryByText("Signed")).not.toBeNull();
   });
 

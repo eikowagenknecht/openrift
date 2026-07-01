@@ -18,7 +18,7 @@ import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import type { ListEntryUpdate, ListUpdate, NewEntryValues } from "../../repositories/lists.js";
 import { assertDeleted, assertFound } from "../../utils/assertions.js";
-import { toList, toListEntry, toListEntryDetail } from "../../utils/mappers.js";
+import { toList, toListDetail, toListEntry, toListEntryDetail } from "../../utils/mappers.js";
 import { generateShareToken } from "../../utils/share-token.js";
 
 const os = implement(listsContract).$context<ApiContext>().use(requireAuthedUser);
@@ -54,6 +54,10 @@ export const listsRouter = {
       defaultPriceAbsoluteCents: tradeDefaults?.priceAbsoluteCents ?? null,
       defaultTradeType: tradeDefaults?.tradeType ?? null,
       currency: supportsPrefs ? (input.currency ?? null) : null,
+      // ADR-034: rules are only valid on wish/trade lists, each rule's kind must
+      // match the intent, and trade lists are capped at one — all enforced by
+      // createListSchema's refinements.
+      rules: supportsPrefs ? (input.rules ?? []) : [],
     });
     // Group visibility is opt-in (ADR-013): a new list is private and the owner
     // shares it with specific groups from the create dialog or the manage page.
@@ -71,7 +75,7 @@ export const listsRouter = {
     const entries = await lists.entriesWithDetails(input.id, list.kind, userId);
 
     return {
-      list: toList(list),
+      list: toListDetail(list),
       entries: entries.map((row) => toListEntryDetail(row)),
     };
   }),
@@ -103,6 +107,25 @@ export const listsRouter = {
     }
     if (supportsPrefs && input.currency !== undefined) {
       updates.currency = input.currency;
+    }
+    // ADR-034: validate the rules against the (immutable) list intent. The
+    // create schema can self-check (it has the intent); update can't, so the
+    // route gates it here. An empty array clears all rules.
+    if (input.rules !== undefined) {
+      if (!supportsPrefs && input.rules.length > 0) {
+        throw new AppError(400, ERROR_CODES.BAD_REQUEST, "organize lists cannot carry rules");
+      }
+      if (input.rules.some((rule) => rule.kind !== existing.intent)) {
+        throw new AppError(400, ERROR_CODES.BAD_REQUEST, "rule kind must match the list intent");
+      }
+      if (existing.intent === "trade" && input.rules.length > 1) {
+        throw new AppError(
+          400,
+          ERROR_CODES.BAD_REQUEST,
+          "trade lists support at most one dynamic rule",
+        );
+      }
+      updates.rules = input.rules;
     }
     if (Object.keys(updates).length === 0) {
       throw new AppError(400, ERROR_CODES.BAD_REQUEST, "No fields to update");

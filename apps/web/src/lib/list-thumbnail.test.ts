@@ -14,6 +14,8 @@ function cardEntry(cardId: string): ListEntryDetailResponse {
     quantity: 1,
     kind: "card",
     cardId,
+    ruleQuantity: 0,
+    source: "manual",
     tradeOverride: EMPTY_TRADE_PREFERENCE,
   };
 }
@@ -33,6 +35,8 @@ function printingEntry(printingId: string, imageId: string | null): ListEntryDet
     shortCode: "OGN-001",
     language: "EN",
     imageId,
+    ruleQuantity: 0,
+    source: "manual",
     tradeOverride: EMPTY_TRADE_PREFERENCE,
   };
 }

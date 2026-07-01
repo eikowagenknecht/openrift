@@ -23,6 +23,8 @@ function cardEntry(cardId: string, quantity: number): ListEntryDetailResponse {
     cardName: "Test",
     cardType: "unit",
     quantity,
+    ruleQuantity: 0,
+    source: "manual",
     tradeOverride: EMPTY_TRADE_PREFERENCE,
   };
 }
@@ -42,6 +44,8 @@ function printingEntry(printing: Printing, quantity: number): ListEntryDetailRes
     shortCode: printing.shortCode,
     language: printing.language,
     imageId: null,
+    ruleQuantity: 0,
+    source: "manual",
     tradeOverride: EMPTY_TRADE_PREFERENCE,
   };
 }
@@ -63,6 +67,8 @@ function copyEntry(printing: Printing, quantity: number): ListEntryDetailRespons
     language: printing.language,
     imageId: null,
     reserved: false,
+    ruleQuantity: 0,
+    source: "manual",
     tradeOverride: EMPTY_TRADE_PREFERENCE,
   };
 }

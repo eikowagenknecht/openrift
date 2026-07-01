@@ -102,6 +102,7 @@ function copyEntry(id: string, cardName: string, quantity: number) {
     id,
     listId: tradeList.id,
     kind: "copy",
+    source: "manual" as const,
     copyId: `copy-${id}`,
     printingId: `printing-${id}`,
     collectionId: "col",

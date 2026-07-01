@@ -29,6 +29,8 @@ export interface PublicUserBundleListResponse {
   viaGroups: { id: string; slug: string; name: string }[];
   createdAt: string;
   updatedAt: string;
+  /** Whether the list carries a dynamic rule (ADR-034). */
+  hasRule: boolean;
 }
 
 /**

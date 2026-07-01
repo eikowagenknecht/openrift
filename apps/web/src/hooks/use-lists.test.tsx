@@ -79,6 +79,7 @@ const LIST: ListResponse = {
   updatedAt: "2026-05-17T00:00:00Z",
   tradeDefaults: { pricePref: null, priceAbsoluteCents: null, tradeType: null },
   currency: null,
+  hasRule: false,
 };
 
 afterEach(() => {

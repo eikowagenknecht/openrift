@@ -1,14 +1,5 @@
-import type {
-  ArtVariant,
-  CardFilters,
-  CardType,
-  Domain,
-  Finish,
-  Rarity,
-  SearchField,
-  SuperType,
-} from "@openrift/shared";
-import { EMPTY_PRICE_LOOKUP } from "@openrift/shared";
+import type { CardFilters } from "@openrift/shared";
+import { EMPTY_CARD_FILTERS, EMPTY_PRICE_LOOKUP } from "@openrift/shared";
 import { renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -71,30 +62,7 @@ const SETS: SetInfo[] = [
 function baseParams() {
   return {
     collectionId: "col-1",
-    filters: {
-      search: "",
-      searchScope: [] as SearchField[],
-      sets: [] as string[],
-      languages: [] as string[],
-      domains: [] as Domain[],
-      types: [] as CardType[],
-      superTypes: [] as SuperType[],
-      rarities: [] as Rarity[],
-      artVariants: [] as ArtVariant[],
-      finishes: [] as Finish[],
-      cardSizes: [],
-      isSigned: null,
-      hasAnyMarker: null,
-      markerSlugs: [] as string[],
-      distributionChannelSlugs: [] as string[],
-      customTagSlugs: [] as string[],
-      isBanned: null,
-      hasErrata: null,
-      energy: { min: null, max: null },
-      might: { min: null, max: null },
-      power: { min: null, max: null },
-      price: { min: null, max: null },
-    } satisfies CardFilters,
+    filters: { ...EMPTY_CARD_FILTERS } satisfies CardFilters,
     sortBy: "name" as const,
     sortDir: "asc" as const,
     view: "printings" as const,

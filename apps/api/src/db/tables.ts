@@ -19,6 +19,7 @@ import type {
   Finish,
   ListIntent,
   ListKind,
+  ListRules,
   OrganizationRole,
   PodPlayerStatus,
   PodResultStatus,
@@ -516,6 +517,14 @@ export interface ListsTable {
   /** Required for any 'absolute' default or override; ignored otherwise. */
   currency: Currency | null;
   sortOrder: Generated<number>;
+  /**
+   * ADR-034 dynamic rules (jsonb array). Read back as a JSON string under
+   * postgres.js (the repo parses it). The repo writes it through an explicit
+   * `text::jsonb` cast (see `rulesJsonb`) so it lands as a real jsonb array, not
+   * a json-encoded scalar string. NOT NULL with a `'[]'` default, so insert may
+   * omit it. Empty array = manual-only list.
+   */
+  rules: ColumnType<ListRules, ListRules, ListRules>;
 }
 
 /**

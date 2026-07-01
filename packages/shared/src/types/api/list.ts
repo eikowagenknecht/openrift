@@ -1,10 +1,18 @@
 import type { CardType, Finish, Rarity } from "../enums.js";
+import type { ListRules } from "../list-rule.js";
 import type { Currency, TradePreference } from "./trade-preferences.js";
 
 export type ListIntent = "wish" | "trade" | "organize";
 
 /** Granularity the list tracks. Each list contains uniformly one kind. */
 export type ListKind = "card" | "printing" | "copy";
+
+/**
+ * Where an expanded entry came from (ADR-034). `manual` = a real `list_entries`
+ * row; `rule` = produced by the list's dynamic rule; `both` = a manual entry the
+ * rule also produced (the manual row wins for id/overrides).
+ */
+export type EntrySource = "manual" | "rule" | "both";
 
 export interface ListResponse {
   id: string;
@@ -25,6 +33,12 @@ export interface ListResponse {
   tradeDefaults: TradePreference;
   /** Currency used for `absolute` prices. Always `null` on `organize` lists. */
   currency: Currency | null;
+  /**
+   * Whether this list carries any dynamic rules (ADR-034). Summaries report
+   * this flag (and keep `entryCount` as the manual count) rather than expanding
+   * the rules, which would be expensive on dashboards.
+   */
+  hasRule: boolean;
 }
 
 export interface ListListResponse {
@@ -52,10 +66,23 @@ export type ListEntryResponse =
   | (ListEntryBase & { kind: "printing"; printingId: string })
   | (ListEntryBase & { kind: "copy"; copyId: string });
 
-interface ListEntryDetailBase extends ListEntryBase {
+type ListEntryDetailBase = Omit<ListEntryBase, "id"> & {
+  /**
+   * Real `list_entries.id` for manual entries; `null` for rule-only entries
+   * (which aren't individually editable/deletable — only excludable). ADR-034.
+   */
+  id: string | null;
+  source: EntrySource;
+  /**
+   * The rule's contribution to {@link ListEntryBase.quantity} (ADR-034 additive
+   * model). `quantity` is the total; the editable manual part is `quantity -
+   * ruleQuantity`. `0` for pure manual entries; equals `quantity` for rule-only
+   * entries. Copy lists report `1` when a rule also surfaced the copy, else `0`.
+   */
+  ruleQuantity: number;
   cardName: string;
   cardType: CardType;
-}
+};
 
 /**
  * Enriched entry row. Joined with card/printing/copy details on the server.
@@ -93,8 +120,13 @@ export type ListEntryDetailResponse =
       reserved: boolean;
     });
 
+/** The list object on a detail response also carries the dynamic rules (ADR-034). */
+export interface ListDetailListResponse extends ListResponse {
+  rules: ListRules;
+}
+
 export interface ListDetailResponse {
-  list: ListResponse;
+  list: ListDetailListResponse;
   entries: ListEntryDetailResponse[];
 }
 

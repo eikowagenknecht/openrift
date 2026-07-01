@@ -1,6 +1,6 @@
 import type { AvailableFilters, FilterCounts, RangeKey } from "@openrift/shared";
 import { NONE } from "@openrift/shared";
-import { CircleSlashIcon } from "lucide-react";
+import { CircleSlashIcon, MinusIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 
@@ -139,7 +139,7 @@ export function FilterBadgeSections({
 }: FilterPanelContentProps) {
   const { labels } = useEnumOrders();
   const { filterState } = useFilterValues();
-  const { toggleArrayFilter, toggleSigned } = useFilterActions();
+  const { toggleArrayFilter, cycleArrayFilter, toggleSigned } = useFilterActions();
   const languageLabels = useLanguageLabels();
   // Signed rides inside the Art Variant section (a signed card is, in effect, a
   // variant) when both are shown; otherwise it stays in the More group.
@@ -160,7 +160,8 @@ export function FilterBadgeSections({
           label="Language"
           options={availableLanguages}
           selected={filterState.languages}
-          onToggle={(v) => toggleArrayFilter("languages", v)}
+          excluded={filterState.languagesEx}
+          onCycle={(v) => cycleArrayFilter("languages", "languagesEx", v)}
           displayLabel={(code) => languageLabels[code] ?? code}
           counts={filterCounts?.languages}
         />
@@ -170,7 +171,8 @@ export function FilterBadgeSections({
           label="Set"
           options={availableFilters.sets}
           selected={filterState.sets}
-          onToggle={(v) => toggleArrayFilter("sets", v)}
+          excluded={filterState.setsEx}
+          onCycle={(v) => cycleArrayFilter("sets", "setsEx", v)}
           displayLabel={setDisplayLabel}
           secondaryOptions={availableFilters.supplementalSets}
           counts={filterCounts?.sets}
@@ -182,7 +184,8 @@ export function FilterBadgeSections({
           label="Domain"
           options={availableFilters.domains}
           selected={selected("domains")}
-          onToggle={(v) => toggleArrayFilter("domains", v)}
+          excluded={filterState.domainsEx}
+          onCycle={(v) => cycleArrayFilter("domains", "domainsEx", v)}
           iconPath={(v) => getFilterIconPath("domains", v)}
           displayLabel={(v) => formatDomainFilterLabel(v, labels.domains)}
           counts={filterCounts?.domains}
@@ -192,7 +195,8 @@ export function FilterBadgeSections({
         label="Rarity"
         options={availableFilters.rarities}
         selected={filterState.rarities}
-        onToggle={(v) => toggleArrayFilter("rarities", v)}
+        excluded={filterState.raritiesEx}
+        onCycle={(v) => cycleArrayFilter("rarities", "raritiesEx", v)}
         iconPath={(v) => getFilterIconPath("rarities", v)}
         displayLabel={(v) => labels.rarities[v] ?? v}
         counts={filterCounts?.rarities}
@@ -202,7 +206,8 @@ export function FilterBadgeSections({
           label="Type"
           options={availableFilters.types}
           selected={selected("types")}
-          onToggle={(v) => toggleArrayFilter("types", v)}
+          excluded={filterState.typesEx}
+          onCycle={(v) => cycleArrayFilter("types", "typesEx", v)}
           iconPath={(v) => getFilterIconPath("types", v)}
           displayLabel={(v) => labels.cardTypes[v] ?? v}
           counts={filterCounts?.types}
@@ -213,7 +218,8 @@ export function FilterBadgeSections({
           label="Supertype"
           options={availableFilters.superTypes}
           selected={selected("superTypes")}
-          onToggle={(v) => toggleArrayFilter("superTypes", v)}
+          excluded={filterState.superTypesEx}
+          onCycle={(v) => cycleArrayFilter("superTypes", "superTypesEx", v)}
           iconPath={(v) => getFilterIconPath("superTypes", v)}
           displayLabel={(v) => labels.superTypes[v] ?? v}
           counts={filterCounts?.superTypes}
@@ -224,14 +230,15 @@ export function FilterBadgeSections({
           label="Art Variant"
           options={availableFilters.artVariants}
           selected={filterState.artVariants}
-          onToggle={(v) => toggleArrayFilter("artVariants", v)}
+          excluded={filterState.artVariantsEx}
+          onCycle={(v) => cycleArrayFilter("artVariants", "artVariantsEx", v)}
           displayLabel={(v) => labels.artVariants[v] ?? v}
           counts={filterCounts?.artVariants}
           trailing={
             signedInArtVariant ? (
               <FlagBadge
-                label={filterState.signed === false ? "Not Signed" : "Signed"}
-                isActive={filterState.signed !== null}
+                label="Signed"
+                state={filterState.signed}
                 count={filterCounts?.flags.signed}
                 onClick={toggleSigned}
               />
@@ -244,7 +251,8 @@ export function FilterBadgeSections({
           label="Finish"
           options={availableFilters.finishes}
           selected={filterState.finishes}
-          onToggle={(v) => toggleArrayFilter("finishes", v)}
+          excluded={filterState.finishesEx}
+          onCycle={(v) => cycleArrayFilter("finishes", "finishesEx", v)}
           displayLabel={(v) => labels.finishes[v] ?? v}
           counts={filterCounts?.finishes}
         />
@@ -300,6 +308,7 @@ export function useHasMoreSectionContent({
     (availableFilters.hasAnyMarker && !hiddenSections?.has("promo")) ||
     (availableFilters.hasBanned && !hiddenSections?.has("banned")) ||
     (availableFilters.hasErrata && !hiddenSections?.has("errata")) ||
+    (availableFilters.hasNonStandard && !hiddenSections?.has("standard")) ||
     (!hiddenSections?.has("markers") && availableFilters.markers.length > 0) ||
     (!hiddenSections?.has("channels") && availableFilters.distributionChannels.length > 0) ||
     (!hiddenSections?.has("customTags") && visibleCategoryCount > 0)
@@ -307,7 +316,7 @@ export function useHasMoreSectionContent({
 }
 
 /**
- * The filter panel's "More" group: promo/signed/banned/errata flag toggles,
+ * The filter panel's "More" group: promo/signed/banned/errata/standard flag toggles,
  * the markers / distribution-channels / custom-tag comboboxes, and the owned
  * bucket combobox. Self-contained (sources its own enum/tag data) so both the
  * expanded panel and the compact filter bar render the identical controls.
@@ -342,8 +351,15 @@ function FilterMoreSection({
   hideSigned?: boolean;
 }) {
   const { filterState } = useFilterValues();
-  const { setArrayFilter, toggleSigned, togglePromo, toggleBanned, toggleErrata } =
-    useFilterActions();
+  const {
+    setArrayFilter,
+    cycleArrayFilter,
+    toggleSigned,
+    togglePromo,
+    toggleBanned,
+    toggleErrata,
+    toggleStandard,
+  } = useFilterActions();
   // Pre-build channel breadcrumbs once so the section can render full paths
   // (e.g. "Tournament › Regionals › Top 8") and the cmdk filter can search them.
   const channelBreadcrumbs = buildChannelBreadcrumbs(availableFilters.distributionChannels);
@@ -375,12 +391,20 @@ function FilterMoreSection({
     return null;
   }
 
+  // Shared between the Include primary list and the Exclude group so both halves
+  // of each dropdown offer the same options (ADR-034).
+  const markerOptions = availableFilters.markers.map((m) => ({ value: m.slug, label: m.label }));
+  const channelOptions = availableFilters.distributionChannels.map((c) => ({
+    value: c.slug,
+    label: channelBreadcrumbs.get(c.id) ?? c.label,
+  }));
+
   const items = (
     <>
       {availableFilters.hasAnyMarker && !hiddenSections?.has("promo") && (
         <FlagBadge
-          label={filterState.promo === false ? "Not Promo" : "Promo"}
-          isActive={filterState.promo !== null}
+          label="Promo"
+          state={filterState.promo}
           count={filterCounts?.flags.promo}
           onClick={togglePromo}
           triggerStyle={triggerStyle}
@@ -391,9 +415,10 @@ function FilterMoreSection({
           label="Markers"
           searchPlaceholder="Search markers…"
           emptyText="No markers match."
-          options={availableFilters.markers.map((m) => ({ value: m.slug, label: m.label }))}
+          options={markerOptions}
           selected={filterState.markers}
-          onChange={(values) => setArrayFilter("markers", values)}
+          excluded={filterState.markersEx}
+          onCycle={(value) => cycleArrayFilter("markers", "markersEx", value)}
           counts={filterCounts?.markers}
           triggerStyle={triggerStyle}
         />
@@ -403,12 +428,10 @@ function FilterMoreSection({
           label="Distribution Channels"
           searchPlaceholder="Search distribution channels…"
           emptyText="No distribution channels match."
-          options={availableFilters.distributionChannels.map((c) => ({
-            value: c.slug,
-            label: channelBreadcrumbs.get(c.id) ?? c.label,
-          }))}
+          options={channelOptions}
           selected={filterState.channels}
-          onChange={(values) => setArrayFilter("channels", values)}
+          excluded={filterState.channelsEx}
+          onCycle={(value) => cycleArrayFilter("channels", "channelsEx", value)}
           counts={filterCounts?.channels}
           triggerStyle={triggerStyle}
         />
@@ -423,30 +446,35 @@ function FilterMoreSection({
           const allSelected = selected("customTags");
           const categorySlugs = new Set(tagsInCategory.map((t) => t.slug));
           const selectedInCategory = allSelected.filter((slug) => categorySlugs.has(slug));
-          const selectedOutsideCategory = allSelected.filter((slug) => !categorySlugs.has(slug));
+          // Exclude companion, sliced the same way: each category's dropdown shows
+          // only its own slugs from the shared `customTagsEx` key. The cycle acts
+          // on the full arrays by value, so other categories stay untouched.
+          const excludedInCategory = filterState.customTagsEx.filter((slug) =>
+            categorySlugs.has(slug),
+          );
           // `byCategory` is grouped from non-empty arrays, so the first tag
           // always exists and carries the joined category label from /init. The
           // `?? category` is a defensive fallback only.
           const label = tagsInCategory[0]?.categoryLabel ?? category;
+          const tagOptions = tagsInCategory.map((t) => ({ value: t.slug, label: t.label }));
           return (
             <MultiSelectCombobox
               key={category}
               label={label}
               searchPlaceholder={`Search ${label.toLowerCase()}…`}
               emptyText={`No ${label.toLowerCase()} match.`}
-              options={tagsInCategory.map((t) => ({ value: t.slug, label: t.label }))}
+              options={tagOptions}
               selected={selectedInCategory}
-              onChange={(values) =>
-                setArrayFilter("customTags", [...selectedOutsideCategory, ...values])
-              }
+              excluded={excludedInCategory}
+              onCycle={(value) => cycleArrayFilter("customTags", "customTagsEx", value)}
               triggerStyle={triggerStyle}
             />
           );
         })}
       {!hideSigned && availableFilters.hasSigned && !hiddenSections?.has("signed") && (
         <FlagBadge
-          label={filterState.signed === false ? "Not Signed" : "Signed"}
-          isActive={filterState.signed !== null}
+          label="Signed"
+          state={filterState.signed}
           count={filterCounts?.flags.signed}
           onClick={toggleSigned}
           triggerStyle={triggerStyle}
@@ -454,8 +482,8 @@ function FilterMoreSection({
       )}
       {availableFilters.hasBanned && !hiddenSections?.has("banned") && (
         <FlagBadge
-          label={filterState.banned === false ? "Not Banned" : "Banned"}
-          isActive={filterState.banned !== null}
+          label="Banned"
+          state={filterState.banned}
           count={filterCounts?.flags.banned}
           onClick={toggleBanned}
           triggerStyle={triggerStyle}
@@ -463,10 +491,19 @@ function FilterMoreSection({
       )}
       {availableFilters.hasErrata && !hiddenSections?.has("errata") && (
         <FlagBadge
-          label={filterState.errata === false ? "No Errata" : "Errata"}
-          isActive={filterState.errata !== null}
+          label="Errata"
+          state={filterState.errata}
           count={filterCounts?.flags.errata}
           onClick={toggleErrata}
+          triggerStyle={triggerStyle}
+        />
+      )}
+      {availableFilters.hasNonStandard && !hiddenSections?.has("standard") && (
+        <FlagBadge
+          label="Standard"
+          state={filterState.standard}
+          count={filterCounts?.flags.standard}
+          onClick={toggleStandard}
           triggerStyle={triggerStyle}
         />
       )}
@@ -493,45 +530,65 @@ function FilterMoreSection({
   return <FilterSection label="More">{items}</FilterSection>;
 }
 
+/**
+ * A tri-state boolean filter (Promo, Signed, Banned, Errata, Standard) rendered
+ * in the same include/exclude language as the multi-select badges (ADR-034):
+ * `label` is just the trait name, and the state drives the look — a primary fill
+ * to require it, a struck-out destructive tint with a leading minus to forbid it
+ * ("−Promo"), an outline when off. The click cycles null → true → false → null.
+ * @returns The flag badge or button.
+ */
 function FlagBadge({
   label,
-  isActive,
+  state,
   count,
   onClick,
   triggerStyle = "chip",
 }: {
   label: string;
-  isActive: boolean;
+  state: boolean | null;
   count?: number;
   onClick: () => void;
   /** "chip" = panel badge; "button" = outline button matching the compact bar. */
   triggerStyle?: "chip" | "button";
 }) {
+  const isActive = state !== null;
+  const isExcluded = state === false;
   const isZero = count !== undefined && count === 0;
+  const content = (
+    <>
+      {isExcluded && <MinusIcon className="size-3 shrink-0" />}
+      <span className={cn(isExcluded && "line-through")}>{label}</span>
+      {count !== undefined && <span className="tabular-nums opacity-60">{count}</span>}
+    </>
+  );
   if (triggerStyle === "button") {
-    // Tri-state: outline = no filter, filled primary = active (the label itself
-    // distinguishes include "Promo" from exclude "Not Promo"). A muted fill here
-    // reads as off, so use the primary variant for an unmistakable on-state.
     return (
       <Button
-        variant={isActive ? "default" : "outline"}
+        variant={state === true ? "default" : "outline"}
         size="sm"
-        className={cn("font-medium", isZero && !isActive && "opacity-40")}
+        className={cn(
+          "gap-1 font-medium",
+          isExcluded && "border-destructive/40 text-destructive",
+          isZero && !isActive && "opacity-40",
+        )}
         onClick={onClick}
       >
-        {label}
-        {count !== undefined && <span className="tabular-nums opacity-60">{count}</span>}
+        {content}
       </Button>
     );
   }
   return (
     <Badge
-      variant={isActive ? "default" : "outline"}
-      className={cn("cursor-pointer", isZero && !isActive && "opacity-40")}
+      variant={state === true ? "default" : "outline"}
+      className={cn(
+        "cursor-pointer gap-1",
+        isExcluded && "border-destructive/40 text-destructive",
+        isZero && !isActive && "opacity-40",
+      )}
       onClick={onClick}
     >
-      {label}
-      {count !== undefined && <span className="ml-1 tabular-nums opacity-60">{count}</span>}
+      {content}
     </Badge>
   );
 }
@@ -848,7 +905,9 @@ function FilterSection({
   label,
   options,
   selected,
+  excluded,
   onToggle,
+  onCycle,
   iconPath,
   displayLabel,
   secondaryOptions,
@@ -861,7 +920,9 @@ function FilterSection({
   children?: ReactNode;
   options?: string[];
   selected?: string[];
+  excluded?: string[];
   onToggle?: (value: string) => void;
+  onCycle?: (value: string) => void;
   iconPath?: (value: string) => string | undefined;
   displayLabel?: (value: string) => string;
   secondaryOptions?: ReadonlySet<string>;
@@ -884,7 +945,9 @@ function FilterSection({
         <FilterBadgeGrid
           options={options ?? []}
           selected={selected}
+          excluded={excluded}
           onToggle={onToggle}
+          onCycle={onCycle}
           iconPath={iconPath}
           displayLabel={displayLabel}
           secondaryOptions={secondaryOptions}
@@ -906,7 +969,9 @@ function FilterSection({
 function FilterBadgeGrid({
   options,
   selected,
+  excluded,
   onToggle,
+  onCycle,
   iconPath,
   displayLabel,
   secondaryOptions,
@@ -916,7 +981,15 @@ function FilterBadgeGrid({
 }: {
   options: string[];
   selected?: string[];
+  /** Values in this dimension's exclude (`*Ex`) array; rendered struck-out. */
+  excluded?: string[];
   onToggle?: (value: string) => void;
+  /**
+   * Tri-state click handler (off → include → exclude → off). When provided it
+   * replaces `onToggle`, turning each badge into a cycling include/exclude
+   * control (ADR-034). Pass `excluded` alongside it for the exclude styling.
+   */
+  onCycle?: (value: string) => void;
   iconPath?: (value: string) => string | undefined;
   displayLabel?: (value: string) => string;
   secondaryOptions?: ReadonlySet<string>;
@@ -930,6 +1003,7 @@ function FilterBadgeGrid({
       {options.map((option) => {
         const icon = iconPath?.(option);
         const isSelected = selected?.includes(option);
+        const isExcluded = excluded?.includes(option);
         const isSecondary = secondaryOptions?.has(option);
         const count = counts?.get(option);
         const isZero = counts !== undefined && (count ?? 0) === 0;
@@ -940,16 +1014,21 @@ function FilterBadgeGrid({
             className={cn(
               "cursor-pointer",
               icon && "pr-0",
-              isSecondary && !isSelected && "opacity-65",
-              isZero && !isSelected && "opacity-40",
+              // Excluded badges read as a struck-out "not this" in destructive
+              // tint, distinct from an included badge's solid fill.
+              !icon && isExcluded && "border-destructive/40 text-destructive line-through",
+              isSecondary && !isSelected && !isExcluded && "opacity-65",
+              isZero && !isSelected && !isExcluded && "opacity-40",
             )}
-            onClick={() => onToggle?.(option)}
+            onClick={() => (onCycle ? onCycle(option) : onToggle?.(option))}
           >
+            {!icon && isExcluded && <MinusIcon className="size-3" />}
             {icon && <CardIcon src={icon} />}
             <span
               className={cn(
                 icon && "-my-0.5 inline-flex h-5 items-center rounded-full px-2",
                 icon && isSelected && "bg-primary text-primary-foreground",
+                icon && isExcluded && "bg-destructive text-white line-through",
               )}
             >
               {displayLabel ? displayLabel(option) : option}

@@ -1,3 +1,4 @@
+import type { OwnedCopyRow } from "@openrift/shared";
 import type { Insertable, Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
@@ -281,6 +282,41 @@ export function copiesRepo(db: Kysely<Database>) {
         .where(sql`coalesce(pref.available, col.group_id is null)`, "=", true)
         .groupBy(["p.cardId", "cp.printingId"])
         .execute();
+    },
+
+    /**
+     * Every copy in the user's own (personal) collections, with the metadata a
+     * dynamic trade rule needs (ADR-034): the underlying card, deck-building
+     * availability (drives keep-priority), and whether the copy is pinned to a
+     * live trade. Group-owned copies are excluded — a trade list trades only
+     * what the user personally owns (mirrors the `personalOnly` add path).
+     * @returns One {@link OwnedCopyRow} per personally-owned copy.
+     */
+    ownedRowsForUser(userId: string): Promise<OwnedCopyRow[]> {
+      return (
+        db
+          .selectFrom("copies as cp")
+          .innerJoin("collections as col", "col.id", "cp.collectionId")
+          .innerJoin("printings as p", "p.id", "cp.printingId")
+          .leftJoin("collectionDeckbuildingPrefs as pref", (join) =>
+            join.onRef("pref.collectionId", "=", "col.id").on("pref.userId", "=", userId),
+          )
+          // A copy is pinned to at most one live trade (UNIQUE copy_id), so this
+          // join can't multiply rows. Its presence means the copy is reserved.
+          .leftJoin("cardTradeCopies as ctc", "ctc.copyId", "cp.id")
+          .select([
+            "cp.id as copyId",
+            "cp.printingId as printingId",
+            "p.cardId as cardId",
+            "cp.collectionId as collectionId",
+            sql<boolean>`coalesce(pref.available, col.group_id is null)`.as(
+              "deckbuildingAvailable",
+            ),
+            sql<boolean>`(ctc.copy_id is not null)`.as("reserved"),
+          ])
+          .where("col.userId", "=", userId)
+          .execute()
+      );
     },
 
     /**

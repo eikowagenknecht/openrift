@@ -13,21 +13,22 @@ const DISPLAY_LABEL = (value: string) => value.charAt(0).toUpperCase() + value.s
 const NO_ICON = () => undefined;
 
 function renderCluster(props: Partial<Parameters<typeof FilterIconCluster>[0]> = {}) {
-  const onChange = vi.fn();
+  const onCycle = vi.fn();
   render(
     <TooltipProvider>
       <FilterIconCluster
         label="Domain"
         options={DOMAINS}
-        selected={[]}
-        onChange={onChange}
+        included={[]}
+        excluded={[]}
+        onCycle={onCycle}
         iconPath={NO_ICON}
         displayLabel={DISPLAY_LABEL}
         {...props}
       />
     </TooltipProvider>,
   );
-  return { onChange };
+  return { onCycle };
 }
 
 describe("FilterIconCluster", () => {
@@ -38,17 +39,38 @@ describe("FilterIconCluster", () => {
     expect(screen.getByRole("button", { name: "Mind" })).toBeInTheDocument();
   });
 
-  it("marks the selected option as pressed", () => {
-    renderCluster({ selected: ["calm"] });
+  it("marks the included option as pressed", () => {
+    renderCluster({ included: ["calm"] });
     expect(screen.getByRole("button", { name: "Calm" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "Fury" })).toHaveAttribute("aria-pressed", "false");
   });
 
-  it("adds the clicked option to the selection", async () => {
+  it("labels an excluded option and leaves it unpressed", () => {
+    renderCluster({ excluded: ["calm"] });
+    const calm = screen.getByRole("button", { name: "Exclude Calm" });
+    expect(calm).toBeInTheDocument();
+    expect(calm).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("cycles the clicked option through the include/exclude handler", async () => {
     const user = userEvent.setup();
-    const { onChange } = renderCluster();
+    const { onCycle } = renderCluster();
     await user.click(screen.getByRole("button", { name: "Mind" }));
-    expect(onChange).toHaveBeenCalledExactlyOnceWith(["mind"]);
+    expect(onCycle).toHaveBeenCalledExactlyOnceWith("mind");
+  });
+
+  it("cycles an already-included option via the same handler", async () => {
+    const user = userEvent.setup();
+    const { onCycle } = renderCluster({ included: ["calm"] });
+    await user.click(screen.getByRole("button", { name: "Calm" }));
+    expect(onCycle).toHaveBeenCalledExactlyOnceWith("calm");
+  });
+
+  it("cycles an already-excluded option via the same handler", async () => {
+    const user = userEvent.setup();
+    const { onCycle } = renderCluster({ excluded: ["calm"] });
+    await user.click(screen.getByRole("button", { name: "Exclude Calm" }));
+    expect(onCycle).toHaveBeenCalledExactlyOnceWith("calm");
   });
 
   it("folds the faceted count into the accessible label and dims zero-count options", () => {
@@ -64,8 +86,8 @@ describe("FilterIconCluster", () => {
     expect(screen.getByRole("button", { name: "Calm (0)" }).className).toContain("opacity-40");
   });
 
-  it("keeps a zero-count option un-dimmed while it stays selected", () => {
-    renderCluster({ selected: ["calm"], counts: new Map([["calm", 0]]) });
+  it("keeps a zero-count option un-dimmed while it stays included", () => {
+    renderCluster({ included: ["calm"], counts: new Map([["calm", 0]]) });
     expect(screen.getByRole("button", { name: "Calm (0)" }).className).not.toContain("opacity-40");
   });
 
@@ -75,8 +97,9 @@ describe("FilterIconCluster", () => {
         <FilterIconCluster
           label="Domain"
           options={[]}
-          selected={[]}
-          onChange={vi.fn()}
+          included={[]}
+          excluded={[]}
+          onCycle={vi.fn()}
           iconPath={NO_ICON}
           displayLabel={DISPLAY_LABEL}
         />

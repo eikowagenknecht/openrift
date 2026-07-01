@@ -47,6 +47,12 @@ export function buildWishMembership(details: readonly ListDetailResponse[]): Wis
   };
   for (const detail of details) {
     for (const entry of detail.entries) {
+      // Rule-derived entries (ADR-034) have no list_entries row, so they aren't
+      // individually removable; the wishlist-heart / take-followup flows only
+      // operate on manual entries. Rule-driven wishes are managed in the rule editor.
+      if (entry.id === null) {
+        continue;
+      }
       if (entry.kind === "card") {
         add(byCardId, entry.cardId, {
           entryId: entry.id,

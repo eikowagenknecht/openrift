@@ -1,14 +1,10 @@
-import type {
-  CatalogResponse,
-  CatalogResponseCardValue,
-  CatalogResponsePrintingValue,
-} from "@openrift/shared";
+import type { CatalogResponse } from "@openrift/shared";
 import { catalogContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
 import { requireUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
-import { loadMarkerAndChannelMaps, resolveMarkers } from "../../utils/printing-response.js";
+import { assembleCatalogResponse } from "../../services/catalog-assembly.js";
 
 const os = implement(catalogContract).$context<ApiContext>().use(requireUser);
 
@@ -21,88 +17,7 @@ const os = implement(catalogContract).$context<ApiContext>().use(requireUser);
  * cache lifetime, so the catalog ETag stays stable across daily price refreshes.
  */
 export const catalogRouter = {
-  catalog: os.catalog.handler(async ({ context }): Promise<CatalogResponse> => {
-    const repos = context.repos;
-    const { catalog } = repos;
-
-    const [
-      sets,
-      cardRows,
-      printingRows,
-      imageRows,
-      banRows,
-      errataRows,
-      totalCopies,
-      customTagAssignmentsMap,
-    ] = await Promise.all([
-      catalog.sets(),
-      catalog.cards(),
-      catalog.printings(),
-      catalog.printingImages(),
-      catalog.cardBans(),
-      catalog.cardErrata(),
-      catalog.totalCopies(),
-      repos.customTags.assignmentsByCard(),
-    ]);
-
-    const { markerBySlug, channelsByPrinting } = await loadMarkerAndChannelMaps(
-      repos,
-      printingRows.map((p) => p.id),
-    );
-
-    // Group active bans by card
-    const bansByCard = Map.groupBy(banRows, (r) => r.cardId);
-
-    // Build errata lookup (one per card at most)
-    const errataByCard = new Map(
-      errataRows.map((r) => [
-        r.cardId,
-        {
-          correctedRulesText: r.correctedRulesText,
-          correctedEffectText: r.correctedEffectText,
-          source: r.source,
-          sourceUrl: r.sourceUrl,
-          effectiveDate: r.effectiveDate ? String(r.effectiveDate) : null,
-        },
-      ]),
-    );
-
-    const cards: Record<string, CatalogResponseCardValue> = {};
-    for (const { id, ...rest } of cardRows) {
-      cards[id] = {
-        ...rest,
-        errata: errataByCard.get(id) ?? null,
-        bans: (bansByCard.get(id) ?? []).map((b) => ({
-          formatId: b.formatId,
-          formatName: b.formatName,
-          bannedAt: b.bannedAt,
-          reason: b.reason,
-        })),
-      };
-    }
-
-    // Build images lookup (null URLs already filtered at the DB level)
-    const imagesByPrinting = Map.groupBy(imageRows, (r) => r.printingId);
-
-    const printings: Record<string, CatalogResponsePrintingValue> = {};
-    for (const { id, markerSlugs, ...rest } of printingRows) {
-      printings[id] = {
-        ...rest,
-        markers: resolveMarkers(markerSlugs, markerBySlug),
-        distributionChannels: channelsByPrinting.get(id) ?? [],
-        images: (imagesByPrinting.get(id) ?? []).map((i) => ({
-          face: i.face,
-          imageId: i.imageId,
-        })),
-      };
-    }
-
-    return {
-      sets,
-      cards,
-      printings,
-      totalCopies,
-      customTagAssignments: Object.fromEntries(customTagAssignmentsMap),
-    };
-  }),
+  catalog: os.catalog.handler(
+    ({ context }): Promise<CatalogResponse> => assembleCatalogResponse(context.repos),
+  ),
 };

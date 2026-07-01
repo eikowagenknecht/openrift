@@ -80,6 +80,7 @@ const EMPTY_FACETS: AvailableFiltersWire = {
   cardSizes: [],
   hasSigned: false,
   hasAnyMarker: false,
+  hasNonStandard: false,
   hasBanned: false,
   hasErrata: false,
   hasNullEnergy: false,

@@ -352,11 +352,14 @@ function SharedListGrid({
     for (const sortedPrinting of sortedCards) {
       let remainingRequested = pendingByPrinting.get(sortedPrinting.id)?.quantity ?? 0;
       for (const entry of entriesByPrintingId.get(sortedPrinting.id) ?? []) {
-        items.push({ id: entry.id, printing: sortedPrinting });
-        entryByItemId.set(entry.id, entry);
+        // One tile = one copy. Rule-derived copy entries (ADR-034) have no entry
+        // id, so key the tile on the copyId instead.
+        const itemId = entry.id ?? (entry.kind === "copy" ? entry.copyId : sortedPrinting.id);
+        items.push({ id: itemId, printing: sortedPrinting });
+        entryByItemId.set(itemId, entry);
         const reserved = entry.kind === "copy" && entry.reserved;
         if (remainingRequested > 0 && !reserved) {
-          requestedItemIds.add(entry.id);
+          requestedItemIds.add(itemId);
           remainingRequested -= 1;
         }
       }

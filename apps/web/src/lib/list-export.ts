@@ -88,7 +88,9 @@ function mergeCopiesByPrinting(
 ): ListEntryDetailResponse[] {
   const byPrinting = new Map<string, ListEntryDetailResponse>();
   for (const entry of entries) {
-    const key = entry.kind === "copy" ? entry.printingId : entry.id;
+    // Key by target identity, not entry id — rule-only entries (ADR-034) have
+    // a null entry id.
+    const key = entry.kind === "card" ? entry.cardId : entry.printingId;
     const existing = byPrinting.get(key);
     byPrinting.set(
       key,

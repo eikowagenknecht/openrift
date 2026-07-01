@@ -1,3 +1,5 @@
+import type { Rarity } from "./types/enums.js";
+
 /**
  * Well-known taxonomy values that application logic depends on.
  *
@@ -142,6 +144,17 @@ const RARITIES_ALWAYS_FOIL: readonly string[] = [
   WellKnown.rarity.EPIC,
   WellKnown.rarity.SHOWCASE,
 ];
+
+/**
+ * Low rarities (common / uncommon) whose plain version is `normal`-finish only
+ * — foil copies of these are premium, not standard. Lives here (rather than
+ * inline in {@link isStandardPrinting}) so the "standard printing" definition
+ * stays correct as the rarity vocabulary grows. See ADR-034.
+ */
+export const LOW_RARITIES: ReadonlySet<Rarity> = new Set([
+  WellKnown.rarity.COMMON,
+  WellKnown.rarity.UNCOMMON,
+]);
 
 /**
  * Case-insensitive check against {@link RARITIES_ALWAYS_FOIL}. Import sources

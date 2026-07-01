@@ -27,6 +27,7 @@ function stubShareable(
     sharedAt: null,
     tradeDefaults: EMPTY_PREF,
     currency: null,
+    hasRule: false,
     ...overrides,
   };
 }

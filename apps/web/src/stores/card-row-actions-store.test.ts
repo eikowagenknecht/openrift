@@ -3,7 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createStoreResetter } from "@/test/store-helpers";
 
-import { dispatchContextAction, useCardRowActionsStore } from "./card-row-actions-store";
+import {
+  dispatchContextAction,
+  dispatchExcludeFromRule,
+  useCardRowActionsStore,
+} from "./card-row-actions-store";
 
 let resetStore: () => void;
 
@@ -55,5 +59,16 @@ describe("useCardRowActionsStore", () => {
 
   it("dispatchContextAction is a no-op when no handler is registered", () => {
     expect(() => dispatchContextAction("item-1", "move")).not.toThrow();
+  });
+
+  it("dispatchExcludeFromRule forwards the target to the registered handler", () => {
+    const onExcludeFromRule = vi.fn();
+    useCardRowActionsStore.getState().setHandlers({ onExcludeFromRule });
+    dispatchExcludeFromRule({ kind: "card", cardId: "card-1" });
+    expect(onExcludeFromRule).toHaveBeenCalledWith({ kind: "card", cardId: "card-1" });
+  });
+
+  it("dispatchExcludeFromRule is a no-op when no handler is registered", () => {
+    expect(() => dispatchExcludeFromRule({ kind: "copy", copyId: "copy-1" })).not.toThrow();
   });
 });

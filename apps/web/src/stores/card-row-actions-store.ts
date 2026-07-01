@@ -1,6 +1,7 @@
 import type { Printing } from "@openrift/shared";
 import { create } from "zustand";
 
+import type { RuleExcludeTarget } from "@/lib/rule-exclude";
 import type { VariantPopoverIntent } from "@/stores/add-mode-store";
 
 export interface CardRowClickModifiers {
@@ -68,6 +69,12 @@ interface CardRowHandlers {
    * otherwise just this entry — then opens the matching dialog.
    */
   onListBulkAction?: (entryId: string, action: ListBulkAction) => void;
+  /**
+   * /lists: drop a rule-produced entry from the list's dynamic rules (ADR-034).
+   * Rule entries have no `list_entries` row, so they can't be removed — only
+   * excluded, which appends the target id to the producing rule(s) and re-saves.
+   */
+  onExcludeFromRule?: (target: RuleExcludeTarget) => void;
 }
 
 interface CardRowActionsState {
@@ -153,6 +160,10 @@ export function dispatchSetPreference(entryId: string): void {
 
 export function dispatchListBulkAction(entryId: string, action: ListBulkAction): void {
   useCardRowActionsStore.getState().handlers.onListBulkAction?.(entryId, action);
+}
+
+export function dispatchExcludeFromRule(target: RuleExcludeTarget): void {
+  useCardRowActionsStore.getState().handlers.onExcludeFromRule?.(target);
 }
 
 export function isQuantityPending(entryId: string): boolean {

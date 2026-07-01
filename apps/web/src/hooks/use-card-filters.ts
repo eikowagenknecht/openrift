@@ -16,6 +16,7 @@ import { useRouter } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
 
 import { trackEvent } from "@/lib/analytics";
+import { cycleIncludeExclude } from "@/lib/filter-cycle";
 import { isPrintingsOnlyGrouping } from "@/lib/group-by-field";
 import type { FilterSearch, OwnedBucket } from "@/lib/search-schemas";
 import { useFilterSearch } from "@/lib/search-schemas";
@@ -35,7 +36,19 @@ type ArrayKey =
   | "markers"
   | "channels"
   | "customTags"
-  | "owned";
+  | "owned"
+  // Negation companions (ADR-034). No exclude axis for `cardSizes` / `owned`.
+  | "setsEx"
+  | "languagesEx"
+  | "raritiesEx"
+  | "typesEx"
+  | "superTypesEx"
+  | "domainsEx"
+  | "artVariantsEx"
+  | "finishesEx"
+  | "markersEx"
+  | "channelsEx"
+  | "customTagsEx";
 
 /**
  * Build a `filterState` object from raw search params that matches the shape
@@ -58,6 +71,19 @@ function toFilterState(raw: FilterSearch, defaultView: DefaultCardView) {
     markers: raw.markers ?? [],
     channels: raw.channels ?? [],
     customTags: raw.customTags ?? [],
+    // Negation companions + standard (ADR-034).
+    setsEx: raw.setsEx ?? [],
+    languagesEx: raw.languagesEx ?? [],
+    raritiesEx: raw.raritiesEx ?? [],
+    typesEx: raw.typesEx ?? [],
+    superTypesEx: raw.superTypesEx ?? [],
+    domainsEx: raw.domainsEx ?? [],
+    artVariantsEx: raw.artVariantsEx ?? [],
+    finishesEx: raw.finishesEx ?? [],
+    markersEx: raw.markersEx ?? [],
+    channelsEx: raw.channelsEx ?? [],
+    customTagsEx: raw.customTagsEx ?? [],
+    standard: raw.standard ?? null,
     energyMin: raw.energyMin ?? null,
     energyMax: raw.energyMax ?? null,
     mightMin: raw.mightMin ?? null,
@@ -120,6 +146,19 @@ export function useFilterValues() {
     customTagSlugs: filterState.customTags,
     isBanned: filterState.banned ?? null,
     hasErrata: filterState.errata ?? null,
+    // Negation companions + standard (ADR-034).
+    setsExclude: filterState.setsEx,
+    languagesExclude: filterState.languagesEx,
+    raritiesExclude: filterState.raritiesEx as Rarity[],
+    typesExclude: filterState.typesEx as CardType[],
+    superTypesExclude: filterState.superTypesEx as SuperType[],
+    domainsExclude: filterState.domainsEx as Domain[],
+    artVariantsExclude: filterState.artVariantsEx as ArtVariant[],
+    finishesExclude: filterState.finishesEx as Finish[],
+    markerSlugsExclude: filterState.markersEx,
+    distributionChannelSlugsExclude: filterState.channelsEx,
+    customTagSlugsExclude: filterState.customTagsEx,
+    isStandard: filterState.standard ?? null,
     energy: { min: filterState.energyMin, max: filterState.energyMax },
     might: { min: filterState.mightMin, max: filterState.mightMax },
     power: { min: filterState.powerMin, max: filterState.powerMax },
@@ -167,7 +206,22 @@ export function useFilterValues() {
     filterState.signed !== null ||
     filterState.promo !== null ||
     filterState.banned !== null ||
-    filterState.errata !== null;
+    filterState.errata !== null ||
+    // Standard-printing flag + every negation array (ADR-034). Without these,
+    // a "Standard"-only or exclude-only filter silently trims the grid while
+    // the funnel dot, count badge, and clear-all affordance stay dark.
+    filterState.standard !== null ||
+    filterState.setsEx.length > 0 ||
+    filterState.languagesEx.length > 0 ||
+    filterState.raritiesEx.length > 0 ||
+    filterState.typesEx.length > 0 ||
+    filterState.superTypesEx.length > 0 ||
+    filterState.domainsEx.length > 0 ||
+    filterState.artVariantsEx.length > 0 ||
+    filterState.finishesEx.length > 0 ||
+    filterState.markersEx.length > 0 ||
+    filterState.channelsEx.length > 0 ||
+    filterState.customTagsEx.length > 0;
 
   return {
     filters,
@@ -241,6 +295,19 @@ export function useFilterActions() {
       promo: undefined,
       banned: undefined,
       errata: undefined,
+      standard: undefined,
+      // Negation companions (ADR-034).
+      setsEx: undefined,
+      languagesEx: undefined,
+      raritiesEx: undefined,
+      typesEx: undefined,
+      superTypesEx: undefined,
+      domainsEx: undefined,
+      artVariantsEx: undefined,
+      finishesEx: undefined,
+      markersEx: undefined,
+      channelsEx: undefined,
+      customTagsEx: undefined,
       sort: undefined,
       sortDir: undefined,
     });
@@ -279,6 +346,32 @@ export function useFilterActions() {
       (patch as Record<string, unknown>)[key] = values.length > 0 ? values : undefined;
     }
     updateSearch(patch);
+  };
+
+  // Tri-state filter cycle (ADR-034), shared with the dropdowns' cycling rows via
+  // {@link cycleIncludeExclude}: off → include → exclude → off, keeping the axis
+  // in a single mode. See that helper for the full transition table.
+  const cycleArrayFilter = (includeKey: ArrayKey, excludeKey: ArrayKey, value: string) => {
+    trackEvent("filter-apply", { type: includeKey });
+    void router.navigate({
+      to: ".",
+      search: (prev) => {
+        const include = (prev[includeKey as keyof typeof prev] as string[] | undefined) ?? [];
+        const exclude = (prev[excludeKey as keyof typeof prev] as string[] | undefined) ?? [];
+        const { included: nextInclude, excluded: nextExclude } = cycleIncludeExclude(
+          include,
+          exclude,
+          value,
+        );
+        return Object.fromEntries(
+          Object.entries({
+            ...prev,
+            [includeKey]: nextInclude.length > 0 ? nextInclude : undefined,
+            [excludeKey]: nextExclude.length > 0 ? nextExclude : undefined,
+          }).filter(([, entry]) => entry !== undefined),
+        );
+      },
+    });
   };
 
   const setRange = (key: RangeKey, min: number | null, max: number | null) => {
@@ -347,6 +440,14 @@ export function useFilterActions() {
   };
   const clearBanned = () => updateSearch({ banned: undefined });
   const clearErrata = () => updateSearch({ errata: undefined });
+  const clearStandard = () => updateSearch({ standard: undefined });
+  // Tri-state "standard printing" flag (ADR-034): null → true → false → null.
+  const toggleStandard = () => {
+    trackEvent("filter-apply", { type: "standard" });
+    const next =
+      filterState.standard === null ? true : filterState.standard === true ? false : undefined;
+    updateSearch({ standard: next });
+  };
 
   const setSortBy = (sort: SortOption) => {
     updateSearch({ sort: sort === "id" ? undefined : sort });
@@ -379,6 +480,7 @@ export function useFilterActions() {
   return {
     setSearch,
     toggleArrayFilter,
+    cycleArrayFilter,
     setArrayFilter,
     setArrayFilters,
     setRange,
@@ -389,10 +491,12 @@ export function useFilterActions() {
     togglePromo,
     toggleBanned,
     toggleErrata,
+    toggleStandard,
     clearSigned,
     clearPromo,
     clearBanned,
     clearErrata,
+    clearStandard,
     setSortBy,
     setSortDir,
     setView,

@@ -14,6 +14,8 @@ function cardEntry(
   return {
     id,
     listId: "list-1",
+    ruleQuantity: 0,
+    source: "manual",
     kind: "card",
     cardId,
     quantity,
@@ -47,6 +49,8 @@ describe("formatCardListAsDeckText", () => {
       {
         id: "e2",
         listId: "list-1",
+        ruleQuantity: 0,
+        source: "manual",
         kind: "printing",
         printingId: "p1",
         quantity: 2,
@@ -74,6 +78,8 @@ function printingEntry(
   return {
     id,
     listId: "list-1",
+    ruleQuantity: 0,
+    source: "manual",
     kind: "printing",
     printingId: `p-${id}`,
     quantity,
@@ -97,6 +103,8 @@ function copyEntry(
   return {
     id,
     listId: "list-1",
+    ruleQuantity: 0,
+    source: "manual",
     kind: "copy",
     copyId: `cp-${id}`,
     printingId: opts.printingId,

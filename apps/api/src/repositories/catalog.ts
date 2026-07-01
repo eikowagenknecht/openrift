@@ -252,6 +252,62 @@ export function catalogRepo(db: Kysely<Database>) {
     },
 
     /**
+     * A cheap content-version token for the assembled catalog, used to keep the
+     * dynamic list-rule expansion memo fresh (ADR-034). It folds together a
+     * `count(*)` plus the latest mutation timestamp of every table that feeds the
+     * server-assembled `Printing[]` — so any admin edit that can change rule
+     * output (a card/printing/set field, a ban or errata added/removed, a marker
+     * or channel renamed, a marker/channel link added/removed, a domain /
+     * super-type / custom-tag assignment changed) rolls the token, while user
+     * copy adds and price refreshes (which don't reach the `Printing[]`) leave it
+     * stable. `count(*)` catches inserts/deletes; `max(updated_at)` (or
+     * `created_at` for the append-only ban/errata tables) catches in-place edits.
+     * `filterCards` reads only coarse facts from bans/errata (presence) and slugs
+     * from markers/channels, so the per-row note/reason columns that lack
+     * `updated_at` cannot change the result and need not be probed.
+     *
+     * The domain / super-type / custom-tag *assignment* junction tables carry no
+     * timestamp, and a same-cardinality swap (delete one + insert one) leaves
+     * `count(*)` unchanged — so those are content-hashed (`md5(string_agg(...))`)
+     * instead. `cards.updated_at` is not bumped on a domain/super-type edit (only
+     * the junction rows change), so without these hashes the memo would serve a
+     * stale card set for any rule filtering on a domain, super-type, or custom
+     * tag. The hashes are over the junctions only (a few thousand rows at ADR-009
+     * scale); `custom_tags` slug renames are caught by its own `updated_at`.
+     *
+     * Far cheaper than the full assembly (aggregates only, no row materialization
+     * or map building), so it can run on every ruled-list read.
+     * @returns An opaque string that changes iff the rule-relevant catalog changes.
+     */
+    async catalogContentVersion(): Promise<string> {
+      const result = await sql<{ token: string }>`
+        SELECT
+          coalesce((SELECT count(*) FROM cards)::text, '') || ':' ||
+          coalesce((SELECT max(updated_at) FROM cards)::text, '') || '|' ||
+          coalesce((SELECT count(*) FROM printings)::text, '') || ':' ||
+          coalesce((SELECT max(updated_at) FROM printings)::text, '') || '|' ||
+          coalesce((SELECT count(*) FROM sets)::text, '') || ':' ||
+          coalesce((SELECT max(updated_at) FROM sets)::text, '') || '|' ||
+          coalesce((SELECT count(*) FROM card_bans)::text, '') || ':' ||
+          coalesce((SELECT max(created_at) FROM card_bans)::text, '') || '|' ||
+          coalesce((SELECT count(*) FROM card_errata)::text, '') || ':' ||
+          coalesce((SELECT max(created_at) FROM card_errata)::text, '') || '|' ||
+          coalesce((SELECT count(*) FROM markers)::text, '') || ':' ||
+          coalesce((SELECT max(updated_at) FROM markers)::text, '') || '|' ||
+          coalesce((SELECT count(*) FROM printing_markers)::text, '') || '|' ||
+          coalesce((SELECT count(*) FROM distribution_channels)::text, '') || ':' ||
+          coalesce((SELECT max(updated_at) FROM distribution_channels)::text, '') || '|' ||
+          coalesce((SELECT count(*) FROM printing_distribution_channels)::text, '') || '|' ||
+          coalesce((SELECT md5(string_agg(card_id::text || ':' || domain_slug || ':' || ordinal::text, ',' ORDER BY card_id, domain_slug)) FROM card_domains), '') || '|' ||
+          coalesce((SELECT md5(string_agg(card_id::text || ':' || super_type_slug, ',' ORDER BY card_id, super_type_slug)) FROM card_super_types), '') || '|' ||
+          coalesce((SELECT md5(string_agg(card_id::text || ':' || custom_tag_id::text, ',' ORDER BY card_id, custom_tag_id)) FROM card_custom_tags), '') || '|' ||
+          coalesce((SELECT count(*) FROM custom_tags)::text, '') || ':' ||
+          coalesce((SELECT max(updated_at) FROM custom_tags)::text, '') AS token
+      `.execute(db);
+      return result.rows[0]?.token ?? "";
+    },
+
+    /**
      * Counts and a sampled list of front-face thumbnails for the public
      * landing page. Battlefield cards are excluded from the thumbnail sample
      * (they're landscape and look wrong in the scatter). The sample is

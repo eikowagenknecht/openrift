@@ -106,7 +106,9 @@ function unitForKind(kind: string): { one: string; many: string } {
 function mergeCopyRows(entries: readonly ListEntryRow[]): ListEntryRow[] {
   const byPrinting = new Map<string, ListEntryRow>();
   for (const entry of entries) {
-    const key = entry.kind === "copy" ? entry.printingId : entry.id;
+    // Key by target id, not entry id — rule-only entries (ADR-034) have a null
+    // entry id, which would collapse them all onto one bucket.
+    const key = entry.kind === "card" ? entry.cardId : entry.printingId;
     const existing = byPrinting.get(key);
     byPrinting.set(
       key,

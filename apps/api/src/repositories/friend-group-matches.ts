@@ -1,18 +1,22 @@
+import { evaluateListRules, expandList, resolveEffectiveTradePreference } from "@openrift/shared";
 import type {
   CardType,
   Currency,
   EffectiveTradePreference,
   Finish,
+  ListKind,
+  ListRules,
+  ManualEntryRow,
+  OwnedCopyRow,
   Rarity,
-  TradePricePref,
-  TradeType,
-} from "@openrift/shared/types";
-import { resolveEffectiveTradePreference } from "@openrift/shared/types";
+  TradePreference,
+} from "@openrift/shared";
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
 import type { Database } from "../db/index.js";
 import { gravatarHashForEmail } from "../lib/gravatar.js";
+import type { ListRuleProviders } from "./lists.js";
 import { imageId } from "./query-helpers.js";
 
 /**
@@ -24,6 +28,10 @@ import { imageId } from "./query-helpers.js";
  * counterparty is the seller (they have what you want); in
  * `othersWantYourHaves` the counterparty is the buyer (they want what you
  * have). The shape is identical so the UI can render both panels uniformly.
+ *
+ * Computed app-side (ADR-034): both manual entries and dynamic-rule output
+ * participate. Rule-derived entries have no `list_entries` row, so
+ * `sellEntryId` / `buyEntryId` are null for them.
  */
 export interface MatchRow {
   counterpartyUserId: string;
@@ -31,11 +39,10 @@ export interface MatchRow {
   counterpartyImage: string | null;
   counterpartyGravatarHash: string;
 
-  /** The counterparty's source list (their tradelist in "they have", their wishlist in "they want"). */
   counterpartyListId: string;
   counterpartyListName: string;
 
-  sellEntryId: string;
+  sellEntryId: string | null;
   sellListId: string;
   copyId: string;
   printingId: string;
@@ -47,14 +54,12 @@ export interface MatchRow {
   finish: Finish;
   imageId: string | null;
 
-  buyEntryId: string;
+  buyEntryId: string | null;
   buyListId: string;
   buyEntryKind: "card" | "printing";
   buyQuantity: number;
 
-  /** Counterparty (sell side) preference resolved via entry override ?? list default. */
   sellPref: EffectiveTradePreference;
-  /** Viewer (buy side) preference resolved the same way. */
   buyPref: EffectiveTradePreference;
 }
 
@@ -65,12 +70,6 @@ interface MatchScope {
   counterpartyUserId?: string;
 }
 
-/**
- * A deduped incoming match for the activity feed: someone in the group has a
- * card the viewer wants. `matchedAt` is the *latest* of the timestamps that
- * made the match possible (both lists shared, both entries / the copy created),
- * standing in for the unstored "when did this match appear" moment.
- */
 export interface IncomingMatchFeedRow {
   counterpartyUserId: string;
   counterpartyName: string | null;
@@ -82,179 +81,415 @@ export interface IncomingMatchFeedRow {
 }
 
 /**
- * Match-view queries for ADR-013 friend groups. Computed at read time, never
- * materialised — see the ADR's _Match view_ section.
+ * Match-view queries for ADR-013 friend groups, expanded for ADR-034 dynamic
+ * rules. Computed at read time, never materialised.
  *
- * Both panels share one SQL shape: join wish entries against trade entries
- * within the same group's opted-in shares. The only difference is who plays
- * "viewer" and who plays "counterparty" on each side.
+ * Both panels share one shape: intersect wish demand against trade supply
+ * within the same group's opted-in shares. Manual entries and rule output are
+ * both expanded (`evaluateListRules` + `expandList`) and matched in TypeScript,
+ * preserving every invariant of the old single-join query — group/share
+ * visibility, reserved-copy exclusion, trade-pref coalescing, and
+ * copy → printing → card resolution.
  *
  * **Only `wish` ↔ `trade` shares participate.** `organize` lists never appear
- * here, even when shared (see member-detail for that). Deck-derived demand
- * (`is_wanted` decks) is excluded by construction — we only read from
- * `list_entries`, which decks never populate.
+ * here. Deck-derived demand is excluded by construction — we only read list
+ * entries / rule output, which decks never populate.
  *
- * @returns An object with two match queries bound to the given `db`.
+ * @returns An object with the match queries bound to the given `db`.
  */
-export function friendGroupMatchesRepo(db: Kysely<Database>) {
+export function friendGroupMatchesRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
   return {
     /**
-     * Cards the *viewer wants* that other members have offered for sale in
-     * this group. Joins viewer's wish entries against other members' trade
-     * entries, filtered to lists explicitly shared with the group.
+     * Cards the *viewer wants* that other members have offered for sale.
      * @returns Match rows; sorted by counterparty, then card name.
      */
     othersHaveYourWants(scope: MatchScope): Promise<MatchRow[]> {
-      return runMatchQuery(db, scope, "others-have-your-wants");
+      return runMatchQuery(db, providers, scope, "others-have-your-wants");
     },
 
     /**
-     * Cards the *viewer has* that other members are looking for in this
-     * group. Mirror of `othersHaveYourWants`: viewer is the seller,
-     * counterparty is the buyer.
+     * Cards the *viewer has* that other members are looking for.
      * @returns Match rows; sorted by counterparty, then card name.
      */
     othersWantYourHaves(scope: MatchScope): Promise<MatchRow[]> {
-      return runMatchQuery(db, scope, "others-want-your-haves");
+      return runMatchQuery(db, providers, scope, "others-want-your-haves");
     },
 
     /**
      * The viewer's *incoming* matches (others have what the viewer wants),
      * deduped to one row per (counterparty, printing) and dated by the latest
-     * contributing timestamp. Newest first. Powers the "new match for you"
-     * activity-feed entries.
+     * contributing timestamp. Newest first.
      * @returns Deduped incoming match feed rows, newest match first.
      */
-    recentIncomingMatchesForFeed(scope: {
+    async recentIncomingMatchesForFeed(scope: {
       groupId: string;
       viewerUserId: string;
       limit: number;
-      /** ADR-030: only matches whose `matchedAt` is strictly after this moment. */
       sinceTimestamp?: Date;
     }): Promise<IncomingMatchFeedRow[]> {
-      return runIncomingMatchFeedQuery(db, scope);
+      const matches = await runMatchQuery(
+        db,
+        providers,
+        { groupId: scope.groupId, viewerUserId: scope.viewerUserId },
+        "others-have-your-wants",
+        { withMatchedAt: true },
+      );
+      // Dedupe to one row per (counterparty, printing), keeping the latest
+      // matchedAt; apply the digest watermark; newest first.
+      const byKey = new Map<string, IncomingMatchFeedRow>();
+      for (const row of matches) {
+        const matchedAt = row.matchedAt ?? new Date(0);
+        if (scope.sinceTimestamp !== undefined && matchedAt <= scope.sinceTimestamp) {
+          continue;
+        }
+        const key = `${row.counterpartyUserId}:${row.printingId}`;
+        const existing = byKey.get(key);
+        if (existing && existing.matchedAt >= matchedAt) {
+          continue;
+        }
+        byKey.set(key, {
+          counterpartyUserId: row.counterpartyUserId,
+          counterpartyName: row.counterpartyName,
+          counterpartyImage: row.counterpartyImage,
+          counterpartyGravatarHash: row.counterpartyGravatarHash,
+          printingId: row.printingId,
+          cardId: row.cardId,
+          matchedAt,
+        });
+      }
+      return [...byKey.values()]
+        .sort((first, second) => second.matchedAt.getTime() - first.matchedAt.getTime())
+        .slice(0, scope.limit);
     },
   };
 }
 
-/** The `matchedAt` proxy: the latest of the timestamps that made the match possible. */
-const matchedAtExpr = sql<Date>`greatest(s_sell.shared_at, s_buy.shared_at, cp.created_at, le_buy.created_at, le_sell.created_at)`;
-
-async function runIncomingMatchFeedQuery(
-  db: Kysely<Database>,
-  scope: { groupId: string; viewerUserId: string; limit: number; sinceTimestamp?: Date },
-): Promise<IncomingMatchFeedRow[]> {
-  // Same join skeleton as `others-have-your-wants` (seller = counterparty,
-  // buyer = viewer), trimmed to feed columns plus a `matchedAt` proxy.
-  let query = db
-    .selectFrom("friendGroupListShares as s_sell")
-    .innerJoin("lists as l_sell", "l_sell.id", "s_sell.listId")
-    .innerJoin("listEntries as le_sell", "le_sell.listId", "l_sell.id")
-    .innerJoin("copies as cp", "cp.id", "le_sell.copyId")
-    .innerJoin("printings as p", "p.id", "cp.printingId")
-    .innerJoin("friendGroupListShares as s_buy", (join) =>
-      join.onRef("s_buy.groupId", "=", "s_sell.groupId"),
-    )
-    .innerJoin("lists as l_buy", (join) =>
-      join.onRef("l_buy.id", "=", "s_buy.listId").on("l_buy.intent", "=", "wish"),
-    )
-    .innerJoin("listEntries as le_buy", "le_buy.listId", "l_buy.id")
-    .innerJoin("users as cp_user", "cp_user.id", "s_sell.userId")
-    .where("s_sell.groupId", "=", scope.groupId)
-    .where("l_sell.intent", "=", "trade")
-    .where("le_sell.kind", "=", "copy")
-    .where("s_buy.userId", "=", scope.viewerUserId)
-    .where("s_sell.userId", "<>", scope.viewerUserId)
-    // ADR-019: copies reserved by a live trade are invisible.
-    .where((eb) =>
-      eb.not(
-        eb.exists(
-          eb
-            .selectFrom("cardTradeCopies as ctc")
-            .select(sql`1`.as("one"))
-            .whereRef("ctc.copyId", "=", "cp.id"),
-        ),
-      ),
-    )
-    .where((eb) =>
-      eb.or([
-        eb.and([
-          eb("le_buy.kind", "=", "card"),
-          eb(eb.ref("le_buy.cardId"), "=", eb.ref("p.cardId")),
-        ]),
-        eb.and([
-          eb("le_buy.kind", "=", "printing"),
-          eb(eb.ref("le_buy.printingId"), "=", eb.ref("cp.printingId")),
-        ]),
-      ]),
-    );
-
-  // ADR-030 digest: keep only matches that appeared strictly after the
-  // watermark. Each raw row's `matchedAt` is its own `greatest(...)`; a
-  // (counterparty, printing) is "new" iff its max surviving row is > the
-  // watermark, which is exactly what filtering raw rows then deduping yields.
-  if (scope.sinceTimestamp !== undefined) {
-    query = query.where(sql<boolean>`${matchedAtExpr} > ${scope.sinceTimestamp}`);
-  }
-
-  const rows = await query
-    .select((eb) => [
-      eb.ref("s_sell.userId").as("counterpartyUserId"),
-      eb.ref("cp_user.name").as("counterpartyName"),
-      eb.ref("cp_user.image").as("counterpartyImage"),
-      eb.ref("cp_user.email").as("counterpartyEmail"),
-      eb.ref("cp.printingId").as("printingId"),
-      eb.ref("p.cardId").as("cardId"),
-      matchedAtExpr.as("matchedAt"),
-    ])
-    .execute();
-
-  // Dedupe to one row per (counterparty, printing), keeping the latest
-  // `matchedAt`. Counts in a friend group are small, so a JS pass is simpler
-  // and cheaper than DISTINCT ON here.
-  const byKey = new Map<string, IncomingMatchFeedRow>();
-  for (const row of rows) {
-    const key = `${row.counterpartyUserId as string}:${row.printingId}`;
-    const matchedAt = row.matchedAt;
-    const existing = byKey.get(key);
-    if (existing && existing.matchedAt >= matchedAt) {
-      continue;
-    }
-    byKey.set(key, {
-      counterpartyUserId: row.counterpartyUserId as string,
-      counterpartyName: row.counterpartyName,
-      counterpartyImage: row.counterpartyImage,
-      counterpartyGravatarHash: gravatarHashForEmail(row.counterpartyEmail),
-      printingId: row.printingId,
-      cardId: row.cardId,
-      matchedAt,
-    });
-  }
-  return [...byKey.values()]
-    .sort((a, b) => b.matchedAt.getTime() - a.matchedAt.getTime())
-    .slice(0, scope.limit);
-}
-
 type MatchDirection = "others-have-your-wants" | "others-want-your-haves";
 
-async function runMatchQuery(
-  db: Kysely<Database>,
-  scope: MatchScope,
-  direction: MatchDirection,
-): Promise<MatchRow[]> {
-  // Resolve who's selling and who's buying in this direction. The viewer is
-  // always one side, the counterparty is the other. The SQL is identical
-  // apart from these two filters.
-  const sellerUserId = direction === "others-have-your-wants" ? null : scope.viewerUserId;
-  const buyerUserId = direction === "others-have-your-wants" ? scope.viewerUserId : null;
+/** A trade list shared into a group, with its rules. */
+interface SharedListRow {
+  listId: string;
+  listName: string;
+  ownerUserId: string;
+  kind: ListKind;
+  sharedAt: Date;
+  defaultPricePref: TradePreference["pricePref"];
+  defaultPriceAbsoluteCents: number | null;
+  defaultTradeType: TradePreference["tradeType"];
+  currency: Currency | null;
+  rules: ListRules;
+}
 
-  let query = db
-    // Trade side: copies offered into this group.
-    .selectFrom("friendGroupListShares as s_sell")
-    .innerJoin("lists as l_sell", "l_sell.id", "s_sell.listId")
-    .innerJoin("listEntries as le_sell", "le_sell.listId", "l_sell.id")
-    .innerJoin("copies as cp", "cp.id", "le_sell.copyId")
+interface ManualEntryWithMeta extends ManualEntryRow {
+  createdAt: Date;
+}
+
+interface SupplyEntry {
+  copyId: string;
+  printingId: string;
+  cardId: string;
+  sellEntryId: string | null;
+  sellListId: string;
+  sellListName: string;
+  ownerUserId: string;
+  sharedAt: Date;
+  createdAt: Date;
+  sellPref: EffectiveTradePreference;
+}
+
+interface DemandEntry {
+  kind: "card" | "printing";
+  cardId: string | null;
+  printingId: string | null;
+  buyEntryId: string | null;
+  buyListId: string;
+  buyListName: string;
+  ownerUserId: string;
+  buyQuantity: number;
+  sharedAt: Date;
+  createdAt: Date | null;
+  buyPref: EffectiveTradePreference;
+}
+
+/**
+ * postgres.js returns jsonb as a raw string; normalize the `rules` column.
+ * @returns The parsed rules (empty array when the column was empty/absent).
+ */
+function parseRules(value: ListRules | string | null | undefined): ListRules {
+  if (value === null || value === undefined) {
+    return [];
+  }
+  return typeof value === "string" ? (JSON.parse(value) as ListRules) : value;
+}
+
+function listDefaultPref(list: SharedListRow): TradePreference {
+  return {
+    pricePref: list.defaultPricePref,
+    priceAbsoluteCents: list.defaultPriceAbsoluteCents,
+    tradeType: list.defaultTradeType,
+  };
+}
+
+async function loadSharedLists(
+  db: Kysely<Database>,
+  groupId: string,
+  intent: "trade" | "wish",
+): Promise<SharedListRow[]> {
+  const rows = await db
+    .selectFrom("friendGroupListShares as s")
+    .innerJoin("lists as l", "l.id", "s.listId")
+    .select([
+      "l.id as listId",
+      "l.name as listName",
+      "l.userId as ownerUserId",
+      "l.kind as kind",
+      "s.sharedAt as sharedAt",
+      "l.defaultPricePref",
+      "l.defaultPriceAbsoluteCents",
+      "l.defaultTradeType",
+      "l.currency",
+      "l.rules",
+    ])
+    .where("s.groupId", "=", groupId)
+    .where("l.intent", "=", intent)
+    .execute();
+  return rows.map((row) => ({
+    listId: row.listId,
+    listName: row.listName,
+    ownerUserId: row.ownerUserId,
+    kind: row.kind,
+    sharedAt: row.sharedAt,
+    defaultPricePref: row.defaultPricePref as TradePreference["pricePref"],
+    defaultPriceAbsoluteCents: row.defaultPriceAbsoluteCents,
+    defaultTradeType: row.defaultTradeType as TradePreference["tradeType"],
+    currency: row.currency as Currency | null,
+    rules: parseRules(row.rules),
+  }));
+}
+
+async function loadManualEntries(
+  db: Kysely<Database>,
+  listIds: string[],
+): Promise<Map<string, ManualEntryWithMeta[]>> {
+  const byList = new Map<string, ManualEntryWithMeta[]>();
+  if (listIds.length === 0) {
+    return byList;
+  }
+  const rows = await db
+    .selectFrom("listEntries")
+    .select([
+      "id",
+      "listId",
+      "kind",
+      "cardId",
+      "printingId",
+      "copyId",
+      "quantity",
+      "pricePref",
+      "priceAbsoluteCents",
+      "tradeType",
+      "createdAt",
+    ])
+    .where("listId", "in", listIds)
+    .execute();
+  for (const row of rows) {
+    const entry: ManualEntryWithMeta = {
+      id: row.id,
+      kind: row.kind,
+      cardId: row.cardId,
+      printingId: row.printingId,
+      copyId: row.copyId,
+      quantity: row.quantity,
+      tradeOverride: {
+        pricePref: row.pricePref as TradePreference["pricePref"],
+        priceAbsoluteCents: row.priceAbsoluteCents,
+        tradeType: row.tradeType as TradePreference["tradeType"],
+      },
+      createdAt: row.createdAt,
+    };
+    const existing = byList.get(row.listId);
+    if (existing) {
+      existing.push(entry);
+    } else {
+      byList.set(row.listId, [entry]);
+    }
+  }
+  return byList;
+}
+
+interface CopyMeta {
+  printingId: string;
+  cardId: string;
+  createdAt: Date;
+  reserved: boolean;
+}
+
+async function loadCopyMeta(
+  db: Kysely<Database>,
+  copyIds: string[],
+): Promise<Map<string, CopyMeta>> {
+  const meta = new Map<string, CopyMeta>();
+  if (copyIds.length === 0) {
+    return meta;
+  }
+  const rows = await db
+    .selectFrom("copies as cp")
     .innerJoin("printings as p", "p.id", "cp.printingId")
+    .leftJoin("cardTradeCopies as ctc", "ctc.copyId", "cp.id")
+    .select([
+      "cp.id",
+      "cp.printingId",
+      "p.cardId",
+      "cp.createdAt",
+      sql<boolean>`(ctc.copy_id is not null)`.as("reserved"),
+    ])
+    .where("cp.id", "in", copyIds)
+    .execute();
+  for (const row of rows) {
+    meta.set(row.id, {
+      printingId: row.printingId,
+      cardId: row.cardId,
+      createdAt: row.createdAt,
+      reserved: row.reserved,
+    });
+  }
+  return meta;
+}
+
+async function loadUsers(
+  db: Kysely<Database>,
+  ids: string[],
+): Promise<Map<string, { name: string | null; image: string | null; email: string }>> {
+  const map = new Map<string, { name: string | null; image: string | null; email: string }>();
+  if (ids.length === 0) {
+    return map;
+  }
+  const rows = await db
+    .selectFrom("users")
+    .select(["id", "name", "image", "email"])
+    .where("id", "in", ids)
+    .execute();
+  for (const row of rows) {
+    map.set(row.id, { name: row.name, image: row.image, email: row.email });
+  }
+  return map;
+}
+
+/**
+ * Expands one trade list's manual + rule entries into supply rows (reserved copies dropped).
+ * @returns The offered supply copies for the list.
+ */
+function buildSupply(
+  list: SharedListRow,
+  manual: ManualEntryWithMeta[],
+  ruleEntries: ReturnType<typeof evaluateListRules>,
+  copyMeta: Map<string, CopyMeta>,
+): SupplyEntry[] {
+  const manualById = new Map(manual.map((entry) => [entry.id, entry]));
+  const manualRows: ManualEntryRow[] = manual.map((entry) => ({
+    id: entry.id,
+    kind: "copy",
+    copyId: entry.copyId,
+    quantity: entry.quantity,
+    tradeOverride: entry.tradeOverride,
+  }));
+  const expanded = expandList("copy", manualRows, ruleEntries);
+  const supply: SupplyEntry[] = [];
+  for (const entry of expanded) {
+    if (entry.copyId === undefined) {
+      continue;
+    }
+    const meta = copyMeta.get(entry.copyId);
+    // ADR-019: copies reserved by a live trade are invisible to matching.
+    if (!meta || meta.reserved) {
+      continue;
+    }
+    const manualEntry = entry.id === null ? undefined : manualById.get(entry.id);
+    supply.push({
+      copyId: entry.copyId,
+      printingId: meta.printingId,
+      cardId: meta.cardId,
+      sellEntryId: entry.id,
+      sellListId: list.listId,
+      sellListName: list.listName,
+      ownerUserId: list.ownerUserId,
+      sharedAt: list.sharedAt,
+      createdAt: manualEntry?.createdAt ?? meta.createdAt,
+      sellPref: resolveEffectiveTradePreference(
+        entry.tradeOverride,
+        listDefaultPref(list),
+        list.currency,
+      ),
+    });
+  }
+  return supply;
+}
+
+/**
+ * Expands one wish list's manual + rule entries into demand rows.
+ * @returns The wish demand entries for the list.
+ */
+function buildDemand(
+  list: SharedListRow,
+  manual: ManualEntryWithMeta[],
+  ruleEntries: ReturnType<typeof evaluateListRules>,
+): DemandEntry[] {
+  const kind: "card" | "printing" = list.kind === "printing" ? "printing" : "card";
+  const manualById = new Map(manual.map((entry) => [entry.id, entry]));
+  const manualRows: ManualEntryRow[] = manual.map((entry) => ({
+    id: entry.id,
+    kind,
+    cardId: entry.cardId,
+    printingId: entry.printingId,
+    quantity: entry.quantity,
+    tradeOverride: entry.tradeOverride,
+  }));
+  const expanded = expandList(kind, manualRows, ruleEntries);
+  return expanded.map((entry) => {
+    const manualEntry = entry.id === null ? undefined : manualById.get(entry.id);
+    return {
+      kind,
+      cardId: entry.cardId ?? null,
+      printingId: entry.printingId ?? null,
+      buyEntryId: entry.id,
+      buyListId: list.listId,
+      buyListName: list.listName,
+      ownerUserId: list.ownerUserId,
+      buyQuantity: entry.quantity,
+      sharedAt: list.sharedAt,
+      createdAt: manualEntry?.createdAt ?? null,
+      buyPref: resolveEffectiveTradePreference(
+        entry.tradeOverride,
+        listDefaultPref(list),
+        list.currency,
+      ),
+    };
+  });
+}
+
+interface PrintingDetail {
+  cardName: string;
+  cardType: CardType;
+  setId: string;
+  rarity: Rarity;
+  finish: Finish;
+  imageId: string | null;
+}
+
+/**
+ * Output detail for matched printings (card name/type, set, rarity, finish, image).
+ * @returns A map of printing id to its display detail.
+ */
+async function loadPrintingDetails(
+  db: Kysely<Database>,
+  printingIds: string[],
+): Promise<Map<string, PrintingDetail>> {
+  const map = new Map<string, PrintingDetail>();
+  if (printingIds.length === 0) {
+    return map;
+  }
+  const rows = await db
+    .selectFrom("printings as p")
     .innerJoin("cards as card", "card.id", "p.cardId")
     .leftJoin("printingImages as pi", (join) =>
       join
@@ -263,184 +498,260 @@ async function runMatchQuery(
         .on("pi.isActive", "=", true),
     )
     .leftJoin("imageFiles as imgf", "imgf.id", "pi.imageFileId")
-    // Wish side: wish entries shared with the same group.
-    .innerJoin("friendGroupListShares as s_buy", (join) =>
-      join.onRef("s_buy.groupId", "=", "s_sell.groupId"),
-    )
-    .innerJoin("lists as l_buy", (join) =>
-      join.onRef("l_buy.id", "=", "s_buy.listId").on("l_buy.intent", "=", "wish"),
-    )
-    .innerJoin("listEntries as le_buy", "le_buy.listId", "l_buy.id")
-    // Counterparty profile (for grouping/avatar).
-    .innerJoin("users as cp_user", (join) =>
-      join.onRef(
-        "cp_user.id",
-        "=",
-        direction === "others-have-your-wants" ? "s_sell.userId" : "s_buy.userId",
-      ),
-    )
-    .where("s_sell.groupId", "=", scope.groupId)
-    .where("l_sell.intent", "=", "trade")
-    .where("le_sell.kind", "=", "copy")
-    // ADR-019: a copy reserved (or completed-pending-giver-sync) by a live trade
-    // is invisible to everyone. The trade side is always `cp` regardless of
-    // direction, so this single clause covers both panels.
-    .where((eb) =>
-      eb.not(
-        eb.exists(
-          eb
-            .selectFrom("cardTradeCopies as ctc")
-            .select(sql`1`.as("one"))
-            .whereRef("ctc.copyId", "=", "cp.id"),
-        ),
-      ),
-    )
-    // Match rule: card-kind wishes match any printing of the card; printing-
-    // kind wishes match the exact printing.
-    .where((eb) =>
-      eb.or([
-        eb.and([
-          eb("le_buy.kind", "=", "card"),
-          eb(eb.ref("le_buy.cardId"), "=", eb.ref("p.cardId")),
-        ]),
-        eb.and([
-          eb("le_buy.kind", "=", "printing"),
-          eb(eb.ref("le_buy.printingId"), "=", eb.ref("cp.printingId")),
-        ]),
-      ]),
-    );
-
-  // Viewer never matches themselves on either side.
-  if (sellerUserId !== null) {
-    query = query.where("s_sell.userId", "=", sellerUserId);
-    query = query.where("s_buy.userId", "<>", sellerUserId);
-  }
-  if (buyerUserId !== null) {
-    query = query.where("s_buy.userId", "=", buyerUserId);
-    query = query.where("s_sell.userId", "<>", buyerUserId);
-  }
-
-  if (scope.counterpartyUserId !== undefined) {
-    const counterpartyColumn = direction === "others-have-your-wants" ? "s_sell" : "s_buy";
-    query = query.where(`${counterpartyColumn}.userId`, "=", scope.counterpartyUserId);
-  }
-
-  const rows = await query
-    .select((eb) => [
-      direction === "others-have-your-wants"
-        ? eb.ref("s_sell.userId").as("counterpartyUserId")
-        : eb.ref("s_buy.userId").as("counterpartyUserId"),
-      eb.ref("cp_user.name").as("counterpartyName"),
-      eb.ref("cp_user.image").as("counterpartyImage"),
-      eb.ref("cp_user.email").as("counterpartyEmail"),
-
-      direction === "others-have-your-wants"
-        ? eb.ref("l_sell.id").as("counterpartyListId")
-        : eb.ref("l_buy.id").as("counterpartyListId"),
-      direction === "others-have-your-wants"
-        ? eb.ref("l_sell.name").as("counterpartyListName")
-        : eb.ref("l_buy.name").as("counterpartyListName"),
-
-      eb.ref("le_sell.id").as("sellEntryId"),
-      eb.ref("le_sell.listId").as("sellListId"),
-      eb.ref("le_sell.copyId").as("copyId"),
-      eb.ref("cp.printingId").as("printingId"),
-      eb.ref("p.cardId").as("cardId"),
-      eb.ref("card.name").as("cardName"),
-      eb.ref("card.type").as("cardType"),
-      eb.ref("p.setId").as("setId"),
-      eb.ref("p.rarity").as("rarity"),
-      eb.ref("p.finish").as("finish"),
+    .select([
+      "p.id",
+      "card.name as cardName",
+      "card.type as cardType",
+      "p.setId",
+      "p.rarity",
+      "p.finish",
       imageId("imgf").as("imageId"),
-
-      eb.ref("le_buy.id").as("buyEntryId"),
-      eb.ref("le_buy.listId").as("buyListId"),
-      eb.ref("le_buy.kind").as("buyEntryKind"),
-      eb.ref("le_buy.quantity").as("buyQuantity"),
-
-      // Effective trade preferences (entry override ?? list default), one
-      // pair per side. The shape constraint is re-applied in the row mapper.
-      sql<TradePricePref | null>`coalesce(le_sell.price_pref, l_sell.default_price_pref)`.as(
-        "sellPricePref",
-      ),
-      sql<
-        number | null
-      >`coalesce(le_sell.price_absolute_cents, l_sell.default_price_absolute_cents)`.as(
-        "sellPriceAbsoluteCents",
-      ),
-      sql<TradeType | null>`coalesce(le_sell.trade_type, l_sell.default_trade_type)`.as(
-        "sellTradeType",
-      ),
-      eb.ref("l_sell.currency").as("sellCurrency"),
-
-      sql<TradePricePref | null>`coalesce(le_buy.price_pref, l_buy.default_price_pref)`.as(
-        "buyPricePref",
-      ),
-      sql<
-        number | null
-      >`coalesce(le_buy.price_absolute_cents, l_buy.default_price_absolute_cents)`.as(
-        "buyPriceAbsoluteCents",
-      ),
-      sql<TradeType | null>`coalesce(le_buy.trade_type, l_buy.default_trade_type)`.as(
-        "buyTradeType",
-      ),
-      eb.ref("l_buy.currency").as("buyCurrency"),
     ])
+    .where("p.id", "in", printingIds)
     .execute();
-
-  return rows
-    .map((row) => ({
-      counterpartyUserId: row.counterpartyUserId as string,
-      counterpartyName: row.counterpartyName,
-      counterpartyImage: row.counterpartyImage,
-      counterpartyGravatarHash: gravatarHashForEmail(row.counterpartyEmail),
-
-      counterpartyListId: row.counterpartyListId as string,
-      counterpartyListName: row.counterpartyListName,
-
-      sellEntryId: row.sellEntryId as string,
-      sellListId: row.sellListId as string,
-      copyId: row.copyId as string,
-      printingId: row.printingId,
-      cardId: row.cardId,
+  for (const row of rows) {
+    map.set(row.id, {
       cardName: row.cardName,
-      cardType: row.cardType as CardType,
+      cardType: row.cardType,
       setId: row.setId,
-      rarity: row.rarity as Rarity,
-      finish: row.finish as Finish,
+      rarity: row.rarity,
+      finish: row.finish,
       imageId: row.imageId,
-
-      buyEntryId: row.buyEntryId as string,
-      buyListId: row.buyListId as string,
-      buyEntryKind: row.buyEntryKind as "card" | "printing",
-      buyQuantity: row.buyQuantity,
-
-      sellPref: resolveEffectiveTradePreference(
-        {
-          pricePref: row.sellPricePref,
-          priceAbsoluteCents: row.sellPriceAbsoluteCents,
-          tradeType: row.sellTradeType,
-        },
-        // Already coalesced server-side; pass an empty default so the helper
-        // just normalises shape (e.g. clears priceAbsoluteCents when pricePref
-        // is not 'absolute').
-        { pricePref: null, priceAbsoluteCents: null, tradeType: null },
-        row.sellCurrency as Currency | null,
-      ),
-      buyPref: resolveEffectiveTradePreference(
-        {
-          pricePref: row.buyPricePref,
-          priceAbsoluteCents: row.buyPriceAbsoluteCents,
-          tradeType: row.buyTradeType,
-        },
-        { pricePref: null, priceAbsoluteCents: null, tradeType: null },
-        row.buyCurrency as Currency | null,
-      ),
-    }))
-    .sort((a, b) => {
-      const aName = a.counterpartyName ?? "";
-      const bName = b.counterpartyName ?? "";
-      const byCounterparty = aName.localeCompare(bName);
-      return byCounterparty === 0 ? a.cardName.localeCompare(b.cardName) : byCounterparty;
     });
+  }
+  return map;
+}
+
+async function runMatchQuery(
+  db: Kysely<Database>,
+  providers: ListRuleProviders | undefined,
+  scope: MatchScope,
+  direction: MatchDirection,
+  options: { withMatchedAt?: boolean } = {},
+): Promise<(MatchRow & { matchedAt?: Date })[]> {
+  const tradeLists = await loadSharedLists(db, scope.groupId, "trade");
+  const wishLists = await loadSharedLists(db, scope.groupId, "wish");
+
+  // Partition by who plays seller (supply) and buyer (demand) in this direction.
+  const isOthersHave = direction === "others-have-your-wants";
+  const supplyLists = tradeLists.filter((list) =>
+    isOthersHave
+      ? list.ownerUserId !== scope.viewerUserId
+      : list.ownerUserId === scope.viewerUserId,
+  );
+  const demandLists = wishLists.filter((list) =>
+    isOthersHave
+      ? list.ownerUserId === scope.viewerUserId
+      : list.ownerUserId !== scope.viewerUserId,
+  );
+  // Counterparty scoping (member-detail page): the counterparty is the seller in
+  // "others have", the buyer in "others want".
+  const scopedSupply =
+    scope.counterpartyUserId !== undefined && isOthersHave
+      ? supplyLists.filter((list) => list.ownerUserId === scope.counterpartyUserId)
+      : supplyLists;
+  const scopedDemand =
+    scope.counterpartyUserId !== undefined && !isOthersHave
+      ? demandLists.filter((list) => list.ownerUserId === scope.counterpartyUserId)
+      : demandLists;
+
+  if (scopedSupply.length === 0 || scopedDemand.length === 0) {
+    return [];
+  }
+
+  // Rules on any participating list mean we need the catalog for `filterCards`
+  // (and, for trade rules, each owner's copies). Manual-only matching skips it;
+  // output card/printing details come from a targeted query either way.
+  const needsCatalog =
+    scopedSupply.some((list) => list.rules.length > 0) ||
+    scopedDemand.some((list) => list.rules.length > 0);
+  const ruleCatalog = needsCatalog && providers ? await providers.assembleCatalog() : null;
+  const catalog = ruleCatalog?.printings ?? [];
+  const customTagAssignments = ruleCatalog?.customTagAssignments;
+
+  // Owner copies, loaded once per distinct owner. Needed for trade-rule supply
+  // and for wish rules that net against what's owned ("only what I'm missing").
+  const ownedCopiesByOwner = new Map<string, OwnedCopyRow[]>();
+  if (providers) {
+    const ruleOwners = new Set<string>();
+    for (const list of [...scopedSupply, ...scopedDemand]) {
+      if (
+        list.rules.some((rule) => rule.kind === "trade" || (rule.kind === "wish" && rule.netOwned))
+      ) {
+        ruleOwners.add(list.ownerUserId);
+      }
+    }
+    for (const ownerId of ruleOwners) {
+      ownedCopiesByOwner.set(ownerId, await providers.ownedCopies(ownerId));
+    }
+  }
+
+  const supplyManual = await loadManualEntries(
+    db,
+    scopedSupply.map((list) => list.listId),
+  );
+  const demandManual = await loadManualEntries(
+    db,
+    scopedDemand.map((list) => list.listId),
+  );
+
+  // The evaluation context for a given list owner. `customTagAssignments` lets
+  // rules filter on custom tags (without it `filterCards` reads no tags).
+  const evalContextFor = (ownerUserId: string) => ({
+    catalog,
+    ownedCopies: ownedCopiesByOwner.get(ownerUserId) ?? [],
+    customTagAssignments,
+  });
+
+  // Evaluate each ruled supply list's copies exactly once, then reuse the result
+  // for both the copy-id batch below and `buildSupply` (a `filterCards` pass over
+  // the full catalog is not free, so don't run it twice per list).
+  const supplyRuleEntries = new Map<string, ReturnType<typeof evaluateListRules>>();
+  for (const list of scopedSupply) {
+    if (list.rules.length > 0 && providers) {
+      supplyRuleEntries.set(
+        list.listId,
+        evaluateListRules(list.rules, "copy", evalContextFor(list.ownerUserId)),
+      );
+    }
+  }
+
+  // Resolve every supply copy's identity + reservation in one pass.
+  const allCopyIds = new Set<string>();
+  for (const list of scopedSupply) {
+    for (const entry of supplyManual.get(list.listId) ?? []) {
+      if (entry.copyId) {
+        allCopyIds.add(entry.copyId);
+      }
+    }
+    for (const entry of supplyRuleEntries.get(list.listId) ?? []) {
+      if (entry.copyId) {
+        allCopyIds.add(entry.copyId);
+      }
+    }
+  }
+  const copyMeta = await loadCopyMeta(db, [...allCopyIds]);
+
+  // Build supply + demand.
+  const supply: SupplyEntry[] = [];
+  for (const list of scopedSupply) {
+    supply.push(
+      ...buildSupply(
+        list,
+        supplyManual.get(list.listId) ?? [],
+        supplyRuleEntries.get(list.listId) ?? [],
+        copyMeta,
+      ),
+    );
+  }
+  const demand: DemandEntry[] = [];
+  for (const list of scopedDemand) {
+    const ruleEntries =
+      list.rules.length > 0 && providers
+        ? evaluateListRules(list.rules, list.kind, evalContextFor(list.ownerUserId))
+        : [];
+    demand.push(...buildDemand(list, demandManual.get(list.listId) ?? [], ruleEntries));
+  }
+
+  // Index demand for matching: card demand by cardId, printing demand by printingId.
+  const demandByCard = new Map<string, DemandEntry[]>();
+  const demandByPrinting = new Map<string, DemandEntry[]>();
+  const pushInto = (map: Map<string, DemandEntry[]>, key: string, entry: DemandEntry) => {
+    const existing = map.get(key);
+    if (existing) {
+      existing.push(entry);
+    } else {
+      map.set(key, [entry]);
+    }
+  };
+  for (const entry of demand) {
+    if (entry.kind === "card" && entry.cardId) {
+      pushInto(demandByCard, entry.cardId, entry);
+    } else if (entry.kind === "printing" && entry.printingId) {
+      pushInto(demandByPrinting, entry.printingId, entry);
+    }
+  }
+
+  const counterpartyIds = new Set(
+    isOthersHave ? supply.map((s) => s.ownerUserId) : demand.map((d) => d.ownerUserId),
+  );
+  const users = await loadUsers(db, [...counterpartyIds]);
+  const printingDetails = await loadPrintingDetails(db, [
+    ...new Set(supply.map((entry) => entry.printingId)),
+  ]);
+
+  const result: (MatchRow & { matchedAt?: Date })[] = [];
+  for (const supplyEntry of supply) {
+    const matches = [
+      ...(demandByCard.get(supplyEntry.cardId) ?? []),
+      ...(demandByPrinting.get(supplyEntry.printingId) ?? []),
+    ];
+    for (const demandEntry of matches) {
+      // Never match a user with themselves.
+      if (supplyEntry.ownerUserId === demandEntry.ownerUserId) {
+        continue;
+      }
+      const counterparty = isOthersHave ? supplyEntry : demandEntry;
+      const profile = users.get(counterparty.ownerUserId);
+      const detail = printingDetails.get(supplyEntry.printingId);
+      if (!detail) {
+        continue;
+      }
+      const row: MatchRow & { matchedAt?: Date } = {
+        counterpartyUserId: counterparty.ownerUserId,
+        counterpartyName: profile?.name ?? null,
+        counterpartyImage: profile?.image ?? null,
+        counterpartyGravatarHash: gravatarHashForEmail(profile?.email ?? ""),
+        counterpartyListId: isOthersHave ? supplyEntry.sellListId : demandEntry.buyListId,
+        counterpartyListName: isOthersHave ? supplyEntry.sellListName : demandEntry.buyListName,
+        sellEntryId: supplyEntry.sellEntryId,
+        sellListId: supplyEntry.sellListId,
+        copyId: supplyEntry.copyId,
+        printingId: supplyEntry.printingId,
+        cardId: supplyEntry.cardId,
+        cardName: detail.cardName,
+        cardType: detail.cardType,
+        setId: detail.setId,
+        rarity: detail.rarity,
+        finish: detail.finish,
+        imageId: detail.imageId,
+        buyEntryId: demandEntry.buyEntryId,
+        buyListId: demandEntry.buyListId,
+        buyEntryKind: demandEntry.kind,
+        buyQuantity: demandEntry.buyQuantity,
+        sellPref: supplyEntry.sellPref,
+        buyPref: demandEntry.buyPref,
+      };
+      if (options.withMatchedAt) {
+        row.matchedAt = maxDate([
+          supplyEntry.sharedAt,
+          demandEntry.sharedAt,
+          // For a manual supply entry `supplyEntry.createdAt` is the list-entry
+          // time; `meta.createdAt` (the copy's acquisition time) is normally
+          // older so it never wins, but include it for symmetry with the
+          // rule-only path, where it is the only supply timestamp available.
+          maxDate([supplyEntry.createdAt, copyMeta.get(supplyEntry.copyId)?.createdAt]),
+          demandEntry.createdAt,
+        ]);
+      }
+      result.push(row);
+    }
+  }
+
+  return result.sort((first, second) => {
+    const byCounterparty = (first.counterpartyName ?? "").localeCompare(
+      second.counterpartyName ?? "",
+    );
+    return byCounterparty === 0 ? first.cardName.localeCompare(second.cardName) : byCounterparty;
+  });
+}
+
+function maxDate(dates: (Date | null | undefined)[]): Date {
+  let max = new Date(0);
+  for (const date of dates) {
+    if (date && date.getTime() > max.getTime()) {
+      max = date;
+    }
+  }
+  return max;
 }

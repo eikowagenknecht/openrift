@@ -12,6 +12,7 @@ import {
   idParamSchema,
   listEntryFieldRules,
   listEntryInputShape,
+  listRulesSchema,
   oneListEntryTarget,
   tradePreferenceInputSchema,
   withParams,
@@ -62,6 +63,10 @@ export const createListSchema = z
     kind: listKindSchema,
     tradeDefaults: tradePreferenceInputSchema.optional(),
     currency: currencySchema.nullable().optional(),
+    // Dynamic list rules (ADR-034). Only valid on wish/trade lists; each rule's
+    // discriminant must match the list intent. Trade lists are capped at one
+    // rule (see refinements below).
+    rules: listRulesSchema.optional(),
   })
   .refine((data) => isAllowedIntentKind(data.intent, data.kind), {
     message:
@@ -74,12 +79,25 @@ export const createListSchema = z
         (data.tradeDefaults.pricePref === null && data.tradeDefaults.tradeType === null)) &&
         (data.currency === undefined || data.currency === null)),
     { message: "organize lists cannot carry trade defaults or a currency" },
-  );
+  )
+  .refine((data) => data.intent !== "organize" || (data.rules ?? []).length === 0, {
+    message: "organize lists cannot carry dynamic rules",
+  })
+  .refine((data) => (data.rules ?? []).every((rule) => rule.kind === data.intent), {
+    message: "rule kind must match the list intent",
+  })
+  .refine((data) => data.intent !== "trade" || (data.rules ?? []).length <= 1, {
+    message: "trade lists support at most one dynamic rule",
+  });
 
 export const updateListSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   tradeDefaults: tradePreferenceInputSchema.optional(),
   currency: currencySchema.nullable().optional(),
+  // Set/replace the dynamic rules (ADR-034). An empty array clears them. The
+  // route layer validates each rule's kind (and the trade single-rule cap)
+  // against the existing list's intent.
+  rules: listRulesSchema.optional(),
 });
 
 /**
@@ -132,21 +150,29 @@ export const bulkDeleteListEntriesSchema = z.object({
   entryIds: z.array(z.uuid()).min(1).max(500),
 });
 
-export const listResponseSchema = z
-  .object({
-    id: z.string(),
-    name: z.string(),
-    intent: listIntentResponseSchema,
-    kind: listKindResponseSchema,
-    entryCount: z.number().int().nonnegative(),
-    isPublic: z.boolean(),
-    shareToken: z.string().nullable(),
-    createdAt: z.string(),
-    updatedAt: z.string(),
-    tradeDefaults: tradePreferenceSchema,
-    currency: currencyResponseSchema.nullable(),
-  })
-  .openapi("ListResponse");
+const listResponseShape = {
+  id: z.string(),
+  name: z.string(),
+  intent: listIntentResponseSchema,
+  kind: listKindResponseSchema,
+  // Manual entry count only (rule output is NOT expanded on summaries; ADR-034).
+  entryCount: z.number().int().nonnegative(),
+  isPublic: z.boolean(),
+  shareToken: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  tradeDefaults: tradePreferenceSchema,
+  currency: currencyResponseSchema.nullable(),
+  // Whether this list carries a dynamic rule (ADR-034).
+  hasRule: z.boolean(),
+};
+
+export const listResponseSchema = z.object(listResponseShape).openapi("ListResponse");
+
+/** Detail responses also carry the rules themselves so the editor can load them. */
+export const listDetailListResponseSchema = z
+  .object({ ...listResponseShape, rules: listRulesSchema })
+  .openapi("ListDetailListResponse");
 
 export const listListResponseSchema = z
   .object({ items: z.array(listResponseSchema) })
@@ -162,7 +188,7 @@ export const listEntryResponseSchema = z
 
 export const listDetailResponseSchema = z
   .object({
-    list: listResponseSchema,
+    list: listDetailListResponseSchema,
     entries: z.array(listEntryDetailResponseSchema),
   })
   .openapi("ListDetailResponse");

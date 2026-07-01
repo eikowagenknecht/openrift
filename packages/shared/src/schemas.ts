@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+// Re-exported so contracts can import the card-filter predicate schema from the
+// conventional `@openrift/shared/schemas` entry point. Defined in types/search.ts
+// alongside the `CardFilters` type it backs (ADR-034).
+export { cardFiltersSchema } from "./types/search.js";
+// List-rule schema (ADR-034), defined alongside its inferred type.
+export { listRuleSchema, listRulesSchema } from "./types/list-rule.js";
+
 export const listEntryFieldRules = {
   quantity: z.number().int().positive(),
 };

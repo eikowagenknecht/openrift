@@ -62,6 +62,19 @@ const EMPTY_FILTER_STATE = {
   promo: null,
   banned: null,
   errata: null,
+  standard: null,
+  // Negation companions (ADR-034).
+  setsEx: [],
+  languagesEx: [],
+  raritiesEx: [],
+  typesEx: [],
+  superTypesEx: [],
+  domainsEx: [],
+  artVariantsEx: [],
+  finishesEx: [],
+  markersEx: [],
+  channelsEx: [],
+  customTagsEx: [],
 };
 
 function makeAvailable(overrides: Partial<AvailableFilters> = {}): AvailableFilters {
@@ -77,6 +90,7 @@ function makeAvailable(overrides: Partial<AvailableFilters> = {}): AvailableFilt
     cardSizes: [],
     hasSigned: false,
     hasAnyMarker: false,
+    hasNonStandard: false,
     hasBanned: false,
     hasErrata: false,
     hasNullEnergy: false,
@@ -126,6 +140,7 @@ function setupHooks({
     clearPromo: vi.fn(),
     clearBanned: vi.fn(),
     clearErrata: vi.fn(),
+    clearStandard: vi.fn(),
     clearAllFilters: vi.fn(),
     setSearch: vi.fn(),
   });
@@ -327,6 +342,111 @@ describe("ActiveFilters copies range", () => {
     );
 
     // No other filters are set, so the bar should not render at all.
+    expect(container).toBeEmptyDOMElement();
+  });
+});
+
+describe("ActiveFilters standard flag + exclude chips (ADR-034)", () => {
+  afterEach(() => {
+    mockUseFilterValues.mockReset();
+    mockUseFilterActions.mockReset();
+    mockUseEnumOrders.mockReset();
+    mockUseCustomTagList.mockReset();
+    mockUseDisplayStore.mockReset();
+  });
+
+  function setupExcludeHooks(
+    overrides: Record<string, unknown>,
+    actions: {
+      toggleArrayFilter?: ReturnType<typeof vi.fn>;
+      clearStandard?: ReturnType<typeof vi.fn>;
+    } = {},
+  ) {
+    mockUseFilterValues.mockReturnValue({
+      filterState: { ...EMPTY_FILTER_STATE, ...overrides },
+      ranges: NULL_RANGES,
+    });
+    mockUseFilterActions.mockReturnValue({
+      toggleArrayFilter: actions.toggleArrayFilter ?? vi.fn(),
+      setRange: vi.fn(),
+      setOwnedCountRange: vi.fn(),
+      clearSigned: vi.fn(),
+      clearPromo: vi.fn(),
+      clearBanned: vi.fn(),
+      clearErrata: vi.fn(),
+      clearStandard: actions.clearStandard ?? vi.fn(),
+      clearAllFilters: vi.fn(),
+      setSearch: vi.fn(),
+    });
+    mockUseEnumOrders.mockReturnValue({
+      labels: {
+        finishes: {},
+        rarities: {},
+        domains: {},
+        cardTypes: {},
+        superTypes: {},
+        artVariants: {},
+      },
+    });
+    mockUseCustomTagList.mockReturnValue({ all: [], byCategory: new Map() });
+    mockUseDisplayStore.mockImplementation(
+      (selector: (state: { marketplaceOrder: string[] }) => unknown) =>
+        selector({ marketplaceOrder: ["cardtrader"] }),
+    );
+  }
+
+  it("renders a Standard chip and clears it on the remove button", async () => {
+    const clearStandard = vi.fn();
+    setupExcludeHooks({ standard: true }, { clearStandard });
+
+    const user = userEvent.setup();
+    const { getByText } = render(<ActiveFilters availableFilters={makeAvailable()} />);
+
+    const badge = getByText("Standard").closest("span") ?? getByText("Standard");
+    const removeButton = badge.parentElement?.querySelector("button");
+    await user.click(removeButton!);
+
+    expect(clearStandard).toHaveBeenCalledOnce();
+  });
+
+  it("renders the Standard chip in the include/exclude language when forbidden", () => {
+    // The false state reads as a struck-out "Standard" with a minus (like an
+    // exclude chip), not the old "Non-standard" wording.
+    setupExcludeHooks({ standard: false });
+
+    const { getByText } = render(<ActiveFilters availableFilters={makeAvailable()} />);
+
+    const label = getByText("Standard");
+    expect(label).toBeInTheDocument();
+    expect(label).toHaveClass("line-through");
+  });
+
+  it("renders an exclude chip and removes via the exclude key", async () => {
+    const toggleArrayFilter = vi.fn();
+    setupExcludeHooks({ setsEx: ["RB1"] }, { toggleArrayFilter });
+
+    const user = userEvent.setup();
+    const { getByText } = render(
+      <ActiveFilters
+        availableFilters={makeAvailable({ sets: ["RB1"] })}
+        setDisplayLabel={(code) => (code === "RB1" ? "Origins" : code)}
+      />,
+    );
+
+    const badge = getByText("Origins").closest("span") ?? getByText("Origins");
+    const removeButton = badge.parentElement?.querySelector("button");
+    await user.click(removeButton!);
+
+    expect(toggleArrayFilter).toHaveBeenCalledWith("setsEx", "RB1");
+  });
+
+  it("does not render the bar when an exclude section is hidden and nothing else is set", () => {
+    setupExcludeHooks({ setsEx: ["RB1"] });
+
+    const { container } = render(
+      <ActiveFilters availableFilters={makeAvailable()} hiddenSections={new Set(["sets"])} />,
+    );
+
     expect(container).toBeEmptyDOMElement();
   });
 });

@@ -246,6 +246,20 @@ describe("extractCardCounts", () => {
 
     expect(counts).toEqual({ totalCards: 2, filteredCount: 1 });
   });
+
+  it("honors a ?markers= include filter (regression: was hardcoded to [])", () => {
+    const promo = { id: "m-promo", slug: "promo", label: "Promo", description: null };
+    const cards = { "card-1": makeCard(), "card-2": makeCard() };
+    const printings = {
+      "p-1": makePrinting({ cardId: "card-1", shortCode: "OGN-001", markers: [promo] }),
+      "p-2": makePrinting({ cardId: "card-2", shortCode: "OGN-002" }),
+    };
+    const counts = extractCardCounts(makeCatalog(cards, printings), NO_PRICES, {
+      markers: ["promo"],
+    });
+
+    expect(counts).toEqual({ totalCards: 2, filteredCount: 1 });
+  });
 });
 
 // Pins `extractCatalogFacets` to the contract "= getAvailableFilters over

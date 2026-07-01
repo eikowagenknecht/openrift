@@ -20,6 +20,8 @@ function cardEntry(
     quantity,
     cardName,
     cardType: "unit",
+    ruleQuantity: 0,
+    source: "manual",
     tradeOverride: EMPTY_TRADE_PREFERENCE,
   };
 }

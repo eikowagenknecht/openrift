@@ -18,6 +18,7 @@ import type {
 import {
   computeFilterCounts,
   DEFAULT_SEARCH_SCOPE,
+  EMPTY_CARD_FILTERS,
   filterCards,
   getAvailableFilters,
   priceLookupFromMap,
@@ -122,6 +123,7 @@ export function extractSetLabels(catalog: CatalogResponse): Record<string, strin
  */
 export function searchToFilters(search: FilterSearch) {
   return {
+    ...EMPTY_CARD_FILTERS,
     search: search.search ?? "",
     searchScope: [...DEFAULT_SEARCH_SCOPE],
     sets: search.sets ?? [],
@@ -135,11 +137,27 @@ export function searchToFilters(search: FilterSearch) {
     cardSizes: (search.cardSizes ?? []) as CardSize[],
     isSigned: search.signed ?? null,
     hasAnyMarker: search.promo ?? null,
-    markerSlugs: [] as string[],
-    distributionChannelSlugs: [] as string[],
+    markerSlugs: search.markers ?? [],
+    distributionChannelSlugs: search.channels ?? [],
+    // The public SSR catalog carries no per-user custom-tag assignments, so
+    // neither the include nor the `customTagsEx` exclude can match here — both
+    // stay inert until `useCardData` recomputes after hydration (ADR-034).
     customTagSlugs: [] as string[],
     isBanned: search.banned ?? null,
     hasErrata: search.errata ?? null,
+    // Negation companions + standard (ADR-034).
+    setsExclude: search.setsEx ?? [],
+    languagesExclude: search.languagesEx ?? [],
+    raritiesExclude: (search.raritiesEx ?? []) as Rarity[],
+    typesExclude: (search.typesEx ?? []) as CardType[],
+    superTypesExclude: (search.superTypesEx ?? []) as SuperType[],
+    domainsExclude: (search.domainsEx ?? []) as Domain[],
+    artVariantsExclude: (search.artVariantsEx ?? []) as ArtVariant[],
+    finishesExclude: (search.finishesEx ?? []) as Finish[],
+    markerSlugsExclude: search.markersEx ?? [],
+    distributionChannelSlugsExclude: search.channelsEx ?? [],
+    customTagSlugsExclude: search.customTagsEx ?? [],
+    isStandard: search.standard ?? null,
     energy: { min: search.energyMin ?? null, max: search.energyMax ?? null },
     might: { min: search.mightMin ?? null, max: search.mightMax ?? null },
     power: { min: search.powerMin ?? null, max: search.powerMax ?? null },
@@ -222,6 +240,7 @@ export interface FilterCountsWire {
     promo: number;
     banned: number;
     errata: number;
+    standard: number;
     // `owned` is omitted on purpose: it requires the user's collection
     // counts, which the SSR layer doesn't have. The live `useCardData`
     // call fills it in after hydration.
@@ -247,6 +266,7 @@ function toWireFilterCounts(counts: FilterCounts): FilterCountsWire {
       promo: counts.flags.promo,
       banned: counts.flags.banned,
       errata: counts.flags.errata,
+      standard: counts.flags.standard,
     },
     ranges: counts.ranges,
   };

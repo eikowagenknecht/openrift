@@ -279,6 +279,7 @@ describe("toList", () => {
       updatedAt: "2025-06-16T08:30:00.000Z",
       tradeDefaults: { pricePref: null, priceAbsoluteCents: null, tradeType: null },
       currency: null,
+      hasRule: false,
     });
   });
 

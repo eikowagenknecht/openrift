@@ -141,8 +141,101 @@ describe("useCardFilters", () => {
     expect(lastNavigateSearch()).not.toHaveProperty("rarities");
   });
 
+  it("detects active filters when only the standard flag is set", () => {
+    mockSearch = { standard: true };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+    expect(result.current.hasActiveFilters).toBe(true);
+  });
+
+  it("detects active filters when only an exclude array is set", () => {
+    mockSearch = { setsEx: ["RB1"] };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+    expect(result.current.hasActiveFilters).toBe(true);
+  });
+
+  it("cycleArrayFilter moves an unset value into the include array", () => {
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+
+    act(() => result.current.cycleArrayFilter("sets", "setsEx", "RB1"));
+
+    const search = lastNavigateSearch();
+    expect(search).toMatchObject({ sets: ["RB1"] });
+    expect(search).not.toHaveProperty("setsEx");
+  });
+
+  it("cycleArrayFilter flips a sole included value into the exclude array", () => {
+    mockSearch = { sets: ["RB1"] };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+
+    act(() => result.current.cycleArrayFilter("sets", "setsEx", "RB1"));
+
+    const search = lastNavigateSearch();
+    expect(search).not.toHaveProperty("sets");
+    expect(search).toMatchObject({ setsEx: ["RB1"] });
+  });
+
+  it("cycleArrayFilter clears a value out of the exclude array on the third click", () => {
+    mockSearch = { setsEx: ["RB1"] };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+
+    act(() => result.current.cycleArrayFilter("sets", "setsEx", "RB1"));
+
+    const search = lastNavigateSearch();
+    expect(search).not.toHaveProperty("sets");
+    expect(search).not.toHaveProperty("setsEx");
+  });
+
+  it("cycleArrayFilter deselects (not excludes) one of several included values", () => {
+    // Regression: with other includes present, the remaining set already drops
+    // this value, so a second click should just remove it — not add a redundant
+    // exclude (`+RB2 -RB1` filters identically to `+RB2`).
+    mockSearch = { sets: ["RB1", "RB2"] };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+
+    act(() => result.current.cycleArrayFilter("sets", "setsEx", "RB1"));
+
+    const search = lastNavigateSearch();
+    expect(search).toMatchObject({ sets: ["RB2"] });
+    expect(search).not.toHaveProperty("setsEx");
+  });
+
+  it("cycleArrayFilter keeps building the exclude set while in exclude-mode", () => {
+    mockSearch = { setsEx: ["RB1"] };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+
+    act(() => result.current.cycleArrayFilter("sets", "setsEx", "RB2"));
+
+    const search = lastNavigateSearch();
+    expect(search).not.toHaveProperty("sets");
+    expect(search).toMatchObject({ setsEx: ["RB1", "RB2"] });
+  });
+
+  it("cycleArrayFilter adds to the include set while in include-mode", () => {
+    mockSearch = { sets: ["RB1"] };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+
+    act(() => result.current.cycleArrayFilter("sets", "setsEx", "RB2"));
+
+    expect(lastNavigateSearch()).toMatchObject({ sets: ["RB1", "RB2"] });
+  });
+
+  it("clearStandard strips the standard key", () => {
+    mockSearch = { standard: false };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+
+    act(() => result.current.clearStandard());
+
+    expect(lastNavigateSearch()).not.toHaveProperty("standard");
+  });
+
   it("clearAllFilters removes all filter keys from search", () => {
-    mockSearch = { search: "test", sets: ["RB1"], energyMin: 2 };
+    mockSearch = {
+      search: "test",
+      sets: ["RB1"],
+      energyMin: 2,
+      standard: true,
+      setsEx: ["RB2"],
+    };
     const { result } = renderHook(() => useCardFilters(), { wrapper });
 
     act(() => result.current.clearAllFilters());
@@ -151,6 +244,8 @@ describe("useCardFilters", () => {
     expect(search).not.toHaveProperty("search");
     expect(search).not.toHaveProperty("sets");
     expect(search).not.toHaveProperty("energyMin");
+    expect(search).not.toHaveProperty("standard");
+    expect(search).not.toHaveProperty("setsEx");
   });
 
   it("setRange sets both min and max for energy", () => {

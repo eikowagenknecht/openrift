@@ -23,6 +23,12 @@ interface ListEntryContextMenuProps {
   onSetPreference?: () => void;
   /** When set, adds a "Move to list…" item. */
   onMove?: () => void;
+  /**
+   * Rule-produced entries (ADR-034): a "Don't include this" item that excludes
+   * the card/printing/copy from the list's dynamic rules. The only action such
+   * entries offer — they have no `list_entries` row to remove.
+   */
+  onExclude?: () => void;
   children?: ReactNode;
 }
 
@@ -41,6 +47,7 @@ export function ListEntryContextMenu({
   onViewDetail,
   onSetPreference,
   onMove,
+  onExclude,
   children,
 }: ListEntryContextMenuProps) {
   return (
@@ -102,6 +109,17 @@ export function ListEntryContextMenu({
             }}
           >
             Remove from list
+          </ContextMenuItem>
+        ) : null}
+        {onExclude ? (
+          <ContextMenuItem
+            className="text-destructive focus:text-destructive"
+            onClick={(event) => {
+              event.stopPropagation();
+              onExclude();
+            }}
+          >
+            Don&apos;t include this
           </ContextMenuItem>
         ) : null}
       </ContextMenuContent>

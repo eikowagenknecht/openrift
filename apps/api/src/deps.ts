@@ -68,6 +68,7 @@ import {
   setTradeQuantity,
   skipTradeSync,
 } from "./services/card-trades.js";
+import { assembleRuleCatalog, createCatalogPrintingsCache } from "./services/catalog-assembly.js";
 import { deleteCollection } from "./services/collections.js";
 import { addCopies, disposeCopies, moveCopies } from "./services/copies.js";
 import { logEvents } from "./services/event-logger.js";
@@ -159,6 +160,18 @@ export interface Services {
 }
 
 export function createRepos(db: Kysely<Database>): Repos {
+  // ADR-034: one process-wide, content-addressed memo of the assembled catalog,
+  // shared by every rule-expansion consumer below (`lists`, `friendGroupMatches`).
+  // The app builds `repos` once (app.ts), so this memo lives for the process. It
+  // is keyed on a cheap content-version probe, so repeated inline assemblies —
+  // including the uncached anonymous public-share read — collapse onto a single
+  // DB build that is reused until an admin edit rolls the version, then rebuilt
+  // immediately. Reads stay both cheap and always fresh.
+  const assembleCatalog = createCatalogPrintingsCache(
+    () => assembleRuleCatalog(createRepos(db)),
+    () => catalogRepo(db).catalogContentVersion(),
+  );
+
   // Each repo is wrapped via instrumentRepo so every method opens an OTel
   // span named `repo.<name>.<method>`, parenting the Kysely `db.query`
   // spans for clean repo-method attribution in traces.
@@ -188,7 +201,11 @@ export function createRepos(db: Kysely<Database>): Repos {
     featureFlags: featureFlagsRepo(db),
     finishes: finishesRepo(db),
     friendGroups: friendGroupsRepo(db),
-    friendGroupMatches: friendGroupMatchesRepo(db),
+    // ADR-034: dynamic lists participate in matching — same providers as `lists`.
+    friendGroupMatches: friendGroupMatchesRepo(db, {
+      assembleCatalog,
+      ownedCopies: (ownerId) => copiesRepo(db).ownedRowsForUser(ownerId),
+    }),
     userContactMethods: userContactMethodsRepo(db),
     organizations: organizationsRepo(db),
     podTournaments: podTournamentsRepo(db),
@@ -198,7 +215,14 @@ export function createRepos(db: Kysely<Database>): Repos {
     keywords: keywordsRepo(db),
     languages: languagesRepo(db),
     ignoredCandidates: ignoredCandidatesRepo(db),
-    lists: listsRepo(db),
+    // ADR-034: dynamic list rules need the full catalog + the owner's copies to
+    // evaluate. Both providers are lazy — only paid when a list carries a rule.
+    // `assembleCatalog` is the shared TTL memo above; `ownedCopies` stays per
+    // call (owner-specific, not cacheable across users).
+    lists: listsRepo(db, {
+      assembleCatalog,
+      ownedCopies: (ownerId) => copiesRepo(db).ownedRowsForUser(ownerId),
+    }),
     marketplace: marketplaceRepo(db),
     marketplaceAdmin: marketplaceAdminRepo(db),
     printingImages: printingImagesRepo(db),

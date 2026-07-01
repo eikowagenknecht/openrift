@@ -5,7 +5,7 @@ import { implement } from "@orpc/server";
 import { gravatarHashForEmail } from "../../lib/gravatar.js";
 import { requireUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
-import { toListEntryDetail, toPublicList } from "../../utils/mappers.js";
+import { parseListRules, toListEntryDetail, toPublicList } from "../../utils/mappers.js";
 
 const os = implement(publicUserShareContract).$context<ApiContext>().use(requireUser);
 
@@ -49,6 +49,7 @@ export const publicUserShareRouter = {
           viaGroups,
           createdAt: list.createdAt.toISOString(),
           updatedAt: list.updatedAt.toISOString(),
+          hasRule: parseListRules(list.rules).length > 0,
         })),
         collections: collections.map((col) => ({
           id: col.collectionId,

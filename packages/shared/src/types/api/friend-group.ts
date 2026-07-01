@@ -122,6 +122,8 @@ export interface FriendGroupShareableListResponse {
   sharedAt: string | null;
   tradeDefaults: TradePreference;
   currency: Currency | null;
+  /** Whether the list carries a dynamic rule (ADR-034). */
+  hasRule: boolean;
 }
 
 export interface FriendGroupShareableListsResponse {
@@ -147,7 +149,8 @@ export interface FriendGroupMatchRow {
   /** Counterparty's source list (their sell list when they "have", their buy list when they "want"). */
   counterpartyListId: string;
   counterpartyListName: string;
-  sellEntryId: string;
+  /** Null when the sell copy comes from a dynamic rule (no `list_entries` row). ADR-034. */
+  sellEntryId: string | null;
   sellListId: string;
   copyId: string;
   printingId: string;
@@ -158,7 +161,8 @@ export interface FriendGroupMatchRow {
   rarity: Rarity;
   finish: Finish;
   imageId: string | null;
-  buyEntryId: string;
+  /** Null when the wish demand comes from a dynamic rule (no `list_entries` row). ADR-034. */
+  buyEntryId: string | null;
   buyListId: string;
   buyEntryKind: "card" | "printing";
   buyQuantity: number;

@@ -62,3 +62,99 @@ describe("MultiSelectCombobox orphan selections", () => {
     expect(within(list).getAllByRole("option")).toHaveLength(1);
   });
 });
+
+// The rule editor's dropdowns are a single cycling include/exclude axis behind a
+// placeholder, so the trigger must distinguish the two buckets rather than
+// collapse them into a single "N selected".
+const SET_OPTIONS = [
+  { value: "ogn", label: "Origins" },
+  { value: "unl", label: "Unlimited" },
+  { value: "btr", label: "Beyond the Rift" },
+] as const;
+
+function renderIncludeExclude(include: string[], exclude: string[]) {
+  const onCycle = vi.fn();
+  render(
+    <MultiSelectCombobox
+      triggerStyle="button"
+      label="Sets"
+      placeholder="Any"
+      options={SET_OPTIONS}
+      selected={include}
+      excluded={exclude}
+      onCycle={onCycle}
+    />,
+  );
+  return { onCycle };
+}
+
+describe("MultiSelectCombobox include/exclude summary", () => {
+  it("shows the placeholder when nothing is selected", () => {
+    renderIncludeExclude([], []);
+    expect(screen.getByRole("combobox")).toHaveTextContent("Any");
+  });
+
+  it("names a single included value with a + prefix", () => {
+    renderIncludeExclude(["ogn"], []);
+    expect(screen.getByRole("combobox")).toHaveTextContent("+Origins");
+  });
+
+  it("counts multiple included values", () => {
+    renderIncludeExclude(["ogn", "unl"], []);
+    expect(screen.getByRole("combobox")).toHaveTextContent("+2");
+  });
+
+  it("names a single excluded value with a − prefix", () => {
+    renderIncludeExclude([], ["unl"]);
+    expect(screen.getByRole("combobox")).toHaveTextContent("−Unlimited");
+  });
+
+  it("summarises both buckets together instead of a bare count", () => {
+    renderIncludeExclude(["ogn"], ["unl", "btr"]);
+    expect(screen.getByRole("combobox")).toHaveTextContent("+Origins, −2");
+  });
+});
+
+describe("MultiSelectCombobox cycling rows", () => {
+  it("routes a row click to onCycle with the option's value", async () => {
+    const user = userEvent.setup();
+    const { onCycle } = renderIncludeExclude([], []);
+
+    await user.click(screen.getByRole("combobox"));
+    await user.click(await screen.findByRole("option", { name: "Origins" }));
+
+    expect(onCycle).toHaveBeenCalledExactlyOnceWith("ogn");
+  });
+
+  it("cycles an already-included row on click (the parent flips it to exclude)", async () => {
+    const user = userEvent.setup();
+    const { onCycle } = renderIncludeExclude(["ogn"], []);
+
+    await user.click(screen.getByRole("combobox"));
+    await user.click(await screen.findByRole("option", { name: "Origins" }));
+
+    expect(onCycle).toHaveBeenCalledExactlyOnceWith("ogn");
+  });
+
+  it("keeps an excluded value with no backing option visible and cyclable", async () => {
+    const user = userEvent.setup();
+    const onCycle = vi.fn();
+    // Only UNL has a backing option; "ogn" is excluded but no longer available.
+    render(
+      <MultiSelectCombobox
+        triggerStyle="button"
+        label="Sets"
+        placeholder="Any"
+        options={[UNL_OPTION]}
+        selected={[]}
+        excluded={["ogn"]}
+        onCycle={onCycle}
+      />,
+    );
+
+    await user.click(screen.getByRole("combobox"));
+    await user.click(await screen.findByRole("option", { name: "ogn" }));
+
+    expect(onCycle).toHaveBeenCalledExactlyOnceWith("ogn");
+  });
+});

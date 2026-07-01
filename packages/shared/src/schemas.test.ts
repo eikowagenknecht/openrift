@@ -30,6 +30,8 @@ import {
   keyParamSchema,
   withParams,
 } from "./schemas";
+import { EMPTY_CARD_FILTERS } from "./types/index.js";
+import type { ListRule } from "./types/index.js";
 
 // ---------------------------------------------------------------------------
 // Collection tracking schemas
@@ -358,6 +360,66 @@ describe("createListSchema", () => {
         intent: "organize",
         kind: "card",
         currency: "EUR",
+      }).success,
+    ).toBe(false);
+  });
+
+  // Dynamic-rule refinements (ADR-034): each rule's discriminant must match the
+  // list intent, organize lists carry none, and trade lists are capped at one.
+  const wishRuleDraft: ListRule = {
+    kind: "wish",
+    filter: EMPTY_CARD_FILTERS,
+    quantity: { mode: "fixed", n: 1 },
+    excludeIds: [],
+  };
+  const tradeRuleDraft: ListRule = {
+    kind: "trade",
+    filter: EMPTY_CARD_FILTERS,
+    collectionIds: null,
+    keepPerCard: { mode: "fixed", n: 0 },
+    excludeCopyIds: [],
+  };
+
+  it("accepts a wish rule on a wish list", () => {
+    expect(
+      createListSchema.safeParse({
+        name: "Wants",
+        intent: "wish",
+        kind: "card",
+        rules: [wishRuleDraft],
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rejects a trade rule on a wish list (kind/intent mismatch)", () => {
+    expect(
+      createListSchema.safeParse({
+        name: "Bad",
+        intent: "wish",
+        kind: "card",
+        rules: [tradeRuleDraft],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects any rule on an organize list", () => {
+    expect(
+      createListSchema.safeParse({
+        name: "Bad",
+        intent: "organize",
+        kind: "card",
+        rules: [wishRuleDraft],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("caps trade lists at one rule", () => {
+    expect(
+      createListSchema.safeParse({
+        name: "Surplus",
+        intent: "trade",
+        kind: "copy",
+        rules: [tradeRuleDraft, tradeRuleDraft],
       }).success,
     ).toBe(false);
   });

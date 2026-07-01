@@ -1,3 +1,4 @@
+import { isStandardPrinting } from "./standard.js";
 import type {
   CardFilters,
   DistributionChannel,
@@ -169,6 +170,22 @@ function overlaps<T>(allowed: T[], values: T[]): boolean {
 }
 
 /**
+ * Negation for a scalar dimension: rejects when the value is explicitly excluded.
+ * @returns `true` when the value passes (not excluded).
+ */
+function notExcluded<T>(excluded: T[], value: T): boolean {
+  return excluded.length === 0 || !excluded.includes(value);
+}
+
+/**
+ * Negation for an array dimension: rejects when any of the row's values is excluded.
+ * @returns `true` when none of the row's values are excluded.
+ */
+function noneExcluded<T>(excluded: T[], values: readonly T[]): boolean {
+  return excluded.length === 0 || !values.some((v) => excluded.includes(v));
+}
+
+/**
  * Domain filter: 0 selected = all, 1 selected = any card with that domain,
  * 2+ selected = card's domains must all be within the selected set.
  * @returns Whether the card matches the domain filter.
@@ -310,6 +327,10 @@ export function filterCards(
 
   return printings.filter((printing) => {
     const { card } = printing;
+    const markerSlugs = printing.markers.map((m) => m.slug);
+    const channelSlugs = printing.distributionChannels.map((dc) => dc.channel.slug);
+    const customTagSlugs = options.customTagAssignments?.[printing.cardId] ?? [];
+    const artVariant = printing.artVariant || "normal";
     return (
       matchesSearch(printing, terms, hasPrefixes, filters.searchScope, options.keywordReverseMap) &&
       includes(filters.sets, printing.setSlug) &&
@@ -318,23 +339,25 @@ export function filterCards(
       includes(filters.types, card.type) &&
       overlaps(filters.superTypes, card.superTypes) &&
       includes(filters.rarities, printing.rarity) &&
-      includes(filters.artVariants, printing.artVariant || "normal") &&
+      includes(filters.artVariants, artVariant) &&
       includes(filters.finishes, printing.finish) &&
       includes(filters.cardSizes, printing.size) &&
+      notExcluded(filters.setsExclude, printing.setSlug) &&
+      notExcluded(filters.languagesExclude, printing.language) &&
+      notExcluded(filters.raritiesExclude, printing.rarity) &&
+      notExcluded(filters.typesExclude, card.type) &&
+      notExcluded(filters.artVariantsExclude, artVariant) &&
+      notExcluded(filters.finishesExclude, printing.finish) &&
+      noneExcluded(filters.superTypesExclude, card.superTypes) &&
+      noneExcluded(filters.domainsExclude, card.domains) &&
+      noneExcluded(filters.markerSlugsExclude, markerSlugs) &&
+      noneExcluded(filters.distributionChannelSlugsExclude, channelSlugs) &&
+      noneExcluded(filters.customTagSlugsExclude, customTagSlugs) &&
+      matchesFlag(filters.isStandard, isStandardPrinting(printing)) &&
       matchesFlag(filters.isSigned, printing.isSigned) &&
-      matchesMarkers(
-        filters.hasAnyMarker,
-        filters.markerSlugs,
-        printing.markers.map((m) => m.slug),
-      ) &&
-      matchesDistributionChannels(
-        filters.distributionChannelSlugs,
-        printing.distributionChannels.map((dc) => dc.channel.slug),
-      ) &&
-      matchesCustomTags(
-        filters.customTagSlugs,
-        options.customTagAssignments?.[printing.cardId] ?? [],
-      ) &&
+      matchesMarkers(filters.hasAnyMarker, filters.markerSlugs, markerSlugs) &&
+      matchesDistributionChannels(filters.distributionChannelSlugs, channelSlugs) &&
+      matchesCustomTags(filters.customTagSlugs, customTagSlugs) &&
       matchesRange(card.energy, filters.energy) &&
       matchesRange(card.might, filters.might) &&
       matchesRange(card.power, filters.power) &&
@@ -367,6 +390,7 @@ export interface AvailableFilters {
   cardSizes: string[];
   hasSigned: boolean;
   hasAnyMarker: boolean;
+  hasNonStandard: boolean;
   hasBanned: boolean;
   hasErrata: boolean;
   hasNullEnergy: boolean;
@@ -485,6 +509,7 @@ export function getAvailableFilters(
     cardSizes,
     hasSigned: printings.some((p) => p.isSigned),
     hasAnyMarker: printings.some((p) => p.markers.length > 0),
+    hasNonStandard: printings.some((p) => !isStandardPrinting(p)),
     hasBanned: printings.some((p) => p.card.bans.length > 0),
     hasErrata: printings.some((p) => p.card.errata !== null),
     hasNullEnergy: printings.some((p) => p.card.energy === null),
@@ -531,6 +556,7 @@ export interface FilterCounts {
     promo: number;
     banned: number;
     errata: number;
+    standard: number;
   };
   /**
    * Bounds for each range slider, faceted to the subset that matches every
@@ -558,30 +584,77 @@ interface ComputeFilterCountsOptions extends FilterCardsOptions {
 interface CountableDimension {
   key: Exclude<keyof FilterCounts, "flags" | "ranges">;
   filterField: keyof CardFilters;
+  /**
+   * The negation companion field, cleared alongside `filterField` when faceting.
+   * Omitted for dimensions that have no exclude variant (e.g. card size).
+   */
+  excludeField?: keyof CardFilters;
   values: (printing: Printing) => readonly string[];
 }
 
 const COUNTABLE_DIMENSIONS: readonly CountableDimension[] = [
-  { key: "sets", filterField: "sets", values: (p) => [p.setSlug] },
-  { key: "languages", filterField: "languages", values: (p) => [p.language] },
-  { key: "domains", filterField: "domains", values: (p) => p.card.domains },
-  { key: "types", filterField: "types", values: (p) => [p.card.type] },
-  { key: "superTypes", filterField: "superTypes", values: (p) => p.card.superTypes },
-  { key: "rarities", filterField: "rarities", values: (p) => [p.rarity] },
-  { key: "artVariants", filterField: "artVariants", values: (p) => [p.artVariant || "normal"] },
-  { key: "finishes", filterField: "finishes", values: (p) => [p.finish] },
+  { key: "sets", filterField: "sets", excludeField: "setsExclude", values: (p) => [p.setSlug] },
+  {
+    key: "languages",
+    filterField: "languages",
+    excludeField: "languagesExclude",
+    values: (p) => [p.language],
+  },
+  {
+    key: "domains",
+    filterField: "domains",
+    excludeField: "domainsExclude",
+    values: (p) => p.card.domains,
+  },
+  {
+    key: "types",
+    filterField: "types",
+    excludeField: "typesExclude",
+    values: (p) => [p.card.type],
+  },
+  {
+    key: "superTypes",
+    filterField: "superTypes",
+    excludeField: "superTypesExclude",
+    values: (p) => p.card.superTypes,
+  },
+  {
+    key: "rarities",
+    filterField: "rarities",
+    excludeField: "raritiesExclude",
+    values: (p) => [p.rarity],
+  },
+  {
+    key: "artVariants",
+    filterField: "artVariants",
+    excludeField: "artVariantsExclude",
+    values: (p) => [p.artVariant || "normal"],
+  },
+  {
+    key: "finishes",
+    filterField: "finishes",
+    excludeField: "finishesExclude",
+    values: (p) => [p.finish],
+  },
+  // Card size (main) has no negation companion; faceting just clears its include.
   { key: "cardSizes", filterField: "cardSizes", values: (p) => [p.size] },
-  { key: "markers", filterField: "markerSlugs", values: (p) => p.markers.map((m) => m.slug) },
+  {
+    key: "markers",
+    filterField: "markerSlugs",
+    excludeField: "markerSlugsExclude",
+    values: (p) => p.markers.map((m) => m.slug),
+  },
   {
     key: "channels",
     filterField: "distributionChannelSlugs",
+    excludeField: "distributionChannelSlugsExclude",
     values: (p) => p.distributionChannels.map((dc) => dc.channel.slug),
   },
 ];
 
 interface FlagDimension {
   key: keyof FilterCounts["flags"];
-  filterField: "isSigned" | "hasAnyMarker" | "isBanned" | "hasErrata";
+  filterField: "isSigned" | "hasAnyMarker" | "isBanned" | "hasErrata" | "isStandard";
 }
 
 const FLAG_DIMENSIONS: readonly FlagDimension[] = [
@@ -589,6 +662,7 @@ const FLAG_DIMENSIONS: readonly FlagDimension[] = [
   { key: "promo", filterField: "hasAnyMarker" },
   { key: "banned", filterField: "isBanned" },
   { key: "errata", filterField: "hasErrata" },
+  { key: "standard", filterField: "isStandard" },
 ];
 
 function countMatches(matched: Printing[], countBy: "printing" | "card"): number {
@@ -625,7 +699,7 @@ export function computeFilterCounts(
   options: ComputeFilterCountsOptions,
 ): FilterCounts {
   const result = {
-    flags: { signed: 0, promo: 0, banned: 0, errata: 0 },
+    flags: { signed: 0, promo: 0, banned: 0, errata: 0, standard: 0 },
     ranges: {
       energy: { min: 0, max: 0, hasNullStat: false },
       might: { min: 0, max: 0, hasNullStat: false },
@@ -634,7 +708,13 @@ export function computeFilterCounts(
     },
   } as FilterCounts;
   for (const dim of COUNTABLE_DIMENSIONS) {
-    const filtersWithoutDim = { ...filters, [dim.filterField]: [] };
+    // Ignore both the include and exclude selections for this dimension so the
+    // facet counts widen as the user toggles options (same rule as include-only).
+    const filtersWithoutDim = {
+      ...filters,
+      [dim.filterField]: [],
+      ...(dim.excludeField ? { [dim.excludeField]: [] } : {}),
+    };
     const matched = filterCards(printings, filtersWithoutDim, options);
     const counts = new Map<string, number>();
     if (options.countBy === "card") {

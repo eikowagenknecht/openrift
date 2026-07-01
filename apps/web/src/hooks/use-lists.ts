@@ -8,6 +8,7 @@ import type {
   ListListResponse,
   ListMoveResponse,
   ListResponse,
+  ListRule,
   ListShareResponse,
   PublicListDetailResponse,
   TradePreference,
@@ -118,6 +119,8 @@ interface UpdateListInput {
   name?: string;
   tradeDefaults?: TradePreference;
   currency?: Currency | null;
+  /** ADR-034: set/replace the dynamic rules. An empty array clears them. */
+  rules?: ListRule[];
 }
 
 const updateListFn = createServerFn({ method: "POST" })

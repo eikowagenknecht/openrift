@@ -1,14 +1,5 @@
-import type {
-  ArtVariant,
-  CardFilters,
-  CardType,
-  Domain,
-  Finish,
-  Rarity,
-  SearchField,
-  SuperType,
-} from "@openrift/shared";
-import { EMPTY_PRICE_LOOKUP } from "@openrift/shared";
+import type { CardFilters } from "@openrift/shared";
+import { EMPTY_CARD_FILTERS, EMPTY_PRICE_LOOKUP } from "@openrift/shared";
 import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -39,30 +30,7 @@ beforeEach(() => {
 const SETS: SetInfo[] = [{ id: "set-1", slug: "rb1", name: "RB1", setType: "main" }];
 
 function emptyFilters(): CardFilters {
-  return {
-    search: "",
-    searchScope: [] as SearchField[],
-    sets: [] as string[],
-    languages: [] as string[],
-    domains: [] as Domain[],
-    types: [] as CardType[],
-    superTypes: [] as SuperType[],
-    rarities: [] as Rarity[],
-    artVariants: [] as ArtVariant[],
-    finishes: [] as Finish[],
-    cardSizes: [],
-    isSigned: null,
-    hasAnyMarker: null,
-    markerSlugs: [] as string[],
-    distributionChannelSlugs: [] as string[],
-    customTagSlugs: [] as string[],
-    isBanned: null,
-    hasErrata: null,
-    energy: { min: null, max: null },
-    might: { min: null, max: null },
-    power: { min: null, max: null },
-    price: { min: null, max: null },
-  };
+  return { ...EMPTY_CARD_FILTERS };
 }
 
 function baseParams() {

@@ -143,12 +143,19 @@ export type {
   SetDetailResponse,
   SetListEntry,
   SetListResponse,
+  EntrySource,
   ListBulkAddResponse,
+  ListDetailListResponse,
   ListDetailResponse,
   ListEntryDetailResponse,
   ListEntryResponse,
   ListIntent,
   ListKind,
+  ListRule,
+  ListRules,
+  RuleQuantity,
+  TradeRule,
+  WishRule,
   ListListResponse,
   ListMoveResponse,
   ListResponse,
@@ -323,6 +330,16 @@ export {
   resolveEffectiveTradePreference,
 } from "./types/index.js";
 
+export { cardFiltersSchema, EMPTY_CARD_FILTERS } from "./types/index.js";
+export {
+  listRuleSchema,
+  listRulesSchema,
+  MAX_LIST_RULES,
+  ruleQuantitySchema,
+  tradeRuleSchema,
+  wishRuleSchema,
+} from "./types/index.js";
+
 export type { AvailableFilters, FilterCounts } from "./filters.js";
 export {
   computeFilterCounts,
@@ -332,6 +349,17 @@ export {
   sortCards,
 } from "./filters.js";
 export type { SortCardsOptions } from "./filters.js";
+
+export { isStandardPrinting } from "./standard.js";
+
+export type {
+  ExpandedEntry,
+  ManualEntryRow,
+  OwnedCopyRow,
+  RuleEvalContext,
+  VirtualEntry,
+} from "./list-rule-eval.js";
+export { evaluateListRule, evaluateListRules, expandList } from "./list-rule-eval.js";
 
 export { CONTACT_METHOD_LABELS, formatContactMethodsSummary } from "./contact-methods.js";
 
@@ -371,7 +399,7 @@ export { RIOT_ID_FORMAT_MESSAGE, validateRiotId } from "./riot-id.js";
 export type { SourceSlot } from "./zone-inference.js";
 export { inferZone } from "./zone-inference.js";
 
-export { isAlwaysFoilRarity, marketplaceFinish, WellKnown } from "./well-known.js";
+export { isAlwaysFoilRarity, LOW_RARITIES, marketplaceFinish, WellKnown } from "./well-known.js";
 
 export type { PackPool, PackPrinting, PackPull, PackResult } from "./pack-opener/index.js";
 export type { Random as PackRandom } from "./pack-opener/index.js";

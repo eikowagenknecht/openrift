@@ -519,6 +519,7 @@ export function friendGroupsRepo(db: Kysely<Database>) {
         defaultPriceAbsoluteCents: number | null;
         defaultTradeType: string | null;
         currency: string | null;
+        hasRule: boolean;
       }[]
     > {
       return db
@@ -539,6 +540,8 @@ export function friendGroupsRepo(db: Kysely<Database>) {
           "l.defaultPriceAbsoluteCents",
           "l.defaultTradeType",
           "l.currency",
+          // ADR-034: summaries report the rule flag, never the expanded count.
+          sql<boolean>`(jsonb_array_length(l.rules) > 0)`.as("hasRule"),
         ])
         .where("l.userId", "=", userId)
         .orderBy("l.intent", "asc")

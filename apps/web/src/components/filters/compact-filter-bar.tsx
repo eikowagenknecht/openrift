@@ -49,16 +49,18 @@ interface CompactFilterBarProps {
 export function FilterIconCluster({
   label,
   options,
-  selected,
-  onChange,
+  included,
+  excluded,
+  onCycle,
   iconPath,
   displayLabel,
   counts,
 }: {
   label: string;
   options: string[];
-  selected: string[];
-  onChange: (next: string[]) => void;
+  included: string[];
+  excluded: string[];
+  onCycle: (value: string) => void;
   iconPath: (value: string) => string | undefined;
   displayLabel: (value: string) => string;
   counts?: Map<string, number>;
@@ -66,6 +68,20 @@ export function FilterIconCluster({
   if (options.length === 0) {
     return null;
   }
+  // The ToggleGroup tracks only the include set, so its `value` is `included`.
+  // A click is translated into the tri-state cycle (off → include → exclude →
+  // off): excluded options aren't "pressed" — they carry a destructive tint
+  // instead — so we can't read the change from `value` membership. We diff the
+  // proposed `value` against `included` to find the single clicked option and
+  // hand it to `onCycle`, which decides include / exclude / clear.
+  const onValueChange = (next: string[]) => {
+    const added = next.find((value) => !included.includes(value));
+    const removed = included.find((value) => !next.includes(value));
+    const clicked = added ?? removed;
+    if (clicked !== undefined) {
+      onCycle(clicked);
+    }
+  };
   // No text label — the icons carry the meaning; the group still names itself
   // for assistive tech via aria-label, and each option via its tooltip.
   return (
@@ -73,17 +89,17 @@ export function FilterIconCluster({
       multiple
       variant="outline"
       size="sm"
-      value={selected}
-      onValueChange={(next) => onChange(next as string[])}
+      value={included}
+      onValueChange={(next) => onValueChange(next as string[])}
       aria-label={`${label} filter`}
     >
       {options.map((option) => {
         const count = counts?.get(option);
         const icon = iconPath(option);
-        const isSelected = selected.includes(option);
+        const isIncluded = included.includes(option);
+        const isExcluded = excluded.includes(option);
         const isZero = counts !== undefined && (count ?? 0) === 0;
-        const optionLabel =
-          count === undefined ? displayLabel(option) : `${displayLabel(option)} (${count})`;
+        const optionLabel = `${isExcluded ? "Exclude " : ""}${displayLabel(option)}${count === undefined ? "" : ` (${count})`}`;
         return (
           <Tooltip key={option}>
             <TooltipTrigger
@@ -91,7 +107,13 @@ export function FilterIconCluster({
                 <ToggleGroupItem
                   value={option}
                   aria-label={optionLabel}
-                  className={cn(isZero && !isSelected && "opacity-40")}
+                  className={cn(
+                    // Excluded: not pressed, so tint it destructive and strike
+                    // the text fallback (icons can't strike, the tint carries it).
+                    isExcluded &&
+                      "text-destructive ring-destructive/60 bg-destructive/10 line-through ring-1 ring-inset",
+                    isZero && !isIncluded && !isExcluded && "opacity-40",
+                  )}
                 />
               }
             >
@@ -187,7 +209,7 @@ export function CompactFilterBar({
 }: CompactFilterBarProps) {
   const { labels } = useEnumOrders();
   const { filterState, hasActiveFilters } = useFilterValues();
-  const { setArrayFilter, toggleSigned, clearAllFilters } = useFilterActions();
+  const { setArrayFilter, cycleArrayFilter, toggleSigned, clearAllFilters } = useFilterActions();
   const languageLabels = useLanguageLabels();
 
   // Art Variant, Finish, and Signed are all printing-variant axes, so they share
@@ -273,12 +295,40 @@ export function CompactFilterBar({
     Number(!signedInVariantMenu && filterState.signed !== null) +
     Number(filterState.banned !== null) +
     Number(filterState.errata !== null) +
+    // Standard flag + the More-menu dimensions' exclude companions (ADR-034), so
+    // the chip's count and active fill stay honest when only those are set.
+    Number(filterState.standard !== null) +
     filterState.markers.length +
+    filterState.markersEx.length +
     filterState.channels.length +
+    filterState.channelsEx.length +
     filterState.customTags.length +
+    filterState.customTagsEx.length +
     filterState.owned.length +
     Number(filterState.priceMin !== null || filterState.priceMax !== null) +
     Number(filterState.ownedCountMin !== null || filterState.ownedCountMax !== null);
+
+  // Option lists for each cycling dropdown; a single row per value carries both
+  // the include and exclude state (ADR-034).
+  const languageOptions = (availableLanguages ?? []).map((value) => ({
+    value,
+    label: languageLabels[value] ?? value,
+  }));
+  const setOptions = availableFilters.sets.map((value) => {
+    // `value` is the set code (e.g. "OGN"). Show it in a fixed-width gutter (via
+    // `prefix`) ahead of the name so codes/names line up down the list; the
+    // combobox folds it back into the trigger and search text as "OGN — Origins".
+    const name = setDisplayLabel?.(value) ?? value;
+    return name === value ? { value, label: value } : { value, label: name, prefix: value };
+  });
+  const typeOptions = availableFilters.types.map((value) => ({
+    value,
+    label: labels.cardTypes[value] ?? value,
+  }));
+  const superTypeOptions = availableFilters.superTypes.map((value) => ({
+    value,
+    label: labels.superTypes[value] ?? value,
+  }));
 
   return (
     <TooltipProvider>
@@ -293,12 +343,10 @@ export function CompactFilterBar({
               label="Language"
               searchPlaceholder="Search languages…"
               emptyText="No languages match."
-              options={availableLanguages.map((value) => ({
-                value,
-                label: languageLabels[value] ?? value,
-              }))}
+              options={languageOptions}
               selected={filterState.languages}
-              onChange={(next) => setArrayFilter("languages", next)}
+              excluded={filterState.languagesEx}
+              onCycle={(value) => cycleArrayFilter("languages", "languagesEx", value)}
               counts={filterCounts?.languages}
             />
           )}
@@ -308,18 +356,10 @@ export function CompactFilterBar({
             label="Sets"
             searchPlaceholder="Search sets…"
             emptyText="No sets match."
-            options={availableFilters.sets.map((value) => {
-              // `value` is the set code (e.g. "OGN"). Show it in a fixed-width
-              // gutter (via `prefix`) ahead of the name so codes/names line up
-              // down the list; the combobox folds it back into the trigger and
-              // search text as "OGN — Origins".
-              const name = setDisplayLabel?.(value) ?? value;
-              return name === value
-                ? { value, label: value }
-                : { value, label: name, prefix: value };
-            })}
+            options={setOptions}
             selected={filterState.sets}
-            onChange={(next) => setArrayFilter("sets", next)}
+            excluded={filterState.setsEx}
+            onCycle={(value) => cycleArrayFilter("sets", "setsEx", value)}
             counts={filterCounts?.sets}
             mutedOptions={availableFilters.supplementalSets}
           />
@@ -328,8 +368,9 @@ export function CompactFilterBar({
           <FilterIconCluster
             label="Domain"
             options={availableFilters.domains}
-            selected={filterState.domains}
-            onChange={(next) => setArrayFilter("domains", next)}
+            included={filterState.domains}
+            excluded={filterState.domainsEx}
+            onCycle={(value) => cycleArrayFilter("domains", "domainsEx", value)}
             iconPath={(value) => getFilterIconPath("domains", value)}
             displayLabel={(value) => formatDomainFilterLabel(value, labels.domains)}
             counts={filterCounts?.domains}
@@ -338,8 +379,9 @@ export function CompactFilterBar({
         <FilterIconCluster
           label="Rarity"
           options={availableFilters.rarities}
-          selected={filterState.rarities}
-          onChange={(next) => setArrayFilter("rarities", next)}
+          included={filterState.rarities}
+          excluded={filterState.raritiesEx}
+          onCycle={(value) => cycleArrayFilter("rarities", "raritiesEx", value)}
           iconPath={(value) => getFilterIconPath("rarities", value)}
           displayLabel={(value) => labels.rarities[value] ?? value}
           counts={filterCounts?.rarities}
@@ -350,12 +392,10 @@ export function CompactFilterBar({
             label="Type"
             searchPlaceholder="Search types…"
             emptyText="No types match."
-            options={availableFilters.types.map((value) => ({
-              value,
-              label: labels.cardTypes[value] ?? value,
-            }))}
+            options={typeOptions}
             selected={filterState.types}
-            onChange={(next) => setArrayFilter("types", next)}
+            excluded={filterState.typesEx}
+            onCycle={(value) => cycleArrayFilter("types", "typesEx", value)}
             icon={(value) => getFilterIconPath("types", value)}
             iconAfterLabel
             counts={filterCounts?.types}
@@ -367,12 +407,10 @@ export function CompactFilterBar({
             label="Supertype"
             searchPlaceholder="Search supertypes…"
             emptyText="No supertypes match."
-            options={availableFilters.superTypes.map((value) => ({
-              value,
-              label: labels.superTypes[value] ?? value,
-            }))}
+            options={superTypeOptions}
             selected={filterState.superTypes}
-            onChange={(next) => setArrayFilter("superTypes", next)}
+            excluded={filterState.superTypesEx}
+            onCycle={(value) => cycleArrayFilter("superTypes", "superTypesEx", value)}
             icon={(value) => getFilterIconPath("superTypes", value)}
             iconAfterLabel
             counts={filterCounts?.superTypes}
@@ -380,10 +418,10 @@ export function CompactFilterBar({
         )}
         {showVariantMenu &&
           (() => {
-            // Art Variant is the primary section (and hosts the Signed flag);
-            // Finish follows as a labeled group. When only one of the two
-            // applies, the menu collapses to that single axis under its own
-            // label with no headers.
+            // Art Variant is the primary axis (and hosts the Signed flag); Finish
+            // follows as a labeled axis. Each axis's rows cycle off → include →
+            // exclude → off (ADR-034). When only one of the two applies, the menu
+            // collapses to that single axis.
             const artVariantOptions = availableFilters.artVariants.map((value) => ({
               value,
               label: labels.artVariants[value] ?? value,
@@ -393,13 +431,26 @@ export function CompactFilterBar({
               label: labels.finishes[value] ?? value,
             }));
             const both = showArtVariantSection && showFinishSection;
-            const finishGroup = {
-              label: "Finish",
-              options: finishOptions,
-              selected: filterState.finishes,
-              onChange: (next: string[]) => setArrayFilter("finishes", next),
-              counts: filterCounts?.finishes,
-            };
+            const primaryIsArt = showArtVariantSection;
+            const primaryOptions = primaryIsArt ? artVariantOptions : finishOptions;
+            const primaryIncludeKey = primaryIsArt ? "artVariants" : "finishes";
+            const primaryExcludeKey = primaryIsArt ? "artVariantsEx" : "finishesEx";
+            const primaryIncluded = primaryIsArt ? filterState.artVariants : filterState.finishes;
+            const primaryExcluded = primaryIsArt
+              ? filterState.artVariantsEx
+              : filterState.finishesEx;
+            const groups = both
+              ? [
+                  {
+                    label: "Finish",
+                    options: finishOptions,
+                    included: filterState.finishes,
+                    excluded: filterState.finishesEx,
+                    onCycle: (value: string) => cycleArrayFilter("finishes", "finishesEx", value),
+                    counts: filterCounts?.finishes,
+                  },
+                ]
+              : [];
             return (
               <MultiSelectCombobox
                 triggerStyle="button"
@@ -407,13 +458,12 @@ export function CompactFilterBar({
                 searchPlaceholder={both ? "Search variants…" : "Search…"}
                 emptyText={both ? "No variants match." : "No matches."}
                 primaryLabel={both ? "Art Variant" : undefined}
-                options={showArtVariantSection ? artVariantOptions : finishOptions}
-                selected={showArtVariantSection ? filterState.artVariants : filterState.finishes}
-                onChange={(next) =>
-                  setArrayFilter(showArtVariantSection ? "artVariants" : "finishes", next)
-                }
-                counts={showArtVariantSection ? filterCounts?.artVariants : filterCounts?.finishes}
-                groups={both ? [finishGroup] : undefined}
+                options={primaryOptions}
+                selected={primaryIncluded}
+                excluded={primaryExcluded}
+                onCycle={(value) => cycleArrayFilter(primaryIncludeKey, primaryExcludeKey, value)}
+                counts={primaryIsArt ? filterCounts?.artVariants : filterCounts?.finishes}
+                groups={groups}
                 flag={
                   signedInVariantMenu
                     ? {

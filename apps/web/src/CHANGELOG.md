@@ -5,6 +5,8 @@
 ### Highlights
 
 - feat(Groups): **In-progress trades on the overview** — the group page now lists the trades you're waiting to finish, so a request you sent or a deal awaiting hand-off no longer disappears until it's complete.
+- feat(Collection): **Drop a card from a list rule** — a card a dynamic rule added can now be excluded so it stays off the list, and you can put it back from the rule editor.
+- feat(Cards): **Exclude values from filters** — click any filter value a second time to exclude it (sets, types, rarities, domains, and the rest, in the dropdowns too), hiding it from the catalog, with each exclusion shown as a chip you can clear.
 
 ### Other
 
@@ -12,12 +14,14 @@
 - feat(Tournaments): **Change a tournament's group** — link, switch, or unlink an event's group right in settings, instead of being locked to the choice made at creation.
 - feat(App): **Link previews on WordPress** — deck, collection, list, and profile share links now unfurl to their preview image when posted on a WordPress site (via oEmbed).
 - fix(Tournaments): **Group open-tournaments count** — the group page counted a finished tournament left unmarked as still open, and now matches the events list by counting only upcoming and in-progress ones.
+- fix(Cards): **Standard filter shows as active** — setting only the Standard toggle trimmed the grid without lighting the filter indicator or offering a clear-all, and it now appears as a removable chip like every other filter.
 - fix(App): **Stale tab recovers after an update** — a tab left open across a new release could silently stop refreshing (e.g. a deck-check page mid-event), and now reloads itself to pick up the new version.
 
 ## 2026-06-29
 
 ### Highlights
 
+- feat(Collection): **Dynamic lists** — wish and trade lists can now fill themselves from saved rules (a playset of every card, every surplus common you own beyond two playsets, and so on), staying up to date automatically instead of being added by hand. A wish list can stack several rules and combines their matches.
 - fix(Collection): **Shared list links open again** — opening someone's shared wishlist or tradelist returned an authorization error for signed-out visitors, and the public share page now loads for everyone.
 
 ### Other
@@ -33,6 +37,7 @@
 - feat(Tournaments): **Organization staff shown on events** — an org-hosted event's staff page now lists the organization's owners and managers as organizers, so it's clear who can manage it even without an explicit staff grant.
 - feat(Tournaments): **Claim a spot with a link** — every player you add gets a claim link (copy it from the participant menu) that ties their spot, and any deck, to their OpenRift account, now working for events without deck check too.
 - feat(Tournaments): **Mark checked fills the ticks** — marking a deck checked now ticks every card as found, and re-opening it clears them again so a re-check starts clean (flagging an issue leaves your ticks as they were).
+- feat(Cards): **Standard-only filter** — the More filters now have a Standard toggle that narrows the catalog to plain printings, hiding foils, signed, promo, and premium-finish versions.
 - fix(Tournaments): **Deck link works without self-registration** — with sign-ups closed, the shared deck link now accepts decks from anyone who claimed their spot and points everyone else to their claim link, instead of going dead.
 - fix(Tournaments): **Run org-hosted events** — pairings, standings, and round running now open for an organization's owners, managers, and staff, and participants can follow along, instead of failing to load for everyone including the host.
 - fix(Tournaments): **Clearer deck-check progress** — the overview tile and deck-check list now show the same numbers, how many decks are approved and how many are checked.

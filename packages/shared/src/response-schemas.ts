@@ -298,6 +298,13 @@ export const listEntryBaseShape = {
 
 const listEntryDetailBaseShape = {
   ...listEntryBaseShape,
+  // Rule-only entries (ADR-034) have no `list_entries` row, so id is null and
+  // they aren't individually editable — only excludable.
+  id: z.string().nullable(),
+  source: z.enum(["manual", "rule", "both"]),
+  // Rule's contribution to `quantity` (ADR-034 additive model); manual part is
+  // `quantity - ruleQuantity`.
+  ruleQuantity: z.number(),
   cardName: z.string(),
   cardType: cardTypeSchema,
 };

@@ -55,7 +55,12 @@ export type MatchDirection = "incoming" | "outgoing";
 /** The match-row fields a suggestion is keyed on. */
 export type MatchSuggestionFields = Pick<
   FriendGroupMatchRow,
-  "buyEntryKind" | "buyEntryId" | "counterpartyUserId" | "counterpartyListId" | "printingId"
+  | "buyEntryKind"
+  | "buyEntryId"
+  | "cardId"
+  | "counterpartyUserId"
+  | "counterpartyListId"
+  | "printingId"
 >;
 
 /**
@@ -68,9 +73,13 @@ export type MatchSuggestionFields = Pick<
  * @returns The grouping key.
  */
 export function matchSuggestionKey(direction: MatchDirection, row: MatchSuggestionFields): string {
+  // Rule-derived wishes have a null buyEntryId (no list_entries row, ADR-034);
+  // fall back to the wish's own identity (cardId for card wishes) so distinct
+  // rule wishes don't collapse onto one tile.
+  const wishKey = row.buyEntryId ?? row.cardId;
   return row.buyEntryKind === "card"
-    ? `card\0${direction}\0${row.counterpartyUserId}\0${row.buyEntryId}`
-    : `printing\0${direction}\0${row.counterpartyUserId}\0${row.buyEntryId}\0${row.counterpartyListId}\0${row.printingId}`;
+    ? `card\0${direction}\0${row.counterpartyUserId}\0${wishKey}`
+    : `printing\0${direction}\0${row.counterpartyUserId}\0${wishKey}\0${row.counterpartyListId}\0${row.printingId}`;
 }
 
 /**

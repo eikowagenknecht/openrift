@@ -162,54 +162,73 @@ function DimensionSubmenu({
 }
 
 /**
- * One multi-select dimension inside the More menu, picking the control by size:
- * a long list opens a searchable {@link MultiSelectCombobox} (rendered as a menu
- * row, with proper keyboard search), a short list stays a plain checkbox
- * submenu. `onToggle` flips a single value (submenu rows); `onChange` replaces
- * the whole selection (combobox). Faceted counts on the options flow to both.
+ * One multi-select dimension inside the More menu. An exclude-capable dimension
+ * (it passes `excluded` + `onCycle`) always renders as a searchable
+ * {@link MultiSelectCombobox} whose rows cycle off → include → exclude → off
+ * (ADR-034), since a checkbox submenu can't host the tri-state. An include-only
+ * dimension (Owned) keeps the size-based split: a long list opens the searchable
+ * combobox, a short one stays a plain checkbox submenu. Faceted counts flow to
+ * every path.
  * @returns The dimension's submenu or combobox row, or null when it has no options.
  */
 function MoreDimension({
   label,
   options,
-  selected,
-  onToggle,
-  onChange,
+  included,
+  onIncludeChange,
+  onIncludeToggle,
+  excluded,
+  onCycle,
   searchPlaceholder,
   emptyText,
 }: {
   label: string;
   options: readonly DimensionOption[];
-  selected: string[];
-  onToggle: (value: string) => void;
-  onChange: (next: string[]) => void;
+  included: string[];
+  /** Plain multi-select handler for the include-only path (Owned). */
+  onIncludeChange?: (next: string[]) => void;
+  /** Single-value include toggle for the checkbox submenu (include-only path). */
+  onIncludeToggle?: (value: string) => void;
+  excluded?: string[];
+  /** Tri-state cycle for the exclude-capable path. */
+  onCycle?: (value: string) => void;
   searchPlaceholder: string;
   emptyText: string;
 }) {
   if (options.length === 0) {
     return null;
   }
-  if (options.length > SEARCH_THRESHOLD) {
-    const counts = new Map(
-      options.flatMap((option) =>
-        option.count === undefined ? [] : [[option.value, option.count]],
-      ),
-    );
+  const counts = new Map(
+    options.flatMap((option) => (option.count === undefined ? [] : [[option.value, option.count]])),
+  );
+  const facetedCounts = counts.size > 0 ? counts : undefined;
+  const excludeCapable = excluded !== undefined && onCycle !== undefined;
+  // The checkbox submenu is the include-only short-list path; everything else
+  // (exclude-capable, a long list, or a caller that gave no submenu toggle)
+  // renders the searchable combobox.
+  if (excludeCapable || options.length > SEARCH_THRESHOLD || onIncludeToggle === undefined) {
     return (
       <MultiSelectCombobox
         triggerStyle="menu"
         label={label}
         options={options}
-        selected={selected}
-        onChange={onChange}
+        selected={included}
+        onChange={excludeCapable ? undefined : onIncludeChange}
+        excluded={excludeCapable ? excluded : undefined}
+        onCycle={excludeCapable ? onCycle : undefined}
         searchPlaceholder={searchPlaceholder}
         emptyText={emptyText}
-        counts={counts.size > 0 ? counts : undefined}
+        counts={facetedCounts}
       />
     );
   }
   return (
-    <DimensionSubmenu label={label} options={options} selected={selected} onToggle={onToggle} />
+    <DimensionSubmenu
+      label={label}
+      options={options}
+      selected={included}
+      onToggle={onIncludeToggle}
+    />
   );
 }
 
@@ -280,11 +299,13 @@ export function FilterMoreMenu({
   const { filterState } = useFilterValues();
   const {
     setArrayFilter,
+    cycleArrayFilter,
     toggleArrayFilter,
     toggleSigned,
     togglePromo,
     toggleBanned,
     toggleErrata,
+    toggleStandard,
   } = useFilterActions();
   const channelBreadcrumbs = buildChannelBreadcrumbs(availableFilters.distributionChannels);
   const { byCategory: customTagsByCategory } = useCustomTagList();
@@ -315,6 +336,7 @@ export function FilterMoreMenu({
   const showSigned = !hideSigned && availableFilters.hasSigned && !hiddenSections?.has("signed");
   const showBanned = availableFilters.hasBanned && !hiddenSections?.has("banned");
   const showErrata = availableFilters.hasErrata && !hiddenSections?.has("errata");
+  const showStandard = availableFilters.hasNonStandard && !hiddenSections?.has("standard");
   const showMarkers = !hiddenSections?.has("markers") && availableFilters.markers.length > 0;
   const showChannels =
     !hiddenSections?.has("channels") && availableFilters.distributionChannels.length > 0;
@@ -324,7 +346,7 @@ export function FilterMoreMenu({
   const promoNode = showPromo ? (
     <FlagMenuItem
       key="promo"
-      label={filterState.promo === false ? "Not Promo" : "Promo"}
+      label="Promo"
       state={filterState.promo}
       count={filterCounts?.flags.promo}
       onToggle={togglePromo}
@@ -333,7 +355,7 @@ export function FilterMoreMenu({
   const signedNode = showSigned ? (
     <FlagMenuItem
       key="signed"
-      label={filterState.signed === false ? "Not Signed" : "Signed"}
+      label="Signed"
       state={filterState.signed}
       count={filterCounts?.flags.signed}
       onToggle={toggleSigned}
@@ -342,7 +364,7 @@ export function FilterMoreMenu({
   const bannedNode = showBanned ? (
     <FlagMenuItem
       key="banned"
-      label={filterState.banned === false ? "Not Banned" : "Banned"}
+      label="Banned"
       state={filterState.banned}
       count={filterCounts?.flags.banned}
       onToggle={toggleBanned}
@@ -351,10 +373,19 @@ export function FilterMoreMenu({
   const errataNode = showErrata ? (
     <FlagMenuItem
       key="errata"
-      label={filterState.errata === false ? "No Errata" : "Errata"}
+      label="Errata"
       state={filterState.errata}
       count={filterCounts?.flags.errata}
       onToggle={toggleErrata}
+    />
+  ) : null;
+  const standardNode = showStandard ? (
+    <FlagMenuItem
+      key="standard"
+      label="Standard"
+      state={filterState.standard}
+      count={filterCounts?.flags.standard}
+      onToggle={toggleStandard}
     />
   ) : null;
 
@@ -367,9 +398,9 @@ export function FilterMoreMenu({
         label: marker.label,
         count: filterCounts?.markers.get(marker.slug),
       }))}
-      selected={filterState.markers}
-      onToggle={(value) => toggleArrayFilter("markers", value)}
-      onChange={(next) => setArrayFilter("markers", next)}
+      included={filterState.markers}
+      excluded={filterState.markersEx}
+      onCycle={(value) => cycleArrayFilter("markers", "markersEx", value)}
       searchPlaceholder="Search markers…"
       emptyText="No markers match."
     />
@@ -383,9 +414,9 @@ export function FilterMoreMenu({
         label: channelBreadcrumbs.get(channel.id) ?? channel.label,
         count: filterCounts?.channels.get(channel.slug),
       }))}
-      selected={filterState.channels}
-      onToggle={(value) => toggleArrayFilter("channels", value)}
-      onChange={(next) => setArrayFilter("channels", next)}
+      included={filterState.channels}
+      excluded={filterState.channelsEx}
+      onCycle={(value) => cycleArrayFilter("channels", "channelsEx", value)}
       searchPlaceholder="Search distribution channels…"
       emptyText="No distribution channels match."
     />
@@ -395,22 +426,22 @@ export function FilterMoreMenu({
         // `byCategory` groups from non-empty arrays, so the first tag always
         // exists and carries the joined category label from /init.
         const categoryLabel = tagsInCategory[0]?.categoryLabel ?? category;
-        // All categories write to the one `customTags` key; the combobox path
-        // replaces the whole selection, so merge this category's next values
-        // with the slugs selected in the other categories.
+        // All categories write to the one `customTags` / `customTagsEx` key; the
+        // cycle operates on the full arrays by value, so other categories' slugs
+        // are untouched. Slice this category's slugs for the dropdown's display.
         const categorySlugs = new Set(tagsInCategory.map((tag) => tag.slug));
         const selectedInCategory = filterState.customTags.filter((slug) => categorySlugs.has(slug));
-        const selectedOutsideCategory = filterState.customTags.filter(
-          (slug) => !categorySlugs.has(slug),
+        const excludedInCategory = filterState.customTagsEx.filter((slug) =>
+          categorySlugs.has(slug),
         );
         return (
           <MoreDimension
             key={category}
             label={categoryLabel}
             options={tagsInCategory.map((tag) => ({ value: tag.slug, label: tag.label }))}
-            selected={selectedInCategory}
-            onToggle={(value) => toggleArrayFilter("customTags", value)}
-            onChange={(next) => setArrayFilter("customTags", [...selectedOutsideCategory, ...next])}
+            included={selectedInCategory}
+            excluded={excludedInCategory}
+            onCycle={(value) => cycleArrayFilter("customTags", "customTagsEx", value)}
             searchPlaceholder={`Search ${categoryLabel.toLowerCase()}…`}
             emptyText={`No ${categoryLabel.toLowerCase()} match.`}
           />
@@ -422,9 +453,9 @@ export function FilterMoreMenu({
       key="owned"
       label="Owned"
       options={OWNED_BUCKETS.map((bucket) => ({ value: bucket.value, label: bucket.label }))}
-      selected={filterState.owned}
-      onToggle={(value) => toggleArrayFilter("owned", value)}
-      onChange={(next) => setArrayFilter("owned", next)}
+      included={filterState.owned}
+      onIncludeChange={(next) => setArrayFilter("owned", next)}
+      onIncludeToggle={(value) => toggleArrayFilter("owned", value)}
       searchPlaceholder="Search owned…"
       emptyText="No options match."
     />
@@ -457,7 +488,7 @@ export function FilterMoreMenu({
   const blocks = [
     {
       id: "distribution",
-      items: [promoNode, signedNode, markersNode, channelsNode, ...customTagNodes],
+      items: [promoNode, signedNode, standardNode, markersNode, channelsNode, ...customTagNodes],
     },
     { id: "collection", items: [ownedNode, copiesNode] },
     { id: "legality", items: [bannedNode, errataNode] },
@@ -487,26 +518,40 @@ export function FilterMoreMenu({
     );
     const ownedLabels = new Map(OWNED_BUCKETS.map((bucket) => [bucket.value, bucket.label]));
     const entries: string[] = [];
+    // Trait name for include, minus-prefixed for exclude ("−Promo"), matching the
+    // include/exclude language the badges and chips use.
     if (filterState.promo !== null) {
-      entries.push(filterState.promo === false ? "Not Promo" : "Promo");
+      entries.push(filterState.promo === false ? "−Promo" : "Promo");
     }
     if (!hideSigned && filterState.signed !== null) {
-      entries.push(filterState.signed === false ? "Not Signed" : "Signed");
+      entries.push(filterState.signed === false ? "−Signed" : "Signed");
     }
     if (filterState.banned !== null) {
-      entries.push(filterState.banned === false ? "Not Banned" : "Banned");
+      entries.push(filterState.banned === false ? "−Banned" : "Banned");
     }
     if (filterState.errata !== null) {
-      entries.push(filterState.errata === false ? "No Errata" : "Errata");
+      entries.push(filterState.errata === false ? "−Errata" : "Errata");
+    }
+    if (filterState.standard === true || filterState.standard === false) {
+      entries.push(filterState.standard === false ? "−Standard" : "Standard");
     }
     for (const slug of filterState.markers) {
       entries.push(markerLabels.get(slug) ?? slug);
     }
+    for (const slug of filterState.markersEx) {
+      entries.push(`−${markerLabels.get(slug) ?? slug}`);
+    }
     for (const slug of filterState.channels) {
       entries.push(channelLabels.get(slug) ?? slug);
     }
+    for (const slug of filterState.channelsEx) {
+      entries.push(`−${channelLabels.get(slug) ?? slug}`);
+    }
     for (const slug of filterState.customTags) {
       entries.push(tagLabels.get(slug) ?? slug);
+    }
+    for (const slug of filterState.customTagsEx) {
+      entries.push(`−${tagLabels.get(slug) ?? slug}`);
     }
     for (const value of filterState.owned) {
       entries.push(ownedLabels.get(value) ?? value);

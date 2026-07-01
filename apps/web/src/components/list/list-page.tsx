@@ -2,6 +2,7 @@ import type {
   Currency,
   ListEntryDetailResponse,
   ListKind,
+  ListRule,
   Printing,
   TradePreference,
 } from "@openrift/shared";
@@ -15,6 +16,7 @@ import {
   ListIcon,
   PencilIcon,
   Share2Icon,
+  SparklesIcon,
   Trash2Icon,
   UploadIcon,
   XIcon,
@@ -47,6 +49,8 @@ import { ListImportDialog } from "@/components/list/list-import-dialog";
 import { ListRemoveDialog } from "@/components/list/list-remove-dialog";
 import { ListShareDialog } from "@/components/list/list-share-dialog";
 import { MoveToListDialog } from "@/components/list/move-to-list-dialog";
+import { RuleEditorDialog } from "@/components/list/rule-editor-dialog";
+import { RuleSourceBadge } from "@/components/list/rule-source-badge";
 import { TakeOffTradelistDialog } from "@/components/list/take-off-tradelist-dialog";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
@@ -92,11 +96,13 @@ import {
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { useSession, useUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
+import type { RuleExcludeTarget } from "@/lib/rule-exclude";
+import { entryToExcludeTarget, excludeEntryFromRules } from "@/lib/rule-exclude";
 import { FilterSearchProvider, useFilterSearch } from "@/lib/search-schemas";
 import { resolveContextActionTarget } from "@/lib/stack-selection";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 import type { ListBulkAction } from "@/stores/card-row-actions-store";
-import { useCardRowActionsStore } from "@/stores/card-row-actions-store";
+import { dispatchExcludeFromRule, useCardRowActionsStore } from "@/stores/card-row-actions-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { useListEntriesStore } from "@/stores/list-entries-store";
 import { useSelectionStore } from "@/stores/selection-store";
@@ -156,6 +162,7 @@ export function ListPage({ listId }: ListPageProps) {
   const [shareOpen, setShareOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [ruleOpen, setRuleOpen] = useState(false);
 
   const deleteList = useDeleteList();
   const removeEntry = useRemoveListEntry();
@@ -227,10 +234,12 @@ export function ListPage({ listId }: ListPageProps) {
       onToggleSidebar={toggleSidebar}
       actions={
         <>
-          <PageTopBarButton onClick={() => setShareOpen(true)}>
-            <Share2Icon className="size-4" />
-            Share
-          </PageTopBarButton>
+          {data.list.intent !== "organize" && (
+            <PageTopBarButton onClick={() => setRuleOpen(true)}>
+              <SparklesIcon className="size-4" />
+              {data.list.intent === "wish" ? "Dynamic rules" : "Dynamic rule"}
+            </PageTopBarButton>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger render={<PageTopBarIconButton />}>
               <EllipsisVerticalIcon className="size-4" />
@@ -240,6 +249,10 @@ export function ListPage({ listId }: ListPageProps) {
               <DropdownMenuItem onClick={() => setEditOpen(true)}>
                 <PencilIcon className="size-4" />
                 Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setShareOpen(true)}>
+                <Share2Icon className="size-4" />
+                Share
               </DropdownMenuItem>
               {(data.list.kind === "card" || data.list.kind === "printing") && (
                 <DropdownMenuItem onClick={() => setImportOpen(true)}>
@@ -322,6 +335,19 @@ export function ListPage({ listId }: ListPageProps) {
     />
   );
 
+  // Mounted only while open so its catalog/collections queries are paid on
+  // demand, not on every list view (ADR-034).
+  const ruleDialog = data.list.intent !== "organize" && ruleOpen && (
+    <RuleEditorDialog
+      listId={listId}
+      intent={data.list.intent}
+      kind={data.list.kind}
+      currentRules={data.list.rules}
+      open
+      onOpenChange={setRuleOpen}
+    />
+  );
+
   // When the library is shown we fall through to the browser even with zero
   // entries — the grid renders the whole catalog so the user can start adding.
   if (entriesCount === 0 && !showLibraryActive) {
@@ -360,6 +386,7 @@ export function ListPage({ listId }: ListPageProps) {
         {shareDialog}
         {exportDialog}
         {importDialog}
+        {ruleDialog}
       </>
     );
   }
@@ -373,6 +400,7 @@ export function ListPage({ listId }: ListPageProps) {
         intent={data.list.intent}
         listTradeDefaults={data.list.tradeDefaults}
         listCurrency={data.list.currency}
+        rules={data.list.rules}
         entries={data.entries}
         showLibrary={showLibraryActive}
         onToggleShowLibrary={() => setShowLibrary((prev) => !prev)}
@@ -391,6 +419,7 @@ export function ListPage({ listId }: ListPageProps) {
       {shareDialog}
       {exportDialog}
       {importDialog}
+      {ruleDialog}
     </>
   );
 }
@@ -434,6 +463,23 @@ function ListActionsCell({
   if (!entry) {
     return null;
   }
+  // Rule-derived entries (ADR-034) have no list_entries row — they can't be
+  // edited or removed, only excluded from the rule that produced them.
+  if (entry.id === null) {
+    return (
+      <div className="flex items-center gap-2">
+        <RuleSourceBadge
+          iconOnly={kind === "copy"}
+          quantity={kind === "copy" ? undefined : entry.ruleQuantity}
+          onExclude={() => dispatchExcludeFromRule(entryToExcludeTarget(entry))}
+          excludeLabel={`Don't include ${entry.cardName}`}
+        />
+        {entry.kind === "copy" && entry.reserved && <Badge variant="success">Reserved</Badge>}
+      </div>
+    );
+  }
+  // Narrowed non-null by the guard; a local const preserves it inside closures.
+  const entryId = entry.id;
   const tradePill = supportsTradePrefs ? (
     <TradePreferencePill
       override={entry.tradeOverride}
@@ -444,28 +490,37 @@ function ListActionsCell({
         entry.tradeOverride.priceAbsoluteCents !== null ||
         entry.tradeOverride.tradeType !== null
       }
-      onEdit={() => onEditTradePref(entry.id)}
+      onEdit={() => onEditTradePref(entryId)}
     />
   ) : null;
+  // Additive model (ADR-034): the stepper edits the manual part; the chip shows
+  // the rule's contribution. Total = manual + rule (manual = quantity - rule).
+  const manualPart = entry.quantity - entry.ruleQuantity;
   return (
     <div className="flex items-center gap-2">
+      {entry.ruleQuantity > 0 && (
+        <RuleSourceBadge
+          iconOnly={kind === "copy"}
+          quantity={kind === "copy" ? undefined : entry.ruleQuantity}
+        />
+      )}
       {tradePill}
       {entry.kind === "copy" && entry.reserved && <Badge variant="success">Reserved</Badge>}
       {kind === "copy" ? (
         <ListEntryTableActions
           showQuantity={false}
-          onTakeOff={() => onTakeOff?.(entry.id)}
-          isRemovePending={isRemovePendingFor(entry.id)}
+          onTakeOff={() => onTakeOff?.(entryId)}
+          isRemovePending={isRemovePendingFor(entryId)}
         />
       ) : (
         <ListEntryTableActions
           showQuantity
-          quantity={entry.quantity}
-          onIncrement={() => onQuantityChange(entry.id, entry.quantity + 1)}
-          onDecrement={() => onQuantityChange(entry.id, entry.quantity - 1)}
-          onRemove={() => onRemoveEntry(entry.id, entry.cardName)}
-          isQuantityPending={isQuantityPendingFor(entry.id)}
-          isRemovePending={isRemovePendingFor(entry.id)}
+          quantity={manualPart}
+          onIncrement={() => onQuantityChange(entryId, manualPart + 1)}
+          onDecrement={() => onQuantityChange(entryId, manualPart - 1)}
+          onRemove={() => onRemoveEntry(entryId, entry.cardName)}
+          isQuantityPending={isQuantityPendingFor(entryId)}
+          isRemovePending={isRemovePendingFor(entryId)}
         />
       )}
     </div>
@@ -478,6 +533,8 @@ interface ListEntryBrowserProps {
   intent: "wish" | "trade" | "organize";
   listTradeDefaults: TradePreference;
   listCurrency: Currency | null;
+  /** The list's dynamic rules (ADR-034) — needed to compute the exclude PATCH. */
+  rules: ListRule[];
   entries: ListEntryDetailResponse[];
   /** True when the library toggle is on (catalog mode). Never true for copy-kind lists. */
   showLibrary: boolean;
@@ -512,6 +569,7 @@ function ListEntryBrowser({
   intent,
   listTradeDefaults,
   listCurrency,
+  rules,
   entries,
   showLibrary,
   onToggleShowLibrary,
@@ -556,6 +614,20 @@ function ListEntryBrowser({
   const { data: allLists } = useLists();
   const moveEntries = useMoveListEntries();
   const bulkRemove = useBulkRemoveListEntries();
+  const updateList = useUpdateList();
+
+  // Excluding a rule-produced entry (ADR-034): append its id to every rule that
+  // currently yields it, then re-save. No-op when nothing matches.
+  const handleExcludeFromRule = (target: RuleExcludeTarget) => {
+    const next = excludeEntryFromRules(rules, target, allPrintings);
+    if (!next) {
+      return;
+    }
+    updateList.mutate(
+      { listId, rules: next },
+      { onError: () => toast.error("Couldn't update the rule") },
+    );
+  };
 
   // ── "Take off list" (copy-kind tradelists) ──────────────────────────
   // Taking a copy off a tradelist has two outcomes — kept (just unlist) or
@@ -771,7 +843,8 @@ function ListEntryBrowser({
   const handleDecrement = (printing: Printing) => {
     const key = kind === "card" ? printing.cardId : printing.id;
     const entry = entryByKey.get(key);
-    if (!entry || entry.quantity <= 1) {
+    // Rule-derived entries (null id, ADR-034) can't be decremented.
+    if (!entry || entry.id === null || entry.quantity <= 1) {
       return;
     }
     updateEntryMutation.mutate({ listId, entryId: entry.id, quantity: entry.quantity - 1 });
@@ -798,8 +871,11 @@ function ListEntryBrowser({
     const startIdx = lastId === null ? -1 : items.findIndex((item) => item.id === lastId);
     const endIdx = items.findIndex((item) => item.id === itemId);
     if (startIdx === -1 || endIdx === -1) {
-      toggleSelect(targetEntry.id);
-      setLastSelectedItemId(itemId);
+      // Rule-derived entries (null id, ADR-034) aren't selectable.
+      if (targetEntry.id !== null) {
+        toggleSelect(targetEntry.id);
+        setLastSelectedItemId(itemId);
+      }
       return;
     }
     const lo = Math.min(startIdx, endIdx);
@@ -807,7 +883,7 @@ function ListEntryBrowser({
     const rangeIds: string[] = [];
     for (let idx = lo; idx <= hi; idx++) {
       const rangeEntry = entryByItemId.get(items[idx].id);
-      if (rangeEntry) {
+      if (rangeEntry && rangeEntry.id !== null) {
         rangeIds.push(rangeEntry.id);
       }
     }
@@ -914,7 +990,8 @@ function ListEntryBrowser({
           return;
         }
         const entry = entryByItemId.get(itemId);
-        if (!entry) {
+        // Rule-derived entries (null id, ADR-034) aren't selectable.
+        if (!entry || entry.id === null) {
           return;
         }
         if (modifiers.shift) {
@@ -926,7 +1003,8 @@ function ListEntryBrowser({
       },
       onItemToggle: (itemId) => {
         const entry = entryByItemId.get(itemId);
-        if (!entry) {
+        // Rule-derived entries (null id, ADR-034) aren't selectable.
+        if (!entry || entry.id === null) {
           return;
         }
         toggleSelect(entry.id);
@@ -959,6 +1037,7 @@ function ListEntryBrowser({
       },
       onRemoveEntry: (entryId, cardName) => onRemoveEntry(entryId, cardName),
       onSetPreference: (entryId) => setPrefDialogEntryId(entryId),
+      onExcludeFromRule: handleExcludeFromRule,
       isQuantityPendingFor: (entryId) => isQuantityPendingFor(entryId),
     });
     return () => {
@@ -1234,7 +1313,9 @@ function ListEntryBrowser({
               prefDialogEntry.tradeOverride.tradeType !== null
             }
             onSave={(next, listCurrencyToSet) =>
-              onTradeOverrideChange(prefDialogEntry.id, next, listCurrencyToSet)
+              // prefDialogEntryId is the real entry id the dialog was opened for
+              // (set only for editable entries; rule entries never open it).
+              onTradeOverrideChange(prefDialogEntryId ?? "", next, listCurrencyToSet)
             }
           />
         )}
@@ -1332,8 +1413,11 @@ function buildItems(
     for (const printing of sortedCards) {
       const entriesForPrinting = entriesByPrintingId.get(printing.id) ?? [];
       for (const entry of entriesForPrinting) {
-        items.push({ id: entry.id, printing });
-        entryByItemId.set(entry.id, entry);
+        // One tile = one copy. Use the entry id when present, else the copyId
+        // (rule-derived copy entries have no entry id; ADR-034).
+        const itemId = entry.id ?? (entry.kind === "copy" ? entry.copyId : printing.id);
+        items.push({ id: itemId, printing });
+        entryByItemId.set(itemId, entry);
       }
     }
     return { items, entryByItemId };

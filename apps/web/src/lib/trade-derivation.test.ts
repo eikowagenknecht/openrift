@@ -224,6 +224,7 @@ function stubSuggestion(overrides: Partial<MatchSuggestionFields> = {}): MatchSu
   return {
     buyEntryKind: "printing",
     buyEntryId: "entry-1",
+    cardId: "card-1",
     counterpartyUserId: "user-2",
     counterpartyListId: "list-1",
     printingId: "printing-1",

@@ -7,8 +7,8 @@ import {
   parseSearchTerms,
   sortCards,
 } from "./filters";
+import { EMPTY_CARD_FILTERS, NONE } from "./types";
 import type { Card, CardFilters, EnumOrders, Printing } from "./types";
-import { NONE } from "./types";
 
 const TEST_ORDERS: EnumOrders = {
   domains: ["fury", "calm", "mind", "body", "chaos", "order", "colorless"],
@@ -98,28 +98,10 @@ function makePrinting(
 
 function emptyFilters(overrides: Partial<CardFilters> = {}): CardFilters {
   return {
-    search: "",
+    ...EMPTY_CARD_FILTERS,
+    // Narrow the default search scope to name-only so search tests stay focused;
+    // every other dimension comes from EMPTY_CARD_FILTERS.
     searchScope: ["name"],
-    sets: [],
-    languages: [],
-    rarities: [],
-    types: [],
-    superTypes: [],
-    domains: [],
-    energy: { min: null, max: null },
-    might: { min: null, max: null },
-    power: { min: null, max: null },
-    price: { min: null, max: null },
-    artVariants: [],
-    finishes: [],
-    cardSizes: [],
-    isSigned: null,
-    hasAnyMarker: null,
-    markerSlugs: [],
-    distributionChannelSlugs: [],
-    customTagSlugs: [],
-    isBanned: null,
-    hasErrata: null,
     ...overrides,
   };
 }
@@ -1250,6 +1232,76 @@ describe("filterCards", () => {
 });
 
 // ---------------------------------------------------------------------------
+// filterCards — negation (exclude) dimensions + isStandard (ADR-034)
+// ---------------------------------------------------------------------------
+
+describe("filterCards negation", () => {
+  it("excludes by scalar dimension (rarity)", () => {
+    const cards = [
+      makePrinting({ rarity: "common", card: { slug: "a" } }),
+      makePrinting({ rarity: "rare", card: { slug: "b" } }),
+    ];
+    const result = filterCards(cards, emptyFilters({ raritiesExclude: ["common"] }));
+    expect(result.map((p) => p.rarity)).toEqual(["rare"]);
+  });
+
+  it("excludes by set, language, type, art variant, finish", () => {
+    const base = makePrinting();
+    expect(filterCards([base], emptyFilters({ setsExclude: [base.setSlug] }))).toHaveLength(0);
+    expect(filterCards([base], emptyFilters({ languagesExclude: ["EN"] }))).toHaveLength(0);
+    expect(filterCards([base], emptyFilters({ typesExclude: ["unit"] }))).toHaveLength(0);
+    expect(filterCards([base], emptyFilters({ artVariantsExclude: ["normal"] }))).toHaveLength(0);
+    expect(filterCards([base], emptyFilters({ finishesExclude: ["normal"] }))).toHaveLength(0);
+  });
+
+  it("excludes by array dimension when any value overlaps (domains, superTypes)", () => {
+    const card = makePrinting({
+      card: { slug: "x", domains: ["fury", "calm"], superTypes: ["champion"] },
+    });
+    expect(filterCards([card], emptyFilters({ domainsExclude: ["calm"] }))).toHaveLength(0);
+    expect(filterCards([card], emptyFilters({ domainsExclude: ["mind"] }))).toHaveLength(1);
+    expect(filterCards([card], emptyFilters({ superTypesExclude: ["champion"] }))).toHaveLength(0);
+  });
+
+  it("exclude overrides include for the same value", () => {
+    const cards = [
+      makePrinting({ rarity: "common", card: { slug: "a" } }),
+      makePrinting({ rarity: "rare", card: { slug: "b" } }),
+    ];
+    // Include common+rare, but exclude common → only rare survives.
+    const result = filterCards(
+      cards,
+      emptyFilters({ rarities: ["common", "rare"], raritiesExclude: ["common"] }),
+    );
+    expect(result.map((p) => p.rarity)).toEqual(["rare"]);
+  });
+});
+
+describe("filterCards isStandard", () => {
+  const standard = makePrinting({ rarity: "common", finish: "normal", card: { slug: "std" } });
+  const nonStandard = makePrinting({
+    rarity: "common",
+    finish: "foil",
+    card: { slug: "nonstd" },
+  });
+  const cards = [standard, nonStandard];
+
+  it("null = no constraint", () => {
+    expect(filterCards(cards, emptyFilters({ isStandard: null }))).toHaveLength(2);
+  });
+
+  it("true = standard only", () => {
+    const result = filterCards(cards, emptyFilters({ isStandard: true }));
+    expect(result.map((p) => p.card.slug)).toEqual(["std"]);
+  });
+
+  it("false = non-standard only", () => {
+    const result = filterCards(cards, emptyFilters({ isStandard: false }));
+    expect(result.map((p) => p.card.slug)).toEqual(["nonstd"]);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // getAvailableFilters
 // ---------------------------------------------------------------------------
 
@@ -1402,6 +1454,19 @@ describe("getAvailableFilters", () => {
   it("computes hasSigned false when no signed printings", () => {
     const result = getAvailableFilters([makePrinting({ isSigned: false })]);
     expect(result.hasSigned).toBe(false);
+  });
+
+  it("computes hasNonStandard true when a non-standard printing exists", () => {
+    const result = getAvailableFilters([
+      makePrinting({ rarity: "common", finish: "normal", card: { slug: "a" } }),
+      makePrinting({ rarity: "common", finish: "foil", card: { slug: "b" } }),
+    ]);
+    expect(result.hasNonStandard).toBe(true);
+  });
+
+  it("computes hasNonStandard false when every printing is standard", () => {
+    const result = getAvailableFilters([makePrinting({ rarity: "common", finish: "normal" })]);
+    expect(result.hasNonStandard).toBe(false);
   });
 
   it("handles empty array", () => {
@@ -2179,6 +2244,34 @@ describe("computeFilterCounts", () => {
     });
     expect(counts.rarities.get("common")).toBe(1);
     expect(counts.rarities.get("rare")).toBe(1);
+  });
+
+  it("ignores both the include and exclude of the faceted dimension", () => {
+    // Excluding EN must not zero out the EN count in the language facet itself,
+    // so the user can still un-exclude it (same widening rule as include).
+    const counts = computeFilterCounts(sample, emptyFilters({ languagesExclude: ["EN"] }), {
+      countBy: "printing",
+    });
+    expect(counts.languages.get("EN")).toBe(2);
+    expect(counts.languages.get("DE")).toBe(1);
+  });
+
+  it("a dimension's exclude narrows other dimensions' counts", () => {
+    // Exclude all EN printings → only DE (c1 common) + JA (c3 rare) remain.
+    const counts = computeFilterCounts(sample, emptyFilters({ languagesExclude: ["EN"] }), {
+      countBy: "printing",
+    });
+    expect(counts.rarities.get("common")).toBe(1);
+    expect(counts.rarities.get("rare")).toBe(1);
+  });
+
+  it("counts the standard flag over the matching subset", () => {
+    const cards = [
+      makePrinting({ id: "s1", cardId: "s1", rarity: "common", finish: "normal" }),
+      makePrinting({ id: "s2", cardId: "s2", rarity: "common", finish: "foil" }),
+    ];
+    const counts = computeFilterCounts(cards, emptyFilters(), { countBy: "printing" });
+    expect(counts.flags.standard).toBe(1);
   });
 
   it("returns 0 (missing) for options with no matches under current filters", () => {

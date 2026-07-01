@@ -4,7 +4,7 @@
 // (query-changing, data-stable — the worst case for live-query dataflow).
 
 import type { Card, CardFilters, CatalogSetResponse, Printing } from "@openrift/shared";
-import { filterCards, sortCards } from "@openrift/shared";
+import { EMPTY_CARD_FILTERS, filterCards, sortCards } from "@openrift/shared";
 import {
   and,
   createCollection,
@@ -119,30 +119,7 @@ const fixture = buildFixture();
 // ── Filter scenarios ────────────────────────────────────────────────────────
 
 function emptyFilters(): CardFilters {
-  return {
-    search: "",
-    searchScope: [],
-    sets: [],
-    languages: [],
-    rarities: [],
-    types: [],
-    superTypes: [],
-    domains: [],
-    energy: { min: null, max: null },
-    might: { min: null, max: null },
-    power: { min: null, max: null },
-    price: { min: null, max: null },
-    artVariants: [],
-    finishes: [],
-    cardSizes: [],
-    isSigned: null,
-    hasAnyMarker: null,
-    markerSlugs: [],
-    distributionChannelSlugs: [],
-    customTagSlugs: [],
-    isBanned: null,
-    hasErrata: null,
-  };
+  return { ...EMPTY_CARD_FILTERS };
 }
 
 const SCENARIOS = {

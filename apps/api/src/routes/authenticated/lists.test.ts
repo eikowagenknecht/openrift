@@ -176,6 +176,7 @@ describe("POST /api/v1/lists", () => {
       defaultPriceAbsoluteCents: null,
       defaultTradeType: null,
       currency: null,
+      rules: [],
     });
   });
 
@@ -235,6 +236,8 @@ describe("GET /api/v1/lists/:id", () => {
         id: "le-1",
         listId: LIST_ID,
         kind: "card",
+        ruleQuantity: 0,
+        source: "manual",
         cardId: CARD_ID,
         printingId: null,
         copyId: null,

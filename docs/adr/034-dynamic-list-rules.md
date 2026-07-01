@@ -18,6 +18,11 @@ The product owner now wants dynamic lists, scoped to four concrete use cases:
 
 This ADR was scoped in a question-driven design session with the product owner (2026-06-28). It **supersedes the dynamic-rules portions of ADR-005** (the "Dynamic rules" paragraphs under _Wish Lists_ and _Trade Lists_). Everything else in ADR-005 stands. The session resolved the v1 scope to be **maximal**: full backend, dynamic lists participate in **friend-group trade matching**, negation lives in the **shared filter language**, and a **complete rule-editor UI** ships. The "Implementation specification" below is written so a fresh reader can build it end-to-end; it is normative.
 
+> **Amendment (2026-06-30, during implementation).** Two extensions were approved beyond the single-rule design originally drafted below; the spec sections that follow have been updated to match what shipped.
+>
+> 1. **A list carries an _array_ of rules** (`rules jsonb`, `NOT NULL DEFAULT '[]'`) rather than one nullable `rule` column. Wish lists may stack several rules (capped at `MAX_LIST_RULES = 10`); trade lists are capped at **one** by the route layer. Every rule's output unions into the same deduped result. The shared evaluator gains an array wrapper `evaluateListRules`. This moves the old _Out of scope_ "Multiple rules per list" item into v1.
+> 2. **Wish rules gain an optional `netOwned` flag** that subtracts the owner's owned copies and emits only the positive shortfall, so "a playset of every card" can mean "…of every card I don't already own." It falls back to the full target when owned copies are unavailable.
+
 ## Decision Drivers
 
 - All four use cases must be expressible; they span every `intent` × `kind` combo a list can take.
@@ -80,11 +85,11 @@ Current vocab: finishes `normal | foil | metal | metal-deluxe`; rarities `common
 
 ### 3. Storage & merge
 
-One nullable JSONB `rule` column on `lists`, app-validated. A list may carry a rule **and** manual `list_entries`; the rendered list is `manual ∪ rule output`, deduped (§Impl 4). Within one list, when manual and rule target the same card/printing, **quantity is the max** (not the sum); copies union by `copyId`. Cross-list additive stacking (ADR-005 shopping list) is unchanged.
+One JSONB `rules` column on `lists` (an array, `NOT NULL DEFAULT '[]'`), app-validated. Wish lists may carry several rules (≤ `MAX_LIST_RULES`); trade lists carry at most one. A list may carry rules **and** manual `list_entries`; the rendered list is `manual ∪ (every rule's output)`, deduped (§Impl 4). When a manual entry and a rule collide on the same card/printing, **their quantities add** — the manual entry keeps its own row, `id`, and trade override and stays independently editable, while the rule contributes on top (so "I always want 1 of this, plus a playset from the rule" reads as 4, not 3). Two rules that both match the same card contribute their **max**, never double-counting overlapping rules. Copies union by `copyId` (one physical card can't be wanted twice). Cross-list additive stacking (ADR-005 shopping list) is unchanged.
 
 ### 4. Evaluation & sharing
 
-`evaluateListRule` (pure, in `packages/shared`) + `expandList` (the union authority) run server-side wherever entries are materialized, fed catalog rows and the **list owner's** copies from repositories — so a public viewer receives concrete entries, never the rule or the owner's collection. The same functions run client-side in the editor for live preview. Nothing is materialized.
+`evaluateListRule` / `evaluateListRules` (pure, in `packages/shared`) + `expandList` (the union authority) run server-side wherever entries are materialized, fed catalog rows and the **list owner's** copies from repositories — so a public viewer receives concrete entries, never the rules or the owner's collection. The same functions run client-side in the editor for live preview. Nothing is materialized.
 
 ---
 
@@ -137,7 +142,7 @@ Make `CardFilters` the single source of truth via a Zod schema (needed anyway fo
 
 ### II.1 Migration
 
-- New migration (next sequential number) adding `ALTER TABLE lists ADD COLUMN rule jsonb;` plus `CHECK ((rule IS NULL) OR (intent IN ('wish','trade')))`. Shape validation is app-level Zod (the DB only gates intent).
+- New migration (next sequential number) adding `ALTER TABLE lists ADD COLUMN rules jsonb NOT NULL DEFAULT '[]'::jsonb;` plus `CHECK ((jsonb_array_length(rules) = 0) OR (intent IN ('wish','trade')))`. Shape validation (and the trade-list one-rule cap) is app-level Zod (the DB only gates intent).
 - Register it in `apps/api/src/db/migrations/index.ts` (barrel) — without this it is silently skipped.
 - **Ask the user before running `bun db:migrate`** (shared DB). After applying, regenerate `docs/schema.sql` via the `pg_dump` command in `docs/contributing.md` and commit it in the same change.
 
@@ -155,6 +160,7 @@ export interface WishRule {
   filter: CardFilters;
   quantity: RuleQuantity; // desired per matched card/printing
   excludeIds: string[]; // card_ids (list.kind=card) or printing_ids (list.kind=printing)
+  netOwned?: boolean; // subtract the owner's owned copies; emit only the positive shortfall
 }
 export interface TradeRule {
   kind: "trade";
@@ -166,7 +172,7 @@ export interface TradeRule {
 export type ListRule = WishRule | TradeRule;
 ```
 
-Add `listRuleSchema = z.discriminatedUnion("kind", [wishRuleSchema, tradeRuleSchema])` to `packages/shared/src/contracts/lists.ts` (reusing `cardFiltersSchema`). The route layer must reject a rule whose `kind !== list.intent`.
+Add `listRuleSchema = z.discriminatedUnion("kind", [wishRuleSchema, tradeRuleSchema])` to `packages/shared/src/contracts/lists.ts` (reusing `cardFiltersSchema`), then wrap it as `listRulesSchema = z.array(listRuleSchema).max(MAX_LIST_RULES)` with `MAX_LIST_RULES = 10`. The route layer must reject any rule whose `kind !== list.intent`, and reject more than one rule on a trade list.
 
 ### II.3 Evaluator (`packages/shared`)
 
@@ -200,9 +206,11 @@ export function evaluateListRule(
 ): VirtualEntry[];
 ```
 
+- `evaluateListRules(rules, listKind, ctx)` maps `evaluateListRule` over the array and concatenates; the union/dedup across rules happens in `expandList`.
 - `resolveQuantity(q, card)`: `fixed → max(0, q.n)`; `playset → getPlaysetSize(card.type, card.keywords) * q.multiplier`.
 - **Wish, listKind="printing":** `matched = filterCards(ctx.catalog, rule.filter)`; for each `p` with `p.id ∉ excludeIds`, emit `{kind:"printing", printingId:p.id, quantity: resolveQuantity(rule.quantity, p.card)}`.
 - **Wish, listKind="card":** group `matched` by `cardId`; for each `cardId ∉ excludeIds`, emit `{kind:"card", cardId, quantity: resolveQuantity(rule.quantity, card)}`.
+- **Wish `netOwned`:** when set, subtract the owner's owned count from each emitted quantity (per `printingId` for printing-kind, per `cardId` for card-kind) and drop entries whose remaining `quantity <= 0`. Copies **reserved** by a live (outgoing) trade are excluded from the owned count — they're about to leave the collection, so they must not suppress the shortfall (incoming copies aren't in the owner's collection yet, so they never reach the set). Falls back to the full target when `ctx.ownedCopies` is absent.
 - **Trade (listKind="copy"):** require `ownedCopies`. `passing = new Set(filterCards(ctx.catalog, rule.filter).map(p => p.id))`. Candidates = copies where `(rule.collectionIds === null || collectionIds.includes(c.collectionId))` and `passing.has(c.printingId)` and `c.copyId ∉ excludeCopyIds`. Group by `cardId`; `keepN = resolveQuantity(rule.keepPerCard, card)`; sort each group by `[deckbuildingAvailable desc, copyId asc]` (protect deck-available copies first, then stable by uuidv7 id); emit `{kind:"copy", copyId, quantity:1, reserved}` for copies **after** the first `keepN`. Reserved copies stay in the pool and are emitted with `reserved:true`; consumers filter/annotate them (matching excludes reserved; display shows status) — mirrors today's `copyEntryQuery` behavior.
 - Tests `list-rule-eval.test.ts`: each of UC1–UC4 plus empty results, exclusions, playset-1 vs playset-3 cards, keep=0, reserved handling, collection scoping.
 
@@ -218,7 +226,7 @@ export function expandList(
   list: {
     intent: ListIntent;
     kind: ListKind;
-    rule: ListRule | null;
+    rules: ListRule[];
     defaultPricePref;
     defaultPriceAbsoluteCents;
     defaultTradeType;
@@ -229,22 +237,22 @@ export function expandList(
 ```
 
 - Dedup key: copy lists by `copyId`; card/printing lists by `cardId`/`printingId`.
-- Conflict: card/printing quantity = `max(manual, rule)`; `source = "both"`. Copies: union; manual wins (keeps its `id` + per-entry trade override); `source = "both"` if also rule-produced.
+- Conflict: card/printing quantity = `manualQuantity + ruleContribution`, where `ruleContribution` is the `max` across any overlapping rules (overlapping rules never double-count); `source = "both"`. The rule part is reported separately as `ruleQuantity` so the manual part (`quantity − ruleQuantity`) stays editable. Copies: union; manual wins (keeps its `id` + per-entry trade override); `source = "both"` if also rule-produced.
 - Manual entries keep their real `list_entries.id` and own trade prefs; rule-only entries get `id: null`, `source:"rule"`, and inherit the list's trade defaults.
 - Tests for every conflict/merge case.
 
 ### II.5 API contract changes (`packages/shared/src/contracts/lists.ts`)
 
-- `createListSchema` + `updateListSchema`: add `rule: listRuleSchema.nullable().optional()`. Refinements: reject a rule when `intent === "organize"`; reject when `rule.kind !== intent`.
-- `listResponseSchema`: keep `entryCount` as the **manual** count and add `hasRule: boolean`. (List summaries are NOT expanded — see II.7.)
-- `listDetailResponseSchema`: the `list` object gains `rule: ListRule | null` (so the editor can load it); `entries` are the **expanded** set.
+- `createListSchema` + `updateListSchema`: add `rules: listRulesSchema.optional()` (defaults to `[]`). `listRulesSchema` itself caps the array at `MAX_LIST_RULES` (10) — each rule is a full-catalog `filterCards` pass at read time (incl. the anonymous public-share path), so the count is bounded. Further refinements: reject any rules when `intent === "organize"`; reject when any `rule.kind !== intent`; reject more than one rule when `intent === "trade"`.
+- `listResponseSchema`: keep `entryCount` as the **manual** count and add `hasRule: boolean` (true when the list carries any rules). (List summaries are NOT expanded — see II.7.)
+- `listDetailResponseSchema`: the `list` object gains `rules: ListRule[]` (so the editor can load them); `entries` are the **expanded** set.
 - `listEntryDetailResponseSchema`: `id` becomes nullable; add `source: "manual" | "rule" | "both"`. Rule entries (`id: null`) are not individually editable/deletable — the UI offers only "exclude" on them.
 
 ### II.6 Repository + service wiring (`apps/api`)
 
-- **Server catalog provider:** add a repo method to assemble the full `Printing[]` server-side (reuse `canonicalPrintingsRepo` in `apps/api/src/repositories/canonical-printings.ts` and the assembly already feeding the public catalog route). Cache per-request; the catalog is small.
+- **Server catalog provider:** add a repo method to assemble the full `Printing[]` server-side (reuse the assembly already feeding the public catalog route — `assembleCatalogPrintings` in `apps/api/src/services/catalog-assembly.ts`). The assembly is memoized **process-wide and content-addressed** by `createCatalogPrintingsCache`: each read first runs a cheap `catalogContentVersion()` probe (`count(*)` + `max(updated_at)` over the tables that feed the `Printing[]`, ~5ms), reuses the cached catalog while the token is unchanged, and reassembles the instant an admin edit rolls it. This keeps reads both cheap (no rebuild per request) and always fresh (no staleness window), which matters because expansion runs inline on every list read — including the uncached anonymous public-share path. (Earlier drafts said "cache per-request"; a single process-wide content-addressed memo is strictly better — same freshness, far less work.)
 - **Owner copies:** add `copiesRepo.ownedRowsForUser(userId): OwnedCopyRow[]` joining `copies → collections (deckbuilding availability) → cards` and the reservation set (`cardTradeCopies`, as `copyEntryQuery` does). New repo method (none exists today).
-- **`lists.entriesWithDetails()` (lists.ts:390) and `lists.entriesWithDetailsAnon()` (line 399):** before enrichment, if `list.rule` is set, call `evaluateListRule` (owner = the list's `user_id`, even in the Anon path) then `expandList`, and enrich the resulting `ExpandedEntry[]` through the existing `cardEntryQuery` / `printingEntryQuery` / `copyEntryQuery` joins (now keyed off the expanded ids). Carry `source` + nullable `id` through. **These two methods cover GET /lists/{id}, public share (`public/lists.ts`), group shared list (`friend-groups.ts:702`), bundle list (`public/user-share.ts:63`), and all three share-image routes** — no other detail path needs changes.
+- **`lists.entriesWithDetails()` (lists.ts:390) and `lists.entriesWithDetailsAnon()` (line 399):** before enrichment, if `list.rules` is non-empty, call `evaluateListRules` (owner = the list's `user_id`, even in the Anon path) then `expandList`, and enrich the resulting `ExpandedEntry[]` through the existing `cardEntryQuery` / `printingEntryQuery` / `copyEntryQuery` joins (now keyed off the expanded ids). Carry `source` + nullable `id` through. **These two methods cover GET /lists/{id}, public share (`public/lists.ts`), group shared list (`friend-groups.ts:702`), bundle list (`public/user-share.ts:63`), and all three share-image routes** — no other detail path needs changes.
 
 ### II.7 Read-path checklist (must all be handled)
 
@@ -257,7 +265,7 @@ export function expandList(
 The matcher must see rule-expanded entries. Move the three `friend-group-matches.ts` methods from one big SQL join to **app-level expansion**:
 
 1. Load the visible shared lists in the group (the existing `friendGroupListShares → lists` visibility query), for both the viewer's wish lists and counterparties' trade lists (and the mirror for `othersWantYourHaves`).
-2. For each such list, load manual entries + its `rule`, then `evaluateListRule` + `expandList`. Load the catalog once; load each trade-list owner's `ownedRowsForUser`.
+2. For each such list, load manual entries + its `rules`, then `evaluateListRules` + `expandList`. Load the catalog once; load each trade-list owner's `ownedRowsForUser` (and each `netOwned` wish-list owner's, since their demand nets against their inventory).
 3. Match in TypeScript, **preserving every current invariant**: group/share visibility, exclusion of copies `reserved` by live trades, trade-pref coalescing (`entry override ?? list default`), copy→printing→card resolution, and the existing dedup for the activity feed.
 4. Output the same `MatchRow[]` / `IncomingMatchFeedRow[]` shapes so routes (`friend-groups.ts:687/743`) and the web hooks are unchanged.
 
@@ -276,7 +284,7 @@ Tests: port the existing matcher integration tests unchanged (they must still pa
 - **Collection scope (trade):** multiselect of the user's collections; default "all" (`null`).
 - **Exclusions:** an "exclude" action on each previewed card/printing/copy appends to `excludeIds`/`excludeCopyIds`; show removable chips of current exclusions.
 - **Live preview:** run `evaluateListRule` client-side over the loaded catalog (`useCatalog`) + the user's copies (collection store) and render the would-be entries instantly, before save.
-- **Persistence:** PATCH `/lists/{id}` with `rule` (and allow on create). On load, the detail response carries `list.rule`.
+- **Persistence:** PATCH `/lists/{id}` with `rules` (and allow on create). On load, the detail response carries `list.rules`.
 - **Editor state** is a Zustand store → requires `*.test.ts` with `createStoreResetter` (docs/contributing.md). Rule entries (`source:"rule"`, `id:null`) render read-only with only an "exclude" affordance; manual entries keep edit/remove.
 
 ## VI. Cross-cutting
@@ -287,8 +295,7 @@ Tests: port the existing matcher integration tests unchanged (they must still pa
 
 ## Out of scope / deferred
 
-- **Multiple rules per list** (one rule covers all four use cases). Extension path: a `list_rules` child table.
-- **General boolean expression trees** (nested AND/OR/NOT) — per-dimension include/exclude + `isStandard` suffice.
+- **General boolean expression trees** (nested AND/OR/NOT) — per-dimension include/exclude + `isStandard`, combined with several rules per list (each rule's matches union), suffice. (Multiple rules per list shipped in v1 — see the amendment above; stacking is union-only, with no cross-rule boolean nesting.)
 - **Condition / acquisition-cost predicates** — blocked on the per-copy metadata deferred in ADR-005; they become `CardFilters` dimensions when those columns land.
 - **Materialized/cached rule output** — revisit only at the ADR-009 dataset thresholds.
 - **Expanded counts on list summaries** — summaries show manual count + `hasRule`; full counts appear on detail.

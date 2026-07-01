@@ -1,16 +1,40 @@
+import { evaluateListRules, expandList } from "@openrift/shared";
 import type {
   CardType,
+  EntrySource,
   Finish,
   ListIntent,
   ListKind,
+  ListRules,
+  ManualEntryRow,
+  OwnedCopyRow,
+  Printing,
   Rarity,
   TradePreference,
-} from "@openrift/shared/types";
+} from "@openrift/shared";
 import type { DeleteResult, Insertable, Kysely, Selectable, Updateable } from "kysely";
 import { sql } from "kysely";
 
 import type { Database, ListEntriesTable, ListsTable } from "../db/index.js";
 import { imageId } from "./query-helpers.js";
+
+/**
+ * Lazy providers a dynamic-rule list read needs but the repo can't build from
+ * `db` alone (ADR-034). Wired in `createRepos`. Both are only invoked when a
+ * list actually carries a rule, so manual-only reads pay nothing.
+ */
+export interface ListRuleProviders {
+  /**
+   * Assembles the full catalog `Printing[]` for `filterCards`, plus the
+   * card→custom-tag-slug map rules need to filter on custom tags (ADR-034).
+   */
+  assembleCatalog: () => Promise<{
+    printings: Printing[];
+    customTagAssignments: Record<string, readonly string[]>;
+  }>;
+  /** The given user's personally-owned copies (trade-rule source). */
+  ownedCopies: (ownerId: string) => Promise<OwnedCopyRow[]>;
+}
 
 const EMPTY_TRADE_PREFERENCE: TradePreference = {
   pricePref: null,
@@ -30,12 +54,45 @@ interface ListWithCount extends Selectable<ListsTable> {
 }
 
 interface ListEntryRowBase {
-  id: string;
+  /** Real `list_entries.id` for manual/both entries; `null` for rule-only (ADR-034). */
+  id: string | null;
   listId: string;
   quantity: number;
+  /** Where this entry came from (ADR-034). Manual-only lists are always "manual". */
+  source: EntrySource;
+  /** Rule's contribution to `quantity` (ADR-034 additive model); 0 for manual-only. */
+  ruleQuantity: number;
   cardName: string;
   cardType: CardType;
   tradeOverride: TradePreference;
+}
+
+/**
+ * postgres.js under Bun returns jsonb as a raw JSON string; parse the `rules`
+ * column to the structured {@link ListRules}. Shape is enforced by
+ * `listRulesSchema` at the write boundary, so the cast is safe at read time.
+ * ADR-034.
+ * @returns The parsed rules (empty array when the column was empty/absent).
+ */
+function parseRules(value: ListRules | string | null | undefined): ListRules {
+  if (value === null || value === undefined) {
+    return [];
+  }
+  return typeof value === "string" ? (JSON.parse(value) as ListRules) : value;
+}
+
+/**
+ * Binds the rules as a real `jsonb` array via a `text::jsonb` cast.
+ *
+ * postgres.js infers a bound param's type from its immediate cast: with a bare
+ * `::jsonb` it json-*encodes* the JS string into a jsonb *scalar string* (which
+ * breaks the `jsonb_array_length` CHECK). Casting through `::text` first forces
+ * the param to bind as text, so `::jsonb` then *parses* it into an array. (We
+ * verified `${str}::jsonb` → "string" but `${str}::text::jsonb` → "array".)
+ * @returns A Kysely expression that stores `value` as a jsonb array.
+ */
+function rulesJsonb(value: ListRules | null | undefined) {
+  return sql<ListRules>`${JSON.stringify(value ?? [])}::text::jsonb`;
 }
 
 interface ListEntryRowPrintingFields {
@@ -98,7 +155,10 @@ export type NewListValues = Pick<
   | "defaultPriceAbsoluteCents"
   | "defaultTradeType"
   | "currency"
->;
+> & {
+  /** Optional dynamic rules (ADR-034); the repo serializes them before insert. */
+  rules?: ListRules | null;
+};
 
 /**
  * Patch payload for `update`. Intent and kind are immutable post-creation —
@@ -133,7 +193,7 @@ export type ListEntryUpdate = Omit<
  *
  * @returns An object with list query methods bound to the given `db`.
  */
-export function listsRepo(db: Kysely<Database>) {
+export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
   return {
     /**
      * @returns All lists for a user with their entry counts, optionally filtered
@@ -186,10 +246,12 @@ export function listsRepo(db: Kysely<Database>) {
      * @returns The newly created list row.
      */
     create(values: NewListValues): Promise<Selectable<ListsTable>> {
+      const { rules, ...rest } = values;
       return db
         .insertInto("lists")
         .values({
-          ...values,
+          ...rest,
+          rules: rulesJsonb(rules),
           sortOrder: sql<number>`coalesce((select max(sort_order) + 1 from lists where user_id = ${values.userId} and intent = ${values.intent}), 0)`,
         })
         .returningAll()
@@ -232,9 +294,13 @@ export function listsRepo(db: Kysely<Database>) {
       userId: string,
       updates: ListUpdate,
     ): Promise<Selectable<ListsTable> | undefined> {
+      // `rules` must be cast text→jsonb so it stores as an array (see rulesJsonb);
+      // every other column passes through unchanged.
+      const { rules, ...rest } = updates;
+      const setValues = rules === undefined ? rest : { ...rest, rules: rulesJsonb(rules) };
       return db
         .updateTable("lists")
-        .set(updates)
+        .set(setValues)
         .where("id", "=", id)
         .where("userId", "=", userId)
         .returningAll()
@@ -388,7 +454,7 @@ export function listsRepo(db: Kysely<Database>) {
      * @returns Enriched entry rows sorted by card name.
      */
     entriesWithDetails(listId: string, kind: ListKind, userId: string): Promise<ListEntryRow[]> {
-      return fetchEnrichedEntries(db, kind, { listId, userId });
+      return expandAndEnrich(db, providers, kind, { listId, userId });
     },
 
     /**
@@ -397,7 +463,7 @@ export function listsRepo(db: Kysely<Database>) {
      * @returns Enriched entry rows sorted by card name.
      */
     entriesWithDetailsAnon(listId: string, kind: ListKind): Promise<ListEntryRow[]> {
-      return fetchEnrichedEntries(db, kind, { listId });
+      return expandAndEnrich(db, providers, kind, { listId });
     },
 
     /** @returns The newly created entry row. */
@@ -724,6 +790,366 @@ async function fetchEnrichedEntries(
   return rows.sort((a, b) => a.cardName.localeCompare(b.cardName));
 }
 
+/** @returns The target id (cardId / printingId / copyId) of an enriched row. */
+function entryTargetKey(row: ListEntryRow): string {
+  if (row.kind === "card") {
+    return row.cardId;
+  }
+  if (row.kind === "printing") {
+    return row.printingId;
+  }
+  return row.copyId;
+}
+
+/** @returns The target id of an expanded entry for the list's kind. */
+function expandedTargetKey(
+  kind: ListKind,
+  entry: { cardId?: string; printingId?: string; copyId?: string },
+): string {
+  if (kind === "card") {
+    return entry.cardId ?? "";
+  }
+  if (kind === "printing") {
+    return entry.printingId ?? "";
+  }
+  return entry.copyId ?? "";
+}
+
+/** @returns The lightweight manual-entry shape `expandList` consumes. */
+function toManualEntryRow(row: ListEntryRow): ManualEntryRow {
+  return {
+    id: row.id ?? "",
+    kind: row.kind,
+    cardId: row.kind === "card" ? row.cardId : null,
+    printingId: row.kind === "printing" || row.kind === "copy" ? row.printingId : null,
+    copyId: row.kind === "copy" ? row.copyId : null,
+    quantity: row.quantity,
+    tradeOverride: row.tradeOverride,
+  };
+}
+
+/**
+ * The authority that turns a list's manual entries + its dynamic rules into the
+ * rendered, enriched, deduped entry set (ADR-034). Manual-only lists short-
+ * circuit to the existing enrichment. When rules are present they are evaluated
+ * against the server-assembled catalog (+ the owner's copies for trade rules),
+ * merged with manual entries via `expandList`, and the rule-only entries are
+ * enriched by target id.
+ * @returns Enriched entry rows (manual ∪ rule output), sorted by card name.
+ */
+async function expandAndEnrich(
+  db: Kysely<Database>,
+  providers: ListRuleProviders | undefined,
+  kind: ListKind,
+  scope: { listId: string; userId?: string },
+): Promise<ListEntryRow[]> {
+  const manual = await fetchEnrichedEntries(db, kind, scope);
+
+  let ruleQuery = db.selectFrom("lists").select(["rules", "userId"]).where("id", "=", scope.listId);
+  if (scope.userId !== undefined) {
+    ruleQuery = ruleQuery.where("userId", "=", scope.userId);
+  }
+  const listRow = await ruleQuery.executeTakeFirst();
+  const rules = listRow ? parseRules(listRow.rules) : [];
+  // Manual-only (the overwhelmingly common case): nothing to expand.
+  if (!listRow || rules.length === 0 || !providers) {
+    return manual;
+  }
+
+  const { printings: catalog, customTagAssignments } = await providers.assembleCatalog();
+  // Trade rules need the owner's copies for supply; wish rules need them too when
+  // netting against what's owned ("only what I'm missing", ADR-034).
+  const needsCopies = rules.some(
+    (rule) => rule.kind === "trade" || (rule.kind === "wish" && rule.netOwned),
+  );
+  const ownedCopies = needsCopies ? await providers.ownedCopies(listRow.userId) : [];
+  const ruleEntries = evaluateListRules(rules, kind, {
+    catalog,
+    ownedCopies,
+    customTagAssignments,
+  });
+  const expanded = expandList(
+    kind,
+    manual.map((row) => toManualEntryRow(row)),
+    ruleEntries,
+  );
+
+  const manualByKey = new Map(manual.map((row) => [entryTargetKey(row), row]));
+  const ruleOnlyKeys = expanded.filter((entry) => entry.id === null);
+  const details = await loadRuleOnlyDetails(db, kind, ruleOnlyKeys);
+
+  const result: ListEntryRow[] = [];
+  for (const entry of expanded) {
+    if (entry.id !== null) {
+      // Manual or both: reuse the enriched manual row, but take the merged
+      // quantity + source from the expansion.
+      const base = manualByKey.get(expandedTargetKey(kind, entry));
+      if (base) {
+        result.push({
+          ...base,
+          quantity: entry.quantity,
+          ruleQuantity: entry.ruleQuantity,
+          source: entry.source,
+        });
+      }
+      continue;
+    }
+    const row = buildRuleOnlyRow(kind, entry, details, scope.listId);
+    if (row) {
+      result.push(row);
+    }
+  }
+  return result.sort((a, b) => a.cardName.localeCompare(b.cardName));
+}
+
+interface RuleOnlyDetails {
+  cards: Map<string, { cardName: string; cardType: CardType }>;
+  printings: Map<string, PrintingDetail>;
+  copies: Map<string, CopyDetail>;
+}
+
+interface PrintingDetail {
+  cardName: string;
+  cardType: CardType;
+  setId: string;
+  rarity: Rarity;
+  finish: Finish;
+  shortCode: string;
+  language: string;
+  imageId: string | null;
+}
+
+interface CopyDetail extends PrintingDetail {
+  printingId: string;
+  collectionId: string;
+  reserved: boolean;
+}
+
+/**
+ * Loads detail rows for the rule-only target ids of the given kind.
+ * @returns Detail maps for cards, printings, and copies (only the relevant one is populated).
+ */
+async function loadRuleOnlyDetails(
+  db: Kysely<Database>,
+  kind: ListKind,
+  ruleOnly: { cardId?: string; printingId?: string; copyId?: string }[],
+): Promise<RuleOnlyDetails> {
+  const empty: RuleOnlyDetails = { cards: new Map(), printings: new Map(), copies: new Map() };
+  if (ruleOnly.length === 0) {
+    return empty;
+  }
+  if (kind === "card") {
+    const ids = ruleOnly
+      .map((entry) => entry.cardId)
+      .filter((id): id is string => id !== undefined);
+    return { ...empty, cards: await cardDetailsByIds(db, ids) };
+  }
+  if (kind === "printing") {
+    const ids = ruleOnly
+      .map((entry) => entry.printingId)
+      .filter((id): id is string => id !== undefined);
+    return { ...empty, printings: await printingDetailsByIds(db, ids) };
+  }
+  const ids = ruleOnly.map((entry) => entry.copyId).filter((id): id is string => id !== undefined);
+  return { ...empty, copies: await copyDetailsByIds(db, ids) };
+}
+
+/**
+ * Assembles an enriched `ListEntryRow` for one rule-only entry.
+ * @returns The enriched row, or null if its detail row vanished.
+ */
+function buildRuleOnlyRow(
+  kind: ListKind,
+  entry: {
+    cardId?: string;
+    printingId?: string;
+    copyId?: string;
+    quantity: number;
+    ruleQuantity: number;
+    tradeOverride: TradePreference;
+  },
+  details: RuleOnlyDetails,
+  listId: string,
+): ListEntryRow | null {
+  if (kind === "card") {
+    const detail = entry.cardId ? details.cards.get(entry.cardId) : undefined;
+    if (!detail || !entry.cardId) {
+      return null;
+    }
+    return {
+      kind: "card",
+      id: null,
+      listId,
+      quantity: entry.quantity,
+      ruleQuantity: entry.ruleQuantity,
+      source: "rule",
+      cardId: entry.cardId,
+      cardName: detail.cardName,
+      cardType: detail.cardType,
+      tradeOverride: entry.tradeOverride,
+    };
+  }
+  if (kind === "printing") {
+    const detail = entry.printingId ? details.printings.get(entry.printingId) : undefined;
+    if (!detail || !entry.printingId) {
+      return null;
+    }
+    return {
+      kind: "printing",
+      id: null,
+      listId,
+      quantity: entry.quantity,
+      ruleQuantity: entry.ruleQuantity,
+      source: "rule",
+      printingId: entry.printingId,
+      ...detail,
+      tradeOverride: entry.tradeOverride,
+    };
+  }
+  const detail = entry.copyId ? details.copies.get(entry.copyId) : undefined;
+  if (!detail || !entry.copyId) {
+    return null;
+  }
+  return {
+    kind: "copy",
+    id: null,
+    listId,
+    quantity: entry.quantity,
+    ruleQuantity: entry.ruleQuantity,
+    source: "rule",
+    copyId: entry.copyId,
+    printingId: detail.printingId,
+    collectionId: detail.collectionId,
+    cardName: detail.cardName,
+    cardType: detail.cardType,
+    setId: detail.setId,
+    rarity: detail.rarity,
+    finish: detail.finish,
+    shortCode: detail.shortCode,
+    language: detail.language,
+    imageId: detail.imageId,
+    reserved: detail.reserved,
+    tradeOverride: entry.tradeOverride,
+  };
+}
+
+async function cardDetailsByIds(
+  db: Kysely<Database>,
+  ids: string[],
+): Promise<Map<string, { cardName: string; cardType: CardType }>> {
+  if (ids.length === 0) {
+    return new Map();
+  }
+  const rows = await db
+    .selectFrom("cards as card")
+    .select(["card.id", "card.name as cardName", "card.type as cardType"])
+    .where("card.id", "in", ids)
+    .execute();
+  return new Map(rows.map((row) => [row.id, { cardName: row.cardName, cardType: row.cardType }]));
+}
+
+async function printingDetailsByIds(
+  db: Kysely<Database>,
+  ids: string[],
+): Promise<Map<string, PrintingDetail>> {
+  if (ids.length === 0) {
+    return new Map();
+  }
+  const rows = await db
+    .selectFrom("printings as p")
+    .innerJoin("cards as card", "card.id", "p.cardId")
+    .leftJoin("printingImages as pi", (join) =>
+      join
+        .onRef("pi.printingId", "=", "p.id")
+        .on("pi.face", "=", "front")
+        .on("pi.isActive", "=", true),
+    )
+    .leftJoin("imageFiles as ci", "ci.id", "pi.imageFileId")
+    .select([
+      "p.id",
+      "card.name as cardName",
+      "card.type as cardType",
+      "p.setId",
+      "p.rarity",
+      "p.finish",
+      "p.shortCode",
+      "p.language",
+      imageId("ci").as("imageId"),
+    ])
+    .where("p.id", "in", ids)
+    .execute();
+  return new Map(
+    rows.map((row) => [
+      row.id,
+      {
+        cardName: row.cardName,
+        cardType: row.cardType,
+        setId: row.setId,
+        rarity: row.rarity,
+        finish: row.finish,
+        shortCode: row.shortCode,
+        language: row.language,
+        imageId: row.imageId,
+      },
+    ]),
+  );
+}
+
+async function copyDetailsByIds(
+  db: Kysely<Database>,
+  ids: string[],
+): Promise<Map<string, CopyDetail>> {
+  if (ids.length === 0) {
+    return new Map();
+  }
+  const rows = await db
+    .selectFrom("copies as cp")
+    .innerJoin("printings as p", "p.id", "cp.printingId")
+    .innerJoin("cards as card", "card.id", "p.cardId")
+    .leftJoin("printingImages as pi", (join) =>
+      join
+        .onRef("pi.printingId", "=", "p.id")
+        .on("pi.face", "=", "front")
+        .on("pi.isActive", "=", true),
+    )
+    .leftJoin("imageFiles as ci", "ci.id", "pi.imageFileId")
+    .leftJoin("cardTradeCopies as ctc", "ctc.copyId", "cp.id")
+    .select([
+      "cp.id",
+      "cp.printingId",
+      "cp.collectionId",
+      "card.name as cardName",
+      "card.type as cardType",
+      "p.setId",
+      "p.rarity",
+      "p.finish",
+      "p.shortCode",
+      "p.language",
+      imageId("ci").as("imageId"),
+      "ctc.copyId as reservedByTradeCopyId",
+    ])
+    .where("cp.id", "in", ids)
+    .execute();
+  return new Map(
+    rows.map((row) => [
+      row.id,
+      {
+        printingId: row.printingId,
+        collectionId: row.collectionId,
+        cardName: row.cardName,
+        cardType: row.cardType,
+        setId: row.setId,
+        rarity: row.rarity,
+        finish: row.finish,
+        shortCode: row.shortCode,
+        language: row.language,
+        imageId: row.imageId,
+        reserved: row.reservedByTradeCopyId !== null,
+      },
+    ]),
+  );
+}
+
 /**
  * Card-targeted entries: `le.card_id` is set. Joins straight to cards. The
  * client picks a representative printing of the card.
@@ -758,6 +1184,8 @@ async function cardEntryQuery(
     id: row.id,
     listId: row.listId,
     quantity: row.quantity,
+    ruleQuantity: 0,
+    source: "manual",
     cardId: row.cardId as string,
     cardName: row.cardName,
     cardType: row.cardType as CardType,
@@ -813,6 +1241,8 @@ async function printingEntryQuery(
     id: row.id,
     listId: row.listId,
     quantity: row.quantity,
+    ruleQuantity: 0,
+    source: "manual",
     printingId: row.printingId as string,
     cardName: row.cardName,
     cardType: row.cardType as CardType,
@@ -881,6 +1311,8 @@ async function copyEntryQuery(
     id: row.id,
     listId: row.listId,
     quantity: row.quantity,
+    ruleQuantity: 0,
+    source: "manual",
     copyId: row.copyId as string,
     printingId: row.printingId,
     collectionId: row.collectionId,

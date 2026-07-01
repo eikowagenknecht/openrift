@@ -10,10 +10,13 @@ import type {
   DeckResponse,
   DeckSummaryResponse,
   Domain,
+  EntrySource,
   Finish,
+  ListDetailListResponse,
   ListEntryDetailResponse,
   ListEntryResponse,
   ListResponse,
+  ListRules,
   PublicCollectionResponse,
   PublicDeckCardResponse,
   PublicDeckResponse,
@@ -237,7 +240,34 @@ export function toList(row: Selectable<ListsTable> & { entryCount?: number }): L
     updatedAt: row.updatedAt.toISOString(),
     tradeDefaults: tradeDefaultsFromList(row),
     currency: row.currency,
+    // The summary reports whether any dynamic rules exist (ADR-034); the rules
+    // themselves ride only on detail responses (toListDetail).
+    hasRule: parseListRules(row.rules).length > 0,
   };
+}
+
+/**
+ * postgres.js returns jsonb as a raw string under Bun; normalize the `rules`
+ * column to the structured {@link ListRules}. Shape is enforced by
+ * `listRulesSchema` at the write boundary, so the cast is safe. ADR-034.
+ * @returns The parsed rules (empty array when the column was empty/absent).
+ */
+export function parseListRules(value: ListRules | string | null | undefined): ListRules {
+  if (value === null || value === undefined) {
+    return [];
+  }
+  return typeof value === "string" ? (JSON.parse(value) as ListRules) : value;
+}
+
+/**
+ * Detail variant of {@link toList} — carries the dynamic rules so the editor can
+ * load them. ADR-034.
+ * @returns The detail list response, including the parsed rules.
+ */
+export function toListDetail(
+  row: Selectable<ListsTable> & { entryCount?: number },
+): ListDetailListResponse {
+  return { ...toList(row), rules: parseListRules(row.rules) };
 }
 
 /** @returns Public-facing list fields — excludes shareToken, isPublic, userId. */
@@ -286,9 +316,11 @@ export function toListEntryDetail(
   row:
     | {
         kind: "card";
-        id: string;
+        id: string | null;
         listId: string;
         quantity: number;
+        source: EntrySource;
+        ruleQuantity: number;
         cardId: string;
         cardName: string;
         cardType: string;
@@ -296,9 +328,11 @@ export function toListEntryDetail(
       }
     | {
         kind: "printing";
-        id: string;
+        id: string | null;
         listId: string;
         quantity: number;
+        source: EntrySource;
+        ruleQuantity: number;
         printingId: string;
         cardName: string;
         cardType: string;
@@ -312,9 +346,11 @@ export function toListEntryDetail(
       }
     | {
         kind: "copy";
-        id: string;
+        id: string | null;
         listId: string;
         quantity: number;
+        source: EntrySource;
+        ruleQuantity: number;
         copyId: string;
         printingId: string;
         collectionId: string;
@@ -336,6 +372,8 @@ export function toListEntryDetail(
       id: row.id,
       listId: row.listId,
       quantity: row.quantity,
+      source: row.source,
+      ruleQuantity: row.ruleQuantity,
       cardId: row.cardId,
       cardName: row.cardName,
       cardType: row.cardType as CardType,
@@ -348,6 +386,8 @@ export function toListEntryDetail(
       id: row.id,
       listId: row.listId,
       quantity: row.quantity,
+      source: row.source,
+      ruleQuantity: row.ruleQuantity,
       printingId: row.printingId,
       cardName: row.cardName,
       cardType: row.cardType as CardType,
@@ -365,6 +405,8 @@ export function toListEntryDetail(
     id: row.id,
     listId: row.listId,
     quantity: row.quantity,
+    source: row.source,
+    ruleQuantity: row.ruleQuantity,
     copyId: row.copyId,
     printingId: row.printingId,
     // collectionId is owner-internal: it identified the owner's collection that

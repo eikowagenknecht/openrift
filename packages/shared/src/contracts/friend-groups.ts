@@ -240,6 +240,7 @@ export const friendGroupShareableListResponseSchema = z
     sharedAt: z.string().nullable(),
     tradeDefaults: tradePreferenceSchema,
     currency: currencyResponseSchema.nullable(),
+    hasRule: z.boolean(),
   })
   .openapi("FriendGroupShareableListResponse");
 
@@ -267,7 +268,7 @@ const friendGroupMatchRowSchema = z
     counterpartyGravatarHash: z.string(),
     counterpartyListId: z.string(),
     counterpartyListName: z.string(),
-    sellEntryId: z.string(),
+    sellEntryId: z.string().nullable(),
     sellListId: z.string(),
     copyId: z.string(),
     printingId: z.string(),
@@ -278,7 +279,7 @@ const friendGroupMatchRowSchema = z
     rarity: raritySchema,
     finish: finishSchema,
     imageId: imageIdSchema.nullable(),
-    buyEntryId: z.string(),
+    buyEntryId: z.string().nullable(),
     buyListId: z.string(),
     buyEntryKind: z.enum(["card", "printing"]),
     buyQuantity: z.number().int().nonnegative(),

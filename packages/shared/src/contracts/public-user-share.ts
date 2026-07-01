@@ -26,6 +26,7 @@ const publicUserBundleListResponseSchema = z
     ),
     createdAt: z.string(),
     updatedAt: z.string(),
+    hasRule: z.boolean(),
   })
   .openapi("PublicUserBundleListResponse");
 

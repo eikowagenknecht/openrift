@@ -1,5 +1,5 @@
 import type { AvailableFilters, RangeKey } from "@openrift/shared";
-import { XIcon } from "lucide-react";
+import { MinusIcon, XIcon } from "lucide-react";
 
 import { CardIcon } from "@/components/card-icon";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,7 @@ import { formatDomainFilterLabel } from "@/lib/domain";
 import { compactFormatterForMarketplace } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
 import { rangeBadgeLabel } from "@/lib/range-label";
+import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
 interface RangeBadgeSection {
@@ -50,6 +51,7 @@ export function ActiveFilters({
     clearPromo,
     clearBanned,
     clearErrata,
+    clearStandard,
     clearAllFilters,
     setSearch,
   } = useFilterActions();
@@ -104,6 +106,115 @@ export function ActiveFilters({
       customTagGroups.push({ categorySlug, categoryLabel, values: [slug] });
     }
   }
+  // Exclude (`*Ex`) chips, mirroring the include `filterGroups` but reading the
+  // negation arrays and removing via the exclude key (ADR-034). The `section`
+  // drives both the hidden-section guard and the icon lookup (icons key off the
+  // base dimension, not the `*Ex` slug).
+  type ExcludeKey =
+    | "setsEx"
+    | "raritiesEx"
+    | "typesEx"
+    | "superTypesEx"
+    | "domainsEx"
+    | "artVariantsEx"
+    | "finishesEx"
+    | "markersEx"
+    | "channelsEx";
+  // Section keys an exclude chip can carry. Excludes the icon-less "owned" /
+  // "cardSizes" so the value passes straight to `getFilterIconPath` once the
+  // markers/channels rows (which also lack icons) are guarded out.
+  type ExcludeSection =
+    | "sets"
+    | "rarities"
+    | "types"
+    | "superTypes"
+    | "domains"
+    | "artVariants"
+    | "finishes"
+    | "markers"
+    | "channels";
+  const excludeGroupDefs: {
+    key: ExcludeKey;
+    section: ExcludeSection;
+    label: string;
+    values: string[];
+    displayLabel?: (v: string) => string;
+  }[] = [
+    { key: "setsEx", section: "sets", label: "Set", values: filterState.setsEx },
+    {
+      key: "raritiesEx",
+      section: "rarities",
+      label: "Rarity",
+      values: filterState.raritiesEx,
+      displayLabel: (v: string) => labels.rarities[v] ?? v,
+    },
+    {
+      key: "typesEx",
+      section: "types",
+      label: "Type",
+      values: filterState.typesEx,
+      displayLabel: (v: string) => labels.cardTypes[v] ?? v,
+    },
+    {
+      key: "superTypesEx",
+      section: "superTypes",
+      label: "Supertype",
+      values: filterState.superTypesEx,
+      displayLabel: (v: string) => labels.superTypes[v] ?? v,
+    },
+    {
+      key: "domainsEx",
+      section: "domains",
+      label: "Domain",
+      values: filterState.domainsEx,
+      displayLabel: (v: string) => formatDomainFilterLabel(v, labels.domains),
+    },
+    {
+      key: "artVariantsEx",
+      section: "artVariants",
+      label: "Art Variant",
+      values: filterState.artVariantsEx,
+      displayLabel: (v: string) => labels.artVariants[v] ?? v,
+    },
+    {
+      key: "finishesEx",
+      section: "finishes",
+      label: "Finish",
+      values: filterState.finishesEx,
+      displayLabel: (v: string) => labels.finishes[v] ?? v,
+    },
+    {
+      key: "markersEx",
+      section: "markers",
+      label: "Marker",
+      values: filterState.markersEx,
+      displayLabel: markerLabel,
+    },
+    {
+      key: "channelsEx",
+      section: "channels",
+      label: "Distribution Channel",
+      values: filterState.channelsEx,
+      displayLabel: channelLabel,
+    },
+  ];
+  const excludeGroups = excludeGroupDefs.filter(
+    (group) => group.values.length > 0 && !hiddenSections?.has(group.section),
+  );
+
+  // Excluded custom tags, grouped by category exactly like the include side.
+  const customTagExcludeGroups: { categoryLabel: string; values: string[] }[] = [];
+  for (const slug of filterState.customTagsEx) {
+    const tag = customTagBySlug.get(slug);
+    const categoryLabel = tag?.categoryLabel ?? "Tag";
+    const existing = customTagExcludeGroups.find((group) => group.categoryLabel === categoryLabel);
+    if (existing) {
+      existing.values.push(slug);
+    } else {
+      customTagExcludeGroups.push({ categoryLabel, values: [slug] });
+    }
+  }
+
   const customTagsHidden = hiddenSections?.has("customTags") ?? false;
   const copiesRangeActive =
     !hiddenSections?.has("owned") &&
@@ -190,13 +301,16 @@ export function ActiveFilters({
   const hasVisibleContent =
     filterState.search !== "" ||
     filterGroups.length > 0 ||
+    excludeGroups.length > 0 ||
     (!customTagsHidden && customTagGroups.length > 0) ||
+    (!customTagsHidden && customTagExcludeGroups.length > 0) ||
     rangeBadgeSections.some(({ key }) => ranges[key].min !== null || ranges[key].max !== null) ||
     copiesRangeActive ||
     filterState.signed !== null ||
     filterState.promo !== null ||
     filterState.banned !== null ||
-    filterState.errata !== null;
+    filterState.errata !== null ||
+    filterState.standard !== null;
 
   if (!hasVisibleContent) {
     return null;
@@ -275,6 +389,71 @@ export function ActiveFilters({
               })}
             </div>
           ))}
+        {excludeGroups.map(({ key, section, label, values, displayLabel: groupDisplayLabel }) => (
+          <div key={key} className="flex min-w-0 flex-wrap items-center gap-1">
+            <span className="text-muted-foreground hidden text-xs sm:inline">{label}:</span>
+            {values.map((value) => {
+              const icon =
+                section === "markers" || section === "channels"
+                  ? undefined
+                  : getFilterIconPath(section, value);
+              const displayFn =
+                groupDisplayLabel ??
+                (section === "sets" && setDisplayLabel ? setDisplayLabel : (v: string) => v);
+              return (
+                <Badge
+                  key={`${key}-${value}`}
+                  variant="outline"
+                  className="border-destructive/40 text-destructive gap-1"
+                >
+                  <MinusIcon className="size-3 shrink-0" />
+                  {icon && <CardIcon src={icon} />}
+                  <span className="line-through">{displayFn(value)}</span>
+                  <button
+                    type="button"
+                    onClick={() => toggleArrayFilter(key, value)}
+                    aria-label={`Remove excluded ${label} ${displayFn(value)}`}
+                    className="hover:text-foreground ml-0.5"
+                  >
+                    <XIcon className="size-3" />
+                  </button>
+                </Badge>
+              );
+            })}
+          </div>
+        ))}
+        {!customTagsHidden &&
+          customTagExcludeGroups.map(({ categoryLabel, values }) => (
+            <div
+              key={`customTagsEx-${categoryLabel}`}
+              className="flex min-w-0 flex-wrap items-center gap-1"
+            >
+              <span className="text-muted-foreground hidden text-xs sm:inline">
+                {categoryLabel}:
+              </span>
+              {values.map((slug) => {
+                const tag = customTagBySlug.get(slug);
+                return (
+                  <Badge
+                    key={`customTagsEx-${slug}`}
+                    variant="outline"
+                    className="border-destructive/40 text-destructive gap-1"
+                  >
+                    <MinusIcon className="size-3 shrink-0" />
+                    <span className="line-through">{tag?.label ?? slug}</span>
+                    <button
+                      type="button"
+                      onClick={() => toggleArrayFilter("customTagsEx", slug)}
+                      aria-label={`Remove excluded ${tag?.label ?? slug}`}
+                      className="hover:text-foreground ml-0.5"
+                    >
+                      <XIcon className="size-3" />
+                    </button>
+                  </Badge>
+                );
+              })}
+            </div>
+          ))}
         {rangeBadgeSections.map(({ key, label, formatValue }) => {
           const range = ranges[key];
           if (range.min === null && range.max === null) {
@@ -304,48 +483,19 @@ export function ActiveFilters({
           />
         )}
         {filterState.signed !== null && (
-          <div className="flex items-center gap-1">
-            <span className="text-muted-foreground hidden text-xs sm:inline">Flag:</span>
-            <Badge variant="secondary" className="gap-1">
-              {filterState.signed === false ? "Not Signed" : "Signed"}
-              <button type="button" onClick={clearSigned} className="hover:text-foreground ml-0.5">
-                <XIcon className="size-3" />
-              </button>
-            </Badge>
-          </div>
+          <FlagChip label="Signed" state={filterState.signed} onClear={clearSigned} />
         )}
         {filterState.promo !== null && (
-          <div className="flex items-center gap-1">
-            <span className="text-muted-foreground hidden text-xs sm:inline">Flag:</span>
-            <Badge variant="secondary" className="gap-1">
-              {filterState.promo === false ? "Not Promo" : "Promo"}
-              <button type="button" onClick={clearPromo} className="hover:text-foreground ml-0.5">
-                <XIcon className="size-3" />
-              </button>
-            </Badge>
-          </div>
+          <FlagChip label="Promo" state={filterState.promo} onClear={clearPromo} />
         )}
         {filterState.banned !== null && (
-          <div className="flex items-center gap-1">
-            <span className="text-muted-foreground hidden text-xs sm:inline">Flag:</span>
-            <Badge variant="secondary" className="gap-1">
-              {filterState.banned === false ? "Not Banned" : "Banned"}
-              <button type="button" onClick={clearBanned} className="hover:text-foreground ml-0.5">
-                <XIcon className="size-3" />
-              </button>
-            </Badge>
-          </div>
+          <FlagChip label="Banned" state={filterState.banned} onClear={clearBanned} />
         )}
         {filterState.errata !== null && (
-          <div className="flex items-center gap-1">
-            <span className="text-muted-foreground hidden text-xs sm:inline">Flag:</span>
-            <Badge variant="secondary" className="gap-1">
-              {filterState.errata === false ? "No Errata" : "Errata"}
-              <button type="button" onClick={clearErrata} className="hover:text-foreground ml-0.5">
-                <XIcon className="size-3" />
-              </button>
-            </Badge>
-          </div>
+          <FlagChip label="Errata" state={filterState.errata} onClear={clearErrata} />
+        )}
+        {filterState.standard !== null && (
+          <FlagChip label="Standard" state={filterState.standard} onClear={clearStandard} />
         )}
       </div>
       <Button
@@ -357,6 +507,46 @@ export function ActiveFilters({
       >
         <XIcon className="size-4" />
       </Button>
+    </div>
+  );
+}
+
+/**
+ * A tri-state boolean filter chip (Signed, Promo, Banned, Errata, Standard) in
+ * the same include/exclude language as the multi-select chips (ADR-034): the
+ * trait name with a secondary fill when required (`true`), or a struck-out
+ * destructive "−Promo" when forbidden (`false`). The caller only renders it when
+ * the flag is set, so `state` is never null here.
+ * @returns The flag chip.
+ */
+function FlagChip({
+  label,
+  state,
+  onClear,
+}: {
+  label: string;
+  state: boolean;
+  onClear: () => void;
+}) {
+  const excluded = state === false;
+  return (
+    <div className="flex items-center gap-1">
+      <span className="text-muted-foreground hidden text-xs sm:inline">Flag:</span>
+      <Badge
+        variant={excluded ? "outline" : "secondary"}
+        className={cn("gap-1", excluded && "border-destructive/40 text-destructive")}
+      >
+        {excluded && <MinusIcon className="size-3 shrink-0" />}
+        <span className={cn(excluded && "line-through")}>{label}</span>
+        <button
+          type="button"
+          onClick={onClear}
+          aria-label={`Clear ${label} filter`}
+          className="hover:text-foreground ml-0.5"
+        >
+          <XIcon className="size-3" />
+        </button>
+      </Badge>
     </div>
   );
 }

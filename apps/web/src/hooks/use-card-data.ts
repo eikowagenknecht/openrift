@@ -163,7 +163,7 @@ const EMPTY_FILTER_COUNTS: FilterCounts = {
   cardSizes: new Map<string, number>(),
   markers: new Map<string, number>(),
   channels: new Map<string, number>(),
-  flags: { signed: 0, promo: 0, banned: 0, errata: 0 },
+  flags: { signed: 0, promo: 0, banned: 0, errata: 0, standard: 0 },
   ranges: {
     energy: { min: 0, max: 0, hasNullStat: false },
     might: { min: 0, max: 0, hasNullStat: false },

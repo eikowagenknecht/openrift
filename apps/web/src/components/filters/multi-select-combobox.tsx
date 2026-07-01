@@ -30,20 +30,23 @@ interface MultiSelectOption {
 }
 
 /**
- * An extra, independently-selected section rendered below the primary options
- * under its own header (e.g. Finish hosted inside the Variant dropdown). Each
- * group owns its own selection array + `onChange`; the combobox routes a click
- * back to the section that owns it. Groups carry plain label/count rows — no
- * icons, prefixes, or muted styling (those stay on the primary `options`).
+ * An extra include/exclude axis rendered below the primary options under its own
+ * header (e.g. Finish hosted inside the Variant dropdown). Each axis owns its own
+ * include + exclude arrays and a single `onCycle`; the combobox routes a click
+ * back to the axis that owns it, which cycles the value off → include → exclude →
+ * off (ADR-034). Groups carry plain label/count rows — no icons, prefixes, or
+ * muted styling (those stay on the primary `options`).
  */
 interface MultiSelectGroup {
   /** Section header shown above this group's options. */
   label: string;
   options: readonly MultiSelectOption[];
-  /** Currently selected values within this group. */
-  selected: string[];
-  /** Called with the group's new selection on every change. */
-  onChange: (next: string[]) => void;
+  /** Currently included values within this group. */
+  included: string[];
+  /** Currently excluded values within this group. */
+  excluded: string[];
+  /** Cycles one of this group's values off → include → exclude → off. */
+  onCycle: (value: string) => void;
   /** Optional per-option faceted match count, shown inline and dimmed at zero. */
   counts?: Map<string, number>;
 }
@@ -52,10 +55,27 @@ interface MultiSelectComboboxProps {
   /** Trigger label (e.g. "Channels", "Markers"). */
   label: string;
   options: readonly MultiSelectOption[];
-  /** Currently selected values. */
+  /** Currently selected values (the included set when `onCycle` is given). */
   selected: string[];
-  /** Called with the new selection on every change. */
-  onChange: (next: string[]) => void;
+  /**
+   * Plain multi-select handler — called with the new selection on every change.
+   * Used by the include-only dropdowns (e.g. Owned, Size). Omit when the
+   * dimension is a cycling include/exclude axis (pass `onCycle` instead).
+   */
+  onChange?: (next: string[]) => void;
+  /**
+   * Currently excluded values. Pass alongside `onCycle` to turn the primary
+   * options into a cycling include/exclude axis (ADR-034); each row then shows a
+   * tri-state indicator (check = include, minus = exclude, none = off).
+   */
+  excluded?: string[];
+  /**
+   * Cycles one of the primary options off → include → exclude → off. When given,
+   * the primary section is a cycling axis: clicking a row routes here instead of
+   * toggling `selected`, so the same value never sits in both buckets. Mirrors
+   * the Domain/Rarity badge toggle groups via the shared `cycleIncludeExclude`.
+   */
+  onCycle?: (value: string) => void;
   searchPlaceholder?: string;
   emptyText?: string;
   /**
@@ -85,9 +105,10 @@ interface MultiSelectComboboxProps {
    */
   primaryLabel?: string;
   /**
-   * Extra labeled sections appended after the primary options, each with its
-   * own selection + `onChange` (e.g. Finish hosted inside the Variant
-   * dropdown). Rendered under their own headers, separated by a divider.
+   * Extra labeled include/exclude axes appended after the primary options, each
+   * with its own include/exclude arrays + `onCycle` (e.g. Finish hosted inside
+   * the Variant dropdown). Rendered under their own headers, separated by a
+   * divider.
    */
   groups?: readonly MultiSelectGroup[];
   /**
@@ -106,6 +127,15 @@ interface MultiSelectComboboxProps {
    * (sets, types) that should stay compact.
    */
   fitContent?: boolean;
+  /**
+   * When set, the trigger reads as a value control rather than a self-labelled
+   * chip: empty shows this placeholder, a single pick shows its option label,
+   * and multiple show "N selected". Use when an external label already names the
+   * dimension (e.g. a label-left / control-right form row).
+   */
+  placeholder?: string;
+  /** Extra classes for the `button`-style trigger (e.g. a fixed width). */
+  triggerClassName?: string;
 }
 
 interface MultiSelectFlag {
@@ -160,12 +190,26 @@ interface Section {
   /** Header shown above the section; absent on a headerless single section. */
   label?: string;
   options: readonly MultiSelectOption[];
+  /** Included values (also the plain selection when the section isn't cycling). */
   selected: string[];
-  onChange: (next: string[]) => void;
+  /** Plain multi-select handler; present on non-cycling sections only. */
+  onChange?: (next: string[]) => void;
+  /** Excluded values; present on cycling sections only. */
+  excluded?: string[];
+  /** Tri-state cycle handler; present on cycling sections only. */
+  onCycle?: (value: string) => void;
   counts?: Map<string, number>;
   icon?: (value: string) => string | undefined;
   iconAfterLabel?: boolean;
   mutedOptions?: ReadonlySet<string>;
+}
+
+/**
+ * A cycling section routes clicks to {@link Section.onCycle} instead of toggling.
+ * @returns Whether the section is a cycling include/exclude axis.
+ */
+function isCycleSection(section: Section): boolean {
+  return section.onCycle !== undefined;
 }
 
 // Encodes a section-local value into a globally-unique combobox item id.
@@ -210,6 +254,8 @@ export function MultiSelectCombobox({
   options,
   selected,
   onChange,
+  excluded,
+  onCycle,
   searchPlaceholder = "Search…",
   emptyText = "No matches.",
   triggerStyle = "chip",
@@ -221,6 +267,8 @@ export function MultiSelectCombobox({
   groups,
   flag,
   fitContent,
+  placeholder,
+  triggerClassName,
 }: MultiSelectComboboxProps) {
   const hasGroups = (groups?.length ?? 0) > 0;
   // The primary options ride as section 0; each extra group follows in order.
@@ -233,6 +281,8 @@ export function MultiSelectCombobox({
       options,
       selected,
       onChange,
+      excluded,
+      onCycle,
       counts,
       icon,
       iconAfterLabel,
@@ -243,8 +293,9 @@ export function MultiSelectCombobox({
         index: groupIndex + 1,
         label: group.label,
         options: group.options,
-        selected: group.selected,
-        onChange: group.onChange,
+        selected: group.included,
+        excluded: group.excluded,
+        onCycle: group.onCycle,
         counts: group.counts,
       }),
     ),
@@ -268,9 +319,10 @@ export function MultiSelectCombobox({
     // can outlive its option — move every OGN card out of a collection and OGN
     // vanishes from availableFilters while still sitting in the filter state.
     // Without this row the filter is stuck: the trigger shows it active, but the
-    // list has no checkbox to clear it. The orphan has no idMeta, so it renders
-    // as a plain (slug-labelled) untickable row via the fallbacks below.
-    for (const value of section.selected) {
+    // list has no row to clear it. Both buckets can orphan, so include excluded
+    // values too. The orphan has no idMeta, so it renders as a plain
+    // (slug-labelled) row via the fallbacks below — still cyclable/clearable.
+    for (const value of [...section.selected, ...(section.excluded ?? [])]) {
       if (!section.options.some((option) => option.value === value)) {
         items.push(encodeId(section.index, value));
       }
@@ -280,12 +332,28 @@ export function MultiSelectCombobox({
     items.push(FLAG_VALUE);
   }
 
-  const selectedIds = sections.flatMap((section) =>
-    section.selected.map((value) => encodeId(section.index, value)),
+  // The combobox's controlled value carries only the plain (non-cycling)
+  // sections' selections. A cycling section shows its state through custom
+  // check/minus indicators and routes every click to `onCycle`, so its values
+  // must stay out of the primitive's selection model (mirroring the flag row) —
+  // otherwise the primitive would also draw a checkmark and fight the cycle.
+  const cycleSections = sections.filter((section) => isCycleSection(section));
+  const selectedIds = sections
+    .filter((section) => !isCycleSection(section))
+    .flatMap((section) => section.selected.map((value) => encodeId(section.index, value)));
+
+  const includedCount = cycleSections.reduce(
+    (total, section) => total + section.selected.length,
+    0,
   );
-  const hasSelection = selectedIds.length > 0;
+  const excludedCount = cycleSections.reduce(
+    (total, section) => total + (section.excluded?.length ?? 0),
+    0,
+  );
   const flagActive = flag !== undefined && flag.state !== null;
-  const isActive = hasSelection || flagActive;
+  const flagCount = flagActive ? 1 : 0;
+  const totalCount = selectedIds.length + includedCount + excludedCount + flagCount;
+  const isActive = totalCount > 0;
   const labelFor = (id: string) => {
     if (id === FLAG_VALUE && flag) {
       return flag.label;
@@ -297,13 +365,59 @@ export function MultiSelectCombobox({
     return option.prefix ? `${option.prefix} — ${option.label}` : option.label;
   };
   // A single selection shows that option's name (e.g. "Unit") so the chosen
-  // value is visible at a glance; multiple collapse to a "Type (3)" count.
-  const triggerLabel =
-    selectedIds.length === 1
-      ? labelFor(selectedIds[0] ?? "")
-      : hasSelection
-        ? `${label} (${selectedIds.length})`
-        : label;
+  // value is visible at a glance; multiple collapse to a count. With a
+  // `placeholder` the trigger reads as a value control ("Any" / "EN" / "2
+  // selected"); without it, it self-labels with the dimension name ("Type (3)").
+  //
+  // Once any value is excluded — or always, in a `placeholder` value control like
+  // the rule editor — a bare count hides which bucket the values landed in.
+  // Instead sign each axis's buckets (+ include, − exclude): name when an axis
+  // holds one value, count otherwise ("−Foil", "+Origins, −2"). The signs keep it
+  // compact so a mixed selection still fits the fixed-width trigger.
+  const summarise = (section: Section, values: readonly string[]) =>
+    values.length === 1
+      ? labelFor(encodeId(section.index, values[0] ?? ""))
+      : String(values.length);
+  const flagInclude = flag !== undefined && flag.state === true;
+  const flagExclude = flag !== undefined && flag.state === false;
+  const hasExclude = excludedCount > 0 || flagExclude;
+  const signedSummary = (): string => {
+    const parts: string[] = [];
+    for (const section of sections) {
+      if (isCycleSection(section)) {
+        if (section.selected.length > 0) {
+          parts.push(`+${summarise(section, section.selected)}`);
+        }
+        if ((section.excluded?.length ?? 0) > 0) {
+          parts.push(`−${summarise(section, section.excluded ?? [])}`);
+        }
+      } else if (section.selected.length > 0) {
+        parts.push(summarise(section, section.selected));
+      }
+    }
+    if (flagInclude) {
+      parts.push(flag.label);
+    }
+    if (flagExclude) {
+      parts.push(`−${flag.label}`);
+    }
+    return parts.join(", ");
+  };
+  const singleId =
+    selectedIds[0] ??
+    cycleSections.flatMap((section) =>
+      section.selected.map((value) => encodeId(section.index, value)),
+    )[0] ??
+    (flagActive ? FLAG_VALUE : "");
+  const triggerLabel = isActive
+    ? hasExclude || (placeholder !== undefined && (includedCount > 0 || excludedCount > 0))
+      ? signedSummary()
+      : totalCount === 1
+        ? labelFor(singleId)
+        : placeholder === undefined
+          ? `${label} (${totalCount})`
+          : `${totalCount} selected`
+    : (placeholder ?? label);
 
   const [query, setQuery] = useState("");
   const needle = query.trim().toLowerCase();
@@ -374,13 +488,31 @@ export function MultiSelectCombobox({
           flag.onToggle();
           working = working.filter((id) => id !== FLAG_VALUE);
         }
-        // Route the change back to the one section that owns the toggled item.
+        // A cycling section's values never sit in the controlled `value`, so the
+        // primitive can only ever *add* one to `next` — that added id is the row
+        // the user just clicked. Route it to the owning section's `onCycle`
+        // (off → include → exclude → off) and drop it before the plain diff
+        // below, which would otherwise read it as a stray include.
+        for (const id of working) {
+          if (selectedIds.includes(id)) {
+            continue;
+          }
+          const { sectionIndex, value } = decodeId(id);
+          const section = sections.find((entry) => entry.index === sectionIndex);
+          if (section && isCycleSection(section)) {
+            section.onCycle?.(value);
+          }
+        }
+        // Route the remaining change back to each plain section that owns it.
         for (const section of sections) {
+          if (isCycleSection(section)) {
+            continue;
+          }
           const subset = working
             .filter((id) => decodeId(id).sectionIndex === section.index)
             .map((id) => decodeId(id).value);
           if (!sameMembers(subset, section.selected)) {
-            section.onChange(subset);
+            section.onChange?.(subset);
           }
         }
       }}
@@ -421,11 +553,12 @@ export function MultiSelectCombobox({
                 "font-medium [&>svg]:text-current",
                 FILTER_TRIGGER_CLASS,
                 isActive && FILTER_TRIGGER_ACTIVE_CLASS,
+                triggerClassName,
               )}
             />
           }
         >
-          {triggerLabel}
+          <span className="min-w-0 truncate">{triggerLabel}</span>
         </ComboboxTrigger>
       ) : (
         <ComboboxTrigger
@@ -518,6 +651,17 @@ export function MultiSelectCombobox({
             const count = section?.counts?.get(rawValue);
             const isMuted =
               section?.mutedOptions?.has(rawValue) && !section.selected.includes(rawValue);
+            // A cycling row carries the same tri-state indicator as the flag row
+            // (check = include, minus = exclude, none = off) instead of the
+            // primitive's selection checkmark — its values never enter the
+            // controlled `value`, so the default indicator never fires. Resolve
+            // the owning section by index so orphan rows (no idMeta) still show it.
+            const ownerSection = sections.find(
+              (entry) => entry.index === decodeId(value).sectionIndex,
+            );
+            const cycling = ownerSection !== undefined && isCycleSection(ownerSection);
+            const isIncluded = cycling && (ownerSection?.selected.includes(rawValue) ?? false);
+            const isExcluded = cycling && (ownerSection?.excluded?.includes(rawValue) ?? false);
             const item = (
               <ComboboxItem key={value} value={value} className={cn(isMuted && "opacity-65")}>
                 {iconPath && !section?.iconAfterLabel && (
@@ -555,6 +699,15 @@ export function MultiSelectCombobox({
                     </span>
                   )}
                 </span>
+                {cycling && (isIncluded || isExcluded) && (
+                  <span className="absolute right-2 flex size-4 items-center justify-center">
+                    {isIncluded ? (
+                      <CheckIcon className="size-4" />
+                    ) : (
+                      <MinusIcon className="size-4" />
+                    )}
+                  </span>
+                )}
               </ComboboxItem>
             );
             // Section header (with a divider above when a section precedes it),

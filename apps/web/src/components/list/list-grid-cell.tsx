@@ -12,11 +12,14 @@ import type { ListEntryDragData } from "@/components/collection/dnd-types";
 import { SelectionCheckbox } from "@/components/collection/selection-checkbox";
 import { DraggableListEntry } from "@/components/list/draggable-list-entry";
 import { ListEntryContextMenu } from "@/components/list/list-entry-context-menu";
+import { isRuleSourced, RuleSourceBadge } from "@/components/list/rule-source-badge";
 import { TradePreferenceGridPill } from "@/components/trade-preferences/trade-preference-grid-pill";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { entryToExcludeTarget } from "@/lib/rule-exclude";
 import {
   dispatchEntryQuantityChange,
+  dispatchExcludeFromRule,
   dispatchIncrement,
   dispatchItemClick,
   dispatchItemToggle,
@@ -136,8 +139,12 @@ export const ListGridCell = memo(function ListGridCell({
 
   // Selection keyed by entry id (one tile = one entry). The selector returns a
   // bare boolean, so only the cell whose selection flipped re-renders.
+  // Rule-derived entries (ADR-034) have no list_entries row, so they can't be
+  // selected, dragged, edited, or removed — they're managed by the rule. The
+  // cell renders them read-only.
+  const editableEntryId = entry !== undefined && entry.id !== null ? entry.id : null;
   const isItemSelected = useGridSelectionStore(
-    (state) => inSelectMode && entry !== undefined && state.selected.has(entry.id),
+    (state) => inSelectMode && editableEntryId !== null && state.selected.has(editableEntryId),
   );
 
   // Select mode hides the browse controls (quantity stepper, trade pill) and
@@ -157,19 +164,20 @@ export const ListGridCell = memo(function ListGridCell({
   // Drag wiring: browse-mode tiles with a backing entry are draggable. The
   // drag payload is the single entry the tile represents — buildItems
   // guarantees a 1:1 mapping in browse mode.
-  const dragData: ListEntryDragData | undefined = entry
-    ? {
-        type: "list-entry",
-        entryIds: [entry.id],
-        sourceListId: listId,
-        sourceKind: kind,
-        sourceIntent: intent,
-        totalQuantity: entry.quantity,
-        printing,
-        cardName: entry.cardName,
-      }
-    : undefined;
-  const dragId = entry ? `list-entry-${entry.id}` : undefined;
+  const dragData: ListEntryDragData | undefined =
+    entry && editableEntryId !== null
+      ? {
+          type: "list-entry",
+          entryIds: [editableEntryId],
+          sourceListId: listId,
+          sourceKind: kind,
+          sourceIntent: intent,
+          totalQuantity: entry.quantity,
+          printing,
+          cardName: entry.cardName,
+        }
+      : undefined;
+  const dragId = editableEntryId === null ? undefined : `list-entry-${editableEntryId}`;
   const wrap =
     !inSelectMode && !showLibrary && dragData && dragId ? (
       <DraggableListEntry id={dragId} data={dragData} />
@@ -179,14 +187,27 @@ export const ListGridCell = memo(function ListGridCell({
   // otherwise just this entry — the browser resolves which via the bulk-action
   // handler. Trade preference stays single-entry. Copy-kind tradelists use
   // "Take off list…" (a keep-vs-sold chooser); other kinds get a plain Remove.
-  const contextMenu = entry ? (
-    <ListEntryContextMenu
-      onRemove={kind === "copy" ? undefined : () => dispatchListBulkAction(entry.id, "remove")}
-      onTakeOff={kind === "copy" ? () => dispatchListBulkAction(entry.id, "takeOff") : undefined}
-      onMove={() => dispatchListBulkAction(entry.id, "move")}
-      onSetPreference={supportsTradePrefs ? () => dispatchSetPreference(entry.id) : undefined}
-    />
-  ) : undefined;
+  const contextMenu =
+    entry && editableEntryId !== null ? (
+      <ListEntryContextMenu
+        onRemove={
+          kind === "copy" ? undefined : () => dispatchListBulkAction(editableEntryId, "remove")
+        }
+        onTakeOff={
+          kind === "copy" ? () => dispatchListBulkAction(editableEntryId, "takeOff") : undefined
+        }
+        onMove={() => dispatchListBulkAction(editableEntryId, "move")}
+        onSetPreference={
+          supportsTradePrefs ? () => dispatchSetPreference(editableEntryId) : undefined
+        }
+      />
+    ) : entry && !showLibrary ? (
+      // Rule-produced entries (ADR-034) can't be removed — their only action is
+      // excluding them from the rule that made them.
+      <ListEntryContextMenu
+        onExclude={() => dispatchExcludeFromRule(entryToExcludeTarget(entry))}
+      />
+    ) : undefined;
 
   const leftOverlay =
     inSelectMode && entry ? (
@@ -253,25 +274,41 @@ function buildStrip({
 }: BuildStripArgs): ReactNode {
   if (showLibrary) {
     // Library mode: + adds to the list (bulk-add upserts by key), - decrements
-    // the existing entry, and at quantity 1 removes it outright (dropping to 0).
-    // Disabled only when there's nothing on the list yet (count 0).
-    const displayedCount = entry?.quantity ?? 0;
+    // the manual part (the rule's contribution can't be stepped below — ADR-034
+    // additive model), and at the last manual copy removes the row outright.
+    // The pill shows the editable manual part and the rule's contribution rides
+    // alongside in the chip (same split as browse mode), so the count never
+    // reads as cumulative. Rule-only entries (null id, manual part 0) are
+    // read-only, so the decrement is disabled there.
+    const manualPart = entry ? entry.quantity - entry.ruleQuantity : 0;
     return (
       <CardCountStrip
-        count={displayedCount}
+        count={manualPart}
         icon={ListIcon}
         decrement={{
-          onClick: () =>
-            entry && displayedCount <= 1
-              ? dispatchRemoveEntry(entry.id, legendDisplayName(displayPrinting.card))
-              : dispatchEntryQuantityChange(entry?.id ?? "", displayedCount - 1),
-          disabled: displayedCount === 0,
+          onClick: () => {
+            // Rule-derived entries (null id, ADR-034) can't be decremented/removed.
+            if (!entry || entry.id === null) {
+              return;
+            }
+            if (manualPart <= 1) {
+              dispatchRemoveEntry(entry.id, legendDisplayName(displayPrinting.card));
+            } else {
+              dispatchEntryQuantityChange(entry.id, manualPart - 1);
+            }
+          },
+          disabled: manualPart === 0,
           ariaLabel: `Decrease ${legendDisplayName(displayPrinting.card)} quantity on list`,
         }}
         increment={{
           onClick: () => dispatchIncrement(displayPrinting),
           ariaLabel: `Add ${legendDisplayName(displayPrinting.card)} to list`,
         }}
+        extras={
+          entry && entry.ruleQuantity > 0 ? (
+            <RuleSourceBadge quantity={entry.ruleQuantity} />
+          ) : undefined
+        }
       />
     );
   }
@@ -280,6 +317,27 @@ function buildStrip({
     return null;
   }
 
+  // Rule-derived entries (ADR-034) are read-only — no stepper, no take-off, no
+  // preference edit. The rule badge marks them (same badge as the table view);
+  // the static quantity / Reserved signal sits alongside.
+  if (entry.id === null) {
+    const reserved = entry.kind === "copy" && entry.reserved;
+    return (
+      <div className="relative z-30 mb-1 flex h-5 items-center justify-center gap-1">
+        <RuleSourceBadge
+          iconOnly={kind === "copy"}
+          quantity={kind === "copy" ? undefined : entry.ruleQuantity}
+          onExclude={() => dispatchExcludeFromRule(entryToExcludeTarget(entry))}
+          excludeLabel={`Don't include ${entry.cardName}`}
+        />
+        {reserved && <Badge variant="success">Reserved</Badge>}
+      </div>
+    );
+  }
+
+  // Narrowed to non-null by the read-only guard above; a local const keeps the
+  // narrowing inside the closures below (property narrowing is lost in closures).
+  const entryId = entry.id;
   const tradePill = supportsTradePrefs ? (
     <TradePreferenceGridPill
       override={entry.tradeOverride}
@@ -290,7 +348,7 @@ function buildStrip({
         entry.tradeOverride.priceAbsoluteCents !== null ||
         entry.tradeOverride.tradeType !== null
       }
-      onEdit={() => dispatchSetPreference(entry.id)}
+      onEdit={() => dispatchSetPreference(entryId)}
     />
   ) : null;
 
@@ -304,12 +362,13 @@ function buildStrip({
     // the pill off-center. `entry` is guaranteed non-null here.
     const reserved = entry.kind === "copy" && entry.reserved;
     return (
-      <div className="relative z-30 mb-1 flex h-5 items-center justify-center">
+      <div className="relative z-30 mb-1 flex h-5 items-center justify-center gap-1">
         {reserved && (
           <Badge variant="success" className="absolute top-1/2 left-0 -translate-y-1/2">
             Reserved
           </Badge>
         )}
+        {isRuleSourced(entry.source) && <RuleSourceBadge iconOnly />}
         {tradePill}
         <Button
           type="button"
@@ -319,7 +378,7 @@ function buildStrip({
           className="text-muted-foreground hover:text-destructive absolute top-1/2 right-0 -translate-y-1/2"
           onClick={(event) => {
             event.stopPropagation();
-            dispatchListBulkAction(entry.id, "takeOff");
+            dispatchListBulkAction(entryId, "takeOff");
           }}
           aria-label={`Take ${entry.cardName} off list`}
         >
@@ -329,24 +388,38 @@ function buildStrip({
     );
   }
 
-  const isPending = isQuantityPending(entry.id);
+  const isPending = isQuantityPending(entryId);
+  // Additive model (ADR-034): the stepper edits the manual part only; the rule's
+  // contribution shows in the chip and can't be stepped below. Total = manual +
+  // rule. Decrementing the last manual copy removes the row (reverts to rule-only).
+  const manualPart = entry.quantity - entry.ruleQuantity;
   return (
     <CardCountStrip
-      count={entry.quantity}
+      count={manualPart}
+      icon={ListIcon}
       decrement={{
         onClick: () =>
-          entry.quantity <= 1
-            ? dispatchRemoveEntry(entry.id, entry.cardName)
-            : dispatchEntryQuantityChange(entry.id, entry.quantity - 1),
+          manualPart <= 1
+            ? dispatchRemoveEntry(entryId, entry.cardName)
+            : dispatchEntryQuantityChange(entryId, manualPart - 1),
         disabled: isPending,
         ariaLabel: `Decrease ${entry.cardName} quantity`,
       }}
       increment={{
-        onClick: () => dispatchEntryQuantityChange(entry.id, entry.quantity + 1),
+        onClick: () => dispatchEntryQuantityChange(entryId, manualPart + 1),
         disabled: isPending,
         ariaLabel: `Increase ${entry.cardName} quantity`,
       }}
-      extras={tradePill}
+      extras={
+        entry.ruleQuantity > 0 ? (
+          <>
+            <RuleSourceBadge quantity={entry.ruleQuantity} />
+            {tradePill}
+          </>
+        ) : (
+          tradePill
+        )
+      }
     />
   );
 }
