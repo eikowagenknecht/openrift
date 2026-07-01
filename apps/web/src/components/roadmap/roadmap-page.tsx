@@ -12,6 +12,7 @@ import {
   HeartIcon,
   LayersIcon,
   LibraryIcon,
+  ListChecksIcon,
   PackageOpenIcon,
   PaletteIcon,
   PieChartIcon,
@@ -82,6 +83,14 @@ const roadmapItems: RoadmapItem[] = [
     title: "Match Tracker",
     description: "Keep score and XP for 2 to 4 players on one device, works offline.",
     icon: <Gamepad2Icon className="size-4" />,
+    done: true,
+    date: "Jun 2026",
+  },
+  {
+    title: "Dynamic Lists",
+    description:
+      "Wishlists and tradelists that fill themselves from rules, like a playset of every card, and stay current on their own.",
+    icon: <ListChecksIcon className="size-4" />,
     done: true,
     date: "Jun 2026",
   },

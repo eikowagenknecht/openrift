@@ -136,7 +136,7 @@ export default function WhyOpenRiftArticle() {
           I&apos;m not sure.
         </p>
         <p className="text-muted-foreground mb-3">
-          OpenRift&apos;s own rows were last refreshed on 2026-06-21. The competitor counts and
+          OpenRift&apos;s own rows were last refreshed on 2026-07-01. The competitor counts and
           features were last verified on 2026-05-27 and may have drifted since. When you&apos;re
           reading this, it&apos;s probably already slightly out of date, as counts and features
           change regularly.
@@ -504,7 +504,7 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
       general:
         "Dedicated lists for cards you want, and sometimes cards you're willing to trade away.",
       openrift:
-        "Multiple wishlists and tradelists, each shareable via public link or with a group.",
+        "Multiple wishlists and tradelists, each shareable via public link or with a group, and each able to fill itself from rules (like a playset of every card) and stay current on its own.",
       piltoverArchive: "Single wishlist, not shareable.",
       riftmana: "One wishlist and one tradelist, not shareable.",
       riftboundGg: "One wishlist and one tradelist, both shareable.",
@@ -553,6 +553,8 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
     values: ["yes", "yes", "yes", "yes", "yes"],
     detail: {
       general: "Share a single deck via public link, so anyone can view it without signing in.",
+      openrift:
+        "Links unfurl into a full visual decklist (legend, runes, battlefields, and cards) in chats and social, with a high-resolution version to download.",
     },
   },
   {
@@ -651,7 +653,9 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
     values: ["yes", "yes", "yes", "partial", "yes"],
     detail: {
       general:
-        "Browse the full card database, prices, and deck codes without signing up. Accounts are only needed for collections and decks.",
+        "Browse the full card database, prices, and deck codes without signing up. An account is only needed to save collections.",
+      openrift:
+        "You can also build a deck without signing in (it saves on your device), and import a deck code while logged out.",
       riftmana: "Chinese printings are only viewable to logged-in users.",
     },
   },

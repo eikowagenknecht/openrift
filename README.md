@@ -13,9 +13,9 @@ Live and free to use at **[openrift.app](https://openrift.app)**, no install req
 - **Comprehensive catalog.** More cards and printings than anywhere else. Almost all English cards and promos, plus many Chinese cards. French isn't in yet, unfortunately.
 - **Accurate price tracking.** Daily prices from TCGplayer, Cardmarket, and CardTrader, side by side, with history charts.
 - **One card, one place.** Collections map to the real world: a deck box, a binder, a card lent to a friend. Each copy lives in exactly one, so the app always mirrors what's actually on your shelf.
-- **Wishlists and tradelists.** Track the cards you want and the spares you'd part with, and share either by link with anyone.
+- **Wishlists and tradelists.** Track the cards you want and the spares you'd part with, and share either by link with anyone. Lists can also fill themselves from rules (a playset of every card, every surplus common beyond two playsets) and stay current on their own.
 - **Private groups.** Form a small group with friends or your local game store, with collections owned by the whole group, a view into each member's own collections, and trade matching that surfaces who has the cards you're after. No other Riftbound site does this.
-- **Your decks, your rules.** Validate against official and custom formats, or build freeform with no limits at all. Energy curves, deck codes, per-matchup plans, and a list of what you're still missing so you can proxy or buy the rest.
+- **Your decks, your rules.** Validate against official and custom formats, or build freeform with no limits at all. Energy curves, deck codes, per-matchup plans, and a list of what you're still missing so you can proxy or buy the rest. Start building without signing in, and share a deck as a link that unfurls into a full visual decklist.
 - **A full toolbox.** Pack opener, card designer, tournament tools, and a searchable rules reference are all built in with more to come.
 - **Private and open.** Zero third-party trackers, just cookie-free Umami analytics. Open source under AGPL-3.0, with import and export options, so your data is never locked in.
 
