@@ -4,6 +4,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import type { Kysely } from "kysely";
+import { sql } from "kysely";
+import { Migrator } from "kysely/migration";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Logger } from "../../logger.js";
@@ -46,6 +48,61 @@ describe.skipIf(!DATABASE_URL)("migrations up/down cycle", () => {
 
   it("re-applies all migrations from scratch", async () => {
     await migrate(db, log);
+  });
+});
+
+describe.skipIf(!DATABASE_URL)("migration order is clock-step resilient", () => {
+  let db: Kysely<Database>;
+  let log: Logger;
+  let teardown: () => Promise<void>;
+
+  beforeAll(async () => {
+    // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by describe.skipIf
+    ({ db, log, teardown } = await setupTestDb(DATABASE_URL!, "migration_clock"));
+  });
+
+  afterAll(async () => {
+    await teardown();
+  });
+
+  it("repairs a non-monotonic recorded order left by a backward clock step", async () => {
+    const rows = await sql<{ name: string }>`SELECT name FROM kysely_migration`.execute(db);
+    const canonicalNames = rows.rows.map((row) => row.name).sort();
+
+    // Reproduce the corruption a mid-run backward wall-clock step leaves behind:
+    // give the alphabetically-last migration the earliest timestamp, so ordering
+    // the executed migrations by timestamp no longer matches the name order.
+    const lastName = canonicalNames.at(-1);
+    await sql`
+      UPDATE kysely_migration SET timestamp = '1900-01-01T00:00:00.000Z' WHERE name = ${lastName}
+    `.execute(db);
+
+    // A plain Kysely migrator rejects the corrupted order outright — this is the
+    // failure that made the up/down cycle flaky under load before the repair.
+    const unrepaired = await new Migrator({
+      db,
+      // oxlint-disable-next-line prefer-await-to-then -- MigrationProvider wants a Promise
+      provider: { getMigrations: () => Promise.resolve(migrations) },
+    }).migrateToLatest();
+    expect(unrepaired.error).toBeInstanceOf(Error);
+    expect(String(unrepaired.error)).toContain("corrupted migrations");
+
+    // migrate() normalizes the timestamps first, so it repairs the order and
+    // succeeds instead of throwing.
+    await migrate(db, log);
+
+    // The recorded order (by timestamp, as Kysely reads it) now matches the
+    // canonical name order again.
+    const after = await sql<{ name: string; timestamp: string }>`
+      SELECT name, timestamp FROM kysely_migration
+    `.execute(db);
+    const recordedOrder = [...after.rows]
+      .sort(
+        (first, second) =>
+          new Date(first.timestamp).getTime() - new Date(second.timestamp).getTime(),
+      )
+      .map((row) => row.name);
+    expect(recordedOrder).toEqual(canonicalNames);
   });
 });
 

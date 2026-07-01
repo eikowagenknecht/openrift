@@ -6,7 +6,17 @@ import { describe, expect, it, vi } from "vitest";
 import { migrate, rollback } from "./migrate.js";
 import type { Database } from "./types.js";
 
-const fakeDb = {} as Kysely<Database>;
+// migrate()/rollback() run normalizeMigrationTimestamps, which issues a raw
+// `sql` query through the db's executor. These unit tests mock the Migrator, so
+// the db only needs an executor that returns no rows — normalizeMigrationTimestamps
+// then treats the migration table as absent and no-ops.
+const fakeExecutor = {
+  transformQuery: (node: unknown) => node,
+  compileQuery: () => ({ sql: "", parameters: [] }),
+  executeQuery: () => Promise.resolve({ rows: [] }),
+  withPlugins: () => fakeExecutor,
+};
+const fakeDb = { getExecutor: () => fakeExecutor } as unknown as Kysely<Database>;
 
 // oxlint-disable-next-line no-empty-function -- noop logger for tests
 const noop = () => {};
