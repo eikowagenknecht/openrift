@@ -4,7 +4,7 @@ import { z } from "zod";
 
 extendZodWithOpenApi(z);
 
-const sitemapEntrySchema = z.object({
+export const sitemapEntrySchema = z.object({
   slug: z.string().openapi({ example: "jinx-rebel" }),
   updatedAt: z.string().openapi({ example: "2026-04-01T12:00:00.000Z" }),
 });

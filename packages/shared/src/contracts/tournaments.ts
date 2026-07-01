@@ -32,7 +32,7 @@ const scoringSchemeSchema = z.enum(["standard", "three_pod_reduced"]);
 
 // ─── Response schemas ──────────────────────────────────────────────────────
 
-const tournamentHostInfoSchema = z.object({
+export const tournamentHostInfoSchema = z.object({
   type: z.enum(["user", "organization"]),
   userId: z.string().nullable(),
   orgId: z.string().nullable(),
@@ -40,7 +40,7 @@ const tournamentHostInfoSchema = z.object({
   orgSlug: z.string().nullable(),
 });
 
-const tournamentModuleFlagsSchema = z.object({
+export const tournamentModuleFlagsSchema = z.object({
   pairing: z.boolean(),
   deckSubmission: z.boolean(),
 });
@@ -107,7 +107,7 @@ export const tournamentDetailResponseSchema = tournamentSummaryResponseSchema
   })
   .openapi("TournamentDetailResponse");
 
-const tournamentStaffCandidateResponseSchema = z
+export const tournamentStaffCandidateResponseSchema = z
   .object({
     userId: z.string(),
     name: z.string().nullable(),
@@ -115,7 +115,7 @@ const tournamentStaffCandidateResponseSchema = z
   })
   .openapi("TournamentStaffCandidateResponse");
 
-const tournamentStaffCandidateListResponseSchema = z
+export const tournamentStaffCandidateListResponseSchema = z
   .object({ items: z.array(tournamentStaffCandidateResponseSchema) })
   .openapi("TournamentStaffCandidateListResponse");
 

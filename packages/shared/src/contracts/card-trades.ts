@@ -50,7 +50,7 @@ const cardTradeStatusResponseSchema = z
   .enum(["pending", "reserved", "completed", "declined", "cancelled", "expired"])
   .openapi("CardTradeStatus");
 
-const cardTradeCounterpartySchema = z
+export const cardTradeCounterpartySchema = z
   .object({
     userId: z.string(),
     name: z.string().nullable(),

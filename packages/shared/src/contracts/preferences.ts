@@ -13,6 +13,18 @@ const paletteEnum = z.enum(["default", "minimal"]);
 
 const defaultCardViewEnum = z.enum(["cards", "printings"]);
 
+// ADR-030 email-notification channels. Named (not inlined) so the update body
+// and the response share one definition and cannot drift — a prior inline copy
+// omitted `tradeStatus`, which silently stripped it from both directions.
+export const emailNotificationPreferenceSchema = z
+  .object({
+    tradeMatches: z.boolean().optional(),
+    tradeRequests: z.boolean().optional(),
+    tradeStatus: z.boolean().optional(),
+    tradeRequestCadence: z.enum(TRADE_REQUEST_EMAIL_CADENCES).optional(),
+  })
+  .openapi("EmailNotificationPreference");
+
 // Mirrors CompletionScopePreference (types/api/preferences.ts) and the read-side
 // completionScopePreferenceSchema in response-schemas.ts. Previously absent here,
 // so the web's completionScope PATCH was silently stripped and never persisted.
@@ -61,19 +73,12 @@ export const updatePreferencesSchema = z.object({
   // ADR-030 email notifications. The shallow server merge replaces this whole
   // key, so the web always sends both channels (preserving the unchanged one);
   // `null` resets the object, restoring both defaults (digest off, request on).
-  emailNotifications: z
-    .object({
-      tradeMatches: z.boolean().optional(),
-      tradeRequests: z.boolean().optional(),
-      tradeRequestCadence: z.enum(TRADE_REQUEST_EMAIL_CADENCES).optional(),
-    })
-    .nullable()
-    .optional(),
+  emailNotifications: emailNotificationPreferenceSchema.nullable().optional(),
 });
 
 // Mirrors the CompletionScopePreference type (types/api/preferences.ts). Kept in
 // sync with the write-side schema in schemas.ts (updatePreferencesSchema).
-const completionScopePreferenceSchema = z
+export const completionScopePreferenceSchema = z
   .object({
     sets: z.array(z.string()).optional(),
     languages: z.array(z.string()).optional(),
@@ -106,13 +111,7 @@ export const userPreferencesResponseSchema = z
     hiddenFilterSections: z.array(z.string()).optional(),
     compactFilterView: z.boolean().optional(),
     // ADR-030: round-trips so the profile toggles read the stored state.
-    emailNotifications: z
-      .object({
-        tradeMatches: z.boolean().optional(),
-        tradeRequests: z.boolean().optional(),
-        tradeRequestCadence: z.enum(TRADE_REQUEST_EMAIL_CADENCES).optional(),
-      })
-      .optional(),
+    emailNotifications: emailNotificationPreferenceSchema.optional(),
   })
   .openapi("UserPreferencesResponse");
 

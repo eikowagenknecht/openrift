@@ -1,6 +1,11 @@
 import { z } from "zod";
 
 import { authedRoute } from "../_base.js";
+import {
+  adminCardDetailResponseSchema,
+  unmatchedCardDetailResponseSchema,
+} from "./card-detail-schemas.js";
+import { candidateExportDocumentSchema } from "./card-mutations.js";
 
 const TAG = "Admin - Cards";
 
@@ -14,7 +19,7 @@ const allCardsItemSchema = z.object({
   setSlugs: z.array(z.string()),
 });
 
-const providerStatsItemSchema = z.object({
+export const providerStatsItemSchema = z.object({
   provider: z.string(),
   cardCount: z.number(),
   printingCount: z.number(),
@@ -24,7 +29,7 @@ const providerStatsItemSchema = z.object({
 // Mirror of the API-side `candidateCardSummarySchema` (apps/api cards/schemas).
 // Duplicated here because contracts live in the shared package and cannot
 // import from apps/api; kept in sync with `CandidateCardSummaryResponse`.
-const candidateCardSummarySchema = z.object({
+export const candidateCardSummarySchema = z.object({
   cardSlug: z.string().nullable(),
   name: z.string(),
   normalizedName: z.string(),
@@ -64,15 +69,15 @@ export const adminCardQueriesContract = {
     .output(z.array(candidateCardSummarySchema)),
   exportCandidates: authedRoute
     .route({ method: "GET", path: `${CARDS}/export`, tags: [TAG] })
-    .output(z.array(z.unknown())),
+    .output(candidateExportDocumentSchema),
   getCandidateCard: authedRoute
     .route({ method: "GET", path: `${CARDS}/{cardSlug}`, tags: [TAG] })
     .input(z.object({ cardSlug: z.string() }))
-    .output(z.unknown()),
+    .output(adminCardDetailResponseSchema),
   getUnmatchedDetail: authedRoute
     .route({ method: "GET", path: `${CARDS}/new/{name}`, tags: [TAG] })
     .input(z.object({ name: z.string() }))
-    .output(z.unknown()),
+    .output(unmatchedCardDetailResponseSchema),
 };
 
 export type AdminCardQueriesContract = typeof adminCardQueriesContract;

@@ -1,5 +1,15 @@
+import type {
+  cardmarketSnapshotSchema,
+  cardtraderSnapshotSchema,
+  marketplaceInfoResponseSchema,
+  marketplaceInfoSchema,
+  priceHistoryResponseSchema,
+  pricesResponseSchema,
+  tcgplayerSnapshotSchema,
+} from "@openrift/shared/contracts/prices";
+import type { z } from "zod";
+
 import type { Marketplace } from "../pricing.js";
-import type { Currency } from "./trade-preferences.js";
 
 /**
  * Latest headline price per printing per marketplace, in integer **cents**.
@@ -9,11 +19,7 @@ import type { Currency } from "./trade-preferences.js";
  */
 export type PriceMap = Record<string, Partial<Record<Marketplace, number>>>;
 
-export interface PricesResponse {
-  prices: PriceMap;
-  /** Currency of each marketplace's integer-cents amounts (e.g. tcgplayer=USD). */
-  currencies: Record<Marketplace, Currency>;
-}
+export type PricesResponse = z.infer<typeof pricesResponseSchema>;
 
 /**
  * Lookup interface for resolving the latest price of a printing on a given marketplace.
@@ -27,17 +33,9 @@ export interface PriceLookup {
 
 // All snapshot price fields below are integer cents; the web converts
 // to major units at the usePriceHistory boundary.
-export interface TcgplayerSnapshot {
-  date: string;
-  market: number;
-  low: number | null;
-}
+export type TcgplayerSnapshot = z.infer<typeof tcgplayerSnapshotSchema>;
 
-export interface CardmarketSnapshot {
-  date: string;
-  market: number;
-  low: number | null;
-}
+export type CardmarketSnapshot = z.infer<typeof cardmarketSnapshotSchema>;
 
 /**
  * CardTrader has no "market" price like TCG/CM, but since migration 099 each
@@ -50,47 +48,17 @@ export interface CardmarketSnapshot {
  * Zero sellers exist for the variant). The API only emits a snapshot when at
  * least one is non-null.
  */
-export interface CardtraderSnapshot {
-  date: string;
-  zeroLow: number | null;
-  low: number | null;
-}
+export type CardtraderSnapshot = z.infer<typeof cardtraderSnapshotSchema>;
 
 /**
  * Metadata describing how a marketplace maps to a printing: whether a mapping
  * exists and its external product ID (for deep-link URLs).
  */
-export interface MarketplaceInfo {
-  available: boolean;
-  productId: number | null;
-}
+export type MarketplaceInfo = z.infer<typeof marketplaceInfoSchema>;
 
-/**
- * Per-marketplace slice of the price history response — {@link MarketplaceInfo}
- * plus the snapshot series.
- */
-interface PriceHistorySlice<TSnapshot> extends MarketplaceInfo {
-  /** Currency of this marketplace's integer-cents snapshot amounts. */
-  currency: Currency;
-  snapshots: TSnapshot[];
-}
+export type PriceHistoryResponse = z.infer<typeof priceHistoryResponseSchema>;
 
-export interface PriceHistoryResponse {
-  tcgplayer: PriceHistorySlice<TcgplayerSnapshot>;
-  cardmarket: PriceHistorySlice<CardmarketSnapshot>;
-  cardtrader: PriceHistorySlice<CardtraderSnapshot>;
-}
-
-export interface MarketplaceInfoResponse {
-  infos: Record<
-    string,
-    {
-      tcgplayer: MarketplaceInfo;
-      cardmarket: MarketplaceInfo;
-      cardtrader: MarketplaceInfo;
-    }
-  >;
-}
+export type MarketplaceInfoResponse = z.infer<typeof marketplaceInfoResponseSchema>;
 
 export type AnySnapshot = TcgplayerSnapshot | CardmarketSnapshot | CardtraderSnapshot;
 

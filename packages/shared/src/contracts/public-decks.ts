@@ -44,7 +44,7 @@ export const publicDeckResponseSchema = z
   })
   .openapi("PublicDeckResponse");
 
-const publicDeckCardResponseSchema = z
+export const publicDeckCardResponseSchema = z
   .object({
     cardId: z.string(),
     zone: deckZoneSchema,
@@ -66,7 +66,7 @@ const publicDeckCardResponseSchema = z
   })
   .openapi("PublicDeckCardResponse");
 
-const deckPlanCardMetaResponseSchema = z.object({
+export const deckPlanCardMetaResponseSchema = z.object({
   cardId: z.string(),
   cardName: z.string(),
   cardSlug: z.string(),

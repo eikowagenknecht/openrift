@@ -1,31 +1,42 @@
+import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { isoDateTime } from "@openrift/shared/schemas";
 import { z } from "zod";
 
 import { marketplaceEnum } from "../../schemas.js";
 import { authedRoute } from "../_base.js";
 
+extendZodWithOpenApi(z);
+
 const TAG = "Admin - Ignored Products";
 
 const IP = "/api/admin/v1/ignored-products";
 
-const ignoredProductSchema = z.discriminatedUnion("level", [
-  z.object({
-    level: z.literal("product"),
-    marketplace: z.string(),
-    externalId: z.number(),
-    productName: z.string(),
-    createdAt: isoDateTime,
-  }),
-  z.object({
-    level: z.literal("variant"),
-    marketplace: z.string(),
-    externalId: z.number(),
-    finish: z.string(),
-    language: z.string().nullable(),
-    productName: z.string(),
-    createdAt: isoDateTime,
-  }),
-]);
+/**
+ * A single ignored marketplace product. Level 2 (`product`) denies the whole
+ * upstream product (sealed product, bundles, etc.); level 3 (`variant`) denies
+ * one specific SKU of an otherwise-mapped product. `language` is `null` for
+ * marketplaces that don't expose language as a SKU dimension (CM/TCG).
+ */
+export const ignoredProductSchema = z
+  .discriminatedUnion("level", [
+    z.object({
+      level: z.literal("product"),
+      marketplace: z.string(),
+      externalId: z.number(),
+      productName: z.string(),
+      createdAt: isoDateTime,
+    }),
+    z.object({
+      level: z.literal("variant"),
+      marketplace: z.string(),
+      externalId: z.number(),
+      finish: z.string(),
+      language: z.string().nullable(),
+      productName: z.string(),
+      createdAt: isoDateTime,
+    }),
+  ])
+  .openapi("IgnoredProductResponse");
 
 // POST/DELETE body: a batch keyed by level. Level 2 (product) denies the whole
 // upstream product; level 3 (variant) denies a specific (finish, language) SKU.

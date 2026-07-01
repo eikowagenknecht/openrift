@@ -13,7 +13,7 @@ export const collectionEventsQuerySchema = z.object({
 
 const activityActionSchema = z.enum(["added", "removed", "moved"]);
 
-const collectionEventResponseSchema = z
+export const collectionEventResponseSchema = z
   .object({
     id: z.string(),
     action: activityActionSchema,

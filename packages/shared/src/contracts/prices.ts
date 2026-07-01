@@ -54,19 +54,19 @@ export const pricesResponseSchema = z
 
 // Snapshot money fields are integer cents (SCH-2). `date` is a date-only string
 // (YYYY-MM-DD), not an ISO datetime.
-const tcgplayerSnapshotSchema = z.object({
+export const tcgplayerSnapshotSchema = z.object({
   date: z.string().openapi({ example: "2026-04-01", description: "Date-only (YYYY-MM-DD), USD" }),
   market: z.number().int().openapi({ example: 452, description: "Integer cents (USD)" }),
   low: z.number().int().nullable().openapi({ example: 325, description: "Integer cents (USD)" }),
 });
 
-const cardmarketSnapshotSchema = z.object({
+export const cardmarketSnapshotSchema = z.object({
   date: z.string().openapi({ example: "2026-04-01", description: "Date-only (YYYY-MM-DD), EUR" }),
   market: z.number().int().openapi({ example: 380, description: "Integer cents (EUR)" }),
   low: z.number().int().nullable().openapi({ example: 250, description: "Integer cents (EUR)" }),
 });
 
-const cardtraderSnapshotSchema = z.object({
+export const cardtraderSnapshotSchema = z.object({
   date: z.string().openapi({ example: "2026-04-01", description: "Date-only (YYYY-MM-DD), EUR" }),
   zeroLow: z
     .number()
@@ -76,7 +76,7 @@ const cardtraderSnapshotSchema = z.object({
   low: z.number().int().nullable().openapi({ example: 390, description: "Integer cents (EUR)" }),
 });
 
-const marketplaceInfoSchema = z.object({
+export const marketplaceInfoSchema = z.object({
   available: z.boolean().openapi({ example: true }),
   productId: z.number().nullable().openapi({ example: 582_391 }),
 });

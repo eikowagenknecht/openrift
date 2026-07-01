@@ -10,9 +10,9 @@ import { z } from "zod";
 extendZodWithOpenApi(z);
 
 // Wire-only shapes for /catalog: identity lives in the map key, not the value.
-const catalogCardResponseValueSchema = catalogCardResponseSchema.omit({ id: true });
+export const catalogCardResponseValueSchema = catalogCardResponseSchema.omit({ id: true });
 
-const catalogPrintingResponseValueSchema = catalogPrintingResponseSchema.omit({ id: true });
+export const catalogPrintingResponseValueSchema = catalogPrintingResponseSchema.omit({ id: true });
 
 export const catalogResponseSchema = z
   .object({

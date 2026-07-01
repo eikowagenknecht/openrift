@@ -24,7 +24,7 @@ export const playerDeckCheckEntryParamSchema = z.object({
   entryId: z.uuid(),
 });
 
-const playerDeckCheckEntrySummaryResponseSchema = z.object({
+export const playerDeckCheckEntrySummaryResponseSchema = z.object({
   id: z.string(),
   eventName: z.string(),
   eventDate: z.string().nullable(),

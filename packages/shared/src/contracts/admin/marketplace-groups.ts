@@ -6,9 +6,9 @@ const TAG = "Admin - Marketplace Groups";
 
 const MG = "/api/admin/v1/marketplace-groups";
 
-const groupKindEnum = z.enum(["basic", "special"]);
+export const groupKindEnum = z.enum(["basic", "special"]);
 
-const marketplaceGroupSchema = z.object({
+export const marketplaceGroupSchema = z.object({
   marketplace: z.string(),
   groupId: z.number(),
   name: z.string().nullable(),

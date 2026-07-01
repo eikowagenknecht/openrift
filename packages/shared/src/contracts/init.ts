@@ -5,7 +5,7 @@ import { z } from "zod";
 
 extendZodWithOpenApi(z);
 
-const keywordEntrySchema = z.object({
+export const keywordEntrySchema = z.object({
   color: z.string().openapi({ example: "#24705f" }),
   darkText: z.boolean().openapi({ example: false }),
   translations: z

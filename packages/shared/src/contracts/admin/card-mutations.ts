@@ -210,7 +210,7 @@ const ingestCardFieldsSchema = z.object({
   extra_data: candidateCardFieldRules.extraData.optional().default(null),
 });
 
-const uploadCandidatesSchema = z.object({
+export const uploadCandidatesSchema = z.object({
   provider: z.string().min(1),
   candidates: z
     .array(
@@ -224,11 +224,66 @@ const uploadCandidatesSchema = z.object({
 /** Pre-transform upload body (the raw `{ card, printings }[]` shape the web uploads). */
 export type UploadCandidatesBody = z.input<typeof uploadCandidatesSchema>;
 
+// ── Candidate export (round-trip) document ───────────────────────────────────
+// The `exportCandidates` endpoint emits this exact shape, and it is designed to
+// be re-uploaded through `uploadCandidatesSchema` above. The two are paired: a
+// single literal schema can't serve both (the upload side is lenient + value-
+// validated for untrusted input; this side is a strict emit of trusted DB rows),
+// so the guarantee that they line up is enforced by a round-trip integration
+// test rather than shared object identity. `marker_slugs` /
+// `distribution_channel_slugs` are admin-curated and not exported (optional
+// here); every other field round-trips.
+const candidateExportCardSchema = z.object({
+  name: z.string(),
+  type: z.string().nullable(),
+  super_types: z.array(z.string()),
+  domains: z.array(z.string()),
+  might: z.number().nullable(),
+  energy: z.number().nullable(),
+  power: z.number().nullable(),
+  might_bonus: z.number().nullable(),
+  rules_text: z.string().nullable(),
+  effect_text: z.string().nullable(),
+  tags: z.array(z.string()),
+  short_code: z.string().nullable(),
+  external_id: z.string(),
+  extra_data: z.unknown().nullable(),
+});
+
+const candidateExportPrintingSchema = z.object({
+  short_code: z.string(),
+  set_id: z.string().nullable(),
+  set_name: z.string().nullable(),
+  rarity: z.string().nullable(),
+  art_variant: z.string().nullable(),
+  is_signed: z.boolean(),
+  finish: z.string().nullable(),
+  artist: z.string().nullable(),
+  public_code: z.string().nullable(),
+  printed_rules_text: z.string().nullable(),
+  printed_effect_text: z.string().nullable(),
+  image_url: z.string().nullable(),
+  flavor_text: z.string().nullable(),
+  external_id: z.string(),
+  extra_data: z.unknown().nullable(),
+  language: z.string().nullable(),
+  printed_name: z.string().nullable(),
+  marker_slugs: z.array(z.string()).optional(),
+  distribution_channel_slugs: z.array(z.string()).optional(),
+});
+
+export const candidateExportDocumentSchema = z.array(
+  z.object({
+    card: candidateExportCardSchema,
+    printings: z.array(candidateExportPrintingSchema),
+  }),
+);
+
 const uploadDetailSchema = z.object({ name: z.string(), shortCode: z.string().nullable() });
 const uploadDiffSchema = uploadDetailSchema.extend({
   fields: z.array(z.object({ field: z.string(), from: diffValueSchema, to: diffValueSchema })),
 });
-const uploadCandidatesResponseSchema = z.object({
+export const uploadCandidatesResponseSchema = z.object({
   provider: z.string(),
   newCards: z.number(),
   removedCards: z.number(),

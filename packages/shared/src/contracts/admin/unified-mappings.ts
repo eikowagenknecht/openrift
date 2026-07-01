@@ -12,10 +12,9 @@ import { marketplaceEnum } from "@openrift/shared/schemas";
 import { z } from "zod";
 
 import { authedRoute } from "../_base.js";
+import { groupKindEnum } from "./marketplace-groups.js";
 
 extendZodWithOpenApi(z);
-
-const marketplaceGroupKindSchema = z.enum(["basic", "special"]);
 
 // One staged/assigned/unmatched marketplace product (a SKU + its latest prices
 // and group provenance). `groupKind` / `groupSetSlug` drive the suggester.
@@ -49,7 +48,7 @@ export const stagedProductResponseSchema = z
      * `special` prefers them. Omitted for products whose group resolution
      * wasn't needed (unassigned staging without a group).
      */
-    groupKind: marketplaceGroupKindSchema.optional().openapi({ example: "basic" }),
+    groupKind: groupKindEnum.optional().openapi({ example: "basic" }),
     /**
      * Slug of the OpenRift set this product's marketplace group is scoped to,
      * if any. When non-null, the suggester only proposes printings whose

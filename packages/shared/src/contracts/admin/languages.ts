@@ -7,7 +7,7 @@ const TAG = "Admin - Languages";
 
 const LANG = "/api/admin/v1/languages";
 
-const languageSchema = z.object({
+export const languageSchema = z.object({
   code: z.string(),
   name: z.string(),
   sortOrder: z.number(),

@@ -1,3 +1,7 @@
+import type { effectiveTradePreferenceSchema } from "@openrift/shared/contracts/friend-groups";
+import type { tradePreferenceSchema } from "@openrift/shared/response-schemas";
+import type { z } from "zod";
+
 /** Price reference the user states. NULL means "no preference, hash out personally". */
 export type TradePricePref = "cm_lowest" | "tcg_lowest" | "ct_zero" | "absolute";
 
@@ -18,22 +22,10 @@ export const TRADE_TYPES: readonly TradeType[] = ["cards", "money", "both"] as c
 export const CURRENCIES: readonly Currency[] = ["EUR", "USD"] as const;
 
 /** The triple as stored on either a list (as default_*) or an entry (as override). */
-export interface TradePreference {
-  pricePref: TradePricePref | null;
-  /** Set iff `pricePref === "absolute"`. Positive integer (minor units). */
-  priceAbsoluteCents: number | null;
-  tradeType: TradeType | null;
-}
+export type TradePreference = z.infer<typeof tradePreferenceSchema>;
 
 /** Effective preference at one side of a match. Includes the list's currency. */
-export interface EffectiveTradePreference extends TradePreference {
-  /**
-   * The originating list's currency. Required to display an `absolute` price;
-   * informational when `pricePref` is a marketplace preset; `null` if the list
-   * has no currency set.
-   */
-  currency: Currency | null;
-}
+export type EffectiveTradePreference = z.infer<typeof effectiveTradePreferenceSchema>;
 
 /**
  * Resolves an entry's effective preference: entry override beats list default,

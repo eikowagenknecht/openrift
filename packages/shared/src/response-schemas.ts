@@ -67,7 +67,7 @@ const DECK_ZONE_VALUES = [
   WellKnown.deckZone.OVERFLOW,
 ] as const;
 export const deckZoneSchema = z.enum(DECK_ZONE_VALUES);
-const cardFaceSchema = z.enum(["front", "back"]);
+export const cardFaceSchema = z.enum(["front", "back"]);
 
 // ── Health ───────────────────────────────────────────────────────────────────
 
@@ -350,7 +350,7 @@ export const listEntryDetailResponseSchema = z
   ])
   .openapi("ListEntryDetailResponse");
 
-const publicListResponseSchema = z
+export const publicListResponseSchema = z
   .object({
     id: z.string(),
     name: z.string(),
@@ -432,7 +432,7 @@ export const podStandingRowSchema = z
   })
   .openapi("PodStandingRow");
 
-const podMemberResponseSchema = z.object({
+export const podMemberResponseSchema = z.object({
   playerId: z.string(),
   displayName: z.string(),
   gamePoints: z.number().int().nullable(),
@@ -440,7 +440,7 @@ const podMemberResponseSchema = z.object({
   points: z.number().nullable(),
 });
 
-const podPenaltyViewSchema = z.object({
+export const podPenaltyViewSchema = z.object({
   total: z.number(),
   rematchPairs: z.number().int().nonnegative(),
   spread: z.number(),
@@ -450,7 +450,7 @@ const podPenaltyViewSchema = z.object({
   threePodRepeat: z.number(),
 });
 
-const podResponseSchema = z.object({
+export const podResponseSchema = z.object({
   id: z.string(),
   podNumber: z.number().int().positive(),
   size: z.union([z.literal(3), z.literal(4)]),
@@ -459,7 +459,7 @@ const podResponseSchema = z.object({
   penalty: podPenaltyViewSchema.nullable(),
 });
 
-const podByeResponseSchema = z.object({
+export const podByeResponseSchema = z.object({
   playerId: z.string(),
   displayName: z.string(),
 });
@@ -509,7 +509,7 @@ export const podPlayerResponseSchema = z
   })
   .openapi("PodPlayerResponse");
 
-const podSnapshotPlayerSchema = z.object({
+export const podSnapshotPlayerSchema = z.object({
   playerId: z.string(),
   score: z.number(),
   pods3: z.number().int().nonnegative(),

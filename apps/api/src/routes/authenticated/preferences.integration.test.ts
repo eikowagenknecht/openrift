@@ -21,15 +21,22 @@ import {
 // ---------------------------------------------------------------------------
 
 const USER_ID = "a0000000-0044-4000-a000-000000000001";
+// A dedicated user so the emailNotifications round-trip runs as a clean first
+// PATCH, sidestepping the bun jsonb-as-string merge quirk noted above.
+const EMAIL_PREF_USER_ID = "a0000000-0044-4000-a000-000000000002";
 
 const ctx = createTestContext(USER_ID);
+const emailPrefCtx = createTestContext(EMAIL_PREF_USER_ID);
 const unauthCtx = createUnauthenticatedTestContext();
 
 afterAll(async () => {
   if (!ctx) {
     return;
   }
-  await ctx.db.deleteFrom("userPreferences").where("userId", "=", USER_ID).execute();
+  await ctx.db
+    .deleteFrom("userPreferences")
+    .where("userId", "in", [USER_ID, EMAIL_PREF_USER_ID])
+    .execute();
 });
 
 /** Parse preferences from the response, handling the bun jsonb-as-string quirk.
@@ -109,6 +116,25 @@ describe.skipIf(!ctx)("Preferences routes (integration)", () => {
         }),
       );
       expect(res.status).toBe(400);
+    });
+
+    // Regression (ADR-030): the emailNotifications schema once omitted
+    // `tradeStatus`, so zod stripped it from both the PATCH input and the
+    // response output — the profile toggle silently never round-tripped. This
+    // fails without `tradeStatus` in emailNotificationPreferenceSchema.
+    it.skipIf(!emailPrefCtx)("round-trips emailNotifications.tradeStatus", async () => {
+      // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
+      const emailApp = emailPrefCtx!.app;
+      const patched = await emailApp.fetch(
+        req("PATCH", "/preferences", { emailNotifications: { tradeStatus: false } }),
+      );
+      expect(patched.status).toBe(200);
+      const patchedJson = parsePrefs(await patched.json());
+      expect((patchedJson.emailNotifications as { tradeStatus?: boolean }).tradeStatus).toBe(false);
+
+      const fetched = await emailApp.fetch(req("GET", "/preferences"));
+      const fetchedJson = parsePrefs(await fetched.json());
+      expect((fetchedJson.emailNotifications as { tradeStatus?: boolean }).tradeStatus).toBe(false);
     });
   });
 

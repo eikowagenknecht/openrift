@@ -208,9 +208,28 @@ describe("GET /api/admin/v1/cards/export", () => {
   });
 
   it("returns 200 with export data", async () => {
-    const exportData = [{ card: { name: "Fireball", type: "spell" }, printings: [] }];
-    // oxlint-disable-next-line no-explicit-any -- loose passthrough export shape
-    mockBuildExport.mockResolvedValue(exportData as any);
+    const exportData = [
+      {
+        card: {
+          name: "Fireball",
+          type: "spell",
+          super_types: [],
+          domains: [],
+          might: null,
+          energy: null,
+          power: null,
+          might_bonus: null,
+          rules_text: null,
+          effect_text: null,
+          tags: [],
+          short_code: "fireball",
+          external_id: "card-1",
+          extra_data: null,
+        },
+        printings: [],
+      },
+    ];
+    mockBuildExport.mockResolvedValue(exportData);
 
     const res = await app.request("/api/admin/v1/cards/export");
     expect(res.status).toBe(200);
@@ -227,7 +246,22 @@ describe("GET /api/admin/v1/cards/:cardSlug", () => {
 
   it("returns 200 with candidate card detail", async () => {
     const detail = {
-      card: { id: "card-1", slug: "fireball", name: "Fireball" },
+      card: {
+        id: "card-1",
+        slug: "fireball",
+        name: "Fireball",
+        type: "spell",
+        superTypes: [],
+        domains: [],
+        might: null,
+        energy: null,
+        power: null,
+        mightBonus: null,
+        keywords: [],
+        errata: null,
+        tags: [],
+        comment: null,
+      },
       displayName: "Fireball",
       sources: [],
       printings: [],
@@ -236,9 +270,9 @@ describe("GET /api/admin/v1/cards/:cardSlug", () => {
       expectedCardId: "OGN-001",
       printingImages: [],
       setTotals: {},
+      marketplaceMappings: [],
     };
-    // oxlint-disable-next-line no-explicit-any -- partial detail fixture
-    mockBuildCandidateCardDetail.mockResolvedValue(detail as any);
+    mockBuildCandidateCardDetail.mockResolvedValue(detail);
 
     const res = await app.request("/api/admin/v1/cards/fireball");
     expect(res.status).toBe(200);

@@ -1,7 +1,10 @@
+import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
 
 import { authedRoute } from "../_base.js";
 import { jobStartedResponseSchema } from "./shared.js";
+
+extendZodWithOpenApi(z);
 
 const TAG = "Admin - Images";
 
@@ -9,7 +12,7 @@ const BASE = "/api/admin/v1";
 
 // ── Shared result shapes ──────────────────────────────────────────────────
 
-const rehostResultSchema = z.object({
+export const rehostResultSchema = z.object({
   total: z.number(),
   rehosted: z.number(),
   skipped: z.number(),
@@ -17,20 +20,20 @@ const rehostResultSchema = z.object({
   errors: z.array(z.string()),
 });
 
-const cleanupResultSchema = z.object({
+export const cleanupResultSchema = z.object({
   scanned: z.number(),
   deleted: z.number(),
   errors: z.array(z.string()),
 });
 
-const unrehostResultSchema = z.object({
+export const unrehostResultSchema = z.object({
   total: z.number(),
   unrehosted: z.number(),
   failed: z.number(),
   errors: z.array(z.string()),
 });
 
-const rehostStatusSchema = z.object({
+export const rehostStatusSchema = z.object({
   total: z.number(),
   rehosted: z.number(),
   external: z.number(),
@@ -53,7 +56,7 @@ const rehostStatusSchema = z.object({
   }),
 });
 
-const brokenImageSchema = z.object({
+export const brokenImageSchema = z.object({
   imageId: z.string(),
   rehostedUrl: z.string(),
   originalUrl: z.string().nullable(),
@@ -62,6 +65,26 @@ const brokenImageSchema = z.object({
   printingShortCode: z.string(),
   setSlug: z.string(),
 });
+
+export const clearRehostedResponseSchema = z
+  .object({ cleared: z.number() })
+  .openapi("ClearRehostedResponse");
+
+export const brokenImagesResponseSchema = z
+  .object({ total: z.number(), broken: z.array(brokenImageSchema) })
+  .openapi("BrokenImagesResponse");
+
+export const lowResImageEntrySchema = brokenImageSchema
+  .extend({ width: z.number(), height: z.number() })
+  .openapi("LowResImageEntry");
+
+export const lowResImagesResponseSchema = z
+  .object({ total: z.number(), lowRes: z.array(lowResImageEntrySchema) })
+  .openapi("LowResImagesResponse");
+
+export const unrehostImagesInputSchema = z
+  .object({ imageIds: z.array(z.uuid()).min(1).max(1000) })
+  .openapi("UnrehostImagesRequest");
 
 const migrateResultSchema = z.object({
   scanned: z.number(),
@@ -125,25 +148,20 @@ export const adminImagesContract = {
     .output(cleanupResultSchema),
   unrehost: authedRoute
     .route({ method: "POST", path: `${BASE}/unrehost-images`, tags: [TAG] })
-    .input(z.object({ imageIds: z.array(z.uuid()).min(1).max(1000) }))
+    .input(unrehostImagesInputSchema)
     .output(unrehostResultSchema),
   clearRehosted: authedRoute
     .route({ method: "POST", path: `${BASE}/clear-rehosted`, tags: [TAG] })
-    .output(z.object({ cleared: z.number() })),
+    .output(clearRehostedResponseSchema),
   rehostStatus: authedRoute
     .route({ method: "GET", path: `${BASE}/rehost-status`, tags: [TAG] })
     .output(rehostStatusSchema),
   brokenImages: authedRoute
     .route({ method: "GET", path: `${BASE}/broken-images`, tags: [TAG] })
-    .output(z.object({ total: z.number(), broken: z.array(brokenImageSchema) })),
+    .output(brokenImagesResponseSchema),
   lowResImages: authedRoute
     .route({ method: "GET", path: `${BASE}/low-res-images`, tags: [TAG] })
-    .output(
-      z.object({
-        total: z.number(),
-        lowRes: z.array(brokenImageSchema.extend({ width: z.number(), height: z.number() })),
-      }),
-    ),
+    .output(lowResImagesResponseSchema),
   missingImages: authedRoute
     .route({ method: "GET", path: `${BASE}/missing-images`, tags: [TAG] })
     .output(z.array(z.object({ cardId: z.string(), slug: z.string(), name: z.string() }))),

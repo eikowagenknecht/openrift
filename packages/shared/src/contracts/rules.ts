@@ -6,7 +6,7 @@ extendZodWithOpenApi(z);
 
 export const ruleKindSchema = z.enum(["core", "tournament"]);
 
-const ruleResponseSchema = z.object({
+export const ruleResponseSchema = z.object({
   id: z.string().openapi({ example: "019cfc3b-0369-7000-8000-000000000100" }),
   kind: ruleKindSchema,
   version: z.string().openapi({ example: "1.2.0" }),
@@ -20,14 +20,14 @@ const ruleResponseSchema = z.object({
   changeType: z.enum(["added", "modified", "removed"]),
 });
 
-const ruleVersionResponseSchema = z.object({
+export const ruleVersionResponseSchema = z.object({
   kind: ruleKindSchema,
   version: z.string().openapi({ example: "1.2.0" }),
   comments: z.string().nullable().openapi({ example: "First public release." }),
   importedAt: z.string().openapi({ example: "2026-02-16T08:30:00Z" }),
 });
 
-const ruleChangesResponseSchema = z.object({
+export const ruleChangesResponseSchema = z.object({
   added: z.array(z.string()),
   modifiedPrev: z.record(z.string(), z.string()),
   removed: z.array(ruleResponseSchema),

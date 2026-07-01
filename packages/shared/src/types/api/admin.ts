@@ -1,184 +1,87 @@
 import type { z } from "zod";
 
 import type {
+  adminCardDetailResponseSchema,
+  adminCardResponseSchema,
+  adminPrintingDistributionChannelResponseSchema,
+  adminPrintingImageResponseSchema,
+  adminPrintingMarketplaceMappingResponseSchema,
+  adminPrintingResponseSchema,
+  candidateCardResponseSchema,
+  candidatePrintingGroupResponseSchema,
+  candidatePrintingResponseSchema,
+  unmatchedCardDetailResponseSchema,
+} from "../../contracts/admin/card-detail-schemas.js";
+import type { uploadCandidatesResponseSchema } from "../../contracts/admin/card-mutations.js";
+import type {
+  candidateCardSummarySchema,
+  providerStatsItemSchema,
+} from "../../contracts/admin/card-queries.js";
+import type { adminSetSchema } from "../../contracts/admin/catalog.js";
+import type {
+  adminCustomTagAssignmentsResponseSchema,
+  adminCustomTagCategoryListResponseSchema,
+  adminCustomTagListResponseSchema,
+  customTagCategorySchema,
+  customTagSchema,
+} from "../../contracts/admin/custom-tags.js";
+import type { channelSchema } from "../../contracts/admin/distribution-channels.js";
+import type { flagSchema } from "../../contracts/admin/feature-flags.js";
+import type { ignoredProductSchema } from "../../contracts/admin/ignored-products.js";
+import type {
+  brokenImageSchema,
+  brokenImagesResponseSchema,
+  cleanupResultSchema,
+  clearRehostedResponseSchema,
+  lowResImageEntrySchema,
+  lowResImagesResponseSchema,
+  rehostResultSchema,
+  rehostStatusSchema,
+  unrehostImagesInputSchema,
+  unrehostResultSchema,
+} from "../../contracts/admin/images.js";
+import type { languageSchema } from "../../contracts/admin/languages.js";
+import type { markerSchema } from "../../contracts/admin/markers.js";
+import type {
+  groupKindEnum,
+  marketplaceGroupSchema,
+} from "../../contracts/admin/marketplace-groups.js";
+import type { clearPricesResponseSchema } from "../../contracts/admin/operations.js";
+import type { providerSettingSchema } from "../../contracts/admin/provider-settings.js";
+import type { jobStartedResponseSchema } from "../../contracts/admin/shared.js";
+import type { siteSettingSchema } from "../../contracts/admin/site-settings.js";
+import type {
   stagedProductResponseSchema,
   unifiedMappingGroupResponseSchema,
   unifiedMappingsCardResponseSchema,
   unifiedMappingsResponseSchema,
 } from "../../contracts/admin/unified-mappings.js";
-import type { DiffValue } from "../../response-schemas.js";
-import type { CardErrata, DistributionChannelKind } from "../catalog.js";
-import type { CardFace, SetType } from "../enums.js";
+import type { adminUserSchema } from "../../contracts/admin/users.js";
+import type { marketplaceEnum } from "../../schemas.js";
 
-export interface CandidateCardResponse {
-  id: string;
-  provider: string;
-  externalId: string;
-  shortCode: string | null;
-  energy: number | null;
-  power: number | null;
-  might: number | null;
-  superTypes: string[];
-  type: string | null;
-  name: string;
-  domains: string[];
-  rulesText: string | null;
-  effectText: string | null;
-  mightBonus: number | null;
-  tags: string[];
-  extraData: unknown | null;
-  checkedAt: string | null;
-}
+export type { JobRunView, JobRunsListResponse } from "../../contracts/admin/job-runs.js";
 
-export interface CandidatePrintingResponse {
-  id: string;
-  candidateCardId: string;
-  printingId: string | null;
-  shortCode: string;
-  setId: string | null;
-  setName: string | null;
-  rarity: string | null;
-  artVariant: string | null;
-  isSigned: boolean | null;
-  markerSlugs: string[];
-  finish: string | null;
-  artist: string | null;
-  publicCode: string | null;
-  printedRulesText: string | null;
-  printedEffectText: string | null;
-  imageUrl: string | null;
-  flavorText: string | null;
-  externalId: string;
-  extraData: unknown | null;
+export type CandidateCardResponse = z.infer<typeof candidateCardResponseSchema>;
 
-  language: string | null;
-  printedName: string | null;
+export type CandidatePrintingResponse = z.infer<typeof candidatePrintingResponseSchema>;
 
-  checkedAt: string | null;
-}
+export type CandidatePrintingGroupResponse = z.infer<typeof candidatePrintingGroupResponseSchema>;
 
-export interface CandidatePrintingGroupResponse {
-  mostCommonShortCode: string;
-  shortCodes: string[];
-  expectedPrintingId: string;
-  language: string | null;
-}
+export type AdminPrintingImageResponse = z.infer<typeof adminPrintingImageResponseSchema>;
 
-export interface AdminPrintingImageResponse {
-  id: string;
-  printingId: string;
-  face: CardFace;
-  originalUrl: string | null;
-  rehostedUrl: string | null;
-  rotation: 0 | 90 | 180 | 270;
-  needsTrim: boolean;
-  isActive: boolean;
-}
+export type CandidateCardSummaryResponse = z.infer<typeof candidateCardSummarySchema>;
 
-export interface CandidateCardSummaryResponse {
-  cardSlug: string | null;
-  name: string;
-  normalizedName: string;
-  shortCodes: string[];
-  stagingShortCodes: string[];
-  candidateCount: number;
-  uncheckedCardCount: number;
-  uncheckedPrintingCount: number;
-  hasFavorite: boolean;
-  favoriteStagingShortCodes: string[];
-  suggestedCardSlug: string | null;
-}
+export type ProviderStatsResponse = z.infer<typeof providerStatsItemSchema>;
 
-export interface ProviderStatsResponse {
-  provider: string;
-  cardCount: number;
-  printingCount: number;
-  lastUpdated: string;
-}
-
-interface CandidateCardUploadItem {
-  name: string;
-  shortCode: string | null;
-}
-
-interface CandidateCardUploadUpdatedCard extends CandidateCardUploadItem {
-  fields: { field: string; from: DiffValue; to: DiffValue }[];
-}
-
-export interface CandidateCardUploadResponse {
-  provider: string;
-  newCards: number;
-  removedCards: number;
-  updates: number;
-  unchanged: number;
-  newPrintings: number;
-  removedPrintings: number;
-  printingUpdates: number;
-  printingsUnchanged: number;
-  errors: string[];
-  newCardDetails: CandidateCardUploadItem[];
-  removedCardDetails: CandidateCardUploadItem[];
-  updatedCards: CandidateCardUploadUpdatedCard[];
-  newPrintingDetails: CandidateCardUploadItem[];
-  removedPrintingDetails: CandidateCardUploadItem[];
-  updatedPrintings: CandidateCardUploadUpdatedCard[];
-}
+export type CandidateCardUploadResponse = z.infer<typeof uploadCandidatesResponseSchema>;
 
 // ── Admin card detail response types ────────────────────────────────────────
 
-export interface AdminCardResponse {
-  id: string;
-  slug: string;
-  name: string;
-  type: string;
-  superTypes: string[];
-  domains: string[];
-  might: number | null;
-  energy: number | null;
-  power: number | null;
-  mightBonus: number | null;
-  keywords: string[];
-  errata: CardErrata | null;
-  tags: string[];
-  comment: string | null;
-}
+export type AdminCardResponse = z.infer<typeof adminCardResponseSchema>;
 
-export interface AdminPrintingResponse {
-  id: string;
-  cardId: string;
-  setId: string;
-  setName: string | null;
-  setSlug: string;
-  shortCode: string;
-  rarity: string;
-  artVariant: string;
-  isSigned: boolean;
-  markerSlugs: string[];
-  /** Flat list of channel slugs the printing is currently linked to. */
-  distributionChannelSlugs: string[];
-  /** Optional: only populated by endpoints that need to render the channel admin UI. */
-  markerIds?: string[];
-  /** Optional: only populated by endpoints that need to render the channel admin UI. */
-  distributionChannels?: AdminPrintingDistributionChannelResponse[];
-  finish: string;
-  /** Physical card size (`standard` / `oversized`); distinguishes same-art prints. */
-  size: string;
-  artist: string;
-  publicCode: string;
-  printedRulesText: string | null;
-  printedEffectText: string | null;
-  flavorText: string | null;
-  printedName: string | null;
-  /** Year stamped on the physical card (e.g. 2025). Differs from set release for reprints. */
-  printedYear: number | null;
-  language: string;
-  comment: string | null;
-  expectedPrintingId: string;
-  /** See {@link CatalogPrintingResponse.canonicalRank}. */
-  canonicalRank: number;
-}
+export type AdminPrintingResponse = z.infer<typeof adminPrintingResponseSchema>;
 
-export type AdminMarketplaceName = "tcgplayer" | "cardmarket" | "cardtrader";
+export type AdminMarketplaceName = z.infer<typeof marketplaceEnum>;
 
 /**
  * A marketplace variant visible to a printing. When `ownerPrintingId` differs
@@ -186,232 +89,69 @@ export type AdminMarketplaceName = "tcgplayer" | "cardmarket" | "cardtrader";
  * sibling fan-out (Cardmarket cross-language aggregate — variants are stored
  * with `variantLanguage = null` and surface on every sibling printing).
  */
-export interface AdminPrintingMarketplaceMappingResponse {
-  targetPrintingId: string;
-  marketplace: AdminMarketplaceName;
-  externalId: number;
-  productName: string;
-  finish: string;
-  variantLanguage: string | null;
-  ownerPrintingId: string;
-  ownerLanguage: string;
-}
+export type AdminPrintingMarketplaceMappingResponse = z.infer<
+  typeof adminPrintingMarketplaceMappingResponseSchema
+>;
 
-export interface AdminCardDetailResponse {
-  card: AdminCardResponse | null;
-  displayName: string;
-  sources: CandidateCardResponse[];
-  printings: AdminPrintingResponse[];
-  candidatePrintings: CandidatePrintingResponse[];
-  candidatePrintingGroups: CandidatePrintingGroupResponse[];
-  expectedCardId: string;
-  printingImages: AdminPrintingImageResponse[];
-  setTotals: Record<string, number>;
-  marketplaceMappings: AdminPrintingMarketplaceMappingResponse[];
-}
+export type AdminCardDetailResponse = z.infer<typeof adminCardDetailResponseSchema>;
 
-export interface UnmatchedCardDetailResponse {
-  displayName: string;
-  sources: CandidateCardResponse[];
-  candidatePrintings: CandidatePrintingResponse[];
-  candidatePrintingGroups: CandidatePrintingGroupResponse[];
-  defaultCardId: string;
-  setTotals: Record<string, number>;
-}
+export type UnmatchedCardDetailResponse = z.infer<typeof unmatchedCardDetailResponseSchema>;
 
 // ── Admin list response types ───────────────────────────────────────────────
 
-export interface AdminSetResponse {
-  id: string;
-  slug: string;
-  name: string;
-  printedTotal: number | null;
-  sortOrder: number;
-  releasedAt: string | null;
-  released: boolean;
-  setType: SetType;
-  cardCount: number;
-  printingCount: number;
-}
+export type AdminSetResponse = z.infer<typeof adminSetSchema>;
 
-export type MarketplaceGroupKind = "basic" | "special";
+export type MarketplaceGroupKind = z.infer<typeof groupKindEnum>;
 
-export interface MarketplaceGroupResponse {
-  marketplace: string;
-  groupId: number;
-  name: string | null;
-  abbreviation: string | null;
-  groupKind: MarketplaceGroupKind;
-  /**
-   * UUID of the OpenRift set this marketplace group is scoped to. When set,
-   * suggestion auto-matching only proposes printings from this set. `null`
-   * means no scoping (the original behaviour).
-   */
-  setId: string | null;
-  stagedCount: number;
-  assignedCount: number;
-}
+export type MarketplaceGroupResponse = z.infer<typeof marketplaceGroupSchema>;
 
-export interface FeatureFlagResponse {
-  key: string;
-  enabled: boolean;
-  description: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
+export type FeatureFlagResponse = z.infer<typeof flagSchema>;
 
-export interface SiteSettingResponse {
-  key: string;
-  value: string;
-  scope: string;
-  createdAt: string;
-  updatedAt: string;
-}
+export type SiteSettingResponse = z.infer<typeof siteSettingSchema>;
 
-export interface MarkerResponse {
-  id: string;
-  slug: string;
-  label: string;
-  description: string | null;
-  sortOrder: number;
-  createdAt: string;
-  updatedAt: string;
-}
+export type MarkerResponse = z.infer<typeof markerSchema>;
 
-export interface CustomTagResponse {
-  id: string;
-  slug: string;
-  label: string;
-  /** Category slug, joined from `custom_tag_categories.slug`. */
-  category: string;
-  /** Category display label, joined from `custom_tag_categories.label`. */
-  categoryLabel: string;
-  /** Category FK, used when editing the tag. */
-  categoryId: string;
-  description: string | null;
-  sortOrder: number;
-  /** Number of cards currently assigned this tag. */
-  cardCount: number;
-  createdAt: string;
-  updatedAt: string;
-}
+export type CustomTagResponse = z.infer<typeof customTagSchema>;
 
-export interface AdminCustomTagListResponse {
-  tags: CustomTagResponse[];
-}
+export type AdminCustomTagListResponse = z.infer<typeof adminCustomTagListResponseSchema>;
 
-export interface CustomTagCategoryResponse {
-  id: string;
-  slug: string;
-  label: string;
-  description: string | null;
-  sortOrder: number;
-  /** Number of custom tags currently assigned to this category. */
-  tagCount: number;
-  createdAt: string;
-  updatedAt: string;
-}
+export type CustomTagCategoryResponse = z.infer<typeof customTagCategorySchema>;
 
-export interface AdminCustomTagCategoryListResponse {
-  categories: CustomTagCategoryResponse[];
-}
+export type AdminCustomTagCategoryListResponse = z.infer<
+  typeof adminCustomTagCategoryListResponseSchema
+>;
 
-export interface AdminCustomTagAssignmentsResponse {
-  /** Map of card id → array of custom-tag slugs (sorted). */
-  assignments: Record<string, string[]>;
-}
+export type AdminCustomTagAssignmentsResponse = z.infer<
+  typeof adminCustomTagAssignmentsResponseSchema
+>;
 
-export interface DistributionChannelResponse {
-  id: string;
-  slug: string;
-  label: string;
-  description: string | null;
-  kind: DistributionChannelKind;
-  sortOrder: number;
-  parentId: string | null;
-  childrenLabel: string | null;
-  createdAt: string;
-  updatedAt: string;
-  /** Number of printings currently linked to this channel. */
-  printingCount: number;
-}
+export type DistributionChannelResponse = z.infer<typeof channelSchema>;
 
 /** Per-printing channel link as exposed by admin endpoints. */
-export interface AdminPrintingDistributionChannelResponse {
-  channelId: string;
-  channelSlug: string;
-  distributionNote: string | null;
-}
+export type AdminPrintingDistributionChannelResponse = z.infer<
+  typeof adminPrintingDistributionChannelResponseSchema
+>;
 
-export interface LanguageResponse {
-  code: string;
-  name: string;
-  sortOrder: number;
-  createdAt: string;
-  updatedAt: string;
-}
+export type LanguageResponse = z.infer<typeof languageSchema>;
 
-export interface ProviderSettingResponse {
-  provider: string;
-  sortOrder: number;
-  isHidden: boolean;
-  isFavorite: boolean;
-}
+export type ProviderSettingResponse = z.infer<typeof providerSettingSchema>;
 
-interface IgnoredProductBase {
-  marketplace: string;
-  externalId: number;
-  productName: string;
-  createdAt: string;
-}
-
-/** Level 2: the entire upstream product is denied (sealed product, bundles, etc.). */
-interface IgnoredProductLevelTwoResponse extends IgnoredProductBase {
-  level: "product";
-}
-
-/** Level 3: one specific SKU of an otherwise-mapped upstream product is denied. */
-interface IgnoredProductLevelThreeResponse extends IgnoredProductBase {
-  level: "variant";
-  finish: string;
-  /** `null` for marketplaces that don't expose language as a SKU dimension (CM/TCG). */
-  language: string | null;
-}
-
-export type IgnoredProductResponse =
-  | IgnoredProductLevelTwoResponse
-  | IgnoredProductLevelThreeResponse;
+export type IgnoredProductResponse = z.infer<typeof ignoredProductSchema>;
 
 // ── Image rehosting response types ──────────────────────────────────────────
 
-export interface RehostImageResponse {
-  total: number;
-  rehosted: number;
-  skipped: number;
-  failed: number;
-  errors: string[];
-}
+export type RehostImageResponse = z.infer<typeof rehostResultSchema>;
 
-export interface UnrehostImagesRequest {
-  imageIds: string[];
-}
+export type UnrehostImagesRequest = z.input<typeof unrehostImagesInputSchema>;
 
-export interface UnrehostImagesResponse {
-  total: number;
-  unrehosted: number;
-  failed: number;
-  errors: string[];
-}
+export type UnrehostImagesResponse = z.infer<typeof unrehostResultSchema>;
 
 /**
  * Async-job kickoff response for regenerate-images. The actual progress is
  * tracked on the corresponding `job_runs` row's `result` JSONB; clients
  * poll that row to render progress and decide whether to offer resume.
  */
-export interface RegenerateImagesKickoffResponse {
-  runId: string;
-  status: "running" | "already_running";
-}
+export type RegenerateImagesKickoffResponse = z.infer<typeof jobStartedResponseSchema>;
 
 /**
  * Per-batch checkpoint written to `job_runs.result` while a regenerate job is
@@ -440,70 +180,23 @@ export interface RegenerateImagesCheckpoint {
   skipExisting: boolean;
 }
 
-export interface ClearRehostedResponse {
-  cleared: number;
-}
+export type ClearRehostedResponse = z.infer<typeof clearRehostedResponseSchema>;
 
-export interface CleanupOrphanedResponse {
-  scanned: number;
-  deleted: number;
-  errors: string[];
-}
+export type CleanupOrphanedResponse = z.infer<typeof cleanupResultSchema>;
 
-export interface RehostStatusSetStats {
-  setId: string;
-  setName: string;
-  total: number;
-  rehosted: number;
-  external: number;
-}
+export type RehostStatusSetStats = z.infer<typeof rehostStatusSchema>["sets"][number];
 
-export interface RehostStatusDiskStats {
-  totalBytes: number;
-  byResolution: { resolution: string; bytes: number; fileCount: number }[];
-  sets: { setId: string; bytes: number; fileCount: number }[];
-}
+export type RehostStatusDiskStats = z.infer<typeof rehostStatusSchema>["disk"];
 
-export interface RehostStatusResponse {
-  total: number;
-  rehosted: number;
-  external: number;
-  orphanedFiles: number;
-  sets: RehostStatusSetStats[];
-  disk: RehostStatusDiskStats;
-}
+export type RehostStatusResponse = z.infer<typeof rehostStatusSchema>;
 
-export interface BrokenImageEntry {
-  imageId: string;
-  rehostedUrl: string;
-  originalUrl: string | null;
-  cardSlug: string;
-  cardName: string;
-  printingShortCode: string;
-  setSlug: string;
-}
+export type BrokenImageEntry = z.infer<typeof brokenImageSchema>;
 
-export interface BrokenImagesResponse {
-  total: number;
-  broken: BrokenImageEntry[];
-}
+export type BrokenImagesResponse = z.infer<typeof brokenImagesResponseSchema>;
 
-export interface LowResImageEntry {
-  imageId: string;
-  rehostedUrl: string;
-  originalUrl: string | null;
-  cardSlug: string;
-  cardName: string;
-  printingShortCode: string;
-  setSlug: string;
-  width: number;
-  height: number;
-}
+export type LowResImageEntry = z.infer<typeof lowResImageEntrySchema>;
 
-export interface LowResImagesResponse {
-  total: number;
-  lowRes: LowResImageEntry[];
-}
+export type LowResImagesResponse = z.infer<typeof lowResImagesResponseSchema>;
 
 // ── Price refresh response types ────────────────────────────────────────────
 
@@ -530,44 +223,9 @@ export interface PriceRefreshResponse {
  * background. The caller gets a `runId` immediately and polls `/admin/job-runs`
  * for progress.
  */
-export interface JobRunStartedResponse {
-  runId: string;
-  /** 'running' for a newly started run, 'already_running' if one was in flight. */
-  status: "running" | "already_running";
-}
+export type JobRunStartedResponse = z.infer<typeof jobStartedResponseSchema>;
 
-export interface JobRunView {
-  id: string;
-  kind: string;
-  trigger: "cron" | "admin" | "api";
-  status: "running" | "succeeded" | "failed";
-  startedAt: string;
-  finishedAt: string | null;
-  durationMs: number | null;
-  errorMessage: string | null;
-  /** Per-job summary written by the runJob helper. Shape depends on kind. */
-  result: Record<string, unknown> | null;
-  /** Activity axis for a succeeded run: true = no work done, false = did work,
-   *  null = unclassified (failures, jobs without a classifier, old rows). */
-  noop: boolean | null;
-}
-
-export interface JobRunsListResponse {
-  runs: JobRunView[];
-  /** Total rows matching the active filters, across all pages. */
-  total: number;
-  /** The 1-based page number this response represents. */
-  page: number;
-  /** Page size used to compute the page count. */
-  limit: number;
-  /** Distinct job kinds in the table, for the kind filter dropdown. */
-  kinds: string[];
-}
-
-export interface ClearPricesResponse {
-  marketplace: string;
-  deleted: { prices: number; variants: number; products: number };
-}
+export type ClearPricesResponse = z.infer<typeof clearPricesResponseSchema>;
 
 // ── Unified marketplace mappings response types ─────────────────────────────
 
@@ -621,19 +279,7 @@ export type AssignableCardResponse = z.infer<
   typeof unifiedMappingsResponseSchema
 >["allCards"][number];
 
-export interface AdminUserResponse {
-  id: string;
-  email: string;
-  name: string | null;
-  image: string | null;
-  isAdmin: boolean;
-  cardCount: number;
-  deckCount: number;
-  collectionCount: number;
-  listCount: number;
-  createdAt: string;
-  lastActiveAt: string | null;
-}
+export type AdminUserResponse = z.infer<typeof adminUserSchema>;
 
 export type UnifiedMappingsResponse = z.infer<typeof unifiedMappingsResponseSchema>;
 

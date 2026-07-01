@@ -1,45 +1,27 @@
-export interface CollectionResponse {
-  id: string;
-  name: string;
-  description: string | null;
-  availableForDeckbuilding: boolean;
-  isInbox: boolean;
-  sortOrder: number;
-  isPublic: boolean;
-  shareToken: string | null;
-  copyCount: number;
-  totalValueCents: number | null;
-  unpricedCopyCount: number | null;
-  createdAt: string;
-  updatedAt: string;
-  groupId: string | null;
-  groupSlug: string | null;
-  groupName: string | null;
-  viewerCanAdmin: boolean;
-}
+import type {
+  collectionListResponseSchema,
+  collectionResponseSchema,
+  collectionShareResponseSchema,
+} from "@openrift/shared/contracts/collections";
+import type {
+  copyAddResponseSchema,
+  copyListMembershipsResponseSchema,
+} from "@openrift/shared/contracts/copies";
+import type {
+  publicCollectionDetailResponseSchema,
+  publicCollectionResponseSchema,
+  publicCopyResponseSchema,
+} from "@openrift/shared/contracts/public-collections";
+import type { copyListResponseSchema } from "@openrift/shared/response-schemas";
+import type { z } from "zod";
 
-export interface CollectionListResponse {
-  items: CollectionResponse[];
-}
+export type CollectionResponse = z.infer<typeof collectionResponseSchema>;
 
-export interface PublicCollectionResponse {
-  id: string;
-  name: string;
-  description: string | null;
-  copyCount: number;
-  totalValueCents: number | null;
-  unpricedCopyCount: number | null;
-  createdAt: string;
-  updatedAt: string;
-}
+export type CollectionListResponse = z.infer<typeof collectionListResponseSchema>;
 
-export interface PublicCollectionDetailResponse {
-  collection: PublicCollectionResponse;
-  items: PublicCopyResponse[];
-  nextCursor: string | null;
-  // gravatarHash is null for group-owned collections (a group has no email).
-  owner: { displayName: string; gravatarHash: string | null };
-}
+export type PublicCollectionResponse = z.infer<typeof publicCollectionResponseSchema>;
+
+export type PublicCollectionDetailResponse = z.infer<typeof publicCollectionDetailResponseSchema>;
 
 /**
  * A copy as seen by an anonymous share viewer. Deliberately narrower than
@@ -47,20 +29,11 @@ export interface PublicCollectionDetailResponse {
  * not exposed to unauthenticated viewers. Public consumers only need
  * the printing to tally counts.
  */
-export interface PublicCopyResponse {
-  id: string;
-  printingId: string;
-}
+export type PublicCopyResponse = z.infer<typeof publicCopyResponseSchema>;
 
-export interface CollectionShareResponse {
-  shareToken: string | null;
-  isPublic: boolean;
-}
+export type CollectionShareResponse = z.infer<typeof collectionShareResponseSchema>;
 
-export interface CopyListResponse {
-  items: CopyResponse[];
-  nextCursor: string | null;
-}
+export type CopyListResponse = z.infer<typeof copyListResponseSchema>;
 
 export interface CopyCollectionBreakdownEntry {
   collectionId: string;
@@ -68,17 +41,13 @@ export interface CopyCollectionBreakdownEntry {
   count: number;
 }
 
-export interface CopyResponse {
-  id: string;
-  printingId: string;
-  collectionId: string;
-  /**
-   * Owning group of the copy's collection, or null for personal collections.
-   * Lets the client keep group-owned copies out of personal "owned" totals
-   * while still showing them inside the group collection.
-   */
-  groupId: string | null;
-}
+/**
+ * A single owned physical copy. `groupId` is the owning group of the copy's
+ * collection, or null for personal collections — lets the client keep
+ * group-owned copies out of personal "owned" totals while still showing them
+ * inside the group collection.
+ */
+export type CopyResponse = z.infer<typeof copyAddResponseSchema>["items"][number];
 
 /**
  * Response body for `POST /copies`: the copies just created under an `items`
@@ -86,15 +55,11 @@ export interface CopyResponse {
  * full {@link CopyResponse} shape (including `groupId` derived from the owning
  * collection, so clients no longer have to synthesize it).
  */
-export interface CopyAddResponse {
-  items: CopyResponse[];
-}
+export type CopyAddResponse = z.infer<typeof copyAddResponseSchema>;
 
-export interface CopyListMembershipEntry {
-  id: string;
-  name: string;
-  copyCount: number;
-}
+export type CopyListMembershipEntry = z.infer<
+  typeof copyListMembershipsResponseSchema
+>["lists"][number];
 
 /**
  * Which of the viewer's own lists reference a set of copies. Drives the dispose
@@ -102,7 +67,4 @@ export interface CopyListMembershipEntry {
  * also vanish from every list here. `copiesOnAnyList` is the distinct count of
  * queried copies on at least one list (a copy can sit on several lists).
  */
-export interface CopyListMembershipsResponse {
-  lists: CopyListMembershipEntry[];
-  copiesOnAnyList: number;
-}
+export type CopyListMembershipsResponse = z.infer<typeof copyListMembershipsResponseSchema>;

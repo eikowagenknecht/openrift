@@ -9,7 +9,7 @@ import { z } from "zod";
 
 extendZodWithOpenApi(z);
 
-const publicUserBundleListResponseSchema = z
+export const publicUserBundleListResponseSchema = z
   .object({
     id: z.string(),
     name: z.string(),
@@ -30,7 +30,7 @@ const publicUserBundleListResponseSchema = z
   })
   .openapi("PublicUserBundleListResponse");
 
-const publicUserBundleCollectionResponseSchema = z
+export const publicUserBundleCollectionResponseSchema = z
   .object({
     id: z.string(),
     name: z.string(),

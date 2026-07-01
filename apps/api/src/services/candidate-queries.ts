@@ -347,6 +347,10 @@ export async function buildExport(repo: Repo) {
         flavor_text: p.flavorText,
         external_id: p.id,
         extra_data: p.imageId ? { image_id: p.imageId } : null,
+        // Round-trip fidelity: these are candidate data (not admin-curated), so
+        // they must survive an export → re-import cycle. Previously omitted.
+        language: p.language,
+        printed_name: p.printedName,
       })),
     };
   });
@@ -545,7 +549,14 @@ async function buildDetailResponse(
     candidatePrintings: candidatePrintings.map((cp) => formatCandidatePrinting(cp)),
     candidatePrintingGroups: filteredGroups,
     expectedCardId: deriveExpectedCardId(displayName, card?.slug),
-    printingImages,
+    // `rotation` is a smallint the repo reads as `number`, but the domain is
+    // fixed (enforced on write by `setRotation`). Narrow it here to satisfy the
+    // response schema; the schema also runtime-validates, so a stray value 500s
+    // rather than silently escaping.
+    printingImages: printingImages.map((image) => ({
+      ...image,
+      rotation: image.rotation as 0 | 90 | 180 | 270,
+    })),
     setTotals,
     marketplaceMappings,
   };

@@ -1,4 +1,10 @@
-import type { ListIntent, ListKind } from "./list.js";
+import type {
+  publicUserBundleCollectionResponseSchema,
+  publicUserBundleListResponseSchema,
+  publicUserBundleResponseSchema,
+} from "@openrift/shared/contracts/public-user-share";
+import type { userShareStateResponseSchema } from "@openrift/shared/contracts/user-share";
+import type { z } from "zod";
 
 /**
  * State of the signed-in user's public share bundle. `shareToken` is `null`
@@ -6,10 +12,7 @@ import type { ListIntent, ListKind } from "./list.js";
  * this shares the `{ shareToken, isPublic }` shape with the collection/deck/list
  * share-state responses. See ADR-018.
  */
-export interface UserShareStateResponse {
-  shareToken: string | null;
-  isPublic: boolean;
-}
+export type UserShareStateResponse = z.infer<typeof userShareStateResponseSchema>;
 
 /**
  * One row in the bundle's public index. `isPublic` is true when the
@@ -19,19 +22,7 @@ export interface UserShareStateResponse {
  * the two visibility signals is always true (otherwise the row would not
  * appear in the bundle response at all).
  */
-export interface PublicUserBundleListResponse {
-  id: string;
-  name: string;
-  intent: ListIntent;
-  kind: ListKind;
-  entryCount: number;
-  isPublic: boolean;
-  viaGroups: { id: string; slug: string; name: string }[];
-  createdAt: string;
-  updatedAt: string;
-  /** Whether the list carries a dynamic rule (ADR-034). */
-  hasRule: boolean;
-}
+export type PublicUserBundleListResponse = z.infer<typeof publicUserBundleListResponseSchema>;
 
 /**
  * One row in the bundle's collection index. Group-only: collections never
@@ -39,12 +30,9 @@ export interface PublicUserBundleListResponse {
  * `/collections/share/:token` page handles that separately). `viaGroups` is
  * always non-empty when this row appears.
  */
-export interface PublicUserBundleCollectionResponse {
-  id: string;
-  name: string;
-  description: string | null;
-  viaGroups: { id: string; slug: string; name: string }[];
-}
+export type PublicUserBundleCollectionResponse = z.infer<
+  typeof publicUserBundleCollectionResponseSchema
+>;
 
 /**
  * Public payload for `GET /api/v1/users/share/:token`. Owner profile is
@@ -56,11 +44,4 @@ export interface PublicUserBundleCollectionResponse {
  * member of a friend group the owner has shared one or more collections to;
  * anonymous viewers always see an empty array.
  */
-export interface PublicUserBundleResponse {
-  owner: {
-    displayName: string;
-    gravatarHash: string;
-  };
-  lists: PublicUserBundleListResponse[];
-  collections: PublicUserBundleCollectionResponse[];
-}
+export type PublicUserBundleResponse = z.infer<typeof publicUserBundleResponseSchema>;

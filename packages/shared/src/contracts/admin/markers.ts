@@ -8,7 +8,7 @@ const TAG = "Admin - Markers";
 
 const MARKERS = "/api/admin/v1/markers";
 
-const markerSchema = z.object({
+export const markerSchema = z.object({
   id: z.string(),
   slug: z.string(),
   label: z.string(),

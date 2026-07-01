@@ -1,21 +1,26 @@
+import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
 
 import { marketplaceEnum } from "../../schemas.js";
 import { authedRoute } from "../_base.js";
 import { jobStartedResponseSchema } from "./shared.js";
 
+extendZodWithOpenApi(z);
+
 const TAG = "Admin - Operations";
 
 const BASE = "/api/admin/v1";
 
-const clearPricesResponseSchema = z.object({
-  marketplace: z.string(),
-  deleted: z.object({
-    prices: z.number(),
-    variants: z.number(),
-    products: z.number(),
-  }),
-});
+export const clearPricesResponseSchema = z
+  .object({
+    marketplace: z.string(),
+    deleted: z.object({
+      prices: z.number(),
+      variants: z.number(),
+      products: z.number(),
+    }),
+  })
+  .openapi("ClearPricesResponse");
 
 /**
  * oRPC contract for the admin operations (mounted under `/api/admin/v1`,

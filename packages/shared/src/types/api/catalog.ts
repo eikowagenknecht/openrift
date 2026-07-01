@@ -1,121 +1,59 @@
+import type { cardDetailResponseSchema } from "@openrift/shared/contracts/cards";
 import type {
-  Card,
-  DistributionChannelWithCount,
-  Marker,
-  PrintingDistributionChannel,
-  PrintingImage,
-} from "../catalog.js";
-import type { ArtVariant, CardSize, Finish, Rarity, SetType } from "../enums.js";
+  catalogCardResponseValueSchema,
+  catalogPrintingResponseValueSchema,
+  catalogResponseSchema,
+} from "@openrift/shared/contracts/catalog";
+import type { landingSummaryResponseSchema } from "@openrift/shared/contracts/landing-summary";
+import type { promosListResponseSchema } from "@openrift/shared/contracts/promos";
+import type {
+  setDetailResponseSchema,
+  setListEntrySchema,
+  setListResponseSchema,
+} from "@openrift/shared/contracts/sets";
+import type {
+  sitemapDataResponseSchema,
+  sitemapEntrySchema,
+} from "@openrift/shared/contracts/sitemap";
+import type {
+  catalogCardResponseSchema,
+  catalogPrintingResponseSchema,
+  catalogSetResponseSchema,
+} from "@openrift/shared/response-schemas";
+import type { z } from "zod";
 
-export interface CatalogSetResponse {
-  id: string;
-  slug: string;
-  name: string;
-  releasedAt: string | null;
-  released: boolean;
-  setType: SetType;
-}
+export type CatalogSetResponse = z.infer<typeof catalogSetResponseSchema>;
 
 /** Wire type for a single card (adds `id` back for endpoints that return cards outside a map). */
-export type CatalogCardResponse = Card & { id: string };
+export type CatalogCardResponse = z.infer<typeof catalogCardResponseSchema>;
 
 /** Wire type for a single printing (still carries `id` for endpoints that return printings as arrays). */
-export interface CatalogPrintingResponse {
-  id: string;
-  shortCode: string;
-  setId: string;
-  rarity: Rarity;
-  artVariant: ArtVariant;
-  isSigned: boolean;
-  markers: Marker[];
-  distributionChannels: PrintingDistributionChannel[];
-  finish: Finish;
-  /** Physical card size. `standard` for the normal print, `oversized` for the larger variety. */
-  size: CardSize;
-  images: PrintingImage[];
-  artist: string;
-  publicCode: string;
-  printedRulesText: string | null;
-  printedEffectText: string | null;
-  flavorText: string | null;
-  printedName: string | null;
-  /** Year stamped on the physical card (e.g. 2025). Differs from set release for reprints. */
-  printedYear: number | null;
-  language: string;
-  comment: string | null;
-  cardId: string;
-  /**
-   * Integer sort key from the `printings_ordered` DB view, encoding
-   * (language.sort_order, set.sort_order, short_code, has_markers,
-   * primary_marker.sort_order, finish.sort_order). A single integer compare
-   * replaces the 6-axis JS comparator. User language preference overrides
-   * the language axis client-side.
-   */
-  canonicalRank: number;
-}
+export type CatalogPrintingResponse = z.infer<typeof catalogPrintingResponseSchema>;
 
 /** Wire-only value shapes for `GET /catalog` — identity lives in the map key, not the value. */
-export type CatalogResponseCardValue = Omit<CatalogCardResponse, "id">;
-export type CatalogResponsePrintingValue = Omit<CatalogPrintingResponse, "id">;
+export type CatalogResponseCardValue = z.infer<typeof catalogCardResponseValueSchema>;
+export type CatalogResponsePrintingValue = z.infer<typeof catalogPrintingResponseValueSchema>;
 
-export interface CatalogResponse {
-  sets: CatalogSetResponse[];
-  cards: Record<string, CatalogResponseCardValue>;
-  printings: Record<string, CatalogResponsePrintingValue>;
-  totalCopies: number;
-  /**
-   * Map of card id → array of admin-curated custom-tag slugs (sorted).
-   * Consumed only by custom deck-builder formats (e.g. region-locked
-   * freeform). Standard UI should not render these alongside `card.tags`.
-   */
-  customTagAssignments: Record<string, string[]>;
-}
+export type CatalogResponse = z.infer<typeof catalogResponseSchema>;
 
-export interface CardDetailResponse {
-  card: CatalogCardResponse;
-  printings: CatalogPrintingResponse[];
-  sets: CatalogSetResponse[];
-  // prices are not inlined; read them from the /prices resource.
-}
+export type CardDetailResponse = z.infer<typeof cardDetailResponseSchema>;
 
-export interface SetListEntry extends CatalogSetResponse {
-  cardCount: number;
-  printingCount: number;
-  coverImageId: string | null;
-}
+export type SetListEntry = z.infer<typeof setListEntrySchema>;
 
-export interface SetListResponse {
-  sets: SetListEntry[];
-}
+export type SetListResponse = z.infer<typeof setListResponseSchema>;
 
-export interface SetDetailResponse {
-  set: CatalogSetResponse;
-  cards: Record<string, CatalogCardResponse>;
-  printings: CatalogPrintingResponse[];
-  // prices are not inlined; read them from the /prices resource.
-}
+export type SetDetailResponse = z.infer<typeof setDetailResponseSchema>;
 
 /**
  * Public "promos" page: cards distributed through any channel (event or
  * product). The page groups by channel and lists which printings appeared at
  * each.
  */
-export interface PromosListResponse {
-  channels: DistributionChannelWithCount[];
-  cards: Record<string, CatalogCardResponse>;
-  printings: CatalogPrintingResponse[];
-  // prices are not inlined; read them from the /prices resource.
-}
+export type PromosListResponse = z.infer<typeof promosListResponseSchema>;
 
-interface SitemapEntry {
-  slug: string;
-  updatedAt: string;
-}
+export type SitemapEntry = z.infer<typeof sitemapEntrySchema>;
 
-export interface SitemapDataResponse {
-  cards: SitemapEntry[];
-  sets: SitemapEntry[];
-}
+export type SitemapDataResponse = z.infer<typeof sitemapDataResponseSchema>;
 
 /**
  * Lightweight payload for the public landing page. Only the values the hero
@@ -123,9 +61,4 @@ export interface SitemapDataResponse {
  * of front-face image_files.id values for the decorative card scatter
  * (battlefields excluded). The client builds thumbnail URLs via `imageUrl()`.
  */
-export interface LandingSummaryResponse {
-  cardCount: number;
-  printingCount: number;
-  copyCount: number;
-  thumbnailIds: string[];
-}
+export type LandingSummaryResponse = z.infer<typeof landingSummaryResponseSchema>;

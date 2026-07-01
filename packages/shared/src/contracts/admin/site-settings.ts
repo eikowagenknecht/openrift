@@ -9,7 +9,7 @@ const SS = "/api/admin/v1/site-settings";
 
 const scopeEnum = z.enum(["web", "api"]);
 
-const siteSettingSchema = z.object({
+export const siteSettingSchema = z.object({
   key: z.string(),
   value: z.string(),
   scope: z.string(),

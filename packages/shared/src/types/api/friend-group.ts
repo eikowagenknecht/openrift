@@ -1,196 +1,84 @@
-import type { CardType, Finish, Rarity } from "../enums.js";
-import type { ContactMethod } from "./contact-method.js";
-import type { ListEntryDetailResponse, ListIntent, ListKind } from "./list.js";
-import type { Currency, EffectiveTradePreference, TradePreference } from "./trade-preferences.js";
+import type { collectionGroupSharesResponseSchema } from "@openrift/shared/contracts/collections";
+import type {
+  friendGroupActivityEventSchema,
+  friendGroupActivityResponseSchema,
+  friendGroupCollectionShareResponseSchema,
+  friendGroupDetailResponseSchema,
+  friendGroupJoinPreviewResponseSchema,
+  friendGroupListResponseSchema,
+  friendGroupMatchesResponseSchema,
+  friendGroupMatchRowSchema,
+  friendGroupMemberDetailResponseSchema,
+  friendGroupMemberResponseSchema,
+  friendGroupPendingInvitesCountResponseSchema,
+  friendGroupPendingRequestsCountResponseSchema,
+  friendGroupRequestResponseSchema,
+  friendGroupResponseSchema,
+  friendGroupShareableCollectionResponseSchema,
+  friendGroupShareableCollectionsResponseSchema,
+  friendGroupShareableListResponseSchema,
+  friendGroupShareableListsResponseSchema,
+  friendGroupShareResponseSchema,
+  friendGroupSharedCollectionDetailResponseSchema,
+  friendGroupSharedListDetailResponseSchema,
+  friendGroupSummaryResponseSchema,
+} from "@openrift/shared/contracts/friend-groups";
+import type { listGroupSharesResponseSchema } from "@openrift/shared/contracts/lists";
+import type { z } from "zod";
 
 // ADR-033 retired the `judge` role: judging now lives in tournament_staff.
 export type FriendGroupRole = "owner" | "admin" | "member";
 export type FriendGroupInviteDirection = "invite" | "request";
 
-export interface FriendGroupResponse {
-  id: string;
-  slug: string;
-  name: string;
-  description: string | null;
-  /** `null` when the group has disabled code-based joining. */
-  code: string | null;
-  codeRotatedAt: string;
-  createdAt: string;
-  updatedAt: string;
-}
+export type FriendGroupResponse = z.infer<typeof friendGroupResponseSchema>;
 
-export interface FriendGroupSummaryResponse extends FriendGroupResponse {
-  viewerRole: FriendGroupRole;
-  memberCount: number;
-  pendingRequestCount: number;
-}
+export type FriendGroupSummaryResponse = z.infer<typeof friendGroupSummaryResponseSchema>;
 
-export interface FriendGroupPendingInviteResponse {
-  id: string;
-  groupId: string;
-  groupSlug: string;
-  groupName: string;
-  createdAt: string;
-}
+export type FriendGroupPendingInviteResponse = z.infer<
+  typeof friendGroupListResponseSchema
+>["pendingInvites"][number];
 
-export interface FriendGroupListResponse {
-  items: FriendGroupSummaryResponse[];
-  pendingInvites: FriendGroupPendingInviteResponse[];
-  /** Join requests the viewer has sent that are still awaiting an admin's approval. */
-  outgoingRequests: FriendGroupPendingInviteResponse[];
-}
+export type FriendGroupListResponse = z.infer<typeof friendGroupListResponseSchema>;
 
-export interface FriendGroupMemberResponse {
-  userId: string;
-  userName: string | null;
-  userImage: string | null;
-  /** SHA-256 of the lowercased email — drives a Gravatar fallback without leaking the email. */
-  gravatarHash: string;
-  role: FriendGroupRole;
-  /** Contact channels this member reveals to the group (account-level, opt-in per group). */
-  contactMethods: ContactMethod[];
-  joinedAt: string;
-}
+export type FriendGroupMemberResponse = z.infer<typeof friendGroupMemberResponseSchema>;
 
-export interface FriendGroupShareResponse {
-  groupId: string;
-  listId: string;
-  listName: string;
-  listIntent: ListIntent;
-  listKind: ListKind;
-  entryCount: number;
-  userId: string;
-  userName: string | null;
-  sharedAt: string;
-}
+export type FriendGroupShareResponse = z.infer<typeof friendGroupShareResponseSchema>;
 
-export interface FriendGroupCollectionShareResponse {
-  groupId: string;
-  collectionId: string;
-  collectionName: string;
-  userId: string;
-  userName: string | null;
-  sharedAt: string;
-  /** Total copies in the shared collection. */
-  copyCount: number;
-}
+export type FriendGroupCollectionShareResponse = z.infer<
+  typeof friendGroupCollectionShareResponseSchema
+>;
 
-export interface FriendGroupRequestResponse {
-  id: string;
-  userId: string;
-  userName: string | null;
-  userImage: string | null;
-  gravatarHash: string;
-  createdAt: string;
-}
+export type FriendGroupRequestResponse = z.infer<typeof friendGroupRequestResponseSchema>;
 
 export type FriendGroupViewerStatus = "member" | "pending";
 
-export interface FriendGroupDetailResponse {
-  group: FriendGroupResponse;
-  viewerStatus: FriendGroupViewerStatus;
-  /** `null` when `viewerStatus === "pending"`. */
-  viewerRole: FriendGroupRole | null;
-  /** Empty when `viewerStatus === "pending"`. */
-  members: FriendGroupMemberResponse[];
-  /** Empty when `viewerStatus === "pending"`. */
-  shares: FriendGroupShareResponse[];
-  /** Empty when `viewerStatus === "pending"`. */
-  collectionShares: FriendGroupCollectionShareResponse[];
-  /** Empty for plain members and pending users; populated for admins/owner. */
-  pendingRequests: FriendGroupRequestResponse[];
-}
+export type FriendGroupDetailResponse = z.infer<typeof friendGroupDetailResponseSchema>;
 
 export type FriendGroupJoinViewerStatus = "available" | "pending" | "member";
 
-export interface FriendGroupJoinPreviewResponse {
-  id: string;
-  slug: string;
-  name: string;
-  description: string | null;
-  memberCount: number;
-  viewerStatus: FriendGroupJoinViewerStatus;
-}
+export type FriendGroupJoinPreviewResponse = z.infer<typeof friendGroupJoinPreviewResponseSchema>;
 
-export interface FriendGroupShareableListResponse {
-  listId: string;
-  listName: string;
-  listIntent: ListIntent;
-  listKind: ListKind;
-  entryCount: number;
-  /** `null` when the list is not currently shared with this group. */
-  sharedAt: string | null;
-  tradeDefaults: TradePreference;
-  currency: Currency | null;
-  /** Whether the list carries a dynamic rule (ADR-034). */
-  hasRule: boolean;
-}
+export type FriendGroupShareableListResponse = z.infer<
+  typeof friendGroupShareableListResponseSchema
+>;
 
-export interface FriendGroupShareableListsResponse {
-  items: FriendGroupShareableListResponse[];
-}
+export type FriendGroupShareableListsResponse = z.infer<
+  typeof friendGroupShareableListsResponseSchema
+>;
 
-export interface FriendGroupShareableCollectionResponse {
-  collectionId: string;
-  collectionName: string;
-  /** `null` when the collection is not currently shared with this group. */
-  sharedAt: string | null;
-}
+export type FriendGroupShareableCollectionResponse = z.infer<
+  typeof friendGroupShareableCollectionResponseSchema
+>;
 
-export interface FriendGroupShareableCollectionsResponse {
-  items: FriendGroupShareableCollectionResponse[];
-}
+export type FriendGroupShareableCollectionsResponse = z.infer<
+  typeof friendGroupShareableCollectionsResponseSchema
+>;
 
-export interface FriendGroupMatchRow {
-  counterpartyUserId: string;
-  counterpartyName: string | null;
-  counterpartyImage: string | null;
-  counterpartyGravatarHash: string;
-  /** Counterparty's source list (their sell list when they "have", their buy list when they "want"). */
-  counterpartyListId: string;
-  counterpartyListName: string;
-  /** Null when the sell copy comes from a dynamic rule (no `list_entries` row). ADR-034. */
-  sellEntryId: string | null;
-  sellListId: string;
-  copyId: string;
-  printingId: string;
-  cardId: string;
-  cardName: string;
-  cardType: CardType;
-  setId: string;
-  rarity: Rarity;
-  finish: Finish;
-  imageId: string | null;
-  /** Null when the wish demand comes from a dynamic rule (no `list_entries` row). ADR-034. */
-  buyEntryId: string | null;
-  buyListId: string;
-  buyEntryKind: "card" | "printing";
-  buyQuantity: number;
-  /**
-   * Resolved (entry-override ?? list-default) preference of the counterparty's
-   * sell side — "what they want for it" when the row is in `othersHaveYourWants`,
-   * "what they'd pay" when in `othersWantYourHaves`.
-   */
-  sellPref: EffectiveTradePreference;
-  /**
-   * Resolved (entry-override ?? list-default) preference of the buy side —
-   * "what you'd pay" / "what they want for it", mirror of `sellPref`.
-   */
-  buyPref: EffectiveTradePreference;
-}
+export type FriendGroupMatchRow = z.infer<typeof friendGroupMatchRowSchema>;
 
-export interface FriendGroupMatchesResponse {
-  othersHaveYourWants: FriendGroupMatchRow[];
-  othersWantYourHaves: FriendGroupMatchRow[];
-}
+export type FriendGroupMatchesResponse = z.infer<typeof friendGroupMatchesResponseSchema>;
 
-export interface FriendGroupMemberDetailResponse {
-  member: FriendGroupMemberResponse;
-  shares: FriendGroupShareResponse[];
-  collectionShares: FriendGroupCollectionShareResponse[];
-  matches: FriendGroupMatchRow[];
-  reverseMatches: FriendGroupMatchRow[];
-}
+export type FriendGroupMemberDetailResponse = z.infer<typeof friendGroupMemberDetailResponseSchema>;
 
 /**
  * One entry in a group's activity feed. A discriminated union over `kind`;
@@ -205,101 +93,26 @@ export interface FriendGroupMemberDetailResponse {
  * shared and both entries / the copy were created). It surfaces the viewer's
  * *incoming* matches only ("others now have something you want").
  */
-export type FriendGroupActivityEvent =
-  | {
-      kind: "trade-completed";
-      at: string;
-      tradeId: string;
-      printingId: string;
-      cardId: string;
-      quantity: number;
-      giverUserId: string;
-      giverName: string | null;
-      receiverUserId: string;
-      receiverName: string | null;
-    }
-  | {
-      kind: "member-joined";
-      at: string;
-      userId: string;
-      userName: string | null;
-      userImage: string | null;
-      gravatarHash: string;
-    }
-  | {
-      kind: "list-shared";
-      at: string;
-      userId: string;
-      userName: string | null;
-      listId: string;
-      listName: string;
-      listIntent: ListIntent;
-      listKind: ListKind;
-    }
-  | {
-      kind: "collection-shared";
-      at: string;
-      userId: string;
-      userName: string | null;
-      collectionId: string;
-      collectionName: string;
-    }
-  | {
-      kind: "match";
-      at: string;
-      counterpartyUserId: string;
-      counterpartyName: string | null;
-      counterpartyImage: string | null;
-      counterpartyGravatarHash: string;
-      printingId: string;
-      cardId: string;
-    };
+export type FriendGroupActivityEvent = z.infer<typeof friendGroupActivityEventSchema>;
 
-export interface FriendGroupActivityResponse {
-  events: FriendGroupActivityEvent[];
-}
+export type FriendGroupActivityResponse = z.infer<typeof friendGroupActivityResponseSchema>;
 
-export interface FriendGroupPendingInvitesCountResponse {
-  count: number;
-}
+export type FriendGroupPendingInvitesCountResponse = z.infer<
+  typeof friendGroupPendingInvitesCountResponseSchema
+>;
 
-export interface FriendGroupPendingRequestsCountResponse {
-  count: number;
-}
+export type FriendGroupPendingRequestsCountResponse = z.infer<
+  typeof friendGroupPendingRequestsCountResponseSchema
+>;
 
-export interface ListGroupSharesResponse {
-  items: { groupId: string; groupSlug: string; groupName: string }[];
-}
+export type ListGroupSharesResponse = z.infer<typeof listGroupSharesResponseSchema>;
 
-export interface CollectionGroupSharesResponse {
-  items: { groupId: string; groupSlug: string; groupName: string }[];
-}
+export type CollectionGroupSharesResponse = z.infer<typeof collectionGroupSharesResponseSchema>;
 
-export interface FriendGroupSharedListDetailResponse {
-  list: {
-    id: string;
-    name: string;
-    intent: ListIntent;
-    kind: ListKind;
-    ownerUserId: string;
-    ownerName: string | null;
-    tradeDefaults: TradePreference;
-    currency: Currency | null;
-  };
-  entries: ListEntryDetailResponse[];
-}
+export type FriendGroupSharedListDetailResponse = z.infer<
+  typeof friendGroupSharedListDetailResponseSchema
+>;
 
-export interface FriendGroupSharedCollectionDetailResponse {
-  collection: {
-    id: string;
-    name: string;
-    description: string | null;
-    copyCount: number;
-    totalValueCents: number | null;
-    unpricedCopyCount: number | null;
-    ownerUserId: string;
-    ownerName: string | null;
-  };
-  copies: { id: string; printingId: string; collectionId: string; groupId: string | null }[];
-  viewerRole: FriendGroupRole;
-}
+export type FriendGroupSharedCollectionDetailResponse = z.infer<
+  typeof friendGroupSharedCollectionDetailResponseSchema
+>;

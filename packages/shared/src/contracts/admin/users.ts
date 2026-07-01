@@ -5,7 +5,7 @@ import { authedRoute } from "../_base.js";
 
 const TAG = "Admin - Users";
 
-const adminUserSchema = z.object({
+export const adminUserSchema = z.object({
   id: z.string(),
   email: z.string(),
   name: z.string().nullable(),

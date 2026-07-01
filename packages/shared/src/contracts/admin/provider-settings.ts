@@ -7,7 +7,7 @@ const TAG = "Admin - Provider Settings";
 
 const PS = "/api/admin/v1/provider-settings";
 
-const providerSettingSchema = z.object({
+export const providerSettingSchema = z.object({
   provider: z.string(),
   sortOrder: z.number(),
   isHidden: z.boolean(),

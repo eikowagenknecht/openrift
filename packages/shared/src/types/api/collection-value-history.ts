@@ -1,10 +1,8 @@
-export interface CollectionValueHistoryPoint {
-  date: string;
-  /** Collection value at this point, in integer cents. */
-  valueCents: number;
-  copyCount: number;
-}
+import type { collectionValueHistoryResponseSchema } from "@openrift/shared/contracts/collection-value-history";
+import type { z } from "zod";
 
-export interface CollectionValueHistoryResponse {
-  series: CollectionValueHistoryPoint[];
-}
+export type CollectionValueHistoryPoint = z.infer<
+  typeof collectionValueHistoryResponseSchema
+>["series"][number];
+
+export type CollectionValueHistoryResponse = z.infer<typeof collectionValueHistoryResponseSchema>;

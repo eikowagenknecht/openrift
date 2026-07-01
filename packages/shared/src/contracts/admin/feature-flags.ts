@@ -8,7 +8,7 @@ const TAG = "Admin - Feature Flags";
 const BASE = "/api/admin/v1";
 const FF = `${BASE}/feature-flags`;
 
-const flagSchema = z.object({
+export const flagSchema = z.object({
   key: z.string(),
   enabled: z.boolean(),
   description: z.string().nullable(),

@@ -1,3 +1,10 @@
+import type {
+  completionScopePreferenceSchema,
+  emailNotificationPreferenceSchema,
+  userPreferencesResponseSchema,
+} from "@openrift/shared/contracts/preferences";
+import type { z } from "zod";
+
 import { ALL_MARKETPLACES } from "../pricing.js";
 import type { Marketplace } from "../pricing.js";
 import type { Currency } from "./trade-preferences.js";
@@ -21,58 +28,15 @@ export type DefaultCardView = "cards" | "printings";
  * Missing fields use `PREFERENCE_DEFAULTS` at read time.
  */
 /** Scope filters for collection completion tracking. */
-export interface CompletionScopePreference {
-  sets?: string[];
-  languages?: string[];
-  domains?: string[];
-  types?: string[];
-  rarities?: string[];
-  finishes?: string[];
-  artVariants?: string[];
-  /** Tri-state: undefined = all, "only" = promos only, "exclude" = no promos. */
-  promos?: "only" | "exclude";
-  /** Tri-state boolean filters: true = only, false = exclude, undefined = all. */
-  signed?: boolean;
-  banned?: boolean;
-  errata?: boolean;
-}
+export type CompletionScopePreference = z.infer<typeof completionScopePreferenceSchema>;
 
-export interface UserPreferencesResponse {
-  showImages?: boolean;
-  fancyFan?: boolean;
-  foilEffect?: boolean;
-  cardTilt?: boolean;
-  theme?: Theme;
-  palette?: Palette;
-  marketplaceOrder?: Marketplace[];
-  languages?: string[];
-  completionScope?: CompletionScopePreference;
-  defaultCardView?: DefaultCardView;
-  /** Default currency for new wish/trade lists (ADR-017). Falls back to EUR. */
-  defaultCurrency?: Currency;
-  /**
-   * Filter-panel sections the user has chosen to hide across every
-   * card-browser surface. Unioned with each surface's own contextual hides.
-   * Empty/missing = every applicable section is shown (the default).
-   */
-  hiddenFilterSections?: string[];
-  /**
-   * Use the compact card-browser filter bar (icon toggles + dropdown chips)
-   * instead of the expanded filter panel, on the above-the-grid area at mid
-   * widths. Off by default; the wide-screen sidebar and the mobile drawer are
-   * unaffected.
-   */
-  compactFilterView?: boolean;
-  /**
-   * Transactional email opt-ins (ADR-030). The two channels carry *different*
-   * defaults, encoded in the read-side gate, not the stored data:
-   * - `tradeMatches` (daily match digest) is OFF unless explicitly `true`.
-   * - `tradeRequests` (instant trade-request email) is ON unless explicitly `false`.
-   * An absent `emailNotifications` therefore means "digest off, request on",
-   * which is why existing users need no backfill.
-   */
-  emailNotifications?: EmailNotificationPreference;
-}
+/**
+ * Stored preferences — every field optional; missing fields resolve to
+ * `PREFERENCE_DEFAULTS`. `emailNotifications` carries the ADR-030 opt-ins whose
+ * two channels have *different* defaults (digest off, request on), encoded in
+ * the read-side gates below rather than the stored data.
+ */
+export type UserPreferencesResponse = z.infer<typeof userPreferencesResponseSchema>;
 
 /**
  * How often trade-request emails are delivered to a recipient (ADR-030).
@@ -94,22 +58,13 @@ export const TRADE_REQUEST_EMAIL_CADENCE_MINUTES: Record<TradeRequestEmailCadenc
 /** Cadence applied when the recipient hasn't chosen one (and for existing users). */
 export const DEFAULT_TRADE_REQUEST_EMAIL_CADENCE: TradeRequestEmailCadence = "5min";
 
-/** Per-channel transactional email opt-ins (ADR-030). */
-export interface EmailNotificationPreference {
-  tradeMatches?: boolean;
-  tradeRequests?: boolean;
-  /**
-   * Trade status-change emails (accepted / declined / cancelled), sent to the
-   * party who didn't take the action. Opt-out: on unless explicitly `false`.
-   * Shares the trade-request cadence ({@link tradeRequestCadence}).
-   */
-  tradeStatus?: boolean;
-  /**
-   * Delivery cadence for trade-request *and* trade-status emails; absent =
-   * {@link DEFAULT_TRADE_REQUEST_EMAIL_CADENCE}.
-   */
-  tradeRequestCadence?: TradeRequestEmailCadence;
-}
+/**
+ * Per-channel transactional email opt-ins (ADR-030). `tradeMatches`/`tradeRequests`
+ * are booleans; `tradeStatus` (accepted/declined/cancelled emails) is opt-out
+ * (on unless explicitly `false`); `tradeRequestCadence` sets delivery cadence for
+ * trade-request *and* trade-status emails (absent = {@link DEFAULT_TRADE_REQUEST_EMAIL_CADENCE}).
+ */
+export type EmailNotificationPreference = z.infer<typeof emailNotificationPreferenceSchema>;
 
 /**
  * Email-notification channel keys, used for unsubscribe links and toggles. Pinned

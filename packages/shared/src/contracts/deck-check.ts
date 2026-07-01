@@ -121,7 +121,7 @@ export const deckCheckEventSummaryResponseSchema = z
   })
   .openapi("DeckCheckEventSummaryResponse");
 
-const deckCheckEntrySummaryResponseSchema = z.object({
+export const deckCheckEntrySummaryResponseSchema = z.object({
   id: z.string(),
   externalId: z.string(),
   participantId: z.string().nullable(),
@@ -153,13 +153,13 @@ export const deckCheckEventDetailResponseSchema = z
   })
   .openapi("DeckCheckEventDetailResponse");
 
-const deckCheckChangeLineSchema = z.object({
+export const deckCheckChangeLineSchema = z.object({
   name: z.string(),
   zone: z.string(),
   quantity: z.number().int().positive(),
 });
 
-const deckCheckChangeSummarySchema = z.object({
+export const deckCheckChangeSummarySchema = z.object({
   added: z.array(deckCheckChangeLineSchema),
   removed: z.array(deckCheckChangeLineSchema),
   changed: z.array(
@@ -172,7 +172,7 @@ const deckCheckChangeSummarySchema = z.object({
   ),
 });
 
-const deckCheckEntryResponseSchema = z.object({
+export const deckCheckEntryResponseSchema = z.object({
   id: z.string(),
   externalId: z.string(),
   source: deckCheckEntrySourceSchema,

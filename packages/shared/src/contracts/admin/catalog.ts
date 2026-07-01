@@ -17,7 +17,7 @@ const setFieldRules = {
   setType: z.enum([WellKnown.setType.MAIN, WellKnown.setType.SUPPLEMENTAL]),
 };
 
-const adminSetSchema = z.object({
+export const adminSetSchema = z.object({
   id: z.string(),
   slug: z.string(),
   name: z.string(),

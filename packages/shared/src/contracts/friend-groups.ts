@@ -101,7 +101,7 @@ export const friendGroupSlugAndCollectionIdParamSchema = z.object({
   collectionId: z.uuid(),
 });
 
-const effectiveTradePreferenceSchema = z
+export const effectiveTradePreferenceSchema = z
   .object({
     pricePref: tradePricePrefResponseSchema.nullable(),
     priceAbsoluteCents: z.number().int().positive().nullable(),
@@ -162,7 +162,7 @@ export const friendGroupMemberResponseSchema = z
   })
   .openapi("FriendGroupMemberResponse");
 
-const friendGroupShareResponseSchema = z
+export const friendGroupShareResponseSchema = z
   .object({
     groupId: z.string(),
     listId: z.string(),
@@ -176,7 +176,7 @@ const friendGroupShareResponseSchema = z
   })
   .openapi("FriendGroupShareResponse");
 
-const friendGroupCollectionShareResponseSchema = z
+export const friendGroupCollectionShareResponseSchema = z
   .object({
     groupId: z.string(),
     collectionId: z.string(),
@@ -260,7 +260,7 @@ export const friendGroupShareableCollectionsResponseSchema = z
   .object({ items: z.array(friendGroupShareableCollectionResponseSchema) })
   .openapi("FriendGroupShareableCollectionsResponse");
 
-const friendGroupMatchRowSchema = z
+export const friendGroupMatchRowSchema = z
   .object({
     counterpartyUserId: z.string(),
     counterpartyName: z.string().nullable(),
@@ -305,7 +305,7 @@ export const friendGroupMemberDetailResponseSchema = z
   })
   .openapi("FriendGroupMemberDetailResponse");
 
-const friendGroupActivityEventSchema = z
+export const friendGroupActivityEventSchema = z
   .discriminatedUnion("kind", [
     z.object({
       kind: z.literal("trade-completed"),

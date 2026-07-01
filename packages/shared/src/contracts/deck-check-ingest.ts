@@ -40,7 +40,7 @@ export const deckCheckIngestSchema = z.object({
   entries: z.array(deckCheckIngestEntrySchema).max(DECK_CHECK_MAX_ENTRIES_PER_PUSH).default([]),
 });
 
-const deckCheckIngestEntryResultSchema = z
+export const deckCheckIngestEntryResultSchema = z
   .object({
     externalId: z.string(),
     entryId: z.string(),

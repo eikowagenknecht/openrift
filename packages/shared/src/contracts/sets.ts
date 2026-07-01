@@ -10,7 +10,7 @@ import { z } from "zod";
 
 extendZodWithOpenApi(z);
 
-const setListEntrySchema = catalogSetResponseSchema.extend({
+export const setListEntrySchema = catalogSetResponseSchema.extend({
   cardCount: z.number().openapi({ example: 312 }),
   printingCount: z.number().openapi({ example: 468 }),
   coverImageId: imageIdSchema.nullable(),

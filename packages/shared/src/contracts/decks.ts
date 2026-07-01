@@ -142,7 +142,7 @@ export const deckCloneResponseSchema = z
   })
   .openapi("DeckCloneResponse");
 
-const deckSummaryResponseSchema = z
+export const deckSummaryResponseSchema = z
   .object({
     id: z.string(),
     name: z.string(),
@@ -155,7 +155,7 @@ const deckSummaryResponseSchema = z
   })
   .openapi("DeckSummaryResponse");
 
-const deckListItemResponseSchema = z
+export const deckListItemResponseSchema = z
   .object({
     deck: deckSummaryResponseSchema,
     legendCardId: z.string().nullable(),
@@ -172,7 +172,7 @@ export const deckListResponseSchema = z
   .object({ items: z.array(deckListItemResponseSchema) })
   .openapi("DeckListResponse");
 
-const deckCardResponseSchema = z
+export const deckCardResponseSchema = z
   .object({
     cardId: z.string(),
     zone: deckZoneSchema,
@@ -194,7 +194,7 @@ export const deckPlanDetailResponseSchema = z
   .object({ plan: deckPlanResponseSchema })
   .openapi("DeckPlanDetailResponse");
 
-const deckAvailabilityItemResponseSchema = z.object({
+export const deckAvailabilityItemResponseSchema = z.object({
   cardId: z.string(),
   zone: deckZoneSchema,
   needed: z.number(),

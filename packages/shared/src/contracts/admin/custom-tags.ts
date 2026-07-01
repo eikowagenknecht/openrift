@@ -1,8 +1,11 @@
+import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { idParamSchema, isoDateTime, withParams } from "@openrift/shared/schemas";
 import { z } from "zod";
 
 import { authedRoute } from "../_base.js";
 import { slugRegex } from "./shared.js";
+
+extendZodWithOpenApi(z);
 
 const TAG = "Admin - Custom Tags";
 
@@ -10,7 +13,7 @@ const BASE = "/api/admin/v1";
 const CATEGORIES = `${BASE}/custom-tag-categories`;
 const TAGS = `${BASE}/custom-tags`;
 
-const customTagSchema = z.object({
+export const customTagSchema = z.object({
   id: z.string(),
   slug: z.string(),
   label: z.string(),
@@ -24,7 +27,7 @@ const customTagSchema = z.object({
   updatedAt: isoDateTime,
 });
 
-const customTagCategorySchema = z.object({
+export const customTagCategorySchema = z.object({
   id: z.string(),
   slug: z.string(),
   label: z.string(),
@@ -34,6 +37,21 @@ const customTagCategorySchema = z.object({
   createdAt: isoDateTime,
   updatedAt: isoDateTime,
 });
+
+export const adminCustomTagListResponseSchema = z
+  .object({ tags: z.array(customTagSchema) })
+  .openapi("AdminCustomTagListResponse");
+
+export const adminCustomTagCategoryListResponseSchema = z
+  .object({ categories: z.array(customTagCategorySchema) })
+  .openapi("AdminCustomTagCategoryListResponse");
+
+export const adminCustomTagAssignmentsResponseSchema = z
+  .object({
+    /** Map of card id → array of custom-tag slugs (sorted). */
+    assignments: z.record(z.string(), z.array(z.string())),
+  })
+  .openapi("AdminCustomTagAssignmentsResponse");
 
 const createCustomTagCategoryInput = z.object({
   slug: z.string().min(1).regex(slugRegex, "Slug must be kebab-case (e.g. region)"),
@@ -76,7 +94,7 @@ export const adminCustomTagsContract = {
   // ── Categories ────────────────────────────────────────────────────────────
   listCategories: authedRoute
     .route({ method: "GET", path: CATEGORIES, tags: [TAG] })
-    .output(z.object({ categories: z.array(customTagCategorySchema) })),
+    .output(adminCustomTagCategoryListResponseSchema),
   createCategory: authedRoute
     .route({ method: "POST", path: CATEGORIES, tags: [TAG], successStatus: 201 })
     .errors({ CONFLICT: { message: "Category already exists" } })
@@ -100,10 +118,10 @@ export const adminCustomTagsContract = {
   // ── Tags ──────────────────────────────────────────────────────────────────
   listTags: authedRoute
     .route({ method: "GET", path: TAGS, tags: [TAG] })
-    .output(z.object({ tags: z.array(customTagSchema) })),
+    .output(adminCustomTagListResponseSchema),
   listAssignments: authedRoute
     .route({ method: "GET", path: `${TAGS}/assignments`, tags: [TAG] })
-    .output(z.object({ assignments: z.record(z.string(), z.array(z.string())) })),
+    .output(adminCustomTagAssignmentsResponseSchema),
   createTag: authedRoute
     .route({ method: "POST", path: TAGS, tags: [TAG], successStatus: 201 })
     .errors({

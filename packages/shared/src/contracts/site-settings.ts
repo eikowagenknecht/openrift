@@ -3,7 +3,7 @@ import { z } from "zod";
 
 // The site-settings route used an inline schema (no shared schema existed); keep
 // it co-located with the contract. Matches SiteSettingsResponse.
-const siteSettingsResponseSchema = z.object({
+export const siteSettingsResponseSchema = z.object({
   settings: z.record(z.string(), z.string()),
 });
 

@@ -1,25 +1,9 @@
-import type { ActivityAction, CardType, Rarity } from "../enums.js";
+import type {
+  collectionEventListResponseSchema,
+  collectionEventResponseSchema,
+} from "@openrift/shared/contracts/collection-events";
+import type { z } from "zod";
 
-export interface CollectionEventResponse {
-  id: string;
-  action: ActivityAction;
-  copyId: string | null;
-  printingId: string;
-  fromCollectionId: string | null;
-  fromCollectionName: string | null;
-  toCollectionId: string | null;
-  toCollectionName: string | null;
-  createdAt: string;
-  shortCode: string;
-  rarity: Rarity;
-  imageId: string | null;
-  cardName: string;
-  cardType: CardType;
-  cardSuperTypes: string[];
-  tags: string[];
-}
+export type CollectionEventResponse = z.infer<typeof collectionEventResponseSchema>;
 
-export interface CollectionEventListResponse {
-  items: CollectionEventResponse[];
-  nextCursor: string | null;
-}
+export type CollectionEventListResponse = z.infer<typeof collectionEventListResponseSchema>;
