@@ -1,4 +1,5 @@
 import type { PriceRefreshResponse } from "@openrift/shared";
+import { priceRefreshResponseSchema } from "@openrift/shared/contracts/admin/job-results";
 import { CheckIcon, LoaderIcon, XIcon } from "lucide-react";
 
 import { formatRelativeTime, refreshActions } from "@/components/admin/refresh-actions";
@@ -15,26 +16,12 @@ import { ConfirmClearButton } from "./confirm-clear-button";
 // ── Sub-components ───────────────────────────────────────────────────────────
 
 // `upserted` was reshaped from `{ snapshots, staging }` to `{ prices }` in the
-// per-SKU prices refactor, so old `job_runs.result` rows lack `upserted.prices`.
-// Verify the shape we actually render to keep historical rows from crashing.
+// per-SKU prices refactor, so old `job_runs.result` rows lack `upserted.prices`;
+// the schema requires it, so historical rows fail the guard and are skipped
+// (they were unrenderable anyway). Backed by the shared schema so the guard and
+// the type can't drift.
 export function isPriceRefreshResult(value: unknown): value is PriceRefreshResponse {
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
-  if (!("transformed" in value) || !("upserted" in value)) {
-    return false;
-  }
-  const upserted = (value as { upserted: unknown }).upserted;
-  if (typeof upserted !== "object" || upserted === null || !("prices" in upserted)) {
-    return false;
-  }
-  const prices = (upserted as { prices: unknown }).prices;
-  return (
-    typeof prices === "object" &&
-    prices !== null &&
-    typeof (prices as { new: unknown }).new === "number" &&
-    typeof (prices as { updated: unknown }).updated === "number"
-  );
+  return priceRefreshResponseSchema.safeParse(value).success;
 }
 
 function PriceRefreshResult({ result }: { result: PriceRefreshResponse }) {

@@ -40,6 +40,11 @@ import type {
   unrehostImagesInputSchema,
   unrehostResultSchema,
 } from "../../contracts/admin/images.js";
+import type {
+  priceRefreshResponseSchema,
+  priceRefreshUpsertCountsSchema,
+  regenerateImagesCheckpointSchema,
+} from "../../contracts/admin/job-results.js";
 import type { languageSchema } from "../../contracts/admin/languages.js";
 import type { markerSchema } from "../../contracts/admin/markers.js";
 import type {
@@ -164,21 +169,7 @@ export type RegenerateImagesKickoffResponse = z.infer<typeof jobStartedResponseS
  * false (or true — cancel is treated as a pause), a new run can pick up at
  * `lastProcessedIndex + 1`.
  */
-export interface RegenerateImagesCheckpoint {
-  snapshot: { imageId: string; rehostedUrl: string }[];
-  totalFiles: number;
-  /** -1 means nothing processed yet; resume starts at this index + 1. */
-  lastProcessedIndex: number;
-  /** Sum across resumes (regenerated + failed). */
-  processed: number;
-  regenerated: number;
-  failed: number;
-  /** Bounded list of error strings; older entries are dropped past the cap. */
-  errors: string[];
-  resumedFromRunId: string | null;
-  cancelRequested: boolean;
-  skipExisting: boolean;
-}
+export type RegenerateImagesCheckpoint = z.infer<typeof regenerateImagesCheckpointSchema>;
 
 export type ClearRehostedResponse = z.infer<typeof clearRehostedResponseSchema>;
 
@@ -200,23 +191,9 @@ export type LowResImagesResponse = z.infer<typeof lowResImagesResponseSchema>;
 
 // ── Price refresh response types ────────────────────────────────────────────
 
-export interface PriceRefreshUpsertCounts {
-  total: number;
-  new: number;
-  updated: number;
-  unchanged: number;
-}
+export type PriceRefreshUpsertCounts = z.infer<typeof priceRefreshUpsertCountsSchema>;
 
-export interface PriceRefreshResponse {
-  transformed: {
-    groups: number;
-    products: number;
-    prices: number;
-  };
-  upserted: {
-    prices: PriceRefreshUpsertCounts;
-  };
-}
+export type PriceRefreshResponse = z.infer<typeof priceRefreshResponseSchema>;
 
 /**
  * Response for an admin endpoint that kicks off a long-running job in the

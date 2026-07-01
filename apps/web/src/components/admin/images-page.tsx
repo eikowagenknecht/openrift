@@ -1,4 +1,5 @@
 import type { RegenerateImagesCheckpoint, RehostImageResponse } from "@openrift/shared";
+import { regenerateImagesCheckpointSchema } from "@openrift/shared/contracts/admin/job-results";
 import { Link } from "@tanstack/react-router";
 import { CheckIcon, LoaderIcon, XIcon } from "lucide-react";
 import { useState } from "react";
@@ -25,23 +26,12 @@ import {
 const REGENERATE_KIND = "images.regenerate";
 
 /**
- * Type guard mirroring the server-side checkpoint shape so we can read
- * `job_runs.result` safely without sharing runtime code with the API.
- * @returns True when the value matches the checkpoint shape closely enough.
+ * Type guard for reading `job_runs.result` (typed `unknown`) as a checkpoint.
+ * Backed by the shared schema, so the guard and the type can't drift.
+ * @returns True when the value matches the checkpoint schema.
  */
 function isRegenerateCheckpoint(value: unknown): value is RegenerateImagesCheckpoint {
-  if (value === null || typeof value !== "object") {
-    return false;
-  }
-  const v = value as Record<string, unknown>;
-  return (
-    typeof v.totalFiles === "number" &&
-    typeof v.lastProcessedIndex === "number" &&
-    typeof v.processed === "number" &&
-    typeof v.regenerated === "number" &&
-    typeof v.failed === "number" &&
-    Array.isArray(v.errors)
-  );
+  return regenerateImagesCheckpointSchema.safeParse(value).success;
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
