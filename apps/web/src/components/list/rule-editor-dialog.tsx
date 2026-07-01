@@ -381,7 +381,7 @@ function RuleFields({
       </FilterRow>
       <p className="text-muted-foreground -mt-1 text-sm">
         {isTrade
-          ? "Keep this many per card; offer the rest. 0 trades all."
+          ? "Keep this many per card, and offer the rest. 0 trades all."
           : kind === "card"
             ? "How many of each matched card to want."
             : "How many of each matched printing to want."}

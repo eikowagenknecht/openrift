@@ -146,7 +146,7 @@ export async function applyJudgeTransition(
     throw new AppError(
       409,
       ERROR_CODES.CONFLICT,
-      "Entry is withdrawn; restore it to submitted before other changes",
+      "Entry is withdrawn. Restore it to submitted before other changes.",
     );
   }
 
@@ -176,7 +176,7 @@ export async function applyJudgeTransition(
 
     case "checked": {
       if (entry.state !== "approved") {
-        throw conflict("Only an approved entry can be checked; approve the list first");
+        throw conflict("Only an approved entry can be checked. Approve the list first.");
       }
       if (input.reviewOutcome !== "ok" && input.reviewOutcome !== "issue") {
         throw new AppError(
@@ -206,7 +206,7 @@ export async function applyJudgeTransition(
 
     case "editable": {
       if (!entry.claimedUserId) {
-        throw conflict("No linked player can edit this entry; link an account first");
+        throw conflict("No linked player can edit this entry. Link an account first.");
       }
       // Snapshot-based unlock; works from submitted, approved, and checked
       // (the after-deadline venue correction included).

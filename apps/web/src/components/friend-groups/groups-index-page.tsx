@@ -67,7 +67,7 @@ function CreateGroupDialog({
   const [generateCode, setGenerateCode] = useState(true);
   const slugError =
     slug.length > 0 && !/^[a-z0-9][a-z0-9-]+$/u.test(slug)
-      ? "Lowercase letters, digits, and dashes; starts with a letter or digit"
+      ? "Lowercase letters, digits, and dashes, starting with a letter or digit"
       : null;
 
   async function handleCreate() {

@@ -1045,7 +1045,7 @@ export const tournamentsRouter = {
       if (await repos.tournaments.participantHasMemberships(input.participantId)) {
         throw errors.CONFLICT({
           message:
-            "This participant is in a paired round and cannot be removed; drop them instead.",
+            "This participant is in a paired round and cannot be removed. Drop them instead.",
         });
       }
       await repos.tournaments.deleteParticipant(input.participantId);

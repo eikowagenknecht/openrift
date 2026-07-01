@@ -58,8 +58,8 @@ export function ListImportDialog({ listId, listKind, open, onOpenChange }: ListI
             </code>
             , or a CSV export from OpenRift, Piltover Archive, RiftCore, or RiftMana.{" "}
             {listKind === "printing"
-              ? "CSV exports resolve to a specific printing (finish, art variant); rows without enough detail to pin one down are flagged for review."
-              : "Matching cards are added to this list; quantities stack with what's already there."}
+              ? "CSV exports resolve to a specific printing (finish, art variant). Rows without enough detail to pin one down are flagged for review."
+              : "Matching cards are added to this list, and quantities stack with what's already there."}
           </DialogDescription>
         </DialogHeader>
 

@@ -281,7 +281,7 @@ export async function submitPodResult(
     throw new AppError(
       409,
       ERROR_CODES.CONFLICT,
-      "This round is finalized; results can no longer be submitted here.",
+      "This round is finalized. Results can no longer be submitted here.",
     );
   }
 

@@ -231,14 +231,14 @@ async function persistSubmission(
       throw new AppError(
         409,
         ERROR_CODES.CONFLICT,
-        "Your entry was withdrawn by the organizer; contact a judge",
+        "Your entry was withdrawn by the organizer. Contact a judge.",
       );
     }
     if (linked.state === "approved" || linked.state === "checked") {
       throw new AppError(
         409,
         ERROR_CODES.CONFLICT,
-        "Your deck was already reviewed by a judge; ask for it to be unlocked from your deck page",
+        "Your deck was already reviewed by a judge. Ask for it to be unlocked from your deck page.",
       );
     }
     if (linked.state === "submitted" && event.listLockMode === "on_submit") {
@@ -246,7 +246,7 @@ async function persistSubmission(
       throw new AppError(
         409,
         ERROR_CODES.CONFLICT,
-        "Your deck is already submitted; ask for it to be unlocked from your deck page",
+        "Your deck is already submitted. Ask for it to be unlocked from your deck page.",
       );
     }
     const replaced = await applyPlayerList(repos, linked, lines, cardRows, consent);
@@ -264,7 +264,7 @@ async function persistSubmission(
     throw new AppError(
       409,
       ERROR_CODES.CONFLICT,
-      "A judge detached your previous submission; contact a judge",
+      "A judge detached your previous submission. Contact a judge.",
     );
   }
 
@@ -306,15 +306,15 @@ export const deckCheckPlayerRouter = {
 
       const { row, event } = await loadOwnEntry(repos, userId, input.entryId);
       if (!submissionWindowOpen(event)) {
-        throw new AppError(409, ERROR_CODES.CONFLICT, "Submissions closed; contact a judge");
+        throw new AppError(409, ERROR_CODES.CONFLICT, "Submissions closed. Contact a judge.");
       }
       if (row.state !== "editable" && !input.dryRun) {
         throw new AppError(
           409,
           ERROR_CODES.CONFLICT,
           row.state === "withdrawn"
-            ? "Your entry was withdrawn by the organizer; contact a judge"
-            : "Your deck is locked; unlock it before editing",
+            ? "Your entry was withdrawn by the organizer. Contact a judge."
+            : "Your deck is locked. Unlock it before editing.",
         );
       }
 
@@ -351,7 +351,7 @@ export const deckCheckPlayerRouter = {
       const userId = context.userId;
       const { row, event } = await loadOwnEntry(repos, userId, input.entryId);
       if (!submissionWindowOpen(event)) {
-        throw new AppError(409, ERROR_CODES.CONFLICT, "Submissions closed; contact a judge");
+        throw new AppError(409, ERROR_CODES.CONFLICT, "Submissions closed. Contact a judge.");
       }
       if (row.state !== "editable") {
         throw new AppError(409, ERROR_CODES.CONFLICT, "Only an editable deck can be submitted");
@@ -367,7 +367,7 @@ export const deckCheckPlayerRouter = {
       const userId = context.userId;
       const { row, event } = await loadOwnEntry(repos, userId, input.entryId);
       if (!submissionWindowOpen(event)) {
-        throw new AppError(409, ERROR_CODES.CONFLICT, "Submissions closed; contact a judge");
+        throw new AppError(409, ERROR_CODES.CONFLICT, "Submissions closed. Contact a judge.");
       }
       if (row.state === "submitted" && event.listLockMode === "at_deadline") {
         // Self-service in the lenient mode: delivery only happens when the

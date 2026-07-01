@@ -390,7 +390,7 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
       general: "Which parts of a card's text are shown: rules text, effect text, and flavor text.",
       openrift:
         "Rules, effect, and flavor text, with consistent formatting, OCR-verified from actual card scans.",
-      riftboundGg: "Rules and effect text; no flavor text.",
+      riftboundGg: "Rules and effect text, no flavor text.",
     },
   },
   {
@@ -561,7 +561,7 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
     values: ["yes", "yes", "partial", "yes", "no"],
     detail: {
       general: "Share decks as compact text codes. Both import and export supported.",
-      riftboundGg: "Export only; no import.",
+      riftboundGg: "Export only, no import.",
     },
   },
   {
@@ -607,7 +607,7 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
     detail: {
       general:
         "A native iOS or Android app installable from the app store, in addition to the website.",
-      riftcore: "Android app available; no iOS version.",
+      riftcore: "Android app available, no iOS version.",
     },
   },
   {
@@ -693,7 +693,7 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
     values: [0, 1, 43, 24, 3],
     detail: {
       general:
-        "Number of third-party ad trackers detected by Blacklight (themarkup.org/blacklight). Lower is better; 0 means none detected. Third-party cookies are listed per-site below.",
+        "Number of third-party ad trackers detected by Blacklight (themarkup.org/blacklight). Lower is better, where 0 means none detected. Third-party cookies are listed per-site below.",
       openrift:
         "0 trackers, 0 third-party cookies. Uses first-party Umami for cookie-free analytics.",
       piltoverArchive: "1 tracker (Alphabet), 0 third-party cookies.",
@@ -741,11 +741,11 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
     values: ["no", "yes", "yes", "partial", "partial"],
     detail: {
       general: "Tournament results and meta analysis.",
-      openrift: "Not available yet; planned.",
+      openrift: "Not available yet, but planned.",
       piltoverArchive: "Tournament decklists shown.",
       riftmana: "Tournament decklists available, but not organized per tournament.",
       riftboundGg: "Tournament data plus decklists.",
-      riftcore: "A mix of tournament and community data; sourcing is unclear.",
+      riftcore: "A mix of tournament and community data, but sourcing is unclear.",
     },
   },
   {
@@ -778,7 +778,7 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
       general:
         "Approximate member count of each site's official Discord server, as a rough proxy for community size.",
       riftboundGg:
-        "Not a Riftbound-specific server; covers the whole DotGG Network, so the count overstates Riftbound-specific reach.",
+        "Not a Riftbound-specific server. It covers the whole DotGG Network, so the count overstates Riftbound-specific reach.",
     },
   },
 ];

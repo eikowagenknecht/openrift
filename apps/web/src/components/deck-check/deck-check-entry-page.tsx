@@ -742,7 +742,7 @@ function AccountLinkAction({
       size="sm"
       variant="outline"
       disabled={unlink.isPending}
-      title="Detach the account; the entry is never auto-matched again"
+      title="Detach the account. The entry is never auto-matched again."
       onClick={() => unlink.mutate({ tournamentId, entryId })}
     >
       <Unlink2Icon className="size-4" />
@@ -1080,8 +1080,8 @@ function FixCardDialog({
           <DialogTitle>{zoneOnly ? "Move card" : "Fix card"}</DialogTitle>
           <DialogDescription>
             {zoneOnly
-              ? "Move the card to the right zone. Its name can't be changed once the list is approved; ticks stay."
-              : "Correct the submitted name or move the card to the right zone. The name is matched against the catalog again; ticks stay."}
+              ? "Move the card to the right zone. Its name can't be changed once the list is approved, but ticks stay."
+              : "Correct the submitted name or move the card to the right zone. The name is matched against the catalog again, but ticks stay."}
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-4">
@@ -1147,7 +1147,7 @@ function FixCardDialog({
             <p className="text-muted-foreground text-sm">
               {parsedCopies >= card.quantity
                 ? `Moves all ${card.quantity} copies to ${zoneLabels[section as never] ?? section}.`
-                : `Moves ${copiesValid ? parsedCopies : "?"} of ${card.quantity} copies; the rest stay in ${zoneLabels[card.zone]}.`}
+                : `Moves ${copiesValid ? parsedCopies : "?"} of ${card.quantity} copies. The rest stay in ${zoneLabels[card.zone]}.`}
             </p>
           ) : null}
         </div>
@@ -1921,7 +1921,7 @@ function ChecklistRow({
         found: !found,
       });
     } catch {
-      toast.info("This list changed; reloading");
+      toast.info("This list changed, reloading now");
       onStale();
     }
   };
@@ -2081,7 +2081,7 @@ function ChecklistCell({
       });
     } catch {
       // A 409 means the list was re-imported under us; reload the entry.
-      toast.info("This list changed; reloading");
+      toast.info("This list changed, reloading now");
       onStale();
     }
   };

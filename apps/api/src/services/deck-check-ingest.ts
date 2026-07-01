@@ -102,14 +102,14 @@ export async function ingestDeckCheckPush(
     throw new AppError(
       404,
       ERROR_CODES.NOT_FOUND,
-      "Unknown tournament id; create the deck-check tournament in OpenRift first",
+      "Unknown tournament id. Create the deck-check tournament in OpenRift first.",
     );
   }
   if (event.status === "archived") {
     throw new AppError(
       409,
       ERROR_CODES.CONFLICT,
-      "Event is archived; un-archive it before pushing",
+      "Event is archived. Un-archive it before pushing.",
     );
   }
 

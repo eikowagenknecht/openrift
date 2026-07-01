@@ -56,11 +56,11 @@ export function PlayerSubmitDeckSection({ token }: { token: string }) {
   const linkedState = data.linkedEntry?.state;
   const blockedMessage =
     linkedState === "withdrawn"
-      ? "Your entry in this event was withdrawn by the organizer; contact a judge before submitting again."
+      ? "Your entry in this event was withdrawn by the organizer. Contact a judge before submitting again."
       : linkedState === "approved"
         ? "Your deck for this event was already approved by a judge. To change it, request an unlock from your deck page."
         : linkedState === "checked"
-          ? "Your deck for this event was already checked by a judge; contact a judge to change it."
+          ? "Your deck for this event was already checked by a judge. Contact a judge to change it."
           : data.linkedEntry && !data.linkedEntry.canReplace
             ? "Your deck for this event is already submitted and locked. To change it, request an unlock from your deck page."
             : null;

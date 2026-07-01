@@ -87,7 +87,11 @@ export const adminImagesRouter = {
     if (!isRegenerateCheckpoint(current)) {
       // Job started but hasn't written its first checkpoint yet — nothing to
       // flag. The caller can retry once progress shows up.
-      throw new AppError(409, ERROR_CODES.CONFLICT, "Job is still initializing; try again shortly");
+      throw new AppError(
+        409,
+        ERROR_CODES.CONFLICT,
+        "Job is still initializing. Try again shortly.",
+      );
     }
     await jobRuns.updateResult(running.id, { ...current, cancelRequested: true });
     return { runId: running.id, cancelRequested: true as const };

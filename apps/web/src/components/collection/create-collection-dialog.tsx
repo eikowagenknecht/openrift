@@ -71,7 +71,7 @@ export function CreateCollectionDialog({
           <DialogTitle>{isShared ? "New shared collection" : "New collection"}</DialogTitle>
           <DialogDescription>
             {isShared
-              ? `Shared with ${groupName ?? "this group"}. Any member can add or remove cards; group admins can rename or delete it.`
+              ? `Shared with ${groupName ?? "this group"}. Any member can add or remove cards. Group admins can rename or delete it.`
               : "A collection holds physical copies you own. You can rename or delete it later."}
           </DialogDescription>
         </DialogHeader>

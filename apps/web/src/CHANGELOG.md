@@ -52,7 +52,7 @@
 
 - feat(Tournaments): **One home for your events** — the new Tournaments area runs pod pairings and standings, collects player decklists, and lets judges check them, all on one event hosted by you or an organization, with times in your own timezone and multi-day scheduling.
 - feat(Collection): **Import CSVs into lists** — both a list's own Import and the Import / Export page now accept any supported CSV (OpenRift, Piltover Archive, RiftCore, RiftMana) and can send the cards to a list instead of your owned collection, keeping each card's finish and art variant.
-- feat(Collection): **One menu for variants and collections** — the count box on a card now opens a single menu listing each variant with the collections your copies live in, where you can add or remove copies per collection (or add to another collection) right there; removing a copy that could come from several places opens this menu instead of chaining through separate pickers.
+- feat(Collection): **One menu for variants and collections** — the count box on a card now opens a single menu listing each variant with the collections your copies live in, where you can add or remove copies per collection (or add to another collection) right there. Removing a copy that could come from several places opens this menu instead of chaining through separate pickers.
 - feat(Cards): **Oversized cards** — cards that also come in a physically larger print are now tracked as their own variety, so you can filter by size and collect the oversized version separately from the standard one.
 
 ### Other
@@ -68,10 +68,10 @@
 - fix(Collection): **Clearer import review counts** — the collection and deck import summaries now split rows into ready, "to verify" (a best guess that still imports), and "need attention", and the per-row icons match those buckets, so the warning marks line up with the count.
 - fix(Collection): **Tidier variant menu layout** — the variant-and-collections menu now lines its counts and add/remove buttons into clean columns and sets each variant off as a quiet header, and a menu opened with the remove shortcut shows only remove controls.
 - fix(Cards): **Group by set lists main sets first** — grouping the card grid (or table) by set now shows the main sets ahead of the supplemental ones, matching the filter sidebar order, including the cards shown on the very first page load before the grid finishes loading.
-- fix(Cards): **Clear a filter with no cards left** — a selected set or value that no longer matches any cards (say after moving them to another collection) vanished from its dropdown yet stayed active; it now stays listed so you can untick it.
-- fix(Collection): **Select all respects your filters** — in select mode, "select all" was grabbing every copy in the collection, even cards hidden by your active filters; it now selects only the cards currently shown.
+- fix(Cards): **Clear a filter with no cards left** — a selected set or value that no longer matches any cards (say after moving them to another collection) vanished from its dropdown yet stayed active. It now stays listed so you can untick it.
+- fix(Collection): **Select all respects your filters** — in select mode, "select all" was grabbing every copy in the collection, even cards hidden by your active filters. It now selects only the cards currently shown.
 - fix(Collection): **Variant minus no longer reopens the menu** — removing a copy from the variants popover now decrements that variant directly, instead of opening a second, near-identical variants menu.
-- fix(Collection): **Friend-group copies no longer inflate your totals** — on the All Cards view, collection stats, and the variant remove popover, copies in your friend groups counted toward your owned numbers, filters, and value; they now count only when you're viewing that group's own collection.
+- fix(Collection): **Friend-group copies no longer inflate your totals** — on the All Cards view, collection stats, and the variant remove popover, copies in your friend groups counted toward your owned numbers, filters, and value. They now count only when you're viewing that group's own collection.
 
 ## 2026-06-27
 

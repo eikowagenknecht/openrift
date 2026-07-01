@@ -91,7 +91,7 @@ export function validatePartition(
   state.pods.forEach((pod, index) => {
     const size = pod.playerIds.length;
     if (size !== 0 && size !== 3 && size !== 4) {
-      errors.push(`Pod ${index + 1} has ${size} players; pods must have 3 or 4.`);
+      errors.push(`Pod ${index + 1} has ${size} players. Pods must have 3 or 4.`);
     }
   });
 

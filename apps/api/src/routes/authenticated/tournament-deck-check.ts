@@ -87,7 +87,7 @@ function requireListVisible(entry: DeckCheckEntry): void {
     throw new AppError(
       409,
       ERROR_CODES.CONFLICT,
-      "The player is editing this list; it becomes visible once submitted",
+      "The player is editing this list. It becomes visible once submitted.",
     );
   }
 }
@@ -135,7 +135,7 @@ export const tournamentDeckCheckRouter = {
         throw new AppError(
           409,
           ERROR_CODES.CONFLICT,
-          "Event is archived; un-archive it before adding decks",
+          "Event is archived. Un-archive it before adding decks.",
         );
       }
       const participant = await repos.tournaments.findParticipantById(input.participantId);
@@ -377,7 +377,7 @@ export const tournamentDeckCheckRouter = {
     if (!stored) {
       // The card row was replaced by a re-import while the judge had the entry
       // open; the client refetches instead of erroring opaquely.
-      throw new AppError(409, ERROR_CODES.CONFLICT, "Card list changed; reload the entry");
+      throw new AppError(409, ERROR_CODES.CONFLICT, "Card list changed. Reload the entry.");
     }
   }),
 
