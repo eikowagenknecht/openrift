@@ -4,6 +4,7 @@
 
 ### Other
 
+- feat(Collection): **Clearer list sharing** — sharing a public link and choosing which groups can see a list are now two focused dialogs that link to each other, instead of one crowded panel.
 - feat(Collection): **Dynamic-rule status on lists** — a wishlist or tradelist with active dynamic rules now highlights its rules button and shows how many are running.
 - fix(Decks): **Proxies hidden for empty decks** — the Proxies button did nothing on a deck with no cards, and now it only appears once the deck has cards to print.
 

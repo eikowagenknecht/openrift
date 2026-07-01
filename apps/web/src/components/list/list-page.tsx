@@ -44,6 +44,7 @@ import { ListEditDialog } from "@/components/list/list-edit-dialog";
 import { ListEntryTableActions } from "@/components/list/list-entry-table-actions";
 import { ListExportDialog } from "@/components/list/list-export-dialog";
 import { ListGridCell } from "@/components/list/list-grid-cell";
+import { ListGroupVisibilityDialog } from "@/components/list/list-group-visibility-dialog";
 import { ListHeader } from "@/components/list/list-header";
 import { ListImportDialog } from "@/components/list/list-import-dialog";
 import { ListRemoveDialog } from "@/components/list/list-remove-dialog";
@@ -162,6 +163,7 @@ export function ListPage({ listId }: ListPageProps) {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [visibilityOpen, setVisibilityOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [ruleOpen, setRuleOpen] = useState(false);
@@ -249,7 +251,7 @@ export function ListPage({ listId }: ListPageProps) {
           <ListVisibilityButton
             listId={data.list.id}
             intent={data.list.intent}
-            onManageVisibility={() => setShareOpen(true)}
+            onManageVisibility={() => setVisibilityOpen(true)}
           />
           <DropdownMenu>
             <DropdownMenuTrigger render={<PageTopBarIconButton />}>
@@ -263,7 +265,7 @@ export function ListPage({ listId }: ListPageProps) {
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setShareOpen(true)}>
                 <Share2Icon className="size-4" />
-                Share
+                Share link
               </DropdownMenuItem>
               {(data.list.kind === "card" || data.list.kind === "printing") && (
                 <DropdownMenuItem onClick={() => setImportOpen(true)}>
@@ -321,7 +323,6 @@ export function ListPage({ listId }: ListPageProps) {
     <ListShareDialog
       listId={listId}
       listName={data.list.name}
-      intent={data.list.intent}
       kind={data.list.kind}
       tradeDefaults={data.list.tradeDefaults}
       currency={data.list.currency}
@@ -330,6 +331,23 @@ export function ListPage({ listId }: ListPageProps) {
       entries={data.entries}
       open={shareOpen}
       onOpenChange={setShareOpen}
+      onManageGroups={() => {
+        setShareOpen(false);
+        setVisibilityOpen(true);
+      }}
+    />
+  );
+
+  const visibilityDialog = (
+    <ListGroupVisibilityDialog
+      listId={listId}
+      intent={data.list.intent}
+      open={visibilityOpen}
+      onOpenChange={setVisibilityOpen}
+      onManagePublicLink={() => {
+        setVisibilityOpen(false);
+        setShareOpen(true);
+      }}
     />
   );
 
@@ -395,6 +413,7 @@ export function ListPage({ listId }: ListPageProps) {
         {editDialog}
         {deleteDialog}
         {shareDialog}
+        {visibilityDialog}
         {exportDialog}
         {importDialog}
         {ruleDialog}
