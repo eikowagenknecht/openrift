@@ -52,12 +52,13 @@ function EditOrgDialog({ org }: { org: OrganizationSummaryResponse }) {
     if (!slug.trim() || !name.trim()) {
       return;
     }
+    const trimmedDescription = description.trim() || null;
     try {
       await updateOrg.mutateAsync({
         id: org.id,
         slug: slug.trim(),
         name: name.trim(),
-        description: description.trim() || null,
+        description: trimmedDescription,
       });
       setOpen(false);
       toast.success("Organization updated");
@@ -202,11 +203,12 @@ export function AdminOrganizationsPage() {
     if (!slug.trim() || !name.trim() || !ownerUserId) {
       return;
     }
+    const trimmedDescription = description.trim() || null;
     try {
       await createOrg.mutateAsync({
         slug: slug.trim(),
         name: name.trim(),
-        description: description.trim() || null,
+        description: trimmedDescription,
         ownerUserId,
       });
       setSlug("");

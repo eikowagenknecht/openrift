@@ -355,9 +355,11 @@ function RenameKeyDialog({
     try {
       await onRename(apiKey.id, trimmed);
       onOpenChange(false);
-    } finally {
+    } catch (error) {
       setPending(false);
+      throw error;
     }
+    setPending(false);
   };
 
   return (

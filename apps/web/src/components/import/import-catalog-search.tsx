@@ -58,7 +58,12 @@ export function ImportCatalogSearch<T>({
   const [showResults, setShowResults] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
+  // The list node is tracked in state via a callback ref rather than `useRef`, so
+  // the anchor handed to `renderActivePreview` is a plain object built from state
+  // (see below) instead of a ref. React Compiler flags refs passed to functions
+  // during render; a state-derived object sidesteps that while the preview keeps
+  // reading `.current` only inside its own positioning effect.
+  const [listEl, setListEl] = useState<HTMLDivElement | null>(null);
   const listboxId = useId();
   const [debouncedSearch] = useDebouncedValue(search, { wait: 150 });
 
@@ -67,7 +72,7 @@ export function ImportCatalogSearch<T>({
   const activeOptionId = activeIndex >= 0 ? `${listboxId}-option-${activeIndex}` : undefined;
 
   function scrollActiveIntoView(index: number) {
-    const item = listRef.current?.children[index] as HTMLElement | undefined;
+    const item = listEl?.children[index] as HTMLElement | undefined;
     if (item) {
       item.scrollIntoView({ block: "nearest" });
     }
@@ -151,7 +156,7 @@ export function ImportCatalogSearch<T>({
       />
       {visible && results.length > 0 && (
         <div
-          ref={listRef}
+          ref={setListEl}
           id={listboxId}
           // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- ARIA combobox pattern with autocomplete
           role="listbox"
@@ -180,7 +185,7 @@ export function ImportCatalogSearch<T>({
       {visible &&
         activeIndex >= 0 &&
         activeIndex < results.length &&
-        renderActivePreview?.(results[activeIndex], listRef)}
+        renderActivePreview?.(results[activeIndex], { current: listEl })}
       {visible && results.length === 0 && (
         <div
           id={listboxId}

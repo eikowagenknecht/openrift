@@ -16,13 +16,15 @@ export function TournamentSubmitPage({ token }: { token: string }) {
   const [joined, setJoined] = useState(false);
 
   async function handleJoin() {
+    let result;
     try {
-      const result = await requestJoin.mutateAsync({ token });
-      setJoined(true);
-      toast.success(result.alreadyJoined ? "You are already registered" : "Request sent");
+      result = await requestJoin.mutateAsync({ token });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't send your request");
+      return;
     }
+    setJoined(true);
+    toast.success(result.alreadyJoined ? "You are already registered" : "Request sent");
   }
 
   // When self-registration is closed, the link only takes a deck from someone

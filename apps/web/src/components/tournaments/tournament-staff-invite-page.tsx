@@ -22,9 +22,10 @@ export function TournamentStaffInvitePage({ token }: { token: string }) {
   const roleLabel = STAFF_ROLE_LABEL[data.role];
 
   async function handleConfirm() {
+    const successMessage = `You're now ${roleLabel === "Judge" ? "a judge" : "an organizer"}`;
     try {
       const result = await claim.mutateAsync(token);
-      toast.success(`You're now ${roleLabel === "Judge" ? "a judge" : "an organizer"}`);
+      toast.success(successMessage);
       void navigate({ to: "/tournaments/$id", params: { id: result.tournamentId } });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't accept the invite");

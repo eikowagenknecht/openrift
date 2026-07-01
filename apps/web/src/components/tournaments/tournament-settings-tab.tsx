@@ -872,12 +872,14 @@ function GroupSection({ detail, locked }: { detail: TournamentDetailResponse; lo
   }
 
   async function changeGroup(value: string) {
+    const groupId = value === "none" ? null : value;
+    const successMessage = value === "none" ? "Group unlinked" : "Group updated";
     try {
       await updateTournament.mutateAsync({
         id: detail.id,
-        groupId: value === "none" ? null : value,
+        groupId,
       });
-      toast.success(value === "none" ? "Group unlinked" : "Group updated");
+      toast.success(successMessage);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Something went wrong");
     }

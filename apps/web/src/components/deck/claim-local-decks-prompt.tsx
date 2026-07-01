@@ -58,10 +58,11 @@ export function ClaimLocalDecksPrompt() {
     setImporting(true);
     const importedIds: string[] = [];
     for (const deck of selectedDecks) {
+      const description = deck.description || undefined;
       try {
         const created = await createDeck.mutateAsync({
           name: deck.name,
-          description: deck.description || undefined,
+          description,
           format: deck.format,
         });
         await saveDeckCards.mutateAsync({ deckId: created.id, cards: deck.cards });

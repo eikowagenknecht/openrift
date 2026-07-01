@@ -99,18 +99,24 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
     if (!name.trim() || !startsAt || closeTimeInvalid || scheduleInvalid) {
       return;
     }
+    const host =
+      hostValue === "user"
+        ? ({ type: "user" } as const)
+        : ({ type: "organization", orgId: hostValue } as const);
+    const linkedGroupId = groupId === "none" ? null : groupId;
+    const listLockMode = wantsDeck ? lockMode : undefined;
     try {
       const created = await createTournament.mutateAsync({
         name: name.trim(),
-        host: hostValue === "user" ? { type: "user" } : { type: "organization", orgId: hostValue },
+        host,
         pairingStyle,
         startsAt,
         endsAt,
         deckSubmission,
         selfRegistration,
-        groupId: groupId === "none" ? null : groupId,
+        groupId: linkedGroupId,
         submissionsCloseAt,
-        listLockMode: wantsDeck ? lockMode : undefined,
+        listLockMode,
       });
       void navigate({ to: "/tournaments/$id", params: { id: created.id } });
     } catch (error) {
