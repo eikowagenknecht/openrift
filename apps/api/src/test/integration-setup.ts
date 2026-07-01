@@ -21,14 +21,30 @@ export function replaceDbName(url: string, dbName: string): string {
 }
 
 /**
+ * Monotonic per-process counter so two temp DBs created within the same
+ * millisecond in one process still get distinct names.
+ */
+let tempDbSeq = 0;
+
+/**
  * Create a temporary database (drops first if leftover from a crash).
+ *
+ * The name is `openrift_test_<label>_<epoch-ms>_<pid>_<seq>`. The timestamp
+ * stays first so {@link sweepStaleTestDatabases} can drop old leftovers by age;
+ * the `<pid>_<seq>` suffix guarantees uniqueness. Without it, two runs on the
+ * shared server (all worktrees point at one `.env`/DB) could generate the same
+ * `Date.now()` name, then one run's `DROP IF EXISTS` would delete the other's
+ * fresh DB and both would `migrate()` the same database concurrently, leaving a
+ * corrupted (partial) migration table.
  *
  * @returns The generated database name.
  */
 export async function createTempDb(databaseUrl: string, label: string): Promise<string> {
-  const name = `openrift_test_${label}_${Date.now()}`;
+  const name = `openrift_test_${label}_${Date.now()}_${process.pid}_${tempDbSeq++}`;
   const adminSql = postgres(replaceDbName(databaseUrl, "postgres"), { onnotice: noop });
-  await adminSql.unsafe(`DROP DATABASE IF EXISTS "${name}"`);
+  // WITH (FORCE) terminates any lingering sessions before dropping (PG13+), so a
+  // leftover DB with a stray connection can't block the create.
+  await adminSql.unsafe(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`);
   await adminSql.unsafe(`CREATE DATABASE "${name}"`);
   await adminSql.end();
   return name;
@@ -44,10 +60,9 @@ export async function dropTempDb(databaseUrl: string, name: string): Promise<voi
     return;
   }
   const sql = postgres(replaceDbName(databaseUrl, "postgres"), { onnotice: noop });
-  await sql.unsafe(
-    `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '${name}' AND pid <> pg_backend_pid()`,
-  );
-  await sql.unsafe(`DROP DATABASE IF EXISTS "${name}"`);
+  // WITH (FORCE) terminates other sessions then drops, atomically (PG13+) —
+  // replaces the old terminate-then-drop pair.
+  await sql.unsafe(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`);
   await sql.end();
 }
 
@@ -63,6 +78,46 @@ export async function listTestDatabases(databaseUrl: string): Promise<string[]> 
   `;
   await sql.end();
   return rows.map((r) => r.datname);
+}
+
+/**
+ * Extract the creation epoch-ms embedded in a temp-DB name
+ * (`openrift_test_<label>_<epoch-ms>[_<pid>_<seq>]`). Tolerates the legacy
+ * suffix-less format so old leftovers are still sweepable.
+ *
+ * @returns The epoch-ms timestamp, or `null` if the name doesn't match.
+ */
+export function parseTestDbTimestamp(name: string): number | null {
+  const match = /^openrift_test_[^_]+_(?<timestamp>\d+)/u.exec(name);
+  if (!match?.groups) {
+    return null;
+  }
+  const timestamp = Number(match.groups.timestamp);
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+/**
+ * Drop test databases older than `maxAgeMs`, judged by the epoch-ms in their
+ * name. Run at the start of an integration run so leftovers from interrupted
+ * runs (killed processes never reach teardown) are reclaimed automatically. The
+ * age cutoff protects a concurrently-running run's fresh DB from being dropped.
+ *
+ * @returns The names that were dropped.
+ */
+export async function sweepStaleTestDatabases(
+  databaseUrl: string,
+  maxAgeMs: number,
+  now: number = Date.now(),
+): Promise<string[]> {
+  const all = await listTestDatabases(databaseUrl);
+  const stale = all.filter((name) => {
+    const timestamp = parseTestDbTimestamp(name);
+    return timestamp !== null && now - timestamp > maxAgeMs;
+  });
+  for (const name of stale) {
+    await dropTempDb(databaseUrl, name);
+  }
+  return stale;
 }
 
 /**

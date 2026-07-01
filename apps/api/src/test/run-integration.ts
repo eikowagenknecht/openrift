@@ -15,7 +15,14 @@ import postgres from "postgres";
 
 import { createDb } from "../db/connect.js";
 import { migrate } from "../db/migrate.js";
-import { createTempDb, dropTempDb, noop, noopLogger, replaceDbName } from "./integration-setup.js";
+import {
+  createTempDb,
+  dropTempDb,
+  noop,
+  noopLogger,
+  replaceDbName,
+  sweepStaleTestDatabases,
+} from "./integration-setup.js";
 
 // ---------------------------------------------------------------------------
 // Test user registry — one per test file
@@ -277,7 +284,38 @@ const coverageArgs = process.env.COVERAGE
 
 let tempDbName = "";
 
+// Best-effort cleanup if the run is interrupted. The `finally` below only runs
+// on a normal exit or a thrown error, not on SIGINT/SIGTERM, so without this a
+// Ctrl-C or a `kill` leaks the shared DB. (SIGKILL and hard crashes still can't
+// be caught. The startup sweep reclaims those on the next run.)
+let shuttingDown = false;
+async function cleanupAndExit(code: number): Promise<void> {
+  if (shuttingDown) {
+    return;
+  }
+  shuttingDown = true;
+  if (tempDbName) {
+    console.log(`\nInterrupted, dropping ${tempDbName}...`);
+    try {
+      await dropTempDb(DATABASE_URL!, tempDbName);
+    } catch {
+      // Nothing more we can do while going down. The sweep catches it later.
+    }
+  }
+  process.exit(code);
+}
+process.on("SIGINT", () => void cleanupAndExit(130));
+process.on("SIGTERM", () => void cleanupAndExit(143));
+
 try {
+  // 0. Reclaim leftovers from earlier interrupted runs (killed processes never
+  // reach teardown). Age cutoff keeps a concurrently-running run's fresh DBs.
+  const STALE_TEST_DB_AGE_MS = 30 * 60 * 1000;
+  const swept = await sweepStaleTestDatabases(DATABASE_URL, STALE_TEST_DB_AGE_MS);
+  if (swept.length > 0) {
+    console.log(`Swept ${swept.length} stale test database(s): ${swept.join(", ")}`);
+  }
+
   // 1. Create shared temp database
   console.log("Creating shared integration database...");
   tempDbName = await createTempDb(DATABASE_URL, "shared");
