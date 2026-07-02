@@ -145,8 +145,8 @@ export function SupportPage() {
             upgrading it would be nice.)
           </p>
           <p>
-            You can help. Or don&apos;t. I&apos;ll just be here. In the basement. Waiting for
-            reinforcements.
+            However you pitch in, whether it&apos;s a donation, a share, or just showing up to
+            browse, it genuinely helps. Thanks for being here.
           </p>
         </div>
       </div>
