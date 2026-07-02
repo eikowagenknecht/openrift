@@ -4,7 +4,7 @@ import type {
   FriendGroupMemberResponse,
 } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import { ChevronDownIcon, PlusIcon, Share2Icon } from "lucide-react";
+import { ChevronRightIcon, PlusIcon, Share2Icon } from "lucide-react";
 import { Suspense, useState } from "react";
 
 import { CreateCollectionDialog } from "@/components/collection/create-collection-dialog";
@@ -200,7 +200,7 @@ function MemberSharesSection({ slug, data }: { slug: string; data: FriendGroupDe
             return (
               <Collapsible key={member.userId}>
                 <div className="flex items-center gap-2">
-                  <CollapsibleTrigger className="hover:bg-muted/50 flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left font-medium">
+                  <CollapsibleTrigger className="group hover:bg-muted/50 flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left font-medium">
                     <UserAvatar
                       image={member.userImage}
                       name={member.userName}
@@ -209,7 +209,7 @@ function MemberSharesSection({ slug, data }: { slug: string; data: FriendGroupDe
                     />
                     <span className="truncate">{member.userName ?? "Member"}</span>
                     <span className="text-muted-foreground text-xs">({collections.length})</span>
-                    <ChevronDownIcon className="text-muted-foreground ml-auto size-4 shrink-0 transition-transform data-[panel-open]:rotate-180" />
+                    <ChevronRightIcon className="text-muted-foreground ml-auto size-4 shrink-0 transition-transform group-data-[panel-open]:rotate-90" />
                   </CollapsibleTrigger>
                   {shareButton}
                 </div>

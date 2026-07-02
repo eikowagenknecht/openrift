@@ -6,7 +6,7 @@ import type {
   MarketplaceInfo,
 } from "@openrift/shared";
 import { legendDisplayName } from "@openrift/shared";
-import { ChevronDownIcon } from "lucide-react";
+import { ChevronRightIcon } from "lucide-react";
 import { useState } from "react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
@@ -281,9 +281,11 @@ function MatchRow({
           {hasCounterpartyPref ? (
             // On desktop the price only surfaces when the row is highlighted
             // (hover fills the dashed slot), keeping the resting list quiet;
-            // opacity (not display) preserves the w-32 column so nothing shifts.
+            // opacity (not display) reserves the column so nothing shifts. The
+            // column sizes to its content (min-w-32) so the price + accepts line
+            // can widen to stay two lines instead of wrapping to a third.
             // Phones have no hover, so it stays visible in the footer.
-            <div className="shrink-0 text-right sm:w-32 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100">
+            <div className="shrink-0 text-right sm:min-w-32 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100">
               <MatchPreferenceCell
                 label={priceLabel}
                 pref={counterpartyPref}
@@ -436,44 +438,54 @@ function MatchTradeRowGroup({
     // Suggestion group: dashed border + no resting fill, matching MatchRow.
     <div className="overflow-hidden rounded-md border border-dashed">
       <div className="hover:bg-muted flex flex-col gap-2 p-2 transition-colors sm:flex-row sm:items-center sm:gap-3">
-        <button
-          type="button"
-          onClick={() => toggle(group.foldId)}
-          aria-expanded={expanded}
-          className="hover:text-foreground flex min-w-0 flex-1 items-center gap-3 text-left transition-colors"
-        >
-          <TradeDirectionIcon incoming={incoming} />
+        {/* Identity + disclosure share the top row on phones; from sm up the
+            wrapper dissolves (sm:contents) and the chevron's sm:order-last drops
+            it to the far right, past the member chip and status. */}
+        <div className="flex min-w-0 items-center gap-3 sm:contents">
+          <button
+            type="button"
+            onClick={() => toggle(group.foldId)}
+            aria-expanded={expanded}
+            className="hover:text-foreground flex min-w-0 flex-1 items-center gap-3 text-left transition-colors"
+          >
+            <TradeDirectionIcon incoming={incoming} />
 
-          <CardArtThumb
-            imageId={group.imageId}
-            alt={group.cardName}
-            domains={group.domains}
-            className="w-10"
-            loading="lazy"
-          />
+            <CardArtThumb
+              imageId={group.imageId}
+              alt={group.cardName}
+              domains={group.domains}
+              className="w-10"
+              loading="lazy"
+            />
 
-          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <span className="truncate font-medium">
-              {group.buyQuantity}× {group.cardName}
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <span className="truncate font-medium">
+                {group.buyQuantity}× {group.cardName}
+              </span>
+              <span className="text-muted-foreground text-xs">
+                {group.variants.length} variants · ×{group.totalAvailable} available
+              </span>
             </span>
-            <span className="text-muted-foreground text-xs">
-              {group.variants.length} variants · ×{group.totalAvailable} available
-            </span>
-          </span>
+          </button>
 
-          <ChevronDownIcon
-            className={cn(
-              "text-muted-foreground size-4 shrink-0 transition-transform",
-              expanded && "rotate-180",
-            )}
-            aria-hidden="true"
-          />
-        </button>
+          <button
+            type="button"
+            onClick={() => toggle(group.foldId)}
+            aria-expanded={expanded}
+            aria-label={expanded ? "Collapse variants" : "Expand variants"}
+            className="text-muted-foreground hover:text-foreground shrink-0 transition-colors sm:order-last"
+          >
+            <ChevronRightIcon
+              className={cn("size-4 transition-transform", expanded && "rotate-90")}
+              aria-hidden="true"
+            />
+          </button>
+        </div>
 
         {showCounterparty || headerStatus ? (
-          // The header has no action buttons, so the member chip and status
-          // badge sit on their own row on phones; from sm up they dissolve back
-          // into the header row.
+          // The member chip and status badge sit on their own row on phones;
+          // from sm up they dissolve back into the header row (before the
+          // chevron, which is pinned last via sm:order-last).
           <div className="flex flex-wrap items-center gap-2 sm:contents">
             {showCounterparty ? (
               <CounterpartyChip

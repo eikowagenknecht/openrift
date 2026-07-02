@@ -1,6 +1,6 @@
 import {
   CheckIcon,
-  ChevronDownIcon,
+  ChevronRightIcon,
   EyeIcon,
   FileWarningIcon,
   LoaderIcon,
@@ -217,9 +217,9 @@ const EXAMPLE_ERRATA_JSON = `[
 function FormatHelp() {
   return (
     <Collapsible className="rounded-md border">
-      <CollapsibleTrigger className="text-muted-foreground hover:text-foreground flex w-full cursor-pointer items-center justify-between gap-2 px-3 py-2 text-sm font-medium select-none">
+      <CollapsibleTrigger className="group text-muted-foreground hover:text-foreground flex w-full cursor-pointer items-center justify-between gap-2 px-3 py-2 text-sm font-medium select-none">
         Format and example
-        <ChevronDownIcon className="size-4 shrink-0 transition-transform data-[panel-open]:rotate-180" />
+        <ChevronRightIcon className="size-4 shrink-0 transition-transform group-data-[panel-open]:rotate-90" />
       </CollapsibleTrigger>
       <CollapsibleContent className="space-y-3 border-t px-3 py-3 text-sm">
         <p>

@@ -1,5 +1,5 @@
 import type { CardTradeResponse } from "@openrift/shared";
-import { ChevronDownIcon } from "lucide-react";
+import { ChevronRightIcon } from "lucide-react";
 import { useState } from "react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
@@ -230,10 +230,10 @@ function CompletedTradeGroup({ trades }: { trades: CardTradeResponse[] }) {
         <CollapsibleTrigger
           className={cn(
             SECTION_HEADING,
-            "hover:text-foreground flex w-full items-center gap-2 text-left transition-colors",
+            "group hover:text-foreground flex w-full items-center gap-2 text-left transition-colors",
           )}
         >
-          <ChevronDownIcon className="size-4 shrink-0 transition-transform data-[panel-open]:rotate-180" />
+          <ChevronRightIcon className="size-4 shrink-0 transition-transform group-data-[panel-open]:rotate-90" />
           Completed
           <span className="text-xs">({trades.length})</span>
         </CollapsibleTrigger>

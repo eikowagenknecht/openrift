@@ -829,11 +829,11 @@ function DeckImportEntryRow({
         chevron={
           <AccordionPrimitive.Header className="flex">
             <AccordionPrimitive.Trigger
-              className="text-muted-foreground hover:text-foreground shrink-0 outline-none"
+              className="group text-muted-foreground hover:text-foreground shrink-0 outline-none"
               disabled={rawFieldEntries.length === 0}
               aria-label="Toggle raw fields"
             >
-              <ChevronRightIcon className="size-4 transition-transform data-[panel-open]:rotate-90" />
+              <ChevronRightIcon className="size-4 transition-transform group-data-[panel-open]:rotate-90" />
             </AccordionPrimitive.Trigger>
           </AccordionPrimitive.Header>
         }

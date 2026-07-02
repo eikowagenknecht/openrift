@@ -58,7 +58,7 @@ export function MatchPreferenceCell({
       <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
         {label}
       </span>
-      <span className="text-xs">
+      <span className="text-xs whitespace-nowrap">
         {priceNode ?? "Not set"}
         {typeNode ? <span className="text-muted-foreground"> · {typeNode}</span> : null}
       </span>

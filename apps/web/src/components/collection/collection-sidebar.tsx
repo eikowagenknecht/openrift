@@ -6,7 +6,7 @@ import { Link, useMatches, useParams } from "@tanstack/react-router";
 import {
   BookOpenIcon,
   ChartBarIcon,
-  ChevronDownIcon,
+  ChevronRightIcon,
   HistoryIcon,
   ArrowLeftRightIcon,
   InboxIcon,
@@ -116,11 +116,11 @@ function CollapsibleSidebarGroup({
     <Collapsible open={open} onOpenChange={(next) => setOpen(foldKey, next)}>
       <SidebarGroup>
         <SidebarGroupLabel
-          className="hover:bg-sidebar-accent cursor-pointer transition-colors"
+          className="group hover:bg-sidebar-accent cursor-pointer transition-colors"
           render={<CollapsibleTrigger />}
         >
           <span className="flex-1 text-left">{label}</span>
-          <ChevronDownIcon className="size-3 transition-transform data-[panel-open=false]:-rotate-90" />
+          <ChevronRightIcon className="size-3 transition-transform group-data-[panel-open]:rotate-90" />
         </SidebarGroupLabel>
         <CollapsibleContent className="overflow-hidden transition-[height] duration-200 data-[ending-style]:h-0 data-[starting-style]:h-0">
           <SidebarMenu className="gap-1">{children}</SidebarMenu>

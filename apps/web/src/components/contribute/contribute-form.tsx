@@ -1,7 +1,7 @@
 import type { SetListResponse } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { ChevronDownIcon, ExternalLinkIcon, LinkIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { ChevronRightIcon, ExternalLinkIcon, LinkIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 
 import { CardPlaceholderImage } from "@/components/cards/card-placeholder-image";
@@ -379,9 +379,9 @@ function CardLayoutHelp({
   const printingArtist = printing?.artist || "Artist name";
   return (
     <Collapsible className="border-border rounded-md border p-3">
-      <CollapsibleTrigger className="text-muted-foreground hover:text-foreground flex w-full items-center justify-between gap-2 text-sm select-none">
+      <CollapsibleTrigger className="group text-muted-foreground hover:text-foreground flex w-full items-center justify-between gap-2 text-sm select-none">
         <span>Where do these fields appear on a card?</span>
-        <ChevronDownIcon className="size-4 shrink-0 transition-transform data-[panel-open]:rotate-180" />
+        <ChevronRightIcon className="size-4 shrink-0 transition-transform group-data-[panel-open]:rotate-90" />
       </CollapsibleTrigger>
       <CollapsibleContent className="mt-4 grid gap-6 sm:grid-cols-[14rem_1fr] sm:items-start">
         <div className="w-56 justify-self-center sm:justify-self-start">

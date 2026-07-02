@@ -79,8 +79,8 @@ export function ChangelogPage() {
                 className={cn(group.highlights.length > 0 && "pt-2")}
               >
                 {group.highlights.length > 0 && (
-                  <CollapsibleTrigger className="text-muted-foreground hover:text-foreground flex cursor-pointer items-center gap-1 text-sm">
-                    <ChevronRightIcon className="size-3.5 transition-transform data-[panel-open]:rotate-90" />
+                  <CollapsibleTrigger className="group text-muted-foreground hover:text-foreground flex cursor-pointer items-center gap-1 text-sm">
+                    <ChevronRightIcon className="size-3.5 transition-transform group-data-[panel-open]:rotate-90" />
                     {group.other.length} more {group.other.length === 1 ? "change" : "changes"}
                   </CollapsibleTrigger>
                 )}

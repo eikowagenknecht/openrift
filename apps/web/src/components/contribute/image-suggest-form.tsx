@@ -1,5 +1,5 @@
 import type { Card, Printing } from "@openrift/shared";
-import { ChevronDownIcon, ExternalLinkIcon } from "lucide-react";
+import { ChevronRightIcon, ExternalLinkIcon } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -77,9 +77,9 @@ export function ImageSuggestForm({ card, printing, setSlug, setName }: ImageSugg
           </p>
         )}
         <Collapsible className="text-muted-foreground text-sm">
-          <CollapsibleTrigger className="hover:text-foreground inline-flex cursor-pointer items-center gap-1 select-none">
+          <CollapsibleTrigger className="group hover:text-foreground inline-flex cursor-pointer items-center gap-1 select-none">
             Only have a photo or scan?
-            <ChevronDownIcon className="size-3.5 shrink-0 transition-transform data-[panel-open]:rotate-180" />
+            <ChevronRightIcon className="size-3.5 shrink-0 transition-transform group-data-[panel-open]:rotate-90" />
           </CollapsibleTrigger>
           <CollapsibleContent>
             <p className="mt-1.5">
@@ -99,9 +99,9 @@ export function ImageSuggestForm({ card, printing, setSlug, setName }: ImageSugg
           Opens in a new tab to confirm. I&apos;ll review before it goes live.
         </p>
         <Collapsible className="text-muted-foreground text-sm">
-          <CollapsibleTrigger className="hover:text-foreground inline-flex cursor-pointer items-center gap-1 select-none">
+          <CollapsibleTrigger className="group hover:text-foreground inline-flex cursor-pointer items-center gap-1 select-none">
             First time on GitHub?
-            <ChevronDownIcon className="size-3.5 shrink-0 transition-transform data-[panel-open]:rotate-180" />
+            <ChevronRightIcon className="size-3.5 shrink-0 transition-transform group-data-[panel-open]:rotate-90" />
           </CollapsibleTrigger>
           <CollapsibleContent>
             <ol className="mt-1.5 ml-5 list-decimal space-y-1">
