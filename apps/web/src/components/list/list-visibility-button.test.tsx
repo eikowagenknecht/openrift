@@ -7,6 +7,10 @@ let groupItems: { id: string }[] = [];
 
 vi.mock("@tanstack/react-query", () => ({
   useQuery: () => ({ data: { items: shareItems } }),
+  // The shared listGroupSharesQueryOptions (hooks/use-list-group-shares)
+  // builds its options at render; pass them through untouched.
+  queryOptions: (options: unknown) => options,
+  useSuspenseQuery: () => ({ data: { items: shareItems } }),
 }));
 
 // createServerFn runs a builder chain at module load; stub it so importing the

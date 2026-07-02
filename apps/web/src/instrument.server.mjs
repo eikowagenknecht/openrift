@@ -18,6 +18,8 @@ import { parseAppEnv } from "@openrift/shared/app-env";
 import { trace } from "@opentelemetry/api";
 import * as Sentry from "@sentry/tanstackstart-react";
 
+import { dropExpiredSessionEvents } from "./lib/sentry-server-filter";
+
 // Skip in local dev — keeps stray dev events out of the shared openrift-ssr
 // project. Preview deployments still report (APP_ENV === "preview").
 const appEnv = parseAppEnv(process.env.APP_ENV);
@@ -36,24 +38,7 @@ if (dsn && appEnv !== "development") {
     // flaky network). Surfaced by the tanstackstart request middleware with no
     // stacktrace; nothing actionable on the server.
     ignoreErrors: ["NOT_FOUND", /^AbortError: The connection was closed/u],
-    // A 401 ApiError from a user-scoped server function means the caller's
-    // session cookie expired or was revoked — an expected lifecycle state, not
-    // a server bug. The client reacts by refetching the session and redirecting
-    // to /login (see lib/query-client.ts + the _authenticated layout), so the
-    // unhandled throw crossing the server-fn boundary is pure noise here.
-    // Anything else (403, 5xx, parse failures) still reports.
-    beforeSend(event, hint) {
-      const exception = hint?.originalException;
-      if (
-        typeof exception === "object" &&
-        exception !== null &&
-        exception.name === "ApiError" &&
-        exception.status === 401
-      ) {
-        return null;
-      }
-      return event;
-    },
+    beforeSend: dropExpiredSessionEvents,
     initialScope: { tags: { service: "web-ssr" } },
   });
 

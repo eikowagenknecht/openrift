@@ -1,25 +1,13 @@
-import type { ListGroupSharesResponse, ListIntent } from "@openrift/shared";
-import { listsContract } from "@openrift/shared/contracts";
+import type { ListIntent } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
-import { createServerFn } from "@tanstack/react-start";
 import { UsersIcon } from "lucide-react";
 
 import { PageTopBarIconButton } from "@/components/layout/page-top-bar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useFriendGroupsList } from "@/hooks/use-friend-groups";
+import { listGroupSharesQueryOptions } from "@/hooks/use-list-group-shares";
 import { useRequiredUserId } from "@/lib/auth-session";
-import { queryKeys } from "@/lib/query-keys";
-import { withCookies } from "@/lib/server-fns/middleware";
-import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { cn } from "@/lib/utils";
-
-const fetchShares = createServerFn({ method: "GET" })
-  .validator((input: string) => input)
-  .middleware([withCookies])
-  .handler(
-    ({ context, data: listId }): Promise<ListGroupSharesResponse> =>
-      apiOrpcClient(listsContract, context.cookie).groupShares({ id: listId }),
-  );
 
 interface Props {
   listId: string;
@@ -39,8 +27,7 @@ interface Props {
 export function ListVisibilityButton({ listId, intent, onManageVisibility }: Props) {
   const userId = useRequiredUserId();
   const { data } = useQuery({
-    queryKey: queryKeys.lists.groupShares(userId, listId),
-    queryFn: () => fetchShares({ data: listId }),
+    ...listGroupSharesQueryOptions(userId, listId),
     staleTime: 60 * 1000,
   });
   const groupCount = useFriendGroupsList(true).data?.items.length ?? 0;
