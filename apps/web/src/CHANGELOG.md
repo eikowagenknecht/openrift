@@ -6,7 +6,7 @@
 
 - feat(Collection): **Tradelists keep your nicer copies** — when a tradelist rule keeps a set number per card and offers the rest, it now protects your rarest, foil, and special-art copies and offers the plainer duplicates first, instead of choosing by the order copies were added.
 - feat(Collection): **Rules start in your languages** — a new dynamic wishlist or tradelist rule pre-fills its language filter with your preferred languages, still editable per rule.
-- fix(Collection): **Highlight the selected card on lists** — clicking a card in a wishlist or tradelist now tints its tile the way the card browser and collection do, so you can see which card the detail pane is showing.
+- fix(Collection): **Lists match the card browser** — clicking a card in a wishlist or tradelist now tints its tile so you can see which one the detail pane is showing, and the up and down arrow keys cycle through that card's printings, just like the card browser and collection.
 - fix(Collection): **Select all deletes whole stacks** — in card view, using Select all then Dispose left copies behind for any card you own in more than one printing, and now it removes every copy under each card.
 - fix(Trades): **Compact trade-match rows** — each possible-trade row is shorter now, with the price and accepted trade type on one line instead of three stacked lines.
 - fix(Collection): **Open lists with older rules** — a wishlist or tradelist whose dynamic rule was saved before a recent filter was added failed to open, and those lists now load again.

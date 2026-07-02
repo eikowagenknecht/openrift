@@ -1242,6 +1242,7 @@ function ListEntryBrowser({
           items={items}
           totalItems={totalListItems}
           selectedItemId={gridSelectedId}
+          siblingPrintings={selectedCard ? siblingsSource.get(selectedCard.cardId) : undefined}
           renderCard={renderCard}
           toolbar={toolbar}
           leftPane={leftPane}
