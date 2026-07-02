@@ -1,6 +1,6 @@
 import { CopyIcon, HeartIcon } from "lucide-react";
 import { Suspense, useState } from "react";
-import { siDiscord, siGithub, siGithubsponsors, siKofi, siReddit, siX } from "simple-icons";
+import { siDiscord, siGithub, siGithubsponsors, siKofi, siX } from "simple-icons";
 
 import { CardText } from "@/components/cards/card-text";
 import { MarketplaceLink } from "@/components/marketplace-link";
@@ -205,11 +205,6 @@ export function SupportPage() {
             label="Summon your X followers"
             icon={<SimpleIcon icon={siX} />}
             href={`https://x.com/intent/tweet?text=${tweetText}`}
-          />
-          <ShareButton
-            label="Tell Reddit about OpenRift"
-            icon={<SimpleIcon icon={siReddit} />}
-            href={`https://reddit.com/submit?url=${encodeURIComponent(siteUrl)}&title=${encodeURIComponent("OpenRift — free card browser for Riftbound")}`}
           />
           <CopyButton
             label="Send a Carrier Pigeon"
