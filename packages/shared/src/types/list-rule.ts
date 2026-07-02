@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-import { cardFiltersSchema } from "./search.js";
+import type { CardFilters } from "./search.js";
+import { cardFiltersSchema, EMPTY_CARD_FILTERS } from "./search.js";
 
 /**
  * How a rule turns into a per-card/printing quantity (ADR-034).
@@ -73,3 +74,41 @@ export const listRulesSchema = z
   .array(listRuleSchema)
   .max(MAX_LIST_RULES, { message: `A list can carry at most ${MAX_LIST_RULES} dynamic rules` });
 export type ListRules = z.infer<typeof listRulesSchema>;
+
+/**
+ * Backfill a persisted rule filter against the blank set so a filter saved
+ * before a newer dimension existed carries every key. Mirrors the same backfill
+ * `filterCards` does on the eval path, so a re-hydrated rule is complete for
+ * every consumer (matching, the rule editor, and the list-detail response)
+ * regardless of when it was written. ADR-034.
+ * @returns The filter with all dimensions present.
+ */
+function normalizeRuleFilter(filter: CardFilters): CardFilters {
+  return { ...EMPTY_CARD_FILTERS, ...filter };
+}
+
+/**
+ * Normalize every rule's filter against the blank set. See
+ * {@link normalizeRuleFilter}.
+ * @returns The rules with fully-populated filters.
+ */
+export function normalizeListRules(rules: ListRules): ListRules {
+  return rules.map((rule) => ({ ...rule, filter: normalizeRuleFilter(rule.filter) }));
+}
+
+/**
+ * Re-hydrate the persisted `rules` jsonb column into structured, normalized
+ * {@link ListRules}. postgres.js under Bun returns jsonb as a raw string, so
+ * accept either the parsed value or its JSON text. Shape is enforced by
+ * `listRulesSchema` at the write boundary, so the parse is a bare `JSON.parse`
+ * (no schema pass) followed by a dimension backfill. Single choke point for
+ * every read path (list detail, matching, public share). ADR-034.
+ * @returns The parsed, normalized rules (empty array when the column is empty).
+ */
+export function hydrateListRules(value: ListRules | string | null | undefined): ListRules {
+  if (value === null || value === undefined) {
+    return [];
+  }
+  const parsed = typeof value === "string" ? (JSON.parse(value) as ListRules) : value;
+  return normalizeListRules(parsed);
+}

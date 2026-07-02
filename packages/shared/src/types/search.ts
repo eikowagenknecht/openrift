@@ -82,16 +82,26 @@ export type PresenceDimension = (typeof PRESENCE_DIMENSIONS)[number];
 /** "any" = has at least one value in the dimension; "none" = has none. */
 export type PresenceState = "any" | "none";
 
-const filterRangeSchema = z.object({
-  min: z.number().nullable(),
-  max: z.number().nullable(),
-});
+// Every dimension carries a `.default()` so a persisted filter that predates a
+// newer dimension still parses: the absent key backfills to "no constraint"
+// instead of failing validation. Persisted list rules (ADR-034) store their
+// filter as jsonb, and it is re-validated against this schema on the read path
+// (oRPC output validation of `listDetailListResponseSchema`, ADR-034). Without
+// the defaults an older rule 500s the list detail endpoint. Keep every field
+// defaulted — `cardFiltersSchema.parse({})` must equal `EMPTY_CARD_FILTERS`
+// (enforced by a test), so a new dimension without a default is caught at once.
+const filterRangeSchema = z
+  .object({
+    min: z.number().nullable(),
+    max: z.number().nullable(),
+  })
+  .default(() => ({ min: null, max: null }));
 
 // Open string-enum dims (sets, languages, rarities, types, …) validate as plain
 // strings: the valid values are DB-driven, so the canonical types are open
 // strings (see types/enums.ts). The inferred field types are therefore
 // `string[]`, which is mutually assignable with the named enum arrays.
-const stringArray = () => z.array(z.string());
+const stringArray = () => z.array(z.string()).default(() => []);
 
 /**
  * The complete card-filter predicate. Single source of truth: the runtime Zod
@@ -99,8 +109,10 @@ const stringArray = () => z.array(z.string());
  * type are one definition — `CardFilters` is `z.infer<typeof cardFiltersSchema>`.
  */
 export const cardFiltersSchema = z.object({
-  search: z.string(),
-  searchScope: z.array(z.enum(ALL_SEARCH_FIELDS as [SearchField, ...SearchField[]])),
+  search: z.string().default(""),
+  searchScope: z
+    .array(z.enum(ALL_SEARCH_FIELDS as [SearchField, ...SearchField[]]))
+    .default(() => [...DEFAULT_SEARCH_SCOPE]),
   sets: stringArray(),
   languages: stringArray(),
   rarities: stringArray(),
@@ -115,13 +127,15 @@ export const cardFiltersSchema = z.object({
   finishes: stringArray(),
   // Filter to printings of these physical sizes (e.g. `standard`, `oversized`).
   cardSizes: stringArray(),
-  isSigned: z.boolean().nullable(),
+  isSigned: z.boolean().nullable().default(null),
   // Generic per-dimension presence predicate. For each listed dimension, "any"
   // requires the card/printing to carry at least one value, "none" requires it
   // to carry none — independent of which specific values. Absent key = no
   // constraint for that dimension. Supersedes the old `hasAnyMarker` boolean
   // (which is now `presence.markers`). See PRESENCE_DIMENSIONS.
-  presence: z.partialRecord(z.enum(PRESENCE_DIMENSIONS), z.enum(["any", "none"])),
+  presence: z
+    .partialRecord(z.enum(PRESENCE_DIMENSIONS), z.enum(["any", "none"]))
+    .default(() => ({})),
   // Filter to printings that have at least one of these marker slugs.
   markerSlugs: stringArray(),
   // Filter to printings distributed through at least one of these channel slugs.
@@ -132,8 +146,8 @@ export const cardFiltersSchema = z.object({
   customTagSlugs: stringArray(),
   // Filter to cards that carry at least one of these keyword names.
   keywords: stringArray(),
-  isBanned: z.boolean().nullable(),
-  hasErrata: z.boolean().nullable(),
+  isBanned: z.boolean().nullable().default(null),
+  hasErrata: z.boolean().nullable().default(null),
   // ── Negation companions (ADR-034) ─────────────────────────────────────────
   // A row is rejected if it matches ANY excluded value.
   // Scalar dims (sets, languages, rarities, types, artVariants, finishes):
@@ -154,7 +168,7 @@ export const cardFiltersSchema = z.object({
   keywordsExclude: stringArray(),
   // Derived tri-state "standard printing" constraint (ADR-034).
   // null = no constraint; true = standard only; false = non-standard only.
-  isStandard: z.boolean().nullable(),
+  isStandard: z.boolean().nullable().default(null),
 });
 
 export type CardFilters = z.infer<typeof cardFiltersSchema>;

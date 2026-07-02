@@ -1,3 +1,5 @@
+import { EMPTY_CARD_FILTERS } from "@openrift/shared";
+import { listDetailResponseSchema } from "@openrift/shared/contracts";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -9,6 +11,7 @@ import {
   toDeckAvailabilityItem,
   toDeckCard,
   toList,
+  toListDetail,
   toListEntry,
   toListEntryDetail,
   toPublicDeck,
@@ -327,6 +330,61 @@ describe("toList", () => {
       tradeType: "cards",
     });
     expect(result.currency).toBe("EUR");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// toListDetail — persisted-rule backfill (ADR-034)
+// ---------------------------------------------------------------------------
+
+describe("toListDetail", () => {
+  it("re-hydrates a rule saved before a newer filter dimension without failing output validation", () => {
+    // Regression: the list detail endpoint 500'd ("Output validation failed")
+    // when a trade rule's persisted filter predated the `presence` / `keywords`
+    // / `keywordsExclude` dimensions. `rules` arrives as a JSON string (jsonb
+    // via postgres.js under Bun) missing those keys, plus the superseded
+    // `hasAnyMarker`. toListDetail must backfill so the response validates.
+    const staleFilter = { ...EMPTY_CARD_FILTERS, hasAnyMarker: null } as Record<string, unknown>;
+    delete staleFilter.presence;
+    delete staleFilter.keywords;
+    delete staleFilter.keywordsExclude;
+    const rulesJson = JSON.stringify([
+      {
+        kind: "trade",
+        filter: staleFilter,
+        collectionIds: ["019e2fa1-8cdc-7a3a-810e-d5a09f31c19e"],
+        keepPerCard: { mode: "fixed", n: 0 },
+        excludeCopyIds: [],
+      },
+    ]);
+
+    const detail = toListDetail({
+      id: "lst-1",
+      userId: "user-1",
+      name: "My Little Trade Binder",
+      intent: "trade",
+      kind: "copy",
+      isPublic: false,
+      shareToken: null,
+      createdAt: NOW,
+      updatedAt: LATER,
+      defaultPricePref: null,
+      defaultPriceAbsoluteCents: null,
+      defaultTradeType: null,
+      currency: "EUR",
+      // The DB column is typed ListRules but arrives as a raw JSON string.
+      rules: rulesJson as never,
+    });
+
+    // The mapper backfilled the missing dimensions.
+    expect(detail.rules[0].filter.presence).toEqual({});
+    expect(detail.rules[0].filter.keywords).toEqual([]);
+    expect(detail.rules[0].filter.keywordsExclude).toEqual([]);
+    expect(detail.hasRule).toBe(true);
+
+    // And the full detail response now passes the oRPC output contract.
+    const result = listDetailResponseSchema.safeParse({ list: detail, entries: [] });
+    expect(result.success).toBe(true);
   });
 });
 

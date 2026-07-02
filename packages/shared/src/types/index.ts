@@ -52,9 +52,11 @@ export {
 
 export type { ListRule, ListRules, RuleQuantity, TradeRule, WishRule } from "./list-rule.js";
 export {
+  hydrateListRules,
   listRuleSchema,
   listRulesSchema,
   MAX_LIST_RULES,
+  normalizeListRules,
   ruleQuantitySchema,
   tradeRuleSchema,
   wishRuleSchema,

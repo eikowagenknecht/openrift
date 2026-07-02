@@ -25,6 +25,7 @@ import type {
   SuperType,
   TradePreference,
 } from "@openrift/shared";
+import { hydrateListRules } from "@openrift/shared";
 import type { Selectable } from "kysely";
 
 import type { CollectionsTable, DecksTable, ListEntriesTable, ListsTable } from "../db/index.js";
@@ -247,16 +248,15 @@ export function toList(row: Selectable<ListsTable> & { entryCount?: number }): L
 }
 
 /**
- * postgres.js returns jsonb as a raw string under Bun; normalize the `rules`
- * column to the structured {@link ListRules}. Shape is enforced by
- * `listRulesSchema` at the write boundary, so the cast is safe. ADR-034.
- * @returns The parsed rules (empty array when the column was empty/absent).
+ * Re-hydrate the persisted `rules` jsonb into normalized {@link ListRules}.
+ * Delegates to the shared {@link hydrateListRules} so a rule saved before a
+ * newer filter dimension existed backfills that dimension instead of emitting a
+ * partial filter that fails `listDetailListResponseSchema` output validation
+ * (ADR-034).
+ * @returns The parsed, normalized rules (empty array when the column is empty).
  */
 export function parseListRules(value: ListRules | string | null | undefined): ListRules {
-  if (value === null || value === undefined) {
-    return [];
-  }
-  return typeof value === "string" ? (JSON.parse(value) as ListRules) : value;
+  return hydrateListRules(value);
 }
 
 /**
