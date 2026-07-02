@@ -25,6 +25,7 @@ interface BrowserCardViewerProps {
   toolbar?: ReactNode;
   leftPane?: ReactNode;
   aboveGrid?: ReactNode;
+  banner?: ReactNode;
   rightPane?: ReactNode;
   addStripHeight?: number;
   table?: CardTableProps;

@@ -32,6 +32,11 @@ interface CardBrowserLayoutProps {
   leftPane?: ReactNode;
   /** Content rendered above the grid + rightPane columns (e.g. ActiveFilters). */
   aboveGrid?: ReactNode;
+  /**
+   * Non-sticky content between the above-grid tier and the grid (e.g. an
+   * onboarding intro). Unlike `aboveGrid` it scrolls away with the page.
+   */
+  banner?: ReactNode;
   rightPane?: ReactNode;
   /** When true, dims the grid area during deferred updates. */
   stale?: boolean;
@@ -57,6 +62,7 @@ export function CardBrowserLayout({
   toolbar,
   leftPane,
   aboveGrid,
+  banner,
   rightPane,
   stale,
   gridSlot,
@@ -129,6 +135,7 @@ export function CardBrowserLayout({
             >
               {aboveGrid}
             </div>
+            {banner}
             <div className="relative flex flex-1 items-stretch gap-6">
               <div
                 className={cn(

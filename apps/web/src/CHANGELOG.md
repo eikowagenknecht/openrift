@@ -4,6 +4,7 @@
 
 ### Other
 
+- feat(Collection): **Friendlier first visit** — an empty collection now opens the whole card library so your first cards are one tap away, and a dismissible guide explains the toolbar controls.
 - feat(Cards): **Compact filters on wide screens** — with compact filters on, the slim filter bar now replaces the filter sidebar everywhere, instead of only on narrower windows.
 - feat(App): **See features before signing in** — Collection, Groups, and Tournaments now stay in the menu when signed out, and opening one explains the feature with a quick way to sign in or sign up.
 - feat(Cards): **Hide the grouped column** — in table view, grouping by set, type, or rarity now drops that column, since every group header already spells out its value.

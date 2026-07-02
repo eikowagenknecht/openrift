@@ -24,6 +24,20 @@ describe("useOnboardingStore", () => {
     expect(useOnboardingStore.getState().deckBuilderIntroDismissed).toBe(true);
   });
 
+  it("starts with the collection intro un-dismissed", () => {
+    expect(useOnboardingStore.getState().collectionIntroDismissed).toBe(false);
+  });
+
+  it("dismisses the collection intro when called", () => {
+    useOnboardingStore.getState().dismissCollectionIntro();
+    expect(useOnboardingStore.getState().collectionIntroDismissed).toBe(true);
+  });
+
+  it("keeps the intros independent", () => {
+    useOnboardingStore.getState().dismissCollectionIntro();
+    expect(useOnboardingStore.getState().deckBuilderIntroDismissed).toBe(false);
+  });
+
   describe("persistence merge", () => {
     it("rejects non-boolean dismiss values and keeps current", () => {
       const store = useOnboardingStore;
@@ -54,6 +68,29 @@ describe("useOnboardingStore", () => {
       const result = merge?.({}, current);
       if (result) {
         expect(result.deckBuilderIntroDismissed).toBe(current.deckBuilderIntroDismissed);
+        expect(result.collectionIntroDismissed).toBe(current.collectionIntroDismissed);
+      }
+    });
+
+    it("accepts a persisted collection-intro dismissal", () => {
+      const store = useOnboardingStore;
+      const current = store.getState();
+      const persisted = { collectionIntroDismissed: true };
+      const merge = store.persist?.getOptions()?.merge;
+      const result = merge?.(persisted, current);
+      if (result) {
+        expect(result.collectionIntroDismissed).toBe(true);
+      }
+    });
+
+    it("rejects a non-boolean collection-intro value and keeps current", () => {
+      const store = useOnboardingStore;
+      const current = store.getState();
+      const persisted = { collectionIntroDismissed: "yes" };
+      const merge = store.persist?.getOptions()?.merge;
+      const result = merge?.(persisted, current);
+      if (result) {
+        expect(result.collectionIntroDismissed).toBe(current.collectionIntroDismissed);
       }
     });
   });

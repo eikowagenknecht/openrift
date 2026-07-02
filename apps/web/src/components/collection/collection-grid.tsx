@@ -33,6 +33,7 @@ import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { CollectionTableActions } from "@/components/cards/collection-table-actions";
 import { CollectionGridCell } from "@/components/collection/collection-grid-cell";
+import { CollectionIntroBanner } from "@/components/collection/collection-intro-banner";
 import { CollectionValueSummary } from "@/components/collection/collection-value-summary";
 import { FloatingActionBar } from "@/components/collection/floating-action-bar";
 import { buildOnDecrement } from "@/components/collection/route-decrement";
@@ -101,6 +102,7 @@ import type { CollectionContextAction } from "@/stores/card-row-actions-store";
 import { useCardRowActionsStore } from "@/stores/card-row-actions-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { useDragPreviewStore } from "@/stores/drag-preview-store";
+import { useOnboardingStore } from "@/stores/onboarding-store";
 import { useSelectionStore } from "@/stores/selection-store";
 import { useSiblingOverrideStore } from "@/stores/sibling-override-store";
 
@@ -514,6 +516,25 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const sourceCollectionIsGroup = Boolean(currentCollection?.groupId);
   const addTarget = collectionId ?? inboxId;
 
+  // A collection that loads empty opens straight in library mode, so a first
+  // visit shows a page full of addable cards instead of an empty grid. This is
+  // a render-phase state adjustment (not an effect) so the empty state never
+  // paints first, and one-shot per collection so the library toggle and the
+  // first adds stick afterwards instead of the view flipping back.
+  const [autoLibraryApplied, setAutoLibraryApplied] = useState(false);
+  if (!autoLibraryApplied && copiesReady && addTarget) {
+    setAutoLibraryApplied(true);
+    if (stacks.length === 0) {
+      setShowLibrary(true);
+    }
+  }
+
+  const introDismissed = useOnboardingStore((state) => state.collectionIntroDismissed);
+  const dismissIntro = useOnboardingStore((state) => state.dismissCollectionIntro);
+  // Shown to everyone (established collections included) until explicitly
+  // dismissed — the toolbar legend is worth one read for existing users too.
+  const showIntroBanner = !introDismissed;
+
   // A group-owned collection is a communal "bulk box": any member can take a
   // copy into their own inbox (a free-pile claim, distinct from the 1:1 trade
   // matcher). Wishlist highlighting + the "Take a copy" action only apply here.
@@ -569,6 +590,9 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   useEffect(() => {
     setSelectMode(false);
     setShowLibrary(false);
+    // Re-arm the auto-library one-shot so an empty target collection opens in
+    // library mode again after a switch.
+    setAutoLibraryApplied(false);
     useSiblingOverrideStore.getState().clearScope("collection");
     clearSelection();
     useAddModeStore.getState().reset();
@@ -1278,6 +1302,11 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           toolbar={toolbar}
           leftPane={leftPane}
           aboveGrid={<BrowserActiveFilters />}
+          banner={
+            showIntroBanner ? (
+              <CollectionIntroBanner showLibrary={showLibrary} onDismiss={dismissIntro} />
+            ) : undefined
+          }
           rightPane={rightPane}
           addStripHeight={ADD_STRIP_HEIGHT}
           table={{

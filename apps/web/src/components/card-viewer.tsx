@@ -50,6 +50,8 @@ interface CardViewerProps {
   leftPane?: ReactNode;
   /** Content rendered above the grid + rightPane columns. */
   aboveGrid?: ReactNode;
+  /** Non-sticky content between the above-grid tier and the grid (scrolls away). */
+  banner?: ReactNode;
   rightPane?: ReactNode;
   /** Extra height added to each card row (e.g. add-mode strip). */
   addStripHeight?: number;
@@ -81,6 +83,7 @@ export function CardViewer({
   toolbar,
   leftPane,
   aboveGrid,
+  banner,
   rightPane,
   addStripHeight,
   table,
@@ -103,6 +106,7 @@ export function CardViewer({
       toolbar={toolbar}
       leftPane={leftPane}
       aboveGrid={aboveGrid}
+      banner={banner}
       rightPane={rightPane}
       stale={stale}
       gridSlot={
