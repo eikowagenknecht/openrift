@@ -154,9 +154,11 @@ export function SupportPage() {
       {/* Donate */}
       <section className="mb-10">
         <h2 className="mb-1 text-lg font-semibold">Fuel the Rift</h2>
-        <p className="text-muted-foreground mb-1 text-sm">Add Energy to the pool.</p>
-        <p className="text-muted-foreground mb-4 text-sm italic">
-          These tiers are purely cosmetic. Like foils, but for your soul.
+        <p className="text-muted-foreground mb-4 text-sm">
+          Add Energy to the pool.{" "}
+          <span className="italic">
+            These tiers are purely cosmetic. Like foils, but for your soul.
+          </span>
         </p>
         <div className="space-y-3">
           {tiers.map((tier) => (
