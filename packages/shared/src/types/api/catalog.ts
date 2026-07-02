@@ -11,10 +11,7 @@ import type {
   setListEntrySchema,
   setListResponseSchema,
 } from "@openrift/shared/contracts/sets";
-import type {
-  sitemapDataResponseSchema,
-  sitemapEntrySchema,
-} from "@openrift/shared/contracts/sitemap";
+import type { sitemapDataResponseSchema } from "@openrift/shared/contracts/sitemap";
 import type {
   catalogCardResponseSchema,
   catalogPrintingResponseSchema,
@@ -50,8 +47,6 @@ export type SetDetailResponse = z.infer<typeof setDetailResponseSchema>;
  * each.
  */
 export type PromosListResponse = z.infer<typeof promosListResponseSchema>;
-
-export type SitemapEntry = z.infer<typeof sitemapEntrySchema>;
 
 export type SitemapDataResponse = z.infer<typeof sitemapDataResponseSchema>;
 
