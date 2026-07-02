@@ -1,9 +1,9 @@
 import type { Io } from "../io.js";
 import type { Child, Element } from "./share-image-core.js";
 import {
-  CARD_RADIUS,
   COLORS,
   cardArtDataUri,
+  cardRadiusPx,
   element,
   renderTreeToPng,
 } from "./share-image-core.js";
@@ -32,6 +32,10 @@ const GRID_GAP = 12;
 const MAX_TILES = 12;
 /** Portrait card aspect (width / height); landscape cards letterbox within the same box. */
 const CARD_ASPECT = 0.715;
+/** Tile border width. Art is sized to the box inside it so it stays centered:
+ * satori uses border-box, so a full-cell-sized image is pinned top-left and
+ * clipped bottom-right, shifting the card down-right. */
+const TILE_BORDER = 1;
 
 /** One card in the grid. `imageId` is the resolved image_files.id, or null when no art exists. */
 export interface ShareImageCard {
@@ -91,14 +95,17 @@ function cardCell(
   cellW: number,
   cellH: number,
 ): Element {
+  // Art / fallback fill the content box inside the border so they stay centered.
+  const contentW = cellW - 2 * TILE_BORDER;
+  const contentH = cellH - 2 * TILE_BORDER;
   const image: Element = dataUri
-    ? { type: "img", props: { src: dataUri, width: cellW, height: cellH } }
+    ? { type: "img", props: { src: dataUri, width: contentW, height: contentH } }
     : element(
         "div",
         {
           display: "flex",
-          width: cellW,
-          height: cellH,
+          width: contentW,
+          height: contentH,
           alignItems: "center",
           justifyContent: "center",
           padding: 12,
@@ -142,10 +149,10 @@ function cardCell(
       position: "relative",
       width: cellW,
       height: cellH,
-      borderRadius: CARD_RADIUS,
+      borderRadius: cardRadiusPx(cellW, cellH),
       overflow: "hidden",
       backgroundColor: COLORS.surface,
-      border: `1px solid ${COLORS.surfaceBorder}`,
+      border: `${TILE_BORDER}px solid ${COLORS.surfaceBorder}`,
     },
     image,
     badge,
@@ -166,7 +173,7 @@ function moreCell(moreCount: number, cellW: number, cellH: number): Element {
       height: cellH,
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: CARD_RADIUS,
+      borderRadius: cardRadiusPx(cellW, cellH),
       backgroundColor: COLORS.surface,
       border: `1px solid ${COLORS.surfaceBorder}`,
       color: COLORS.muted,
@@ -251,11 +258,14 @@ export async function renderShareImage(io: Io, input: ShareImageInput): Promise<
   const areaH = HEIGHT - TOP_BAR_H - PAD;
   const { cols, cellW, cellH } = computeGrid(Math.max(cellCount, 1), areaW, areaH);
 
+  // Content-box size (inside the tile border) so the art stays centered, at 2×
+  // for crispness when platforms upscale the preview.
+  const artW = cellW - 2 * TILE_BORDER;
+  const artH = cellH - 2 * TILE_BORDER;
   const dataUris = await Promise.all(
     shown.map((card) =>
-      // 2× the cell size keeps tiles crisp when platforms upscale the preview.
       card.imageId
-        ? cardArtDataUri(io, card.imageId, cellW * 2, cellH * 2, CARD_RADIUS * 2)
+        ? cardArtDataUri(io, card.imageId, artW * 2, artH * 2, cardRadiusPx(artW, artH) * 2)
         : Promise.resolve(null),
     ),
   );

@@ -4,6 +4,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createLazyFileRoute } from "@tanstack/react-router";
 import { CalendarIcon, LayersIcon } from "lucide-react";
 
+import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { Skeleton } from "@/components/ui/skeleton";
 import { publicSetListQueryOptions } from "@/hooks/use-public-sets";
 import { formatAbsoluteDate } from "@/lib/format-date";
@@ -13,8 +14,6 @@ export const Route = createLazyFileRoute("/_app/sets")({
   component: SetsPage,
   pendingComponent: SetsPending,
 });
-
-const CARD_BORDER_RADIUS = "5% / 3.6%";
 
 function formatDate(dateStr: string): string {
   return formatAbsoluteDate(dateStr, { year: "numeric", month: "short", day: "numeric" });

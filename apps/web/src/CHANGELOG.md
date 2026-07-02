@@ -14,7 +14,7 @@
 - feat(Collection): **Clearer list sharing** — sharing a public link and choosing which groups can see a list are now two focused dialogs that link to each other, instead of one crowded panel.
 - feat(Collection): **Dynamic-rule status on lists** — a wishlist or tradelist with active dynamic rules now highlights its rules button and shows how many are running.
 - fix(Account): **Trade-status email toggle** — the profile setting for trade status update emails didn't save, so opting out never took effect, and now your choice persists.
-- fix(Decks): **Deck image layout** — the rune counts now sit centered under the legend and the card corners match the rounding used everywhere else.
+- fix(Decks): **Deck image layout** — the shared deck picture now groups the deck into sideboard, battlefield, and rune sections that grow to fill the space, lists the main and sideboard counts separately with the deck's domain icons, and centers each card in its tile.
 - fix(Decks): **Proxies hidden for empty decks** — the Proxies button did nothing on a deck with no cards, and now it only appears once the deck has cards to print.
 
 ## 2026-06-30

@@ -2,6 +2,7 @@ import type { ImageVariant } from "@openrift/shared";
 import { imageUrl } from "@openrift/shared";
 import type { ReactNode } from "react";
 
+import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { cn } from "@/lib/utils";
 
 interface CardArtThumbProps {
@@ -54,9 +55,10 @@ export function CardArtThumb({
   return (
     <span
       className={cn(
-        "bg-muted aspect-card relative inline-block shrink-0 overflow-hidden rounded align-top",
+        "bg-muted aspect-card relative inline-block shrink-0 overflow-hidden align-top",
         className,
       )}
+      style={{ borderRadius: CARD_BORDER_RADIUS }}
     >
       {resolved ? (
         <img src={resolved} alt={alt} loading={loading} className="size-full object-cover" />

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { defaultIo } from "../io.js";
 import type { DeckImageCard } from "./deck-image.js";
-import { formatLabelFromSlug, renderDeckImage } from "./deck-image.js";
+import { formatLabelFromSlug, renderDeckImage, truncateTitle } from "./deck-image.js";
 
 // Exercises the real pipeline (font load + glyph rasterize + QR + satori +
 // sharp). No DB or media: a null imageId falls back to a name-only tile, which
@@ -90,5 +90,23 @@ describe("formatLabelFromSlug", () => {
   it("capitalizes and de-hyphenates a format slug", () => {
     expect(formatLabelFromSlug("constructed")).toBe("Constructed");
     expect(formatLabelFromSlug("custom-region")).toBe("Custom region");
+  });
+});
+
+describe("truncateTitle", () => {
+  it("leaves short titles untouched", () => {
+    expect(truncateTitle("Azir UNL - Current")).toBe("Azir UNL - Current");
+  });
+
+  it("elides overly long titles to a single ellipsis", () => {
+    const long = "A".repeat(40);
+    const result = truncateTitle(long);
+    expect(result.length).toBeLessThanOrEqual(34);
+    expect(result.endsWith("…")).toBe(true);
+  });
+
+  it("trims trailing space before the ellipsis", () => {
+    const title = `${"word ".repeat(8)}tail`; // spaces land near the cut
+    expect(truncateTitle(title)).not.toContain(" …");
   });
 });

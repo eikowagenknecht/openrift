@@ -4,6 +4,7 @@ import { WellKnown, getOrientation, imageUrl, legendDisplayName } from "@openrif
 import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import { memo, useRef, useState } from "react";
 
+import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { CardMetaLabel } from "@/components/cards/card-meta-label";
 import { CardPlaceholderImage } from "@/components/cards/card-placeholder-image";
 import { FinishIcon } from "@/components/cards/finish-icon";
@@ -84,7 +85,6 @@ export function useCardThumbnailDisplay(): CardThumbnailDisplay {
   };
 }
 
-const CARD_BORDER_RADIUS = "5% / 3.6%";
 /** Intrinsic dimensions matching the standard card aspect ratio (63×88mm). */
 const CARD_WIDTH = 630;
 const CARD_HEIGHT = 880;

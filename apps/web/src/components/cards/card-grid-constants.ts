@@ -8,6 +8,16 @@
 // distinctly so the two reciprocal ratios can't be confused at an import site.
 // Used as a width→height multiplier (height = width × CARD_ASPECT_INVERSE).
 export const CARD_ASPECT_INVERSE = 88 / 63;
+
+/**
+ * Proportional card corner radius: 5% of the width and 3.6% of the height, which
+ * for a 63×88 card is a near-circular ~5%-of-short-edge corner that scales with
+ * the card instead of a fixed pixel radius. Shared by CardThumbnail, CardArtThumb
+ * and the sets shelf so every card surface rounds identically. Keep in sync with
+ * the server share-image radius (apps/api/.../share-image-core.ts `cardRadiusPx`).
+ */
+export const CARD_BORDER_RADIUS = "5% / 3.6%";
+
 export const GAP = 16; // gap-4
 export const BUTTON_PAD = 6; // p-1.5 on CardThumbnail <button>
 

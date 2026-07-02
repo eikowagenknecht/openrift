@@ -31,8 +31,25 @@ export const COLORS = {
 /** Largest self-hosted variant (short edge ~800px); the tiles are big, so use it. */
 const CARD_ART_VARIANT = "full";
 
-/** Corner radius for card tiles (the art is masked to it so corners never bleed). */
-export const CARD_RADIUS = 14;
+/**
+ * Card corner radius as a fraction of the tile's short edge. Mirrors the web
+ * app's proportional `5% / 3.6%` card radius (apps/web card-grid-constants.ts):
+ * for a portrait 63×88 card, 5% of the width is ~3.6% of the height, i.e. a
+ * near-circular corner at ~5% of the short edge. Deriving it off the short edge
+ * — rather than a fixed pixel value — keeps every tile size, and the landscape
+ * battlefield tiles, rounded in proportion to the art the way the app does.
+ */
+export const CARD_RADIUS_FRACTION = 0.05;
+
+/**
+ * Computes the proportional card corner radius in px for a tile of the given
+ * size. The art is masked to this same radius so corners never bleed past the
+ * tile (satori does not clip a child `<img>` to the parent's `border-radius`).
+ * @returns The corner radius in px, matching the app's size-relative rounding.
+ */
+export function cardRadiusPx(tileW: number, tileH: number): number {
+  return Math.round(Math.min(tileW, tileH) * CARD_RADIUS_FRACTION);
+}
 
 export interface Element {
   type: string;
