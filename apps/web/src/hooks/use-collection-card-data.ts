@@ -180,11 +180,16 @@ export function useCollectionCardData({
   // Build stack lookup for renderCard to find copyIds/counts
   const stackByPrintingId = new Map(stacks.map((stack) => [stack.printingId, stack]));
 
-  // Copy IDs of exactly the printings currently shown in the grid (after every
-  // filter, and after the cards-view tile dedup). "Select all" must operate on
-  // this set, not on `stacks` — otherwise it would select copies of cards the
-  // active filters have hidden.
-  const selectableCopyIds = sortedCards.flatMap(
+  // Copy IDs of every printing that survives the filters. "Select all" must
+  // operate on this set, not on `stacks` (which ignores the active filters) and
+  // not on `sortedCards` (which in cards view is deduped to one representative
+  // printing per tile). A card owned across several printings collapses into a
+  // single tile whose copies pool every printing's copies; selecting that tile
+  // by hand already grabs them all, so "select all" has to as well. Flattening
+  // the deduped list would leave the non-representative printings' copies out,
+  // so "select all" then dispose would delete only some of each stack and leave
+  // copies behind. `filteredCards` keeps every printing, so it matches.
+  const selectableCopyIds = filteredCards.flatMap(
     (printing) => stackByPrintingId.get(printing.id)?.copyIds ?? [],
   );
 

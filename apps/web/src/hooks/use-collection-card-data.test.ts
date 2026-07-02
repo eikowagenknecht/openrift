@@ -281,6 +281,35 @@ describe("useCollectionCardData", () => {
     expect(result.current.selectableCopyIds.toSorted()).toEqual(["c-en-1", "c-en-2", "c-zh-1"]);
   });
 
+  it("includes every printing's copies in selectableCopyIds for a stacked tile in cards view", () => {
+    // Regression: in cards view a card owned across several printings collapses
+    // into one tile, but selectableCopyIds flattened the deduped list (one
+    // representative printing per tile), so "select all" grabbed only the
+    // representative printing's copies. Dispose then left the other printings'
+    // copies behind as a leftover tile. selectableCopyIds must pool every
+    // printing's copies for the tile, matching a manual single-tile selection.
+    const cardId = "card-multi-printing";
+    const en = stubPrinting({ cardId, language: "EN" });
+    const zh = stubPrinting({ cardId, language: "ZH" });
+    mockStacks.mockReturnValue({
+      stacks: [
+        { printingId: en.id, printing: en, copyIds: ["c-en-1", "c-en-2"] },
+        { printingId: zh.id, printing: zh, copyIds: ["c-zh-1"] },
+      ],
+      totalCopies: 3,
+      isReady: true,
+    });
+
+    const { result } = renderHook(() =>
+      useCollectionCardData({ ...baseParams(), view: "cards", groupBy: "none" }),
+    );
+
+    // The two printings collapse to a single tile...
+    expect(result.current.sortedCards).toHaveLength(1);
+    // ...but select-all must still cover every copy under it.
+    expect(result.current.selectableCopyIds.toSorted()).toEqual(["c-en-1", "c-en-2", "c-zh-1"]);
+  });
+
   it("reports ownedCountMax as the largest per-collection owned count", () => {
     const one = stubPrinting({ card: { slug: "one-card" } });
     const five = stubPrinting({ card: { slug: "five-card" } });
