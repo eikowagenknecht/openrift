@@ -44,6 +44,7 @@ import { useRequiredUserId } from "@/lib/auth-session";
 import { catalogQueryOptions } from "@/lib/catalog-query";
 import { collectionsQueryOptions } from "@/lib/collections-query";
 import { copiesQueryOptions } from "@/lib/copies-query";
+import { useDisplayStore } from "@/stores/display-store";
 import { serializeRules, useRuleEditorStore } from "@/stores/rule-editor-store";
 
 interface RuleEditorDialogProps {
@@ -175,6 +176,9 @@ function RuleList({
 }) {
   const rules = useRuleEditorStore((state) => state.rules);
   const addRule = useRuleEditorStore((state) => state.addRule);
+  // Seed a new rule's language facet from the user's preferred languages, so a
+  // fresh rule starts scoped the way they browse. Still fully editable afterwards.
+  const preferredLanguages = useDisplayStore((state) => state.languages);
 
   return (
     <div className="flex flex-col gap-4">
@@ -197,7 +201,12 @@ function RuleList({
       {footer}
 
       {rules.length < maxRules && (
-        <Button type="button" variant="outline" className="self-start" onClick={() => addRule()}>
+        <Button
+          type="button"
+          variant="outline"
+          className="self-start"
+          onClick={() => addRule(preferredLanguages)}
+        >
           <PlusIcon />
           Add rule
         </Button>

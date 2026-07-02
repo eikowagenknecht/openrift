@@ -42,6 +42,21 @@ describe("useRuleEditorStore", () => {
     expect(useRuleEditorStore.getState().rules).toEqual([]);
   });
 
+  it("addRule seeds the language filter from the given languages", () => {
+    useRuleEditorStore.getState().addRule(["DE", "EN"]);
+    expect(useRuleEditorStore.getState().rules[0]?.filter).toEqual({
+      ...EMPTY_CARD_FILTERS,
+      languages: ["DE", "EN"],
+    });
+  });
+
+  it("addRule leaves the language filter empty when no languages are given", () => {
+    useRuleEditorStore.getState().addRule([]);
+    expect(useRuleEditorStore.getState().rules[0]?.filter).toEqual(EMPTY_CARD_FILTERS);
+    useRuleEditorStore.getState().addRule();
+    expect(useRuleEditorStore.getState().rules[1]?.filter).toEqual(EMPTY_CARD_FILTERS);
+  });
+
   it("buildRules returns an empty array for organize", () => {
     useRuleEditorStore.getState().addRule();
     expect(useRuleEditorStore.getState().buildRules("organize")).toEqual([]);

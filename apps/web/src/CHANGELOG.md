@@ -4,6 +4,7 @@
 
 ### Other
 
+- feat(Collection): **Rules start in your languages** — a new dynamic wishlist or tradelist rule pre-fills its language filter with your preferred languages, still editable per rule.
 - fix(Collection): **Open lists with older rules** — a wishlist or tradelist whose dynamic rule was saved before a recent filter was added failed to open, and those lists now load again.
 - fix(Collection): **Remove excluded copies one at a time** — a tradelist rule showed the copies you excluded from its auto-offers as a bare count with a single clear-all button, and now names each excluded copy with its own remove button.
 - fix(Collection): **Cleaner dynamic-rule filters** — the "has any" options for markers, tags, keywords, and the rest now sit inside their filter's picker, matching the card browser, instead of cluttering the Add filter menu.
