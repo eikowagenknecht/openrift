@@ -406,12 +406,21 @@ export function CardGrid({
     return () => globalThis.removeEventListener("scroll", onScroll);
   }, []);
 
-  // react-virtual's getMeasurements memo doesn't track estimateSize, so a
-  // smaller thumbWidth from resizing within the same column count produces
-  // stale (taller) row heights and visible gaps until measure() is called.
-  useEffect(() => {
+  // react-virtual's getMeasurements memo doesn't track estimateSize, so any
+  // estimate-input change that keeps the row count identical leaves stale row
+  // heights behind until measure() is called: a smaller thumbWidth from
+  // resizing within the same column count (visible gaps), or new items whose
+  // header/cards rows land at different indexes than the old ones at the same
+  // total row count — e.g. switching between two lists — which stacks card
+  // rows into header-sized slots. The kind signature is a primitive so the
+  // effect can't re-fire (and loop via measure → notify → render) when a
+  // compiler bail-out hands us a fresh virtualRows array each render. Layout
+  // effect so corrected positions land before paint instead of flashing one
+  // mis-stacked frame.
+  const rowKindSignature = virtualRows.map((row) => (row.kind === "header" ? "h" : "c")).join("");
+  useLayoutEffect(() => {
     virtualizerRef.current.measure();
-  }, [columns, containerWidth, addStripHeight]);
+  }, [rowKindSignature, columns, containerWidth, addStripHeight]);
 
   // Re-scroll when columns change: anchor to selected card or first visible card.
   useEffect(() => {
