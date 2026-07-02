@@ -631,8 +631,11 @@ function PreviewStep({
           </Select>
 
           {collectionId === "__new__" && (
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium" htmlFor="new-collection-name">
+            <div className="flex items-center gap-2">
+              <label
+                className="text-sm font-medium whitespace-nowrap"
+                htmlFor="new-collection-name"
+              >
                 Collection name
               </label>
               <Input
