@@ -629,47 +629,9 @@ export function cardTradesRepo(db: Kysely<Database>) {
     },
 
     // ── Reservation (card_trade_copies) ──────────────────────────────────────
-
-    /**
-     * Selects up to `limit` of the giver's copies of `printingId` that are on a
-     * trade-intent list shared with this group and not already reserved.
-     * @returns The unreserved copy ids (may be fewer than `limit`).
-     */
-    async selectUnreservedGroupSharedCopies(
-      groupId: string,
-      giverUserId: string,
-      printingId: string,
-      limit: number,
-    ): Promise<string[]> {
-      if (limit <= 0) {
-        return [];
-      }
-      const rows = await db
-        .selectFrom("friendGroupListShares as s")
-        .innerJoin("lists as l", "l.id", "s.listId")
-        .innerJoin("listEntries as le", "le.listId", "l.id")
-        .innerJoin("copies as cp", "cp.id", "le.copyId")
-        .select("cp.id as copyId")
-        .distinct()
-        .where("s.groupId", "=", groupId)
-        .where("s.userId", "=", giverUserId)
-        .where("l.intent", "=", "trade")
-        .where("le.kind", "=", "copy")
-        .where("cp.printingId", "=", printingId)
-        .where((eb) =>
-          eb.not(
-            eb.exists(
-              eb
-                .selectFrom("cardTradeCopies as ctc")
-                .select(sql`1`.as("one"))
-                .whereRef("ctc.copyId", "=", "cp.id"),
-            ),
-          ),
-        )
-        .limit(limit)
-        .execute();
-      return rows.map((row) => row.copyId);
-    },
+    // The reservable supply itself is resolved rule-aware by
+    // `friendGroupMatches.giverPrintingSupply` (ADR-034), which mirrors the match
+    // view; the methods below only read/write the `card_trade_copies` pins.
 
     /** Pins copies to a trade. `UNIQUE(copy_id)` rejects a copy already claimed by another live trade. */
     async pinCopies(tradeId: string, copyIds: readonly string[]): Promise<void> {
@@ -708,32 +670,6 @@ export function cardTradesRepo(db: Kysely<Database>) {
         .where("copyId", "in", [...copyIds])
         .execute();
       return rows.map((row) => row.copyId);
-    },
-
-    /**
-     * @returns `true` if the giver still has at least one group-shared copy of the
-     * printing — reservation-agnostic, used to tell a vanished basis (auto-cancel)
-     * apart from a stack merely exhausted by competing reservations (stays pending).
-     */
-    async hasGroupSharedCopy(
-      groupId: string,
-      giverUserId: string,
-      printingId: string,
-    ): Promise<boolean> {
-      const row = await db
-        .selectFrom("friendGroupListShares as s")
-        .innerJoin("lists as l", "l.id", "s.listId")
-        .innerJoin("listEntries as le", "le.listId", "l.id")
-        .innerJoin("copies as cp", "cp.id", "le.copyId")
-        .select("cp.id as copyId")
-        .where("s.groupId", "=", groupId)
-        .where("s.userId", "=", giverUserId)
-        .where("l.intent", "=", "trade")
-        .where("le.kind", "=", "copy")
-        .where("cp.printingId", "=", printingId)
-        .limit(1)
-        .executeTakeFirst();
-      return row !== undefined;
     },
 
     // ── State transitions ────────────────────────────────────────────────────

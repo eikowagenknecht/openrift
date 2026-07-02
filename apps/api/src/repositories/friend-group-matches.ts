@@ -116,6 +116,20 @@ export function friendGroupMatchesRepo(db: Kysely<Database>, providers?: ListRul
     },
 
     /**
+     * The giver's offered copies of one printing in a group — the reservable
+     * supply used to validate and pin a trade. Counts manual `copy` entries and
+     * dynamic trade-rule output alike (ADR-034), reusing the same supply builder
+     * as the match view so the two can never disagree (a copy offered only via a
+     * rule must not read as "0 available" at trade time).
+     * @returns The unreserved reservable copy ids plus whether any copy is offered.
+     */
+    giverPrintingSupply(
+      scope: GiverSupplyScope,
+    ): Promise<{ unreservedCopyIds: string[]; hasAny: boolean }> {
+      return resolveGiverPrintingSupply(db, providers, scope);
+    },
+
+    /**
      * The viewer's *incoming* matches (others have what the viewer wants),
      * deduped to one row per (counterparty, printing) and dated by the latest
      * contributing timestamp. Newest first.
@@ -744,6 +758,92 @@ async function runMatchQuery(
     );
     return byCounterparty === 0 ? first.cardName.localeCompare(second.cardName) : byCounterparty;
   });
+}
+
+interface GiverSupplyScope {
+  groupId: string;
+  giverUserId: string;
+  printingId: string;
+}
+
+/**
+ * Resolves the giver's reservable supply of one printing within a group, using
+ * the exact supply-building path as the match view (`buildSupply`): manual
+ * `copy` entries and dynamic trade-rule output both participate, reserved copies
+ * drop out of the reservable set. `hasAny` stays reservation-agnostic so the
+ * accept path can tell a stack merely exhausted by competing reservations
+ * (copies still exist, request stays pending) apart from a vanished basis (the
+ * giver deleted/unshared the copies, request auto-cancels — ADR-019).
+ * @returns The unreserved reservable copy ids plus whether any copy is offered.
+ */
+async function resolveGiverPrintingSupply(
+  db: Kysely<Database>,
+  providers: ListRuleProviders | undefined,
+  scope: GiverSupplyScope,
+): Promise<{ unreservedCopyIds: string[]; hasAny: boolean }> {
+  const allTradeLists = await loadSharedLists(db, scope.groupId, "trade");
+  const tradeLists = allTradeLists.filter((list) => list.ownerUserId === scope.giverUserId);
+  if (tradeLists.length === 0) {
+    return { unreservedCopyIds: [], hasAny: false };
+  }
+
+  // Rules need the catalog (for `filterCards`) and the giver's own copies (trade
+  // rules offer owned copies). Both are lazy — skipped when no list has rules.
+  const hasRules = tradeLists.some((list) => list.rules.length > 0);
+  const ruleCatalog = hasRules && providers ? await providers.assembleCatalog() : null;
+  const evalContext = {
+    catalog: ruleCatalog?.printings ?? [],
+    ownedCopies: hasRules && providers ? await providers.ownedCopies(scope.giverUserId) : [],
+    customTagAssignments: ruleCatalog?.customTagAssignments,
+  };
+
+  const manualByList = await loadManualEntries(
+    db,
+    tradeLists.map((list) => list.listId),
+  );
+  const ruleByList = new Map<string, ReturnType<typeof evaluateListRules>>();
+  // Every offered copy id (manual + rule), reservation-agnostic, so the meta
+  // lookup can classify each by printing and reservation state.
+  const offeredCopyIds = new Set<string>();
+  for (const list of tradeLists) {
+    for (const entry of manualByList.get(list.listId) ?? []) {
+      if (entry.copyId) {
+        offeredCopyIds.add(entry.copyId);
+      }
+    }
+    if (list.rules.length > 0 && providers) {
+      const ruleEntries = evaluateListRules(list.rules, "copy", evalContext);
+      ruleByList.set(list.listId, ruleEntries);
+      for (const entry of ruleEntries) {
+        if (entry.copyId) {
+          offeredCopyIds.add(entry.copyId);
+        }
+      }
+    }
+  }
+
+  const copyMeta = await loadCopyMeta(db, [...offeredCopyIds]);
+
+  // Unreserved reservable set: buildSupply drops reserved copies, mirroring the
+  // match view exactly so the reservable count equals the displayed availability.
+  const unreserved = new Set<string>();
+  for (const list of tradeLists) {
+    for (const entry of buildSupply(
+      list,
+      manualByList.get(list.listId) ?? [],
+      ruleByList.get(list.listId) ?? [],
+      copyMeta,
+    )) {
+      if (entry.printingId === scope.printingId) {
+        unreserved.add(entry.copyId);
+      }
+    }
+  }
+
+  const hasAny = [...offeredCopyIds].some(
+    (copyId) => copyMeta.get(copyId)?.printingId === scope.printingId,
+  );
+  return { unreservedCopyIds: [...unreserved], hasAny };
 }
 
 function maxDate(dates: (Date | null | undefined)[]): Date {

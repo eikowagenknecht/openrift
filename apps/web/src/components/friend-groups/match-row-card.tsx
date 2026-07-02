@@ -140,6 +140,8 @@ interface ResolvedMatchRow extends FriendGroupMatchRow {
   setName: string;
   rarityLabel: string;
   finishLabel: string;
+  /** The card's domains, used to tint the art-less thumbnail placeholder. */
+  domains: string[];
 }
 
 /**
@@ -180,6 +182,7 @@ function resolveMatchRows(
       setName: set?.name ?? row.setId,
       rarityLabel: labels.rarities[row.rarity] ?? row.rarity,
       finishLabel: labels.finishes[row.finish] ?? row.finish,
+      domains: card?.domains ?? [],
     };
   });
 }
@@ -230,7 +233,7 @@ function MatchRow({
   // comes to you the counterparty is the seller (sellPref = their ask); when it
   // goes to them they're the buyer (buyPref = their offer).
   const counterpartyPref = incoming ? match.sellPref : match.buyPref;
-  const priceLabel = incoming ? "They want" : "They'd pay";
+  const priceLabel = incoming ? "Price" : "They'd pay";
   // Hide the price cell entirely when the counterparty has no preference set —
   // a bare "They want · Not set" just clutters the row.
   const hasCounterpartyPref =
@@ -243,13 +246,17 @@ function MatchRow({
     // On phones the row stacks: the card identity (with price hint + member
     // chip) sits on top, and the action drops to its own right-aligned bar
     // below. From sm up both groups dissolve (sm:contents) back into one row.
-    <div className="hover:bg-muted flex flex-col gap-2 rounded-md border border-dashed p-2 transition-colors sm:flex-row sm:items-center sm:gap-3">
+    <div className="group hover:bg-muted flex flex-col gap-2 rounded-md border border-dashed p-2 transition-colors sm:flex-row sm:items-center sm:gap-3">
+      {/* Identity: on phones its own top row (arrow + art + name/meta); from sm
+          up the wrapper dissolves (sm:contents) so it flows into the inline row. */}
       <div className="flex min-w-0 items-center gap-3 sm:contents">
         <TradeDirectionIcon incoming={incoming} />
 
         <CardArtThumb
           imageId={match.imageId}
           alt={match.cardName}
+          rarity={match.rarity}
+          domains={match.domains}
           className="w-10"
           loading="lazy"
         />
@@ -263,35 +270,45 @@ function MatchRow({
           </span>
           <MatchRowMeta match={match} />
         </div>
-
-        {hasCounterpartyPref ? (
-          <div className="w-32 shrink-0 text-right">
-            <MatchPreferenceCell
-              label={priceLabel}
-              pref={counterpartyPref}
-              marketplaceInfos={marketplaceInfos}
-              searchQuery={match.cardName}
-            />
-          </div>
-        ) : null}
-
-        {showCounterparty ? (
-          <CounterpartyChip
-            groupSlug={groupSlug}
-            userId={match.counterpartyUserId}
-            name={match.counterpartyName}
-            image={match.counterpartyImage}
-            gravatarHash={match.counterpartyGravatarHash}
-            // The action slot shows "Waiting for {name}" for a sent-and-pending
-            // trade, so the chip drops its name to avoid repeating it.
-            hideName={
-              liveTrade?.status === "pending" && liveTrade.actionNeeded !== "accept-or-decline"
-            }
-          />
-        ) : null}
       </div>
 
-      <div className="flex justify-end sm:contents">
+      {/* Deal footer: on phones a second row that carries the price + member on
+          the left and the action on the right, so nothing crams onto the
+          identity line. From sm up this wrapper and the price/member group both
+          dissolve (sm:contents) back into the single inline row. */}
+      <div className="flex items-center justify-between gap-2 sm:contents">
+        <div className="flex min-w-0 items-center gap-2 sm:contents">
+          {hasCounterpartyPref ? (
+            // On desktop the price only surfaces when the row is highlighted
+            // (hover fills the dashed slot), keeping the resting list quiet;
+            // opacity (not display) preserves the w-32 column so nothing shifts.
+            // Phones have no hover, so it stays visible in the footer.
+            <div className="shrink-0 text-right sm:w-32 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100">
+              <MatchPreferenceCell
+                label={priceLabel}
+                pref={counterpartyPref}
+                marketplaceInfos={marketplaceInfos}
+                searchQuery={match.cardName}
+              />
+            </div>
+          ) : null}
+
+          {showCounterparty ? (
+            <CounterpartyChip
+              groupSlug={groupSlug}
+              userId={match.counterpartyUserId}
+              name={match.counterpartyName}
+              image={match.counterpartyImage}
+              gravatarHash={match.counterpartyGravatarHash}
+              // The action slot shows "Waiting for {name}" for a sent-and-pending
+              // trade, so the chip drops its name to avoid repeating it.
+              hideName={
+                liveTrade?.status === "pending" && liveTrade.actionNeeded !== "accept-or-decline"
+              }
+            />
+          ) : null}
+        </div>
+
         <MatchRowTradeAction match={match} groupSlug={groupSlug} liveTrade={liveTrade} />
       </div>
     </div>
@@ -327,6 +344,8 @@ interface MatchTradeGroup {
   cardName: string;
   cardSlug: string;
   imageId: string | null;
+  /** Shared across variants (one card-level wish), used to tint the placeholder. */
+  domains: string[];
   buyEntryKind: "card" | "printing";
   buyQuantity: number;
   counterpartyUserId: string;
@@ -362,6 +381,7 @@ export function groupTradeMatches(rows: DirectedMatch[]): MatchTradeGroup[] {
         cardName: row.cardName,
         cardSlug: row.cardSlug,
         imageId: row.imageId,
+        domains: row.domains,
         buyEntryKind: row.buyEntryKind,
         buyQuantity: row.buyQuantity,
         counterpartyUserId: row.counterpartyUserId,
@@ -427,6 +447,7 @@ function MatchTradeRowGroup({
           <CardArtThumb
             imageId={group.imageId}
             alt={group.cardName}
+            domains={group.domains}
             className="w-10"
             loading="lazy"
           />

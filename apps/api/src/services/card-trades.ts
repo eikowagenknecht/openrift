@@ -12,9 +12,6 @@ import { sendTradeRequestEmail } from "./trade-notifications.js";
 /** Pending requests expire this long after creation (ADR-019, hard-coded). */
 const PENDING_TTL_HOURS = 24 * 7;
 
-/** Generous cap when counting the giver's unreserved supply for the dialog/validation. */
-const SUPPLY_COUNT_LIMIT = 1000;
-
 export interface CreateTradeInput {
   callerUserId: string;
   groupSlug: string;
@@ -129,16 +126,16 @@ export async function createTrade(
     buyQuantity: demandQuantity,
   } = printingMatches[0];
 
-  // Live supply nets out reserved copies (the match query already excludes them,
-  // and so does this count). This is the dialog's `availableCount`.
-  const availableCopies = await repos.cardTrades.selectUnreservedGroupSharedCopies(
-    group.id,
+  // Live supply nets out reserved copies. Rule-aware (ADR-034): a copy offered
+  // only via a dynamic trade rule counts here just as it does in the match view,
+  // so the dialog's `availableCount` and this check can't disagree.
+  const { unreservedCopyIds } = await repos.friendGroupMatches.giverPrintingSupply({
+    groupId: group.id,
     giverUserId,
     printingId,
-    SUPPLY_COUNT_LIMIT,
-  );
-  if (quantity > availableCopies.length) {
-    throw tooFewAvailable(availableCopies.length);
+  });
+  if (quantity > unreservedCopyIds.length) {
+    throw tooFewAvailable(unreservedCopyIds.length);
   }
   // Never trade more than the wanting side wants — over-trading would over-credit
   // copies and drive the wishlist negative on sync.
@@ -221,22 +218,20 @@ export function acceptTrade(
       throw new AppError(403, ERROR_CODES.FORBIDDEN, "Only the recipient can accept this trade");
     }
 
-    const copyIds = await trxRepos.cardTrades.selectUnreservedGroupSharedCopies(
-      trade.groupId,
-      trade.giverUserId,
-      trade.printingId,
-      trade.quantity,
-    );
+    // Rule-aware (ADR-034): the reservable supply mirrors the match view, so a
+    // copy offered only via a dynamic trade rule is pinnable here. `hasAny` is
+    // reservation-agnostic, telling the two exhaustion cases apart below.
+    const { unreservedCopyIds: copyIds, hasAny } =
+      await trxRepos.friendGroupMatches.giverPrintingSupply({
+        groupId: trade.groupId,
+        giverUserId: trade.giverUserId,
+        printingId: trade.printingId,
+      });
     if (copyIds.length < trade.quantity) {
       // Tell apart a stack merely exhausted by competing reservations (the copies
       // still exist, so the request stays pending and 409s) from a vanished basis
       // — the giver deleted/unshared the copies — which auto-cancels (ADR-019).
-      const stillShared = await trxRepos.cardTrades.hasGroupSharedCopy(
-        trade.groupId,
-        trade.giverUserId,
-        trade.printingId,
-      );
-      if (stillShared) {
+      if (hasAny) {
         throw tooFewAvailable(copyIds.length);
       }
       await trxRepos.cardTrades.deleteCopiesForTrade(tradeId); // no-op while pending
@@ -372,15 +367,14 @@ export function setTradeQuantity(
       throw new AppError(403, ERROR_CODES.FORBIDDEN, "Only the initiator can change this request");
     }
 
-    // Cap by the giver's live (unreserved) supply, mirroring createTrade.
-    const availableCopies = await trxRepos.cardTrades.selectUnreservedGroupSharedCopies(
-      trade.groupId,
-      trade.giverUserId,
-      trade.printingId,
-      SUPPLY_COUNT_LIMIT,
-    );
-    if (quantity > availableCopies.length) {
-      throw tooFewAvailable(availableCopies.length);
+    // Cap by the giver's live (unreserved) supply, rule-aware, mirroring createTrade.
+    const { unreservedCopyIds } = await trxRepos.friendGroupMatches.giverPrintingSupply({
+      groupId: trade.groupId,
+      giverUserId: trade.giverUserId,
+      printingId: trade.printingId,
+    });
+    if (quantity > unreservedCopyIds.length) {
+      throw tooFewAvailable(unreservedCopyIds.length);
     }
 
     // Keep the receiver's wish entry ≥ the request: claiming a copy is an explicit

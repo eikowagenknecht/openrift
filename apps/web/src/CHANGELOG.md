@@ -4,6 +4,8 @@
 
 ### Other
 
+- fix(Trades): **Trade a card offered by a rule** — offering or accepting a card your tradelist shares through a dynamic rule failed with a "0 copies available" error, and those copies now count as available.
+- fix(Trades): **Trade matches on small screens** — the possible-trades rows stack neatly on phones instead of cramming the card, price, member, and button onto one line, and the price now reads "Price".
 - fix(Cards): **All printings in the detail pane** — the detail panel now lists every printing of a card, not just the ones left after your set, search, and rarity filters (still scoped to your chosen languages).
 - fix(Groups): **Group matches with older list rules** — a group page could fail to load when a shared wishlist or tradelist used a dynamic rule saved before a recent filter was added, and those rules now evaluate correctly again.
 

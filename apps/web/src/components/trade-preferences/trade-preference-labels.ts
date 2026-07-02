@@ -38,7 +38,7 @@ export const TRADE_TYPE_LABEL: Record<TradeType, string> = {
 export const TRADE_TYPE_SHORT_LABEL: Record<TradeType, string> = {
   cards: "Cards",
   money: "Money",
-  both: "Both",
+  both: "Accepts cards or money",
 };
 
 export const CURRENCY_SYMBOL: Record<Currency, string> = {

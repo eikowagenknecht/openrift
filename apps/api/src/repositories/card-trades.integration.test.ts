@@ -1,3 +1,6 @@
+import { EMPTY_CARD_FILTERS } from "@openrift/shared";
+import type { ListRule } from "@openrift/shared";
+import { sql } from "kysely";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createRepos, createTransact } from "../deps.js";
@@ -178,6 +181,82 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     return { group, wishEntryId: wishEntry.id, tradeListId: tradeList.id, copyIds };
   }
 
+  /**
+   * Like {@link setupMatch}, but the giver offers the copies via a *dynamic
+   * trade rule* (ADR-034, keep 0 per card) instead of manual `copy` entries —
+   * the regression case where the reservable-supply count must still see them.
+   * The copies live in a fresh collection scoped by the rule, so this suite's
+   * shared-DB accumulation can't leak extra copies into the match.
+   * @returns The group and the giver's copy ids.
+   */
+  async function setupRuleMatch(copyCount: number, wishQuantity: number = copyCount) {
+    const slug = await uniqueSlug();
+    const group = await groupsRepo.createWithOwner(
+      { slug, name: "Rule Trade Group", description: null, code: null },
+      GIVER_ID,
+    );
+    createdGroupIds.push(group.id);
+    await groupsRepo.addMember(group.id, RECEIVER_ID, "member");
+
+    const wish = await db
+      .insertInto("lists")
+      .values({ userId: RECEIVER_ID, name: "Wants", intent: "wish", kind: "printing" })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    await db
+      .insertInto("listEntries")
+      .values({
+        listId: wish.id,
+        userId: RECEIVER_ID,
+        kind: "printing",
+        printingId: PRINTING_1.id,
+        quantity: wishQuantity,
+      })
+      .execute();
+    await groupsRepo.share(group.id, wish.id, RECEIVER_ID);
+
+    // A collection dedicated to this match, so the rule (scoped to it) offers
+    // only these copies regardless of what other tests left in the giver's binder.
+    const collection = await db
+      .insertInto("collections")
+      .values({ userId: GIVER_ID, name: "Auto Binder", isInbox: false, sortOrder: 2 })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    const copyIds: string[] = [];
+    for (let index = 0; index < copyCount; index += 1) {
+      const copy = await db
+        .insertInto("copies")
+        .values({ printingId: PRINTING_1.id, collectionId: collection.id })
+        .returning("id")
+        .executeTakeFirstOrThrow();
+      copyIds.push(copy.id);
+    }
+
+    // No manual `copy` entries — a keep-0 trade rule offers every owned copy in
+    // the collection. This is exactly the shape that used to read as 0 supply.
+    const tradeRule: ListRule = {
+      kind: "trade",
+      filter: EMPTY_CARD_FILTERS,
+      collectionIds: [collection.id],
+      keepPerCard: { mode: "fixed", n: 0 },
+      excludeCopyIds: [],
+    };
+    const tradeList = await db
+      .insertInto("lists")
+      .values({
+        userId: GIVER_ID,
+        name: "Auto Haves",
+        intent: "trade",
+        kind: "copy",
+        rules: sql<ListRule[]>`${JSON.stringify([tradeRule])}::text::jsonb`,
+      })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    await groupsRepo.share(group.id, tradeList.id, GIVER_ID);
+
+    return { group, copyIds };
+  }
+
   function availableForReceiver(groupId: string): Promise<number> {
     return repos.friendGroupMatches
       .othersHaveYourWants({ groupId, viewerUserId: RECEIVER_ID, counterpartyUserId: GIVER_ID })
@@ -253,6 +332,33 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     const row = await repos.cardTrades.getById(trade.id);
     expect(row?.status).toBe("cancelled");
     expect(row?.lastActorUserId).toBeNull();
+  });
+
+  it("offers and accepts a trade whose supply is a dynamic trade rule, not manual copies (ADR-034)", async () => {
+    const { group } = await setupRuleMatch(1);
+    // Sanity: the rule-derived copy shows as available supply in the match view.
+    expect(await availableForReceiver(group.id)).toBe(1);
+
+    // Regression: the giver offers their single rule-offered copy. This used to
+    // 409 with "Only 0 copies are still available" because the supply count only
+    // looked at manual `copy` list entries and never evaluated the rule.
+    const trade = await createTrade(repos, {
+      callerUserId: GIVER_ID,
+      groupSlug: group.slug,
+      counterpartyUserId: RECEIVER_ID,
+      role: "giver",
+      printingId: PRINTING_1.id,
+      quantity: 1,
+    });
+    expect(trade.status).toBe("pending");
+    expect(trade.initiator).toBe("giver");
+
+    // The recipient accepts; the rule-offered copy is pinnable and reserves.
+    const reserved = await acceptTrade(transact, trade.id, RECEIVER_ID);
+    expect(reserved.status).toBe("reserved");
+    expect(await repos.cardTrades.listReservedCopyIds(trade.id)).toHaveLength(1);
+    // Reserved copy drops out of the rule-derived supply too.
+    expect(await availableForReceiver(group.id)).toBe(0);
   });
 
   it("keeps a request pending when copies still exist but are reserved by a competing trade", async () => {
