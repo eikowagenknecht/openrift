@@ -16,11 +16,11 @@ export function isRuleSourced(source: EntrySource): boolean {
 }
 
 /**
- * Marks an entry that a dynamic list rule produced (ADR-034). `iconOnly` is the
- * compact grid-corner form; the labeled form is used in the table. When
- * {@link quantity} is set, the chip reports the rule's contribution (the
- * additive model shows the rule part here and the editable manual part beside
- * it) as `✨ ×N`; the label form is used when no count is meaningful (copies).
+ * Marks an entry that a dynamic list rule produced (ADR-034). Always carries the
+ * visible "Rule" label so a card corner reads as clearly as the table view. When
+ * {@link quantity} is set, the chip reports the rule's contribution (the additive
+ * model shows the rule part here and the editable manual part beside it) as
+ * `✨ ×N`; the "Rule" label form is used when no count is meaningful (copies).
  *
  * When {@link onExclude} is set, the badge carries a trailing exclude marker — a
  * "ban" button that drops the entry from the rule. Hanging it inside the badge
@@ -30,13 +30,11 @@ export function isRuleSourced(source: EntrySource): boolean {
  * @returns A subtle primary-tinted badge with a sparkle icon.
  */
 export function RuleSourceBadge({
-  iconOnly = false,
   quantity,
   className,
   onExclude,
   excludeLabel = "Don't include this",
 }: {
-  iconOnly?: boolean;
   /** When set, the chip shows the rule's contributed count (`✨ ×N`). */
   quantity?: number;
   className?: string;
@@ -50,24 +48,11 @@ export function RuleSourceBadge({
       // rounded-rect, no border — so the rule chip reads as its sibling; the
       // primary-colored sparkle + count (text-primary from the subtle variant)
       // are what set it apart. See COUNT_PILL_BASE in cards/count-pill.ts.
-      className={cn(
-        "bg-muted rounded-md border-0",
-        iconOnly && quantity === undefined && "px-1",
-        onExclude && "pr-0.5",
-        className,
-      )}
+      className={cn("bg-muted rounded-md border-0", onExclude && "pr-0.5", className)}
       title={quantity === undefined ? RULE_LABEL : `${quantity} added by a list rule`}
     >
       <SparklesIcon aria-hidden />
-      {quantity === undefined ? (
-        iconOnly ? (
-          <span className="sr-only">{RULE_LABEL}</span>
-        ) : (
-          "Rule"
-        )
-      ) : (
-        <span className="tabular-nums">×{quantity}</span>
-      )}
+      {quantity === undefined ? "Rule" : <span className="tabular-nums">×{quantity}</span>}
       {onExclude ? (
         <button
           type="button"

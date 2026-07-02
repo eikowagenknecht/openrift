@@ -325,7 +325,6 @@ function buildStrip({
     return (
       <div className="relative z-30 mb-1 flex h-5 items-center justify-center gap-1">
         <RuleSourceBadge
-          iconOnly={kind === "copy"}
           quantity={kind === "copy" ? undefined : entry.ruleQuantity}
           onExclude={() => dispatchExcludeFromRule(entryToExcludeTarget(entry))}
           excludeLabel={`Don't include ${entry.cardName}`}
@@ -368,7 +367,7 @@ function buildStrip({
             Reserved
           </Badge>
         )}
-        {isRuleSourced(entry.source) && <RuleSourceBadge iconOnly />}
+        {isRuleSourced(entry.source) && <RuleSourceBadge />}
         {tradePill}
         <Button
           type="button"

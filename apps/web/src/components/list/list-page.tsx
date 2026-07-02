@@ -500,7 +500,6 @@ function ListActionsCell({
     return (
       <div className="flex items-center gap-2">
         <RuleSourceBadge
-          iconOnly={kind === "copy"}
           quantity={kind === "copy" ? undefined : entry.ruleQuantity}
           onExclude={() => dispatchExcludeFromRule(entryToExcludeTarget(entry))}
           excludeLabel={`Don't include ${entry.cardName}`}
@@ -530,10 +529,7 @@ function ListActionsCell({
   return (
     <div className="flex items-center gap-2">
       {entry.ruleQuantity > 0 && (
-        <RuleSourceBadge
-          iconOnly={kind === "copy"}
-          quantity={kind === "copy" ? undefined : entry.ruleQuantity}
-        />
+        <RuleSourceBadge quantity={kind === "copy" ? undefined : entry.ruleQuantity} />
       )}
       {tradePill}
       {entry.kind === "copy" && entry.reserved && <Badge variant="success">Reserved</Badge>}
