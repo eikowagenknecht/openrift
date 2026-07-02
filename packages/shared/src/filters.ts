@@ -11,7 +11,13 @@ import type {
   SortDirection,
   SortOption,
 } from "./types/index.js";
-import { ALL_SEARCH_FIELDS, NONE, PRESENCE_DIMENSIONS, SEARCH_PREFIX_MAP } from "./types/index.js";
+import {
+  ALL_SEARCH_FIELDS,
+  EMPTY_CARD_FILTERS,
+  NONE,
+  PRESENCE_DIMENSIONS,
+  SEARCH_PREFIX_MAP,
+} from "./types/index.js";
 import { boundsOf, unique } from "./utils.js";
 import { WellKnown } from "./well-known.js";
 
@@ -355,9 +361,15 @@ interface FilterCardsOptions {
  */
 export function filterCards(
   printings: Printing[],
-  filters: CardFilters,
+  rawFilters: CardFilters,
   options: FilterCardsOptions = {},
 ): Printing[] {
+  // Backfill any missing dimension against the blank filter set. Persisted list
+  // rules (ADR-034) store their filter as jsonb and are re-hydrated with a bare
+  // `JSON.parse` (no schema pass), so a rule saved before a newer dimension
+  // existed lacks that key. Without this, the first predicate to read the absent
+  // field (e.g. `keywordsExclude`) dereferences `undefined` and throws.
+  const filters: CardFilters = { ...EMPTY_CARD_FILTERS, ...rawFilters };
   const terms = filters.search ? parseSearchTerms(filters.search) : [];
   const hasPrefixes = terms.some((t) => t.field !== null);
   const getPrice = options.getPrice;

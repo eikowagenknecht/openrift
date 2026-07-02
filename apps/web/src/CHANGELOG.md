@@ -5,6 +5,7 @@
 ### Other
 
 - fix(Cards): **All printings in the detail pane** — the detail panel now lists every printing of a card, not just the ones left after your set, search, and rarity filters (still scoped to your chosen languages).
+- fix(Groups): **Group matches with older list rules** — a group page could fail to load when a shared wishlist or tradelist used a dynamic rule saved before a recent filter was added, and those rules now evaluate correctly again.
 
 ## 2026-07-01
 

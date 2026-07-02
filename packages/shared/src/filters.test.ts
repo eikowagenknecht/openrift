@@ -1444,6 +1444,19 @@ describe("filterCards negation", () => {
     );
     expect(result.map((p) => p.rarity)).toEqual(["rare"]);
   });
+
+  it("tolerates a persisted filter missing a newer dimension", () => {
+    // Regression: list rules (ADR-034) persist their filter as jsonb and are
+    // re-hydrated with a bare JSON.parse. A rule saved before `keywordsExclude`
+    // existed lacks the key, and `noneExcluded` used to throw on `undefined`.
+    const card = makePrinting({ card: { slug: "a", keywords: ["Shield"] } });
+    const stale = emptyFilters();
+    // Drop a dimension the way an older persisted rule would not carry it.
+    delete (stale as Partial<CardFilters>).keywordsExclude;
+    expect(() => filterCards([card], stale)).not.toThrow();
+    // Absent = no constraint, so the card still passes.
+    expect(filterCards([card], stale)).toHaveLength(1);
+  });
 });
 
 describe("filterCards isStandard", () => {
