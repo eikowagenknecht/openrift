@@ -20,7 +20,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useCards } from "@/hooks/use-cards";
 import { useCustomTagList, useEnumOrders, useLanguageLabels } from "@/hooks/use-enums";
 import { cycleIncludeExclude } from "@/lib/filter-cycle";
-import { PRESENCE_LABELS } from "@/lib/presence-filter";
+import { PRESENCE_LABELS, presenceToFlagState } from "@/lib/presence-filter";
 
 /**
  * Makes the `button`-style combobox trigger match the SelectTrigger on the other
@@ -32,7 +32,7 @@ export const CONTROL_WIDTH =
   "h-8 w-44 justify-between rounded-lg bg-transparent text-sm font-normal hover:bg-muted dark:bg-input/30 dark:hover:bg-input/50";
 
 const STANDARD_HINT =
-  "A standard printing is the plain version of a card: normal art, unsigned, and no promo stamp, with a plain finish — normal for commons and uncommons, normal or foil for rarer cards. Metal and metal-deluxe finishes are never standard.";
+  "The most basic printing of a card: normal art, no signature or promo stamp, with commons and uncommons unfoiled and rarer cards foiled.";
 
 /**
  * One form row: title on the left, control on the right (mirrors the Enable-rule
@@ -151,18 +151,28 @@ export function RuleFilterEditor({
 
   const patch = (next: Partial<CardFilters>) => onChange({ ...value, ...next });
 
-  // Writes a presence dimension's any/none state (or clears it) into the map,
-  // rebuilding without the target key rather than a dynamic delete.
-  const patchPresence = (dimension: PresenceDimension, state?: PresenceState) => {
-    const nextPresence: Partial<Record<PresenceDimension, PresenceState>> = {};
+  // The presence map with one dimension dropped, rebuilt without a dynamic
+  // delete. Used both to set/clear a single presence (patchPresence) and to fold
+  // that clear into a dimension's combined remove — one patch, so include/exclude
+  // and presence clear together instead of racing on the stale `value`.
+  const presenceWithout = (
+    dimension: PresenceDimension,
+  ): Partial<Record<PresenceDimension, PresenceState>> => {
+    const next: Partial<Record<PresenceDimension, PresenceState>> = {};
     for (const [existing, existingState] of Object.entries(value.presence) as [
       PresenceDimension,
       PresenceState,
     ][]) {
       if (existing !== dimension) {
-        nextPresence[existing] = existingState;
+        next[existing] = existingState;
       }
     }
+    return next;
+  };
+
+  // Writes a presence dimension's any/none state (or clears it) into the map.
+  const patchPresence = (dimension: PresenceDimension, state?: PresenceState) => {
+    const nextPresence = presenceWithout(dimension);
     if (state !== undefined) {
       nextPresence[dimension] = state;
     }
@@ -181,7 +191,10 @@ export function RuleFilterEditor({
   /**
    * A multi-select dimension entry whose options cycle off → include → exclude →
    * off (ADR-034), the same way the card browser's filter badges and dropdowns
-   * do. Removing it clears both its include and exclude values.
+   * do. When a `presenceDimension` is given, that dimension's any/none presence
+   * folds into the picker as a "Has any …" row pinned to the top — matching the
+   * card-browser filter panel rather than exposing presence as its own add-filter
+   * entry. Removing the row clears its include, exclude, and presence together.
    * @returns The dimension entry.
    */
   const dimension = (
@@ -191,38 +204,71 @@ export function RuleFilterEditor({
     includeKey: ArrayKey,
     excludeKey: ArrayKey,
     options: Option[],
-  ): DimEntry => ({
-    key,
-    label,
-    group,
-    available: options.length > 0,
-    active: value[includeKey].length > 0 || value[excludeKey].length > 0,
-    node: (
-      <FilterRow
-        key={key}
-        label={label}
-        onRemove={() => {
-          patch({ [includeKey]: [], [excludeKey]: [] });
-          setAdded((current) => current.filter((entry) => entry !== key));
-        }}
-      >
-        <MultiSelectCombobox
-          triggerStyle="button"
-          triggerClassName={CONTROL_WIDTH}
-          placeholder="Any"
+    presenceDimension?: PresenceDimension,
+  ): DimEntry => {
+    const presenceState = presenceDimension ? value.presence[presenceDimension] : undefined;
+    return {
+      key,
+      label,
+      group,
+      available: options.length > 0,
+      active:
+        value[includeKey].length > 0 || value[excludeKey].length > 0 || presenceState !== undefined,
+      node: (
+        <FilterRow
+          key={key}
           label={label}
-          searchPlaceholder={`Search ${label.toLowerCase()}…`}
-          options={options}
-          selected={value[includeKey]}
-          excluded={value[excludeKey]}
-          onCycle={(toggled) => {
-            const next = cycleIncludeExclude(value[includeKey], value[excludeKey], toggled);
-            patch({ [includeKey]: next.included, [excludeKey]: next.excluded });
+          onRemove={() => {
+            const next: Partial<CardFilters> = { [includeKey]: [], [excludeKey]: [] };
+            if (presenceDimension) {
+              next.presence = presenceWithout(presenceDimension);
+            }
+            patch(next);
+            setAdded((current) => current.filter((entry) => entry !== key));
           }}
-        />
-      </FilterRow>
-    ),
-  });
+        >
+          <MultiSelectCombobox
+            triggerStyle="button"
+            triggerClassName={CONTROL_WIDTH}
+            placeholder="Any"
+            label={label}
+            searchPlaceholder={`Search ${label.toLowerCase()}…`}
+            options={options}
+            selected={value[includeKey]}
+            excluded={value[excludeKey]}
+            onCycle={(toggled) => {
+              const next = cycleIncludeExclude(value[includeKey], value[excludeKey], toggled);
+              patch({ [includeKey]: next.included, [excludeKey]: next.excluded });
+            }}
+            flagPosition="top"
+            flag={
+              presenceDimension
+                ? {
+                    label: PRESENCE_LABELS[presenceDimension],
+                    state: presenceToFlagState(presenceState ?? null),
+                    onToggle: () => {
+                      const cycled = cycleIncludeExclude(
+                        presenceState === "any" ? ["1"] : [],
+                        presenceState === "none" ? ["1"] : [],
+                        "1",
+                      );
+                      patchPresence(
+                        presenceDimension,
+                        cycled.included.length > 0
+                          ? "any"
+                          : cycled.excluded.length > 0
+                            ? "none"
+                            : undefined,
+                      );
+                    },
+                  }
+                : undefined
+            }
+          />
+        </FilterRow>
+      ),
+    };
+  };
 
   /**
    * A boolean flag entry rendered with the same cycling dropdown as the
@@ -274,62 +320,6 @@ export function RuleFilterEditor({
               patch({
                 [field]: next.included.length > 0 ? true : next.excluded.length > 0 ? false : null,
               });
-            }}
-          />
-        </FilterRow>
-      ),
-    };
-  };
-
-  /**
-   * A presence entry: the same cycling dropdown as the flags, but bound to a
-   * presence dimension's any/none state (off → any → none → off) instead of a
-   * boolean field. Stays correct as the catalog grows because it never names
-   * specific values (ADR-034). Removing it clears the dimension's presence.
-   * @returns The presence entry.
-   */
-  const presence = (
-    key: string,
-    presenceDimension: PresenceDimension,
-    group: DimGroup,
-    isAvailable: boolean,
-  ): DimEntry => {
-    const label = PRESENCE_LABELS[presenceDimension];
-    const current = value.presence[presenceDimension];
-    const options: Option[] = [{ value: "1", label }];
-    return {
-      key,
-      label,
-      group,
-      available: isAvailable,
-      active: current !== undefined,
-      node: (
-        <FilterRow
-          key={key}
-          label={label}
-          onRemove={() => {
-            patchPresence(presenceDimension);
-            setAdded((entries) => entries.filter((entry) => entry !== key));
-          }}
-        >
-          <MultiSelectCombobox
-            triggerStyle="button"
-            triggerClassName={CONTROL_WIDTH}
-            placeholder="Any"
-            label={label}
-            options={options}
-            selected={current === "any" ? ["1"] : []}
-            excluded={current === "none" ? ["1"] : []}
-            onCycle={() => {
-              const next = cycleIncludeExclude(
-                current === "any" ? ["1"] : [],
-                current === "none" ? ["1"] : [],
-                "1",
-              );
-              patchPresence(
-                presenceDimension,
-                next.included.length > 0 ? "any" : next.excluded.length > 0 ? "none" : undefined,
-              );
             }}
           />
         </FilterRow>
@@ -392,8 +382,8 @@ export function RuleFilterEditor({
       "superTypes",
       "superTypesExclude",
       namedOptions(available.superTypes, labels.superTypes),
+      "superTypes",
     ),
-    presence("superTypesPresence", "superTypes", "card", available.superTypes.length > 0),
     dimension(
       "domains",
       "Domains",
@@ -409,8 +399,8 @@ export function RuleFilterEditor({
       "customTagSlugs",
       "customTagSlugsExclude",
       customTags.map((tag) => ({ value: tag.slug, label: tag.label })),
+      "customTags",
     ),
-    presence("customTagsPresence", "customTags", "card", customTags.length > 0),
     dimension(
       "keywords",
       "Keywords",
@@ -418,8 +408,8 @@ export function RuleFilterEditor({
       "keywords",
       "keywordsExclude",
       available.keywords.map((keyword) => ({ value: keyword, label: keyword })),
+      "keywords",
     ),
-    presence("keywordsPresence", "keywords", "card", available.keywords.length > 0),
     flag("banned", "Banned", "Banned", "isBanned", "card", available.hasBanned),
     dimension(
       "sets",
@@ -468,8 +458,8 @@ export function RuleFilterEditor({
       "markerSlugs",
       "markerSlugsExclude",
       available.markers.map((marker) => ({ value: marker.slug, label: marker.label })),
+      "markers",
     ),
-    presence("markersPresence", "markers", "printing", available.markers.length > 0),
     dimension(
       "channels",
       "Distribution Channels",
@@ -480,12 +470,7 @@ export function RuleFilterEditor({
         value: channel.slug,
         label: channel.label,
       })),
-    ),
-    presence(
-      "channelsPresence",
       "distributionChannels",
-      "printing",
-      available.distributionChannels.length > 0,
     ),
     flag("signed", "Signed", "Signed", "isSigned", "printing", available.hasSigned),
   ];
