@@ -1,10 +1,8 @@
 import type { TournamentSummaryResponse } from "@openrift/shared";
-import { Link } from "@tanstack/react-router";
-import { ChevronDownIcon, PlusIcon } from "lucide-react";
+import { ChevronDownIcon } from "lucide-react";
 import { useState } from "react";
 
 import { TournamentCard } from "@/components/tournaments/tournaments-list-page";
-import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useGroupTournaments } from "@/hooks/use-tournaments";
 import { compareTournamentsForList, partitionTournaments } from "@/lib/tournament-display";
@@ -15,19 +13,11 @@ import { cn } from "@/lib/utils";
  * friend group, each linking to the unified tournament surface. Replaces the
  * legacy group deck-check "events" page. Completed and cancelled tournaments are
  * tucked into a collapsible "Past and archived" section below the live ones.
- * Group admins get a "New tournament" shortcut that pre-fills the group.
+ * Group admins get a "New tournament" shortcut (in the page top bar) that
+ * pre-fills the group.
  * @returns The lens content.
  */
-export function GroupTournamentsLens({
-  slug,
-  groupId,
-  canCreate,
-}: {
-  slug: string;
-  /** The group's uuid — handed to the create route, which links by id (not slug). */
-  groupId: string;
-  canCreate: boolean;
-}) {
+export function GroupTournamentsLens({ slug, canCreate }: { slug: string; canCreate: boolean }) {
   const { data } = useGroupTournaments(slug);
   const { current, pastOrArchived } = partitionTournaments(data.items);
   const currentSorted = current.toSorted((a, b) => compareTournamentsForList(a, b));
@@ -35,15 +25,6 @@ export function GroupTournamentsLens({
 
   return (
     <div className="flex flex-col gap-4">
-      {canCreate ? (
-        <div className="flex justify-end">
-          <Button size="sm" render={<Link to="/tournaments/new" search={{ group: groupId }} />}>
-            <PlusIcon className="size-4" />
-            New tournament
-          </Button>
-        </div>
-      ) : null}
-
       {data.items.length === 0 ? (
         <p className="text-muted-foreground">
           No tournaments for this group yet.
