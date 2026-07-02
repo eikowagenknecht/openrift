@@ -33,6 +33,7 @@ import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { CollectionTableActions } from "@/components/cards/collection-table-actions";
 import { CollectionGridCell } from "@/components/collection/collection-grid-cell";
+import { CollectionValueSummary } from "@/components/collection/collection-value-summary";
 import { FloatingActionBar } from "@/components/collection/floating-action-bar";
 import { buildOnDecrement } from "@/components/collection/route-decrement";
 import { VariantLocationsPopover } from "@/components/collection/variant-locations-popover";
@@ -1480,14 +1481,11 @@ function CollectionTopBar({
       <div className="flex min-w-0 flex-1 items-baseline gap-2">
         <PageTopBarTitle onToggleSidebar={onToggleSidebar}>{title}</PageTopBarTitle>
 
-        {valueCents !== null && valueCents !== undefined && (
-          <span className="text-muted-foreground min-w-0 truncate text-xs">
-            {formatValue(valueCents / 100)}
-            {unpricedCount ? (
-              <span className="text-muted-foreground/60 ml-1">({unpricedCount} unpriced)</span>
-            ) : null}
-          </span>
-        )}
+        <CollectionValueSummary
+          valueCents={valueCents}
+          unpricedCount={unpricedCount}
+          formatValue={formatValue}
+        />
       </div>
 
       <PageTopBarActions>
