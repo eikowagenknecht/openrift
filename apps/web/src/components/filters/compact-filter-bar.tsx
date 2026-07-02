@@ -193,8 +193,9 @@ export function FilterDropdownChip({
  * The compact card-browser filter bar: an alternative to the expanded
  * filter panel that collapses each dimension into either an inline icon
  * cluster (Domain, Rarity) or a dropdown chip (everything else). Rendered
- * in the above-the-grid area at mid widths when the user opts into the
- * compact filter view. Mirrors the section guards in `filter-panel-content.tsx`
+ * in the above-the-grid area at every width from `sm` up when the user opts
+ * into the compact filter view (below `sm` the mobile drawer takes over).
+ * Mirrors the section guards in `filter-panel-content.tsx`
  * — keep the two in sync when adding or removing a filter dimension.
  * @returns The compact filter bar.
  */
@@ -341,7 +342,7 @@ export function CompactFilterBar({
     <TooltipProvider>
       {/* Order mirrors the expanded panel: Language, Set, Domain, Rarity, Type,
           Supertype, Variant (Art Variant + Finish + Signed), Stats, More. */}
-      <div className="@wide:hidden mb-3 hidden flex-wrap items-center gap-1.5 sm:flex">
+      <div className="mb-3 hidden flex-wrap items-center gap-1.5 sm:flex">
         {availableLanguages &&
           availableLanguages.length > 1 &&
           !hiddenSections?.has("languages") && (

@@ -103,11 +103,17 @@ export function CardBrowserFilterProvider({ children, ...meta }: CardBrowserFilt
 
 /**
  * Desktop left-pane filter content. Reads meta from {@link CardBrowserFilterProvider}.
+ * With the compact filter view on, the compact bar is the only filter surface
+ * at every width from `sm` up, so the pane renders nothing.
  *
- * @returns The desktop filter pane.
+ * @returns The desktop filter pane, or null in compact filter view.
  */
 export function BrowserLeftPane() {
   const meta = useFilterMeta();
+  const compactFilterView = useDisplayStore((state) => state.compactFilterView);
+  if (compactFilterView) {
+    return null;
+  }
   return (
     <Pane className="group @wide:block px-3">
       {/* The pane has a real heading, so the customize control rides its row —
@@ -153,9 +159,9 @@ function BrowserCollapsibleFilters() {
 }
 
 /**
- * Compact mid-width filter bar — the opt-in alternative to
- * {@link BrowserCollapsibleFilters}. Reads meta from
- * {@link CardBrowserFilterProvider}.
+ * Compact filter bar — the opt-in alternative to
+ * {@link BrowserCollapsibleFilters} and {@link BrowserLeftPane}, covering
+ * every width from `sm` up. Reads meta from {@link CardBrowserFilterProvider}.
  * @returns The compact filter bar.
  */
 function BrowserCompactFilters() {
@@ -212,16 +218,15 @@ export function BrowserActiveFilters() {
   );
   // The compact filter bar already surfaces every active filter inline — each
   // dropdown shows its selection (count or single-value summary, including
-  // orphaned values you can still untick), so the chip strip is redundant in the
-  // band where that bar is visible. Hide it exactly there, mirroring the compact
-  // bar's own `hidden sm:flex @wide:hidden` visibility: a layout-neutral
-  // `display: contents` wrapper that collapses to `display: none` across the
-  // sm–@wide range. Below sm the bar gives way to the mobile drawer, and at
-  // @wide the sidebar takes over — the strip stays visible in both, so it's the
-  // only filter readout on the grid wherever the compact bar isn't. With compact
-  // view off (the collapsible panel), the strip always shows.
+  // orphaned values you can still untick), so the chip strip is redundant
+  // wherever that bar is visible. Hide it exactly there, mirroring the compact
+  // bar's own `hidden sm:flex` visibility: a layout-neutral `display: contents`
+  // wrapper that collapses to `display: none` from sm up. Below sm the bar
+  // gives way to the mobile drawer, so the strip stays the only filter readout
+  // on the grid there. With compact view off (the collapsible panel / wide
+  // sidebar), the strip always shows.
   if (compactFilterView) {
-    return <div className="@wide:contents contents sm:hidden">{strip}</div>;
+    return <div className="contents sm:hidden">{strip}</div>;
   }
   return strip;
 }
@@ -278,9 +283,9 @@ export function BrowserToolbar({
   // instead of three evenly-spaced bands. With no filters the search row is the
   // last tier, so it keeps the full gap to stay balanced.
   const { hasActiveFilters } = useFilterValues();
-  // Compact view replaces the collapsible mid-width panel with an always-visible
-  // chip/icon bar, so the panel's expand/collapse toggle is dropped there. Only
-  // affects the sm–@wide band; the wide sidebar and mobile drawer are unchanged.
+  // Compact view replaces the collapsible mid-width panel AND the wide sidebar
+  // with one always-visible chip/icon bar, so the panel's expand/collapse
+  // toggle is dropped. Only the mobile drawer (below sm) is unchanged.
   const compactFilterView = useDisplayStore((state) => state.compactFilterView);
   return (
     <>
