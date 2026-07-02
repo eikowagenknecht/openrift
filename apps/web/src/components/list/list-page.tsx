@@ -449,6 +449,7 @@ export function ListPage({ listId }: ListPageProps) {
       {editDialog}
       {deleteDialog}
       {shareDialog}
+      {visibilityDialog}
       {exportDialog}
       {importDialog}
       {ruleDialog}
