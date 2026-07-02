@@ -4,6 +4,7 @@
 
 ### Other
 
+- fix(Groups): **Readable overview rows** — the recent-activity entries and the in-progress trade rows now wrap to a second line instead of cutting off, so long card names stay legible on phones.
 - fix(Trades): **Trade a card offered by a rule** — offering or accepting a card your tradelist shares through a dynamic rule failed with a "0 copies available" error, and those copies now count as available.
 - fix(Trades): **Trade matches on small screens** — the possible-trades rows stack neatly on phones instead of cramming the card, price, member, and button onto one line, and the price now reads "Price".
 - fix(Cards): **Placeholder for art-less cards** — a card thumbnail with no image (like a printing we haven't added art for yet) now shows a faded rarity mark tinted in the card's domain color, instead of a blank grey box.

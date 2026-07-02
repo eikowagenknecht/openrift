@@ -153,7 +153,7 @@ function ActivityRow({ slug, event }: { slug: string; event: FriendGroupActivity
     <time className="text-muted-foreground text-2xs shrink-0">{formatRelativeTime(event.at)}</time>
   );
   const text = (body: ReactNode): ReactNode => (
-    <span className="text-muted-foreground min-w-0 flex-1 truncate text-sm">{body}</span>
+    <span className="text-muted-foreground line-clamp-2 min-w-0 flex-1 text-sm">{body}</span>
   );
 
   // Each branch renders its own concrete <Link> so `to`/`params` stay correlated

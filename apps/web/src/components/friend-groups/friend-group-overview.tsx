@@ -254,23 +254,30 @@ function InProgressTradeRow({ trade }: { trade: CardTradeResponse }) {
     >
       <TradeDirectionIcon incoming={incoming} />
       <CardArtThumb imageId={imageId} alt={cardName} className="w-7" loading="lazy" />
-      <span className="min-w-0 flex-1 truncate text-sm">
-        <span className="font-medium">
-          {trade.quantity}× {cardName}
-        </span>
-        {showCounterparty ? (
-          <span className="text-muted-foreground">
-            {" "}
-            · with {trade.counterparty.name ?? "a member"}
+      {/* On phones the name keeps its own line and the expiry + status badge drop
+          to a row below it; from sm up this column and the meta row dissolve
+          (sm:contents) so name, expiry, and badge sit inline again. */}
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5 sm:contents">
+        <span className="min-w-0 truncate text-sm sm:flex-1">
+          <span className="font-medium">
+            {trade.quantity}× {cardName}
           </span>
-        ) : null}
-      </span>
-      <TradeExpiry status={trade.status} expiresAt={trade.expiresAt} />
-      <TradeStatusBadge
-        status={trade.status}
-        counterpartyName={trade.counterparty.name}
-        awaitingViewer={false}
-      />
+          {showCounterparty ? (
+            <span className="text-muted-foreground">
+              {" "}
+              · with {trade.counterparty.name ?? "a member"}
+            </span>
+          ) : null}
+        </span>
+        <div className="flex items-center gap-2 sm:contents">
+          <TradeStatusBadge
+            status={trade.status}
+            counterpartyName={trade.counterparty.name}
+            awaitingViewer={false}
+          />
+          <TradeExpiry status={trade.status} expiresAt={trade.expiresAt} />
+        </div>
+      </div>
     </Link>
   );
 }
