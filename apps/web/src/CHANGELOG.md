@@ -4,6 +4,7 @@
 
 ### Other
 
+- feat(Cards): **Hide the grouped column** — in table view, grouping by set, type, or rarity now drops that column, since every group header already spells out its value.
 - feat(Collection): **Tradelists keep your nicer copies** — when a tradelist rule keeps a set number per card and offers the rest, it now protects your rarest, foil, and special-art copies and offers the plainer duplicates first, instead of choosing by the order copies were added.
 - feat(Collection): **Rules start in your languages** — a new dynamic wishlist or tradelist rule pre-fills its language filter with your preferred languages, still editable per rule.
 - fix(Collection): **Lists match the card browser** — clicking a card in a wishlist or tradelist now tints its tile so you can see which one the detail pane is showing, and the up and down arrow keys cycle through that card's printings, just like the card browser and collection.

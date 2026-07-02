@@ -1,7 +1,8 @@
-import type { Printing } from "@openrift/shared";
+import type { GroupByField, Printing } from "@openrift/shared";
 import { legendDisplayName } from "@openrift/shared";
 import { LinkIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import { Fragment } from "react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { FinishIcon } from "@/components/cards/finish-icon";
@@ -12,61 +13,100 @@ export const CARD_TABLE_ROW_HEIGHT = 56;
 export const CARD_TABLE_HEADER_HEIGHT = 48;
 
 /** Layout for the rightmost actions column. */
-export type ActionsColumn = "none" | "narrow" | "wide";
+export type ActionsColumn = "none" | "narrow" | "stepper" | "wide";
 
-const COLUMN_WIDTHS_NO_ACTIONS = "60px minmax(180px, 1fr) 160px 200px 130px";
-const COLUMN_WIDTHS_NARROW = `${COLUMN_WIDTHS_NO_ACTIONS} 80px`;
-// The "wide" actions cell fits the trade-pref pill (icon + abbreviation/price)
-// alongside the quantity stepper and trash button on list rows, with a little
-// breathing room. Catalog/deck surfaces only render the quantity stepper here,
-// so the extra width is harmless padding on those.
-const COLUMN_WIDTHS_WIDE = `${COLUMN_WIDTHS_NO_ACTIONS} 220px`;
+/** The static (non-actions) columns the row and header render, left to right. */
+type StaticColumnKey = "image" | "name" | "set" | "type" | "rarity";
+
+interface StaticColumn {
+  key: StaticColumnKey;
+  /** grid-template-columns track for this column. */
+  track: string;
+  /** px contribution to the min-width floor (the name column uses its 180px min). */
+  minPx: number;
+}
+
+const STATIC_COLUMNS: readonly StaticColumn[] = [
+  { key: "image", track: "60px", minPx: 60 },
+  { key: "name", track: "minmax(180px, 1fr)", minPx: 180 },
+  { key: "set", track: "160px", minPx: 160 },
+  { key: "type", track: "200px", minPx: 200 },
+  { key: "rarity", track: "130px", minPx: 130 },
+];
+
+// A group axis whose value is already spelled out in every group header makes
+// the matching column redundant, so it's hidden while grouping by that axis.
+// The other axes (superType, domain, channel, year, marker) have no column.
+const GROUP_HIDDEN_COLUMN: Partial<Record<GroupByField, StaticColumnKey>> = {
+  set: "set",
+  type: "type",
+  rarity: "rarity",
+};
+
+// The static columns visible for the given group-by axis (drops the grouped one).
+function visibleStaticColumns(groupBy?: GroupByField): readonly StaticColumn[] {
+  const hidden = groupBy ? GROUP_HIDDEN_COLUMN[groupBy] : undefined;
+  return hidden ? STATIC_COLUMNS.filter((column) => column.key !== hidden) : STATIC_COLUMNS;
+}
+
+// Track width of the rightmost actions column. "narrow" is a read-only count;
+// "stepper" adds the +/- buttons (collections browse); "wide" additionally fits
+// the trade-pref pill + trash on list rows, with a little breathing room.
+const ACTIONS_WIDTH_PX: Record<Exclude<ActionsColumn, "none">, number> = {
+  narrow: 96,
+  stepper: 150,
+  wide: 220,
+};
 
 /**
  * Resolve the gridTemplateColumns string for the card table — keeps every row,
  * the column header, and any group headers locked to identical track widths.
- * Width follows the actions column: "narrow" (80px, read-only count), "wide"
- * (220px, +/- buttons plus a trade-pref pill on list rows), or "none" (column
- * omitted entirely).
+ * The rightmost actions column follows `actionsColumn` ("none" omits it); when
+ * `groupBy` matches a set/type/rarity column, that column is dropped since the
+ * group headers already show its value.
  *
  * @returns CSS grid-template-columns value.
  */
-export function getCardTableColumns(actionsColumn: ActionsColumn): string {
-  if (actionsColumn === "wide") {
-    return COLUMN_WIDTHS_WIDE;
+export function getCardTableColumns(actionsColumn: ActionsColumn, groupBy?: GroupByField): string {
+  const tracks = visibleStaticColumns(groupBy).map((column) => column.track);
+  if (actionsColumn !== "none") {
+    tracks.push(`${ACTIONS_WIDTH_PX[actionsColumn]}px`);
   }
-  if (actionsColumn === "narrow") {
-    return COLUMN_WIDTHS_NARROW;
-  }
-  return COLUMN_WIDTHS_NO_ACTIONS;
+  return tracks.join(" ");
 }
 
-// Sum of fixed column widths + the 1fr's 180px minimum + gap-3 (12px) between
-// tracks. The table's horizontal-scroll wrapper uses this so cells stay readable
-// when the surrounding flex column is squeezed (e.g. detail pane open at
-// intermediate viewport widths).
+// gap-3 (12px) between tracks. The table's horizontal-scroll wrapper uses the
+// min-width below so cells stay readable when the surrounding flex column is
+// squeezed (e.g. detail pane open at intermediate viewport widths).
 const COLUMN_GAP = 12;
-const FIXED_BASE_PX = 60 + 180 + 160 + 200 + 130;
 
 /**
- * Minimum total width (in px) of the table at the given actions-column variant,
- * used as the `min-width` of the horizontal-scroll wrapper.
+ * Minimum total width (in px) of the table for the given actions-column variant
+ * and group-by axis, used as the `min-width` of the horizontal-scroll wrapper.
  *
  * @returns Minimum table width in pixels.
  */
-export function getCardTableMinWidth(actionsColumn: ActionsColumn): number {
-  if (actionsColumn === "wide") {
-    return FIXED_BASE_PX + 220 + 5 * COLUMN_GAP;
-  }
-  if (actionsColumn === "narrow") {
-    return FIXED_BASE_PX + 80 + 5 * COLUMN_GAP;
-  }
-  return FIXED_BASE_PX + 4 * COLUMN_GAP;
+export function getCardTableMinWidth(actionsColumn: ActionsColumn, groupBy?: GroupByField): number {
+  const columns = visibleStaticColumns(groupBy);
+  const staticPx = columns.reduce((sum, column) => sum + column.minPx, 0);
+  const actionsPx = actionsColumn === "none" ? 0 : ACTIONS_WIDTH_PX[actionsColumn];
+  const trackCount = columns.length + (actionsColumn === "none" ? 0 : 1);
+  return staticPx + actionsPx + (trackCount - 1) * COLUMN_GAP;
 }
+
+const STATIC_COLUMN_HEADER: Record<StaticColumnKey, string> = {
+  image: "",
+  name: "Name",
+  set: "Set",
+  type: "Type",
+  rarity: "Rarity",
+};
 
 interface CardTableHeaderProps {
   columns: string;
   actionsColumn: ActionsColumn;
+  /** Group-by axis — the matching set/type/rarity column header is dropped. */
+  groupBy?: GroupByField;
   /** When true, sticks to the top of the viewport at `stickyOffset`. */
   sticky?: boolean;
   stickyOffset?: number;
@@ -84,6 +124,7 @@ interface CardTableHeaderProps {
 export function CardTableHeader({
   columns,
   actionsColumn,
+  groupBy,
   sticky,
   stickyOffset,
   bordered = true,
@@ -104,11 +145,11 @@ export function CardTableHeader({
         ...(sticky && stickyOffset !== undefined ? { top: stickyOffset } : {}),
       }}
     >
-      <div className="px-3" />
-      <div className="px-3">Name</div>
-      <div className="px-3">Set</div>
-      <div className="px-3">Type</div>
-      <div className="px-3">Rarity</div>
+      {visibleStaticColumns(groupBy).map((column) => (
+        <div key={column.key} className="px-3">
+          {STATIC_COLUMN_HEADER[column.key]}
+        </div>
+      ))}
       {actionsColumn !== "none" && <div className="px-3 text-right">{actionsLabel}</div>}
     </div>
   );
@@ -176,6 +217,8 @@ interface CardTableRowProps {
   isSelected?: boolean;
   actionsColumn: ActionsColumn;
   columns: string;
+  /** Group-by axis — the matching set/type/rarity cell is dropped to mirror the header. */
+  groupBy?: GroupByField;
   cardTypeLabels: Record<string, string>;
   superTypeLabels: Record<string, string>;
   rarityLabels: Record<string, string>;
@@ -210,6 +253,7 @@ export function CardTableRow({
   isSelected,
   actionsColumn,
   columns,
+  groupBy,
   cardTypeLabels,
   superTypeLabels,
   rarityLabels,
@@ -228,6 +272,40 @@ export function CardTableRow({
   const typeIconPath = getTypeIconPath(printing.card.type, printing.card.superTypes);
   const rarityIconPath = getFilterIconPath("rarities", printing.rarity);
   const rarityLabel = rarityLabels[printing.rarity];
+
+  const staticCellByKey: Record<StaticColumnKey, ReactNode> = {
+    image: (
+      <div className="px-3 py-1">
+        <CardArtThumb imageId={image?.imageId} className="h-10" loading="lazy" />
+      </div>
+    ),
+    name: (
+      <div className="min-w-0 px-3">
+        <div className="truncate font-medium">{legendDisplayName(printing.card)}</div>
+        <div className="text-muted-foreground flex items-center gap-1 text-xs">
+          <span className="truncate tabular-nums">{printing.publicCode}</span>
+          <FinishIcon finish={printing.finish} className="shrink-0" />
+        </div>
+      </div>
+    ),
+    set: <div className="text-muted-foreground min-w-0 truncate px-3">{setName}</div>,
+    type: (
+      <div className="text-muted-foreground flex min-w-0 items-center gap-2 px-3">
+        {typeIconPath && (
+          <img src={typeIconPath} alt="" className="size-4 shrink-0 brightness-0 dark:invert" />
+        )}
+        <span className="truncate">{typeLabel}</span>
+      </div>
+    ),
+    rarity: (
+      <div className="text-muted-foreground flex min-w-0 items-center gap-2 px-3">
+        {rarityIconPath && (
+          <img src={rarityIconPath} alt="" width={28} height={28} className="size-4 shrink-0" />
+        )}
+        <span className="truncate">{rarityLabel}</span>
+      </div>
+    ),
+  };
 
   const handleClick = () => onRowClick(printing);
 
@@ -249,30 +327,10 @@ export function CardTableRow({
       )}
       style={{ gridTemplateColumns: columns, height: CARD_TABLE_ROW_HEIGHT }}
     >
-      <div className="px-3 py-1">
-        <CardArtThumb imageId={image?.imageId} className="h-10" loading="lazy" />
-      </div>
-      <div className="min-w-0 px-3">
-        <div className="truncate font-medium">{legendDisplayName(printing.card)}</div>
-        <div className="text-muted-foreground flex items-center gap-1 text-xs">
-          <span className="truncate tabular-nums">{printing.publicCode}</span>
-          <FinishIcon finish={printing.finish} className="shrink-0" />
-        </div>
-      </div>
-      <div className="text-muted-foreground min-w-0 truncate px-3">{setName}</div>
-      <div className="text-muted-foreground flex min-w-0 items-center gap-2 px-3">
-        {typeIconPath && (
-          <img src={typeIconPath} alt="" className="size-4 shrink-0 brightness-0 dark:invert" />
-        )}
-        <span className="truncate">{typeLabel}</span>
-      </div>
-      <div className="text-muted-foreground flex min-w-0 items-center gap-2 px-3">
-        {rarityIconPath && (
-          <img src={rarityIconPath} alt="" width={28} height={28} className="size-4 shrink-0" />
-        )}
-        <span className="truncate">{rarityLabel}</span>
-      </div>
-      {actionsColumn === "wide" ? (
+      {visibleStaticColumns(groupBy).map((column) => (
+        <Fragment key={column.key}>{staticCellByKey[column.key]}</Fragment>
+      ))}
+      {actionsColumn === "wide" || actionsColumn === "stepper" ? (
         <div className="flex items-center justify-end gap-1.5 px-3">{actionsCell}</div>
       ) : actionsColumn === "narrow" ? (
         <div className="px-3 text-right tabular-nums">{actionsCell}</div>

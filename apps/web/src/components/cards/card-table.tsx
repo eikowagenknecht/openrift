@@ -59,6 +59,7 @@ const DataRow = memo(function DataRow({
   isSelected,
   actionsColumn,
   columns,
+  groupBy,
   cardTypeLabels,
   superTypeLabels,
   rarityLabels,
@@ -70,6 +71,7 @@ const DataRow = memo(function DataRow({
   isSelected: boolean;
   actionsColumn: ActionsColumn;
   columns: string;
+  groupBy?: GroupByField;
   cardTypeLabels: Record<string, string>;
   superTypeLabels: Record<string, string>;
   rarityLabels: Record<string, string>;
@@ -83,6 +85,7 @@ const DataRow = memo(function DataRow({
       isSelected={isSelected}
       actionsColumn={actionsColumn}
       columns={columns}
+      groupBy={groupBy}
       cardTypeLabels={cardTypeLabels}
       superTypeLabels={superTypeLabels}
       rarityLabels={rarityLabels}
@@ -299,8 +302,12 @@ export function CardTable({
     }
   };
 
-  const columns = getCardTableColumns(actionsColumn);
-  const minWidth = getCardTableMinWidth(actionsColumn);
+  // Only drop the grouped column when group headers are actually on screen
+  // (more than one group). With a single group the headers are suppressed, so
+  // that column is the only place its value shows — keep it.
+  const groupingColumn = multipleGroups ? groupBy : undefined;
+  const columns = getCardTableColumns(actionsColumn, groupingColumn);
+  const minWidth = getCardTableMinWidth(actionsColumn, groupingColumn);
 
   if (items.length === 0) {
     return (
@@ -342,6 +349,7 @@ export function CardTable({
           <CardTableHeader
             columns={columns}
             actionsColumn={actionsColumn}
+            groupBy={groupingColumn}
             bordered={!multipleGroups}
             actionsLabel={actionsLabel}
           />
@@ -387,6 +395,7 @@ export function CardTable({
                           }
                           actionsColumn={actionsColumn}
                           columns={columns}
+                          groupBy={groupingColumn}
                           cardTypeLabels={labels.cardTypes}
                           superTypeLabels={labels.superTypes}
                           rarityLabels={labels.rarities}

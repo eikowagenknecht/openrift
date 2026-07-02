@@ -8,7 +8,7 @@ import type { ActionsColumn } from "@/components/cards/card-table-row";
  * (`!stacked`) is a single physical copy — its count is always 1 and the
  * per-printing controls don't apply — so it gets no actions column at all,
  * mirroring how copies-view grid tiles drop the count strip. Otherwise browse
- * mode with quick-add shows the wide +/- variant; select mode (or a surface
+ * mode with quick-add shows the stepper +/- variant; select mode (or a surface
  * without quick-add) shows the narrow read-only count.
  * @returns The actions-column variant for the table.
  */
@@ -24,5 +24,5 @@ export function collectionTableActionsColumn({
   if (!stacked) {
     return "none";
   }
-  return mode === "browse" && hasQuickAdd ? "wide" : "narrow";
+  return mode === "browse" && hasQuickAdd ? "stepper" : "narrow";
 }

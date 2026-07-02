@@ -14,9 +14,9 @@ describe("collectionTableActionsColumn", () => {
     ).toBe("none");
   });
 
-  it("uses the wide +/- column in browse mode when quick-add is available", () => {
+  it("uses the stepper +/- column in browse mode when quick-add is available", () => {
     expect(collectionTableActionsColumn({ stacked: true, mode: "browse", hasQuickAdd: true })).toBe(
-      "wide",
+      "stepper",
     );
   });
 
