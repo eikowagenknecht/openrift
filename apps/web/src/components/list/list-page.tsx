@@ -108,6 +108,7 @@ import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/rout
 import type { ListBulkAction } from "@/stores/card-row-actions-store";
 import { dispatchExcludeFromRule, useCardRowActionsStore } from "@/stores/card-row-actions-store";
 import { useDisplayStore } from "@/stores/display-store";
+import { useGridFocusStore } from "@/stores/grid-focus-store";
 import { useListEntriesStore } from "@/stores/list-entries-store";
 import { useSelectionStore } from "@/stores/selection-store";
 import { useSiblingOverrideStore } from "@/stores/sibling-override-store";
@@ -843,6 +844,27 @@ function ListEntryBrowser({
     useSelectionStore.getState().selectCard(printing, items, findBy);
   };
 
+  // Light up the clicked tile the same way /cards and /collections do. Mirrors
+  // BrowserCardViewer: resolve the anchored grid cell from the selection store
+  // and push its id into grid-focus-store so each cell can self-subscribe to
+  // "am I selected?" via a granular selector. Setting null on mount / deselect
+  // also clears any stale highlight left over from a prior card-browser page.
+  const selectedCard = useSelectionStore((s) => s.selectedCard);
+  const selectedIndex = useSelectionStore((s) => s.selectedIndex);
+  const indexAnchor =
+    selectedIndex >= 0 && selectedIndex < items.length ? items[selectedIndex] : undefined;
+  const gridSelectedId =
+    indexAnchor?.id ??
+    (selectedCard
+      ? (items.find((item) => item.printing.id === selectedCard.id)?.id ??
+        (view === "cards"
+          ? items.find((item) => item.printing.cardId === selectedCard.cardId)?.id
+          : undefined))
+      : undefined);
+  useEffect(() => {
+    useGridFocusStore.getState().setSelectedItemId(gridSelectedId ?? null);
+  }, [gridSelectedId]);
+
   const handleSiblingClick = (printing: Printing) => {
     handleCardClick(printing);
     useSiblingOverrideStore.getState().setOverride("list", printing.cardId, printing.id);
@@ -1219,6 +1241,7 @@ function ListEntryBrowser({
         <CardViewer
           items={items}
           totalItems={totalListItems}
+          selectedItemId={gridSelectedId}
           renderCard={renderCard}
           toolbar={toolbar}
           leftPane={leftPane}
