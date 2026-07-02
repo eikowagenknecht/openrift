@@ -88,6 +88,7 @@ import type { WishEntryFlat } from "@/hooks/use-wish-entries";
 import { useSession } from "@/lib/auth-session";
 import { cardsViewTileKey, splitsCardIntoTiles, tileSiblings } from "@/lib/card-tiles";
 import { collectionTableActionsColumn } from "@/lib/collection-table";
+import { filterPrintingsByLanguages } from "@/lib/filter-printings-by-languages";
 import { formatterForMarketplace } from "@/lib/format";
 import { maxOwnedCount } from "@/lib/owned-bucket";
 import { isStackSelected, resolveContextActionTarget } from "@/lib/stack-selection";
@@ -380,6 +381,13 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const availableLanguages = showLibrary ? catalogAvailableLanguages : collectionAvailableLanguages;
   const sortedCards = showLibrary ? catalogSortedCards : collectionSortedCards;
   const printingsByCardId = showLibrary ? catalogPrintingsByCardId : collectionPrintingsByCardId;
+  // The detail-pane picker lists every printing of the clicked card, not just
+  // the ones shown in the grid (filtered by set/search/rarity, or narrowed to
+  // the collection in browse mode). Scope only by the active language filter.
+  const detailPanePrintingsByCardId = filterPrintingsByLanguages(
+    catalogAllPrintingsByCardId,
+    filters.languages,
+  );
   const totalUniqueCards = showLibrary ? catalogTotalUniqueCards : collectionTotalUniqueCards;
   const setDisplayLabel = showLibrary ? catalogSetDisplayLabel : collectionSetDisplayLabel;
   // Copies slider bound. In the library view the bound is global (most copies
@@ -1101,7 +1109,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const rightPane = isMobile ? undefined : (
     <SelectionDetailPane
       items={items}
-      printingsByCardId={printingsByCardId}
+      printingsByCardId={detailPanePrintingsByCardId}
       showImages={showImages}
       onSearchAndClose={searchAndClose}
     />
@@ -1337,7 +1345,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           {isMobile && (
             <SelectionMobileOverlay
               items={items}
-              printingsByCardId={printingsByCardId}
+              printingsByCardId={detailPanePrintingsByCardId}
               showImages={showImages}
               onSearchAndClose={searchAndClose}
             />

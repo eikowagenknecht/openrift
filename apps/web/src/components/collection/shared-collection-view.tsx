@@ -34,6 +34,7 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { useSession } from "@/lib/auth-session";
+import { filterPrintingsByLanguages } from "@/lib/filter-printings-by-languages";
 import { formatterForMarketplace } from "@/lib/format";
 import { maxOwnedCount } from "@/lib/owned-bucket";
 import type { FilterSearch } from "@/lib/search-schemas";
@@ -157,7 +158,7 @@ function SharedCollectionBody({ data }: { data: PublicCollectionDetailResponse }
 
 function SharedCollectionGrid({ data }: { data: PublicCollectionDetailResponse }) {
   const { items: copies } = data;
-  const { printingsById, sets } = useCards();
+  const { printingsById, sets, printingsByCardId: catalogAllPrintingsByCardId } = useCards();
   const display = useCardThumbnailDisplay();
   const showImages = useDisplayStore((state) => state.showImages);
   const channels = useChannelRegistry();
@@ -224,6 +225,14 @@ function SharedCollectionGrid({ data }: { data: PublicCollectionDetailResponse }
     channels,
   });
 
+  // The detail-pane picker lists every printing of the clicked card from the
+  // global catalog, not just the ones present in this shared collection. Scope
+  // only by the active language filter.
+  const detailPanePrintingsByCardId = filterPrintingsByLanguages(
+    catalogAllPrintingsByCardId,
+    filters.languages,
+  );
+
   // Upper bound for the "Copies" slider — the most copies the viewer personally
   // owns of any one card that appears in this collection. Computed from the
   // always-on owned map (not the gated one above), so the chrome bound is
@@ -285,7 +294,7 @@ function SharedCollectionGrid({ data }: { data: PublicCollectionDetailResponse }
   const rightPane = isMobile ? undefined : (
     <SelectionDetailPane
       items={items}
-      printingsByCardId={printingsByCardId}
+      printingsByCardId={detailPanePrintingsByCardId}
       showImages={showImages}
       onSearchAndClose={handleSearchAndClose}
     />
@@ -322,7 +331,7 @@ function SharedCollectionGrid({ data }: { data: PublicCollectionDetailResponse }
         {isMobile && (
           <SelectionMobileOverlay
             items={items}
-            printingsByCardId={printingsByCardId}
+            printingsByCardId={detailPanePrintingsByCardId}
             showImages={showImages}
             onSearchAndClose={handleSearchAndClose}
           />

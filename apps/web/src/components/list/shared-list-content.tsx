@@ -61,6 +61,7 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCountsForPrintings } from "@/hooks/use-owned-count";
 import { useWishEntries } from "@/hooks/use-wish-entries";
+import { filterPrintingsByLanguages } from "@/lib/filter-printings-by-languages";
 import { FilterSearchProvider, useFilterSearch } from "@/lib/search-schemas";
 import {
   offerablePrintings,
@@ -878,31 +879,6 @@ function kindToView(kind: ListKind): "cards" | "printings" | "copies" {
     return "printings";
   }
   return "copies";
-}
-
-/**
- * Restricts a catalog `printingsByCardId` map to the user's preferred
- * languages. Empty prefs means show all.
- *
- * @returns A filtered map; cards with no printing in any preferred language
- * are dropped.
- */
-function filterPrintingsByLanguages(
-  source: ReadonlyMap<string, Printing[]>,
-  userLanguages: readonly string[],
-): Map<string, Printing[]> {
-  if (userLanguages.length === 0) {
-    return new Map(source);
-  }
-  const allowed = new Set(userLanguages);
-  const result = new Map<string, Printing[]>();
-  for (const [cardId, printings] of source) {
-    const filtered = printings.filter((printing) => allowed.has(printing.language));
-    if (filtered.length > 0) {
-      result.set(cardId, filtered);
-    }
-  }
-  return result;
 }
 
 /**

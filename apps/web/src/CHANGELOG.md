@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-07-02
+
+### Other
+
+- fix(Cards): **All printings in the detail pane** — the detail panel now lists every printing of a card, not just the ones left after your set, search, and rarity filters (still scoped to your chosen languages).
+
 ## 2026-07-01
 
 ### Highlights

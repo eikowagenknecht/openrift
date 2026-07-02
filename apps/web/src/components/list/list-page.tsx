@@ -97,6 +97,7 @@ import {
 } from "@/hooks/use-lists";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { useSession, useUserId } from "@/lib/auth-session";
+import { filterPrintingsByLanguages } from "@/lib/filter-printings-by-languages";
 import { queryKeys } from "@/lib/query-keys";
 import type { RuleExcludeTarget } from "@/lib/rule-exclude";
 import { entryToExcludeTarget, excludeEntryFromRules } from "@/lib/rule-exclude";
@@ -1363,31 +1364,6 @@ function kindToView(kind: ListKind): "cards" | "printings" | "copies" {
     return "printings";
   }
   return "copies";
-}
-
-/**
- * Restricts a catalog `printingsByCardId` map to the user's preferred
- * languages. An empty preference list means "show all" — same convention
- * as the rest of the filter pipeline.
- * @returns A filtered map; cards with no printing in any preferred language
- * are dropped.
- */
-function filterPrintingsByLanguages(
-  source: ReadonlyMap<string, Printing[]>,
-  userLanguages: readonly string[],
-): Map<string, Printing[]> {
-  if (userLanguages.length === 0) {
-    return new Map(source);
-  }
-  const allowed = new Set(userLanguages);
-  const result = new Map<string, Printing[]>();
-  for (const [cardId, printings] of source) {
-    const filtered = printings.filter((printing) => allowed.has(printing.language));
-    if (filtered.length > 0) {
-      result.set(cardId, filtered);
-    }
-  }
-  return result;
 }
 
 /**

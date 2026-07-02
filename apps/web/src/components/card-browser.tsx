@@ -32,6 +32,7 @@ import { useOwnedCount } from "@/hooks/use-owned-count";
 import { useSeedLanguagesFromPrefs } from "@/hooks/use-seed-languages-from-prefs";
 import { useSession, useUserId } from "@/lib/auth-session";
 import { splitsCardIntoTiles, tileSiblings } from "@/lib/card-tiles";
+import { filterPrintingsByLanguages } from "@/lib/filter-printings-by-languages";
 import { maxOwnedCount } from "@/lib/owned-bucket";
 import { useCardRowActionsStore } from "@/stores/card-row-actions-store";
 import { useDisplayStore } from "@/stores/display-store";
@@ -167,6 +168,15 @@ export function CardBrowser() {
       keywordReverseMap,
       channels,
     });
+
+  // The detail-pane picker lists every printing of the clicked card, not just
+  // the ones that survived the grid's content filters (set, search, rarity…).
+  // Scope it only by the active language filter so browsing in one language
+  // doesn't surface foreign-language variants that never appear in the grid.
+  const detailPanePrintingsByCardId = filterPrintingsByLanguages(
+    catalogAllPrintingsByCardId,
+    filters.languages,
+  );
 
   const hiddenFilterSections = isLoggedIn
     ? CARD_BROWSER_HIDDEN_LOGGED_IN
@@ -323,7 +333,7 @@ export function CardBrowser() {
   const rightPane = isMobile ? undefined : (
     <SelectionDetailPane
       items={items}
-      printingsByCardId={printingsByCardId}
+      printingsByCardId={detailPanePrintingsByCardId}
       showImages={showImages}
       onSearchAndClose={searchAndClose}
     />
@@ -365,7 +375,7 @@ export function CardBrowser() {
           {isMobile && (
             <SelectionMobileOverlay
               items={items}
-              printingsByCardId={printingsByCardId}
+              printingsByCardId={detailPanePrintingsByCardId}
               showImages={showImages}
               onSearchAndClose={searchAndClose}
             />
