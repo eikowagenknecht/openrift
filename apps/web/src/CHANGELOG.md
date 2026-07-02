@@ -4,6 +4,7 @@
 
 ### Other
 
+- fix(Collection): **Remove excluded copies one at a time** — a tradelist rule showed the copies you excluded from its auto-offers as a bare count with a single clear-all button, and now names each excluded copy with its own remove button.
 - fix(Groups): **Readable overview rows** — the recent-activity entries and the in-progress trade rows now wrap to a second line instead of cutting off, so long card names stay legible on phones.
 - fix(Trades): **Trade a card offered by a rule** — offering or accepting a card your tradelist shares through a dynamic rule failed with a "0 copies available" error, and those copies now count as available.
 - fix(Trades): **Trade matches on small screens** — the possible-trades rows stack neatly on phones instead of cramming the card, price, member, and button onto one line, and the price now reads "Price".

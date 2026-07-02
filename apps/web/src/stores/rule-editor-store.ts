@@ -44,7 +44,7 @@ export interface RuleEditorState {
   setNetOwned: (index: number, netOwned: boolean) => void;
   setCollectionIds: (index: number, collectionIds: string[] | null) => void;
   toggleExcludeId: (index: number, id: string) => void;
-  clearExcludeCopyIds: (index: number) => void;
+  toggleExcludeCopyId: (index: number, copyId: string) => void;
   reset: () => void;
   /**
    * Serializes the drafts to {@link ListRule}s for the given intent. Returns an
@@ -174,9 +174,14 @@ export const useRuleEditorStore = create<RuleEditorState>()((set, get) => ({
       })),
     })),
 
-  clearExcludeCopyIds: (index) =>
+  toggleExcludeCopyId: (index, copyId) =>
     set((state) => ({
-      rules: patchRule(state.rules, index, (rule) => ({ ...rule, excludeCopyIds: [] })),
+      rules: patchRule(state.rules, index, (rule) => ({
+        ...rule,
+        excludeCopyIds: rule.excludeCopyIds.includes(copyId)
+          ? rule.excludeCopyIds.filter((existing) => existing !== copyId)
+          : [...rule.excludeCopyIds, copyId],
+      })),
     })),
 
   reset: () => set({ rules: [] }),

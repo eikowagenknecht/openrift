@@ -43,6 +43,7 @@ import { useOwnedCount } from "@/hooks/use-owned-count";
 import { useRequiredUserId } from "@/lib/auth-session";
 import { catalogQueryOptions } from "@/lib/catalog-query";
 import { collectionsQueryOptions } from "@/lib/collections-query";
+import { copiesQueryOptions } from "@/lib/copies-query";
 import { serializeRules, useRuleEditorStore } from "@/stores/rule-editor-store";
 
 interface RuleEditorDialogProps {
@@ -419,11 +420,31 @@ function RuleFields({
 }
 
 /**
+ * A single removable exclusion chip: the resolved label plus an "X" that puts the
+ * card/copy back on the list. Shared by the wish and trade exclusion rows.
+ * @returns The chip node.
+ */
+function ExclusionChip({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <span className="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-md py-0.5 pr-0.5 pl-2 text-sm">
+      {label}
+      <button
+        type="button"
+        aria-label={`Stop excluding ${label}`}
+        className="hover:bg-background/60 hover:text-foreground rounded-sm p-0.5"
+        onClick={onRemove}
+      >
+        <XIcon className="size-3.5" aria-hidden />
+      </button>
+    </span>
+  );
+}
+
+/**
  * The rule's current manual exclusions, shown as removable chips so the user can
  * put a card back after excluding it from the list (ADR-034 §V). Wish lists name
  * each excluded card/printing from the catalog; trade lists exclude individual
- * physical copies, which have no catalog name client-side, so they collapse to a
- * count with a single "Clear" affordance.
+ * physical copies, resolved to their card through {@link TradeCopyExclusions}.
  * @returns The exclusions row, or null when there are none.
  */
 function RuleExclusions({
@@ -441,22 +462,12 @@ function RuleExclusions({
 }) {
   const { printingsById, printingsByCardId } = useCards();
   const toggleExcludeId = useRuleEditorStore((state) => state.toggleExcludeId);
-  const clearExcludeCopyIds = useRuleEditorStore((state) => state.clearExcludeCopyIds);
 
   if (isTrade) {
     if (excludeCopyIds.length === 0) {
       return null;
     }
-    return (
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-muted-foreground text-sm">
-          {excludeCopyIds.length} excluded {excludeCopyIds.length === 1 ? "copy" : "copies"}
-        </span>
-        <Button type="button" variant="ghost" size="sm" onClick={() => clearExcludeCopyIds(index)}>
-          Clear
-        </Button>
-      </div>
-    );
+    return <TradeCopyExclusions index={index} copyIds={excludeCopyIds} />;
   }
 
   if (excludeIds.length === 0) {
@@ -472,20 +483,43 @@ function RuleExclusions({
             kind === "card" ? printingsByCardId.get(id)?.[0]?.card : printingsById[id]?.card;
           const label = card ? legendDisplayName(card) : "Removed card";
           return (
-            <span
-              key={id}
-              className="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-md py-0.5 pr-0.5 pl-2 text-sm"
-            >
-              {label}
-              <button
-                type="button"
-                aria-label={`Stop excluding ${label}`}
-                className="hover:bg-background/60 hover:text-foreground rounded-sm p-0.5"
-                onClick={() => toggleExcludeId(index, id)}
-              >
-                <XIcon className="size-3.5" aria-hidden />
-              </button>
-            </span>
+            <ExclusionChip key={id} label={label} onRemove={() => toggleExcludeId(index, id)} />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A trade rule's excluded physical copies, one removable chip each so the user
+ * can put a single copy back without clearing the rest (ADR-034 §V). Each copy id
+ * resolves to its printing through the viewer's collection, so the chip names the
+ * card; a copy that has since left the collection falls back to a generic label.
+ * @returns The exclusions row.
+ */
+function TradeCopyExclusions({ index, copyIds }: { index: number; copyIds: string[] }) {
+  const userId = useRequiredUserId();
+  const { data: copies } = useSuspenseQuery(copiesQueryOptions(userId));
+  const { printingsById } = useCards();
+  const toggleExcludeCopyId = useRuleEditorStore((state) => state.toggleExcludeCopyId);
+
+  const printingIdByCopyId = new Map(copies.map((copy) => [copy.id, copy.printingId]));
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-muted-foreground text-sm">Excluded</span>
+      <div className="flex flex-wrap gap-1.5">
+        {copyIds.map((copyId) => {
+          const printingId = printingIdByCopyId.get(copyId);
+          const card = printingId ? printingsById[printingId]?.card : undefined;
+          const label = card ? legendDisplayName(card) : "Removed copy";
+          return (
+            <ExclusionChip
+              key={copyId}
+              label={label}
+              onRemove={() => toggleExcludeCopyId(index, copyId)}
+            />
           );
         })}
       </div>

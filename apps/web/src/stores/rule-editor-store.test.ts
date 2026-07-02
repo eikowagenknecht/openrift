@@ -95,9 +95,9 @@ describe("useRuleEditorStore", () => {
     ]);
   });
 
-  it("clearExcludeCopyIds empties only the targeted rule's copy exclusions", () => {
+  it("toggleExcludeCopyId removes and re-adds a single copy on the targeted rule", () => {
     // Copy exclusions only enter a draft via `load` (the saved rule); the dialog
-    // offers a single "Clear" per rule, which clearExcludeCopyIds backs.
+    // then removes them one chip at a time via toggleExcludeCopyId.
     const tradeRule = (excludeCopyIds: string[]): ListRule => ({
       kind: "trade",
       filter: EMPTY_CARD_FILTERS,
@@ -107,11 +107,16 @@ describe("useRuleEditorStore", () => {
     });
     useRuleEditorStore.getState().load([tradeRule(["copy-1", "copy-2"]), tradeRule(["copy-9"])]);
 
-    useRuleEditorStore.getState().clearExcludeCopyIds(0);
-
-    const rules = useRuleEditorStore.getState().rules;
-    expect(rules[0]?.excludeCopyIds).toEqual([]);
+    // Removes just the targeted copy, leaving its siblings and the other rule intact.
+    useRuleEditorStore.getState().toggleExcludeCopyId(0, "copy-1");
+    let rules = useRuleEditorStore.getState().rules;
+    expect(rules[0]?.excludeCopyIds).toEqual(["copy-2"]);
     expect(rules[1]?.excludeCopyIds).toEqual(["copy-9"]);
+
+    // Toggling an absent copy re-adds it (mirrors toggleExcludeId).
+    useRuleEditorStore.getState().toggleExcludeCopyId(0, "copy-1");
+    rules = useRuleEditorStore.getState().rules;
+    expect(rules[0]?.excludeCopyIds).toEqual(["copy-2", "copy-1"]);
   });
 
   it("load seeds drafts from saved wish rules", () => {
