@@ -154,15 +154,15 @@ export function SupportPage() {
       {/* Donate */}
       <section className="mb-10">
         <h2 className="mb-1 text-lg font-semibold">Fuel the Rift</h2>
-        <p className="text-muted-foreground mb-4 text-sm">Add Energy to the pool.</p>
+        <p className="text-muted-foreground mb-1 text-sm">Add Energy to the pool.</p>
+        <p className="text-muted-foreground mb-4 text-sm italic">
+          These tiers are purely cosmetic. Like foils, but for your soul.
+        </p>
         <div className="space-y-3">
           {tiers.map((tier) => (
             <TierCard key={tier.rarity} tier={tier} label={labels.rarities[tier.rarity]} />
           ))}
         </div>
-        <p className="text-muted-foreground mt-3 text-center text-xs italic">
-          These tiers are purely cosmetic. Like foils, but for your soul.
-        </p>
         <div className="mt-4 flex justify-center gap-3">
           <a
             href={KOFI_URL}
