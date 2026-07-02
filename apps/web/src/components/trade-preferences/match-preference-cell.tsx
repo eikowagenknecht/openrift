@@ -8,8 +8,8 @@ import type {
 import { MARKETPLACE_META } from "@/lib/marketplace-meta";
 
 import {
-  PRICE_PREF_LABEL,
-  TRADE_TYPE_SHORT_LABEL,
+  PRICE_PREF_SHORT_LABEL,
+  TRADE_TYPE_LABEL,
   formatAbsolutePrice,
 } from "./trade-preference-labels";
 
@@ -49,14 +49,19 @@ export function MatchPreferenceCell({
   searchQuery,
 }: MatchPreferenceCellProps) {
   const priceNode = renderPrice(pref, marketplaceInfos, searchQuery);
-  const typeNode = pref.tradeType ? TRADE_TYPE_SHORT_LABEL[pref.tradeType] : null;
+  const typeNode = pref.tradeType ? TRADE_TYPE_LABEL[pref.tradeType] : null;
   return (
-    <div className="flex min-w-0 flex-col gap-0.5 px-2 py-1.5">
+    // Two-line cell (label, then price · accepts on one line) so the row height
+    // stays compact. Short marketplace labels ("Cardmarket") keep the price line
+    // from wrapping in the narrow column.
+    <div className="flex min-w-0 flex-col gap-0.5 px-2 py-1">
       <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
         {label}
       </span>
-      <span className="text-xs">{priceNode ?? "Not set"}</span>
-      {typeNode ? <span className="text-muted-foreground text-2xs">{typeNode}</span> : null}
+      <span className="text-xs">
+        {priceNode ?? "Not set"}
+        {typeNode ? <span className="text-muted-foreground"> · {typeNode}</span> : null}
+      </span>
     </div>
   );
 }
@@ -74,7 +79,7 @@ function renderPrice(
   }
   const marketplace = PREF_TO_MARKETPLACE[pref.pricePref];
   if (marketplace === null) {
-    return PRICE_PREF_LABEL[pref.pricePref];
+    return PRICE_PREF_SHORT_LABEL[pref.pricePref];
   }
   const meta = MARKETPLACE_META[marketplace];
   const productId = marketplaceInfos?.[marketplace]?.productId ?? null;
@@ -87,7 +92,7 @@ function renderPrice(
       className="hover:text-foreground relative underline-offset-2 hover:underline"
       onClick={(event) => event.stopPropagation()}
     >
-      {PRICE_PREF_LABEL[pref.pricePref]}
+      {PRICE_PREF_SHORT_LABEL[pref.pricePref]}
     </a>
   );
 }
