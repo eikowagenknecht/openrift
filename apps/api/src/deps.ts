@@ -205,6 +205,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     friendGroupMatches: friendGroupMatchesRepo(db, {
       assembleCatalog,
       ownedCopies: (ownerId) => copiesRepo(db).ownedRowsForUser(ownerId),
+      enumOrders: () => enumsRepo(db).keepPriorityOrders(),
     }),
     userContactMethods: userContactMethodsRepo(db),
     organizations: organizationsRepo(db),
@@ -222,6 +223,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     lists: listsRepo(db, {
       assembleCatalog,
       ownedCopies: (ownerId) => copiesRepo(db).ownedRowsForUser(ownerId),
+      enumOrders: () => enumsRepo(db).keepPriorityOrders(),
     }),
     marketplace: marketplaceRepo(db),
     marketplaceAdmin: marketplaceAdminRepo(db),

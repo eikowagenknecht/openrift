@@ -3,12 +3,48 @@ import { getPlaysetSize } from "./playset.js";
 import type {
   Card,
   EntrySource,
+  EnumOrders,
   ListKind,
   ListRule,
   Printing,
   RuleQuantity,
   TradePreference,
 } from "./types/index.js";
+
+/**
+ * The reference-table orders a trade rule needs to rank owned copies by
+ * "niceness" when choosing which to keep vs. offer. Each array is slugs in
+ * ascending sort order (plain first, premium last), so a later index is the
+ * nicer printing. Sourced from the DB reference tables (admin-driven), never
+ * from prices — so the keep/offer split is stable over time.
+ */
+export type KeepPriorityOrders = Pick<EnumOrders, "finishes" | "rarities" | "artVariants">;
+
+/**
+ * Rank of a slug within its reference order — higher means nicer (keep-first).
+ * An unlisted slug ranks below every listed one so it sorts into the offer pile.
+ * @returns The zero-based order index, or `-1` when the slug is unlisted.
+ */
+function orderRank(order: readonly string[], slug: string): number {
+  return order.indexOf(slug);
+}
+
+/**
+ * Compares two printings by keep-priority: the nicer one sorts first (kept).
+ * Lexicographic across rarity, finish, art variant, then signed — each measured
+ * against its reference order (premium last → higher rank kept). `canonicalRank`
+ * is the neutral final tiebreak so equally-nice printings stay deterministic.
+ * @returns Negative if `a` should be kept before `b`, positive if `b` first, 0 if equal.
+ */
+function comparePrintingKeepPriority(a: Printing, b: Printing, orders: KeepPriorityOrders): number {
+  return (
+    orderRank(orders.rarities, b.rarity) - orderRank(orders.rarities, a.rarity) ||
+    orderRank(orders.finishes, b.finish) - orderRank(orders.finishes, a.finish) ||
+    orderRank(orders.artVariants, b.artVariant) - orderRank(orders.artVariants, a.artVariant) ||
+    Number(b.isSigned) - Number(a.isSigned) ||
+    a.canonicalRank - b.canonicalRank
+  );
+}
 
 const EMPTY_TRADE_PREFERENCE: TradePreference = {
   pricePref: null,
@@ -40,6 +76,14 @@ export interface RuleEvalContext {
    * from the assembled catalog; the client from `useCustomTagAssignments`.
    */
   customTagAssignments?: Record<string, readonly string[]>;
+  /**
+   * Reference orders used to rank a trade rule's owned copies by niceness when
+   * deciding which to keep vs. offer (rarity / finish / art variant). Optional:
+   * without it the keep/offer split falls back to deck-availability + copy id.
+   * Only trade rules read it; the server supplies it, the client's wish preview
+   * omits it (it never computes the trade copy split).
+   */
+  enumOrders?: KeepPriorityOrders;
 }
 
 /**
@@ -145,10 +189,12 @@ export function evaluateListRule(
     filterCards(ctx.catalog, rule.filter, options).map((printing) => printing.id),
   );
   const cardById = new Map<string, Card>();
+  const printingById = new Map<string, Printing>();
   for (const printing of ctx.catalog) {
     if (!cardById.has(printing.cardId)) {
       cardById.set(printing.cardId, printing.card);
     }
+    printingById.set(printing.id, printing);
   }
   const excludedCopies = new Set(rule.excludeCopyIds);
   const candidates = ownedCopies.filter(
@@ -164,12 +210,29 @@ export function evaluateListRule(
       continue;
     }
     const keepN = resolveQuantity(rule.keepPerCard, card);
-    // Protect deck-available copies first, then order stably by id (uuidv7).
-    const ordered = copies.toSorted(
-      (first, second) =>
-        Number(second.deckbuildingAvailable) - Number(first.deckbuildingAvailable) ||
-        first.copyId.localeCompare(second.copyId),
-    );
+    // Choose which copies to keep vs. offer, most-protected first:
+    //   1. deck-available copies (never auto-offer a card you're decking),
+    //   2. the nicer printing (rarity → finish → art → signed), when reference
+    //      orders are supplied — keeps your best copies, offers the plainest,
+    //      and is stable over time (no prices),
+    //   3. copy id (uuidv7) as the final deterministic tiebreak.
+    const enumOrders = ctx.enumOrders;
+    const ordered = copies.toSorted((first, second) => {
+      const availByDeck =
+        Number(second.deckbuildingAvailable) - Number(first.deckbuildingAvailable);
+      if (availByDeck !== 0) {
+        return availByDeck;
+      }
+      const firstPrinting = printingById.get(first.printingId);
+      const secondPrinting = printingById.get(second.printingId);
+      if (enumOrders && firstPrinting && secondPrinting) {
+        const byNiceness = comparePrintingKeepPriority(firstPrinting, secondPrinting, enumOrders);
+        if (byNiceness !== 0) {
+          return byNiceness;
+        }
+      }
+      return first.copyId.localeCompare(second.copyId);
+    });
     for (const copy of ordered.slice(keepN)) {
       entries.push({ kind: "copy", copyId: copy.copyId, quantity: 1, reserved: copy.reserved });
     }

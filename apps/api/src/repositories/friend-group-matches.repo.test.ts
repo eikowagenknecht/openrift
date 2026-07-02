@@ -1,5 +1,11 @@
 import { EMPTY_CARD_FILTERS } from "@openrift/shared";
-import type { CardFilters, ListRule, OwnedCopyRow, Printing } from "@openrift/shared";
+import type {
+  CardFilters,
+  KeepPriorityOrders,
+  ListRule,
+  OwnedCopyRow,
+  Printing,
+} from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
 import type { Database } from "../db/index.js";
@@ -55,9 +61,12 @@ function makeDb(queues: Record<string, Rows[]>): Database {
 
 const NOW = new Date("2026-06-01T00:00:00Z");
 
+const EMPTY_KEEP_ORDERS = { finishes: [], rarities: [], artVariants: [] };
+
 const PROVIDERS: ListRuleProviders = {
   assembleCatalog: () => Promise.resolve({ printings: [], customTagAssignments: {} }),
   ownedCopies: () => Promise.resolve([]),
+  enumOrders: () => Promise.resolve(EMPTY_KEEP_ORDERS),
 };
 
 /**
@@ -69,6 +78,7 @@ function providersWith(opts: {
   catalog: Printing[];
   owned?: Record<string, OwnedCopyRow[]>;
   customTagAssignments?: Record<string, readonly string[]>;
+  enumOrders?: KeepPriorityOrders;
 }): ListRuleProviders {
   return {
     assembleCatalog: () =>
@@ -77,6 +87,7 @@ function providersWith(opts: {
         customTagAssignments: opts.customTagAssignments ?? {},
       }),
     ownedCopies: (ownerId) => Promise.resolve(opts.owned?.[ownerId] ?? []),
+    enumOrders: () => Promise.resolve(opts.enumOrders ?? EMPTY_KEEP_ORDERS),
   };
 }
 

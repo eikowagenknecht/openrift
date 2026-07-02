@@ -359,6 +359,7 @@ export { isStandardPrinting } from "./standard.js";
 
 export type {
   ExpandedEntry,
+  KeepPriorityOrders,
   ManualEntryRow,
   OwnedCopyRow,
   RuleEvalContext,

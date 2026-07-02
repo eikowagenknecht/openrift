@@ -327,6 +327,71 @@ describe("evaluateListRule — trade", () => {
     expect(out.map((e) => e.copyId)).toEqual(["cp1"]);
   });
 
+  // Reference orders for niceness ranking: plain first, premium last.
+  const enumOrders = {
+    finishes: ["normal", "foil", "metal"],
+    rarities: ["common", "uncommon", "rare"],
+    artVariants: ["normal", "altart"],
+  };
+  // Three printings of the same card, ranked plain → nice by the orders above.
+  const nicenessCatalog = [
+    makePrinting("plain", "c1", { rarity: "common", finish: "normal" }),
+    makePrinting("foil", "c1", { rarity: "common", finish: "foil" }),
+    makePrinting("rare", "c1", { rarity: "rare", finish: "normal" }),
+  ];
+
+  it("keeps the nicer printings and offers the plainer ones", () => {
+    const ownedCopies = [
+      ownedCopy({ copyId: "cpPlain", printingId: "plain", cardId: "c1" }),
+      ownedCopy({ copyId: "cpFoil", printingId: "foil", cardId: "c1" }),
+      ownedCopy({ copyId: "cpRare", printingId: "rare", cardId: "c1" }),
+    ];
+    const out = evaluateListRule(tradeRule({ keepPerCard: { mode: "fixed", n: 1 } }), "copy", {
+      catalog: nicenessCatalog,
+      ownedCopies,
+      enumOrders,
+    });
+    // Rarity dominates, so the rare copy is kept; foil then plain are offered.
+    expect(out.map((entry) => entry.copyId)).toEqual(["cpFoil", "cpPlain"]);
+  });
+
+  it("protects deck-available copies ahead of niceness", () => {
+    const ownedCopies = [
+      ownedCopy({
+        copyId: "cpRare",
+        printingId: "rare",
+        cardId: "c1",
+        deckbuildingAvailable: false,
+      }),
+      ownedCopy({
+        copyId: "cpPlain",
+        printingId: "plain",
+        cardId: "c1",
+        deckbuildingAvailable: true,
+      }),
+    ];
+    const out = evaluateListRule(tradeRule({ keepPerCard: { mode: "fixed", n: 1 } }), "copy", {
+      catalog: nicenessCatalog,
+      ownedCopies,
+      enumOrders,
+    });
+    // The nicer copy is deck-unavailable, so the deck-available plain copy is kept.
+    expect(out.map((entry) => entry.copyId)).toEqual(["cpRare"]);
+  });
+
+  it("falls back to copy id when no reference orders are supplied", () => {
+    const ownedCopies = [
+      ownedCopy({ copyId: "cpRare", printingId: "rare", cardId: "c1" }),
+      ownedCopy({ copyId: "cpPlain", printingId: "plain", cardId: "c1" }),
+    ];
+    const out = evaluateListRule(tradeRule({ keepPerCard: { mode: "fixed", n: 1 } }), "copy", {
+      catalog: nicenessCatalog,
+      ownedCopies,
+    });
+    // No niceness signal: keep the lower copy id, offer the rest — the prior behaviour.
+    expect(out.map((entry) => entry.copyId)).toEqual(["cpRare"]);
+  });
+
   it("scopes to collectionIds when set", () => {
     const ownedCopies = [
       ownedCopy({ copyId: "cp1", printingId: "p1", cardId: "c1", collectionId: "col-1" }),

@@ -1,3 +1,4 @@
+import type { KeepPriorityOrders } from "@openrift/shared";
 import type { Kysely, Selectable } from "kysely";
 
 import type {
@@ -35,6 +36,25 @@ export function enumsRepo(db: Kysely<Database>) {
   }
 
   return {
+    /**
+     * The reference orders a trade rule needs to rank owned copies by niceness
+     * (ADR-034): finish / rarity / art-variant slugs in ascending sort order.
+     * Cheaper than {@link all} — three small slug-only reads.
+     * @returns Slug arrays keyed by dimension, premium last.
+     */
+    async keepPriorityOrders(): Promise<KeepPriorityOrders> {
+      const [finishes, rarities, artVariants] = await Promise.all([
+        db.selectFrom("finishes").select("slug").orderBy("sortOrder").execute(),
+        db.selectFrom("rarities").select("slug").orderBy("sortOrder").execute(),
+        db.selectFrom("artVariants").select("slug").orderBy("sortOrder").execute(),
+      ]);
+      return {
+        finishes: finishes.map((row) => row.slug),
+        rarities: rarities.map((row) => row.slug),
+        artVariants: artVariants.map((row) => row.slug),
+      };
+    },
+
     /** @returns All rows from every reference table, keyed by table name. */
     async all(): Promise<Record<string, (EnumRow | DomainRow | RarityRow | MarkerRow)[]>> {
       const [

@@ -3,6 +3,7 @@ import type {
   CardType,
   EntrySource,
   Finish,
+  KeepPriorityOrders,
   ListIntent,
   ListKind,
   ListRules,
@@ -34,6 +35,11 @@ export interface ListRuleProviders {
   }>;
   /** The given user's personally-owned copies (trade-rule source). */
   ownedCopies: (ownerId: string) => Promise<OwnedCopyRow[]>;
+  /**
+   * Reference orders (finish / rarity / art-variant) a trade rule uses to keep
+   * the nicer copies and offer the plainer ones. Only fetched for trade rules.
+   */
+  enumOrders: () => Promise<KeepPriorityOrders>;
 }
 
 const EMPTY_TRADE_PREFERENCE: TradePreference = {
@@ -860,10 +866,15 @@ async function expandAndEnrich(
     (rule) => rule.kind === "trade" || (rule.kind === "wish" && rule.netOwned),
   );
   const ownedCopies = needsCopies ? await providers.ownedCopies(listRow.userId) : [];
+  // Trade rules rank owned copies by niceness (keep the nicer, offer the plainer);
+  // wish rules don't, so only pay for the reference orders on a trade rule.
+  const needsKeepOrder = rules.some((rule) => rule.kind === "trade");
+  const enumOrders = needsKeepOrder ? await providers.enumOrders() : undefined;
   const ruleEntries = evaluateListRules(rules, kind, {
     catalog,
     ownedCopies,
     customTagAssignments,
+    enumOrders,
   });
   const expanded = expandList(
     kind,

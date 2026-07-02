@@ -4,6 +4,7 @@
 
 ### Other
 
+- feat(Collection): **Tradelists keep your nicer copies** — when a tradelist rule keeps a set number per card and offers the rest, it now protects your rarest, foil, and special-art copies and offers the plainer duplicates first, instead of choosing by the order copies were added.
 - feat(Collection): **Rules start in your languages** — a new dynamic wishlist or tradelist rule pre-fills its language filter with your preferred languages, still editable per rule.
 - fix(Collection): **Open lists with older rules** — a wishlist or tradelist whose dynamic rule was saved before a recent filter was added failed to open, and those lists now load again.
 - fix(Collection): **Remove excluded copies one at a time** — a tradelist rule showed the copies you excluded from its auto-offers as a bare count with a single clear-all button, and now names each excluded copy with its own remove button.

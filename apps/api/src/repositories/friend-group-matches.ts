@@ -587,6 +587,16 @@ async function runMatchQuery(
   const catalog = ruleCatalog?.printings ?? [];
   const customTagAssignments = ruleCatalog?.customTagAssignments;
 
+  // Reference orders for trade-rule keep/offer ranking. Fetched once here so the
+  // matcher picks the exact same copies the owner sees on their list page — a
+  // divergent order would offer copies that don't match what got surfaced.
+  const needsKeepOrder =
+    providers !== undefined &&
+    [...scopedSupply, ...scopedDemand].some((list) =>
+      list.rules.some((rule) => rule.kind === "trade"),
+    );
+  const enumOrders = needsKeepOrder ? await providers.enumOrders() : undefined;
+
   // Owner copies, loaded once per distinct owner. Needed for trade-rule supply
   // and for wish rules that net against what's owned ("only what I'm missing").
   const ownedCopiesByOwner = new Map<string, OwnedCopyRow[]>();
@@ -619,6 +629,7 @@ async function runMatchQuery(
     catalog,
     ownedCopies: ownedCopiesByOwner.get(ownerUserId) ?? [],
     customTagAssignments,
+    enumOrders,
   });
 
   // Evaluate each ruled supply list's copies exactly once, then reuse the result
@@ -799,6 +810,9 @@ async function resolveGiverPrintingSupply(
     catalog: ruleCatalog?.printings ?? [],
     ownedCopies: hasRules && providers ? await providers.ownedCopies(scope.giverUserId) : [],
     customTagAssignments: ruleCatalog?.customTagAssignments,
+    // Trade lists: keep the nicer copies, offer the plainer — same order the
+    // owner's list page uses, so surfaced and matched copies never diverge.
+    enumOrders: hasRules && providers ? await providers.enumOrders() : undefined,
   };
 
   const manualByList = await loadManualEntries(
