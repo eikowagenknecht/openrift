@@ -197,6 +197,7 @@ function parsePiltoverArchive(text: string): ParseResult {
   for (const record of records) {
     const variantNumber = record["Variant Number"] ?? "";
     const cardName = record["Card Name"] ?? "";
+    // oxlint-disable-next-line unicorn/prefer-number-coercion -- lenient parse of an imported cell; Number() would yield NaN on trailing text
     const quantity = Number.parseInt(record["Quantity"] ?? "0", 10);
     const variantLabel = record["Variant Label"] ?? "";
 
@@ -359,6 +360,7 @@ function parseOpenRift(text: string): ParseResult {
   for (const record of records) {
     const cardId = record["Card ID"]?.trim() ?? "";
     const cardName = record["Card Name"]?.trim() ?? "";
+    // oxlint-disable-next-line unicorn/prefer-number-coercion -- lenient parse of an imported cell; Number() would yield NaN on trailing text
     const quantity = Number.parseInt(record["Quantity"] ?? "0", 10);
 
     if (!cardId || quantity <= 0) {
@@ -518,8 +520,15 @@ function parseRiftCore(text: string): ParseResult {
     const cardId = row[cardIdCol]?.trim() ?? "";
     const cardName = row[cardNameCol]?.trim() ?? "";
     const standardQty =
-      standardQtyCol === -1 ? 0 : Number.parseInt(row[standardQtyCol]?.trim() ?? "0", 10);
-    const foilQty = foilQtyCol === -1 ? 0 : Number.parseInt(row[foilQtyCol]?.trim() ?? "0", 10);
+      standardQtyCol === -1
+        ? 0
+        : // oxlint-disable-next-line unicorn/prefer-number-coercion -- lenient parse of an imported cell; Number() would yield NaN on trailing text
+          Number.parseInt(row[standardQtyCol]?.trim() ?? "0", 10);
+    const foilQty =
+      foilQtyCol === -1
+        ? 0
+        : // oxlint-disable-next-line unicorn/prefer-number-coercion -- lenient parse of an imported cell; Number() would yield NaN on trailing text
+          Number.parseInt(row[foilQtyCol]?.trim() ?? "0", 10);
 
     if (!cardId || cardId.startsWith("Exported from")) {
       continue;
@@ -643,7 +652,9 @@ function parseRiftMana(text: string): ParseResult {
   for (const record of records) {
     const cardId = record["Card ID"]?.trim() ?? "";
     const cardName = record["Card Name"]?.trim() ?? "";
+    // oxlint-disable-next-line unicorn/prefer-number-coercion -- lenient parse of an imported cell; Number() would yield NaN on trailing text
     const normalQty = Number.parseInt(record["Normal Qty"] ?? "0", 10);
+    // oxlint-disable-next-line unicorn/prefer-number-coercion -- lenient parse of an imported cell; Number() would yield NaN on trailing text
     const foilQty = Number.parseInt(record["Foil Qty"] ?? "0", 10);
 
     if (!cardId || (normalQty <= 0 && foilQty <= 0)) {

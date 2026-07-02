@@ -267,7 +267,7 @@ function parseAmountToCents(text: string): number | null {
   if (!/^\d+(?:\.\d{0,2})?$/u.test(trimmed)) {
     return null;
   }
-  const value = Number.parseFloat(trimmed);
+  const value = Number(trimmed);
   if (!Number.isFinite(value) || value <= 0) {
     return null;
   }

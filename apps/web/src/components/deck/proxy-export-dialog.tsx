@@ -72,6 +72,7 @@ function resolveClipPaths(element: HTMLElement): void {
     const height = element.offsetHeight;
     if (width > 0 && height > 0 && computed.includes("polygon")) {
       const converted = computed.replaceAll(/[\d.]+px/gu, (match, offset) => {
+        // oxlint-disable-next-line unicorn/prefer-number-coercion -- match includes the "px" unit; Number() would yield NaN
         const px = Number.parseFloat(match);
         // Determine if this is an x or y coordinate by counting commas and spaces before this point
         // In polygon(), coordinates alternate: x y, x y, ...

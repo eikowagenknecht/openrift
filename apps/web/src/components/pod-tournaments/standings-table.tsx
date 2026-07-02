@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
  * @returns The formatted score string.
  */
 export function formatScore(score: number): string {
-  return Number.isInteger(score) ? String(score) : parseFloat(score.toFixed(2)).toString();
+  return Number.isInteger(score) ? String(score) : Number(score.toFixed(2)).toString();
 }
 
 export function StandingsTable({ standings }: { standings: PodStandingRow[] }) {

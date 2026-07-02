@@ -57,7 +57,7 @@ export function parseCardListText(text: string): ListImportParseResult {
       continue;
     }
 
-    const quantity = Number.parseInt(match[1], 10);
+    const quantity = Number(match[1]);
     const cardName = match[2].trim();
     if (quantity <= 0) {
       errors.push(`Line ${index + 1}: quantity must be greater than zero.`);

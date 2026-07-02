@@ -89,6 +89,7 @@
     "unicorn/number-literal-case": "off", // Conflicts with oxfmt
     "unicorn/no-nested-ternary": "off", // Conflicts with oxfmt
     "unicorn/no-object-as-default-parameter": "off",
+    "unicorn/max-nested-calls": "off", // Fires on idiomatic Zod/oRPC schema builders (z.array(z.object({ ... }))) where nesting is the DSL
     "oxc/branches-sharing-code": "off", // Intentional duplication is sometimes clearer than refactored shared tails
 
     // Restriction Overwrites

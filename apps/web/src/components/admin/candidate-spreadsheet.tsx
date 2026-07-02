@@ -452,6 +452,7 @@ export function CandidateSpreadsheet({
         onActiveChange(fieldKey, null);
         return;
       }
+      // oxlint-disable-next-line unicorn/prefer-number-coercion -- lenient parse of a pasted cell; Number() would yield NaN on trailing text
       const parsed = Number.parseInt(trimmed, 10);
       onActiveChange(fieldKey, Number.isFinite(parsed) ? parsed : null);
       return;

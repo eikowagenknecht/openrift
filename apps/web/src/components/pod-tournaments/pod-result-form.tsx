@@ -18,7 +18,7 @@ interface PodResultFormProps {
 // Scheme points can be fractional (a tied place averages, e.g. 1.75); show up to two decimals
 // then, so a value like 1.75 isn't rounded down to 1.8.
 function formatPoints(points: number): string {
-  return Number.isInteger(points) ? String(points) : parseFloat(points.toFixed(2)).toString();
+  return Number.isInteger(points) ? String(points) : Number(points.toFixed(2)).toString();
 }
 
 // Parse the controlled input back to a whole, non-negative game-point count, or null when blank/invalid.

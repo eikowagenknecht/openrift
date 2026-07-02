@@ -84,6 +84,7 @@ export function NumberInput({
           onChange(null);
           return;
         }
+        // oxlint-disable-next-line unicorn/prefer-number-coercion -- lenient parse of a form field; Number() would yield NaN on trailing text
         const parsed = Number.parseInt(next, 10);
         onChange(Number.isNaN(parsed) ? null : parsed);
       }}

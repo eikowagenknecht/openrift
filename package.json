@@ -52,8 +52,8 @@
     "knip": "6.17.1",
     "lcov-result-merger": "6.0.0",
     "lefthook": "2.1.9",
-    "oxfmt": "0.55.0",
-    "oxlint": "1.70.0",
+    "oxfmt": "0.57.0",
+    "oxlint": "1.72.0",
     "syncpack": "15.3.2",
     "turbo": "2.10.0"
   },

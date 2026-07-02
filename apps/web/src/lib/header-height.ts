@@ -31,5 +31,6 @@ export function getHeaderHeight(): number {
     return header.getBoundingClientRect().height;
   }
   const value = getComputedStyle(document.documentElement).getPropertyValue("--header-height");
+  // oxlint-disable-next-line unicorn/prefer-number-coercion -- CSS px string; Number() would yield NaN
   return Number.parseFloat(value) || SSR_HEADER_HEIGHT;
 }

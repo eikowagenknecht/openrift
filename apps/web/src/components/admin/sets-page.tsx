@@ -353,6 +353,7 @@ export function SetsPage() {
           setType: WellKnown.setType.MAIN,
         },
         onSave: (d) => {
+          // oxlint-disable-next-line unicorn/prefer-number-coercion -- lenient parse of a form field; Number() would yield NaN on trailing text
           const printedTotal = parseInt(d.printedTotal, 10);
           return createMutation.mutateAsync({
             id: d.id.trim(),
@@ -365,6 +366,7 @@ export function SetsPage() {
           if (!d.id.trim() || !d.name.trim()) {
             return "ID and name are required";
           }
+          // oxlint-disable-next-line unicorn/prefer-number-coercion -- lenient parse of a form field; Number() would yield NaN on trailing text
           const pt = parseInt(d.printedTotal, 10);
           if (d.printedTotal && (isNaN(pt) || pt < 0)) {
             return "Printed total must be a non-negative number";
@@ -383,6 +385,7 @@ export function SetsPage() {
           setType: s.setType,
         }),
         onSave: (d) => {
+          // oxlint-disable-next-line unicorn/prefer-number-coercion -- lenient parse of a form field; Number() would yield NaN on trailing text
           const printedTotal = parseInt(d.printedTotal, 10);
           return updateMutation.mutateAsync({
             id: d.id,
@@ -394,6 +397,7 @@ export function SetsPage() {
           });
         },
         validate: (d) => {
+          // oxlint-disable-next-line unicorn/prefer-number-coercion -- lenient parse of a form field; Number() would yield NaN on trailing text
           const pt = parseInt(d.printedTotal, 10);
           if (isNaN(pt) || pt < 0) {
             return "Printed total must be a non-negative number";

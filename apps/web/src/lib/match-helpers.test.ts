@@ -16,7 +16,7 @@ describe("chooseRandomId", () => {
 
   it("clamps when the RNG returns its upper bound", () => {
     const ids = ["a", "b", "c"];
-    expect(chooseRandomId(ids, constantRandom(0.999_999))).toBe("c");
+    expect(chooseRandomId(ids, constantRandom(0.999999))).toBe("c");
   });
 
   it("returns null for an empty list", () => {

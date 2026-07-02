@@ -140,6 +140,7 @@ export function CreatePrintingPage({
       printingFields.printedName = printedName.trim();
     }
     if (printedYear.trim()) {
+      // oxlint-disable-next-line unicorn/prefer-number-coercion -- lenient parse of a form field; Number() would yield NaN on trailing text
       const parsed = Number.parseInt(printedYear.trim(), 10);
       if (Number.isFinite(parsed)) {
         printingFields.printedYear = parsed;

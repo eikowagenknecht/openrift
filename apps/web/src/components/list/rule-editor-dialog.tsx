@@ -614,6 +614,7 @@ function QuantityControl({
         min={value.mode === "fixed" ? 0 : 1}
         value={amount}
         onChange={(event) => {
+          // oxlint-disable-next-line unicorn/prefer-number-coercion -- lenient parse of an input value; Number() would yield NaN on trailing text
           const parsed = Number.parseInt(event.target.value, 10);
           const next = Number.isNaN(parsed) ? 0 : parsed;
           onChange(

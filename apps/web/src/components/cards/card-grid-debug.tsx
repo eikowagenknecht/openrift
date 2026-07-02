@@ -110,6 +110,7 @@ export function CardGridDebug({
       const expImgH = (cardWidth - BUTTON_PAD * 2) * CARD_ASPECT_INVERSE;
       const expRow = estimateRowHeight(items[0]?.index ?? 0);
 
+      // oxlint-disable-next-line unicorn/prefer-number-coercion -- CSS px string; Number() would yield NaN
       const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
       const interLoaded = document.fonts.check('12px "Inter Variable"');
       const lines = [
@@ -139,7 +140,9 @@ export function CardGridDebug({
         const measRow = rowEl?.getBoundingClientRect().height ?? virtSize;
         const measImg = imgDiv?.getBoundingClientRect().height ?? 0;
         const cardCS = cardEl ? getComputedStyle(cardEl) : undefined;
+        // oxlint-disable-next-line unicorn/prefer-number-coercion -- CSS px string; Number() would yield NaN
         const measPadT = cardCS ? Number.parseFloat(cardCS.paddingTop) : 0;
+        // oxlint-disable-next-line unicorn/prefer-number-coercion -- CSS px string; Number() would yield NaN
         const measPadB = cardCS ? Number.parseFloat(cardCS.paddingBottom) : 0;
 
         const rowChildren: Node[] = [
@@ -149,6 +152,7 @@ export function CardGridDebug({
 
         // Label area — margin is outside the element, so it's a row-level sibling
         if (lblDiv) {
+          // oxlint-disable-next-line unicorn/prefer-number-coercion -- CSS px string; Number() would yield NaN
           const measLblMt = Number.parseFloat(getComputedStyle(lblDiv as Element).marginTop);
           const measLblH = (lblDiv as Element).getBoundingClientRect().height;
           rowChildren.push({ label: "lblMt", exp: LABEL_WRAPPER_MT, meas: measLblMt });
@@ -159,6 +163,7 @@ export function CardGridDebug({
             const measMeta = (metaEl as Element).getBoundingClientRect().height;
             const metaCS = getComputedStyle(metaEl as Element);
             const measPy =
+              // oxlint-disable-next-line unicorn/prefer-number-coercion -- CSS px strings; Number() would yield NaN
               Number.parseFloat(metaCS.paddingTop) + Number.parseFloat(metaCS.paddingBottom);
 
             const expMeta = META_LABEL_PY + META_LINE_HEIGHT + META_LINE_GAP + META_LINE_HEIGHT;
