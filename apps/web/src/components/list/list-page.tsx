@@ -711,7 +711,7 @@ function ListEntryBrowser({
   const { data: session } = useSession();
   const { data: ownedCountByPrinting } = useOwnedCount(Boolean(session?.user));
 
-  const { filters, sortBy, sortDir, groupBy, hasActiveFilters } = useFilterValues();
+  const { filters, sortBy, sortDir, groupBy, groupDir, hasActiveFilters } = useFilterValues();
   const { setSearch } = useFilterActions();
   // List surfaces lock the view to the list's kind — a card-kind list
   // displays as cards, printing-kind as printings, copy-kind as copies.
@@ -1241,6 +1241,9 @@ function ListEntryBrowser({
         <CardViewer
           items={items}
           totalItems={totalListItems}
+          setOrder={sets}
+          groupBy={groupBy}
+          groupDir={groupDir}
           selectedItemId={gridSelectedId}
           siblingPrintings={selectedCard ? siblingsSource.get(selectedCard.cardId) : undefined}
           renderCard={renderCard}
