@@ -362,6 +362,9 @@ function DesktopNav({
                 ) : (
                   <NavigationMenuLink
                     closeOnClick
+                    // A native <button> shrinks to its content and centers its text; force
+                    // it to fill and left-align so it matches the <Link>-rendered rows.
+                    className="w-full text-left"
                     // oxlint-disable-next-line jsx-a11y/control-has-associated-label -- label is provided as children of NavigationMenuLink
                     render={<button type="button" onClick={() => onLockedClick("tournaments")} />}
                   >
