@@ -71,12 +71,17 @@ afterEach(() => {
 });
 
 describe("useEmailNotifications", () => {
-  it("stays loading and never fetches until the client has hydrated", () => {
+  it("reports not-loading and never fetches until the client has hydrated", () => {
+    // Before hydration the controls must render in their non-loading (enabled)
+    // state, matching the SSR and first-client render. `useUserId()` reads the
+    // session query, which is present during SSR but not on the first client
+    // render, so gating isLoading on `hydrated` is what keeps the switches'
+    // disabled/tabIndex from flipping and tripping a hydration mismatch.
     hydratedValue = false;
     const { fetchMock } = stubFetch({});
     const { result } = renderHook(() => useEmailNotifications(), { wrapper: wrap() });
 
-    expect(result.current.isLoading).toBe(true);
+    expect(result.current.isLoading).toBe(false);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 

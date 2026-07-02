@@ -87,7 +87,14 @@ export function useEmailNotifications(): UseEmailNotificationsResult {
 
   return {
     gates,
-    isLoading: Boolean(userId) && isPending,
+    // Gate on `hydrated`, not just the query's `enabled`. `useUserId()` reads the
+    // session query, which is present during SSR but absent on the first client
+    // render, so `Boolean(userId) && isPending` flips between them. That drags
+    // the controls' `disabled` (and the switches' tabIndex / aria-disabled) with
+    // it, producing a React #418 hydration mismatch. `hydrated` is false on both
+    // the SSR and first client render, so the controls render enabled on both;
+    // the brief loading state only appears afterwards as a client update.
+    isLoading: hydrated && Boolean(userId) && isPending,
     isSaving: mutation.isPending,
     setChannel: (channel, value) => {
       // Until the saved preferences have loaded, a toggle would build its PATCH
