@@ -4,6 +4,7 @@
 
 ### Other
 
+- feat(App): **See features before signing in** — Collection, Groups, and Tournaments now stay in the menu when signed out, and opening one explains the feature with a quick way to sign in or sign up.
 - feat(Cards): **Hide the grouped column** — in table view, grouping by set, type, or rarity now drops that column, since every group header already spells out its value.
 - feat(Collection): **Tradelists keep your nicer copies** — when a tradelist rule keeps a set number per card and offers the rest, it now protects your rarest, foil, and special-art copies and offers the plainer duplicates first, instead of choosing by the order copies were added.
 - feat(Collection): **Rules start in your languages** — a new dynamic wishlist or tradelist rule pre-fills its language filter with your preferred languages, still editable per rule.

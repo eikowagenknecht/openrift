@@ -11,6 +11,7 @@ import {
   HeartIcon,
   LayersIcon,
   LibraryIcon,
+  LockIcon,
   LogOutIcon,
   MenuIcon,
   MessageSquareIcon,
@@ -32,6 +33,14 @@ import { siDiscord, siGithub } from "simple-icons";
 
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -116,20 +125,92 @@ function MenuButton({ onClick, className }: { onClick: () => void; className?: s
   );
 }
 
-function DesktopNav({
-  showGlossary,
-  showTournaments,
-  showCollection,
-  showDecks,
-  showGroups,
-  groupsBadge,
+// Nav entries that require an account. Signed out, these still show in the nav
+// (with a lock glyph) so a new visitor can see what an account unlocks; clicking
+// one opens SignInRequiredDialog instead of navigating. Copy mirrors the README.
+type LockedFeatureKey = "collections" | "groups" | "tournaments";
+
+const LOCKED_FEATURES: Record<
+  LockedFeatureKey,
+  { title: string; description: string; to: string; icon: typeof LibraryIcon }
+> = {
+  collections: {
+    title: "Collection",
+    description:
+      "Track every card you own, down to the printing, across as many collections as you like.",
+    to: "/collections",
+    icon: LibraryIcon,
+  },
+  groups: {
+    title: "Groups",
+    description:
+      "Form a private group with friends or your local store, with shared collections and trade matching that shows who has the cards you want.",
+    to: "/groups",
+    icon: UsersIcon,
+  },
+  tournaments: {
+    title: "Tournaments",
+    description: "Run tournaments with pods, deck check, and judges all under one event.",
+    to: "/tournaments",
+    icon: TrophyIcon,
+  },
+};
+
+function SignInRequiredDialog({
+  featureKey,
+  onOpenChange,
 }: {
+  featureKey: LockedFeatureKey | null;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const feature = featureKey ? LOCKED_FEATURES[featureKey] : null;
+  return (
+    <Dialog open={Boolean(feature)} onOpenChange={onOpenChange}>
+      {feature && (
+        <DialogContent>
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <feature.icon className="text-primary size-5" />
+              <DialogTitle>{feature.title}</DialogTitle>
+            </div>
+            <DialogDescription>{feature.description}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Link
+              to="/login"
+              search={{ redirect: feature.to, email: undefined }}
+              className={buttonVariants({ variant: "ghost" })}
+              onClick={() => onOpenChange(false)}
+            >
+              Sign in
+            </Link>
+            <Link
+              to="/signup"
+              search={{ redirect: feature.to, email: undefined }}
+              className={buttonVariants({ variant: "default" })}
+              onClick={() => onOpenChange(false)}
+            >
+              Sign up
+            </Link>
+          </DialogFooter>
+        </DialogContent>
+      )}
+    </Dialog>
+  );
+}
+
+function DesktopNav({
+  isLoggedIn,
+  showGlossary,
+  showDecks,
+  groupsBadge,
+  onLockedClick,
+}: {
+  isLoggedIn: boolean;
   showGlossary: boolean;
-  showTournaments: boolean;
-  showCollection: boolean;
   showDecks: boolean;
-  showGroups: boolean;
   groupsBadge: number;
+  onLockedClick: (key: LockedFeatureKey) => void;
 }) {
   return (
     <NavigationMenu>
@@ -145,8 +226,8 @@ function DesktopNav({
             Cards
           </NavigationMenuLink>
         </NavigationMenuItem>
-        {showCollection && (
-          <NavigationMenuItem>
+        <NavigationMenuItem>
+          {isLoggedIn ? (
             <NavigationMenuLink
               render={<Link to="/collections" />}
               className={cn(
@@ -156,8 +237,17 @@ function DesktopNav({
             >
               Collection
             </NavigationMenuLink>
-          </NavigationMenuItem>
-        )}
+          ) : (
+            <NavigationMenuLink
+              // oxlint-disable-next-line jsx-a11y/control-has-associated-label -- label is provided as children of NavigationMenuLink
+              render={<button type="button" onClick={() => onLockedClick("collections")} />}
+              className={cn(navigationMenuTriggerStyle(), "gap-1.5")}
+            >
+              Collection
+              <LockIcon className="text-muted-foreground size-3.5" />
+            </NavigationMenuLink>
+          )}
+        </NavigationMenuItem>
         {showDecks && (
           <NavigationMenuItem>
             <NavigationMenuLink
@@ -168,8 +258,8 @@ function DesktopNav({
             </NavigationMenuLink>
           </NavigationMenuItem>
         )}
-        {showGroups && (
-          <NavigationMenuItem>
+        <NavigationMenuItem>
+          {isLoggedIn ? (
             <NavigationMenuLink
               render={<Link to="/groups" />}
               className={cn(
@@ -188,8 +278,17 @@ function DesktopNav({
                 </Badge>
               )}
             </NavigationMenuLink>
-          </NavigationMenuItem>
-        )}
+          ) : (
+            <NavigationMenuLink
+              // oxlint-disable-next-line jsx-a11y/control-has-associated-label -- label is provided as children of NavigationMenuLink
+              render={<button type="button" onClick={() => onLockedClick("groups")} />}
+              className={cn(navigationMenuTriggerStyle(), "gap-1.5")}
+            >
+              Groups
+              <LockIcon className="text-muted-foreground size-3.5" />
+            </NavigationMenuLink>
+          )}
+        </NavigationMenuItem>
         <NavigationMenuItem>
           <NavigationMenuTrigger>More</NavigationMenuTrigger>
           <NavigationMenuContent>
@@ -249,8 +348,8 @@ function DesktopNav({
                   </div>
                 </NavigationMenuLink>
               </li>
-              {showTournaments && (
-                <li>
+              <li>
+                {isLoggedIn ? (
                   <NavigationMenuLink closeOnClick render={<Link to="/tournaments" />}>
                     <TrophyIcon />
                     <div>
@@ -260,8 +359,23 @@ function DesktopNav({
                       </div>
                     </div>
                   </NavigationMenuLink>
-                </li>
-              )}
+                ) : (
+                  <NavigationMenuLink
+                    closeOnClick
+                    // oxlint-disable-next-line jsx-a11y/control-has-associated-label -- label is provided as children of NavigationMenuLink
+                    render={<button type="button" onClick={() => onLockedClick("tournaments")} />}
+                  >
+                    <TrophyIcon />
+                    <div>
+                      <div className="font-medium">Tournaments</div>
+                      <div className="text-muted-foreground text-xs">
+                        Run pods, deck check, and judges under one event
+                      </div>
+                    </div>
+                    <LockIcon className="text-muted-foreground ml-auto size-3.5 self-center" />
+                  </NavigationMenuLink>
+                )}
+              </li>
               {/* Match tracker is a phone feature — it's in the mobile menu only, not here. */}
             </ul>
           </NavigationMenuContent>
@@ -404,6 +518,9 @@ function UserMenu({
   );
 }
 
+const MOBILE_NAV_ITEM_CLASS =
+  "hover:bg-muted data-[status=active]:bg-muted flex items-center gap-3 rounded-lg px-3 py-3.5 text-base data-[status=active]:font-semibold";
+
 function MobileNavLink({
   to,
   search,
@@ -421,7 +538,7 @@ function MobileNavLink({
     <SheetClose
       nativeButton={false}
       render={<Link to={to} search={search} />}
-      className="hover:bg-muted data-[status=active]:bg-muted flex items-center gap-3 rounded-lg px-3 py-3.5 text-base data-[status=active]:font-semibold"
+      className={MOBILE_NAV_ITEM_CLASS}
     >
       {icon}
       {children}
@@ -438,24 +555,46 @@ function MobileNavLink({
   );
 }
 
+// Signed-out counterpart to MobileNavLink: closes the sheet and opens the
+// sign-in dialog instead of navigating.
+function MobileNavLockedItem({
+  icon,
+  children,
+  onClick,
+}: {
+  icon: ReactNode;
+  children: ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <SheetClose
+      // oxlint-disable-next-line jsx-a11y/control-has-associated-label -- label is provided as children of SheetClose
+      render={<button type="button" onClick={onClick} />}
+      className={MOBILE_NAV_ITEM_CLASS}
+    >
+      {icon}
+      {children}
+      <LockIcon className="text-muted-foreground ml-auto size-4" />
+    </SheetClose>
+  );
+}
+
 function MobileNav({
   open,
   onOpenChange,
+  isLoggedIn,
   showGlossary,
-  showTournaments,
-  showCollection,
   showDecks,
-  showGroups,
   groupsBadge,
+  onLockedClick,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  isLoggedIn: boolean;
   showGlossary: boolean;
-  showTournaments: boolean;
-  showCollection: boolean;
   showDecks: boolean;
-  showGroups: boolean;
   groupsBadge: number;
+  onLockedClick: (key: LockedFeatureKey) => void;
 }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -486,13 +625,20 @@ function MobileNav({
           >
             Cards
           </MobileNavLink>
-          {showCollection && (
+          {isLoggedIn ? (
             <MobileNavLink
               to="/collections"
               icon={<LibraryIcon className="text-muted-foreground size-5" />}
             >
               Collection
             </MobileNavLink>
+          ) : (
+            <MobileNavLockedItem
+              icon={<LibraryIcon className="text-muted-foreground size-5" />}
+              onClick={() => onLockedClick("collections")}
+            >
+              Collection
+            </MobileNavLockedItem>
           )}
           {showDecks && (
             <MobileNavLink
@@ -502,7 +648,7 @@ function MobileNav({
               Decks
             </MobileNavLink>
           )}
-          {showGroups && (
+          {isLoggedIn ? (
             <MobileNavLink
               to="/groups"
               icon={<UsersIcon className="text-muted-foreground size-5" />}
@@ -510,6 +656,13 @@ function MobileNav({
             >
               Groups
             </MobileNavLink>
+          ) : (
+            <MobileNavLockedItem
+              icon={<UsersIcon className="text-muted-foreground size-5" />}
+              onClick={() => onLockedClick("groups")}
+            >
+              Groups
+            </MobileNavLockedItem>
           )}
           <div className="text-muted-foreground mt-3 px-3 pb-1 font-semibold tracking-wide uppercase">
             More
@@ -546,13 +699,20 @@ function MobileNav({
           >
             Match tracker
           </MobileNavLink>
-          {showTournaments && (
+          {isLoggedIn ? (
             <MobileNavLink
               to="/tournaments"
               icon={<TrophyIcon className="text-muted-foreground size-5" />}
             >
               Tournaments
             </MobileNavLink>
+          ) : (
+            <MobileNavLockedItem
+              icon={<TrophyIcon className="text-muted-foreground size-5" />}
+              onClick={() => onLockedClick("tournaments")}
+            >
+              Tournaments
+            </MobileNavLockedItem>
           )}
         </nav>
         <SheetFooter className="border-t px-4 pt-4">
@@ -641,14 +801,14 @@ export function Header() {
   const { data: session, isPending } = useSession();
   const glossaryEnabled = useFeatureEnabled("glossary");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [lockedFeature, setLockedFeature] = useState<LockedFeatureKey | null>(null);
   const showGlossary = glossaryEnabled;
   const isLoggedIn = Boolean(session?.user);
-  const showTournaments = isLoggedIn;
-  const showCollection = isLoggedIn;
-  // Decks are available logged out (ADR-035: build local decks without an
-  // account), so the nav entry shows for everyone.
+  // Collection, Groups, and Tournaments always show in the nav. Signed out they
+  // render as locked entries that open SignInRequiredDialog (via setLockedFeature)
+  // instead of navigating. Decks are available logged out (ADR-035: build local
+  // decks without an account), so that entry is a plain link for everyone.
   const showDecks = true;
-  const showGroups = isLoggedIn;
   const { data: pendingInvitesData } = useFriendGroupPendingInvitesCount({ enabled: isLoggedIn });
   const { data: pendingRequestsData } = useFriendGroupPendingRequestsCount({ enabled: isLoggedIn });
   const { data: tradeActionCounts } = useTradeActionCounts();
@@ -678,12 +838,11 @@ export function Header() {
         <div className="hidden gap-4 md:flex">
           <LogoLink />
           <DesktopNav
+            isLoggedIn={isLoggedIn}
             showGlossary={showGlossary}
-            showTournaments={showTournaments}
-            showCollection={showCollection}
             showDecks={showDecks}
-            showGroups={showGroups}
             groupsBadge={groupsBadge}
+            onLockedClick={setLockedFeature}
           />
         </div>
 
@@ -712,12 +871,20 @@ export function Header() {
       <MobileNav
         open={mobileMenuOpen}
         onOpenChange={setMobileMenuOpen}
+        isLoggedIn={isLoggedIn}
         showGlossary={showGlossary}
-        showTournaments={showTournaments}
-        showCollection={showCollection}
         showDecks={showDecks}
-        showGroups={showGroups}
         groupsBadge={groupsBadge}
+        onLockedClick={setLockedFeature}
+      />
+
+      <SignInRequiredDialog
+        featureKey={lockedFeature}
+        onOpenChange={(dialogOpen) => {
+          if (!dialogOpen) {
+            setLockedFeature(null);
+          }
+        }}
       />
     </header>
   );
