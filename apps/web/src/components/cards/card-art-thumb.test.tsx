@@ -41,13 +41,43 @@ describe("CardArtThumb", () => {
     expect(container.querySelector('[data-testid="empty"]')).not.toBeNull();
   });
 
-  it("renders an empty muted frame when no image and no fallback are given", () => {
+  it("renders the generic no-image placeholder when no image, fallback, or rarity is given", () => {
     const { container } = render(<CardArtThumb imageId={null} />);
 
+    // No card <img>, but the muted frame carries a placeholder glyph (an svg),
+    // so the tile reads as intentionally art-less rather than broken.
     expect(container.querySelector("img")).toBeNull();
     const frame = container.querySelector("span");
     expect(frame?.className).toContain("bg-muted");
-    expect(frame?.textContent).toBe("");
+    expect(frame?.querySelector("svg")).not.toBeNull();
+  });
+
+  it("shows a faded rarity-icon watermark when a rarity is given and no image resolves", () => {
+    const { container } = render(<CardArtThumb imageId={null} rarity="showcase" />);
+
+    const watermark = container.querySelector("img");
+    expect(watermark?.getAttribute("src")).toBe("/images/rarities/showcase-28x28.webp");
+    expect(watermark?.className).toContain("opacity-25");
+    // Width-only sizing: the frame is portrait, so forcing both axes (size-1/2)
+    // would stretch the square rarity icon vertically. Keep it width-constrained.
+    expect(watermark?.className).toContain("w-1/2");
+    expect(watermark?.className).not.toContain("size-1/2");
+  });
+
+  it("tints the placeholder with the domain color when domains are given", () => {
+    const { container } = render(
+      <CardArtThumb imageId={null} rarity="showcase" domains={["chaos"]} />,
+    );
+
+    const placeholder = container.querySelector<HTMLElement>("span.absolute");
+    expect(placeholder?.style.backgroundImage).toContain("linear-gradient");
+  });
+
+  it("does not tint the placeholder when no domains are given", () => {
+    const { container } = render(<CardArtThumb imageId={null} rarity="showcase" />);
+
+    const placeholder = container.querySelector<HTMLElement>("span.absolute");
+    expect(placeholder?.style.backgroundImage).toBe("");
   });
 
   it("merges sizing utilities from className onto the frame", () => {

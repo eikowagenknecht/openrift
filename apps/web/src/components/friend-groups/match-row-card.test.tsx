@@ -71,6 +71,7 @@ function makeMatch(): AggregatedMatch {
     setName: "Origins",
     rarityLabel: "Common",
     finishLabel: "Foil",
+    domains: ["fury"],
     availableCount: 1,
   };
 }

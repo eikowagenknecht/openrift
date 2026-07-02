@@ -1,8 +1,11 @@
 import type { ImageVariant } from "@openrift/shared";
 import { imageUrl } from "@openrift/shared";
+import { ImageOffIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
+import { getDomainColor } from "@/lib/domain";
+import { getFilterIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 interface CardArtThumbProps {
@@ -25,8 +28,67 @@ interface CardArtThumbProps {
   className?: string;
   /** Native `<img loading>` hint. */
   loading?: "eager" | "lazy";
-  /** Rendered inside the frame when there is no image. Defaults to the empty muted frame. */
+  /**
+   * Rarity slug of the card. When set (and no image resolves), the empty frame
+   * shows a faded rarity-icon watermark instead of the generic no-image glyph,
+   * so an art-less tile still reads as a card of that rarity.
+   */
+  rarity?: string | null;
+  /**
+   * The card's domains. When set (and no image resolves), the empty frame is
+   * tinted with the domain color(s) so an art-less tile still carries the
+   * card's identity. Uses the default seed colors, so it stays a pure,
+   * SSR-identical presentational component (no domain-color data hook).
+   */
+  domains?: string[];
+  /** Rendered inside the frame when there is no image. Overrides the default placeholder. */
   fallback?: ReactNode;
+}
+
+/**
+ * A clearly visible domain fill for the tiny placeholder: a diagonal gradient
+ * from the domain color (or a two-color diagonal for a dual-domain card). Uses
+ * a strong alpha on purpose — the soft `getDomainTintStyle` (tuned for large
+ * card surfaces) reads as plain grey at thumbnail size. `getDomainColor` falls
+ * back to the seed colors, so this stays a pure, SSR-identical function.
+ * @returns The inline background style, or undefined when there are no domains.
+ */
+function domainFillStyle(domains?: string[]): React.CSSProperties | undefined {
+  if (!domains || domains.length === 0) {
+    return undefined;
+  }
+  const from = getDomainColor(domains[0]);
+  const to = domains.length > 1 ? getDomainColor(domains[1]) : from;
+  // Alpha suffixes: `cc` ≈ 80%, `80` ≈ 50%. Strong enough to read as the domain
+  // color at 40px, with a diagonal falloff so it looks designed, not flat.
+  return { backgroundImage: `linear-gradient(135deg, ${from}cc, ${to}80)` };
+}
+
+/**
+ * The default empty-frame content: a domain-color fill behind a faded
+ * rarity-icon watermark (or a generic no-image glyph when the rarity is
+ * unknown). Keeps art-less tiles looking intentional rather than broken.
+ * Everything is derived purely from props, so it renders identically on server
+ * and client.
+ * @returns The placeholder element.
+ */
+function ThumbPlaceholder({ rarity, domains }: { rarity?: string | null; domains?: string[] }) {
+  const rarityIcon = rarity ? getFilterIconPath("rarities", rarity) : undefined;
+  return (
+    <span
+      className="absolute inset-0 flex items-center justify-center"
+      style={domainFillStyle(domains)}
+    >
+      {rarityIcon ? (
+        // Constrain width only — the frame is portrait (aspect-card), so a
+        // `size-1/2` (both axes at 50%) would stretch the square icon taller
+        // than wide. Width-only keeps the intrinsic 1:1 ratio, so it stays square.
+        <img src={rarityIcon} alt="" aria-hidden className="w-1/2 opacity-25" />
+      ) : (
+        <ImageOffIcon className="text-muted-foreground/40 w-1/2" aria-hidden />
+      )}
+    </span>
+  );
 }
 
 /**
@@ -49,6 +111,8 @@ export function CardArtThumb({
   alt = "",
   className,
   loading,
+  rarity,
+  domains,
   fallback,
 }: CardArtThumbProps) {
   const resolved = src ?? (imageId ? imageUrl(imageId, variant) : null);
@@ -63,7 +127,7 @@ export function CardArtThumb({
       {resolved ? (
         <img src={resolved} alt={alt} loading={loading} className="size-full object-cover" />
       ) : (
-        fallback
+        (fallback ?? <ThumbPlaceholder rarity={rarity} domains={domains} />)
       )}
     </span>
   );
