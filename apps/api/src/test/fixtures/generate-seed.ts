@@ -328,7 +328,7 @@ const printingImages = await sql<Record<string, unknown>[]>`
 `;
 
 const imageFileIds = printingImages.map((pi) => pi.image_file_id as string);
-const imageFiles =
+const rawImageFiles =
   imageFileIds.length > 0
     ? await sql<Record<string, unknown>[]>`
         SELECT id, original_url, rehosted_url, rotation, needs_trim
@@ -336,6 +336,15 @@ const imageFiles =
         ORDER BY id
       `
     : [];
+
+// The checked-in fixture must only ever contain synthetic URLs, so replace
+// every non-null original_url with a per-row placeholder. The id keeps it
+// unique (idx_image_files_original_url) and non-empty.
+const imageFiles = rawImageFiles.map((imageFile) => ({
+  ...imageFile,
+  original_url:
+    imageFile.original_url === null ? null : `https://images.example.com/${imageFile.id}`,
+}));
 
 const marketplaceProductPrices = await sql<Record<string, unknown>[]>`
   SELECT marketplace_product_id, recorded_at,
