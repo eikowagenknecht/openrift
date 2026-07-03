@@ -4,6 +4,7 @@
 
 ### Other
 
+- feat(Cards): **Search scope stays visible** — when "search in" is limited to certain fields, the search box now shows that scope next to your query, so a forgotten narrow scope doesn't look like broken search.
 - feat(Collection): **Friendlier first visit** — an empty collection now opens the whole card library so your first cards are one tap away, and a dismissible guide explains the toolbar controls.
 - feat(Cards): **Compact filters on wide screens** — with compact filters on, the slim filter bar now replaces the filter sidebar everywhere, instead of only on narrower windows.
 - feat(App): **See features before signing in** — Collection, Groups, and Tournaments now stay in the menu when signed out, and opening one explains the feature with a quick way to sign in or sign up.

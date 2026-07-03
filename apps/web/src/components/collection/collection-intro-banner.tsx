@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
 import {
+  CheckSquareIcon,
   CopyIcon,
   FunnelIcon,
   InfoIcon,
@@ -14,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { Kbd } from "@/components/ui/kbd";
+import { useDisplayStore } from "@/stores/display-store";
 
 interface ToolbarGuideRow {
   icons: readonly LucideIcon[];
@@ -23,31 +25,41 @@ interface ToolbarGuideRow {
   desktopOnly?: boolean;
 }
 
-const TOOLBAR_GUIDE: readonly ToolbarGuideRow[] = [
-  {
-    icons: [LibraryBigIcon],
-    title: "Library",
-    description: "Switch between the whole card library and just the cards you own.",
-  },
-  {
-    icons: [SquareIcon, CopyIcon, SquareStackIcon],
-    title: "Cards, printings, copies",
-    description: "One tile per card, every printing separately, or each individual copy you own.",
-    desktopOnly: true,
-  },
-  {
-    icons: [FunnelIcon],
-    title: "Filters",
-    description: "Narrow the grid by domain, set, rarity, language, and more.",
-    desktopOnly: true,
-  },
-  {
-    icons: [LayoutGridIcon, Rows3Icon],
-    title: "Grid or table",
-    description: "View cards as image tiles or as a compact table.",
-    desktopOnly: true,
-  },
-];
+const LIBRARY_ROW: ToolbarGuideRow = {
+  icons: [LibraryBigIcon],
+  title: "Library",
+  description: "Switch between the whole card library and just the cards you own.",
+};
+
+const VIEWS_ROW: ToolbarGuideRow = {
+  icons: [SquareIcon, CopyIcon, SquareStackIcon],
+  title: "Cards, printings, copies",
+  description: "One tile per card, every printing separately, or each individual copy you own.",
+  desktopOnly: true,
+};
+
+// Only meaningful with the full filter panel: the funnel button doesn't exist
+// with compact filters (the default), where the chip bar is always visible.
+const FILTERS_ROW: ToolbarGuideRow = {
+  icons: [FunnelIcon],
+  title: "Filters",
+  description: "Narrow the grid by domain, set, rarity, language, and more.",
+  desktopOnly: true,
+};
+
+const MANAGE_ROW: ToolbarGuideRow = {
+  icons: [CheckSquareIcon],
+  title: "Manage cards",
+  description:
+    "Select lots of cards at once to move them between collections or add them to lists.",
+};
+
+const DISPLAY_ROW: ToolbarGuideRow = {
+  icons: [LayoutGridIcon, Rows3Icon],
+  title: "Grid or table",
+  description: "View cards as image tiles or as a compact table.",
+  desktopOnly: true,
+};
 
 /**
  * First-visit guide shown above the collection grid while the collection is
@@ -63,6 +75,15 @@ export function CollectionIntroBanner({
   showLibrary: boolean;
   onDismiss: () => void;
 }) {
+  // With compact filters (the default) there is no funnel button to explain,
+  // so the Filters row gives way to the Manage-cards tip.
+  const compactFilterView = useDisplayStore((state) => state.compactFilterView);
+  const guideRows = [
+    LIBRARY_ROW,
+    VIEWS_ROW,
+    compactFilterView ? MANAGE_ROW : FILTERS_ROW,
+    DISPLAY_ROW,
+  ];
   return (
     <div className="border-border bg-muted/30 relative mb-3 rounded-lg border p-4">
       <button
@@ -85,7 +106,7 @@ export function CollectionIntroBanner({
             </p>
           </div>
           <ul className="grid gap-2 @lg:grid-cols-2">
-            {TOOLBAR_GUIDE.map((row) => (
+            {guideRows.map((row) => (
               <li
                 key={row.title}
                 className={

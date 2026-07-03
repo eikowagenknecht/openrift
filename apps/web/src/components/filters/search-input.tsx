@@ -1,8 +1,14 @@
 import { SearchIcon, XIcon } from "lucide-react";
 import type { KeyboardEvent, ReactNode, Ref } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+
+/** Width of the magnifier zone (matches the input's default `pl-9`). */
+const ICON_ZONE_PX = 36;
+/** Gap between a leading adornment and the typed text. */
+const LEADING_GAP_PX = 6;
 
 interface SearchInputProps {
   value: string;
@@ -12,6 +18,12 @@ interface SearchInputProps {
   placeholder?: string;
   /** Accessible name for the input (defaults to the placeholder). */
   ariaLabel?: string;
+  /**
+   * In-field adornment after the magnifier icon, e.g. a search-scope chip.
+   * The typed text is padded past it (measured live), and clicks fall
+   * through to the input, so keep it non-interactive.
+   */
+  leading?: ReactNode;
   /** Right-aligned trailing text, e.g. a `"12 / 40 decks"` result count. */
   trailing?: ReactNode;
   /** Extra classes for the relative wrapper (e.g. `flex-1 min-w-[200px]`). */
@@ -37,6 +49,7 @@ export function SearchInput({
   onClear,
   placeholder,
   ariaLabel,
+  leading,
   trailing,
   className,
   inputRef,
@@ -45,9 +58,39 @@ export function SearchInput({
   onKeyDown,
 }: SearchInputProps) {
   const clear = onClear ?? (() => onValueChange(""));
+  const hasLeading = leading !== undefined && leading !== null;
+
+  // The leading adornment's width is content-dependent (e.g. "in: name,
+  // keywords"), so the text inset is measured rather than a fixed class.
+  const leadingRef = useRef<HTMLSpanElement>(null);
+  const [leadingWidth, setLeadingWidth] = useState(0);
+  useLayoutEffect(() => {
+    const el = leadingRef.current;
+    if (!el) {
+      setLeadingWidth(0);
+      return;
+    }
+    setLeadingWidth(el.offsetWidth);
+    const observer = new ResizeObserver(([entry]) => {
+      const width = entry.borderBoxSize[0]?.inlineSize ?? entry.contentRect.width;
+      setLeadingWidth(Math.round(width));
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasLeading]);
+
   return (
     <div className={cn("relative", className)}>
       <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+      {hasLeading && (
+        <span
+          ref={leadingRef}
+          aria-hidden="true"
+          className="pointer-events-none absolute top-1/2 left-9 flex max-w-[45%] -translate-y-1/2 items-center"
+        >
+          {leading}
+        </span>
+      )}
       <Input
         ref={inputRef}
         placeholder={placeholder}
@@ -58,6 +101,9 @@ export function SearchInput({
         onBlur={onBlur}
         onKeyDown={onKeyDown}
         className={cn("pl-9", value ? "pr-28" : "pr-20")}
+        style={
+          hasLeading ? { paddingLeft: ICON_ZONE_PX + leadingWidth + LEADING_GAP_PX } : undefined
+        }
       />
       <span className="absolute top-1/2 right-3 flex -translate-y-1/2 items-center gap-2">
         {trailing !== undefined && (
