@@ -5,8 +5,8 @@
  * JSON Schema for openrift-data) reuses these.
  *
  * Lives in `@openrift/shared` so both `apps/api` and `apps/web` can import.
- * Set / errata rules stay in `apps/api/src/db/schemas.ts` since only the API
- * touches those tables.
+ * Set rules stay in `apps/api/src/db/schemas.ts` since only the API touches
+ * that table.
  */
 import { z } from "zod";
 
@@ -53,6 +53,15 @@ export const printingFieldRules = {
   flavorText: z.string().min(1).nullable(),
   comment: z.string().min(1).nullable(),
   printedYear: z.number().int().min(1900).max(2999).nullable(),
+} satisfies Record<string, z.ZodType>;
+
+/** Mirrors DB constraints on the `card_errata` table. */
+export const cardErrataFieldRules = {
+  correctedRulesText: z.string().min(1).nullable(),
+  correctedEffectText: z.string().min(1).nullable(),
+  source: z.string().min(1),
+  sourceUrl: z.string().min(1).nullable(),
+  effectiveDate: z.string().nullable(),
 } satisfies Record<string, z.ZodType>;
 
 /** Mirrors DB CHECK constraints on the `candidate_cards` table. */

@@ -4,7 +4,6 @@ import {
   DragOverlay,
   PointerSensor,
   pointerWithin,
-  useDndContext,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
@@ -21,6 +20,7 @@ import type {
   CardDragData,
   ListEntryDragData,
 } from "@/components/collection/dnd-types";
+import { DndScrollWatcher } from "@/components/dnd-scroll-watcher";
 import { Footer } from "@/components/layout/footer";
 import {
   PAGE_TOP_BAR_STICKY,
@@ -45,44 +45,6 @@ export const Route = createLazyFileRoute("/_app/_authenticated/collections")({
 
 const DRAG_ACTIVATION = { distance: 8 };
 const MODIFIERS = [snapCenterToCursor];
-
-/**
- * Forces dnd-kit to re-measure all droppable rects on any scroll event during
- * drag. The sidebar uses `position: sticky`, and dnd-kit's `Rect` class assumes
- * all elements move with scroll (applying scroll deltas to the initial
- * getBoundingClientRect). Sticky elements don't move, so the rects drift and
- * the drop target ends up offset from the cursor. Re-measuring creates fresh
- * Rect objects with correct values.
- * @returns Nothing (invisible helper component).
- */
-function DndScrollWatcher() {
-  const { active, measureDroppableContainers } = useDndContext();
-
-  useEffect(() => {
-    if (!active) {
-      return;
-    }
-
-    let rafId = 0;
-    const handleScroll = () => {
-      if (!rafId) {
-        rafId = requestAnimationFrame(() => {
-          measureDroppableContainers([]);
-          rafId = 0;
-        });
-      }
-    };
-
-    // Capture phase catches scroll on any element (sidebar, page, etc.)
-    globalThis.addEventListener("scroll", handleScroll, true);
-    return () => {
-      globalThis.removeEventListener("scroll", handleScroll, true);
-      cancelAnimationFrame(rafId);
-    };
-  }, [active, measureDroppableContainers]);
-
-  return null;
-}
 
 function CollectionLayout() {
   const search = Route.useSearch();

@@ -25,10 +25,11 @@ export const emailNotificationPreferenceSchema = z
   })
   .openapi("EmailNotificationPreference");
 
-// Mirrors CompletionScopePreference (types/api/preferences.ts) and the read-side
-// completionScopePreferenceSchema in response-schemas.ts. Previously absent here,
-// so the web's completionScope PATCH was silently stripped and never persisted.
-const completionScopeWriteSchema = z.object({
+// Mirrors CompletionScopePreference (types/api/preferences.ts). One field
+// object feeds both the write-side schema and the read-side (OpenAPI-named)
+// schema below, so the two directions cannot drift — a prior separate write
+// copy was once absent entirely, silently stripping the completionScope PATCH.
+const completionScopeFields = {
   sets: z.array(z.string()).optional(),
   languages: z.array(z.string()).optional(),
   domains: z.array(z.string()).optional(),
@@ -40,7 +41,9 @@ const completionScopeWriteSchema = z.object({
   signed: z.boolean().optional(),
   banned: z.boolean().optional(),
   errata: z.boolean().optional(),
-});
+};
+
+const completionScopeWriteSchema = z.object(completionScopeFields);
 
 export const updatePreferencesSchema = z.object({
   showImages: z.boolean().nullable().optional(),
@@ -86,22 +89,8 @@ export const updatePreferencesSchema = z.object({
   emailNotifications: emailNotificationPreferenceSchema.nullable().optional(),
 });
 
-// Mirrors the CompletionScopePreference type (types/api/preferences.ts). Kept in
-// sync with the write-side schema in schemas.ts (updatePreferencesSchema).
 export const completionScopePreferenceSchema = z
-  .object({
-    sets: z.array(z.string()).optional(),
-    languages: z.array(z.string()).optional(),
-    domains: z.array(z.string()).optional(),
-    types: z.array(z.string()).optional(),
-    rarities: z.array(z.string()).optional(),
-    finishes: z.array(z.string()).optional(),
-    artVariants: z.array(z.string()).optional(),
-    promos: z.enum(["only", "exclude"]).optional(),
-    signed: z.boolean().optional(),
-    banned: z.boolean().optional(),
-    errata: z.boolean().optional(),
-  })
+  .object(completionScopeFields)
   .openapi("CompletionScopePreference");
 
 export const userPreferencesResponseSchema = z

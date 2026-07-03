@@ -1,8 +1,12 @@
+// oxlint-disable-next-line import/no-nodejs-modules -- test bootstrap reads the seed fixture from disk
+import { readFileSync } from "node:fs";
+
 import type { Logger } from "@openrift/shared/logger";
 import { Kysely } from "kysely";
 import { PostgresJSDialect } from "kysely-postgres-js";
 import postgres from "postgres";
 
+import { createDb } from "../db/connect.js";
 import { migrate } from "../db/migrate.js";
 import type { Database } from "../db/types.js";
 
@@ -118,6 +122,174 @@ export async function sweepStaleTestDatabases(
     await dropTempDb(databaseUrl, name);
   }
   return stale;
+}
+
+/** A pre-seeded user available to every integration test file. */
+export interface TestUser {
+  id: string;
+  email: string;
+  isAdmin: boolean;
+}
+
+/**
+ * Test user registry — one per test file. Shared by the integration and
+ * coverage runners so the two can never drift apart (they once did: the
+ * coverage runner's copy was missing users 0054+, so trade tests could not
+ * have run under it).
+ */
+export const TEST_USERS: TestUser[] = [
+  // User-scoped tests
+  { id: "a0000000-0001-4000-a000-000000000001", email: "user-0001@test.com", isAdmin: false },
+  { id: "a0000000-0002-4000-a000-000000000001", email: "user-0002@test.com", isAdmin: false },
+  { id: "a0000000-0003-4000-a000-000000000001", email: "user-0003@test.com", isAdmin: false },
+  { id: "a0000000-0004-4000-a000-000000000001", email: "user-0004@test.com", isAdmin: false },
+  { id: "a0000000-0005-4000-a000-000000000001", email: "user-0005@test.com", isAdmin: false },
+  { id: "a0000000-0006-4000-a000-000000000001", email: "user-0006@test.com", isAdmin: false },
+  { id: "a0000000-0007-4000-a000-000000000001", email: "user-0007@test.com", isAdmin: false },
+  { id: "a0000000-0008-4000-a000-000000000001", email: "user-0008@test.com", isAdmin: false },
+  { id: "a0000000-0009-4000-a000-000000000001", email: "user-0009@test.com", isAdmin: false },
+  // Admin tests (not pre-promoted — admin-core tests non-admin access first)
+  { id: "a0000000-0010-4000-a000-000000000001", email: "admin-0010@test.com", isAdmin: false },
+  // Admin tests (pre-promoted)
+  { id: "a0000000-0011-4000-a000-000000000001", email: "admin-0011@test.com", isAdmin: true },
+  { id: "a0000000-0012-4000-a000-000000000001", email: "admin-0012@test.com", isAdmin: true },
+  { id: "a0000000-0013-4000-a000-000000000001", email: "admin-0013@test.com", isAdmin: true },
+  { id: "a0000000-0014-4000-a000-000000000001", email: "admin-0014@test.com", isAdmin: true },
+  { id: "a0000000-0015-4000-a000-000000000001", email: "admin-0015@test.com", isAdmin: true },
+  // feature-flags: NOT pre-promoted — tests non-admin access first, then self-promotes
+  { id: "a0000000-0016-4000-a000-000000000001", email: "admin-0016@test.com", isAdmin: false },
+  { id: "a0000000-0017-4000-a000-000000000001", email: "admin-0017@test.com", isAdmin: true },
+  { id: "a0000000-0018-4000-a000-000000000001", email: "admin-0018@test.com", isAdmin: true },
+  // admin operations + images tests (pre-promoted)
+  { id: "a0000000-0019-4000-a000-000000000001", email: "admin-0019@test.com", isAdmin: true },
+  { id: "a0000000-0020-4000-a000-000000000001", email: "admin-0020@test.com", isAdmin: true },
+  { id: "a0000000-0021-4000-a000-000000000001", email: "admin-0021@test.com", isAdmin: true },
+  // Service tests
+  { id: "a0000000-0022-4000-a000-000000000001", email: "svc-0022@test.com", isAdmin: false },
+  // Public read-endpoint tests (prices + catalog)
+  { id: "a0000000-0023-4000-a000-000000000001", email: "user-0023@test.com", isAdmin: false },
+  { id: "a0000000-0024-4000-a000-000000000001", email: "user-0024@test.com", isAdmin: false },
+  // Repository integration tests
+  { id: "a0000000-0025-4000-a000-000000000001", email: "repo-0025@test.com", isAdmin: false },
+  { id: "a0000000-0026-4000-a000-000000000001", email: "repo-0026@test.com", isAdmin: false },
+  { id: "a0000000-0027-4000-a000-000000000001", email: "repo-0027@test.com", isAdmin: false },
+  { id: "a0000000-0028-4000-a000-000000000001", email: "repo-0028@test.com", isAdmin: false },
+  { id: "a0000000-0029-4000-a000-000000000001", email: "repo-0029@test.com", isAdmin: false },
+  { id: "a0000000-0030-4000-a000-000000000001", email: "repo-0030@test.com", isAdmin: false },
+  { id: "a0000000-0031-4000-a000-000000000001", email: "repo-0031@test.com", isAdmin: true },
+  { id: "a0000000-0032-4000-a000-000000000001", email: "repo-0032@test.com", isAdmin: false },
+  { id: "a0000000-0033-4000-a000-000000000001", email: "repo-0033@test.com", isAdmin: false },
+  // Batch 2 — repo coverage tests
+  { id: "a0000000-0034-4000-a000-000000000001", email: "repo-0034@test.com", isAdmin: false },
+  { id: "a0000000-0035-4000-a000-000000000001", email: "repo-0035@test.com", isAdmin: false },
+  { id: "a0000000-0036-4000-a000-000000000001", email: "repo-0036@test.com", isAdmin: false },
+  { id: "a0000000-0037-4000-a000-000000000001", email: "repo-0037@test.com", isAdmin: false },
+  { id: "a0000000-0038-4000-a000-000000000001", email: "repo-0038@test.com", isAdmin: false },
+  { id: "a0000000-0039-4000-a000-000000000001", email: "repo-0039@test.com", isAdmin: false },
+  { id: "a0000000-0040-4000-a000-000000000001", email: "repo-0040@test.com", isAdmin: false },
+  { id: "a0000000-0041-4000-a000-000000000001", email: "repo-0041@test.com", isAdmin: false },
+  { id: "a0000000-0042-4000-a000-000000000001", email: "repo-0042@test.com", isAdmin: false },
+  { id: "a0000000-0043-4000-a000-000000000001", email: "repo-0043@test.com", isAdmin: false },
+  // Route integration tests — public + authenticated coverage
+  { id: "a0000000-0044-4000-a000-000000000001", email: "user-0044@test.com", isAdmin: false },
+  // Batch 3 — admin route integration tests (pre-promoted)
+  { id: "a0000000-0045-4000-a000-000000000001", email: "admin-0045@test.com", isAdmin: true },
+  { id: "a0000000-0046-4000-a000-000000000001", email: "admin-0046@test.com", isAdmin: true },
+  { id: "a0000000-0047-4000-a000-000000000001", email: "admin-0047@test.com", isAdmin: true },
+  { id: "a0000000-0048-4000-a000-000000000001", email: "admin-0048@test.com", isAdmin: true },
+  // Non-admin user for admin route 403 checks
+  { id: "a0000000-0049-4000-a000-000000000001", email: "user-0049@test.com", isAdmin: false },
+  // Friend-groups repo + route integration tests (ADR-013)
+  { id: "a0000000-0050-4000-a000-000000000001", email: "repo-0050@test.com", isAdmin: false },
+  { id: "a0000000-0051-4000-a000-000000000001", email: "repo-0051@test.com", isAdmin: false },
+  { id: "a0000000-0052-4000-a000-000000000001", email: "repo-0052@test.com", isAdmin: false },
+  { id: "a0000000-0053-4000-a000-000000000001", email: "repo-0053@test.com", isAdmin: false },
+  // Second user for the deck-clone route test ("clone as another user").
+  { id: "a0000000-0008-4000-a000-000000000002", email: "user-0008b@test.com", isAdmin: false },
+  // Card-trades repo integration tests (ADR-019)
+  { id: "a0000000-0054-4000-a000-000000000001", email: "repo-0054@test.com", isAdmin: false },
+  { id: "a0000000-0055-4000-a000-000000000001", email: "repo-0055@test.com", isAdmin: false },
+  { id: "a0000000-0056-4000-a000-000000000001", email: "repo-0056@test.com", isAdmin: false },
+  // Trade email-notification tests (ADR-030)
+  { id: "a0000000-0057-4000-a000-000000000001", email: "req-0057@test.com", isAdmin: false },
+  { id: "a0000000-0058-4000-a000-000000000001", email: "req-0058@test.com", isAdmin: false },
+  { id: "a0000000-0059-4000-a000-000000000001", email: "digest-0059@test.com", isAdmin: false },
+  { id: "a0000000-0060-4000-a000-000000000001", email: "digest-0060@test.com", isAdmin: false },
+  { id: "a0000000-0061-4000-a000-000000000001", email: "digest-0061@test.com", isAdmin: false },
+  { id: "a0000000-0062-4000-a000-000000000001", email: "digest-0062@test.com", isAdmin: false },
+  { id: "a0000000-0063-4000-a000-000000000001", email: "unsub-0063@test.com", isAdmin: false },
+  // IDs 0064-0067 are RESERVED (not pre-seeded): the trade-request-coalesce and
+  // trade-status-email tests self-insert their own users so they can toggle
+  // emailVerified per-case. Do not add them here or reuse these IDs elsewhere.
+];
+
+/**
+ * Insert the {@link TEST_USERS} registry (promoting the admin-flagged ones).
+ *
+ * @returns Resolves once every user row (and admin row) is inserted.
+ */
+export async function insertTestUsers(db: Kysely<Database>): Promise<void> {
+  for (const user of TEST_USERS) {
+    await db
+      .insertInto("users")
+      .values({
+        id: user.id,
+        email: user.email,
+        name: "Test User",
+        emailVerified: true,
+        image: null,
+      })
+      .execute();
+    if (user.isAdmin) {
+      await db.insertInto("admins").values({ userId: user.id }).execute();
+    }
+  }
+}
+
+/**
+ * Shared bootstrap for the integration/coverage runners: create a temporary
+ * database, run migrations, load the seed fixture, and insert the test-user
+ * registry, logging each step. On failure the temp database is dropped before
+ * rethrowing, so the caller only has to drop it after a successful bootstrap.
+ *
+ * @returns The temp database name (for the caller's teardown) and the
+ *   connection URL pointing at it.
+ */
+export async function bootstrapSeededTestDb(
+  databaseUrl: string,
+  label: string,
+  options?: { refreshMaterializedViews?: boolean },
+): Promise<{ tempDbName: string; testUrl: string }> {
+  const tempDbName = await createTempDb(databaseUrl, label);
+  const testUrl = replaceDbName(databaseUrl, tempDbName);
+  console.log(`  → ${tempDbName}`);
+
+  try {
+    console.log("Running migrations...");
+    const { db } = createDb(testUrl);
+    await migrate(db, noopLogger);
+
+    console.log("Loading seed data...");
+    const seedSql = readFileSync(new URL("fixtures/seed.sql", import.meta.url), "utf-8");
+    const sql = postgres(testUrl, { onnotice: noop });
+    await sql.unsafe(seedSql);
+    if (options?.refreshMaterializedViews) {
+      // Migrations create the views before the seed data exists.
+      console.log("Refreshing materialized views...");
+      await sql`REFRESH MATERIALIZED VIEW mv_card_aggregates`;
+      await sql`REFRESH MATERIALIZED VIEW mv_latest_printing_prices`;
+    }
+    await sql.end();
+
+    console.log("Inserting test users...");
+    await insertTestUsers(db);
+    await db.destroy();
+  } catch (error) {
+    await dropTempDb(databaseUrl, tempDbName);
+    throw error;
+  }
+
+  return { tempDbName, testUrl };
 }
 
 /**

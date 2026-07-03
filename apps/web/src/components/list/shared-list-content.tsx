@@ -37,6 +37,7 @@ import {
   useMeasuredHeight,
 } from "@/components/layout/page-top-bar";
 import { listKindIcon } from "@/components/list/create-list-dialog";
+import { collectListPrintings, kindToView } from "@/components/list/list-entries";
 import { ListHeader } from "@/components/list/list-header";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
@@ -864,70 +865,4 @@ function emptyTitleFor(kind: ListKind): string {
     return "No printings on this list yet";
   }
   return "No cards on this list yet";
-}
-
-/** @returns The view mode that matches a list's kind. */
-function kindToView(kind: ListKind): "cards" | "printings" | "copies" {
-  if (kind === "card") {
-    return "cards";
-  }
-  if (kind === "printing") {
-    return "printings";
-  }
-  return "copies";
-}
-
-/**
- * Resolves list entries to a deduped array of Printings + a per-printing
- * entries map. Copies view expands one tile per entry; cards/printings views
- * collapse to one tile per printing.
- *
- * @returns The deduped Printing[] and entries-by-printing-id map.
- */
-function collectListPrintings(
-  entries: readonly ListEntryDetailResponse[],
-  printingsById: Record<string, Printing>,
-  printingsByCardId: ReadonlyMap<string, Printing[]>,
-): {
-  listPrintings: Printing[];
-  entriesByPrintingId: Map<string, ListEntryDetailResponse[]>;
-} {
-  const listPrintings: Printing[] = [];
-  const entriesByPrintingId = new Map<string, ListEntryDetailResponse[]>();
-  for (const entry of entries) {
-    const printing = resolveEntryPrinting(entry, printingsById, printingsByCardId);
-    if (!printing) {
-      continue;
-    }
-    const existing = entriesByPrintingId.get(printing.id);
-    if (existing) {
-      existing.push(entry);
-      continue;
-    }
-    listPrintings.push(printing);
-    entriesByPrintingId.set(printing.id, [entry]);
-  }
-  return { listPrintings, entriesByPrintingId };
-}
-
-/**
- * Picks the printing to render for an entry. Mirrors the authenticated
- * list-page resolver.
- *
- * @returns The Printing or undefined when nothing resolves.
- */
-function resolveEntryPrinting(
-  entry: ListEntryDetailResponse,
-  printingsById: Record<string, Printing>,
-  printingsByCardId: ReadonlyMap<string, Printing[]>,
-): Printing | undefined {
-  switch (entry.kind) {
-    case "printing":
-    case "copy": {
-      return printingsById[entry.printingId];
-    }
-    case "card": {
-      return printingsByCardId.get(entry.cardId)?.[0];
-    }
-  }
 }

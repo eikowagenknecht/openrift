@@ -1,4 +1,5 @@
 import {
+  cardErrataFieldRules,
   cardFieldRules,
   candidateCardFieldRules,
   candidatePrintingFieldRules,
@@ -21,17 +22,7 @@ const providerParam = z.object({ provider: z.string() });
 
 const updatedCountOutput = z.object({ updated: z.number() });
 
-// Mirrors the API-only `cardErrataFieldRules` (apps/api db/schemas) — the
-// `card_errata` table lives outside `@openrift/shared/db-field-rules`.
-const cardErrataFieldRules = {
-  correctedRulesText: z.string().min(1).nullable(),
-  correctedEffectText: z.string().min(1).nullable(),
-  source: z.string().min(1),
-  sourceUrl: z.string().min(1).nullable(),
-  effectiveDate: z.string().nullable(),
-};
-
-const uploadErrataEntrySchema = z
+export const uploadErrataEntrySchema = z
   .object({
     cardSlug: cardFieldRules.slug,
     correctedRulesText: cardErrataFieldRules.correctedRulesText.optional().default(null),
@@ -43,6 +34,9 @@ const uploadErrataEntrySchema = z
   .refine((entry) => entry.correctedRulesText !== null || entry.correctedEffectText !== null, {
     message: "At least one of correctedRulesText or correctedEffectText must be provided",
   });
+
+/** The typed errata-upload entry shape consumed by the API's import-errata service. */
+export type UploadErrataEntry = z.infer<typeof uploadErrataEntrySchema>;
 
 const entryRefSchema = z.object({ cardSlug: z.string(), cardName: z.string() });
 const entryDiffSchema = z.object({
@@ -166,12 +160,12 @@ const acceptPrintingFieldsSchema = createPrintingFieldsSchema.extend({
 
 const skippedPrintingSchema = z.object({ shortCode: z.string(), reason: z.string() });
 
-// ── Candidate upload (ingest) schemas (mirror apps/api cards/schemas) ────────
+// ── Candidate upload (ingest) schemas ────────────────────────────────────────
 // Coerce incoming JSON into typed shapes; value constraints are checked per-card
 // in the ingest service so individual bad cards skip gracefully.
 const nullStr = z.string().nullable().optional().default(null);
 
-const ingestPrintingSchema = z.object({
+export const ingestPrintingSchema = z.object({
   short_code: z.string(),
   set_id: nullStr,
   set_name: nullStr,
@@ -193,7 +187,7 @@ const ingestPrintingSchema = z.object({
   printed_name: nullStr,
 });
 
-const ingestCardFieldsSchema = z.object({
+export const ingestCardFieldsSchema = z.object({
   name: candidateCardFieldRules.name,
   type: candidateCardFieldRules.type.optional().default(null),
   super_types: z.array(z.string()).optional().default([]),
@@ -209,6 +203,13 @@ const ingestCardFieldsSchema = z.object({
   external_id: candidateCardFieldRules.externalId,
   extra_data: candidateCardFieldRules.extraData.optional().default(null),
 });
+
+/** A single ingested printing row (snake_case wire shape). */
+export type IngestPrinting = z.infer<typeof ingestPrintingSchema>;
+/** A single ingested card with its printings — the shape the ingest service consumes. */
+export type IngestCard = z.infer<typeof ingestCardFieldsSchema> & {
+  printings: IngestPrinting[];
+};
 
 export const uploadCandidatesSchema = z.object({
   provider: z.string().min(1),

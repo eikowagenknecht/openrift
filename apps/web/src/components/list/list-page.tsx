@@ -40,6 +40,7 @@ import { PageTopBarButton, PageTopBarIconButton } from "@/components/layout/page
 import { listKindIcon } from "@/components/list/create-list-dialog";
 import { DeleteListDialog } from "@/components/list/delete-list-dialog";
 import { ListEditDialog } from "@/components/list/list-edit-dialog";
+import { collectListPrintings, kindToView } from "@/components/list/list-entries";
 import { ListEntryTableActions } from "@/components/list/list-entry-table-actions";
 import { ListExportDialog } from "@/components/list/list-export-dialog";
 import { ListGridCell } from "@/components/list/list-grid-cell";
@@ -1375,50 +1376,6 @@ function ListEntryBrowser({
   );
 }
 
-/** @returns The view mode that matches a list's kind. */
-function kindToView(kind: ListKind): "cards" | "printings" | "copies" {
-  if (kind === "card") {
-    return "cards";
-  }
-  if (kind === "printing") {
-    return "printings";
-  }
-  return "copies";
-}
-
-/**
- * Resolves list entries to a deduped array of Printings (so useCardData can
- * filter/sort them like any catalog) plus a per-printing entries map. The
- * entries-per-printing list is used in copies view to expand one tile per
- * entry, and in non-copies view to find the first entry for Remove actions.
- * @returns The deduped Printing[] and an entries-by-printing map.
- */
-function collectListPrintings(
-  entries: readonly ListEntryDetailResponse[],
-  printingsById: Record<string, Printing>,
-  printingsByCardId: ReadonlyMap<string, Printing[]>,
-): {
-  listPrintings: Printing[];
-  entriesByPrintingId: Map<string, ListEntryDetailResponse[]>;
-} {
-  const listPrintings: Printing[] = [];
-  const entriesByPrintingId = new Map<string, ListEntryDetailResponse[]>();
-  for (const entry of entries) {
-    const printing = resolveEntryPrinting(entry, printingsById, printingsByCardId);
-    if (!printing) {
-      continue;
-    }
-    const existing = entriesByPrintingId.get(printing.id);
-    if (existing) {
-      existing.push(entry);
-      continue;
-    }
-    listPrintings.push(printing);
-    entriesByPrintingId.set(printing.id, [entry]);
-  }
-  return { listPrintings, entriesByPrintingId };
-}
-
 /**
  * Builds the items array fed into the CardViewer plus a per-item entry
  * lookup. In copies view each entry gets its own tile (item.id = entry.id);
@@ -1456,29 +1413,6 @@ function buildItems(
     }
   }
   return { items, entryByItemId };
-}
-
-/**
- * Picks the printing to render / drive the catalog pipeline for an entry.
- * Printing and copy variants carry their own `printingId` (for copy it's the
- * underlying printing of the physical copy). Card variants fall back to the
- * card's first known printing — "any printing acceptable".
- * @returns The Printing or undefined when nothing resolves.
- */
-function resolveEntryPrinting(
-  entry: ListEntryDetailResponse,
-  printingsById: Record<string, Printing>,
-  printingsByCardId: ReadonlyMap<string, Printing[]>,
-): Printing | undefined {
-  switch (entry.kind) {
-    case "printing":
-    case "copy": {
-      return printingsById[entry.printingId];
-    }
-    case "card": {
-      return printingsByCardId.get(entry.cardId)?.[0];
-    }
-  }
 }
 
 /**

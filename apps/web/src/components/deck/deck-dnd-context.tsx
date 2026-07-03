@@ -4,7 +4,6 @@ import {
   DragOverlay,
   PointerSensor,
   pointerWithin,
-  useDndContext,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
@@ -14,6 +13,7 @@ import type { DeckZone } from "@openrift/shared";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 
+import { DndScrollWatcher } from "@/components/dnd-scroll-watcher";
 import { useDeckBuilderActions, useDeckCards } from "@/hooks/use-deck-builder";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
@@ -52,43 +52,6 @@ const DRAG_ZONES = new Set<DeckZone>([
 const MODIFIERS = [snapCenterToCursor];
 const EDGE_SIZE = 40;
 const SCROLL_SPEED = 15;
-
-/**
- * Forces dnd-kit to re-measure all droppable rects on any scroll event during
- * drag. This is needed because the sidebar uses `position: sticky`, and
- * dnd-kit's `Rect` class assumes all elements move with scroll (applying scroll
- * deltas to the initial getBoundingClientRect). Sticky elements don't move, so
- * the rects drift. Re-measuring creates fresh Rect objects with correct values.
- * @returns Nothing (invisible helper component).
- */
-function DndScrollWatcher() {
-  const { active, measureDroppableContainers } = useDndContext();
-
-  useEffect(() => {
-    if (!active) {
-      return;
-    }
-
-    let rafId = 0;
-    const handleScroll = () => {
-      if (!rafId) {
-        rafId = requestAnimationFrame(() => {
-          measureDroppableContainers([]);
-          rafId = 0;
-        });
-      }
-    };
-
-    // Capture phase catches scroll on any element (sidebar, page, etc.)
-    globalThis.addEventListener("scroll", handleScroll, true);
-    return () => {
-      globalThis.removeEventListener("scroll", handleScroll, true);
-      cancelAnimationFrame(rafId);
-    };
-  }, [active, measureDroppableContainers]);
-
-  return null;
-}
 
 export function DeckDndContext({ deckId, children }: { deckId: string; children: ReactNode }) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: DRAG_ACTIVATION }));
