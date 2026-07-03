@@ -4,6 +4,7 @@
 
 ### Other
 
+- feat(Trades): **Price estimates on trade rows** — in-progress trades and possible-trade suggestions now show their estimated value at your favorite marketplace.
 - feat(Cards): **Search scope stays visible** — when "search in" is limited to certain fields, the search box now shows that scope next to your query, so a forgotten narrow scope doesn't look like broken search.
 - feat(Collection): **Friendlier first visit** — an empty collection now opens the whole card library so your first cards are one tap away, and a dismissible guide explains the toolbar controls.
 - feat(Cards): **Compact filters on wide screens** — with compact filters on, the slim filter bar now replaces the filter sidebar everywhere, instead of only on narrower windows.

@@ -26,6 +26,7 @@ import {
   CardMetaLine,
   CounterpartyChip,
   TradeDirectionIcon,
+  TradeEstimatedPrice,
   TradeExpiry,
   TradeStatusBadge,
 } from "./trade-row-parts";
@@ -93,6 +94,9 @@ function TradeRow({ trade }: { trade: CardTradeResponse }) {
               rarityLabel={labels.rarities[printing.rarity]}
               finish={printing.finish}
               finishLabel={labels.finishes[printing.finish]}
+              trailing={
+                <TradeEstimatedPrice printingId={trade.printingId} quantity={trade.quantity} />
+              }
             />
           ) : null}
         </div>

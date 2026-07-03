@@ -6,10 +6,14 @@ import type { ReactNode } from "react";
 import { FinishIcon } from "@/components/cards/finish-icon";
 import { Badge } from "@/components/ui/badge";
 import { UserAvatar } from "@/components/user-avatar";
+import { usePrices } from "@/hooks/use-prices";
+import { compactFormatterForMarketplace, priceColorClass } from "@/lib/format";
 import { formatTimeRemaining } from "@/lib/format-relative-time";
 import { getFilterIconPath } from "@/lib/icons";
+import { marketplaceLabel } from "@/lib/marketplace-meta";
 import { tradeStatusLabel } from "@/lib/trade-derivation";
 import { cn } from "@/lib/utils";
+import { useDisplayStore } from "@/stores/display-store";
 
 /** A pending trade slips into the danger zone this long before it auto-expires. */
 const EXPIRY_URGENT_MS = 24 * 60 * 60 * 1000;
@@ -75,6 +79,40 @@ export function CardMetaLine({
       <FinishIcon finish={finish} title={finishLabel} />
       {trailing}
     </span>
+  );
+}
+
+/**
+ * Estimated market value of a trade row at the user's favorite marketplace:
+ * the printing's current price times the row's quantity. Renders nothing when
+ * the printing has no price there. Shaped for a `CardMetaLine` trailing slot —
+ * a dot separator followed by the color-banded price.
+ * @returns The dot-separated price, or null when unpriced.
+ */
+export function TradeEstimatedPrice({
+  printingId,
+  quantity,
+}: {
+  printingId: string;
+  quantity: number;
+}) {
+  const prices = usePrices();
+  const marketplace = useDisplayStore((state) => state.marketplaceOrder[0] ?? "cardtrader");
+  const unitPrice = prices.get(printingId, marketplace);
+  if (unitPrice === undefined) {
+    return null;
+  }
+  const total = unitPrice * quantity;
+  return (
+    <>
+      <span>·</span>
+      <span
+        className={cn("font-medium", priceColorClass(total))}
+        title={`Estimated value (${marketplaceLabel(marketplace)})`}
+      >
+        {compactFormatterForMarketplace(marketplace)(total)}
+      </span>
+    </>
   );
 }
 

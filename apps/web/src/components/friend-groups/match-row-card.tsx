@@ -21,9 +21,12 @@ import {
 import { useCards } from "@/hooks/use-cards";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useMarketplaceInfo } from "@/hooks/use-marketplace-info";
+import { usePrices } from "@/hooks/use-prices";
+import { compactFormatterForMarketplace, priceColorClass } from "@/lib/format";
 import type { MatchDirection } from "@/lib/trade-derivation";
 import { matchSuggestionKey } from "@/lib/trade-derivation";
 import { cn } from "@/lib/utils";
+import { useDisplayStore } from "@/stores/display-store";
 import { useMatchVariantsFoldStore } from "@/stores/match-variants-fold-store";
 
 import { RequestTradeDialog } from "./request-trade-dialog";
@@ -31,6 +34,7 @@ import {
   CardMetaLine,
   CounterpartyChip,
   TradeDirectionIcon,
+  TradeEstimatedPrice,
   TradeStatusBadge,
 } from "./trade-row-parts";
 
@@ -201,7 +205,12 @@ function MatchRowMeta({ match }: { match: AggregatedMatch }) {
       rarityLabel={match.rarityLabel}
       finish={match.finish}
       finishLabel={match.finishLabel}
-      trailing={<span>· ×{match.availableCount} available</span>}
+      trailing={
+        <>
+          <TradeEstimatedPrice printingId={match.printingId} quantity={match.buyQuantity} />
+          <span>· ×{match.availableCount} available</span>
+        </>
+      }
     />
   );
 }
@@ -422,6 +431,18 @@ function MatchTradeRowGroup({
   const toggle = useMatchVariantsFoldStore((state) => state.toggle);
   const incoming = group.direction === "incoming";
 
+  // The collapsed header spans variants with different prices, so it shows the
+  // cheapest one ("from X" when they differ) at the user's favorite marketplace.
+  const prices = usePrices();
+  const marketplace = useDisplayStore((state) => state.marketplaceOrder[0] ?? "cardtrader");
+  const variantPrices = group.variants
+    .map((variant) => prices.get(variant.printingId, marketplace))
+    .filter((price) => price !== undefined);
+  const cheapestTotal =
+    variantPrices.length > 0 ? Math.min(...variantPrices) * group.buyQuantity : undefined;
+  const pricesVary =
+    variantPrices.length > 0 && Math.min(...variantPrices) !== Math.max(...variantPrices);
+
   // Surface live-trade activity on the collapsed header (a specific variant's
   // accept/decline still lives on the expanded row). Reserved outranks pending.
   const variantStatuses = group.variants.map(
@@ -464,6 +485,15 @@ function MatchTradeRowGroup({
               </span>
               <span className="text-muted-foreground text-xs">
                 {group.variants.length} variants · ×{group.totalAvailable} available
+                {cheapestTotal !== undefined && (
+                  <>
+                    {" · "}
+                    {pricesVary ? "from " : ""}
+                    <span className={cn("font-medium", priceColorClass(cheapestTotal))}>
+                      {compactFormatterForMarketplace(marketplace)(cheapestTotal)}
+                    </span>
+                  </>
+                )}
               </span>
             </span>
           </button>
