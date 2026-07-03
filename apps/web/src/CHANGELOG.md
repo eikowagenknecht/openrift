@@ -6,6 +6,11 @@
 
 - feat(Decks): **Custom-Region rules update** — signature cards need their champion in the deck copy for copy, only one battlefield is played, there is no sideboard, runes of every domain are allowed, and ban badges no longer show.
 
+### Other
+
+- feat(Trades): **See which list matched** — each possible-trade row now names the wishlist or tradelist of yours that produced it.
+- fix(Trades): **Per-copy price on suggestions** — a suggestion priced the full amount you wished even when fewer copies were available, so it now shows the price per copy with the wished and available counts beside it.
+
 ## 2026-07-02
 
 ### Highlights

@@ -83,10 +83,40 @@ export function CardMetaLine({
 }
 
 /**
- * Estimated market value of a trade row at the user's favorite marketplace:
- * the printing's current price times the row's quantity. Renders nothing when
- * the printing has no price there. Shaped for a `CardMetaLine` trailing slot —
- * a dot separator followed by the color-banded price.
+ * Per-copy market price of a card at the user's favorite marketplace, for a
+ * trade *suggestion*. A suggestion's quantity is only what's *wished*, which can
+ * exceed what the other side actually has, so multiplying by it (as a settled
+ * trade does) would overstate the deal. We show the unit price and let the
+ * wished / available counts stand on their own. Renders nothing when the
+ * printing has no price there. Shaped for a `CardMetaLine` trailing slot.
+ * @returns The dot-separated per-copy price, or null when unpriced.
+ */
+export function TradePerCopyPrice({ printingId }: { printingId: string }) {
+  const prices = usePrices();
+  const marketplace = useDisplayStore((state) => state.marketplaceOrder[0] ?? "cardtrader");
+  const unitPrice = prices.get(printingId, marketplace);
+  if (unitPrice === undefined) {
+    return null;
+  }
+  return (
+    <>
+      <span>·</span>
+      <span
+        className={cn("font-medium", priceColorClass(unitPrice))}
+        title={`Price per copy (${marketplaceLabel(marketplace)})`}
+      >
+        {compactFormatterForMarketplace(marketplace)(unitPrice)}/copy
+      </span>
+    </>
+  );
+}
+
+/**
+ * Estimated market value of a settled trade row at the user's favorite
+ * marketplace: the printing's current price times the row's (agreed) quantity.
+ * Renders nothing when the printing has no price there. Shaped for a
+ * `CardMetaLine` trailing slot — a dot separator followed by the color-banded
+ * price.
  * @returns The dot-separated price, or null when unpriced.
  */
 export function TradeEstimatedPrice({

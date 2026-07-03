@@ -103,6 +103,31 @@ export function countTradeSuggestions(
   return keys.size;
 }
 
+/**
+ * A short label naming which of the viewer's own lists produced a match
+ * suggestion: their wish list for an incoming card (they want it), their trade
+ * list for an outgoing one (they have it). A grouped suggestion can span several
+ * of the viewer's lists (e.g. different printings held in different trade
+ * lists), so more than one distinct name collapses to a count.
+ * @param direction Whether the card flows to the viewer or away.
+ * @param listNames The viewer's source-list name per variant (may repeat).
+ * @returns The source-list label, or null when no name is known.
+ */
+export function describeViewerSource(
+  direction: MatchDirection,
+  listNames: readonly string[],
+): string | null {
+  const kind = direction === "incoming" ? "wishlist" : "tradelist";
+  const distinct = [...new Set(listNames.filter((name) => name.length > 0))];
+  if (distinct.length === 0) {
+    return null;
+  }
+  if (distinct.length === 1) {
+    return `Your ${kind}: ${distinct[0]}`;
+  }
+  return `${distinct.length} of your ${kind}s`;
+}
+
 /** @returns A short human label for a trade status. */
 export function tradeStatusLabel(status: CardTradeResponse["status"]): string {
   switch (status) {

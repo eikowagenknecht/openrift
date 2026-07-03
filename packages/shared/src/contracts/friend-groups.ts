@@ -268,6 +268,9 @@ export const friendGroupMatchRowSchema = z
     counterpartyGravatarHash: z.string(),
     counterpartyListId: z.string(),
     counterpartyListName: z.string(),
+    // The viewer's own list that produced this match: their wishlist for an
+    // incoming row (they want the card), their tradelist for an outgoing one.
+    viewerListName: z.string(),
     sellEntryId: z.string().nullable(),
     sellListId: z.string(),
     copyId: z.string(),

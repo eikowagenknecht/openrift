@@ -39,6 +39,7 @@ function makeMatch(): AggregatedMatch {
     counterpartyGravatarHash: "abc",
     counterpartyListId: "list-1",
     counterpartyListName: "Spare Foils",
+    viewerListName: "My Wishlist",
     sellEntryId: "sell-entry-1",
     sellListId: "list-1",
     copyId: "copy-1",

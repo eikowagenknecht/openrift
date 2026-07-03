@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { MatchSuggestionFields } from "./trade-derivation";
 import {
   countTradeSuggestions,
+  describeViewerSource,
   matchSuggestionKey,
   maxTradeQuantity,
   tradeSection,
@@ -96,6 +97,31 @@ describe("maxTradeQuantity", () => {
 
   it("handles the single-copy boundary", () => {
     expect(maxTradeQuantity(1, 1)).toBe(1);
+  });
+});
+
+describe("describeViewerSource", () => {
+  it("names the wishlist for an incoming card", () => {
+    expect(describeViewerSource("incoming", ["Chase Cards"])).toBe("Your wishlist: Chase Cards");
+  });
+
+  it("names the tradelist for an outgoing card", () => {
+    expect(describeViewerSource("outgoing", ["Spare Foils"])).toBe("Your tradelist: Spare Foils");
+  });
+
+  it("collapses repeated names to a single label", () => {
+    expect(describeViewerSource("incoming", ["Chase Cards", "Chase Cards"])).toBe(
+      "Your wishlist: Chase Cards",
+    );
+  });
+
+  it("counts distinct lists when a group spans several", () => {
+    expect(describeViewerSource("outgoing", ["Binder A", "Binder B"])).toBe("2 of your tradelists");
+  });
+
+  it("returns null when no name is known", () => {
+    expect(describeViewerSource("incoming", [])).toBeNull();
+    expect(describeViewerSource("incoming", [""])).toBeNull();
   });
 });
 

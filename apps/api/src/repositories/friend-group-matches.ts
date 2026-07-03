@@ -47,6 +47,10 @@ export interface MatchRow {
   counterpartyListId: string;
   counterpartyListName: string;
 
+  /** The viewer's own list that produced this match (their wish list when
+   * incoming, their trade list when outgoing). Mirror of counterpartyListName. */
+  viewerListName: string;
+
   sellEntryId: string | null;
   sellListId: string;
   copyId: string;
@@ -733,6 +737,10 @@ async function runMatchQuery(
         counterpartyGravatarHash: gravatarHashForEmail(profile?.email ?? ""),
         counterpartyListId: isOthersHave ? supplyEntry.sellListId : demandEntry.buyListId,
         counterpartyListName: isOthersHave ? supplyEntry.sellListName : demandEntry.buyListName,
+        // Mirror of counterpartyListName: the viewer's own side. Incoming rows
+        // come from the viewer's wish list (demand), outgoing from their trade
+        // list (supply).
+        viewerListName: isOthersHave ? demandEntry.buyListName : supplyEntry.sellListName,
         sellEntryId: supplyEntry.sellEntryId,
         sellListId: supplyEntry.sellListId,
         copyId: supplyEntry.copyId,

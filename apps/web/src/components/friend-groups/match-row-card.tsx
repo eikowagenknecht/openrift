@@ -24,7 +24,7 @@ import { useMarketplaceInfo } from "@/hooks/use-marketplace-info";
 import { usePrices } from "@/hooks/use-prices";
 import { compactFormatterForMarketplace, priceColorClass } from "@/lib/format";
 import type { MatchDirection } from "@/lib/trade-derivation";
-import { matchSuggestionKey } from "@/lib/trade-derivation";
+import { describeViewerSource, matchSuggestionKey } from "@/lib/trade-derivation";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 import { useMatchVariantsFoldStore } from "@/stores/match-variants-fold-store";
@@ -34,7 +34,7 @@ import {
   CardMetaLine,
   CounterpartyChip,
   TradeDirectionIcon,
-  TradeEstimatedPrice,
+  TradePerCopyPrice,
   TradeStatusBadge,
 } from "./trade-row-parts";
 
@@ -193,8 +193,10 @@ function resolveMatchRows(
 
 /**
  * The compact metadata line for a match row: the shared card-detail line plus
- * the available count. The shortcode already encodes the set, so the set name
- * is dropped; rarity and finish render as icons rather than words.
+ * the wished / available counts and the per-copy price. The counts are kept
+ * separate and the price stays per-copy, so a "3 wanted" wish backed by only 1
+ * copy never reads as "3 × price". The shortcode already encodes the set, so
+ * the set name is dropped; rarity and finish render as icons rather than words.
  * @returns The metadata line element.
  */
 function MatchRowMeta({ match }: { match: AggregatedMatch }) {
@@ -207,12 +209,33 @@ function MatchRowMeta({ match }: { match: AggregatedMatch }) {
       finishLabel={match.finishLabel}
       trailing={
         <>
-          <TradeEstimatedPrice printingId={match.printingId} quantity={match.buyQuantity} />
-          <span>· ×{match.availableCount} available</span>
+          <span>· {match.buyQuantity} wanted</span>
+          <span>· {match.availableCount} available</span>
+          <TradePerCopyPrice printingId={match.printingId} />
         </>
       }
     />
   );
+}
+
+/**
+ * A muted line naming which of the viewer's own lists produced the suggestion,
+ * so it's clear why the row is here (the viewer's wishlist for an incoming card,
+ * their tradelist for an outgoing one). Renders nothing when no list name is known.
+ * @returns The source-list line, or null.
+ */
+function MatchSourceLine({
+  direction,
+  listNames,
+}: {
+  direction: MatchDirection;
+  listNames: string[];
+}) {
+  const label = describeViewerSource(direction, listNames);
+  if (label === null) {
+    return null;
+  }
+  return <span className="text-muted-foreground truncate text-xs">{label}</span>;
 }
 
 /**
@@ -272,12 +295,11 @@ function MatchRow({
 
         <div
           className="flex min-w-0 flex-1 flex-col gap-0.5"
-          title={`From ${match.counterpartyListName}`}
+          title={`Their list: ${match.counterpartyListName}`}
         >
-          <span className="truncate font-medium">
-            {match.buyQuantity}× {match.cardName}
-          </span>
+          <span className="truncate font-medium">{match.cardName}</span>
           <MatchRowMeta match={match} />
+          <MatchSourceLine direction={match.direction} listNames={[match.viewerListName]} />
         </div>
       </div>
 
@@ -432,14 +454,15 @@ function MatchTradeRowGroup({
   const incoming = group.direction === "incoming";
 
   // The collapsed header spans variants with different prices, so it shows the
-  // cheapest one ("from X" when they differ) at the user's favorite marketplace.
+  // cheapest per-copy price ("from X" when they differ) at the user's favorite
+  // marketplace. Per-copy, never times the wished quantity, since a wish can
+  // outrun what any one member has available.
   const prices = usePrices();
   const marketplace = useDisplayStore((state) => state.marketplaceOrder[0] ?? "cardtrader");
   const variantPrices = group.variants
     .map((variant) => prices.get(variant.printingId, marketplace))
     .filter((price) => price !== undefined);
-  const cheapestTotal =
-    variantPrices.length > 0 ? Math.min(...variantPrices) * group.buyQuantity : undefined;
+  const cheapestUnit = variantPrices.length > 0 ? Math.min(...variantPrices) : undefined;
   const pricesVary =
     variantPrices.length > 0 && Math.min(...variantPrices) !== Math.max(...variantPrices);
 
@@ -480,21 +503,24 @@ function MatchTradeRowGroup({
             />
 
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <span className="truncate font-medium">
-                {group.buyQuantity}× {group.cardName}
-              </span>
+              <span className="truncate font-medium">{group.cardName}</span>
               <span className="text-muted-foreground text-xs">
-                {group.variants.length} variants · ×{group.totalAvailable} available
-                {cheapestTotal !== undefined && (
+                {group.variants.length} variants · {group.buyQuantity} wanted ·{" "}
+                {group.totalAvailable} available
+                {cheapestUnit !== undefined && (
                   <>
                     {" · "}
                     {pricesVary ? "from " : ""}
-                    <span className={cn("font-medium", priceColorClass(cheapestTotal))}>
-                      {compactFormatterForMarketplace(marketplace)(cheapestTotal)}
+                    <span className={cn("font-medium", priceColorClass(cheapestUnit))}>
+                      {compactFormatterForMarketplace(marketplace)(cheapestUnit)}/copy
                     </span>
                   </>
                 )}
               </span>
+              <MatchSourceLine
+                direction={group.direction}
+                listNames={group.variants.map((variant) => variant.viewerListName)}
+              />
             </span>
           </button>
 
