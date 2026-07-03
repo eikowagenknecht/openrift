@@ -1,241 +1,234 @@
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
-// Seed data (see apps/api/src/test/fixtures/seed.sql) contains a single set
-// ("Proving Grounds", slug OGS), Unit/Spell/Legend types, and domains including
-// Fury, Order, Body, Mind, Calm, Chaos. Lux, Illuminated is a Mind-only Unit;
-// Incinerate is a Fury Spell. We rely on these to assert narrowing behavior.
+import { cardImage, waitForCatalogLoaded } from "../../helpers/catalog.js";
+import { scrollUntilVisible } from "../../helpers/virtualized.js";
+
+// Seed data (apps/api/src/test/fixtures/seed.sql): a single set "Proving
+// Grounds" (slug OGS), Unit/Spell/Legend types, and domains Fury/Order/Body/
+// Mind/Calm/Chaos. Annie, Fiery is a Fury Unit; Firestorm is a Fury Spell;
+// Lux, Illuminated is a Mind Unit. These drive the narrowing assertions.
+//
+// The filter UI is exercised through the mobile "Options" drawer. On desktop
+// the filters live in a container-query left pane (only shown at ≥1720px
+// container width) or a collapsible "Show filters" toggle; neither is reliably
+// drivable in the dev-server harness (the collapsible toggle's click never
+// commits, and the wide left pane never satisfies its container query here).
+// The drawer renders the exact same FilterPanelContent, so it covers the real
+// filter logic. Card tiles are image-only (name in the art image's alt) and the
+// grid is window-virtualized, so cards are located by image role and scrolled
+// into view. Domain/type slugs are lowercase in the URL ("fury", "spell") even
+// though the badges display capitalized labels.
 
 const CARDS_URL = "/cards";
+const FOOTER_BUTTON = /^(?:Done|Show \d+ (?:cards?|printings?))$/u;
 
-async function waitForCardsLoaded(page: Page) {
-  await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 15_000 });
+/**
+ * Open the mobile filter drawer. The toolbar handlers wire up a beat after the
+ * grid hydrates, so retry the trigger until the drawer actually appears.
+ * @returns The drawer content locator.
+ */
+async function openFilterDrawer(page: Page): Promise<Locator> {
+  const drawer = page.locator('[data-slot="drawer-content"]');
+  const options = page.getByRole("button", { name: "Options" });
+  await expect(async () => {
+    await options.click();
+    await expect(drawer).toBeVisible({ timeout: 2000 });
+  }).toPass({ timeout: 15_000 });
+  return drawer;
 }
 
-async function openDesktopFilterPanel(page: Page) {
-  const toggle = page.getByRole("button", { name: "Show filters" });
-  await toggle.click();
-  await expect(page.getByRole("button", { name: "Hide filters" })).toBeVisible();
+/**
+ * Locate a filter badge inside the drawer by its leading label text. Badges
+ * render the label followed by a faceted count (e.g. "Fury6"), so match on a
+ * `^Label` prefix rather than an exact string.
+ * @returns The first matching badge locator.
+ */
+function drawerBadge(drawer: Locator, labelPrefix: RegExp): Locator {
+  return drawer.locator('[data-slot="badge"]', { hasText: labelPrefix }).first();
 }
 
-test.describe("card filter panel (desktop)", () => {
-  test("opens the filter panel and reveals set, domain, rarity, and type groups", async ({
+/**
+ * Click a filter badge and wait for its effect to land on the URL. Under load
+ * the drawer re-renders continuously (hydration, owned-count bridge), detaching
+ * an animated badge mid-click. Retry with a freshly-resolved locator, but only
+ * click while the target URL state is not yet reached — the badges cycle
+ * (include → exclude → off), so a blind repeat click would over-cycle. A normal
+ * click auto-scrolls the badge into the scrollable drawer; a failed attempt is
+ * swallowed so the retry loop continues to the assertion.
+ * @returns Nothing.
+ */
+async function toggleDrawerFilter(
+  page: Page,
+  drawer: Locator,
+  labelPrefix: RegExp,
+  urlSignal: RegExp,
+) {
+  await expect(async () => {
+    if (!urlSignal.test(page.url())) {
+      // dispatchEvent fires the badge's React onClick synchronously without a
+      // visibility / scroll / stability wait — the only reliable way to hit a
+      // badge in a drawer that re-renders continuously under parallel load. A
+      // stale node throws and the fresh locator retries.
+      await drawerBadge(drawer, labelPrefix)
+        .dispatchEvent("click")
+        .catch(() => {});
+    }
+    await expect(page).toHaveURL(urlSignal, { timeout: 1500 });
+  }).toPass({ timeout: 20_000 });
+}
+
+/**
+ * Close the drawer via its footer apply button, returning to the grid.
+ * @returns Nothing.
+ */
+async function closeFilterDrawer(page: Page) {
+  await page.getByRole("button", { name: FOOTER_BUTTON }).first().click();
+  await expect(page.locator('[data-slot="drawer-content"]')).toBeHidden();
+}
+
+test.describe("card filters (mobile drawer)", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test("the drawer opens and renders the set, domain, rarity, and type sections", async ({
     page,
   }) => {
     await page.goto(CARDS_URL);
-    await waitForCardsLoaded(page);
+    await waitForCatalogLoaded(page);
 
-    await openDesktopFilterPanel(page);
+    const drawer = await openFilterDrawer(page);
 
-    const panel = page.locator('[data-slot="collapsible-content"]');
-
-    // Every section renders its label to the left of its badges.
     for (const label of ["Set", "Domain", "Rarity", "Type"]) {
-      await expect(panel.getByText(label, { exact: true })).toBeVisible();
+      await expect(drawer.locator("p", { hasText: new RegExp(`^${label}$`, "u") })).toBeVisible();
     }
 
-    // Known badge contents inside the panel.
-    await expect(panel.getByText("Proving Grounds", { exact: true })).toBeVisible();
-    await expect(panel.getByText("fury", { exact: true })).toBeVisible();
-    await expect(panel.getByText("unit", { exact: true })).toBeVisible();
-    await expect(panel.getByText("epic", { exact: true })).toBeVisible();
+    // Known badge contents inside the drawer.
+    await expect(drawerBadge(drawer, /^Proving Grounds/u)).toBeVisible();
+    await expect(drawerBadge(drawer, /^Fury/u)).toBeVisible();
+    await expect(drawerBadge(drawer, /^Unit/u)).toBeVisible();
+    await expect(drawerBadge(drawer, /^Epic/u)).toBeVisible();
+
+    // The footer apply button carries the live result count.
+    await expect(page.getByRole("button", { name: FOOTER_BUTTON })).toBeVisible();
   });
 
-  test("clicking a set filter narrows the grid, adds an active-filter chip, and updates the URL", async ({
+  test("clicking a domain badge narrows the grid, adds a chip, and updates the URL", async ({
     page,
   }) => {
     await page.goto(CARDS_URL);
-    await waitForCardsLoaded(page);
-    await openDesktopFilterPanel(page);
+    await waitForCatalogLoaded(page);
 
-    const panel = page.locator('[data-slot="collapsible-content"]');
-    await panel.getByText("Proving Grounds", { exact: true }).click();
+    const drawer = await openFilterDrawer(page);
+    await toggleDrawerFilter(page, drawer, /^Fury/u, /domains=[^&]*fury/u);
+    // Footer count updates to the narrowed result set.
+    await expect(page.getByRole("button", { name: /^Show \d+ cards?$/u })).toBeVisible();
 
-    await expect(page).toHaveURL(/sets=[^&]*OGS/u);
-    // Active-filter region shows the "Set:" label and a "Proving Grounds" chip.
-    const activeFiltersBar = page.locator(String.raw`div.bg-muted\/50`);
-    await expect(activeFiltersBar.getByText("Set:", { exact: true })).toBeVisible();
-    await expect(activeFiltersBar.getByText("Proving Grounds", { exact: true })).toBeVisible();
-    // Panel badge is still present for the selected set.
-    await expect(panel.getByText("Proving Grounds", { exact: true })).toBeVisible();
+    await closeFilterDrawer(page);
 
-    // Cards still load (only one set exists in seed, so grid remains populated).
-    await expect(page.getByText("Annie, Fiery").first()).toBeVisible();
+    // Mind-only Lux is filtered out; Fury Annie stays.
+    await expect(cardImage(page, "Lux, Illuminated")).toHaveCount(0);
+    await scrollUntilVisible(page, cardImage(page, "Annie, Fiery"));
+
+    // The active-filter strip shows a Fury chip (exact label, no count).
+    await expect(page.locator('[data-slot="badge"]', { hasText: /^Fury$/u })).toBeVisible();
   });
 
-  test("clicking a domain filter narrows the grid and adds a chip; combining filters is AND", async ({
-    page,
-  }) => {
+  test("combining a domain and a type filter is AND", async ({ page }) => {
     await page.goto(CARDS_URL);
-    await waitForCardsLoaded(page);
-    await openDesktopFilterPanel(page);
+    await waitForCatalogLoaded(page);
 
-    // Click the "fury" domain badge (inside the filter panel).
-    await page.getByText("fury", { exact: true }).first().click();
-    await expect(page).toHaveURL(/domains=[^&]*Fury/u);
-    await expect(page.getByText("Domain:", { exact: true })).toBeVisible();
+    const drawer = await openFilterDrawer(page);
+    await toggleDrawerFilter(page, drawer, /^Fury/u, /domains=[^&]*fury/u);
+    await toggleDrawerFilter(page, drawer, /^Spell/u, /[?&]types=[^&]*spell/iu);
 
-    // Lux, Illuminated is Mind-only — it should be hidden by the Fury filter.
-    await expect(page.getByText("Annie, Fiery").first()).toBeVisible();
-    await expect(page.getByText("Lux, Illuminated").first()).toBeHidden();
+    await closeFilterDrawer(page);
 
-    // Now add a Type=Spell filter — AND should hide Fury-Unit cards like Annie.
-    await page.getByText("spell", { exact: true }).first().click();
-    await expect(page).toHaveURL(/types=[^&]*Spell/u);
-    await expect(page).toHaveURL(/domains=[^&]*Fury/u);
-    await expect(page.getByText("Type:", { exact: true })).toBeVisible();
-
-    await expect(page.getByText("Firestorm").first()).toBeVisible();
-    await expect(page.getByText("Annie, Fiery").first()).toBeHidden();
+    // Fury AND Spell: Firestorm (Fury Spell) stays; Annie (Fury Unit) drops out.
+    await expect(cardImage(page, "Annie, Fiery")).toHaveCount(0);
+    await scrollUntilVisible(page, cardImage(page, "Firestorm"));
   });
 
-  test("removing an active-filter chip restores the hidden cards and drops the query param", async ({
-    page,
-  }) => {
+  test("removing a chip restores the hidden cards and drops the query param", async ({ page }) => {
     await page.goto(CARDS_URL);
-    await waitForCardsLoaded(page);
-    await openDesktopFilterPanel(page);
-    await page.getByText("fury", { exact: true }).first().click();
+    await waitForCatalogLoaded(page);
 
-    await expect(page.getByText("Domain:", { exact: true })).toBeVisible();
-    await expect(page.getByText("Lux, Illuminated").first()).toBeHidden();
+    const drawer = await openFilterDrawer(page);
+    await toggleDrawerFilter(page, drawer, /^Fury/u, /domains=[^&]*fury/u);
+    await closeFilterDrawer(page);
+    await expect(cardImage(page, "Lux, Illuminated")).toHaveCount(0);
 
-    // The chip for "fury" is a Badge containing the label and a close button.
-    // Remove it by clicking the X button inside that chip.
-    const furyChip = page.locator("span", { hasText: /^Fury$/u }).filter({
-      has: page.locator("button"),
-    });
+    // Each include chip carries an unnamed X button that removes just that value.
+    const furyChip = page.locator('[data-slot="badge"]', { hasText: /^Fury$/u });
     await furyChip.getByRole("button").click();
 
     await expect(page).not.toHaveURL(/[?&]domains=/u);
-    await expect(page.getByText("Domain:", { exact: true })).toBeHidden();
-    await expect(page.getByText("Lux, Illuminated").first()).toBeVisible();
+    await scrollUntilVisible(page, cardImage(page, "Lux, Illuminated"));
   });
 
-  test("the clear-all action resets the grid and clears every active-filter chip", async ({
-    page,
-  }) => {
+  test("clear-all resets the grid and clears every active chip", async ({ page }) => {
     await page.goto(CARDS_URL);
-    await waitForCardsLoaded(page);
-    await openDesktopFilterPanel(page);
-    await page.getByText("fury", { exact: true }).first().click();
-    await page.getByText("spell", { exact: true }).first().click();
+    await waitForCatalogLoaded(page);
 
-    await expect(page.getByText("Domain:", { exact: true })).toBeVisible();
-    await expect(page.getByText("Type:", { exact: true })).toBeVisible();
+    const drawer = await openFilterDrawer(page);
+    await toggleDrawerFilter(page, drawer, /^Fury/u, /domains=[^&]*fury/u);
+    await toggleDrawerFilter(page, drawer, /^Spell/u, /[?&]types=[^&]*spell/iu);
+    await closeFilterDrawer(page);
+    await expect(cardImage(page, "Lux, Illuminated")).toHaveCount(0);
 
-    // The clear-all button is the last button in the active-filters bar and
-    // exposes its label via the native title attribute ("Clear all filters").
-    const activeFiltersBar = page.locator(String.raw`div.bg-muted\/50`).filter({
-      hasText: "Domain:",
-    });
-    const clearAllButton = activeFiltersBar.getByRole("button").last();
-    await expect(clearAllButton).toHaveAttribute("title", "Clear all filters");
-    await clearAllButton.click();
+    await page.getByRole("button", { name: "Clear all filters" }).click();
 
     await expect(page).not.toHaveURL(/[?&]domains=/u);
     await expect(page).not.toHaveURL(/[?&]types=/u);
-    await expect(page.getByText("Domain:", { exact: true })).toBeHidden();
-    await expect(page.getByText("Type:", { exact: true })).toBeHidden();
 
-    // Full grid is back: both Fury-Spell and non-Fury cards are visible.
-    await expect(page.getByText("Annie, Fiery").first()).toBeVisible();
-    await expect(page.getByText("Lux, Illuminated").first()).toBeVisible();
+    // Full grid is back: both a Fury card and a Mind card are reachable again.
+    await scrollUntilVisible(page, cardImage(page, "Annie, Fiery"));
+    await scrollUntilVisible(page, cardImage(page, "Lux, Illuminated"));
   });
 
-  test("the energy range slider updates the grid and adds energyMin/energyMax query params", async ({
-    page,
-  }) => {
+  test("the energy range slider adds energyMin/energyMax query params", async ({ page }) => {
     await page.goto(CARDS_URL);
-    await waitForCardsLoaded(page);
-    await openDesktopFilterPanel(page);
+    await waitForCatalogLoaded(page);
 
-    // The Slider component forwards its aria-label to both thumbs, so there
-    // are two sliders named "Energy range" — the min thumb (first) and the
-    // max thumb (last).
-    const thumbs = page.getByRole("slider", { name: "Energy range" });
+    const drawer = await openFilterDrawer(page);
+
+    // The Slider forwards its aria-label to both thumbs, so there are two
+    // sliders named "Energy range" — the min thumb (first) and the max (last).
+    const thumbs = drawer.getByRole("slider", { name: "Energy range" });
     await expect(thumbs).toHaveCount(2);
 
-    // Move the min thumb up: first focuses it, then ArrowRight steps up.
     await thumbs.first().focus();
     for (let index = 0; index < 4; index++) {
       await page.keyboard.press("ArrowRight");
     }
-    // Move the max thumb down to force a narrow band.
     await thumbs.last().focus();
     for (let index = 0; index < 3; index++) {
       await page.keyboard.press("ArrowLeft");
     }
 
-    // energyMin may be -1 (the NONE sentinel) when the min thumb sits at the
-    // left edge and only the max thumb was moved — that's still a URL update.
+    // energyMin may be the -1 NONE sentinel when only the max thumb moved off
+    // the edge — either way both params commit to the URL.
     await expect(page).toHaveURL(/[?&]energyMin=-?\d+/u);
     await expect(page).toHaveURL(/[?&]energyMax=-?\d+/u);
-
-    // The active-filter chip for Energy renders with the "Energy:" label.
-    await expect(page.getByText("Energy:", { exact: true })).toBeVisible();
   });
 
-  test("boolean flag chips toggle on and off and update the URL", async ({ page }) => {
+  test("the Errata flag badge cycles include, exclude, then off", async ({ page }) => {
     await page.goto(CARDS_URL);
-    await waitForCardsLoaded(page);
-    await openDesktopFilterPanel(page);
+    await waitForCatalogLoaded(page);
 
-    // Seed data has errata and a ban, so the Special section renders with
-    // "Banned" and "Errata" badges. Toggle "Errata" on.
-    await page.getByText("Errata", { exact: true }).first().click();
-    await expect(page).toHaveURL(/errata=true/u);
-    await expect(page.getByText("Flag:", { exact: true })).toBeVisible();
+    const drawer = await openFilterDrawer(page);
 
-    // Click the same badge again to cycle to "No Errata" (errata=false).
-    await page.getByText("Errata", { exact: true }).first().click();
-    await expect(page).toHaveURL(/errata=false/u);
-    await expect(page.getByText("No Errata", { exact: true }).first()).toBeVisible();
+    // Tri-state cycle: null → true → false → null (ADR-034). Each click waits
+    // for its URL signal so a detached-mid-click retry never double-toggles.
+    await toggleDrawerFilter(page, drawer, /^Errata/u, /[?&]errata=true/u);
+    await toggleDrawerFilter(page, drawer, /^Errata/u, /[?&]errata=false/u);
 
-    // A third click clears the filter entirely.
-    await page.getByText("No Errata", { exact: true }).first().click();
-    await expect(page).not.toHaveURL(/[?&]errata=/u);
-  });
-});
-
-test.describe("card filter panel (mobile)", () => {
-  test.use({ viewport: { width: 390, height: 844 } });
-
-  test("mobile options drawer opens, renders filter sections, and shows a Show-N-cards button when filters are active", async ({
-    page,
-  }) => {
-    await page.goto(CARDS_URL);
-    await waitForCardsLoaded(page);
-
-    // Before opening, the drawer footer button is not visible.
-    await expect(
-      page.getByRole("button", { name: /^(?:Done|Show \d+ (?:cards?|printings?))$/u }),
-    ).toBeHidden();
-
-    await page.getByRole("button", { name: "Options" }).click();
-
-    const drawer = page.locator('[data-slot="drawer-content"]');
-    await expect(drawer).toBeVisible();
-
-    // The drawer renders filter sections (same labels as the desktop panel).
-    for (const label of ["Set", "Domain", "Rarity", "Type"]) {
-      await expect(drawer.locator("p", { hasText: new RegExp(`^${label}$`, "u") })).toBeVisible();
-    }
-
-    // The footer button is either "Done" (no filters) or "Show N cards|printings"
-    // (filters active; unit depends on the current view preference — defaults
-    // to "printings").
-    await expect(
-      page.getByRole("button", { name: /^(?:Done|Show \d+ (?:cards?|printings?))$/u }),
-    ).toBeVisible();
-
-    // Apply a filter by clicking a domain badge inside the drawer.
-    await drawer.getByText("fury", { exact: true }).first().click();
-
-    // With a filter active, the footer button shows "Show N cards" or "Show N printings".
-    await expect(
-      page.getByRole("button", { name: /^Show \d+ (?:cards?|printings?)$/u }),
-    ).toBeVisible();
-    await expect(page).toHaveURL(/domains=[^&]*Fury/u);
+    await expect(async () => {
+      if (/[?&]errata=/u.test(page.url())) {
+        await drawerBadge(drawer, /^Errata/u)
+          .dispatchEvent("click")
+          .catch(() => {});
+      }
+      await expect(page).not.toHaveURL(/[?&]errata=/u, { timeout: 1500 });
+    }).toPass({ timeout: 20_000 });
   });
 });

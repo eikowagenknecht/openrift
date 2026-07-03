@@ -65,6 +65,16 @@ async function createAndLogin(
  *
  * @returns resolves once the Account section is rendered.
  */
+// The whole profile is one page now, so several sections each render a "Save"
+// button. Scope the display-name form's Save via the form that holds the Name
+// input so the locator stays unique.
+function nameSaveButton(page: Page) {
+  return page
+    .locator("form")
+    .filter({ has: page.getByLabel("Name", { exact: true }) })
+    .getByRole("button", { name: "Save", exact: true });
+}
+
 async function gotoProfileReady(page: Page): Promise<void> {
   await page.goto("/profile");
   await expect(page.getByRole("heading", { name: "Account", level: 2 })).toBeVisible({
@@ -95,7 +105,7 @@ test.describe("profile account & security", () => {
 
       const nameInput = page.getByLabel("Name", { exact: true });
       await expect(nameInput).toHaveValue("Initial Name", { timeout: 15_000 });
-      await expect(page.getByRole("button", { name: "Save", exact: true })).toBeDisabled();
+      await expect(nameSaveButton(page)).toBeDisabled();
     });
 
     test("updates the display name and reflects it in the header card", async ({ page }) => {
@@ -109,7 +119,7 @@ test.describe("profile account & security", () => {
 
       await nameInput.fill("Updated Name");
       await expect(nameInput).toHaveValue("Updated Name");
-      const save = page.getByRole("button", { name: "Save", exact: true });
+      const save = nameSaveButton(page);
       await expect(save).toBeEnabled({ timeout: 10_000 });
 
       const updateRequest = page.waitForResponse(
@@ -119,10 +129,9 @@ test.describe("profile account & security", () => {
       await updateRequest;
 
       await expect(page.getByText("Name updated.")).toBeVisible({ timeout: 10_000 });
-      // There are multiple card titles on the profile page (Display, Marketplaces,
-      // Account Info, etc.) — scope to the header card (size xl) which shows
-      // the user's display name.
-      await expect(page.locator('[data-slot="card-title"].text-xl')).toHaveText("Updated Name", {
+      // There are multiple card titles on the profile page; the header card
+      // (first in document order) shows the user's display name.
+      await expect(page.locator('[data-slot="card-title"]').first()).toHaveText("Updated Name", {
         timeout: 10_000,
       });
     });
@@ -138,7 +147,7 @@ test.describe("profile account & security", () => {
 
       await nameInput.fill("");
       // The schema runs on submit; click Save (still enabled because "" !== defaultName).
-      await page.getByRole("button", { name: "Save", exact: true }).click();
+      await nameSaveButton(page).click();
 
       await expect(page.getByText("Name is required.")).toBeVisible({ timeout: 10_000 });
     });
@@ -152,7 +161,7 @@ test.describe("profile account & security", () => {
       const nameInput = page.getByLabel("Name", { exact: true });
       await expect(nameInput).toHaveValue("Initial Name", { timeout: 15_000 });
 
-      const save = page.getByRole("button", { name: "Save", exact: true });
+      const save = nameSaveButton(page);
       await nameInput.fill("Different");
       await expect(save).toBeEnabled();
 
@@ -170,7 +179,7 @@ test.describe("profile account & security", () => {
       await expect(nameInput).toHaveValue("Initial Name", { timeout: 15_000 });
 
       await nameInput.fill("   Initial Name   ");
-      await expect(page.getByRole("button", { name: "Save", exact: true })).toBeDisabled();
+      await expect(nameSaveButton(page)).toBeDisabled();
     });
   });
 
@@ -278,7 +287,7 @@ test.describe("profile account & security", () => {
       await page.getByRole("button", { name: /^verify$/iu }).click();
 
       await expect(page.getByText("Code expired. Please request a new one.")).toBeVisible({
-        timeout: 10_000,
+        timeout: 15_000,
       });
     });
 

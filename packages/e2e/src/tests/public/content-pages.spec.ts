@@ -105,7 +105,7 @@ test.describe("/support", () => {
     await expect(sponsors).toHaveAttribute("rel", "noreferrer");
     await expect(sponsors).toHaveAttribute("href", /github\.com\/sponsors/u);
 
-    const discord = page.getByRole("link", { name: /join our discord/iu });
+    const discord = page.getByRole("link", { name: /join the discord/iu });
     await expect(discord).toHaveAttribute("target", "_blank");
     await expect(discord).toHaveAttribute("rel", "noreferrer");
   });
@@ -120,17 +120,18 @@ test.describe("/rules", () => {
   // server-side) and would only need an e2e cover if the default ever flips.
   test("renders the rules page", async ({ page }) => {
     await page.goto("/rules");
-    await expect(page).toHaveURL("/rules");
-    await expect(page.getByRole("heading", { name: "Riftbound Rules", level: 1 })).toBeVisible();
+    // /rules redirects to the default "core" kind.
+    await expect(page).toHaveURL(/\/rules\/core$/u);
+    await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible();
   });
 
   test("sets document title and description meta", async ({ page }) => {
     await page.goto("/rules");
-    await expect(page).toHaveTitle("Rules — OpenRift");
+    await expect(page).toHaveTitle("Core Rules — OpenRift");
     const description = page.locator('meta[name="description"]');
     await expect(description).toHaveAttribute(
       "content",
-      "Read the official Riftbound rules, with version history and keyword reference.",
+      "Read the official Riftbound core game rules with version history and keyword reference.",
     );
   });
 });

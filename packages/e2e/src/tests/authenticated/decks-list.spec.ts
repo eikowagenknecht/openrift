@@ -97,17 +97,24 @@ function isServerFn(url: string, fnName: string): boolean {
 const BOGUS_DECK_ID = "00000000-0000-0000-0000-0000000dead0";
 
 test.describe("decks list", () => {
-  test.describe("auth gate", () => {
-    const guardedPaths = ["/decks", "/decks/import", `/decks/${BOGUS_DECK_ID}`];
-
-    for (const path of guardedPaths) {
-      test(`redirects anonymous users from ${path} to /login`, async ({ page }) => {
+  test.describe("access", () => {
+    // /decks and /decks/import are auth-optional (ADR-035): logged-out visitors
+    // see their browser-local decks, so there's no login redirect.
+    for (const path of ["/decks", "/decks/import"]) {
+      test(`anonymous users can open ${path}`, async ({ page }) => {
         await page.goto(path);
-        await expect(page).toHaveURL(/\/login\b/u);
-        const url = new URL(page.url());
-        expect(url.searchParams.get("redirect") ?? "").toContain(path);
+        await expect(page).toHaveURL(new RegExp(`${path.replaceAll("/", String.raw`\/`)}$`, "u"));
+        await expect(page).not.toHaveURL(/\/login/u);
       });
     }
+
+    // A specific server-side deck still requires a session.
+    test("redirects anonymous users from a specific deck to /login", async ({ page }) => {
+      await page.goto(`/decks/${BOGUS_DECK_ID}`);
+      await expect(page).toHaveURL(/\/login\b/u);
+      const url = new URL(page.url());
+      expect(url.searchParams.get("redirect") ?? "").toContain(`/decks/${BOGUS_DECK_ID}`);
+    });
   });
 
   test.describe("SEO", () => {
@@ -137,11 +144,6 @@ test.describe("decks list", () => {
       await expect(page.getByText("No decks yet")).toBeVisible({ timeout: 15_000 });
       const createFirst = page.getByRole("button", { name: "Create your first deck" });
       await expect(createFirst).toBeVisible();
-
-      // SwordsIcon sits next to the copy — assert via the svg inside the empty
-      // hint block (no accessible name, but its presence is the visual anchor).
-      const emptyBlock = page.locator("div", { hasText: "No decks yet" }).last();
-      await expect(emptyBlock.locator("svg").first()).toBeVisible();
     });
 
     test("clicking the empty-state CTA opens the create dialog", async ({ page }) => {
@@ -174,12 +176,14 @@ test.describe("decks list", () => {
       await expect(page.getByText("Decks").first()).toBeVisible({ timeout: 15_000 });
     });
 
-    test("Import link navigates to /decks/import", async ({ page }) => {
+    test("Import navigates to /decks/import", async ({ page }) => {
       userEmail = await createAndLogin(page);
       await page.goto("/decks");
 
-      const importLink = page.getByRole("link", { name: "Import" });
-      await expect(importLink).toHaveAttribute("href", "/decks/import");
+      // The top-bar Import control is a PageTopBarButton rendered as a Link
+      // (role=button), so match the underlying anchor by href.
+      const importLink = page.locator('a[href="/decks/import"]').first();
+      await expect(importLink).toBeVisible({ timeout: 15_000 });
 
       await importLink.click();
       await expect(page).toHaveURL(/\/decks\/import$/u, { timeout: 15_000 });

@@ -221,7 +221,7 @@ test.describe("collections import/export", () => {
         timeout: 15_000,
       });
       await expect(page.getByRole("heading", { name: "Export Collection" })).toBeVisible();
-      await expect(page.getByRole("heading", { name: "Import Collection" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Import Cards" })).toBeVisible();
     });
   });
 
@@ -330,14 +330,14 @@ test.describe("collections import/export", () => {
       await expect(parseButton).toBeVisible({ timeout: 15_000 });
       await expect(parseButton).toBeDisabled();
 
-      await page.getByPlaceholder("Paste your CSV data here...").fill("hello");
+      await page.getByPlaceholder("Paste CSV data or a plain text list here...").fill("hello");
       await expect(parseButton).toBeEnabled();
     });
 
     test("uploading a CSV file advances to the preview step", async ({ page }) => {
       userEmail = await createAndLogin(page);
       await page.goto("/collections/import");
-      await expect(page.getByRole("heading", { name: "Import Collection" })).toBeVisible({
+      await expect(page.getByRole("heading", { name: "Import Cards" })).toBeVisible({
         timeout: 15_000,
       });
 
@@ -362,23 +362,32 @@ test.describe("collections import/export", () => {
     }) => {
       userEmail = await createAndLogin(page);
       await page.goto("/collections/import");
-      await expect(page.getByRole("heading", { name: "Import Collection" })).toBeVisible({
+      await expect(page.getByRole("heading", { name: "Import Cards" })).toBeVisible({
         timeout: 15_000,
       });
 
       await page
-        .getByPlaceholder("Paste your CSV data here...")
+        .getByPlaceholder("Paste CSV data or a plain text list here...")
         .fill("not a csv at all\njust text");
       await page.getByRole("button", { name: /^Parse$/u }).click();
 
-      await expect(page.getByText(/Couldn't recognize this format/u)).toBeVisible();
-      await expect(page.getByRole("heading", { name: "Import Collection" })).toBeVisible();
+      // Neither a recognized CSV header nor a valid "<quantity> <name>" text line,
+      // so the plain-text parser reports a per-line "couldn't read" error and the
+      // flow stays on step 1 (no entries → no advance to preview).
+      await expect(page.getByText(/Line 1: couldn.t read/u)).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Import Cards" })).toBeVisible();
       await expect(page.getByRole("heading", { name: "Import Preview" })).toHaveCount(0);
     });
 
     test("external links open in new tabs with rel=noreferrer", async ({ page }) => {
       userEmail = await createAndLogin(page);
       await page.goto("/collections/import");
+      // /collections/import is auth-gated (not pre-warmed), so wait for the
+      // import section to render before checking links — the cold route compile
+      // can exceed the default assertion timeout under parallel load.
+      await expect(page.getByRole("heading", { name: "Import Cards" })).toBeVisible({
+        timeout: 15_000,
+      });
 
       const expected: [string, RegExp][] = [
         ["Piltover Archive", /piltoverarchive\.com/u],
@@ -397,22 +406,9 @@ test.describe("collections import/export", () => {
       }
     });
 
-    test("fallback language dropdown defaults to Auto-detect and can be changed", async ({
-      page,
-    }) => {
-      userEmail = await createAndLogin(page);
-      await page.goto("/collections/import");
-      await expect(page.getByRole("heading", { name: "Import Collection" })).toBeVisible({
-        timeout: 15_000,
-      });
-
-      const languageTrigger = page.locator("#fallback-language");
-      await expect(languageTrigger).toContainText("Auto-detect");
-
-      await languageTrigger.click();
-      await page.getByRole("option", { name: "English" }).click();
-      await expect(languageTrigger).toContainText("English");
-    });
+    // (The step-1 fallback-language dropdown was removed; the matcher now
+    // resolves language-less entries with the user's preferred language
+    // automatically via matchEntries(entries, allPrintings, preferredLanguages[0]).)
   });
 
   test.describe("round-trip: export then re-import", () => {
@@ -442,7 +438,7 @@ test.describe("collections import/export", () => {
       expect(csv.split("\n")[0]).toBe(EXPORT_HEADER);
 
       // Paste the same CSV and parse.
-      await page.getByPlaceholder("Paste your CSV data here...").fill(csv);
+      await page.getByPlaceholder("Paste CSV data or a plain text list here...").fill(csv);
       await page.getByRole("button", { name: /^Parse$/u }).click();
 
       await expect(page.getByRole("heading", { name: "Import Preview" })).toBeVisible({
@@ -517,10 +513,10 @@ test.describe("collections import/export", () => {
       ]);
 
       await page.goto("/collections/import");
-      await expect(page.getByRole("heading", { name: "Import Collection" })).toBeVisible({
+      await expect(page.getByRole("heading", { name: "Import Cards" })).toBeVisible({
         timeout: 15_000,
       });
-      await page.getByPlaceholder("Paste your CSV data here...").fill(csv);
+      await page.getByPlaceholder("Paste CSV data or a plain text list here...").fill(csv);
       await page.getByRole("button", { name: /^Parse$/u }).click();
       await expect(page.getByRole("heading", { name: "Import Preview" })).toBeVisible({
         timeout: 15_000,
@@ -542,11 +538,13 @@ test.describe("collections import/export", () => {
       userEmail = await createAndLogin(page);
       await gotoPreview(page);
 
-      // Rows are sorted exact → needs-review → unresolved, so the 3rd Skip
-      // button corresponds to the unresolved "Totally Fake" row.
+      // The preview lists the non-exact rows individually (unresolved first,
+      // then needs-review) and collapses exact matches into a "N matched exactly"
+      // summary with no Skip button — so there are 2 Skip buttons, and the
+      // unresolved "Totally Fake" row is the first of them.
       const skipButtons = page.getByRole("button", { name: /^Skip$/u });
-      await expect(skipButtons).toHaveCount(3);
-      await skipButtons.nth(2).click();
+      await expect(skipButtons).toHaveCount(2);
+      await skipButtons.nth(0).click();
 
       await expect(page.getByText("1 ready")).toBeVisible();
       await expect(page.getByText("1 need attention")).toBeVisible();
@@ -586,10 +584,10 @@ test.describe("collections import/export", () => {
       ]);
 
       await page.goto("/collections/import");
-      await expect(page.getByRole("heading", { name: "Import Collection" })).toBeVisible({
+      await expect(page.getByRole("heading", { name: "Import Cards" })).toBeVisible({
         timeout: 15_000,
       });
-      const textarea = page.getByPlaceholder("Paste your CSV data here...");
+      const textarea = page.getByPlaceholder("Paste CSV data or a plain text list here...");
       await textarea.fill(csv);
       await page.getByRole("button", { name: /^Parse$/u }).click();
       await expect(page.getByRole("heading", { name: "Import Preview" })).toBeVisible({
@@ -597,8 +595,10 @@ test.describe("collections import/export", () => {
       });
 
       await page.getByRole("button", { name: /^Back$/u }).click();
-      await expect(page.getByRole("heading", { name: "Import Collection" })).toBeVisible();
-      await expect(page.getByPlaceholder("Paste your CSV data here...")).toHaveValue(csv);
+      await expect(page.getByRole("heading", { name: "Import Cards" })).toBeVisible();
+      await expect(
+        page.getByPlaceholder("Paste CSV data or a plain text list here..."),
+      ).toHaveValue(csv);
     });
   });
 
@@ -617,10 +617,10 @@ test.describe("collections import/export", () => {
         { cardId: "OGS-007", cardName: "Garen, Rugged", rarity: "rare", quantity: 2 },
       ]);
       await page.goto("/collections/import");
-      await expect(page.getByRole("heading", { name: "Import Collection" })).toBeVisible({
+      await expect(page.getByRole("heading", { name: "Import Cards" })).toBeVisible({
         timeout: 15_000,
       });
-      await page.getByPlaceholder("Paste your CSV data here...").fill(csv);
+      await page.getByPlaceholder("Paste CSV data or a plain text list here...").fill(csv);
       await page.getByRole("button", { name: /^Parse$/u }).click();
       await expect(page.getByRole("heading", { name: "Import Preview" })).toBeVisible({
         timeout: 15_000,
@@ -706,10 +706,10 @@ test.describe("collections import/export", () => {
         { cardId: "OGS-007", cardName: "Garen, Rugged", rarity: "rare", quantity: 2 },
       ]);
       await page.goto("/collections/import");
-      await expect(page.getByRole("heading", { name: "Import Collection" })).toBeVisible({
+      await expect(page.getByRole("heading", { name: "Import Cards" })).toBeVisible({
         timeout: 15_000,
       });
-      await page.getByPlaceholder("Paste your CSV data here...").fill(csv);
+      await page.getByPlaceholder("Paste CSV data or a plain text list here...").fill(csv);
       await page.getByRole("button", { name: /^Parse$/u }).click();
       await expect(page.getByRole("heading", { name: "Import Preview" })).toBeVisible({
         timeout: 15_000,

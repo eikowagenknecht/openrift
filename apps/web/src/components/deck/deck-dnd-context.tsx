@@ -35,6 +35,13 @@ export interface BrowserCardDragData {
 export interface DeckDropData {
   type: "deck-zone";
   zone: DeckZone;
+  /**
+   * True when the dragged card can't land in this zone (wrong type, or the zone
+   * is full). The zone still registers as a droppable so a release over it is a
+   * no-op rather than being treated as "dropped outside a zone" (which removes a
+   * copy) — see handleDragEnd.
+   */
+  disabled?: boolean;
 }
 
 type AnyDragData = DeckCardDragData | BrowserCardDragData;
@@ -243,7 +250,15 @@ export function DeckDndContext({ deckId, children }: { deckId: string; children:
     }
 
     if (activeData.type === "deck-card") {
-      if (activeData.fromZone === overData.zone || !DRAG_ZONES.has(overData.zone)) {
+      // No-op when the target rejects the card: dropped back onto its own zone,
+      // onto a non-move zone (Legend/Runes/Battlefields), or onto a zone that
+      // reports itself disabled (incompatible type or full — e.g. an occupied
+      // Champion slot). The card stays where it is; it is NOT removed.
+      if (
+        activeData.fromZone === overData.zone ||
+        !DRAG_ZONES.has(overData.zone) ||
+        overData.disabled === true
+      ) {
         return;
       }
       if (moveAll || activeData.quantity === 1) {

@@ -88,8 +88,8 @@ async function seedCopiesInCollection(
   const sql = loadDb();
   try {
     await sql`
-      INSERT INTO copies (user_id, collection_id, printing_id)
-      SELECT u.id, ${collectionId}::uuid, p.id
+      INSERT INTO copies (collection_id, printing_id)
+      SELECT ${collectionId}::uuid, p.id
       FROM users u
       CROSS JOIN LATERAL (SELECT id FROM printings ORDER BY id LIMIT ${count}) p
       WHERE u.email = ${email}
@@ -192,7 +192,7 @@ test.describe("collections CRUD", () => {
       await expect(input).toBeVisible();
     });
 
-    test("blur with empty input cancels and restores the button", async ({ page }) => {
+    test("Escape closes the create dialog and restores the button", async ({ page }) => {
       userEmail = await createAndLogin(page);
       await page.goto("/collections");
       await expect(page.getByRole("link", { name: "Inbox" })).toBeVisible({ timeout: 15_000 });
@@ -201,10 +201,11 @@ test.describe("collections CRUD", () => {
       await newCollectionButton.click();
 
       const input = page.getByPlaceholder("Collection name");
-      await expect(input).toBeFocused();
+      await expect(input).toBeVisible();
 
-      // Blur without typing — onBlur resets isCreating because the value is empty.
-      await input.evaluate((el: HTMLInputElement) => el.blur());
+      // "New collection" now opens a modal dialog (not an inline input that
+      // cancels on blur); Escape dismisses it.
+      await page.keyboard.press("Escape");
 
       await expect(input).toHaveCount(0);
       await expect(newCollectionButton).toBeVisible();
@@ -313,8 +314,11 @@ test.describe("collections CRUD", () => {
       await page.goto(`/collections/${inboxId}`);
       await expect(page.getByRole("link", { name: "Inbox" })).toBeVisible({ timeout: 15_000 });
 
-      // canDeleteCollection is false on the Inbox, so the kebab menu is absent.
-      await expect(page.getByRole("button", { name: "Collection actions" })).toHaveCount(0);
+      // The Inbox still has a Collection actions kebab (share / deck-building
+      // toggle), but canDeleteCollection is false, so the "Delete collection"
+      // item inside it is not rendered.
+      await page.getByRole("button", { name: "Collection actions" }).click();
+      await expect(page.getByRole("menuitem", { name: "Delete collection" })).toHaveCount(0);
     });
   });
 });

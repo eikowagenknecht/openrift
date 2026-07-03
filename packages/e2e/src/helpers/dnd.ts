@@ -1,4 +1,5 @@
 import type { Locator, Page } from "@playwright/test";
+import { expect } from "@playwright/test";
 
 /**
  * Drag `source` onto `target` using mouse events that exceed dnd-kit's 8px
@@ -8,6 +9,11 @@ import type { Locator, Page } from "@playwright/test";
  * @returns Nothing.
  */
 export async function dndDrag(page: Page, source: Locator, target: Locator) {
+  // Wait for both ends to be laid out before measuring — under parallel load the
+  // grid/zone can still be settling, and boundingBox() returns null for an
+  // unrendered element, which would abort the drag.
+  await expect(source).toBeVisible({ timeout: 15_000 });
+  await expect(target).toBeVisible({ timeout: 15_000 });
   const sourceBox = await source.boundingBox();
   const targetBox = await target.boundingBox();
   if (!sourceBox || !targetBox) {
@@ -30,6 +36,7 @@ export async function dndDrag(page: Page, source: Locator, target: Locator) {
  * @returns Nothing.
  */
 export async function dndDragToPoint(page: Page, source: Locator, endX: number, endY: number) {
+  await expect(source).toBeVisible({ timeout: 15_000 });
   const sourceBox = await source.boundingBox();
   if (!sourceBox) {
     throw new Error("dnd source not visible");

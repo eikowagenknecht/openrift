@@ -99,7 +99,15 @@ async function apiAddCopiesToInbox(page: Page, printingId: string, count: number
 }
 
 function statsHeader(page: Page) {
-  return page.getByRole("button", { name: /^Stats\b/u });
+  // Both the sidebar Stats collapsible header and the Overview's stats summary
+  // read "Stats N cards". Scope to the sidebar panel: its trigger lives inside
+  // the collapsible card (div.rounded-lg.border) whose header holds an exact
+  // "Stats" label span.
+  return page
+    .locator("div.rounded-lg.border")
+    .filter({ has: page.getByText("Stats", { exact: true }) })
+    .getByRole("button")
+    .first();
 }
 
 function ownershipHeader(page: Page) {
@@ -121,7 +129,7 @@ async function activateSidebarPanels(page: Page): Promise<void> {
       .getByRole("button", { name: /^Main Deck/u })
       .first()
       .click();
-    await expect(page.getByRole("button", { name: /^Stats\b/u })).toBeVisible({
+    await expect(statsHeader(page)).toBeVisible({
       timeout: 2000,
     });
   }).toPass({ timeout: 15_000 });
@@ -220,7 +228,7 @@ test.describe("deck editor panels", () => {
       await expect(header).toContainText("0%");
 
       await header.click();
-      await expect(page.getByText("Owned").first()).toBeVisible();
+      await expect(page.getByText("Owned", { exact: true }).first()).toBeVisible();
       await expect(page.getByText(/^0 \/ 0$/u)).toBeVisible();
       // Missing row is suppressed when missingCount is 0.
       await expect(page.getByText("Missing", { exact: true })).toBeHidden();
@@ -476,16 +484,24 @@ test.describe("deck editor panels", () => {
       await expect(stats).toBeVisible();
       await expect(ownership).toBeVisible();
 
+      // Scope the "Owned" row to the sidebar Ownership panel — the Overview
+      // also renders an "Owned" label, so a global .first() would resolve to
+      // that (hidden) copy instead of the panel's expanding row.
+      const ownedRow = page
+        .locator("div.rounded-lg.border")
+        .filter({ has: page.getByText("Ownership", { exact: true }) })
+        .getByText("Owned", { exact: true });
+
       // Mobile defaults: stats collapsed (matchMedia >=768px is false),
       // ownership always starts closed.
       await expect(page.getByRole("heading", { level: 4, name: "Energy" })).toBeHidden();
-      await expect(page.getByText("Owned").first()).toBeHidden();
+      await expect(ownedRow).toBeHidden();
 
       await stats.click();
       await expect(page.getByRole("heading", { level: 4, name: "Energy" })).toBeVisible();
 
       await ownership.click();
-      await expect(page.getByText("Owned").first()).toBeVisible();
+      await expect(ownedRow).toBeVisible();
     });
   });
 });

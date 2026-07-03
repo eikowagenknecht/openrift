@@ -169,6 +169,12 @@ test.describe("sign out", () => {
     await openUserMenu(page);
     await page.getByRole("menuitem", { name: "Sign out" }).click();
     await expect(page).toHaveURL(/\/cards$/u, { timeout: 15_000 });
+    // The sign-out redirect lands before the session cookie clear necessarily
+    // propagates; wait for the logged-out header (a Sign in link) so the guarded
+    // /profile visit below actually sees an anonymous session.
+    await expect(page.getByRole("link", { name: /sign in/iu }).first()).toBeVisible({
+      timeout: 15_000,
+    });
 
     await page.goto("/profile");
     await expect(page).toHaveURL(/\/login/u, { timeout: 15_000 });
@@ -208,14 +214,26 @@ test.describe("sign out", () => {
     }
 
     await loginViaForm(page, email, password);
-    await openUserMenu(page);
-    await expect(page.getByRole("menuitem", { name: "Admin" })).toBeVisible();
+    // The isAdmin query (admin/me) is fetched on the logged-out /login page and
+    // cached as false (401) with a 5-min staleTime, so it doesn't refetch after
+    // a client-side login. A fresh load rebuilds the query cache with the
+    // authenticated session, revealing the Admin entry.
+    await page.reload();
+    // The Admin entry is a menu item rendered as a Link to /admin; match it by
+    // href so it works whether it exposes a menuitem or link role. The isAdmin
+    // query resolves asynchronously after the reload, so retry re-opening the
+    // menu until the entry appears.
+    const adminEntry = page.locator('a[href="/admin"]');
+    await expect(async () => {
+      await openUserMenu(page);
+      await expect(adminEntry).toBeVisible({ timeout: 2000 });
+    }).toPass({ timeout: 20_000 });
 
     await page.getByRole("menuitem", { name: "Sign out" }).click();
     await expect(page).toHaveURL(/\/cards$/u, { timeout: 15_000 });
 
     await openUserMenu(page);
-    await expect(page.getByRole("menuitem", { name: "Admin" })).toHaveCount(0);
+    await expect(page.locator('a[href="/admin"]')).toHaveCount(0);
   });
 
   test("signing out from /collections still lands on /cards logged out", async ({

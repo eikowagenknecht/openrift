@@ -124,11 +124,16 @@ export function DeckZoneSection({
     draggedCard !== undefined &&
     (!isCardAllowedInZone(draggedCard, zone) || isZoneFull);
 
-  const dropData: DeckDropData = { type: "deck-zone", zone };
+  // Keep the zone registered as a droppable even when it can't accept the card,
+  // and carry that state in the drop data instead of via `disabled`. A disabled
+  // droppable drops out of collision detection, so a release over it would read
+  // as "dropped outside any zone" and remove a copy; registering it lets
+  // handleDragEnd treat the drop as a no-op. The visual state below is still
+  // gated on `dropDisabled`, so an invalid zone shows no drop highlight.
+  const dropData: DeckDropData = { type: "deck-zone", zone, disabled: dropDisabled };
   const { setNodeRef: dropRef, isOver } = useDroppable({
     id: `deck-zone-${zone}`,
     data: dropData,
-    disabled: dropDisabled,
   });
 
   const handleCardClick = (card: DeckBuilderCard) => {

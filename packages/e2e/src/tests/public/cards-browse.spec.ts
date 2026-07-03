@@ -1,11 +1,14 @@
 import { expect, test } from "@playwright/test";
 
+import { scrollUntilVisible } from "../../helpers/virtualized.js";
+
 test.describe("card browser", () => {
   test("loads the card catalog and displays cards", async ({ page }) => {
     await page.goto("/cards");
 
-    // Wait for a known card name from seed data to appear in the grid
-    await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 15_000 });
+    // Card tiles render the name as the art image's alt text, and the grid is
+    // window-virtualized, so scroll the target into view before asserting.
+    await scrollUntilVisible(page, page.getByRole("img", { name: "Annie, Fiery" }));
 
     // The search input should be visible
     await expect(page.getByPlaceholder(/search/iu)).toBeVisible();
@@ -15,7 +18,7 @@ test.describe("card browser", () => {
     await page.goto("/cards");
 
     // Wait for cards to load
-    await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 15_000 });
+    await scrollUntilVisible(page, page.getByRole("img", { name: "Annie, Fiery" }));
 
     // Search for a known card from seed data
     const searchInput = page.getByPlaceholder(/search/iu);
@@ -25,6 +28,6 @@ test.describe("card browser", () => {
     await page.waitForTimeout(500);
 
     // A Garen card from seed data should be visible (check any Garen variant)
-    await expect(page.getByText("Garen, Rugged").first()).toBeVisible({ timeout: 5000 });
+    await scrollUntilVisible(page, page.getByRole("img", { name: "Garen, Rugged" }));
   });
 });

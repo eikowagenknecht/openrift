@@ -1,8 +1,9 @@
 import { readFileSync } from "node:fs";
 
-import type { APIRequestContext, Page } from "@playwright/test";
+import type { APIRequestContext, Locator, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
+import { typeSearch, waitForCatalogLoaded } from "../../helpers/catalog.js";
 import type { E2eState } from "../../helpers/constants.js";
 import { API_BASE_URL, STATE_FILE, WEB_BASE_URL } from "../../helpers/constants.js";
 import { connectToDb } from "../../helpers/db.js";
@@ -57,8 +58,8 @@ async function seedInboxCopy(email: string, cardName: string): Promise<void> {
   const sql = loadDb();
   try {
     await sql`
-      INSERT INTO copies (user_id, collection_id, printing_id)
-      SELECT u.id, c.id, p.id
+      INSERT INTO copies (collection_id, printing_id)
+      SELECT c.id, p.id
       FROM users u
       JOIN collections c ON c.user_id = u.id AND c.is_inbox = true
       JOIN printings p ON p.card_id = (
@@ -73,22 +74,41 @@ async function seedInboxCopy(email: string, cardName: string): Promise<void> {
 }
 
 /**
- * Locate the desktop "Show owned count" toggle. It has only an icon
- * (PackageIcon) plus a tooltip, so we target it via the icon's lucide class
- * name — no other button on /cards uses this icon.
+ * Locate the desktop owned-count toggle. It's an icon-only toggle whose
+ * accessible name flips between "Show owned count" and "Hide owned count"
+ * depending on its pressed state, so match either.
  * @returns A locator for the show-owned-count toggle.
  */
 function catalogModeButton(page: Page) {
-  return page
-    .getByRole("button")
-    .filter({ has: page.locator("svg.lucide-package") })
-    .first();
+  return page.getByRole("button", { name: /(?:Show|Hide) owned count/u }).first();
 }
 
 async function waitForCards(page: Page) {
-  await expect(page.getByText("Annie, Fiery", { exact: true }).first()).toBeVisible({
-    timeout: 15_000,
-  });
+  // Catalog tiles are image-only (name in the art image's alt) and the grid is
+  // window-virtualized, so scroll a known seed card into view by image role.
+  await waitForCatalogLoaded(page);
+}
+
+// The owned-count toggle only renders for logged-in users and hydrates a beat
+// after the grid; under heavy parallel load that can lag past the default
+// assertion timeout, so wait for it with headroom before inspecting/clicking it.
+async function waitForOwnedCountToggle(page: Page) {
+  await expect(catalogModeButton(page)).toBeVisible({ timeout: 15_000 });
+}
+
+// Open the QuickAddPalette via its keyboard shortcut, retrying the keypress
+// until the palette appears. A single press can be dropped while handlers settle
+// under load (the Meta shortcut is especially unreliable on headless Linux); the
+// visibility guard keeps a retry from toggling an already-open palette shut.
+async function openQuickAddPalette(page: Page, shortcut: "Control+k" | "Meta+k"): Promise<Locator> {
+  const paletteInput = page.getByPlaceholder('Add to "Inbox"...');
+  await expect(async () => {
+    if (!(await paletteInput.isVisible())) {
+      await page.keyboard.press(shortcut);
+    }
+    await expect(paletteInput).toBeVisible({ timeout: 2000 });
+  }).toPass({ timeout: 15_000 });
+  return paletteInput;
 }
 
 /**
@@ -139,8 +159,21 @@ test.describe("cards /cards (logged in)", () => {
     await page.goto("/cards");
     await waitForCards(page);
 
-    // Turn the "Show owned count" toggle on.
-    await catalogModeButton(page).click();
+    // The grid is grouped by set and virtualized, so search for the seeded card
+    // to bring its cell into view before checking the owned strip.
+    await typeSearch(page, "Annie, Fiery");
+
+    // Turn the owned-count toggle on. Retry while it still reads "Show owned
+    // count" — an early click can be dropped while the toolbar re-hydrates after
+    // the search; the guard avoids over-toggling it back off.
+    await expect(async () => {
+      if (await page.getByRole("button", { name: "Show owned count" }).isVisible()) {
+        await catalogModeButton(page).click();
+      }
+      await expect(page.getByRole("button", { name: "Hide owned count" })).toBeVisible({
+        timeout: 1000,
+      });
+    }).toPass({ timeout: 15_000 });
 
     // OwnedCollectionsPopover only renders when the user owns >= 1 copy of a printing;
     // with one seeded copy of Annie, Fiery, its strip shows "×1".
@@ -152,13 +185,10 @@ test.describe("cards /cards (logged in)", () => {
     const collectionsLoaded = waitForCollectionsLoaded(page);
     await page.goto("/cards");
     await waitForCards(page);
-    await expect(catalogModeButton(page)).toBeVisible();
+    await waitForOwnedCountToggle(page);
     await collectionsLoaded;
 
-    await page.keyboard.press("Control+k");
-
-    const paletteInput = page.getByPlaceholder('Add to "Inbox"...');
-    await expect(paletteInput).toBeVisible();
+    const paletteInput = await openQuickAddPalette(page, "Control+k");
 
     await page.keyboard.press("Escape");
     await expect(paletteInput).not.toBeVisible();
@@ -166,27 +196,31 @@ test.describe("cards /cards (logged in)", () => {
 
   test("Meta+K also opens the QuickAddPalette", async ({ page }) => {
     userEmail = await createAndLogin(page);
+    const collectionsLoaded = waitForCollectionsLoaded(page);
     await page.goto("/cards");
     await waitForCards(page);
-    await expect(catalogModeButton(page)).toBeVisible();
+    await waitForOwnedCountToggle(page);
+    // The shortcut handler is gated on inboxId, so wait for collections first.
+    await collectionsLoaded;
 
-    await page.keyboard.press("Meta+k");
-
-    await expect(page.getByPlaceholder('Add to "Inbox"...')).toBeVisible();
+    await openQuickAddPalette(page, "Meta+k");
   });
 
   test("QuickAddPalette: typing shows matches and selecting adds to Inbox", async ({ page }) => {
     const email = await createAndLogin(page);
     userEmail = email;
+    const collectionsLoaded = waitForCollectionsLoaded(page);
     await page.goto("/cards");
     await waitForCards(page);
-    await expect(catalogModeButton(page)).toBeVisible();
+    await waitForOwnedCountToggle(page);
+    // The shortcut handler is gated on inboxId, so wait for collections first.
+    await collectionsLoaded;
 
-    await page.keyboard.press("Control+k");
-    const paletteInput = page.getByPlaceholder('Add to "Inbox"...');
-    await expect(paletteInput).toBeVisible();
+    const paletteInput = await openQuickAddPalette(page, "Control+k");
 
-    await paletteInput.fill("Annie");
+    // Use the full name so "Annie, Fiery" is the top match — plain "Annie" now
+    // ranks "Annie, Dark Child, Starter" first, which would be added instead.
+    await paletteInput.fill("Annie, Fiery");
     // Matches render as card-row buttons whose accessible name starts with the card name.
     await expect(page.getByRole("button", { name: /Annie, Fiery/iu }).first()).toBeVisible({
       timeout: 10_000,
@@ -206,7 +240,7 @@ test.describe("cards /cards (logged in)", () => {
         SELECT COUNT(*)::int AS count
         FROM copies cp
         JOIN collections c ON c.id = cp.collection_id
-        JOIN users u ON u.id = cp.user_id
+        JOIN users u ON u.id = c.user_id
         WHERE u.email = ${email} AND c.is_inbox = true
       `) as { count: number }[];
       expect(rows[0].count).toBeGreaterThan(0);

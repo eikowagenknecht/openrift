@@ -110,7 +110,9 @@ async function apiAddCopies(
     data: { copies },
   });
   expect(response.ok()).toBeTruthy();
-  return (await response.json()) as CopyEntry[];
+  // POST /copies now returns the created rows under `items`, not a bare array.
+  const body = (await response.json()) as { items: CopyEntry[] };
+  return body.items;
 }
 
 async function apiMoveCopies(
@@ -274,13 +276,16 @@ test.describe("collection activity", () => {
       await deleteUser(state.user.email);
     });
 
-    test("renders 'Activity' in the top-bar portal slot", async ({ browser }) => {
+    test("renders the 'Activity' page title in the top bar", async ({ browser }) => {
       await withSignedInContext(state.user, browser, async (context) => {
         const page = await context.newPage();
         await page.goto("/collections/activity");
 
-        const topBarSlot = page.locator("div.sticky.px-3.py-3").first();
-        await expect(topBarSlot).toContainText("Activity", { timeout: 15_000 });
+        // The page title renders through the shared PageTopBar (an h1), not a
+        // hand-rolled sticky div.
+        await expect(page.getByRole("heading", { name: "Activity" }).first()).toBeVisible({
+          timeout: 15_000,
+        });
       });
     });
   });

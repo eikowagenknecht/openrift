@@ -159,16 +159,40 @@ export default async function globalSetup(_config: FullConfig) {
     },
   });
 
-  webProcess.stdout?.on("data", (data: Buffer) => {
-    const line = data.toString().trim();
-    if (line) {
-      console.log(`[web] ${line}`);
+  // Buffer recent web output so an unexpected exit can be diagnosed. Vite prints
+  // its real startup/restart error across several lines; trimming each chunk to a
+  // single line dropped the detail, leaving only "error when starting dev server:"
+  // with no cause — and every later test then failed with page.goto ERR_ABORTED
+  // against a dead server, hiding the root cause entirely.
+  const webOutputTail: string[] = [];
+  const recordWeb = (data: Buffer, isError: boolean) => {
+    for (const line of data.toString().split("\n")) {
+      if (!line.trim()) {
+        continue;
+      }
+      webOutputTail.push(line);
+      if (webOutputTail.length > 100) {
+        webOutputTail.shift();
+      }
+      if (isError) {
+        console.error(`[web] ${line}`);
+      } else {
+        console.log(`[web] ${line}`);
+      }
     }
-  });
-  webProcess.stderr?.on("data", (data: Buffer) => {
-    const line = data.toString().trim();
-    if (line) {
-      console.error(`[web] ${line}`);
+  };
+  webProcess.stdout?.on("data", (data: Buffer) => recordWeb(data, false));
+  webProcess.stderr?.on("data", (data: Buffer) => recordWeb(data, true));
+
+  // Surface an unexpected death loudly with the buffered tail. Teardown kills the
+  // server with SIGTERM, which arrives either as signal "SIGTERM" or as exit
+  // code 143 (128 + 15) depending on how the shell wrapper forwards it — treat
+  // both as normal, so only some other non-zero exit is reported as a real crash.
+  webProcess.on("exit", (code, signal) => {
+    if (code !== 0 && code !== 143 && signal !== "SIGTERM") {
+      console.error(
+        `[e2e] ⚠ Web dev server exited unexpectedly (code=${code}, signal=${signal}). Recent output:\n${webOutputTail.join("\n")}`,
+      );
     }
   });
 
@@ -192,6 +216,20 @@ export default async function globalSetup(_config: FullConfig) {
     // compiled and hydration ran through the layout-effect that gates card
     // visibility. After this, repeat runs of the same page are nearly instant.
     await page.locator('[data-card-index="0"]').waitFor({ state: "attached", timeout: 30_000 });
+
+    // Pre-compile the heavy public routes too. Vite dev compiles each route on
+    // first request, and that first-hit latency is what let a test interact
+    // before its route had hydrated (flaky "click did nothing" / "toggle didn't
+    // open" failures). Warming them here means the first real test to hit each
+    // route pays no compile cost. Best-effort: a route that redirects or is slow
+    // still compiles its module graph on the way, so ignore navigation errors.
+    for (const route of ["/cards", "/cards/annie-fiery", "/promos", "/sets", "/help", "/login"]) {
+      try {
+        await page.goto(`${WEB_BASE_URL}${route}`, { waitUntil: "networkidle", timeout: 60_000 });
+      } catch {
+        // Compilation is triggered by the request itself; a timeout here is fine.
+      }
+    }
     await context.close();
   } finally {
     await browser.close();

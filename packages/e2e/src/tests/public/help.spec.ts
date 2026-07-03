@@ -6,13 +6,15 @@ import { WEB_BASE_URL } from "../../helpers/constants.js";
 // Kept in sync with apps/web/src/components/help/articles.ts — the e2e
 // package's tsconfig has no `@/*` alias into the web app, and the articles
 // module pulls in lucide + lazy imports that don't load under node, so the
-// slug/title/description triples are re-declared here.
+// slug/title/description triples are re-declared here. `how-to-play` is
+// omitted: it sets `featureFlag: "help-how-to-play"`, so with the flag off (the
+// e2e default) it doesn't render in the index/FAQ or as a standalone article.
 const ARTICLES: { slug: string; title: string; description: string }[] = [
   {
     slug: "why-openrift",
     title: "Why OpenRift?",
     description:
-      "A transparent comparison with other Riftbound card browsers: what we do well and where we're still catching up.",
+      "A side-by-side comparison with other Riftbound card browsers: what OpenRift does well and where it's still catching up.",
   },
   {
     slug: "cards-printings-copies",
@@ -23,13 +25,25 @@ const ARTICLES: { slug: string; title: string; description: string }[] = [
     slug: "collections",
     title: "Managing Your Collection",
     description:
-      "Organize cards by where they physically are — deck boxes, binders, or lent to friends — and control which are available for deck building.",
+      "Organize cards by where they physically are (deck boxes, binders, or lent to friends) and control which are available for deck building.",
   },
   {
     slug: "import-export",
     title: "Importing & Exporting",
     description:
-      "Bring cards in from other tools via CSV and download your collection as a CSV export.",
+      "Move collections between OpenRift and other Riftbound tools (Piltover Archive, RiftCore, and more) using CSV.",
+  },
+  {
+    slug: "lists",
+    title: "Wishlists & Tradelists",
+    description:
+      "Build, fill, and price the wishlists and tradelists that power group trading — including per-card overrides and the three list kinds.",
+  },
+  {
+    slug: "groups",
+    title: "Groups",
+    description:
+      "Set up a closed circle of friends to share wishlists and tradelists, pool cards into shared collections, and see who has what you want.",
   },
   {
     slug: "deck-building",

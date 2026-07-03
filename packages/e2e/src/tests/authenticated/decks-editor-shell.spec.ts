@@ -97,9 +97,10 @@ test.describe("deck editor shell", () => {
       // (The "Saved" status tooltip indicator was removed from the top bar;
       // the "Constructed · Draft" badge now communicates the unsaved state.)
 
-      // Desktop-only action buttons.
+      // Desktop-only action button (Export stayed on the bar; Proxies moved
+      // into the actions kebab menu and is card-gated, so it's absent on this
+      // empty deck).
       await expect(page.getByRole("button", { name: "Export" })).toBeVisible();
-      await expect(page.getByRole("button", { name: "Proxies" })).toBeVisible();
 
       // Kebab menu opens a dropdown with a Rename item.
       await kebabTrigger(page).click();
@@ -111,7 +112,12 @@ test.describe("deck editor shell", () => {
       // Back arrow returns to /decks and the list renders.
       await backLink.click();
       await expect(page).toHaveURL(/\/decks$/u, { timeout: 15_000 });
-      await expect(page.getByRole("link", { name: /Shell Test Deck/u })).toBeVisible();
+      // The deck name renders as an h3 inside the tile link (the link's own
+      // accessible name isn't the deck name); the server list loads after the
+      // client-side back navigation, so give it headroom.
+      await expect(page.getByRole("heading", { level: 3, name: /Shell Test Deck/u })).toBeVisible({
+        timeout: 15_000,
+      });
     });
   });
 
@@ -248,7 +254,7 @@ test.describe("deck editor shell", () => {
       // Zone order comes from the init query, so we assert that each expected
       // zone label appears at least once rather than a strict ordering.
       for (const label of [
-        "legend",
+        "Legend",
         "Chosen Champion",
         "Runes",
         "Battlefields",

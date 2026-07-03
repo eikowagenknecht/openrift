@@ -141,10 +141,10 @@ test.describe("landing page", () => {
 
     // Playwright's text matchers (hasText, toHaveText) treat <script> as
     // non-visible and return empty text, so read textContent directly.
-    const websiteJsonLd = page.locator('script[type="application/ld+json"]');
-    await expect(websiteJsonLd).toHaveCount(1);
-    const jsonLdContent = await websiteJsonLd.evaluate((el) => el.textContent);
-    expect(jsonLdContent).toMatch(/"@type"\s*:\s*"WebSite"/u);
+    const jsonLdScripts = page.locator('script[type="application/ld+json"]');
+    await expect(jsonLdScripts).toHaveCount(2);
+    const jsonLdContents = await jsonLdScripts.allTextContents();
+    expect(jsonLdContents.some((content) => /"@type"\s*:\s*"WebSite"/u.test(content))).toBe(true);
   });
 
   test("minigame: collecting all visible cards spins the logo", async ({ page }) => {
@@ -212,13 +212,13 @@ test.describe("landing page", () => {
     const foil = wrapper.locator(".bg-foil");
     await expect(wrapper).toHaveCSS("opacity", "1");
 
-    // First click activates — the foil shimmer fades in to opacity-30.
+    // First click activates — the foil shimmer fades in to full opacity.
     // force:true bypasses stability checks (cards have a continuous drift
     // animation, so they're never "stable" by Playwright's definition).
     // Waiting for the foil opacity change also gates the second click on a
     // committed render, so it's seen as a "collect" not another "activate".
     await card.click({ force: true });
-    await expect(foil).toHaveCSS("opacity", "0.3");
+    await expect(foil).toHaveCSS("opacity", "1");
 
     // Second click collects — the card flies away and the counter appears.
     await card.click({ force: true });

@@ -113,15 +113,16 @@ test.describe("profile shell", () => {
   test.describe("sidebar navigation", () => {
     const sectionLabels = ["Preferences", "Account", "Security", "Danger Zone"] as const;
 
-    test("shows four nav buttons on desktop", async ({ authenticatedPage }) => {
+    test("shows the section nav links on desktop", async ({ authenticatedPage }) => {
       const page = authenticatedPage;
       await page.goto("/profile");
 
       const nav = page.getByRole("navigation").filter({ hasText: "Preferences" });
       await expect(nav).toBeVisible({ timeout: 15_000 });
 
+      // TOC entries are in-page anchor links (href="#id"), not buttons.
       for (const label of sectionLabels) {
-        await expect(nav.getByRole("button", { name: label, exact: true })).toBeVisible();
+        await expect(nav.getByRole("link", { name: label, exact: true })).toBeVisible();
       }
     });
 
@@ -139,14 +140,14 @@ test.describe("profile shell", () => {
       await expect(nav).toBeHidden();
     });
 
-    test("clicking a nav button scrolls the section into view", async ({ authenticatedPage }) => {
+    test("clicking a nav link scrolls the section into view", async ({ authenticatedPage }) => {
       const page = authenticatedPage;
       await page.goto("/profile");
 
       const nav = page.getByRole("navigation").filter({ hasText: "Preferences" });
       await expect(nav).toBeVisible({ timeout: 15_000 });
 
-      await nav.getByRole("button", { name: "Security", exact: true }).click();
+      await nav.getByRole("link", { name: "Security", exact: true }).click();
 
       const securityHeading = page.getByRole("heading", { name: "Security", level: 2 });
       await expect(securityHeading).toBeInViewport();
@@ -159,36 +160,26 @@ test.describe("profile shell", () => {
       const nav = page.getByRole("navigation").filter({ hasText: "Preferences" });
       await expect(nav).toBeVisible({ timeout: 15_000 });
 
-      // Exception: the active state is expressed only via class tokens (no
-      // aria-current on the nav buttons yet). Asserting class-membership here
-      // is a candidate for migrating to aria-current later.
-      const preferencesButton = nav.getByRole("button", { name: "Preferences", exact: true });
-      await expect(preferencesButton).toHaveClass(/bg-muted/u);
-      await expect(preferencesButton).toHaveClass(/text-foreground/u);
-      await expect(preferencesButton).toHaveClass(/font-medium/u);
+      // The active TOC link is styled via class tokens (text-foreground +
+      // font-medium); inactive links are muted. No aria-current yet.
+      const preferencesLink = nav.getByRole("link", { name: "Preferences", exact: true });
+      await expect(preferencesLink).toHaveClass(/font-medium/u);
 
-      // Scroll the Security section into view directly so the
-      // IntersectionObserver callback fires on a real scroll event.
-      await page.evaluate(() => {
-        document
-          .querySelector('[data-section="security"]')
-          ?.scrollIntoView({ behavior: "instant", block: "start" });
-      });
-
-      const securityButton = nav.getByRole("button", { name: "Security", exact: true });
-      await expect(securityButton).toHaveClass(/bg-muted/u);
-      await expect(securityButton).toHaveClass(/text-foreground/u);
-      await expect(securityButton).toHaveClass(/font-medium/u);
-      await expect(preferencesButton).not.toHaveClass(/bg-muted/u);
+      // Clicking a TOC link sets it active directly (and scrolls to it) — more
+      // deterministic than racing the scroll IntersectionObserver.
+      const securityLink = nav.getByRole("link", { name: "Security", exact: true });
+      await securityLink.click();
+      await expect(securityLink).toHaveClass(/font-medium/u);
+      await expect(preferencesLink).not.toHaveClass(/font-medium/u);
     });
   });
 
   test.describe("section landmarks", () => {
-    test("renders all four section headings", async ({ authenticatedPage }) => {
+    test("renders the top-level section headings", async ({ authenticatedPage }) => {
       const page = authenticatedPage;
       await page.goto("/profile");
 
-      // h2 uses the `uppercase` CSS class, so the DOM text remains Title Case.
+      // Each SettingsGroup renders an uppercase h2 (the DOM text stays Title Case).
       for (const label of ["Preferences", "Account", "Security", "Danger Zone"]) {
         await expect(page.getByRole("heading", { name: label, level: 2 })).toBeVisible({
           timeout: 15_000,
@@ -196,15 +187,23 @@ test.describe("profile shell", () => {
       }
     });
 
-    test("each section has a data-section anchor", async ({ authenticatedPage }) => {
+    test("renders a scroll anchor <section> for each top-level group", async ({
+      authenticatedPage,
+    }) => {
       const page = authenticatedPage;
       await page.goto("/profile");
 
-      // Exception: sections have no landmark role, so target the data-section
-      // attribute used by the IntersectionObserver wiring.
-      await expect(page.locator("[data-section]")).toHaveCount(4, { timeout: 15_000 });
-      for (const id of ["preferences", "account", "security", "danger-zone"]) {
-        await expect(page.locator(`[data-section="${id}"]`)).toHaveCount(1);
+      // SettingsGroups render as <section id="..."> scroll anchors (the old
+      // data-section attribute is gone).
+      for (const id of [
+        "preferences",
+        "sharing",
+        "integrations",
+        "account",
+        "security",
+        "danger-zone",
+      ]) {
+        await expect(page.locator(`section#${id}`)).toHaveCount(1, { timeout: 15_000 });
       }
     });
   });

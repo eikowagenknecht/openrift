@@ -195,8 +195,16 @@ async function goToImport(page: Page) {
   await expect(page.getByRole("heading", { name: "Import Deck" })).toBeVisible({ timeout: 15_000 });
 }
 
+// The import form now defaults to the Text tab (useState<DeckImportFormat>("text")),
+// so tests that paste a Piltover deck code must select the "Deck Code" tab first.
+async function selectDeckCodeTab(page: Page) {
+  await page.getByRole("tab", { name: "Deck Code" }).click();
+  await expect(page.getByPlaceholder(/Piltover Archive deck code/iu)).toBeVisible();
+}
+
 async function advanceToPreviewWithPiltover(page: Page) {
   await goToImport(page);
+  await selectDeckCodeTab(page);
   const code = buildPiltoverSample();
   await page.getByPlaceholder(/Piltover Archive deck code/iu).fill(code);
   await page.getByRole("button", { name: /^Parse$/u }).click();
@@ -216,7 +224,7 @@ test.describe("deck import", () => {
       }
     });
 
-    test("renders the title, all three format tabs, and default Piltover placeholder", async ({
+    test("renders the title, all three format tabs, and default Text placeholder", async ({
       page,
     }) => {
       userEmail = await createAndLogin(page);
@@ -226,12 +234,12 @@ test.describe("deck import", () => {
       await expect(page.getByRole("tab", { name: "Text" })).toBeVisible();
       await expect(page.getByRole("tab", { name: "TTS" })).toBeVisible();
 
-      // Default tab is Piltover ("Deck Code").
-      await expect(page.getByRole("tab", { name: "Deck Code" })).toHaveAttribute(
+      // Default tab is Text (useState<DeckImportFormat>("text")).
+      await expect(page.getByRole("tab", { name: "Text" })).toHaveAttribute(
         "aria-selected",
         "true",
       );
-      await expect(page.getByPlaceholder(/Piltover Archive deck code/iu)).toBeVisible();
+      await expect(page.getByPlaceholder(/Legend:/u)).toBeVisible();
     });
 
     test("switching tabs updates the textarea placeholder for each format", async ({ page }) => {
@@ -249,6 +257,7 @@ test.describe("deck import", () => {
       userEmail = await createAndLogin(page);
       await goToImport(page);
 
+      await selectDeckCodeTab(page);
       const parseButton = page.getByRole("button", { name: /^Parse$/u });
       await expect(parseButton).toBeDisabled();
 
@@ -294,6 +303,7 @@ test.describe("deck import", () => {
       userEmail = await createAndLogin(page);
       await goToImport(page);
 
+      await selectDeckCodeTab(page);
       await page.getByPlaceholder(/Piltover Archive deck code/iu).fill("NOT-A-REAL-CODE!!!");
       await page.getByRole("button", { name: /^Parse$/u }).click();
 
@@ -342,6 +352,7 @@ test.describe("deck import", () => {
       const code = buildPiltoverSample();
 
       await goToImport(page);
+      await selectDeckCodeTab(page);
       await page.getByPlaceholder(/Piltover Archive deck code/iu).fill(code);
       await page.getByRole("button", { name: /^Parse$/u }).click();
 

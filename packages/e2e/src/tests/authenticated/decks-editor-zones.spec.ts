@@ -160,7 +160,7 @@ test.describe("deck editor zones + drag-drop", () => {
       await expect(page.getByText(/Constructed/u).first()).toBeVisible({ timeout: 15_000 });
 
       for (const label of [
-        "legend",
+        "Legend",
         "Chosen Champion",
         "Runes",
         "Battlefields",

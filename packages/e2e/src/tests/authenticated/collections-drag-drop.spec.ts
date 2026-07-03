@@ -112,8 +112,8 @@ async function seedSameCardCopies(
     const { printing_id: printingId, card_name: cardName } = picked[0];
 
     await sql`
-      INSERT INTO copies (user_id, collection_id, printing_id)
-      SELECT u.id, ${collectionId}::uuid, ${printingId}::uuid
+      INSERT INTO copies (collection_id, printing_id)
+      SELECT ${collectionId}::uuid, ${printingId}::uuid
       FROM users u
       CROSS JOIN generate_series(1, ${count}) g
       WHERE u.email = ${email}

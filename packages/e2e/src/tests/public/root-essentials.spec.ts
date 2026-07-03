@@ -70,7 +70,7 @@ test.describe("root essentials", () => {
 
       await expect(page.locator('meta[name="viewport"]')).toHaveAttribute(
         "content",
-        "width=device-width, initial-scale=1",
+        "width=device-width, initial-scale=1, viewport-fit=cover",
       );
       await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#1d1538");
       await expect(page.locator('meta[name="impact-site-verification"]')).toHaveAttribute(

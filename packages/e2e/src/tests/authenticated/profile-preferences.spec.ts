@@ -82,7 +82,7 @@ async function gotoProfile(page: Page) {
   );
   await page.goto("/profile");
   // CardTitle renders as a div; wait on a reliable interactive element instead.
-  await expect(page.getByRole("button", { name: "Auto", exact: true })).toBeVisible({
+  await expect(page.getByRole("radio", { name: "Auto", exact: true })).toBeVisible({
     timeout: 15_000,
   });
   await prefsResponse;
@@ -105,9 +105,9 @@ test.describe("profile preferences", () => {
       userEmail = await createAndLogin(page);
       await gotoProfile(page);
 
-      const autoButton = page.getByRole("button", { name: "Auto", exact: true });
-      const lightButton = page.getByRole("button", { name: "Light", exact: true });
-      const darkButton = page.getByRole("button", { name: "Dark", exact: true });
+      const autoButton = page.getByRole("radio", { name: "Auto", exact: true });
+      const lightButton = page.getByRole("radio", { name: "Light", exact: true });
+      const darkButton = page.getByRole("radio", { name: "Dark", exact: true });
 
       await expect(autoButton).toBeVisible();
       await expect(lightButton).toBeVisible();
@@ -196,7 +196,7 @@ test.describe("profile preferences", () => {
       );
 
       await page.reload();
-      await expect(page.getByRole("button", { name: "Auto", exact: true })).toBeVisible({
+      await expect(page.getByRole("radio", { name: "Auto", exact: true })).toBeVisible({
         timeout: 15_000,
       });
       await expect(page.getByRole("switch", { name: "Fancy card fan" })).not.toBeChecked();

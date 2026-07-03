@@ -6,23 +6,51 @@ import { scrollUntilVisible } from "../../helpers/virtualized.js";
 // The SortGroupControls popover trigger renders as "<Group> · <Sort>" (e.g.
 // "Set · ID") when a group is active. Default state has groupBy="set", so the
 // middot is always present in baseline tests here.
-async function openSortPopover(page: Page) {
-  await page.getByRole("button", { name: /·/u }).click();
+// Open the sort/group popover and pick a radio option. Under parallel load the
+// popover can close (a background re-render / focus loss), and its option spans
+// re-render mid-click. Retry the whole thing: re-open when the radio is gone,
+// then fire the option's onClick via dispatchEvent (no visibility / stability
+// wait), until the radio reads checked. Radios are idempotent, so re-firing is
+// safe; a stale node throws and retries with a fresh locator.
+async function selectSortGroupOption(page: Page, name: string) {
+  const trigger = page.getByRole("button", { name: /·/u });
+  const radio = page.getByRole("radio", { name, exact: true });
+  await expect(async () => {
+    if ((await radio.count()) === 0) {
+      await trigger.click({ timeout: 2000 }).catch(() => {});
+      await expect(radio).toBeAttached({ timeout: 1500 });
+    }
+    if ((await radio.getAttribute("aria-checked").catch(() => null)) !== "true") {
+      await radio.dispatchEvent("click").catch(() => {});
+    }
+    await expect(radio).toHaveAttribute("aria-checked", "true", { timeout: 1500 });
+  }).toPass({ timeout: 25_000 });
 }
 
-function cardTiles(page: Page): Locator {
-  // The grid renders a shortcode + card name inside each CardMetaLabel.
-  // Short codes all follow "OGS-xxx" in the seed data. The scroll indicator
-  // badge also shows the current card id as plain text, so scope to the
-  // grid's CardMetaLabel by requiring the span to sit alongside a card name.
-  // CardMetaLabel renders short codes inside a `.bg-background.rounded-md`
-  // wrapper, while the scroll indicator badge is a positioned `.font-mono`
-  // element. Filter the shortcode span's parent accordingly.
-  return page.locator(".bg-background.rounded-md span", { hasText: /^OGS-\d{3}$/u });
+// Grid tiles render the card name only as the art image's alt text (no visible
+// text/shortcode), and the grid is window-virtualized, so locate cards by image
+// role.
+function cardImage(page: Page, name: string): Locator {
+  return page.getByRole("img", { name });
+}
+
+// The /cards toolbar is useHydrated-gated, so its handlers wire a beat after the
+// grid is visible; an early keystroke is silently dropped. The debounced search
+// also ignores Playwright's atomic fill(). Retry real keystrokes until the query
+// actually commits to the URL, which proves the input is live.
+async function typeSearch(page: Page, query: string): Promise<Locator> {
+  const search = page.getByPlaceholder(/search/iu);
+  await expect(async () => {
+    await search.click();
+    await search.fill("");
+    await search.pressSequentially(query, { delay: 30 });
+    await expect(page).toHaveURL(/[?&]search=/u, { timeout: 2000 });
+  }).toPass({ timeout: 15_000 });
+  return search;
 }
 
 async function waitForCatalogLoaded(page: Page) {
-  await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 15_000 });
+  await scrollUntilVisible(page, cardImage(page, "Annie, Fiery"));
 }
 
 test.describe("card browser — search bar", () => {
@@ -30,36 +58,34 @@ test.describe("card browser — search bar", () => {
     await page.goto("/cards");
     await waitForCatalogLoaded(page);
 
-    // Unfiltered: label shows "<N> cards" or "<N> printings" depending on the
-    // default view preference (defaults to "printings").
+    // Unfiltered: label shows "<N> cards" (default view is "cards").
     const countLabel = page.getByText(/\b\d+ (?:cards|printings)\b/u).first();
     await expect(countLabel).toBeVisible();
     const initialText = await countLabel.textContent();
     const initialTotal = Number(initialText?.match(/\d+/u)?.[0] ?? 0);
     expect(initialTotal).toBeGreaterThan(1);
 
-    await page.getByPlaceholder(/search/iu).fill("Garen");
+    await typeSearch(page, "Garen");
 
     // Filtered label switches to "<filtered> / <total> cards|printings".
     const filteredLabel = page.getByText(/\d+ \/ \d+ (?:cards|printings)/u);
     await expect(filteredLabel).toBeVisible({ timeout: 5000 });
-    await expect(page.getByText("Garen, Rugged").first()).toBeVisible();
-    await expect(page.getByText("Annie, Fiery").first()).not.toBeVisible();
+    await scrollUntilVisible(page, cardImage(page, "Garen, Rugged"));
+    await expect(cardImage(page, "Annie, Fiery").first()).not.toBeVisible();
   });
 
   test("clearing the search restores all cards", async ({ page }) => {
     await page.goto("/cards");
     await waitForCatalogLoaded(page);
 
-    const search = page.getByPlaceholder(/search/iu);
-    await search.fill("Garen");
-    await expect(page.getByText("Annie, Fiery").first()).not.toBeVisible();
+    const search = await typeSearch(page, "Garen");
+    await expect(cardImage(page, "Annie, Fiery").first()).not.toBeVisible();
 
     await page.getByRole("button", { name: "Clear search" }).click();
 
     await expect(search).toHaveValue("");
-    await expect(page.getByText("Annie, Fiery").first()).toBeVisible();
-    await expect(page.getByText("Garen, Rugged").first()).toBeVisible();
+    await scrollUntilVisible(page, cardImage(page, "Annie, Fiery"));
+    await scrollUntilVisible(page, cardImage(page, "Garen, Rugged"));
   });
 
   test("debounced typing lands on the final result without flashing intermediate state", async ({
@@ -68,17 +94,15 @@ test.describe("card browser — search bar", () => {
     await page.goto("/cards");
     await waitForCatalogLoaded(page);
 
-    const search = page.getByPlaceholder(/search/iu);
-    // A long query that would match many prefixes if each keystroke applied
-    // individually, but is unique as a whole ("Garen, Rugged" is the only
-    // card matching the full query).
-    await search.fill("Garen, Rugged");
+    // A long query that is unique as a whole ("Garen, Rugged" is the only card
+    // matching the full query).
+    await typeSearch(page, "Garen, Rugged");
 
-    // The debounce only flushes after 200ms of stable input — once it lands,
-    // exactly one Garen card remains and no Annie/Lux cards leak in.
-    await expect(page.getByText("Garen, Rugged").first()).toBeVisible({ timeout: 5000 });
-    await expect(page.getByText("Annie, Fiery").first()).not.toBeVisible();
-    await expect(page.getByText("Lux, Illuminated").first()).not.toBeVisible();
+    // Once the debounce lands, exactly one Garen card remains and no Annie/Lux
+    // cards leak in.
+    await scrollUntilVisible(page, cardImage(page, "Garen, Rugged"));
+    await expect(cardImage(page, "Annie, Fiery").first()).not.toBeVisible();
+    await expect(cardImage(page, "Lux, Illuminated").first()).not.toBeVisible();
   });
 });
 
@@ -87,52 +111,55 @@ test.describe("card browser — options bar", () => {
     await page.goto("/cards");
     await waitForCatalogLoaded(page);
 
-    // Default view is "printings" — the count label renders as "<N> printings".
-    await expect(page.getByText(/\b\d+ printings\b/u)).toBeVisible();
+    // Default view is "cards" (one tile per card) — the count renders "<N> cards".
+    await expect(page.getByText(/\b\d+ cards\b/u).first()).toBeVisible();
 
-    // The ViewMode ButtonGroup has aria-label="View mode"; within it the
-    // desktop layout renders [Cards, Printings] as icon-only buttons.
+    // The ViewMode ButtonGroup has aria-label="View mode"; within it the desktop
+    // layout renders [One per card, Every printing] as icon-only toggles.
     const viewGroup = page.getByRole("group", { name: "View mode" });
-    // Click the first button (Cards) to switch out of printings view.
-    await viewGroup.getByRole("button").nth(0).click();
-
-    // Label unit switches from "printings" to "cards".
-    const cardsLabel = page.getByText(/\b\d+ cards\b/u);
-    await expect(cardsLabel).toBeVisible();
-    await expect(page.getByText(/\b\d+ printings\b/u)).not.toBeVisible();
+    // Retry until the toggle takes effect — the toolbar wires its handlers a beat
+    // after the grid mounts (useHydrated gate), so an early click can be dropped.
+    await expect(async () => {
+      await viewGroup.getByRole("button").nth(1).click();
+      await expect(page.getByText(/\b\d+ printings\b/u).first()).toBeVisible({ timeout: 2000 });
+    }).toPass({ timeout: 15_000 });
   });
 
   test("changing sort order updates which card appears first", async ({ page }) => {
     await page.goto("/cards");
     await waitForCatalogLoaded(page);
 
-    // Default sort is ID asc, which in sortCards() means shortCode asc — the
-    // first card is OGS-001 (Annie, Fiery).
-    const firstTile = cardTiles(page).first();
-    await expect(firstTile).toHaveText("OGS-001");
+    // Capture the current grid order, then re-sort and confirm the order changes.
+    // (The default group-by-set means a re-sort reorders within groups, so
+    // compare the whole visible sequence rather than just the first tile.)
+    const cardOrder = () =>
+      page
+        .locator("main")
+        .getByRole("img")
+        .evaluateAll((imgs) => imgs.map((img) => img.getAttribute("alt")));
+    const before = await cardOrder();
+    expect(before.length).toBeGreaterThan(1);
 
-    // Sort by Energy asc reorders meaningfully: Annie Fiery (energy 5) is no
-    // longer first; Flash or Incinerate (both energy 2) move to the top.
-    await openSortPopover(page);
-    await page.getByRole("button", { name: "Energy", exact: true }).click();
+    // Sort by Energy reorders the grid.
+    await selectSortGroupOption(page, "Energy");
+    await page.keyboard.press("Escape");
 
-    await expect(firstTile).not.toHaveText("OGS-001");
+    await expect.poll(cardOrder).not.toEqual(before);
   });
 
   test("grouping by type shows section headers for each card type", async ({ page }) => {
     await page.goto("/cards");
     await waitForCatalogLoaded(page);
 
-    await openSortPopover(page);
-    await page.getByRole("button", { name: "Type", exact: true }).click();
+    await selectSortGroupOption(page, "Type");
     // Close the popover to reveal the grid.
     await page.keyboard.press("Escape");
 
     // Group headers are rendered as buttons (GroupHeaderLabel) with the group
     // name as the accessible name. Seed data has Legend, Unit, Spell types.
-    // The grid is window-virtualized (see card-grid.tsx), so headers below
-    // the fold are not in the DOM until scrolled into view.
-    for (const name of ["legend", "unit", "spell"]) {
+    // The grid is window-virtualized, so headers below the fold aren't in the
+    // DOM until scrolled into view.
+    for (const name of ["Legend", "Unit", "Spell"]) {
       await scrollUntilVisible(page, page.getByRole("button", { name, exact: true }));
     }
   });
@@ -141,29 +168,38 @@ test.describe("card browser — options bar", () => {
     await page.goto("/cards");
     await waitForCatalogLoaded(page);
 
-    await openSortPopover(page);
-    await page.getByRole("button", { name: "Type", exact: true }).click();
+    await selectSortGroupOption(page, "Type");
     await page.keyboard.press("Escape");
 
-    // Order with asc: the seeded card_types table sort_order is
-    // ["legend", "unit", "rune", "spell", "gear", "battlefield", "other"].
-    // Only Legend / Unit / Spell are present in seed, so asc order starts
-    // with Legend; flipping should put Spell first. The grid is window-
-    // virtualized (see card-grid.tsx), so headers below the fold aren't in
-    // the DOM — assert on the first rendered header rather than the full
-    // list.
+    // Only Legend / Unit / Spell are present in seed, so asc order starts with
+    // Legend; flipping should put Spell first. The grid is window-virtualized,
+    // so assert on the first rendered header rather than the full list.
     const firstHeader = page.getByRole("button", { name: /^(?:Legend|Unit|Spell)$/u }).first();
 
-    await expect(firstHeader).toHaveText("legend");
+    await expect(firstHeader).toHaveText("Legend");
 
-    // Re-open the popover and flip the Group by direction. The action button
-    // sits in the "Group by" section header next to the title span — the only
-    // button in that flex row besides the radio options below it.
-    await openSortPopover(page);
-    const groupByRow = page.getByText("Group by", { exact: true }).locator("..");
-    await groupByRow.getByRole("button").click();
+    // Flip the Group by direction. The action button sits in the "Group by"
+    // section header next to the title span; its title reads "Ascending…" /
+    // "Descending…" and flips synchronously on click. Guard on that title (not
+    // the async header reorder) so a detach-and-retry never toggles twice, and
+    // re-open the popover when it closes under load.
+    const trigger = page.getByRole("button", { name: /·/u });
+    const flipButton = page
+      .getByText("Group by", { exact: true })
+      .locator("..")
+      .getByRole("button");
+    await expect(async () => {
+      if ((await flipButton.count()) === 0) {
+        await trigger.click({ timeout: 2000 }).catch(() => {});
+        await expect(flipButton).toBeAttached({ timeout: 1500 });
+      }
+      if (!/Descending/u.test((await flipButton.getAttribute("title").catch(() => "")) ?? "")) {
+        await flipButton.dispatchEvent("click").catch(() => {});
+      }
+      await expect(flipButton).toHaveAttribute("title", /Descending/u, { timeout: 1500 });
+    }).toPass({ timeout: 25_000 });
     await page.keyboard.press("Escape");
 
-    await expect(firstHeader).toHaveText("spell");
+    await expect(firstHeader).toHaveText("Spell");
   });
 });

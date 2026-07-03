@@ -82,7 +82,7 @@ async function waitForOptionalDownload(page: Page, timeout: number): Promise<Dow
 
 test.describe("deck editor exports", () => {
   test.describe("deck export: opening", () => {
-    test("clicking Export opens the dialog with four tabs; Deck Code is active", async ({
+    test("clicking Export opens the dialog with five tabs; Text is active", async ({
       authenticatedPage,
     }) => {
       const page = authenticatedPage;
@@ -95,10 +95,11 @@ test.describe("deck editor exports", () => {
       await page.goto(`/decks/${deckId}`);
       const dialog = await openExportDialog(page);
 
-      for (const tabName of ["Deck Code", "Text", "TTS", "Registration"]) {
+      for (const tabName of ["Text", "Deck Code", "TTS", "Image", "Registration"]) {
         await expect(dialog.getByRole("tab", { name: tabName })).toBeVisible();
       }
-      await expect(dialog.getByRole("tab", { name: "Deck Code" })).toHaveAttribute(
+      // The dialog opens on the Text tab by default (useState<ExportTab>("text")).
+      await expect(dialog.getByRole("tab", { name: "Text" })).toHaveAttribute(
         "aria-selected",
         "true",
       );
@@ -133,12 +134,12 @@ test.describe("deck editor exports", () => {
         );
         const dialog = await openExportDialog(page);
 
-        // Default tab (Deck Code) fires the mutation on open. For the other
-        // tabs, click the trigger after the initial request lands — that
-        // re-fires the mutation with the new format. The server fn was
-        // switched to GET so don't filter on method.
+        // Default tab (Text) fires the mutation on open. For the other tabs,
+        // click the trigger after the initial request lands — that re-fires the
+        // mutation with the new format. The server fn was switched to GET so
+        // don't filter on method.
         await exportRequest;
-        if (tab === "Text" || tab === "TTS") {
+        if (tab === "Deck Code" || tab === "TTS") {
           const switchRequest = page.waitForRequest((request) =>
             isServerFn(request.url(), "exportDeckFn"),
           );

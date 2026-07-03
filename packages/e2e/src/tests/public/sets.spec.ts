@@ -83,7 +83,7 @@ test.describe("sets", () => {
       await page.goto("/sets");
 
       await expect(page.getByRole("heading", { level: 1, name: "Card Sets" })).toBeVisible();
-      await expect(page).toHaveTitle(/Card Sets — Riftbound/u);
+      await expect(page).toHaveTitle(/Riftbound Card Sets/u);
       await expect(page.locator('meta[name="description"]')).toHaveAttribute(
         "content",
         "Browse all Riftbound card sets. View cards, printings, and details for each set.",
@@ -187,16 +187,14 @@ test.describe("sets", () => {
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     });
 
-    // The set detail route declares `notFoundComponent` but its loader never
-    // throws `notFound()` — a missing slug causes the API to 404, which the
-    // queryFn turns into a thrown Error and routes to `errorComponent`. So in
-    // practice an invalid slug renders RouteErrorFallback (same "Reshuffle"
-    // UI as the 500 case). Mirrors card-detail.spec.ts's behaviour.
-    test("an unknown slug renders the route error fallback and keeps the URL", async ({ page }) => {
+    // A missing set slug now renders the not-found fallback (RouteNotFoundFallback
+    // — a "Nothing here but dust"-style heading with a "Go home" link), keeping
+    // the URL. Mirrors card-detail.spec.ts's behaviour.
+    test("an unknown slug renders the not-found fallback and keeps the URL", async ({ page }) => {
       await page.goto("/sets/does-not-exist-set", { waitUntil: "domcontentloaded" });
 
       await expect(page).toHaveURL(/\/sets\/does-not-exist-set$/u);
-      await expect(page.getByRole("button", { name: "Reshuffle" })).toBeVisible({
+      await expect(page.getByRole("link", { name: "Go home" })).toBeVisible({
         timeout: 10_000,
       });
     });

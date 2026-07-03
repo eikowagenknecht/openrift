@@ -5,6 +5,26 @@ import { API_BASE_URL, WEB_BASE_URL } from "../../helpers/constants.js";
 
 const SEED_CARD_SLUG = "annie-fiery";
 const SEED_CARD_NAME = "Annie, Fiery";
+// Annie's normal-printing id — used to deep-link the detail pane, since the
+// virtualized /cards grid tile click is not drivable in the harness.
+const ANNIE_PRINTING_ID = "019cfc3b-03d6-74cf-adec-1dce41f631eb";
+
+interface MarketplacePrices {
+  tcgplayer?: number;
+  cardmarket?: number;
+  cardtrader?: number;
+}
+
+// Prices are no longer inlined on the card-detail response (contracts/cards.ts):
+// they are served from the /prices resource, keyed by printing id.
+async function fetchPrices(): Promise<Record<string, MarketplacePrices | undefined>> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/prices`);
+  if (!res.ok) {
+    throw new Error(`/api/v1/prices fetch failed: ${res.status}`);
+  }
+  const json = (await res.json()) as { prices?: Record<string, MarketplacePrices | undefined> };
+  return json.prices ?? {};
+}
 
 interface PrintingFixture {
   id: string;
@@ -49,10 +69,6 @@ interface CardFixture {
 interface CardDetailFixture {
   card: CardFixture;
   printings: PrintingFixture[];
-  prices: Record<
-    string,
-    { tcgplayer?: number; cardmarket?: number; cardtrader?: number } | undefined
-  >;
   sets: { id: string; slug: string; name: string }[];
 }
 
@@ -78,8 +94,13 @@ function buildExpectedDescription(detail: CardDetailFixture): string {
   const META = 155;
   const card = detail.card;
   const parts: string[] = [];
-  const domains = card.domains.length > 0 ? card.domains.join("/") : null;
-  const typeLine = domains ? `${domains} ${card.type}` : card.type;
+  // card-meta.ts renders enum display labels, not raw slugs. The seed's domain
+  // and card-type labels are the Title-cased slug ("fury" → "Fury", "unit" →
+  // "Unit"), so capitalize to mirror the page output without shipping the label
+  // maps to the test.
+  const capitalize = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
+  const domains = card.domains.length > 0 ? card.domains.map(capitalize).join("/") : null;
+  const typeLine = domains ? `${domains} ${capitalize(card.type)}` : capitalize(card.type);
   parts.push(`${card.name} is a ${typeLine} card from Riftbound.`);
   const rules = detail.printings[0]?.printedRulesText;
   if (rules) {
@@ -135,19 +156,24 @@ test.describe("card detail route — essentials", () => {
     await expect(page.getByPlaceholder(/search/iu)).toBeVisible({ timeout: 10_000 });
   });
 
-  // The route declares `notFoundComponent` but its loader never throws
-  // `notFound()` — a missing slug causes the API to 404, which the queryFn
-  // turns into a thrown Error and routes to `errorComponent`. So in practice
-  // an invalid slug renders RouteErrorFallback (same UI as the 500 case).
-  test("an unknown slug renders the route error fallback", async ({ page }) => {
+  // A missing slug now renders the not-found fallback (RouteNotFoundFallback —
+  // "Nothing here but dust" with a "Go home" link), not the error fallback.
+  test("an unknown slug renders the not-found fallback", async ({ page }) => {
     await page.goto("/cards/this-card-does-not-exist-anywhere", { waitUntil: "domcontentloaded" });
 
-    await expect(page.getByRole("button", { name: "Reshuffle" })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("link", { name: "Go home" })).toBeVisible({ timeout: 10_000 });
   });
 
+  // Open the pane via deep-link (the /cards grid tile click is not drivable in
+  // the harness), then intercept the detail server fn and click through the
+  // pane's "View card details" link — that client-side navigation runs the
+  // /cards/$slug loader in the browser, where page.route can fail it.
   test("a 500 from the detail server fn renders the route error fallback", async ({ page }) => {
-    await page.goto("/cards");
-    await expect(page.getByText(SEED_CARD_NAME).first()).toBeVisible({ timeout: 15_000 });
+    await page.goto(`/cards?printingId=${ANNIE_PRINTING_ID}`);
+    const pane = page.locator("aside", {
+      has: page.getByRole("button", { name: /close card details/iu }),
+    });
+    await expect(pane).toBeVisible({ timeout: 15_000 });
 
     await page.route("**/_serverFn/**", async (route) => {
       if (isCardDetailServerFn(route.request().url())) {
@@ -161,17 +187,17 @@ test.describe("card detail route — essentials", () => {
       await route.continue();
     });
 
-    await page.getByAltText(SEED_CARD_NAME).first().click();
-    const pane = page.getByRole("complementary");
-    await expect(pane).toBeVisible();
     await pane.getByRole("link", { name: /view card details/iu }).click();
 
     await expect(page.getByRole("button", { name: "Reshuffle" })).toBeVisible({ timeout: 10_000 });
   });
 
   test("a slow detail server fn shows the skeleton before the heading", async ({ page }) => {
-    await page.goto("/cards");
-    await expect(page.getByText(SEED_CARD_NAME).first()).toBeVisible({ timeout: 15_000 });
+    await page.goto(`/cards?printingId=${ANNIE_PRINTING_ID}`);
+    const pane = page.locator("aside", {
+      has: page.getByRole("button", { name: /close card details/iu }),
+    });
+    await expect(pane).toBeVisible({ timeout: 15_000 });
 
     await page.route("**/_serverFn/**", async (route) => {
       if (isCardDetailServerFn(route.request().url())) {
@@ -180,9 +206,6 @@ test.describe("card detail route — essentials", () => {
       await route.continue();
     });
 
-    await page.getByAltText(SEED_CARD_NAME).first().click();
-    const pane = page.getByRole("complementary");
-    await expect(pane).toBeVisible();
     await pane.getByRole("link", { name: /view card details/iu }).click();
 
     // CardDetailPending renders Skeleton elements (data-slot="skeleton")
@@ -223,8 +246,9 @@ test.describe("card detail route — head / SEO / JSON-LD", () => {
 
   test("Product JSON-LD includes name, image, and TCG price range", async ({ page }) => {
     const detail = await fetchCardDetail(SEED_CARD_SLUG);
+    const prices = await fetchPrices();
     const tcgPrices = detail.printings
-      .map((p) => detail.prices[p.id]?.tcgplayer)
+      .map((p) => prices[p.id]?.tcgplayer)
       .filter((p): p is number => typeof p === "number" && p > 0);
     test.skip(tcgPrices.length === 0, "Annie, Fiery should have at least one TCG snapshot in seed");
 
@@ -237,16 +261,20 @@ test.describe("card detail route — head / SEO / JSON-LD", () => {
     expect(typeof product.image).toBe("string");
     expect(product.image).toMatch(/^https?:\/\//u);
 
+    // `offers` is now an array of per-marketplace AggregateOffers, each in its
+    // own currency (TCGplayer=USD, Cardmarket/CardTrader=EUR).
     const offers = product.offers;
-    expect(offers, "Product should expose offers when TCG prices exist").toBeDefined();
-    if (offers["@type"] === "AggregateOffer") {
-      expect(typeof offers.lowPrice).toBe("number");
-      expect(typeof offers.highPrice).toBe("number");
-      expect(offers.lowPrice).toBeLessThanOrEqual(offers.highPrice);
-    } else {
-      expect(offers["@type"]).toBe("Offer");
-      expect(typeof offers.price).toBe("number");
-    }
+    expect(Array.isArray(offers), "Product should expose an offers array").toBe(true);
+    expect(offers.length).toBeGreaterThan(0);
+    const tcgOffer = offers.find(
+      (offer: Record<string, unknown>) =>
+        (offer.seller as Record<string, unknown> | undefined)?.name === "TCGplayer",
+    );
+    expect(tcgOffer, "a TCGplayer offer should exist when TCG prices are present").toBeDefined();
+    expect(tcgOffer["@type"]).toBe("AggregateOffer");
+    expect(typeof tcgOffer.lowPrice).toBe("number");
+    expect(typeof tcgOffer.highPrice).toBe("number");
+    expect(tcgOffer.lowPrice).toBeLessThanOrEqual(tcgOffer.highPrice);
   });
 
   test("BreadcrumbList JSON-LD lists Cards then the card name", async ({ page }) => {
@@ -392,7 +420,8 @@ test.describe("card detail route — info panel", () => {
     await page.goto(`/cards/${SEED_CARD_SLUG}`);
 
     await expect(page.getByText("Type", { exact: true }).first()).toBeVisible();
-    await expect(page.getByText("unit", { exact: true }).first()).toBeVisible();
+    // The value renders the Title-cased enum label ("Unit"), not the slug.
+    await expect(page.getByText("Unit", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("Domains", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("Energy", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("Might", { exact: true }).first()).toBeVisible();
@@ -622,7 +651,8 @@ test.describe("card detail route — printings list", () => {
 test.describe("card detail route — price history", () => {
   test("price history section renders for a card with TCG snapshots", async ({ page }) => {
     const detail = await fetchCardDetail(SEED_CARD_SLUG);
-    const hasTcg = Object.values(detail.prices).some((p) => p?.tcgplayer);
+    const prices = await fetchPrices();
+    const hasTcg = detail.printings.some((p) => prices[p.id]?.tcgplayer);
     test.skip(!hasTcg, "Annie, Fiery should have TCG snapshots in seed");
 
     await page.goto(`/cards/${SEED_CARD_SLUG}`);
@@ -671,28 +701,10 @@ test.describe("card detail route — price history", () => {
     }
   });
 
-  test("the snapshot table is sorted descending and shows currency in column headers", async ({
-    page,
-  }) => {
-    await page.goto(`/cards/${SEED_CARD_SLUG}`);
-
-    await expect(page.getByRole("heading", { name: /^Price History — /u })).toBeVisible({
-      timeout: 10_000,
-    });
-
-    // Column headers expose the marketplace + currency suffix.
-    const columnHeaders = page.getByRole("columnheader");
-    await expect(columnHeaders.filter({ hasText: /\((?:USD|EUR)\)/u }).first()).toBeVisible();
-
-    // Date column is descending: first body row's date >= last body row's date.
-    const dateCells = page.getByRole("rowgroup").last().getByRole("row").locator("td:first-child");
-    const count = await dateCells.count();
-    if (count >= 2) {
-      const firstText = await dateCells.first().textContent();
-      const lastText = await dateCells.last().textContent();
-      expect((firstText ?? "").trim() >= (lastText ?? "").trim()).toBe(true);
-    }
-  });
+  // The price-history section no longer renders a snapshot table — it was
+  // replaced by the visx chart plus the time-range and price-source controls
+  // (covered above). There is no longer a tabular view to assert sort order or
+  // currency column headers against, so that test was removed.
 
   // The chart is rendered with visx and the highlight handler is driven by
   // SVG mouse events that don't reliably reproduce in headless playwright.

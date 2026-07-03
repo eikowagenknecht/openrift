@@ -82,9 +82,13 @@ async function seedCopies(
 
 async function resetUserData(sql: Sql, email: string) {
   // Wipe owned copies and any non-inbox collections so each test starts clean.
+  // copies are owned via their collection (copies.collection_id →
+  // collections.user_id); the copies table no longer carries user_id directly.
   await sql`
     DELETE FROM copies
-    WHERE user_id = (SELECT id FROM users WHERE email = ${email})
+    WHERE collection_id IN (
+      SELECT id FROM collections WHERE user_id = (SELECT id FROM users WHERE email = ${email})
+    )
   `;
   await sql`
     DELETE FROM collections
@@ -492,21 +496,25 @@ test.describe("collections grid", () => {
       });
     });
 
-    test("toolbar toggle enters and leaves add mode", async ({ browser }) => {
+    test("the Quick add toolbar button opens and closes the quick-add palette", async ({
+      browser,
+    }) => {
       await withSignedInContext(state.user, browser, async (context) => {
         const page = await context.newPage();
         await page.goto(`/collections/${state.inboxId}`);
 
-        const toggle = page.getByRole("button", { name: "Browse catalog to add cards" });
-        await expect(toggle).toBeVisible({ timeout: 15_000 });
-        await toggle.click();
+        // The old browse-to-add mode was replaced by a Quick Add palette. The
+        // first /collections/$id visit in a worker pays a big auth-gated
+        // dev-compile, so allow headroom.
+        const quickAdd = page.getByRole("button", { name: "Quick add", exact: true });
+        await expect(quickAdd).toBeVisible({ timeout: 45_000 });
+        await quickAdd.click();
 
-        await expect(page.getByRole("button", { name: "Stop adding" })).toBeVisible();
+        const paletteInput = page.getByPlaceholder(/Add to .*Inbox/u);
+        await expect(paletteInput).toBeVisible();
 
-        await page.getByRole("button", { name: "Stop adding" }).click();
-        await expect(
-          page.getByRole("button", { name: "Browse catalog to add cards" }),
-        ).toBeVisible();
+        await page.keyboard.press("Escape");
+        await expect(paletteInput).not.toBeVisible();
       });
     });
   });
