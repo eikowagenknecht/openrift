@@ -91,6 +91,33 @@ describe("FilterIconCluster", () => {
     expect(screen.getByRole("button", { name: "Calm (0)" }).className).not.toContain("opacity-40");
   });
 
+  it("renders an inline label next to the icon when the bar grants the room", () => {
+    renderCluster({ iconPath: () => "/icons/domains/fury.svg", showLabels: true });
+    expect(screen.getByText("Fury")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Fury" }).querySelector("[style*='mask-image']"),
+    ).toBeInTheDocument();
+  });
+
+  it("stays icon-only without showLabels, keeping the name in the tooltip", () => {
+    renderCluster({ iconPath: () => "/icons/domains/fury.svg" });
+    // Accessible name stays, but no visible text label.
+    const toggle = screen.getByRole("button", { name: "Fury" });
+    expect(toggle.textContent).toBe("");
+  });
+
+  it("folds the faceted count into the inline label", () => {
+    renderCluster({
+      iconPath: () => "/icons/domains/fury.svg",
+      counts: new Map([["fury", 7]]),
+      showLabels: true,
+    });
+    // Muted count like the panel badges; icon-only mode keeps it in the tooltip.
+    const labelSpan = screen.getByText("Fury");
+    // The gap between label and count is margin, so textContent has no space.
+    expect(labelSpan).toHaveTextContent("Fury7");
+  });
+
   it("renders nothing when there are no options", () => {
     const { container } = render(
       <TooltipProvider>

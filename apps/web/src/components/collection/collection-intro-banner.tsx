@@ -3,7 +3,6 @@ import type { LucideIcon } from "lucide-react";
 import {
   CheckSquareIcon,
   CopyIcon,
-  FunnelIcon,
   InfoIcon,
   LayoutGridIcon,
   LibraryBigIcon,
@@ -15,7 +14,6 @@ import {
 } from "lucide-react";
 
 import { Kbd } from "@/components/ui/kbd";
-import { useDisplayStore } from "@/stores/display-store";
 
 interface ToolbarGuideRow {
   icons: readonly LucideIcon[];
@@ -35,15 +33,6 @@ const VIEWS_ROW: ToolbarGuideRow = {
   icons: [SquareIcon, CopyIcon, SquareStackIcon],
   title: "Cards, printings, copies",
   description: "One tile per card, every printing separately, or each individual copy you own.",
-  desktopOnly: true,
-};
-
-// Only meaningful with the full filter panel: the funnel button doesn't exist
-// with compact filters (the default), where the chip bar is always visible.
-const FILTERS_ROW: ToolbarGuideRow = {
-  icons: [FunnelIcon],
-  title: "Filters",
-  description: "Narrow the grid by domain, set, rarity, language, and more.",
   desktopOnly: true,
 };
 
@@ -75,15 +64,7 @@ export function CollectionIntroBanner({
   showLibrary: boolean;
   onDismiss: () => void;
 }) {
-  // With compact filters (the default) there is no funnel button to explain,
-  // so the Filters row gives way to the Manage-cards tip.
-  const compactFilterView = useDisplayStore((state) => state.compactFilterView);
-  const guideRows = [
-    LIBRARY_ROW,
-    VIEWS_ROW,
-    compactFilterView ? MANAGE_ROW : FILTERS_ROW,
-    DISPLAY_ROW,
-  ];
+  const guideRows = [LIBRARY_ROW, VIEWS_ROW, MANAGE_ROW, DISPLAY_ROW];
   return (
     <div className="border-border bg-muted/30 relative mb-3 rounded-lg border p-4">
       <button

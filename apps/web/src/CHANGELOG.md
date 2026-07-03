@@ -2,16 +2,22 @@
 
 ## 2026-07-02
 
+### Highlights
+
+- feat(Cards): **One filter bar everywhere** — the slim filter bar is now the standard filter layout on every screen size, replacing the filter sidebar, the fold-out panel, and the compact-filters setting.
+- feat(Cards): **Pick your top-level filters** — decide per filter whether it sits in front or waits under "More", replacing filter hiding (previously hidden filters now show up in More).
+
 ### Other
 
+- feat(Cards): **Clearer filter-bar toggles** — domain and rarity toggles show their names and match counts next to the icons whenever the bar has room for them on one row, and excluded toggles drop the extra red border.
 - feat(Trades): **Price estimates on trade rows** — in-progress trades and possible-trade suggestions now show their estimated value at your favorite marketplace.
 - feat(Cards): **Search scope stays visible** — when "search in" is limited to certain fields, the search box now shows that scope next to your query, so a forgotten narrow scope doesn't look like broken search.
 - feat(Collection): **Friendlier first visit** — an empty collection now opens the whole card library so your first cards are one tap away, and a dismissible guide explains the toolbar controls.
-- feat(Cards): **Compact filters on wide screens** — with compact filters on, the slim filter bar now replaces the filter sidebar everywhere, instead of only on narrower windows.
 - feat(App): **See features before signing in** — Collection, Groups, and Tournaments now stay in the menu when signed out, and opening one explains the feature with a quick way to sign in or sign up.
 - feat(Cards): **Hide the grouped column** — in table view, grouping by set, type, or rarity now drops that column, since every group header already spells out its value.
 - feat(Collection): **Tradelists keep your nicer copies** — when a tradelist rule keeps a set number per card and offers the rest, it now protects your rarest, foil, and special-art copies and offers the plainer duplicates first, instead of choosing by the order copies were added.
 - feat(Collection): **Rules start in your languages** — a new dynamic wishlist or tradelist rule pre-fills its language filter with your preferred languages, still editable per rule.
+- fix(Collection): **Playset count mode** — the completion count mode on the stats page is now labeled Playset instead of Copies, matching what it counts.
 - fix(Collection): **Group-visibility button works again** — the people icon in a list's title bar did nothing when the list had cards on it, and now opens the group visibility dialog.
 - fix(Collection): **No overlapping cards after switching lists** — switching between wishlists or tradelists could stack the card rows on top of each other until the window was resized, and the grid now lays them out correctly right away.
 - fix(Collection): **No zero value in the top bar** — a collection worth nothing no longer shows a 0 price next to its title.

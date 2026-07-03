@@ -2,11 +2,7 @@ import type { AvailableFilters, FilterCounts, PresenceDimension } from "@openrif
 import { CheckIcon, ChevronDownIcon, MinusIcon } from "lucide-react";
 import { Fragment } from "react";
 
-import {
-  FilterRangeSections,
-  OWNED_BUCKETS,
-  useHasMoreSectionContent,
-} from "@/components/filters/filter-panel-content";
+import { FilterRangeSections, OWNED_BUCKETS } from "@/components/filters/filter-panel-content";
 import {
   FILTER_TRIGGER_ACTIVE_CLASS,
   FILTER_TRIGGER_CLASS,
@@ -26,8 +22,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
-import { useCustomTagList } from "@/hooks/use-enums";
+import { useCustomTagList, useEnumOrders, useLanguageLabels } from "@/hooks/use-enums";
 import { buildChannelBreadcrumbs } from "@/lib/channel-breadcrumbs";
+import { formatDomainFilterLabel } from "@/lib/domain";
+import { getFilterIconPath } from "@/lib/icons";
 import { nextOversize, oversizeCount, oversizeState } from "@/lib/oversize-filter";
 import type { PresenceParamValue } from "@/lib/presence-filter";
 import { PRESENCE_LABELS, presenceFlagCount, presenceToFlagState } from "@/lib/presence-filter";
@@ -35,6 +33,8 @@ import { cn } from "@/lib/utils";
 
 interface FilterMoreMenuProps {
   availableFilters: AvailableFilters;
+  availableLanguages?: string[];
+  setDisplayLabel?: (code: string) => string;
   hiddenSections?: ReadonlySet<string>;
   /** See {@link FilterPanelContentProps.visibleCustomTagCategories}. */
   visibleCustomTagCategories?: ReadonlySet<string>;
@@ -43,8 +43,12 @@ interface FilterMoreMenuProps {
   ownedCountMax?: number;
   /** Active selections across every More dimension; shown as "(n)" on the trigger. */
   activeCount: number;
-  /** Suppress the Signed flag here (when it's surfaced in Art Variant instead). */
-  hideSigned?: boolean;
+  /**
+   * The user's top-level placement units (see `lib/filter-sections.ts`). The
+   * menu hosts every applicable unit NOT in this set — including demoted core
+   * dimensions like Set or Domain.
+   */
+  topLevelUnits: ReadonlySet<string>;
 }
 
 /**
@@ -245,33 +249,33 @@ function MoreDimension({
 }
 
 /**
- * A single market range slider (Price or Copies) as a block inside the More
- * menu. The slider is a focusable widget, not a menu item: the menu's
+ * A range-slider block (Price, Copies, or the three stat sliders) inside the
+ * More menu. The sliders are focusable widgets, not menu items: the menu's
  * arrow-key navigation lives on the popup and bubbles up, so we stop keydown
  * here and the slider's own arrow/Home/End handling wins.
- * @returns The wrapped range slider row.
+ * @returns The wrapped range slider row(s).
  */
-function MarketSliderBlock({
+function RangeSliderBlock({
   scope,
   availableFilters,
   filterCounts,
   hiddenSections,
   ownedCountMax,
 }: {
-  scope: "price" | "copies";
+  scope: "price" | "copies" | "stats";
   availableFilters: AvailableFilters;
   filterCounts?: FilterCounts;
   hiddenSections?: ReadonlySet<string>;
   ownedCountMax?: number;
 }) {
   return (
-    // oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- the wrapper only guards keydown bubbling; the focusable control is its slider child
+    // oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- the wrapper only guards keydown bubbling; the focusable controls are its slider children
     <div
       // The other menu rows highlight via the menu's roving focus (focus:bg-accent);
-      // a slider block isn't a menu item, so we highlight it on hover and while the
+      // a slider block isn't a menu item, so we highlight it on hover and while a
       // slider child is focused. bg-accent resolves to the neutral muted set by the
       // menu's NEUTRAL_HOVER_SCOPE, so it matches every other row's hover.
-      className="hover:bg-accent focus-within:bg-accent rounded-md px-1.5 py-1.5"
+      className="hover:bg-accent focus-within:bg-accent flex flex-col gap-1.5 rounded-md px-1.5 py-1.5"
       onKeyDown={(event) => event.stopPropagation()}
     >
       <FilterRangeSections
@@ -289,25 +293,30 @@ function MarketSliderBlock({
 }
 
 /**
- * The compact filter bar's "More" entry point as a dropdown menu. Flags cycle
- * in place, each multi-value dimension opens as a submenu (short) or searchable
- * combobox (long), and the Price / Copies range sliders ride as rows. Entries
- * are grouped into themed blocks separated by dividers: distribution
- * (Promo / Signed / Markers / Channels / custom tags), collection (Owned /
- * Copies), legality (Banned / Errata), and Price on its own. Mirrors the render
- * guards in {@link FilterMoreSection} — keep the two in sync when adding or
- * removing a More dimension.
+ * The compact filter bar's "More" entry point as a dropdown menu, hosting
+ * every placement unit the user hasn't promoted to the top level. Flags cycle
+ * in place, each multi-value dimension opens as a submenu (short) or
+ * searchable combobox (long), and the range dimensions (Stats, Price, Copies)
+ * ride as slider rows. Entries are grouped into themed blocks separated by
+ * dividers: core card dimensions (Language … Stats, when demoted),
+ * distribution (Signed / Standard / Oversized / Markers / Channels / Keywords
+ * / custom tags), collection (Owned / Copies), legality (Banned / Errata), and
+ * Price on its own.
  * @returns The More menu, or null when no More content applies here.
  */
 export function FilterMoreMenu({
   availableFilters,
+  availableLanguages,
+  setDisplayLabel,
   hiddenSections,
   visibleCustomTagCategories,
   filterCounts,
   ownedCountMax,
   activeCount,
-  hideSigned = false,
+  topLevelUnits,
 }: FilterMoreMenuProps) {
+  const { labels } = useEnumOrders();
+  const languageLabels = useLanguageLabels();
   const { filterState } = useFilterValues();
   const {
     setArrayFilter,
@@ -325,36 +334,67 @@ export function FilterMoreMenu({
     visibleCustomTagCategories === undefined ? true : visibleCustomTagCategories.has(category),
   );
 
-  // Price and Copies ride at the foot of the menu as range sliders. Each only
-  // applies when its data exists on this surface; FilterRangeSections gates the
-  // same way internally, but we mirror the checks here to drive the divider and
-  // the empty-menu guard.
-  const showPrice = !hiddenSections?.has("price") && availableFilters.price.max > 0;
-  const showCopies =
-    !hiddenSections?.has("owned") && ownedCountMax !== undefined && ownedCountMax > 0;
-  const showMarketRanges = showPrice || showCopies;
+  const isMore = (unit: string) => !topLevelUnits.has(unit);
 
-  const hasDiscreteContent = useHasMoreSectionContent({
-    availableFilters,
-    hiddenSections,
-    visibleCustomTagCategories,
-    hideSigned,
-  });
-  if (!hasDiscreteContent && !showMarketRanges) {
-    return null;
-  }
+  // ── Core card dimensions (only when demoted) ──────────────────────────────
+  const showLanguages =
+    isMore("languages") &&
+    !hiddenSections?.has("languages") &&
+    (availableLanguages?.length ?? 0) > 1;
+  const showSets =
+    isMore("sets") && !hiddenSections?.has("sets") && availableFilters.sets.length > 0;
+  const showDomains =
+    isMore("domains") && !hiddenSections?.has("domains") && availableFilters.domains.length > 0;
+  const showRarities =
+    isMore("rarities") && !hiddenSections?.has("rarities") && availableFilters.rarities.length > 0;
+  const showTypes =
+    isMore("types") && !hiddenSections?.has("types") && availableFilters.types.length > 0;
+  const showSuperTypes =
+    isMore("superTypes") &&
+    !hiddenSections?.has("superTypes") &&
+    availableFilters.superTypes.length > 0;
+  const showArtVariantSection =
+    !hiddenSections?.has("artVariants") && availableFilters.artVariants.length > 1;
+  const showFinishSection =
+    !hiddenSections?.has("finishes") && availableFilters.finishes.length > 1;
+  const showVariantRow = isMore("variant") && (showArtVariantSection || showFinishSection);
+  const signedApplicable = availableFilters.hasSigned && !hiddenSections?.has("signed");
+  // Signed belongs to the Variant unit: it rides the Variant row's flag when
+  // the Art Variant axis renders here, and falls back to its own flag row when
+  // the unit is demoted without that axis (mirroring FilterChipSections).
+  const signedInVariantRow = showVariantRow && signedApplicable && showArtVariantSection;
+  const showSignedRow = isMore("variant") && signedApplicable && !signedInVariantRow;
+  const showStats =
+    isMore("stats") &&
+    (!hiddenSections?.has("energy") ||
+      !hiddenSections?.has("might") ||
+      !hiddenSections?.has("power"));
 
-  const showSigned = !hideSigned && availableFilters.hasSigned && !hiddenSections?.has("signed");
-  const showBanned = availableFilters.hasBanned && !hiddenSections?.has("banned");
-  const showErrata = availableFilters.hasErrata && !hiddenSections?.has("errata");
-  const showStandard = availableFilters.hasNonStandard && !hiddenSections?.has("standard");
-  const showMarkers = !hiddenSections?.has("markers") && availableFilters.markers.length > 0;
+  // ── Chip dimensions (only when demoted) ───────────────────────────────────
+  const showPrice =
+    isMore("price") && !hiddenSections?.has("price") && availableFilters.price.max > 0;
+  const showOwned = isMore("owned") && !hiddenSections?.has("owned");
+  const showCopies = showOwned && ownedCountMax !== undefined && ownedCountMax > 0;
+  const showBanned =
+    isMore("banned") && availableFilters.hasBanned && !hiddenSections?.has("banned");
+  const showErrata =
+    isMore("errata") && availableFilters.hasErrata && !hiddenSections?.has("errata");
+  const showStandard =
+    isMore("standard") && availableFilters.hasNonStandard && !hiddenSections?.has("standard");
+  const showMarkers =
+    isMore("markers") && !hiddenSections?.has("markers") && availableFilters.markers.length > 0;
   const showChannels =
-    !hiddenSections?.has("channels") && availableFilters.distributionChannels.length > 0;
-  const showCustomTags = !hiddenSections?.has("customTags") && visibleCategories.length > 0;
-  const showOwned = !hiddenSections?.has("owned");
-
-  const showKeywords = !hiddenSections?.has("keywords") && availableFilters.keywords.length > 0;
+    isMore("channels") &&
+    !hiddenSections?.has("channels") &&
+    availableFilters.distributionChannels.length > 0;
+  const showCustomTags =
+    isMore("customTags") && !hiddenSections?.has("customTags") && visibleCategories.length > 0;
+  const showKeywords =
+    isMore("keywords") && !hiddenSections?.has("keywords") && availableFilters.keywords.length > 0;
+  const showCardSizes =
+    isMore("cardSizes") &&
+    !hiddenSections?.has("cardSizes") &&
+    availableFilters.cardSizes.length > 1;
 
   // A dimension's any/none presence folds into the top of its combobox (Markers,
   // Distribution Channels, Keywords), matching the expanded panel. Custom tags
@@ -389,9 +429,191 @@ export function FilterMoreMenu({
     filterState.customTagsPresence,
     showCustomTags,
   );
-  const showCardSizes = !hiddenSections?.has("cardSizes") && availableFilters.cardSizes.length > 1;
+
+  // ── Core dimension rows ────────────────────────────────────────────────────
+  const languagesNode = showLanguages ? (
+    <MultiSelectCombobox
+      key="languages"
+      triggerStyle="menu"
+      label="Language"
+      searchPlaceholder="Search languages…"
+      emptyText="No languages match."
+      options={(availableLanguages ?? []).map((value) => ({
+        value,
+        label: languageLabels[value] ?? value,
+      }))}
+      selected={filterState.languages}
+      excluded={filterState.languagesEx}
+      onCycle={(value) => cycleArrayFilter("languages", "languagesEx", value)}
+      counts={filterCounts?.languages}
+    />
+  ) : null;
+  const setsNode = showSets ? (
+    <MultiSelectCombobox
+      key="sets"
+      triggerStyle="menu"
+      label="Sets"
+      searchPlaceholder="Search sets…"
+      emptyText="No sets match."
+      options={availableFilters.sets.map((value) => {
+        const name = setDisplayLabel?.(value) ?? value;
+        return name === value ? { value, label: value } : { value, label: name, prefix: value };
+      })}
+      selected={filterState.sets}
+      excluded={filterState.setsEx}
+      onCycle={(value) => cycleArrayFilter("sets", "setsEx", value)}
+      counts={filterCounts?.sets}
+      mutedOptions={availableFilters.supplementalSets}
+    />
+  ) : null;
+  const domainsNode = showDomains ? (
+    <MultiSelectCombobox
+      key="domains"
+      triggerStyle="menu"
+      label="Domain"
+      searchPlaceholder="Search domains…"
+      emptyText="No domains match."
+      options={availableFilters.domains.map((value) => ({
+        value,
+        label: formatDomainFilterLabel(value, labels.domains),
+      }))}
+      selected={filterState.domains}
+      excluded={filterState.domainsEx}
+      onCycle={(value) => cycleArrayFilter("domains", "domainsEx", value)}
+      icon={(value) => getFilterIconPath("domains", value)}
+      counts={filterCounts?.domains}
+    />
+  ) : null;
+  const raritiesNode = showRarities ? (
+    <MultiSelectCombobox
+      key="rarities"
+      triggerStyle="menu"
+      label="Rarity"
+      searchPlaceholder="Search rarities…"
+      emptyText="No rarities match."
+      options={availableFilters.rarities.map((value) => ({
+        value,
+        label: labels.rarities[value] ?? value,
+      }))}
+      selected={filterState.rarities}
+      excluded={filterState.raritiesEx}
+      onCycle={(value) => cycleArrayFilter("rarities", "raritiesEx", value)}
+      icon={(value) => getFilterIconPath("rarities", value)}
+      counts={filterCounts?.rarities}
+    />
+  ) : null;
+  const typesNode = showTypes ? (
+    <MultiSelectCombobox
+      key="types"
+      triggerStyle="menu"
+      label="Type"
+      searchPlaceholder="Search types…"
+      emptyText="No types match."
+      options={availableFilters.types.map((value) => ({
+        value,
+        label: labels.cardTypes[value] ?? value,
+      }))}
+      selected={filterState.types}
+      excluded={filterState.typesEx}
+      onCycle={(value) => cycleArrayFilter("types", "typesEx", value)}
+      icon={(value) => getFilterIconPath("types", value)}
+      iconAfterLabel
+      counts={filterCounts?.types}
+    />
+  ) : null;
+  const superTypesNode = showSuperTypes ? (
+    <MultiSelectCombobox
+      key="superTypes"
+      triggerStyle="menu"
+      label="Supertype"
+      searchPlaceholder="Search supertypes…"
+      emptyText="No supertypes match."
+      options={availableFilters.superTypes.map((value) => ({
+        value,
+        label: labels.superTypes[value] ?? value,
+      }))}
+      selected={filterState.superTypes}
+      excluded={filterState.superTypesEx}
+      onCycle={(value) => cycleArrayFilter("superTypes", "superTypesEx", value)}
+      icon={(value) => getFilterIconPath("superTypes", value)}
+      iconAfterLabel
+      counts={filterCounts?.superTypes}
+    />
+  ) : null;
+  const variantNode = showVariantRow
+    ? (() => {
+        // Art Variant is the primary axis (and hosts the Signed flag); Finish
+        // follows as a labeled axis. Each axis's rows cycle off → include →
+        // exclude → off (ADR-034). When only one of the two applies, the row
+        // collapses to that single axis. Mirrors the compact bar's Variant chip.
+        const artVariantOptions = availableFilters.artVariants.map((value) => ({
+          value,
+          label: labels.artVariants[value] ?? value,
+        }));
+        const finishOptions = availableFilters.finishes.map((value) => ({
+          value,
+          label: labels.finishes[value] ?? value,
+        }));
+        const both = showArtVariantSection && showFinishSection;
+        const primaryIsArt = showArtVariantSection;
+        const groups = both
+          ? [
+              {
+                label: "Finish",
+                options: finishOptions,
+                included: filterState.finishes,
+                excluded: filterState.finishesEx,
+                onCycle: (value: string) => cycleArrayFilter("finishes", "finishesEx", value),
+                counts: filterCounts?.finishes,
+              },
+            ]
+          : [];
+        return (
+          <MultiSelectCombobox
+            key="variant"
+            triggerStyle="menu"
+            label={both ? "Variant" : showArtVariantSection ? "Art Variant" : "Finish"}
+            searchPlaceholder={both ? "Search variants…" : "Search…"}
+            emptyText={both ? "No variants match." : "No matches."}
+            primaryLabel={both ? "Art Variant" : undefined}
+            options={primaryIsArt ? artVariantOptions : finishOptions}
+            selected={primaryIsArt ? filterState.artVariants : filterState.finishes}
+            excluded={primaryIsArt ? filterState.artVariantsEx : filterState.finishesEx}
+            onCycle={(value) =>
+              primaryIsArt
+                ? cycleArrayFilter("artVariants", "artVariantsEx", value)
+                : cycleArrayFilter("finishes", "finishesEx", value)
+            }
+            counts={primaryIsArt ? filterCounts?.artVariants : filterCounts?.finishes}
+            groups={groups}
+            flag={
+              signedInVariantRow
+                ? {
+                    label: "Signed",
+                    state: filterState.signed,
+                    count: filterCounts?.flags.signed,
+                    onToggle: toggleSigned,
+                  }
+                : undefined
+            }
+          />
+        );
+      })()
+    : null;
+  const statsNode = showStats ? (
+    <RangeSliderBlock
+      key="stats"
+      scope="stats"
+      availableFilters={availableFilters}
+      filterCounts={filterCounts}
+      hiddenSections={hiddenSections}
+    />
+  ) : null;
+
+  // ── Chip dimension rows ────────────────────────────────────────────────────
+  const showOversizeNode = showCardSizes;
   const oversizeState_ = oversizeState(filterState.cardSizes);
-  const oversizeNode = showCardSizes ? (
+  const oversizeNode = showOversizeNode ? (
     <FlagMenuItem
       key="oversize"
       label="Oversized"
@@ -400,7 +622,7 @@ export function FilterMoreMenu({
       onToggle={() => setArrayFilter("cardSizes", nextOversize(filterState.cardSizes))}
     />
   ) : null;
-  const signedNode = showSigned ? (
+  const signedNode = showSignedRow ? (
     <FlagMenuItem
       key="signed"
       label="Signed"
@@ -528,7 +750,7 @@ export function FilterMoreMenu({
     />
   ) : null;
   const copiesNode = showCopies ? (
-    <MarketSliderBlock
+    <RangeSliderBlock
       key="copies"
       scope="copies"
       availableFilters={availableFilters}
@@ -538,7 +760,7 @@ export function FilterMoreMenu({
     />
   ) : null;
   const priceNode = showPrice ? (
-    <MarketSliderBlock
+    <RangeSliderBlock
       key="price"
       scope="price"
       availableFilters={availableFilters}
@@ -547,40 +769,59 @@ export function FilterMoreMenu({
     />
   ) : null;
 
-  // Themed blocks, separated by dividers; empty blocks collapse away. Markers /
-  // Distribution Channels fold their any/none presence into the picker itself;
-  // custom-tag and keyword presence ride as their own rows.
-  //  • Distribution: Signed, Markers, Distribution Channels, Keywords, custom tags
-  //  • Collection:   Owned, Copies
-  //  • Legality:     Banned, Errata
-  //  • Price on its own
+  // Themed blocks, separated by dividers; empty blocks collapse away. The row
+  // order mirrors the compact bar's chip order exactly (the canonical
+  // FILTER_PLACEMENT_UNITS order), so a unit sits in the same spot whether
+  // it's promoted or demoted. Markers / Distribution Channels fold their
+  // any/none presence into the picker itself; custom-tag and keyword presence
+  // ride as their own rows.
+  //  • Core:       Language, Sets, Domain, Rarity, Type, Supertype, Variant, Standard, Stats
+  //  • Dimensions: Markers, Oversized (Size), Channels, custom tags, Keywords
+  //  • Flags:      Signed, Banned, Errata
+  //  • Market:     Owned, Copies, Price
   const blocks = [
     {
-      id: "distribution",
+      id: "core",
       items: [
-        signedNode,
+        languagesNode,
+        setsNode,
+        domainsNode,
+        raritiesNode,
+        typesNode,
+        superTypesNode,
+        variantNode,
         standardNode,
-        oversizeNode,
-        markersNode,
-        channelsNode,
-        keywordsNode,
-        ...customTagNodes,
-        customTagsPresenceNode,
+        statsNode,
       ],
     },
-    { id: "collection", items: [ownedNode, copiesNode] },
-    { id: "legality", items: [bannedNode, errataNode] },
-    { id: "price", items: [priceNode] },
+    {
+      id: "dimensions",
+      items: [
+        markersNode,
+        oversizeNode,
+        channelsNode,
+        ...customTagNodes,
+        customTagsPresenceNode,
+        keywordsNode,
+      ],
+    },
+    { id: "flags", items: [signedNode, bannedNode, errataNode] },
+    { id: "market", items: [ownedNode, copiesNode, priceNode] },
   ]
     .map((block) => ({ id: block.id, items: block.items.filter(Boolean) }))
     .filter((block) => block.items.length > 0);
+
+  if (blocks.length === 0) {
+    return null;
+  }
+  const showWideContent = showPrice || showCopies || showStats;
 
   const active = activeCount > 0;
   // When exactly one More entry is active, the trigger reflects that entry by
   // name — like the value dropdowns do (Type → "Unit") — instead of a bare
   // "More (1)". Ranges have no single value, so they surface their dimension
-  // name. The order and gating mirror the parent's `activeCount`, so a single
-  // entry here always lines up with `activeCount === 1`.
+  // name. Every entry is gated by its unit being demoted here, so the list
+  // lines up with the parent's placement-aware `activeCount`.
   const singleActiveLabel = ((): string | undefined => {
     const markerLabels = new Map(
       availableFilters.markers.map((marker) => [marker.slug, marker.label]),
@@ -596,70 +837,146 @@ export function FilterMoreMenu({
     );
     const ownedLabels = new Map(OWNED_BUCKETS.map((bucket) => [bucket.value, bucket.label]));
     const entries: string[] = [];
+    const pushValues = (
+      shown: boolean,
+      included: string[],
+      excluded: string[],
+      labelFor: (slug: string) => string,
+    ) => {
+      if (!shown) {
+        return;
+      }
+      for (const slug of included) {
+        entries.push(labelFor(slug));
+      }
+      for (const slug of excluded) {
+        entries.push(`−${labelFor(slug)}`);
+      }
+    };
+    // Demoted core dimensions first, mirroring the block order above.
+    pushValues(
+      isMore("languages"),
+      filterState.languages,
+      filterState.languagesEx,
+      (slug) => languageLabels[slug] ?? slug,
+    );
+    pushValues(
+      isMore("sets"),
+      filterState.sets,
+      filterState.setsEx,
+      (slug) => setDisplayLabel?.(slug) ?? slug,
+    );
+    pushValues(isMore("domains"), filterState.domains, filterState.domainsEx, (slug) =>
+      formatDomainFilterLabel(slug, labels.domains),
+    );
+    pushValues(
+      isMore("rarities"),
+      filterState.rarities,
+      filterState.raritiesEx,
+      (slug) => labels.rarities[slug] ?? slug,
+    );
+    pushValues(
+      isMore("types"),
+      filterState.types,
+      filterState.typesEx,
+      (slug) => labels.cardTypes[slug] ?? slug,
+    );
+    pushValues(
+      isMore("superTypes"),
+      filterState.superTypes,
+      filterState.superTypesEx,
+      (slug) => labels.superTypes[slug] ?? slug,
+    );
+    pushValues(
+      isMore("variant"),
+      filterState.artVariants,
+      filterState.artVariantsEx,
+      (slug) => labels.artVariants[slug] ?? slug,
+    );
+    pushValues(
+      isMore("variant"),
+      filterState.finishes,
+      filterState.finishesEx,
+      (slug) => labels.finishes[slug] ?? slug,
+    );
+    if (isMore("stats")) {
+      const statEntries: [string, number | null, number | null][] = [
+        ["Energy", filterState.energyMin, filterState.energyMax],
+        ["Might", filterState.mightMin, filterState.mightMax],
+        ["Power", filterState.powerMin, filterState.powerMax],
+      ];
+      for (const [statLabel, min, max] of statEntries) {
+        if (min !== null || max !== null) {
+          entries.push(statLabel);
+        }
+      }
+    }
     // Trait name for "any", minus-prefixed for "none" ("−Has any marker"),
     // matching the include/exclude language the badges and chips use.
-    const presenceEntries: [PresenceDimension, PresenceParamValue][] = [
-      ["markers", filterState.markersPresence],
-      ["superTypes", filterState.superTypesPresence],
-      ["customTags", filterState.customTagsPresence],
-      ["distributionChannels", filterState.channelsPresence],
-      ["keywords", filterState.keywordsPresence],
+    const presenceEntries: [PresenceDimension, PresenceParamValue, boolean][] = [
+      ["markers", filterState.markersPresence, isMore("markers")],
+      ["superTypes", filterState.superTypesPresence, isMore("superTypes")],
+      ["customTags", filterState.customTagsPresence, isMore("customTags")],
+      ["distributionChannels", filterState.channelsPresence, isMore("channels")],
+      ["keywords", filterState.keywordsPresence, isMore("keywords")],
     ];
-    for (const [dimension, value] of presenceEntries) {
-      if (value !== null) {
+    for (const [dimension, value, shown] of presenceEntries) {
+      if (shown && value !== null) {
         entries.push(
           value === "none" ? `−${PRESENCE_LABELS[dimension]}` : PRESENCE_LABELS[dimension],
         );
       }
     }
-    if (!hideSigned && filterState.signed !== null) {
+    if (isMore("variant") && filterState.signed !== null) {
       entries.push(filterState.signed === false ? "−Signed" : "Signed");
     }
-    if (filterState.banned !== null) {
+    if (isMore("banned") && filterState.banned !== null) {
       entries.push(filterState.banned === false ? "−Banned" : "Banned");
     }
-    if (filterState.errata !== null) {
+    if (isMore("errata") && filterState.errata !== null) {
       entries.push(filterState.errata === false ? "−Errata" : "Errata");
     }
-    if (filterState.standard === true || filterState.standard === false) {
+    if (isMore("standard") && (filterState.standard === true || filterState.standard === false)) {
       entries.push(filterState.standard === false ? "−Standard" : "Standard");
     }
-    if (oversizeState_ !== null) {
+    if (isMore("cardSizes") && oversizeState_ !== null) {
       entries.push(oversizeState_ ? "Oversized" : "−Oversized");
     }
-    for (const slug of filterState.markers) {
-      entries.push(markerLabels.get(slug) ?? slug);
-    }
-    for (const slug of filterState.markersEx) {
-      entries.push(`−${markerLabels.get(slug) ?? slug}`);
-    }
-    for (const slug of filterState.channels) {
-      entries.push(channelLabels.get(slug) ?? slug);
-    }
-    for (const slug of filterState.channelsEx) {
-      entries.push(`−${channelLabels.get(slug) ?? slug}`);
-    }
+    pushValues(
+      isMore("markers"),
+      filterState.markers,
+      filterState.markersEx,
+      (slug) => markerLabels.get(slug) ?? slug,
+    );
+    pushValues(
+      isMore("channels"),
+      filterState.channels,
+      filterState.channelsEx,
+      (slug) => channelLabels.get(slug) ?? slug,
+    );
     // Keyword filter values are their own names, so no label lookup is needed.
-    for (const keyword of filterState.keywords) {
-      entries.push(keyword);
+    pushValues(
+      isMore("keywords"),
+      filterState.keywords,
+      filterState.keywordsEx,
+      (keyword) => keyword,
+    );
+    pushValues(
+      isMore("customTags"),
+      filterState.customTags,
+      filterState.customTagsEx,
+      (slug) => tagLabels.get(slug) ?? slug,
+    );
+    if (isMore("owned")) {
+      for (const value of filterState.owned) {
+        entries.push(ownedLabels.get(value) ?? value);
+      }
+      if (filterState.ownedCountMin !== null || filterState.ownedCountMax !== null) {
+        entries.push("Copies");
+      }
     }
-    for (const keyword of filterState.keywordsEx) {
-      entries.push(`−${keyword}`);
-    }
-    for (const slug of filterState.customTags) {
-      entries.push(tagLabels.get(slug) ?? slug);
-    }
-    for (const slug of filterState.customTagsEx) {
-      entries.push(`−${tagLabels.get(slug) ?? slug}`);
-    }
-    for (const value of filterState.owned) {
-      entries.push(ownedLabels.get(value) ?? value);
-    }
-    if (filterState.priceMin !== null || filterState.priceMax !== null) {
+    if (isMore("price") && (filterState.priceMin !== null || filterState.priceMax !== null)) {
       entries.push("Price");
-    }
-    if (filterState.ownedCountMin !== null || filterState.ownedCountMax !== null) {
-      entries.push("Copies");
     }
     return entries.length === 1 ? entries[0] : undefined;
   })();
@@ -692,10 +1009,10 @@ export function FilterMoreMenu({
         {active && !singleActiveLabel && <span className="tabular-nums">({activeCount})</span>}
         <ChevronDownIcon />
       </DropdownMenuTrigger>
-      {/* Widen to fit the slider rows when Price/Copies are present. */}
+      {/* Widen to fit the slider rows when Stats/Price/Copies are present. */}
       <DropdownMenuContent
         align="start"
-        className={cn(NEUTRAL_HOVER_SCOPE, showMarketRanges ? "w-80" : "min-w-56")}
+        className={cn(NEUTRAL_HOVER_SCOPE, showWideContent ? "w-80" : "min-w-56")}
       >
         {blocks.map((block, index) => (
           <Fragment key={block.id}>

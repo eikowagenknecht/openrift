@@ -1,16 +1,14 @@
 import type { AvailableFilters } from "@openrift/shared";
+import { PREFERENCE_DEFAULTS } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
 import {
-  getApplicableToggleableSections,
-  keepToggleableSections,
-  mergeHiddenSections,
-  TOGGLEABLE_FILTER_SECTIONS,
+  DEFAULT_TOP_LEVEL_UNITS,
+  FILTER_PLACEMENT_UNITS,
+  getApplicablePlacementUnits,
+  keepPlacementUnits,
+  resolveTopLevelUnits,
 } from "./filter-sections";
-
-// Filter-panel sections the user can never hide, so they must never appear in
-// the toggleable list. Mirrors the anchored sections in filter-panel-content.tsx.
-const CORE_FILTER_SECTIONS = ["sets", "domains", "rarity", "types"] as const;
 
 function makeAvailable(overrides: Partial<AvailableFilters> = {}): AvailableFilters {
   return {
@@ -43,128 +41,107 @@ function makeAvailable(overrides: Partial<AvailableFilters> = {}): AvailableFilt
 
 describe("filter-sections", () => {
   describe("invariants", () => {
-    it("never lists a core section as toggleable", () => {
-      const toggleableKeys = new Set(TOGGLEABLE_FILTER_SECTIONS.map((section) => section.key));
-      for (const core of CORE_FILTER_SECTIONS) {
-        expect(toggleableKeys.has(core)).toBe(false);
-      }
-    });
-
-    it("has a unique key for every toggleable section", () => {
-      const keys = TOGGLEABLE_FILTER_SECTIONS.map((section) => section.key);
+    it("has a unique key for every placement unit", () => {
+      const keys = FILTER_PLACEMENT_UNITS.map((unit) => unit.key);
       expect(new Set(keys).size).toBe(keys.length);
     });
-  });
 
-  describe("keepToggleableSections", () => {
-    it("drops core and unknown keys, keeping only toggleable ones", () => {
-      expect(keepToggleableSections(["sets", "domains", "price", "owned", "bogus"])).toEqual([
-        "price",
-        "owned",
-      ]);
+    it("never maps one section to two units", () => {
+      const sections = FILTER_PLACEMENT_UNITS.flatMap((unit) => [...unit.sections]);
+      expect(new Set(sections).size).toBe(sections.length);
     });
 
-    it("de-duplicates repeated keys", () => {
-      expect(keepToggleableSections(["price", "price", "owned"])).toEqual(["price", "owned"]);
-    });
-
-    it("returns an empty array for an empty input", () => {
-      expect(keepToggleableSections([])).toEqual([]);
+    it("keeps every default top-level key a real unit", () => {
+      const keys = new Set(FILTER_PLACEMENT_UNITS.map((unit) => unit.key));
+      for (const key of PREFERENCE_DEFAULTS.topLevelFilters) {
+        expect(keys.has(key)).toBe(true);
+      }
     });
   });
 
-  describe("mergeHiddenSections", () => {
-    it("unions the surface hides with the user's toggleable hides", () => {
-      const merged = mergeHiddenSections(new Set(["markers", "channels"]), ["price", "energy"]);
-      expect(merged).toEqual(new Set(["markers", "channels", "price", "energy"]));
+  describe("keepPlacementUnits", () => {
+    it("drops unknown keys and de-duplicates", () => {
+      expect(keepPlacementUnits(["sets", "junk", "sets", "stats"])).toEqual(["sets", "stats"]);
     });
 
-    it("ignores core or unknown keys in the user list", () => {
-      const merged = mergeHiddenSections(new Set(["markers"]), ["sets", "bogus", "price"]);
-      expect(merged).toEqual(new Set(["markers", "price"]));
-    });
-
-    it("handles an undefined surface set", () => {
-      expect(mergeHiddenSections(undefined, ["price"])).toEqual(new Set(["price"]));
+    it("returns an empty list for only-unknown input", () => {
+      expect(keepPlacementUnits(["nope", ""])).toEqual([]);
     });
   });
 
-  describe("getApplicableToggleableSections", () => {
-    it("offers stat ranges and the owned bucket on a bare surface", () => {
-      const applicable = getApplicableToggleableSections({
-        availableFilters: makeAvailable(),
-        customTagCategoryCount: 0,
-      }).map((section) => section.key);
-      // Stat sliders and owned always have content; price has a positive max.
-      expect(applicable).toContain("energy");
-      expect(applicable).toContain("power");
-      expect(applicable).toContain("might");
-      expect(applicable).toContain("price");
-      expect(applicable).toContain("owned");
-      // No supertypes/finishes/markers/etc. present, so they aren't offered.
-      expect(applicable).not.toContain("superTypes");
-      expect(applicable).not.toContain("markers");
-      expect(applicable).not.toContain("signed");
+  describe("resolveTopLevelUnits", () => {
+    it("builds a sanitized set from the stored preference", () => {
+      const units = resolveTopLevelUnits(["domains", "bogus", "price"]);
+      expect(units.has("domains")).toBe(true);
+      expect(units.has("price")).toBe(true);
+      expect(units.has("bogus")).toBe(false);
     });
+  });
 
-    it("offers a section only when it has content", () => {
-      const applicable = getApplicableToggleableSections({
-        availableFilters: makeAvailable({
-          superTypes: ["unit"],
-          finishes: ["foil", "nonfoil"],
-          markers: [{ id: "m1", slug: "alpha", label: "Alpha", description: null }],
-          hasSigned: true,
-        }),
-        availableLanguages: ["EN", "DE"],
-        customTagCategoryCount: 2,
-      }).map((section) => section.key);
-      expect(applicable).toContain("superTypes");
-      expect(applicable).toContain("finishes");
-      expect(applicable).toContain("languages");
-      expect(applicable).toContain("markers");
-      expect(applicable).toContain("signed");
-      expect(applicable).toContain("customTags");
-    });
-
-    it("does not offer single-value finish/art-variant/language sections", () => {
-      const applicable = getApplicableToggleableSections({
-        availableFilters: makeAvailable({ finishes: ["foil"], artVariants: ["std"] }),
-        availableLanguages: ["EN"],
-        customTagCategoryCount: 0,
-      }).map((section) => section.key);
-      expect(applicable).not.toContain("finishes");
-      expect(applicable).not.toContain("artVariants");
-      expect(applicable).not.toContain("languages");
-    });
-
-    it("excludes price when the catalog has no priced cards", () => {
-      const applicable = getApplicableToggleableSections({
-        availableFilters: makeAvailable({ price: { min: 0, max: 0 } }),
-        customTagCategoryCount: 0,
-      }).map((section) => section.key);
-      expect(applicable).not.toContain("price");
-    });
-
-    it("never offers a section the surface already force-hides", () => {
-      const applicable = getApplicableToggleableSections({
-        availableFilters: makeAvailable({
-          markers: [{ id: "m1", slug: "alpha", label: "Alpha", description: null }],
-        }),
-        surfaceHiddenSections: new Set(["markers", "owned"]),
-        customTagCategoryCount: 0,
-      }).map((section) => section.key);
-      expect(applicable).not.toContain("markers");
-      expect(applicable).not.toContain("owned");
-    });
-
-    it("returns sections in panel order", () => {
-      const applicable = getApplicableToggleableSections({
+  describe("getApplicablePlacementUnits", () => {
+    it("offers only units with content on an empty surface", () => {
+      const applicable = getApplicablePlacementUnits({
         availableFilters: makeAvailable(),
         customTagCategoryCount: 0,
       });
-      const order = TOGGLEABLE_FILTER_SECTIONS.map((section) => section.key);
-      const indices = applicable.map((section) => order.indexOf(section.key));
-      expect(indices).toEqual([...indices].sort((a, b) => a - b));
+      const keys = applicable.map((unit) => unit.key);
+      // Stats and Owned always apply; Price applies because max > 0.
+      expect(keys).toEqual(["stats", "owned", "price"]);
+    });
+
+    it("offers a core unit once its dimension has options", () => {
+      const applicable = getApplicablePlacementUnits({
+        availableFilters: makeAvailable({ domains: ["fury"], sets: ["OGN"] }),
+        customTagCategoryCount: 0,
+      });
+      const keys = new Set(applicable.map((unit) => unit.key));
+      expect(keys.has("domains")).toBe(true);
+      expect(keys.has("sets")).toBe(true);
+      expect(keys.has("types")).toBe(false);
+    });
+
+    it("offers the variant unit when any of its sections has content", () => {
+      const signedOnly = getApplicablePlacementUnits({
+        availableFilters: makeAvailable({ hasSigned: true }),
+        customTagCategoryCount: 0,
+      });
+      expect(signedOnly.map((unit) => unit.key)).toContain("variant");
+    });
+
+    it("respects the surface's own hides", () => {
+      const applicable = getApplicablePlacementUnits({
+        availableFilters: makeAvailable({
+          markers: [{ id: "marker-m", slug: "m", label: "M", description: "" }],
+        }),
+        surfaceHiddenSections: new Set(["owned", "markers"]),
+        customTagCategoryCount: 0,
+      });
+      const keys = new Set(applicable.map((unit) => unit.key));
+      expect(keys.has("owned")).toBe(false);
+      expect(keys.has("markers")).toBe(false);
+    });
+
+    it("gates the languages unit on the available list", () => {
+      const single = getApplicablePlacementUnits({
+        availableFilters: makeAvailable(),
+        availableLanguages: ["EN"],
+        customTagCategoryCount: 0,
+      });
+      expect(single.map((unit) => unit.key)).not.toContain("languages");
+      const multi = getApplicablePlacementUnits({
+        availableFilters: makeAvailable(),
+        availableLanguages: ["EN", "DE"],
+        customTagCategoryCount: 0,
+      });
+      expect(multi.map((unit) => unit.key)).toContain("languages");
+    });
+  });
+
+  describe("DEFAULT_TOP_LEVEL_UNITS", () => {
+    it("mirrors the shared preference default", () => {
+      expect([...DEFAULT_TOP_LEVEL_UNITS].toSorted()).toEqual(
+        [...PREFERENCE_DEFAULTS.topLevelFilters].toSorted(),
+      );
     });
   });
 });

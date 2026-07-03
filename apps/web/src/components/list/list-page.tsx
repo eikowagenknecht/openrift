@@ -29,7 +29,6 @@ import { CardViewer } from "@/components/card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import {
   BrowserActiveFilters,
-  BrowserLeftPane,
   BrowserToolbar,
   CardBrowserFilterProvider,
 } from "@/components/cards/card-browser-filter-scaffold";
@@ -1198,8 +1197,6 @@ function ListEntryBrowser({
   const moveTargetLists = allLists.filter(
     (list) => list.id !== listId && list.kind === kind && list.intent === intent,
   );
-
-  const leftPane = <BrowserLeftPane />;
   const aboveGrid = <BrowserActiveFilters />;
 
   // For card-kind lists, the entry intentionally doesn't pin a specific
@@ -1249,7 +1246,6 @@ function ListEntryBrowser({
           siblingPrintings={selectedCard ? siblingsSource.get(selectedCard.cardId) : undefined}
           renderCard={renderCard}
           toolbar={toolbar}
-          leftPane={leftPane}
           aboveGrid={aboveGrid}
           rightPane={rightPane}
           addStripHeight={ADD_STRIP_HEIGHT}

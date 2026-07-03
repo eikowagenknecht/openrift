@@ -2,7 +2,6 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 
 import { CardBrowserLayout } from "@/components/card-browser-layout";
 import { RouteErrorFallback } from "@/components/error-message";
-import { Pane } from "@/components/layout/panes";
 import { Skeleton } from "@/components/ui/skeleton";
 import { initQueryOptions } from "@/hooks/use-init";
 import { pricesQueryOptions } from "@/hooks/use-prices";
@@ -187,16 +186,6 @@ function CardsPending() {
       <CardBrowserLayout
         toolbar={
           <div className="bg-input mb-1.5 h-9 w-full rounded-md sm:mb-3" aria-hidden="true" />
-        }
-        leftPane={
-          <Pane className="@wide:block px-3">
-            <Skeleton className="mb-4 h-7 w-24 rounded" />
-            <div className="space-y-3 pb-4">
-              {Array.from({ length: 8 }, (_, i) => (
-                <Skeleton key={i} className="h-9 w-full rounded" />
-              ))}
-            </div>
-          </Pane>
         }
         gridSlot={
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7">

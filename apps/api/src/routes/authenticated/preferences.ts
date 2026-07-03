@@ -27,8 +27,7 @@ function toUserPreferences(data: UserPreferencesResponse): UserPreferencesRespon
     completionScope: data.completionScope,
     defaultCardView: data.defaultCardView,
     defaultCurrency: data.defaultCurrency,
-    hiddenFilterSections: data.hiddenFilterSections,
-    compactFilterView: data.compactFilterView,
+    topLevelFilters: data.topLevelFilters,
     // ADR-030: the profile email-notification toggles read this back.
     emailNotifications: data.emailNotifications,
   };

@@ -33,12 +33,8 @@ vi.mock("@/components/filters/options-bar", () => ({
   MobileOptionsContent: () => null,
   MobileOptionsDrawer: () => <div data-testid="mobile-options-drawer" />,
 }));
-vi.mock("@/components/filters/collapsible-filter-panel", () => ({
-  CollapsibleFilterPanel: () => null,
-  FilterToggleButton: () => <div data-testid="filter-toggle" />,
-}));
-vi.mock("@/components/filters/filter-panel-content", () => ({
-  FilterPanelContent: () => null,
+vi.mock("@/components/filters/compact-filter-bar", () => ({
+  CompactFilterBar: () => <div data-testid="compact-filter-bar" />,
 }));
 vi.mock("@/components/filters/active-filters", () => ({
   ActiveFilters: () => null,
@@ -128,7 +124,7 @@ describe("FirstRowPreview", () => {
     mockUseLoaderData.mockReturnValue(makeLoaderData({ firstRow: [] }));
     const { container } = renderPreview();
     // Chrome is present even without a first-row payload — the layout shell
-    // still reserves toolbar / left pane space.
+    // still reserves the toolbar / compact-bar space.
     expect(container.firstChild).not.toBeNull();
     expect(container.querySelectorAll("img")).toHaveLength(0);
   });

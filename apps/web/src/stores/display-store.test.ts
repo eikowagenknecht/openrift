@@ -26,7 +26,7 @@ describe("useDisplayStore", () => {
       expect(state.marketplaceOrder).toEqual(PREFERENCE_DEFAULTS.marketplaceOrder);
       expect(state.languages).toEqual(PREFERENCE_DEFAULTS.languages);
       expect(state.defaultCardView).toBe(PREFERENCE_DEFAULTS.defaultCardView);
-      expect(state.hiddenFilterSections).toEqual([]);
+      expect(state.topLevelFilters).toEqual(PREFERENCE_DEFAULTS.topLevelFilters);
     });
 
     it("starts with all overrides as null", () => {
@@ -58,24 +58,12 @@ describe("useDisplayStore", () => {
       expect(state.overrides.fancyFan).toBe(false);
     });
 
-    it("setHiddenFilterSections updates both resolved value and override", () => {
-      useDisplayStore.getState().setHiddenFilterSections(["price", "owned"]);
+    it("setTopLevelFilters updates both resolved value and override", () => {
+      useDisplayStore.getState().setTopLevelFilters(["sets", "owned"]);
 
       const state = useDisplayStore.getState();
-      expect(state.hiddenFilterSections).toEqual(["price", "owned"]);
-      expect(state.overrides.hiddenFilterSections).toEqual(["price", "owned"]);
-    });
-
-    it("setCompactFilterView updates both resolved value and override", () => {
-      expect(useDisplayStore.getState().compactFilterView).toBe(
-        PREFERENCE_DEFAULTS.compactFilterView,
-      );
-
-      useDisplayStore.getState().setCompactFilterView(true);
-
-      const state = useDisplayStore.getState();
-      expect(state.compactFilterView).toBe(true);
-      expect(state.overrides.compactFilterView).toBe(true);
+      expect(state.topLevelFilters).toEqual(["sets", "owned"]);
+      expect(state.overrides.topLevelFilters).toEqual(["sets", "owned"]);
     });
 
     it("setFoilEffect updates both resolved value and override", () => {
@@ -152,24 +140,14 @@ describe("useDisplayStore", () => {
       expect(useDisplayStore.getState().overrides.defaultCardView).toBeNull();
     });
 
-    it("resets hiddenFilterSections to default (empty)", () => {
-      useDisplayStore.getState().setHiddenFilterSections(["price"]);
-      useDisplayStore.getState().resetPreference("hiddenFilterSections");
+    it("resets topLevelFilters to the default placement", () => {
+      useDisplayStore.getState().setTopLevelFilters(["sets"]);
+      useDisplayStore.getState().resetPreference("topLevelFilters");
 
-      expect(useDisplayStore.getState().hiddenFilterSections).toEqual(
-        PREFERENCE_DEFAULTS.hiddenFilterSections,
+      expect(useDisplayStore.getState().topLevelFilters).toEqual(
+        PREFERENCE_DEFAULTS.topLevelFilters,
       );
-      expect(useDisplayStore.getState().overrides.hiddenFilterSections).toBeNull();
-    });
-
-    it("resets compactFilterView to default", () => {
-      useDisplayStore.getState().setCompactFilterView(true);
-      useDisplayStore.getState().resetPreference("compactFilterView");
-
-      expect(useDisplayStore.getState().compactFilterView).toBe(
-        PREFERENCE_DEFAULTS.compactFilterView,
-      );
-      expect(useDisplayStore.getState().overrides.compactFilterView).toBeNull();
+      expect(useDisplayStore.getState().overrides.topLevelFilters).toBeNull();
     });
   });
 
@@ -197,8 +175,7 @@ describe("useDisplayStore", () => {
         completionScope: null,
         defaultCardView: null,
         defaultCurrency: null,
-        hiddenFilterSections: null,
-        compactFilterView: null,
+        topLevelFilters: null,
       });
       expect(state.showImages).toBe(PREFERENCE_DEFAULTS.showImages);
       expect(state.fancyFan).toBe(PREFERENCE_DEFAULTS.fancyFan);
@@ -247,21 +224,13 @@ describe("useDisplayStore", () => {
       expect(state.defaultCardView).toBe("cards");
     });
 
-    it("hydrates hiddenFilterSections and preserves it when the field is absent", () => {
-      useDisplayStore.getState().hydrateOverrides({ hiddenFilterSections: ["price", "markers"] });
-      expect(useDisplayStore.getState().hiddenFilterSections).toEqual(["price", "markers"]);
+    it("hydrates topLevelFilters and preserves it when the field is absent", () => {
+      useDisplayStore.getState().hydrateOverrides({ topLevelFilters: ["sets", "markers"] });
+      expect(useDisplayStore.getState().topLevelFilters).toEqual(["sets", "markers"]);
 
       // A later hydrate that omits the field must not clobber the stored value.
       useDisplayStore.getState().hydrateOverrides({ showImages: false });
-      expect(useDisplayStore.getState().hiddenFilterSections).toEqual(["price", "markers"]);
-    });
-
-    it("hydrates compactFilterView and preserves it when the field is absent", () => {
-      useDisplayStore.getState().hydrateOverrides({ compactFilterView: true });
-      expect(useDisplayStore.getState().compactFilterView).toBe(true);
-
-      useDisplayStore.getState().hydrateOverrides({ showImages: false });
-      expect(useDisplayStore.getState().compactFilterView).toBe(true);
+      expect(useDisplayStore.getState().topLevelFilters).toEqual(["sets", "markers"]);
     });
   });
 

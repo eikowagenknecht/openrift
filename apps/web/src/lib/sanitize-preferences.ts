@@ -106,12 +106,8 @@ export function sanitizeServerResponse(data: unknown): Partial<DisplayOverrides>
   if ("defaultCurrency" in record) {
     result.defaultCurrency = sanitizeCurrency(record.defaultCurrency);
   }
-  if ("hiddenFilterSections" in record) {
-    result.hiddenFilterSections = sanitizeHiddenFilterSections(record.hiddenFilterSections);
-  }
-  if ("compactFilterView" in record) {
-    result.compactFilterView =
-      typeof record.compactFilterView === "boolean" ? record.compactFilterView : null;
+  if ("topLevelFilters" in record) {
+    result.topLevelFilters = sanitizeFilterKeyList(record.topLevelFilters);
   }
   return result;
 }
@@ -151,8 +147,7 @@ function nullOverrides(): DisplayOverrides {
     completionScope: null,
     defaultCardView: null,
     defaultCurrency: null,
-    hiddenFilterSections: null,
-    compactFilterView: null,
+    topLevelFilters: null,
   };
 }
 
@@ -171,12 +166,12 @@ function sanitizeCurrency(value: unknown): Currency | null {
 }
 
 /**
- * Sanitizes the hidden-filter-sections list. Keeps only non-empty strings and
- * de-duplicates. Returns null for anything that isn't an array so hydration
- * falls back to the existing value.
- * @returns A de-duplicated list of section keys, or null if the input is invalid.
+ * Sanitizes a filter key list (top-level units, or the legacy hidden
+ * sections). Keeps only non-empty strings and de-duplicates. Returns null for
+ * anything that isn't an array so hydration falls back to the existing value.
+ * @returns A de-duplicated list of keys, or null if the input is invalid.
  */
-function sanitizeHiddenFilterSections(value: unknown): string[] | null {
+function sanitizeFilterKeyList(value: unknown): string[] | null {
   if (!Array.isArray(value)) {
     return null;
   }
@@ -231,10 +226,7 @@ function sanitizeOverrideFields(record: Record<string, unknown>): DisplayOverrid
 
   const safeDefaultCurrency = sanitizeCurrency(record.defaultCurrency);
 
-  const safeHiddenFilterSections = sanitizeHiddenFilterSections(record.hiddenFilterSections);
-
-  const safeCompactFilterView =
-    typeof record.compactFilterView === "boolean" ? record.compactFilterView : null;
+  const safeTopLevelFilters = sanitizeFilterKeyList(record.topLevelFilters);
 
   return {
     showImages,
@@ -246,8 +238,7 @@ function sanitizeOverrideFields(record: Record<string, unknown>): DisplayOverrid
     completionScope: safeCompletionScope,
     defaultCardView: safeDefaultCardView,
     defaultCurrency: safeDefaultCurrency,
-    hiddenFilterSections: safeHiddenFilterSections,
-    compactFilterView: safeCompactFilterView,
+    topLevelFilters: safeTopLevelFilters,
   };
 }
 

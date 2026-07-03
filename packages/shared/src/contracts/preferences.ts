@@ -63,12 +63,22 @@ export const updatePreferencesSchema = z.object({
   completionScope: completionScopeWriteSchema.nullable().optional(),
   defaultCardView: defaultCardViewEnum.nullable().optional(),
   defaultCurrency: currencySchema.nullable().optional(),
+  // Retired in favour of `topLevelFilters`; still writable so the web can send
+  // `null` to clear the legacy key from stored preferences.
   hiddenFilterSections: z
     .array(z.string().min(1).max(40))
     .max(40)
     .refine((arr) => new Set(arr).size === arr.length, { message: "Duplicate filter sections" })
     .nullable()
     .optional(),
+  topLevelFilters: z
+    .array(z.string().min(1).max(40))
+    .max(40)
+    .refine((arr) => new Set(arr).size === arr.length, { message: "Duplicate filter units" })
+    .nullable()
+    .optional(),
+  // Retired preference (the compact bar is now the only filter layout); still
+  // writable so the web can send `null` to clear the legacy key.
   compactFilterView: z.boolean().nullable().optional(),
   // ADR-030 email notifications. The shallow server merge replaces this whole
   // key, so the web always sends both channels (preserving the unchanged one);
@@ -108,8 +118,7 @@ export const userPreferencesResponseSchema = z
     completionScope: completionScopePreferenceSchema.optional(),
     defaultCardView: z.enum(["cards", "printings"]).optional(),
     defaultCurrency: z.enum(["EUR", "USD"]).optional(),
-    hiddenFilterSections: z.array(z.string()).optional(),
-    compactFilterView: z.boolean().optional(),
+    topLevelFilters: z.array(z.string()).optional(),
     // ADR-030: round-trips so the profile toggles read the stored state.
     emailNotifications: emailNotificationPreferenceSchema.optional(),
   })

@@ -1,18 +1,23 @@
 import type { AvailableFilters, FilterCounts, RangeKey } from "@openrift/shared";
 import { NONE } from "@openrift/shared";
-import { CircleSlashIcon, MinusIcon } from "lucide-react";
+import { ChevronRightIcon, CircleSlashIcon, MinusIcon } from "lucide-react";
 import type { ReactNode } from "react";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 
 import { CardIcon } from "@/components/card-icon";
-import { MultiSelectCombobox } from "@/components/filters/multi-select-combobox";
+import {
+  FILTER_TRIGGER_CLASS,
+  MultiSelectCombobox,
+} from "@/components/filters/multi-select-combobox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Slider } from "@/components/ui/slider";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCustomTagList, useEnumOrders, useLanguageLabels } from "@/hooks/use-enums";
 import { buildChannelBreadcrumbs } from "@/lib/channel-breadcrumbs";
 import { formatDomainFilterLabel } from "@/lib/domain";
+import { DEFAULT_TOP_LEVEL_UNITS, getApplicablePlacementUnits } from "@/lib/filter-sections";
 import { compactFormatterForMarketplace } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
 import { nextOversize, oversizeCount, oversizeState } from "@/lib/oversize-filter";
@@ -97,6 +102,53 @@ interface FilterPanelContentProps {
    * slider (logged-out catalog, or surfaces where `"owned"` is hidden).
    */
   ownedCountMax?: number;
+  /**
+   * The user's top-level placement units (see `lib/filter-sections.ts`).
+   * Units in this set render in the main panel body; every other applicable
+   * unit renders inside the collapsed "More filters" fold at the bottom.
+   * Omit to fall back to the default placement (SSR preview, stats page).
+   */
+  topLevelUnits?: ReadonlySet<string>;
+}
+
+/**
+ * Partitions the applicable placement units of a surface into the top-level
+ * set and the More set, mirroring what the panel / compact bar will render
+ * where. Shared by `FilterPanelContent` and `CollapsibleFilterPanel` so their
+ * fold gating stays identical.
+ * @returns The top-level and More unit sets, plus whether the More fold has any content.
+ */
+export function useFilterUnitPartition({
+  availableFilters,
+  availableLanguages,
+  hiddenSections,
+  visibleCustomTagCategories,
+  topLevelUnits,
+}: Pick<
+  FilterPanelContentProps,
+  | "availableFilters"
+  | "availableLanguages"
+  | "hiddenSections"
+  | "visibleCustomTagCategories"
+  | "topLevelUnits"
+>): {
+  topUnits: ReadonlySet<string>;
+  moreUnits: ReadonlySet<string>;
+  moreHasContent: boolean;
+} {
+  const { byCategory } = useCustomTagList();
+  const customTagCategoryCount = [...byCategory.keys()].filter((category) =>
+    visibleCustomTagCategories === undefined ? true : visibleCustomTagCategories.has(category),
+  ).length;
+  const topUnits = topLevelUnits ?? DEFAULT_TOP_LEVEL_UNITS;
+  const applicable = getApplicablePlacementUnits({
+    availableFilters,
+    availableLanguages,
+    surfaceHiddenSections: hiddenSections,
+    customTagCategoryCount,
+  });
+  const moreUnits = new Set(applicable.map((unit) => unit.key).filter((key) => !topUnits.has(key)));
+  return { topUnits, moreUnits, moreHasContent: moreUnits.size > 0 };
 }
 
 export function FilterPanelContent({
@@ -108,25 +160,77 @@ export function FilterPanelContent({
   filterOverrides,
   filterCounts,
   ownedCountMax,
+  topLevelUnits,
 }: FilterPanelContentProps) {
+  const { topUnits, moreUnits, moreHasContent } = useFilterUnitPartition({
+    availableFilters,
+    availableLanguages,
+    hiddenSections,
+    visibleCustomTagCategories,
+    topLevelUnits,
+  });
+  const shared = {
+    availableFilters,
+    availableLanguages,
+    setDisplayLabel,
+    hiddenSections,
+    visibleCustomTagCategories,
+    filterOverrides,
+    filterCounts,
+  };
   return (
     <>
-      <FilterBadgeSections
-        availableFilters={availableFilters}
-        availableLanguages={availableLanguages}
-        setDisplayLabel={setDisplayLabel}
-        hiddenSections={hiddenSections}
-        visibleCustomTagCategories={visibleCustomTagCategories}
-        filterOverrides={filterOverrides}
-        filterCounts={filterCounts}
-      />
+      <FilterBadgeSections {...shared} units={topUnits} />
+      <FilterChipSections {...shared} units={topUnits} />
       <FilterRangeSections
         availableFilters={availableFilters}
         filterCounts={filterCounts}
         hiddenSections={hiddenSections}
         ownedCountMax={ownedCountMax}
+        units={topUnits}
       />
+      {moreHasContent && (
+        <MoreFiltersFold>
+          <FilterBadgeSections {...shared} units={moreUnits} />
+          <FilterChipSections {...shared} units={moreUnits} />
+          <FilterRangeSections
+            availableFilters={availableFilters}
+            filterCounts={filterCounts}
+            hiddenSections={hiddenSections}
+            ownedCountMax={ownedCountMax}
+            units={moreUnits}
+          />
+        </MoreFiltersFold>
+      )}
     </>
+  );
+}
+
+/**
+ * Collapsed-by-default host for the demoted ("in More") filter units at the
+ * bottom of a vertical filter surface (sidebar, collapsible panel, mobile
+ * drawer). Everything inside stays reachable in one click without crowding
+ * the main panel body.
+ * @returns The collapsible More-filters group.
+ */
+export function MoreFiltersFold({ children }: { children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground hover:text-foreground -ml-2 gap-1"
+          />
+        }
+      >
+        <ChevronRightIcon className={cn("size-4 transition-transform", open && "rotate-90")} />
+        More filters
+      </CollapsibleTrigger>
+      <CollapsibleContent className="flex flex-col gap-3 pt-3">{children}</CollapsibleContent>
+    </Collapsible>
   );
 }
 
@@ -135,19 +239,30 @@ export function FilterBadgeSections({
   availableLanguages,
   setDisplayLabel,
   hiddenSections,
-  visibleCustomTagCategories,
   filterOverrides,
   filterCounts,
-}: FilterPanelContentProps) {
+  units,
+}: Omit<FilterPanelContentProps, "visibleCustomTagCategories" | "topLevelUnits"> & {
+  /**
+   * Placement units to render here (see `lib/filter-sections.ts`). The main
+   * panel body passes the top-level set, the More fold passes the demoted
+   * set. Omit to render every badge section (collection stats page).
+   */
+  units?: ReadonlySet<string>;
+}) {
   const { labels } = useEnumOrders();
   const { filterState } = useFilterValues();
   const { cycleArrayFilter, toggleSigned } = useFilterActions();
   const languageLabels = useLanguageLabels();
+  const showUnit = (unit: string) => units === undefined || units.has(unit);
   // Signed rides inside the Art Variant section (a signed card is, in effect, a
-  // variant) when both are shown; otherwise it stays in the More group.
+  // variant) when both are shown; otherwise it renders as a flag chip wherever
+  // the Variant unit lives (see FilterChipSections).
   const signedApplicable = availableFilters.hasSigned && !hiddenSections?.has("signed");
   const artVariantShown =
-    availableFilters.artVariants.length > 1 && !hiddenSections?.has("artVariants");
+    showUnit("variant") &&
+    availableFilters.artVariants.length > 1 &&
+    !hiddenSections?.has("artVariants");
   const signedInArtVariant = signedApplicable && artVariantShown;
   // Use overrides when URL state is empty (zone presets that aren't in the URL)
   const selected = (key: keyof typeof filterState) => {
@@ -157,18 +272,21 @@ export function FilterBadgeSections({
   };
   return (
     <>
-      {availableLanguages && availableLanguages.length > 1 && !hiddenSections?.has("languages") && (
-        <FilterSection
-          label="Language"
-          options={availableLanguages}
-          selected={filterState.languages}
-          excluded={filterState.languagesEx}
-          onCycle={(v) => cycleArrayFilter("languages", "languagesEx", v)}
-          displayLabel={(code) => languageLabels[code] ?? code}
-          counts={filterCounts?.languages}
-        />
-      )}
-      {!hiddenSections?.has("sets") && (
+      {showUnit("languages") &&
+        availableLanguages &&
+        availableLanguages.length > 1 &&
+        !hiddenSections?.has("languages") && (
+          <FilterSection
+            label="Language"
+            options={availableLanguages}
+            selected={filterState.languages}
+            excluded={filterState.languagesEx}
+            onCycle={(v) => cycleArrayFilter("languages", "languagesEx", v)}
+            displayLabel={(code) => languageLabels[code] ?? code}
+            counts={filterCounts?.languages}
+          />
+        )}
+      {showUnit("sets") && !hiddenSections?.has("sets") && (
         <FilterSection
           label="Set"
           options={availableFilters.sets}
@@ -181,7 +299,7 @@ export function FilterBadgeSections({
           wide
         />
       )}
-      {!hiddenSections?.has("domains") && (
+      {showUnit("domains") && !hiddenSections?.has("domains") && (
         <FilterSection
           label="Domain"
           options={availableFilters.domains}
@@ -193,17 +311,19 @@ export function FilterBadgeSections({
           counts={filterCounts?.domains}
         />
       )}
-      <FilterSection
-        label="Rarity"
-        options={availableFilters.rarities}
-        selected={filterState.rarities}
-        excluded={filterState.raritiesEx}
-        onCycle={(v) => cycleArrayFilter("rarities", "raritiesEx", v)}
-        iconPath={(v) => getFilterIconPath("rarities", v)}
-        displayLabel={(v) => labels.rarities[v] ?? v}
-        counts={filterCounts?.rarities}
-      />
-      {!hiddenSections?.has("types") && (
+      {showUnit("rarities") && !hiddenSections?.has("rarities") && (
+        <FilterSection
+          label="Rarity"
+          options={availableFilters.rarities}
+          selected={filterState.rarities}
+          excluded={filterState.raritiesEx}
+          onCycle={(v) => cycleArrayFilter("rarities", "raritiesEx", v)}
+          iconPath={(v) => getFilterIconPath("rarities", v)}
+          displayLabel={(v) => labels.rarities[v] ?? v}
+          counts={filterCounts?.rarities}
+        />
+      )}
+      {showUnit("types") && !hiddenSections?.has("types") && (
         <FilterSection
           label="Type"
           options={availableFilters.types}
@@ -215,18 +335,20 @@ export function FilterBadgeSections({
           counts={filterCounts?.types}
         />
       )}
-      {availableFilters.superTypes.length > 0 && !hiddenSections?.has("superTypes") && (
-        <FilterSection
-          label="Supertype"
-          options={availableFilters.superTypes}
-          selected={selected("superTypes")}
-          excluded={filterState.superTypesEx}
-          onCycle={(v) => cycleArrayFilter("superTypes", "superTypesEx", v)}
-          iconPath={(v) => getFilterIconPath("superTypes", v)}
-          displayLabel={(v) => labels.superTypes[v] ?? v}
-          counts={filterCounts?.superTypes}
-        />
-      )}
+      {showUnit("superTypes") &&
+        availableFilters.superTypes.length > 0 &&
+        !hiddenSections?.has("superTypes") && (
+          <FilterSection
+            label="Supertype"
+            options={availableFilters.superTypes}
+            selected={selected("superTypes")}
+            excluded={filterState.superTypesEx}
+            onCycle={(v) => cycleArrayFilter("superTypes", "superTypesEx", v)}
+            iconPath={(v) => getFilterIconPath("superTypes", v)}
+            displayLabel={(v) => labels.superTypes[v] ?? v}
+            counts={filterCounts?.superTypes}
+          />
+        )}
       {artVariantShown && (
         <FilterSection
           label="Art Variant"
@@ -248,87 +370,45 @@ export function FilterBadgeSections({
           }
         />
       )}
-      {availableFilters.finishes.length > 1 && !hiddenSections?.has("finishes") && (
-        <FilterSection
-          label="Finish"
-          options={availableFilters.finishes}
-          selected={filterState.finishes}
-          excluded={filterState.finishesEx}
-          onCycle={(v) => cycleArrayFilter("finishes", "finishesEx", v)}
-          displayLabel={(v) => labels.finishes[v] ?? v}
-          counts={filterCounts?.finishes}
-        />
-      )}
-      <FilterMoreSection
-        availableFilters={availableFilters}
-        hiddenSections={hiddenSections}
-        visibleCustomTagCategories={visibleCustomTagCategories}
-        filterOverrides={filterOverrides}
-        filterCounts={filterCounts}
-        hideSigned={signedInArtVariant}
-      />
+      {showUnit("variant") &&
+        availableFilters.finishes.length > 1 &&
+        !hiddenSections?.has("finishes") && (
+          <FilterSection
+            label="Finish"
+            options={availableFilters.finishes}
+            selected={filterState.finishes}
+            excluded={filterState.finishesEx}
+            onCycle={(v) => cycleArrayFilter("finishes", "finishesEx", v)}
+            displayLabel={(v) => labels.finishes[v] ?? v}
+            counts={filterCounts?.finishes}
+          />
+        )}
     </>
   );
 }
 
 /**
- * Whether the "More" group has any content to show on this surface, mirroring
- * the render guards in {@link FilterMoreSection}. Lets a host (e.g. the compact
- * filter bar) decide whether to offer the "More" entry point at all without
- * rendering an empty popover.
- * @returns True when at least one More control applies here.
- */
-export function useHasMoreSectionContent({
-  availableFilters,
-  hiddenSections,
-  visibleCustomTagCategories,
-  hideSigned = false,
-}: Pick<
-  FilterPanelContentProps,
-  "availableFilters" | "hiddenSections" | "visibleCustomTagCategories"
-> & {
-  /** Suppress the Signed flag (when it's surfaced elsewhere, e.g. in Art Variant). */
-  hideSigned?: boolean;
-}): boolean {
-  const { byCategory } = useCustomTagList();
-  const visibleCategoryCount = [...byCategory.keys()].filter((category) =>
-    visibleCustomTagCategories === undefined ? true : visibleCustomTagCategories.has(category),
-  ).length;
-  return (
-    !hiddenSections?.has("owned") ||
-    (!hideSigned && availableFilters.hasSigned && !hiddenSections?.has("signed")) ||
-    (availableFilters.hasBanned && !hiddenSections?.has("banned")) ||
-    (availableFilters.hasErrata && !hiddenSections?.has("errata")) ||
-    (availableFilters.hasNonStandard && !hiddenSections?.has("standard")) ||
-    (availableFilters.keywords.length > 0 && !hiddenSections?.has("keywords")) ||
-    (availableFilters.cardSizes.length > 1 && !hiddenSections?.has("cardSizes")) ||
-    (!hiddenSections?.has("markers") && availableFilters.markers.length > 0) ||
-    (!hiddenSections?.has("channels") && availableFilters.distributionChannels.length > 0) ||
-    (!hiddenSections?.has("customTags") && visibleCategoryCount > 0)
-  );
-}
-
-/**
- * The filter panel's "More" group: signed/banned/errata/standard flag toggles,
- * the markers / distribution-channels / custom-tag comboboxes (each folding in
- * its any/none presence), the keyword-presence chip, and the owned bucket
- * combobox. Self-contained (sources its own enum/tag data) so both the
- * expanded panel and the compact filter bar render the identical controls.
+ * The chip-styled filter units: the markers / distribution-channels /
+ * custom-tag / keyword / owned comboboxes (each folding in its any/none
+ * presence where it has one) plus the flag chips (Oversized, Signed, Banned,
+ * Errata, Standard). Self-contained (sources its own enum/tag data) so the
+ * vertical panels and the compact filter bar render identical controls.
  *
- * Returns null when no More content applies on this surface. `variant`
- * controls the wrapper: "section" keeps the panel's labelled row; "bare"
- * drops the label gutter for hosting inside the compact bar's "More" popover.
- * @returns The More group, or null when empty.
+ * `units` picks which placement units render here: the panel body passes the
+ * promoted set, the More fold passes the demoted set, and the compact bar
+ * passes its promoted set with `variant="inline"`. The Signed flag belongs to
+ * the Variant unit — it rides the Art Variant badge section when that renders
+ * in the same host, and falls back to a flag chip here otherwise.
+ * @returns The chip sections, or null when nothing applies.
  */
-function FilterMoreSection({
+export function FilterChipSections({
   availableFilters,
   hiddenSections,
   visibleCustomTagCategories,
   filterOverrides,
   filterCounts,
-  variant = "section",
-  triggerStyle = "chip",
-  hideSigned = false,
+  units,
+  variant = "rows",
 }: Pick<
   FilterPanelContentProps,
   | "availableFilters"
@@ -337,12 +417,13 @@ function FilterMoreSection({
   | "filterOverrides"
   | "filterCounts"
 > & {
-  /** "section" = labelled panel row; "bare" = unlabelled, for the compact popover. */
-  variant?: "section" | "bare";
-  /** Trigger appearance forwarded to the flag toggles and comboboxes. */
-  triggerStyle?: "chip" | "button";
-  /** Suppress the Signed flag here (when it's surfaced in Art Variant instead). */
-  hideSigned?: boolean;
+  /**
+   * Placement units to render here (see `lib/filter-sections.ts`). Omit to
+   * render every chip unit (collection stats page).
+   */
+  units?: ReadonlySet<string>;
+  /** "rows" = labelled panel rows; "inline" = bare chips for the compact bar. */
+  variant?: "rows" | "inline";
 }) {
   const { filterState } = useFilterValues();
   const {
@@ -361,9 +442,6 @@ function FilterMoreSection({
   // set), so they're sourced directly here rather than threaded through
   // AvailableFilters like markers/channels.
   const { byCategory: customTagsByCategory } = useCustomTagList();
-  // Effective set of categories after applying the visibility prop. Used both to
-  // gate the section's appearance and to filter the per-category iteration —
-  // keep them in sync via this single source.
   const visibleCategories = [...customTagsByCategory.entries()].filter(([category]) =>
     visibleCustomTagCategories === undefined ? true : visibleCustomTagCategories.has(category),
   );
@@ -373,15 +451,56 @@ function FilterMoreSection({
     const arr = Array.isArray(urlValue) ? urlValue : [];
     return arr.length > 0 ? arr : (filterOverrides?.[key] ?? []);
   };
+  const showUnit = (unit: string) => units === undefined || units.has(unit);
+  const triggerStyle = variant === "inline" ? "button" : "chip";
+  // In labelled rows the row gutter already names the dimension, so a lone
+  // combobox reads as a value control; inline chips must self-label. The
+  // custom-tag comboboxes always self-label (several share one row).
+  const placeholder = variant === "rows" ? "Any" : undefined;
 
-  const hasContent = useHasMoreSectionContent({
-    availableFilters,
-    hiddenSections,
-    visibleCustomTagCategories,
-    hideSigned,
-  });
+  const showMarkers =
+    showUnit("markers") && !hiddenSections?.has("markers") && availableFilters.markers.length > 0;
+  const showChannels =
+    showUnit("channels") &&
+    !hiddenSections?.has("channels") &&
+    availableFilters.distributionChannels.length > 0;
+  const showCustomTags =
+    showUnit("customTags") && !hiddenSections?.has("customTags") && visibleCategories.length > 0;
+  const showKeywords =
+    showUnit("keywords") &&
+    !hiddenSections?.has("keywords") &&
+    availableFilters.keywords.length > 0;
+  const showOwned = showUnit("owned") && !hiddenSections?.has("owned");
+  const showOversize =
+    showUnit("cardSizes") &&
+    !hiddenSections?.has("cardSizes") &&
+    availableFilters.cardSizes.length > 1;
+  // Signed belongs to the Variant unit; it only renders here when the Art
+  // Variant badge section (its preferred host) isn't shown in the same host.
+  const signedApplicable = availableFilters.hasSigned && !hiddenSections?.has("signed");
+  const artVariantShownHere =
+    showUnit("variant") &&
+    availableFilters.artVariants.length > 1 &&
+    !hiddenSections?.has("artVariants");
+  const showSigned = showUnit("variant") && signedApplicable && !artVariantShownHere;
+  const showBanned =
+    showUnit("banned") && availableFilters.hasBanned && !hiddenSections?.has("banned");
+  const showErrata =
+    showUnit("errata") && availableFilters.hasErrata && !hiddenSections?.has("errata");
+  const showStandard =
+    showUnit("standard") && availableFilters.hasNonStandard && !hiddenSections?.has("standard");
+  const showFlags = showSigned || showBanned || showErrata;
 
-  if (!hasContent) {
+  if (
+    !showStandard &&
+    !showMarkers &&
+    !showOversize &&
+    !showChannels &&
+    !showCustomTags &&
+    !showKeywords &&
+    !showOwned &&
+    !showFlags
+  ) {
     return null;
   }
 
@@ -397,11 +516,33 @@ function FilterMoreSection({
     label: keyword,
   }));
 
-  const items = (
-    <>
-      {!hiddenSections?.has("markers") && availableFilters.markers.length > 0 && (
+  const entries: { key: string; label: string; node: ReactNode }[] = [];
+  if (showStandard) {
+    // Standard sits right after Variant in the canonical order (a promo
+    // printing is a printing property, like a variant), so it leads the chip
+    // entries — in the panel that lands it directly under the Variant badges.
+    entries.push({
+      key: "standard",
+      label: "Standard",
+      node: (
+        <FlagBadge
+          label="Standard"
+          state={filterState.standard}
+          count={filterCounts?.flags.standard}
+          onClick={toggleStandard}
+          triggerStyle={triggerStyle}
+        />
+      ),
+    });
+  }
+  if (showMarkers) {
+    entries.push({
+      key: "markers",
+      label: "Markers",
+      node: (
         <MultiSelectCombobox
           label="Markers"
+          placeholder={placeholder}
           searchPlaceholder="Search markers…"
           emptyText="No markers match."
           options={markerOptions}
@@ -421,10 +562,34 @@ function FilterMoreSection({
             onToggle: () => cyclePresence("markers"),
           }}
         />
-      )}
-      {!hiddenSections?.has("channels") && availableFilters.distributionChannels.length > 0 && (
+      ),
+    });
+  }
+  if (showOversize) {
+    // Two physical sizes exist, so Size is a single Oversized tri-state
+    // (require oversized / require standard / off) rather than a value list.
+    entries.push({
+      key: "cardSizes",
+      label: "Size",
+      node: (
+        <FlagBadge
+          label="Oversized"
+          state={oversizeState(filterState.cardSizes)}
+          count={oversizeCount(filterCounts?.cardSizes, oversizeState(filterState.cardSizes))}
+          onClick={() => setArrayFilter("cardSizes", nextOversize(filterState.cardSizes))}
+          triggerStyle={triggerStyle}
+        />
+      ),
+    });
+  }
+  if (showChannels) {
+    entries.push({
+      key: "channels",
+      label: "Channels",
+      node: (
         <MultiSelectCombobox
           label="Distribution Channels"
+          placeholder={placeholder}
           searchPlaceholder="Search distribution channels…"
           emptyText="No distribution channels match."
           options={channelOptions}
@@ -444,60 +609,74 @@ function FilterMoreSection({
             onToggle: () => cyclePresence("distributionChannels"),
           }}
         />
-      )}
-      {!hiddenSections?.has("customTags") &&
-        visibleCategories.map(([category, tagsInCategory]) => {
-          // Each category gets its own dropdown, but they all write to the same
-          // `customTags` URL key — so when toggling within one category we merge
-          // with whatever the other categories already hold. `selected("customTags")`
-          // is the union (URL or override fallback); we slice it down to this
-          // category's slugs for the dropdown's `selected` prop.
-          const allSelected = selected("customTags");
-          const categorySlugs = new Set(tagsInCategory.map((t) => t.slug));
-          const selectedInCategory = allSelected.filter((slug) => categorySlugs.has(slug));
-          // Exclude companion, sliced the same way: each category's dropdown shows
-          // only its own slugs from the shared `customTagsEx` key. The cycle acts
-          // on the full arrays by value, so other categories stay untouched.
-          const excludedInCategory = filterState.customTagsEx.filter((slug) =>
-            categorySlugs.has(slug),
-          );
-          // `byCategory` is grouped from non-empty arrays, so the first tag
-          // always exists and carries the joined category label from /init. The
-          // `?? category` is a defensive fallback only.
-          const label = tagsInCategory[0]?.categoryLabel ?? category;
-          const tagOptions = tagsInCategory.map((t) => ({ value: t.slug, label: t.label }));
-          return (
-            <MultiSelectCombobox
-              key={category}
-              label={label}
-              searchPlaceholder={`Search ${label.toLowerCase()}…`}
-              emptyText={`No ${label.toLowerCase()} match.`}
-              options={tagOptions}
-              selected={selectedInCategory}
-              excluded={excludedInCategory}
-              onCycle={(value) => cycleArrayFilter("customTags", "customTagsEx", value)}
-              triggerStyle={triggerStyle}
-            />
-          );
-        })}
-      {/* Custom tags render as one combobox per category, so their card-level
-          any/none presence can't fold into a single picker — it rides as a
-          standalone chip beside them. */}
-      {!hiddenSections?.has("customTags") && visibleCategories.length > 0 && (
-        <FlagBadge
-          label={PRESENCE_LABELS.customTags}
-          state={presenceToFlagState(filterState.customTagsPresence)}
-          count={presenceFlagCount(
-            filterCounts?.presence.customTags,
-            presenceToFlagState(filterState.customTagsPresence),
-          )}
-          onClick={() => cyclePresence("customTags")}
-          triggerStyle={triggerStyle}
-        />
-      )}
-      {!hiddenSections?.has("keywords") && availableFilters.keywords.length > 0 && (
+      ),
+    });
+  }
+  if (showCustomTags) {
+    entries.push({
+      key: "customTags",
+      label: "Custom Tags",
+      node: (
+        <>
+          {visibleCategories.map(([category, tagsInCategory]) => {
+            // Each category gets its own dropdown, but they all write to the same
+            // `customTags` URL key — so when toggling within one category we merge
+            // with whatever the other categories already hold. `selected("customTags")`
+            // is the union (URL or override fallback); we slice it down to this
+            // category's slugs for the dropdown's `selected` prop.
+            const allSelected = selected("customTags");
+            const categorySlugs = new Set(tagsInCategory.map((t) => t.slug));
+            const selectedInCategory = allSelected.filter((slug) => categorySlugs.has(slug));
+            // Exclude companion, sliced the same way: each category's dropdown shows
+            // only its own slugs from the shared `customTagsEx` key. The cycle acts
+            // on the full arrays by value, so other categories stay untouched.
+            const excludedInCategory = filterState.customTagsEx.filter((slug) =>
+              categorySlugs.has(slug),
+            );
+            // `byCategory` is grouped from non-empty arrays, so the first tag
+            // always exists and carries the joined category label from /init. The
+            // `?? category` is a defensive fallback only.
+            const label = tagsInCategory[0]?.categoryLabel ?? category;
+            const tagOptions = tagsInCategory.map((t) => ({ value: t.slug, label: t.label }));
+            return (
+              <MultiSelectCombobox
+                key={category}
+                label={label}
+                searchPlaceholder={`Search ${label.toLowerCase()}…`}
+                emptyText={`No ${label.toLowerCase()} match.`}
+                options={tagOptions}
+                selected={selectedInCategory}
+                excluded={excludedInCategory}
+                onCycle={(value) => cycleArrayFilter("customTags", "customTagsEx", value)}
+                triggerStyle={triggerStyle}
+              />
+            );
+          })}
+          {/* Custom tags render as one combobox per category, so their card-level
+              any/none presence can't fold into a single picker — it rides as a
+              standalone chip beside them. */}
+          <FlagBadge
+            label={PRESENCE_LABELS.customTags}
+            state={presenceToFlagState(filterState.customTagsPresence)}
+            count={presenceFlagCount(
+              filterCounts?.presence.customTags,
+              presenceToFlagState(filterState.customTagsPresence),
+            )}
+            onClick={() => cyclePresence("customTags")}
+            triggerStyle={triggerStyle}
+          />
+        </>
+      ),
+    });
+  }
+  if (showKeywords) {
+    entries.push({
+      key: "keywords",
+      label: "Keywords",
+      node: (
         <MultiSelectCombobox
           label="Keywords"
+          placeholder={placeholder}
           searchPlaceholder="Search keywords…"
           emptyText="No keywords match."
           options={keywordOptions}
@@ -517,57 +696,54 @@ function FilterMoreSection({
             onToggle: () => cyclePresence("keywords"),
           }}
         />
-      )}
-      {/* Two physical sizes exist, so Size is a single Oversized tri-state
-          (require oversized / require standard / off) rather than a value list. */}
-      {!hiddenSections?.has("cardSizes") && availableFilters.cardSizes.length > 1 && (
-        <FlagBadge
-          label="Oversized"
-          state={oversizeState(filterState.cardSizes)}
-          count={oversizeCount(filterCounts?.cardSizes, oversizeState(filterState.cardSizes))}
-          onClick={() => setArrayFilter("cardSizes", nextOversize(filterState.cardSizes))}
-          triggerStyle={triggerStyle}
-        />
-      )}
-      {!hideSigned && availableFilters.hasSigned && !hiddenSections?.has("signed") && (
-        <FlagBadge
-          label="Signed"
-          state={filterState.signed}
-          count={filterCounts?.flags.signed}
-          onClick={toggleSigned}
-          triggerStyle={triggerStyle}
-        />
-      )}
-      {availableFilters.hasBanned && !hiddenSections?.has("banned") && (
-        <FlagBadge
-          label="Banned"
-          state={filterState.banned}
-          count={filterCounts?.flags.banned}
-          onClick={toggleBanned}
-          triggerStyle={triggerStyle}
-        />
-      )}
-      {availableFilters.hasErrata && !hiddenSections?.has("errata") && (
-        <FlagBadge
-          label="Errata"
-          state={filterState.errata}
-          count={filterCounts?.flags.errata}
-          onClick={toggleErrata}
-          triggerStyle={triggerStyle}
-        />
-      )}
-      {availableFilters.hasNonStandard && !hiddenSections?.has("standard") && (
-        <FlagBadge
-          label="Standard"
-          state={filterState.standard}
-          count={filterCounts?.flags.standard}
-          onClick={toggleStandard}
-          triggerStyle={triggerStyle}
-        />
-      )}
-      {!hiddenSections?.has("owned") && (
+      ),
+    });
+  }
+  if (showFlags) {
+    entries.push({
+      key: "flags",
+      label: "Flags",
+      node: (
+        <>
+          {showSigned && (
+            <FlagBadge
+              label="Signed"
+              state={filterState.signed}
+              count={filterCounts?.flags.signed}
+              onClick={toggleSigned}
+              triggerStyle={triggerStyle}
+            />
+          )}
+          {showBanned && (
+            <FlagBadge
+              label="Banned"
+              state={filterState.banned}
+              count={filterCounts?.flags.banned}
+              onClick={toggleBanned}
+              triggerStyle={triggerStyle}
+            />
+          )}
+          {showErrata && (
+            <FlagBadge
+              label="Errata"
+              state={filterState.errata}
+              count={filterCounts?.flags.errata}
+              onClick={toggleErrata}
+              triggerStyle={triggerStyle}
+            />
+          )}
+        </>
+      ),
+    });
+  }
+  if (showOwned) {
+    entries.push({
+      key: "owned",
+      label: "Owned",
+      node: (
         <MultiSelectCombobox
           label="Owned"
+          placeholder={placeholder}
           searchPlaceholder="Search owned…"
           emptyText="No options match."
           options={OWNED_BUCKETS.map((bucket) => ({
@@ -578,14 +754,28 @@ function FilterMoreSection({
           onChange={(values) => setArrayFilter("owned", values)}
           triggerStyle={triggerStyle}
         />
-      )}
+      ),
+    });
+  }
+
+  if (variant === "inline") {
+    return (
+      <>
+        {entries.map((entry) => (
+          <Fragment key={entry.key}>{entry.node}</Fragment>
+        ))}
+      </>
+    );
+  }
+  return (
+    <>
+      {entries.map((entry) => (
+        <FilterSection key={entry.key} label={entry.label}>
+          {entry.node}
+        </FilterSection>
+      ))}
     </>
   );
-
-  if (variant === "bare") {
-    return <div className="flex flex-col items-start gap-1.5">{items}</div>;
-  }
-  return <FilterSection label="More">{items}</FilterSection>;
 }
 
 /**
@@ -596,7 +786,7 @@ function FilterMoreSection({
  * ("−Promo"), an outline when off. The click cycles null → true → false → null.
  * @returns The flag badge or button.
  */
-function FlagBadge({
+export function FlagBadge({
   label,
   state,
   count,
@@ -627,6 +817,9 @@ function FlagBadge({
         size="sm"
         className={cn(
           "gap-1 font-medium",
+          // Match the compact bar's other triggers (transparent resting fill,
+          // muted hover) instead of the outline variant's solid bg-background.
+          state !== true && FILTER_TRIGGER_CLASS,
           isExcluded && "border-destructive/40 text-destructive",
           isZero && !isActive && "opacity-40",
         )}
@@ -664,7 +857,15 @@ export function FilterRangeSections({
   ownedCountMax,
   scope = "all",
   labelClassName,
+  units,
 }: Omit<FilterPanelContentProps, "setDisplayLabel"> & {
+  /**
+   * Placement units to render here (see `lib/filter-sections.ts`): the stat
+   * sliders belong to "stats", Price to "price", Copies to "owned". Only
+   * consulted in the default `scope="all"` mode — explicit scopes (the Stats
+   * chip, the More menu's blocks) already picked their rows.
+   */
+  units?: ReadonlySet<string>;
   /**
    * Which range rows to render. "stats" = the printed gameplay numbers
    * (Energy/Power/Might) only; "market" = the value/collection ranges (Price,
@@ -696,6 +897,7 @@ export function FilterRangeSections({
     logarithmic: true,
     formatValue: compactFormatterForMarketplace(favoriteMarketplace),
   };
+  const showRangeUnit = (unit: string) => scope !== "all" || units === undefined || units.has(unit);
   const sections: RangeSection[] =
     scope === "stats"
       ? STAT_RANGE_SECTIONS
@@ -703,10 +905,15 @@ export function FilterRangeSections({
         ? [priceSection]
         : scope === "copies"
           ? []
-          : [...STAT_RANGE_SECTIONS, priceSection];
+          : [
+              ...(showRangeUnit("stats") ? STAT_RANGE_SECTIONS : []),
+              ...(showRangeUnit("price") ? [priceSection] : []),
+            ];
   // Copies is a collection range, so it rides with the market/copies scope (and
-  // the full panel), never with the gameplay stats or the price-only scope.
-  const showCopies = scope === "all" || scope === "market" || scope === "copies";
+  // the full panel), never with the gameplay stats or the price-only scope. It
+  // belongs to the "owned" placement unit alongside the Owned bucket dropdown.
+  const showCopies =
+    (scope === "all" || scope === "market" || scope === "copies") && showRangeUnit("owned");
 
   // Stat values (Energy/Power/Might) never exceed two digits, so the compact
   // Stats menu narrows the value columns to a single-digit-ish gutter; the

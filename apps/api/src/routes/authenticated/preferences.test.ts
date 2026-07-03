@@ -248,7 +248,15 @@ describe("preferences read/write schema parity", () => {
     const { updatePreferencesSchema, userPreferencesResponseSchema } =
       await import("@openrift/shared/contracts/preferences");
 
-    const writeKeys = Object.keys(updatePreferencesSchema.shape);
+    // Retired preferences that stay writable only so clients can send `null`
+    // to clear the stored value; they carry no live state, so they're
+    // deliberately absent from the read schema. Anything else that's writable
+    // must round-trip.
+    const retiredWriteOnlyKeys = new Set(["hiddenFilterSections", "compactFilterView"]);
+
+    const writeKeys = Object.keys(updatePreferencesSchema.shape).filter(
+      (key) => !retiredWriteOnlyKeys.has(key),
+    );
     const readKeys = new Set(Object.keys(userPreferencesResponseSchema.shape));
 
     const missingFromRead = writeKeys.filter((key) => !readKeys.has(key));

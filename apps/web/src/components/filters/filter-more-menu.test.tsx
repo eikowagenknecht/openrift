@@ -1,4 +1,5 @@
 import type { AvailableFilters, FilterCounts } from "@openrift/shared";
+import { PREFERENCE_DEFAULTS } from "@openrift/shared";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -36,6 +37,14 @@ vi.mock("@/hooks/use-enums", () => ({
 
 // oxlint-disable-next-line import/first -- must import after vi.mock
 import { FilterMoreMenu } from "./filter-more-menu";
+
+// The default placement: core units top-level, chip units in More — matching
+// what the compact bar passes for a user who hasn't customized anything.
+const DEFAULT_TOP = new Set(PREFERENCE_DEFAULTS.topLevelFilters);
+// Variant demoted → its Signed flag moves into the menu.
+const WITHOUT_VARIANT = new Set(
+  PREFERENCE_DEFAULTS.topLevelFilters.filter((key) => key !== "variant"),
+);
 
 function makeAvailable(overrides: Partial<AvailableFilters> = {}): AvailableFilters {
   return {
@@ -143,6 +152,28 @@ function setupHooks(filterStateOverrides: Partial<MoreFilterState> = {}) {
       price: { min: null, max: null },
     },
     filterState: {
+      languages: [],
+      languagesEx: [],
+      sets: [],
+      setsEx: [],
+      domains: [],
+      domainsEx: [],
+      rarities: [],
+      raritiesEx: [],
+      types: [],
+      typesEx: [],
+      superTypes: [],
+      superTypesEx: [],
+      artVariants: [],
+      artVariantsEx: [],
+      finishes: [],
+      finishesEx: [],
+      energyMin: null,
+      energyMax: null,
+      mightMin: null,
+      mightMax: null,
+      powerMin: null,
+      powerMax: null,
       markers: [],
       channels: [],
       customTags: [],
@@ -196,12 +227,13 @@ describe("FilterMoreMenu", () => {
 
   it("renders nothing when no More content applies on the surface", () => {
     setupHooks();
-    // Nothing enabled and owned hidden → useHasMoreSectionContent is false.
+    // Nothing enabled and owned hidden → no demoted unit has content.
     const { container } = render(
       <FilterMoreMenu
         availableFilters={makeAvailable()}
         hiddenSections={new Set(["owned"])}
         activeCount={0}
+        topLevelUnits={DEFAULT_TOP}
       />,
     );
     expect(container).toBeEmptyDOMElement();
@@ -210,7 +242,11 @@ describe("FilterMoreMenu", () => {
   it("shows just the label on the trigger when nothing is active", () => {
     setupHooks();
     render(
-      <FilterMoreMenu availableFilters={makeAvailable({ hasSigned: true })} activeCount={0} />,
+      <FilterMoreMenu
+        availableFilters={makeAvailable({ hasSigned: true })}
+        activeCount={0}
+        topLevelUnits={WITHOUT_VARIANT}
+      />,
     );
     const trigger = screen.getByRole("button", { name: "More" });
     expect(trigger.textContent).not.toContain("(");
@@ -219,7 +255,11 @@ describe("FilterMoreMenu", () => {
   it("surfaces the active count in the label and accessible name", () => {
     setupHooks({ markers: ["foil"], owned: ["full"] });
     render(
-      <FilterMoreMenu availableFilters={makeAvailable({ hasSigned: true })} activeCount={2} />,
+      <FilterMoreMenu
+        availableFilters={makeAvailable({ hasSigned: true })}
+        activeCount={2}
+        topLevelUnits={WITHOUT_VARIANT}
+      />,
     );
     expect(screen.getByRole("button", { name: "More, 2 selected" })).toHaveTextContent("(2)");
   });
@@ -233,6 +273,7 @@ describe("FilterMoreMenu", () => {
         })}
         filterCounts={makeFilterCounts()}
         activeCount={1}
+        topLevelUnits={DEFAULT_TOP}
       />,
     );
     // Like the value dropdowns, a lone selection surfaces by name instead of a
@@ -254,6 +295,7 @@ describe("FilterMoreMenu", () => {
         })}
         filterCounts={makeFilterCounts()}
         activeCount={0}
+        topLevelUnits={WITHOUT_VARIANT}
       />,
     );
     await user.click(screen.getByRole("button", { name: "More" }));
@@ -278,6 +320,7 @@ describe("FilterMoreMenu", () => {
         })}
         filterCounts={makeFilterCounts({ markers: new Map([["foil", 5]]) })}
         activeCount={0}
+        topLevelUnits={DEFAULT_TOP}
       />,
     );
     await user.click(screen.getByRole("button", { name: "More" }));
@@ -305,6 +348,7 @@ describe("FilterMoreMenu", () => {
         availableFilters={makeAvailable({ distributionChannels: channels })}
         hiddenSections={new Set(["owned"])}
         activeCount={0}
+        topLevelUnits={DEFAULT_TOP}
       />,
     );
     await user.click(screen.getByRole("button", { name: "More" }));
@@ -320,7 +364,13 @@ describe("FilterMoreMenu", () => {
     setupHooks();
     // Owned (4 buckets, include-only — it has no exclude axis) stays a checkbox
     // submenu; exclude-capable dimensions always use the combobox instead.
-    render(<FilterMoreMenu availableFilters={makeAvailable()} activeCount={0} />);
+    render(
+      <FilterMoreMenu
+        availableFilters={makeAvailable()}
+        activeCount={0}
+        topLevelUnits={DEFAULT_TOP}
+      />,
+    );
     await user.click(screen.getByRole("button", { name: "More" }));
     await user.click(await screen.findByRole("menuitem", { name: "Owned" }));
     expect(
@@ -336,6 +386,7 @@ describe("FilterMoreMenu", () => {
         availableFilters={makeAvailable({ keywords: ["Shield"] })}
         filterCounts={makeFilterCounts()}
         activeCount={0}
+        topLevelUnits={DEFAULT_TOP}
       />,
     );
     await user.click(screen.getByRole("button", { name: "More" }));
@@ -354,6 +405,7 @@ describe("FilterMoreMenu", () => {
         availableFilters={makeAvailable({ hasNonStandard: true })}
         filterCounts={makeFilterCounts()}
         activeCount={0}
+        topLevelUnits={DEFAULT_TOP}
       />,
     );
     await user.click(screen.getByRole("button", { name: "More" }));
@@ -369,25 +421,63 @@ describe("FilterMoreMenu", () => {
         availableFilters={makeAvailable({ hasNonStandard: false })}
         filterCounts={makeFilterCounts()}
         activeCount={0}
+        topLevelUnits={DEFAULT_TOP}
       />,
     );
     await user.click(screen.getByRole("button", { name: "More" }));
     expect(screen.queryByRole("menuitem", { name: /Standard/u })).not.toBeInTheDocument();
   });
 
-  it("hides the Signed flag when it is surfaced elsewhere (hideSigned)", async () => {
+  it("keeps the Signed flag out when the Variant unit is top level", async () => {
     const user = userEvent.setup();
     setupHooks();
+    // Signed belongs to the Variant unit: promoted (the default), it renders in
+    // the bar's chip sections, never here.
     render(
       <FilterMoreMenu
         availableFilters={makeAvailable({ hasSigned: true, hasBanned: true })}
-        hideSigned
         activeCount={0}
+        topLevelUnits={DEFAULT_TOP}
       />,
     );
     await user.click(screen.getByRole("button", { name: "More" }));
     expect(await screen.findByRole("menuitem", { name: "Banned" })).toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: "Signed" })).not.toBeInTheDocument();
+  });
+
+  it("hosts a demoted core dimension as a combobox row", async () => {
+    const user = userEvent.setup();
+    setupHooks();
+    const withoutDomains = new Set(
+      PREFERENCE_DEFAULTS.topLevelFilters.filter((key) => key !== "domains"),
+    );
+    render(
+      <FilterMoreMenu
+        availableFilters={makeAvailable({ domains: ["fury"] })}
+        activeCount={0}
+        topLevelUnits={withoutDomains}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "More" }));
+    expect(await screen.findByText("Domain")).toBeInTheDocument();
+  });
+
+  it("keeps a promoted chip unit out of the menu", async () => {
+    const user = userEvent.setup();
+    setupHooks();
+    render(
+      <FilterMoreMenu
+        availableFilters={makeAvailable({
+          hasNonStandard: true,
+          markers: [{ id: "marker-foil", slug: "foil", label: "Foil", description: "" }],
+        })}
+        activeCount={0}
+        topLevelUnits={new Set([...PREFERENCE_DEFAULTS.topLevelFilters, "markers"])}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "More" }));
+    expect(await screen.findByRole("menuitem", { name: /Standard/u })).toBeInTheDocument();
+    expect(screen.queryByText("Markers")).not.toBeInTheDocument();
   });
 
   it("renders the Price slider at the foot when priced cards exist", async () => {
@@ -398,6 +488,7 @@ describe("FilterMoreMenu", () => {
         availableFilters={makeAvailable({ hasSigned: true, price: { min: 0, max: 1000 } })}
         filterCounts={makeFilterCounts()}
         activeCount={0}
+        topLevelUnits={DEFAULT_TOP}
       />,
     );
     await user.click(screen.getByRole("button", { name: "More" }));
@@ -415,6 +506,7 @@ describe("FilterMoreMenu", () => {
         hiddenSections={new Set(["owned"])}
         filterCounts={makeFilterCounts()}
         activeCount={0}
+        topLevelUnits={DEFAULT_TOP}
       />,
     );
     await user.click(screen.getByRole("button", { name: "More" }));

@@ -3,13 +3,7 @@ import type { ReactNode } from "react";
 import { createContext, use } from "react";
 
 import { ActiveFilters } from "@/components/filters/active-filters";
-import {
-  CollapsibleFilterPanel,
-  FilterToggleButton,
-} from "@/components/filters/collapsible-filter-panel";
 import { CompactFilterBar } from "@/components/filters/compact-filter-bar";
-import { FilterCustomizeControl } from "@/components/filters/filter-customize-control";
-import { FilterPanelContent } from "@/components/filters/filter-panel-content";
 import {
   DesktopOptionsBar,
   MobileFilterContent,
@@ -17,9 +11,8 @@ import {
   MobileOptionsDrawer,
 } from "@/components/filters/options-bar";
 import { SearchBar } from "@/components/filters/search-bar";
-import { Pane } from "@/components/layout/panes";
 import { useFilterValues, useStaleGroupByGuard } from "@/hooks/use-card-filters";
-import { mergeHiddenSections } from "@/lib/filter-sections";
+import { resolveTopLevelUnits } from "@/lib/filter-sections";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
@@ -42,12 +35,11 @@ interface CardBrowserFilterMeta {
 
 interface CardBrowserFilterContextValue extends CardBrowserFilterMeta {
   /**
-   * `hiddenSections` unioned with the user's hidden-filter preference. Used by
-   * the filter-panel renders; the bare `hiddenSections` (surface-only) is used
-   * by the active-filter strip so a user-hidden section's active chip stays
-   * clearable, and by the customize control to know what to offer.
+   * The user's top-level placement units (see `lib/filter-sections.ts`),
+   * resolved once here so both filter surfaces (compact bar, mobile drawer)
+   * partition identically.
    */
-  effectiveHiddenSections: ReadonlySet<string>;
+  topLevelUnits: ReadonlySet<string>;
 }
 
 const FilterMetaContext = createContext<CardBrowserFilterContextValue | null>(null);
@@ -76,10 +68,10 @@ interface CardBrowserFilterProviderProps extends CardBrowserFilterMeta {
 
 /**
  * Wraps a card-browser surface (catalog, collection, deck builder, shared
- * collection, promos) with a meta context so `BrowserLeftPane`,
- * `BrowserCollapsibleFilters`, `BrowserMobileFilters`, and
- * `BrowserActiveFilters` can read availableFilters/filterCounts/etc. without
- * each surface threading them through the toolbar / leftPane / aboveGrid JSX.
+ * collection, promos) with a meta context so `BrowserToolbar`,
+ * `BrowserMobileFilters`, and `BrowserActiveFilters` can read
+ * availableFilters/filterCounts/etc. without each surface threading them
+ * through the toolbar / aboveGrid JSX.
  *
  * Each surface is responsible for computing its own meta — typically from
  * `useCardData` or `useCollectionCardData` (or `useCatalogFilterMeta` in the
@@ -91,77 +83,15 @@ export function CardBrowserFilterProvider({ children, ...meta }: CardBrowserFilt
   // Mounted once per surface — the natural home for the stale-URL correction
   // that drops a printings-only grouping left over in a cards-view URL.
   useStaleGroupByGuard();
-  const userHiddenFilterSections = useDisplayStore((state) => state.hiddenFilterSections);
-  const effectiveHiddenSections = mergeHiddenSections(
-    meta.hiddenSections,
-    userHiddenFilterSections,
-  );
-  return (
-    <FilterMetaContext value={{ ...meta, effectiveHiddenSections }}>{children}</FilterMetaContext>
-  );
+  const topLevelFilters = useDisplayStore((state) => state.topLevelFilters);
+  const topLevelUnits = resolveTopLevelUnits(topLevelFilters);
+  return <FilterMetaContext value={{ ...meta, topLevelUnits }}>{children}</FilterMetaContext>;
 }
 
 /**
- * Desktop left-pane filter content. Reads meta from {@link CardBrowserFilterProvider}.
- * With the compact filter view on, the compact bar is the only filter surface
- * at every width from `sm` up, so the pane renders nothing.
- *
- * @returns The desktop filter pane, or null in compact filter view.
- */
-export function BrowserLeftPane() {
-  const meta = useFilterMeta();
-  const compactFilterView = useDisplayStore((state) => state.compactFilterView);
-  if (compactFilterView) {
-    return null;
-  }
-  return (
-    <Pane className="group @wide:block px-3">
-      {/* The pane has a real heading, so the customize control rides its row —
-          no wasted gutter or extra row (unlike the headingless collapsible).
-          `group` on the pane lets the control fade in on hover of the whole zone. */}
-      <div className="flex items-center justify-between pb-4">
-        <h2 className="text-lg font-semibold">Filters</h2>
-        <FilterCustomizeControl revealOnHover />
-      </div>
-      <div className="space-y-4 pb-4">
-        <FilterPanelContent
-          availableFilters={meta.availableFilters}
-          availableLanguages={meta.availableLanguages}
-          filterCounts={meta.filterCounts}
-          setDisplayLabel={meta.setDisplayLabel}
-          hiddenSections={meta.effectiveHiddenSections}
-          visibleCustomTagCategories={meta.visibleCustomTagCategories}
-          ownedCountMax={meta.ownedCountMax}
-        />
-      </div>
-    </Pane>
-  );
-}
-
-/**
- * Mid-width collapsible filter row. Reads meta from {@link CardBrowserFilterProvider}.
- *
- * @returns The collapsible filter row.
- */
-function BrowserCollapsibleFilters() {
-  const meta = useFilterMeta();
-  return (
-    <CollapsibleFilterPanel
-      availableFilters={meta.availableFilters}
-      availableLanguages={meta.availableLanguages}
-      filterCounts={meta.filterCounts}
-      setDisplayLabel={meta.setDisplayLabel}
-      hiddenSections={meta.effectiveHiddenSections}
-      visibleCustomTagCategories={meta.visibleCustomTagCategories}
-      ownedCountMax={meta.ownedCountMax}
-    />
-  );
-}
-
-/**
- * Compact filter bar — the opt-in alternative to
- * {@link BrowserCollapsibleFilters} and {@link BrowserLeftPane}, covering
- * every width from `sm` up. Reads meta from {@link CardBrowserFilterProvider}.
+ * The compact filter bar — the standard filter surface from `sm` up (below
+ * that the mobile drawer takes over). Reads meta from
+ * {@link CardBrowserFilterProvider}.
  * @returns The compact filter bar.
  */
 function BrowserCompactFilters() {
@@ -172,9 +102,10 @@ function BrowserCompactFilters() {
       availableLanguages={meta.availableLanguages}
       filterCounts={meta.filterCounts}
       setDisplayLabel={meta.setDisplayLabel}
-      hiddenSections={meta.effectiveHiddenSections}
+      hiddenSections={meta.hiddenSections}
       visibleCustomTagCategories={meta.visibleCustomTagCategories}
       ownedCountMax={meta.ownedCountMax}
+      topLevelUnits={meta.topLevelUnits}
     />
   );
 }
@@ -192,9 +123,10 @@ function BrowserMobileFilters() {
       availableLanguages={meta.availableLanguages}
       filterCounts={meta.filterCounts}
       setDisplayLabel={meta.setDisplayLabel}
-      hiddenSections={meta.effectiveHiddenSections}
+      hiddenSections={meta.hiddenSections}
       visibleCustomTagCategories={meta.visibleCustomTagCategories}
       ownedCountMax={meta.ownedCountMax}
+      topLevelUnits={meta.topLevelUnits}
     />
   );
 }
@@ -207,28 +139,24 @@ function BrowserMobileFilters() {
  */
 export function BrowserActiveFilters() {
   const meta = useFilterMeta();
-  const compactFilterView = useDisplayStore((state) => state.compactFilterView);
-  const strip = (
-    <ActiveFilters
-      availableFilters={meta.availableFilters}
-      setDisplayLabel={meta.setDisplayLabel}
-      hiddenSections={meta.hiddenSections}
-      ownedCountMax={meta.ownedCountMax}
-    />
-  );
   // The compact filter bar already surfaces every active filter inline — each
   // dropdown shows its selection (count or single-value summary, including
   // orphaned values you can still untick), so the chip strip is redundant
-  // wherever that bar is visible. Hide it exactly there, mirroring the compact
-  // bar's own `hidden sm:flex` visibility: a layout-neutral `display: contents`
+  // wherever that bar is visible. Hide it exactly there, mirroring the bar's
+  // own `hidden sm:flex` visibility: a layout-neutral `display: contents`
   // wrapper that collapses to `display: none` from sm up. Below sm the bar
   // gives way to the mobile drawer, so the strip stays the only filter readout
-  // on the grid there. With compact view off (the collapsible panel / wide
-  // sidebar), the strip always shows.
-  if (compactFilterView) {
-    return <div className="contents sm:hidden">{strip}</div>;
-  }
-  return strip;
+  // on the grid there.
+  return (
+    <div className="contents sm:hidden">
+      <ActiveFilters
+        availableFilters={meta.availableFilters}
+        setDisplayLabel={meta.setDisplayLabel}
+        hiddenSections={meta.hiddenSections}
+        ownedCountMax={meta.ownedCountMax}
+      />
+    </div>
+  );
 }
 
 interface BrowserToolbarProps {
@@ -236,7 +164,7 @@ interface BrowserToolbarProps {
   filteredCount: number;
   /** Override for the mobile drawer's "Done" button when filters are active. */
   mobileDoneLabel?: string;
-  /** Extra buttons placed between DesktopOptionsBar and FilterToggleButton (e.g. catalog-mode toggle). */
+  /** Extra buttons placed after DesktopOptionsBar (e.g. catalog-mode toggle). */
   extras?: ReactNode;
   /** Passed to DesktopOptionsBar + MobileOptionsContent to enable the "copies" view button. */
   showCopies?: boolean;
@@ -261,10 +189,10 @@ interface BrowserToolbarProps {
 
 /**
  * Standard card-browser toolbar: search bar, sort/group/view/display/columns
- * controls, optional extras slot, filter-panel toggle, and the mobile options
- * drawer. The collapsible filter row sits underneath. Every card-browser
- * surface uses this — surfaces with a different group-by axis (e.g. /promos)
- * pass `groupByOptions` to override the list.
+ * controls, optional extras slot, and the mobile options drawer. The compact
+ * filter bar sits underneath. Every card-browser surface uses this — surfaces
+ * with a different group-by axis (e.g. /promos) pass `groupByOptions` to
+ * override the list.
  *
  * @returns The assembled toolbar block.
  */
@@ -283,10 +211,6 @@ export function BrowserToolbar({
   // instead of three evenly-spaced bands. With no filters the search row is the
   // last tier, so it keeps the full gap to stay balanced.
   const { hasActiveFilters } = useFilterValues();
-  // Compact view replaces the collapsible mid-width panel AND the wide sidebar
-  // with one always-visible chip/icon bar, so the panel's expand/collapse
-  // toggle is dropped. Only the mobile drawer (below sm) is unchanged.
-  const compactFilterView = useDisplayStore((state) => state.compactFilterView);
   return (
     <>
       <div className={cn("flex items-start gap-3", hasActiveFilters ? "mb-2" : "mb-3")}>
@@ -299,7 +223,6 @@ export function BrowserToolbar({
           groupByValue={groupByValue}
         />
         {extras}
-        {!compactFilterView && <FilterToggleButton className="@wide:hidden hidden sm:flex" />}
         <MobileOptionsDrawer doneLabel={mobileDoneLabel} className="sm:hidden">
           <MobileOptionsContent
             showCopies={showCopies}
@@ -310,7 +233,7 @@ export function BrowserToolbar({
           <BrowserMobileFilters />
         </MobileOptionsDrawer>
       </div>
-      {compactFilterView ? <BrowserCompactFilters /> : <BrowserCollapsibleFilters />}
+      <BrowserCompactFilters />
     </>
   );
 }

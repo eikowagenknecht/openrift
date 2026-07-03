@@ -121,8 +121,13 @@ export interface ResolvedPreferences {
   completionScope: CompletionScopePreference;
   defaultCardView: DefaultCardView;
   defaultCurrency: Currency;
-  hiddenFilterSections: string[];
-  compactFilterView: boolean;
+  /**
+   * Filter placement units shown at the top level of the card-browser filter
+   * chrome; every other unit lives in the "More" group. Unit keys are defined
+   * in the web app (`apps/web/src/lib/filter-sections.ts`). Replaces the
+   * retired `hiddenFilterSections` preference.
+   */
+  topLevelFilters: string[];
 }
 
 /** Default values for every preference. Used to resolve missing/null fields. */
@@ -138,6 +143,14 @@ export const PREFERENCE_DEFAULTS: ResolvedPreferences = {
   completionScope: {},
   defaultCardView: "cards",
   defaultCurrency: "EUR",
-  hiddenFilterSections: [],
-  compactFilterView: true,
+  topLevelFilters: [
+    "languages",
+    "sets",
+    "domains",
+    "rarities",
+    "types",
+    "superTypes",
+    "variant",
+    "stats",
+  ],
 };

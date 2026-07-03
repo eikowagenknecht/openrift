@@ -63,11 +63,17 @@ function getPrefsSnapshot(): UserPreferencesResponse & {
     completionScope: overrides.completionScope,
     defaultCardView: overrides.defaultCardView,
     defaultCurrency: overrides.defaultCurrency,
-    hiddenFilterSections: overrides.hiddenFilterSections,
-    compactFilterView: overrides.compactFilterView,
+    topLevelFilters: overrides.topLevelFilters,
+    // Retired preferences: always send null so the legacy keys are cleared
+    // from the stored prefs (hidden sections migrated to topLevelFilters; the
+    // compact view is simply how the filter chrome works now).
+    hiddenFilterSections: null,
+    compactFilterView: null,
     theme: themePreference,
     palette: palettePreference,
-  } as UserPreferencesResponse;
+    // The response type has no nulls (they're PATCH-only "remove this key"
+    // markers), so the snapshot needs the double cast.
+  } as unknown as UserPreferencesResponse;
 }
 
 /**

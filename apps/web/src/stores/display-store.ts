@@ -22,8 +22,7 @@ export interface DisplayOverrides {
   completionScope: CompletionScopePreference | null;
   defaultCardView: DefaultCardView | null;
   defaultCurrency: Currency | null;
-  hiddenFilterSections: string[] | null;
-  compactFilterView: boolean | null;
+  topLevelFilters: string[] | null;
 }
 
 const NULL_OVERRIDES: DisplayOverrides = {
@@ -36,8 +35,7 @@ const NULL_OVERRIDES: DisplayOverrides = {
   completionScope: null,
   defaultCardView: null,
   defaultCurrency: null,
-  hiddenFilterSections: null,
-  compactFilterView: null,
+  topLevelFilters: null,
 };
 
 // ── Resolve helpers ─────────────────────────────────────────────────────────
@@ -53,10 +51,7 @@ function resolveAll(overrides: DisplayOverrides) {
     completionScope: overrides.completionScope ?? { ...PREFERENCE_DEFAULTS.completionScope },
     defaultCardView: overrides.defaultCardView ?? PREFERENCE_DEFAULTS.defaultCardView,
     defaultCurrency: overrides.defaultCurrency ?? PREFERENCE_DEFAULTS.defaultCurrency,
-    hiddenFilterSections: overrides.hiddenFilterSections ?? [
-      ...PREFERENCE_DEFAULTS.hiddenFilterSections,
-    ],
-    compactFilterView: overrides.compactFilterView ?? PREFERENCE_DEFAULTS.compactFilterView,
+    topLevelFilters: overrides.topLevelFilters ?? [...PREFERENCE_DEFAULTS.topLevelFilters],
   };
 }
 
@@ -73,8 +68,7 @@ interface DisplayState {
   completionScope: CompletionScopePreference;
   defaultCardView: DefaultCardView;
   defaultCurrency: Currency;
-  hiddenFilterSections: string[];
-  compactFilterView: boolean;
+  topLevelFilters: string[];
 
   // Nullable overrides — persisted to localStorage and synced to DB
   overrides: DisplayOverrides;
@@ -95,8 +89,7 @@ interface DisplayState {
   setCompletionScope: (value: CompletionScopePreference) => void;
   setDefaultCardView: (value: DefaultCardView) => void;
   setDefaultCurrency: (value: Currency) => void;
-  setHiddenFilterSections: (value: string[]) => void;
-  setCompactFilterView: (value: boolean) => void;
+  setTopLevelFilters: (value: string[]) => void;
 
   // Reset a top-level preference to its default
   resetPreference: (
@@ -110,8 +103,7 @@ interface DisplayState {
       | "completionScope"
       | "defaultCardView"
       | "defaultCurrency"
-      | "hiddenFilterSections"
-      | "compactFilterView",
+      | "topLevelFilters",
   ) => void;
 
   // Clear all account-scoped overrides (used on sign-out so the next visitor
@@ -195,15 +187,10 @@ export const useDisplayStore = create<DisplayState>()(
           defaultCurrency: value,
           overrides: { ...state.overrides, defaultCurrency: value },
         })),
-      setHiddenFilterSections: (value) =>
+      setTopLevelFilters: (value) =>
         set((state) => ({
-          hiddenFilterSections: value,
-          overrides: { ...state.overrides, hiddenFilterSections: value },
-        })),
-      setCompactFilterView: (value) =>
-        set((state) => ({
-          compactFilterView: value,
-          overrides: { ...state.overrides, compactFilterView: value },
+          topLevelFilters: value,
+          overrides: { ...state.overrides, topLevelFilters: value },
         })),
 
       resetPreference: (key) =>
@@ -249,14 +236,10 @@ export const useDisplayStore = create<DisplayState>()(
               incoming.defaultCurrency === undefined
                 ? state.overrides.defaultCurrency
                 : incoming.defaultCurrency,
-            hiddenFilterSections:
-              incoming.hiddenFilterSections === undefined
-                ? state.overrides.hiddenFilterSections
-                : incoming.hiddenFilterSections,
-            compactFilterView:
-              incoming.compactFilterView === undefined
-                ? state.overrides.compactFilterView
-                : incoming.compactFilterView,
+            topLevelFilters:
+              incoming.topLevelFilters === undefined
+                ? state.overrides.topLevelFilters
+                : incoming.topLevelFilters,
           };
           return { overrides: merged, ...resolveAll(merged), prefsHydrated: true };
         }),

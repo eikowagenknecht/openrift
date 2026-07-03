@@ -13,7 +13,6 @@ import { CardViewer } from "@/components/card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import {
   BrowserActiveFilters,
-  BrowserLeftPane,
   BrowserToolbar,
   CardBrowserFilterProvider,
 } from "@/components/cards/card-browser-filter-scaffold";
@@ -496,8 +495,6 @@ function SharedListGrid({
       hideViewToggle
     />
   );
-
-  const leftPane = <BrowserLeftPane />;
   const aboveGrid = <BrowserActiveFilters />;
 
   // Card-kind lists fan out every printing of the clicked card in the detail
@@ -547,7 +544,6 @@ function SharedListGrid({
           totalItems={view === "copies" ? entries.length : listPrintings.length}
           renderCard={renderCard}
           toolbar={toolbar}
-          leftPane={leftPane}
           aboveGrid={aboveGrid}
           rightPane={rightPane}
           addStripHeight={ADD_STRIP_HEIGHT}

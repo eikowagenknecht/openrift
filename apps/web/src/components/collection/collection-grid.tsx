@@ -25,7 +25,6 @@ import { BrowserCardViewer } from "@/components/browser-card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import {
   BrowserActiveFilters,
-  BrowserLeftPane,
   BrowserToolbar,
   CardBrowserFilterProvider,
 } from "@/components/cards/card-browser-filter-scaffold";
@@ -1129,7 +1128,6 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   );
 
   // ── Panes ───────────────────────────────────────────────────────────
-  const leftPane = <BrowserLeftPane />;
 
   const rightPane = isMobile ? undefined : (
     <SelectionDetailPane
@@ -1300,7 +1298,6 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           view={dataView}
           stale={isGridStale}
           toolbar={toolbar}
-          leftPane={leftPane}
           aboveGrid={<BrowserActiveFilters />}
           banner={
             showIntroBanner ? (

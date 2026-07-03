@@ -6,7 +6,6 @@ import { BrowserCardViewer } from "@/components/browser-card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import {
   BrowserActiveFilters,
-  BrowserLeftPane,
   BrowserToolbar,
   CardBrowserFilterProvider,
 } from "@/components/cards/card-browser-filter-scaffold";
@@ -639,8 +638,6 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
     />
   );
 
-  const leftPane = <BrowserLeftPane />;
-
   const rightPane = (
     <SelectionDetailPane
       items={items}
@@ -670,7 +667,6 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
         groupDir={groupDir}
         stale={isGridStale}
         toolbar={toolbar}
-        leftPane={leftPane}
         aboveGrid={<BrowserActiveFilters />}
         rightPane={rightPane}
         addStripHeight={ADD_STRIP_HEIGHT}

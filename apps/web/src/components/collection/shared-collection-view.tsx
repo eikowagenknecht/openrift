@@ -6,7 +6,6 @@ import { CardViewer } from "@/components/card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import {
   BrowserActiveFilters,
-  BrowserLeftPane,
   BrowserToolbar,
   CardBrowserFilterProvider,
 } from "@/components/cards/card-browser-filter-scaffold";
@@ -288,8 +287,6 @@ function SharedCollectionGrid({ data }: { data: PublicCollectionDetailResponse }
       }
     />
   );
-
-  const leftPane = <BrowserLeftPane />;
   const aboveGrid = <BrowserActiveFilters />;
   const rightPane = isMobile ? undefined : (
     <SelectionDetailPane
@@ -318,7 +315,6 @@ function SharedCollectionGrid({ data }: { data: PublicCollectionDetailResponse }
         totalItems={collectionPrintings.length}
         renderCard={renderCard}
         toolbar={toolbar}
-        leftPane={leftPane}
         aboveGrid={aboveGrid}
         rightPane={rightPane}
         addStripHeight={ADD_STRIP_HEIGHT}

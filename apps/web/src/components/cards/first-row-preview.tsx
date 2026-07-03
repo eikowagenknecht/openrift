@@ -4,11 +4,7 @@ import { getRouteApi } from "@tanstack/react-router";
 import { CardBrowserLayout } from "@/components/card-browser-layout";
 import { LABEL_HEIGHT } from "@/components/cards/card-grid-constants";
 import { ActiveFilters } from "@/components/filters/active-filters";
-import {
-  CollapsibleFilterPanel,
-  FilterToggleButton,
-} from "@/components/filters/collapsible-filter-panel";
-import { FilterPanelContent } from "@/components/filters/filter-panel-content";
+import { CompactFilterBar } from "@/components/filters/compact-filter-bar";
 import {
   DesktopOptionsBar,
   MobileFilterContent,
@@ -16,9 +12,9 @@ import {
   MobileOptionsDrawer,
 } from "@/components/filters/options-bar";
 import { SearchBar } from "@/components/filters/search-bar";
-import { Pane } from "@/components/layout/panes";
 import { useFilterValues } from "@/hooks/use-card-filters";
 import { fromWireFacets, fromWireFilterCounts } from "@/lib/cards-facets";
+import { DEFAULT_TOP_LEVEL_UNITS } from "@/lib/filter-sections";
 import { LANDSCAPE_ROTATION_STYLE } from "@/lib/images";
 import { cn } from "@/lib/utils";
 
@@ -59,9 +55,10 @@ function visibilityForIndex(i: number): string {
 /**
  * SSR-only preview of the cards page. Rendered inside the route's Suspense
  * fallback so the served HTML carries:
- *  - Real filter chrome (toolbar, left pane, active filters) sized to its
- *    final dimensions, populated from the loader's `facets` payload — so the
- *    swap to the live `<CardBrowser>` on hydration doesn't shift the layout.
+ *  - Real filter chrome (toolbar, compact filter bar, active filters) sized
+ *    to its final dimensions, populated from the loader's `facets` payload —
+ *    so the swap to the live `<CardBrowser>` on hydration doesn't shift the
+ *    layout.
  *  - Real `<img>` tags for the first two rows of cards as the LCP candidate.
  *    The cells span the widest grid breakpoint (16 = 8 cols × 2 rows); narrower
  *    breakpoints hide the overflow via `visibilityForIndex` so each viewport
@@ -73,8 +70,9 @@ function visibilityForIndex(i: number): string {
  * SSR caveats (cosmetic, not layout shifts):
  *  - `isLoggedIn` is treated as false here; the add-mode button slots into
  *    the toolbar after hydration for signed-in users.
- *  - `useDisplayStore` reads (e.g. `filtersExpanded`) use Zustand defaults
- *    until the persist middleware rehydrates from localStorage.
+ *  - `useDisplayStore` reads use Zustand defaults until the persist
+ *    middleware rehydrates from localStorage; the bar renders the default
+ *    filter placement here, so a customized placement snaps in on hydration.
  * @returns The SSR shell, or null when there's no SSR loader payload.
  */
 export function FirstRowPreview() {
@@ -99,7 +97,6 @@ export function FirstRowPreview() {
           <div className={cn("flex items-start gap-3", hasActiveFilters ? "mb-2" : "mb-3")}>
             <SearchBar totalCards={counts.totalCards} filteredCount={counts.filteredCount} />
             <DesktopOptionsBar className="hidden sm:flex" />
-            <FilterToggleButton className="@wide:hidden hidden sm:flex" />
             <MobileOptionsDrawer className="sm:hidden">
               <MobileOptionsContent />
               <MobileFilterContent
@@ -111,31 +108,22 @@ export function FirstRowPreview() {
               />
             </MobileOptionsDrawer>
           </div>
-          <CollapsibleFilterPanel
+          <CompactFilterBar
             availableFilters={availableFilters}
             availableLanguages={availableLanguages}
             setDisplayLabel={setDisplayLabel}
             hiddenSections={SSR_HIDDEN}
             filterCounts={filterCountsHydrated}
+            topLevelUnits={DEFAULT_TOP_LEVEL_UNITS}
           />
         </>
       }
-      leftPane={
-        <Pane className="@wide:block px-3">
-          <h2 className="pb-4 text-lg font-semibold">Filters</h2>
-          <div className="space-y-4 pb-4">
-            <FilterPanelContent
-              availableFilters={availableFilters}
-              availableLanguages={availableLanguages}
-              setDisplayLabel={setDisplayLabel}
-              hiddenSections={SSR_HIDDEN}
-              filterCounts={filterCountsHydrated}
-            />
-          </div>
-        </Pane>
-      }
       aboveGrid={
-        <ActiveFilters availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
+        // Mirrors BrowserActiveFilters: the strip only shows below sm, where
+        // the compact bar gives way to the mobile drawer.
+        <div className="contents sm:hidden">
+          <ActiveFilters availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
+        </div>
       }
       gridSlot={
         firstRow.length === 0 ? null : (

@@ -34,7 +34,11 @@ vi.mock("@/hooks/use-enums", () => ({
 }));
 
 // oxlint-disable-next-line import/first -- must import after vi.mock
-import { FilterBadgeSections, FilterRangeSections } from "./filter-panel-content";
+import {
+  FilterBadgeSections,
+  FilterChipSections,
+  FilterRangeSections,
+} from "./filter-panel-content";
 
 const NULL_RANGES = {
   energy: { min: null, max: null },
@@ -294,52 +298,66 @@ describe("FilterBadgeSections — hiddenSections gating", () => {
     expect(queryByText("Finish")).toBeNull();
   });
 
-  it("renders the More header while a child (Signed) still has content", () => {
+  it("renders the Signed flag in the Flags row while the Variant unit lives here", () => {
     setupBadgeHooks();
     const { queryByText } = render(
-      <FilterBadgeSections
+      <FilterChipSections
         availableFilters={makeAvailable({ hasSigned: true })}
         hiddenSections={new Set(["owned"])}
       />,
     );
-    expect(queryByText("More")).not.toBeNull();
+    expect(queryByText("Flags")).not.toBeNull();
     expect(queryByText("Signed")).not.toBeNull();
   });
 
   it("renders the Standard flag when non-standard printings exist and it isn't hidden", () => {
     setupBadgeHooks();
-    const { queryByText } = render(
-      <FilterBadgeSections
+    const { queryAllByText } = render(
+      <FilterChipSections
         availableFilters={makeAvailable({ hasNonStandard: true })}
         hiddenSections={new Set(["owned"])}
       />,
     );
-    expect(queryByText("Standard")).not.toBeNull();
+    // Row label + the flag chip both read "Standard".
+    expect(queryAllByText("Standard").length).toBeGreaterThan(0);
   });
 
   it("hides the Standard flag when the standard section is hidden", () => {
     setupBadgeHooks();
     const { queryByText } = render(
-      <FilterBadgeSections
+      <FilterChipSections
         availableFilters={makeAvailable({ hasNonStandard: true, hasSigned: true })}
         hiddenSections={new Set(["owned", "standard"])}
       />,
     );
     expect(queryByText("Standard")).toBeNull();
-    // Another More child keeps the section mounted, proving the gating is per-flag.
+    // Another flag keeps the row mounted, proving the gating is per-flag.
     expect(queryByText("Signed")).not.toBeNull();
   });
 
-  it("collapses the More header when every one of its children is hidden", () => {
+  it("renders nothing when every chip unit is hidden", () => {
     setupBadgeHooks();
-    // Owned and Signed are the only More children with content here; hide both.
-    const { queryByText } = render(
-      <FilterBadgeSections
+    // Owned and Signed are the only chip units with content here; hide both.
+    const { container } = render(
+      <FilterChipSections
         availableFilters={makeAvailable({ hasSigned: true })}
         hiddenSections={new Set(["owned", "signed"])}
       />,
     );
-    expect(queryByText("More")).toBeNull();
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("keeps a unit out when it isn't in the requested set", () => {
+    setupBadgeHooks();
+    const { queryByText } = render(
+      <FilterChipSections
+        availableFilters={makeAvailable({ hasSigned: true })}
+        hiddenSections={new Set()}
+        units={new Set(["owned"])}
+      />,
+    );
+    // Signed rides the variant unit, which isn't requested here.
     expect(queryByText("Signed")).toBeNull();
+    expect(queryByText("Owned")).not.toBeNull();
   });
 });

@@ -10,7 +10,6 @@ import type { CardViewerItem } from "@/components/card-viewer-types";
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import {
   BrowserActiveFilters,
-  BrowserLeftPane,
   BrowserToolbar,
   CardBrowserFilterProvider,
 } from "@/components/cards/card-browser-filter-scaffold";
@@ -533,12 +532,7 @@ function PromosPage() {
                 }
               />
             }
-            leftPane={
-              <>
-                <PageToc items={tocItems} className="lg:w-52" />
-                <BrowserLeftPane />
-              </>
-            }
+            leftPane={<PageToc items={tocItems} className="lg:w-52" />}
             aboveGrid={<BrowserActiveFilters />}
             rightPane={
               isMobile ? undefined : (

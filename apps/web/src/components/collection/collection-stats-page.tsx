@@ -10,7 +10,6 @@ import {
   CopyIcon,
   ExternalLinkIcon,
   SearchIcon,
-  SlidersHorizontalIcon,
   SquareIcon,
   SquareStackIcon,
 } from "lucide-react";
@@ -24,8 +23,7 @@ import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { CollectionValueChart } from "@/components/collection/collection-value-chart";
 import { CostToCompleteChart } from "@/components/collection/cost-to-complete-chart";
 import { EnergyPowerChart } from "@/components/deck/stats/energy-power-chart";
-import { ActiveFilters } from "@/components/filters/active-filters";
-import { FilterBadgeSections } from "@/components/filters/filter-panel-content";
+import { CompactFilterBar } from "@/components/filters/compact-filter-bar";
 import { PageTopBar, PageTopBarTitle } from "@/components/layout/page-top-bar";
 import { MarketplaceLink } from "@/components/marketplace-link";
 import { Button } from "@/components/ui/button";
@@ -33,7 +31,6 @@ import { ButtonGroup } from "@/components/ui/button-group";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ChartConfig } from "@/components/ui/chart";
 import { ChartContainer } from "@/components/ui/chart";
-import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import {
   Empty,
   EmptyContent,
@@ -71,6 +68,7 @@ import { useEnumOrders } from "@/hooks/use-enums";
 import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import { usePrices } from "@/hooks/use-prices";
 import { getDomainColor } from "@/lib/domain";
+import { resolveTopLevelUnits } from "@/lib/filter-sections";
 import { getFilterIconPath } from "@/lib/icons";
 import { MARKETPLACE_META } from "@/lib/marketplace-meta";
 import type { FilterSearch } from "@/lib/search-schemas";
@@ -78,6 +76,7 @@ import type { DomainCount, RarityCount } from "@/lib/stat-types";
 import { buildMissingSearch } from "@/lib/stats-missing-search";
 import { cn } from "@/lib/utils";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
+import { useDisplayStore } from "@/stores/display-store";
 
 // ── Hero Stats ─────────────────────────────────────────────────────────────
 
@@ -163,7 +162,19 @@ function StatsHeroStats({ stats }: { stats: CollectionStats }) {
 
 // ── Scope from URL filters ────────────────────────────────────────────────
 
-const HIDDEN_FILTER_SECTIONS = new Set(["owned", "superTypes", "markers", "channels"]);
+// Dimensions the completion scope doesn't use: collection state, supertypes,
+// markers/channels values, and the range sliders (stats, price) the old scope
+// editor never offered.
+const HIDDEN_FILTER_SECTIONS = new Set([
+  "owned",
+  "superTypes",
+  "markers",
+  "channels",
+  "energy",
+  "might",
+  "power",
+  "price",
+]);
 
 /**
  * Builds a CompletionScopePreference from the standard URL filter state.
@@ -224,7 +235,7 @@ const COUNT_MODE_OPTIONS: { value: CompletionCountMode; label: string; tooltip: 
   { value: "printings", label: "Printings", tooltip: "Every printing variant" },
   {
     value: "copies",
-    label: "Copies",
+    label: "Playset",
     tooltip: "Playset quantities (3x, 1x for Legends/Battlefields)",
   },
 ];
@@ -741,8 +752,8 @@ export function CollectionStatsPage() {
 
   const [groupBy, setGroupBy] = useState<CompletionGroupBy>("set");
   const [countMode, setCountMode] = useState<CompletionCountMode>("cards");
-  const [filtersExpanded, setFiltersExpanded] = useState(false);
-  const { hasActiveFilters } = useFilterValues();
+  const topLevelFilters = useDisplayStore((state) => state.topLevelFilters);
+  const topLevelUnits = resolveTopLevelUnits(topLevelFilters);
   const scope = useScopeFromFilters();
   const prices = usePrices();
 
@@ -800,42 +811,19 @@ export function CollectionStatsPage() {
               ))}
             </ButtonGroup>
           </TooltipProvider>
-          <Button
-            variant="outline"
-            size="icon"
-            className="relative"
-            onClick={() => setFiltersExpanded(!filtersExpanded)}
-            aria-label={filtersExpanded ? "Hide filters" : "Show filters"}
-            aria-expanded={filtersExpanded}
-          >
-            <SlidersHorizontalIcon className="size-4" />
-            {hasActiveFilters && !filtersExpanded && (
-              <span className="bg-primary absolute -top-1 -right-1 size-2 rounded-full" />
-            )}
-          </Button>
         </div>
       </div>
-      <Collapsible open={filtersExpanded} onOpenChange={setFiltersExpanded} className="mb-3">
-        <CollapsibleContent className="h-(--collapsible-panel-height) space-y-3 overflow-hidden transition-[height] duration-200 data-[ending-style]:h-0 data-[starting-style]:h-0">
-          <div className="grid grid-cols-1 gap-x-6 gap-y-3 lg:grid-cols-2">
-            <FilterBadgeSections
-              availableFilters={availableFilters}
-              availableLanguages={availableLanguages}
-              setDisplayLabel={setDisplayLabel}
-              hiddenSections={HIDDEN_FILTER_SECTIONS}
-            />
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
-      {hasActiveFilters && (
-        <div className="mb-3">
-          <ActiveFilters
-            availableFilters={availableFilters}
-            setDisplayLabel={setDisplayLabel}
-            hiddenSections={HIDDEN_FILTER_SECTIONS}
-          />
-        </div>
-      )}
+      {/* The same compact filter bar the card browsers use, scoping the
+          completion math instead of a grid. `flex` unhides it below sm — this
+          page has no mobile filter drawer, so the chips just wrap there. */}
+      <CompactFilterBar
+        className="flex"
+        availableFilters={availableFilters}
+        availableLanguages={availableLanguages}
+        setDisplayLabel={setDisplayLabel}
+        hiddenSections={HIDDEN_FILTER_SECTIONS}
+        topLevelUnits={topLevelUnits}
+      />
 
       {stats.isReady ? (
         stats.totalCopies === 0 ? (

@@ -434,6 +434,7 @@ export function MobileFilterContent({
   filterOverrides,
   filterCounts,
   ownedCountMax,
+  topLevelUnits,
 }: {
   availableFilters: AvailableFilters;
   availableLanguages?: string[];
@@ -443,6 +444,7 @@ export function MobileFilterContent({
   filterOverrides?: Partial<Record<string, string[]>>;
   filterCounts?: FilterCounts;
   ownedCountMax?: number;
+  topLevelUnits?: ReadonlySet<string>;
 }) {
   return (
     <div className="border-t pt-4">
@@ -460,6 +462,7 @@ export function MobileFilterContent({
           filterOverrides={filterOverrides}
           filterCounts={filterCounts}
           ownedCountMax={ownedCountMax}
+          topLevelUnits={topLevelUnits}
         />
       </div>
     </div>

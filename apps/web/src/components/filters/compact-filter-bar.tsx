@@ -1,13 +1,15 @@
 import type { AvailableFilters, FilterCounts } from "@openrift/shared";
 import { ChevronDownIcon, XIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
 import { CardIcon } from "@/components/card-icon";
 import { FilterCustomizeControl } from "@/components/filters/filter-customize-control";
 import { FilterMoreMenu } from "@/components/filters/filter-more-menu";
 import {
+  FilterChipSections,
   FilterRangeSections,
-  useHasMoreSectionContent,
+  FlagBadge,
 } from "@/components/filters/filter-panel-content";
 import {
   FILTER_TRIGGER_ACTIVE_CLASS,
@@ -21,6 +23,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useEnumOrders, useLanguageLabels } from "@/hooks/use-enums";
+import { clusterLabelsFit } from "@/lib/cluster-label-fit";
 import { formatDomainFilterLabel } from "@/lib/domain";
 import { getFilterIconPath } from "@/lib/icons";
 import { rangeBadgeLabel } from "@/lib/range-label";
@@ -36,6 +39,18 @@ interface CompactFilterBarProps {
   filterCounts?: FilterCounts;
   /** See {@link FilterPanelContentProps.ownedCountMax}. */
   ownedCountMax?: number;
+  /**
+   * The user's top-level placement units (see `lib/filter-sections.ts`).
+   * Units in this set render as inline chips; every other applicable unit
+   * lives in the "More" menu.
+   */
+  topLevelUnits: ReadonlySet<string>;
+  /**
+   * Extra classes for the bar element. The bar hides below `sm` by default
+   * (the card browsers hand off to the mobile drawer there); a host without a
+   * drawer (collection stats) passes `flex` to stay visible and wrap.
+   */
+  className?: string;
 }
 
 /**
@@ -43,7 +58,9 @@ interface CompactFilterBarProps {
  * (Domain, Rarity). A connected segmented control (the same grouped-button look
  * as the deck list's domain filter); filters with a single click, no popover.
  * The text label and faceted count ride the tooltip / accessible name to keep
- * the bar compact.
+ * the bar compact; with `showLabels` (granted by the bar's fit measurement
+ * whenever one row has the room) the label and count also render inline next
+ * to the icon, like the expanded panel's badges.
  * @returns The labelled icon cluster.
  */
 export function FilterIconCluster({
@@ -55,6 +72,7 @@ export function FilterIconCluster({
   iconPath,
   displayLabel,
   counts,
+  showLabels,
 }: {
   label: string;
   options: string[];
@@ -64,6 +82,8 @@ export function FilterIconCluster({
   iconPath: (value: string) => string | undefined;
   displayLabel: (value: string) => string;
   counts?: Map<string, number>;
+  /** Render the text label + count next to each icon (see useClusterLabelsFit). */
+  showLabels?: boolean;
 }) {
   if (options.length === 0) {
     return null;
@@ -92,6 +112,9 @@ export function FilterIconCluster({
       value={included}
       onValueChange={(next) => onValueChange(next as string[])}
       aria-label={`${label} filter`}
+      // Marks the cluster for the bar's fit measurement, which swaps in the
+      // measuring strip's expanded width for it (see useClusterLabelsFit).
+      data-label-fit-cluster=""
     >
       {options.map((option) => {
         const count = counts?.get(option);
@@ -110,14 +133,30 @@ export function FilterIconCluster({
                   className={cn(
                     // Excluded: not pressed, so tint it destructive and strike
                     // the text fallback (icons can't strike, the tint carries it).
-                    isExcluded &&
-                      "text-destructive ring-destructive/60 bg-destructive/10 line-through ring-1 ring-inset",
+                    // Text + background tint suffice — no extra ring/border.
+                    isExcluded && "text-destructive bg-destructive/10 line-through",
                     isZero && !isIncluded && !isExcluded && "opacity-40",
                   )}
                 />
               }
             >
-              {icon ? <CardIcon src={icon} className="size-4" /> : displayLabel(option)}
+              {icon ? (
+                <>
+                  <CardIcon src={icon} className="size-4" />
+                  {showLabels && (
+                    <span>
+                      {displayLabel(option)}
+                      {/* Faceted count in the panel badges' muted style, so the
+                          expanded toggles read like the expanded panel's rows. */}
+                      {count !== undefined && (
+                        <span className="ml-1 tabular-nums opacity-60">{count}</span>
+                      )}
+                    </span>
+                  )}
+                </>
+              ) : (
+                displayLabel(option)
+              )}
             </TooltipTrigger>
             <TooltipContent>{optionLabel}</TooltipContent>
           </Tooltip>
@@ -125,6 +164,80 @@ export function FilterIconCluster({
       })}
     </ToggleGroup>
   );
+}
+
+/** Extra slack so a bar sitting exactly at the fit boundary doesn't flicker. */
+const LABEL_FIT_BUFFER = 8;
+
+/**
+ * Decides whether the Domain/Rarity clusters can show their inline labels
+ * without wrapping the bar onto a second row. The required width is computed
+ * from the bar's in-flow children (skipping the clusters) plus the clusters'
+ * expanded widths taken from an invisible measuring strip — inputs that don't
+ * depend on the current label state, so the decision can't oscillate.
+ *
+ * Runs after every render (child chips appear, disappear, and change width
+ * with filter state without resizing the bar element itself) and on resize of
+ * the bar, the strip, or any child (fonts, counts). The setState bails when
+ * the boolean is unchanged, so re-measures settle immediately.
+ *
+ * @returns Refs for the bar and the measuring strip, plus the fit verdict.
+ */
+function useClusterLabelsFit() {
+  const barRef = useRef<HTMLDivElement>(null);
+  const measureRef = useRef<HTMLDivElement>(null);
+  const [labelsFit, setLabelsFit] = useState(false);
+
+  useLayoutEffect(() => {
+    const bar = barRef.current;
+    const strip = measureRef.current;
+    if (!bar || !strip) {
+      return;
+    }
+    const compute = () => {
+      const childWidths: number[] = [];
+      for (const child of bar.children) {
+        if (!(child instanceof HTMLElement)) {
+          continue;
+        }
+        // Skip the clusters (the strip supplies their expanded widths) and
+        // the strip itself (absolute, out of flow).
+        if (
+          child.dataset.labelFitCluster !== undefined ||
+          child.dataset.labelFitMeasure !== undefined
+        ) {
+          continue;
+        }
+        childWidths.push(child.getBoundingClientRect().width);
+      }
+      const expandedClusterWidths = [...strip.children].map(
+        (child) => child.getBoundingClientRect().width,
+      );
+      // oxlint-disable-next-line unicorn/prefer-number-coercion -- computed columnGap is "6px"; Number() would yield NaN
+      const gap = Number.parseFloat(getComputedStyle(bar).columnGap) || 0;
+      setLabelsFit(
+        clusterLabelsFit({
+          containerWidth: bar.clientWidth,
+          childWidths,
+          expandedClusterWidths,
+          gap,
+          buffer: LABEL_FIT_BUFFER,
+        }),
+      );
+    };
+    compute();
+    const observer = new ResizeObserver(compute);
+    observer.observe(bar);
+    observer.observe(strip);
+    // Individual children too: a chip's count text can change width (filter
+    // updates, font loading) without changing the bar's own box.
+    for (const child of bar.children) {
+      observer.observe(child);
+    }
+    return () => observer.disconnect();
+  });
+
+  return { barRef, measureRef, labelsFit };
 }
 
 /**
@@ -193,8 +306,8 @@ export function FilterDropdownChip({
  * The compact card-browser filter bar: an alternative to the expanded
  * filter panel that collapses each dimension into either an inline icon
  * cluster (Domain, Rarity) or a dropdown chip (everything else). Rendered
- * in the above-the-grid area at every width from `sm` up when the user opts
- * into the compact filter view (below `sm` the mobile drawer takes over).
+ * in the above-the-grid area at every width from `sm` up (below `sm` the
+ * mobile drawer takes over). This is the app's one and only filter layout.
  * Mirrors the section guards in `filter-panel-content.tsx`
  * — keep the two in sync when adding or removing a filter dimension.
  * @returns The compact filter bar.
@@ -207,11 +320,49 @@ export function CompactFilterBar({
   visibleCustomTagCategories,
   filterCounts,
   ownedCountMax,
+  topLevelUnits,
+  className,
 }: CompactFilterBarProps) {
   const { labels } = useEnumOrders();
   const { filterState, hasActiveFilters } = useFilterValues();
-  const { cycleArrayFilter, toggleSigned, clearAllFilters } = useFilterActions();
+  const { cycleArrayFilter, toggleSigned, toggleStandard, clearAllFilters } = useFilterActions();
   const languageLabels = useLanguageLabels();
+  const isTop = (unit: string) => topLevelUnits.has(unit);
+  // Standard's promoted chip renders bar-level right after Variant (canonical
+  // order); keep it out of the trailing chip sections so it isn't drawn twice.
+  const chipSectionUnits = new Set([...topLevelUnits].filter((unit) => unit !== "standard"));
+  // The Domain/Rarity clusters expand to icon + label + count whenever that
+  // still fits on one row; the same builders feed the visible bar and the
+  // invisible measuring strip the fit check reads.
+  const { barRef, measureRef, labelsFit } = useClusterLabelsFit();
+  const domainCluster = (showLabels: boolean) =>
+    isTop("domains") && !hiddenSections?.has("domains") ? (
+      <FilterIconCluster
+        label="Domain"
+        options={availableFilters.domains}
+        included={filterState.domains}
+        excluded={filterState.domainsEx}
+        onCycle={(value) => cycleArrayFilter("domains", "domainsEx", value)}
+        iconPath={(value) => getFilterIconPath("domains", value)}
+        displayLabel={(value) => formatDomainFilterLabel(value, labels.domains)}
+        counts={filterCounts?.domains}
+        showLabels={showLabels}
+      />
+    ) : null;
+  const rarityCluster = (showLabels: boolean) =>
+    isTop("rarities") && !hiddenSections?.has("rarities") ? (
+      <FilterIconCluster
+        label="Rarity"
+        options={availableFilters.rarities}
+        included={filterState.rarities}
+        excluded={filterState.raritiesEx}
+        onCycle={(value) => cycleArrayFilter("rarities", "raritiesEx", value)}
+        iconPath={(value) => getFilterIconPath("rarities", value)}
+        displayLabel={(value) => labels.rarities[value] ?? value}
+        counts={filterCounts?.rarities}
+        showLabels={showLabels}
+      />
+    ) : null;
 
   // Art Variant, Finish, and Signed are all printing-variant axes, so they share
   // one "Variant" dropdown to keep the bar from crowding. Each section only
@@ -220,27 +371,25 @@ export function CompactFilterBar({
     !hiddenSections?.has("artVariants") && availableFilters.artVariants.length > 1;
   const showFinishSection =
     !hiddenSections?.has("finishes") && availableFilters.finishes.length > 1;
-  const showVariantMenu = showArtVariantSection || showFinishSection;
+  const showVariantMenu = isTop("variant") && (showArtVariantSection || showFinishSection);
 
   // Signed rides in the Variant dropdown when the Art Variant section is present
-  // (mirroring the expanded panel); otherwise it stays in the More group.
+  // (mirroring the expanded panel); otherwise it renders as a flag chip / More
+  // row wherever the Variant unit lives (see FilterChipSections).
   const signedInVariantMenu =
-    availableFilters.hasSigned && !hiddenSections?.has("signed") && showArtVariantSection;
-
-  const hasMoreContent = useHasMoreSectionContent({
-    availableFilters,
-    hiddenSections,
-    visibleCustomTagCategories,
-    hideSigned: signedInVariantMenu,
-  });
+    availableFilters.hasSigned &&
+    !hiddenSections?.has("signed") &&
+    showVariantMenu &&
+    showArtVariantSection;
 
   // Stats: the printed gameplay sliders only (Energy/Might/Power, always shown
-  // unless hidden). Price and Copies are value/collection ranges, not card
-  // stats, so they ride in the "More" menu instead — see showMarketRanges.
+  // unless hidden). Price and Copies are value/collection ranges under their
+  // own placement units, each with its own chip when promoted.
   const showStats =
-    !hiddenSections?.has("energy") ||
-    !hiddenSections?.has("might") ||
-    !hiddenSections?.has("power");
+    isTop("stats") &&
+    (!hiddenSections?.has("energy") ||
+      !hiddenSections?.has("might") ||
+      !hiddenSections?.has("power"));
 
   // The three printed-stat ranges, paired with their available bounds so a
   // single active one can resolve open-ended sides into a readable label.
@@ -281,40 +430,86 @@ export function CompactFilterBar({
         )}`
       : undefined;
 
-  // Price and Copies render as range sliders at the foot of the "More" menu,
-  // below the flag/marker/channel/tag controls. Each only applies when its
-  // data exists on this surface; the menu shows whenever either it or the
-  // discrete More controls have content.
-  const showPrice = !hiddenSections?.has("price") && availableFilters.price.max > 0;
-  const showCopies =
-    !hiddenSections?.has("owned") && ownedCountMax !== undefined && ownedCountMax > 0;
-  const showMarketRanges = showPrice || showCopies;
-  const hasMore = hasMoreContent || showMarketRanges;
+  // Price and Copies get their own dropdown chips when promoted; otherwise
+  // they ride as slider rows in the "More" menu.
+  const showPriceChip =
+    isTop("price") && !hiddenSections?.has("price") && availableFilters.price.max > 0;
+  const showCopiesChip =
+    isTop("owned") &&
+    !hiddenSections?.has("owned") &&
+    ownedCountMax !== undefined &&
+    ownedCountMax > 0;
+  const priceActive = filterState.priceMin !== null || filterState.priceMax !== null;
+  const priceSummary = priceActive
+    ? `Price ${rangeBadgeLabel(
+        filterState.priceMin,
+        filterState.priceMax,
+        availableFilters.price.min,
+        availableFilters.price.max,
+      )}`
+    : undefined;
+  const copiesActive = filterState.ownedCountMin !== null || filterState.ownedCountMax !== null;
+  const copiesSummary = copiesActive
+    ? `Copies ${rangeBadgeLabel(
+        filterState.ownedCountMin,
+        filterState.ownedCountMax,
+        0,
+        ownedCountMax ?? 0,
+      )}`
+    : undefined;
 
+  // The "More" trigger's count: every active selection whose unit lives in the
+  // menu (including exclude companions and folded presence flags, ADR-034).
+  // Promoted units surface their counts on their own chips instead.
+  const inMore = (unit: string) => !topLevelUnits.has(unit);
   const moreActiveCount =
-    Number(filterState.markersPresence !== null) +
-    Number(filterState.superTypesPresence !== null) +
-    Number(filterState.customTagsPresence !== null) +
-    Number(filterState.channelsPresence !== null) +
-    Number(filterState.keywordsPresence !== null) +
-    Number(!signedInVariantMenu && filterState.signed !== null) +
-    Number(filterState.banned !== null) +
-    Number(filterState.errata !== null) +
-    // Standard flag + the More-menu dimensions' exclude companions (ADR-034), so
-    // the chip's count and active fill stay honest when only those are set.
-    Number(filterState.standard !== null) +
-    filterState.markers.length +
-    filterState.markersEx.length +
-    filterState.channels.length +
-    filterState.channelsEx.length +
-    filterState.customTags.length +
-    filterState.customTagsEx.length +
-    filterState.keywords.length +
-    filterState.keywordsEx.length +
-    filterState.cardSizes.length +
-    filterState.owned.length +
-    Number(filterState.priceMin !== null || filterState.priceMax !== null) +
-    Number(filterState.ownedCountMin !== null || filterState.ownedCountMax !== null);
+    (inMore("languages") ? filterState.languages.length + filterState.languagesEx.length : 0) +
+    (inMore("sets") ? filterState.sets.length + filterState.setsEx.length : 0) +
+    (inMore("domains") ? filterState.domains.length + filterState.domainsEx.length : 0) +
+    (inMore("rarities") ? filterState.rarities.length + filterState.raritiesEx.length : 0) +
+    (inMore("types") ? filterState.types.length + filterState.typesEx.length : 0) +
+    (inMore("superTypes")
+      ? filterState.superTypes.length +
+        filterState.superTypesEx.length +
+        Number(filterState.superTypesPresence !== null)
+      : 0) +
+    (inMore("variant")
+      ? filterState.artVariants.length +
+        filterState.artVariantsEx.length +
+        filterState.finishes.length +
+        filterState.finishesEx.length +
+        Number(filterState.signed !== null)
+      : 0) +
+    (inMore("stats") ? statsActiveCount : 0) +
+    (inMore("markers")
+      ? filterState.markers.length +
+        filterState.markersEx.length +
+        Number(filterState.markersPresence !== null)
+      : 0) +
+    (inMore("channels")
+      ? filterState.channels.length +
+        filterState.channelsEx.length +
+        Number(filterState.channelsPresence !== null)
+      : 0) +
+    (inMore("customTags")
+      ? filterState.customTags.length +
+        filterState.customTagsEx.length +
+        Number(filterState.customTagsPresence !== null)
+      : 0) +
+    (inMore("keywords")
+      ? filterState.keywords.length +
+        filterState.keywordsEx.length +
+        Number(filterState.keywordsPresence !== null)
+      : 0) +
+    (inMore("cardSizes") ? filterState.cardSizes.length : 0) +
+    (inMore("owned")
+      ? filterState.owned.length +
+        Number(filterState.ownedCountMin !== null || filterState.ownedCountMax !== null)
+      : 0) +
+    (inMore("price") ? Number(priceActive) : 0) +
+    (inMore("banned") ? Number(filterState.banned !== null) : 0) +
+    (inMore("errata") ? Number(filterState.errata !== null) : 0) +
+    (inMore("standard") ? Number(filterState.standard !== null) : 0);
 
   // Option lists for each cycling dropdown; a single row per value carries both
   // the include and exclude state (ADR-034).
@@ -342,8 +537,12 @@ export function CompactFilterBar({
     <TooltipProvider>
       {/* Order mirrors the expanded panel: Language, Set, Domain, Rarity, Type,
           Supertype, Variant (Art Variant + Finish + Signed), Stats, More. */}
-      <div className="mb-3 hidden flex-wrap items-center gap-1.5 sm:flex">
-        {availableLanguages &&
+      <div
+        ref={barRef}
+        className={cn("relative mb-3 hidden flex-wrap items-center gap-1.5 sm:flex", className)}
+      >
+        {isTop("languages") &&
+          availableLanguages &&
           availableLanguages.length > 1 &&
           !hiddenSections?.has("languages") && (
             <MultiSelectCombobox
@@ -358,7 +557,7 @@ export function CompactFilterBar({
               counts={filterCounts?.languages}
             />
           )}
-        {!hiddenSections?.has("sets") && availableFilters.sets.length > 0 && (
+        {isTop("sets") && !hiddenSections?.has("sets") && availableFilters.sets.length > 0 && (
           <MultiSelectCombobox
             triggerStyle="button"
             label="Sets"
@@ -372,29 +571,24 @@ export function CompactFilterBar({
             mutedOptions={availableFilters.supplementalSets}
           />
         )}
-        {!hiddenSections?.has("domains") && (
-          <FilterIconCluster
-            label="Domain"
-            options={availableFilters.domains}
-            included={filterState.domains}
-            excluded={filterState.domainsEx}
-            onCycle={(value) => cycleArrayFilter("domains", "domainsEx", value)}
-            iconPath={(value) => getFilterIconPath("domains", value)}
-            displayLabel={(value) => formatDomainFilterLabel(value, labels.domains)}
-            counts={filterCounts?.domains}
-          />
-        )}
-        <FilterIconCluster
-          label="Rarity"
-          options={availableFilters.rarities}
-          included={filterState.rarities}
-          excluded={filterState.raritiesEx}
-          onCycle={(value) => cycleArrayFilter("rarities", "raritiesEx", value)}
-          iconPath={(value) => getFilterIconPath("rarities", value)}
-          displayLabel={(value) => labels.rarities[value] ?? value}
-          counts={filterCounts?.rarities}
-        />
-        {!hiddenSections?.has("types") && availableFilters.types.length > 0 && (
+        {domainCluster(labelsFit)}
+        {rarityCluster(labelsFit)}
+        {/* Invisible measuring strip: the clusters as they'd render with labels
+            on, so the fit check knows the width labels would need regardless of
+            the current state — that independence keeps the toggle from
+            oscillating. Out of flow, invisible, and inert: never seen, never
+            focusable, never announced. */}
+        <div
+          ref={measureRef}
+          data-label-fit-measure=""
+          aria-hidden="true"
+          inert
+          className="invisible absolute top-0 left-0 flex flex-nowrap gap-1.5"
+        >
+          {domainCluster(true)}
+          {rarityCluster(true)}
+        </div>
+        {isTop("types") && !hiddenSections?.has("types") && availableFilters.types.length > 0 && (
           <MultiSelectCombobox
             triggerStyle="button"
             label="Type"
@@ -409,21 +603,23 @@ export function CompactFilterBar({
             counts={filterCounts?.types}
           />
         )}
-        {availableFilters.superTypes.length > 0 && !hiddenSections?.has("superTypes") && (
-          <MultiSelectCombobox
-            triggerStyle="button"
-            label="Supertype"
-            searchPlaceholder="Search supertypes…"
-            emptyText="No supertypes match."
-            options={superTypeOptions}
-            selected={filterState.superTypes}
-            excluded={filterState.superTypesEx}
-            onCycle={(value) => cycleArrayFilter("superTypes", "superTypesEx", value)}
-            icon={(value) => getFilterIconPath("superTypes", value)}
-            iconAfterLabel
-            counts={filterCounts?.superTypes}
-          />
-        )}
+        {isTop("superTypes") &&
+          availableFilters.superTypes.length > 0 &&
+          !hiddenSections?.has("superTypes") && (
+            <MultiSelectCombobox
+              triggerStyle="button"
+              label="Supertype"
+              searchPlaceholder="Search supertypes…"
+              emptyText="No supertypes match."
+              options={superTypeOptions}
+              selected={filterState.superTypes}
+              excluded={filterState.superTypesEx}
+              onCycle={(value) => cycleArrayFilter("superTypes", "superTypesEx", value)}
+              icon={(value) => getFilterIconPath("superTypes", value)}
+              iconAfterLabel
+              counts={filterCounts?.superTypes}
+            />
+          )}
         {showVariantMenu &&
           (() => {
             // Art Variant is the primary axis (and hosts the Signed flag); Finish
@@ -488,6 +684,20 @@ export function CompactFilterBar({
               />
             );
           })()}
+        {/* Standard sits right after Variant in the canonical order, so its
+            promoted chip renders here rather than with the trailing chip
+            sections (which are excluded from rendering it below). */}
+        {isTop("standard") &&
+          availableFilters.hasNonStandard &&
+          !hiddenSections?.has("standard") && (
+            <FlagBadge
+              label="Standard"
+              state={filterState.standard}
+              count={filterCounts?.flags.standard}
+              onClick={toggleStandard}
+              triggerStyle="button"
+            />
+          )}
         {showStats && (
           <FilterDropdownChip
             label="Stats"
@@ -512,17 +722,66 @@ export function CompactFilterBar({
             </div>
           </FilterDropdownChip>
         )}
-        {hasMore && (
-          <FilterMoreMenu
-            availableFilters={availableFilters}
-            hiddenSections={hiddenSections}
-            visibleCustomTagCategories={visibleCustomTagCategories}
-            filterCounts={filterCounts}
-            ownedCountMax={ownedCountMax}
-            activeCount={moreActiveCount}
-            hideSigned={signedInVariantMenu}
-          />
+        {/* Promoted chip units (markers, flags, owned, …) render inline with the
+            same button language; Copies and Price get slider chips mirroring
+            the Stats chip. The More menu hosts everything demoted (and nulls
+            itself out when nothing lives there). */}
+        <FilterChipSections
+          availableFilters={availableFilters}
+          hiddenSections={hiddenSections}
+          visibleCustomTagCategories={visibleCustomTagCategories}
+          filterCounts={filterCounts}
+          units={chipSectionUnits}
+          variant="inline"
+        />
+        {showCopiesChip && (
+          <FilterDropdownChip
+            label="Copies"
+            activeCount={copiesActive ? 1 : 0}
+            summary={copiesSummary}
+            contentClassName="w-80"
+          >
+            <div className="[&>div:focus-within]:bg-accent [&>div:hover]:bg-accent flex flex-col gap-0.5 [&>div]:rounded-md [&>div]:px-1.5 [&>div]:py-1.5">
+              <FilterRangeSections
+                scope="copies"
+                availableFilters={availableFilters}
+                filterCounts={filterCounts}
+                hiddenSections={hiddenSections}
+                ownedCountMax={ownedCountMax}
+                labelClassName="text-inherit text-sm font-normal"
+              />
+            </div>
+          </FilterDropdownChip>
         )}
+        {showPriceChip && (
+          <FilterDropdownChip
+            label="Price"
+            activeCount={priceActive ? 1 : 0}
+            summary={priceSummary}
+            contentClassName="w-80"
+          >
+            <div className="[&>div:focus-within]:bg-accent [&>div:hover]:bg-accent flex flex-col gap-0.5 [&>div]:rounded-md [&>div]:px-1.5 [&>div]:py-1.5">
+              <FilterRangeSections
+                scope="price"
+                availableFilters={availableFilters}
+                filterCounts={filterCounts}
+                hiddenSections={hiddenSections}
+                labelClassName="text-inherit text-sm font-normal"
+              />
+            </div>
+          </FilterDropdownChip>
+        )}
+        <FilterMoreMenu
+          availableFilters={availableFilters}
+          availableLanguages={availableLanguages}
+          setDisplayLabel={setDisplayLabel}
+          hiddenSections={hiddenSections}
+          visibleCustomTagCategories={visibleCustomTagCategories}
+          filterCounts={filterCounts}
+          ownedCountMax={ownedCountMax}
+          activeCount={moreActiveCount}
+          topLevelUnits={topLevelUnits}
+        />
 
         <div className="ml-auto flex items-center">
           {hasActiveFilters && (

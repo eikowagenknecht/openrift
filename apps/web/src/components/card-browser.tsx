@@ -9,7 +9,6 @@ import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer
 import { BrowserCardCell } from "@/components/cards/browser-card-cell";
 import {
   BrowserActiveFilters,
-  BrowserLeftPane,
   BrowserToolbar,
   CardBrowserFilterProvider,
 } from "@/components/cards/card-browser-filter-scaffold";
@@ -328,8 +327,6 @@ export function CardBrowser() {
     />
   );
 
-  const leftPane = <BrowserLeftPane />;
-
   const rightPane = isMobile ? undefined : (
     <SelectionDetailPane
       items={items}
@@ -361,7 +358,6 @@ export function CardBrowser() {
           view={view}
           stale={isGridStale}
           toolbar={toolbar}
-          leftPane={leftPane}
           aboveGrid={<BrowserActiveFilters />}
           rightPane={rightPane}
           addStripHeight={showStrip ? ADD_STRIP_HEIGHT : undefined}
