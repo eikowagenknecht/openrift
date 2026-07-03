@@ -51,7 +51,7 @@ OpenRift is a TypeScript monorepo: a TanStack Start + shadcn/ui frontend (`apps/
 
 On the AI question: yes, Claude does a lot of the typing, so you might find a stray em dash here and there. That doesn't mean OpenRift is vibe-coded. The architecture and the decisions that matter are mine, and with 20+ years of full-stack experience behind it, I review and shape every part of the code.
 
-Issues and pull requests are welcome. If you open a pull request, please make sure you understand the code you're submitting, since it's held to the same standard. To contribute card data rather than code, see [openrift-data](https://github.com/openriftapp/openrift-data).
+Issues and pull requests are welcome. If you open a pull request, please make sure you understand the code you're submitting, since it's held to the same standard. To contribute card data rather than code, use the in-app contribute page (sign in and open **Contribute** from the menu) to submit a missing card, a correction, or an image for review.
 
 ## Legal
 

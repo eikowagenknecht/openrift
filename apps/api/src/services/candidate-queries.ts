@@ -15,6 +15,7 @@ import type { CandidateCardsTable, CandidatePrintingsTable } from "../db/index.j
 import { AppError } from "../errors.js";
 import type { candidateCardsRepo } from "../repositories/candidate-cards.js";
 import type { marketplaceMappingRepo } from "../repositories/marketplace-mapping.js";
+import { USER_SUBMISSION_PROVIDER } from "./ingest-user-submission.js";
 
 type Repo = ReturnType<typeof candidateCardsRepo>;
 type MarketplaceMappingRepo = ReturnType<typeof marketplaceMappingRepo>;
@@ -69,7 +70,9 @@ function formatCandidatePrinting(
     | "artVariant"
     | "isSigned"
     | "markerSlugs"
+    | "distributionChannelSlugs"
     | "finish"
+    | "size"
     | "artist"
     | "publicCode"
     | "printedRulesText"
@@ -252,6 +255,7 @@ export async function buildCandidateCardList(
       hasFavorite: group?.some((cc) => favoriteProviders.has(cc.provider)) ?? false,
       favoriteStagingShortCodes: group ? stagingIdsForGroup(group, true) : [],
       suggestedCardSlug: null,
+      hasUserSubmission: group?.some((cc) => cc.provider === USER_SUBMISSION_PROVIDER) ?? false,
     };
   });
 
@@ -284,6 +288,7 @@ export async function buildCandidateCardList(
       hasFavorite: group.some((cc) => favoriteProviders.has(cc.provider)),
       favoriteStagingShortCodes: stagingIdsForGroup(group, true),
       suggestedCardSlug: findSuggestedCard(normName),
+      hasUserSubmission: group.some((cc) => cc.provider === USER_SUBMISSION_PROVIDER),
     });
   }
 

@@ -1,11 +1,21 @@
-import { createFileRoute, notFound } from "@tanstack/react-router";
+import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
 
 import { NotFoundFallback, RouteErrorFallback } from "@/components/error-message";
 import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
+import { sessionQueryOptions } from "@/lib/auth-session";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 
 export const Route = createFileRoute("/_app/contribute_/$cardSlug_/image/$printingId")({
+  beforeLoad: async ({ location, context }) => {
+    const session = await context.queryClient.ensureQueryData(sessionQueryOptions());
+    if (!session?.user) {
+      throw redirect({
+        to: "/login",
+        search: { redirect: location.href || undefined, email: undefined },
+      });
+    }
+  },
   head: ({ params }) =>
     seoHead({
       siteUrl: getSiteUrl(),

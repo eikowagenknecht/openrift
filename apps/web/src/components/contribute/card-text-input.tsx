@@ -1,4 +1,4 @@
-import { HelpCircleIcon } from "lucide-react";
+import { HelpCircleIcon, ItalicIcon } from "lucide-react";
 import { useId, useRef, useState } from "react";
 
 import { CardText } from "@/components/cards/card-text";
@@ -49,6 +49,25 @@ export function insertAtCaret(
   return { value: before + token + after, caret: start + token.length };
 }
 
+export function wrapAtCaret(
+  value: string,
+  selectionStart: number,
+  selectionEnd: number,
+  prefix: string,
+  suffix: string,
+): { value: string; caret: number } {
+  const start = Math.max(0, Math.min(selectionStart, value.length));
+  const end = Math.max(start, Math.min(selectionEnd, value.length));
+  const before = value.slice(0, start);
+  const selected = value.slice(start, end);
+  const after = value.slice(end);
+  const wrapped = prefix + selected + suffix;
+  // No selection: drop the caret between the markers so the user can type inside.
+  // Selection: place the caret after the wrapped text.
+  const caret = selected.length === 0 ? start + prefix.length : start + wrapped.length;
+  return { value: before + wrapped + after, caret };
+}
+
 interface CardTextInputProps {
   label: string;
   value: string;
@@ -83,13 +102,29 @@ export function CardTextInput({
     });
   };
 
+  const wrap = (prefix: string, suffix: string) => {
+    const ta = textareaRef.current;
+    const start = ta?.selectionStart ?? value.length;
+    const end = ta?.selectionEnd ?? value.length;
+    const next = wrapAtCaret(value, start, end, prefix, suffix);
+    onChange(next.value);
+    queueMicrotask(() => {
+      const el = textareaRef.current;
+      if (!el) {
+        return;
+      }
+      el.focus();
+      el.setSelectionRange(next.caret, next.caret);
+    });
+  };
+
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-between gap-2">
         <Label htmlFor={id}>{label}</Label>
         <SyntaxHelpPopover />
       </div>
-      <SyntaxToolbar onInsert={insert} />
+      <SyntaxToolbar onInsert={insert} onWrap={wrap} />
       <Textarea
         id={id}
         ref={textareaRef}
@@ -103,9 +138,27 @@ export function CardTextInput({
   );
 }
 
-function SyntaxToolbar({ onInsert }: { onInsert: (token: string) => void }) {
+function SyntaxToolbar({
+  onInsert,
+  onWrap,
+}: {
+  onInsert: (token: string) => void;
+  onWrap: (prefix: string, suffix: string) => void;
+}) {
   return (
     <div className="flex flex-wrap items-center gap-1.5">
+      <ButtonGroup aria-label="Text formatting">
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-sm"
+          title="Italic (_text_)"
+          aria-label="Italic"
+          onClick={() => onWrap("_", "_")}
+        >
+          <ItalicIcon className="size-4" />
+        </Button>
+      </ButtonGroup>
       <ButtonGroup aria-label="Energy glyphs">
         {ENERGY_GLYPHS.map((n) => (
           <GlyphButton
@@ -277,7 +330,8 @@ function SyntaxHelpPopover() {
             need to add underscores; the renderer italicises parens automatically.
           </li>
           <li>
-            <code className="text-foreground">_emphasis_</code> wraps text in italics.
+            <code className="text-foreground">_emphasis_</code> wraps text in italics. Use the
+            Italic button to wrap the selected text.
           </li>
           <li>Press Enter for a line break.</li>
         </ul>

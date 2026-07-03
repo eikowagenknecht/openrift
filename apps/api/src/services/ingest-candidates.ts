@@ -91,8 +91,9 @@ function normalize(value: unknown): unknown {
   return value;
 }
 
-// Validation schemas built from DB field rules — validates values as they'll be written
-const candidateCardValidator = z.object({
+// Validation schemas built from DB field rules — validates values as they'll be written.
+// Exported so the user-submission ingest (ADR-036) validates against the identical rules.
+export const candidateCardValidator = z.object({
   name: candidateCardFieldRules.name,
   type: candidateCardFieldRules.type,
   might: candidateCardFieldRules.might,
@@ -105,13 +106,14 @@ const candidateCardValidator = z.object({
   external_id: candidateCardFieldRules.externalId,
 });
 
-const candidatePrintingValidator = z.object({
+export const candidatePrintingValidator = z.object({
   short_code: candidatePrintingFieldRules.shortCode,
   set_id: candidatePrintingFieldRules.setId,
   set_name: candidatePrintingFieldRules.setName,
   rarity: candidatePrintingFieldRules.rarity,
   art_variant: candidatePrintingFieldRules.artVariant,
   finish: candidatePrintingFieldRules.finish,
+  size: candidatePrintingFieldRules.size,
   artist: candidatePrintingFieldRules.artist,
   public_code: candidatePrintingFieldRules.publicCode,
   printed_rules_text: candidatePrintingFieldRules.printedRulesText,
@@ -373,6 +375,7 @@ export async function ingestCandidates(
           rarity: p.rarity,
           art_variant: p.art_variant,
           finish: p.finish,
+          size: p.size,
           artist: p.artist,
           public_code: p.public_code,
           printed_rules_text: emptyToNull(p.printed_rules_text),
@@ -419,7 +422,9 @@ export async function ingestCandidates(
           artVariant: p.art_variant,
           isSigned: p.is_signed,
           markerSlugs: sortedSlugs,
+          distributionChannelSlugs: p.distribution_channel_slugs ?? [],
           finish: p.finish,
+          size: p.size ?? null,
           artist: p.artist,
           publicCode: p.public_code,
           printedRulesText: emptyToNull(p.printed_rules_text),

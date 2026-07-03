@@ -22,6 +22,9 @@ export const Route = createFileRoute("/_app/_authenticated/admin/cards")({
     // or "cardtrader:FR". Absent means all assignable buckets. Only meaningful
     // while `status` is "prices-to-assign".
     priceScope: z.string().optional(),
+    // ADR-036: when "usersubmission", the candidates tab shows only groups that
+    // include an in-app user submission. Composes with `status`.
+    source: z.enum(["usersubmission"]).optional(),
   }),
   loader: async ({ context }) => {
     await Promise.all([

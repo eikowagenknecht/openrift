@@ -3,6 +3,7 @@
  * the card designer (ADR-023). Extracting them keeps a single source of truth
  * for the labelled field row, number input, single-select, and chip input.
  */
+import { InfoIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 
@@ -19,8 +20,9 @@ import {
   ComboboxList,
   ComboboxTrigger,
 } from "@/components/ui/combobox";
-import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -31,7 +33,10 @@ import {
 import { cn } from "@/lib/utils";
 
 /**
- * A labelled field with optional required marker, hint, and inline error.
+ * A labelled field with optional required marker, hint, and inline error. The
+ * hint renders as a small info button next to the label that opens on click or
+ * tap, rather than always-on helper text — this keeps grid rows a uniform
+ * height so fields line up in columns instead of going ragged.
  *
  * @returns The field row element.
  */
@@ -50,14 +55,43 @@ export function FieldRow({
 }) {
   return (
     <Field data-invalid={error ? true : undefined}>
-      <FieldLabel>
-        {label}
-        {required && <span className="text-destructive"> *</span>}
-      </FieldLabel>
+      <div className="flex items-center gap-1">
+        <FieldLabel>
+          {label}
+          {required && <span className="text-destructive"> *</span>}
+        </FieldLabel>
+        {hint && <FieldHint label={label} hint={hint} />}
+      </div>
       {children}
-      {hint && !error && <FieldDescription>{hint}</FieldDescription>}
       {error && <FieldError>{error}</FieldError>}
     </Field>
+  );
+}
+
+/**
+ * Info affordance for a {@link FieldRow} hint: a muted icon that opens the hint
+ * text in a popover on click/tap (works on touch, unlike a hover tooltip).
+ *
+ * @returns The hint popover element.
+ */
+function FieldHint({ label, hint }: { label: string; hint: string }) {
+  return (
+    <Popover>
+      <PopoverTrigger
+        render={
+          <button
+            type="button"
+            aria-label={`About ${label}`}
+            className="text-muted-foreground hover:text-foreground -m-1 rounded-full p-1"
+          />
+        }
+      >
+        <InfoIcon className="size-3.5" />
+      </PopoverTrigger>
+      <PopoverContent align="start" className="text-muted-foreground w-64 text-sm">
+        {hint}
+      </PopoverContent>
+    </Popover>
   );
 }
 

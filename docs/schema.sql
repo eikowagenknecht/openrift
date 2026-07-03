@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict mu15TfgKOc5vyW6U9Xv9mocVTq8MNHygbOJXFSbtAtieElFcry2BTLhh2QmLtPZ
+\restrict 86x8mDD5tqReUwWY6Y8OgxjWqT8mFMLKgh8CkuvXgiNuXisAoI6aEpJooYYADEb
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -474,6 +474,9 @@ CREATE TABLE public.candidate_cards (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     norm_name text NOT NULL,
+    submitted_by_user_id text,
+    submission_note text,
+    CONSTRAINT candidate_cards_submission_note_check CHECK ((submission_note <> ''::text)),
     CONSTRAINT chk_candidate_cards_energy_non_negative CHECK ((energy >= 0)),
     CONSTRAINT chk_candidate_cards_might_bonus_non_negative CHECK ((might_bonus >= 0)),
     CONSTRAINT chk_candidate_cards_might_non_negative CHECK ((might >= 0)),
@@ -518,6 +521,9 @@ CREATE TABLE public.candidate_printings (
     language text,
     printed_name text,
     marker_slugs text[] DEFAULT '{}'::text[] NOT NULL,
+    size text,
+    distribution_channel_slugs text[] DEFAULT '{}'::text[] NOT NULL,
+    CONSTRAINT candidate_printings_size_check CHECK ((size <> ''::text)),
     CONSTRAINT chk_candidate_printings_no_empty_art_variant CHECK ((art_variant <> ''::text)),
     CONSTRAINT chk_candidate_printings_no_empty_artist CHECK ((artist <> ''::text)),
     CONSTRAINT chk_candidate_printings_no_empty_external_id CHECK ((external_id <> ''::text)),
@@ -3064,6 +3070,13 @@ CREATE INDEX idx_candidate_cards_provider_short_code ON public.candidate_cards U
 
 
 --
+-- Name: idx_candidate_cards_submitted_by_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_candidate_cards_submitted_by_user_id ON public.candidate_cards USING btree (submitted_by_user_id) WHERE (submitted_by_user_id IS NOT NULL);
+
+
+--
 -- Name: idx_candidate_cards_unchecked; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4151,6 +4164,14 @@ ALTER TABLE ONLY public.admins
 
 
 --
+-- Name: candidate_cards candidate_cards_submitted_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.candidate_cards
+    ADD CONSTRAINT candidate_cards_submitted_by_user_id_fkey FOREIGN KEY (submitted_by_user_id) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
 -- Name: candidate_printings candidate_printings_candidate_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5130,5 +5151,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict mu15TfgKOc5vyW6U9Xv9mocVTq8MNHygbOJXFSbtAtieElFcry2BTLhh2QmLtPZ
+\unrestrict 86x8mDD5tqReUwWY6Y8OgxjWqT8mFMLKgh8CkuvXgiNuXisAoI6aEpJooYYADEb
 

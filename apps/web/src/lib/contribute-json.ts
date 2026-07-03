@@ -1,19 +1,18 @@
 /**
- * Helpers for the "contribute card data" form: validates form state against
- * the openrift-data schema, builds the JSON file, and constructs the GitHub
- * URL that opens a prefilled "new file" editor for the contributor.
+ * Helpers for the "contribute card data" form: validates form state against the
+ * shared contribution schema and builds the payload for the in-app submission
+ * endpoint (ADR-036).
  *
- * Filenames carry a `--<date>` suffix so the GitHub URL never collides with
- * an existing file. A consolidation Action in openrift-data strips the suffix
- * on PR open. External IDs carry the same suffix to keep the in-PR snapshot
- * unique against `check-uniqueness.mjs`.
+ * Validation reuses `contributionFileSchema` (the same card/printing rules the
+ * catalog enforces); `buildContributionJson` shapes form state into that schema
+ * only so the client can surface field errors before submitting.
  */
 import type { Card, Printing } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
+import type { CardSubmissionInput } from "@openrift/shared/contracts";
 import { contributionFileSchema } from "@openrift/shared/contribute-schema";
 import type { ZodIssue } from "zod";
 
-const REPO = "openriftapp/openrift-data";
 const SCHEMA_REF = "../../schemas/card.schema.json";
 const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]*$/u;
 
@@ -90,7 +89,9 @@ export interface ContributeFormPrinting {
   artVariant: string | null;
   isSigned: boolean;
   markerSlugs: string[];
+  distributionChannelSlugs: string[];
   finish: string | null;
+  size: string | null;
   artist: string | null;
   publicCode: string | null;
   printedRulesText: string | null;
@@ -142,7 +143,9 @@ export function emptyPrinting(): ContributeFormPrinting {
     artVariant: null,
     isSigned: false,
     markerSlugs: [],
+    distributionChannelSlugs: [],
     finish: null,
+    size: WellKnown.cardSize.STANDARD,
     artist: null,
     publicCode: null,
     printedRulesText: null,
@@ -303,7 +306,14 @@ function buildPrintingJson(
     out.is_signed = true;
   }
   setIfPresent(out, "marker_slugs", printing.markerSlugs, isNonEmptyArray);
+  setIfPresent(
+    out,
+    "distribution_channel_slugs",
+    printing.distributionChannelSlugs,
+    isNonEmptyArray,
+  );
   setIfPresent(out, "finish", trimOrNull(printing.finish), isNonEmptyString);
+  setIfPresent(out, "size", trimOrNull(printing.size), isNonEmptyString);
   setIfPresent(out, "artist", trimOrNull(printing.artist), isNonEmptyString);
   setIfPresent(out, "public_code", trimOrNull(printing.publicCode), isNonEmptyString);
   setIfPresent(out, "printed_rules_text", trimOrNull(printing.printedRulesText), isNonEmptyString);
@@ -346,42 +356,35 @@ export function buildContributionJson(
   return { $schema: SCHEMA_REF, _instructions: SUBMIT_INSTRUCTIONS, card, printings };
 }
 
-export function buildContributionFilename(slug: string, dateStamp: string): string {
-  return `data/cards/${slug}--${dateStamp}.json`;
-}
-
 /**
- * Builds a Conventional Commits subject line for the prefilled commit.
- * Without this, GitHub auto-suggests "Create <filename>", which doesn't pass
- * openrift-data's commitlint check.
- * @param cardName Card display name; falls back to "card" if blank.
- * @param isCorrection True for the correction flow (existing card), false for new submissions.
- * @returns A commit subject like `feat: add Ahri, Alluring`.
+ * Builds the payload for the in-app submission endpoint (ADR-036). Same
+ * snake_case card/printing fields as the contribution JSON, but without the
+ * generated `external_id`s (the server mints per-submission ones) and without
+ * the GitHub-only `$schema` / `_instructions` wrapper. The contributor's note
+ * rides alongside.
+ * @param state Current form state.
+ * @param submissionNote Optional contributor note; trimmed, blank becomes null.
+ * @returns The request body for `cardSubmissionsContract.submit`.
  */
-export function buildCommitMessage(cardName: string, isCorrection: boolean): string {
-  const trimmed = cardName.trim() || "card";
-  return isCorrection ? `fix: update ${trimmed}` : `feat: add ${trimmed}`;
-}
-
-/**
- * Builds the GitHub "new file" URL that opens the prefilled editor. GitHub's
- * `value` parameter is read as form data when the editor mounts, so URL-encoded
- * JSON survives intact through their fork-and-commit flow. The `message` param
- * sets the commit subject so it follows Conventional Commits (openrift-data
- * enforces it).
- * @param filename Repo-relative path under openrift-data.
- * @param json The contribution JSON; serialized with 2-space indent.
- * @param message Conventional Commits subject line for the commit and PR title.
- * @returns A URL the contributor can open in a new tab.
- */
-export function buildGithubNewFileUrl(
-  filename: string,
-  json: ContributionJson,
-  message: string,
-): string {
-  const body = JSON.stringify(json, null, 2);
-  const params = new URLSearchParams({ filename, value: body, message });
-  return `https://github.com/${REPO}/new/main?${params.toString()}`;
+export function buildSubmissionPayload(
+  state: ContributeFormState,
+  submissionNote: string | null,
+): CardSubmissionInput {
+  const cardName = state.card.name.trim();
+  const card = buildCardJson(state.card, "");
+  delete card.external_id;
+  const printings = state.printings.map((printing) => {
+    const printingJson = buildPrintingJson(printing, "", cardName);
+    delete printingJson.external_id;
+    return printingJson;
+  });
+  const trimmedNote = submissionNote?.trim() ? submissionNote.trim() : null;
+  return {
+    slug: state.slug,
+    card: card as CardSubmissionInput["card"],
+    printings: printings as CardSubmissionInput["printings"],
+    submissionNote: trimmedNote,
+  };
 }
 
 /**
@@ -417,6 +420,10 @@ export function buildImagePatchState(args: {
         setId: args.setSlug,
         setName: args.setName,
         finish: args.printing.finish || null,
+        // Keep the image patch sparse: only the fields that identify the
+        // printing plus the image URL. Size/channels are left out (null/[]) so
+        // the suggestion never asserts them.
+        size: null,
         publicCode: args.printing.publicCode || null,
         imageUrl: args.imageUrl,
         language: args.printing.language || "EN",
@@ -462,7 +469,9 @@ export function prefillFromCard(
       artVariant: p.artVariant || null,
       isSigned: p.isSigned,
       markerSlugs: p.markers.map((m) => m.slug),
+      distributionChannelSlugs: p.distributionChannels.map((channel) => channel.channel.slug),
       finish: p.finish || null,
+      size: p.size ?? WellKnown.cardSize.STANDARD,
       artist: p.artist || null,
       publicCode: p.publicCode || null,
       printedRulesText: p.printedRulesText,

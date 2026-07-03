@@ -65,6 +65,7 @@ function makeColumns(meta: CardNameCellMeta): ColumnDef<Row>[] {
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <CardNameCell row={r} meta={meta} />
             {r.hasFavorite && <Badge>favorite</Badge>}
+            {r.hasUserSubmission && <Badge variant="outline">user submission</Badge>}
             {total > 0 && <Badge variant="destructive">★ Unchecked</Badge>}
           </span>
         );
@@ -150,11 +151,12 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
   });
 
   const navigate = useNavigate({ from: CardsRoute.fullPath });
-  const { sorting, globalFilter, activeStatus } = CardsRoute.useSearch({
+  const { sorting, globalFilter, activeStatus, activeSource } = CardsRoute.useSearch({
     select: (s) => ({
       sorting: parseSortParam(s.sort),
       globalFilter: s.q ?? "",
       activeStatus: s.status ?? null,
+      activeSource: s.source ?? null,
     }),
   });
 
@@ -162,18 +164,35 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
     (r) => r.uncheckedCardCount + r.uncheckedPrintingCount > 0,
   ).length;
 
+  const userSubmissionCount = data.filter((r) => r.hasUserSubmission).length;
+
   const acceptableCount = data.filter((r) => !r.cardSlug && r.hasFavorite).length;
 
-  const filteredData =
-    activeStatus === "unchecked"
-      ? data.filter((r) => r.uncheckedCardCount + r.uncheckedPrintingCount > 0)
-      : data;
+  const filteredData = data.filter((r) => {
+    if (activeStatus === "unchecked" && r.uncheckedCardCount + r.uncheckedPrintingCount === 0) {
+      return false;
+    }
+    if (activeSource === "usersubmission" && !r.hasUserSubmission) {
+      return false;
+    }
+    return true;
+  });
 
   function toggleStatus(status: StatusFilter) {
     void navigate({
       search: (prev) => ({
         ...prev,
         status: activeStatus === status ? undefined : status,
+      }),
+      replace: true,
+    });
+  }
+
+  function toggleSource() {
+    void navigate({
+      search: (prev) => ({
+        ...prev,
+        source: activeSource === "usersubmission" ? undefined : "usersubmission",
       }),
       replace: true,
     });
@@ -252,6 +271,15 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
         >
           ★ Unchecked ({uncheckedCount})
         </Button>
+
+        {userSubmissionCount > 0 && (
+          <Button
+            variant={activeSource === "usersubmission" ? "default" : "outline"}
+            onClick={toggleSource}
+          >
+            User submissions ({userSubmissionCount})
+          </Button>
+        )}
 
         {acceptableCount > 0 && (
           <Button

@@ -403,7 +403,9 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         | "artVariant"
         | "isSigned"
         | "markerSlugs"
+        | "distributionChannelSlugs"
         | "finish"
+        | "size"
         | "artist"
         | "publicCode"
         | "printedRulesText"
@@ -434,7 +436,9 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           "ps.artVariant",
           "ps.isSigned",
           "ps.markerSlugs",
+          "ps.distributionChannelSlugs",
           "ps.finish",
+          "ps.size",
           "ps.artist",
           "ps.publicCode",
           "ps.printedRulesText",

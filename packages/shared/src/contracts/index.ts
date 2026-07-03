@@ -40,6 +40,7 @@ export * from "./admin/typography-review.js";
 export * from "./admin/unified-mappings.js";
 export * from "./admin/users.js";
 export * from "./cards.js";
+export * from "./card-submissions.js";
 export * from "./card-trades.js";
 export * from "./catalog.js";
 export * from "./collection-events.js";

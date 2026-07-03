@@ -195,6 +195,17 @@
               }
             ]
           },
+          "size": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "artist": {
             "anyOf": [
               {

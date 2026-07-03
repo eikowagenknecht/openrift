@@ -175,6 +175,7 @@ export const ingestPrintingSchema = z.object({
   marker_slugs: z.array(z.string().min(1)).optional().default([]),
   distribution_channel_slugs: z.array(z.string().min(1)).optional().default([]),
   finish: nullStr,
+  size: nullStr,
   artist: nullStr,
   public_code: nullStr,
   printed_rules_text: nullStr,

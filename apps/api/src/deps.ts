@@ -75,6 +75,7 @@ import { logEvents } from "./services/event-logger.js";
 import { importErrata } from "./services/import-errata.js";
 import { ensureInbox } from "./services/inbox.js";
 import { ingestCandidates } from "./services/ingest-candidates.js";
+import { ingestUserSubmission } from "./services/ingest-user-submission.js";
 import { moveListEntries } from "./services/lists.js";
 import { getMappingOverview } from "./services/marketplace-mapping.js";
 import type { TradeEmailDeps } from "./services/trade-notifications.js";
@@ -148,6 +149,7 @@ export interface Services {
   disposeCopies: typeof disposeCopies;
   getMappingOverview: typeof getMappingOverview;
   ingestCandidates: typeof ingestCandidates;
+  ingestUserSubmission: typeof ingestUserSubmission;
   importErrata: typeof importErrata;
   createTrade: typeof createTrade;
   acceptTrade: typeof acceptTrade;
@@ -271,6 +273,7 @@ export const services: Services = {
   disposeCopies,
   getMappingOverview,
   ingestCandidates,
+  ingestUserSubmission,
   importErrata,
   createTrade,
   acceptTrade,

@@ -11,12 +11,13 @@ export const Route = createLazyFileRoute("/_app/contribute")({
 
 function ContributePage() {
   return (
-    <div className={`${PAGE_PADDING} mx-auto flex max-w-3xl flex-col gap-6`}>
-      <header className="flex flex-col gap-1">
+    <div className={`${PAGE_PADDING} mx-auto flex max-w-3xl flex-col gap-6 xl:max-w-6xl`}>
+      <header className="flex max-w-3xl flex-col gap-1">
         <Heading level={1}>Add a card to OpenRift</Heading>
         <p className="text-muted-foreground">
-          Spotted a card that&apos;s missing? Fill in what you know below and submit. You&apos;ll
-          need a free GitHub account, but no coding or git experience.
+          Spotted a card that&apos;s missing? Fill in what you know below and submit. You don&apos;t
+          need to complete every field. Partial entries still help, and the more detail you add, the
+          faster I can review it.
         </p>
       </header>
       <ContributeForm initial={emptyFormState()} />

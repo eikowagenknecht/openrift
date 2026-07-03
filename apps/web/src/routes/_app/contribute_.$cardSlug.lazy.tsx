@@ -32,7 +32,7 @@ function ContributeCorrectionPage() {
   };
 
   return (
-    <div className={`${PAGE_PADDING} mx-auto flex w-full max-w-3xl flex-col gap-6`}>
+    <div className={`${PAGE_PADDING} mx-auto flex w-full max-w-3xl flex-col gap-6 xl:max-w-6xl`}>
       <button
         type="button"
         onClick={handleBack}
@@ -41,7 +41,7 @@ function ContributeCorrectionPage() {
         <ArrowLeftIcon className="size-4" />
         Back
       </button>
-      <header className="flex flex-col gap-1">
+      <header className="flex max-w-3xl flex-col gap-1">
         <Heading level={1}>Suggest a correction</Heading>
         <p className="text-muted-foreground">
           Spotted something off on{" "}

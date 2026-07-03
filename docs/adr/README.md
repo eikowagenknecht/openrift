@@ -59,3 +59,4 @@ The MADR documentation is available at <https://adr.github.io/madr/> while gener
 - **[ADR-029](029-deck-plans.md)**: Deck Plans (Strategy, Mulligan, Battlefields, Sideboard)
 - **[ADR-033](033-unified-tournaments.md)**: Unified Tournaments — Hosts, Participants, and Capability Modules (supersedes ADR-022's single-owner/free-text-player stance and re-parents ADR-025/026/027 deck check)
 - **[ADR-035](035-anonymous-deck-builder.md)**: Anonymous (Logged-Out) Deck Builder
+- **[ADR-036](036-in-app-user-submissions.md)**: In-App User Card Submissions via the Candidate Pipeline (extends ADR-008 with a `usersubmission` provider)

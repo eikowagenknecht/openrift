@@ -1,19 +1,17 @@
 import type { Card, Printing } from "@openrift/shared";
-import { ChevronRightIcon, ExternalLinkIcon } from "lucide-react";
+import { CheckCircle2Icon, ChevronRightIcon, SendIcon } from "lucide-react";
 import { useState } from "react";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useSubmitCard } from "@/hooks/use-card-submission";
 import type { ValidationError } from "@/lib/contribute-json";
 import {
-  buildCommitMessage,
-  buildContributionFilename,
-  buildContributionJson,
-  buildGithubNewFileUrl,
   buildImagePatchState,
-  formatDateStamp,
+  buildSubmissionPayload,
   validateContribution,
 } from "@/lib/contribute-json";
 
@@ -28,6 +26,8 @@ export function ImageSuggestForm({ card, printing, setSlug, setName }: ImageSugg
   const [imageUrl, setImageUrl] = useState("");
   const [errors, setErrors] = useState<ValidationError[]>([]);
   const [submitted, setSubmitted] = useState(false);
+
+  const submit = useSubmitCard();
 
   const trimmedUrl = imageUrl.trim();
   const urlError = submitted
@@ -50,12 +50,17 @@ export function ImageSuggestForm({ card, printing, setSlug, setName }: ImageSugg
     if (!result.ok) {
       return;
     }
-    const stamp = formatDateStamp(new Date());
-    const json = buildContributionJson(state, stamp);
-    const filename = buildContributionFilename(state.slug, stamp);
-    const message = buildCommitMessage(card.name, true);
-    const url = buildGithubNewFileUrl(filename, json, message);
-    globalThis.open(url, "_blank", "noopener,noreferrer");
+    submit.mutate(buildSubmissionPayload(state, null));
+  }
+
+  if (submit.isSuccess) {
+    return (
+      <Alert>
+        <CheckCircle2Icon className="size-4" />
+        <AlertTitle>Thanks! Your image suggestion is in the review queue.</AlertTitle>
+        <AlertDescription>I check every submission before it goes live.</AlertDescription>
+      </Alert>
+    );
   }
 
   return (
@@ -83,35 +88,38 @@ export function ImageSuggestForm({ card, printing, setSlug, setName }: ImageSugg
           </CollapsibleTrigger>
           <CollapsibleContent>
             <p className="mt-1.5">
-              Leave this field empty and submit. You can attach the file on the GitHub page that
-              opens.
+              Host it somewhere with a direct link (any image host works) and paste that link here.
             </p>
           </CollapsibleContent>
         </Collapsible>
       </div>
 
+      {submit.isError && (
+        <Alert variant="destructive">
+          <AlertTitle>Couldn&apos;t submit</AlertTitle>
+          <AlertDescription>{submitErrorMessage(submit.error)}</AlertDescription>
+        </Alert>
+      )}
+
       <div className="flex flex-col gap-2">
-        <Button type="submit" className="self-start">
-          <ExternalLinkIcon className="size-4" />
-          Submit via GitHub
+        <Button type="submit" className="self-start" disabled={submit.isPending}>
+          <SendIcon className="size-4" />
+          {submit.isPending ? "Submitting…" : "Submit image suggestion"}
         </Button>
         <p className="text-muted-foreground text-sm">
-          Opens in a new tab to confirm. I&apos;ll review before it goes live.
+          Goes straight into the review queue. I&apos;ll review before it goes live.
         </p>
-        <Collapsible className="text-muted-foreground text-sm">
-          <CollapsibleTrigger className="group hover:text-foreground inline-flex cursor-pointer items-center gap-1 select-none">
-            First time on GitHub?
-            <ChevronRightIcon className="size-3.5 shrink-0 transition-transform group-data-[panel-open]:rotate-90" />
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <ol className="mt-1.5 ml-5 list-decimal space-y-1">
-              <li>GitHub will offer to fork the data repo in one click. Accept it.</li>
-              <li>Scroll to the bottom of the editor and click &ldquo;Propose changes&rdquo;.</li>
-              <li>On the next page, click &ldquo;Create pull request&rdquo; to confirm.</li>
-            </ol>
-          </CollapsibleContent>
-        </Collapsible>
       </div>
     </form>
   );
+}
+
+/**
+ * Extracts a contributor-facing message from a failed submission.
+ * @param error The mutation error.
+ * @returns A message to show the contributor.
+ */
+function submitErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message.trim() : "";
+  return message || "Something went wrong. Please try again in a moment.";
 }

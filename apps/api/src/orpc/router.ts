@@ -45,6 +45,7 @@ import { adminSuperTypesRouter } from "../routes/admin/super-types.js";
 import { adminTypographyReviewRouter } from "../routes/admin/typography-review.js";
 import { adminUnifiedMappingsRouter } from "../routes/admin/unified-mappings.js";
 import { adminUsersRouter } from "../routes/admin/users.js";
+import { cardSubmissionsRouter } from "../routes/authenticated/card-submissions.js";
 import { cardTradesRouter } from "../routes/authenticated/card-trades.js";
 import { collectionEventsRouter } from "../routes/authenticated/collection-events.js";
 import { collectionValueHistoryRouter } from "../routes/authenticated/collection-value-history.js";
@@ -129,6 +130,7 @@ const apiRouter = {
   adminTypographyReviewRouter,
   adminUnifiedMappingsRouter,
   adminUsersRouter,
+  cardSubmissionsRouter,
   cardTradesRouter,
   collectionEventsRouter,
   collectionValueHistoryRouter,

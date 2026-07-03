@@ -1,7 +1,15 @@
 import type { SetListResponse } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { ChevronRightIcon, ExternalLinkIcon, LinkIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import {
+  CheckCircle2Icon,
+  ChevronRightIcon,
+  CopyIcon,
+  LinkIcon,
+  PlusIcon,
+  SendIcon,
+  Trash2Icon,
+} from "lucide-react";
 import { useState } from "react";
 
 import { CardPlaceholderImage } from "@/components/cards/card-placeholder-image";
@@ -24,7 +32,13 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { useEnumOrders, useLanguageList, useMarkerList } from "@/hooks/use-enums";
+import { useSubmitCard } from "@/hooks/use-card-submission";
+import {
+  useChannelRegistry,
+  useEnumOrders,
+  useLanguageList,
+  useMarkerList,
+} from "@/hooks/use-enums";
 import { publicSetListQueryOptions } from "@/hooks/use-public-sets";
 import type {
   ContributeFormPrinting,
@@ -32,18 +46,15 @@ import type {
   ValidationError,
 } from "@/lib/contribute-json";
 import {
-  buildCommitMessage,
-  buildContributionFilename,
-  buildContributionJson,
-  buildGithubNewFileUrl,
+  buildSubmissionPayload,
+  emptyFormState,
   emptyPrinting,
-  formatDateStamp,
   nameToSlug,
   validateContribution,
 } from "@/lib/contribute-json";
+import { buildChannelTree, leafChannels } from "@/lib/distribution-channel-tree";
 import { computeDomainDisabled } from "@/lib/domain";
 import { getFilterIconPath } from "@/lib/icons";
-import { SOCIAL_LINKS } from "@/lib/social-links";
 import { cn } from "@/lib/utils";
 
 interface ContributeFormProps {
@@ -61,16 +72,34 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
   const [errors, setErrors] = useState<ValidationError[]>([]);
   const [submitted, setSubmitted] = useState(false);
   const [activePrinting, setActivePrinting] = useState(0);
+  const [note, setNote] = useState("");
+
+  const submit = useSubmitCard();
 
   const { orders, labels } = useEnumOrders();
   const languages = useLanguageList();
   const markerOptions = useMarkerList();
+  // Leaf channels only (printings link to leaves), each shown with its full
+  // breadcrumb path via the shared channel-tree helper.
+  const channelOptions = leafChannels(buildChannelTree(useChannelRegistry())).map((node) => ({
+    slug: node.channel.slug,
+    label: node.breadcrumb,
+  }));
   const { data: setListData } = useSuspenseQuery(publicSetListQueryOptions);
+
+  // Once a submission has succeeded, the next edit means the contributor is
+  // working on a fresh entry — clear the success banner and re-enable submit.
+  const clearSuccess = () => {
+    if (submit.isSuccess) {
+      submit.reset();
+    }
+  };
 
   const setCardField = <K extends keyof ContributeFormState["card"]>(
     key: K,
     value: ContributeFormState["card"][K],
   ) => {
+    clearSuccess();
     setState((s) => {
       const nextSlug = !lockedSlug && key === "name" ? nameToSlug(value as string) : s.slug;
       let nextPrintings = s.printings;
@@ -94,6 +123,7 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
     key: K,
     value: ContributeFormPrinting[K],
   ) => {
+    clearSuccess();
     setState((s) => ({
       ...s,
       printings: s.printings.map((p, i) => (i === index ? { ...p, [key]: value } : p)),
@@ -106,12 +136,36 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
       return { ...s, printings: nextPrintings };
     });
   };
+  const duplicatePrinting = (index: number) => {
+    setState((s) => {
+      const source = s.printings[index];
+      if (!source) {
+        return s;
+      }
+      const nextPrintings = [
+        ...s.printings.slice(0, index + 1),
+        { ...source },
+        ...s.printings.slice(index + 1),
+      ];
+      setActivePrinting(index + 1);
+      return { ...s, printings: nextPrintings };
+    });
+  };
   const removePrinting = (index: number) => {
     setState((s) => {
       const nextPrintings = s.printings.filter((_, i) => i !== index);
       setActivePrinting((prev) => Math.min(prev, nextPrintings.length - 1));
       return { ...s, printings: nextPrintings };
     });
+  };
+
+  const startAnother = () => {
+    submit.reset();
+    setState(emptyFormState());
+    setNote("");
+    setErrors([]);
+    setSubmitted(false);
+    setActivePrinting(0);
   };
 
   const handleSubmit = (event: React.FormEvent) => {
@@ -122,12 +176,7 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
     if (!result.ok) {
       return;
     }
-    const stamp = formatDateStamp(new Date());
-    const json = buildContributionJson(state, stamp);
-    const filename = buildContributionFilename(state.slug, stamp);
-    const message = buildCommitMessage(state.card.name, lockedSlug !== undefined);
-    const url = buildGithubNewFileUrl(filename, json, message);
-    globalThis.open(url, "_blank", "noopener,noreferrer");
+    submit.mutate(buildSubmissionPayload(state, note));
   };
 
   const errorAt = (path: string): string | undefined =>
@@ -141,164 +190,185 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-8">
-      <IntroBlock lockedSlug={lockedSlug} />
+      <div className="flex flex-col gap-8 xl:flex-row xl:items-start xl:gap-8">
+        <div className="flex min-w-0 flex-1 flex-col gap-8">
+          <IntroBlock lockedSlug={lockedSlug} />
 
-      <CardLayoutHelp state={state} activePrinting={activePrinting} />
+          <CardLayoutHelp state={state} activePrinting={activePrinting} />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Card</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FieldRow label="Name" required error={errorAt("card.name")}>
-              <Input
-                value={state.card.name}
-                onChange={(e) => setCardField("name", e.target.value)}
-                placeholder="Ahri, Alluring"
-              />
-            </FieldRow>
-            <FieldRow label="Slug" error={errorAt("slug")}>
-              <Input value={state.slug} disabled readOnly placeholder="ahri-alluring" />
-            </FieldRow>
-          </div>
-          <FieldRow label="Domains">
-            <ToggleGroup
-              multiple
-              variant="outline"
-              value={state.card.domains}
-              onValueChange={(next) => setCardField("domains", next)}
-            >
-              {orders.domains.map((slug) => {
-                const selected = state.card.domains.includes(slug);
-                const disabled = !selected && domainDisabled.has(slug);
-                const iconSrc = domainIcons[slug];
-                const isColorless = slug === WellKnown.domain.COLORLESS;
-                return (
-                  <ToggleGroupItem key={slug} value={slug} disabled={disabled}>
-                    {iconSrc && (
-                      <img
-                        src={iconSrc}
-                        alt=""
-                        className={cn("size-4 shrink-0", isColorless && "brightness-0 dark:invert")}
-                      />
-                    )}
-                    {labels.domains[slug]}
-                  </ToggleGroupItem>
-                );
-              })}
-            </ToggleGroup>
-          </FieldRow>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FieldRow label="Type">
-              <SingleSelect
-                value={state.card.type}
-                onChange={(v) => setCardField("type", v)}
-                options={orders.cardTypes}
-                labels={labels.cardTypes}
-                placeholder="Pick a type"
-              />
-            </FieldRow>
-            <FieldRow label="Supertypes">
-              <ToggleGroup
-                multiple
-                variant="outline"
-                value={state.card.superTypes}
-                onValueChange={(next) => setCardField("superTypes", next)}
+          <Card>
+            <CardHeader>
+              <CardTitle>Card</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FieldRow label="Name" required error={errorAt("card.name")}>
+                  <Input
+                    value={state.card.name}
+                    onChange={(e) => setCardField("name", e.target.value)}
+                    placeholder="Ahri, Alluring"
+                  />
+                </FieldRow>
+                <FieldRow label="Slug" error={errorAt("slug")}>
+                  <Input value={state.slug} disabled readOnly placeholder="ahri-alluring" />
+                </FieldRow>
+              </div>
+              <FieldRow label="Domains">
+                <ToggleGroup
+                  multiple
+                  variant="outline"
+                  value={state.card.domains}
+                  onValueChange={(next) => setCardField("domains", next)}
+                >
+                  {orders.domains.map((slug) => {
+                    const selected = state.card.domains.includes(slug);
+                    const disabled = !selected && domainDisabled.has(slug);
+                    const iconSrc = domainIcons[slug];
+                    const isColorless = slug === WellKnown.domain.COLORLESS;
+                    return (
+                      <ToggleGroupItem key={slug} value={slug} disabled={disabled}>
+                        {iconSrc && (
+                          <img
+                            src={iconSrc}
+                            alt=""
+                            className={cn(
+                              "size-4 shrink-0",
+                              isColorless && "brightness-0 dark:invert",
+                            )}
+                          />
+                        )}
+                        {labels.domains[slug]}
+                      </ToggleGroupItem>
+                    );
+                  })}
+                </ToggleGroup>
+              </FieldRow>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FieldRow label="Type">
+                  <SingleSelect
+                    value={state.card.type}
+                    onChange={(v) => setCardField("type", v)}
+                    options={orders.cardTypes}
+                    labels={labels.cardTypes}
+                    placeholder="Pick a type"
+                  />
+                </FieldRow>
+                <FieldRow label="Supertypes">
+                  <ToggleGroup
+                    multiple
+                    variant="outline"
+                    value={state.card.superTypes}
+                    onValueChange={(next) => setCardField("superTypes", next)}
+                  >
+                    {orders.superTypes.map((slug) => (
+                      <ToggleGroupItem key={slug} value={slug}>
+                        {labels.superTypes[slug]}
+                      </ToggleGroupItem>
+                    ))}
+                  </ToggleGroup>
+                </FieldRow>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
+                <FieldRow label="Might">
+                  <NumberInput
+                    value={state.card.might}
+                    onChange={(v) => setCardField("might", v)}
+                  />
+                </FieldRow>
+                <FieldRow label="Energy">
+                  <NumberInput
+                    value={state.card.energy}
+                    onChange={(v) => setCardField("energy", v)}
+                  />
+                </FieldRow>
+                <FieldRow label="Power">
+                  <NumberInput
+                    value={state.card.power}
+                    onChange={(v) => setCardField("power", v)}
+                  />
+                </FieldRow>
+                <FieldRow label="Might bonus">
+                  <NumberInput
+                    value={state.card.mightBonus}
+                    onChange={(v) => setCardField("mightBonus", v)}
+                  />
+                </FieldRow>
+              </div>
+              <FieldRow label="Tags" hint="Press Enter or comma to add.">
+                <ChipInput
+                  value={state.card.tags}
+                  onChange={(v) => setCardField("tags", v)}
+                  placeholder="Poro"
+                />
+              </FieldRow>
+            </CardContent>
+          </Card>
+
+          <section className="flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <Heading level={2}>Printings</Heading>
+              <Button type="button" variant="outline" size="sm" onClick={addPrinting}>
+                <PlusIcon className="size-4" />
+                Add printing
+              </Button>
+            </div>
+            {state.printings.length > 1 ? (
+              <Tabs
+                value={activePrinting.toString()}
+                onValueChange={(next) => setActivePrinting(Number(next))}
               >
-                {orders.superTypes.map((slug) => (
-                  <ToggleGroupItem key={slug} value={slug}>
-                    {labels.superTypes[slug]}
-                  </ToggleGroupItem>
+                <TabsList className="w-full justify-start overflow-x-auto">
+                  {state.printings.map((printing, index) => (
+                    <TabsTrigger key={index} value={index.toString()}>
+                      {printingTabLabel(index, printing)}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+                {state.printings.map((printing, index) => (
+                  <TabsContent key={index} value={index.toString()}>
+                    <PrintingCard
+                      index={index}
+                      printing={printing}
+                      errorAt={errorAt}
+                      sets={sets}
+                      languages={languages}
+                      markers={markerOptions}
+                      channels={channelOptions}
+                      orders={orders}
+                      labels={labels}
+                      onChange={(key, value) => setPrintingField(index, key, value)}
+                      onCopy={() => duplicatePrinting(index)}
+                      onRemove={() => removePrinting(index)}
+                    />
+                  </TabsContent>
                 ))}
-              </ToggleGroup>
-            </FieldRow>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
-            <FieldRow label="Might">
-              <NumberInput value={state.card.might} onChange={(v) => setCardField("might", v)} />
-            </FieldRow>
-            <FieldRow label="Energy">
-              <NumberInput value={state.card.energy} onChange={(v) => setCardField("energy", v)} />
-            </FieldRow>
-            <FieldRow label="Power">
-              <NumberInput value={state.card.power} onChange={(v) => setCardField("power", v)} />
-            </FieldRow>
-            <FieldRow label="Might bonus">
-              <NumberInput
-                value={state.card.mightBonus}
-                onChange={(v) => setCardField("mightBonus", v)}
-              />
-            </FieldRow>
-          </div>
-          <FieldRow label="Tags" hint="Press Enter or comma to add.">
-            <ChipInput
-              value={state.card.tags}
-              onChange={(v) => setCardField("tags", v)}
-              placeholder="Ahri"
-            />
-          </FieldRow>
-        </CardContent>
-      </Card>
-
-      <section className="flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <Heading level={2}>Printings</Heading>
-          <Button type="button" variant="outline" size="sm" onClick={addPrinting}>
-            <PlusIcon className="size-4" />
-            Add printing
-          </Button>
-        </div>
-        {state.printings.length > 1 ? (
-          <Tabs
-            value={activePrinting.toString()}
-            onValueChange={(next) => setActivePrinting(Number(next))}
-          >
-            <TabsList className="w-full justify-start overflow-x-auto">
-              {state.printings.map((printing, index) => (
-                <TabsTrigger key={index} value={index.toString()}>
-                  {printingTabLabel(index, printing)}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-            {state.printings.map((printing, index) => (
-              <TabsContent key={index} value={index.toString()}>
+              </Tabs>
+            ) : (
+              state.printings.map((printing, index) => (
                 <PrintingCard
+                  key={index}
                   index={index}
                   printing={printing}
                   errorAt={errorAt}
                   sets={sets}
                   languages={languages}
                   markers={markerOptions}
+                  channels={channelOptions}
                   orders={orders}
                   labels={labels}
                   onChange={(key, value) => setPrintingField(index, key, value)}
-                  onRemove={() => removePrinting(index)}
+                  onCopy={() => duplicatePrinting(index)}
+                  onRemove={undefined}
                 />
-              </TabsContent>
-            ))}
-          </Tabs>
-        ) : (
-          state.printings.map((printing, index) => (
-            <PrintingCard
-              key={index}
-              index={index}
-              printing={printing}
-              errorAt={errorAt}
-              sets={sets}
-              languages={languages}
-              markers={markerOptions}
-              orders={orders}
-              labels={labels}
-              onChange={(key, value) => setPrintingField(index, key, value)}
-              onRemove={undefined}
-            />
-          ))
-        )}
-      </section>
-
-      <LivePreview state={state} activePrinting={activePrinting} />
+              ))
+            )}
+          </section>
+        </div>
+        <div className="xl:sticky xl:top-20 xl:w-80 xl:shrink-0">
+          <LivePreview state={state} activePrinting={activePrinting} />
+        </div>
+      </div>
 
       {submitted && errors.length > 0 && (
         <Alert variant="destructive">
@@ -315,20 +385,71 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
         </Alert>
       )}
 
-      <div className="flex flex-col gap-2">
-        <Button type="submit" className="self-start">
-          <ExternalLinkIcon className="size-4" />
-          Submit your contribution
-        </Button>
-        <p className="text-muted-foreground text-sm">
-          A new tab opens on GitHub with everything filled in. First time? GitHub will offer to
-          create your fork in one click. Click &ldquo;Propose changes&rdquo; at the bottom of the
-          editor, then &ldquo;Create pull request&rdquo; on the next page. Add any notes (where you
-          spotted the card, art variant unconfirmed, etc.) to the pull request description.
-        </p>
+      {submit.isSuccess && (
+        <Alert>
+          <CheckCircle2Icon className="size-4" />
+          <AlertTitle>Thanks! Your submission is in the review queue.</AlertTitle>
+          <AlertDescription className="flex flex-col items-start gap-2">
+            <span>I check every submission before it goes live.</span>
+            {!lockedSlug && (
+              <Button type="button" variant="outline" size="sm" onClick={startAnother}>
+                <PlusIcon className="size-4" />
+                Start another card
+              </Button>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <div className="flex flex-col gap-4">
+        <FieldRow label="Note">
+          <Textarea
+            rows={2}
+            value={note}
+            onChange={(e) => {
+              clearSuccess();
+              setNote(e.target.value);
+            }}
+            placeholder="Spotted in the OGN set list, art variant unconfirmed."
+          />
+        </FieldRow>
+
+        {submit.isError && (
+          <Alert variant="destructive">
+            <AlertTitle>Couldn&apos;t submit</AlertTitle>
+            <AlertDescription>{submitErrorMessage(submit.error)}</AlertDescription>
+          </Alert>
+        )}
+
+        <div className="flex flex-col gap-2">
+          <Button
+            type="submit"
+            className="self-start"
+            disabled={submit.isPending || submit.isSuccess}
+          >
+            <SendIcon className="size-4" />
+            {submit.isPending ? "Submitting…" : "Submit your contribution"}
+          </Button>
+          <p className="text-muted-foreground text-sm">
+            Your submission goes straight into the review queue. I check every one before it goes
+            live.
+          </p>
+        </div>
       </div>
     </form>
   );
+}
+
+/**
+ * Extracts a contributor-facing message from a failed submission. The endpoint's
+ * daily-cap and validation errors already carry a readable message; anything
+ * else falls back to a generic line.
+ * @param error The mutation error.
+ * @returns A message to show the contributor.
+ */
+function submitErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message.trim() : "";
+  return message || "Something went wrong. Please try again in a moment.";
 }
 
 const LAYOUT_LEGEND: { label: string; region: string }[] = [
@@ -462,28 +583,16 @@ function LivePreview({
 }
 
 function IntroBlock({ lockedSlug }: { lockedSlug?: string }) {
-  if (lockedSlug) {
-    return (
-      <p className="text-muted-foreground">
-        You&apos;re suggesting a correction for <span className="font-mono">{lockedSlug}</span>.
-        Edit any field that needs fixing and submit. I&apos;ll review the diff before it&apos;s
-        merged.
-      </p>
-    );
+  // The new-card intro lives in the page header; only the correction flow needs
+  // its own lead-in here.
+  if (!lockedSlug) {
+    return null;
   }
   return (
     <p className="text-muted-foreground">
-      Fill in what you have and leave the rest blank. Partial entries are still useful. Submitting
-      opens a prefilled pull request on the{" "}
-      <a
-        href={SOCIAL_LINKS.githubDataRepo}
-        target="_blank"
-        rel="noreferrer"
-        className="underline decoration-dotted underline-offset-2"
-      >
-        openrift-data
-      </a>{" "}
-      repo. I review every submission before it goes live.
+      You&apos;re suggesting a correction for <span className="font-mono">{lockedSlug}</span>. Edit
+      any field that needs fixing and submit. You don&apos;t need to touch every field, just the
+      ones that are off. I&apos;ll review the change before it goes live.
     </p>
   );
 }
@@ -495,12 +604,14 @@ interface PrintingCardProps {
   sets: SetListResponse["sets"];
   languages: { code: string; name: string }[];
   markers: { slug: string; label: string }[];
+  channels: { slug: string; label: string }[];
   orders: ReturnType<typeof useEnumOrders>["orders"];
   labels: ReturnType<typeof useEnumOrders>["labels"];
   onChange: <K extends keyof ContributeFormPrinting>(
     key: K,
     value: ContributeFormPrinting[K],
   ) => void;
+  onCopy: () => void;
   onRemove?: () => void;
 }
 
@@ -511,9 +622,11 @@ function PrintingCard({
   sets,
   languages,
   markers,
+  channels,
   orders,
   labels,
   onChange,
+  onCopy,
   onRemove,
 }: PrintingCardProps) {
   const handleSetChange = (slug: string | null) => {
@@ -526,16 +639,29 @@ function PrintingCard({
     <Card>
       <CardHeader>
         <CardTitle>Printing {index + 1}</CardTitle>
-        {onRemove && (
-          <CardAction>
+        <CardAction className="flex gap-1">
+          <Button type="button" variant="ghost" size="sm" onClick={onCopy}>
+            <CopyIcon className="size-4" />
+            Copy
+          </Button>
+          {onRemove && (
             <Button type="button" variant="ghost" size="sm" onClick={onRemove}>
               <Trash2Icon className="size-4" />
               Remove
             </Button>
-          </CardAction>
-        )}
+          )}
+        </CardAction>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
+        <FieldRow
+          label="Name"
+          hint="Defaults to the card name. Edit only if the printed name differs (e.g. for non-English versions)."
+        >
+          <Input
+            value={printing.printedName}
+            onChange={(e) => onChange("printedName", e.target.value)}
+          />
+        </FieldRow>
         <div className="grid gap-4 sm:grid-cols-3">
           <FieldRow
             label="Code"
@@ -599,15 +725,18 @@ function PrintingCard({
           </FieldRow>
         </div>
         <div className="grid gap-4 sm:grid-cols-3">
-          <FieldRow label="Artist">
-            <Input
-              value={printing.artist ?? ""}
-              onChange={(e) => onChange("artist", e.target.value || null)}
+          <FieldRow label="Size">
+            <SingleSelect
+              value={printing.size}
+              onChange={(v) => onChange("size", v ?? WellKnown.cardSize.STANDARD)}
+              options={orders.cardSizes}
+              labels={labels.cardSizes}
+              placeholder="Standard"
             />
           </FieldRow>
           <FieldRow
             label="Year"
-            hint="Year stamped on the physical card. Differs from the set release year for reprints."
+            hint="Year stamped on the physical card (bottom right)."
             error={errorAt(`printings[${index.toString()}].printedYear`)}
           >
             <NumberInput
@@ -623,24 +752,36 @@ function PrintingCard({
             />
           </FieldRow>
         </div>
-        <FieldRow label="Promo markers">
-          <MultiSelectDropdown
-            value={printing.markerSlugs}
-            onChange={(v) => onChange("markerSlugs", v)}
-            options={markers}
-            placeholder="None"
-          />
-        </FieldRow>
-
-        <FieldRow
-          label="Name"
-          hint="Defaults to the card name. Edit only if the printed name differs (e.g. for non-English versions)."
-        >
-          <Input
-            value={printing.printedName}
-            onChange={(e) => onChange("printedName", e.target.value)}
-          />
-        </FieldRow>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <FieldRow label="Artist">
+            <Input
+              value={printing.artist ?? ""}
+              onChange={(e) => onChange("artist", e.target.value || null)}
+            />
+          </FieldRow>
+          <FieldRow
+            label="Markers (e.g. Promo)"
+            hint="Visual add-ons stamped on the card: a promo stamp, a Skirmish circle, a launch-exclusive mark, and the like."
+          >
+            <MultiSelectDropdown
+              value={printing.markerSlugs}
+              onChange={(v) => onChange("markerSlugs", v)}
+              options={markers}
+              placeholder="None"
+            />
+          </FieldRow>
+          <FieldRow
+            label="Distribution channels"
+            hint="Where this printing was handed out, e.g. a specific event or product."
+          >
+            <MultiSelectDropdown
+              value={printing.distributionChannelSlugs}
+              onChange={(v) => onChange("distributionChannelSlugs", v)}
+              options={channels}
+              placeholder="None"
+            />
+          </FieldRow>
+        </div>
         <CardTextInput
           label="Rules text"
           value={printing.printedRulesText ?? ""}
@@ -660,7 +801,7 @@ function PrintingCard({
         </FieldRow>
         <FieldRow
           label="Image URL"
-          hint="Direct link to the official image (URL ending in .png, .jpg, etc.). Or leave blank and attach a photo or scan to the pull request after submitting."
+          hint="Direct link to the best quality image (.png, .jpg, .webp, etc.) you can find. Official images preferred, but a clear scan works too."
           error={errorAt(`printings[${index.toString()}].imageUrl`)}
         >
           <InputGroup>

@@ -77,6 +77,7 @@ export const contributionPrintingSchema = z
     marker_slugs: z.array(z.string().min(1)).optional(),
     distribution_channel_slugs: z.array(z.string().min(1)).optional(),
     finish: printingFieldRules.finish.nullable().optional(),
+    size: printingFieldRules.size.nullable().optional(),
     artist: printingFieldRules.artist.nullable().optional(),
     printed_rules_text: printingFieldRules.printedRulesText.optional(),
     printed_effect_text: printingFieldRules.printedEffectText.optional(),

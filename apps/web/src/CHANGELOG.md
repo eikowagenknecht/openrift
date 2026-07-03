@@ -12,6 +12,7 @@
 
 - feat(Cards): **One filter bar everywhere** — the slim filter bar is now the standard filter layout on every screen size, replacing the filter sidebar, the fold-out panel, and the compact-filters setting.
 - feat(Cards): **Pick your top-level filters** — decide per filter whether it sits in front or waits under "More", replacing filter hiding (previously hidden filters now show up in More).
+- feat(Cards): **Contribute cards in the app** — submit a missing card, a correction, or an image right from the app and send it straight to review, no GitHub account needed.
 
 ### Other
 

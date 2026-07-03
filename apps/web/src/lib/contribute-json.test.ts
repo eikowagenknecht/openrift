@@ -4,11 +4,9 @@ import { stubPrinting } from "@/test/factories";
 
 import type { ContributeFormState } from "./contribute-json";
 import {
-  buildCommitMessage,
-  buildContributionFilename,
   buildContributionJson,
-  buildGithubNewFileUrl,
   buildImagePatchState,
+  buildSubmissionPayload,
   emptyFormState,
   formatDateStamp,
   nameToSlug,
@@ -39,7 +37,9 @@ function fullState(): ContributeFormState {
         artVariant: "normal",
         isSigned: false,
         markerSlugs: [],
+        distributionChannelSlugs: [],
         finish: "foil",
+        size: "standard",
         artist: "League Splash Team",
         publicCode: "OGN-066/298",
         printedRulesText: "When I hold, you score 1 point.",
@@ -275,30 +275,35 @@ describe("buildContributionJson", () => {
   });
 });
 
-describe("buildContributionFilename", () => {
-  it("places the file under data/cards/ with the date suffix", () => {
-    expect(buildContributionFilename("ahri-alluring", STAMP)).toBe(
-      `data/cards/ahri-alluring--${STAMP}.json`,
+describe("buildSubmissionPayload", () => {
+  it("carries the slug and snake_case card fields without an external_id", () => {
+    const payload = buildSubmissionPayload(fullState(), null);
+    expect(payload.slug).toBe("ahri-alluring");
+    expect(payload.card).toMatchObject({
+      name: "Ahri, Alluring",
+      type: "unit",
+      super_types: ["champion"],
+      domains: ["calm"],
+      might: 4,
+    });
+    expect(payload.card).not.toHaveProperty("external_id");
+  });
+
+  it("emits at least one printing, each without an external_id", () => {
+    const payload = buildSubmissionPayload(fullState(), null);
+    expect(payload.printings.length).toBeGreaterThan(0);
+    for (const printing of payload.printings) {
+      expect(printing).not.toHaveProperty("external_id");
+      expect(printing).toHaveProperty("public_code");
+    }
+  });
+
+  it("trims the note and turns a blank note into null", () => {
+    expect(buildSubmissionPayload(fullState(), "  spotted in OGN  ").submissionNote).toBe(
+      "spotted in OGN",
     );
-  });
-});
-
-describe("buildCommitMessage", () => {
-  it("uses 'feat: add' for a new contribution", () => {
-    expect(buildCommitMessage("Ahri, Alluring", false)).toBe("feat: add Ahri, Alluring");
-  });
-
-  it("uses 'fix: update' for a correction", () => {
-    expect(buildCommitMessage("Ahri, Alluring", true)).toBe("fix: update Ahri, Alluring");
-  });
-
-  it("trims surrounding whitespace from the card name", () => {
-    expect(buildCommitMessage("  Ahri  ", false)).toBe("feat: add Ahri");
-  });
-
-  it("falls back to a generic name when the card name is blank", () => {
-    expect(buildCommitMessage("", false)).toBe("feat: add card");
-    expect(buildCommitMessage("   ", true)).toBe("fix: update card");
+    expect(buildSubmissionPayload(fullState(), "   ").submissionNote).toBeNull();
+    expect(buildSubmissionPayload(fullState(), null).submissionNote).toBeNull();
   });
 });
 
@@ -425,43 +430,5 @@ describe("buildImagePatchState", () => {
     });
     const json = buildContributionJson(state, STAMP);
     expect(json.printings[0].printed_name).toBe("Ahri, Alluring");
-  });
-});
-
-describe("buildGithubNewFileUrl", () => {
-  it("targets openriftapp/openrift-data and encodes the JSON value", () => {
-    const json = buildContributionJson(fullState(), STAMP);
-    const url = buildGithubNewFileUrl(
-      buildContributionFilename("ahri-alluring", STAMP),
-      json,
-      "feat: add Ahri, Alluring",
-    );
-    expect(url.startsWith("https://github.com/openriftapp/openrift-data/new/main?")).toBe(true);
-    expect(url).toContain(`filename=data%2Fcards%2Fahri-alluring--${STAMP}.json`);
-    const params = new URL(url).searchParams;
-    const value = params.get("value") ?? "";
-    expect(JSON.parse(value)).toMatchObject({ card: { name: "Ahri, Alluring" } });
-  });
-
-  it("sets the commit subject via the message query param", () => {
-    const json = buildContributionJson(fullState(), STAMP);
-    const url = buildGithubNewFileUrl(
-      buildContributionFilename("ahri-alluring", STAMP),
-      json,
-      "feat: add Ahri, Alluring",
-    );
-    const params = new URL(url).searchParams;
-    expect(params.get("message")).toBe("feat: add Ahri, Alluring");
-  });
-
-  it("does not set a description param", () => {
-    const json = buildContributionJson(fullState(), STAMP);
-    const url = buildGithubNewFileUrl(
-      buildContributionFilename("ahri-alluring", STAMP),
-      json,
-      "feat: add Ahri, Alluring",
-    );
-    const params = new URL(url).searchParams;
-    expect(params.has("description")).toBe(false);
   });
 });

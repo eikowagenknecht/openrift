@@ -86,6 +86,24 @@ export function ingestRepo(db: Db) {
         .execute();
     },
 
+    /**
+     * Count a user's in-app submission candidates created since a cutoff.
+     * Backs the ADR-036 per-user daily cap. Counts only rows still present in
+     * `candidate_cards` (pending review) — accepted/rejected submissions have
+     * left the table, a deliberate leniency toward contributors whose earlier
+     * submissions were already processed.
+     * @returns The number of candidate cards submitted by the user since `since`.
+     */
+    async countRecentSubmissionsByUser(userId: string, since: Date): Promise<number> {
+      const row = await db
+        .selectFrom("candidateCards")
+        .select((eb) => eb.fn.countAll<string>().as("count"))
+        .where("submittedByUserId", "=", userId)
+        .where("createdAt", ">=", since)
+        .executeTakeFirst();
+      return row ? Number(row.count) : 0;
+    },
+
     // ── Writes ──────────────────────────────────────────────────────────────
 
     /** Update a candidate card by ID. */

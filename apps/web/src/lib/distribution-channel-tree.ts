@@ -1,7 +1,21 @@
 import type { DistributionChannelResponse } from "@openrift/shared";
 
-export interface ChannelTreeNode {
-  channel: DistributionChannelResponse;
+/**
+ * Minimal channel shape the tree builder needs. Both the admin
+ * `DistributionChannelResponse` and the public `DistributionChannel` (from the
+ * catalog registry, which has no `sortOrder`) satisfy it, so the breadcrumb
+ * logic is shared instead of duplicated per surface.
+ */
+export interface ChannelLike {
+  id: string;
+  slug: string;
+  label: string;
+  parentId: string | null;
+  sortOrder?: number;
+}
+
+export interface ChannelTreeNode<T extends ChannelLike = DistributionChannelResponse> {
+  channel: T;
   depth: number;
   /** Ordered ids from root → this node (inclusive). */
   ancestorIds: string[];
@@ -21,8 +35,8 @@ const SEP = " \u203A ";
  *
  * @returns Channels in DFS order with tree metadata attached.
  */
-export function buildChannelTree(channels: DistributionChannelResponse[]): ChannelTreeNode[] {
-  const byParent = new Map<string | null, DistributionChannelResponse[]>();
+export function buildChannelTree<T extends ChannelLike>(channels: T[]): ChannelTreeNode<T>[] {
+  const byParent = new Map<string | null, T[]>();
   for (const ch of channels) {
     const key = ch.parentId;
     const list = byParent.get(key);
@@ -33,10 +47,10 @@ export function buildChannelTree(channels: DistributionChannelResponse[]): Chann
     }
   }
   for (const list of byParent.values()) {
-    list.sort((a, b) => a.sortOrder - b.sortOrder || a.label.localeCompare(b.label));
+    list.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.label.localeCompare(b.label));
   }
 
-  const out: ChannelTreeNode[] = [];
+  const out: ChannelTreeNode<T>[] = [];
   function walk(parentId: string | null, depth: number, ancestorIds: string[], crumbs: string[]) {
     const siblings = byParent.get(parentId);
     if (!siblings) {
@@ -91,6 +105,8 @@ export function canReparent(
  *
  * @returns Subset of `tree` containing only leaf nodes.
  */
-export function leafChannels(tree: ChannelTreeNode[]): ChannelTreeNode[] {
+export function leafChannels<T extends ChannelLike>(
+  tree: ChannelTreeNode<T>[],
+): ChannelTreeNode<T>[] {
   return tree.filter((n) => !n.hasChildren);
 }

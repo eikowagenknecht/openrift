@@ -190,6 +190,7 @@ describe("GET /api/admin/v1/cards (candidate list)", () => {
         hasFavorite: true,
         favoriteStagingShortCodes: [],
         suggestedCardSlug: null,
+        hasUserSubmission: false,
       },
     ];
     mockBuildCandidateCardList.mockResolvedValue(candidates);

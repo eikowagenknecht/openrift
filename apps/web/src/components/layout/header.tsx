@@ -128,7 +128,7 @@ function MenuButton({ onClick, className }: { onClick: () => void; className?: s
 // Nav entries that require an account. Signed out, these still show in the nav
 // (with a lock glyph) so a new visitor can see what an account unlocks; clicking
 // one opens SignInRequiredDialog instead of navigating. Copy mirrors the README.
-type LockedFeatureKey = "collections" | "groups" | "tournaments";
+type LockedFeatureKey = "collections" | "groups" | "tournaments" | "contribute";
 
 const LOCKED_FEATURES: Record<
   LockedFeatureKey,
@@ -153,6 +153,12 @@ const LOCKED_FEATURES: Record<
     description: "Run tournaments with pods, deck check, and judges all under one event.",
     to: "/tournaments",
     icon: TrophyIcon,
+  },
+  contribute: {
+    title: "Contribute",
+    description: "Submit missing cards, corrections, and images to the catalogue for review.",
+    to: "/contribute",
+    icon: PencilLineIcon,
   },
 };
 
@@ -737,7 +743,13 @@ function MobileNav({
   );
 }
 
-function FeedbackPopover() {
+function FeedbackPopover({
+  isLoggedIn,
+  onLockedClick,
+}: {
+  isLoggedIn: boolean;
+  onLockedClick: (key: LockedFeatureKey) => void;
+}) {
   return (
     <Popover>
       <PopoverTrigger render={<Button variant="ghost" size="sm" />} className="gap-1.5">
@@ -784,17 +796,34 @@ function FeedbackPopover() {
           </div>
           <ExternalLinkIcon className="text-muted-foreground ml-auto size-3.5" />
         </PopoverClose>
-        <PopoverClose
-          nativeButton={false}
-          render={<Link to="/contribute" />}
-          className="hover:bg-muted flex items-center gap-3 rounded-md px-2 py-2 text-sm"
-        >
-          <PencilLineIcon className="size-4 shrink-0" />
-          <div>
-            <div className="font-medium">Contribute card data</div>
-            <div className="text-muted-foreground text-xs">Add a missing card or fix a typo</div>
-          </div>
-        </PopoverClose>
+        {isLoggedIn ? (
+          <PopoverClose
+            nativeButton={false}
+            render={<Link to="/contribute" />}
+            className="hover:bg-muted flex items-center gap-3 rounded-md px-2 py-2 text-sm"
+          >
+            <PencilLineIcon className="size-4 shrink-0" />
+            <div>
+              <div className="font-medium">Contribute card data</div>
+              <div className="text-muted-foreground text-xs">Add a missing card or fix a typo</div>
+            </div>
+          </PopoverClose>
+        ) : (
+          <PopoverClose
+            // A native <button> shrinks to its content and centers its text; force
+            // it to fill and left-align so it matches the <Link>-rendered rows.
+            className="hover:bg-muted flex w-full items-center gap-3 rounded-md px-2 py-2 text-left text-sm"
+            // oxlint-disable-next-line jsx-a11y/control-has-associated-label -- label is provided as children of PopoverClose
+            render={<button type="button" onClick={() => onLockedClick("contribute")} />}
+          >
+            <PencilLineIcon className="size-4 shrink-0" />
+            <div>
+              <div className="font-medium">Contribute card data</div>
+              <div className="text-muted-foreground text-xs">Add a missing card or fix a typo</div>
+            </div>
+            <LockIcon className="text-muted-foreground ml-auto size-3.5 self-center" />
+          </PopoverClose>
+        )}
       </PopoverContent>
     </Popover>
   );
@@ -856,7 +885,7 @@ export function Header() {
             avatar (24px in a 28px icon button) out to the px-safe gutter so the
             header's right edge aligns with flush page content. */}
         <div className="-mr-0.5 flex items-center gap-1 justify-self-end">
-          <FeedbackPopover />
+          <FeedbackPopover isLoggedIn={isLoggedIn} onLockedClick={setLockedFeature} />
           <Link
             to="/support"
             className={cn(

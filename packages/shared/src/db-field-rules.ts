@@ -78,6 +78,8 @@ export const candidateCardFieldRules = {
   shortCode: z.string().min(1).nullable(),
   externalId: z.string().min(1),
   extraData: noEmptyJsonb,
+  // ADR-036: contributor's free-text note on an in-app submission (DB CHECK <> '').
+  submissionNote: z.string().min(1).nullable(),
 } satisfies Record<string, z.ZodType>;
 
 /** Mirrors DB CHECK constraints on the `candidate_printings` table. */
@@ -88,6 +90,7 @@ export const candidatePrintingFieldRules = {
   rarity: z.string().min(1).nullable(),
   artVariant: z.string().min(1).nullable(),
   finish: z.string().min(1).nullable(),
+  size: z.string().min(1).nullable(),
   artist: z.string().min(1).nullable(),
   publicCode: z.string().min(1).nullable(),
   printedRulesText: z.string().min(1).nullable(),

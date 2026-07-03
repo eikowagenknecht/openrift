@@ -41,6 +41,9 @@ export const candidateCardSummarySchema = z.object({
   hasFavorite: z.boolean(),
   favoriteStagingShortCodes: z.array(z.string()),
   suggestedCardSlug: z.string().nullable(),
+  // ADR-036: true when any candidate in this group came from an in-app user
+  // submission (provider "usersubmission"). Drives the admin badge + filter.
+  hasUserSubmission: z.boolean(),
 });
 
 /**

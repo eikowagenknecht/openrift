@@ -985,6 +985,10 @@ export interface CandidateCardsTable {
   externalId: string;
   /** CHECK: <> '{}' AND <> 'null'::jsonb */
   extraData: unknown | null;
+  /** ADR-036: user who submitted this candidate in-app; NULL for other providers. FK users(id) ON DELETE SET NULL. */
+  submittedByUserId: string | null;
+  /** ADR-036: contributor's free-text "where I spotted this" note. CHECK: <> '' */
+  submissionNote: string | null;
   checkedAt: ColumnType<Date | null, Date | null | undefined, Date | null>;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
@@ -1007,8 +1011,12 @@ export interface CandidatePrintingsTable {
   artVariant: string | null;
   isSigned: boolean | null;
   markerSlugs: Generated<string[]>;
+  /** Distribution channel slugs (events/products) applied to the accepted printing. */
+  distributionChannelSlugs: Generated<string[]>;
   /** CHECK: <> '' */
   finish: string | null;
+  /** FK → card_sizes(slug) on accept; NULL defaults to 'standard'. CHECK: <> '' */
+  size: string | null;
   /** CHECK: <> '' */
   artist: string | null;
   /** CHECK: <> '' */

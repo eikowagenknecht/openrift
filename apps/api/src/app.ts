@@ -29,6 +29,7 @@ import { ETAG_PATHS } from "./orpc/cache-policy.js";
 import { buildApiContext } from "./orpc/context.js";
 import { createApiHandler } from "./orpc/router.js";
 import { mountAdminSentryTest } from "./routes/admin/sentry-test.js";
+import { mountCardSubmissionsMiddleware } from "./routes/authenticated/card-submissions.js";
 import { deckImageRoute } from "./routes/authenticated/deck-image.js";
 import { listImageRoute } from "./routes/authenticated/list-image.js";
 import { mountDeckCheckIngestMiddleware } from "./routes/public/deck-check-ingest.js";
@@ -436,6 +437,7 @@ export function createApp(deps: AppDeps) {
   app.use("/api/v1/feature-flags", loadSession);
   app.use("/api/v1/users/share/*", loadSession);
   mountDeckCheckIngestMiddleware(app);
+  mountCardSubmissionsMiddleware(app);
   for (const path of ETAG_PATHS) {
     app.use(path, etag());
   }
