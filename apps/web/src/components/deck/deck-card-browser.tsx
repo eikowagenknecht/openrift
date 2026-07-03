@@ -317,6 +317,9 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
   const { addCard, removeCard, setLegend, setQuantity } = useDeckBuilderActions(deckId);
   const { data: deckDetail } = useDeckDetail(deckId);
   const isFreeform = deckDetail.deck.format === WellKnown.deckFormat.FREEFORM;
+  // Custom-region has no ban list of its own — official-format bans don't
+  // apply, so ban ribbons/dimming would only mislead.
+  const isCustomRegion = deckDetail.deck.format === WellKnown.deckFormat.CUSTOM_REGION;
   // Tag-locked formats restrict the Custom Tags filter section to their own
   // category (e.g. Custom-Region → only the "region" dropdown). Other
   // formats pass `undefined` so every category remains available for
@@ -546,8 +549,10 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
       const alreadyInZone = deckCards.some(
         (card) => card.cardId === cardId && card.zone === WellKnown.deckZone.BATTLEFIELD,
       );
+      const battlefieldCap = isCustomRegion ? 1 : 3;
       const zoneFull =
-        deckCards.filter((card) => card.zone === WellKnown.deckZone.BATTLEFIELD).length >= 3;
+        deckCards.filter((card) => card.zone === WellKnown.deckZone.BATTLEFIELD).length >=
+        battlefieldCap;
       return alreadyInZone || zoneFull;
     }
     if (activeZone === WellKnown.deckZone.RUNES) {
@@ -586,6 +591,7 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
         dimmed={ownedCount === 0 && deckQty === 0}
         highlighted={deckQty > 0}
         showBanOverlay
+        hideBanIndicators={isCustomRegion}
         dragData={{
           type: "browser-card",
           card: {

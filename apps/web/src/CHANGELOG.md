@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-07-03
+
+### Highlights
+
+- feat(Decks): **Custom-Region rules update** — signature cards now need a copy of their champion in the deck for each copy, only one battlefield is played, runes of every domain are allowed, and ban badges no longer show in this format.
+
 ## 2026-07-02
 
 ### Highlights

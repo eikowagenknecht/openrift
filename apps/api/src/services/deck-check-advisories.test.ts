@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { computeZoneSuggestions } from "./deck-check-advisories.js";
+import type { Repos } from "../deps.js";
+import { buildEntryAdvisories, computeZoneSuggestions } from "./deck-check-advisories.js";
 import type { AdvisoryCardLine } from "./deck-check-advisories.js";
 
 /**
@@ -108,5 +109,96 @@ describe("computeZoneSuggestions", () => {
       details,
     );
     expect(suggestions).toEqual([]);
+  });
+});
+
+describe("buildEntryAdvisories", () => {
+  interface StubCardDetail {
+    id: string;
+    name: string;
+    type: string;
+    superTypes: string[];
+    domains: string[];
+    tags: string[];
+    keywords: string[];
+  }
+
+  /**
+   * Builds a repos stub carrying just the three calls buildEntryAdvisories
+   * makes; everything else is absent and would throw if touched.
+   * @returns A minimal Repos double.
+   */
+  function stubRepos(
+    cardDetails: Map<string, StubCardDetail>,
+    championTags: string[] | null,
+  ): Repos {
+    return {
+      enums: {
+        all: () => Promise.resolve({ cardTypes: [], domains: [] }),
+      },
+      deckCheck: {
+        getCardDetails: () => Promise.resolve(cardDetails),
+        getCardSetSlugs: () => Promise.resolve(new Map<string, string[]>()),
+      },
+      catalog: {
+        championIdentifierTags: () => {
+          if (championTags === null) {
+            throw new Error("championIdentifierTags must not be queried for this format");
+          }
+          return Promise.resolve(championTags);
+        },
+      },
+    } as unknown as Repos;
+  }
+
+  it("feeds the champion-identifier tags into custom-region validation", async () => {
+    // A Daisy! signature without its Ivern champion — the copies rule must
+    // fire, which only happens when the tag set reaches validateDeck.
+    const cardDetails = new Map<string, StubCardDetail>([
+      [
+        "legend-karma",
+        {
+          id: "legend-karma",
+          name: "Karma",
+          type: "legend",
+          superTypes: [],
+          domains: [],
+          tags: ["Karma"],
+          keywords: [],
+        },
+      ],
+      [
+        "sig-daisy",
+        {
+          id: "sig-daisy",
+          name: "Daisy!",
+          type: "unit",
+          superTypes: ["signature"],
+          domains: [],
+          tags: ["Ivern", "Ionia"],
+          keywords: [],
+        },
+      ],
+    ]);
+    const advisories = await buildEntryAdvisories(
+      stubRepos(cardDetails, ["Karma", "Ivern"]),
+      { format: "custom-region", allowedSets: null },
+      [
+        line({ id: "a", resolvedCardId: "legend-karma", zone: "legend" }),
+        line({ id: "b", resolvedCardId: "sig-daisy", zone: "main" }),
+      ],
+    );
+    const codes = advisories.violations.map((violation) => violation.code);
+    expect(codes).toContain("SIGNATURE_CHAMPION_COPIES");
+  });
+
+  it("does not query champion tags for non-custom-region formats", async () => {
+    // The stub throws if championIdentifierTags is called at all.
+    const advisories = await buildEntryAdvisories(
+      stubRepos(new Map(), null),
+      { format: "constructed", allowedSets: null },
+      [],
+    );
+    expect(advisories.violations.some((v) => v.code === "SIGNATURE_CHAMPION_COPIES")).toBe(false);
   });
 });

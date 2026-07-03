@@ -419,8 +419,8 @@ export const sideboardCopyLimit: DeckRule = (state) => {
   return violations;
 };
 
-// Battlefield zone must have between 1 and 3 cards (Custom-Region variant).
-const battlefieldOneToThree: DeckRule = (state) => {
+// Battlefield zone must have exactly 1 card (Custom-Region variant).
+const battlefieldExactlyOne: DeckRule = (state) => {
   const battlefields = cardsInZone(state.cards, WellKnown.deckZone.BATTLEFIELD);
   const count = totalQuantity(battlefields);
 
@@ -429,16 +429,16 @@ const battlefieldOneToThree: DeckRule = (state) => {
       {
         zone: WellKnown.deckZone.BATTLEFIELD,
         code: "BATTLEFIELD_REQUIRED",
-        message: "At least 1 Battlefield card is required",
+        message: "A Battlefield card is required",
       },
     ];
   }
-  if (count > 3) {
+  if (count > 1) {
     return [
       {
         zone: WellKnown.deckZone.BATTLEFIELD,
         code: "BATTLEFIELD_TOO_MANY",
-        message: `${count}/3 Battlefield cards — remove ${count - 3}`,
+        message: `${count}/1 Battlefield cards — remove ${count - 1}`,
       },
     ];
   }
@@ -571,33 +571,49 @@ const signatureMatchesLegendTag: DeckRule = (state) => {
   return violations;
 };
 
-// Each Signature must share its champion-identifier tag with at least one
-// Champion in the deck (champion zone or main). Used by Custom-Region in
-// place of signatureMatchesLegendTag — the Legend's champion no longer has
-// to own every Signature, but the Signature's champion still must be
-// physically present in the deck. Falls back to a no-op when no
-// championIdentifierTags set is provided (e.g. legacy callers).
-const signatureChampionInDeck: DeckRule = (state) => {
+// Each Signature card that doesn't belong to the Legend's champion must be
+// backed copy-for-copy by its champion in the deck: 3× "Death from Below" in
+// a Miss Fortune deck needs 3 Pyke copies. Any printing or variant of the
+// champion counts — matching is by champion-identifier tag, not card
+// identity. Champion copies are counted from the champion zone and main deck
+// only (sideboard champions don't back signatures). Signatures whose
+// champion tag matches the Legend are exempt — the Legend itself vouches for
+// them. Used by Custom-Region in place of signatureMatchesLegendTag. Falls
+// back to a no-op when no championIdentifierTags set is provided (e.g.
+// legacy callers).
+const signatureChampionCopiesInDeck: DeckRule = (state) => {
   const championIdSet = state.championIdentifierTags;
   if (!championIdSet || championIdSet.size === 0) {
     return [];
   }
 
-  const championsInDeck = [
+  const legends = cardsInZone(state.cards, WellKnown.deckZone.LEGEND);
+  if (legends.length !== 1) {
+    return [];
+  }
+  const legendTags = new Set(legends[0].tags);
+
+  // Champion copies available per champion-identifier tag.
+  const championCopiesByTag = new Map<string, number>();
+  for (const card of [
     ...cardsInZone(state.cards, WellKnown.deckZone.CHAMPION),
     ...cardsInZone(state.cards, WellKnown.deckZone.MAIN),
-  ].filter((card) => card.superTypes.includes(WellKnown.superType.CHAMPION));
-
-  const championIdTagsInDeck = new Set<string>();
-  for (const champion of championsInDeck) {
-    for (const tag of champion.tags) {
+  ]) {
+    if (!card.superTypes.includes(WellKnown.superType.CHAMPION)) {
+      continue;
+    }
+    for (const tag of card.tags) {
       if (championIdSet.has(tag)) {
-        championIdTagsInDeck.add(tag);
+        championCopiesByTag.set(tag, (championCopiesByTag.get(tag) ?? 0) + card.quantity);
       }
     }
   }
 
-  const violations: DeckViolation[] = [];
+  // Signature copies required per champion-identifier tag. Demand is summed
+  // per tag so two different Pyke signatures can't each claim the same Pyke
+  // copies. A signature carrying several champion tags is attributed to its
+  // best-supplied tag (most lenient reading of the "or" semantics).
+  const demandByTag = new Map<string, { copies: number; cards: DeckCard[] }>();
   for (const card of [
     ...cardsInZone(state.cards, WellKnown.deckZone.MAIN),
     ...cardsInZone(state.cards, WellKnown.deckZone.SIDEBOARD),
@@ -611,12 +627,29 @@ const signatureChampionInDeck: DeckRule = (state) => {
       // not something the user can fix. Skip rather than block the deck.
       continue;
     }
-    const satisfied = signatureChampionTags.some((tag) => championIdTagsInDeck.has(tag));
-    if (!satisfied) {
+    if (signatureChampionTags.some((tag) => legendTags.has(tag))) {
+      continue;
+    }
+    const bestSuppliedTag = signatureChampionTags.toSorted(
+      (tagA, tagB) => (championCopiesByTag.get(tagB) ?? 0) - (championCopiesByTag.get(tagA) ?? 0),
+    )[0];
+    const demand = demandByTag.get(bestSuppliedTag) ?? { copies: 0, cards: [] };
+    demand.copies += card.quantity;
+    demand.cards.push(card);
+    demandByTag.set(bestSuppliedTag, demand);
+  }
+
+  const violations: DeckViolation[] = [];
+  for (const [tag, demand] of demandByTag) {
+    const available = championCopiesByTag.get(tag) ?? 0;
+    if (available >= demand.copies) {
+      continue;
+    }
+    for (const card of demand.cards) {
       violations.push({
         zone: card.zone,
-        code: "SIGNATURE_CHAMPION_MISSING",
-        message: `${card.cardName} needs its champion (${signatureChampionTags.join(" or ")}) in the deck`,
+        code: "SIGNATURE_CHAMPION_COPIES",
+        message: `${card.cardName} needs ${demand.copies} ${demand.copies === 1 ? "copy" : "copies"} of ${tag} in the deck (found ${available})`,
         cardId: card.cardId,
       });
     }
@@ -662,6 +695,12 @@ const cardsCarryFormatTag: DeckRule = (state) => {
   }
   const violations: DeckViolation[] = [];
   for (const card of state.cards) {
+    // Runes carry no region tags and only provide generic power — every rune
+    // is legal in a tag-locked deck. Count/type checks still apply via
+    // runesExactlyTwelve / runesAllTypeRune.
+    if (card.cardType === WellKnown.cardType.RUNE) {
+      continue;
+    }
     const ok = allowed.some((slug) => card.customTagSlugs.includes(slug));
     if (!ok) {
       violations.push({
@@ -710,7 +749,7 @@ const REGION_LOCKED_RULES: DeckRule[] = [
   championSharesTagWithLegend,
   runesExactlyTwelve,
   runesAllTypeRune,
-  battlefieldOneToThree,
+  battlefieldExactlyOne,
   battlefieldAllTypeBattlefield,
   battlefieldNoDuplicates,
   mainDeckExactly,
@@ -720,7 +759,7 @@ const REGION_LOCKED_RULES: DeckRule[] = [
   sideboardCopyLimit,
   uniqueCopyLimit,
   signatureTotalLimit,
-  signatureChampionInDeck,
+  signatureChampionCopiesInDeck,
 ];
 
 /**

@@ -944,12 +944,21 @@ function ZoneThumb({
   );
 }
 
-const INTRO_STEPS: readonly { title: string; description: string }[] = [
-  { title: "Pick a Legend", description: "Sets your deck's domains. Runes auto-fill 6/6." },
-  { title: "Choose a Champion", description: "Suggested by your Legend's tag." },
-  { title: "Add Battlefields", description: "Three unique battlefield cards." },
-  { title: "Fill the Main Deck", description: "39 units, spells, and gear from your domains." },
-];
+/**
+ * @returns The four intro steps, with the battlefield step adjusted to the
+ *   format's cap (custom-region plays a single battlefield).
+ */
+function introSteps(format: DeckFormat): readonly { title: string; description: string }[] {
+  const singleBattlefield = format === WellKnown.deckFormat.CUSTOM_REGION;
+  return [
+    { title: "Pick a Legend", description: "Sets your deck's domains. Runes auto-fill 6/6." },
+    { title: "Choose a Champion", description: "Suggested by your Legend's tag." },
+    singleBattlefield
+      ? { title: "Add a Battlefield", description: "One battlefield card." }
+      : { title: "Add Battlefields", description: "Three unique battlefield cards." },
+    { title: "Fill the Main Deck", description: "39 units, spells, and gear from your domains." },
+  ];
+}
 
 const INTRO_TIPS: readonly string[] = [
   "Once you're inside a zone, each card in the browser has a small + button on its row — click it to add a copy, or drag the card onto a zone in the sidebar. Hold Shift to add the maximum allowed copies at once.",
@@ -966,7 +975,9 @@ function DeckBuilderIntroBanner({
   const formatTip =
     format === WellKnown.deckFormat.CONSTRUCTED
       ? "This deck uses the Constructed format, so it's checked against the rules as you build and violations show up right away. Switch to Freeform if you want to experiment without those restrictions."
-      : "This deck uses the Freeform format, so you can build without rule restrictions. Switch to Constructed if you want the rules validated as you go.";
+      : format === WellKnown.deckFormat.CUSTOM_REGION
+        ? "This deck uses the Custom-Region format: every card must belong to your chosen regions, one battlefield is played, and signature cards need their champion in the deck. Violations show up as you build."
+        : "This deck uses the Freeform format, so you can build without rule restrictions. Switch to Constructed if you want the rules validated as you go.";
   return (
     <div className="border-border bg-muted/30 relative rounded-lg border p-4">
       <button
@@ -988,7 +999,7 @@ function DeckBuilderIntroBanner({
           </div>
           <div className="grid gap-4 @lg:grid-cols-2">
             <ol className="grid gap-2 self-start">
-              {INTRO_STEPS.map((step, index) => (
+              {introSteps(format).map((step, index) => (
                 <li
                   key={step.title}
                   className="border-border bg-background flex items-start gap-2 rounded-md border p-2"

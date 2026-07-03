@@ -341,6 +341,8 @@ interface CardThumbnailProps {
   dragId?: string; // custom: @dnd-kit draggable ID
   /** Shows a large diagonal "BANNED" overlay on the card image. */
   showBanOverlay?: boolean; // custom: deckbuilder banned card overlay
+  /** Hides every ban indicator (ribbon, dim, meta chip) — for formats without a ban list. */
+  hideBanIndicators?: boolean; // custom: custom-region deckbuilder ignores bans
   /** Content rendered below the meta-label row (e.g. marker chips on /promos). */
   belowLabel?: ReactNode;
   /**
@@ -419,6 +421,7 @@ export const CardThumbnail = memo(function CardThumbnail({
   dragData,
   dragId,
   showBanOverlay,
+  hideBanIndicators,
   belowLabel,
   imageOverlay,
 }: CardThumbnailProps) {
@@ -489,7 +492,7 @@ export const CardThumbnail = memo(function CardThumbnail({
   const fanTimer = useRef<ReturnType<typeof setTimeout>>(null);
 
   // custom: dim the whole card in the deckbuilder so banned cards read as unavailable
-  const banDim = showBanOverlay && printing.card.bans.length > 0 && (
+  const banDim = showBanOverlay && !hideBanIndicators && printing.card.bans.length > 0 && (
     <div className="pointer-events-none absolute inset-0 z-20 rounded-[inherit] bg-black/70" />
   );
 
@@ -510,7 +513,7 @@ export const CardThumbnail = memo(function CardThumbnail({
 
   // Banned ribbon mirrors the Preview ribbon (top-right) and sits above it at z-40
   // so the rare previewed-and-banned card still reads as banned.
-  const banRibbon = printing.card.bans.length > 0 && (
+  const banRibbon = !hideBanIndicators && printing.card.bans.length > 0 && (
     <div
       className="@container pointer-events-none absolute inset-0 z-40 overflow-hidden rounded-[inherit]"
       title="Banned in the current format"
@@ -652,7 +655,7 @@ export const CardThumbnail = memo(function CardThumbnail({
         finishTitle={finishTitle}
         oversized={isOversized}
         sizeLabel={sizeLabel}
-        bans={showBanOverlay ? undefined : printing.card.bans}
+        bans={showBanOverlay || hideBanIndicators ? undefined : printing.card.bans}
         hasRulesDeviation={printing.card.errata !== null}
         printingComment={printing.comment}
         price={priceNode}

@@ -186,6 +186,16 @@ export function isDeckZoneFullForDrag(args: {
     }
   }
   if (zone === WellKnown.deckZone.BATTLEFIELD) {
+    // Custom-region allows exactly one battlefield: the zone is full as soon
+    // as any battlefield sits there. Moves within the zone stay allowed so a
+    // reorder-drop doesn't get rejected.
+    if (
+      format === WellKnown.deckFormat.CUSTOM_REGION &&
+      fromZone !== WellKnown.deckZone.BATTLEFIELD &&
+      allCards.some((card) => card.zone === WellKnown.deckZone.BATTLEFIELD)
+    ) {
+      return true;
+    }
     return allCards.some(
       (card) => card.cardId === draggedCardId && card.zone === WellKnown.deckZone.BATTLEFIELD,
     );

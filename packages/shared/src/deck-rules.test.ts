@@ -757,8 +757,12 @@ describe("validateDeck for custom-region", () => {
     return { ...card, customTagSlugs: slugs };
   }
 
+  // Custom-region allows exactly 1 battlefield, so drop the constructed
+  // shell's second and third one.
   function fullyTaggedShell(slugs: string[]): DeckCard[] {
-    return makeConstructedShell().map((card) => withTags(card, slugs));
+    return makeConstructedShell()
+      .filter((card) => card.zone !== "battlefield" || card.cardId === "bf-1")
+      .map((card) => withTags(card, slugs));
   }
 
   function fullyTaggedMain(slugs: string[], count = 13): DeckCard[] {
@@ -841,7 +845,7 @@ describe("validateDeck for custom-region", () => {
     expect(codes).toContain("MAIN_TOO_FEW");
   });
 
-  // ── battlefield 1-to-3 (custom-region only) ─────────────────────────────
+  // ── battlefield exactly 1 (custom-region only) ──────────────────────────
 
   function shellWithBattlefields(slugs: string[], bfCount: number): DeckCard[] {
     const base = makeConstructedShell()
@@ -861,23 +865,9 @@ describe("validateDeck for custom-region", () => {
     }));
   }
 
-  it("accepts 1 battlefield (custom-region range allows 1–3)", () => {
+  it("accepts exactly 1 battlefield", () => {
     const tagSlugs = ["bandle-city"];
     const cards = [...shellWithBattlefields(tagSlugs, 1), ...fullyTaggedMainCards(tagSlugs)];
-    const violations = validateDeck(makeState(cards, "custom-region", { tagSlugs }));
-    expect(violations.filter((v) => v.code?.startsWith("BATTLEFIELD"))).toEqual([]);
-  });
-
-  it("accepts 2 battlefields", () => {
-    const tagSlugs = ["bandle-city"];
-    const cards = [...shellWithBattlefields(tagSlugs, 2), ...fullyTaggedMainCards(tagSlugs)];
-    const violations = validateDeck(makeState(cards, "custom-region", { tagSlugs }));
-    expect(violations.filter((v) => v.code?.startsWith("BATTLEFIELD"))).toEqual([]);
-  });
-
-  it("accepts 3 battlefields", () => {
-    const tagSlugs = ["bandle-city"];
-    const cards = [...shellWithBattlefields(tagSlugs, 3), ...fullyTaggedMainCards(tagSlugs)];
     const violations = validateDeck(makeState(cards, "custom-region", { tagSlugs }));
     expect(violations.filter((v) => v.code?.startsWith("BATTLEFIELD"))).toEqual([]);
   });
@@ -889,9 +879,9 @@ describe("validateDeck for custom-region", () => {
     expect(violations.some((v) => v.code === "BATTLEFIELD_REQUIRED")).toBe(true);
   });
 
-  it("rejects 4 battlefields", () => {
+  it("rejects 2 battlefields", () => {
     const tagSlugs = ["bandle-city"];
-    const cards = [...shellWithBattlefields(tagSlugs, 4), ...fullyTaggedMainCards(tagSlugs)];
+    const cards = [...shellWithBattlefields(tagSlugs, 2), ...fullyTaggedMainCards(tagSlugs)];
     const violations = validateDeck(makeState(cards, "custom-region", { tagSlugs }));
     expect(violations.some((v) => v.code === "BATTLEFIELD_TOO_MANY")).toBe(true);
   });
@@ -909,7 +899,37 @@ describe("validateDeck for custom-region", () => {
     expect(violations.some((v) => v.code === "BATTLEFIELD_TOO_FEW")).toBe(true);
   });
 
-  // ── signatureChampionInDeck (custom-region only) ────────────────────────
+  // ── runes are exempt from the region-tag rule ────────────────────────────
+
+  it("accepts untagged runes — runes carry no region tags", () => {
+    const tagSlugs = ["bandle-city"];
+    // fullyTaggedShell tags everything; strip the tags off the runes again.
+    const cards = [
+      ...fullyTaggedShell(tagSlugs).map((card) =>
+        card.zone === "runes" ? { ...card, customTagSlugs: [] } : card,
+      ),
+      ...fullyTaggedMain(tagSlugs),
+    ];
+    const violations = validateDeck(makeState(cards, "custom-region", { tagSlugs }));
+    expect(violations).toEqual([]);
+  });
+
+  it("still enforces rune count and type on untagged runes", () => {
+    const tagSlugs = ["bandle-city"];
+    const cards = [
+      ...fullyTaggedShell(tagSlugs).filter((card) => card.zone !== "runes"),
+      // Only 11 runes, one of them not a rune card at all.
+      ...Array.from({ length: 10 }, (_, index) => makeRune("fury", `rune-fury-${index}`)),
+      makeCard({ cardId: "not-a-rune", zone: "runes", cardType: "unit", cardName: "Sneaky Unit" }),
+      ...fullyTaggedMain(tagSlugs),
+    ];
+    const violations = validateDeck(makeState(cards, "custom-region", { tagSlugs }));
+    const codes = violations.map((v) => v.code);
+    expect(codes).toContain("RUNES_TOO_FEW");
+    expect(codes).toContain("RUNE_WRONG_TYPE");
+  });
+
+  // ── signatureChampionCopiesInDeck (custom-region only) ──────────────────
 
   const ALL_CHAMPION_IDS = new Set(["Karma", "Ivern", "Draven", "Garen", "Yasuo"]);
 
@@ -934,34 +954,64 @@ describe("validateDeck for custom-region", () => {
         customTagSlugs: slugs,
       })),
       { ...makeBattlefield("bf-1"), customTagSlugs: slugs },
-      { ...makeBattlefield("bf-2"), customTagSlugs: slugs },
-      { ...makeBattlefield("bf-3"), customTagSlugs: slugs },
     ];
   }
 
-  it("passes when the Signature's champion is the Chosen Champion", () => {
+  function makeSignature(
+    cardId: string,
+    cardName: string,
+    tags: string[],
+    slugs: string[],
+    quantity = 1,
+  ): DeckCard {
+    return {
+      ...makeCard({ cardId, cardName, superTypes: ["signature"], tags, quantity }),
+      customTagSlugs: slugs,
+    };
+  }
+
+  function makeMainChampion(
+    cardId: string,
+    cardName: string,
+    tags: string[],
+    slugs: string[],
+    quantity = 1,
+    zone: DeckCard["zone"] = "main",
+  ): DeckCard {
+    return {
+      ...makeCard({
+        cardId,
+        zone,
+        cardType: "unit",
+        superTypes: ["champion"],
+        tags,
+        cardName,
+        quantity,
+      }),
+      customTagSlugs: slugs,
+    };
+  }
+
+  function makeFiller(count: number, slugs: string[]): DeckCard[] {
+    return Array.from({ length: count }, (_, index) => ({
+      ...makeCard({ cardId: `filler-${index}`, quantity: 3 }),
+      customTagSlugs: slugs,
+    }));
+  }
+
+  it("exempts the Legend's own Signatures — no extra champion copies needed", () => {
     const tagSlugs = ["ionia"];
-    // Legend = Karma, Chosen Champion = Karma; Signature is Karma's
+    // Legend = Karma; 3 copies of Karma's Signature backed only by the single
+    // Chosen Champion. Exempt because the Signature belongs to the Legend.
     const cards: DeckCard[] = [
       ...customRegionShell("Karma", "Karma", "Ionia", tagSlugs),
-      {
-        ...makeCard({
-          cardId: "sig-1",
-          superTypes: ["signature"],
-          tags: ["Karma", "Ionia"],
-          cardName: "Karma Sig",
-        }),
-        customTagSlugs: tagSlugs,
-      },
-      ...Array.from({ length: 13 }, (_, index) => ({
-        ...makeCard({ cardId: `filler-${index}`, quantity: 3 }),
-        customTagSlugs: tagSlugs,
-      })),
+      makeSignature("sig-1", "Karma Sig", ["Karma", "Ionia"], tagSlugs, 3),
+      ...makeFiller(13, tagSlugs),
     ];
     const violations = validateDeck(
       makeState(cards, "custom-region", { tagSlugs }, ALL_CHAMPION_IDS),
     );
-    expect(violations.filter((v) => v.code === "SIGNATURE_CHAMPION_MISSING")).toEqual([]);
+    expect(violations.filter((v) => v.code === "SIGNATURE_CHAMPION_COPIES")).toEqual([]);
   });
 
   it("rejects a Signature whose champion is not in the deck — region overlap is ignored", () => {
@@ -970,24 +1020,13 @@ describe("validateDeck for custom-region", () => {
     // Naive tag overlap would pass on "Ionia"; the rule must reject this.
     const cards: DeckCard[] = [
       ...customRegionShell("Karma", "Karma", "Ionia", tagSlugs),
-      {
-        ...makeCard({
-          cardId: "sig-daisy",
-          superTypes: ["signature"],
-          tags: ["Ivern", "Ionia"],
-          cardName: "Daisy!",
-        }),
-        customTagSlugs: tagSlugs,
-      },
-      ...Array.from({ length: 13 }, (_, index) => ({
-        ...makeCard({ cardId: `filler-${index}`, quantity: 3 }),
-        customTagSlugs: tagSlugs,
-      })),
+      makeSignature("sig-daisy", "Daisy!", ["Ivern", "Ionia"], tagSlugs),
+      ...makeFiller(13, tagSlugs),
     ];
     const violations = validateDeck(
       makeState(cards, "custom-region", { tagSlugs }, ALL_CHAMPION_IDS),
     );
-    const offending = violations.filter((v) => v.code === "SIGNATURE_CHAMPION_MISSING");
+    const offending = violations.filter((v) => v.code === "SIGNATURE_CHAMPION_COPIES");
     expect(offending).toHaveLength(1);
     expect(offending[0].cardId).toBe("sig-daisy");
   });
@@ -995,87 +1034,118 @@ describe("validateDeck for custom-region", () => {
   it("accepts a Signature when its champion is in the main deck (not Chosen)", () => {
     const tagSlugs = ["ionia"];
     // Chosen = Karma; Ivern is added as a non-Chosen Champion in main.
-    const ivernInMain: DeckCard = {
-      ...makeCard({
-        cardId: "champion-ivern-main",
-        zone: "main",
-        cardType: "unit",
-        superTypes: ["champion"],
-        tags: ["Ivern", "Ionia"],
-        cardName: "Ivern, Green Father",
-        quantity: 1,
-      }),
-      customTagSlugs: tagSlugs,
-    };
     const cards: DeckCard[] = [
       ...customRegionShell("Karma", "Karma", "Ionia", tagSlugs),
-      ivernInMain,
-      {
-        ...makeCard({
-          cardId: "sig-daisy",
-          superTypes: ["signature"],
-          tags: ["Ivern", "Ionia"],
-          cardName: "Daisy!",
-        }),
-        customTagSlugs: tagSlugs,
-      },
-      ...Array.from({ length: 12 }, (_, index) => ({
-        ...makeCard({ cardId: `filler-${index}`, quantity: 3 }),
-        customTagSlugs: tagSlugs,
-      })),
+      makeMainChampion("champion-ivern-main", "Ivern, Green Father", ["Ivern", "Ionia"], tagSlugs),
+      makeSignature("sig-daisy", "Daisy!", ["Ivern", "Ionia"], tagSlugs),
+      ...makeFiller(12, tagSlugs),
     ];
     const violations = validateDeck(
       makeState(cards, "custom-region", { tagSlugs }, ALL_CHAMPION_IDS),
     );
-    expect(violations.filter((v) => v.code === "SIGNATURE_CHAMPION_MISSING")).toEqual([]);
+    expect(violations.filter((v) => v.code === "SIGNATURE_CHAMPION_COPIES")).toEqual([]);
   });
 
-  it("accepts an Equipment-tagged Signature when its champion is in the deck", () => {
-    const tagSlugs = ["noxus"];
-    // Spinning Axe = {Draven, Equipment}. Draven is in the deck as Chosen.
+  it("requires one champion copy per Signature copy", () => {
+    const tagSlugs = ["ionia"];
+    // 3× Daisy! but only 1 Ivern in main — needs 3.
     const cards: DeckCard[] = [
-      ...customRegionShell("Draven", "Draven", "Noxus", tagSlugs),
-      {
-        ...makeCard({
-          cardId: "sig-axe",
-          superTypes: ["signature"],
-          tags: ["Draven", "Equipment"],
-          cardName: "Spinning Axe",
-        }),
-        customTagSlugs: tagSlugs,
-      },
-      ...Array.from({ length: 13 }, (_, index) => ({
-        ...makeCard({ cardId: `filler-${index}`, quantity: 3 }),
-        customTagSlugs: tagSlugs,
-      })),
+      ...customRegionShell("Karma", "Karma", "Ionia", tagSlugs),
+      makeMainChampion("champion-ivern-main", "Ivern, Green Father", ["Ivern", "Ionia"], tagSlugs),
+      makeSignature("sig-daisy", "Daisy!", ["Ivern", "Ionia"], tagSlugs, 3),
+      ...makeFiller(12, tagSlugs),
     ];
     const violations = validateDeck(
       makeState(cards, "custom-region", { tagSlugs }, ALL_CHAMPION_IDS),
     );
-    expect(violations.filter((v) => v.code === "SIGNATURE_CHAMPION_MISSING")).toEqual([]);
+    const offending = violations.filter((v) => v.code === "SIGNATURE_CHAMPION_COPIES");
+    expect(offending).toHaveLength(1);
+    expect(offending[0].message).toContain("3 copies of Ivern");
+    expect(offending[0].message).toContain("found 1");
+  });
+
+  it("counts champion copies across different cards of the same champion", () => {
+    const tagSlugs = ["ionia"];
+    // 3× Daisy! backed by 2 copies of one Ivern card + 1 of another
+    // (different printings/variants of the champion all count).
+    const cards: DeckCard[] = [
+      ...customRegionShell("Karma", "Karma", "Ionia", tagSlugs),
+      makeMainChampion("ivern-a", "Ivern, Green Father", ["Ivern", "Ionia"], tagSlugs, 2),
+      makeMainChampion("ivern-b", "Ivern, Rootcaller", ["Ivern", "Ionia"], tagSlugs, 1),
+      makeSignature("sig-daisy", "Daisy!", ["Ivern", "Ionia"], tagSlugs, 3),
+      ...makeFiller(11, tagSlugs),
+    ];
+    const violations = validateDeck(
+      makeState(cards, "custom-region", { tagSlugs }, ALL_CHAMPION_IDS),
+    );
+    expect(violations.filter((v) => v.code === "SIGNATURE_CHAMPION_COPIES")).toEqual([]);
+  });
+
+  it("does not count sideboard champions toward Signature backing", () => {
+    const tagSlugs = ["ionia"];
+    const cards: DeckCard[] = [
+      ...customRegionShell("Karma", "Karma", "Ionia", tagSlugs),
+      makeMainChampion(
+        "champion-ivern-side",
+        "Ivern, Green Father",
+        ["Ivern", "Ionia"],
+        tagSlugs,
+        1,
+        "sideboard",
+      ),
+      makeSignature("sig-daisy", "Daisy!", ["Ivern", "Ionia"], tagSlugs),
+      ...makeFiller(13, tagSlugs),
+    ];
+    const violations = validateDeck(
+      makeState(cards, "custom-region", { tagSlugs }, ALL_CHAMPION_IDS),
+    );
+    const offending = violations.filter((v) => v.code === "SIGNATURE_CHAMPION_COPIES");
+    expect(offending).toHaveLength(1);
+    expect(offending[0].cardId).toBe("sig-daisy");
+  });
+
+  it("sums demand per champion — two Signatures can't share the same copies", () => {
+    const tagSlugs = ["ionia"];
+    // Two different Ivern Signatures (2 + 1 copies) vs only 2 Iverns.
+    const cards: DeckCard[] = [
+      ...customRegionShell("Karma", "Karma", "Ionia", tagSlugs),
+      makeMainChampion("ivern-a", "Ivern, Green Father", ["Ivern", "Ionia"], tagSlugs, 2),
+      makeSignature("sig-daisy", "Daisy!", ["Ivern", "Ionia"], tagSlugs, 2),
+      makeSignature("sig-brambles", "Brambles!", ["Ivern", "Ionia"], tagSlugs, 1),
+      ...makeFiller(11, tagSlugs),
+    ];
+    const violations = validateDeck(
+      makeState(cards, "custom-region", { tagSlugs }, ALL_CHAMPION_IDS),
+    );
+    const offending = violations.filter((v) => v.code === "SIGNATURE_CHAMPION_COPIES");
+    expect(offending.map((v) => v.cardId).toSorted()).toEqual(["sig-brambles", "sig-daisy"]);
+  });
+
+  it("ignores non-champion tags like Equipment on Signatures", () => {
+    const tagSlugs = ["noxus"];
+    // Spinning Axe = {Draven, Equipment}. Draven is the Legend's champion,
+    // so the Signature is exempt; "Equipment" must not confuse the matching.
+    const cards: DeckCard[] = [
+      ...customRegionShell("Draven", "Draven", "Noxus", tagSlugs),
+      makeSignature("sig-axe", "Spinning Axe", ["Draven", "Equipment"], tagSlugs),
+      ...makeFiller(13, tagSlugs),
+    ];
+    const violations = validateDeck(
+      makeState(cards, "custom-region", { tagSlugs }, ALL_CHAMPION_IDS),
+    );
+    expect(violations.filter((v) => v.code === "SIGNATURE_CHAMPION_COPIES")).toEqual([]);
   });
 
   it("no-ops when championIdentifierTags is not provided (legacy callers)", () => {
     const tagSlugs = ["ionia"];
     const cards: DeckCard[] = [
       ...customRegionShell("Karma", "Karma", "Ionia", tagSlugs),
-      {
-        ...makeCard({
-          cardId: "sig-daisy",
-          superTypes: ["signature"],
-          tags: ["Ivern", "Ionia"],
-          cardName: "Daisy!",
-        }),
-        customTagSlugs: tagSlugs,
-      },
-      ...Array.from({ length: 13 }, (_, index) => ({
-        ...makeCard({ cardId: `filler-${index}`, quantity: 3 }),
-        customTagSlugs: tagSlugs,
-      })),
+      makeSignature("sig-daisy", "Daisy!", ["Ivern", "Ionia"], tagSlugs),
+      ...makeFiller(13, tagSlugs),
     ];
     // No champion-id set passed → rule must no-op (don't block valid decks
     // just because plumbing isn't there yet).
     const violations = validateDeck(makeState(cards, "custom-region", { tagSlugs }));
-    expect(violations.filter((v) => v.code === "SIGNATURE_CHAMPION_MISSING")).toEqual([]);
+    expect(violations.filter((v) => v.code === "SIGNATURE_CHAMPION_COPIES")).toEqual([]);
   });
 });

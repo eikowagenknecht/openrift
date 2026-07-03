@@ -178,6 +178,48 @@ describe("isDeckZoneFullForDrag", () => {
     ).toBe(true);
   });
 
+  it("blocks battlefield drops in custom-region once any battlefield is placed", () => {
+    const allCards = [{ cardId: "other-bf", zone: "battlefield" as DeckZone, quantity: 1 }];
+    expect(
+      isDeckZoneFullForDrag({
+        zone: "battlefield",
+        draggedCardId: cardId,
+        fromZone: null,
+        allCards,
+        format: "custom-region",
+      }),
+    ).toBe(true);
+  });
+
+  it("allows a second unique battlefield drop in constructed", () => {
+    const allCards = [{ cardId: "other-bf", zone: "battlefield" as DeckZone, quantity: 1 }];
+    expect(
+      isDeckZoneFullForDrag({
+        zone: "battlefield",
+        draggedCardId: cardId,
+        fromZone: null,
+        allCards,
+        format: "constructed",
+      }),
+    ).toBe(false);
+  });
+
+  it("blocks moving a battlefield from overflow in custom-region when the zone is occupied", () => {
+    const allCards = [
+      { cardId: "other-bf", zone: "battlefield" as DeckZone, quantity: 1 },
+      { cardId, zone: "overflow" as DeckZone, quantity: 1 },
+    ];
+    expect(
+      isDeckZoneFullForDrag({
+        zone: "battlefield",
+        draggedCardId: cardId,
+        fromZone: "overflow",
+        allCards,
+        format: "custom-region",
+      }),
+    ).toBe(true);
+  });
+
   it("blocks rune drops when the rune zone holds 12 cards", () => {
     const allCards = Array.from({ length: 12 }, (_, index) => ({
       cardId: `rune-${index}`,

@@ -143,12 +143,17 @@ export async function buildEntryAdvisories(
       ),
     ),
   ];
-  const [enumRows, details, setSlugsByCard] = await Promise.all([
+  const [enumRows, details, setSlugsByCard, championIdentifierTags] = await Promise.all([
     repos.enums.all(),
     repos.deckCheck.getCardDetails(matchedIds),
     event.allowedSets && event.allowedSets.length > 0
       ? repos.deckCheck.getCardSetSlugs(matchedIds)
       : Promise.resolve(new Map<string, string[]>()),
+    // Only Custom-Region's signature rule consumes the champion-identifier
+    // tag set — skip the query for every other format.
+    event.format === WellKnown.deckFormat.CUSTOM_REGION
+      ? repos.catalog.championIdentifierTags()
+      : Promise.resolve([] as string[]),
   ]);
 
   const violations: DeckViolation[] = [];
@@ -174,7 +179,13 @@ export async function buildEntryAdvisories(
         },
       ];
     });
-    violations.push(...validateDeck({ format: event.format, cards: deckCards }));
+    violations.push(
+      ...validateDeck({
+        format: event.format,
+        cards: deckCards,
+        championIdentifierTags: new Set(championIdentifierTags),
+      }),
+    );
   }
 
   if (event.allowedSets && event.allowedSets.length > 0) {

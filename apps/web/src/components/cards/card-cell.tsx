@@ -49,6 +49,7 @@ export interface CardCellProps {
   dimmed?: boolean;
   highlighted?: boolean;
   showBanOverlay?: boolean;
+  hideBanIndicators?: boolean;
 
   /** dnd-kit drag source attached to the CardThumbnail itself. */
   dragData?: Record<string, unknown>;
@@ -95,6 +96,7 @@ export function CardCell({
   dimmed,
   highlighted,
   showBanOverlay,
+  hideBanIndicators,
   dragData,
   dragId,
   wrap,
@@ -117,6 +119,7 @@ export function CardCell({
       dimmed={dimmed}
       highlighted={highlighted}
       showBanOverlay={showBanOverlay}
+      hideBanIndicators={hideBanIndicators}
       belowLabel={belowLabel}
       imageOverlay={imageOverlay}
       dragData={dragData}

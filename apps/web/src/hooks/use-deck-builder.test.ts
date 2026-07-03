@@ -196,6 +196,21 @@ describe("addCardAction", () => {
     expect(cardsOf(collection).filter((c) => c.zone === "battlefield")).toHaveLength(3);
   });
 
+  it("limits battlefield zone to 1 card in custom-region", () => {
+    const bf = stubDeckBuilderCard({
+      cardId: "bf-1",
+      cardType: "battlefield",
+      zone: "battlefield",
+      quantity: 1,
+    });
+    collection = createDraftCollection([bf]);
+    const newBf = stubDeckBuilderCard({ cardId: "bf-new", cardType: "battlefield" });
+    addCardAction(collection, newBf, "battlefield", undefined, EMPTY_RUNES, "custom-region");
+    const zoneCards = cardsOf(collection).filter((c) => c.zone === "battlefield");
+    expect(zoneCards).toHaveLength(1);
+    expect(zoneCards[0].cardId).toBe("bf-1");
+  });
+
   it("prevents duplicate battlefields in the same zone", () => {
     const bf = stubDeckBuilderCard({
       cardId: "bf-1",

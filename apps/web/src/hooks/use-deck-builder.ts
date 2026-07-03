@@ -243,7 +243,9 @@ export function addCardAction(
     if (zoneCards.some((entry) => entry.cardId === card.cardId)) {
       return;
     }
-    if (zoneCards.length >= 3) {
+    // Custom-region allows exactly one battlefield, constructed three.
+    const battlefieldCap = format === WellKnown.deckFormat.CUSTOM_REGION ? 1 : 3;
+    if (zoneCards.length >= battlefieldCap) {
       return;
     }
     collection.insert({ ...card, zone, quantity: 1, preferredPrintingId });
