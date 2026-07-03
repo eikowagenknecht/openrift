@@ -206,6 +206,9 @@ export const TEST_USERS: TestUser[] = [
   { id: "a0000000-0053-4000-a000-000000000001", email: "repo-0053@test.com", isAdmin: false },
   // Second user for the deck-clone route test ("clone as another user").
   { id: "a0000000-0008-4000-a000-000000000002", email: "user-0008b@test.com", isAdmin: false },
+  // Second user for the preferences route test (clean-first-PATCH
+  // emailNotifications round-trip, ADR-030).
+  { id: "a0000000-0044-4000-a000-000000000002", email: "user-0044b@test.com", isAdmin: false },
   // Card-trades repo integration tests (ADR-019)
   { id: "a0000000-0054-4000-a000-000000000001", email: "repo-0054@test.com", isAdmin: false },
   { id: "a0000000-0055-4000-a000-000000000001", email: "repo-0055@test.com", isAdmin: false },
