@@ -96,7 +96,7 @@ export interface CardsTable {
   updatedAt: UpdatedAt;
 }
 
-/** @see cardErrataFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
+/** @see cardErrataFieldRules in `@openrift/shared/db-field-rules` for Zod validation of CHECK constraints */
 export interface CardErrataTable {
   id: Generated<string>;
   cardId: string;
