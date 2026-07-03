@@ -75,6 +75,7 @@ const PARALLEL_FILES = [
   // Services
   "src/services/price-refresh/upsert.integration.test.ts",
   "src/services/ingest-candidates.integration.test.ts",
+  "src/services/ingest-user-submission.integration.test.ts",
   "src/services/printing-admin.integration.test.ts",
   // Repositories
   "src/repositories/admins.integration.test.ts",

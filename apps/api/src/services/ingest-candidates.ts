@@ -375,7 +375,7 @@ export async function ingestCandidates(
           rarity: p.rarity,
           art_variant: p.art_variant,
           finish: p.finish,
-          size: p.size,
+          size: p.size ?? null,
           artist: p.artist,
           public_code: p.public_code,
           printed_rules_text: emptyToNull(p.printed_rules_text),
