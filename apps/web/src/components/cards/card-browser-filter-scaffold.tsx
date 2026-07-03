@@ -206,14 +206,15 @@ export function BrowserToolbar({
   groupByOptions,
   groupByValue,
 }: BrowserToolbarProps) {
-  // When the active-filters strip renders below (its own sticky tier), tighten
-  // the gap so the search row and its filter chips read as one grouped block
-  // instead of three evenly-spaced bands. With no filters the search row is the
-  // last tier, so it keeps the full gap to stay balanced.
+  // On mobile, when the active-filters strip renders below (its own sticky tier),
+  // tighten the gap so the search row and its filter chips read as one grouped
+  // block instead of three evenly-spaced bands. That strip is sm:hidden, so from
+  // sm up (where the compact filter bar replaces it) the gap stays a constant
+  // mb-3 to avoid a state-dependent shift with nothing below to group with.
   const { hasActiveFilters } = useFilterValues();
   return (
     <>
-      <div className={cn("flex items-start gap-3", hasActiveFilters ? "mb-2" : "mb-3")}>
+      <div className={cn("flex items-start gap-3", hasActiveFilters ? "mb-2 sm:mb-3" : "mb-3")}>
         <SearchBar totalCards={totalCards} filteredCount={filteredCount} />
         <DesktopOptionsBar
           className="hidden sm:flex"
