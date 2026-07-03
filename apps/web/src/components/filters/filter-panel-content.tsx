@@ -118,7 +118,7 @@ interface FilterPanelContentProps {
  * fold gating stays identical.
  * @returns The top-level and More unit sets, plus whether the More fold has any content.
  */
-export function useFilterUnitPartition({
+function useFilterUnitPartition({
   availableFilters,
   availableLanguages,
   hiddenSections,
@@ -213,7 +213,7 @@ export function FilterPanelContent({
  * the main panel body.
  * @returns The collapsible More-filters group.
  */
-export function MoreFiltersFold({ children }: { children: ReactNode }) {
+function MoreFiltersFold({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
