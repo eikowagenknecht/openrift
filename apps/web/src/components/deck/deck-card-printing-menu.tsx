@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/context-menu";
 import { useCards } from "@/hooks/use-cards";
 import { useDeckBuilderActions } from "@/hooks/use-deck-builder";
+import { useDeckDetail } from "@/hooks/use-decks";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { getAllowedMoveTargets } from "@/lib/deck-builder-card";
 import { ZONE_LABELS } from "@/lib/deck-zone-labels";
@@ -50,7 +51,8 @@ export function DeckCardPrintingMenu({ deckId, card, children }: DeckCardPrintin
   const { hoveredId, onEnter, onLeave, reset } = usePrintingHover();
   const popupRef = useRef<HTMLDivElement>(null);
 
-  const moveTargets = getAllowedMoveTargets(card);
+  const { data: deckDetail } = useDeckDetail(deckId);
+  const moveTargets = getAllowedMoveTargets(card, deckDetail.deck.format);
 
   if (printings.length === 0 && moveTargets.length === 0) {
     return children;

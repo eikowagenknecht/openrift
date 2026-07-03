@@ -8,6 +8,7 @@ import {
   championCopyLimitAcrossZones,
   championExactlyOne,
   championSharesTagWithLegend,
+  formatHasSideboard,
   legendExactlyOne,
   mainDeckCopyLimit,
   mainDeckExactly,
@@ -16,6 +17,7 @@ import {
   runesMatchLegendDomains,
   sideboardCopyLimit,
   sideboardMaximum,
+  sideboardNotAllowed,
   uniqueCopyLimit,
   validateDeck,
 } from "./deck-rules";
@@ -429,6 +431,37 @@ describe("sideboardCopyLimit", () => {
     );
     expect(violations).toHaveLength(1);
     expect(violations[0].code).toBe("SIDEBOARD_COPY_LIMIT");
+  });
+});
+
+// ── sideboardNotAllowed ─────────────────────────────────────────────────────
+
+describe("sideboardNotAllowed", () => {
+  it("passes with an empty sideboard", () => {
+    expect(sideboardNotAllowed(makeState([makeCard({ zone: "main" })]))).toEqual([]);
+  });
+
+  it("fails with any sideboard card, as a single zone-level violation", () => {
+    const violations = sideboardNotAllowed(
+      makeState([
+        makeCard({ zone: "sideboard", cardId: "side-1" }),
+        makeCard({ zone: "sideboard", cardId: "side-2", quantity: 3 }),
+      ]),
+    );
+    expect(violations).toHaveLength(1);
+    expect(violations[0].code).toBe("SIDEBOARD_NOT_ALLOWED");
+    expect(violations[0].zone).toBe("sideboard");
+    expect(violations[0].cardId).toBeUndefined();
+  });
+});
+
+// ── formatHasSideboard ──────────────────────────────────────────────────────
+
+describe("formatHasSideboard", () => {
+  it("is false only for custom-region", () => {
+    expect(formatHasSideboard("custom-region")).toBe(false);
+    expect(formatHasSideboard("constructed")).toBe(true);
+    expect(formatHasSideboard("freeform")).toBe(true);
   });
 });
 
@@ -897,6 +930,41 @@ describe("validateDeck for custom-region", () => {
     ];
     const violations = validateDeck(makeState(cards, "constructed"));
     expect(violations.some((v) => v.code === "BATTLEFIELD_TOO_FEW")).toBe(true);
+  });
+
+  // ── no sideboard in custom-region ────────────────────────────────────────
+
+  it("flags any sideboard card with SIDEBOARD_NOT_ALLOWED", () => {
+    const tagSlugs = ["bandle-city"];
+    const cards = [
+      ...fullyTaggedShell(tagSlugs),
+      ...fullyTaggedMain(tagSlugs),
+      withTags(makeCard({ cardId: "side-1", zone: "sideboard" }), tagSlugs),
+    ];
+    const violations = validateDeck(makeState(cards, "custom-region", { tagSlugs }));
+    expect(violations.some((v) => v.code === "SIDEBOARD_NOT_ALLOWED")).toBe(true);
+  });
+
+  it("does not run the sideboard cap rules — the zone is disallowed outright", () => {
+    const tagSlugs = ["bandle-city"];
+    // 9 copies of one card would trip both SIDEBOARD_TOO_MANY and
+    // SIDEBOARD_COPY_LIMIT under constructed rules.
+    const cards = [
+      ...fullyTaggedShell(tagSlugs),
+      ...fullyTaggedMain(tagSlugs),
+      withTags(makeCard({ cardId: "side-1", zone: "sideboard", quantity: 9 }), tagSlugs),
+    ];
+    const violations = validateDeck(makeState(cards, "custom-region", { tagSlugs }));
+    const codes = violations.map((v) => v.code);
+    expect(codes).toContain("SIDEBOARD_NOT_ALLOWED");
+    expect(codes).not.toContain("SIDEBOARD_TOO_MANY");
+    expect(codes).not.toContain("SIDEBOARD_COPY_LIMIT");
+  });
+
+  it("constructed still allows a legal sideboard", () => {
+    const cards = [makeCard({ cardId: "side-1", zone: "sideboard", quantity: 3 })];
+    const violations = validateDeck(makeState(cards, "constructed"));
+    expect(violations.some((v) => v.code === "SIDEBOARD_NOT_ALLOWED")).toBe(false);
   });
 
   // ── runes are exempt from the region-tag rule ────────────────────────────

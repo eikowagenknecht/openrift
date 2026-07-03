@@ -8,7 +8,7 @@ import type {
   Domain,
   SuperType,
 } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import { WellKnown, formatHasSideboard } from "@openrift/shared";
 
 const EMPTY_ARRAY: string[] = [];
 
@@ -97,16 +97,26 @@ const MOVE_TARGET_ORDER: readonly DeckZone[] = [
 
 /**
  * Lists zones a card can be moved into via the context menu — every zone where
- * its type is allowed, minus its current zone, in display order.
+ * its type is allowed, minus its current zone, in display order. Formats
+ * without a sideboard drop it as a target; it stays a valid source so stray
+ * sideboard cards can still be moved out.
  *
  * @returns Allowed target zones for the move-to menu.
  */
-export function getAllowedMoveTargets(card: {
-  cardType: CardType;
-  superTypes: SuperType[];
-  zone: DeckZone;
-}): DeckZone[] {
-  return MOVE_TARGET_ORDER.filter((zone) => zone !== card.zone && isCardAllowedInZone(card, zone));
+export function getAllowedMoveTargets(
+  card: {
+    cardType: CardType;
+    superTypes: SuperType[];
+    zone: DeckZone;
+  },
+  format: DeckFormat,
+): DeckZone[] {
+  return MOVE_TARGET_ORDER.filter(
+    (zone) =>
+      zone !== card.zone &&
+      isCardAllowedInZone(card, zone) &&
+      (zone !== WellKnown.deckZone.SIDEBOARD || formatHasSideboard(format)),
+  );
 }
 
 /**
@@ -176,6 +186,15 @@ export function isDeckZoneFullForDrag(args: {
   const { zone, draggedCardId, fromZone, allCards, format } = args;
   if (format === WellKnown.deckFormat.FREEFORM) {
     return false;
+  }
+  // Formats without a sideboard reject drops into it. Drops from within the
+  // sideboard stay allowed so putting a card back down doesn't discard it.
+  if (
+    zone === WellKnown.deckZone.SIDEBOARD &&
+    !formatHasSideboard(format) &&
+    fromZone !== WellKnown.deckZone.SIDEBOARD
+  ) {
+    return true;
   }
   if (COPY_LIMIT_ZONES.has(zone) && fromZone === null) {
     const total = allCards

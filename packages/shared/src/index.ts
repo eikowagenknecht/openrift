@@ -79,7 +79,7 @@ export {
 export { appendSetTotal, fixTypography } from "./fix-typography.js";
 
 export type { DeckCard, DeckState, DeckViolation } from "./deck-rules.js";
-export { validateDeck } from "./deck-rules.js";
+export { formatHasSideboard, validateDeck } from "./deck-rules.js";
 
 export type { DeckCheckCardLine, DeckCheckEntrySource } from "./deck-check.js";
 export {

@@ -1,4 +1,5 @@
 import type { DeckZone, Marketplace } from "@openrift/shared";
+import { WellKnown, formatHasSideboard } from "@openrift/shared";
 import { LayoutDashboardIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
@@ -53,6 +54,16 @@ export function DeckZonePanel({
   );
   const activeZone = useDeckBuilderUiStore((state) => state.activeZone);
 
+  // Formats without a sideboard hide the zone once it's empty. A non-empty
+  // sideboard (format switch, imported list) stays visible with its
+  // violation so the cards can still be moved out.
+  const visibleZones = zoneOrder.filter(
+    (zone) =>
+      zone !== WellKnown.deckZone.SIDEBOARD ||
+      formatHasSideboard(deckDetail.deck.format) ||
+      cards.some((card) => card.zone === WellKnown.deckZone.SIDEBOARD),
+  );
+
   const [shiftHeld, setShiftHeld] = useState(false);
   useEffect(() => {
     const down = (event: KeyboardEvent) => {
@@ -92,7 +103,7 @@ export function DeckZonePanel({
         </Button>
       )}
       {afterOverview}
-      {zoneOrder.map((zone) => (
+      {visibleZones.map((zone) => (
         <DeckZoneSection
           key={zone}
           deckId={deckId}

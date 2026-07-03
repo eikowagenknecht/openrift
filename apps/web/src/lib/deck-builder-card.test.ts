@@ -220,6 +220,40 @@ describe("isDeckZoneFullForDrag", () => {
     ).toBe(true);
   });
 
+  it("blocks sideboard drops in custom-region — the format has no sideboard", () => {
+    expect(
+      isDeckZoneFullForDrag({
+        zone: "sideboard",
+        draggedCardId: cardId,
+        fromZone: null,
+        allCards: [],
+        format: "custom-region",
+      }),
+    ).toBe(true);
+    expect(
+      isDeckZoneFullForDrag({
+        zone: "sideboard",
+        draggedCardId: cardId,
+        fromZone: "main",
+        allCards: [{ cardId, zone: "main" as DeckZone, quantity: 1 }],
+        format: "custom-region",
+      }),
+    ).toBe(true);
+  });
+
+  it("allows dropping a stranded custom-region sideboard card back into its source zone", () => {
+    const allCards = [{ cardId, zone: "sideboard" as DeckZone, quantity: 1 }];
+    expect(
+      isDeckZoneFullForDrag({
+        zone: "sideboard",
+        draggedCardId: cardId,
+        fromZone: "sideboard",
+        allCards,
+        format: "custom-region",
+      }),
+    ).toBe(false);
+  });
+
   it("blocks rune drops when the rune zone holds 12 cards", () => {
     const allCards = Array.from({ length: 12 }, (_, index) => ({
       cardId: `rune-${index}`,
@@ -355,7 +389,11 @@ describe("getAllowedMoveTargets", () => {
       superTypes: ["champion"] as SuperType[],
       zone: "main" as DeckZone,
     };
-    expect(getAllowedMoveTargets(card)).toEqual(["champion", "sideboard", "overflow"]);
+    expect(getAllowedMoveTargets(card, "constructed")).toEqual([
+      "champion",
+      "sideboard",
+      "overflow",
+    ]);
   });
 
   it("excludes the current zone", () => {
@@ -364,7 +402,7 @@ describe("getAllowedMoveTargets", () => {
       superTypes: [] as SuperType[],
       zone: "sideboard" as DeckZone,
     };
-    expect(getAllowedMoveTargets(card)).toEqual(["main", "overflow"]);
+    expect(getAllowedMoveTargets(card, "constructed")).toEqual(["main", "overflow"]);
   });
 
   it("offers only overflow for a Legend in legend (its sole other home)", () => {
@@ -373,7 +411,7 @@ describe("getAllowedMoveTargets", () => {
       superTypes: [] as SuperType[],
       zone: "legend" as DeckZone,
     };
-    expect(getAllowedMoveTargets(card)).toEqual(["overflow"]);
+    expect(getAllowedMoveTargets(card, "constructed")).toEqual(["overflow"]);
   });
 
   it("offers only overflow for a Rune in runes", () => {
@@ -382,7 +420,7 @@ describe("getAllowedMoveTargets", () => {
       superTypes: [] as SuperType[],
       zone: "runes" as DeckZone,
     };
-    expect(getAllowedMoveTargets(card)).toEqual(["overflow"]);
+    expect(getAllowedMoveTargets(card, "constructed")).toEqual(["overflow"]);
   });
 
   it("offers only overflow for a Battlefield card in battlefield", () => {
@@ -391,7 +429,7 @@ describe("getAllowedMoveTargets", () => {
       superTypes: [] as SuperType[],
       zone: "battlefield" as DeckZone,
     };
-    expect(getAllowedMoveTargets(card)).toEqual(["overflow"]);
+    expect(getAllowedMoveTargets(card, "constructed")).toEqual(["overflow"]);
   });
 
   it("lets a Champion move out of the champion zone into main/sideboard/overflow", () => {
@@ -400,6 +438,18 @@ describe("getAllowedMoveTargets", () => {
       superTypes: ["champion"] as SuperType[],
       zone: "champion" as DeckZone,
     };
-    expect(getAllowedMoveTargets(card)).toEqual(["main", "sideboard", "overflow"]);
+    expect(getAllowedMoveTargets(card, "constructed")).toEqual(["main", "sideboard", "overflow"]);
+  });
+
+  it("drops sideboard as a target in custom-region but keeps it as a source", () => {
+    const mainCard = {
+      cardType: "unit" as const,
+      superTypes: [] as SuperType[],
+      zone: "main" as DeckZone,
+    };
+    expect(getAllowedMoveTargets(mainCard, "custom-region")).toEqual(["overflow"]);
+
+    const strandedCard = { ...mainCard, zone: "sideboard" as DeckZone };
+    expect(getAllowedMoveTargets(strandedCard, "custom-region")).toEqual(["main", "overflow"]);
   });
 });

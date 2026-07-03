@@ -401,6 +401,26 @@ export const uniqueCopyLimit: DeckRule = (state) => {
   return violations;
 };
 
+// Formats without a sideboard reject any card parked there. Cards can land in
+// the sideboard via a format switch or an imported list with a sideboard
+// section — they are flagged, never auto-moved, and the builder keeps the
+// zone visible until the user empties it.
+export const sideboardNotAllowed: DeckRule = (state) => {
+  const count = totalQuantity(cardsInZone(state.cards, WellKnown.deckZone.SIDEBOARD));
+
+  if (count > 0) {
+    return [
+      {
+        zone: WellKnown.deckZone.SIDEBOARD,
+        code: "SIDEBOARD_NOT_ALLOWED",
+        message: "This format has no sideboard — move these cards to the main deck or overflow",
+      },
+    ];
+  }
+
+  return [];
+};
+
 // Max 3 copies of any card in the sideboard.
 export const sideboardCopyLimit: DeckRule = (state) => {
   const violations: DeckViolation[] = [];
@@ -739,8 +759,9 @@ const CONSTRUCTED_RULES: DeckRule[] = [
 
 // Custom-Region: constructed minus the two pure-domain rules, plus the two
 // tag-locked rules. championSharesTagWithLegend stays (it's a tag rule, not
-// a domain rule). Order: tag rules first so a missing tag pick reports the
-// load-bearing violation before per-card noise.
+// a domain rule). The format has no sideboard, so the two sideboard-cap rules
+// are replaced by sideboardNotAllowed. Order: tag rules first so a missing
+// tag pick reports the load-bearing violation before per-card noise.
 const REGION_LOCKED_RULES: DeckRule[] = [
   formatTagRequired,
   cardsCarryFormatTag,
@@ -755,12 +776,22 @@ const REGION_LOCKED_RULES: DeckRule[] = [
   mainDeckExactly,
   mainDeckCopyLimit,
   championCopyLimitAcrossZones,
-  sideboardMaximum,
-  sideboardCopyLimit,
+  sideboardNotAllowed,
   uniqueCopyLimit,
   signatureTotalLimit,
   signatureChampionCopiesInDeck,
 ];
+
+/**
+ * Whether decks of a format play a sideboard zone. Custom-Region has none:
+ * the builder hides the zone (once empty), drops it as a move target, and
+ * `sideboardNotAllowed` flags any cards still parked there.
+ *
+ * @returns true when the format allows sideboard cards.
+ */
+export function formatHasSideboard(format: DeckFormat): boolean {
+  return format !== WellKnown.deckFormat.CUSTOM_REGION;
+}
 
 /**
  * Validates a deck against the rules for its format.

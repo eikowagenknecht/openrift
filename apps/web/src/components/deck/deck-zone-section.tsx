@@ -1,6 +1,6 @@
 import { useDndContext, useDroppable } from "@dnd-kit/core";
 import type { DeckViolation, DeckZone } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import { WellKnown, formatHasSideboard } from "@openrift/shared";
 import { AlertTriangleIcon, BanIcon, ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 import { useState } from "react";
 
@@ -150,7 +150,12 @@ export function DeckZoneSection({
   const totalQuantity = cards.reduce((sum, card) => sum + card.quantity, 0);
   const maxCardQuantity = cards.reduce((max, card) => Math.max(max, card.quantity), 0);
   // Freeform has no per-zone target — hide the "x/N" denominator entirely.
-  const expected = isFreeform ? undefined : ZONE_EXPECTED[zone];
+  // Same for the sideboard in formats that don't play one: the /8 cap comes
+  // from constructed and would be misleading on a zone that's disallowed.
+  const expected =
+    isFreeform || (zone === WellKnown.deckZone.SIDEBOARD && !formatHasSideboard(format))
+      ? undefined
+      : ZONE_EXPECTED[zone];
   const zoneViolations = violations.filter(
     (violation) => violation.zone === zone && !violation.cardId,
   );

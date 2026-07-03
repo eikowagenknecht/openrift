@@ -7,7 +7,7 @@ import type {
   DeckZone,
   Marketplace,
 } from "@openrift/shared";
-import { WellKnown, legendDisplayName, validateDeck } from "@openrift/shared";
+import { WellKnown, formatHasSideboard, legendDisplayName, validateDeck } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import {
   AlertTriangleIcon,
@@ -328,24 +328,31 @@ export function DeckOverview({
           readOnly={readOnly}
           onCardClick={onCardClick}
         />
-        <ZoneTile
-          deckId={deck.id}
-          zone={WellKnown.deckZone.SIDEBOARD}
-          label={ZONE_LABELS.sideboard}
-          cards={cards.filter((card) => card.zone === WellKnown.deckZone.SIDEBOARD)}
-          allCards={cards}
-          expected={ZONE_EXPECTED.sideboard}
-          emptyHint={ZONE_EMPTY_HINTS.sideboard}
-          format={deck.format}
-          zoneViolations={violations.filter(
-            (violation) => violation.zone === WellKnown.deckZone.SIDEBOARD && !violation.cardId,
-          )}
-          onClick={onZoneClick ? () => onZoneClick(WellKnown.deckZone.SIDEBOARD) : undefined}
-          onHoverCard={onHoverCard}
-          getThumbnail={getThumbnail}
-          readOnly={readOnly}
-          onCardClick={onCardClick}
-        />
+        {/* Formats without a sideboard hide the tile once it's empty; a
+            non-empty sideboard (format switch, imported list) stays visible
+            with its violation so the cards can be moved out. The /8 target
+            only applies where the zone is part of the format. */}
+        {(formatHasSideboard(deck.format) ||
+          cards.some((card) => card.zone === WellKnown.deckZone.SIDEBOARD)) && (
+          <ZoneTile
+            deckId={deck.id}
+            zone={WellKnown.deckZone.SIDEBOARD}
+            label={ZONE_LABELS.sideboard}
+            cards={cards.filter((card) => card.zone === WellKnown.deckZone.SIDEBOARD)}
+            allCards={cards}
+            expected={formatHasSideboard(deck.format) ? ZONE_EXPECTED.sideboard : undefined}
+            emptyHint={ZONE_EMPTY_HINTS.sideboard}
+            format={deck.format}
+            zoneViolations={violations.filter(
+              (violation) => violation.zone === WellKnown.deckZone.SIDEBOARD && !violation.cardId,
+            )}
+            onClick={onZoneClick ? () => onZoneClick(WellKnown.deckZone.SIDEBOARD) : undefined}
+            onHoverCard={onHoverCard}
+            getThumbnail={getThumbnail}
+            readOnly={readOnly}
+            onCardClick={onCardClick}
+          />
+        )}
         {cards.some((card) => card.zone === WellKnown.deckZone.OVERFLOW) && (
           <ZoneTile
             deckId={deck.id}
@@ -976,7 +983,7 @@ function DeckBuilderIntroBanner({
     format === WellKnown.deckFormat.CONSTRUCTED
       ? "This deck uses the Constructed format, so it's checked against the rules as you build and violations show up right away. Switch to Freeform if you want to experiment without those restrictions."
       : format === WellKnown.deckFormat.CUSTOM_REGION
-        ? "This deck uses the Custom-Region format: every card must belong to your chosen regions, one battlefield is played, and signature cards need their champion in the deck. Violations show up as you build."
+        ? "This deck uses the Custom-Region format: every card must belong to your chosen regions, one battlefield is played, there is no sideboard, and signature cards need their champion in the deck. Violations show up as you build."
         : "This deck uses the Freeform format, so you can build without rule restrictions. Switch to Constructed if you want the rules validated as you go.";
   return (
     <div className="border-border bg-muted/30 relative rounded-lg border p-4">

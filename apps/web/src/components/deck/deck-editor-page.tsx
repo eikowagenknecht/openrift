@@ -1,5 +1,5 @@
 import type { DeckZone } from "@openrift/shared";
-import { imageUrl, WellKnown } from "@openrift/shared";
+import { formatHasSideboard, imageUrl, WellKnown } from "@openrift/shared";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
@@ -295,6 +295,19 @@ function DeckEditorContent({
   useEffect(() => {
     useSelectionStore.getState().closeDetail();
   }, [activeZone]);
+
+  // Formats without a sideboard hide the zone once it's empty. If the user is
+  // inside the sideboard browser when its last card leaves (or the format is
+  // switched mid-edit), return to the overview so the browser doesn't keep
+  // targeting a zone that no longer renders anywhere.
+  const sideboardHidden =
+    !formatHasSideboard(data.deck.format) &&
+    !deckCards.some((card) => card.zone === WellKnown.deckZone.SIDEBOARD);
+  useEffect(() => {
+    if (activeZone === WellKnown.deckZone.SIDEBOARD && sideboardHidden) {
+      setActiveZone(null);
+    }
+  }, [activeZone, sideboardHidden, setActiveZone]);
 
   const handleOverviewCardClick = (card: DeckBuilderCard) => {
     const printing = getPreferredPrinting(card.cardId, card.preferredPrintingId);
