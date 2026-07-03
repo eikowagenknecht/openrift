@@ -25,7 +25,7 @@ import { candidateCardValidator, candidatePrintingValidator } from "./ingest-can
 export const USER_SUBMISSION_PROVIDER = "usersubmission";
 
 /** Per-user cap on in-app submissions in a rolling 24h window (ADR-036). */
-export const USER_SUBMISSION_DAILY_LIMIT = 50;
+const USER_SUBMISSION_DAILY_LIMIT = 50;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
