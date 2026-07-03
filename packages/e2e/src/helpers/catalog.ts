@@ -46,12 +46,3 @@ export async function typeSearch(page: Page, query: string): Promise<Locator> {
   }).toPass({ timeout: 15_000 });
   return search;
 }
-
-/**
- * Retry a toolbar interaction until a follow-up assertion holds. Absorbs the
- * hydration window where an early click is dropped.
- * @returns Nothing.
- */
-export async function retryUntil(action: () => Promise<void>, timeout = 15_000) {
-  await expect(action).toPass({ timeout });
-}
