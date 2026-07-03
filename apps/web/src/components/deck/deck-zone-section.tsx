@@ -1,6 +1,6 @@
 import { useDndContext, useDroppable } from "@dnd-kit/core";
 import type { DeckViolation, DeckZone } from "@openrift/shared";
-import { WellKnown, formatHasSideboard } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared";
 import { AlertTriangleIcon, BanIcon, ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 import { useState } from "react";
 
@@ -24,7 +24,7 @@ import {
   isDeckZoneFullForDrag,
 } from "@/lib/deck-builder-card";
 import { compareGroupedCards, GROUPED_ZONES, TYPE_GROUP_ORDER } from "@/lib/deck-card-order";
-import { ZONE_EMPTY_HINTS, ZONE_EXPECTED, ZONE_LABELS } from "@/lib/deck-zone-labels";
+import { ZONE_LABELS, zoneEmptyHint, zoneExpected } from "@/lib/deck-zone-labels";
 import { getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { useSelectionStore } from "@/stores/selection-store";
@@ -155,12 +155,9 @@ export function DeckZoneSection({
   const totalQuantity = cards.reduce((sum, card) => sum + card.quantity, 0);
   const maxCardQuantity = cards.reduce((max, card) => Math.max(max, card.quantity), 0);
   // Freeform has no per-zone target — hide the "x/N" denominator entirely.
-  // Same for the sideboard in formats that don't play one: the /8 cap comes
-  // from constructed and would be misleading on a zone that's disallowed.
-  const expected =
-    isFreeform || (zone === WellKnown.deckZone.SIDEBOARD && !formatHasSideboard(format))
-      ? undefined
-      : ZONE_EXPECTED[zone];
+  // zoneExpected applies the format overrides (Custom-Region's single
+  // battlefield, no /8 target on sideboard-less formats).
+  const expected = isFreeform ? undefined : zoneExpected(zone, format);
   const zoneViolations = violations.filter(
     (violation) => violation.zone === zone && !violation.cardId,
   );
@@ -320,7 +317,7 @@ export function DeckZoneSection({
               className="text-muted-foreground hover:text-foreground w-full rounded px-2 py-1 text-left text-xs"
               onClick={activateZone}
             >
-              {ZONE_EMPTY_HINTS[zone]}
+              {zoneEmptyHint(zone, format)}
             </button>
           ) : isGrouped ? (
             <div className="flex flex-col gap-1.5">{renderGroupedCards()}</div>

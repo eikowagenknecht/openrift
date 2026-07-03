@@ -9,6 +9,7 @@
 ### Other
 
 - feat(Trades): **See which list matched** — each possible-trade row now names the wishlist or tradelist of yours that produced it.
+- fix(Decks): **Custom-Region battlefield count** — the deck builder claimed 3 battlefields were needed while the format plays exactly 1, so all counters and hints now say 1 and a full deck reads as complete.
 - fix(Decks): **Dragging onto a wrong zone keeps the card** — dropping a deck card onto a zone it can't go in (like a unit onto Runes or Battlefields) now leaves it in place, instead of removing a copy.
 - fix(Collection): **All printings in list detail panes** — the detail panel on wishlists and tradelists (your own and ones shared with you) now lists every printing of a card, not just the ones on the list.
 - fix(Trades): **Per-copy price on suggestions** — a suggestion priced the full amount you wished even when fewer copies were available, so it now shows the price per copy with the wished and available counts beside it.

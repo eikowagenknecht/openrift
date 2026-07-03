@@ -49,7 +49,7 @@ import {
   toRuleEngineCard,
 } from "@/lib/deck-builder-card";
 import { GROUPED_ZONES, sortOverviewCards, TYPE_GROUP_ORDER } from "@/lib/deck-card-sort";
-import { ZONE_EMPTY_HINTS, ZONE_EXPECTED, ZONE_LABELS } from "@/lib/deck-zone-labels";
+import { ZONE_LABELS, zoneEmptyHint, zoneExpected } from "@/lib/deck-zone-labels";
 import { formatterForMarketplace } from "@/lib/format";
 import { getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
@@ -66,7 +66,6 @@ const REQUIRED_ZONES: DeckZone[] = [
   WellKnown.deckZone.BATTLEFIELD,
   WellKnown.deckZone.MAIN,
 ];
-const REQUIRED_TOTAL = REQUIRED_ZONES.reduce((sum, zone) => sum + (ZONE_EXPECTED[zone] ?? 0), 0);
 
 // Small-zone row layout:
 //  • @lg: 3 columns — Legend / Champion / Runes on row 1, Battlefield on row 2
@@ -168,10 +167,16 @@ export function DeckOverview({
       ? "Pick a Legend to unlock matching Champions and auto-fill Runes."
       : null;
 
+  // Target varies by format (Custom-Region plays 1 battlefield, not 3), so
+  // the total is derived per deck rather than as a module constant.
+  const requiredTotal = REQUIRED_ZONES.reduce(
+    (sum, zone) => sum + (zoneExpected(zone, deck.format) ?? 0),
+    0,
+  );
   const hasAnyViolation = violations.length > 0;
-  const isComplete = requiredProgress === REQUIRED_TOTAL && !hasAnyViolation;
+  const isComplete = requiredProgress === requiredTotal && !hasAnyViolation;
   const cardsPct =
-    REQUIRED_TOTAL > 0 ? Math.min(100, Math.round((requiredProgress / REQUIRED_TOTAL) * 100)) : 0;
+    requiredTotal > 0 ? Math.min(100, Math.round((requiredProgress / requiredTotal) * 100)) : 0;
 
   return (
     <div className="@container flex flex-col gap-6 px-1 pt-2 pb-4">
@@ -192,7 +197,7 @@ export function DeckOverview({
             value={
               <span>
                 {requiredProgress}
-                <span className="text-muted-foreground text-sm">/{REQUIRED_TOTAL}</span>
+                <span className="text-muted-foreground text-sm">/{requiredTotal}</span>
               </span>
             }
             bar={<ProgressBar pct={cardsPct} />}
@@ -229,7 +234,7 @@ export function DeckOverview({
                   Complete
                 </span>
               ) : (
-                `${REQUIRED_TOTAL - requiredProgress} more needed`
+                `${requiredTotal - requiredProgress} more needed`
               )
             }
           />
@@ -295,8 +300,8 @@ export function DeckOverview({
               label={ZONE_LABELS[zone]}
               cards={cards.filter((card) => card.zone === zone)}
               allCards={cards}
-              expected={ZONE_EXPECTED[zone]}
-              emptyHint={ZONE_EMPTY_HINTS[zone]}
+              expected={zoneExpected(zone, deck.format)}
+              emptyHint={zoneEmptyHint(zone, deck.format)}
               format={deck.format}
               zoneViolations={violations.filter(
                 (violation) => violation.zone === zone && !violation.cardId,
@@ -316,8 +321,8 @@ export function DeckOverview({
           label={ZONE_LABELS.main}
           cards={cards.filter((card) => card.zone === WellKnown.deckZone.MAIN)}
           allCards={cards}
-          expected={ZONE_EXPECTED.main}
-          emptyHint={ZONE_EMPTY_HINTS.main}
+          expected={zoneExpected(WellKnown.deckZone.MAIN, deck.format)}
+          emptyHint={zoneEmptyHint(WellKnown.deckZone.MAIN, deck.format)}
           format={deck.format}
           zoneViolations={violations.filter(
             (violation) => violation.zone === WellKnown.deckZone.MAIN && !violation.cardId,
@@ -340,8 +345,8 @@ export function DeckOverview({
             label={ZONE_LABELS.sideboard}
             cards={cards.filter((card) => card.zone === WellKnown.deckZone.SIDEBOARD)}
             allCards={cards}
-            expected={formatHasSideboard(deck.format) ? ZONE_EXPECTED.sideboard : undefined}
-            emptyHint={ZONE_EMPTY_HINTS.sideboard}
+            expected={zoneExpected(WellKnown.deckZone.SIDEBOARD, deck.format)}
+            emptyHint={zoneEmptyHint(WellKnown.deckZone.SIDEBOARD, deck.format)}
             format={deck.format}
             zoneViolations={violations.filter(
               (violation) => violation.zone === WellKnown.deckZone.SIDEBOARD && !violation.cardId,
@@ -360,8 +365,8 @@ export function DeckOverview({
             label={ZONE_LABELS.overflow}
             cards={cards.filter((card) => card.zone === WellKnown.deckZone.OVERFLOW)}
             allCards={cards}
-            expected={ZONE_EXPECTED.overflow}
-            emptyHint={ZONE_EMPTY_HINTS.overflow}
+            expected={zoneExpected(WellKnown.deckZone.OVERFLOW, deck.format)}
+            emptyHint={zoneEmptyHint(WellKnown.deckZone.OVERFLOW, deck.format)}
             format={deck.format}
             zoneViolations={violations.filter(
               (violation) => violation.zone === WellKnown.deckZone.OVERFLOW && !violation.cardId,
