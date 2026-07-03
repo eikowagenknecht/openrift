@@ -2,15 +2,21 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { EMPTY_TRADE_PREFERENCE } from "@/test/factories";
+import { EMPTY_TRADE_PREFERENCE, stubPrinting } from "@/test/factories";
 import { createStoreResetter } from "@/test/store-helpers";
+
+// Two catalog printings of the same card, only the first of which is on the
+// list. Lets the detail-pane test tell the full catalog fan (2 printings)
+// apart from the list-scoped map (1 printing).
+const printingOnList = stubPrinting({ id: "printing-1", cardId: "card-1" });
+const printingOffList = stubPrinting({ id: "printing-2", cardId: "card-1" });
 
 // A card-kind wish list with one entry, so ListPage renders the non-empty
 // branch (the card browser). Regression: the group-visibility dialog used to
 // be mounted only in the empty-state branch, so the top-bar people icon did
 // nothing on any list that had cards (see the `visibilityDialog` node in both
 // return branches of ListPage).
-const listDetail = {
+const cardKindListDetail = {
   list: {
     id: "list-1",
     name: "My wishlist",
@@ -33,6 +39,26 @@ const listDetail = {
     },
   ],
 };
+
+// Same list pinned to a specific printing. Regression: printing- and
+// copy-kind lists used to feed the detail pane the list-scoped printing map,
+// so the pane's picker hid every variant not on the list.
+const printingKindListDetail = {
+  list: { ...cardKindListDetail.list, kind: "printing" },
+  entries: [
+    {
+      id: "entry-1",
+      kind: "printing",
+      printingId: printingOnList.id,
+      cardId: "card-1",
+      cardName: "Test Card",
+      quantity: 1,
+      tradeOverride: EMPTY_TRADE_PREFERENCE,
+    },
+  ],
+};
+
+let listDetail: typeof cardKindListDetail | typeof printingKindListDetail = cardKindListDetail;
 
 function mutationStub() {
   return { mutate: vi.fn(), isPending: false, variables: undefined };
@@ -90,9 +116,12 @@ vi.mock("@/hooks/use-friend-groups", () => ({
 
 vi.mock("@/hooks/use-cards", () => ({
   useCards: () => ({
-    allPrintings: [],
-    printingsById: {},
-    printingsByCardId: new Map(),
+    allPrintings: [printingOnList, printingOffList],
+    printingsById: {
+      [printingOnList.id]: printingOnList,
+      [printingOffList.id]: printingOffList,
+    },
+    printingsByCardId: new Map([["card-1", [printingOnList, printingOffList]]]),
     sets: [],
   }),
 }));
@@ -100,7 +129,8 @@ vi.mock("@/hooks/use-cards", () => ({
 vi.mock("@/hooks/use-card-data", () => ({
   useCardData: () => ({
     sortedCards: [],
-    printingsByCardId: new Map(),
+    // List-scoped map: only the printing actually on the list survives.
+    printingsByCardId: new Map([["card-1", [printingOnList]]]),
     priceRangeByCardId: undefined,
     availableFilters: {},
     availableLanguages: [],
@@ -165,8 +195,18 @@ vi.mock("@/components/ui/sidebar", () => ({
   useSidebar: () => ({ toggleSidebar: vi.fn() }),
 }));
 
+// The grid itself is irrelevant here, but the detail pane is hosted via the
+// viewer's `rightPane` prop, so render that slot.
 vi.mock("@/components/card-viewer", () => ({
-  CardViewer: () => null,
+  CardViewer: ({ rightPane }: { rightPane?: unknown }) => <div>{rightPane as never}</div>,
+}));
+
+// The real pane renders nothing without a selection; this stub surfaces the
+// printing fan ListPage hands it, which is what the detail-pane test asserts.
+vi.mock("@/components/selection-detail-pane", () => ({
+  SelectionDetailPane: ({ printingsByCardId }: { printingsByCardId: Map<string, unknown[]> }) => (
+    <div>Detail pane printings: {printingsByCardId.get("card-1")?.length ?? 0}</div>
+  ),
 }));
 
 vi.mock("@/components/cards/card-browser-filter-scaffold", () => ({
@@ -244,6 +284,7 @@ describe("ListPage", () => {
     for (const reset of resetters) {
       reset();
     }
+    listDetail = cardKindListDetail;
     document.body.innerHTML = "";
   });
 
@@ -254,5 +295,13 @@ describe("ListPage", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Group visibility" }));
     expect(screen.getByRole("dialog", { name: "Group visibility" })).toBeInTheDocument();
+  });
+
+  it("feeds the detail pane every catalog printing of a card on a printing-kind list", () => {
+    listDetail = printingKindListDetail;
+    renderListPage();
+
+    // Both catalog printings, not just the one pinned by the list entry.
+    expect(screen.getByText("Detail pane printings: 2")).toBeInTheDocument();
   });
 });

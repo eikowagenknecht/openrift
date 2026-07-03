@@ -498,11 +498,11 @@ function SharedListGrid({
   );
   const aboveGrid = <BrowserActiveFilters />;
 
-  // Card-kind lists fan out every printing of the clicked card in the detail
-  // pane (the entry doesn't pin a specific printing), scoped to the user's
-  // preferred languages. Other kinds stay scoped to what's on the list.
-  const detailPanePrintingsByCardId =
-    list.kind === "card" ? userScopedPrintingsByCardId : filteredPrintingsByCardId;
+  // The detail-pane picker lists every printing of the clicked card from the
+  // global catalog, scoped to the user's preferred languages — not just the
+  // printings on the list. The grid tiles keep their per-kind scoping; only
+  // the pane fans out.
+  const detailPanePrintingsByCardId = userScopedPrintingsByCardId;
 
   const rightPane = isMobile ? undefined : (
     <SelectionDetailPane

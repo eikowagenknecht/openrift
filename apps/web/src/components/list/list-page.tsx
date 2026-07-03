@@ -1200,19 +1200,11 @@ function ListEntryBrowser({
   );
   const aboveGrid = <BrowserActiveFilters />;
 
-  // For card-kind lists, the entry intentionally doesn't pin a specific
-  // printing — the user said "any printing of this card is fine". The detail
-  // pane fans out every printing of the card from the global catalog,
-  // scoped to the user's language prefs (matches the in-tile siblings fan).
-  // Printing/copy kinds stay scoped to what's actually on the list since
-  // the user picked specific printings or copies. In add mode the pane fans
-  // the catalog (filtered) so the user can inspect any card they're about
-  // to add.
-  const detailPanePrintingsByCardId = showLibrary
-    ? filteredPrintingsByCardId
-    : kind === "card"
-      ? userScopedPrintingsByCardId
-      : filteredPrintingsByCardId;
+  // The detail-pane picker lists every printing of the clicked card from the
+  // global catalog, scoped to the user's language prefs — not just the
+  // printings on the list or the ones surviving the grid filters. The in-tile
+  // siblings fan keeps its per-kind scoping; only the pane fans out.
+  const detailPanePrintingsByCardId = userScopedPrintingsByCardId;
 
   const rightPane = isMobile ? undefined : (
     <SelectionDetailPane
