@@ -973,7 +973,7 @@ function introSteps(format: DeckFormat): readonly { title: string; description: 
 }
 
 const INTRO_TIPS: readonly string[] = [
-  "Once you're inside a zone, each card in the browser has a small + button on its row — click it to add a copy, or drag the card onto a zone in the sidebar. Hold Shift to add the maximum allowed copies at once.",
+  "Once you're inside a zone, each card in the browser has a small + button on its row. Click it to add a copy, or drag the card onto a zone in the sidebar. Hold Shift to add the maximum allowed copies at once.",
   "Edits save automatically as you go.",
 ];
 

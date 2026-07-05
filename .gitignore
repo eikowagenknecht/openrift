@@ -47,8 +47,10 @@ routeTree.gen.ts
 docker-compose.override.yml
 deploy.sh
 
-# Tooling worktrees (auto-managed)
-.worktrees/
+# Local tooling (kept untracked)
+.tooling/
+docs/contributing.md
+notes.local.md
 
 # Auto-generated test artifacts from Hypothesis (a property-based testing library)
 .hypothesis/

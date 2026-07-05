@@ -31,7 +31,7 @@ This is a tool surface, not a data feature. It is closest in spirit to `/pack-op
 
 **Per-cell re-render strategy**
 
-- **Per-player selector subscriptions** (chosen). Each player panel subscribes to its own slice of the store; the parent maps only over a stable array of player ids. This is the pattern docs/contributing.md mandates for `.map()` closures over changing state (cf. `rules-fold-store` + `RuleRow`).
+- **Per-player selector subscriptions** (chosen). Each player panel subscribes to its own slice of the store; the parent maps only over a stable array of player ids. This is the repo's mandated pattern for `.map()` closures over changing state (cf. `rules-fold-store` + `RuleRow`).
 - Single parent component holding all player state and prop-drilling into panels. Rejected: every counter tap would re-run the whole `.map()` and re-render all panels — exactly the anti-pattern the convention exists to prevent.
 
 **Counter model**
@@ -117,7 +117,7 @@ Coin flip and die roll are stateless helpers (they don't need to persist) and ca
 
 ### Re-render isolation
 
-Per docs/contributing.md: the parent maps over a **stable array of player ids** and renders `<PlayerPanel id=… />`. Each `PlayerPanel` subscribes via a selector to only its own player slice and the (stable) action refs, so a tap on one panel re-renders only that panel. The parent's `.map()` callback closes only over stable references, so the React Compiler keeps it cached. Mirror `rules-fold-store` + the `RuleRow` subscriptions in `rules-page.tsx`.
+Per the repo's `.map()`-closure convention: the parent maps over a **stable array of player ids** and renders `<PlayerPanel id=… />`. Each `PlayerPanel` subscribes via a selector to only its own player slice and the (stable) action refs, so a tap on one panel re-renders only that panel. The parent's `.map()` callback closes only over stable references, so the React Compiler keeps it cached. Mirror `rules-fold-store` + the `RuleRow` subscriptions in `rules-page.tsx`.
 
 ### Hydration safety
 

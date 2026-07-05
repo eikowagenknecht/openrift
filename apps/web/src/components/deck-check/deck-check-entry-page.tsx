@@ -308,7 +308,7 @@ export function TournamentDeckCheckEntry({
         {listHidden ? (
           <p className="text-muted-foreground bg-muted/50 rounded-md border p-3 text-sm">
             The player is editing this list. To respect the tournament rules, it stays hidden from
-            judges until they submit it — or until submissions close, when it is sent in as-is.
+            judges until they submit it, or until submissions close, when it is sent in as-is.
           </p>
         ) : null}
       </div>
@@ -392,7 +392,7 @@ export function TournamentDeckCheckEntry({
           open={deleteOpen}
           onOpenChange={setDeleteOpen}
           title="Delete this entry?"
-          description="The player's list and check history are removed. This cannot be undone — withdraw the entry instead if they only dropped out."
+          description="The player's list and check history are removed. This cannot be undone. Withdraw the entry instead if they only dropped out."
           confirmLabel="Delete"
           pendingLabel="Deleting..."
           isPending={deleteEntry.isPending}
@@ -1327,8 +1327,8 @@ function FindingsBanner({
         ) : null}
         {suggestions.length > 0 ? (
           <li>
-            {suggestions.length} {suggestions.length === 1 ? "card looks" : "cards look"} mis-zoned
-            — their type belongs in a different zone than the import put them in.
+            {suggestions.length} {suggestions.length === 1 ? "card looks" : "cards look"} mis-zoned:
+            their type belongs in a different zone than the import put them in.
           </li>
         ) : null}
         {detail.violations.map((violation) => (

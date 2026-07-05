@@ -20,7 +20,7 @@ The contents of a kit are not random and not user-authored: they are catalog dat
 - Pre-rift contents are released on a marketing schedule; admins must be able to prepare a product privately and flip it visible at release.
 - The data is curated by a small group of admins, not the community, and it is hand-aligned against official product lists.
 - The collection model (ADR-005) is intentionally per-user. Catalog data must not bleed into `collection_events`; owning or browsing a product is not the same as owning the cards.
-- The card-browser scaffold described in `docs/contributing.md` already covers the UI shape we want for a product page (toolbar, filters, grouping, table view, `<CardCell>` slots). Reuse, do not reinvent.
+- The repo's shared card-browser scaffold already covers the UI shape we want for a product page (toolbar, filters, grouping, table view, `<CardCell>` slots). Reuse, do not reinvent.
 
 ## Considered Options
 
@@ -143,7 +143,7 @@ The JSON schema:
 ### Routing and UI
 
 - **`/products`** is the public index of published products. It lists products by name, kind, language, and content count. Admins additionally see drafts. Filters: kind, language. Sort: name, recently updated.
-- **`/products/$slug`** is a single product page. Language is read from the row (slug is not parsed). The page is built from the card-browser scaffold per `docs/contributing.md`:
+- **`/products/$slug`** is a single product page. Language is read from the row (slug is not parsed). The page is built from the shared card-browser scaffold:
   - Wrap in `<CardBrowserFilterProvider>`; render `<BrowserToolbar/>`, `<BrowserLeftPane/>`, `<BrowserActiveFilters/>`.
   - Grid is virtualized via `<CardViewer>`. Each cell is `<CardCell>` with a `OwnedCountStrip` so users can see at a glance which kit cards they already own. There is no `CollectionAddStrip` or `DeckAddStrip`; products are read-only catalog data.
   - Table mode uses the existing default actions column (no surface-specific table-actions component is needed).
@@ -231,4 +231,4 @@ Integration tests cover:
 - JSON upload rejects: unknown printing_id, quantity <= 0, slug collision against another product, unknown kind, unknown language, mismatched printing language.
 - Owned-count strip on `/products/$slug` reflects the viewer's collection but does not write to it; no `collection_events` are produced by browsing or by any product action.
 
-UI confirmation: `/products/$slug` reuses `<CardBrowserFilterProvider>`, `<BrowserToolbar>`, and `<CardCell>` (not bespoke layout); a code review checks that the page composes from these primitives per `docs/contributing.md`.
+UI confirmation: `/products/$slug` reuses `<CardBrowserFilterProvider>`, `<BrowserToolbar>`, and `<CardCell>` (not bespoke layout); a code review checks that the page composes from these shared primitives.

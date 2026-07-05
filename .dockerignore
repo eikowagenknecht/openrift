@@ -8,8 +8,10 @@ dist/
 .env.local
 .env.*.local
 
-# Tooling
+# Local tooling
 .tooling/
+docs/contributing.md
+notes.local.md
 
 # IDE
 .idea/

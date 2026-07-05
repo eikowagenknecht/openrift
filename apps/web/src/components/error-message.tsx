@@ -21,7 +21,7 @@ export const HEADINGS = [
 
 export const SUBTEXTS = [
   "Someone shuffled the code wrong.",
-  "We checked the binder — this page is missing.",
+  "We checked the binder. This page is missing.",
   "The Rift giveth, the Rift taketh away.",
   "This page fell through a Rift and didn't come back.",
   "Even mint-condition apps have bad days.",
@@ -49,7 +49,7 @@ const NOT_FOUND_SUBTEXTS = [
   "This page isn't in any set we know of.",
   "Maybe it was here once, maybe it never was.",
   "Even the best collectors come up empty sometimes.",
-  "The URL looks wrong — or the page was removed.",
+  "The URL looks wrong, or the page was removed.",
 ];
 
 const NOT_FOUND_EMOJIS = ["?", "404", "[MISSING]", String.raw`¯\_(ツ)_/¯`];

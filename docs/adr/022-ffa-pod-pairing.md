@@ -317,7 +317,7 @@ CREATE TABLE pod_members (
 CREATE INDEX idx_pod_members_player ON pod_members (player_id);
 ```
 
-After applying it, regenerate `docs/schema.sql` (`pg_dump --schema-only`) in the same commit, per docs/contributing.md.
+After applying it, regenerate `docs/schema.sql` in the same commit (`bun db:schema`).
 
 ### Round lifecycle and the finalize transaction
 
@@ -358,7 +358,7 @@ The token authorizes submitting _any_ pod's result in the open round, not one sp
 
 ### Repository, service, and API wiring
 
-- **Repository** `apps/api/src/repositories/pod-tournaments.ts`: a `podTournamentsRepo(db)` factory returning namespaced methods (tournaments, players, rounds, pods, the finalize status-flip, and the derive-on-read folds `loadPairingSnapshot` / `computeStandings` / `loadRounds` that build the engine snapshot, standings, and round views from the finalized rows), registered on the Hono context in `apps/api/src/deps.ts` and reached via `c.get("repos").podTournaments`. All DB access goes through it (no raw Kysely in routes), per docs/contributing.md.
+- **Repository** `apps/api/src/repositories/pod-tournaments.ts`: a `podTournamentsRepo(db)` factory returning namespaced methods (tournaments, players, rounds, pods, the finalize status-flip, and the derive-on-read folds `loadPairingSnapshot` / `computeStandings` / `loadRounds` that build the engine snapshot, standings, and round views from the finalized rows), registered on the Hono context in `apps/api/src/deps.ts` and reached via `c.get("repos").podTournaments`. All DB access goes through it (no raw Kysely in routes).
 - **Service** `apps/api/src/services/pod-pairing.ts`: loads the snapshot from the repo, calls the pure `generatePairing`, hands the result back to the repo to persist. Keeps the engine pure and the DB I/O in one place.
 - **Routes** mounted at `/api/v1/pod-tournaments` (distinct from ADR-014's `/api/v1/tournaments`): `apps/api/src/routes/authenticated/pod-tournaments.ts` for the owner endpoints (cookie auth, owner checks like Friend Groups' `requireRole`), plus a small unauthenticated `report` sub-router (`apps/api/src/routes/public/pod-tournaments.ts`) that resolves the token in-handler. Bodies validated by zod schemas from `@openrift/shared`.
 
@@ -368,7 +368,7 @@ Response interfaces in `packages/shared/src/types/api/pod-tournament.ts`, zod re
 
 ### User experience surfaces
 
-Both the organizer dashboard and the participant link are **equally first-class on desktop and mobile** (no primary form factor): a desktop organizer sees the round's pods in a grid with standings alongside; the same screen collapses to a single column with big tap targets on a phone, and the participant link is phone-shaped by default. The Friend Groups data layer is reused verbatim: `createServerFn` wrappers in `apps/web/src/hooks/use-pod-tournaments.ts`, suspense queries with centralized query keys, mutations with cache invalidation. React Compiler, BaseUI / shadcn (`base-nova`), the typography scale, `cn()`, and lucide `*Icon` imports apply as everywhere. Any `<Select.Root>` is passed `items` (docs/contributing.md).
+Both the organizer dashboard and the participant link are **equally first-class on desktop and mobile** (no primary form factor): a desktop organizer sees the round's pods in a grid with standings alongside; the same screen collapses to a single column with big tap targets on a phone, and the participant link is phone-shaped by default. The Friend Groups data layer is reused verbatim: `createServerFn` wrappers in `apps/web/src/hooks/use-pod-tournaments.ts`, suspense queries with centralized query keys, mutations with cache invalidation. React Compiler, BaseUI / shadcn (`base-nova`), the typography scale, `cn()`, and lucide `*Icon` imports apply as everywhere. Any `<Select.Root>` is passed `items` (repo convention).
 
 **Organizer dashboard.** `/tournaments/run` lists the user's tournaments with a "Create" CTA. `/tournaments/run/$id` is the tournament, a **tabbed page where each tab is its own route** (`/$id`, `/$id/standings`, `/$id/players`, `/$id/settings`), mirroring the route-based tabs `groups/$slug` now uses (a shared `TournamentPageFrame` shell renders the header + tab nav, each tab route supplies the content):
 

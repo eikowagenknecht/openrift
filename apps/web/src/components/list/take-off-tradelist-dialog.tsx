@@ -134,8 +134,8 @@ export function TakeOffTradelistDialog({
               {soldBlocked && (
                 <span className="text-destructive block text-sm">
                   {reservedCount === count
-                    ? `${count === 1 ? "This card is" : "These cards are"} in a live trade — complete or cancel it first.`
-                    : `${reservedCount} of these are in a live trade and can't be sold here — take those off separately.`}
+                    ? `${count === 1 ? "This card is" : "These cards are"} in a live trade. Complete or cancel it first.`
+                    : `${reservedCount} of these are in a live trade and can't be sold here. Take those off separately.`}
                 </span>
               )}
             </span>

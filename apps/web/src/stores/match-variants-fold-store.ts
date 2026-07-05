@@ -14,7 +14,7 @@ interface MatchVariantsFoldState {
  * Default is collapsed (absent from the set) so the panel scans as a clean list
  * of matching cards. Each tile subscribes only to its own key, so toggling one
  * tile doesn't re-render the others (the React Compiler + per-key selector
- * pattern documented in docs/contributing.md).
+ * pattern, as in `rules-fold-store.ts`).
  */
 export const useMatchVariantsFoldStore = create<MatchVariantsFoldState>()((set) => ({
   expanded: new Set(),

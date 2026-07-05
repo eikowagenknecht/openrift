@@ -1389,7 +1389,7 @@ function ShowChangesToggle({
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger render={<span className="inline-flex" />}>{content}</TooltipTrigger>
-        <TooltipContent>First version — no prior to compare</TooltipContent>
+        <TooltipContent>First version, no prior to compare</TooltipContent>
       </Tooltip>
     </TooltipProvider>
   );

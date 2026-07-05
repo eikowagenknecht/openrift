@@ -77,7 +77,7 @@ interface LocalDecksState {
 }
 
 const QUOTA_MESSAGE =
-  "Couldn't save your decks — this browser's storage is full. Sign in to sync your decks, or remove some local decks.";
+  "Couldn't save your decks: this browser's storage is full. Sign in to sync your decks, or remove some local decks.";
 
 function isQuotaExceeded(error: unknown): boolean {
   // Browsers throw a DOMException named "QuotaExceededError" (legacy code 22,

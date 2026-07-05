@@ -95,7 +95,7 @@ One JSONB `rules` column on `lists` (an array, `NOT NULL DEFAULT '[]'`), app-val
 
 # Implementation specification (normative)
 
-Build in this order; each step is independently testable: **(I) shared core → (II) API expansion → (III) matcher rework → (IV) web filter language → (V) rule-editor UI**. Follow all repo conventions in `docs/contributing.md` (repositories-only DB access, exact-pinned deps, tests for every store/hook/lib, oxlint/oxfmt, changelog entry, migration barrel + schema regen).
+Build in this order; each step is independently testable: **(I) shared core → (II) API expansion → (III) matcher rework → (IV) web filter language → (V) rule-editor UI**. Follow all repo conventions (repositories-only DB access, exact-pinned deps, tests for every store/hook/lib, oxlint/oxfmt, changelog entry, migration barrel + schema regen).
 
 ## I. `packages/shared` core
 
@@ -144,7 +144,7 @@ Make `CardFilters` the single source of truth via a Zod schema (needed anyway fo
 
 - New migration (next sequential number) adding `ALTER TABLE lists ADD COLUMN rules jsonb NOT NULL DEFAULT '[]'::jsonb;` plus `CHECK ((jsonb_array_length(rules) = 0) OR (intent IN ('wish','trade')))`. Shape validation (and the trade-list one-rule cap) is app-level Zod (the DB only gates intent).
 - Register it in `apps/api/src/db/migrations/index.ts` (barrel) — without this it is silently skipped.
-- **Ask the user before running `bun db:migrate`** (shared DB). After applying, regenerate `docs/schema.sql` via the `pg_dump` command in `docs/contributing.md` and commit it in the same change.
+- **Ask the user before running `bun db:migrate`** (shared DB). After applying, regenerate `docs/schema.sql` via `bun db:schema` and commit it in the same change.
 
 ### II.2 Rule types + Zod (`packages/shared`)
 
@@ -285,7 +285,7 @@ Tests: port the existing matcher integration tests unchanged (they must still pa
 - **Exclusions:** an "exclude" action on each previewed card/printing/copy appends to `excludeIds`/`excludeCopyIds`; show removable chips of current exclusions.
 - **Live preview:** run `evaluateListRule` client-side over the loaded catalog (`useCatalog`) + the user's copies (collection store) and render the would-be entries instantly, before save.
 - **Persistence:** PATCH `/lists/{id}` with `rules` (and allow on create). On load, the detail response carries `list.rules`.
-- **Editor state** is a Zustand store → requires `*.test.ts` with `createStoreResetter` (docs/contributing.md). Rule entries (`source:"rule"`, `id:null`) render read-only with only an "exclude" affordance; manual entries keep edit/remove.
+- **Editor state** is a Zustand store → requires `*.test.ts` with `createStoreResetter` (repo convention). Rule entries (`source:"rule"`, `id:null`) render read-only with only an "exclude" affordance; manual entries keep edit/remove.
 
 ## VI. Cross-cutting
 

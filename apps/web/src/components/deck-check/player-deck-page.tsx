@@ -139,7 +139,7 @@ export function PlayerDeckPage({ entryId }: { entryId: string }) {
           {entry.state === "editable" && entry.windowOpen ? (
             <Banner>
               This deck is not submitted yet. Submit it for review
-              {closesAt ? ` before ${closesAt}` : ""} — an unsubmitted list is sent in as-is when
+              {closesAt ? ` before ${closesAt}` : ""}. An unsubmitted list is sent in as-is when
               submissions close.
             </Banner>
           ) : null}
@@ -149,14 +149,14 @@ export function PlayerDeckPage({ entryId }: { entryId: string }) {
                 ? `Your deck is locked for review. You can unlock it to make changes${closesAt ? ` until ${closesAt}` : ""}; a judge then reviews the new list.`
                 : entry.unlockRequested
                   ? "Your unlock request is waiting for a judge. Once granted, you can edit and resubmit your deck."
-                  : "Your deck is submitted and locked. To change it, request an unlock — a judge has to grant it."}
+                  : "Your deck is submitted and locked. To change it, request an unlock, which a judge has to grant."}
             </p>
           ) : null}
           {entry.state === "approved" && entry.windowOpen ? (
             <p className="text-muted-foreground text-sm">
               {entry.unlockRequested
                 ? "Your unlock request is waiting for a judge. Once granted, you can edit and resubmit your deck."
-                : "A judge approved your deck. To change it, request an unlock — a judge has to grant it."}
+                : "A judge approved your deck. To change it, request an unlock, which a judge has to grant."}
             </p>
           ) : null}
           {!entry.windowOpen && entry.state !== "withdrawn" && entry.state !== "checked" ? (

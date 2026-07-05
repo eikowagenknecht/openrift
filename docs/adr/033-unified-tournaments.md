@@ -243,7 +243,7 @@ Host approval moves `requested → active` (approve) or deletes the row (deny). 
 
 ## Phasing
 
-Each phase is an independently shippable migration that leaves the app working, backfills live rows losslessly, and is reversible before the next lands. Regenerate `docs/schema.sql` in the same commit as each migration (docs/contributing.md), and ask before running `bun db:migrate` (shared DB). The whole surface stays behind a `tournaments` feature flag (renamed from `pod-tournaments`, registered in `KNOWN_FLAGS`) until the umbrella UI is ready.
+Each phase is an independently shippable migration that leaves the app working, backfills live rows losslessly, and is reversible before the next lands. Regenerate `docs/schema.sql` in the same commit as each migration (repo convention), and ask before running `bun db:migrate` (shared DB). The whole surface stays behind a `tournaments` feature flag (renamed from `pod-tournaments`, registered in `KNOWN_FLAGS`) until the umbrella UI is ready.
 
 **Phase 1 — Hosts, staff, group link (additive, low risk).**
 Add `organizations` + `organization_members`. Rename `pod_tournaments` → `tournaments` and add the host / group / format / pairing / deck-module / deck-phase / token columns, backfilling existing rows as `host_type='user'`, `host_user_id = owner_user_id`, `format='pod_rounds'`, all modules off. Add `tournament_staff`, seeding each existing owner as `organizer`. The pod runner works exactly as before. ADR-014's reserved name is formally released here.

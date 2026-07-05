@@ -1,5 +1,5 @@
 // Dedicated e2e port range, deliberately clear of the dev servers (web 5173,
-// api 3000) and the worktree dev web port (5174, see docs/contributing.md). Overridable
+// api 3000) and the worktree dev web port (5174). Overridable
 // via env so a second checkout or CI shard can shift the whole pair without a
 // code change. Keep the two adjacent so the range stays easy to reason about.
 export const API_PORT = Number(process.env.E2E_API_PORT ?? 4310);

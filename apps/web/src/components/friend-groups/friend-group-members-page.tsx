@@ -163,7 +163,7 @@ export function MembersInviteAction({ slug }: { slug: string }) {
         const joinUrl = `${getSiteUrl()}/groups/join?code=${encodeURIComponent(code)}`;
         try {
           await navigator.clipboard.writeText(joinUrl);
-          toast.success("Invite link copied — send it to whoever you want to join");
+          toast.success("Invite link copied. Send it to whoever you want to join");
         } catch {
           void navigate({ to: "/groups/$slug/manage", params: { slug } });
         }

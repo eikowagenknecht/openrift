@@ -29,7 +29,8 @@ const MAX_DESCRIPTION_CHARS = 4000;
  * Sections without any feat/fix entries are dropped. Entries carry their
  * `### Highlights` / `### Other` sub-section (legacy un-sectioned entries
  * default to `other`); the optional `(Area)` tag is tolerated but not kept.
- * The message keeps its `**Title** — body` markdown, which Discord renders.
+ * The message keeps its `**Title** — body` markdown; the em-dash divider is
+ * rewritten to `**Title**: body` at format time before posting.
  *
  * @returns Sections sorted oldest-first by date.
  */
@@ -69,15 +70,25 @@ export function parseChangelogSections(markdown: string): ChangelogSection[] {
   return sections.toSorted((a, b) => a.date.localeCompare(b.date));
 }
 
+/**
+ * Rewrites the changelog's `**Title** — body` divider to `**Title**: body`.
+ * Legacy entries without a bold title pass through unchanged.
+ *
+ * @returns The message with the title divider rewritten.
+ */
+function formatEntryMessage(message: string): string {
+  return message.replace(/^(?<title>\*\*.+?\*\*) — /u, "$<title>: ");
+}
+
 function formatSectionLines(entries: ChangelogEntry[]): string[] {
   const feats = entries.filter((entry) => entry.type === "feat");
   const fixes = entries.filter((entry) => entry.type === "fix");
   const lines: string[] = [];
   for (const entry of feats) {
-    lines.push(`🆕 ${entry.message}`);
+    lines.push(`🆕 ${formatEntryMessage(entry.message)}`);
   }
   for (const entry of fixes) {
-    lines.push(`🔧 ${entry.message}`);
+    lines.push(`🔧 ${formatEntryMessage(entry.message)}`);
   }
   return lines;
 }

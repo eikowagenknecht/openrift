@@ -148,7 +148,7 @@ A local deck has no server row, so the server share token, the public `decks/sha
 
 ## Implementation Notes
 
-This section pins the spots where the design above otherwise forces a guess. Line numbers are from the state of the repo when this ADR was written; treat them as anchors, not guarantees, and re-grep if they have drifted. **Work in a worktree** (the repo's worktree rule), and follow the conventions called out inline (they are all in `docs/contributing.md`).
+This section pins the spots where the design above otherwise forces a guess. Line numbers are from the state of the repo when this ADR was written; treat them as anchors, not guarantees, and re-grep if they have drifted. **Work in a worktree** (the repo's worktree rule), and follow the conventions called out inline (they are the repo conventions).
 
 1. **Moving `decks/*` out of `_authenticated` removes `context.userId`.** The guard at `apps/web/src/routes/_app/_authenticated/route.tsx:9-19` is what injects `{ userId }` into route context, and every deck loader consumes it (e.g. `apps/web/src/routes/_app/_authenticated/decks/index.tsx:12` calls `decksQueryOptions(context.userId)`; the builder loader calls `deckDetailQueryOptions(context.userId, deckId)`). Once these routes move under `_app`, `context.userId` no longer exists. Each loader must instead resolve the session itself via `sessionQueryOptions()` (`apps/web/src/lib/auth-session.ts`) and branch:
    - list loader: if there is a session, `ensureQueryData(decksQueryOptions(userId))`; if not, load nothing from the server (the local list is client-side).

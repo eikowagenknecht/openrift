@@ -117,7 +117,7 @@ _UI note — Trade binder:_ A unified view merges all trade lists into a dedupli
 
 ## Schema
 
-The live shape ships in `docs/schema.sql` (regenerate via the `pg_dump` command in `docs/contributing.md`). The most distinctive design choices that landed:
+The live shape ships in `docs/schema.sql` (regenerate via `bun db:schema`). The most distinctive design choices that landed:
 
 - **Composite FKs (`id, user_id`)** on `collections`, `copies`, `decks`, `wish_lists`, and `trade_lists` — every cross-table reference includes `user_id` so Postgres rejects a copy that points at another user's collection at the schema level, not just at query time.
 - **Partial unique index** `uq_collections_user_inbox ON collections(user_id) WHERE is_inbox = true` — enforces "exactly one inbox per user" without needing trigger logic.

@@ -81,7 +81,7 @@ describe("TakeOffTradelistDialog", () => {
       "aria-disabled",
       "true",
     );
-    expect(screen.getByText(/in a live trade — complete or cancel it first/u)).toBeDefined();
+    expect(screen.getByText(/in a live trade\. Complete or cancel it first/u)).toBeDefined();
     // Keep is still available.
     expect(screen.getByRole("button", { name: "Take off list" })).toBeEnabled();
   });

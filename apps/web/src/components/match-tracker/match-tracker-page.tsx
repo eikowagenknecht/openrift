@@ -16,7 +16,7 @@ import { useMatchTrackerStore } from "@/stores/match-tracker-store";
 
 /**
  * Match tracker entry point. The store reads localStorage, so rendering is
- * gated behind hydration to avoid an SSR mismatch (see docs/contributing.md).
+ * gated behind hydration to avoid an SSR mismatch (see `useHydrated`).
  * @returns The tracker, or null during SSR / before hydration.
  */
 export function MatchTrackerPage() {

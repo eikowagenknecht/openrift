@@ -4,6 +4,7 @@
 
 ### Other
 
+- fix(App): **Cleaner message punctuation** — error messages, toasts, and the What's new list now read as plain sentences instead of dash-heavy phrasing.
 - fix(Decks): **Deck codes for special printings** — exporting a deck code no longer fails when the deck pins a printing deck codes don't support yet (like a Founders alt art), it encodes the default printing or lists the skipped cards instead.
 - fix(Decks): **Locked zones reject dropped cards** — dragging a card from the browser onto a zone shown as locked (like the sideboard on a Custom-Region deck) no longer adds a copy there.
 - fix(Decks): **One battlefield pick in plans** — the deck plan for Custom-Region decks now offers a single battlefield slot instead of three, and the too-many-battlefields warning explains itself in plain words.

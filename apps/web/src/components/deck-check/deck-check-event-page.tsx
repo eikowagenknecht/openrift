@@ -330,7 +330,7 @@ function EntryRowMenu({
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         title="Delete this entry?"
-        description="The player's list and check history are removed. This cannot be undone — withdraw the entry instead if they only dropped out."
+        description="The player's list and check history are removed. This cannot be undone. Withdraw the entry instead if they only dropped out."
         confirmLabel="Delete"
         pendingLabel="Deleting..."
         isPending={deleteEntry.isPending}

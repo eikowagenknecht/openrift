@@ -158,7 +158,7 @@ Integration tests (`apps/api`, temporary DB via `setupTestDb()`, dropped in `aft
 - The request email's recipient is the non-initiator for both `giver`- and `receiver`-initiated trades.
 - `GET /unsubscribe` with a valid token flips exactly the named channel to false; a tampered or wrong-channel token is rejected and changes nothing.
 
-Unit tests (`apps/web`, vitest): the preferences merge for the new `emailNotifications` keys (`null` resets, partial merge preserves the sibling key); the on/off gate derivation (digest is on only when `tradeMatches === true`; request is on unless `tradeRequests === false`, including the absent-key case); and the profile toggles' wiring, with the request switch rendering on when the key is absent. Any new store/hook/util gets a `*.test.ts` per `docs/contributing.md`.
+Unit tests (`apps/web`, vitest): the preferences merge for the new `emailNotifications` keys (`null` resets, partial merge preserves the sibling key); the on/off gate derivation (digest is on only when `tradeMatches === true`; request is on unless `tradeRequests === false`, including the absent-key case); and the profile toggles' wiring, with the request switch rendering on when the key is absent. Any new store/hook/util gets a `*.test.ts` per repo convention.
 
 The implementing PR adds the user-facing `feat:` changelog entry above.
 

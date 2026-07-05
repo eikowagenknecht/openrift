@@ -37,8 +37,8 @@ function EntryItem({ entry }: { entry: ChangelogEntry }) {
         )}
         {entry.title ? (
           <>
-            <span className="font-semibold">{entry.title}</span>
-            <span className="text-muted-foreground"> — {entry.message}</span>
+            <span className="font-semibold">{entry.title}:</span>
+            <span className="text-muted-foreground"> {entry.message}</span>
           </>
         ) : (
           entry.message

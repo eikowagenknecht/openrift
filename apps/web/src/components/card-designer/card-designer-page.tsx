@@ -98,7 +98,7 @@ export function CardDesignerPage() {
       setStatus("Copied to clipboard.");
     } else if (outcome === "downloaded") {
       setStatus(
-        action === "copy" ? "Clipboard unavailable — downloaded instead." : "Image downloaded.",
+        action === "copy" ? "Clipboard unavailable, downloaded instead." : "Image downloaded.",
       );
     } else {
       setStatus("Couldn't export the card. Try again.");

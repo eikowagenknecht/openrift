@@ -128,9 +128,9 @@ const ART_VARIANT_DESCRIPTIONS: Record<string, string> = {
   altart:
     "An additional artwork using the same card name and rarity. Distinguished by a lowercase letter suffix on the card number (e.g. 120a).",
   overnumbered:
-    "Reprinted art with a card number that exceeds the printed set total — typically a special variant slotted into a later set.",
+    "Reprinted art with a card number that exceeds the printed set total, typically a special variant slotted into a later set.",
   ultimate:
-    "A premium full-art treatment. The card itself usually keeps its original rarity (e.g. Showcase) — Ultimate describes the artwork, not the rarity.",
+    "A premium full-art treatment. The card itself usually keeps its original rarity (e.g. Showcase), since Ultimate describes the artwork, not the rarity.",
 };
 
 const FINISH_DESCRIPTIONS: Record<string, string> = {
@@ -804,7 +804,7 @@ function SymbolsSection({ query }: { query: string }) {
       key: "rune-rainbow",
       label: "Power (any domain)",
       summary:
-        "Marked [A]. A Power cost that can be paid with a rune of any domain — this is the wild Power symbol.",
+        "Marked [A]. A Power cost that can be paid with a rune of any domain. This is the wild Power symbol.",
       icon: "/images/glyphs/rune-rainbow.svg",
     },
   ];
@@ -860,7 +860,7 @@ function NumberingSection({ query }: { query: string }) {
     {
       pattern: "OGN-224",
       summary:
-        "A number above the set's printed total is an Overnumbered variant — usually a special reprint slotted into a later set.",
+        "A number above the set's printed total is an Overnumbered variant, usually a special reprint slotted into a later set.",
     },
     {
       pattern: "SFD-T01",

@@ -55,7 +55,7 @@ This is a tool surface, closest in spirit to **ADR-021 (Match Tracker)**: a stan
 
 **State management**
 
-- **A single non-persisted Zustand store with per-component selector subscriptions (chosen).** The preview subscribes to the image-transform slice, so drag-to-reposition updates the preview without re-running the form's render. Matches ADR-006 and the `.map()`-closure guidance in docs/contributing.md.
+- **A single non-persisted Zustand store with per-component selector subscriptions (chosen).** The preview subscribes to the image-transform slice, so drag-to-reposition updates the preview without re-running the form's render. Matches ADR-006 and the repo's `.map()`-closure guidance.
 - `useState` in the page component (as `/contribute` does). Rejected: every pointer-move during a drag would re-render the whole editor; and the store gives a clean, unit-testable seam for the transform-clamp and field logic.
 - Persisted store (`localStorage`), like the Match Tracker. Rejected: a background image data URL is far too large for the ~5 MB `localStorage` budget, and the feature is ephemeral by decision. (Persisting only the text fields is a possible follow-up.)
 
@@ -183,7 +183,7 @@ The transform-clamp logic lives in the pure helper called by `setImageTransform`
 
 ### Re-render isolation
 
-Per docs/contributing.md's `.map()`-closure guidance: the editor's field inputs subscribe to their own slices, and the **preview** subscribes to `card` + `background` via selectors. A drag updating `background.offsetX/Y` re-renders only the preview, not the form. The page component closes only over stable refs. No `useMemo` / `useCallback` / `React.memo` (React Compiler).
+Per the repo's `.map()`-closure guidance: the editor's field inputs subscribe to their own slices, and the **preview** subscribes to `card` + `background` via selectors. A drag updating `background.offsetX/Y` re-renders only the preview, not the form. The page component closes only over stable refs. No `useMemo` / `useCallback` / `React.memo` (React Compiler).
 
 ### Route, navigation & hydration
 

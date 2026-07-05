@@ -172,12 +172,12 @@ export default function GroupsArticle() {
         </p>
         <ul className="text-muted-foreground mt-2 list-inside list-disc space-y-1">
           <li>
-            <strong className="text-foreground">Members have what you want</strong> — a member is
+            <strong className="text-foreground">Members have what you want</strong>: a member is
             offering a card on a tradelist they&apos;ve shared with the group, and the card is on a
             wishlist you&apos;ve shared with the group.
           </li>
           <li>
-            <strong className="text-foreground">Members want what you have</strong> — the reverse.
+            <strong className="text-foreground">Members want what you have</strong>: the reverse.
           </li>
         </ul>
         <p className="text-muted-foreground mt-2">

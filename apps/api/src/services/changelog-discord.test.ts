@@ -146,7 +146,7 @@ describe("buildDiscordPayloads", () => {
     ]);
 
     expect(payloads[0].embeds[0].description).toBe(
-      "__Highlights__\n🆕 **Big thing** — matters\n\n__Other__\n🆕 **Small thing** — minor\n🔧 **A fix** — fixed",
+      "__Highlights__\n🆕 **Big thing**: matters\n\n__Other__\n🆕 **Small thing**: minor\n🔧 **A fix**: fixed",
     );
   });
 
