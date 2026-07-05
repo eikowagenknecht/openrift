@@ -60,10 +60,46 @@ describe.skipIf(!ctx)("tournaments schema invariants (integration)", () => {
     expect(row.hostUserId).toBeNull();
   });
 
-  it("rejects a tournament with neither host FK", async () => {
-    await expect(
-      db.insertInto("tournaments").values({ hostType: "user", name: "No host" }).execute(),
-    ).rejects.toThrow();
+  it("accepts a host-less tournament (detached host after account deletion)", async () => {
+    // Since migration 186, deleting a host account SET NULLs host_user_id
+    // instead of cascading the whole event away, so a NULL same-side host id
+    // is a legal "deleted host" state — only the cross-side column must stay
+    // NULL (covered by the both-FKs test below).
+    const row = await db
+      .insertInto("tournaments")
+      .values({ hostType: "user", name: "No host" })
+      .returningAll()
+      .executeTakeFirstOrThrow();
+    expect(row.hostUserId).toBeNull();
+    expect(row.hostOrgId).toBeNull();
+  });
+
+  it("detaches the host and keeps the tournament when the host account is deleted", async () => {
+    const detachHostId = "a0000000-0042-4000-a000-000000000042";
+    await db
+      .insertInto("users")
+      .values({
+        id: detachHostId,
+        name: "Doomed Host",
+        email: "doomed-host@example.com",
+        emailVerified: true,
+      })
+      .execute();
+    const tournament = await db
+      .insertInto("tournaments")
+      .values({ hostType: "user", hostUserId: detachHostId, name: "Orphaned night" })
+      .returningAll()
+      .executeTakeFirstOrThrow();
+
+    await db.deleteFrom("users").where("id", "=", detachHostId).execute();
+
+    const survivor = await db
+      .selectFrom("tournaments")
+      .selectAll()
+      .where("id", "=", tournament.id)
+      .executeTakeFirstOrThrow();
+    expect(survivor.hostUserId).toBeNull();
+    expect(survivor.name).toBe("Orphaned night");
   });
 
   it("rejects a tournament with both host FKs", async () => {
