@@ -19,7 +19,7 @@ import type { ApiContext } from "../../orpc/context.js";
 import type { ListEntryUpdate, ListUpdate, NewEntryValues } from "../../repositories/lists.js";
 import { assertDeleted, assertFound } from "../../utils/assertions.js";
 import { toList, toListDetail, toListEntry, toListEntryDetail } from "../../utils/mappers.js";
-import { generateShareToken } from "../../utils/share-token.js";
+import { withUniqueShareToken } from "../../utils/share-token.js";
 
 const os = implement(listsContract).$context<ApiContext>().use(requireAuthedUser);
 
@@ -377,9 +377,11 @@ export const listsRouter = {
       return current;
     }
 
-    const token = generateShareToken();
-    const updated = await lists.setShareToken(input.id, userId, token, true);
-    assertFound(updated, "Not found");
+    const token = await withUniqueShareToken(async (candidate) => {
+      const updated = await lists.setShareToken(input.id, userId, candidate, true);
+      assertFound(updated, "Not found");
+      return candidate;
+    });
 
     return { shareToken: token, isPublic: true };
   }),
@@ -393,9 +395,11 @@ export const listsRouter = {
     const { lists } = context.repos;
     const userId = context.userId;
 
-    const token = generateShareToken();
-    const updated = await lists.setShareToken(input.id, userId, token, true);
-    assertFound(updated, "Not found");
+    const token = await withUniqueShareToken(async (candidate) => {
+      const updated = await lists.setShareToken(input.id, userId, candidate, true);
+      assertFound(updated, "Not found");
+      return candidate;
+    });
 
     return { shareToken: token, isPublic: true };
   }),

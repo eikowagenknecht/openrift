@@ -31,6 +31,21 @@ async function hostDisplayName(repos: Repos, tournament: Tournament): Promise<st
   return org?.name ?? "Organization";
 }
 
+/**
+ * Public display name for a self-registering participant. Falls back to the
+ * email's local part when the account has no (non-blank) name — the raw email
+ * address must never become a publicly visible participant name.
+ * @returns The name to store on the participant row.
+ */
+export function participantDisplayName(name: string | null | undefined, email: string): string {
+  const trimmed = name?.trim();
+  if (trimmed) {
+    return trimmed;
+  }
+  const localPart = email.split("@")[0].trim();
+  return localPart || "Player";
+}
+
 const os = implement(publicTournamentsContract).$context<ApiContext>().use(requireUser);
 
 /**
@@ -100,7 +115,7 @@ export const publicTournamentsRouter = {
       const created = await repos.tournaments.createParticipant({
         tournamentId: tournament.id,
         userId: user.id,
-        displayName: user.name ?? user.email,
+        displayName: participantDisplayName(user.name, user.email),
         status: "requested",
         claimSource: "self_submit",
         claimedAt: new Date(),

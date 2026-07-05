@@ -916,7 +916,13 @@ describe("validateDeck for custom-region", () => {
     const tagSlugs = ["bandle-city"];
     const cards = [...shellWithBattlefields(tagSlugs, 2), ...fullyTaggedMainCards(tagSlugs)];
     const violations = validateDeck(makeState(cards, "custom-region", { tagSlugs }));
-    expect(violations.some((v) => v.code === "BATTLEFIELD_TOO_MANY")).toBe(true);
+    const violation = violations.find((v) => v.code === "BATTLEFIELD_TOO_MANY");
+    expect(violation).toBeDefined();
+    // The message must spell out the target in plain language, not a bare
+    // "2/1" fraction.
+    expect(violation?.message).toBe(
+      "This format plays exactly 1 Battlefield — remove 1 of the 2 in the deck",
+    );
   });
 
   it("standard constructed still requires exactly 3 battlefields", () => {

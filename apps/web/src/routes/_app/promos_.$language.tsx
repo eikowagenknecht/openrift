@@ -5,7 +5,7 @@ import { RouteErrorFallback } from "@/components/error-message";
 import { initQueryOptions } from "@/hooks/use-init";
 import { publicPromoListQueryOptions } from "@/hooks/use-public-promos";
 import { catalogQueryOptions } from "@/lib/catalog-query";
-import { filterSearchSchema } from "@/lib/search-schemas";
+import { cleanedSearchForRedirect, filterSearchSchema } from "@/lib/search-schemas";
 import { collectionPageJsonLd, seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 
@@ -18,17 +18,8 @@ export const Route = createFileRoute("/_app/promos_/$language")({
     // Strip unknown / malformed search params from the URL — same pattern as
     // /cards. Bots that follow share/tracking links land on a clean canonical
     // URL, and the visible URL stays tidy for users.
-    const parsed = filterSearchSchema.safeParse(search);
-    const cleaned = parsed.success ? parsed.data : {};
-    const rawKeys = new Set(new URLSearchParams(location.searchStr).keys());
-    const cleanedKeys = new Set(
-      Object.entries(cleaned)
-        .filter(([, value]) => value !== undefined)
-        .map(([key]) => key),
-    );
-    const hasExtraneous =
-      rawKeys.size !== cleanedKeys.size || [...rawKeys].some((key) => !cleanedKeys.has(key));
-    if (hasExtraneous) {
+    const cleaned = cleanedSearchForRedirect(filterSearchSchema, search, location.searchStr);
+    if (cleaned) {
       throw redirect({
         to: "/promos/$language",
         params: { language: params.language },

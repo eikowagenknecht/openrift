@@ -201,4 +201,35 @@ describe("buildEntryAdvisories", () => {
     );
     expect(advisories.violations.some((v) => v.code === "SIGNATURE_CHAMPION_COPIES")).toBe(false);
   });
+
+  it("suppresses the region-config rules a checked list can't satisfy", async () => {
+    // A checked list is an imported text deck: it carries neither the deck's
+    // chosen region tags nor per-card custom tags, so FORMAT_TAG_REQUIRED
+    // ("Pick at least one region…") would fire on EVERY custom-region deck
+    // check as judge-facing noise. Other rules must still evaluate.
+    const cardDetails = new Map<string, StubCardDetail>([
+      [
+        "legend-karma",
+        {
+          id: "legend-karma",
+          name: "Karma",
+          type: "legend",
+          superTypes: [],
+          domains: [],
+          tags: ["Karma"],
+          keywords: [],
+        },
+      ],
+    ]);
+    const advisories = await buildEntryAdvisories(
+      stubRepos(cardDetails, []),
+      { format: "custom-region", allowedSets: null },
+      [line({ id: "a", resolvedCardId: "legend-karma", zone: "legend" })],
+    );
+    const codes = advisories.violations.map((violation) => violation.code);
+    expect(codes).not.toContain("FORMAT_TAG_REQUIRED");
+    expect(codes).not.toContain("CARD_NOT_IN_FORMAT_TAG");
+    // Sanity: real structural rules still fire (no champion, no runes, …).
+    expect(codes.length).toBeGreaterThan(0);
+  });
 });

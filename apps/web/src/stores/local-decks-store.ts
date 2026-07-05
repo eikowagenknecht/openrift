@@ -7,6 +7,7 @@
 // surfaces and offers to claim into the account.
 
 import type { DeckFormat, DeckFormatConfig, DeckZone } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared";
 import { toast } from "sonner";
 import { create } from "zustand";
 import type { StateStorage } from "zustand/middleware";
@@ -137,6 +138,81 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
+function sanitizeCards(raw: unknown): LocalDeckCard[] {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  const cards: LocalDeckCard[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== "object") {
+      continue;
+    }
+    const candidate = entry as Record<string, unknown>;
+    // Zone stays an open string on purpose: a zone this bundle doesn't know
+    // (written by a newer deploy) must survive the round-trip, not be dropped.
+    if (typeof candidate.zone !== "string" || typeof candidate.cardId !== "string") {
+      continue;
+    }
+    const quantity =
+      typeof candidate.quantity === "number" && candidate.quantity >= 1
+        ? Math.floor(candidate.quantity)
+        : null;
+    if (quantity === null) {
+      continue;
+    }
+    cards.push({
+      zone: candidate.zone as DeckZone,
+      cardId: candidate.cardId,
+      quantity,
+      preferredPrintingId:
+        typeof candidate.preferredPrintingId === "string" ? candidate.preferredPrintingId : null,
+    });
+  }
+  return cards;
+}
+
+/**
+ * Validate a persisted decks blob, keeping every salvageable deck and dropping
+ * only what can't be trusted. These are anonymous users' ONLY copy of their
+ * decks (ADR-035): a malformed entry (cross-version write from another tab,
+ * hand edit, partial corruption that still parses as JSON) must degrade to the
+ * valid subset instead of crashing /decks on rehydrate. Cosmetic fields
+ * fall back to defaults; only entries without a usable identity are dropped.
+ * @returns The valid decks keyed by their `local:` id; an untrusted blob yields {}.
+ */
+export function sanitizeDecks(raw: unknown): Record<string, LocalDeck> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return {};
+  }
+  const decks: Record<string, LocalDeck> = {};
+  for (const [id, entry] of Object.entries(raw)) {
+    if (!isLocalDeckId(id) || !entry || typeof entry !== "object") {
+      continue;
+    }
+    const candidate = entry as Record<string, unknown>;
+    const fallbackStamp = nowIso();
+    decks[id] = {
+      id,
+      name:
+        typeof candidate.name === "string" && candidate.name.trim() !== ""
+          ? candidate.name
+          : "Recovered deck",
+      description: typeof candidate.description === "string" ? candidate.description : "",
+      // Open string on purpose — a format this bundle doesn't know must survive.
+      format:
+        typeof candidate.format === "string" ? candidate.format : WellKnown.deckFormat.CONSTRUCTED,
+      formatConfig:
+        candidate.formatConfig && typeof candidate.formatConfig === "object"
+          ? (candidate.formatConfig as DeckFormatConfig)
+          : null,
+      cards: sanitizeCards(candidate.cards),
+      createdAt: typeof candidate.createdAt === "string" ? candidate.createdAt : fallbackStamp,
+      updatedAt: typeof candidate.updatedAt === "string" ? candidate.updatedAt : fallbackStamp,
+    };
+  }
+  return decks;
+}
+
 export const useLocalDecksStore = create<LocalDecksState>()(
   persist(
     (set, getState) => ({
@@ -251,6 +327,17 @@ export const useLocalDecksStore = create<LocalDecksState>()(
       name: "openrift-local-decks",
       storage: createJSONStorage(() => quotaAwareStorage),
       partialize: (state) => ({ decks: state.decks }),
+      // No `version`: an explicit version would make an older cached bundle
+      // (implicit version 0, no migrate) DISCARD the whole blob on mismatch —
+      // the exact data loss this store must never cause. The sanitizing merge
+      // below handles every shape drift instead.
+      merge: (persisted, current) => {
+        if (!persisted || typeof persisted !== "object") {
+          return current;
+        }
+        const raw = persisted as { decks?: unknown };
+        return { ...current, decks: sanitizeDecks(raw.decks) };
+      },
     },
   ),
 );

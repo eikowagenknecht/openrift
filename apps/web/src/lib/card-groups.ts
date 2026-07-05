@@ -4,7 +4,7 @@ import type { CardViewerItem } from "@/components/card-viewer-types";
 import type { GroupInfo } from "@/components/cards/card-grid-types";
 import type { EnumLabels } from "@/hooks/use-enums";
 import { groupItemsByChannel } from "@/lib/group-by-channel";
-import { groupItemsByField } from "@/lib/group-by-field";
+import { groupItemsByField, isFieldGrouping } from "@/lib/group-by-field";
 import { groupItemsByMarker } from "@/lib/group-by-marker";
 import { groupItemsByYear } from "@/lib/group-by-year";
 import { orderSetsMainFirst } from "@/lib/set-order";
@@ -58,12 +58,15 @@ export function buildGroups(
     return groupItemsByMarker(items, groupDir);
   }
   let groups: CardGroup[];
-  if (groupBy === "set") {
+  if (isFieldGrouping(groupBy)) {
+    groups = groupItemsByField(items, groupBy, orders, labels);
+  } else {
+    // "set" — and, defensively, any axis this surface doesn't group by (a
+    // foreign axis like /promos' "card" deep-linked onto /cards). Fall back
+    // to the default set grouping instead of crashing the grid.
     groups = setOrder
       ? groupItemsBySet(items, setOrder)
       : [{ group: { id: "_all", slug: "", name: "" }, items }];
-  } else {
-    groups = groupItemsByField(items, groupBy, orders, labels);
   }
   if (groupDir === "desc") {
     groups = groups.toReversed();

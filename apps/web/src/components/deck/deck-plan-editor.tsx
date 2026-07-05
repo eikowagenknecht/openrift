@@ -1,3 +1,4 @@
+import type { DeckFormat } from "@openrift/shared";
 import { imageUrl, legendDisplayName, WellKnown } from "@openrift/shared";
 import {
   AlertTriangleIcon,
@@ -43,6 +44,7 @@ import type {
   PlanWarning,
   SwapDirection,
 } from "@/lib/deck-plan";
+import { zoneExpected } from "@/lib/deck-zone-labels";
 import { cn } from "@/lib/utils";
 
 type HoverHandler = (cardId: string | null, preferredPrintingId?: string | null) => void;
@@ -468,10 +470,12 @@ function MatchupEditor({
 export function DeckPlanEditor({
   deckId,
   deckCards,
+  format,
   onHoverCard,
 }: {
   deckId: string;
   deckCards: DeckBuilderCard[];
+  format: DeckFormat;
   onHoverCard?: HoverHandler;
 }) {
   const { data } = useDeckPlan(deckId);
@@ -481,6 +485,10 @@ export function DeckPlanEditor({
   const { labels } = useEnumOrders();
   const [draft, setDraft] = useState<PlanDraft>(() => planResponseToDraft(data.plan));
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
+
+  // Formats that play a single battlefield (Custom Region) get one slot
+  // instead of the Game 1 / going-first / going-second trio.
+  const singleBattlefield = zoneExpected(WellKnown.deckZone.BATTLEFIELD, format) === 1;
 
   const context = buildContext(deckCards);
   const warnings = computePlanWarnings(draft, context);
@@ -709,9 +717,26 @@ export function DeckPlanEditor({
         ) : (
           <>
             <div className="grid gap-3 sm:grid-cols-3">
-              {battlefieldRow("Game 1", "battlefieldGame1CardId")}
-              {battlefieldRow("Going first", "battlefieldFirstCardId")}
-              {battlefieldRow("Going second", "battlefieldSecondCardId")}
+              {singleBattlefield ? (
+                <>
+                  {/* One battlefield in play — a single slot. Stale extra picks
+                      (saved before a format switch) stay visible so they can
+                      be cleared, but no new ones can be chosen. */}
+                  {battlefieldRow("Battlefield", "battlefieldGame1CardId")}
+                  {draft.battlefieldFirstCardId
+                    ? battlefieldRow("Going first", "battlefieldFirstCardId")
+                    : null}
+                  {draft.battlefieldSecondCardId
+                    ? battlefieldRow("Going second", "battlefieldSecondCardId")
+                    : null}
+                </>
+              ) : (
+                <>
+                  {battlefieldRow("Game 1", "battlefieldGame1CardId")}
+                  {battlefieldRow("Going first", "battlefieldFirstCardId")}
+                  {battlefieldRow("Going second", "battlefieldSecondCardId")}
+                </>
+              )}
             </div>
             <WarningList warnings={battlefieldWarnings} nameOf={nameOf} />
           </>

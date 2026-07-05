@@ -56,6 +56,26 @@ const DRAG_ZONES = new Set<DeckZone>([
   WellKnown.deckZone.OVERFLOW,
   WellKnown.deckZone.CHAMPION,
 ]);
+
+/**
+ * Whether a completed drag over `overData` must be a no-op for the dragged
+ * `activeData`. A zone that reports itself `disabled` (incompatible card type,
+ * full slot, or a zone the format doesn't play — e.g. a sideboard on a Custom
+ * Region deck) rejects both browser and deck cards; a deck card is also
+ * rejected when dropped back onto its own zone or onto a non-move zone
+ * (Legend/Runes/Battlefields). Rejected drops leave the deck untouched: the
+ * card stays where it is (deck card) or is not added (browser card).
+ * @returns `true` when the drop target rejects the dragged card.
+ */
+export function isDropRejected(activeData: AnyDragData, overData: DeckDropData): boolean {
+  if (overData.disabled === true) {
+    return true;
+  }
+  return (
+    activeData.type === "deck-card" &&
+    (activeData.fromZone === overData.zone || !DRAG_ZONES.has(overData.zone))
+  );
+}
 const MODIFIERS = [snapCenterToCursor];
 const EDGE_SIZE = 40;
 const SCROLL_SPEED = 15;
@@ -234,6 +254,9 @@ export function DeckDndContext({ deckId, children }: { deckId: string; children:
     }
 
     if (activeData.type === "browser-card") {
+      if (isDropRejected(activeData, overData)) {
+        return;
+      }
       if (moveAll) {
         if (overData.zone === WellKnown.deckZone.RUNES) {
           const runeTotal = deckCards
@@ -250,15 +273,7 @@ export function DeckDndContext({ deckId, children }: { deckId: string; children:
     }
 
     if (activeData.type === "deck-card") {
-      // No-op when the target rejects the card: dropped back onto its own zone,
-      // onto a non-move zone (Legend/Runes/Battlefields), or onto a zone that
-      // reports itself disabled (incompatible type or full — e.g. an occupied
-      // Champion slot). The card stays where it is; it is NOT removed.
-      if (
-        activeData.fromZone === overData.zone ||
-        !DRAG_ZONES.has(overData.zone) ||
-        overData.disabled === true
-      ) {
+      if (isDropRejected(activeData, overData)) {
         return;
       }
       if (moveAll || activeData.quantity === 1) {

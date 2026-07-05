@@ -1,4 +1,5 @@
 /* oxlint-disable unicorn/no-useless-undefined, promise/prefer-await-to-then, unicorn/prefer-top-level-await -- zod's `.catch(undefined)` is a sync fallback, not a Promise#catch */
+import { GROUP_BY_FIELDS, SORT_DIRECTIONS, SORT_OPTIONS } from "@openrift/shared";
 import { createContext, useContext } from "react";
 import { z } from "zod";
 
@@ -10,6 +11,13 @@ const numberField = () => z.number().optional().catch(undefined);
 const stringArray = () => z.array(z.string()).optional().catch(undefined);
 const boolFlag = () => z.boolean().optional().catch(undefined);
 const presenceField = () => z.enum(["any", "none"]).optional().catch(undefined);
+
+// Every group-by axis accepted at the URL level. The shared axes cover
+// /cards, /collections, and /decks; /promos additionally groups by "card".
+// An unknown value (an old bookmark after a rename, a hand-edited URL)
+// coerces to undefined — the surface's default — instead of reaching the
+// grouping code, where it would crash the grid.
+const URL_GROUP_BY_VALUES = [...GROUP_BY_FIELDS, "card"] as const;
 const ownedFilter = () =>
   z
     .array(z.enum(["none", "partial", "full", "extra"]))
@@ -76,14 +84,41 @@ export const filterSearchSchema = z.object({
   keywordsPresence: presenceField(),
   banned: boolFlag(),
   errata: boolFlag(),
-  sort: stringField(),
-  sortDir: stringField(),
-  view: stringField(),
-  groupBy: stringField(),
-  groupDir: stringField(),
+  sort: z.enum(SORT_OPTIONS).optional().catch(undefined),
+  sortDir: z.enum(SORT_DIRECTIONS).optional().catch(undefined),
+  view: z.enum(["cards", "printings", "copies"]).optional().catch(undefined),
+  groupBy: z.enum(URL_GROUP_BY_VALUES).optional().catch(undefined),
+  groupDir: z.enum(SORT_DIRECTIONS).optional().catch(undefined),
 });
 
 export type FilterSearch = z.infer<typeof filterSearchSchema>;
+
+/**
+ * Re-validates `search` and reports whether the raw URL carries keys the
+ * schema would drop. TanStack merges raw URL keys onto the validated search
+ * (Object.assign in buildLocation), so unknown keys survive into the
+ * validated object — re-parsing with the schema yields the clean set. Used by
+ * the card-browser routes' beforeLoad to canonicalize bookmarked/shared URLs.
+ * @returns The cleaned search params when the raw URL has extraneous keys (the
+ *   caller should redirect to them), or null when the URL is already clean.
+ */
+export function cleanedSearchForRedirect<Output extends Record<string, unknown>>(
+  schema: z.ZodType<Output>,
+  search: unknown,
+  searchStr: string,
+): Output | null {
+  const parsed = schema.safeParse(search);
+  const cleaned = parsed.success ? parsed.data : ({} as Output);
+  const rawKeys = new Set(new URLSearchParams(searchStr).keys());
+  const cleanedKeys = new Set(
+    Object.entries(cleaned)
+      .filter(([, value]) => value !== undefined)
+      .map(([key]) => key),
+  );
+  const hasExtraneous =
+    rawKeys.size !== cleanedKeys.size || [...rawKeys].some((key) => !cleanedKeys.has(key));
+  return hasExtraneous ? cleaned : null;
+}
 
 const FilterSearchContext = createContext<FilterSearch | null>(null);
 

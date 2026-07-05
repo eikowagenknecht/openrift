@@ -21,7 +21,22 @@ export const useAdminSettingsStore = create<AdminSettingsState>()(
           settings: { ...state.settings, ...patch },
         })),
     }),
-    { name: "admin-settings" },
+    {
+      name: "admin-settings",
+      // Validate on rehydrate: keep only known boolean fields from the blob.
+      merge: (persisted, current) => {
+        const raw =
+          persisted && typeof persisted === "object"
+            ? (persisted as { settings?: Record<string, unknown> }).settings
+            : undefined;
+        return {
+          ...current,
+          settings: {
+            debugOverlay: typeof raw?.debugOverlay === "boolean" ? raw.debugOverlay : false,
+          },
+        };
+      },
+    },
   ),
 );
 

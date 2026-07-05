@@ -27,6 +27,21 @@ export function isPrintingsOnlyGrouping(groupBy: GroupByField): boolean {
   return PRINTINGS_ONLY_GROUP_BY.has(groupBy);
 }
 
+/** The axes `groupItemsByField` knows how to bucket. */
+const FIELD_GROUPINGS = ["type", "superType", "domain", "rarity"] as const;
+
+export type FieldGrouping = (typeof FIELD_GROUPINGS)[number];
+
+/**
+ * Whether `groupBy` is one of the field-config axes `groupItemsByField`
+ * handles. Callers must fall back to the default grouping for anything else —
+ * a foreign axis (like /promos' "card") can arrive via a deep-linked URL.
+ * @returns `true` when `groupBy` is a field-grouping axis.
+ */
+export function isFieldGrouping(groupBy: string): groupBy is FieldGrouping {
+  return (FIELD_GROUPINGS as readonly string[]).includes(groupBy);
+}
+
 /** Synthetic bucket for cards with no super type — not an enum slug. */
 const NO_SUPER_TYPE_KEY = "(None)";
 
@@ -49,7 +64,7 @@ interface FieldConfig {
  */
 export function groupItemsByField(
   items: CardViewerItem[],
-  groupBy: Exclude<GroupByField, "none" | "set" | "channel" | "year" | "marker">,
+  groupBy: FieldGrouping,
   orders: Omit<EnumOrders, "finishes">,
   labels: EnumLabels,
 ): CardFieldGroup[] {

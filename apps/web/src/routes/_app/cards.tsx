@@ -11,6 +11,7 @@ import type { FirstRowCard } from "@/lib/cards-first-row";
 import { fetchFirstRowCards } from "@/lib/cards-first-row";
 import { cardsSearchSchema } from "@/lib/cards-search-schema";
 import { catalogQueryOptions, readCatalogVersionFromServerCache } from "@/lib/catalog-query";
+import { cleanedSearchForRedirect } from "@/lib/search-schemas";
 import { collectionPageJsonLd, seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 import { PAGE_PADDING_NO_TOP } from "@/lib/utils";
@@ -21,22 +22,10 @@ const CARDS_DESCRIPTION =
 export const Route = createFileRoute("/_app/cards")({
   validateSearch: cardsSearchSchema,
   beforeLoad: ({ search, location }) => {
-    // Strip unknown / malformed search params from the URL. TanStack merges
-    // raw URL keys onto the validated search (Object.assign in buildLocation),
-    // so unknown keys appear in `search` here too — re-parse with the schema
-    // to get the clean object, then redirect if the raw URL had any keys the
-    // validator would drop.
-    const parsed = cardsSearchSchema.safeParse(search);
-    const cleaned = parsed.success ? parsed.data : {};
-    const rawKeys = new Set(new URLSearchParams(location.searchStr).keys());
-    const cleanedKeys = new Set(
-      Object.entries(cleaned)
-        .filter(([, value]) => value !== undefined)
-        .map(([key]) => key),
-    );
-    const hasExtraneous =
-      rawKeys.size !== cleanedKeys.size || [...rawKeys].some((key) => !cleanedKeys.has(key));
-    if (hasExtraneous) {
+    // Strip unknown / malformed search params from the URL so bookmarks and
+    // share links land on a clean canonical URL.
+    const cleaned = cleanedSearchForRedirect(cardsSearchSchema, search, location.searchStr);
+    if (cleaned) {
       throw redirect({ to: "/cards", search: cleaned, replace: true });
     }
   },

@@ -2,6 +2,7 @@ import type { CardType, DeckZone, Domain, SuperType } from "@openrift/shared/typ
 
 import type { canonicalPrintingsRepo } from "../../repositories/canonical-printings.js";
 import { encodeText, encodeTTS, piltoverCodec } from "./index.js";
+import { isPiltoverEncodable } from "./piltover.js";
 import type { TextCodecCard } from "./text.js";
 import type { EncodeResult } from "./types.js";
 
@@ -71,8 +72,60 @@ export async function encodeDeck(
   } else if (format === "tts") {
     result = encodeTTS(codecCards);
   } else {
-    result = piltoverCodec.encode(codecCards);
+    result = piltoverCodec.encode(
+      await degradeToEncodable(canonicalPrintings, codecCards, warnings),
+    );
   }
 
   return { code: result.code, warnings: [...warnings, ...result.warnings] };
+}
+
+/**
+ * Replaces or drops cards whose short code the Piltover library can't encode,
+ * so one unsupported printing degrades to a warning instead of aborting the
+ * whole export with a 500. A row pinned to an unsupported printing (a Founders
+ * alt art, a token) falls back to the card's default printing when that one is
+ * encodable; rows with no encodable printing at all (a card whose canonical
+ * set the library doesn't know yet, e.g. a brand-new main set) are skipped
+ * with a warning naming the card.
+ * @returns The cards the Piltover codec can safely encode.
+ */
+async function degradeToEncodable(
+  canonicalPrintings: ShortCodeResolver,
+  codecCards: TextCodecCard[],
+  warnings: string[],
+): Promise<TextCodecCard[]> {
+  const pinnedFallbacks: TextCodecCard[] = [];
+  const dropped = new Set<TextCodecCard>();
+  for (const card of codecCards) {
+    if (isPiltoverEncodable(card.shortCode)) {
+      continue;
+    }
+    if (card.preferredPrintingId === null) {
+      dropped.add(card);
+      warnings.push(`Skipped "${card.cardName}": deck codes don't support ${card.shortCode} yet`);
+    } else {
+      pinnedFallbacks.push(card);
+    }
+  }
+
+  if (pinnedFallbacks.length > 0) {
+    const fallbackCodes = await canonicalPrintings.shortCodesForRows(
+      pinnedFallbacks.map((card) => ({ cardId: card.cardId, preferredPrintingId: null })),
+    );
+    for (const [index, card] of pinnedFallbacks.entries()) {
+      const fallback = fallbackCodes[index]?.shortCode;
+      if (fallback && fallback !== card.shortCode && isPiltoverEncodable(fallback)) {
+        warnings.push(
+          `"${card.cardName}": deck codes don't support the pinned printing ${card.shortCode} yet, used ${fallback} instead`,
+        );
+        card.shortCode = fallback;
+      } else {
+        dropped.add(card);
+        warnings.push(`Skipped "${card.cardName}": deck codes don't support ${card.shortCode} yet`);
+      }
+    }
+  }
+
+  return dropped.size > 0 ? codecCards.filter((card) => !dropped.has(card)) : codecCards;
 }

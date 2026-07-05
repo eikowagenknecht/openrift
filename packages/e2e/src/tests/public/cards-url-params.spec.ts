@@ -74,14 +74,24 @@ test.describe("card browser URL params", () => {
     await expect(page.getByText(/No cards found/iu)).toBeVisible({ timeout: LOAD_TIMEOUT });
   });
 
-  test("?promo=true shows only cards with at least one marker", async ({ page }) => {
-    await page.goto(`/cards?promo=${encodeURIComponent(JSON.stringify(true))}`);
+  test("?markersPresence=any shows only cards with at least one marker", async ({ page }) => {
+    await page.goto("/cards?markersPresence=any");
 
     // Annie, Fiery has a nexus-marked printing (OGS-001 foil) in the seed.
     // Firestorm (OGS-002) has no marker on any printing, so it should be
     // filtered out.
     await scrollUntilVisible(page, cardImage(page, "Annie, Fiery"));
     await expect(cardImage(page, "Firestorm").first()).not.toBeVisible();
+  });
+
+  test("?groupBy=<unknown value> falls back to the default grouping", async ({ page }) => {
+    // Unknown enum-ish values (an old bookmark after a rename, a hand-edited
+    // URL) must degrade to the default grouping and be stripped from the URL,
+    // never crash the grid to the route error page.
+    await page.goto("/cards?groupBy=garbage");
+
+    await scrollUntilVisible(page, cardImage(page, "Annie, Fiery"));
+    await expect(page).toHaveURL(/\/cards$/u);
   });
 
   test("?banned=true shows only banned cards", async ({ page }) => {

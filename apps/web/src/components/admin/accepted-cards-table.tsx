@@ -385,7 +385,7 @@ export function AcceptedCardsTable({
   const navigate = useNavigate({ from: CardsRoute.fullPath });
   const { sorting, globalFilter, setSlug, activeStatus, priceScope } = CardsRoute.useSearch({
     select: (s) => ({
-      sorting: parseSortParam(s.sort),
+      sorting: parseSortParam(s.tableSort),
       globalFilter: s.q ?? "",
       setSlug: s.set,
       activeStatus: s.status ?? null,
@@ -529,7 +529,7 @@ export function AcceptedCardsTable({
   function handleSortingChange(updater: Updater<SortingState>) {
     const next = typeof updater === "function" ? updater(sorting) : updater;
     void navigate({
-      search: (prev) => ({ ...prev, sort: stringifySort(next) }),
+      search: (prev) => ({ ...prev, tableSort: stringifySort(next) }),
       replace: true,
     });
   }

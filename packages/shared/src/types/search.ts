@@ -34,20 +34,27 @@ export const SEARCH_PREFIX_MAP: Record<string, SearchField> = {
   id: "id",
 };
 
-export type GroupByField =
-  | "none"
-  | "set"
-  | "type"
-  | "superType"
-  | "domain"
-  | "rarity"
-  | "channel"
-  | "year"
-  | "marker";
+export const GROUP_BY_FIELDS = [
+  "none",
+  "set",
+  "type",
+  "superType",
+  "domain",
+  "rarity",
+  "channel",
+  "year",
+  "marker",
+] as const;
 
-export type SortOption = "id" | "name" | "energy" | "rarity" | "price";
+export type GroupByField = (typeof GROUP_BY_FIELDS)[number];
 
-export type SortDirection = "asc" | "desc";
+export const SORT_OPTIONS = ["id", "name", "energy", "rarity", "price"] as const;
+
+export type SortOption = (typeof SORT_OPTIONS)[number];
+
+export const SORT_DIRECTIONS = ["asc", "desc"] as const;
+
+export type SortDirection = (typeof SORT_DIRECTIONS)[number];
 
 /**
  * Sentinel value for "None" in a FilterRange. When used as `min`, null-stat

@@ -56,8 +56,8 @@ export function DeckShareDialog({
           <DialogTitle>Share deck</DialogTitle>
           <DialogDescription>
             {sharing
-              ? "Anyone with this link can view the deck. They can also copy it into their own decks."
-              : "Create a link to share this deck. Anyone with the link will be able to view it without signing in."}
+              ? "Anyone with this link can view the deck, including your Plan (strategy, mulligans, and matchup notes). They can also copy the deck into their own decks."
+              : "Create a link to share this deck. Anyone with the link will be able to view it without signing in, including your Plan (strategy, mulligans, and matchup notes)."}
           </DialogDescription>
         </DialogHeader>
 

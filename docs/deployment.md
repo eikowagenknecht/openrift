@@ -368,6 +368,18 @@ nginx -t && systemctl reload nginx
 
 `openrift.conf` proxies `openrift.app` → `:8080`, `preview.openrift.conf` proxies `preview.openrift.app` → `:8081`.
 
+**Security invariant — `X-Real-IP` must be overwritten here.** The API's
+sign-in/sign-up brute-force limiter and the proxy container's `limit_req`
+zone both key on `X-Real-IP`, and the proxy container _trusts_ the incoming
+header (it can't know the real client address behind host nginx). The host
+configs in the repo do this correctly: the Cloudflare `real_ip` include maps
+`$remote_addr` to the visitor IP, and every `proxy_pass` block sets
+`proxy_set_header X-Real-IP $remote_addr;`, which overwrites anything a
+client sent. After changing or re-copying a host nginx config, verify the
+deployed file still carries that line for every location that proxies to
+`:8080`/`:8081` — without it, clients can spoof `X-Real-IP` and bypass or
+poison the rate limits.
+
 ### 7. First deploy
 
 ```bash

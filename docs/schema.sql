@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 86x8mDD5tqReUwWY6Y8OgxjWqT8mFMLKgh8CkuvXgiNuXisAoI6aEpJooYYADEb
+\restrict UK6njl1ZxaCJwvXYrbDOgax0YyoHWhedY9dqGGkWf4Gj4w3Q7R4iyV7Op4N5Zwk
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1985,7 +1985,7 @@ CREATE TABLE public.tournaments (
     CONSTRAINT chk_tournaments_bye_points CHECK ((bye_points >= 0)),
     CONSTRAINT chk_tournaments_deck_phase CHECK ((deck_phase = ANY (ARRAY['open'::text, 'closed'::text, 'locked'::text]))),
     CONSTRAINT chk_tournaments_deck_submission CHECK ((deck_submission = ANY (ARRAY['none'::text, 'optional'::text, 'required'::text]))),
-    CONSTRAINT chk_tournaments_host CHECK ((((host_type = 'user'::text) AND (host_user_id IS NOT NULL) AND (host_org_id IS NULL)) OR ((host_type = 'organization'::text) AND (host_org_id IS NOT NULL) AND (host_user_id IS NULL)))),
+    CONSTRAINT chk_tournaments_host CHECK ((((host_type = 'user'::text) AND (host_org_id IS NULL)) OR ((host_type = 'organization'::text) AND (host_user_id IS NULL)))),
     CONSTRAINT chk_tournaments_list_lock_mode CHECK ((list_lock_mode = ANY (ARRAY['on_submit'::text, 'at_deadline'::text]))),
     CONSTRAINT chk_tournaments_name CHECK (((length(name) >= 1) AND (length(name) <= 120))),
     CONSTRAINT chk_tournaments_pairing_style CHECK ((pairing_style = ANY (ARRAY['none'::text, 'pod'::text]))),
@@ -3147,6 +3147,13 @@ CREATE INDEX idx_card_trades_receiver ON public.card_trades USING btree (receive
 
 
 --
+-- Name: idx_card_trades_receiver_wish_entry; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_card_trades_receiver_wish_entry ON public.card_trades USING btree (receiver_wish_entry_id) WHERE (receiver_wish_entry_id IS NOT NULL);
+
+
+--
 -- Name: idx_card_trades_request_email_pending; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3179,6 +3186,20 @@ CREATE INDEX idx_collection_deckbuilding_prefs_collection ON public.collection_d
 --
 
 CREATE INDEX idx_collection_events_copy ON public.collection_events USING btree (copy_id);
+
+
+--
+-- Name: idx_collection_events_from_collection; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_collection_events_from_collection ON public.collection_events USING btree (from_collection_id) WHERE (from_collection_id IS NOT NULL);
+
+
+--
+-- Name: idx_collection_events_to_collection; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_collection_events_to_collection ON public.collection_events USING btree (to_collection_id) WHERE (to_collection_id IS NOT NULL);
 
 
 --
@@ -3231,10 +3252,31 @@ CREATE INDEX idx_deck_cards_deck ON public.deck_cards USING btree (deck_id);
 
 
 --
+-- Name: idx_deck_check_entries_participant; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_deck_check_entries_participant ON public.deck_check_entries USING btree (participant_id) WHERE (participant_id IS NOT NULL);
+
+
+--
 -- Name: idx_deck_check_entry_cards_entry; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_deck_check_entry_cards_entry ON public.deck_check_entry_cards USING btree (entry_id);
+
+
+--
+-- Name: idx_deck_check_keys_host_org; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_deck_check_keys_host_org ON public.deck_check_keys USING btree (host_org_id) WHERE (host_org_id IS NOT NULL);
+
+
+--
+-- Name: idx_deck_check_keys_host_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_deck_check_keys_host_user ON public.deck_check_keys USING btree (host_user_id) WHERE (host_user_id IS NOT NULL);
 
 
 --
@@ -3350,6 +3392,13 @@ CREATE INDEX idx_job_runs_running ON public.job_runs USING btree (kind) WHERE (s
 
 
 --
+-- Name: idx_list_entries_copy; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_list_entries_copy ON public.list_entries USING btree (copy_id) WHERE (copy_id IS NOT NULL);
+
+
+--
 -- Name: idx_list_entries_list; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3403,6 +3452,13 @@ CREATE UNIQUE INDEX idx_mv_latest_printing_prices_pk ON public.mv_latest_printin
 --
 
 CREATE INDEX idx_organization_members_user ON public.organization_members USING btree (user_id);
+
+
+--
+-- Name: idx_organizations_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_organizations_owner ON public.organizations USING btree (owner_user_id);
 
 
 --
@@ -3536,6 +3592,13 @@ CREATE INDEX idx_sessions_user_id ON public.sessions USING btree (user_id);
 --
 
 CREATE INDEX idx_tournament_participants_tournament ON public.tournament_participants USING btree (tournament_id);
+
+
+--
+-- Name: idx_tournament_participants_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_tournament_participants_user ON public.tournament_participants USING btree (user_id) WHERE (user_id IS NOT NULL);
 
 
 --
@@ -3697,6 +3760,13 @@ CREATE UNIQUE INDEX uq_tournaments_report_token ON public.tournaments USING btre
 --
 
 CREATE UNIQUE INDEX uq_tournaments_submission_token ON public.tournaments USING btree (submission_token) WHERE (submission_token IS NOT NULL);
+
+
+--
+-- Name: uq_users_email_lower; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_users_email_lower ON public.users USING btree (lower(email));
 
 
 --
@@ -4404,6 +4474,14 @@ ALTER TABLE ONLY public.deck_cards
 
 
 --
+-- Name: deck_check_entries deck_check_entries_approved_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_check_entries
+    ADD CONSTRAINT deck_check_entries_approved_by_fkey FOREIGN KEY (approved_by) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
 -- Name: deck_check_entries deck_check_entries_checked_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5104,7 +5182,7 @@ ALTER TABLE ONLY public.tournaments
 --
 
 ALTER TABLE ONLY public.tournaments
-    ADD CONSTRAINT tournaments_host_org_fkey FOREIGN KEY (host_org_id) REFERENCES public.organizations(id) ON DELETE CASCADE;
+    ADD CONSTRAINT tournaments_host_org_fkey FOREIGN KEY (host_org_id) REFERENCES public.organizations(id) ON DELETE SET NULL;
 
 
 --
@@ -5112,7 +5190,7 @@ ALTER TABLE ONLY public.tournaments
 --
 
 ALTER TABLE ONLY public.tournaments
-    ADD CONSTRAINT tournaments_host_user_fkey FOREIGN KEY (host_user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+    ADD CONSTRAINT tournaments_host_user_fkey FOREIGN KEY (host_user_id) REFERENCES public.users(id) ON DELETE SET NULL;
 
 
 --
@@ -5151,5 +5229,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 86x8mDD5tqReUwWY6Y8OgxjWqT8mFMLKgh8CkuvXgiNuXisAoI6aEpJooYYADEb
+\unrestrict UK6njl1ZxaCJwvXYrbDOgax0YyoHWhedY9dqGGkWf4Gj4w3Q7R4iyV7Op4N5Zwk
 

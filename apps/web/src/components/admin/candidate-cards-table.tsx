@@ -153,7 +153,7 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
   const navigate = useNavigate({ from: CardsRoute.fullPath });
   const { sorting, globalFilter, activeStatus, activeSource } = CardsRoute.useSearch({
     select: (s) => ({
-      sorting: parseSortParam(s.sort),
+      sorting: parseSortParam(s.tableSort),
       globalFilter: s.q ?? "",
       activeStatus: s.status ?? null,
       activeSource: s.source ?? null,
@@ -201,7 +201,7 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
   function handleSortingChange(updater: Updater<SortingState>) {
     const next = typeof updater === "function" ? updater(sorting) : updater;
     void navigate({
-      search: (prev) => ({ ...prev, sort: stringifySort(next) }),
+      search: (prev) => ({ ...prev, tableSort: stringifySort(next) }),
       replace: true,
     });
   }

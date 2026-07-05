@@ -35,7 +35,7 @@ import {
   toDeckPlan,
   toDeckSummary,
 } from "../../utils/mappers.js";
-import { generateShareToken } from "../../utils/share-token.js";
+import { withUniqueShareToken } from "../../utils/share-token.js";
 
 async function assertKnownFormat(deckFormats: Repos["deckFormats"], format: string): Promise<void> {
   const row = await deckFormats.getBySlug(format);
@@ -575,9 +575,11 @@ export const decksRouter = {
       return { shareToken: existing.shareToken, isPublic: existing.isPublic };
     }
 
-    const token = generateShareToken();
-    const updated = await decks.setShareToken(input.id, userId, token, true);
-    assertFound(updated, "Not found");
+    const token = await withUniqueShareToken(async (candidate) => {
+      const updated = await decks.setShareToken(input.id, userId, candidate, true);
+      assertFound(updated, "Not found");
+      return candidate;
+    });
 
     return { shareToken: token, isPublic: true };
   }),
@@ -592,9 +594,11 @@ export const decksRouter = {
     const { decks } = context.repos;
     const userId = context.userId;
 
-    const token = generateShareToken();
-    const updated = await decks.setShareToken(input.id, userId, token, true);
-    assertFound(updated, "Not found");
+    const token = await withUniqueShareToken(async (candidate) => {
+      const updated = await decks.setShareToken(input.id, userId, candidate, true);
+      assertFound(updated, "Not found");
+      return candidate;
+    });
 
     return { shareToken: token, isPublic: true };
   }),

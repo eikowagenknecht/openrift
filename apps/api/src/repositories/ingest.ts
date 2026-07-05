@@ -1,4 +1,5 @@
 import type { Insertable, Kysely, Selectable, Updateable } from "kysely";
+import { sql } from "kysely";
 
 import type { CandidateCardsTable, Database, CandidatePrintingsTable } from "../db/index.js";
 
@@ -102,6 +103,18 @@ export function ingestRepo(db: Db) {
         .where("createdAt", ">=", since)
         .executeTakeFirst();
       return row ? Number(row.count) : 0;
+    },
+
+    /**
+     * Serialize this user's submission ingests for the rest of the enclosing
+     * transaction. A plain COUNT under READ COMMITTED can't see concurrent
+     * uncommitted inserts, so without this lock N parallel submissions all
+     * pass the daily-cap check together. The lock releases automatically at
+     * transaction end; other users hash to different keys and don't block.
+     * Must be called inside a transaction.
+     */
+    async lockUserSubmissions(userId: string): Promise<void> {
+      await sql`select pg_advisory_xact_lock(hashtext(${userId}))`.execute(db);
     },
 
     // ── Writes ──────────────────────────────────────────────────────────────

@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-07-05
+
+### Other
+
+- fix(Decks): **Deck codes for special printings** — exporting a deck code no longer fails when the deck pins a printing deck codes don't support yet (like a Founders alt art), it encodes the default printing or lists the skipped cards instead.
+- fix(Decks): **Locked zones reject dropped cards** — dragging a card from the browser onto a zone shown as locked (like the sideboard on a Custom-Region deck) no longer adds a copy there.
+- fix(Decks): **One battlefield pick in plans** — the deck plan for Custom-Region decks now offers a single battlefield slot instead of three, and the too-many-battlefields warning explains itself in plain words.
+- fix(Decks): **Share dialog mentions your Plan** — the deck share dialog now says the link includes your Plan (strategy, mulligans, matchup notes), so nothing goes public unexpectedly.
+- fix(Decks): **Signed-out decks survive bad storage** — decks built while signed out now load even when the browser's saved data is partially damaged, keeping every intact deck instead of failing the deck list.
+- fix(Tournaments): **Hosted events survive account deletion** — deleting your account now removes you as host instead of erasing the whole tournament, so participants keep their results.
+- fix(Tournaments): **No false region warning in deck checks** — Custom-Region deck checks no longer flag every deck with "Pick at least one region".
+- fix(Tournaments): **Email never used as player name** — joining an event without an account name now shows the part before the @ of your email, never the full address.
+- fix(Cards): **Bad links can't crash the catalog** — a card-browser link with an unknown grouping or sort value now falls back to the defaults instead of showing an error page.
+
 ## 2026-07-03
 
 ### Highlights

@@ -4,7 +4,7 @@ import { implement } from "@orpc/server";
 
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
-import { generateShareToken } from "../../utils/share-token.js";
+import { withUniqueShareToken } from "../../utils/share-token.js";
 
 const os = implement(userShareContract).$context<ApiContext>().use(requireAuthedUser);
 
@@ -27,7 +27,7 @@ export const userShareRouter = {
     if (current?.shareToken) {
       return { shareToken: current.shareToken, isPublic: true };
     }
-    const updated = await userShares.setShareToken(userId, generateShareToken());
+    const updated = await withUniqueShareToken((token) => userShares.setShareToken(userId, token));
     if (!updated) {
       throw errors.NOT_FOUND({ message: "User not found" });
     }
@@ -45,7 +45,9 @@ export const userShareRouter = {
   // Overwrites the existing token; the previous URL stops resolving at once.
   rotate: os.rotate.handler(async ({ context, errors }): Promise<UserShareStateResponse> => {
     const { userShares } = context.repos;
-    const updated = await userShares.setShareToken(context.userId, generateShareToken());
+    const updated = await withUniqueShareToken((token) =>
+      userShares.setShareToken(context.userId, token),
+    );
     if (!updated) {
       throw errors.NOT_FOUND({ message: "User not found" });
     }

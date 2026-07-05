@@ -121,4 +121,60 @@ describe.skipIf(!ctx)("ingestUserSubmission integration", () => {
     const names = rows.map((r: { name: string }) => r.name).toSorted();
     expect(names).toEqual(["Test alpha", "Test beta"]);
   });
+
+  it("enforces the daily cap under concurrent submissions (advisory lock)", async () => {
+    // Discover the cap from the rate_limited payload instead of importing the
+    // (deliberately unexported) constant: flood past any plausible limit, read
+    // `limit` back, then reset to exactly one below it.
+    const seedRows = (count: number, offset: number) =>
+      db
+        .insertInto("candidateCards")
+        .values(
+          Array.from({ length: count }, (_, index) => ({
+            provider: USER_SUBMISSION_PROVIDER,
+            externalId: `seed--${offset + index}`,
+            name: `Seed ${offset + index}`,
+            type: "unit",
+            superTypes: [],
+            domains: ["fury"],
+            tags: [],
+            submittedByUserId: USER_ID,
+          })),
+        )
+        .execute();
+
+    await seedRows(500, 0);
+    const flooded = await submit(transact, submission("over-cap", null), new Date());
+    expect(flooded.status).toBe("rate_limited");
+    const limit = flooded.status === "rate_limited" ? flooded.limit : 0;
+    expect(limit).toBeGreaterThan(0);
+
+    await db
+      .deleteFrom("candidateCards")
+      .where("provider", "=", USER_SUBMISSION_PROVIDER)
+      .where("submittedByUserId", "=", USER_ID)
+      .execute();
+    await seedRows(limit - 1, 1000);
+
+    // One slot left. Five concurrent submissions race for it: without the
+    // pg_advisory_xact_lock they all read the same count and all pass; with
+    // it they serialize and exactly one lands.
+    const results = await Promise.all(
+      Array.from({ length: 5 }, (_, index) =>
+        submit(transact, submission(`race-${index}`, null), new Date()),
+      ),
+    );
+    const okCount = results.filter((r) => r.status === "ok").length;
+    const rateLimitedCount = results.filter((r) => r.status === "rate_limited").length;
+    expect(okCount).toBe(1);
+    expect(rateLimitedCount).toBe(4);
+
+    const remaining = await db
+      .selectFrom("candidateCards")
+      .select("id")
+      .where("provider", "=", USER_SUBMISSION_PROVIDER)
+      .where("submittedByUserId", "=", USER_ID)
+      .execute();
+    expect(remaining).toHaveLength(limit);
+  });
 });

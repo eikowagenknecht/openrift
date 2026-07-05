@@ -79,3 +79,96 @@ describe("encodeDeck", () => {
     expect(result.code).not.toContain("OGN-003");
   });
 });
+
+// A resolver with per-card codes: `pinned` when the row carries a
+// preferredPrintingId, `fallback` when it doesn't (the default printing).
+function mappedResolver(
+  codes: Record<string, { pinned?: string | null; fallback: string | null }>,
+) {
+  return {
+    shortCodesForRows: vi.fn(
+      async (rows: { cardId: string; preferredPrintingId: string | null }[]) =>
+        rows.map((entry) => ({
+          cardId: entry.cardId,
+          preferredPrintingId: entry.preferredPrintingId,
+          shortCode:
+            entry.preferredPrintingId === null
+              ? (codes[entry.cardId]?.fallback ?? null)
+              : (codes[entry.cardId]?.pinned ?? null),
+        })),
+    ),
+  };
+}
+
+describe("encodeDeck piltover degradation", () => {
+  // The installed Piltover library knows OGN/OGS/ARC/SFD/UNL and throws for
+  // anything else (Founders, tokens, future sets). These tests pin down that
+  // one unsupported printing degrades to a warning instead of a 500.
+
+  it("falls back to the default printing when a pinned printing can't be encoded", async () => {
+    const rows = [
+      row({ cardId: "legend", zone: "legend", cardName: "The Legend" }),
+      row({
+        cardId: "unitA",
+        zone: "main",
+        quantity: 2,
+        cardName: "Unit A",
+        preferredPrintingId: "printing-founders",
+      }),
+    ];
+    const resolver = mappedResolver({
+      legend: { fallback: "OGN-001" },
+      unitA: { pinned: "FND-196", fallback: "OGN-045" },
+    });
+
+    const result = await encodeDeck(resolver, rows, "piltover");
+
+    expect(result.warnings).toEqual([
+      `"Unit A": deck codes don't support the pinned printing FND-196 yet, used OGN-045 instead`,
+    ]);
+    const decoded = getDeckFromCode(result.code);
+    const mainCounts = new Map(decoded.mainDeck.map((card) => [card.cardCode, card.count]));
+    expect(mainCounts.get("OGN-045")).toBe(2);
+  });
+
+  it("skips a card whose only printing can't be encoded, keeping the rest", async () => {
+    const rows = [
+      row({ cardId: "legend", zone: "legend", cardName: "The Legend" }),
+      row({ cardId: "vendetta", zone: "main", cardName: "New Set Card" }),
+    ];
+    const resolver = mappedResolver({
+      legend: { fallback: "OGN-001" },
+      vendetta: { fallback: "VEN-001" },
+    });
+
+    const result = await encodeDeck(resolver, rows, "piltover");
+
+    expect(result.warnings).toEqual([
+      `Skipped "New Set Card": deck codes don't support VEN-001 yet`,
+    ]);
+    const decoded = getDeckFromCode(result.code);
+    expect(decoded.mainDeck.map((card) => card.cardCode)).toEqual(["OGN-001"]);
+  });
+
+  it("skips a pinned card when the default printing can't be encoded either", async () => {
+    const rows = [
+      row({ cardId: "legend", zone: "legend", cardName: "The Legend" }),
+      row({
+        cardId: "token",
+        zone: "main",
+        cardName: "Token Card",
+        preferredPrintingId: "printing-token",
+      }),
+    ];
+    const resolver = mappedResolver({
+      legend: { fallback: "OGN-001" },
+      token: { pinned: "SFD-T01", fallback: "SFD-T01" },
+    });
+
+    const result = await encodeDeck(resolver, rows, "piltover");
+
+    expect(result.warnings).toEqual([`Skipped "Token Card": deck codes don't support SFD-T01 yet`]);
+    const decoded = getDeckFromCode(result.code);
+    expect(decoded.mainDeck.map((card) => card.cardCode)).toEqual(["OGN-001"]);
+  });
+});

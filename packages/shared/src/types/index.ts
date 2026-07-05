@@ -45,9 +45,12 @@ export {
   cardFiltersSchema,
   DEFAULT_SEARCH_SCOPE,
   EMPTY_CARD_FILTERS,
+  GROUP_BY_FIELDS,
   NONE,
   PRESENCE_DIMENSIONS,
   SEARCH_PREFIX_MAP,
+  SORT_DIRECTIONS,
+  SORT_OPTIONS,
 } from "./search.js";
 
 export type { ListRule, ListRules, RuleQuantity, TradeRule, WishRule } from "./list-rule.js";

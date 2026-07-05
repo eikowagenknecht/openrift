@@ -60,3 +60,55 @@ describe("useDeckCheckViewStore", () => {
     expect(useDeckCheckViewStore.getState().maxColumns).toBeNull();
   });
 });
+
+describe("rehydrate validation", () => {
+  afterEach(() => {
+    localStorage.removeItem("deck-check-view");
+  });
+
+  it("falls back to defaults for junk persisted values", async () => {
+    localStorage.setItem(
+      "deck-check-view",
+      JSON.stringify({
+        state: {
+          wide: "yes",
+          displayMode: "carousel",
+          sortBy: "garbage",
+          sortDir: "up",
+          maxColumns: -2,
+        },
+        version: 0,
+      }),
+    );
+    await useDeckCheckViewStore.persist.rehydrate();
+    const state = useDeckCheckViewStore.getState();
+    expect(state.wide).toBe(true);
+    expect(state.displayMode).toBe("grid");
+    expect(state.sortBy).toBe("deck");
+    expect(state.sortDir).toBe("asc");
+    expect(state.maxColumns).toBeNull();
+  });
+
+  it("keeps valid persisted values", async () => {
+    localStorage.setItem(
+      "deck-check-view",
+      JSON.stringify({
+        state: { wide: false, displayMode: "list", sortBy: "name", sortDir: "desc", maxColumns: 4 },
+        version: 0,
+      }),
+    );
+    await useDeckCheckViewStore.persist.rehydrate();
+    const state = useDeckCheckViewStore.getState();
+    expect(state.wide).toBe(false);
+    expect(state.displayMode).toBe("list");
+    expect(state.sortBy).toBe("name");
+    expect(state.sortDir).toBe("desc");
+    expect(state.maxColumns).toBe(4);
+  });
+
+  it("survives a corrupt persisted blob", async () => {
+    localStorage.setItem("deck-check-view", JSON.stringify({ state: "corrupt", version: 0 }));
+    await useDeckCheckViewStore.persist.rehydrate();
+    expect(useDeckCheckViewStore.getState().sortBy).toBe("deck");
+  });
+});

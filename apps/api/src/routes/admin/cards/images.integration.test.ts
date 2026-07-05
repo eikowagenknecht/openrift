@@ -41,6 +41,9 @@ const mockIo: Io = {
     stat: async () => ({ size: 1024 }) as any,
   },
   fetch: async () => new Response(FAKE_BUFFER, { headers: { "content-type": "image/png" } }),
+  // Resolve every host to a public documentation-range address so the SSRF
+  // guard in downloadImage passes for the fake URLs these tests use.
+  dnsLookupAll: async () => [{ address: "203.0.113.10" }],
   sharp: (() => mockSharpPipeline) as any,
 };
 /* oxlint-enable no-empty-function */

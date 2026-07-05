@@ -744,6 +744,7 @@ function DeckEditorContent({
                     <DeckPlanEditor
                       deckId={deckId}
                       deckCards={deckCards}
+                      format={data.deck.format}
                       onHoverCard={setHoveredMain}
                     />
                   </Suspense>

@@ -458,7 +458,7 @@ const battlefieldExactlyOne: DeckRule = (state) => {
       {
         zone: WellKnown.deckZone.BATTLEFIELD,
         code: "BATTLEFIELD_TOO_MANY",
-        message: `${count}/1 Battlefield cards — remove ${count - 1}`,
+        message: `This format plays exactly 1 Battlefield — remove ${count - 1} of the ${count} in the deck`,
       },
     ];
   }

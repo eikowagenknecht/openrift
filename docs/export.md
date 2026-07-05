@@ -12,45 +12,50 @@ openrift-{collection-name}-{date}.csv
 
 ## Columns
 
-| #   | Header      | Description                                                             | Example values                                                    |
-| --- | ----------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| 1   | Card ID     | Unique printing identifier (`SET-NNN` + optional variant/finish suffix) | `OGN-001`, `OGN-030a`, `OGN-004f`                                 |
-| 2   | Card Name   | Display name of the card                                                | `Blazing Scorcher`                                                |
-| 3   | Rarity      | Card rarity                                                             | `Common`, `Uncommon`, `Rare`, `Epic`, `Showcase`                  |
-| 4   | Type        | Card type                                                               | `Legend`, `Unit`, `Rune`, `Spell`, `Gear`, `Battlefield`, `Other` |
-| 5   | Domain      | Card domain(s), separated by `/` for multi-domain cards                 | `Fury`, `Mind / Body`                                             |
-| 6   | Finish      | Card finish                                                             | `normal`, `foil`                                                  |
-| 7   | Art Variant | Art variant type                                                        | `normal`, `altart`, `overnumbered`, `ultimate`                    |
-| 8   | Promo       | Promo/distribution marker slugs, joined with `+` (empty for non-promo)  | `prerelease`, `judge+promo`                                       |
-| 9   | Language    | Printing language                                                       | `en`, `ja`                                                        |
-| 10  | Quantity    | Number of copies owned                                                  | `1`, `3`                                                          |
+| #   | Header      | Description                                                            | Example values                                                    |
+| --- | ----------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| 1   | Card ID     | Unique printing identifier (`SET-NNN` + optional variant suffix)       | `OGN-001`, `OGN-030a`, `SFD-R01b`                                 |
+| 2   | Card Name   | Display name of the card                                               | `Blazing Scorcher`                                                |
+| 3   | Rarity      | Card rarity                                                            | `Common`, `Uncommon`, `Rare`, `Epic`, `Showcase`                  |
+| 4   | Type        | Card type                                                              | `Legend`, `Unit`, `Rune`, `Spell`, `Gear`, `Battlefield`, `Other` |
+| 5   | Domain      | Card domain(s), separated by `/` for multi-domain cards                | `Fury`, `Mind / Body`                                             |
+| 6   | Finish      | Card finish                                                            | `normal`, `foil`                                                  |
+| 7   | Art Variant | Art variant type                                                       | `normal`, `altart`, `overnumbered`, `ultimate`                    |
+| 8   | Promo       | Promo/distribution marker slugs, joined with `+` (empty for non-promo) | `prerelease`, `judge+promo`                                       |
+| 9   | Language    | Printing language (uppercase catalog code)                             | `EN`, `FR`, `ZH`                                                  |
+| 10  | Quantity    | Number of copies owned                                                 | `1`, `3`                                                          |
 
 ## Card ID format
 
 The Card ID is the printing's `shortCode`. The general structure is:
 
 ```
-{SET}-{NUMBER}[{variant}][{finish}]
+{SET}-{NUMBER}[{variant}]
 ```
 
-- **SET**: Uppercase set prefix (e.g., `OGN`, `ALP`)
-- **NUMBER**: Three-digit card number (e.g., `001`, `030`)
-- **variant suffix**: Lowercase letter for alt art (`a`, `b`, etc.)
-- **finish suffix**: `f` for foil printings
+- **SET**: Uppercase set prefix (e.g., `OGN`, `SFD`)
+- **NUMBER**: Three-digit card number (e.g., `001`, `030`); special printings
+  carry a letter prefix instead (`R01` for runes, `T01` for tokens)
+- **variant suffix**: Lowercase letter for alt art (`a`, `b`, etc.) or `*` for
+  star variants
+
+The Card ID carries **no finish information**: a foil and a normal copy of the
+same printing share one Card ID and are split into separate rows by the
+`Finish` column.
 
 Examples:
 
-- `OGN-001` — Origins #001, normal finish, normal art
+- `OGN-001` — Origins #001, normal art
 - `OGN-030a` — Origins #030, alt art variant
-- `OGN-004f` — Origins #004, foil finish
+- `SFD-R01b` — a rune printing, second alt art
 
 ## Example
 
 ```csv
 Card ID,Card Name,Rarity,Type,Domain,Finish,Art Variant,Promo,Language,Quantity
-OGN-001,Blazing Scorcher,Common,Unit,Fury,normal,normal,,en,3
-OGN-004f,Cleave,Common,Unit,Fury,foil,normal,,en,1
-OGN-030a,Emberclaw Champion,Rare,Unit,Fury / Mind,normal,altart,prerelease,en,1
+OGN-001,Blazing Scorcher,Common,Unit,Fury,normal,normal,,EN,3
+OGN-004,Cleave,Common,Unit,Fury,foil,normal,,EN,1
+OGN-030a,Emberclaw Champion,Rare,Unit,Fury / Mind,normal,altart,prerelease,EN,1
 ```
 
 ## Escaping
@@ -61,4 +66,5 @@ Fields containing commas, double quotes, or newlines are wrapped in double quote
 
 - Rows are sorted by Card ID (set prefix, then short code).
 - The Domain column may contain `/` as a separator for multi-domain cards. Split on `/` to get individual domains.
-- Quantity is always a positive integer. Each row is a unique printing — the same card may appear multiple times with different finishes or art variants.
+- Quantity is always a positive integer. Each row is a unique printing+finish combination — the same Card ID may appear on multiple rows differing only in the `Finish` column, and the same card may appear under multiple Card IDs (art variants).
+- Key rows on `Card ID + Finish + Language`, not on `Card ID` alone.

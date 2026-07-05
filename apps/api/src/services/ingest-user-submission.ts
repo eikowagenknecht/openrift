@@ -151,7 +151,11 @@ export function ingestUserSubmission(
   return transact(async (trxRepos) => {
     const repo = trxRepos.ingest;
 
-    // ── Per-user daily cap (inside the txn so concurrent submits can't race) ──
+    // ── Per-user daily cap ────────────────────────────────────────────────────
+    // The advisory lock serializes this user's concurrent submissions: without
+    // it, parallel requests all read the same COUNT under READ COMMITTED and
+    // all pass the cap. The lock releases when the transaction ends.
+    await repo.lockUserSubmissions(userId);
     const recent = await repo.countRecentSubmissionsByUser(userId, since);
     if (recent >= USER_SUBMISSION_DAILY_LIMIT) {
       return { status: "rate_limited", limit: USER_SUBMISSION_DAILY_LIMIT };

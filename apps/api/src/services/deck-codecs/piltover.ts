@@ -4,6 +4,33 @@ import type { Card as PiltoverCard } from "@piltoverarchive/riftbound-deck-codes
 
 import type { DeckCodec, DeckCodecCard, EncodeResult } from "./types.js";
 
+// Probe results per short code. The candidate space is the card catalog, so
+// this stays small; probing costs a one-card encode.
+const encodableCache = new Map<string, boolean>();
+
+/**
+ * Whether the Piltover library can encode this short code. The library throws
+ * for sets and variants missing from its hardcoded mappings (Founders and
+ * token printings today; new main sets until the library adds them), which
+ * would otherwise abort the whole deck encode. Probing with a one-card deck
+ * keeps this independent of the library's internals.
+ * @returns True when the code can be encoded.
+ */
+export function isPiltoverEncodable(shortCode: string): boolean {
+  const cached = encodableCache.get(shortCode);
+  if (cached !== undefined) {
+    return cached;
+  }
+  let encodable = true;
+  try {
+    getCodeFromDeck([{ cardCode: shortCode, count: 1 }], []);
+  } catch {
+    encodable = false;
+  }
+  encodableCache.set(shortCode, encodable);
+  return encodable;
+}
+
 /**
  * Deck codec for Piltover Archive deck codes.
  *

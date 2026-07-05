@@ -25,6 +25,23 @@ interface DeckCheckViewState {
   setMaxColumns: (maxColumns: number | null) => void;
 }
 
+const DECK_CHECK_SORTS: ReadonlySet<DeckCheckSort> = new Set([
+  "deck",
+  "id",
+  "name",
+  "domain",
+  "energy",
+]);
+
+/**
+ * Keeps a persisted value only when it is one of the allowed choices; a
+ * corrupt or stale blob falls back to the in-code default.
+ * @returns The persisted value when allowed, otherwise the fallback.
+ */
+function keepAllowed<Value>(raw: unknown, allowed: ReadonlySet<Value>, fallback: Value): Value {
+  return allowed.has(raw as Value) ? (raw as Value) : fallback;
+}
+
 /**
  * Persisted view preferences for the deck-check checker: wide/narrow layout,
  * grid/list display mode, card-line sort, and the cards-per-row override. Kept
@@ -48,6 +65,29 @@ export const useDeckCheckViewStore = create<DeckCheckViewState>()(
     }),
     {
       name: "deck-check-view",
+      // Validate on rehydrate: a hand-edited or stale blob must fall back to
+      // defaults per field, never load junk view state.
+      merge: (persisted, current) => {
+        if (!persisted || typeof persisted !== "object") {
+          return current;
+        }
+        const raw = persisted as Record<string, unknown>;
+        return {
+          ...current,
+          wide: typeof raw.wide === "boolean" ? raw.wide : current.wide,
+          displayMode: keepAllowed(
+            raw.displayMode,
+            new Set<DeckCheckDisplayMode>(["grid", "list"]),
+            current.displayMode,
+          ),
+          sortBy: keepAllowed(raw.sortBy, DECK_CHECK_SORTS, current.sortBy),
+          sortDir: raw.sortDir === "desc" ? "desc" : current.sortDir,
+          maxColumns:
+            typeof raw.maxColumns === "number" && raw.maxColumns >= 1
+              ? Math.floor(raw.maxColumns)
+              : null,
+        };
+      },
     },
   ),
 );

@@ -24,3 +24,36 @@ export function generateShareToken(): string {
   }
   return out.join("");
 }
+
+/** @returns `true` if the error is a Postgres unique-constraint violation (23505). */
+function isUniqueViolation(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: unknown }).code === "23505"
+  );
+}
+
+/**
+ * Runs a token-consuming write, regenerating the token and retrying when the
+ * write fails on a unique-constraint violation. At ~71 bits a collision is
+ * astronomically unlikely, but tokens are UNIQUE-constrained, so without this
+ * the once-in-forever collision would surface as a raw 500 instead of a
+ * transparent retry. Non-unique-violation errors propagate immediately.
+ * @returns Whatever the callback returns on its first successful attempt.
+ */
+export async function withUniqueShareToken<Result>(
+  attempt: (token: string) => Promise<Result>,
+): Promise<Result> {
+  const MAX_ATTEMPTS = 3;
+  for (let tries = 1; ; tries++) {
+    try {
+      return await attempt(generateShareToken());
+    } catch (error) {
+      if (tries >= MAX_ATTEMPTS || !isUniqueViolation(error)) {
+        throw error;
+      }
+    }
+  }
+}

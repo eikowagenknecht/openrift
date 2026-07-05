@@ -53,6 +53,15 @@ const TYPE_LOCKED_ZONES = new Set<string>([
 ]);
 
 /**
+ * Rules that need the deck's per-deck format config (the chosen Custom-Region
+ * tags) and per-card custom-tag data. A checked list is an imported text deck:
+ * it carries neither, so these rules can't be evaluated here — without this
+ * filter FORMAT_TAG_REQUIRED ("Pick at least one region…") fires on every
+ * Custom-Region deck check as judge-facing noise.
+ */
+const REGION_CONFIG_CODES = new Set<string>(["FORMAT_TAG_REQUIRED", "CARD_NOT_IN_FORMAT_TAG"]);
+
+/**
  * Finds resolved lines that are mis-zoned relative to a type-locked zone, in
  * either direction:
  *  - a Legend / Rune / Battlefield sitting outside its zone (e.g. a Rune dumped
@@ -184,7 +193,7 @@ export async function buildEntryAdvisories(
         format: event.format,
         cards: deckCards,
         championIdentifierTags: new Set(championIdentifierTags),
-      }),
+      }).filter((violation) => !REGION_CONFIG_CODES.has(violation.code)),
     );
   }
 

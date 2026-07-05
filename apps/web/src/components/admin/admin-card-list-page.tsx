@@ -77,7 +77,7 @@ export function AdminCardListPage() {
             ...prev,
             tab: value === "cards" ? undefined : (value as "candidates" | "unmatched"),
             q: undefined,
-            sort: undefined,
+            tableSort: undefined,
             status: undefined,
             priceScope: undefined,
           }),

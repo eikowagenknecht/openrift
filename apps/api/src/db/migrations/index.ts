@@ -131,6 +131,8 @@ import * as m182 from "./182-list-rules.js";
 import * as m183 from "./183-basic-super-type-well-known.js";
 import * as m184 from "./184-candidate-submitter.js";
 import * as m185 from "./185-candidate-printing-size-channels.js";
+import * as m186 from "./186-tournament-host-detach.js";
+import * as m187 from "./187-release-hardening-indexes.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -321,4 +323,6 @@ export const migrations: Record<string, Migration> = {
   "183-basic-super-type-well-known": m183,
   "184-candidate-submitter": m184,
   "185-candidate-printing-size-channels": m185,
+  "186-tournament-host-detach": m186,
+  "187-release-hardening-indexes": m187,
 };

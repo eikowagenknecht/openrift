@@ -8,6 +8,7 @@ import type { LocalDeck, LocalDeckCard } from "./local-decks-store";
 import {
   isLocalDeckId,
   LOCAL_DECK_PREFIX,
+  sanitizeDecks,
   useLocalDecksStore,
   writeLocalDecksItem,
 } from "./local-decks-store";
@@ -183,5 +184,86 @@ describe("writeLocalDecksItem", () => {
     });
     expect(() => writeLocalDecksItem({ setItem }, "k", "v")).toThrow("boom");
     expect(toast.error).not.toHaveBeenCalled();
+  });
+});
+
+describe("sanitizeDecks", () => {
+  const validDeck: LocalDeck = {
+    id: "local:abc",
+    name: "My Deck",
+    description: "notes",
+    format: WellKnown.deckFormat.CUSTOM_REGION,
+    formatConfig: { tagSlugs: ["bandle-city"] },
+    cards: sampleCards,
+    createdAt: "2026-07-01T00:00:00.000Z",
+    updatedAt: "2026-07-02T00:00:00.000Z",
+  };
+
+  it("keeps a well-formed deck untouched", () => {
+    expect(sanitizeDecks({ "local:abc": validDeck })).toEqual({ "local:abc": validDeck });
+  });
+
+  it("returns an empty record for non-object blobs", () => {
+    expect(sanitizeDecks(null)).toEqual({});
+    expect(sanitizeDecks("corrupt")).toEqual({});
+    expect(sanitizeDecks([validDeck])).toEqual({});
+  });
+
+  it("keeps the valid decks when a sibling entry is corrupt", () => {
+    const decks = sanitizeDecks({
+      "local:abc": validDeck,
+      "local:broken": "not a deck",
+      "not-local": validDeck,
+    });
+    expect(Object.keys(decks)).toEqual(["local:abc"]);
+  });
+
+  it("salvages a deck with malformed cosmetic fields", () => {
+    const decks = sanitizeDecks({
+      "local:abc": { ...validDeck, name: 42, description: null, format: undefined },
+    });
+    const deck = decks["local:abc"];
+    expect(deck.name).toBe("Recovered deck");
+    expect(deck.description).toBe("");
+    expect(deck.format).toBe(WellKnown.deckFormat.CONSTRUCTED);
+    expect(deck.cards).toEqual(sampleCards);
+  });
+
+  it("drops malformed card rows but keeps the valid ones", () => {
+    const decks = sanitizeDecks({
+      "local:abc": {
+        ...validDeck,
+        cards: [
+          sampleCards[0],
+          { zone: "main", cardId: 7, quantity: 1, preferredPrintingId: null },
+          { zone: "main", cardId: "card-b", quantity: 0, preferredPrintingId: null },
+          { zone: "main", cardId: "card-c", quantity: 2.9, preferredPrintingId: 5 },
+          "garbage",
+        ],
+      },
+    });
+    expect(decks["local:abc"].cards).toEqual([
+      sampleCards[0],
+      { zone: "main", cardId: "card-c", quantity: 2, preferredPrintingId: null },
+    ]);
+  });
+
+  it("keeps zones and formats this bundle doesn't know", () => {
+    // Cross-version safety: a newer deploy may write zones/formats this
+    // bundle predates. They must survive the round-trip, not be dropped.
+    const decks = sanitizeDecks({
+      "local:abc": {
+        ...validDeck,
+        format: "future-format",
+        cards: [{ zone: "future-zone", cardId: "card-x", quantity: 1, preferredPrintingId: null }],
+      },
+    });
+    expect(decks["local:abc"].format).toBe("future-format");
+    expect(decks["local:abc"].cards[0].zone).toBe("future-zone");
+  });
+
+  it("replaces a non-array cards value with an empty list", () => {
+    const decks = sanitizeDecks({ "local:abc": { ...validDeck, cards: "corrupt" } });
+    expect(decks["local:abc"].cards).toEqual([]);
   });
 });

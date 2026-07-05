@@ -4,7 +4,7 @@ import { NotFoundFallback, RouteErrorFallback } from "@/components/error-message
 import { deckDetailQueryOptions } from "@/hooks/use-decks";
 import { initQueryOptions } from "@/hooks/use-init";
 import { sessionQueryOptions } from "@/lib/auth-session";
-import { filterSearchSchema } from "@/lib/search-schemas";
+import { cleanedSearchForRedirect, filterSearchSchema } from "@/lib/search-schemas";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 import { isLocalDeckId } from "@/stores/local-decks-store";
@@ -12,6 +12,18 @@ import { isLocalDeckId } from "@/stores/local-decks-store";
 export const Route = createFileRoute("/_app/decks/$deckId")({
   ssr: "data-only",
   validateSearch: filterSearchSchema,
+  beforeLoad: ({ search, location, params }) => {
+    // Strip unknown / malformed search params — same canonicalization as /cards.
+    const cleaned = cleanedSearchForRedirect(filterSearchSchema, search, location.searchStr);
+    if (cleaned) {
+      throw redirect({
+        to: "/decks/$deckId",
+        params: { deckId: params.deckId },
+        search: cleaned,
+        replace: true,
+      });
+    }
+  },
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Deck Editor", noIndex: true }),
   staticData: { hideFooter: true },
   // Auth-optional (ADR-035), branching on the id:
