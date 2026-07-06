@@ -12,6 +12,7 @@ import { PackagePlusIcon, SparklesIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 
+import { EmptyState } from "@/components/empty-state";
 import {
   PageDescription,
   PageTopBar,
@@ -24,6 +25,7 @@ import { isBoosterEligible, toPackPrinting } from "@/components/pack-opener/pack
 import { PackReveal } from "@/components/pack-opener/pack-reveal";
 import { PackStats } from "@/components/pack-opener/pack-stats";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -90,7 +92,11 @@ export function PackOpenerPage() {
       <>
         <PackOpenerTopBar />
         <div className={PAGE_PADDING_NO_TOP}>
-          <p className="text-muted-foreground">No sets are available to open yet.</p>
+          <EmptyState
+            className="py-12"
+            icon={PackagePlusIcon}
+            title="No sets are available to open yet"
+          />
         </div>
       </>
     );
@@ -109,7 +115,7 @@ export function PackOpenerPage() {
           collection, this is just for fun.
         </PageDescription>
 
-        <div className="bg-card mb-6 grid gap-4 rounded-xl border p-4 md:grid-cols-[1fr_1fr_1fr_auto]">
+        <Card className="mb-6 grid gap-4 p-4 md:grid-cols-[1fr_1fr_1fr_auto]">
           <SetPickerField
             sets={mainSets}
             value={setSlug}
@@ -133,7 +139,7 @@ export function PackOpenerPage() {
             onCustomChange={setCustomCount}
           />
           <OpenAction setSlug={setSlug} language={language} count={count} onOpened={setPacks} />
-        </div>
+        </Card>
 
         {packs.length === 1 && packs[0] && (
           <SinglePackResult

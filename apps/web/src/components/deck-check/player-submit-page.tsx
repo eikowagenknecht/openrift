@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { DeckCheckInfoCardSkeleton } from "@/components/deck-check/deck-check-skeletons";
 import { PlayerDeckSourceForm } from "@/components/deck-check/player-deck-source-form";
 import type { DeckSourceInput } from "@/components/deck-check/player-deck-source-form";
+import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   usePreviewTournamentDeck,
@@ -74,7 +75,7 @@ export function PlayerSubmitDeckSection({ token }: { token: string }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="bg-card flex flex-col gap-1 rounded-md border p-4">
+      <Card className="gap-1 p-4">
         <h2 className="font-medium">Submit your deck</h2>
         {data.format ? (
           <p className="text-muted-foreground text-sm">
@@ -89,7 +90,7 @@ export function PlayerSubmitDeckSection({ token }: { token: string }) {
         {closesAt ? (
           <p className="text-muted-foreground text-sm">Submissions close {closesAt}</p>
         ) : null}
-      </div>
+      </Card>
 
       {blockedMessage ? (
         <p className="text-muted-foreground">{blockedMessage}</p>

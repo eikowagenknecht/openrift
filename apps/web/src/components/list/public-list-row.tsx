@@ -5,6 +5,7 @@ import { FolderIcon, HandshakeIcon, HeartIcon } from "lucide-react";
 import type { ComponentType, ReactNode, SVGProps } from "react";
 
 import { listKindIcon } from "@/components/list/create-list-dialog";
+import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 const INTENT_ICON: Record<ListIntent, ComponentType<SVGProps<SVGSVGElement>>> = {
@@ -55,11 +56,11 @@ export function PublicListRow({
     props: mergeProps<"div">(
       {
         className: cn(
-          "bg-card text-card-foreground hover:bg-muted focus-visible:ring-ring/50 flex items-start gap-3 rounded-lg border p-3 transition-colors outline-none focus-visible:ring-2",
+          "focus-visible:ring-ring/50 block rounded-xl transition-colors outline-none focus-visible:ring-2",
           className,
         ),
         children: (
-          <>
+          <Card className="hover:bg-muted flex-row items-start gap-3 p-3 transition-colors">
             <IntentIcon className="text-muted-foreground mt-0.5 size-5 shrink-0" />
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
               <span className="font-medium break-words">{name}</span>
@@ -69,7 +70,7 @@ export function PublicListRow({
               <KindIcon className="size-3" />
               {entryCount} {noun}
             </span>
-          </>
+          </Card>
         ),
       },
       props,

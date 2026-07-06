@@ -214,7 +214,8 @@ export function PageTopBarButton(props: PageTopBarButtonProps) {
 }
 
 /**
- * The single primary call-to-action in a page top bar (e.g. New Deck). Filled.
+ * The single primary call-to-action in a page top bar (e.g. New Deck). Filled,
+ * so it carries the app's corner-cut signature via the default Button variant.
  * Use at most one per bar.
  * @returns The primary action button.
  */

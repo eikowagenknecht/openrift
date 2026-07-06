@@ -7,6 +7,7 @@ import { Link } from "@tanstack/react-router";
 import { ChevronRightIcon, HandshakeIcon, HeartIcon, Share2Icon } from "lucide-react";
 import { Suspense, useState } from "react";
 
+import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { UserAvatar } from "@/components/user-avatar";
@@ -82,20 +83,24 @@ function SuggestedEmptyState({ slug, data }: { slug: string; data: FriendGroupDe
 
   if (!othersShare && viewerSharesTradable) {
     return (
-      <p className="text-muted-foreground">
-        No members are sharing lists with this group yet. Ask them to share a wishlist or tradelist
-        to start seeing trades.
-      </p>
+      <EmptyState
+        className="py-10"
+        icon={HandshakeIcon}
+        title="No shared lists in this group yet"
+        description="Ask members to share a wishlist or tradelist to start seeing trades."
+      />
     );
   }
   if (!viewerSharesTradable) {
     return <ShareYourListsPrompt slug={slug} />;
   }
   return (
-    <p className="text-muted-foreground">
-      No matches right now. You&apos;ll see possible trades here when your wants and haves overlap
-      with another member&apos;s.
-    </p>
+    <EmptyState
+      className="py-10"
+      icon={HandshakeIcon}
+      title="No matches right now"
+      description="You'll see possible trades here when your wants and haves overlap with another member's."
+    />
   );
 }
 

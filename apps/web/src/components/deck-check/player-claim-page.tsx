@@ -4,6 +4,7 @@ import { Building2Icon, CalendarIcon, UsersIcon } from "lucide-react";
 import { DeckCheckInfoCardSkeleton } from "@/components/deck-check/deck-check-skeletons";
 import { PAGE_TOP_BAR_STICKY, PageTopBar, PageTopBarTitle } from "@/components/layout/page-top-bar";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useClaimLanding, useClaimTournamentDeck } from "@/hooks/use-deck-check-player";
 import { useUserId } from "@/lib/auth-session";
@@ -88,7 +89,7 @@ export function PlayerClaimPage({ token }: { token: string }) {
       </div>
       <div className={`flex justify-center ${PAGE_PADDING}`}>
         <div className="flex w-full max-w-3xl flex-col gap-4">
-          <div className="bg-card flex flex-col gap-2 rounded-md border p-4">
+          <Card className="gap-2 p-4">
             <h2 className="font-medium">{data.tournamentName}</h2>
             <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
               <span className="flex items-center gap-1.5">
@@ -109,7 +110,7 @@ export function PlayerClaimPage({ token }: { token: string }) {
             <p className="text-sm">
               Your spot: <span className="font-medium">{data.participantName}</span>
             </p>
-          </div>
+          </Card>
 
           {outcome === "conflict" ? (
             <p className="text-muted-foreground">

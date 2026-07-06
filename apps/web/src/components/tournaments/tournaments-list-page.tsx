@@ -2,6 +2,7 @@ import type { TournamentSummaryResponse } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { CalendarIcon, LayersIcon, PlusIcon, TrophyIcon, UsersIcon } from "lucide-react";
 
+import { EmptyState } from "@/components/empty-state";
 import {
   PageDescription,
   PageTopBar,
@@ -11,6 +12,7 @@ import {
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useDeckFormatList } from "@/hooks/use-enums";
 import { useTournaments } from "@/hooks/use-tournaments";
@@ -93,11 +95,17 @@ export function TournamentsListPage() {
         <PageDescription>Tournaments you host, judge, or joined.</PageDescription>
 
         {items.length === 0 ? (
-          <p className="text-muted-foreground">
-            No tournaments yet. Create one to run pods, standings, deck submission, deck check, and
-            judges (turn on only the parts you need), or join an event through its registration
-            link.
-          </p>
+          <EmptyState
+            className="py-12"
+            icon={TrophyIcon}
+            title="No tournaments yet"
+            description="Create one to run pods, standings, deck submission, deck check, and judges (turn on only the parts you need), or join an event through its registration link."
+          >
+            <Link to="/tournaments/new" className={buttonVariants({ variant: "default" })}>
+              <PlusIcon />
+              New tournament
+            </Link>
+          </EmptyState>
         ) : (
           <ul className="grid gap-3">
             {items.map((tournament) => (

@@ -19,6 +19,7 @@ import { SearchInput } from "@/components/filters/search-input";
 import { PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -146,152 +147,152 @@ export function TournamentParticipantsTab({
           {visible.map((participant) => {
             const deckEntry = entryByParticipant.get(participant.id);
             return (
-              <li
-                key={participant.id}
-                className="bg-card flex items-center gap-3 rounded-md border p-3"
-              >
-                <UserAvatar
-                  name={participant.userName ?? participant.displayName}
-                  className="size-9 shrink-0"
-                />
-                <span className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-                  <span className="truncate font-medium">{participant.displayName}</span>
-                  <Badge variant={statusBadgeVariant(participant.status)}>
-                    {PARTICIPANT_STATUS_LABEL[participant.status]}
-                  </Badge>
-                  {participant.userId ? (
-                    <Badge
-                      variant="subtle"
-                      title={
-                        participant.userName
-                          ? `Linked to the OpenRift account of ${participant.userName}`
-                          : "Linked to an OpenRift account"
-                      }
-                    >
-                      <Link2Icon className="size-3" />
-                      {participant.userName ?? "Linked"}
+              <li key={participant.id}>
+                <Card className="flex-row items-center gap-3 p-3">
+                  <UserAvatar
+                    name={participant.userName ?? participant.displayName}
+                    className="size-9 shrink-0"
+                  />
+                  <span className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                    <span className="truncate font-medium">{participant.displayName}</span>
+                    <Badge variant={statusBadgeVariant(participant.status)}>
+                      {PARTICIPANT_STATUS_LABEL[participant.status]}
                     </Badge>
-                  ) : null}
-                </span>
-                {manage ? (
-                  <span className="flex shrink-0 items-center gap-1">
-                    {deckEntry ? (
-                      <Button
-                        size="sm"
-                        render={
-                          <Link
-                            to="/tournaments/$id/decks/$entryId"
-                            params={{ id, entryId: deckEntry.id }}
-                          />
+                    {participant.userId ? (
+                      <Badge
+                        variant="subtle"
+                        title={
+                          participant.userName
+                            ? `Linked to the OpenRift account of ${participant.userName}`
+                            : "Linked to an OpenRift account"
                         }
                       >
-                        <LayersIcon className="size-4" />
-                        Deck
-                      </Button>
+                        <Link2Icon className="size-3" />
+                        {participant.userName ?? "Linked"}
+                      </Badge>
                     ) : null}
-                    {participant.status === "requested" ? (
-                      <>
-                        <Button
-                          size="sm"
-                          disabled={participantAction.isPending}
-                          onClick={() => fireAction(participant.id, "approve")}
-                        >
-                          Approve
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-destructive"
-                          disabled={participantAction.isPending}
-                          onClick={() => fireAction(participant.id, "deny")}
-                        >
-                          Deny
-                        </Button>
-                      </>
-                    ) : null}
-                    <DropdownMenu>
-                      <DropdownMenuTrigger
-                        render={
-                          <Button size="sm" variant="ghost" aria-label="Participant actions" />
-                        }
-                      >
-                        <EllipsisVerticalIcon className="size-4" />
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() =>
-                            setRenameTarget({
-                              participantId: participant.id,
-                              name: participant.displayName,
-                            })
-                          }
-                        >
-                          <PencilIcon className="size-4" />
-                          Rename
-                        </DropdownMenuItem>
-                        {participant.status === "active" ? (
-                          <DropdownMenuItem
-                            disabled={participantAction.isPending}
-                            onClick={() => fireAction(participant.id, "drop")}
-                          >
-                            <UserMinusIcon className="size-4" />
-                            Drop
-                          </DropdownMenuItem>
-                        ) : participant.status === "dropped" || participant.status === "no_show" ? (
-                          <DropdownMenuItem
-                            disabled={participantAction.isPending}
-                            onClick={() => fireAction(participant.id, "reactivate")}
-                          >
-                            <UserPlusIcon className="size-4" />
-                            Reactivate
-                          </DropdownMenuItem>
-                        ) : null}
-                        {participant.userId ? (
-                          <DropdownMenuItem
-                            disabled={participantAction.isPending}
-                            onClick={() => fireAction(participant.id, "unlink")}
-                          >
-                            <UnlinkIcon className="size-4" />
-                            Unlink
-                          </DropdownMenuItem>
-                        ) : participant.claimBlocked ? (
-                          <DropdownMenuItem
-                            disabled={participantAction.isPending}
-                            onClick={() => fireAction(participant.id, "reissue")}
-                          >
-                            <RotateCcwIcon className="size-4" />
-                            Re-issue claim link
-                          </DropdownMenuItem>
-                        ) : participant.claimToken ? (
-                          <DropdownMenuItem
-                            onClick={() => {
-                              const token = participant.claimToken;
-                              if (token) {
-                                void copyClaimLink(token);
-                              }
-                            }}
-                          >
-                            <CopyIcon className="size-4" />
-                            Copy claim link
-                          </DropdownMenuItem>
-                        ) : null}
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onClick={() =>
-                            setRemoveTarget({
-                              participantId: participant.id,
-                              name: participant.displayName,
-                            })
-                          }
-                        >
-                          <Trash2Icon className="size-4" />
-                          Remove
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
                   </span>
-                ) : null}
+                  {manage ? (
+                    <span className="flex shrink-0 items-center gap-1">
+                      {deckEntry ? (
+                        <Button
+                          size="sm"
+                          render={
+                            <Link
+                              to="/tournaments/$id/decks/$entryId"
+                              params={{ id, entryId: deckEntry.id }}
+                            />
+                          }
+                        >
+                          <LayersIcon className="size-4" />
+                          Deck
+                        </Button>
+                      ) : null}
+                      {participant.status === "requested" ? (
+                        <>
+                          <Button
+                            size="sm"
+                            disabled={participantAction.isPending}
+                            onClick={() => fireAction(participant.id, "approve")}
+                          >
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-destructive"
+                            disabled={participantAction.isPending}
+                            onClick={() => fireAction(participant.id, "deny")}
+                          >
+                            Deny
+                          </Button>
+                        </>
+                      ) : null}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          render={
+                            <Button size="sm" variant="ghost" aria-label="Participant actions" />
+                          }
+                        >
+                          <EllipsisVerticalIcon className="size-4" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() =>
+                              setRenameTarget({
+                                participantId: participant.id,
+                                name: participant.displayName,
+                              })
+                            }
+                          >
+                            <PencilIcon className="size-4" />
+                            Rename
+                          </DropdownMenuItem>
+                          {participant.status === "active" ? (
+                            <DropdownMenuItem
+                              disabled={participantAction.isPending}
+                              onClick={() => fireAction(participant.id, "drop")}
+                            >
+                              <UserMinusIcon className="size-4" />
+                              Drop
+                            </DropdownMenuItem>
+                          ) : participant.status === "dropped" ||
+                            participant.status === "no_show" ? (
+                            <DropdownMenuItem
+                              disabled={participantAction.isPending}
+                              onClick={() => fireAction(participant.id, "reactivate")}
+                            >
+                              <UserPlusIcon className="size-4" />
+                              Reactivate
+                            </DropdownMenuItem>
+                          ) : null}
+                          {participant.userId ? (
+                            <DropdownMenuItem
+                              disabled={participantAction.isPending}
+                              onClick={() => fireAction(participant.id, "unlink")}
+                            >
+                              <UnlinkIcon className="size-4" />
+                              Unlink
+                            </DropdownMenuItem>
+                          ) : participant.claimBlocked ? (
+                            <DropdownMenuItem
+                              disabled={participantAction.isPending}
+                              onClick={() => fireAction(participant.id, "reissue")}
+                            >
+                              <RotateCcwIcon className="size-4" />
+                              Re-issue claim link
+                            </DropdownMenuItem>
+                          ) : participant.claimToken ? (
+                            <DropdownMenuItem
+                              onClick={() => {
+                                const token = participant.claimToken;
+                                if (token) {
+                                  void copyClaimLink(token);
+                                }
+                              }}
+                            >
+                              <CopyIcon className="size-4" />
+                              Copy claim link
+                            </DropdownMenuItem>
+                          ) : null}
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() =>
+                              setRemoveTarget({
+                                participantId: participant.id,
+                                name: participant.displayName,
+                              })
+                            }
+                          >
+                            <Trash2Icon className="size-4" />
+                            Remove
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </span>
+                  ) : null}
+                </Card>
               </li>
             );
           })}

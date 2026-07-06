@@ -16,6 +16,7 @@ import { toast } from "sonner";
 
 import { PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -219,7 +220,7 @@ function MemberRow({
   const canTransfer = viewerRole === "owner" && !isSelf && member.role !== "owner";
 
   return (
-    <div className="bg-card hover:bg-muted hover:text-foreground flex items-center gap-3 rounded-md border p-3 transition-colors">
+    <Card className="hover:bg-muted hover:text-foreground flex-row items-center gap-3 p-3 transition-colors">
       <UserAvatar
         image={member.userImage}
         name={member.userName}
@@ -284,6 +285,6 @@ function MemberRow({
           </DropdownMenuContent>
         </DropdownMenu>
       )}
-    </div>
+    </Card>
   );
 }

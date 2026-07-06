@@ -4,6 +4,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { CircleHelpIcon, DownloadIcon, PlusIcon, SwordsIcon } from "lucide-react";
 import { useState } from "react";
 
+import { EmptyState } from "@/components/empty-state";
 import {
   PAGE_TOP_BAR_STICKY,
   PageTopBar,
@@ -22,14 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
+import { Empty, EmptyDescription, EmptyHeader } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -287,26 +281,18 @@ export function DeckListPage() {
       {!userId && localItems.length > 0 && <LocalDeckSaveBanner />}
 
       {deckItems.length === 0 ? (
-        <Empty className="py-16">
-          <EmptyHeader>
-            <EmptyMedia>
-              <SwordsIcon className="text-muted-foreground size-10 opacity-50" />
-            </EmptyMedia>
-            <EmptyTitle>No decks yet</EmptyTitle>
-          </EmptyHeader>
-          <EmptyContent>
-            <div className="flex flex-wrap justify-center gap-2">
-              <Button onClick={() => setCreateOpen(true)}>
-                <PlusIcon className="size-4" />
-                Create your first deck
-              </Button>
-              <Link to="/decks/import" className={buttonVariants({ variant: "outline" })}>
-                <DownloadIcon className="size-4" />
-                Import a deck
-              </Link>
-            </div>
-          </EmptyContent>
-        </Empty>
+        <EmptyState className="py-16" icon={SwordsIcon} title="No decks yet">
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button onClick={() => setCreateOpen(true)}>
+              <PlusIcon />
+              Create your first deck
+            </Button>
+            <Link to="/decks/import" className={buttonVariants({ variant: "ghost" })}>
+              <DownloadIcon />
+              Import a deck
+            </Link>
+          </div>
+        </EmptyState>
       ) : (
         <div className="flex flex-col">
           <div

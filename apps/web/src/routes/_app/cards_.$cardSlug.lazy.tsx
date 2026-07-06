@@ -35,6 +35,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
+import { Card as CardPanel } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
 import { useDomainColors } from "@/hooks/use-domain-colors";
@@ -284,7 +285,7 @@ function CardDetailPage() {
         </div>
 
         {/* Right column: card info */}
-        <div className="border-border bg-card min-w-0 flex-1 rounded-lg border p-4">
+        <CardPanel className="min-w-0 flex-1 p-4">
           <table className="w-full table-fixed text-sm">
             <tbody>
               {Array.from({ length: infoRowCount }, (_, i) => {
@@ -424,7 +425,7 @@ function CardDetailPage() {
               )}
             </tbody>
           </table>
-        </div>
+        </CardPanel>
       </div>
 
       {/* Printings grouped by language */}
@@ -682,37 +683,41 @@ function PrintingCard({
       onClick={onSelect}
       aria-pressed={isSelected}
       data-printing-id={printing.id}
-      className={cn(
-        "border-border bg-card flex w-full items-start gap-3 rounded-lg border px-3 py-2 text-left transition-colors",
-        isSelected ? "ring-primary ring-2" : "hover:bg-accent",
-      )}
+      className="block w-full rounded-xl text-left"
     >
-      <CardArtThumb
-        imageId={frontImage?.imageId}
-        alt={legendDisplayName(printing.card)}
-        className="w-10"
-        loading="lazy"
-        fallback={<span className="bg-muted/40 block size-full" />}
-      />
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <p className="text-sm font-medium">{formatPublicCode(printing)}</p>
-          {badges}
+      <CardPanel
+        className={cn(
+          "h-full flex-row items-start gap-3 px-3 py-2 transition-colors",
+          isSelected ? "ring-primary ring-2" : "hover:bg-accent",
+        )}
+      >
+        <CardArtThumb
+          imageId={frontImage?.imageId}
+          alt={legendDisplayName(printing.card)}
+          className="w-10"
+          loading="lazy"
+          fallback={<span className="bg-muted/40 block size-full" />}
+        />
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <p className="text-sm font-medium">{formatPublicCode(printing)}</p>
+            {badges}
+          </div>
+          {printing.artist && (
+            <p className="text-muted-foreground inline-flex items-center gap-1 text-xs">
+              <img
+                src="/images/artist.svg"
+                alt=""
+                className="size-3 shrink-0 brightness-0 dark:invert"
+              />
+              <span className="truncate">{printing.artist}</span>
+            </p>
+          )}
+          {channelSummary && (
+            <p className="text-muted-foreground truncate text-xs">{channelSummary}</p>
+          )}
         </div>
-        {printing.artist && (
-          <p className="text-muted-foreground inline-flex items-center gap-1 text-xs">
-            <img
-              src="/images/artist.svg"
-              alt=""
-              className="size-3 shrink-0 brightness-0 dark:invert"
-            />
-            <span className="truncate">{printing.artist}</span>
-          </p>
-        )}
-        {channelSummary && (
-          <p className="text-muted-foreground truncate text-xs">{channelSummary}</p>
-        )}
-      </div>
+      </CardPanel>
     </button>
   );
 }
@@ -840,7 +845,7 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
 
       {/* Chart + Table side by side */}
       <div className="flex flex-col gap-4 xl:flex-row">
-        <div className="border-border bg-card min-w-0 rounded-lg border p-4 xl:flex-1 xl:basis-0">
+        <CardPanel className="min-w-0 p-4 xl:flex-1 xl:basis-0">
           <Suspense fallback={<Skeleton className="aspect-[2.5/1] w-full rounded-lg" />}>
             <PriceHistoryChart
               printingId={printing.id}
@@ -853,7 +858,7 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
               onDateHover={setHoveredDate}
             />
           </Suspense>
-        </div>
+        </CardPanel>
         {tableRows.length > 0 && (
           <div className="min-w-0 xl:flex-1 xl:basis-0">
             <div className="border-border max-h-[400px] overflow-auto rounded-lg border">

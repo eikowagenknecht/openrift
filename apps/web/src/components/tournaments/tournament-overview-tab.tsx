@@ -19,6 +19,7 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { useTournamentDeckCheckEntries } from "@/hooks/use-tournament-deck-check";
 import {
   tournamentRunStateQueryOptions,
@@ -300,7 +301,7 @@ export function TournamentOverviewTab({
         <DashboardTiles id={id} detail={detail} pendingCount={pending.length} />
       </div>
 
-      <section className="bg-card grid gap-x-8 gap-y-3 rounded-xl border p-5 sm:grid-cols-2">
+      <Card className="grid gap-x-8 gap-y-3 p-5 sm:grid-cols-2">
         <PolicyRow
           icon={InboxIcon}
           label="Deck submission"
@@ -311,7 +312,7 @@ export function TournamentOverviewTab({
           label="Self-registration"
           value={detail.selfRegistration ? "Open" : "Closed"}
         />
-      </section>
+      </Card>
 
       {manage ? (
         <section className="flex flex-col gap-3">
@@ -328,47 +329,46 @@ export function TournamentOverviewTab({
           ) : (
             <ul className="flex flex-col gap-2">
               {pending.map((participant) => (
-                <li
-                  key={participant.id}
-                  className="bg-card flex flex-wrap items-center justify-between gap-2 rounded-md border p-3"
-                >
-                  <span className="flex flex-col">
-                    <span className="font-medium">{participant.displayName}</span>
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Button
-                      size="sm"
-                      disabled={participantAction.isPending}
-                      onClick={() =>
-                        void run(() =>
-                          participantAction.mutateAsync({
-                            id,
-                            participantId: participant.id,
-                            action: "approve",
-                          }),
-                        )
-                      }
-                    >
-                      Approve
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-destructive"
-                      disabled={participantAction.isPending}
-                      onClick={() =>
-                        void run(() =>
-                          participantAction.mutateAsync({
-                            id,
-                            participantId: participant.id,
-                            action: "deny",
-                          }),
-                        )
-                      }
-                    >
-                      Deny
-                    </Button>
-                  </span>
+                <li key={participant.id}>
+                  <Card className="flex-row flex-wrap items-center justify-between gap-2 p-3">
+                    <span className="flex flex-col">
+                      <span className="font-medium">{participant.displayName}</span>
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Button
+                        size="sm"
+                        disabled={participantAction.isPending}
+                        onClick={() =>
+                          void run(() =>
+                            participantAction.mutateAsync({
+                              id,
+                              participantId: participant.id,
+                              action: "approve",
+                            }),
+                          )
+                        }
+                      >
+                        Approve
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-destructive"
+                        disabled={participantAction.isPending}
+                        onClick={() =>
+                          void run(() =>
+                            participantAction.mutateAsync({
+                              id,
+                              participantId: participant.id,
+                              action: "deny",
+                            }),
+                          )
+                        }
+                      >
+                        Deny
+                      </Button>
+                    </span>
+                  </Card>
                 </li>
               ))}
             </ul>

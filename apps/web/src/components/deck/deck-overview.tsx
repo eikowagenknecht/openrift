@@ -33,6 +33,7 @@ import { EnergyChart, PowerChart } from "@/components/deck/stats/energy-power-ch
 import { TypeBreakdown } from "@/components/deck/stats/type-breakdown";
 import { MarkdownText } from "@/components/markdown-text";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ProgressIndicator, ProgressTrack } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -433,12 +434,12 @@ interface KpiTileProps {
  */
 function KpiTile({ label, value, bar, caption, className }: KpiTileProps) {
   return (
-    <div className={cn("bg-card flex flex-col gap-1.5 rounded-lg border p-3", className)}>
+    <Card className={cn("gap-1.5 p-3", className)}>
       <span className="text-muted-foreground text-xs leading-4">{label}</span>
       <div className="text-lg leading-7 font-semibold tabular-nums">{value}</div>
       <div className="flex h-2 items-center">{bar}</div>
       <div className="text-muted-foreground flex min-h-7 items-center gap-2 text-xs">{caption}</div>
-    </div>
+    </Card>
   );
 }
 
@@ -531,19 +532,20 @@ function ValueKpi({
 
 function SignInKpi({ href }: { href: string }) {
   return (
-    <a
-      href={href}
-      className="bg-card hover:bg-muted/40 flex flex-col gap-1.5 rounded-lg border border-dashed p-3 transition-colors"
-    >
-      <span className="text-muted-foreground text-xs leading-4">Ownership</span>
-      <div className="text-foreground inline-flex items-center gap-1.5 text-lg leading-7 font-semibold">
-        <LogInIcon className="size-5" />
-        <span>Sign in</span>
-      </div>
-      <div className="flex h-2" />
-      <div className="text-muted-foreground flex min-h-7 items-center text-xs">
-        Compare with your collection
-      </div>
+    // The label lives inside the nested Card, which the lint rule can't see through.
+    // oxlint-disable-next-line jsx-a11y/control-has-associated-label -- text label is inside the Card child
+    <a href={href} className="block">
+      <Card className="hover:bg-muted/40 h-full gap-1.5 border border-dashed p-3 ring-0 transition-colors">
+        <span className="text-muted-foreground text-xs leading-4">Ownership</span>
+        <div className="text-foreground inline-flex items-center gap-1.5 text-lg leading-7 font-semibold">
+          <LogInIcon className="size-5" />
+          <span>Sign in</span>
+        </div>
+        <div className="flex h-2" />
+        <div className="text-muted-foreground flex min-h-7 items-center text-xs">
+          Compare with your collection
+        </div>
+      </Card>
     </a>
   );
 }

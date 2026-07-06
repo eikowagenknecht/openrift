@@ -10,6 +10,7 @@ import { Suspense, useState } from "react";
 import { CreateCollectionDialog } from "@/components/collection/create-collection-dialog";
 import { PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { UserAvatar } from "@/components/user-avatar";
 import { useCollections } from "@/hooks/use-collections";
@@ -95,12 +96,14 @@ function GroupCollectionsSection({ data }: { data: FriendGroupDetailResponse }) 
                 to="/collections/$collectionId"
                 params={{ collectionId: col.id }}
                 search={(prev) => prev}
-                className={COLLECTION_ROW_CLASS}
+                className="block"
               >
-                <CollectionRowContent
-                  name={col.name}
-                  subtitle={`Group collection · ${col.copyCount} ${col.copyCount === 1 ? "Copy" : "Copies"}`}
-                />
+                <Card className={COLLECTION_ROW_CLASS}>
+                  <CollectionRowContent
+                    name={col.name}
+                    subtitle={`Group collection · ${col.copyCount} ${col.copyCount === 1 ? "Copy" : "Copies"}`}
+                  />
+                </Card>
               </Link>
             </li>
           ))}

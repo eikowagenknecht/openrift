@@ -1,5 +1,6 @@
 import { SearchXIcon, WifiOffIcon } from "lucide-react";
 
+import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -10,29 +11,26 @@ import { Button } from "@/components/ui/button";
  * @returns The centered empty-state content.
  */
 export function CardViewerEmptyState({ totalItems }: { totalItems: number }) {
+  if (totalItems === 0) {
+    return (
+      <EmptyState
+        className="flex-1"
+        icon={WifiOffIcon}
+        title="Couldn't load cards"
+        description="The server may be unreachable."
+      >
+        <Button type="button" variant="ghost" onClick={() => globalThis.location.reload()}>
+          Retry
+        </Button>
+      </EmptyState>
+    );
+  }
   return (
-    <div className="text-muted-foreground flex flex-1 flex-col items-center justify-center gap-3 text-center">
-      {totalItems === 0 ? (
-        <>
-          <WifiOffIcon className="size-10 opacity-50" />
-          <p>Couldn&apos;t load cards</p>
-          <p className="text-xs">The server may be unreachable.</p>
-          <Button
-            type="button"
-            variant="link-muted"
-            className="mt-1 h-auto px-0 text-sm"
-            onClick={() => globalThis.location.reload()}
-          >
-            Retry
-          </Button>
-        </>
-      ) : (
-        <>
-          <SearchXIcon className="size-10 opacity-50" />
-          <p>No cards found</p>
-          <p className="text-xs">Try adjusting your filters.</p>
-        </>
-      )}
-    </div>
+    <EmptyState
+      className="flex-1"
+      icon={SearchXIcon}
+      title="No cards found"
+      description="Try adjusting your filters."
+    />
   );
 }

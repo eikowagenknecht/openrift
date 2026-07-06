@@ -7,6 +7,8 @@
 - feat(Collection): **Replace on import** — importing into a collection that already has copies now asks whether to add to it or replace everything with the import.
 - feat(App): **Redesigned landing page** — a fanned hand of real cards takes center stage: hover to tilt them, click to collect them all, with sharper copy and new angular buttons.
 - feat(App): **New display typeface** — page titles, section headings, big stat numbers, and the OpenRift wordmark now use Chakra Petch, giving the app its own voice instead of the default font everywhere.
+- feat(App): **Sharper, angular look** — corners are tighter across the app, filled buttons carry a signature corner cut, and tiles share one consistent card style.
+- feat(App): **Friendlier empty screens** — pages without content yet (decks, collections, lists, search results) now show a fan of card outlines with clear next steps.
 
 ### Other
 

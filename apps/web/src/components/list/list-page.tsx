@@ -36,6 +36,7 @@ import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import type { TableRowSlotProps } from "@/components/cards/card-table";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { FloatingActionBar } from "@/components/collection/floating-action-bar";
+import { EmptyState } from "@/components/empty-state";
 import { PageTopBarButton, PageTopBarIconButton } from "@/components/layout/page-top-bar";
 import { listKindIcon } from "@/components/list/create-list-dialog";
 import { DeleteListDialog } from "@/components/list/delete-list-dialog";
@@ -66,14 +67,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
 import { useSidebar } from "@/components/ui/sidebar";
 import { Toggle } from "@/components/ui/toggle";
 import { useCardData } from "@/hooks/use-card-data";
@@ -386,13 +379,12 @@ export function ListPage({ listId }: ListPageProps) {
     return (
       <>
         {topBarPortal}
-        <Empty className="flex-1">
-          <EmptyHeader>
-            <EmptyMedia>
-              <KindIcon className="size-16 opacity-50" />
-            </EmptyMedia>
-            <EmptyTitle>{empty.title}</EmptyTitle>
-            <EmptyDescription>
+        <EmptyState
+          className="flex-1"
+          icon={KindIcon}
+          title={empty.title}
+          description={
+            <>
               {empty.description}{" "}
               <Link
                 to="/help/$slug"
@@ -401,17 +393,16 @@ export function ListPage({ listId }: ListPageProps) {
               >
                 Learn how lists work.
               </Link>
-            </EmptyDescription>
-          </EmptyHeader>
-          <EmptyContent>
-            {canShowLibrary && (
-              <Button onClick={() => setShowLibrary(true)}>
-                <LibraryBigIcon className="size-4" />
-                Show library
-              </Button>
-            )}
-          </EmptyContent>
-        </Empty>
+            </>
+          }
+        >
+          {canShowLibrary && (
+            <Button onClick={() => setShowLibrary(true)}>
+              <LibraryBigIcon />
+              Show library
+            </Button>
+          )}
+        </EmptyState>
         {editDialog}
         {deleteDialog}
         {shareDialog}

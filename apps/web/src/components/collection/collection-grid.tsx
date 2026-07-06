@@ -37,6 +37,7 @@ import { CollectionValueSummary } from "@/components/collection/collection-value
 import { FloatingActionBar } from "@/components/collection/floating-action-bar";
 import { buildOnDecrement } from "@/components/collection/route-decrement";
 import { VariantLocationsPopover } from "@/components/collection/variant-locations-popover";
+import { EmptyState } from "@/components/empty-state";
 import {
   PageTopBar,
   PageTopBarActions,
@@ -55,14 +56,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
 import { Popover, PopoverContent } from "@/components/ui/popover";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useCardData } from "@/hooks/use-card-data";
@@ -1229,14 +1222,13 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   if (!showLibrary && copiesReady && stacks.length === 0) {
     return (
       <>
-        <Empty className="flex-1">
-          {topBarPortal}
-          <EmptyHeader>
-            <EmptyMedia>
-              <PackageIcon className="size-16 opacity-50" />
-            </EmptyMedia>
-            <EmptyTitle>No cards yet</EmptyTitle>
-            <EmptyDescription>
+        {topBarPortal}
+        <EmptyState
+          className="flex-1"
+          icon={PackageIcon}
+          title="No cards yet"
+          description={
+            <>
               Browse the card catalog and add cards to{" "}
               {currentCollection?.name
                 ? `"${currentCollection.name}"`
@@ -1247,29 +1239,28 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
               <Link to="/help/$slug" params={{ slug: "cards-printings-copies" }}>
                 Learn about cards, printings &amp; copies
               </Link>
-            </EmptyDescription>
-          </EmptyHeader>
-          <EmptyContent>
-            <div className="flex flex-wrap justify-center gap-2">
-              {addTarget && (
-                <>
-                  <Button variant="outline" onClick={() => setQuickAddOpen(true)}>
-                    <SquarePlusIcon className="mr-1 size-3.5" />
-                    Quick add
-                  </Button>
-                  <Button onClick={toggleShowLibrary}>
-                    <LibraryBigIcon className="mr-1 size-3.5" />
-                    Browse & add
-                  </Button>
-                </>
-              )}
-              <Link to="/collections/import" className={buttonVariants({ variant: "outline" })}>
-                <DownloadIcon className="mr-1 size-3.5" />
-                Import from another tool
-              </Link>
-            </div>
-          </EmptyContent>
-        </Empty>
+            </>
+          }
+        >
+          <div className="flex flex-wrap justify-center gap-2">
+            {addTarget && (
+              <>
+                <Button onClick={toggleShowLibrary}>
+                  <LibraryBigIcon />
+                  Browse & add
+                </Button>
+                <Button variant="ghost" onClick={() => setQuickAddOpen(true)}>
+                  <SquarePlusIcon />
+                  Quick add
+                </Button>
+              </>
+            )}
+            <Link to="/collections/import" className={buttonVariants({ variant: "ghost" })}>
+              <DownloadIcon />
+              Import from another tool
+            </Link>
+          </div>
+        </EmptyState>
         {collectionOverlays}
       </>
     );

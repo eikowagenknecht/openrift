@@ -14,6 +14,7 @@ import {
 import { use, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { EmptyState } from "@/components/empty-state";
 import { PageTopBar, PageTopBarTitle } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -420,24 +421,19 @@ function LoadMoreSentinel({
   );
 }
 
-function EmptyState() {
+function ActivityEmptyState() {
   return (
-    <div className="flex flex-col items-center gap-3 py-20 text-center">
-      <HistoryIcon className="text-muted-foreground size-12" />
-      <div>
-        <p className="font-medium">No activity yet</p>
-        <p className="text-muted-foreground mt-1 max-w-xs text-sm">
-          Activity is recorded when you add, move, or remove cards. Browse the catalog to start
-          building your collection.
-        </p>
-      </div>
-      <div className="mt-2 flex gap-2">
-        <Button variant="default" size="sm" render={<Link to="/cards" />}>
-          <SearchIcon className="size-3.5" />
-          Browse cards
-        </Button>
-      </div>
-    </div>
+    <EmptyState
+      className="py-20"
+      icon={HistoryIcon}
+      title="No activity yet"
+      description="Activity is recorded when you add, move, or remove cards. Browse the catalog to start building your collection."
+    >
+      <Button variant="default" render={<Link to="/cards" />}>
+        <SearchIcon />
+        Browse cards
+      </Button>
+    </EmptyState>
   );
 }
 
@@ -484,7 +480,7 @@ function ActivityPage() {
     return (
       <div className="mx-auto w-full max-w-2xl">
         {topBarPortal}
-        <EmptyState />
+        <ActivityEmptyState />
       </div>
     );
   }

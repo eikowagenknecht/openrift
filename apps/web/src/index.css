@@ -68,7 +68,10 @@ html.hide-scrollbar::-webkit-scrollbar {
 /* Default palette — light scheme. Warm parchment surface, deep-gold
    primary, deep-teal accent. */
 :root {
-  --radius: 0.625rem;
+  /* Sharpened from the shadcn-default 0.625rem: tighter corners across every
+     control, part of the app's angular shape language (see the corner-cut on
+     the hero CTAs and the top-bar primary button). */
+  --radius: 0.375rem;
   --background: oklch(0.97 0.012 85);
   --foreground: oklch(0.2 0.02 260);
   --card: oklch(0.99 0.008 85);
@@ -522,6 +525,20 @@ html.hide-scrollbar::-webkit-scrollbar {
       transform: translate3d(0, 0, 0);
     }
   }
+}
+
+/* Corner-cut for filled primary buttons — the app's signature shape (see
+   docs/design-language.md). Button size variants tune --btn-cut; outline,
+   ghost, and secondary variants (and Toggles) stay rounded. */
+@utility btn-corner-cut {
+  border-radius: 0;
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - var(--btn-cut, 8px)),
+    calc(100% - var(--btn-cut, 8px)) 100%,
+    0 100%
+  );
 }
 
 @utility font-condensed {

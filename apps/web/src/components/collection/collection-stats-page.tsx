@@ -23,6 +23,7 @@ import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { CollectionValueChart } from "@/components/collection/collection-value-chart";
 import { CostToCompleteChart } from "@/components/collection/cost-to-complete-chart";
 import { EnergyPowerChart } from "@/components/deck/stats/energy-power-chart";
+import { EmptyState } from "@/components/empty-state";
 import { CompactFilterBar } from "@/components/filters/compact-filter-bar";
 import { PageTopBar, PageTopBarTitle } from "@/components/layout/page-top-bar";
 import { MarketplaceLink } from "@/components/marketplace-link";
@@ -31,14 +32,6 @@ import { ButtonGroup } from "@/components/ui/button-group";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ChartConfig } from "@/components/ui/chart";
 import { ChartContainer } from "@/components/ui/chart";
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { ProgressIndicator, ProgressTrack } from "@/components/ui/progress";
 import {
@@ -682,25 +675,19 @@ function StatsSkeleton() {
   );
 }
 
-function EmptyState() {
+function StatsEmptyState() {
   return (
-    <Empty className="py-20">
-      <EmptyHeader>
-        <EmptyMedia>
-          <ChartBarIcon className="text-muted-foreground size-12" />
-        </EmptyMedia>
-        <EmptyTitle>No cards in collection yet</EmptyTitle>
-        <EmptyDescription>
-          Browse the catalog and add cards to see statistics about your collection.
-        </EmptyDescription>
-      </EmptyHeader>
-      <EmptyContent>
-        <Button variant="default" render={<Link to="/cards" />}>
-          <SearchIcon className="size-3.5" />
-          Browse cards
-        </Button>
-      </EmptyContent>
-    </Empty>
+    <EmptyState
+      className="py-20"
+      icon={ChartBarIcon}
+      title="No cards in collection yet"
+      description="Browse the catalog and add cards to see statistics about your collection."
+    >
+      <Button variant="default" render={<Link to="/cards" />}>
+        <SearchIcon />
+        Browse cards
+      </Button>
+    </EmptyState>
   );
 }
 
@@ -827,7 +814,7 @@ export function CollectionStatsPage() {
 
       {stats.isReady ? (
         stats.totalCopies === 0 ? (
-          <EmptyState />
+          <StatsEmptyState />
         ) : (
           <div className="space-y-6">
             {/* ── Completion ──────────────────────────────────── */}

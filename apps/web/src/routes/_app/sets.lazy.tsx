@@ -6,6 +6,7 @@ import { CalendarIcon, LayersIcon } from "lucide-react";
 
 import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { Heading } from "@/components/heading";
+import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { publicSetListQueryOptions } from "@/hooks/use-public-sets";
 import { formatAbsoluteDate } from "@/lib/format-date";
@@ -22,45 +23,43 @@ function formatDate(dateStr: string): string {
 
 function HeroSetCard({ set }: { set: SetListEntry }) {
   return (
-    <Link
-      to="/sets/$setSlug"
-      params={{ setSlug: set.slug }}
-      className="border-border bg-card hover:bg-accent group flex overflow-hidden rounded-xl border transition-colors"
-    >
-      <div className="relative w-28 shrink-0 sm:w-36">
-        {set.coverImageId ? (
-          <>
+    <Link to="/sets/$setSlug" params={{ setSlug: set.slug }} className="group block h-full">
+      <Card className="hover:bg-accent h-full flex-row gap-0 py-0 transition-colors">
+        <div className="relative w-28 shrink-0 sm:w-36">
+          {set.coverImageId ? (
+            <>
+              <div className="aspect-card bg-muted/40" />
+              <img
+                src={imageUrl(set.coverImageId, "400w")}
+                srcSet={`${imageUrl(set.coverImageId, "400w")} 400w, ${imageUrl(set.coverImageId, "full")} 800w`}
+                sizes="144px"
+                alt={set.name}
+                loading="lazy"
+                className="absolute inset-0 size-full object-cover"
+                style={{ borderRadius: `${CARD_BORDER_RADIUS} 0 0 ${CARD_BORDER_RADIUS}` }}
+              />
+            </>
+          ) : (
             <div className="aspect-card bg-muted/40" />
-            <img
-              src={imageUrl(set.coverImageId, "400w")}
-              srcSet={`${imageUrl(set.coverImageId, "400w")} 400w, ${imageUrl(set.coverImageId, "full")} 800w`}
-              sizes="144px"
-              alt={set.name}
-              loading="lazy"
-              className="absolute inset-0 size-full object-cover"
-              style={{ borderRadius: `${CARD_BORDER_RADIUS} 0 0 ${CARD_BORDER_RADIUS}` }}
-            />
-          </>
-        ) : (
-          <div className="aspect-card bg-muted/40" />
-        )}
-      </div>
-      <div className="flex min-w-0 flex-col justify-center gap-1 p-4">
-        <Heading className="truncate">{set.name}</Heading>
-        <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-          <span className="flex items-center gap-1.5">
-            <LayersIcon className="size-3.5" />
-            {set.cardCount} {set.cardCount === 1 ? "card" : "cards"}, {set.printingCount}{" "}
-            {set.printingCount === 1 ? "printing" : "printings"}
-          </span>
-          {set.releasedAt && (
-            <span className="flex items-center gap-1.5">
-              <CalendarIcon className="size-3.5" />
-              {formatDate(set.releasedAt)}
-            </span>
           )}
         </div>
-      </div>
+        <div className="flex min-w-0 flex-col justify-center gap-1 p-4">
+          <Heading className="truncate">{set.name}</Heading>
+          <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+            <span className="flex items-center gap-1.5">
+              <LayersIcon className="size-3.5" />
+              {set.cardCount} {set.cardCount === 1 ? "card" : "cards"}, {set.printingCount}{" "}
+              {set.printingCount === 1 ? "printing" : "printings"}
+            </span>
+            {set.releasedAt && (
+              <span className="flex items-center gap-1.5">
+                <CalendarIcon className="size-3.5" />
+                {formatDate(set.releasedAt)}
+              </span>
+            )}
+          </div>
+        </div>
+      </Card>
     </Link>
   );
 }

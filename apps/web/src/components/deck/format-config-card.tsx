@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { EditFormatTagsDialog } from "@/components/deck/edit-format-tags-dialog";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { useCustomTagList, useDeckFormatList } from "@/hooks/use-enums";
 import { getFormatTagConfig } from "@/lib/format-tag-config";
 
@@ -40,7 +41,7 @@ export function FormatConfigCard({ deckId, format, formatConfig, readOnly }: Pro
   const formatLabel = formatLabels[format] ?? format;
 
   return (
-    <section className="bg-card flex items-center justify-between gap-3 rounded-lg border p-3">
+    <Card className="flex-row items-center justify-between gap-3 p-3">
       <div className="min-w-0">
         <span className="text-muted-foreground text-xs leading-4">{formatLabel}</span>
         <div className="text-lg leading-7 font-semibold">
@@ -64,6 +65,6 @@ export function FormatConfigCard({ deckId, format, formatConfig, readOnly }: Pro
           />
         </>
       )}
-    </section>
+    </Card>
   );
 }

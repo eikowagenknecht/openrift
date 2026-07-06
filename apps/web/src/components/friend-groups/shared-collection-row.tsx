@@ -3,17 +3,20 @@ import { Link } from "@tanstack/react-router";
 import { BookOpenIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { Card } from "@/components/ui/card";
+
 /**
- * Shared styling for a collection card row. Apply to the row's `<Link>` so
- * every collection row (member shares and the group's own pool) looks identical.
+ * Shared styling for a collection card row. Apply to the row's `<Card>` (nested
+ * inside a `<Link className="block">`) so every collection row (member shares
+ * and the group's own pool) looks identical.
  */
 export const COLLECTION_ROW_CLASS =
-  "bg-card hover:bg-muted flex items-center gap-3 rounded-md border p-2 transition-colors";
+  "hover:bg-muted flex-row items-center gap-3 p-2 transition-colors";
 
 /**
  * The inner content of a collection card row: book icon, name, and a muted
- * subtitle. Wrap it in a `<Link className={COLLECTION_ROW_CLASS}>` pointing at
- * whichever collection view the caller needs.
+ * subtitle. Wrap it in a `<Link className="block"><Card className={COLLECTION_ROW_CLASS}>`
+ * pointing at whichever collection view the caller needs.
  * @returns The row's icon + text content.
  */
 export function CollectionRowContent({ name, subtitle }: { name: string; subtitle: ReactNode }) {
@@ -48,12 +51,14 @@ export function SharedCollectionRow({
       to="/groups/$slug/collections/$collectionId"
       params={{ slug, collectionId: share.collectionId }}
       search={(prev) => prev}
-      className={COLLECTION_ROW_CLASS}
+      className="block"
     >
-      <CollectionRowContent
-        name={share.collectionName}
-        subtitle={`Collection · ${share.copyCount} ${noun}`}
-      />
+      <Card className={COLLECTION_ROW_CLASS}>
+        <CollectionRowContent
+          name={share.collectionName}
+          subtitle={`Collection · ${share.copyCount} ${noun}`}
+        />
+      </Card>
     </Link>
   );
 }

@@ -3,6 +3,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { CheckIcon, ChevronRightIcon, PlusIcon, UsersIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 
+import { EmptyState } from "@/components/empty-state";
 import {
   PageTopBar,
   PageTopBarActions,
@@ -13,6 +14,7 @@ import {
 } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -21,13 +23,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -204,10 +199,7 @@ export function GroupsIndexPage() {
             <h2 className={SECTION_HEADING}>Pending invites</h2>
             <div className="flex flex-col gap-2">
               {data.pendingInvites.map((invite) => (
-                <div
-                  key={invite.id}
-                  className="bg-card flex items-center justify-between gap-3 rounded-md border p-3"
-                >
+                <Card key={invite.id} className="flex-row items-center justify-between gap-3 p-3">
                   <div className="flex flex-col">
                     <span className="font-medium">{invite.groupName}</span>
                     <span className="text-muted-foreground text-xs">
@@ -248,7 +240,7 @@ export function GroupsIndexPage() {
                       Decline
                     </Button>
                   </div>
-                </div>
+                </Card>
               ))}
             </div>
           </section>
@@ -259,10 +251,7 @@ export function GroupsIndexPage() {
             <h2 className={SECTION_HEADING}>Awaiting approval</h2>
             <div className="flex flex-col gap-2">
               {data.outgoingRequests.map((request) => (
-                <div
-                  key={request.id}
-                  className="bg-card flex items-center justify-between gap-3 rounded-md border p-3"
-                >
+                <Card key={request.id} className="flex-row items-center justify-between gap-3 p-3">
                   <Link
                     to="/groups/$slug"
                     params={{ slug: request.groupSlug }}
@@ -284,20 +273,19 @@ export function GroupsIndexPage() {
                     <XIcon className="size-4" />
                     Cancel request
                   </Button>
-                </div>
+                </Card>
               ))}
             </div>
           </section>
         )}
 
         {data.items.length === 0 ? (
-          <Empty className="py-12">
-            <EmptyHeader>
-              <EmptyMedia>
-                <UsersIcon className="text-muted-foreground size-10" />
-              </EmptyMedia>
-              <EmptyTitle>You&apos;re not in any groups yet.</EmptyTitle>
-              <EmptyDescription>
+          <EmptyState
+            className="py-12"
+            icon={UsersIcon}
+            title="You're not in any groups yet."
+            description={
+              <>
                 Create one above, or paste an invite code to join.{" "}
                 <Link
                   to="/help/$slug"
@@ -306,53 +294,50 @@ export function GroupsIndexPage() {
                 >
                   Learn how groups work.
                 </Link>
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
+              </>
+            }
+          />
         ) : (
           <div className="flex flex-col gap-2">
             {data.items.map((row) => {
               const badge = ROLE_BADGE[row.viewerRole];
               const actionCount = actionCountByGroup.get(row.id) ?? 0;
               return (
-                <Link
-                  key={row.id}
-                  to="/groups/$slug"
-                  params={{ slug: row.slug }}
-                  className="bg-card hover:bg-muted flex items-start gap-4 rounded-md border p-4 transition-colors sm:items-center"
-                >
-                  <div className="bg-muted text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded-md">
-                    <UsersIcon className="size-5" />
-                  </div>
-                  <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
-                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-medium break-words sm:truncate">{row.name}</span>
-                        <Badge className={cn("shrink-0", badge.className)}>{badge.label}</Badge>
+                <Link key={row.id} to="/groups/$slug" params={{ slug: row.slug }} className="block">
+                  <Card className="hover:bg-muted flex-row items-start gap-4 p-4 transition-colors sm:items-center">
+                    <div className="bg-muted text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded-md">
+                      <UsersIcon className="size-5" />
+                    </div>
+                    <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+                      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-medium break-words sm:truncate">{row.name}</span>
+                          <Badge className={cn("shrink-0", badge.className)}>{badge.label}</Badge>
+                        </div>
+                        {row.description ? (
+                          <span className="text-muted-foreground line-clamp-1 text-sm">
+                            {row.description}
+                          </span>
+                        ) : null}
                       </div>
-                      {row.description ? (
-                        <span className="text-muted-foreground line-clamp-1 text-sm">
-                          {row.description}
+                      <div className="text-muted-foreground flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                        <span className="whitespace-nowrap">
+                          {row.memberCount} {row.memberCount === 1 ? "member" : "members"}
                         </span>
-                      ) : null}
+                        {actionCount > 0 ? (
+                          <Badge className="bg-primary text-primary-foreground whitespace-nowrap">
+                            {actionCount} action{actionCount === 1 ? "" : "s"} needed
+                          </Badge>
+                        ) : null}
+                        {row.pendingRequestCount > 0 ? (
+                          <Badge variant="secondary" className="whitespace-nowrap">
+                            {row.pendingRequestCount} pending
+                          </Badge>
+                        ) : null}
+                        <ChevronRightIcon className="size-4 shrink-0" />
+                      </div>
                     </div>
-                    <div className="text-muted-foreground flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-                      <span className="whitespace-nowrap">
-                        {row.memberCount} {row.memberCount === 1 ? "member" : "members"}
-                      </span>
-                      {actionCount > 0 ? (
-                        <Badge className="bg-primary text-primary-foreground whitespace-nowrap">
-                          {actionCount} action{actionCount === 1 ? "" : "s"} needed
-                        </Badge>
-                      ) : null}
-                      {row.pendingRequestCount > 0 ? (
-                        <Badge variant="secondary" className="whitespace-nowrap">
-                          {row.pendingRequestCount} pending
-                        </Badge>
-                      ) : null}
-                      <ChevronRightIcon className="size-4 shrink-0" />
-                    </div>
-                  </div>
+                  </Card>
                 </Link>
               );
             })}

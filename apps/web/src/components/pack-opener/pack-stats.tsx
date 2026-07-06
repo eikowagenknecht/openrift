@@ -3,6 +3,7 @@ import { WellKnown, legendDisplayName } from "@openrift/shared";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { compactFormatterForMarketplace, formatterForMarketplace } from "@/lib/format";
 
@@ -112,7 +113,7 @@ export function PackStats({ packs, prices, marketplace }: PackStatsProps) {
   }));
 
   return (
-    <div className="bg-card space-y-4 rounded-xl border p-4">
+    <Card className="p-4">
       <StatsHeadline
         packCount={packs.length}
         totalPulls={totalPulls}
@@ -129,7 +130,7 @@ export function PackStats({ packs, prices, marketplace }: PackStatsProps) {
       {notable.length > 0 && <NotablePullsList pulls={notable} compactFmt={compactFmt} />}
 
       {unpricedVisible && unpricedPulls.length > 0 && <UnpricedPullsList pulls={unpricedPulls} />}
-    </div>
+    </Card>
   );
 }
 

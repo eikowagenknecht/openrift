@@ -8,6 +8,7 @@ import { Link } from "@tanstack/react-router";
 import { FolderIcon, HandshakeIcon, HeartIcon } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 
+import { Card } from "@/components/ui/card";
 import { UserAvatar } from "@/components/user-avatar";
 
 const LIST_INTENT_ICON: Record<ListIntent, ComponentType<SVGProps<SVGSVGElement>>> = {
@@ -52,7 +53,7 @@ export function SharedListRow({
       ? LIST_KIND_NOUN[share.listKind].singular
       : LIST_KIND_NOUN[share.listKind].plural;
   return (
-    <div className="bg-card hover:bg-muted relative flex items-center gap-3 rounded-md border p-2 transition-colors">
+    <Card className="hover:bg-muted relative flex-row items-center gap-3 p-2 transition-colors">
       <IntentIcon className="text-muted-foreground size-5 shrink-0" />
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <Link
@@ -82,6 +83,6 @@ export function SharedListRow({
           <span className="hidden text-sm sm:inline">{member.userName ?? "Member"}</span>
         </Link>
       ) : null}
-    </div>
+    </Card>
   );
 }

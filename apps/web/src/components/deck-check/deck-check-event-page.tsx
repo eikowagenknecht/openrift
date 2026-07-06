@@ -17,6 +17,7 @@ import { SearchInput } from "@/components/filters/search-input";
 import { PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -213,7 +214,7 @@ function EntryRow({
   const participantInactive =
     entry.participantStatus === "dropped" || entry.participantStatus === "no_show";
   return (
-    <div className="bg-card hover:bg-muted hover:text-foreground flex items-center gap-3 rounded-md border p-3 transition-colors">
+    <Card className="hover:bg-muted hover:text-foreground flex-row items-center gap-3 p-3 transition-colors">
       <Link
         to="/tournaments/$id/decks/$entryId"
         params={{ id: tournamentId, entryId: entry.id }}
@@ -263,7 +264,7 @@ function EntryRow({
         )}
       </Link>
       {canManage ? <EntryRowMenu tournamentId={tournamentId} entry={entry} /> : null}
-    </div>
+    </Card>
   );
 }
 

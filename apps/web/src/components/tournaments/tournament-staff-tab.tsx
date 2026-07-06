@@ -8,6 +8,7 @@ import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 import { PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -71,49 +72,48 @@ export function TournamentStaffTab({ detail }: { detail: TournamentDetailRespons
       ) : (
         <ul className="flex flex-col gap-2">
           {detail.staff.map((member) => (
-            <li
-              key={`${member.userId}-${member.source}-${member.role}`}
-              className="bg-card flex items-center gap-3 rounded-md border p-3"
-            >
-              <UserAvatar name={member.name} className="size-9 shrink-0" />
-              <span className="flex min-w-0 flex-1 flex-col">
-                <span className="flex flex-wrap items-center gap-2">
-                  <span className="truncate font-medium">{member.name ?? member.userId}</span>
-                  <Badge variant="outline">{STAFF_ROLE_LABEL[member.role]}</Badge>
-                  {member.source === "organization" && member.orgRole ? (
-                    <Badge variant="secondary">
-                      {ORG_ROLE_LABEL[member.orgRole]} · {detail.host.displayName}
-                    </Badge>
-                  ) : null}
+            <li key={`${member.userId}-${member.source}-${member.role}`}>
+              <Card className="flex-row items-center gap-3 p-3">
+                <UserAvatar name={member.name} className="size-9 shrink-0" />
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="flex flex-wrap items-center gap-2">
+                    <span className="truncate font-medium">{member.name ?? member.userId}</span>
+                    <Badge variant="outline">{STAFF_ROLE_LABEL[member.role]}</Badge>
+                    {member.source === "organization" && member.orgRole ? (
+                      <Badge variant="secondary">
+                        {ORG_ROLE_LABEL[member.orgRole]} · {detail.host.displayName}
+                      </Badge>
+                    ) : null}
+                  </span>
                 </span>
-              </span>
-              {host && member.source === "grant" ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    render={<Button size="sm" variant="ghost" aria-label="Staff actions" />}
-                  >
-                    <EllipsisVerticalIcon className="size-4" />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem
-                      variant="destructive"
-                      disabled={removeStaff.isPending}
-                      onClick={() =>
-                        void run(() =>
-                          removeStaff.mutateAsync({
-                            id: detail.id,
-                            userId: member.userId,
-                            role: member.role,
-                          }),
-                        )
-                      }
+                {host && member.source === "grant" ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={<Button size="sm" variant="ghost" aria-label="Staff actions" />}
                     >
-                      <Trash2Icon className="size-4" />
-                      Remove
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              ) : null}
+                      <EllipsisVerticalIcon className="size-4" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        variant="destructive"
+                        disabled={removeStaff.isPending}
+                        onClick={() =>
+                          void run(() =>
+                            removeStaff.mutateAsync({
+                              id: detail.id,
+                              userId: member.userId,
+                              role: member.role,
+                            }),
+                          )
+                        }
+                      >
+                        <Trash2Icon className="size-4" />
+                        Remove
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : null}
+              </Card>
             </li>
           ))}
         </ul>

@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   useAcceptTrade,
@@ -77,7 +78,7 @@ function TradeRow({ trade }: { trade: CardTradeResponse }) {
     // top, and an action bar below carries the status badge on the left and the
     // buttons on the right. From sm up both groups dissolve (sm:contents) back
     // into one horizontal row.
-    <div className="bg-card flex flex-col gap-2 rounded-md border p-2 sm:flex-row sm:items-center sm:gap-3">
+    <Card className="gap-2 p-2 sm:flex-row sm:items-center sm:gap-3">
       <div className="flex min-w-0 items-center gap-3 sm:contents">
         <TradeDirectionIcon incoming={incoming} />
 
@@ -198,7 +199,7 @@ function TradeRow({ trade }: { trade: CardTradeResponse }) {
           quantity={trade.quantity}
         />
       ) : null}
-    </div>
+    </Card>
   );
 }
 

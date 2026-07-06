@@ -254,7 +254,7 @@ function KeyRow({ apiKey, actions }: { apiKey: DeckCheckKeyResponse; actions: Ke
   const revoked = apiKey.revokedAt !== null;
 
   return (
-    <div className="bg-card flex items-center gap-3 rounded-md border p-3">
+    <Card className="flex-row items-center gap-3 p-3">
       <div className="flex min-w-0 flex-1 flex-col">
         <span className="truncate font-medium">
           {apiKey.label ?? "Unnamed key"}{" "}
@@ -327,7 +327,7 @@ function KeyRow({ apiKey, actions }: { apiKey: DeckCheckKeyResponse; actions: Ke
           toast.success("Key removed");
         }}
       />
-    </div>
+    </Card>
   );
 }
 
