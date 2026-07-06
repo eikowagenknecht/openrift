@@ -5,12 +5,14 @@ import { toast } from "sonner";
 
 import { useCards } from "@/hooks/use-cards";
 import { useCreateCollection } from "@/hooks/use-collections";
-import { useAddCopies } from "@/hooks/use-copies";
+import { useAddCopies, useDisposeCopies } from "@/hooks/use-copies";
 import type { ImportableListKind } from "@/hooks/use-list-import-flow";
 import { buildListImportPayload } from "@/hooks/use-list-import-flow";
 import { useBulkAddListEntries, useLists } from "@/hooks/use-lists";
+import { useCopiesCollection } from "@/lib/copies-collection";
 import type { MatchStatus, MatchedEntry } from "@/lib/import-matcher";
 import { matchEntries } from "@/lib/import-matcher";
+import { copyIdsInCollection, LIST_TARGET_PREFIX } from "@/lib/import-replace";
 import { summarizeMatchedEntries } from "@/lib/import-summary";
 import { parseListImport } from "@/lib/list-import-parser";
 import { useDisplayStore } from "@/stores/display-store";
@@ -22,9 +24,6 @@ const STATUS_SORT_ORDER: Record<MatchStatus, number> = {
 };
 
 const BATCH_SIZE = 500;
-
-/** Prefix marking a target-select value as a list (vs a collection id or `__new__`). */
-export const LIST_TARGET_PREFIX = "list:";
 
 /** A list the importer can target, narrowed to the kinds that accept imported cards. */
 export interface ImportableListOption {
@@ -57,6 +56,8 @@ type ImportStep = "input" | "preview";
 export function useImportFlow() {
   const { allPrintings } = useCards();
   const addCopies = useAddCopies();
+  const disposeCopies = useDisposeCopies();
+  const copiesCollection = useCopiesCollection();
   const createCollection = useCreateCollection();
   const bulkAddEntries = useBulkAddListEntries();
   const navigate = useNavigate();
@@ -196,7 +197,14 @@ export function useImportFlow() {
     }
   };
 
-  const handleImport = async () => {
+  /**
+   * Runs the import. When `replaceExisting` is set, the target collection's
+   * current copies are disposed first, so the collection ends up holding
+   * exactly the imported cards (chosen via the "Replace" path of the
+   * non-empty-collection confirm dialog). Lists and the create-new target are
+   * always additive — a fresh collection has nothing to replace.
+   */
+  const handleImport = async ({ replaceExisting = false } = {}) => {
     if (collectionId.startsWith(LIST_TARGET_PREFIX)) {
       await importIntoList(collectionId.slice(LIST_TARGET_PREFIX.length));
       return;
@@ -229,6 +237,25 @@ export function useImportFlow() {
     }
 
     setIsImporting(true);
+
+    // Replace: clear the target collection's current copies before adding the
+    // imported ones. Disposal mirrors a manual "remove from collection" — it
+    // logs removal events and refuses copies reserved by a live trade, so if
+    // any card is pinned to a trade the clear fails and nothing is imported.
+    if (replaceExisting) {
+      const existingCopyIds = copiesCollection
+        ? copyIdsInCollection(copiesCollection.toArray, targetCollectionId)
+        : [];
+      if (existingCopyIds.length > 0) {
+        try {
+          await disposeCopies.mutateAsync({ copyIds: existingCopyIds });
+        } catch {
+          toast.error("Couldn't clear the collection, so nothing was imported.");
+          setIsImporting(false);
+          return;
+        }
+      }
+    }
 
     // Build copies payload — expand quantities into individual entries
     const copies: { printingId: string; collectionId: string }[] = [];

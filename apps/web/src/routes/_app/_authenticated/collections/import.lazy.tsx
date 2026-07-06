@@ -25,6 +25,12 @@ import {
   SectionHeaderTitle,
 } from "@/components/section-header";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,11 +49,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { useCards } from "@/hooks/use-cards";
 import { useCollections } from "@/hooks/use-collections";
 import type { ImportableListOption } from "@/hooks/use-import-flow";
-import { LIST_TARGET_PREFIX, useImportFlow } from "@/hooks/use-import-flow";
+import { useImportFlow } from "@/hooks/use-import-flow";
 import { useRequiredUserId } from "@/lib/auth-session";
 import { copiesQueryOptions } from "@/lib/copies-query";
 import { downloadCSV, generateExportCSV, generatePiltoverArchiveCSV } from "@/lib/csv-export";
 import type { MatchedEntry } from "@/lib/import-matcher";
+import { isReplaceableTarget, LIST_TARGET_PREFIX } from "@/lib/import-replace";
 import { SOCIAL_LINKS } from "@/lib/social-links";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 
@@ -407,6 +414,7 @@ interface CollectionOption {
   id: string;
   name: string;
   isInbox: boolean;
+  copyCount: number;
 }
 
 function PreviewStep({
@@ -459,9 +467,16 @@ function PreviewStep({
   onToggleExpand: (index: number) => void;
   onCollectionChange: (id: string) => void;
   onNewCollectionNameChange: (name: string) => void;
-  onImport: () => void;
+  onImport: (options?: { replaceExisting?: boolean }) => void;
   onBack: () => void;
 }) {
+  const [replaceDialogOpen, setReplaceDialogOpen] = useState(false);
+  const targetCollection = collections.find((col) => col.id === collectionId);
+  const targetCopyCount = targetCollection?.copyCount ?? 0;
+  const targetCopyUnit = targetCopyCount === 1 ? "copy" : "copies";
+  // A non-empty existing collection is the only case that needs the add/replace
+  // question — new collections start empty and lists are additive only.
+  const promptsForReplace = isReplaceableTarget(collectionId, collections);
   const isListTarget = collectionId.startsWith(LIST_TARGET_PREFIX);
   const canImport =
     importableCount > 0 &&
@@ -648,7 +663,10 @@ function PreviewStep({
             </div>
           )}
 
-          <Button onClick={onImport} disabled={!canImport || isImporting}>
+          <Button
+            onClick={() => (promptsForReplace ? setReplaceDialogOpen(true) : onImport())}
+            disabled={!canImport || isImporting}
+          >
             {isImporting ? (
               <>
                 <Loader2Icon className="mr-2 size-4 animate-spin" />
@@ -673,6 +691,41 @@ function PreviewStep({
             : "Importing into a collection marks these cards as owned. To add them to a list without owning them, pick a list instead."}
         </p>
       </div>
+
+      <AlertDialog open={replaceDialogOpen} onOpenChange={setReplaceDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogTitle>
+            {targetCollection?.name} already has {targetCopyCount} {targetCopyUnit}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            Add the imported copies on top of what&apos;s already there, or replace everything with
+            just the import?
+          </AlertDialogDescription>
+          <div className="flex flex-col justify-end gap-2 pt-2 sm:flex-row">
+            <Button variant="ghost" onClick={() => setReplaceDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setReplaceDialogOpen(false);
+                onImport({ replaceExisting: false });
+              }}
+            >
+              Add to it
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setReplaceDialogOpen(false);
+                onImport({ replaceExisting: true });
+              }}
+            >
+              Replace all {targetCopyCount}
+            </Button>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
