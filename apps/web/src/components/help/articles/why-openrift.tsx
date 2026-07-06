@@ -49,10 +49,14 @@ export default function WhyOpenRiftArticle() {
             started as their feature requests.
           </p>
           <p>
-            On the AI question: I use AI coding tools, like most developers these days. They change
-            how fast the code gets typed, not the bar it has to clear: every change is designed and
-            reviewed by me (20+ years of software engineering), has to pass more than 5,500
-            automated tests, and lands in the app I use every day with my own collection.
+            The fair question to ask any new fan project is whether it will still be around next
+            year. I can&apos;t promise the future, but I can point at a track record: the{" "}
+            <Link to="/changelog" className="text-primary hover:underline">
+              changelog
+            </Link>{" "}
+            shows what has shipped week by week since launch, my play group depends on the app
+            daily, and my own collection lives here too. As long as I play Riftbound, OpenRift gets
+            maintained.
           </p>
         </div>
       </section>
@@ -92,7 +96,7 @@ export default function WhyOpenRiftArticle() {
           <FeatureCard
             icon={<ZapIcon className="size-4" />}
             title="Built for speed"
-            description="Everything loads fast and stays responsive on desktop and phone, so browsing the catalog or editing a deck never leaves you waiting on a spinner."
+            description="Speed is the main design goal: browsing the catalog and editing decks should feel instant, on desktop and on your phone. If you catch a slow screen anywhere, that's a bug I want to hear about."
           />
         </div>
       </section>
@@ -160,7 +164,7 @@ export default function WhyOpenRiftArticle() {
           The table compares OpenRift against the four Riftbound card browsers I know best, the ones
           I used myself before building this. A checkmark means the feature is available, a half
           circle means partial support, an X means not available, and a question mark means I&apos;m
-          not sure.
+          not sure. Features that only OpenRift has are listed separately below the table.
         </p>
         <p className="text-muted-foreground mb-3">
           OpenRift&apos;s own rows were last refreshed on 2026-07-01. The competitor counts and
@@ -220,6 +224,50 @@ export default function WhyOpenRiftArticle() {
             ),
           )}
         </div>
+      </section>
+
+      {/* OpenRift-only features, kept out of the scored table on purpose */}
+      <section>
+        <Heading className="mb-3">Not in the table</Heading>
+        <p className="text-muted-foreground mb-3">
+          These are OpenRift features with no counterpart on the other sites. Everything unique to
+          OpenRift is listed here instead of scored in the table. The exception is the two openness
+          rows (open source, self-hostable): those stay in the table, because openness is why
+          OpenRift exists at all.
+        </p>
+        <ul className="text-muted-foreground list-disc space-y-1.5 pl-5">
+          <li>
+            <span className="text-foreground font-medium">Trade matching:</span> inside a private
+            group, see who has cards from your wishlists (and who wants your spares), with one-tap
+            requests and email alerts. The trade itself happens in person.
+          </li>
+          <li>
+            <span className="text-foreground font-medium">Shared group collections:</span> pool
+            spare cards into a collection the whole group can see and take from.
+          </li>
+          <li>
+            <span className="text-foreground font-medium">Tournament organizer tools:</span> run a
+            casual event yourself, with pod scoring and standings, deck submission via a per-event
+            link, and judge deck-check tools.
+          </li>
+          <li>
+            <span className="text-foreground font-medium">Quick card entry:</span> add cards by name
+            from a fast keyboard palette, without browsing: type, press Enter to add, Shift+Enter to
+            undo.
+          </li>
+          <li>
+            <span className="text-foreground font-medium">Completion curve:</span> a chart showing
+            which missing cards give you the most completion progress if added next.
+          </li>
+          <li>
+            <span className="text-foreground font-medium">Pack opener simulator:</span> open virtual
+            boosters at the real published pull rates, one card at a time or a whole display.
+          </li>
+          <li>
+            <span className="text-foreground font-medium">Custom card designer:</span> design your
+            own Riftbound-style card with your own artwork, entirely in your browser.
+          </li>
+        </ul>
       </section>
 
       {/* Tech stack */}
@@ -355,6 +403,17 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
   { kind: "section", title: "Data & Pricing" },
   {
     kind: "row",
+    feature: "Card text coverage",
+    values: ["yes", "yes", "partial", "yes", "yes"],
+    detail: {
+      general: "Which parts of a card's text are shown: rules text, effect text, and flavor text.",
+      openrift:
+        "Rules, effect, and flavor text, with consistent formatting, OCR-verified from actual card scans.",
+      riftboundGg: "Rules and effect text, no flavor text.",
+    },
+  },
+  {
+    kind: "row",
     feature: "English printings tracked",
     values: [1595, 1365, 1085, 1085, 1032],
     detail: {
@@ -416,17 +475,6 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
   },
   {
     kind: "row",
-    feature: "Card text coverage",
-    values: ["yes", "yes", "partial", "yes", "yes"],
-    detail: {
-      general: "Which parts of a card's text are shown: rules text, effect text, and flavor text.",
-      openrift:
-        "Rules, effect, and flavor text, with consistent formatting, OCR-verified from actual card scans.",
-      riftboundGg: "Rules and effect text, no flavor text.",
-    },
-  },
-  {
-    kind: "row",
     feature: "Errata tracking",
     values: ["yes", "partial", "no", "no", "yes"],
     detail: {
@@ -463,15 +511,6 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
     values: ["yes", "yes", "yes", "yes", "yes"],
     detail: {
       general: "Add cards to a collection by browsing the catalog and clicking to add.",
-    },
-  },
-  {
-    kind: "row",
-    feature: "Quick card entry (keyboard palette)",
-    values: ["yes", "no", "no", "no", "no"],
-    detail: {
-      general:
-        "Add cards by name from a fast keyboard search palette, without browsing: type, press Enter to add, Shift+Enter to undo.",
     },
   },
   {
@@ -517,15 +556,6 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
     values: ["yes", "no", "no", "no", "yes"],
     detail: {
       general: "Chart how your collection's total market value changes over time.",
-    },
-  },
-  {
-    kind: "row",
-    feature: "Completion curve",
-    values: ["yes", "no", "no", "no", "no"],
-    detail: {
-      general:
-        "A chart showing which missing cards give you the most completion progress if added next, so you can see what to collect for the biggest gains.",
     },
   },
   {
@@ -579,36 +609,6 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
         "Lists that fill and update themselves from rules (like a playset of every card) instead of being edited by hand.",
       openrift: "Any wishlist or tradelist can be made dynamic and stays current on its own.",
       riftcore: "Automatic trade binder plus dynamic want lists.",
-    },
-  },
-  {
-    kind: "row",
-    feature: "Shared group collections",
-    values: ["yes", "no", "no", "no", "no"],
-    detail: {
-      general:
-        "Pool cards into a collection shared with a private group of friends, so members see the combined pool.",
-    },
-  },
-  {
-    kind: "row",
-    feature: "Trade matching",
-    values: ["yes", "no", "no", "no", "no"],
-    detail: {
-      general:
-        "Matches your wishlists against what other members offer (and the reverse) inside a private group, with one-tap requests, price preferences, and email alerts.",
-      openrift: "Built around small private groups rather than a public marketplace.",
-    },
-  },
-  {
-    kind: "row",
-    feature: "Tournament organizer tools",
-    values: ["yes", "no", "no", "no", "no"],
-    detail: {
-      general:
-        "Run an event yourself: free-for-all pod scoring and standings, player deck submission via a per-event link, and judge deck-check tools.",
-      openrift:
-        "Aimed at running casual leagues and pod events, not browsing other people's results.",
     },
   },
   { kind: "section", title: "Deck Building" },
@@ -756,28 +756,9 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
   {
     kind: "row",
     feature: "Card scanning",
-    values: ["no", "no", "no", "no", "partial"],
+    values: ["no", "no", "no", "no", "yes"],
     detail: {
       general: "Camera-based card recognition to add cards to your collection without searching.",
-      riftcore: "Has card scanning, but recognition accuracy is limited in practice.",
-    },
-  },
-  {
-    kind: "row",
-    feature: "Custom card designer",
-    values: ["yes", "no", "no", "no", "no"],
-    detail: {
-      general:
-        "Design your own Riftbound-style card with your own background image, then download it or copy it to share. Everything stays in your browser.",
-    },
-  },
-  {
-    kind: "row",
-    feature: "Pack opener simulator",
-    values: ["yes", "no", "no", "no", "no"],
-    detail: {
-      general:
-        "Open virtual boosters at the real published pull rates, flip cards one at a time or crack a whole display, and see the rarity breakdown and best pulls.",
     },
   },
   {
@@ -830,10 +811,10 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
       openrift:
         "No ads, zero third-party trackers, and zero third-party cookies, verified with Blacklight. Analytics is first-party, cookie-free Umami.",
       piltoverArchive:
-        "No visible ads yet. Ad-free browsing is listed as a perk of paid supporter tiers.",
-      riftmana: "No visible ads yet, but ad network infrastructure is already in place.",
+        "No visible ads. Ad-free browsing is listed as a perk of paid supporter tiers.",
+      riftmana: "No visible ads. Blacklight reports third-party trackers and cookies on the site.",
       riftboundGg: "Banner ads shown throughout the site, removable with a paid subscription.",
-      riftcore: "No visible ads yet, but ad scripts are present.",
+      riftcore: "No visible ads. Blacklight reports a few third-party trackers.",
     },
   },
   // Paid-tier specifics are kept out of the rendered details on purpose: the
@@ -897,7 +878,7 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
       piltoverArchive: "Tournament decklists shown.",
       riftmana: "Tournament decklists available, but not organized per tournament.",
       riftboundGg: "Tournament data plus decklists.",
-      riftcore: "A mix of tournament and community data, but sourcing is unclear.",
+      riftcore: "A mix of tournament and community data.",
     },
   },
   {
