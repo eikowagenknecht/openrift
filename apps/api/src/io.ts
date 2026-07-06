@@ -20,7 +20,7 @@ export type Fetch = typeof globalThis.fetch;
 type Sharp = typeof sharp;
 
 /** Resolve a hostname to every address it maps to (for SSRF checks). */
-export type DnsLookupAll = (hostname: string) => Promise<{ address: string }[]>;
+type DnsLookupAll = (hostname: string) => Promise<{ address: string }[]>;
 
 export interface Io {
   fs: Fs;

@@ -167,7 +167,7 @@ export function friendGroupsQueryOptions(userId: string) {
   });
 }
 
-export function friendGroupDetailQueryOptions(userId: string, slug: string) {
+function friendGroupDetailQueryOptions(userId: string, slug: string) {
   return queryOptions({
     queryKey: queryKeys.friendGroups.detail(userId, slug),
     queryFn: () => fetchGroupDetail({ data: slug }),
