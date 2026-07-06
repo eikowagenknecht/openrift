@@ -18,6 +18,7 @@ import { isLocalDeckId } from "@/stores/local-decks-store";
 import { DeckActionsMenu } from "./deck-actions-menu";
 import { DeckDomainBar } from "./deck-domain-bar";
 import { LocalDeckActionsMenu } from "./local-deck-actions-menu";
+import { LocalDeckBadge } from "./local-save-hint";
 
 /**
  * Domain icon with a tooltip, as used on the deck tiles.
@@ -269,11 +270,7 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
             )}
           </span>
           <span className="flex items-center gap-1">
-            {isLocal && (
-              <Badge variant="secondary" className="text-2xs">
-                On this device
-              </Badge>
-            )}
+            {isLocal && <LocalDeckBadge className="text-2xs" />}
             <FormatStateBadge format={deck.format} isValid={isValid} />
           </span>
         </div>

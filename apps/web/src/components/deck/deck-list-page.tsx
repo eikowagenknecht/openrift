@@ -65,6 +65,7 @@ import { ClaimLocalDecksPrompt } from "./claim-local-decks-prompt";
 import { DeckListRow } from "./deck-list-row";
 import { DeckListToolbar } from "./deck-list-toolbar";
 import { DeckTile } from "./deck-tile";
+import { LocalDeckSaveBanner, LocalDeckSaveNote } from "./local-save-hint";
 
 function CreateDeckDialog({
   open,
@@ -148,6 +149,7 @@ function CreateDeckDialog({
             <CircleHelpIcon className="size-3.5" />
             New to deck building? See how it works →
           </Link>
+          {!userId && <LocalDeckSaveNote />}
         </div>
         <DialogFooter>
           <Button onClick={handleCreate} disabled={!name.trim() || createDeck.isPending}>
@@ -281,6 +283,8 @@ export function DeckListPage() {
           </PageTopBarActions>
         </PageTopBar>
       </div>
+
+      {!userId && localItems.length > 0 && <LocalDeckSaveBanner />}
 
       {deckItems.length === 0 ? (
         <Empty className="py-16">

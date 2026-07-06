@@ -31,6 +31,7 @@ import { DeckFormatBadge } from "@/components/deck/deck-validation-banner";
 import { DeckZonePanel } from "@/components/deck/deck-zone-panel";
 import { HoveredCardPreview } from "@/components/deck/hovered-card-preview";
 import type { HoverOrigin } from "@/components/deck/hovered-card-preview";
+import { LocalDeckBadge } from "@/components/deck/local-save-hint";
 import { ProxyExportDialog } from "@/components/deck/proxy-export-dialog";
 import { Footer } from "@/components/layout/footer";
 import {
@@ -50,7 +51,6 @@ import {
 } from "@/components/section-header";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -505,11 +505,7 @@ function DeckEditorContent({
                 <span className="hidden md:inline">{data.deck.name}</span>
               </PageTopBarTitle>
               <DeckFormatBadge deckId={deckId} />
-              {isLocal && (
-                <Badge variant="secondary" className="hidden shrink-0 sm:inline-flex">
-                  On this device
-                </Badge>
-              )}
+              {isLocal && <LocalDeckBadge className="hidden shrink-0 sm:inline-flex" />}
             </div>
             <PageTopBarActions>
               <div className="hidden md:flex md:items-center md:gap-1">

@@ -10,6 +10,7 @@
 
 ### Other
 
+- feat(Decks): **Local decks flag when to sign in** — building a deck while signed out now clearly says it lives only on this device, with a sign-in link to keep it and use it anywhere.
 - feat(App): **Landing feature previews** — the feature list now shows mini previews of the real app (price compare, deck rows, trade matches) instead of icon tiles.
 - fix(Decks): **Copy limits in deck codes** — exporting more copies of a card than deck codes support (12 main deck, 3 sideboard) now exports the maximum and warns, instead of silently losing the card.
 - fix(Tournaments): **Organizations survive owner deletion** — deleting your account now hands your organization to a co-owner or manager instead of erasing it for everyone.

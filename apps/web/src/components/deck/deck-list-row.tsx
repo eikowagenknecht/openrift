@@ -17,6 +17,7 @@ import { isLocalDeckId } from "@/stores/local-decks-store";
 
 import { DeckActionsMenu } from "./deck-actions-menu";
 import { LocalDeckActionsMenu } from "./local-deck-actions-menu";
+import { LocalDeckBadge } from "./local-save-hint";
 
 function DomainDot({ domain }: { domain: string }) {
   const domainIcon = getFilterIconPath("domains", domain);
@@ -103,11 +104,7 @@ export function DeckListRow({ item }: { item: DeckListItemResponse }) {
       </div>
 
       <div className="flex shrink-0 items-center gap-1">
-        {isLocal && (
-          <Badge variant="secondary" className="hidden text-xs sm:inline-flex">
-            On this device
-          </Badge>
-        )}
+        {isLocal && <LocalDeckBadge className="hidden sm:inline-flex" />}
         {deck.format === WellKnown.deckFormat.FREEFORM ? (
           <Badge variant="outline" className="text-xs">
             {formatLabels[deck.format] ?? deck.format}
