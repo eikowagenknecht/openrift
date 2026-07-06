@@ -13,6 +13,7 @@
 
 ### Other
 
+- feat(App): **Expanded "Why OpenRift" article** — more on the story behind the app, what the other trackers do well, and a comparison table with its own trading and groups section.
 - feat(App): **Refreshed interface components** — buttons now respond to hover everywhere, dialogs got subtly lighter surfaces, and mobile drawers track your finger with snappier fling-to-close.
 - feat(Decks): **Placeholders for missing key cards** — deck tiles now show labeled dashed cards for a legend or champion you haven't picked yet, instead of a generic icon.
 - feat(Decks): **Local decks flag when to sign in** — building a deck while signed out now clearly says it lives only on this device, with a sign-in link to keep it and use it anywhere.

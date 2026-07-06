@@ -10,11 +10,11 @@ Live and free to use at **[openrift.app](https://openrift.app)**, no install req
 
 ## What it does
 
-- **Comprehensive catalog.** More cards and printings than anywhere else. Almost all English cards and promos, plus many Chinese cards. French isn't in yet, unfortunately.
+- **Comprehensive catalog.** The biggest catalog I know of ([dated comparison](https://openrift.app/help/why-openrift)): almost all English cards and promos, plus many Chinese cards. French isn't in yet, unfortunately.
 - **Accurate price tracking.** Daily prices from TCGplayer, Cardmarket, and CardTrader, side by side, with history charts.
 - **One card, one place.** Collections map to the real world: a deck box, a binder, a card lent to a friend. Each copy lives in exactly one, so the app always mirrors what's actually on your shelf.
 - **Wishlists and tradelists.** Track the cards you want and the spares you'd part with, and share either by link with anyone. Lists can also fill themselves from rules (a playset of every card, every surplus common beyond two playsets) and stay current on their own.
-- **Private groups.** Form a small group with friends or your local game store, with collections owned by the whole group, a view into each member's own collections, and trade matching that surfaces who has the cards you're after. No other Riftbound site does this.
+- **Private groups.** Form a small group with friends or your local game store, with collections owned by the whole group, a view into each member's own collections, and trade matching that surfaces who has the cards you're after. My play group runs a shared "bulk box" of spare cards this way: take a card home, mark it in OpenRift, and it moves from the group pool into your own collection. No other Riftbound site does this.
 - **Your decks, your rules.** Validate against official and custom formats, or build freeform with no limits at all. Energy curves, deck codes, per-matchup plans, and a list of what you're still missing so you can proxy or buy the rest. Start building without signing in, and share a deck as a link that unfurls into a full visual decklist.
 - **A full toolbox.** Pack opener, card designer, tournament tools, and a searchable rules reference are all built in with more to come.
 - **Private and open.** Zero third-party trackers, just cookie-free Umami analytics. Open source under AGPL-3.0, with import and export options, so your data is never locked in.
@@ -33,9 +33,9 @@ For where OpenRift stands against the alternatives, and what it has today versus
 
 ## Why
 
-I wanted to track my collection, and nothing I tried fit. One site was missing cards, another felt slow on mobile and dropped cards mid-edit, a third had every feature on the planet but the basics didn't feel solid. And none of them worked really well on both desktop and mobile.
+I wanted to track my collection, and nothing I tried fit. I used the existing trackers for months, and each one was missing something I needed. So I built the tool I wanted, and it has grown into the app my play group and I use every day. A good part of the [roadmap](https://openrift.app/roadmap) started as their feature requests.
 
-So naturally, after a full week of patient, rigorous evaluation, I did the only reasonable thing and built my own from scratch. One thing led to another, and four months in, it's grown into something quite nice that I use every day.
+I know: the world didn't ask for yet another collection tracker. But none of the existing ones are open source, so improving them from the outside wasn't an option. This one is, and it imports from and exports to the formats the other tools use, so you can bring your collection over in minutes, and take it back out just as easily.
 
 If you want to talk about OpenRift there's a [Discord](https://discord.gg/Qb6RcjXq6z).
 
@@ -49,7 +49,7 @@ OpenRift is a TypeScript monorepo: a TanStack Start + shadcn/ui frontend (`apps/
 - [Deployment](docs/deployment.md) walks through VPS setup, Docker Compose, and CI/CD.
 - [Contributing](docs/contributing.md) explains code style, conventions, and the changelog.
 
-On the AI question: yes, Claude does a lot of the typing, so you might find a stray em dash here and there. That doesn't mean OpenRift is vibe-coded. The architecture and the decisions that matter are mine, and with 20+ years of full-stack experience behind it, I review and shape every part of the code.
+On the AI question: yes, Claude does a lot of the typing, so you might find a stray em dash here and there. That doesn't mean OpenRift is vibe-coded. The architecture and the decisions that matter are mine, and with 20+ years of full-stack experience behind it, I review and shape every part of the code. A suite of more than 5,500 automated tests (plus integration and end-to-end tests on top) holds every change to that standard.
 
 Issues and pull requests are welcome. If you open a pull request, please make sure you understand the code you're submitting, since it's held to the same standard. To contribute card data rather than code, use the in-app contribute page (sign in and open **Contribute** from the menu) to submit a missing card, a correction, or an image for review.
 

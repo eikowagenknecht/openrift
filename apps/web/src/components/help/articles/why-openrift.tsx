@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import {
   ArrowRightLeftIcon,
   CheckCircle2Icon,
@@ -14,7 +15,6 @@ import { useState } from "react";
 
 import { Heading } from "@/components/heading";
 import { DefinitionList, DefinitionRow } from "@/components/help/definition-list";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SOCIAL_LINKS } from "@/lib/social-links";
@@ -28,32 +28,34 @@ export default function WhyOpenRiftArticle() {
         <div className="text-muted-foreground space-y-3">
           <p>Honestly? I just wanted to track my collection.</p>
           <p>
-            I&apos;ve tried pretty much every Riftbound collection tracker out there and each one
-            fell short for me somewhere. One was missing cards. Another felt slow on mobile and
-            dropped cards mid-edit. A third had every feature imaginable but was very buggy. And
-            none of them worked well on both desktop and phone.
+            I used the existing Riftbound trackers for months, and each one was missing something I
+            needed. Eventually I stopped waiting for someone else to build it and built the tool I
+            wanted. It has become the app I use every day for my own cards.
           </p>
           <p>
-            So, naturally, after a full week of patient, rigorous evaluation, I did what any
-            software engineer would consider the only reasonable thing and built my own from
-            scratch. Four months later it&apos;s something I use every day, so I figured I&apos;d
-            share it.
+            I know how that sounds: the world didn&apos;t ask for yet another collection tracker.
+            The honest answer to &quot;why not improve an existing one instead?&quot; is that none
+            of them are open source, so there was nothing to contribute to. OpenRift is, and it
+            imports from and exports to the formats the other tools use, so you can bring your
+            collection over in minutes, and take it back out just as easily.
+          </p>
+          <p>
+            It&apos;s not just me, either. My local game store group uses it every day, for example
+            to run our shared &quot;bulk box&quot;: a group collection of spare cards where taking a
+            card out moves it straight into your own collection. A good part of the{" "}
+            <Link to="/roadmap" className="text-primary hover:underline">
+              roadmap
+            </Link>{" "}
+            started as their feature requests.
+          </p>
+          <p>
+            On the AI question: I use AI coding tools, like most developers these days. They change
+            how fast the code gets typed, not the bar it has to clear: every change is designed and
+            reviewed by me (20+ years of software engineering), has to pass more than 5,500
+            automated tests, and lands in the app I use every day with my own collection.
           </p>
         </div>
       </section>
-
-      <p className="text-muted-foreground">
-        This comparison reflects my opinions as of mid-2026, not marketing. Features change and I
-        may have missed things. If you believe something is inaccurate, please{" "}
-        <a
-          href="mailto:support@openrift.app"
-          className="text-primary hover:underline"
-          rel="noreferrer"
-        >
-          send me an email
-        </a>{" "}
-        so I can correct it or add more info.
-      </p>
 
       {/* What this site is (and isn't) */}
       <section>
@@ -85,7 +87,7 @@ export default function WhyOpenRiftArticle() {
           <FeatureCard
             icon={<HeartIcon className="size-4" />}
             title="Private groups"
-            description="Form a small private group with friends or your local store crew: shared collections, an optional view into each other's cards, list sharing, and trade matching so you can see who has cards from your wishlists. Everything stays inside your group, and you make the trade in person."
+            description="Form a private group with friends or your local store crew: shared collections (my play group runs its bulk box of spares this way) and trade matching that shows who has cards from your wishlists. The trade itself happens in person."
           />
           <FeatureCard
             icon={<ZapIcon className="size-4" />}
@@ -99,43 +101,76 @@ export default function WhyOpenRiftArticle() {
       <section>
         <Heading className="mb-3">Where OpenRift is catching up</Heading>
         <p className="text-muted-foreground mb-3">
-          Beyond the feature gaps below, there are two things a table can&apos;t capture:
+          Beyond the feature gaps in the table below, there are two things a checkmark can&apos;t
+          capture:
         </p>
         <div className="grid gap-3 sm:grid-cols-2">
           <GapCard
             icon={<SproutIcon className="size-4" />}
             title="New kid on the block"
-            description="OpenRift is new and small. Most Riftbound players already use Piltover Archive. If you give it a try, you're one of the early ones."
+            description="OpenRift is new and small. Most Riftbound players are on Piltover Archive today, and that's earned. The upside of being early here: your feature request isn't one voice among thousands. It gets read, and if it fits, it shapes the roadmap."
           />
           <GapCard
             icon={<HammerIcon className="size-4" />}
-            title="Not battle-tested"
-            description="Every feature here works, but 'works' and 'has been stress-tested by 10,000 users for one year' are not the same thing. Expect the occasional rough edge."
+            title="Less time in the wild"
+            description="More than 5,500 automated tests and daily use keep the quality up, but years of real users find edge cases no test suite does. If you hit one, tell me: fixes ship fast."
           />
         </div>
+        <p className="text-muted-foreground mt-4 mb-2">
+          And credit where it&apos;s due: the other tools genuinely do some things better.
+        </p>
+        <ul className="text-muted-foreground list-disc space-y-1.5 pl-5">
+          <li>
+            <span className="text-foreground font-medium">Piltover Archive</span> has condition
+            tracking, deck versioning, a sample hand simulator, a massive library of user and
+            tournament decklists, and by far the biggest community.
+          </li>
+          <li>
+            <span className="text-foreground font-medium">Riftbound.gg</span> has tournament meta
+            data plus a steady stream of articles and guides, which OpenRift doesn&apos;t have.
+          </li>
+          <li>
+            <span className="text-foreground font-medium">Riftcore</span> has card scanning,
+            AI-powered tools, and an Android app in the Play Store.
+          </li>
+        </ul>
+        <p className="text-muted-foreground mt-3">
+          If one of those is the feature you need today, use that tool. OpenRift imports and exports
+          in compatible formats, so you can run it alongside another tracker, or switch back and
+          forth, whenever you like.
+        </p>
       </section>
-
-      <Alert className="border-primary/20 bg-primary/5">
-        <AlertDescription className="text-foreground">
-          One thing the table below can&apos;t show: I have a long list of ideas no other Riftbound
-          app has yet. Those are the features I&apos;m most excited to build.
-        </AlertDescription>
-      </Alert>
 
       {/* Comparison table */}
       <section>
         <Heading className="mb-3">Feature comparison</Heading>
         <p className="text-muted-foreground mb-3">
-          The table compares OpenRift against the four most popular Riftbound card browsers, the
-          ones you&apos;re most likely to have tried. A checkmark means the feature is available; a
-          half circle means partial support; an X means not available; a question mark means
-          I&apos;m not sure.
+          This comparison is my own assessment as of mid-2026. Features change and I may have missed
+          things. If you believe something is inaccurate, please{" "}
+          <a
+            href="mailto:support@openrift.app"
+            className="text-primary hover:underline"
+            rel="noreferrer"
+          >
+            send me an email
+          </a>{" "}
+          so I can correct it or add more info.
+        </p>
+        <p className="text-muted-foreground mb-3">
+          The table compares OpenRift against the four Riftbound card browsers I know best, the ones
+          I used myself before building this. A checkmark means the feature is available, a half
+          circle means partial support, an X means not available, and a question mark means I&apos;m
+          not sure.
         </p>
         <p className="text-muted-foreground mb-3">
           OpenRift&apos;s own rows were last refreshed on 2026-07-01. The competitor counts and
           features were last verified on 2026-05-27 and may have drifted since. When you&apos;re
           reading this, it&apos;s probably already slightly out of date, as counts and features
-          change regularly.
+          change regularly. You can follow what changes on OpenRift&apos;s side in the{" "}
+          <Link to="/changelog" className="text-primary hover:underline">
+            changelog
+          </Link>
+          .
         </p>
 
         {/* Desktop: full table */}
@@ -463,23 +498,6 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
   },
   {
     kind: "row",
-    feature: "Collection sharing",
-    values: ["yes", "yes", "yes", "yes", "yes"],
-    detail: {
-      general: "Share a collection via public link.",
-    },
-  },
-  {
-    kind: "row",
-    feature: "Shared group collections",
-    values: ["yes", "no", "no", "no", "no"],
-    detail: {
-      general:
-        "Pool cards into a collection shared with a private group of friends, so members see the combined pool.",
-    },
-  },
-  {
-    kind: "row",
     feature: "Collection stats",
     values: ["yes", "yes", "yes", "yes", "yes"],
     detail: {
@@ -528,6 +546,7 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
         "Import from spreadsheets or other tools. Export your full collection to CSV any time.",
     },
   },
+  { kind: "section", title: "Trading & Groups" },
   {
     kind: "row",
     feature: "Wishlists / tradelists",
@@ -545,6 +564,14 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
   },
   {
     kind: "row",
+    feature: "Collection sharing",
+    values: ["yes", "yes", "yes", "yes", "yes"],
+    detail: {
+      general: "Share a collection via public link.",
+    },
+  },
+  {
+    kind: "row",
     feature: "Dynamic wishlists / tradelists",
     values: ["yes", "no", "no", "no", "yes"],
     detail: {
@@ -556,12 +583,32 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
   },
   {
     kind: "row",
+    feature: "Shared group collections",
+    values: ["yes", "no", "no", "no", "no"],
+    detail: {
+      general:
+        "Pool cards into a collection shared with a private group of friends, so members see the combined pool.",
+    },
+  },
+  {
+    kind: "row",
     feature: "Trade matching",
     values: ["yes", "no", "no", "no", "no"],
     detail: {
       general:
         "Matches your wishlists against what other members offer (and the reverse) inside a private group, with one-tap requests, price preferences, and email alerts.",
       openrift: "Built around small private groups rather than a public marketplace.",
+    },
+  },
+  {
+    kind: "row",
+    feature: "Tournament organizer tools",
+    values: ["yes", "no", "no", "no", "no"],
+    detail: {
+      general:
+        "Run an event yourself: free-for-all pod scoring and standings, player deck submission via a per-event link, and judge deck-check tools.",
+      openrift:
+        "Aimed at running casual leagues and pod events, not browsing other people's results.",
     },
   },
   { kind: "section", title: "Deck Building" },
@@ -693,6 +740,8 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
     detail: {
       general:
         "A native iOS or Android app installable from the app store, in addition to the website.",
+      openrift:
+        "No native app, by design: the site is built to be fast on phones, and 'Add to Home Screen' runs it full-screen like an app on both Android and iOS.",
       riftcore: "Android app available, no iOS version.",
     },
   },
@@ -762,34 +811,40 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
         "To be honest, I don't expect anyone to ever self-host this. But you COULD if you wanted.",
     },
   },
+  // Per-competitor Blacklight tracker counts are kept out of the rendered
+  // table on purpose: the comparison should present OpenRift, not shame other
+  // hobby projects. Preserved here so the next refresh doesn't re-measure
+  // from scratch. Blacklight (themarkup.org/blacklight), measured 2026-05-27:
+  //   OpenRift: 0 trackers, 0 third-party cookies (first-party Umami only)
+  //   Piltover Archive: 1 tracker (Alphabet), 0 third-party cookies
+  //   Riftbound.gg: 43 trackers (Sovrn, YieldMo, and 38 others), 50 third-party cookies
+  //   Riftmana: 24 trackers (Verizon Media, Criteo, and 20 others), 21 third-party cookies
+  //   Riftcore: 3 trackers (Alphabet), 1 third-party cookie
   {
     kind: "row",
-    feature: "Ad-free",
+    feature: "Ad-free, no third-party trackers",
     values: ["yes", "partial", "no", "partial", "partial"],
     detail: {
-      general: "No banner ads, no sponsored content, no affiliate-gated features.",
-      piltoverArchive:
-        "No visible ads yet, but 'No ads on site' is listed as a perk of paid community tiers on Metafy.gg.",
-      riftmana: "No visible ads yet, but ad network trackers are already in place.",
-      riftboundGg: "Banner ads shown throughout the site. Removed by DotGG Premium.",
-      riftcore: "No visible ads yet, but Google ad scripts are present.",
-    },
-  },
-  {
-    kind: "row",
-    feature: "Third-party ad trackers",
-    values: [0, 1, 43, 24, 3],
-    detail: {
       general:
-        "Number of third-party ad trackers detected by Blacklight (themarkup.org/blacklight). Lower is better, where 0 means none detected. Third-party cookies are listed per-site below.",
+        "No banner ads, no sponsored content, no third-party ad trackers or cookies. You can check any site yourself with Blacklight (themarkup.org/blacklight).",
       openrift:
-        "0 trackers, 0 third-party cookies. Uses first-party Umami for cookie-free analytics.",
-      piltoverArchive: "1 tracker (Alphabet), 0 third-party cookies.",
-      riftmana: "24 trackers (Verizon Media, Criteo, and 20 others), 21 third-party cookies.",
-      riftboundGg: "43 trackers (Sovrn, YieldMo, and 38 others), 50 third-party cookies.",
-      riftcore: "3 trackers (Alphabet), 1 third-party cookie.",
+        "No ads, zero third-party trackers, and zero third-party cookies, verified with Blacklight. Analytics is first-party, cookie-free Umami.",
+      piltoverArchive:
+        "No visible ads yet. Ad-free browsing is listed as a perk of paid supporter tiers.",
+      riftmana: "No visible ads yet, but ad network infrastructure is already in place.",
+      riftboundGg: "Banner ads shown throughout the site, removable with a paid subscription.",
+      riftcore: "No visible ads yet, but ad scripts are present.",
     },
   },
+  // Paid-tier specifics are kept out of the rendered details on purpose: the
+  // yes/partial values tell the story without itemizing anyone's pricing.
+  // As of 2026-05-27:
+  //   Piltover Archive: Metafy.gg tiers $1.99/mo (no ads), $4.99/mo (better
+  //     deck image exports), $9.99/mo (unlimited binders), $99.99/mo
+  //     (exclusive Discord)
+  //   Riftbound.gg: DotGG Premium $4.99/mo or $19.99/yr (ad removal)
+  //   Riftcore: $5-$20/mo (AI deck builder / judge / card scanner, voice
+  //     input, early access to new features)
   {
     kind: "row",
     feature: "Fully free",
@@ -797,12 +852,11 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
     detail: {
       general: "Every feature available without paying.",
       openrift: "Fully free. If this ever changes, I'll be upfront about it.",
-      piltoverArchive:
-        "Paid tiers on Metafy.gg from $1.99 to $99.99 per month unlock perks: no ads ($1.99), better deck image exports ($4.99), unlimited collection binders ($9.99), and an exclusive Discord ($99.99). Base site is free.",
+      piltoverArchive: "Paid supporter tiers unlock extra perks. The base site is free.",
       riftboundGg:
-        "$4.99/month or $19.99/year DotGG Premium subscription removes ads across the DotGG Network. Base site is free.",
+        "A paid subscription removes ads across the DotGG Network. The base site is free.",
       riftcore:
-        "Paid tiers from $5 to $20 per month gate AI tools (deck builder, judge, card scanner), voice input, and early access to new features.",
+        "Paid tiers gate the AI tools and early access to new features. The base site is free.",
     },
   },
   {
@@ -813,7 +867,7 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
       general: "A public roadmap on the site showing what's being worked on and what's planned.",
     },
   },
-  { kind: "section", title: "Community & Freshness" },
+  { kind: "section", title: "Community" },
   {
     kind: "row",
     feature: "Deck catalog",
@@ -844,17 +898,6 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
       riftmana: "Tournament decklists available, but not organized per tournament.",
       riftboundGg: "Tournament data plus decklists.",
       riftcore: "A mix of tournament and community data, but sourcing is unclear.",
-    },
-  },
-  {
-    kind: "row",
-    feature: "Tournament organizer tools",
-    values: ["yes", "no", "no", "no", "no"],
-    detail: {
-      general:
-        "Run an event yourself: free-for-all pod scoring and standings, player deck submission via a per-event link, and judge deck-check tools.",
-      openrift:
-        "Aimed at running casual leagues and pod events, not browsing other people's results.",
     },
   },
   {
