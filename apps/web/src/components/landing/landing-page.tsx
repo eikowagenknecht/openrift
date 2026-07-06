@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useCountUp } from "@/hooks/use-count-up";
 import { landingSummaryQueryOptions } from "@/lib/landing-summary-query";
@@ -137,12 +136,6 @@ export function LandingPage() {
               <div className="flex flex-col gap-1">
                 <div className="flex items-center justify-center gap-3 lg:justify-start">
                   <h1 className="font-heading text-4xl font-bold md:text-5xl">OpenRift</h1>
-                  <Badge
-                    variant="subtle"
-                    className="h-auto rounded py-1 leading-none font-semibold uppercase"
-                  >
-                    Beta
-                  </Badge>
                 </div>
                 {/* The motto lives in the brand lockup: as a free-standing
                     row below it competed with the tagline. */}
