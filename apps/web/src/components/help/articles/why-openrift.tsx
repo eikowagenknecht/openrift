@@ -6,9 +6,9 @@ import {
   Code2Icon,
   HammerIcon,
   HeartIcon,
-  SparklesIcon,
   SproutIcon,
   XIcon,
+  ZapIcon,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -28,21 +28,16 @@ export default function WhyOpenRiftArticle() {
         <div className="text-muted-foreground space-y-3">
           <p>Honestly? I just wanted to track my collection.</p>
           <p>
-            I tried what was already out there, but each site fell short in a different way. One was
-            missing cards. Another felt slow every time I pulled it up on my phone and sometimes
-            dropped cards mid-edit. A third had every feature you could want, but the basics
-            didn&apos;t feel solid underneath.
+            I&apos;ve tried pretty much every Riftbound collection tracker out there and each one
+            fell short for me somewhere. One was missing cards. Another felt slow on mobile and
+            dropped cards mid-edit. A third had every feature imaginable but was very buggy. And
+            none of them worked well on both desktop and phone.
           </p>
           <p>
-            And nothing really worked well on both desktop and mobile. Don&apos;t get me wrong,
-            there are great mobile apps, but they just don&apos;t sync with anything you can use at
-            a desk.
-          </p>
-          <p>
-            So naturally, after a full week of patient, rigorous evaluation, I did the only
-            reasonable thing and built my own from scratch. OpenRift is on its way to being the card
-            browser I wanted to use. Below is a side-by-side comparison so you can judge for
-            yourself.
+            So, naturally, after a full week of patient, rigorous evaluation, I did what any
+            software engineer would consider the only reasonable thing and built my own from
+            scratch. Four months later it&apos;s something I use every day, so I figured I&apos;d
+            share it.
           </p>
         </div>
       </section>
@@ -89,13 +84,13 @@ export default function WhyOpenRiftArticle() {
           />
           <FeatureCard
             icon={<HeartIcon className="size-4" />}
-            title="Community, not social network"
-            description="Small private groups, list sharing, and trading between members are all here, with more ideas in the works. No forums though, or anything else that needs full-time content moderation."
+            title="Private groups"
+            description="Form a small private group with friends or your local store crew: shared collections, an optional view into each other's cards, list sharing, and trade matching so you can see who has cards from your wishlists. Everything stays inside your group, and you make the trade in person."
           />
           <FeatureCard
-            icon={<SparklesIcon className="size-4" />}
-            title="No AI gimmicks"
-            description="No AI deck suggestions or natural language search. I don't think everything needs AI shoehorned into it, though I do use it to build the site."
+            icon={<ZapIcon className="size-4" />}
+            title="Built for speed"
+            description="Everything loads fast and stays responsive on desktop and phone, so browsing the catalog or editing a deck never leaves you waiting on a spinner."
           />
         </div>
       </section>
@@ -110,7 +105,7 @@ export default function WhyOpenRiftArticle() {
           <GapCard
             icon={<SproutIcon className="size-4" />}
             title="New kid on the block"
-            description="Every Riftbound player knows Piltover Archive. OpenRift doesn't have that recognition or the network effects yet. Join now and you can tell your grandchildren you were here before it was cool."
+            description="OpenRift is new and small. Most Riftbound players already use Piltover Archive. If you give it a try, you're one of the early ones."
           />
           <GapCard
             icon={<HammerIcon className="size-4" />}
