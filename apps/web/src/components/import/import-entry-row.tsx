@@ -1,13 +1,6 @@
 import type { Printing } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
-import {
-  AlertTriangleIcon,
-  CheckCircle2Icon,
-  ChevronDownIcon,
-  ChevronRightIcon,
-  SearchIcon,
-  XCircleIcon,
-} from "lucide-react";
+import { AlertTriangleIcon, CheckCircle2Icon, SearchIcon, XCircleIcon } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { PrintingHoverPreview } from "@/components/cards/printing-hover-preview";
@@ -16,6 +9,7 @@ import { usePrintingHover } from "@/components/cards/use-printing-hover";
 import { ImportRowRawFields, ImportRowShell } from "@/components/import/import-row-shell";
 import { PrintingSearch } from "@/components/printing-search";
 import { Button } from "@/components/ui/button";
+import { ExpandToggle } from "@/components/ui/expand-toggle";
 import {
   Select,
   SelectContent,
@@ -61,7 +55,6 @@ export function ImportEntryRow({
 }: ImportEntryRowProps) {
   const [showSearch, setShowSearch] = useState(false);
   const { icon: StatusIcon, className: statusColor } = BUCKET_CONFIG[getImportBucket(entry)];
-  const ChevronIcon = isExpanded ? ChevronDownIcon : ChevronRightIcon;
   const rawFieldEntries = Object.entries(entry.entry.rawFields);
   const hasCandidates = entry.candidates.length > 0;
   const { labels } = useEnumOrders();
@@ -71,14 +64,13 @@ export function ImportEntryRow({
     <div className={cn(isSkipped && "opacity-40")}>
       <ImportRowShell
         chevron={
-          <button
-            type="button"
+          <ExpandToggle
+            expanded={isExpanded}
             className="text-muted-foreground hover:text-foreground shrink-0"
+            chevronClassName="text-inherit"
             onClick={() => onToggleExpand(index)}
             aria-label={isExpanded ? "Collapse raw fields" : "Expand raw fields"}
-          >
-            <ChevronIcon className="size-4" />
-          </button>
+          />
         }
         statusIcon={<StatusIcon className={cn("size-4 shrink-0", statusColor)} />}
         quantity={entry.entry.quantity}

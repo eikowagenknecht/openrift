@@ -154,14 +154,17 @@ export function LoginForm({
                 <FieldError>
                   {form.formState.errors.root.message}
                   {emailNotVerified && (
-                    <button
+                    <Button
                       type="button"
-                      className="ml-1 underline underline-offset-2"
+                      variant="link-muted"
+                      // text-inherit keeps the link in the FieldError's color so it
+                      // reads as part of the error sentence.
+                      className="ml-1 h-auto px-0 text-inherit hover:text-inherit"
                       disabled={resending}
                       onClick={handleResend}
                     >
                       {resending ? "Sending..." : "Resend verification email"}
-                    </button>
+                    </Button>
                   )}
                 </FieldError>
               )}
@@ -270,9 +273,9 @@ export function LoginForm({
                       {otpLoading ? "Verifying..." : "Verify"}
                     </Button>
                   </Field>
-                  <button
+                  <Button
                     type="button"
-                    className="text-muted-foreground text-center text-sm underline underline-offset-2"
+                    variant="link-muted"
                     disabled={otpLoading}
                     onClick={() => {
                       setOtpStep("email");
@@ -281,7 +284,7 @@ export function LoginForm({
                     }}
                   >
                     Use a different email
-                  </button>
+                  </Button>
                 </>
               )}
             </FieldGroup>

@@ -364,14 +364,13 @@ function KnownSettingRow({
             value={value}
             onChange={(event) => setValue(event.target.value)}
             placeholder={known.placeholder}
-            className="h-8 w-72 font-mono"
+            className="w-72 font-mono"
           />
-          <Button variant="outline" size="sm" onClick={handleSave} disabled={pending}>
+          <Button variant="outline" onClick={handleSave} disabled={pending}>
             Save
           </Button>
           <Button
             variant="ghost"
-            size="sm"
             onClick={() => {
               setEditing(false);
               setValue("");

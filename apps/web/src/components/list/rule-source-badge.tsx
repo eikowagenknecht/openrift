@@ -2,6 +2,7 @@ import type { EntrySource } from "@openrift/shared";
 import { BanIcon, SparklesIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import { cn } from "@/lib/utils";
 
 const RULE_LABEL = "Added by a list rule";
@@ -47,26 +48,25 @@ export function RuleSourceBadge({
       // Match the neutral count pill exactly — same opaque muted background,
       // rounded-rect, no border — so the rule chip reads as its sibling; the
       // primary-colored sparkle + count (text-primary from the subtle variant)
-      // are what set it apart. See COUNT_PILL_BASE in cards/count-pill.ts.
+      // are what set it apart. See countPillVariants in ui/count-pill.tsx.
       className={cn("bg-muted rounded-md border-0", onExclude && "pr-0.5", className)}
       title={quantity === undefined ? RULE_LABEL : `${quantity} added by a list rule`}
     >
       <SparklesIcon aria-hidden />
       {quantity === undefined ? "Rule" : <span className="tabular-nums">×{quantity}</span>}
       {onExclude ? (
-        <button
-          type="button"
+        <ChipRemoveButton
           tabIndex={-1}
           aria-label={excludeLabel}
           title={excludeLabel}
-          className="hover:bg-destructive/15 hover:text-destructive -my-0.5 ml-0.5 rounded-sm p-0.5"
+          className="hover:bg-destructive/15 hover:text-destructive -my-0.5 p-0.5"
           onClick={(event) => {
             event.stopPropagation();
             onExclude();
           }}
         >
           <BanIcon className="size-3" aria-hidden />
-        </button>
+        </ChipRemoveButton>
       ) : null}
     </Badge>
   );

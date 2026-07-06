@@ -79,6 +79,7 @@ function FanCard({
           transform: `translateX(-50%) rotate(${baseAngle}deg)`,
         }}
       >
+        {/* oxlint-disable-next-line react/forbid-elements -- decorative aria-hidden hit area, deliberately keyboard-excluded */}
         <button
           ref={containerRef}
           type="button"

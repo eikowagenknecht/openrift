@@ -2,14 +2,7 @@ import type { RuleChangesResponse, RuleKind, RuleResponse } from "@openrift/shar
 import { compareRuleNumbers } from "@openrift/shared";
 import { useDebouncedCallback } from "@tanstack/react-pacer";
 import { Link, useNavigate } from "@tanstack/react-router";
-import {
-  ChevronDownIcon,
-  ChevronRightIcon,
-  ChevronsDownUpIcon,
-  ChevronsUpDownIcon,
-  CopyIcon,
-  FileClockIcon,
-} from "lucide-react";
+import { ChevronsDownUpIcon, ChevronsUpDownIcon, CopyIcon, FileClockIcon } from "lucide-react";
 import type { MouseEvent } from "react";
 import { useEffect, useState } from "react";
 import { flushSync } from "react-dom";
@@ -30,6 +23,8 @@ import {
 } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ExpandToggle } from "@/components/ui/expand-toggle";
+import { Pressable } from "@/components/ui/pressable";
 import {
   Select,
   SelectContent,
@@ -1140,14 +1135,13 @@ function RuleRow({
         isFolded && hasChildren && "bg-muted/50",
       )}
     >
-      <button
-        type="button"
+      <Pressable
         onClick={() => {
           void copyRuleLink(rule.ruleNumber);
         }}
         aria-label={`Copy link to rule ${formatRuleNumber(rule.ruleNumber)}`}
         className={cn(
-          "group/rule-number text-muted-foreground hover:text-foreground mr-3 flex shrink-0 cursor-pointer items-start gap-1 text-left font-mono text-xs no-underline",
+          "group/rule-number text-muted-foreground hover:text-foreground mr-3 flex shrink-0 items-start gap-1 font-mono text-xs no-underline",
           isTitle && "font-semibold",
         )}
       >
@@ -1156,7 +1150,7 @@ function RuleRow({
           aria-hidden="true"
           className="hidden size-3 opacity-0 transition-opacity group-hover/rule-number:opacity-100 sm:inline-block"
         />
-      </button>
+      </Pressable>
       <span
         className={cn(
           "min-w-0 flex-1",
@@ -1169,6 +1163,7 @@ function RuleRow({
           isChanged && previousContent !== undefined ? (
             <Badge
               render={
+                // oxlint-disable-next-line react/forbid-elements -- bare render slot; Badge owns all styling
                 <button
                   type="button"
                   onClick={() => toggleDiff(rule.ruleNumber)}
@@ -1218,19 +1213,13 @@ function RuleRow({
         ) : null}
         {hasChildren ? (
           <span className="float-right ml-3 flex size-4 shrink-0 items-start">
-            <button
-              type="button"
+            <ExpandToggle
+              expanded={!isFolded}
               onClick={() => toggle(rule.ruleNumber)}
               aria-label={isFolded ? "Expand rule group" : "Collapse rule group"}
-              aria-expanded={!isFolded}
-              className="text-muted-foreground hover:text-foreground flex size-4 items-center justify-center rounded no-underline"
-            >
-              {isFolded ? (
-                <ChevronRightIcon className="size-3" />
-              ) : (
-                <ChevronDownIcon className="size-3" />
-              )}
-            </button>
+              className="text-muted-foreground hover:text-foreground size-4 justify-center gap-0 rounded no-underline"
+              chevronClassName="size-3 text-inherit"
+            />
           </span>
         ) : null}
         {showInlineDiff ? (

@@ -176,14 +176,14 @@ function ResetPasswordPage() {
                   >
                     {loading ? "Resetting..." : "Reset password"}
                   </Button>
-                  <button
+                  <Button
                     type="button"
-                    className="text-muted-foreground text-sm underline underline-offset-2"
+                    variant="link-muted"
                     disabled={resending}
                     onClick={handleResend}
                   >
                     {resending ? "Sending..." : "Resend code"}
-                  </button>
+                  </Button>
                   <p className="text-muted-foreground text-sm text-balance">
                     Didn&apos;t get a code within a minute? Check your spam folder, then resend.
                   </p>

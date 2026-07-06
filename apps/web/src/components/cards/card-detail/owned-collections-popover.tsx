@@ -2,8 +2,8 @@ import type { Popover as PopoverPrimitive } from "@base-ui/react/popover";
 import { Link } from "@tanstack/react-router";
 import { PackageIcon } from "lucide-react";
 
-import { COUNT_PILL_BASE, COUNT_PILL_INTERACTIVE } from "@/components/cards/count-pill";
 import { FinishIcon } from "@/components/cards/finish-icon";
+import { COUNT_PILL_INTERACTIVE, countPillVariants } from "@/components/ui/count-pill";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useFilterValues } from "@/hooks/use-card-filters";
 import { useEnumOrders } from "@/hooks/use-enums";
@@ -73,7 +73,7 @@ export function OwnedCollectionsPopover({
     <Popover>
       <PopoverTrigger
         onClick={(event) => event.stopPropagation()}
-        className={cn(COUNT_PILL_BASE, COUNT_PILL_INTERACTIVE)}
+        className={cn(countPillVariants(), COUNT_PILL_INTERACTIVE)}
       >
         <PackageIcon className="size-3" />
         <span>&times;{totalOwned}</span>

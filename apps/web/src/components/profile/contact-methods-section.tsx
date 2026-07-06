@@ -88,7 +88,6 @@ function ContactMethodRow({ method }: { method: ContactMethod }) {
       />
       {canSave ? (
         <Button
-          size="sm"
           disabled={update.isPending}
           onClick={async () => {
             await update.mutateAsync({ id: method.id, type, value: value.trim() });
@@ -130,7 +129,6 @@ function AddContactMethod() {
         aria-label="New contact value"
       />
       <Button
-        size="sm"
         variant="outline"
         disabled={!canAdd || create.isPending}
         onClick={async () => {
@@ -138,7 +136,7 @@ function AddContactMethod() {
           setValue("");
         }}
       >
-        <PlusIcon className="size-4" />
+        <PlusIcon />
         Add
       </Button>
     </div>

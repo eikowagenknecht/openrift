@@ -4,6 +4,7 @@ import { MinusIcon, XIcon } from "lucide-react";
 import { CardIcon } from "@/components/card-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCustomTagList, useEnumOrders } from "@/hooks/use-enums";
 import { buildChannelBreadcrumbsBySlug } from "@/lib/channel-breadcrumbs";
@@ -348,13 +349,7 @@ export function ActiveFilters({
             <span className="text-muted-foreground hidden text-xs sm:inline">Search:</span>
             <Badge variant="secondary" className="gap-1">
               &ldquo;{filterState.search}&rdquo;
-              <button
-                type="button"
-                onClick={() => setSearch("")}
-                className="hover:text-foreground ml-0.5"
-              >
-                <XIcon className="size-3" />
-              </button>
+              <ChipRemoveButton aria-label="Clear search filter" onClick={() => setSearch("")} />
             </Badge>
           </div>
         )}
@@ -375,13 +370,10 @@ export function ActiveFilters({
                 <Badge key={`${key}-${value}`} variant="secondary" className="gap-1">
                   {icon && <CardIcon src={icon} />}
                   {displayFn(value)}
-                  <button
-                    type="button"
+                  <ChipRemoveButton
+                    aria-label={`Remove ${label} ${displayFn(value)}`}
                     onClick={() => toggleArrayFilter(key, value)}
-                    className="hover:text-foreground ml-0.5"
-                  >
-                    <XIcon className="size-3" />
-                  </button>
+                  />
                 </Badge>
               );
             })}
@@ -401,13 +393,10 @@ export function ActiveFilters({
                 return (
                   <Badge key={`customTags-${slug}`} variant="secondary" className="gap-1">
                     {tag?.label ?? slug}
-                    <button
-                      type="button"
+                    <ChipRemoveButton
+                      aria-label={`Remove tag ${tag?.label ?? slug}`}
                       onClick={() => toggleArrayFilter("customTags", slug)}
-                      className="hover:text-foreground ml-0.5"
-                    >
-                      <XIcon className="size-3" />
-                    </button>
+                    />
                   </Badge>
                 );
               })}
@@ -433,14 +422,10 @@ export function ActiveFilters({
                   <MinusIcon className="size-3 shrink-0" />
                   {icon && <CardIcon src={icon} />}
                   <span className="line-through">{displayFn(value)}</span>
-                  <button
-                    type="button"
-                    onClick={() => toggleArrayFilter(key, value)}
+                  <ChipRemoveButton
                     aria-label={`Remove excluded ${label} ${displayFn(value)}`}
-                    className="hover:text-foreground ml-0.5"
-                  >
-                    <XIcon className="size-3" />
-                  </button>
+                    onClick={() => toggleArrayFilter(key, value)}
+                  />
                 </Badge>
               );
             })}
@@ -465,14 +450,10 @@ export function ActiveFilters({
                   >
                     <MinusIcon className="size-3 shrink-0" />
                     <span className="line-through">{tag?.label ?? slug}</span>
-                    <button
-                      type="button"
-                      onClick={() => toggleArrayFilter("customTagsEx", slug)}
+                    <ChipRemoveButton
                       aria-label={`Remove excluded ${tag?.label ?? slug}`}
-                      className="hover:text-foreground ml-0.5"
-                    >
-                      <XIcon className="size-3" />
-                    </button>
+                      onClick={() => toggleArrayFilter("customTagsEx", slug)}
+                    />
                   </Badge>
                 );
               })}
@@ -569,14 +550,7 @@ function FlagChip({
       >
         {excluded && <MinusIcon className="size-3 shrink-0" />}
         <span className={cn(excluded && "line-through")}>{label}</span>
-        <button
-          type="button"
-          onClick={onClear}
-          aria-label={`Clear ${label} filter`}
-          className="hover:text-foreground ml-0.5"
-        >
-          <XIcon className="size-3" />
-        </button>
+        <ChipRemoveButton aria-label={`Clear ${label} filter`} onClick={onClear} />
       </Badge>
     </div>
   );
@@ -609,9 +583,7 @@ function RangeBadge({
             the chip ("Energy 1-3") — a bare range value alone is ambiguous. */}
         <span className="sm:hidden">{label}</span>
         {valueLabel}
-        <button type="button" onClick={onClear} className="hover:text-foreground ml-0.5">
-          <XIcon className="size-3" />
-        </button>
+        <ChipRemoveButton aria-label={`Clear ${label} filter`} onClick={onClear} />
       </Badge>
     </div>
   );

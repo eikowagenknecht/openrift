@@ -541,7 +541,7 @@ export function MultiSelectCombobox({
             // accent and a trailing right-chevron. The combobox appends its own
             // down-chevron, which we hide ([&>svg:last-of-type]) in favour of the
             // right-chevron that matches the sibling submenu rows.
-            // oxlint-disable-next-line jsx-a11y/control-has-associated-label -- label injected as ComboboxTrigger children below
+            // oxlint-disable-next-line jsx-a11y/control-has-associated-label, react/forbid-elements -- bespoke menu-item-row trigger; matches DropdownMenu item styling, no primitive covers it yet; label injected as ComboboxTrigger children below
             <button
               type="button"
               className="hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground data-popup-open:bg-accent data-popup-open:text-accent-foreground flex w-full cursor-default items-center gap-1.5 rounded-md px-1.5 py-1 text-sm outline-hidden select-none [&>svg:last-of-type]:hidden"
@@ -577,7 +577,7 @@ export function MultiSelectCombobox({
             <Badge
               variant={isActive ? "default" : "outline"}
               className="cursor-pointer [&>svg]:text-current"
-              // oxlint-disable-next-line jsx-a11y/control-has-associated-label -- label injected as ComboboxTrigger children below
+              // oxlint-disable-next-line jsx-a11y/control-has-associated-label, react/forbid-elements -- bare render slot; Badge owns all styling; label injected as ComboboxTrigger children below
               render={<button type="button" />}
             />
           }

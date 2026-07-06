@@ -6,6 +6,7 @@ import { ChevronDownIcon, PencilIcon } from "lucide-react";
 import type { CardMetaLookup } from "@/components/deck/deck-plan-view";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Pressable } from "@/components/ui/pressable";
 import { useCards } from "@/hooks/use-cards";
 import { deckPlanQueryOptions } from "@/hooks/use-deck-plan";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
@@ -381,19 +382,18 @@ function PlanThumb({
     );
   }
   return (
-    <button
-      type="button"
+    <Pressable
       onClick={() => onCardClick?.(cardId)}
       onMouseEnter={() => onHoverCard?.(cardId)}
       onMouseLeave={() => onHoverCard?.(null)}
       aria-label={`View ${cardName}`}
-      className="focus-visible:ring-ring block shrink-0 cursor-pointer rounded-md focus-visible:ring-2 focus-visible:outline-none"
+      className="block shrink-0 rounded-md"
     >
       <img
         src={imageUrl(imageId, "400w")}
         alt={cardName}
         className={cn("rounded-md object-cover shadow-sm", className)}
       />
-    </button>
+    </Pressable>
   );
 }

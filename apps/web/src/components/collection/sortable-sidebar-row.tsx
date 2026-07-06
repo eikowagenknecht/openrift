@@ -73,6 +73,7 @@ export function SortableSidebarRow({ id, data, label, children }: SortableSideba
   };
 
   const handle = (
+    // oxlint-disable-next-line react/forbid-elements -- dnd-kit drag activator with bespoke reveal/positioning
     <button
       ref={setActivatorNodeRef}
       {...attributes}

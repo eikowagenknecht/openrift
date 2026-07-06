@@ -6,12 +6,13 @@ import type {
   MarketplaceInfo,
 } from "@openrift/shared";
 import { legendDisplayName } from "@openrift/shared";
-import { ChevronRightIcon } from "lucide-react";
 import { useState } from "react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { MatchPreferenceCell } from "@/components/trade-preferences/match-preference-cell";
 import { Button } from "@/components/ui/button";
+import { ExpandToggle } from "@/components/ui/expand-toggle";
+import { Pressable } from "@/components/ui/pressable";
 import {
   useAcceptTrade,
   useCreateTrade,
@@ -486,11 +487,10 @@ function MatchTradeRowGroup({
             wrapper dissolves (sm:contents) and the chevron's sm:order-last drops
             it to the far right, past the member chip and status. */}
         <div className="flex min-w-0 items-center gap-3 sm:contents">
-          <button
-            type="button"
+          <Pressable
             onClick={() => toggle(group.foldId)}
             aria-expanded={expanded}
-            className="hover:text-foreground flex min-w-0 flex-1 items-center gap-3 text-left transition-colors"
+            className="hover:text-foreground flex min-w-0 flex-1 items-center gap-3 transition-colors"
           >
             <TradeDirectionIcon incoming={incoming} />
 
@@ -522,20 +522,15 @@ function MatchTradeRowGroup({
                 listNames={group.variants.map((variant) => variant.viewerListName)}
               />
             </span>
-          </button>
+          </Pressable>
 
-          <button
-            type="button"
+          <ExpandToggle
+            expanded={expanded}
             onClick={() => toggle(group.foldId)}
-            aria-expanded={expanded}
             aria-label={expanded ? "Collapse variants" : "Expand variants"}
             className="text-muted-foreground hover:text-foreground shrink-0 transition-colors sm:order-last"
-          >
-            <ChevronRightIcon
-              className={cn("size-4 transition-transform", expanded && "rotate-90")}
-              aria-hidden="true"
-            />
-          </button>
+            chevronClassName="text-inherit"
+          />
         </div>
 
         {showCounterparty || headerStatus ? (

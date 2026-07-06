@@ -40,6 +40,7 @@ export function CardDetailHeading({
           {card.superTypes.length > 0 ? `${card.superTypes.join(" ")} ${card.type}` : card.type}
         </span>
         {card.tags.map((tag) => (
+          // oxlint-disable-next-line react/forbid-elements -- bespoke skewed tag chip; transform-styled, no primitive fits
           <button
             key={tag}
             type="button"

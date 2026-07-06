@@ -36,6 +36,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Card as CardPanel } from "@/components/ui/card";
+import { Pressable } from "@/components/ui/pressable";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
 import { useDomainColors } from "@/hooks/use-domain-colors";
@@ -678,12 +679,11 @@ function PrintingCard({
     .join(", ");
 
   return (
-    <button
-      type="button"
+    <Pressable
       onClick={onSelect}
       aria-pressed={isSelected}
       data-printing-id={printing.id}
-      className="block w-full rounded-xl text-left"
+      className="block w-full rounded-xl"
     >
       <CardPanel
         className={cn(
@@ -718,7 +718,7 @@ function PrintingCard({
           )}
         </div>
       </CardPanel>
-    </button>
+    </Pressable>
   );
 }
 

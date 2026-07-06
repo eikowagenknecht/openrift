@@ -2,7 +2,7 @@ import type { Popover as PopoverPrimitive } from "@base-ui/react/popover";
 import { Link } from "@tanstack/react-router";
 import { HeartIcon } from "lucide-react";
 
-import { COUNT_PILL_BASE, COUNT_PILL_INTERACTIVE } from "@/components/cards/count-pill";
+import { COUNT_PILL_INTERACTIVE, countPillVariants } from "@/components/ui/count-pill";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { WishEntryFlat } from "@/hooks/use-wish-entries";
 import { cn } from "@/lib/utils";
@@ -34,7 +34,7 @@ export function WishlistHeart({
       <PopoverTrigger
         onClick={(event) => event.stopPropagation()}
         tabIndex={-1}
-        className={cn(COUNT_PILL_BASE, COUNT_PILL_INTERACTIVE, "gap-0.5 px-1.5")}
+        className={cn(countPillVariants(), COUNT_PILL_INTERACTIVE, "gap-0.5 px-1.5")}
         title={
           totalQuantity > 1 ? `On your ${listLabel} (×${totalQuantity})` : `On your ${listLabel}`
         }

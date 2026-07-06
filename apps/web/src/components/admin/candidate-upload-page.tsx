@@ -601,14 +601,17 @@ function ProviderNameCell({ row }: AdminCellSlotProps<ProviderRow>) {
   }
   return (
     <span className={cn("flex items-center gap-2", row.isHidden && "opacity-50")}>
-      <button
+      <Button
         type="button"
-        className="text-muted-foreground hover:text-foreground"
+        variant="ghost"
+        size="icon-sm"
+        className="text-muted-foreground"
         onClick={() => updateSetting.mutate({ provider: row.name, isHidden: !row.isHidden })}
         title={row.isHidden ? "Show provider" : "Hide provider"}
+        aria-label={row.isHidden ? "Show provider" : "Hide provider"}
       >
         {row.isHidden ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
-      </button>
+      </Button>
       <span className="text-sm font-medium">{row.name}</span>
     </span>
   );

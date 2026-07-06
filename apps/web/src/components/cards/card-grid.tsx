@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Fragment, memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
+import { Pressable } from "@/components/ui/pressable";
 import { useAdminSettings } from "@/hooks/use-admin-settings";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useHeaderHeight } from "@/hooks/use-header-height";
@@ -74,14 +75,13 @@ const GroupHeaderLabel = memo(function GroupHeaderLabel({
   className?: string;
 }) {
   return (
-    <button
-      type="button"
-      className={cn("flex cursor-pointer flex-row gap-3 text-sm", className)}
+    <Pressable
+      className={cn("flex flex-row gap-3 text-sm", className)}
       onClick={() => onSelect(groupId)}
     >
       {slug && <span className="text-muted-foreground font-medium">{slug}</span>}
       <span className="font-semibold">{name}</span>
-    </button>
+    </Pressable>
   );
 });
 

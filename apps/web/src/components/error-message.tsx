@@ -127,13 +127,13 @@ export function ErrorMessageLayout({
             </a>
           )}
           {reload && (
-            <button
+            <Button
               type="button"
-              className={buttonVariants({ variant: goHome ? "outline" : "default" })}
+              variant={goHome ? "outline" : "default"}
               onClick={() => globalThis.location.reload()}
             >
               Reshuffle
-            </button>
+            </Button>
           )}
         </div>
       )}

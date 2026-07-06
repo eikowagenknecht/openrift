@@ -1,0 +1,1259 @@
+import { Link } from "@tanstack/react-router";
+import {
+  BellIcon,
+  ChevronDownIcon,
+  CopyIcon,
+  EllipsisVerticalIcon,
+  HeartIcon,
+  InfoIcon,
+  PackageIcon,
+  PlusIcon,
+  SearchIcon,
+  SettingsIcon,
+  Trash2Icon,
+  TriangleAlertIcon,
+} from "lucide-react";
+import type { ReactNode } from "react";
+import { useState } from "react";
+import { Area, AreaChart } from "recharts";
+import { toast } from "sonner";
+
+import { CardCountStrip } from "@/components/cards/card-count-strip";
+import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
+import { MultiSelectCombobox } from "@/components/filters/multi-select-combobox";
+import { SearchInput } from "@/components/filters/search-input";
+import { Heading } from "@/components/heading";
+import {
+  PageDescription,
+  PageTopBar,
+  PageTopBarActions,
+  PageTopBarBack,
+  PageTopBarButton,
+  PageTopBarIconButton,
+  PageTopBarPrimaryButton,
+  PageTopBarTitle,
+} from "@/components/layout/page-top-bar";
+import { TopBarBreadcrumbTrail } from "@/components/layout/top-bar-breadcrumb";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ButtonGroup, ButtonGroupSeparator } from "@/components/ui/button-group";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { ChartContainer } from "@/components/ui/chart";
+import type { ChartConfig } from "@/components/ui/chart";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxTrigger,
+} from "@/components/ui/combobox";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import { CountPill, CountPillButton } from "@/components/ui/count-pill";
+import { DatePicker } from "@/components/ui/date-picker";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { ExpandToggle } from "@/components/ui/expand-toggle";
+import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { Input } from "@/components/ui/input";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import { Label } from "@/components/ui/label";
+import { PickerList, PickerRow } from "@/components/ui/picker-list";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Pressable } from "@/components/ui/pressable";
+import { Progress } from "@/components/ui/progress";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { Toggle } from "@/components/ui/toggle";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { UserAvatar } from "@/components/user-avatar";
+import { cn } from "@/lib/utils";
+
+const BUTTON_VARIANTS = [
+  "default",
+  "secondary",
+  "outline",
+  "ghost",
+  "destructive",
+  "link",
+  "link-muted",
+  "dashed",
+  "glass-pill",
+] as const;
+
+const BUTTON_SIZES = ["xs", "sm", "default", "lg"] as const;
+const ICON_SIZES = ["icon-xs", "icon-sm", "icon", "icon-lg"] as const;
+
+const BADGE_VARIANTS = [
+  "default",
+  "secondary",
+  "destructive",
+  "outline",
+  "ghost",
+  "link",
+  "success",
+  "warning",
+  "muted",
+  "subtle",
+  "count",
+] as const;
+
+const SECTIONS = [
+  { id: "buttons", title: "Buttons" },
+  { id: "top-bar-buttons", title: "Top-bar buttons" },
+  { id: "toggles", title: "Toggles" },
+  { id: "badges-chips", title: "Badges & chips" },
+  { id: "pressable", title: "Pressable & disclosure" },
+  { id: "form-controls", title: "Form controls" },
+  { id: "pickers", title: "Pickers & commands" },
+  { id: "overlays", title: "Overlays" },
+  { id: "feedback", title: "Feedback & status" },
+  { id: "layout", title: "Layout & data" },
+  { id: "composites", title: "Composites" },
+] as const;
+
+/**
+ * Admin-only kitchen sink: every `components/ui/` primitive rendered in its
+ * variants so drift is visible at a glance. Toggle the app theme in the header
+ * to review both modes. When you add a primitive to `ui/`, add a demo here.
+ *
+ * @returns The design review page.
+ */
+export function DesignPage() {
+  return (
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-10 pb-16">
+      <div className="space-y-3">
+        <Heading level={1}>Design</Heading>
+        <p className="text-muted-foreground">
+          Every UI primitive in one place. Check both themes with the header toggle. Raw{" "}
+          <code className="font-mono text-sm">&lt;button&gt;</code> elements are banned by lint
+          outside <code className="font-mono text-sm">components/ui/</code>, so everything
+          interactive below is the canonical way to build it.
+        </p>
+        <nav className="flex flex-wrap gap-x-4 gap-y-1">
+          {SECTIONS.map((section) => (
+            <a
+              key={section.id}
+              href={`#${section.id}`}
+              className="text-muted-foreground hover:text-foreground text-sm underline underline-offset-2"
+            >
+              {section.title}
+            </a>
+          ))}
+        </nav>
+      </div>
+
+      <ButtonsSection />
+      <TopBarButtonsSection />
+      <TogglesSection />
+      <BadgesChipsSection />
+      <PressableSection />
+      <FormControlsSection />
+      <PickersSection />
+      <OverlaysSection />
+      <FeedbackSection />
+      <LayoutSection />
+      <CompositesSection />
+    </div>
+  );
+}
+
+function DemoSection({
+  id,
+  title,
+  note,
+  children,
+}: {
+  id: string;
+  title: string;
+  note?: string;
+  children: ReactNode;
+}) {
+  return (
+    <section id={id} className="scroll-mt-20 space-y-4">
+      <div className="space-y-1">
+        <Heading level={2}>{title}</Heading>
+        {note && <p className="text-muted-foreground text-sm">{note}</p>}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function DemoRow({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+  return (
+    <div className="space-y-2">
+      <div className="space-y-0.5">
+        <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">{label}</p>
+        {hint && <p className="text-muted-foreground text-xs">{hint}</p>}
+      </div>
+      <div className="flex flex-wrap items-center gap-2">{children}</div>
+    </div>
+  );
+}
+
+// One component per cell: the component's name, a one-line "what it's for"
+// hint, then the live demo. Sections whose demos are variant sweeps of a
+// single component (Buttons, Badges) use DemoRow instead.
+function Demo({
+  name,
+  hint,
+  children,
+  className,
+}: {
+  name: string;
+  hint: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("flex min-w-0 flex-col gap-3 rounded-lg border p-3", className)}>
+      <div className="space-y-0.5">
+        <p className="font-mono text-sm font-medium">{name}</p>
+        <p className="text-muted-foreground text-xs">{hint}</p>
+      </div>
+      <div className="flex min-w-0 flex-1 flex-wrap content-start items-center gap-2">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function DemoGrid({ children }: { children: ReactNode }) {
+  return <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{children}</div>;
+}
+
+function ButtonsSection() {
+  return (
+    <DemoSection
+      id="buttons"
+      title="Buttons"
+      note="One filled primary per surface; ghost for secondary icon actions. Never hand-roll heights."
+    >
+      <DemoRow label="Variants">
+        {BUTTON_VARIANTS.map((variant) => (
+          <Button key={variant} variant={variant}>
+            {variant}
+          </Button>
+        ))}
+      </DemoRow>
+      <DemoRow label="Sizes">
+        {BUTTON_SIZES.map((size) => (
+          <Button key={size} variant="outline" size={size}>
+            {size}
+          </Button>
+        ))}
+      </DemoRow>
+      <DemoRow label="Icon sizes (ghost)">
+        {ICON_SIZES.map((size) => (
+          <Button key={size} variant="ghost" size={size} aria-label={`Settings (${size})`}>
+            <SettingsIcon />
+          </Button>
+        ))}
+      </DemoRow>
+      <DemoRow label="With icon / disabled / group">
+        <Button>
+          <PlusIcon /> Add card
+        </Button>
+        <Button variant="destructive">
+          <Trash2Icon /> Delete deck
+        </Button>
+        <Button disabled>Disabled</Button>
+        <ButtonGroup>
+          <Button variant="outline">Cards</Button>
+          <ButtonGroupSeparator />
+          <Button variant="outline">Printings</Button>
+          <ButtonGroupSeparator />
+          <Button variant="outline">Copies</Button>
+        </ButtonGroup>
+      </DemoRow>
+    </DemoSection>
+  );
+}
+
+function TopBarButtonsSection() {
+  return (
+    <DemoSection
+      id="top-bar-buttons"
+      title="Top-bar buttons"
+      note="Only inside PageTopBarActions. One PageTopBarPrimaryButton per bar, everything else ghost."
+    >
+      <DemoRow label="Ladder">
+        <PageTopBarButton>
+          <CopyIcon /> Copy code
+        </PageTopBarButton>
+        <PageTopBarPrimaryButton>
+          <PlusIcon /> New deck
+        </PageTopBarPrimaryButton>
+        <PageTopBarIconButton aria-label="Notifications">
+          <BellIcon />
+        </PageTopBarIconButton>
+      </DemoRow>
+    </DemoSection>
+  );
+}
+
+function TogglesSection() {
+  const [view, setView] = useState("grid");
+  return (
+    <DemoSection
+      id="toggles"
+      title="Toggles"
+      note="Toggle for a single pressed state, ToggleGroup for exclusive choices, Switch for settings."
+    >
+      <DemoRow
+        label="Toggle variants"
+        hint="Two variants: default (borderless) and outline. Shown unpressed and pressed."
+      >
+        <Toggle aria-label="Toggle, default variant">default</Toggle>
+        <Toggle defaultPressed aria-label="Toggle, default variant, pressed">
+          default pressed
+        </Toggle>
+        <Toggle variant="outline" aria-label="Toggle, outline variant">
+          outline
+        </Toggle>
+        <Toggle variant="outline" defaultPressed aria-label="Toggle, outline variant, pressed">
+          outline pressed
+        </Toggle>
+      </DemoRow>
+      <DemoRow label="Toggle sizes">
+        <Toggle variant="outline" size="sm" aria-label="Small toggle">
+          <HeartIcon /> sm
+        </Toggle>
+        <Toggle variant="outline" aria-label="Default-size toggle">
+          <HeartIcon /> default
+        </Toggle>
+        <Toggle variant="outline" size="lg" aria-label="Large toggle">
+          <HeartIcon /> lg
+        </Toggle>
+      </DemoRow>
+      <DemoRow label="ToggleGroup" hint="The exclusive-choice strip (view modes).">
+        <ToggleGroup
+          value={[view]}
+          onValueChange={(value) => {
+            const next = value.at(0);
+            if (typeof next === "string") {
+              setView(next);
+            }
+          }}
+        >
+          <ToggleGroupItem value="grid">Grid</ToggleGroupItem>
+          <ToggleGroupItem value="table">Table</ToggleGroupItem>
+        </ToggleGroup>
+      </DemoRow>
+    </DemoSection>
+  );
+}
+
+function BadgesChipsSection() {
+  const [tags, setTags] = useState(["Aggro", "Budget", "Favorite"]);
+  return (
+    <DemoSection
+      id="badges-chips"
+      title="Badges & chips"
+      note="ChipRemoveButton is the only way to put an action inside a Badge. CountPill for the h-5 count strips."
+    >
+      <DemoRow label="Badge variants">
+        {BADGE_VARIANTS.map((variant) => (
+          <Badge key={variant} variant={variant}>
+            {variant}
+          </Badge>
+        ))}
+      </DemoRow>
+      <DemoRow label="Removable chips (ChipRemoveButton)">
+        {tags.map((tag) => (
+          <Badge key={tag} variant="secondary" className="gap-1">
+            {tag}
+            <ChipRemoveButton
+              aria-label={`Remove ${tag}`}
+              onClick={() => setTags((prev) => prev.filter((t) => t !== tag))}
+            />
+          </Badge>
+        ))}
+        {tags.length < 3 && (
+          <Button
+            variant="ghost"
+            size="xs"
+            onClick={() => setTags(["Aggro", "Budget", "Favorite"])}
+          >
+            Reset
+          </Button>
+        )}
+      </DemoRow>
+      <DemoRow label="CountPill">
+        <CountPill>
+          <PackageIcon className="size-3" />
+          <span>×4</span>
+        </CountPill>
+        <CountPill variant="primary">Requested</CountPill>
+        <CountPill variant="success">Reserved</CountPill>
+        <CountPillButton onClick={() => toast.success("Requested")}>
+          <HeartIcon className="size-3" />
+          <span>Request</span>
+        </CountPillButton>
+        <CountPillButton disabled>
+          <HeartIcon className="size-3" />
+          <span>Request</span>
+        </CountPillButton>
+      </DemoRow>
+    </DemoSection>
+  );
+}
+
+function PressableSection() {
+  const [expanded, setExpanded] = useState(true);
+  return (
+    <DemoSection
+      id="pressable"
+      title="Pressable & disclosure"
+      note="Pressable is the unstyled-but-accessible clickable region. ExpandToggle owns aria-expanded and the rotating chevron."
+    >
+      <DemoRow label="Pressable (rich clickable row)">
+        <Pressable
+          className="hover:bg-muted/50 flex w-full max-w-sm items-center gap-3 rounded-lg border p-2"
+          onClick={() => toast("Row pressed")}
+        >
+          <div className="bg-muted flex size-10 shrink-0 items-center justify-center rounded-md">
+            <PackageIcon className="text-muted-foreground size-4" />
+          </div>
+          <div className="min-w-0">
+            <div className="truncate font-medium">Piltover Trader</div>
+            <div className="text-muted-foreground text-xs">OGN-042 · Epic</div>
+          </div>
+        </Pressable>
+      </DemoRow>
+      <DemoRow label="ExpandToggle">
+        <div className="w-full max-w-sm space-y-2">
+          <ExpandToggle expanded={expanded} onClick={() => setExpanded((v) => !v)}>
+            <span className="font-medium">Sideboard plan</span>
+            <span className="text-muted-foreground text-xs">3 matchups</span>
+          </ExpandToggle>
+          {expanded && (
+            <p className="text-muted-foreground pl-6 text-sm">
+              Against control, bring in the burn package.
+            </p>
+          )}
+          <ExpandToggle
+            expanded={expanded}
+            onClick={() => setExpanded((v) => !v)}
+            aria-label={expanded ? "Collapse" : "Expand"}
+            className="text-muted-foreground hover:text-foreground"
+          />
+        </div>
+      </DemoRow>
+    </DemoSection>
+  );
+}
+
+function FormControlsSection() {
+  const [date, setDate] = useState<string | undefined>();
+  const [energy, setEnergy] = useState("any");
+  const energyItems = [
+    { value: "any", label: "Any energy" },
+    { value: "low", label: "0–2 energy" },
+    { value: "high", label: "6+ energy" },
+  ];
+  return (
+    <DemoSection
+      id="form-controls"
+      title="Form controls"
+      note="Date entry always via DatePicker. Selects pass items when values differ from labels."
+    >
+      <DemoGrid>
+        <Demo name="Field + Input" hint="Label, control, helper text. The standard form row.">
+          <Field>
+            <FieldLabel htmlFor="design-name">Deck name</FieldLabel>
+            <Input id="design-name" placeholder="Jinx Aggro" />
+            <FieldDescription>Shown on your public deck page.</FieldDescription>
+          </Field>
+        </Demo>
+        <Demo name="Field (invalid)" hint="aria-invalid on the control drives the error styling.">
+          <Field data-invalid>
+            <FieldLabel htmlFor="design-code">Deck code</FieldLabel>
+            <Input id="design-code" aria-invalid placeholder="RIFT-…" />
+            <FieldError>That code doesn&apos;t look right.</FieldError>
+          </Field>
+        </Demo>
+        <Demo name="Textarea" hint="Multi-line free text, auto-growing.">
+          <Field>
+            <FieldLabel htmlFor="design-notes">Notes</FieldLabel>
+            <Textarea id="design-notes" placeholder="Mulligan aggressively for early units…" />
+          </Field>
+        </Demo>
+        <Demo name="Select" hint="Pass items when values differ from labels (BaseUI quirk).">
+          <Select
+            items={energyItems}
+            value={energy}
+            onValueChange={(v) => {
+              if (v !== null) {
+                setEnergy(v);
+              }
+            }}
+          >
+            <SelectTrigger aria-label="Energy cost">
+              <SelectValue placeholder="Pick a range" />
+            </SelectTrigger>
+            <SelectContent>
+              {energyItems.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Demo>
+        <Demo name="DatePicker" hint="The only sanctioned date entry. Never a raw date input.">
+          <DatePicker value={date} onChange={setDate} onClear={() => setDate(undefined)} />
+        </Demo>
+        <Demo name="Checkbox" hint="Binary option in forms and filter panels.">
+          <Label className="flex items-center gap-2">
+            <Checkbox defaultChecked /> Foils only
+          </Label>
+        </Demo>
+        <Demo name="RadioGroup" hint="Exclusive choice when all options should stay visible.">
+          <RadioGroup defaultValue="all" className="flex items-center gap-4">
+            <Label className="flex items-center gap-2">
+              <RadioGroupItem value="all" /> All
+            </Label>
+            <Label className="flex items-center gap-2">
+              <RadioGroupItem value="owned" /> Owned
+            </Label>
+          </RadioGroup>
+        </Demo>
+        <Demo name="Switch" hint="Instant-effect setting, not a form field.">
+          <Label className="flex items-center gap-2">
+            <Switch defaultChecked /> Show prices
+          </Label>
+        </Demo>
+        <Demo name="Slider" hint="Numeric range entry (e.g. column count, max energy).">
+          <Slider defaultValue={[3]} max={10} className="w-40" aria-label="Max energy" />
+        </Demo>
+        <Demo name="InputGroup" hint="Input with addon slots. SearchInput builds on this.">
+          <InputGroup className="w-56">
+            <InputGroupAddon>
+              <SearchIcon />
+            </InputGroupAddon>
+            <InputGroupInput placeholder="Search cards…" />
+          </InputGroup>
+        </Demo>
+        <Demo name="InputOTP" hint="Verification-code entry (email codes).">
+          <InputOTP maxLength={6}>
+            <InputOTPGroup>
+              {[0, 1, 2, 3, 4, 5].map((index) => (
+                <InputOTPSlot key={index} index={index} />
+              ))}
+            </InputOTPGroup>
+          </InputOTP>
+        </Demo>
+        <Demo name="Kbd" hint="Keyboard shortcut hints in menus and palettes.">
+          <KbdGroup>
+            <Kbd>Ctrl</Kbd>
+            <Kbd>K</Kbd>
+          </KbdGroup>
+        </Demo>
+        <Demo
+          name="Control row"
+          hint="Boxed controls in one row share the h-8 tier: default Select, Input, and Button align. Never mix in sm/xs boxes (docs/design-language.md)."
+          className="sm:col-span-2"
+        >
+          <div className="flex w-full items-center gap-2">
+            <Select
+              items={energyItems}
+              value={energy}
+              onValueChange={(v) => {
+                if (v !== null) {
+                  setEnergy(v);
+                }
+              }}
+            >
+              <SelectTrigger className="w-36 shrink-0" aria-label="Kind">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {energyItems.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input placeholder="Value…" className="flex-1" aria-label="Value" />
+            <Button variant="outline">
+              <PlusIcon /> Add
+            </Button>
+          </div>
+        </Demo>
+      </DemoGrid>
+    </DemoSection>
+  );
+}
+
+const CHAMPIONS = ["Ahri", "Jinx", "Teemo", "Viktor", "Yasuo"];
+
+function PickersSection() {
+  const [champions, setChampions] = useState<string[]>(["Jinx"]);
+  const [highlighted, setHighlighted] = useState("");
+  return (
+    <DemoSection
+      id="pickers"
+      title="Pickers & commands"
+      note="Combobox for searchable selects, Command for palettes, PickerList for keyboard-driven popover lists."
+    >
+      <DemoGrid>
+        <Demo name="Combobox" hint="Searchable (multi-)select behind a trigger.">
+          <Combobox<string, true>
+            multiple
+            items={CHAMPIONS}
+            value={champions}
+            onValueChange={setChampions}
+          >
+            <ComboboxTrigger className="border-input bg-background hover:bg-accent/40 flex h-8 w-56 items-center justify-between rounded-md border px-3 text-sm">
+              <span className={champions.length === 0 ? "text-muted-foreground" : ""}>
+                {champions.length === 0 ? "Pick legends…" : champions.join(" + ")}
+              </span>
+            </ComboboxTrigger>
+            <ComboboxContent className="w-(--anchor-width) min-w-56">
+              <ComboboxInput placeholder="Search legends…" showTrigger={false} />
+              <ComboboxEmpty>No matching legend.</ComboboxEmpty>
+              <ComboboxList>
+                {(name: string) => (
+                  <ComboboxItem key={name} value={name}>
+                    {name}
+                  </ComboboxItem>
+                )}
+              </ComboboxList>
+            </ComboboxContent>
+          </Combobox>
+        </Demo>
+        <Demo name="Command" hint="cmdk palette: typed search over grouped actions.">
+          <Command className="w-full max-w-64 rounded-lg border">
+            <CommandInput placeholder="Quick add…" />
+            <CommandList>
+              <CommandEmpty>No results.</CommandEmpty>
+              <CommandGroup heading="Cards">
+                {CHAMPIONS.slice(0, 3).map((name) => (
+                  <CommandItem key={name} onSelect={() => toast(`Added ${name}`)}>
+                    {name}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </Demo>
+        <Demo name="PickerList" hint="Keyboard-navigable row list for popovers (arrows + Enter).">
+          <div className="w-full max-w-56 rounded-lg border">
+            <PickerList highlightedId={highlighted} onHighlightChange={setHighlighted}>
+              {CHAMPIONS.slice(0, 3).map((name) => (
+                <PickerRow key={name} value={name} onSelect={() => toast(`Picked ${name}`)}>
+                  {name}
+                </PickerRow>
+              ))}
+            </PickerList>
+          </div>
+        </Demo>
+      </DemoGrid>
+    </DemoSection>
+  );
+}
+
+function OverlaysSection() {
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [alertOpen, setAlertOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  return (
+    <DemoSection
+      id="overlays"
+      title="Overlays"
+      note="Triggers pass primitives via the render prop. Every overlay needs a title for screen readers."
+    >
+      <DemoRow
+        label="Dialogs & panels"
+        hint="Dialog for tasks, AlertDialog for confirmations, Sheet for side panels, Drawer for mobile bottom sheets."
+      >
+        <Button variant="outline" onClick={() => setDialogOpen(true)}>
+          Dialog
+        </Button>
+        <Button variant="outline" onClick={() => setAlertOpen(true)}>
+          Alert dialog
+        </Button>
+        <Button variant="outline" onClick={() => setSheetOpen(true)}>
+          Sheet
+        </Button>
+        <Button variant="outline" onClick={() => setDrawerOpen(true)}>
+          Drawer
+        </Button>
+      </DemoRow>
+      <DemoRow
+        label="Menus & popovers"
+        hint="DropdownMenu for actions, Popover for rich content, Tooltip for icon labels, HoverCard for link previews, ContextMenu on right-click."
+      >
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button variant="outline">
+                Menu <ChevronDownIcon />
+              </Button>
+            }
+          />
+          <DropdownMenuContent>
+            <DropdownMenuItem onClick={() => toast("Renamed")}>Rename</DropdownMenuItem>
+            <DropdownMenuItem variant="destructive" onClick={() => toast("Deleted")}>
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <Popover>
+          <PopoverTrigger render={<Button variant="outline">Popover</Button>} />
+          <PopoverContent className="w-56 text-sm">
+            Anything can live here, like the owned-collections breakdown.
+          </PopoverContent>
+        </Popover>
+        <Tooltip>
+          <TooltipTrigger render={<Button variant="outline">Tooltip</Button>} />
+          <TooltipContent>Exact copies owned, including foils.</TooltipContent>
+        </Tooltip>
+        <HoverCard>
+          <HoverCardTrigger render={<Button variant="link">Hover card</Button>} />
+          <HoverCardContent className="text-sm">
+            Rich preview content, like a card image on name hover.
+          </HoverCardContent>
+        </HoverCard>
+        <ContextMenu>
+          <ContextMenuTrigger className="text-muted-foreground rounded-lg border border-dashed px-4 py-2 text-sm">
+            Right-click me
+          </ContextMenuTrigger>
+          <ContextMenuContent>
+            <ContextMenuItem onClick={() => toast("Added to wishlist")}>
+              Add to wishlist
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => toast("Added to tradelist")}>
+              Add to tradelist
+            </ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenu>
+      </DemoRow>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename deck</DialogTitle>
+            <DialogDescription>Pick something your group will recognize.</DialogDescription>
+          </DialogHeader>
+          <Input placeholder="Jinx Aggro" />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => setDialogOpen(false)}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <AlertDialog open={alertOpen} onOpenChange={setAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this deck?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The deck and its plans are removed. Cards in your collection stay untouched.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => setAlertOpen(false)}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>Filters</SheetTitle>
+            <SheetDescription>Side panel for secondary workflows.</SheetDescription>
+          </SheetHeader>
+        </SheetContent>
+      </Sheet>
+      <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
+        <DrawerContent>
+          <DrawerTitle className="p-4">Mobile drawer</DrawerTitle>
+          <p className="text-muted-foreground px-4 pb-8 text-sm">
+            Bottom sheet used for mobile flows like the quick-add palette.
+          </p>
+        </DrawerContent>
+      </Drawer>
+    </DemoSection>
+  );
+}
+
+function FeedbackSection() {
+  return (
+    <DemoSection
+      id="feedback"
+      title="Feedback & status"
+      note="Toasts via sonner. Alert for inline callouts, Empty for zero states, Skeleton while loading."
+    >
+      <DemoGrid>
+        <Demo name="Toaster (sonner)" hint="Transient result feedback after an action.">
+          <Button variant="outline" onClick={() => toast.success("Added 4× Teemo, Swift Scout")}>
+            Success toast
+          </Button>
+          <Button variant="outline" onClick={() => toast.error("Could not copy deck code")}>
+            Error toast
+          </Button>
+        </Demo>
+        <Demo name="Alert" hint="Persistent inline callout inside the page flow.">
+          <div className="w-full space-y-2">
+            <Alert>
+              <InfoIcon />
+              <AlertTitle>Heads up</AlertTitle>
+              <AlertDescription>Prices refresh once a day.</AlertDescription>
+            </Alert>
+            <Alert variant="destructive">
+              <TriangleAlertIcon />
+              <AlertTitle>Import failed</AlertTitle>
+              <AlertDescription>3 lines could not be matched to the catalog.</AlertDescription>
+            </Alert>
+          </div>
+        </Demo>
+        <Demo name="Progress" hint="Determinate completion (imports, collection goals).">
+          <Progress value={64} className="w-40" aria-label="Collection progress" />
+        </Demo>
+        <Demo name="Skeleton" hint="Loading placeholder shaped like the coming content.">
+          <div className="flex items-center gap-2">
+            <Skeleton className="size-8 rounded-full" />
+            <div className="space-y-1">
+              <Skeleton className="h-3 w-28" />
+              <Skeleton className="h-3 w-20" />
+            </div>
+          </div>
+        </Demo>
+        <Demo name="Avatar" hint="Raw primitive; app code goes through UserAvatar (Composites).">
+          <Avatar>
+            <AvatarFallback>SK</AvatarFallback>
+          </Avatar>
+        </Demo>
+        <Demo name="Empty" hint="Zero state with icon, copy, and one clear next action.">
+          <Empty className="w-full border">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <PackageIcon />
+              </EmptyMedia>
+              <EmptyTitle>No decks yet</EmptyTitle>
+              <EmptyDescription>Build your first deck to see it here.</EmptyDescription>
+            </EmptyHeader>
+            <Button size="sm">
+              <PlusIcon /> New deck
+            </Button>
+          </Empty>
+        </Demo>
+      </DemoGrid>
+    </DemoSection>
+  );
+}
+
+const REGION_OPTIONS = [
+  { value: "piltover", label: "Piltover" },
+  { value: "zaun", label: "Zaun" },
+  { value: "ionia", label: "Ionia" },
+  { value: "noxus", label: "Noxus" },
+  { value: "demacia", label: "Demacia" },
+];
+
+function CompositesSection() {
+  const [plainSearch, setPlainSearch] = useState("");
+  const [scopedSearch, setScopedSearch] = useState("teemo");
+  const [regions, setRegions] = useState<string[]>(["piltover"]);
+  const [excludedRegions, setExcludedRegions] = useState<string[]>(["zaun"]);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [ownedCount, setOwnedCount] = useState(2);
+  return (
+    <DemoSection
+      id="composites"
+      title="Composites"
+      note="Reusable mid-level pieces built from the primitives above. CompactFilterBar and ActiveFilters are URL-wired, so review those live on /cards; their atoms (ghost Button, Popover, ToggleGroup, Badge + ChipRemoveButton) are all demoed on this page."
+    >
+      <DemoGrid>
+        <Demo
+          name="PageTopBar"
+          hint="The single per-page title row: back, title, status badge, actions ladder. Intro copy goes below as PageDescription."
+          className="sm:col-span-2 xl:col-span-3"
+        >
+          <div className="bg-background w-full space-y-2">
+            <PageTopBar>
+              <PageTopBarBack to="/admin" aria-label="Back to admin" />
+              <PageTopBarTitle>Summoner Skirmish</PageTopBarTitle>
+              <Badge variant="muted" className="ml-2">
+                Running
+              </Badge>
+              <PageTopBarActions>
+                <PageTopBarButton>
+                  <CopyIcon /> Copy code
+                </PageTopBarButton>
+                <PageTopBarPrimaryButton>
+                  <PlusIcon /> Add entry
+                </PageTopBarPrimaryButton>
+                <PageTopBarIconButton aria-label="More actions">
+                  <EllipsisVerticalIcon />
+                </PageTopBarIconButton>
+              </PageTopBarActions>
+            </PageTopBar>
+            <PageDescription>
+              The one-paragraph intro goes below the bar as PageDescription, never inside it.
+            </PageDescription>
+          </div>
+        </Demo>
+        <Demo
+          name="TopBarBreadcrumbTrail"
+          hint="Drill-down pages below a tabbed area; collapses to a back arrow on phones."
+        >
+          <PageTopBar className="w-full">
+            <TopBarBreadcrumbTrail
+              segments={[{ label: "Admin", link: <Link to="/admin" /> }, { label: "Design" }]}
+            />
+          </PageTopBar>
+        </Demo>
+        <Demo
+          name="SearchInput"
+          hint="Every search surface: magnifier, optional scope chip, result count, clear."
+          className="xl:col-span-2"
+        >
+          <SearchInput
+            value={plainSearch}
+            onValueChange={setPlainSearch}
+            placeholder="Search decks…"
+            className="w-56"
+          />
+          <SearchInput
+            value={scopedSearch}
+            onValueChange={setScopedSearch}
+            placeholder="Search cards…"
+            leading={
+              <Badge variant="secondary" className="truncate text-xs font-normal">
+                in: name, keywords
+              </Badge>
+            }
+            trailing="12 / 40 cards"
+            className="w-80"
+          />
+        </Demo>
+        <Demo
+          name="MultiSelectCombobox"
+          hint="Filter dropdown. Button trigger for the compact bar; chip trigger cycles include/exclude."
+        >
+          <MultiSelectCombobox
+            label="Region"
+            options={REGION_OPTIONS}
+            selected={regions}
+            onChange={setRegions}
+            searchPlaceholder="Search regions…"
+            triggerStyle="button"
+          />
+          <MultiSelectCombobox
+            label="Region"
+            options={REGION_OPTIONS}
+            selected={regions}
+            excluded={excludedRegions}
+            onCycle={(value) => {
+              if (regions.includes(value)) {
+                setRegions((prev) => prev.filter((v) => v !== value));
+                setExcludedRegions((prev) => [...prev, value]);
+              } else if (excludedRegions.includes(value)) {
+                setExcludedRegions((prev) => prev.filter((v) => v !== value));
+              } else {
+                setRegions((prev) => [...prev, value]);
+              }
+            }}
+            searchPlaceholder="Search regions…"
+            triggerStyle="chip"
+          />
+        </Demo>
+        <Demo
+          name="CardCountStrip"
+          hint="Count strip above card thumbnails; CountPill's real habitat. Read-only shows ×N (M)."
+        >
+          <div className="w-40">
+            <CardCountStrip
+              count={ownedCount}
+              icon={PackageIcon}
+              decrement={{
+                onClick: () => setOwnedCount((c) => Math.max(0, c - 1)),
+                disabled: ownedCount === 0,
+                ariaLabel: "Remove one copy",
+              }}
+              increment={{
+                onClick: () => setOwnedCount((c) => c + 1),
+                ariaLabel: "Add one copy",
+              }}
+            />
+          </div>
+          <div className="w-40">
+            <CardCountStrip count={1} totalCount={4} icon={PackageIcon} />
+          </div>
+        </Demo>
+        <Demo name="ConfirmActionDialog" hint="Shared confirm step for destructive actions.">
+          <Button variant="destructive" onClick={() => setConfirmOpen(true)}>
+            <Trash2Icon /> Delete deck
+          </Button>
+          <ConfirmActionDialog
+            open={confirmOpen}
+            onOpenChange={setConfirmOpen}
+            title="Delete Jinx Aggro?"
+            description="The deck and its plans are removed. Cards in your collection stay untouched."
+            confirmLabel="Delete"
+            onConfirm={() => {
+              setConfirmOpen(false);
+              toast("Deleted (demo only)");
+            }}
+          />
+        </Demo>
+        <Demo name="UserAvatar" hint="Avatar with initials fallback, in its three sizes.">
+          <UserAvatar name="Vi Piltover" size="sm" />
+          <UserAvatar name="Vi Piltover" />
+          <UserAvatar name="Vi Piltover" size="lg" />
+        </Demo>
+      </DemoGrid>
+    </DemoSection>
+  );
+}
+
+const CHART_DATA = [
+  { day: "Mon", value: 4.2 },
+  { day: "Tue", value: 4.6 },
+  { day: "Wed", value: 4.4 },
+  { day: "Thu", value: 5.1 },
+  { day: "Fri", value: 5.6 },
+  { day: "Sat", value: 5.4 },
+  { day: "Sun", value: 6 },
+];
+
+const CHART_CONFIG = {
+  value: { label: "Price", color: "var(--chart-1)" },
+} satisfies ChartConfig;
+
+function LayoutSection() {
+  const [collapsibleOpen, setCollapsibleOpen] = useState(false);
+  return (
+    <DemoSection
+      id="layout"
+      title="Layout & data"
+      note="Sidebar and NavigationMenu are app chrome; see the admin sidebar and the global header for the live examples."
+    >
+      <DemoGrid>
+        <Demo name="Card" hint="Grouped content block: header, body, footer actions.">
+          <Card className="w-full">
+            <CardHeader>
+              <CardTitle>Summoner Skirmish</CardTitle>
+              <CardDescription>Saturday · 12 entrants</CardDescription>
+            </CardHeader>
+            <CardContent className="text-sm">Swiss, 4 rounds, then a cut to top 4.</CardContent>
+            <CardFooter>
+              <Button size="sm" variant="outline">
+                Manage
+              </Button>
+            </CardFooter>
+          </Card>
+        </Demo>
+        <Demo name="Tabs" hint="Peer views of one surface (not navigation).">
+          <Tabs defaultValue="cards" className="w-full">
+            <TabsList>
+              <TabsTrigger value="cards">Cards</TabsTrigger>
+              <TabsTrigger value="stats">Stats</TabsTrigger>
+            </TabsList>
+            <TabsContent value="cards" className="text-muted-foreground text-sm">
+              Tab content renders here.
+            </TabsContent>
+            <TabsContent value="stats" className="text-muted-foreground text-sm">
+              Win rates, energy curve, domains.
+            </TabsContent>
+          </Tabs>
+        </Demo>
+        <Demo name="ChartContainer" hint="Recharts wrapper; config drives themed var(--color-*).">
+          <ChartContainer config={CHART_CONFIG} className="aspect-auto h-16 w-full">
+            <AreaChart data={CHART_DATA} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
+              <Area
+                dataKey="value"
+                type="monotone"
+                stroke="var(--color-value)"
+                fill="var(--color-value)"
+                fillOpacity={0.15}
+                strokeWidth={1.5}
+              />
+            </AreaChart>
+          </ChartContainer>
+        </Demo>
+        <Demo
+          name="Table"
+          hint="Static data table. Card browsers use the virtualized card table instead."
+        >
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Card</TableHead>
+                <TableHead>Set</TableHead>
+                <TableHead className="text-right">Owned</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow>
+                <TableCell>Teemo, Swift Scout</TableCell>
+                <TableCell>Origins</TableCell>
+                <TableCell className="text-right tabular-nums">4</TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell>Jinx, Loose Cannon</TableCell>
+                <TableCell>Origins</TableCell>
+                <TableCell className="text-right tabular-nums">2</TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </Demo>
+        <Demo name="Accordion" hint="Stacked disclosure list; one item open at a time.">
+          <Accordion className="w-full">
+            <AccordionItem value="rules">
+              <AccordionTrigger>Deck rules</AccordionTrigger>
+              <AccordionContent>40 cards minimum, 3 copies max.</AccordionContent>
+            </AccordionItem>
+            <AccordionItem value="legends">
+              <AccordionTrigger>Legends</AccordionTrigger>
+              <AccordionContent>Exactly one legend per deck.</AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </Demo>
+        <Demo name="Collapsible" hint="Single hide/show region behind its own trigger.">
+          <Collapsible
+            open={collapsibleOpen}
+            onOpenChange={setCollapsibleOpen}
+            className="w-full space-y-2"
+          >
+            <CollapsibleTrigger
+              render={
+                <Button variant="outline" size="sm">
+                  {collapsibleOpen ? "Hide" : "Show"} advanced <ChevronDownIcon />
+                </Button>
+              }
+            />
+            <CollapsibleContent className="text-muted-foreground text-sm">
+              Collapsed-by-default extras live here.
+            </CollapsibleContent>
+          </Collapsible>
+        </Demo>
+        <Demo name="ScrollArea" hint="Styled scrollbars for fixed-height overflow regions.">
+          <ScrollArea className="h-24 w-48 rounded-md border p-2 text-sm">
+            {[...CHAMPIONS, ...CHAMPIONS].map((name, index) => (
+              <p key={index} className="py-0.5">
+                {name}
+              </p>
+            ))}
+          </ScrollArea>
+        </Demo>
+        <Demo name="Separator" hint="Hairline divider, horizontal or vertical.">
+          <div className="w-full space-y-2 text-sm">
+            <p>Above</p>
+            <Separator />
+            <div className="flex h-5 items-center gap-2">
+              <span>Left</span>
+              <Separator orientation="vertical" />
+              <span>Right</span>
+            </div>
+          </div>
+        </Demo>
+        <Demo name="Calendar" hint="Month grid; usually reached through DatePicker.">
+          <Calendar mode="single" className="rounded-md border" />
+        </Demo>
+      </DemoGrid>
+    </DemoSection>
+  );
+}

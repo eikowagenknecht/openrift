@@ -40,6 +40,7 @@ import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Pressable } from "@/components/ui/pressable";
 import {
   Select,
   SelectContent,
@@ -669,14 +670,14 @@ function PromoSectionsContent({
       <div className="sticky z-20 h-0" style={{ top: `${stickyOffset}px` }}>
         {activeSection && (
           <div className="flex justify-center pt-2">
-            <button
-              type="button"
+            <Button
+              variant="glass-pill"
+              className="h-auto px-3 py-1 text-sm font-normal"
               onClick={handlePillClick}
-              className="bg-background/70 ring-border/70 hover:bg-background/90 cursor-pointer rounded-full px-3 py-1 text-sm shadow-sm ring-1 backdrop-blur"
             >
               <span className="font-semibold">{activeSection.label}</span>{" "}
               <span className="text-muted-foreground tabular-nums">({activeSection.count})</span>
-            </button>
+            </Button>
           </div>
         )}
       </div>
@@ -1325,10 +1326,9 @@ function PromoMobileCard({
 }) {
   const image = printing.images[0];
   return (
-    <button
-      type="button"
+    <Pressable
       onClick={() => onClick(printing)}
-      className="hover:bg-muted/50 flex w-full items-center gap-3 rounded-lg border p-2 text-left"
+      className="hover:bg-muted/50 flex w-full items-center gap-3 rounded-lg border p-2"
     >
       <CardArtThumb
         imageId={image?.imageId}
@@ -1350,7 +1350,7 @@ function PromoMobileCard({
           {rarityLabel} · {finishLabel}
         </div>
       </div>
-    </button>
+    </Pressable>
   );
 }
 

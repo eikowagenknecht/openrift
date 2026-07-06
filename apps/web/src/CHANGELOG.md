@@ -7,7 +7,7 @@
 - feat(Collection): **Replace on import** — importing into a collection that already has copies now asks whether to add to it or replace everything with the import.
 - feat(App): **Redesigned landing page** — a fanned hand of real cards takes center stage: hover to tilt them, click to collect them all, with sharper copy and new angular buttons.
 - feat(App): **New display typeface** — page titles, section headings, big stat numbers, and the OpenRift wordmark now use Chakra Petch, giving the app its own voice instead of the default font everywhere.
-- feat(App): **Sharper, angular look** — corners are tighter across the app, filled buttons carry a signature corner cut, and tiles share one consistent card style.
+- feat(App): **Sharper, angular look** — corners are tighter across the app, filled buttons carry a signature corner cut (delete buttons now solid red with the same shape), and tiles share one consistent card style.
 - feat(App): **Friendlier empty screens** — pages without content yet (decks, collections, lists, search results) now show a fan of card outlines with clear next steps.
 - feat(Decks): **Try a sample deck** — the empty decks page offers a ready-made Azir deck that opens in the builder with one click, no account needed.
 
@@ -18,6 +18,7 @@
 - feat(Decks): **Placeholders for missing key cards** — deck tiles now show labeled dashed cards for a legend or champion you haven't picked yet, instead of a generic icon.
 - feat(Decks): **Local decks flag when to sign in** — building a deck while signed out now clearly says it lives only on this device, with a sign-in link to keep it and use it anywhere.
 - feat(App): **Landing feature previews** — the feature list now shows mini previews of the real app (price compare, deck rows, trade matches) instead of icon tiles.
+- fix(Account): **Trade contacts button alignment** — the Save and Add buttons next to a contact entry now match the input height instead of sitting slightly shorter.
 - fix(Cards): **Readable mobile card header** — the card detail title bar on phones now sits on a frosted, card-tinted background, so the title stays legible over the card art instead of floating on top of it.
 - fix(Decks): **Copy limits in deck codes** — exporting more copies of a card than deck codes support (12 main deck, 3 sideboard) now exports the maximum and warns, instead of silently losing the card.
 - fix(Tournaments): **Organizations survive owner deletion** — deleting your account now hands your organization to a co-owner or manager instead of erasing it for everyone.

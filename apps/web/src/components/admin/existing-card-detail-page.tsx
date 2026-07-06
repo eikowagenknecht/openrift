@@ -51,6 +51,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ExpandToggle } from "@/components/ui/expand-toggle";
 import { Kbd } from "@/components/ui/kbd";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -641,14 +642,13 @@ export function ExistingCardDetailPage({
       {/* ── Card Fields ────────────────────────────────────────────────────── */}
       <section className="space-y-2">
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            className="flex items-center gap-2 hover:opacity-80"
+          <ExpandToggle
+            expanded={cardFieldsExpanded}
+            className="hover:opacity-80"
             onClick={() => toggleSection("cardFields")}
           >
-            {cardFieldsExpanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
             <h3 className="font-medium">Card Fields</h3>
-          </button>
+          </ExpandToggle>
           {sources.some((s) => !s.checkedAt) && (
             <Button
               variant="outline"
@@ -707,28 +707,26 @@ export function ExistingCardDetailPage({
 
       {/* ── Marketplace ─────────────────────────────────────────────────────── */}
       <section className="space-y-3">
-        <button
-          type="button"
-          className="flex items-center gap-2 hover:opacity-80"
+        <ExpandToggle
+          expanded={marketplaceExpanded}
+          className="hover:opacity-80"
           onClick={() => toggleSection("marketplace")}
         >
-          {marketplaceExpanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
           <h3 className="font-medium">Marketplace</h3>
-        </button>
+        </ExpandToggle>
         {marketplaceExpanded && <AdminCardMarketplaceSection cardId={identifier} />}
       </section>
 
       {/* ── Printings ──────────────────────────────────────────────────────── */}
       <section className="space-y-3">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <button
-            type="button"
-            className="flex items-center gap-2 hover:opacity-80"
+          <ExpandToggle
+            expanded={printingsExpanded}
+            className="hover:opacity-80"
             onClick={() => toggleSection("printings")}
           >
-            {printingsExpanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
             <h3 className="font-medium">Printings</h3>
-          </button>
+          </ExpandToggle>
           {printingsExpanded && (
             <Button
               variant="outline"

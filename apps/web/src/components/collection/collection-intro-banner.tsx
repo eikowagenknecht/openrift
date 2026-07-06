@@ -13,6 +13,7 @@ import {
   XIcon,
 } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
 
 interface ToolbarGuideRow {
@@ -67,14 +68,16 @@ export function CollectionIntroBanner({
   const guideRows = [LIBRARY_ROW, VIEWS_ROW, MANAGE_ROW, DISPLAY_ROW];
   return (
     <div className="border-border bg-muted/30 relative mb-3 rounded-lg border p-4">
-      <button
+      <Button
         type="button"
+        variant="ghost"
+        size="icon-xs"
         onClick={onDismiss}
         aria-label="Dismiss this guide"
-        className="text-muted-foreground hover:text-foreground absolute top-2 right-2 rounded p-1"
+        className="text-muted-foreground absolute top-2 right-2"
       >
         <XIcon className="size-4" />
-      </button>
+      </Button>
       <div className="flex gap-3 pr-6">
         <InfoIcon className="text-primary mt-0.5 size-5 shrink-0" />
         <div className="flex flex-col gap-3">

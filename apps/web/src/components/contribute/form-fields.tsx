@@ -79,10 +79,11 @@ function FieldHint({ label, hint }: { label: string; hint: string }) {
     <Popover>
       <PopoverTrigger
         render={
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="icon-xs"
             aria-label={`About ${label}`}
-            className="text-muted-foreground hover:text-foreground -m-1 rounded-full p-1"
+            className="text-muted-foreground -m-1"
           />
         }
       >

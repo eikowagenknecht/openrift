@@ -994,14 +994,16 @@ function DeckBuilderIntroBanner({
         : "This deck uses the Freeform format, so you can build without rule restrictions. Switch to Constructed if you want the rules validated as you go.";
   return (
     <div className="border-border bg-muted/30 relative rounded-lg border p-4">
-      <button
+      <Button
         type="button"
+        variant="ghost"
+        size="icon-xs"
         onClick={onDismiss}
         aria-label="Dismiss this guide"
-        className="text-muted-foreground hover:text-foreground absolute top-2 right-2 rounded p-1"
+        className="text-muted-foreground absolute top-2 right-2"
       >
         <XIcon className="size-4" />
-      </button>
+      </Button>
       <div className="mx-auto flex max-w-5xl gap-3 pr-6">
         <InfoIcon className="text-primary mt-0.5 size-5 shrink-0" />
         <div className="flex flex-col gap-3">

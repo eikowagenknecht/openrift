@@ -18,6 +18,7 @@ import type { CardSearchResult } from "@/components/cards/card-search-dropdown";
 import { CardSearchDropdown } from "@/components/cards/card-search-dropdown";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -663,8 +664,7 @@ function MarketplaceProductRow({
                       highlightLanguage={highlightLanguage}
                       highlightMarkers={product.groupKind === "special" && p.markerSlugs.length > 0}
                     />
-                    <button
-                      type="button"
+                    <ChipRemoveButton
                       aria-label={`Unassign ${label}`}
                       title="Unassign"
                       disabled={handlers.isUnmappingPrinting}
@@ -676,10 +676,8 @@ function MarketplaceProductRow({
                           product.language,
                         )
                       }
-                      className="text-muted-foreground hover:text-destructive -mr-0.5 inline-flex size-3.5 items-center justify-center rounded-sm disabled:opacity-50"
-                    >
-                      <XIcon className="size-3" />
-                    </button>
+                      className="text-muted-foreground hover:text-destructive -mr-0.5 disabled:opacity-50"
+                    />
                   </Badge>
                 );
               })}
@@ -780,6 +778,7 @@ function SuggestionChip({
     ? "Accept weak suggestion (mirrors a sibling SKU's mapping)"
     : `Accept suggestion (score ${suggestion.score})`;
   return (
+    // oxlint-disable-next-line react/forbid-elements -- semantic green/amber suggestion pill; no Button variant carries these colors
     <button
       type="button"
       title={tooltip}

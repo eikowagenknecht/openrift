@@ -5,6 +5,7 @@ import { ArrowLeftIcon } from "lucide-react";
 
 import { ContributeForm } from "@/components/contribute/contribute-form";
 import { Heading } from "@/components/heading";
+import { Pressable } from "@/components/ui/pressable";
 import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
 import { prefillFromCard } from "@/lib/contribute-json";
 import { PAGE_PADDING } from "@/lib/utils";
@@ -33,14 +34,13 @@ function ContributeCorrectionPage() {
 
   return (
     <div className={`${PAGE_PADDING} mx-auto flex w-full max-w-3xl flex-col gap-6 xl:max-w-6xl`}>
-      <button
-        type="button"
+      <Pressable
         onClick={handleBack}
-        className="text-muted-foreground hover:text-foreground inline-flex w-fit cursor-pointer items-center gap-1.5"
+        className="text-muted-foreground hover:text-foreground inline-flex w-fit items-center gap-1.5"
       >
         <ArrowLeftIcon className="size-4" />
         Back
-      </button>
+      </Pressable>
       <header className="flex max-w-3xl flex-col gap-1">
         <Heading level={1}>Suggest a correction</Heading>
         <p className="text-muted-foreground">

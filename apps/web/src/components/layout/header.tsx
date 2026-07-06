@@ -239,7 +239,7 @@ function DesktopNav({
             </NavigationMenuLink>
           ) : (
             <NavigationMenuLink
-              // oxlint-disable-next-line jsx-a11y/control-has-associated-label -- label is provided as children of NavigationMenuLink
+              // oxlint-disable-next-line jsx-a11y/control-has-associated-label, react/forbid-elements -- bare render slot; NavigationMenuLink owns all styling and provides the label as children
               render={<button type="button" onClick={() => onLockedClick("collections")} />}
               className={cn(navigationMenuTriggerStyle(), "gap-1.5")}
             >
@@ -280,7 +280,7 @@ function DesktopNav({
             </NavigationMenuLink>
           ) : (
             <NavigationMenuLink
-              // oxlint-disable-next-line jsx-a11y/control-has-associated-label -- label is provided as children of NavigationMenuLink
+              // oxlint-disable-next-line jsx-a11y/control-has-associated-label, react/forbid-elements -- bare render slot; NavigationMenuLink owns all styling and provides the label as children
               render={<button type="button" onClick={() => onLockedClick("groups")} />}
               className={cn(navigationMenuTriggerStyle(), "gap-1.5")}
             >
@@ -365,7 +365,7 @@ function DesktopNav({
                     // A native <button> shrinks to its content and centers its text; force
                     // it to fill and left-align so it matches the <Link>-rendered rows.
                     className="w-full text-left"
-                    // oxlint-disable-next-line jsx-a11y/control-has-associated-label -- label is provided as children of NavigationMenuLink
+                    // oxlint-disable-next-line jsx-a11y/control-has-associated-label, react/forbid-elements -- bare render slot; NavigationMenuLink owns all styling and provides the label as children
                     render={<button type="button" onClick={() => onLockedClick("tournaments")} />}
                   >
                     <TrophyIcon />
@@ -571,7 +571,7 @@ function MobileNavLockedItem({
 }) {
   return (
     <SheetClose
-      // oxlint-disable-next-line jsx-a11y/control-has-associated-label -- label is provided as children of SheetClose
+      // oxlint-disable-next-line jsx-a11y/control-has-associated-label, react/forbid-elements -- bare render slot; SheetClose/MOBILE_NAV_ITEM_CLASS owns all styling and provides the label as children
       render={<button type="button" onClick={onClick} />}
       className={MOBILE_NAV_ITEM_CLASS}
     >
@@ -801,7 +801,7 @@ function FeedbackPopover({
             // A native <button> shrinks to its content and centers its text; force
             // it to fill and left-align so it matches the <Link>-rendered rows.
             className="hover:bg-muted flex w-full items-center gap-3 rounded-md px-2 py-2 text-left text-sm"
-            // oxlint-disable-next-line jsx-a11y/control-has-associated-label -- label is provided as children of PopoverClose
+            // oxlint-disable-next-line jsx-a11y/control-has-associated-label, react/forbid-elements -- bare render slot; PopoverClose owns all styling and provides the label as children
             render={<button type="button" onClick={() => onLockedClick("contribute")} />}
           >
             <PencilLineIcon className="size-4 shrink-0" />

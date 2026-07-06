@@ -6,6 +6,7 @@ import { Area, AreaChart, Tooltip } from "recharts";
 
 import { ChartContainer } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
+import { Pressable } from "@/components/ui/pressable";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePriceHistory } from "@/hooks/use-price-history";
 import { formatterForMarketplace } from "@/lib/format";
@@ -104,8 +105,7 @@ export function PriceSparkline({ printingId, onRangeChange }: PriceSparklineProp
   }
 
   return (
-    <button
-      type="button"
+    <Pressable
       onClick={() => setExpanded(true)}
       className="group/spark hover:bg-muted/50 relative block w-full rounded-lg transition-colors"
     >
@@ -139,6 +139,6 @@ export function PriceSparkline({ printingId, onRangeChange }: PriceSparklineProp
         <ChevronDownIcon className="size-2.5" />
         Price history
       </span>
-    </button>
+    </Pressable>
   );
 }

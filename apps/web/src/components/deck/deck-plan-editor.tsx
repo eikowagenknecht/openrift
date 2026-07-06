@@ -4,8 +4,6 @@ import {
   AlertTriangleIcon,
   ArrowDownIcon,
   ArrowUpIcon,
-  ChevronDownIcon,
-  ChevronRightIcon,
   PlusIcon,
   Trash2Icon,
   XIcon,
@@ -18,6 +16,8 @@ import type { CardSearchResult } from "@/components/cards/card-search-dropdown";
 import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
+import { ExpandToggle } from "@/components/ui/expand-toggle";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -118,17 +118,13 @@ function CardChip({
         {printing ? legendDisplayName(printing.card) : "Unknown card"}
       </span>
       {onRemove ? (
-        <button
-          type="button"
+        <ChipRemoveButton
           onClick={onRemove}
           aria-label="Remove"
-          className={cn(
-            "text-muted-foreground hover:text-foreground shrink-0 rounded-sm p-0.5",
-            field && "ml-auto",
-          )}
+          className={cn("text-muted-foreground shrink-0 p-0.5", field ? "ml-auto" : "ml-0")}
         >
           <XIcon className="size-3.5" />
-        </button>
+        </ChipRemoveButton>
       ) : null}
     </span>
   );
@@ -356,17 +352,11 @@ function MatchupEditor({
           !collapsed && "border-b",
         )}
       >
-        <button
-          type="button"
+        <ExpandToggle
+          expanded={!collapsed}
           onClick={() => setCollapsed((value) => !value)}
-          aria-expanded={!collapsed}
-          className="flex min-w-0 flex-1 items-center gap-2 text-left"
+          className="min-w-0 flex-1"
         >
-          {collapsed ? (
-            <ChevronRightIcon className="text-muted-foreground size-4 shrink-0" />
-          ) : (
-            <ChevronDownIcon className="text-muted-foreground size-4 shrink-0" />
-          )}
           <span
             className={cn("truncate text-sm font-medium", !hasOpponent && "text-muted-foreground")}
           >
@@ -377,7 +367,7 @@ function MatchupEditor({
               −{outCount}/+{inCount}
             </span>
           ) : null}
-        </button>
+        </ExpandToggle>
         <div className="flex shrink-0 items-center gap-0.5">
           <Button
             variant="ghost"

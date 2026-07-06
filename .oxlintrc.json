@@ -126,6 +126,17 @@
     ],
 
     // React Overwrites
+    "react/forbid-elements": [
+      "error",
+      {
+        "forbid": [
+          {
+            "element": "button",
+            "message": "Use a design-system primitive (Button, PageTopBarButton, ...) instead of a raw <button>. If none fits, add one to components/ui/ or disable this rule with a reason."
+          }
+        ]
+      }
+    ],
     "react/react-in-jsx-scope": "off", // React 17+ automatic JSX runtime
     "react/jsx-max-depth": "off", // Impractical for real component trees
     "react/jsx-props-no-spreading": "off", // Idiomatic React, essential for shadcn/ui
@@ -144,7 +155,14 @@
         "typescript/no-non-null-assertion": "off",
         "promise/prefer-await-to-then": "off",
         "promise/prefer-await-to-callbacks": "off",
-        "unicorn/no-useless-undefined": "off"
+        "unicorn/no-useless-undefined": "off",
+        "react/forbid-elements": "off"
+      }
+    },
+    {
+      "files": ["apps/web/src/components/ui/**"],
+      "rules": {
+        "react/forbid-elements": "off"
       }
     },
     {

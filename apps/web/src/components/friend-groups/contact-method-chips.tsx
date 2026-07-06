@@ -91,6 +91,7 @@ function ContactChip({ method }: { method: ContactMethod }) {
   }
 
   return (
+    // oxlint-disable-next-line react/forbid-elements -- action chip sharing chipClass with anchor twin; Button would fork the shared styles
     <button
       type="button"
       className={cn(chipClass, "hover:text-foreground transition-colors")}

@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Toggle } from "@/components/ui/toggle";
 import { useAllCards } from "@/hooks/use-admin-card-queries";
 import {
   useAddCardsToCustomTag,
@@ -814,18 +815,15 @@ function CardTagToggleList({
             {group.map((tag) => {
               const active = pending.has(tag.id);
               return (
-                <button
+                <Toggle
                   key={tag.id}
-                  type="button"
-                  onClick={() => toggle(tag.id)}
-                  className={
-                    active
-                      ? "bg-primary text-primary-foreground rounded-full px-3 py-1 text-sm"
-                      : "bg-muted text-muted-foreground hover:bg-muted/80 rounded-full px-3 py-1 text-sm"
-                  }
+                  variant="outline"
+                  pressed={active}
+                  onPressedChange={() => toggle(tag.id)}
+                  className="aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary aria-pressed:hover:text-primary-foreground rounded-full px-3"
                 >
                   {tag.label}
-                </button>
+                </Toggle>
               );
             })}
           </div>

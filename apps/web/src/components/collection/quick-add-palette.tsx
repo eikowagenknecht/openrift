@@ -14,6 +14,7 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { Kbd } from "@/components/ui/kbd";
+import { Pressable } from "@/components/ui/pressable";
 import { useBatchedAddCopies, useDisposeCopies } from "@/hooks/use-copies";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useIsMobile } from "@/hooks/use-is-mobile";
@@ -432,11 +433,10 @@ function PaletteInner({
           return (
             <div key={card.cardId}>
               {/* Card row — always expands to show printings */}
-              <button
-                type="button"
+              <Pressable
                 data-selected={isSelected || isExpanded}
                 className={cn(
-                  "group flex w-full items-center gap-3 px-3 py-2 text-left text-sm transition-colors",
+                  "group flex w-full items-center gap-3 px-3 py-2 text-sm transition-colors",
                   isSelected || isExpanded ? "bg-accent text-accent-foreground" : "hover:bg-muted",
                 )}
                 onClick={() => {
@@ -467,7 +467,7 @@ function PaletteInner({
                     isExpanded && "rotate-90",
                   )}
                 />
-              </button>
+              </Pressable>
 
               {/* Expanded printing list */}
               {isExpanded && (

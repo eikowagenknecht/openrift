@@ -78,6 +78,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Pressable } from "@/components/ui/pressable";
 import {
   Select,
   SelectContent,
@@ -1949,10 +1950,9 @@ function ChecklistRow({
       }}
       onMouseLeave={() => onHover?.(null)}
     >
-      <button
-        type="button"
+      <Pressable
         onClick={() => void toggle()}
-        className="flex min-w-0 flex-1 items-center gap-3 rounded-md px-2 py-1.5 text-left"
+        className="flex min-w-0 flex-1 items-center gap-3 rounded-md px-2 py-1.5"
       >
         <span
           aria-hidden
@@ -1981,19 +1981,20 @@ function ChecklistRow({
         {card.quantity > 1 ? (
           <span className="text-muted-foreground text-2xs shrink-0">copy {copyIndex + 1}</span>
         ) : null}
-      </button>
+      </Pressable>
       {fixLocked && locked ? null : (
         <div className="flex shrink-0 items-center gap-0.5 pr-1">
           {fixLocked ? null : (
             <>
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="icon-xs"
                 aria-label={fixZoneOnly ? `Move ${name}` : `Fix ${name}`}
-                className="text-muted-foreground hover:text-foreground rounded p-1"
+                className="text-muted-foreground"
                 onClick={() => setFixOpen(true)}
               >
                 <PencilIcon className="size-3.5" />
-              </button>
+              </Button>
               <FixCardDialog
                 tournamentId={tournamentId}
                 entryId={entryId}
@@ -2005,14 +2006,15 @@ function ChecklistRow({
             </>
           )}
           {locked ? null : (
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="icon-xs"
               aria-label={`Remove this copy of ${card.rawName}`}
-              className="text-muted-foreground hover:text-destructive rounded p-1"
+              className="text-muted-foreground hover:text-destructive"
               onClick={() => setRemoveOpen(true)}
             >
               <XIcon className="size-3.5" />
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -2186,16 +2188,18 @@ function ChecklistCell({
       <div>
         {actionStrip}
         <div className="relative">
-          <button
-            type="button"
+          <Pressable
             onClick={() => void toggle()}
-            className={`flex h-full w-full flex-col items-start gap-1 rounded-md border border-dashed border-amber-500/60 bg-amber-500/10 p-2 text-left text-sm ${found ? "opacity-60" : ""}`}
+            className={cn(
+              "flex h-full w-full flex-col items-start gap-1 rounded-md border border-dashed border-amber-500/60 bg-amber-500/10 p-2 text-sm",
+              found && "opacity-60",
+            )}
           >
             <span className="font-medium break-all">{card.rawName}</span>
             <span className="text-muted-foreground">
               {card.matchStatus === "ambiguous" ? "Several matches" : "Not in catalog"}
             </span>
-          </button>
+          </Pressable>
           {foundOverlay}
         </div>
       </div>

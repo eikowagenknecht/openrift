@@ -85,6 +85,7 @@ export function TradePreferencePill(props: Props) {
   const Icon = iconForTradeType(effective.tradeType);
 
   const button = (
+    // oxlint-disable-next-line react/forbid-elements -- bespoke three-state bordered pref pill (empty/inherited/overridden); no variant ladder fits
     <button
       type="button"
       aria-label={ariaLabel}

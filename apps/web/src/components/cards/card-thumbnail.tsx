@@ -9,6 +9,7 @@ import { CardMetaLabel } from "@/components/cards/card-meta-label";
 import { CardPlaceholderImage } from "@/components/cards/card-placeholder-image";
 import { FinishIcon } from "@/components/cards/finish-icon";
 import { FoilOverlay } from "@/components/cards/foil-overlay";
+import { Pressable } from "@/components/ui/pressable";
 import { useCardTilt } from "@/hooks/use-card-tilt";
 import { useCoarsePointer } from "@/hooks/use-coarse-pointer";
 import { useDomainColors } from "@/hooks/use-domain-colors";
@@ -706,13 +707,9 @@ export const CardThumbnail = memo(function CardThumbnail({
         {flashOverlay}
         {topSlot}
         <div className="relative">
-          <button
-            type="button"
-            className="focus-visible:ring-ring block w-full cursor-pointer text-left focus-visible:ring-2 focus-visible:outline-none"
-            onClick={(e) => onClick(printing, e)}
-          >
+          <Pressable className="block w-full" onClick={(e) => onClick(printing, e)}>
             {imageSection}
-          </button>
+          </Pressable>
           {imageOverlay}
         </div>
         {labelSection}
@@ -769,13 +766,9 @@ export const CardThumbnail = memo(function CardThumbnail({
       {flashOverlay}
       {aboveCard}
       <div className="relative">
-        <button
-          type="button"
-          className="focus-visible:ring-ring block w-full cursor-pointer text-left focus-visible:ring-2 focus-visible:outline-none"
-          onClick={(e) => onClick(printing, e)}
-        >
+        <Pressable className="block w-full" onClick={(e) => onClick(printing, e)}>
           {imageSection}
-        </button>
+        </Pressable>
         {imageOverlay}
       </div>
       {labelSection}

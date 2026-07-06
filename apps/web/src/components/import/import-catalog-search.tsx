@@ -163,6 +163,7 @@ export function ImportCatalogSearch<T>({
           className="bg-popover absolute top-full right-0 z-50 mt-1 max-h-60 w-max min-w-full overflow-y-auto rounded-md border shadow-md"
         >
           {results.map((item, index) => (
+            // oxlint-disable-next-line react/forbid-elements -- bespoke listbox option row; matches menu-item styling, no primitive covers it yet
             <button
               key={getKey(item)}
               id={`${listboxId}-option-${index}`}

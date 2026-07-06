@@ -122,6 +122,7 @@ export function PlayerPanel({
     >
       {/* Tap zones: left half subtracts a point, right half adds one. They rotate
           with the card, so a far-side player's own left is still minus. */}
+      {/* oxlint-disable-next-line react/forbid-elements -- invisible full-bleed tap zone; deliberately unstyled gesture surface */}
       <button
         type="button"
         aria-label={`Subtract a point from ${player.name}`}
@@ -130,6 +131,7 @@ export function PlayerPanel({
       >
         <MinusIcon className="size-7" />
       </button>
+      {/* oxlint-disable-next-line react/forbid-elements -- invisible full-bleed tap zone; deliberately unstyled gesture surface */}
       <button
         type="button"
         aria-label={`Add a point to ${player.name}`}
@@ -172,12 +174,14 @@ export function PlayerPanel({
           xpStyle.height,
         )}
       >
+        {/* oxlint-disable-next-line react/forbid-elements -- invisible half-pill tap zone; deliberately unstyled gesture surface */}
         <button
           type="button"
           aria-label={`Spend XP for ${player.name}`}
           onClick={() => adjustXp(player.id, -1)}
           className="active:bg-foreground/10 absolute inset-y-0 left-0 w-1/2 transition-colors"
         />
+        {/* oxlint-disable-next-line react/forbid-elements -- invisible half-pill tap zone; deliberately unstyled gesture surface */}
         <button
           type="button"
           aria-label={`Gain XP for ${player.name}`}

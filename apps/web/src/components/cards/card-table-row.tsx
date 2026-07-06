@@ -6,6 +6,7 @@ import { Fragment } from "react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { FinishIcon } from "@/components/cards/finish-icon";
+import { Pressable } from "@/components/ui/pressable";
 import { getFilterIconPath, getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
@@ -191,13 +192,7 @@ export function CardTableGroupHeader({
       style={{ gridTemplateColumns: columns, height: CARD_TABLE_HEADER_HEIGHT }}
     >
       <div className="col-span-full flex items-center justify-center gap-2 py-2">
-        {onClick ? (
-          <button type="button" onClick={onClick} className="cursor-pointer">
-            {content}
-          </button>
-        ) : (
-          content
-        )}
+        {onClick ? <Pressable onClick={onClick}>{content}</Pressable> : content}
         {anchorId && (
           <a
             href={`#${anchorId}`}

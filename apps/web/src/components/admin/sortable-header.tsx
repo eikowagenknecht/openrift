@@ -14,6 +14,7 @@ export function SortableHeader<TData extends RowData>({
     return label;
   }
   return (
+    // oxlint-disable-next-line react/forbid-elements -- this IS the shared sort-header primitive (admin tables)
     <button
       type="button"
       className="inline-flex cursor-pointer items-center gap-1 select-none"

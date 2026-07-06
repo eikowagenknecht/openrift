@@ -22,6 +22,7 @@ import { ImagePreview } from "@/components/admin/image-preview";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Toggle } from "@/components/ui/toggle";
 import {
   useActivatePrintingImage,
   useAddImageFromUrl,
@@ -33,6 +34,7 @@ import {
   useUnrehostPrintingImage,
   useUploadPrintingImage,
 } from "@/hooks/use-admin-image-mutations";
+import { cn } from "@/lib/utils";
 
 type Rotation = 0 | 90 | 180 | 270;
 
@@ -329,37 +331,29 @@ export function PrintingImageSwitcher({
         {sortedImages.map((img) => {
           const isSelected = effectiveImage?.id === img.id;
           return (
-            <button
+            <Toggle
               key={img.id}
-              type="button"
-              className={`rounded px-1.5 py-0.5 ${
-                isSelected
-                  ? "bg-primary text-primary-foreground"
-                  : img.isActive
-                    ? "bg-muted font-medium"
-                    : "bg-muted/50 text-muted-foreground"
-              }`}
-              onClick={() => {
+              pressed={isSelected}
+              onPressedChange={() => {
                 setSelectedId(isSelected ? null : img.id);
                 setResolution(null);
                 setImgError(false);
               }}
+              className={cn(
+                "aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary aria-pressed:hover:text-primary-foreground h-6 min-w-0 rounded px-1.5 font-normal",
+                img.isActive ? "bg-muted font-medium" : "bg-muted/50 text-muted-foreground",
+              )}
             >
               {imageLabel(img)}
               {img.rehostedUrl ? null : <span className="text-orange-500"> !</span>}
-            </button>
+            </Toggle>
           );
         })}
         {sortedSourceImages.map((si) => (
-          <button
+          <Toggle
             key={si.candidatePrintingId}
-            type="button"
-            className={`rounded border border-dashed px-1.5 py-0.5 ${
-              effectiveSource?.candidatePrintingId === si.candidatePrintingId
-                ? "border-primary bg-primary/10"
-                : "text-muted-foreground"
-            }`}
-            onClick={() => {
+            pressed={effectiveSource?.candidatePrintingId === si.candidatePrintingId}
+            onPressedChange={() => {
               setSelectedId(
                 effectiveSource?.candidatePrintingId === si.candidatePrintingId
                   ? null
@@ -368,9 +362,10 @@ export function PrintingImageSwitcher({
               setResolution(null);
               setImgError(false);
             }}
+            className="aria-pressed:border-primary aria-pressed:bg-primary/10 aria-pressed:text-foreground text-muted-foreground h-6 min-w-0 rounded border border-dashed px-1.5 font-normal"
           >
             {si.source}
-          </button>
+          </Toggle>
         ))}
       </div>
 

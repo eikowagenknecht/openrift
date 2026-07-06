@@ -602,6 +602,7 @@ export function CandidateSpreadsheet({
                         >
                           <DropdownMenuTrigger
                             render={
+                              // oxlint-disable-next-line react/forbid-elements -- cell inline-edit trigger; needs full-width chrome-free layout Button can't provide
                               <button
                                 type="button"
                                 aria-label={`Edit ${field.label}`}
@@ -798,17 +799,19 @@ export function CandidateSpreadsheet({
                     !isRequired &&
                     hasValue(activeValue) &&
                     editingField !== field.key && (
-                      <button
+                      <Button
                         type="button"
+                        variant="ghost"
+                        size="icon-xs"
                         // Shown on touch (no hover); hover-revealed only at md+.
-                        className="text-muted-foreground hover:bg-muted hover:text-foreground absolute top-1 right-1 inline-flex rounded p-0.5 md:hidden md:group-hover/active:inline-flex"
+                        className="text-muted-foreground absolute top-1 right-1 md:hidden md:group-hover/active:inline-flex"
                         onClick={(e) => {
                           e.stopPropagation();
                           onActiveChange(field.key, null);
                         }}
                       >
                         <XIcon className="size-3" />
-                      </button>
+                      </Button>
                     )}
                 </td>
                 {sortedRows.map((row) => {

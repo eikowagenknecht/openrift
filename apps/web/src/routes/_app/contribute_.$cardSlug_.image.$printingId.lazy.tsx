@@ -10,6 +10,7 @@ import { ArrowLeftIcon } from "lucide-react";
 
 import { ImageSuggestForm } from "@/components/contribute/image-suggest-form";
 import { Heading } from "@/components/heading";
+import { Pressable } from "@/components/ui/pressable";
 import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { PAGE_PADDING } from "@/lib/utils";
@@ -43,14 +44,13 @@ function ImageSuggestPage() {
 
   return (
     <div className={`${PAGE_PADDING} mx-auto flex w-full max-w-2xl flex-col gap-6`}>
-      <button
-        type="button"
+      <Pressable
         onClick={handleBack}
-        className="text-muted-foreground hover:text-foreground inline-flex w-fit cursor-pointer items-center gap-1.5"
+        className="text-muted-foreground hover:text-foreground inline-flex w-fit items-center gap-1.5"
       >
         <ArrowLeftIcon className="size-4" />
         Back
-      </button>
+      </Pressable>
       <header className="flex flex-col gap-1">
         <Heading level={1}>Suggest an image</Heading>
         <p className="text-muted-foreground">

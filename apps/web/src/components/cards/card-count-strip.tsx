@@ -1,8 +1,8 @@
 import { MinusIcon, PackageIcon, PlusIcon } from "lucide-react";
 import type { ComponentType, MouseEvent, ReactNode, SVGProps } from "react";
 
-import { COUNT_PILL_BASE, COUNT_PILL_INTERACTIVE } from "@/components/cards/count-pill";
 import { Button } from "@/components/ui/button";
+import { CountPill, CountPillButton } from "@/components/ui/count-pill";
 import { cn } from "@/lib/utils";
 
 type IconComponent = ComponentType<SVGProps<SVGSVGElement>>;
@@ -75,20 +75,19 @@ export function CardCountStrip({
   const pill =
     pillOverride ??
     (onPillClick ? (
-      <button
-        type="button"
+      <CountPillButton
         tabIndex={-1}
         onClick={(event) => {
           event.stopPropagation();
           onPillClick(event);
         }}
         aria-label={pillAriaLabel}
-        className={cn(COUNT_PILL_BASE, COUNT_PILL_INTERACTIVE, isDim && "opacity-50")}
+        className={cn(isDim && "opacity-50")}
       >
         {pillInner}
-      </button>
+      </CountPillButton>
     ) : (
-      <span className={cn(COUNT_PILL_BASE, isDim && "opacity-50")}>{pillInner}</span>
+      <CountPill className={cn(isDim && "opacity-50")}>{pillInner}</CountPill>
     ));
 
   return (

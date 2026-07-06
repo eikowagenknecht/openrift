@@ -27,6 +27,7 @@ import {
   MapIcon,
   SettingsIcon,
   SpellCheckIcon,
+  SwatchBookIcon,
   TagIcon,
   UsersIcon,
 } from "lucide-react";
@@ -68,6 +69,7 @@ const taxonomyPages = [
 ];
 
 const contentPages = [
+  { to: "/admin/design" as const, icon: SwatchBookIcon, title: "Design" },
   { to: "/admin/typography-review" as const, icon: SpellCheckIcon, title: "Typography" },
   { to: "/admin/rules" as const, icon: BookOpenIcon, title: "Rules" },
   { to: "/admin/errata" as const, icon: FileWarningIcon, title: "Errata" },

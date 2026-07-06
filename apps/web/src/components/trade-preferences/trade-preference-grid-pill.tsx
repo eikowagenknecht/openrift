@@ -1,7 +1,7 @@
 import type { Currency, EffectiveTradePreference, TradePreference } from "@openrift/shared";
 import { resolveEffectiveTradePreference } from "@openrift/shared";
 
-import { COUNT_PILL_BASE, COUNT_PILL_INTERACTIVE } from "@/components/cards/count-pill";
+import { CountPillButton } from "@/components/ui/count-pill";
 import { cn } from "@/lib/utils";
 
 import { iconForTradeType } from "./trade-preference-icon";
@@ -45,8 +45,7 @@ export function TradePreferenceGridPill({
   const Icon = iconForTradeType(effective.tradeType);
 
   return (
-    <button
-      type="button"
+    <CountPillButton
       tabIndex={-1}
       aria-label={tooltip ?? "Set trade preference"}
       title={tooltip ?? "Set trade preference"}
@@ -54,17 +53,13 @@ export function TradePreferenceGridPill({
         event.stopPropagation();
         onEdit();
       }}
-      className={cn(
-        COUNT_PILL_BASE,
-        COUNT_PILL_INTERACTIVE,
-        // Tint when the entry has its own override; otherwise keep the muted
-        // look so the inherited state doesn't shout.
-        isOverridden && "text-primary",
-      )}
+      // Tint when the entry has its own override; otherwise keep the muted
+      // look so the inherited state doesn't shout.
+      className={cn(isOverridden && "text-primary")}
     >
       <Icon className="size-3" />
       {body ? <span>{body}</span> : null}
-    </button>
+    </CountPillButton>
   );
 }
 

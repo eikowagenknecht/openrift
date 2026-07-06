@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Pressable } from "@/components/ui/pressable";
 import { useFriendGroupsList, useShareListWithFriendGroup } from "@/hooks/use-friend-groups";
 import { useBulkAddListEntries, useCreateList } from "@/hooks/use-lists";
 import { cn } from "@/lib/utils";
@@ -273,14 +274,14 @@ export function CreateListDialog({
                 const Icon = meta.icon;
                 const isSelected = kind === option;
                 return (
-                  <button
+                  <Pressable
                     key={option}
-                    type="button"
-                    className={
+                    className={cn(
+                      "flex items-start gap-2 rounded-md border px-3 py-2 text-sm",
                       isSelected
-                        ? "border-primary bg-primary/5 flex items-start gap-2 rounded-md border px-3 py-2 text-left text-sm"
-                        : "hover:bg-muted flex items-start gap-2 rounded-md border border-transparent px-3 py-2 text-left text-sm"
-                    }
+                        ? "border-primary bg-primary/5"
+                        : "hover:bg-muted border-transparent",
+                    )}
                     onClick={() => setKind(option)}
                   >
                     <Icon className="mt-0.5 size-4 shrink-0" />
@@ -290,7 +291,7 @@ export function CreateListDialog({
                         {kindHints?.[option] ?? KIND_HINTS[intent][option]}
                       </div>
                     </div>
-                  </button>
+                  </Pressable>
                 );
               })}
             </div>

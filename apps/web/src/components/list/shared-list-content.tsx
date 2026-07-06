@@ -21,7 +21,6 @@ import { CardCountStrip } from "@/components/cards/card-count-strip";
 import { OwnedCollectionsPopover } from "@/components/cards/card-detail/owned-collections-popover";
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
-import { COUNT_PILL_BASE, COUNT_PILL_INTERACTIVE } from "@/components/cards/count-pill";
 import { StaticCountTableActions } from "@/components/cards/static-count-table-actions";
 import { WishlistHeart } from "@/components/cards/wishlist-heart";
 import { OfferToWishlistDialog } from "@/components/friend-groups/offer-to-wishlist-dialog";
@@ -43,6 +42,7 @@ import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CountPill, CountPillButton } from "@/components/ui/count-pill";
 import {
   Empty,
   EmptyDescription,
@@ -69,7 +69,6 @@ import {
   personalCopyIdsByPrinting,
 } from "@/lib/tradelist-exchange";
 import type { PendingRequest } from "@/lib/tradelist-exchange";
-import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
@@ -674,17 +673,10 @@ function RequestStrip({
             control across cards; color carries the state (neutral = actionable,
             primary tint = requested by you, green = reserved/locked). */}
         {state === "reserved" ? (
-          <span
-            className={cn(
-              COUNT_PILL_BASE,
-              "bg-green-500/10 text-green-700 dark:bg-green-500/20 dark:text-green-400",
-            )}
-          >
-            Reserved
-          </span>
+          <CountPill variant="success">Reserved</CountPill>
         ) : state === "requested" ? (
-          <button
-            type="button"
+          <CountPillButton
+            variant="primary"
             tabIndex={-1}
             disabled={disabled}
             aria-label="Cancel this copy"
@@ -695,18 +687,12 @@ function RequestStrip({
                 onRelease();
               }
             }}
-            className={cn(
-              COUNT_PILL_BASE,
-              "bg-primary/10 text-primary",
-              disabled ? "cursor-not-allowed opacity-50" : "hover:bg-primary/20 cursor-pointer",
-            )}
           >
             <span>Requested</span>
             <XIcon className="size-3" />
-          </button>
+          </CountPillButton>
         ) : (
-          <button
-            type="button"
+          <CountPillButton
             tabIndex={-1}
             disabled={disabled}
             aria-label="Request this copy"
@@ -716,14 +702,10 @@ function RequestStrip({
                 onRequest();
               }
             }}
-            className={cn(
-              COUNT_PILL_BASE,
-              disabled ? "cursor-not-allowed opacity-50" : COUNT_PILL_INTERACTIVE,
-            )}
           >
             <HeartIcon className="size-3" />
             <span>Request</span>
-          </button>
+          </CountPillButton>
         )}
       </span>
     </div>
@@ -737,8 +719,7 @@ function OfferStrip({ disabled, onClick }: { disabled: boolean; onClick: () => v
   return (
     // h-5 + mb-1 = 24px, matching ADD_STRIP_HEIGHT so the virtualizer estimate holds.
     <div className="relative z-30 mb-1 flex h-5 items-center justify-center">
-      <button
-        type="button"
+      <CountPillButton
         tabIndex={-1}
         aria-label={disabled ? "You don't own this card" : "Offer this card"}
         title={disabled ? "You don't own this card" : undefined}
@@ -749,11 +730,10 @@ function OfferStrip({ disabled, onClick }: { disabled: boolean; onClick: () => v
             onClick();
           }
         }}
-        className={cn(COUNT_PILL_BASE, disabled ? "opacity-40" : COUNT_PILL_INTERACTIVE)}
       >
         <HandshakeIcon className="size-3" />
         <span>Offer</span>
-      </button>
+      </CountPillButton>
     </div>
   );
 }

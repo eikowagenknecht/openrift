@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { MultiSelectCombobox } from "@/components/filters/multi-select-combobox";
 import { CONTROL_WIDTH, FilterRow, RuleFilterEditor } from "@/components/list/rule-filter-editor";
 import { Button } from "@/components/ui/button";
+import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import {
   Dialog,
   DialogContent,
@@ -437,14 +438,13 @@ function ExclusionChip({ label, onRemove }: { label: string; onRemove: () => voi
   return (
     <span className="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-md py-0.5 pr-0.5 pl-2 text-sm">
       {label}
-      <button
-        type="button"
+      <ChipRemoveButton
         aria-label={`Stop excluding ${label}`}
-        className="hover:bg-background/60 hover:text-foreground rounded-sm p-0.5"
+        className="hover:bg-background/60 ml-0 p-0.5"
         onClick={onRemove}
       >
         <XIcon className="size-3.5" aria-hidden />
-      </button>
+      </ChipRemoveButton>
     </span>
   );
 }

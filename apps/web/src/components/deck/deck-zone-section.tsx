@@ -287,10 +287,11 @@ export function DeckZoneSection({
           <Popover>
             <PopoverTrigger
               render={
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
                   aria-label="Show zone issues"
-                  className="hover:bg-muted/50 mr-1 ml-1 flex size-5 shrink-0 items-center justify-center rounded"
+                  className="mr-1 ml-1 size-5 shrink-0 rounded"
                 />
               }
             >
@@ -312,13 +313,15 @@ export function DeckZoneSection({
       {open && (
         <div className="border-t px-1 py-1">
           {cards.length === 0 ? (
-            <button
+            <Button
               type="button"
-              className="text-muted-foreground hover:text-foreground w-full rounded px-2 py-1 text-left text-xs"
+              variant="ghost"
+              size="xs"
+              className="text-muted-foreground h-auto w-full justify-start rounded py-1 text-left font-normal whitespace-normal"
               onClick={activateZone}
             >
               {zoneEmptyHint(zone, format)}
-            </button>
+            </Button>
           ) : isGrouped ? (
             <div className="flex flex-col gap-1.5">{renderGroupedCards()}</div>
           ) : (

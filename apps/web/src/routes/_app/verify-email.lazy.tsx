@@ -77,14 +77,9 @@ function VerifyEmailPage() {
             >
               {verifying ? "Verifying..." : "Verify"}
             </Button>
-            <button
-              type="button"
-              className="text-muted-foreground text-sm underline underline-offset-2"
-              disabled={resending}
-              onClick={handleResend}
-            >
+            <Button type="button" variant="link-muted" disabled={resending} onClick={handleResend}>
               {resending ? "Sending..." : "Resend code"}
-            </button>
+            </Button>
           </FieldGroup>
           <p className="text-muted-foreground text-sm">
             <Link
