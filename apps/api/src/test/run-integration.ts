@@ -105,6 +105,7 @@ const PARALLEL_FILES = [
   "src/repositories/user-shares.integration.test.ts",
   "src/repositories/user-contact-methods.integration.test.ts",
   "src/repositories/deck-plans.integration.test.ts",
+  "src/repositories/organizations-rebalance.integration.test.ts",
   "src/repositories/pod-tournaments.integration.test.ts",
   // Unified tournaments umbrella (ADR-033)
   "src/repositories/tournaments-schema.integration.test.ts",
