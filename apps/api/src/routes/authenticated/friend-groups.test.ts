@@ -54,6 +54,9 @@ function makeApp(overrides: {
   const friendGroups = {
     getById: vi.fn(),
     getBySlug: vi.fn(),
+    // Viewer-facing routes use the alias-aware lookup; tests stub getBySlug,
+    // so the default delegates at call time to whatever getBySlug resolves.
+    getBySlugOrPrevious: vi.fn((slug: string) => friendGroups.getBySlug(slug)),
     getByCode: vi.fn(),
     createWithOwner: vi.fn(),
     update: vi.fn(),

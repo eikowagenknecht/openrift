@@ -1,6 +1,7 @@
 import type { Insertable, Kysely, Selectable, Updateable } from "kysely";
 import { sql } from "kysely";
 
+import { parseJsonb } from "../db/helpers.js";
 import type { CandidateCardsTable, Database, CandidatePrintingsTable } from "../db/index.js";
 
 type Db = Kysely<Database>;
@@ -16,8 +17,17 @@ export function ingestRepo(db: Db) {
     // ── Bulk reads ────────────────────────────────────────────────────────────
 
     /** @returns All candidate cards for a given provider name. */
-    allCandidateCardsForProvider(provider: string): Promise<Selectable<CandidateCardsTable>[]> {
-      return db.selectFrom("candidateCards").selectAll().where("provider", "=", provider).execute();
+    async allCandidateCardsForProvider(
+      provider: string,
+    ): Promise<Selectable<CandidateCardsTable>[]> {
+      const rows = await db
+        .selectFrom("candidateCards")
+        .selectAll()
+        .where("provider", "=", provider)
+        .execute();
+      // Without the parse, the ingest diff compares a JSON string against the
+      // incoming object and flags extraData as changed on every re-ingest.
+      return rows.map((row) => ({ ...row, extraData: parseJsonb(row.extraData) }));
     },
 
     /** @returns All cards (id + normName) for name resolution. */
@@ -47,14 +57,15 @@ export function ingestRepo(db: Db) {
     },
 
     /** @returns All candidate printings for the given candidate card IDs. */
-    candidatePrintingsByCandidateCardIds(
+    async candidatePrintingsByCandidateCardIds(
       candidateCardIds: string[],
     ): Promise<Selectable<CandidatePrintingsTable>[]> {
-      return db
+      const rows = await db
         .selectFrom("candidatePrintings")
         .selectAll()
         .where("candidateCardId", "in", candidateCardIds)
         .execute();
+      return rows.map((row) => ({ ...row, extraData: parseJsonb(row.extraData) }));
     },
 
     /** @returns Ignored candidate card external IDs for a provider. */

@@ -7,6 +7,13 @@
 - feat(App): **Redesigned landing page** — a fanned hand of real cards takes center stage: hover to tilt them, click to collect them all, with sharper copy and new angular buttons.
 - feat(App): **New display typeface** — page titles, section headings, and the OpenRift wordmark now use Chakra Petch, giving the app its own voice instead of the default font everywhere.
 
+### Other
+
+- fix(Tournaments): **Organizations survive owner deletion** — deleting your account now hands your organization to a co-owner or manager instead of erasing it for everyone.
+- fix(Groups): **Old group links keep working** — renaming a group now forwards its previous address, so bookmarks and trade emails from recent days still open it.
+- fix(Collection): **Exact CSV re-import** — importing your own export no longer drops token cards like Buff, and promos with several markers now match exactly.
+- fix(App): **Share links stay out of search** — pages opened via share links now ask search engines not to index them, while link previews in chats keep working.
+
 ## 2026-07-05
 
 ### Other

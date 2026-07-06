@@ -17,13 +17,13 @@ export const Route = createFileRoute("/_app/lists_/share/$token")({
     const path = `/lists/share/${params.token}`;
     const data = loaderData as PublicListDetailResponse | undefined;
     if (!data) {
-      return seoHead({ siteUrl, title: "Shared list", path });
+      return seoHead({ siteUrl, title: "Shared list", path, unlisted: true });
     }
     const { list, owner } = data;
     const title = `${list.name} (${list.intent} list)`;
     const description = `A Riftbound ${list.intent} list shared by ${owner.displayName}.`;
     const ogImage = listShareImageUrl(siteUrl, params.token, shareImageVersion(list.updatedAt));
-    return seoHead({ siteUrl, title, description, path, ogImage, oembed: true });
+    return seoHead({ siteUrl, title, description, path, ogImage, oembed: true, unlisted: true });
   },
   loader: async ({ context, params }): Promise<PublicListDetailResponse> => {
     try {

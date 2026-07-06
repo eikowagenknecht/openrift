@@ -1061,7 +1061,9 @@ function ComparisonMobileCard({
 
 function ComparisonCell({ value }: { value: CellValue }) {
   if (typeof value === "number") {
-    return <span className="tabular-nums">{value.toLocaleString()}</span>;
+    // Pinned locale: this article SSRs, and a visitor-locale thousands
+    // separator ("1.000" vs "1,000") would mismatch the server HTML.
+    return <span className="tabular-nums">{value.toLocaleString("en-US")}</span>;
   }
   if (value === "yes") {
     return <CheckCircle2Icon className="inline size-4 text-emerald-600 dark:text-emerald-400" />;

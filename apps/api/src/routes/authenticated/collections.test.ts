@@ -33,6 +33,9 @@ const mockCollectionsRepo = {
 
 const mockFriendGroupsRepo = {
   getBySlug: vi.fn(() => Promise.resolve(undefined as object | undefined)),
+  // The route resolves rename aliases via the alias-aware lookup; delegate to
+  // the getBySlug stub so tests keep configuring one mock.
+  getBySlugOrPrevious: vi.fn((slug: string) => mockFriendGroupsRepo.getBySlug(slug)),
   getMembership: vi.fn(() => Promise.resolve(undefined as object | undefined)),
 };
 

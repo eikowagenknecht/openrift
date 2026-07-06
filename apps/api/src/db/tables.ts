@@ -565,6 +565,9 @@ export interface FriendGroupsTable {
   id: Generated<string>;
   /** CHECK: matches `^[a-z0-9][a-z0-9-]{2,29}$` */
   slug: string;
+  /** The slug this group last renamed away from — kept as a lookup alias so
+   * bookmarks and in-flight trade emails keep resolving. Same CHECK as slug. */
+  previousSlug: Generated<string | null>;
   /** CHECK: length 1..60 */
   name: string;
   /** CHECK: length <= 500 */

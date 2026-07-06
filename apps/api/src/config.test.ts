@@ -97,4 +97,50 @@ describe("validateConfig", () => {
       }),
     ).not.toThrow();
   });
+
+  it("rejects CORS_ORIGIN=* in production", () => {
+    expect(() =>
+      validateConfig({
+        APP_ENV: "production",
+        DATABASE_URL: "postgres://x",
+        BETTER_AUTH_SECRET: "s",
+        CORS_ORIGIN: "*",
+        BETTER_AUTH_URL: "https://openrift.app",
+      }),
+    ).toThrow('CORS_ORIGIN must not be "*"');
+  });
+
+  it("rejects a bare * entry inside a comma-separated CORS_ORIGIN in production", () => {
+    expect(() =>
+      validateConfig({
+        APP_ENV: "production",
+        DATABASE_URL: "postgres://x",
+        BETTER_AUTH_SECRET: "s",
+        CORS_ORIGIN: "https://openrift.app, *",
+        BETTER_AUTH_URL: "https://openrift.app",
+      }),
+    ).toThrow('CORS_ORIGIN must not be "*"');
+  });
+
+  it("allows wildcard-subdomain CORS_ORIGIN patterns in production", () => {
+    expect(() =>
+      validateConfig({
+        APP_ENV: "production",
+        DATABASE_URL: "postgres://x",
+        BETTER_AUTH_SECRET: "s",
+        CORS_ORIGIN: "https://openrift.app,https://*.workers.dev",
+        BETTER_AUTH_URL: "https://openrift.app",
+      }),
+    ).not.toThrow();
+  });
+
+  it("allows CORS_ORIGIN=* in development", () => {
+    expect(() =>
+      validateConfig({
+        DATABASE_URL: "postgres://x",
+        BETTER_AUTH_SECRET: "s",
+        CORS_ORIGIN: "*",
+      }),
+    ).not.toThrow();
+  });
 });

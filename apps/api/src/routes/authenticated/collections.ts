@@ -58,7 +58,7 @@ export const collectionsRouter = {
     let groupSlug: string | null = null;
     let groupName: string | null = null;
     if (input.groupSlug) {
-      const group = await friendGroups.getBySlug(input.groupSlug);
+      const group = await friendGroups.getBySlugOrPrevious(input.groupSlug);
       assertFound(group, "Group not found");
       const membership = await friendGroups.getMembership(group.id, userId);
       if (!membership) {

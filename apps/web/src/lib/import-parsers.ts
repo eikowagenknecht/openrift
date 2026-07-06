@@ -415,11 +415,13 @@ function parseOpenRift(text: string): ParseResult {
 
 /**
  * Parses an OpenRift Card ID like "OGN-001", "OGN-079a", "OGN-123*", or "SFD-T01".
- * Uses the same format as our short codes.
+ * Uses the same format as our short codes. The collector part is optional:
+ * token printings (the OGN "Buff" tokens) have a bare set code as their entire
+ * short code, and our own export writes it that way.
  * @returns Parsed parts, or null if the format is unrecognized.
  */
 function parseOpenRiftCardId(cardId: string): { setPrefix: string } | null {
-  const match = cardId.match(/^(?<set>[A-Z]{3})-(?<code>[A-Z0-9]{3})[a-z*]?$/u);
+  const match = cardId.match(/^(?<set>[A-Z]{3})(?:-(?<code>[A-Z0-9]{3})[a-z*]?)?$/u);
   if (!match) {
     return null;
   }

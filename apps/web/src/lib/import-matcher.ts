@@ -212,10 +212,12 @@ function matchSingleEntry(
     const finishMatches = langMatches.filter((printing) => printing.finish === entry.finish);
 
     // If the entry has a promo slug, match by promo type across language-narrowed matches (finish
-    // in the CSV may not reflect the actual finish of the promo printing in the catalog)
+    // in the CSV may not reflect the actual finish of the promo printing in the catalog).
+    // The export joins multiple markers with "+", so require every listed marker.
     if (entry.promoSlug) {
+      const promoSlugs = entry.promoSlug.split("+");
       const promoMatches = langMatches.filter((printing) =>
-        printing.markers.some((m) => m.slug === entry.promoSlug),
+        promoSlugs.every((slug) => printing.markers.some((m) => m.slug === slug)),
       );
       if (promoMatches.length === 1) {
         return {

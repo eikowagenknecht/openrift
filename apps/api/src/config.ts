@@ -101,4 +101,13 @@ export function validateConfig(env: Record<string, string | undefined>): void {
   if (missing.length > 0) {
     throw new Error(`Missing required environment variables: ${missing.join(", ")}`);
   }
+
+  // CORS runs with credentials enabled, and matchOrigin reflects the request
+  // origin when CORS_ORIGIN is "*" — which would let any website make
+  // authenticated requests against a signed-in session. Fail at boot instead.
+  if (isProd && env.CORS_ORIGIN?.split(",").some((origin) => origin.trim() === "*")) {
+    throw new Error(
+      'CORS_ORIGIN must not be "*" outside development: credentialed CORS would reflect any origin. List explicit origins instead.',
+    );
+  }
 }

@@ -23,7 +23,7 @@ export const cardSubmissionSchema = z
       message: "Slug must be lowercase letters, digits, and hyphens.",
     }),
     card: cardSubmissionCardSchema,
-    printings: z.array(cardSubmissionPrintingSchema).min(1),
+    printings: z.array(cardSubmissionPrintingSchema).min(1).max(50),
     submissionNote: z.string().trim().min(1).max(2000).nullable().optional().default(null),
   })
   .strict();

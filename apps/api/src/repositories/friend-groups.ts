@@ -26,7 +26,7 @@ export type NewGroupValues = Pick<
 
 export type GroupUpdate = Pick<
   Updateable<FriendGroupsTable>,
-  "slug" | "name" | "description" | "updatedAt"
+  "slug" | "previousSlug" | "name" | "description" | "updatedAt"
 >;
 
 /** Joined member row used by the roster UI — adds the user's public profile. */
@@ -64,6 +64,31 @@ export function friendGroupsRepo(db: Kysely<Database>) {
     /** @returns The group row, or `undefined` if no group has that slug. */
     getBySlug(slug: string): Promise<Group | undefined> {
       return db.selectFrom("friendGroups").selectAll().where("slug", "=", slug).executeTakeFirst();
+    },
+
+    /**
+     * Viewer-facing slug lookup: exact slug first, then the rename alias
+     * (`previous_slug`), so bookmarks and in-flight trade emails survive a
+     * rename. A current slug always beats another group's stale alias; on the
+     * rare alias collision the most recently updated group wins. Keep the
+     * exact `getBySlug` for uniqueness/conflict checks.
+     * @returns The matched group row, or `undefined`.
+     */
+    async getBySlugOrPrevious(slug: string): Promise<Group | undefined> {
+      const current = await db
+        .selectFrom("friendGroups")
+        .selectAll()
+        .where("slug", "=", slug)
+        .executeTakeFirst();
+      if (current) {
+        return current;
+      }
+      return db
+        .selectFrom("friendGroups")
+        .selectAll()
+        .where("previousSlug", "=", slug)
+        .orderBy("updatedAt", "desc")
+        .executeTakeFirst();
     },
 
     /** @returns The group row matched by its join code, or `undefined`. */

@@ -402,3 +402,77 @@ describe("GET /api/v1/decks/share/:token/image.png", () => {
     expect(renderDeckMock).not.toHaveBeenCalled();
   });
 });
+
+describe("POST /api/v1/decks/image", () => {
+  // The rate limiter keys on x-real-ip and its counters live for the whole
+  // test file, so every test uses its own IP to get an isolated bucket.
+  function postRender(ip: string, body: unknown) {
+    return app.request("/api/v1/decks/image", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-real-ip": ip },
+      body: JSON.stringify(body),
+    });
+  }
+
+  const validBody = {
+    deckName: "Local Deck",
+    format: "constructed",
+    cards: [{ cardId: "card-1", quantity: 3, zone: "main" }],
+  };
+
+  beforeEach(() => {
+    mockCatalogRepo.cardsByIds.mockResolvedValue([]);
+  });
+
+  it("renders a PNG from posted cards", async () => {
+    const res = await postRender("10.0.0.1", validBody);
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("image/png");
+    expect(res.headers.get("cache-control")).toBe("private, no-store");
+    expect(renderDeckMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("truncates oversized deckName and ownerName before rendering", async () => {
+    const res = await postRender("10.0.0.2", {
+      ...validBody,
+      deckName: "n".repeat(5000),
+      ownerName: "o".repeat(5000),
+    });
+
+    expect(res.status).toBe(200);
+    const input = renderDeckMock.mock.calls[0]![1];
+    expect(input.deckName).toHaveLength(200);
+    expect(input.ownerName).toHaveLength(200);
+  });
+
+  it("rejects bodies over 256 KB with 413 before parsing", async () => {
+    const res = await postRender("10.0.0.3", {
+      ...validBody,
+      deckName: "x".repeat(300 * 1024),
+    });
+
+    expect(res.status).toBe(413);
+    expect(renderDeckMock).not.toHaveBeenCalled();
+  });
+
+  it("rate-limits repeated renders from one IP with 429", async () => {
+    let limited = 0;
+    for (let attempt = 0; attempt < 11; attempt += 1) {
+      const res = await postRender("10.0.0.4", validBody);
+      if (res.status === 429) {
+        limited += 1;
+      }
+    }
+
+    expect(limited).toBe(1);
+    expect(renderDeckMock).toHaveBeenCalledTimes(10);
+  });
+
+  it("rejects a missing or empty card list with 400", async () => {
+    const res = await postRender("10.0.0.5", { deckName: "Empty", cards: [] });
+
+    expect(res.status).toBe(400);
+    expect(renderDeckMock).not.toHaveBeenCalled();
+  });
+});

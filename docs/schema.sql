@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict UK6njl1ZxaCJwvXYrbDOgax0YyoHWhedY9dqGGkWf4Gj4w3Q7R4iyV7Op4N5Zwk
+\restrict UDz4l69VrOIzRNN8UPzBjehbKgC69R1rtdAm1xSaCFOdLP3epTQuDKSYlO4Wq77
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -234,6 +234,38 @@ CREATE FUNCTION public.rebalance_friend_group_owner() RETURNS trigger
         DELETE FROM friend_groups WHERE id = OLD.group_id;
       END IF;
 
+      RETURN OLD;
+    END;
+    $$;
+
+
+--
+-- Name: rebalance_organization_owner(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.rebalance_organization_owner() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+    DECLARE
+      org RECORD;
+      successor RECORD;
+    BEGIN
+      FOR org IN SELECT id FROM organizations WHERE owner_user_id = OLD.id LOOP
+        SELECT user_id INTO successor
+        FROM organization_members
+        WHERE org_id = org.id AND user_id <> OLD.id
+        ORDER BY (role = 'owner') DESC, (role = 'manager') DESC, joined_at ASC
+        LIMIT 1;
+
+        IF FOUND THEN
+          UPDATE organizations
+             SET owner_user_id = successor.user_id
+           WHERE id = org.id;
+          UPDATE organization_members
+             SET role = 'owner'
+           WHERE org_id = org.id AND user_id = successor.user_id;
+        END IF;
+      END LOOP;
       RETURN OLD;
     END;
     $$;
@@ -1173,8 +1205,10 @@ CREATE TABLE public.friend_groups (
     code_rotated_at timestamp with time zone DEFAULT now() NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    previous_slug text,
     CONSTRAINT chk_friend_groups_description CHECK (((description IS NULL) OR (length(description) <= 500))),
     CONSTRAINT chk_friend_groups_name CHECK (((length(name) >= 1) AND (length(name) <= 60))),
+    CONSTRAINT chk_friend_groups_previous_slug CHECK (((previous_slug IS NULL) OR (previous_slug ~ '^[a-z0-9][a-z0-9-]{2,29}$'::text))),
     CONSTRAINT chk_friend_groups_slug CHECK ((slug ~ '^[a-z0-9][a-z0-9-]{2,29}$'::text))
 );
 
@@ -3357,6 +3391,13 @@ CREATE INDEX idx_friend_group_members_user ON public.friend_group_members USING 
 
 
 --
+-- Name: idx_friend_groups_previous_slug; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_friend_groups_previous_slug ON public.friend_groups USING btree (previous_slug) WHERE (previous_slug IS NOT NULL);
+
+
+--
 -- Name: idx_ignored_candidate_cards_provider_external; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3921,6 +3962,13 @@ CREATE TRIGGER trg_rarities_protect_well_known BEFORE DELETE OR UPDATE ON public
 --
 
 CREATE TRIGGER trg_rebalance_friend_group_owner AFTER DELETE ON public.friend_group_members FOR EACH ROW EXECUTE FUNCTION public.rebalance_friend_group_owner();
+
+
+--
+-- Name: users trg_rebalance_organization_owner; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_rebalance_organization_owner BEFORE DELETE ON public.users FOR EACH ROW EXECUTE FUNCTION public.rebalance_organization_owner();
 
 
 --
@@ -5229,5 +5277,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict UK6njl1ZxaCJwvXYrbDOgax0YyoHWhedY9dqGGkWf4Gj4w3Q7R4iyV7Op4N5Zwk
+\unrestrict UDz4l69VrOIzRNN8UPzBjehbKgC69R1rtdAm1xSaCFOdLP3epTQuDKSYlO4Wq77
 

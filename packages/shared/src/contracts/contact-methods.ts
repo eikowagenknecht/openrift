@@ -24,7 +24,7 @@ export const createContactMethodSchema = z.object({
 });
 
 export const reorderContactMethodsSchema = z.object({
-  ids: z.array(z.uuid()),
+  ids: z.array(z.uuid()).max(500),
 });
 
 export const userContactMethodsResponseSchema = z

@@ -40,6 +40,12 @@ function buildProdRobotsTxt(): string {
     "User-agent: *",
     "Allow: /",
     "",
+    "# Share pages are unlisted via a noindex meta tag on the page itself.",
+    "# Crawling must stay allowed so engines can see that tag — a robots block",
+    "# alone would leave externally-linked share URLs indexable.",
+    "Allow: /collections/share/",
+    "Allow: /decks/share/",
+    "",
     "# Authenticated-only routes (not useful to crawlers)",
     "Disallow: /collections",
     "Disallow: /decks",
@@ -61,7 +67,9 @@ const STATIC_PAGES = [
   { path: "/", priority: "1.0", changefreq: "weekly" },
   { path: "/cards", priority: "0.8", changefreq: "weekly" },
   { path: "/sets", priority: "0.7", changefreq: "weekly" },
-  { path: "/promos", priority: "0.6", changefreq: "weekly" },
+  // /promos always 302s to the EN page, so list the redirect target — sitemaps
+  // should carry the final canonical URL (same rationale as the rules kinds).
+  { path: "/promos/EN", priority: "0.6", changefreq: "weekly" },
   { path: "/rules", priority: "0.5", changefreq: "monthly" },
   { path: "/help", priority: "0.4", changefreq: "monthly" },
   { path: "/roadmap", priority: "0.3", changefreq: "monthly" },

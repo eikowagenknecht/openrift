@@ -267,7 +267,7 @@ export const friendGroupsRouter = {
     const viewerId = context.userId;
     const { friendGroups } = context.repos;
 
-    const group = await friendGroups.getBySlug(input.slug);
+    const group = await friendGroups.getBySlugOrPrevious(input.slug);
     if (!group) {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "Group not found");
     }
@@ -325,7 +325,10 @@ export const friendGroupsRouter = {
     const ctx = await loadGroupForMember(context.repos, slug, viewerId);
     requireRole(ctx.membership, "admin");
 
-    if (body.slug && body.slug !== ctx.group.slug) {
+    const isRename = Boolean(body.slug) && body.slug !== ctx.group.slug;
+    if (body.slug && isRename) {
+      // Exact-slug check on purpose: another group's stale rename alias must
+      // not block taking a freed slug (current slugs win on lookup anyway).
       const existing = await friendGroups.getBySlug(body.slug);
       if (existing) {
         throw new AppError(409, ERROR_CODES.CONFLICT, "Slug already in use");
@@ -334,6 +337,9 @@ export const friendGroupsRouter = {
 
     const patched = await friendGroups.update(ctx.group.id, {
       slug: body.slug,
+      // A rename keeps the old slug as a lookup alias so bookmarks and
+      // in-flight trade emails keep resolving (migration 189).
+      ...(isRename ? { previousSlug: ctx.group.slug } : {}),
       name: body.name,
       description: body.description ?? undefined,
       updatedAt: new Date(),
@@ -427,7 +433,7 @@ export const friendGroupsRouter = {
     const { friendGroups } = context.repos;
     const targetUserId = input.userId;
 
-    const group = await friendGroups.getBySlug(input.slug);
+    const group = await friendGroups.getBySlugOrPrevious(input.slug);
     if (!group) {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "Group not found");
     }
@@ -464,7 +470,7 @@ export const friendGroupsRouter = {
     const { friendGroups } = context.repos;
     const targetUserId = input.userId;
 
-    const group = await friendGroups.getBySlug(input.slug);
+    const group = await friendGroups.getBySlugOrPrevious(input.slug);
     if (!group) {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "Group not found");
     }
@@ -705,7 +711,7 @@ export const friendGroupsRouter = {
       const viewerId = context.userId;
       const { friendGroups, lists } = context.repos;
 
-      const group = await friendGroups.getBySlug(input.slug);
+      const group = await friendGroups.getBySlugOrPrevious(input.slug);
       if (!group) {
         throw new AppError(404, ERROR_CODES.NOT_FOUND, "Group not found");
       }
@@ -849,7 +855,7 @@ export const friendGroupsRouter = {
       const repos = context.repos;
       const { friendGroups, copies, marketplace } = repos;
 
-      const group = await friendGroups.getBySlug(input.slug);
+      const group = await friendGroups.getBySlugOrPrevious(input.slug);
       if (!group) {
         throw new AppError(404, ERROR_CODES.NOT_FOUND, "Group not found");
       }

@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { useHydrated } from "@/hooks/use-hydrated";
 import {
   useCreateSiteSetting,
   useDeleteSiteSetting,
@@ -277,12 +278,11 @@ export function SiteSettingsPage() {
 const UMAMI_DISABLED_KEY = "umami.disabled";
 
 function AnalyticsExclusionPanel() {
+  const hydrated = useHydrated();
   const [excluded, setExcluded] = useState(false);
-  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     setExcluded(localStorage.getItem(UMAMI_DISABLED_KEY) === "1");
-    setHydrated(true);
   }, []);
 
   function handleToggle(next: boolean) {

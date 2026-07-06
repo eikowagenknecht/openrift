@@ -71,7 +71,7 @@ export const friendGroupUpdateRoleSchema = z.object({
 
 /** Which of the viewer's contact methods are revealed to a given group. */
 export const setRevealedContactsSchema = z.object({
-  contactMethodIds: z.array(z.uuid()),
+  contactMethodIds: z.array(z.uuid()).max(500),
 });
 
 export const friendGroupTransferOwnershipSchema = z.object({

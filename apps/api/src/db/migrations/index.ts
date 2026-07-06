@@ -133,6 +133,8 @@ import * as m184 from "./184-candidate-submitter.js";
 import * as m185 from "./185-candidate-printing-size-channels.js";
 import * as m186 from "./186-tournament-host-detach.js";
 import * as m187 from "./187-release-hardening-indexes.js";
+import * as m188 from "./188-organization-owner-rebalance.js";
+import * as m189 from "./189-friend-group-previous-slug.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -325,4 +327,6 @@ export const migrations: Record<string, Migration> = {
   "185-candidate-printing-size-channels": m185,
   "186-tournament-host-detach": m186,
   "187-release-hardening-indexes": m187,
+  "188-organization-owner-rebalance": m188,
+  "189-friend-group-previous-slug": m189,
 };

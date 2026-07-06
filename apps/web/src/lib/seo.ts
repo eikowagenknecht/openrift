@@ -50,6 +50,12 @@ interface SeoOptions {
   oembed?: boolean;
   /** Whether to suppress OG/Twitter tags (e.g. for auth pages). */
   noIndex?: boolean;
+  /**
+   * Marks the page noindex while keeping OG/Twitter/oEmbed tags. For the
+   * share-token pages: they are semi-private ("anyone with the link"), so
+   * search engines must not index them, but link previews must keep working.
+   */
+  unlisted?: boolean;
 }
 
 /**
@@ -58,7 +64,7 @@ interface SeoOptions {
  * @returns An object with `meta` and `links` arrays.
  */
 export function seoHead(options: SeoOptions) {
-  const { siteUrl, title, path, ogType = "website", noIndex } = options;
+  const { siteUrl, title, path, ogType = "website", noIndex, unlisted } = options;
   const ogImage = options.ogImage ?? `${siteUrl}/og-image.png`;
   const description = options.description ?? DEFAULT_DESCRIPTION;
   const siteSuffix = ` — ${SITE_NAME}`;
@@ -72,7 +78,7 @@ export function seoHead(options: SeoOptions) {
     { name: "description", content: description },
   ];
 
-  if (noIndex) {
+  if (noIndex || unlisted) {
     meta.push({ name: "robots", content: "noindex, nofollow" });
   }
 

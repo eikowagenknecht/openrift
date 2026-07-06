@@ -12,6 +12,8 @@ export interface GroupContext {
 
 /**
  * Loads the group by slug + the viewer's membership; 404 if either missing.
+ * Resolves rename aliases (`previous_slug`) so old bookmarks and email links
+ * keep working — callers can compare the returned slug to redirect.
  * @returns The matched group and the viewer's membership row.
  */
 export async function loadGroupForMember(
@@ -19,7 +21,7 @@ export async function loadGroupForMember(
   slug: string,
   viewerId: string,
 ): Promise<GroupContext> {
-  const group = await repos.friendGroups.getBySlug(slug);
+  const group = await repos.friendGroups.getBySlugOrPrevious(slug);
   if (!group) {
     throw new AppError(404, ERROR_CODES.NOT_FOUND, "Group not found");
   }

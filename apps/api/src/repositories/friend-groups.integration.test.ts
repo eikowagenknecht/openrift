@@ -240,6 +240,44 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
     ).rejects.toThrow();
   });
 
+  it("getBySlugOrPrevious resolves a rename alias; exact getBySlug does not", async () => {
+    const group = await createGroup(VIEWER_ID);
+    const oldSlug = group.slug;
+    const newSlug = await uniqueSlug("fg-ren");
+
+    await repo.update(group.id, { slug: newSlug, previousSlug: oldSlug, updatedAt: new Date() });
+
+    const byOld = await repo.getBySlugOrPrevious(oldSlug);
+    expect(byOld?.id).toBe(group.id);
+    expect(byOld?.slug).toBe(newSlug);
+    const byNew = await repo.getBySlugOrPrevious(newSlug);
+    expect(byNew?.id).toBe(group.id);
+
+    // Conflict checks depend on the exact lookup NOT resolving aliases.
+    expect(await repo.getBySlug(oldSlug)).toBeUndefined();
+  });
+
+  it("a group's current slug beats another group's stale rename alias", async () => {
+    const groupA = await createGroup(VIEWER_ID);
+    const contestedSlug = groupA.slug;
+    const movedSlug = await uniqueSlug("fg-mv");
+    await repo.update(groupA.id, {
+      slug: movedSlug,
+      previousSlug: contestedSlug,
+      updatedAt: new Date(),
+    });
+
+    // A new group claims the freed slug; lookups must prefer it over the alias.
+    const groupB = await repo.createWithOwner(
+      { slug: contestedSlug, name: "Claimer", description: null, code: null },
+      VIEWER_ID,
+    );
+    createdGroupIds.push(groupB.id);
+
+    const resolved = await repo.getBySlugOrPrevious(contestedSlug);
+    expect(resolved?.id).toBe(groupB.id);
+  });
+
   it("rejects sharing into a group the user is not a member of", async () => {
     const group = await createGroup(VIEWER_ID);
     const list = await createList(OUTSIDER_ID, "wish", "card");

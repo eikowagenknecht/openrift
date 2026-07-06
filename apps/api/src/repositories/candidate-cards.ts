@@ -2,6 +2,7 @@ import type { CardFace, ProviderStatsResponse } from "@openrift/shared";
 import type { ExpressionBuilder, Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
+import { parseJsonb } from "../db/helpers.js";
 import type {
   CardNameAliasesTable,
   CandidateCardsTable,
@@ -388,7 +389,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
     },
 
     /** @returns Candidate printings for detail page, without timestamps. */
-    candidatePrintingsForDetail(
+    async candidatePrintingsForDetail(
       candidateCardIds: string[],
     ): Promise<
       Pick<
@@ -420,9 +421,9 @@ export function candidateCardsRepo(db: Kysely<Database>) {
       >[]
     > {
       if (candidateCardIds.length === 0) {
-        return Promise.resolve([]);
+        return [];
       }
-      return db
+      const rows = await db
         .selectFrom("candidatePrintings as ps")
         .innerJoin("candidateCards as cs_parent", "cs_parent.id", "ps.candidateCardId")
         .select([
@@ -459,6 +460,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .orderBy("ps.isSigned")
         .orderBy("ps.shortCode")
         .execute();
+      return rows.map((row) => ({ ...row, extraData: parseJsonb(row.extraData) }));
     },
 
     /** @returns Marker ID → slug mapping for given IDs. */
@@ -584,7 +586,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
     },
 
     /** @returns Candidate cards for detail page, explicit columns. */
-    candidateCardsForDetail(
+    async candidateCardsForDetail(
       normName: string | string[],
     ): Promise<
       Pick<
@@ -608,7 +610,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         | "checkedAt"
       >[]
     > {
-      return db
+      const rows = await db
         .selectFrom("candidateCards")
         .select([
           "id",
@@ -635,6 +637,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .orderBy("provider")
         .orderBy("shortCode")
         .execute();
+      return rows.map((row) => ({ ...row, extraData: parseJsonb(row.extraData) }));
     },
 
     // ── GET /export ───────────────────────────────────────────────────────

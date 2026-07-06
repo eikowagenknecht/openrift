@@ -156,6 +156,32 @@ describe("seoHead", () => {
     const { links } = seoHead({ siteUrl, title: "Cards", oembed: true });
     expect(links.some((link) => link.type === "application/json+oembed")).toBe(false);
   });
+
+  it("does not emit a robots meta by default", () => {
+    const { meta } = seoHead({ siteUrl, title: "Cards", path: "/cards" });
+    expect(meta.some((tag) => tag.name === "robots")).toBe(false);
+  });
+
+  it("unlisted pages get noindex but keep OG, Twitter, and oEmbed tags", () => {
+    const { meta, links } = seoHead({
+      siteUrl,
+      title: "Best of Diana",
+      path: "/decks/share/tok-deck",
+      oembed: true,
+      unlisted: true,
+    });
+    expect(meta).toContainEqual({ name: "robots", content: "noindex, nofollow" });
+    expect(meta.some((tag) => tag.property === "og:title")).toBe(true);
+    expect(meta.some((tag) => tag.name === "twitter:card")).toBe(true);
+    expect(links.some((link) => link.type === "application/json+oembed")).toBe(true);
+  });
+
+  it("noIndex pages get noindex and suppress OG/Twitter tags", () => {
+    const { meta } = seoHead({ siteUrl, title: "Sign in", path: "/login", noIndex: true });
+    expect(meta).toContainEqual({ name: "robots", content: "noindex, nofollow" });
+    expect(meta.some((tag) => tag.property === "og:title")).toBe(false);
+    expect(meta.some((tag) => tag.name === "twitter:card")).toBe(false);
+  });
 });
 
 describe("toAbsoluteUrl", () => {

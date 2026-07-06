@@ -26,4 +26,10 @@ describe("sanitizeRedirect", () => {
   it("rejects absolute URLs", () => {
     expect(sanitizeRedirect("http://evil.com")).toBeUndefined();
   });
+
+  it("rejects backslash paths that browsers may normalize to protocol-relative", () => {
+    expect(sanitizeRedirect(String.raw`/\evil.com`)).toBeUndefined();
+    expect(sanitizeRedirect(String.raw`/\/evil.com`)).toBeUndefined();
+    expect(sanitizeRedirect(String.raw`/foo\bar`)).toBeUndefined();
+  });
 });

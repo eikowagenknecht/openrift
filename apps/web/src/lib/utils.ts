@@ -46,8 +46,10 @@ export function sanitizeRedirect(url?: string): string | undefined {
   if (!url) {
     return undefined;
   }
-  // Only allow paths that start with "/" but not "//" (protocol-relative URLs)
-  if (url.startsWith("/") && !url.startsWith("//")) {
+  // Only allow paths that start with "/" but not "//" (protocol-relative URLs).
+  // Backslashes are rejected too: some browsers normalize "\" to "/", which
+  // would turn "/\evil.com" into a protocol-relative URL.
+  if (url.startsWith("/") && !url.startsWith("//") && !url.includes("\\")) {
     return url;
   }
   return undefined;

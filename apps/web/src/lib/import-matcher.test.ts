@@ -231,6 +231,41 @@ describe("matchEntries — isPromo flag", () => {
   });
 });
 
+describe("matchEntries — multi-marker promo slugs", () => {
+  const nexusMarker = { id: "pt-nexus", slug: "nexus", label: "Nexus", description: null };
+  const releaseMarker = { id: "pt-release", slug: "release", label: "Release", description: null };
+  const singleMarkerPromo = makePrinting({
+    id: "promo-nexus",
+    shortCode: "OGN-001",
+    finish: "foil",
+    markers: [nexusMarker],
+    distributionChannels: [],
+  });
+  const multiMarkerPromo = makePrinting({
+    id: "promo-nexus-release",
+    shortCode: "OGN-001",
+    finish: "foil",
+    markers: [nexusMarker, releaseMarker],
+    distributionChannels: [],
+  });
+
+  it("resolves a +-joined promo cell (as written by the CSV export) exactly", () => {
+    const entries = [makeEntry({ finish: "foil", language: "EN", promoSlug: "release+nexus" })];
+    const results = matchEntries(entries, [singleMarkerPromo, multiMarkerPromo]);
+    expect(results[0].status).toBe("exact");
+    expect(results[0].resolvedPrinting?.id).toBe("promo-nexus-release");
+  });
+
+  it("still resolves single-slug promo entries", () => {
+    const entries = [makeEntry({ finish: "foil", language: "EN", promoSlug: "nexus" })];
+    // Only the single-marker printing carries exactly the nexus marker alone;
+    // both carry it, so this narrows by slug and needs review across the two.
+    const results = matchEntries(entries, [singleMarkerPromo, multiMarkerPromo]);
+    expect(results[0].status).toBe("needs-review");
+    expect(results[0].candidates).toHaveLength(2);
+  });
+});
+
 describe("matchEntries — Legend colloquial names", () => {
   const legend = makePrinting({
     id: "ogn-100",

@@ -1,4 +1,7 @@
+import { ERROR_CODES } from "@openrift/shared";
 import { Hono } from "hono";
+import { rateLimiter } from "hono-rate-limiter";
+import { bodyLimit } from "hono/body-limit";
 
 import {
   buildDeckImageCards,
@@ -41,6 +44,34 @@ const COLLECTION_SHARE_CARD_CAP = 60;
 
 /** Upper bound on card rows the from-cards render endpoint will accept. */
 const MAX_RENDER_CARD_ROWS = 300;
+
+/** Length cap for the free-text strings a render body may carry. Matches the
+ * deck contract's name limit; anything longer only inflates satori layout. */
+const MAX_RENDER_TEXT_LENGTH = 200;
+
+// The POST render endpoint is anonymous by design (browser-local decks have no
+// session, ADR-035), and each call runs the CPU-heavy satori/resvg/sharp
+// pipeline. Unlike the GET share images it is neither token-gated nor
+// edge-cached, so it gets the same guards as the other anonymous write-ish
+// surfaces: a per-IP rate limit and a body cap that rejects oversized payloads
+// before JSON parsing. A legitimate 300-card payload is a few tens of KB.
+const RENDER_MAX_BODY_BYTES = 256 * 1024;
+const RENDERS_PER_MINUTE = 10;
+
+/** Per-IP render throttle. `x-real-ip` is trustworthy because nginx overwrites
+ * it from the connection address (see docs/deployment.md). */
+const renderRateLimit = rateLimiter<{ Variables: Variables }>({
+  windowMs: 60_000,
+  limit: RENDERS_PER_MINUTE,
+  standardHeaders: "draft-6",
+  keyGenerator: (c) => c.req.header("x-real-ip") ?? "unknown",
+});
+
+const renderBodyLimit = bodyLimit({
+  maxSize: RENDER_MAX_BODY_BYTES,
+  onError: (c) =>
+    c.json({ code: ERROR_CODES.PAYLOAD_TOO_LARGE, message: "Render payload exceeds 256 KB" }, 413),
+});
 
 /** @returns A PNG response with the immutable share-image cache headers. */
 function pngResponse(png: Buffer): Response {
@@ -197,7 +228,7 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
   // route (`deck-image.ts`) instead. Enriches names/art/energy server-side from
   // the posted card ids, so the client sends only identity, printing, zone, and
   // count. Served `no-store`: the body is the content, there is nothing to cache.
-  .post("/decks/image", async (c) => {
+  .post("/decks/image", renderRateLimit, renderBodyLimit, async (c) => {
     const repos = c.get("repos");
     const config = c.get("config");
     const io = c.get("io");
@@ -226,11 +257,18 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
     const png = await renderDeckImage(
       io,
       {
-        deckName: typeof body?.deckName === "string" ? body.deckName : "Deck",
+        deckName:
+          typeof body?.deckName === "string" && body.deckName
+            ? body.deckName.slice(0, MAX_RENDER_TEXT_LENGTH)
+            : "Deck",
         ownerName:
-          typeof body?.ownerName === "string" && body.ownerName ? body.ownerName : undefined,
+          typeof body?.ownerName === "string" && body.ownerName
+            ? body.ownerName.slice(0, MAX_RENDER_TEXT_LENGTH)
+            : undefined,
         formatLabel: formatLabelFromSlug(
-          typeof body?.format === "string" ? body.format : "constructed",
+          typeof body?.format === "string"
+            ? body.format.slice(0, MAX_RENDER_TEXT_LENGTH)
+            : "constructed",
         ),
         cards: imageCards,
         siteHost: siteHostFromOrigin(config.corsOrigin),

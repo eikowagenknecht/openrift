@@ -15,7 +15,7 @@ export const Route = createFileRoute("/_app/users_/share/$token")({
     const path = `/users/share/${params.token}`;
     const data = loaderData as PublicUserBundleResponse | undefined;
     if (!data) {
-      return seoHead({ siteUrl, title: "Shared lists", path });
+      return seoHead({ siteUrl, title: "Shared lists", path, unlisted: true });
     }
     const wishCount = data.lists.filter((list) => list.intent === "wish").length;
     const tradeCount = data.lists.filter((list) => list.intent === "trade").length;
@@ -31,7 +31,7 @@ export const Route = createFileRoute("/_app/users_/share/$token")({
     // same removal argument ADR-024 makes for entries, one level up).
     const bundleVersion = `${shareImageVersion(latestUpdate)}-${data.lists.length}`;
     const ogImage = bundleShareImageUrl(siteUrl, params.token, bundleVersion);
-    return seoHead({ siteUrl, title, description, path, ogImage, oembed: true });
+    return seoHead({ siteUrl, title, description, path, ogImage, oembed: true, unlisted: true });
   },
   loader: async ({ context, params }): Promise<PublicUserBundleResponse> => {
     try {

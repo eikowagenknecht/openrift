@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";
-import { friendGroupDetailQueryOptions } from "@/hooks/use-friend-groups";
+import { ensureFriendGroupDetailCanonical } from "@/hooks/use-friend-groups";
 import { groupTournamentsQueryOptions } from "@/hooks/use-tournaments";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
@@ -9,11 +9,14 @@ import { getSiteUrl } from "@/lib/site-config";
 export const Route = createFileRoute("/_app/_authenticated/groups/$slug_/events")({
   ssr: "data-only",
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Tournaments", noIndex: true }),
-  loader: async ({ context, params }) => {
+  loader: async ({ context, location, params }) => {
     await Promise.all([
-      context.queryClient.ensureQueryData(
-        friendGroupDetailQueryOptions(context.userId, params.slug),
-      ),
+      ensureFriendGroupDetailCanonical({
+        queryClient: context.queryClient,
+        userId: context.userId,
+        slug: params.slug,
+        location,
+      }),
       context.queryClient.ensureQueryData(
         groupTournamentsQueryOptions(context.userId, params.slug),
       ),

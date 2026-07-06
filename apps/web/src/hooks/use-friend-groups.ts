@@ -16,7 +16,10 @@ import type {
 } from "@openrift/shared";
 import { friendGroupsContract } from "@openrift/shared/contracts";
 import { isDefinedError, safe } from "@orpc/client";
+import type { QueryClient } from "@tanstack/react-query";
 import { queryOptions, useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import type { ParsedLocation } from "@tanstack/react-router";
+import { redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 
 import { useRequiredUserId } from "@/lib/auth-session";
@@ -169,6 +172,31 @@ export function friendGroupDetailQueryOptions(userId: string, slug: string) {
     queryKey: queryKeys.friendGroups.detail(userId, slug),
     queryFn: () => fetchGroupDetail({ data: slug }),
   });
+}
+
+/**
+ * Route-loader helper: ensures the group detail and, when the API resolved a
+ * rename alias (the group's `previous_slug`), redirects to the same page
+ * under the canonical slug so bookmarks and trade-email links survive a
+ * group rename.
+ * @returns The ensured detail payload (already in the query cache).
+ */
+export async function ensureFriendGroupDetailCanonical(options: {
+  queryClient: QueryClient;
+  userId: string;
+  slug: string;
+  location: ParsedLocation;
+}): Promise<FriendGroupDetailResponse> {
+  const { queryClient, userId, slug, location } = options;
+  const detail = await queryClient.ensureQueryData(friendGroupDetailQueryOptions(userId, slug));
+  const canonical = detail.group.slug;
+  if (canonical !== slug) {
+    throw redirect({
+      href: location.href.replace(`/groups/${slug}`, `/groups/${canonical}`),
+      replace: true,
+    });
+  }
+  return detail;
 }
 
 function friendGroupMatchesQueryOptions(userId: string, slug: string) {

@@ -17,7 +17,7 @@ export const Route = createFileRoute("/_app/users_/share/$token_/lists/$listId")
     const path = `/users/share/${params.token}/lists/${params.listId}`;
     const data = loaderData as PublicListDetailResponse | undefined;
     if (!data) {
-      return seoHead({ siteUrl, title: "Shared list", path });
+      return seoHead({ siteUrl, title: "Shared list", path, unlisted: true });
     }
     const { list, owner } = data;
     const title = `${list.name} (${list.intent} list)`;
@@ -25,7 +25,7 @@ export const Route = createFileRoute("/_app/users_/share/$token_/lists/$listId")
     // This page is reached via the bundle token, so its preview is the owner's
     // bundle image; bust it on this list's updates.
     const ogImage = bundleShareImageUrl(siteUrl, params.token, shareImageVersion(list.updatedAt));
-    return seoHead({ siteUrl, title, description, path, ogImage });
+    return seoHead({ siteUrl, title, description, path, ogImage, unlisted: true });
   },
   loader: async ({ context, params }): Promise<PublicListDetailResponse> => {
     try {

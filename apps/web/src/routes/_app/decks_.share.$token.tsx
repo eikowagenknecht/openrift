@@ -27,7 +27,7 @@ export const Route = createFileRoute("/_app/decks_/share/$token")({
     const path = `/decks/share/${params.token}`;
     const data = loaderData as PublicDeckDetailResponse | undefined;
     if (!data) {
-      return seoHead({ siteUrl, title: "Shared deck", path });
+      return seoHead({ siteUrl, title: "Shared deck", path, unlisted: true });
     }
     const { deck, owner } = data;
     // Server-rendered beautified deck image (ADR-031): Legend hero, rune-domain
@@ -45,6 +45,7 @@ export const Route = createFileRoute("/_app/decks_/share/$token")({
       path,
       ogImage,
       oembed: true,
+      unlisted: true,
     });
   },
   loader: async ({ context, params }): Promise<PublicDeckDetailResponse> => {

@@ -17,3 +17,16 @@ export function buildDistinctWhere(table: string, columns: readonly string[]) {
     columns.map((c) => `excluded.${c} IS DISTINCT FROM ${table}.${c}`).join("\n              OR "),
   );
 }
+
+/**
+ * Defensively parse a JSONB column value. postgres.js under Bun returns JSONB
+ * columns as raw JSON strings even though the Kysely row type claims the
+ * parsed shape, so repository reads of jsonb columns must go through this.
+ * @returns The parsed value, or the value unchanged when already parsed.
+ */
+export function parseJsonb<T>(value: T | string | null): T | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  return (typeof value === "string" ? JSON.parse(value) : value) as T;
+}

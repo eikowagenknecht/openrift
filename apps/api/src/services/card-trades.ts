@@ -82,7 +82,7 @@ export async function createTrade(
     throw new AppError(400, ERROR_CODES.BAD_REQUEST, "You cannot trade with yourself");
   }
 
-  const group = await repos.friendGroups.getBySlug(groupSlug);
+  const group = await repos.friendGroups.getBySlugOrPrevious(groupSlug);
   if (group === undefined) {
     throw new AppError(404, ERROR_CODES.NOT_FOUND, "Group not found");
   }

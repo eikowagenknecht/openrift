@@ -56,6 +56,22 @@ describe("parseImportData — OpenRift format", () => {
     expect(entry.setPrefix).toBe("SFD");
   });
 
+  it("handles bare set-code short codes (the OGN Buff tokens)", () => {
+    const csv = `${header}\nOGN,Buff,Common,Other,,normal,normal,,2`;
+    const result = parseImportData(csv);
+    expect(result.errors).toHaveLength(0);
+    const entry = result.entries[0];
+    expect(entry.setPrefix).toBe("OGN");
+    expect(entry.sourceCode).toBe("OGN");
+    expect(entry.quantity).toBe(2);
+  });
+
+  it("parses a multi-marker promo cell joined with +", () => {
+    const csv = `${header}\nOGN-001,Hero,Common,Unit,Arcane,foil,normal,release+nexus,1`;
+    const result = parseImportData(csv);
+    expect(result.entries[0].promoSlug).toBe("release+nexus");
+  });
+
   it("skips rows with zero quantity", () => {
     const csv = `${header}\nOGN-001,Card A,Common,Unit,Arcane,normal,normal,,0\nOGN-002,Card B,Common,Unit,Arcane,normal,normal,,1`;
     const result = parseImportData(csv);
