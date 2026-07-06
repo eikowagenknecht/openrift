@@ -217,6 +217,7 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
                 <ToggleGroup
                   multiple
                   variant="outline"
+                  spacing={0}
                   value={state.card.domains}
                   onValueChange={(next) => setCardField("domains", next)}
                 >
@@ -257,6 +258,7 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
                   <ToggleGroup
                     multiple
                     variant="outline"
+                    spacing={0}
                     value={state.card.superTypes}
                     onValueChange={(next) => setCardField("superTypes", next)}
                   >

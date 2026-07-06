@@ -1,5 +1,5 @@
-import { cva } from "class-variance-authority"; // custom: split inline type specifier to satisfy consistent-type-specifier-style
-import type { VariantProps } from "class-variance-authority"; // custom: split inline type specifier to satisfy consistent-type-specifier-style
+import { cva } from "class-variance-authority";
+import type { VariantProps } from "class-variance-authority";
 
 import { cn } from "@/lib/utils";
 
@@ -60,7 +60,7 @@ function EmptyTitle({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="empty-title"
-      className={cn("text-sm font-medium tracking-tight", className)}
+      className={cn("font-heading text-sm font-medium tracking-tight", className)}
       {...props}
     />
   );

@@ -50,6 +50,7 @@ function TeamToggle({
     <ToggleGroup
       className="shrink-0"
       variant="outline"
+      spacing={0}
       value={[String(team)]}
       onValueChange={([next]) => {
         if (next === "0" || next === "1") {

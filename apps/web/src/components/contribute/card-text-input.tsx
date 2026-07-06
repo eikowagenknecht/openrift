@@ -271,6 +271,7 @@ function KeywordPicker({ onInsert }: { onInsert: (token: string) => void }) {
           <ToggleGroup
             variant="outline"
             size="sm"
+            spacing={0}
             value={[shape]}
             onValueChange={([next]) => {
               if (next === "plain" || next === "right" || next === "left" || next === "both") {

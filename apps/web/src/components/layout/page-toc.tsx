@@ -140,7 +140,7 @@ export function PageTocMobileTrigger({
   }
 
   return (
-    <Drawer open={open} onOpenChange={setOpen}>
+    <Drawer open={open} onOpenChange={setOpen} showSwipeHandle>
       <DrawerTrigger
         render={
           <Button

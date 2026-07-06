@@ -1,9 +1,8 @@
 // oxlint-disable no-shadow, arrow-body-style, curly, import/consistent-type-specifier-style -- scaffolded shadcn component
-"use client";
-
 import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from "lucide-react";
 import * as React from "react";
-import { DayPicker, getDefaultClassNames, type DayButton, type Locale } from "react-day-picker";
+import { DayPicker, getDefaultClassNames } from "react-day-picker";
+import type { DayButton, Locale } from "react-day-picker";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -77,7 +76,7 @@ function Calendar({
             : "[&>svg]:text-muted-foreground flex items-center gap-1 rounded-(--cell-radius) text-sm [&>svg]:size-3.5",
           defaultClassNames.caption_label,
         ),
-        month_grid: "w-full border-collapse",
+        month_grid: cn("w-full border-collapse", defaultClassNames.month_grid),
         weekdays: cn("flex", defaultClassNames.weekdays),
         weekday: cn(
           "text-muted-foreground flex-1 rounded-(--cell-radius) text-[0.8rem] font-normal select-none",
@@ -120,9 +119,9 @@ function Calendar({
       // custom: suppress oxlint rule for react-day-picker's inline component prop
       // oxlint-disable react/no-unstable-nested-components -- shadcn scaffold; react-day-picker's components prop expects inline subcomponents
       components={{
-        Root: ({ className, rootRef, ...props }) => {
-          return <div data-slot="calendar" ref={rootRef} className={cn(className)} {...props} />;
-        },
+        Root: ({ className, rootRef, ...props }) => (
+          <div data-slot="calendar" ref={rootRef} className={cn(className)} {...props} />
+        ),
         Chevron: ({ className, orientation, ...props }) => {
           if (orientation === "left") {
             return <ChevronLeftIcon className={cn("size-4", className)} {...props} />;
@@ -135,15 +134,13 @@ function Calendar({
           return <ChevronDownIcon className={cn("size-4", className)} {...props} />;
         },
         DayButton: ({ ...props }) => <CalendarDayButton locale={locale} {...props} />,
-        WeekNumber: ({ children, ...props }) => {
-          return (
-            <td {...props}>
-              <div className="flex size-(--cell-size) items-center justify-center text-center">
-                {children}
-              </div>
-            </td>
-          );
-        },
+        WeekNumber: ({ children, ...props }) => (
+          <td {...props}>
+            <div className="flex size-(--cell-size) items-center justify-center text-center">
+              {children}
+            </div>
+          </td>
+        ),
         ...components,
       }}
       // custom: re-enable rule after the inline components block
@@ -164,7 +161,9 @@ function CalendarDayButton({
 
   const ref = React.useRef<HTMLButtonElement>(null);
   React.useEffect(() => {
-    if (modifiers.focused) ref.current?.focus();
+    if (modifiers.focused) {
+      ref.current?.focus();
+    }
   }, [modifiers.focused]);
 
   return (

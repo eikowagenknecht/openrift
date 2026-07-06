@@ -1705,6 +1705,7 @@ function DisplayModeToggle({
     <ToggleGroup
       aria-label="Display mode"
       variant="outline"
+      spacing={0}
       value={[mode]}
       onValueChange={([next]) => {
         if (next === "grid" || next === "list") {

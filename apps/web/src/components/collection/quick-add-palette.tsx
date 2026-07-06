@@ -55,7 +55,7 @@ export function QuickAddPalette({
 
   if (isMobile) {
     return (
-      <Drawer open={open} onOpenChange={onOpenChange}>
+      <Drawer open={open} onOpenChange={onOpenChange} showSwipeHandle>
         <DrawerContent>
           <DrawerTitle className="sr-only">Quick add to {collectionName}</DrawerTitle>
           <div className="flex min-h-0 flex-1 flex-col p-4">

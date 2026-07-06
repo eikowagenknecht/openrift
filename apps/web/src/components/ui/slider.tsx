@@ -1,5 +1,4 @@
 import { Slider as SliderPrimitive } from "@base-ui/react/slider";
-import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -12,10 +11,11 @@ function Slider({
   "aria-label": ariaLabel, // custom: extract aria-label to forward to thumbs
   ...props
 }: SliderPrimitive.Root.Props) {
-  const _values = React.useMemo(
-    () => (Array.isArray(value) ? value : Array.isArray(defaultValue) ? defaultValue : [min, max]),
-    [value, defaultValue, min, max],
-  );
+  const _values = Array.isArray(value)
+    ? value
+    : Array.isArray(defaultValue)
+      ? defaultValue
+      : [min, max];
 
   return (
     <SliderPrimitive.Root

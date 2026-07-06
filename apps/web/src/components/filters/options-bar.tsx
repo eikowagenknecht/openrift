@@ -83,6 +83,7 @@ function DisplayModeToggle({ compact, className }: { compact?: boolean; classNam
       className={className}
       variant="outline"
       size={compact ? "sm" : "default"}
+      spacing={0}
       value={[displayMode]}
       onValueChange={([next]) => {
         if (next === "grid" || next === "table") {
@@ -153,6 +154,7 @@ function ViewModeToggle({
       className={className}
       variant="outline"
       size={compact ? "sm" : "default"}
+      spacing={0}
       value={[view]}
       onValueChange={([next]) => {
         if (next === "cards" || next === "printings" || (showCopies && next === "copies")) {
@@ -329,7 +331,7 @@ export function MobileOptionsDrawer({
   className?: string;
 }) {
   return (
-    <Drawer>
+    <Drawer showSwipeHandle>
       <DrawerTrigger
         render={
           <Button variant="outline" size="icon" className={cn("relative", className)}>
@@ -347,9 +349,7 @@ export function MobileOptionsDrawer({
           {children}
         </div>
         <DrawerFooter>
-          <DrawerClose asChild>
-            <Button className="w-full">{doneLabel ?? "Done"}</Button>
-          </DrawerClose>
+          <DrawerClose render={<Button className="w-full" />}>{doneLabel ?? "Done"}</DrawerClose>
         </DrawerFooter>
       </DrawerContent>
     </Drawer>

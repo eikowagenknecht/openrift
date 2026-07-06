@@ -123,6 +123,7 @@ export function DeckListToolbar({
           className="ml-auto"
           variant="outline"
           size="sm"
+          spacing={0}
           value={[density]}
           onValueChange={([next]) => {
             if (next === "grid" || next === "list") {
@@ -155,6 +156,7 @@ export function DeckListToolbar({
               <ToggleGroup
                 variant="outline"
                 size="sm"
+                spacing={0}
                 value={[formatFilter]}
                 onValueChange={([next]) => {
                   if (next === "all" || formatSlugs.has(next)) {
@@ -179,6 +181,7 @@ export function DeckListToolbar({
               <ToggleGroup
                 variant="outline"
                 size="sm"
+                spacing={0}
                 value={[validityFilter]}
                 onValueChange={([next]) => {
                   if (next === "all" || next === "valid" || next === "invalid") {
@@ -203,6 +206,7 @@ export function DeckListToolbar({
                 multiple
                 variant="outline"
                 size="sm"
+                spacing={0}
                 value={domainFilter}
                 onValueChange={(next) => setDomainFilter(next as Domain[])}
                 aria-label="Domain filter"

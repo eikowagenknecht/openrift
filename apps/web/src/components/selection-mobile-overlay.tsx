@@ -102,8 +102,9 @@ export function SelectionMobileOverlay({
       }}
     >
       <DrawerContent
-        hideHandle
-        className="data-[swipe-direction=down]:top-[env(safe-area-inset-top,0px)] data-[swipe-direction=down]:mt-0 data-[swipe-direction=down]:h-[calc(100dvh-env(safe-area-inset-top,0px))] data-[swipe-direction=down]:max-h-none data-[swipe-direction=down]:overflow-hidden"
+        // Full-screen minus the iOS safe area: fixed height overrides the popup's
+        // auto sizing; bottom-0 anchoring puts the top edge exactly at the inset.
+        className="data-[swipe-direction=down]:h-[calc(100dvh-env(safe-area-inset-top,0px))] data-[swipe-direction=down]:max-h-none"
         style={getDomainTintStyle(selectedCard.card.domains, domainColors)}
       >
         <DrawerHeader className="sr-only">

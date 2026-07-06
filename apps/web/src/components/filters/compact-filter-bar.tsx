@@ -109,6 +109,7 @@ export function FilterIconCluster({
       multiple
       variant="outline"
       size="sm"
+      spacing={0}
       value={included}
       onValueChange={(next) => onValueChange(next as string[])}
       aria-label={`${label} filter`}

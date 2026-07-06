@@ -95,7 +95,7 @@ export function CardDetail({
       {onClose && (
         <div className="border-border/30 sticky top-0 z-10 border-b px-4 pt-3 pb-4 backdrop-blur md:hidden">
           {/* Drag pill hosted inside the blurred header so the blur band reaches the
-              drawer's top edge (the drawer's built-in pill is suppressed via hideHandle). */}
+              drawer's top edge (the drawer's built-in handle stays off — showSwipeHandle defaults to false). */}
           <div className="bg-muted mx-auto mb-3 h-1 w-[100px] rounded-full" />
           <div className="relative">
             <Button

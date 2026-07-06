@@ -77,6 +77,7 @@ export function CardDesignerForm() {
           <ToggleGroup
             multiple
             variant="outline"
+            spacing={0}
             value={card.domains}
             onValueChange={(next) => setCardField("domains", next as Domain[])}
           >
@@ -105,6 +106,7 @@ export function CardDesignerForm() {
           <ToggleGroup
             multiple
             variant="outline"
+            spacing={0}
             value={card.superTypes}
             onValueChange={(next) => setCardField("superTypes", next)}
           >

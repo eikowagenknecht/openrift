@@ -1,3 +1,5 @@
+"use client";
+
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover";
 import * as React from "react";
 
@@ -11,6 +13,7 @@ function PopoverTrigger({ ...props }: PopoverPrimitive.Trigger.Props) {
   return <PopoverPrimitive.Trigger data-slot="popover-trigger" {...props} />;
 }
 
+// custom: close-on-demand primitive (not in upstream base-nova) — used by the header to dismiss after navigation
 function PopoverClose({ ...props }: PopoverPrimitive.Close.Props) {
   return <PopoverPrimitive.Close data-slot="popover-close" {...props} />;
 }
