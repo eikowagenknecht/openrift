@@ -10,7 +10,7 @@ import { landingSummaryQueryOptions } from "@/lib/landing-summary-query";
 import { cn } from "@/lib/utils";
 
 import { CardFan } from "./card-fan";
-import { FeatureHighlights } from "./feature-highlights";
+import { FeatureShowcase } from "./feature-showcase";
 import { HeroBackground } from "./hero-background";
 
 // How long the logo "tap to play" hint stays visible after a tap.
@@ -172,7 +172,9 @@ export function LandingPage() {
           />
         </div>
       </div>
-      <FeatureHighlights />
+      {/* The fan uses thumbnails 0-4; the catalog vignette takes the next
+          four so no card appears twice on screen. */}
+      <FeatureShowcase thumbnailUrls={thumbnailUrls.slice(5)} cardCount={data?.cardCount} />
     </HeroBackground>
   );
 }

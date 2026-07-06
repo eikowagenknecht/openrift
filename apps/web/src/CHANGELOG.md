@@ -9,6 +9,7 @@
 
 ### Other
 
+- feat(App): **Landing feature previews** — the feature list now shows mini previews of the real app (price compare, deck rows, trade matches) instead of icon tiles.
 - fix(Tournaments): **Organizations survive owner deletion** — deleting your account now hands your organization to a co-owner or manager instead of erasing it for everyone.
 - fix(Groups): **Old group links keep working** — renaming a group now forwards its previous address, so bookmarks and trade emails from recent days still open it.
 - fix(Collection): **Exact CSV re-import** — importing your own export no longer drops token cards like Buff, and promos with several markers now match exactly.
