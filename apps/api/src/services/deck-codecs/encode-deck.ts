@@ -3,8 +3,7 @@ import type { CardType, DeckZone, Domain, SuperType } from "@openrift/shared/typ
 import type { canonicalPrintingsRepo } from "../../repositories/canonical-printings.js";
 import { encodeText, encodeTTS, piltoverCodec } from "./index.js";
 import { isPiltoverEncodable } from "./piltover.js";
-import type { TextCodecCard } from "./text.js";
-import type { EncodeResult } from "./types.js";
+import type { DeckCodecCard, EncodeResult } from "./types.js";
 
 /** Deck-code formats the codecs can produce. */
 export type DeckCodeFormat = "piltover" | "text" | "tts";
@@ -46,7 +45,7 @@ export async function encodeDeck(
   );
 
   const warnings: string[] = [];
-  const codecCards: TextCodecCard[] = [];
+  const codecCards: DeckCodecCard[] = [];
   for (const [index, row] of rows.entries()) {
     const shortCode = resolvedShortCodes[index]?.shortCode;
     if (!shortCode) {
@@ -92,11 +91,11 @@ export async function encodeDeck(
  */
 async function degradeToEncodable(
   canonicalPrintings: ShortCodeResolver,
-  codecCards: TextCodecCard[],
+  codecCards: DeckCodecCard[],
   warnings: string[],
-): Promise<TextCodecCard[]> {
-  const pinnedFallbacks: TextCodecCard[] = [];
-  const dropped = new Set<TextCodecCard>();
+): Promise<DeckCodecCard[]> {
+  const pinnedFallbacks: DeckCodecCard[] = [];
+  const dropped = new Set<DeckCodecCard>();
   for (const card of codecCards) {
     if (isPiltoverEncodable(card.shortCode)) {
       continue;

@@ -31,6 +31,31 @@ export function isPiltoverEncodable(shortCode: string): boolean {
   return encodable;
 }
 
+// Count caps of the Piltover binary format. Its encoder buckets counts from
+// the cap down to 1, so a count above the cap matches no bucket and the card
+// would silently vanish from the code. Clamp to the cap and warn instead.
+const MAIN_DECK_COUNT_CAP = 12;
+const SIDEBOARD_COUNT_CAP = 3;
+
+interface CountedCard {
+  cardName: string;
+  count: number;
+}
+
+/**
+ * Clamps a card's count to the format cap, warning when copies are lost.
+ * @returns The count to encode, at most the cap.
+ */
+function clampCount(card: CountedCard, cap: number, where: string, warnings: string[]): number {
+  if (card.count <= cap) {
+    return card.count;
+  }
+  warnings.push(
+    `"${card.cardName}": deck codes allow at most ${cap} copies ${where}, exported ${cap} of ${card.count}`,
+  );
+  return cap;
+}
+
 /**
  * Deck codec for Piltover Archive deck codes.
  *
@@ -43,9 +68,18 @@ export const piltoverCodec: DeckCodec = {
     const warnings: string[] = [];
     // Accumulate mainDeck counts by shortCode so the champion copy is merged
     // with any existing main-zone copies into a single entry.
-    const mainDeckMap = new Map<string, number>();
+    const mainDeckMap = new Map<string, CountedCard>();
     const sideboard: PiltoverCard[] = [];
     let chosenChampion: string | undefined;
+
+    const addToMainDeck = (card: DeckCodecCard, count: number): void => {
+      const entry = mainDeckMap.get(card.shortCode);
+      if (entry) {
+        entry.count += count;
+      } else {
+        mainDeckMap.set(card.shortCode, { cardName: card.cardName, count });
+      }
+    };
 
     for (const card of cards) {
       if (card.zone === WellKnown.deckZone.OVERFLOW) {
@@ -53,7 +87,7 @@ export const piltoverCodec: DeckCodec = {
       }
 
       if (!card.shortCode) {
-        warnings.push(`Skipped card ${card.cardId}: no canonical printing found`);
+        warnings.push(`Skipped "${card.cardName}": no canonical printing found`);
         continue;
       }
 
@@ -61,21 +95,29 @@ export const piltoverCodec: DeckCodec = {
         chosenChampion = card.shortCode;
         // The Piltover format expects the chosen champion counted in mainDeck
         // (it's a marker, not an extra slot), so include 1 copy.
-        mainDeckMap.set(card.shortCode, (mainDeckMap.get(card.shortCode) ?? 0) + 1);
+        addToMainDeck(card, 1);
         continue;
       }
 
       if (card.zone === WellKnown.deckZone.SIDEBOARD) {
-        sideboard.push({ cardCode: card.shortCode, count: card.quantity });
+        sideboard.push({
+          cardCode: card.shortCode,
+          count: clampCount(
+            { cardName: card.cardName, count: card.quantity },
+            SIDEBOARD_COUNT_CAP,
+            "in the sideboard",
+            warnings,
+          ),
+        });
       } else {
         // main, runes, legend, battlefield all go into mainDeck
-        mainDeckMap.set(card.shortCode, (mainDeckMap.get(card.shortCode) ?? 0) + card.quantity);
+        addToMainDeck(card, card.quantity);
       }
     }
 
-    const mainDeck: PiltoverCard[] = [...mainDeckMap.entries()].map(([cardCode, count]) => ({
+    const mainDeck: PiltoverCard[] = [...mainDeckMap.entries()].map(([cardCode, entry]) => ({
       cardCode,
-      count,
+      count: clampCount(entry, MAIN_DECK_COUNT_CAP, "in the main deck", warnings),
     }));
 
     const code = getCodeFromDeck(mainDeck, sideboard, chosenChampion);

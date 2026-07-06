@@ -10,6 +10,7 @@
 ### Other
 
 - feat(App): **Landing feature previews** — the feature list now shows mini previews of the real app (price compare, deck rows, trade matches) instead of icon tiles.
+- fix(Decks): **Copy limits in deck codes** — exporting more copies of a card than deck codes support (12 main deck, 3 sideboard) now exports the maximum and warns, instead of silently losing the card.
 - fix(Tournaments): **Organizations survive owner deletion** — deleting your account now hands your organization to a co-owner or manager instead of erasing it for everyone.
 - fix(Groups): **Old group links keep working** — renaming a group now forwards its previous address, so bookmarks and trade emails from recent days still open it.
 - fix(Collection): **Exact CSV re-import** — importing your own export no longer drops token cards like Buff, and promos with several markers now match exactly.

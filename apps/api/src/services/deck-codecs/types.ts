@@ -4,6 +4,8 @@ import type { CardType, DeckZone, Domain, SuperType } from "@openrift/shared/typ
 export interface DeckCodecCard {
   cardId: string;
   shortCode: string;
+  /** Display name, used in the text format and in per-card warnings. */
+  cardName: string;
   zone: DeckZone;
   quantity: number;
   cardType: CardType;

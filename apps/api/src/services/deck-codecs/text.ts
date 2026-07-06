@@ -24,17 +24,12 @@ const ZONE_ORDER: DeckZone[] = [
   WellKnown.deckZone.SIDEBOARD,
 ];
 
-/** A card entry with its name, used for text encode. */
-export interface TextCodecCard extends DeckCodecCard {
-  cardName: string;
-}
-
 /**
  * Encodes deck cards into a human-readable text format grouped by zone.
  *
  * @returns The encoded text and any warnings.
  */
-export function encodeText(cards: TextCodecCard[]): EncodeResult {
+export function encodeText(cards: DeckCodecCard[]): EncodeResult {
   const warnings: string[] = [];
   const grouped = Map.groupBy(cards, (card) => card.zone);
   const lines: string[] = [];

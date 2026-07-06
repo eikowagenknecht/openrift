@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import type { TextCodecCard } from "./text.js";
 import { encodeText } from "./text.js";
+import type { DeckCodecCard } from "./types.js";
 
-function card(overrides: Partial<TextCodecCard> & { cardName: string }): TextCodecCard {
+function card(overrides: Partial<DeckCodecCard> & { cardName: string }): DeckCodecCard {
   return {
     cardId: "1",
     shortCode: "OGN-001",
@@ -12,6 +12,7 @@ function card(overrides: Partial<TextCodecCard> & { cardName: string }): TextCod
     cardType: "unit",
     superTypes: [],
     domains: [],
+    preferredPrintingId: null,
     cardName: overrides.cardName,
     ...overrides,
   };
