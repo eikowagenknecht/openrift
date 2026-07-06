@@ -1,8 +1,9 @@
 import type { DeckListItemResponse, DeckResponse } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { CircleHelpIcon, DownloadIcon, PlusIcon, SwordsIcon } from "lucide-react";
+import { ChevronRightIcon, CircleHelpIcon, DownloadIcon, PlusIcon, SwordsIcon } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { EmptyState } from "@/components/empty-state";
 import {
@@ -16,6 +17,7 @@ import {
   useMeasuredHeight,
 } from "@/components/layout/page-top-bar";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -34,7 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCards } from "@/hooks/use-cards";
-import { decksQueryOptions, useCreateDeck } from "@/hooks/use-decks";
+import { decksQueryOptions, useCreateDeck, useSaveDeckCards } from "@/hooks/use-decks";
 import { useDeckFormatList, useEnumOrders } from "@/hooks/use-enums";
 import { useHeaderHeight } from "@/hooks/use-header-height";
 import { useHydrated } from "@/hooks/use-hydrated";
@@ -51,6 +53,12 @@ import {
   sortDecks,
 } from "@/lib/deck-list-utils";
 import { localDeckToListItem } from "@/lib/local-deck-list-item";
+import {
+  buildSampleDeckCards,
+  SAMPLE_DECK_FORMAT,
+  SAMPLE_DECK_NAME,
+  sampleDeckKeyCards,
+} from "@/lib/sample-deck";
 import { cn, CONTAINER_WIDTH, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 import { useDeckListPrefsStore } from "@/stores/deck-list-prefs-store";
 import { useLocalDecksStore } from "@/stores/local-decks-store";
@@ -58,7 +66,7 @@ import { useLocalDecksStore } from "@/stores/local-decks-store";
 import { ClaimLocalDecksPrompt } from "./claim-local-decks-prompt";
 import { DeckListRow } from "./deck-list-row";
 import { DeckListToolbar } from "./deck-list-toolbar";
-import { DeckTile } from "./deck-tile";
+import { DeckTile, FannedPreview } from "./deck-tile";
 import { LocalDeckSaveBanner, LocalDeckSaveNote } from "./local-save-hint";
 
 function CreateDeckDialog({
@@ -194,7 +202,12 @@ export function DeckListPage() {
 
   const hydrated = useHydrated();
   const localDecks = useLocalDecksStore((state) => state.decks);
-  const { cardsById } = useCards();
+  const { cardsById, allPrintings } = useCards();
+  const { getPreferredFrontImage } = usePreferredPrinting();
+  const navigate = useNavigate();
+  const createDeck = useCreateDeck();
+  const saveDeckCards = useSaveDeckCards();
+  const [creatingSample, setCreatingSample] = useState(false);
   const { orders, labels } = useEnumOrders();
   const localItems: DeckListItemResponse[] =
     hydrated && Object.keys(localDecks).length > 0
@@ -209,6 +222,68 @@ export function DeckListPage() {
 
   const deckItems: DeckListItemResponse[] = [...localItems, ...serverItems];
   const [createOpen, setCreateOpen] = useState(false);
+
+  // One-click sample deck (see lib/sample-deck.ts): decodes the bundled deck
+  // code and drops the visitor into a populated builder. Logged out it becomes
+  // a browser-local deck (ADR-035), logged in a server deck.
+  const sampleCards =
+    deckItems.length === 0 || creatingSample ? buildSampleDeckCards(allPrintings) : null;
+  const sampleKeyCards = sampleCards ? sampleDeckKeyCards(sampleCards) : null;
+  const sampleLegendImage = sampleKeyCards?.legend
+    ? (getPreferredFrontImage(
+        sampleKeyCards.legend.cardId,
+        sampleKeyCards.legend.preferredPrintingId,
+      ) ?? null)
+    : null;
+  const sampleChampionImage = sampleKeyCards?.champion
+    ? (getPreferredFrontImage(
+        sampleKeyCards.champion.cardId,
+        sampleKeyCards.champion.preferredPrintingId,
+      ) ?? null)
+    : null;
+
+  function handleTrySample() {
+    const cards = sampleCards;
+    if (!cards) {
+      toast.error("The sample deck could not be loaded.");
+      return;
+    }
+    // Pending flag keeps the page on the empty-state view while the builder
+    // route loads — without it the list flashes in as soon as the new deck
+    // lands in the store, before navigation completes.
+    setCreatingSample(true);
+    if (!userId) {
+      const store = useLocalDecksStore.getState();
+      const localId = store.createDeck(SAMPLE_DECK_FORMAT, SAMPLE_DECK_NAME);
+      store.setCards(localId, cards);
+      void navigate({ to: "/decks/$deckId", params: { deckId: localId } });
+      return;
+    }
+    createDeck.mutate(
+      { name: SAMPLE_DECK_NAME, format: SAMPLE_DECK_FORMAT },
+      {
+        onSuccess: (data) => {
+          const deck = data as DeckResponse;
+          saveDeckCards.mutate(
+            { deckId: deck.id, cards },
+            {
+              onSuccess: () => {
+                void navigate({ to: "/decks/$deckId", params: { deckId: deck.id } });
+              },
+              onError: () => {
+                toast.error("Failed to save the sample deck.");
+                setCreatingSample(false);
+              },
+            },
+          );
+        },
+        onError: () => {
+          toast.error("Failed to create the sample deck.");
+          setCreatingSample(false);
+        },
+      },
+    );
+  }
   // Stick the toolbar directly below the title bar: measure the title bar and
   // add its height to the header height, mirroring CardBrowserLayout's offset.
   const [titleSlot, setTitleSlot] = useState<HTMLDivElement | null>(null);
@@ -280,8 +355,21 @@ export function DeckListPage() {
 
       {!userId && localItems.length > 0 && <LocalDeckSaveBanner />}
 
-      {deckItems.length === 0 ? (
-        <EmptyState className="py-16" icon={SwordsIcon} title="No decks yet">
+      {deckItems.length === 0 || creatingSample ? (
+        <EmptyState
+          className="py-16"
+          icon={SwordsIcon}
+          title="No decks yet"
+          description={
+            <>
+              Build against the official rules or fully freeform, validated live against your
+              collection, with prices for anything you&apos;re missing.{" "}
+              <Link to="/help/$slug" params={{ slug: "deck-building" }}>
+                Learn how deck building works.
+              </Link>
+            </>
+          }
+        >
           <div className="flex flex-wrap justify-center gap-2">
             <Button onClick={() => setCreateOpen(true)}>
               <PlusIcon />
@@ -292,6 +380,37 @@ export function DeckListPage() {
               Import a deck
             </Link>
           </div>
+          {/* A real, openable deck as the page's second act: one click builds
+              it (locally when signed out) and opens the builder. */}
+          {sampleCards && sampleLegendImage && (
+            <button
+              type="button"
+              onClick={handleTrySample}
+              disabled={creatingSample}
+              className="mt-6 block w-full max-w-xs cursor-pointer text-left disabled:pointer-events-none disabled:opacity-60"
+            >
+              <span className="text-muted-foreground mb-2 block text-center text-sm">
+                or explore the builder with a ready-made deck:
+              </span>
+              <Card className="hover:ring-ring/40 gap-0 py-0 transition-shadow hover:ring-2">
+                <FannedPreview
+                  legendImage={sampleLegendImage}
+                  championImage={sampleChampionImage}
+                />
+                <span className="flex items-center justify-between gap-3 p-3">
+                  <span className="flex flex-col">
+                    <span className="font-medium">{SAMPLE_DECK_NAME}</span>
+                    <span className="text-muted-foreground text-xs">
+                      {creatingSample
+                        ? "Opening the builder…"
+                        : "Ready to play, opens right in the builder"}
+                    </span>
+                  </span>
+                  <ChevronRightIcon className="text-muted-foreground size-4 shrink-0" />
+                </span>
+              </Card>
+            </button>
+          )}
         </EmptyState>
       ) : (
         <div className="flex flex-col">

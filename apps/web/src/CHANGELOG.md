@@ -9,10 +9,12 @@
 - feat(App): **New display typeface** — page titles, section headings, big stat numbers, and the OpenRift wordmark now use Chakra Petch, giving the app its own voice instead of the default font everywhere.
 - feat(App): **Sharper, angular look** — corners are tighter across the app, filled buttons carry a signature corner cut, and tiles share one consistent card style.
 - feat(App): **Friendlier empty screens** — pages without content yet (decks, collections, lists, search results) now show a fan of card outlines with clear next steps.
+- feat(Decks): **Try a sample deck** — the empty decks page offers a ready-made Azir deck that opens in the builder with one click, no account needed.
 
 ### Other
 
 - feat(App): **Refreshed interface components** — buttons now respond to hover everywhere, dialogs got subtly lighter surfaces, and mobile drawers track your finger with snappier fling-to-close.
+- feat(Decks): **Placeholders for missing key cards** — deck tiles now show labeled dashed cards for a legend or champion you haven't picked yet, instead of a generic icon.
 - feat(Decks): **Local decks flag when to sign in** — building a deck while signed out now clearly says it lives only on this device, with a sign-in link to keep it and use it anywhere.
 - feat(App): **Landing feature previews** — the feature list now shows mini previews of the real app (price compare, deck rows, trade matches) instead of icon tiles.
 - fix(Cards): **Readable mobile card header** — the card detail title bar on phones now sits on a frosted, card-tinted background, so the title stays legible over the card art instead of floating on top of it.

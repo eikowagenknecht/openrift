@@ -1,7 +1,7 @@
 import type { DeckListItemResponse, PrintingImage } from "@openrift/shared";
 import { WellKnown, imageUrl } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import { ArchiveIcon, CheckIcon, CircleAlertIcon, PinIcon, SwordsIcon } from "lucide-react";
+import { ArchiveIcon, CheckIcon, CircleAlertIcon, PinIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -12,6 +12,7 @@ import { getDomainGradientStyle } from "@/lib/domain";
 import { formatterForMarketplace } from "@/lib/format";
 import { resolveFormatTagSummary } from "@/lib/format-tag-config";
 import { getFilterIconPath } from "@/lib/icons";
+import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 import { isLocalDeckId } from "@/stores/local-decks-store";
 
@@ -65,6 +66,39 @@ function CardPreviewImage({
   );
 }
 
+function PlaceholderPreviewCard({
+  iconSrc,
+  label,
+  className,
+  style,
+}: {
+  iconSrc: string;
+  label: string;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <div
+      aria-hidden="true"
+      className={cn(
+        "border-muted-foreground/25 bg-background/40 absolute flex h-[85%] flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed",
+        className,
+      )}
+      style={{ aspectRatio: "var(--aspect-card)", ...style }}
+    >
+      {/* Flat-fill SVG tinted via mask so it follows the theme. */}
+      <span
+        className="bg-muted-foreground/70 size-7"
+        style={{
+          mask: `url(${iconSrc}) center / contain no-repeat`,
+          WebkitMask: `url(${iconSrc}) center / contain no-repeat`,
+        }}
+      />
+      <span className="text-muted-foreground/70 text-2xs tracking-wide uppercase">{label}</span>
+    </div>
+  );
+}
+
 /**
  * The deck-list tile's fanned art: legend tilted left, champion tilted right,
  * over a domain gradient. Also reused by the deck-check checker hero.
@@ -79,14 +113,25 @@ export function FannedPreview({
   championImage?: PrintingImage | null;
   gradientStyle?: React.CSSProperties;
 }) {
-  const singleImage = legendImage ?? championImage;
-
-  if (legendImage && championImage) {
-    return (
-      <div
-        className="bg-muted/30 relative flex items-center justify-center overflow-hidden"
-        style={{ aspectRatio: "5 / 3" }}
-      >
+  const isEmpty = !legendImage && !championImage;
+  return (
+    // One layout for every fill state: each slot shows its card image, or a
+    // dashed placeholder in the same fan position, so a half-built deck
+    // previews the exact shape its missing card will fill. The domain
+    // gradient only backs the fully-empty tile.
+    <div
+      className="bg-muted/30 relative flex items-center justify-center overflow-hidden"
+      style={{
+        aspectRatio: "5 / 3",
+        ...(isEmpty
+          ? (gradientStyle ?? {
+              backgroundImage:
+                "radial-gradient(ellipse 70% 80% at 50% 45%, oklch(0.6 0.02 260 / 0.12) 0%, transparent 70%)",
+            })
+          : undefined),
+      }}
+    >
+      {legendImage ? (
         <CardPreviewImage
           image={legendImage}
           alt="Legend"
@@ -94,6 +139,15 @@ export function FannedPreview({
           className="absolute h-[85%] rounded-lg object-cover shadow-md"
           style={{ left: "12%", transform: "rotate(-6deg)" }}
         />
+      ) : (
+        <PlaceholderPreviewCard
+          iconSrc="/images/types/legend.svg"
+          label="Legend"
+          className="left-[12%]"
+          style={{ transform: "rotate(-6deg)" }}
+        />
+      )}
+      {championImage ? (
         <CardPreviewImage
           image={championImage}
           alt="Champion"
@@ -101,32 +155,14 @@ export function FannedPreview({
           className="absolute h-[85%] rounded-lg object-cover shadow-md"
           style={{ right: "12%", transform: "rotate(6deg)" }}
         />
-      </div>
-    );
-  }
-
-  if (singleImage) {
-    return (
-      <div
-        className="bg-muted/30 relative flex items-center justify-center overflow-hidden"
-        style={{ aspectRatio: "5 / 3" }}
-      >
-        <CardPreviewImage
-          image={singleImage}
-          alt="Card"
-          sizes="200px"
-          className="h-[90%] rounded-lg object-cover shadow-md"
+      ) : (
+        <PlaceholderPreviewCard
+          iconSrc="/images/supertypes/champion.svg"
+          label="Champion"
+          className="right-[12%]"
+          style={{ transform: "rotate(6deg)" }}
         />
-      </div>
-    );
-  }
-
-  return (
-    <div
-      className="bg-muted/30 relative flex items-center justify-center overflow-hidden"
-      style={{ aspectRatio: "5 / 3", ...gradientStyle }}
-    >
-      <SwordsIcon className="text-muted-foreground/30 size-12" />
+      )}
     </div>
   );
 }

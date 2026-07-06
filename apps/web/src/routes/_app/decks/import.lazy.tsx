@@ -54,6 +54,7 @@ import { useCards } from "@/hooks/use-cards";
 import { deckDetailQueryOptions, useCreateDeck, useSaveDeckCards } from "@/hooks/use-decks";
 import { useDeckFormatList, useZoneOrder } from "@/hooks/use-enums";
 import { useUserId } from "@/lib/auth-session";
+import { dedupeMatchedEntries } from "@/lib/deck-import-cards";
 import type { DeckMatchStatus, DeckMatchedEntry, ResolvedCard } from "@/lib/deck-import-matcher";
 import { matchDeckEntries } from "@/lib/deck-import-matcher";
 import type { DeckImportFormat } from "@/lib/deck-import-parsers";
@@ -266,34 +267,7 @@ function DeckImportPage() {
   const skippedCount = skippedIndices.size;
   const totalCards = importableEntries.reduce((sum, entry) => sum + entry.entry.quantity, 0);
 
-  const buildCards = () => {
-    // Group by cardId + zone + preferredPrintingId, summing quantities.
-    // Printing-specific matches (piltover/tts short codes) become distinct
-    // rows from any default-art rows of the same card.
-    const cardMap = new Map<
-      string,
-      { cardId: string; zone: DeckZone; quantity: number; preferredPrintingId: string | null }
-    >();
-    for (const entry of importableEntries) {
-      if (!entry.resolvedCard) {
-        continue;
-      }
-      const preferredPrintingId = entry.resolvedCard.preferredPrintingId;
-      const key = `${entry.resolvedCard.cardId}::${entry.zone}::${preferredPrintingId ?? ""}`;
-      const existing = cardMap.get(key);
-      if (existing) {
-        existing.quantity += entry.entry.quantity;
-      } else {
-        cardMap.set(key, {
-          cardId: entry.resolvedCard.cardId,
-          zone: entry.zone,
-          quantity: entry.entry.quantity,
-          preferredPrintingId,
-        });
-      }
-    }
-    return [...cardMap.values()];
-  };
+  const buildCards = () => dedupeMatchedEntries(importableEntries);
 
   const executeReplace = () => {
     if (!replaceDeckId) {
