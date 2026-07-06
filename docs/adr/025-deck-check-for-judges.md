@@ -140,7 +140,7 @@ Each card line stores the raw `name` exactly as received, plus the resolution re
 
 `unmatched` and `ambiguous` lines render as a flagged placeholder showing the raw name, so a judge is never tricked into ticking a card OpenRift could not identify. Card names are assumed to arrive as canonical English (as in the reference `card-library.json`); localized-name matching is out of scope.
 
-Resolution happens at ingest, so an `unmatched` line stays unmatched even after the missing card is later added to the catalog, and with partial pushes a re-push may never come. The event page therefore offers a **re-resolve action** (`judge`+) that re-runs resolution for the event's `unmatched` and `ambiguous` lines. `matched` lines are left alone, and check state is untouched: the raw card list (and thus the `content_hash`) does not change, only its resolution does.
+Resolution happens at ingest, so an `unmatched` line stays unmatched even after the missing card is later added to the catalog, and with partial pushes a re-push may never come. The event page therefore offers a re-resolve action (`judge`+) that re-runs resolution for the event's `unmatched` and `ambiguous` lines. `matched` lines are left alone, and check state is untouched: the raw card list (and thus the `content_hash`) does not change, only its resolution does.
 
 ### Re-import and check invalidation
 
@@ -154,7 +154,7 @@ This is the "a stale check never passes a changed deck" driver, realized.
 
 ### Per-card checking, verdict, and live multi-judge state
 
-Verification has two levels. Per card line, `deck_check_entry_cards.found_copies` (a boolean array, one flag per physical copy) records which copy cells the judge has ticked; the checker renders one tappable cell per copy, because the deck on the table is unsorted and the judge encounters copies one at a time. Copies are physically interchangeable — the per-cell identity exists so the cell the judge taps is the one that lights up, including under polling and concurrent judges. Per entry, `check_status` is the verdict (`unchecked`, `checked`, `issue`) with `checked_by`, `checked_at`, and free-text `notes`. An already-checked entry can be re-opened by any judge.
+Verification has two levels. Per card line, `deck_check_entry_cards.found_copies` (a boolean array, one flag per physical copy) records which copy cells the judge has ticked; the checker renders one tappable cell per copy, because the deck on the table is unsorted and the judge encounters copies one at a time. Copies are physically interchangeable: the per-cell identity exists so the cell the judge taps is the one that lights up, including under polling and concurrent judges. Per entry, `check_status` is the verdict (`unchecked`, `checked`, `issue`) with `checked_by`, `checked_at`, and free-text `notes`. An already-checked entry can be re-opened by any judge.
 
 Multiple judges share state through lightweight polling of the entry list and the open entry (writes apply immediately and optimistically; the poll reconciles). The list sorts unchecked first and shows live progress (X of Y checked) and who checked each entry and when. No pre-assignment: any judge takes any entry. Realtime transport (websockets) is deferred; polling is enough for a room of judges.
 

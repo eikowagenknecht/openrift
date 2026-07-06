@@ -7,9 +7,9 @@ date: 2026-03-02
 
 ## Context and Problem Statement
 
-The card grid renders all filtered printings simultaneously with no windowing, pagination, or lazy rendering. The dataset contains ~3,026 printings of 769 unique cards across 7 sets (Proving Grounds, Origins, Spiritforged, Unleashed, Arcane Box Set, Vendetta, Founders). Each `CardThumbnail` renders 2–4 `<img>` elements, resulting in ~6,000+ DOM nodes when everything is visible — a problem on memory-constrained mobile devices.
+The card grid renders all filtered printings at once, with no windowing, pagination, or lazy rendering. The dataset contains ~3,026 printings of 769 unique cards across 7 sets (Proving Grounds, Origins, Spiritforged, Unleashed, Arcane Box Set, Vendetta, Founders). Each `CardThumbnail` renders 2–4 `<img>` elements, so an unfiltered grid produces over 6,000 DOM nodes, a problem on memory-constrained mobile devices.
 
-The grid also uses set-based grouping with sticky headers and supports scroll-to-group navigation, which adds complexity to any virtualization approach.
+The grid also uses set-based grouping with sticky headers and supports scroll-to-group navigation, which complicates any virtualization approach.
 
 ## Considered Options
 
@@ -18,29 +18,25 @@ The grid also uses set-based grouping with sticky headers and supports scroll-to
 
 ## Decision Outcome
 
-Chosen option: "Implement virtual scrolling using `@tanstack/react-virtual`", because the DOM node count is already high enough to degrade performance on mobile devices, and the complexity concerns around grouped layouts were resolved during implementation.
+We implement virtual scrolling with `@tanstack/react-virtual`. The DOM node count already degrades performance on mobile, and the complexity concerns around grouped layouts were resolved during implementation.
 
 ### Consequences
 
-- Good, because only visible rows are mounted, reducing DOM nodes from ~6,000+ to a small window regardless of dataset size.
-- Good, because the architecture scales to future sets without performance regression.
-- Bad, because the `CardGrid` component is significantly more complex — it models rows as a flat list interleaving header and card rows with variable sizes, and manages scroll margin, sticky header detection, and navigation via refs.
+- Good, because only visible rows are mounted, cutting DOM nodes from ~6,000+ to a small window regardless of dataset size, so future sets add no render cost.
+- Bad, because `CardGrid` is significantly more complex: it models rows as a flat list interleaving header and card rows with variable sizes, and manages scroll margin, sticky header detection, and navigation via refs.
 
 ## Pros and Cons of the Options
 
 ### Implement virtual scrolling
 
-Uses `useWindowVirtualizer` from `@tanstack/react-virtual` with a flat virtual row model (`VRow = "header" | "cards"`). Each set group is expanded into one header row plus N card rows (chunked by column count). Row heights are estimated dynamically based on card dimensions and refined with measured positions as rows render.
+Uses `useWindowVirtualizer` from `@tanstack/react-virtual` with a flat virtual row model (`VRow = "header" | "cards"`). Each set group expands into one header row plus N card rows, chunked by column count. Row heights are estimated from card dimensions and refined with measured positions as rows render.
 
-- Good, because it reduces DOM nodes to a small viewport window plus 3 overscan rows, improving performance on memory-constrained devices.
-- Good, because `useResponsiveColumns` already tracks column count reactively, making row calculation straightforward.
-- Good, because sticky headers are handled via a CSS overlay at `top: 56px` with precomputed cumulative row offsets for active header detection — no per-scroll DOM measurement needed.
+- Good, because `useResponsiveColumns` already tracks column count reactively, keeping row calculation simple.
+- Good, because sticky headers work as a CSS overlay at `top: 56px` with precomputed cumulative row offsets for active-header detection, no per-scroll DOM measurement needed.
 - Good, because scroll-to-group, arrow-key navigation, and the draggable scroll indicator all integrate with the virtualizer's `scrollToIndex` API.
 - Bad, because the component grew to ~670 lines with refs for closure stability (`virtualizerRef`, `virtualRowsRef`, `rowStartsRef`) and multiple passive scroll listeners.
 
 ### Defer virtual scrolling
 
-- Good, because ~3,000 printings is a moderate dataset that browsers handle without noticeable jank on most desktop devices.
-- Good, because users typically have filters active, reducing the rendered count well below the full catalogue.
-- Bad, because the worst case (no filters) renders all printings with ~6,000+ DOM nodes, which is noticeable on mobile.
-- Bad, because each new set release increases the baseline DOM cost with no mitigation.
+- Good, because ~3,000 printings is a moderate dataset that desktops handle without jank, and users typically have filters active, keeping the rendered count well below the full catalogue.
+- Bad, because the worst case (no filters, mobile) is already noticeable, and each new set raises the baseline DOM cost with no mitigation.

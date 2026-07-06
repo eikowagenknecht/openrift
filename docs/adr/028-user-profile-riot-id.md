@@ -26,11 +26,11 @@ The proper fix is RSO (Riot Sign On), Riot's OAuth2/OIDC provider, which would l
 
 ## Decision Outcome
 
-Chosen option: **free-text Riot ID on the profile now** (option 2). Waiting (option 1) blocks a real judge pain point on an approval queue we don't control. Per-submission entry (option 3) collects the same unverified string with more friction and no single place to correct a typo.
+We add a free-text Riot ID on the profile now (option 2). Waiting (option 1) blocks a real judge pain point on an approval queue we don't control. Per-submission entry (option 3) collects the same unverified string with more friction and no single place to correct a typo.
 
 - **Storage: one nullable `users.riot_id` text column.** No separate table, no verification metadata yet. The value is self-reported and treated exactly like the provider-supplied `riot_id` on deck-check entries: display data, never an identity key. Account identity stays on `users.id` / verified email (ADR-026's auto-match is untouched).
 - **Editing: better-auth `additionalFields`, profile Account Info section.** The field rides `authClient.updateUser` like the display name, with the same server-side validation-hook pattern. It lives next to name and email under Account Info, not under Connected Accounts, precisely because it is not a connected account.
-- **Validation: soft shape check, shared between client and server.** Trimmed; empty clears to `NULL`; otherwise it must look like `gameName#tagLine` — 3–16 characters, a `#`, then a 3–5 character tag (Riot's published constraints). This catches "forgot the tag" typos without pretending to verify ownership.
+- **Validation: soft shape check, shared between client and server.** Trimmed; empty clears to `NULL`; otherwise it must look like `gameName#tagLine`: 3–16 characters, a `#`, then a 3–5 character tag (Riot's published constraints). This catches "forgot the tag" typos without pretending to verify ownership.
 - **Consumption: self-submission copies it.** `createSelfSubmittedEntry` populates the entry's `riot_id` from the submitter's profile at creation time, the same way it already copies name and email. The copy is a snapshot, consistent with ADR-025's "the entry is frozen at submission" rule; a later profile edit does not rewrite past entries.
 - **RSO later: verify, don't replace.** When RSO access is granted, linking adds the PUUID as the stable identifier (Riot IDs are renameable) plus a verified-at timestamp, and the profile field becomes the RSO-synced display value. The free-text column is exactly the display slot that flow needs, so nothing built here is thrown away. The RSO integration gets its own ADR when it is real.
 

@@ -7,15 +7,15 @@ date: 2026-05-19
 
 ## Context and Problem Statement
 
-At the start of every Riftbound season there is a pre-rift event. Each player receives a **kit** (a fixed, deterministic set of cards) plus a small number of **boosters** (random packs), and builds a sealed-style deck from that pool. Several different kits exist per event; the kit you get determines roughly which playstyle you walk in with.
+At the start of every Riftbound season there is a pre-rift event. Each player receives a kit (a fixed, deterministic set of cards) plus a small number of boosters (random packs), and builds a sealed-style deck from that pool. Several different kits exist per event. The kit you get determines roughly which playstyle you walk in with.
 
-OpenRift currently has no way to record what is inside any of these kits. As pre-rift content lands we want a place to store it, browse it, and (later) drive a simulator from it. Looking at the shape of that data, it is not unique to pre-rift events: it is the same shape as a starter set, a structure deck, or any other fixed-content product Riot might ship. We therefore want a **generalised preconstructed-product catalog** in phase 1, with pre-rift kits as the launch use case. Phase 2 (the simulator) is a separate ADR.
+OpenRift currently has no way to record what is inside any of these kits. As pre-rift content lands we want a place to store it, browse it, and (later) drive a simulator from it. Looking at the shape of that data, it is not unique to pre-rift events: it is the same shape as a starter set, a structure deck, or any other fixed-content product Riot might ship. We therefore want a generalised preconstructed-product catalog in phase 1, with pre-rift kits as the launch use case. Phase 2 (the simulator) is a separate ADR.
 
 The contents of a kit are not random and not user-authored: they are catalog data, the same kind of data we already keep in `cards`, `printings`, and `distribution_channels`. The model should reflect that, not borrow shape from `lists` or `decks` (which are user-scoped, mutable, and built on different primitives).
 
 ## Decision Drivers
 
-- Pre-rift content needs a home before the next event ships; we should not block on a simulator design.
+- Pre-rift content needs a home before the next event ships. We should not block on a simulator design.
 - The same shape will be reused by starter sets and other fixed Riot products. Building a kit-specific table would force a refactor on the first day starter-set data arrives.
 - Pre-rift contents are released on a marketing schedule; admins must be able to prepare a product privately and flip it visible at release.
 - The data is curated by a small group of admins, not the community, and it is hand-aligned against official product lists.
@@ -58,22 +58,22 @@ For each of the five decisions below, we list the contenders. The decision outco
 
 ## Decision Outcome
 
-Chosen design:
+The design resolves the five forks as follows:
 
-- A new top-level `products` table, joined to `printings` through `product_printings`. Independent of `distribution_channels`, `lists`, and `decks`. This is catalog data, not a user-scoped collection of cards and not a "how did this printing reach the world" annotation; it deserves its own seam.
+- A new top-level `products` table, joined to `printings` through `product_printings`. Independent of `distribution_channels`, `lists`, and `decks`. This is catalog data, not a user-scoped collection of cards and not a "how did this printing reach the world" annotation. It deserves its own seam.
 - Generalised from day one. Kits, starter sets, and future fixed Riot products share one shape, distinguished by a `kind` lookup row (`product_kinds`), matching how `card_types`, `rarities`, `domains`, and `deck_zones` are modelled.
-- Granularity is **printing**. A product gives you a specific art, a specific set, a specific variant. `(product_id, printing_id, quantity, sort_order)`. We do not model finish on this row; if a future product mixes finishes per printing we add a nullable `finish_id`, but every current and announced product can be expressed without it.
-- **One row per language, no cross-language family link.** The English pre-rift Sentinels kit and the German pre-rift Sentinels kit are two independent rows. Slugs encode the language convention (e.g. `prerift-2026-sentinels-en`, `prerift-2026-sentinels-de`) and are globally unique. The `language` column on the row is the source of truth; the slug convention is for humans.
+- Granularity is printing. A product gives you a specific art, a specific set, a specific variant. `(product_id, printing_id, quantity, sort_order)`. We do not model finish on this row. If a future product mixes finishes per printing we add a nullable `finish_id`, but every current and announced product can be expressed without it.
+- **One row per language, no cross-language family link.** The English pre-rift Sentinels kit and the German pre-rift Sentinels kit are two independent rows. Slugs encode the language convention (e.g. `prerift-2026-sentinels-en`, `prerift-2026-sentinels-de`) and are globally unique. The `language` column on the row is the source of truth. The slug convention is for humans.
 - **Admin UI is the source of truth.** Admins can author or edit a product row by row, and they can paste/upload a JSON document that the importer applies as a transaction. There is no file-based source under `apps/api/data/`, no migration-driven seeding for products, and no external feed.
 
 ### Consequences
 
 - Good: each future product kind (starter set, structure deck, future ladder kits) ships as a `product_kinds` row and content, with no schema change.
-- Good: catalog browsing and the eventual simulator both read the same shape. The phase-2 simulator just needs to know how to draw boosters; the kit half of the pool is already in place.
+- Good: catalog browsing and the eventual simulator both read the same shape. The phase-2 simulator just needs to know how to draw boosters. The kit half of the pool is already in place.
 - Good: the `products` and `product_printings` shape is read-mostly. The /products surface inherits virtualization and grouping from the existing card-browser scaffold with no surface-specific perf work.
 - Good: nothing about a product touches `collection_events`. Sandboxing pre-rift in phase 2 is a non-decision because the data model already says "this is not your collection."
 - Bad: UUID-only printing references in the JSON importer are unfriendly. Admins must look up printings by hand (or via a UI helper) before they can paste a product definition. See the trade-off note under _Authoring_.
-- Bad: no cross-language link means /products has no "view the EN version" switcher and no admin warning when one language drifts from another. Admins enforce parity by hand. Acceptable while only one product kind exists; revisit if/when starter sets ship with many language variants.
+- Bad: no cross-language link means /products has no "view the EN version" switcher and no admin warning when one language drifts from another. Admins enforce parity by hand. Acceptable while only one product kind exists. Revisit if/when starter sets ship with many language variants.
 - Bad: three new tables (`products`, `product_kinds`, `product_printings`) plus an admin surface. Mitigated by the model being narrow, the admin UI being CRUD over a small entity, and most read paths reusing the card-browser scaffold.
 
 ## Design Decisions
@@ -90,11 +90,11 @@ Chosen design:
 
 ### Kinds
 
-`product_kinds(slug PRIMARY KEY, label, sort_order, description)`. Slugs are stable identifiers used in queries and on the product row; labels are human-facing. The launch population is one row: `prerift_kit`. Starter sets, structure decks, and any future kinds are added by inserting a row, not by migrating an enum or a CHECK constraint.
+`product_kinds(slug PRIMARY KEY, label, sort_order, description)`. Slugs are stable identifiers used in queries and on the product row. Labels are human-facing. The launch population is one row: `prerift_kit`. Starter sets, structure decks, and any future kinds are added by inserting a row, not by migrating an enum or a CHECK constraint.
 
 ### Contents
 
-`product_printings(product_id, printing_id, quantity, sort_order)` with composite PK `(product_id, printing_id)`. Quantity is a positive integer. `sort_order` is small-int and is the admin-controlled display order on the product page; tie-breaking falls back to the printing's own collector number / name as a stable secondary key in the query, not the schema.
+`product_printings(product_id, printing_id, quantity, sort_order)` with composite PK `(product_id, printing_id)`. Quantity is a positive integer. `sort_order` is small-int and is the admin-controlled display order on the product page. Tie-breaking falls back to the printing's own collector number / name as a stable secondary key in the query, not the schema.
 
 A printing can appear in multiple products (and frequently will, since starter sets and event kits share commons). The PK is on `(product_id, printing_id)`, not globally on printing.
 
@@ -102,13 +102,13 @@ The same printing appearing twice in one product is not modelled as two rows: it
 
 ### Languages
 
-A product's `language_id` describes which language its printings are in. The constraint is enforced at write time: when adding a `product_printings` row, the importer verifies that `printings.language_id` matches the parent product's `language_id`. We do not add a DB-level constraint for this (it would require a denormalised column or a trigger); the importer is the choke point and an integration test covers the rule.
+A product's `language_id` describes which language its printings are in. The constraint is enforced at write time: when adding a `product_printings` row, the importer verifies that `printings.language_id` matches the parent product's `language_id`. We do not add a DB-level constraint for this (it would require a denormalised column or a trigger). The importer is the choke point and an integration test covers the rule.
 
 This rule means: a German product cannot accidentally contain English printings. If a real product does cross languages (it does not, today), we model it as multiple products one per language and live with the duplication.
 
 ### Visibility
 
-`published_at IS NULL` means the product is invisible to non-admin users. Setting `published_at` to any value at or before `now()` makes it public; setting it to a future timestamp does not auto-publish (we keep the model passive: admins flip the visibility manually).
+`published_at IS NULL` means the product is invisible to non-admin users. Setting `published_at` to any value at or before `now()` makes it public. Setting it to a future timestamp does not auto-publish (we keep the model passive: admins flip the visibility manually).
 
 Admins always see all products including drafts, with a clear "draft" badge on the index and product page.
 
@@ -136,9 +136,9 @@ The JSON schema:
 }
 ```
 
-- **`printing_id` is the only supported reference.** Set/number/name resolution is _not_ accepted. This is a deliberate trade-off: it is unfriendly to copy from a marketing PDF, but it makes import deterministic, language-correct, and free of slug-drift bugs. The admin UI provides a printing picker that copies the UUID to the clipboard; admins assemble the JSON from those UUIDs.
+- **`printing_id` is the only supported reference.** Set/number/name resolution is _not_ accepted. This is a deliberate trade-off: it is unfriendly to copy from a marketing PDF, but it makes import deterministic, language-correct, and free of slug-drift bugs. The admin UI provides a printing picker that copies the UUID to the clipboard. Admins assemble the JSON from those UUIDs.
 - The importer validates: slug uniqueness, kind exists, language exists, every `printing_id` resolves, every printing matches the product's language, quantity > 0. On any failure the transaction rolls back and the API returns the list of validation errors.
-- Upload-by-slug is supported as well (POST to `/admin/products/:slug` with a document whose `slug` matches the URL). Creating a brand-new product is POST without a URL slug; the `slug` in the document is required.
+- Upload-by-slug is supported as well (POST to `/admin/products/:slug` with a document whose `slug` matches the URL). Creating a brand-new product is POST without a URL slug. The `slug` in the document is required.
 
 ### Routing and UI
 
@@ -147,7 +147,7 @@ The JSON schema:
   - Wrap in `<CardBrowserFilterProvider>`; render `<BrowserToolbar/>`, `<BrowserLeftPane/>`, `<BrowserActiveFilters/>`.
   - Grid is virtualized via `<CardViewer>`. Each cell is `<CardCell>` with a `OwnedCountStrip` so users can see at a glance which kit cards they already own. There is no `CollectionAddStrip` or `DeckAddStrip`; products are read-only catalog data.
   - Table mode uses the existing default actions column (no surface-specific table-actions component is needed).
-- **`/admin/products`** lists every product (published and draft), with create, edit, delete, JSON upload affordances. Standard admin layout, no card-browser scaffold; this is a CRUD page.
+- **`/admin/products`** lists every product (published and draft), with create, edit, delete, JSON upload affordances. Standard admin layout, no card-browser scaffold. This is a CRUD page.
 
 ### Importer behaviour
 
@@ -196,7 +196,7 @@ CREATE TABLE product_printings (
 CREATE INDEX ix_product_printings_printing ON product_printings (printing_id);
 ```
 
-The `printings` reference is intentionally _not_ `ON DELETE CASCADE`. A printing should not be deletable while it is in a product; the catalog has to clear the product first. This matches how `deck_cards` references `cards`.
+The `printings` reference is intentionally _not_ `ON DELETE CASCADE`. A printing should not be deletable while it is in a product. The catalog has to clear the product first. This matches how `deck_cards` references `cards`.
 
 ## Will Not Be Built
 
@@ -226,9 +226,9 @@ Integration tests cover:
 - Deleting a `products` row cascades its `product_printings` rows; a printing referenced by a product cannot be deleted directly.
 - Adding a new `product_kinds` row makes that kind selectable in product creation without any schema change.
 - A product with `published_at IS NULL` is not visible on `/products` to a non-admin user and `/products/$slug` returns 404 for that audience; an admin sees it with a draft badge.
-- Slug rename takes effect immediately; the old slug 404s. Slug uniqueness is enforced globally (different-language siblings cannot share a slug).
+- Slug rename takes effect immediately. The old slug 404s. Slug uniqueness is enforced globally (different-language siblings cannot share a slug).
 - JSON upload replaces contents atomically: a failed validation rolls back the entire upload, leaving the prior contents intact.
 - JSON upload rejects: unknown printing_id, quantity <= 0, slug collision against another product, unknown kind, unknown language, mismatched printing language.
-- Owned-count strip on `/products/$slug` reflects the viewer's collection but does not write to it; no `collection_events` are produced by browsing or by any product action.
+- Owned-count strip on `/products/$slug` reflects the viewer's collection but does not write to it. No `collection_events` are produced by browsing or by any product action.
 
-UI confirmation: `/products/$slug` reuses `<CardBrowserFilterProvider>`, `<BrowserToolbar>`, and `<CardCell>` (not bespoke layout); a code review checks that the page composes from these shared primitives.
+UI confirmation: `/products/$slug` reuses `<CardBrowserFilterProvider>`, `<BrowserToolbar>`, and `<CardCell>` (not bespoke layout). A code review checks that the page composes from these shared primitives.

@@ -3,7 +3,7 @@ status: accepted
 date: 2026-05-26
 ---
 
-# Caching layers
+# ADR-016: Caching layers
 
 ## Context and Problem Statement
 
@@ -15,10 +15,10 @@ Responses pass through the app (Hono API or TanStack Start SSR), Docker nginx, h
 
 - Hashed assets (`/assets/`, `/media/`): Docker nginx, `public, immutable` for 1 year.
 - Unhashed images: Docker nginx, 30 days with `stale-while-revalidate=604800` (7 days).
-- SSR HTML: `apps/web/src/lib/page-cache.ts` — `public, max-age=300` (5 min), `stale-while-revalidate=3600` (1 hour) for anonymous GETs on an allowlist, `private, no-cache` otherwise.
+- SSR HTML: `apps/web/src/lib/page-cache.ts` sets `public, max-age=300` (5 min), `stale-while-revalidate=3600` (1 hour) for anonymous GETs on an allowlist, `private, no-cache` otherwise.
 - API responses: each route in `apps/api/src/routes/public/*.ts`. Stable data (catalog, sets, cards, prices) is `max-age=3600` (1 hour) + `stale-while-revalidate=86400` (24 hours); mutable lists (collections, decks) are `max-age=60` (1 min) + `stale-while-revalidate=300` (5 min); health is `no-store`.
 
-The catch-all `location /` in `nginx/web.conf` deliberately sets no `Cache-Control` — when both nginx and the app set it, the values comma-join and Cloudflare misreads the result. We hit this once and the edge got stuck in `UPDATING`.
+The catch-all `location /` in `nginx/web.conf` deliberately sets no `Cache-Control`: when both nginx and the app set it, the values comma-join and Cloudflare misreads the result. We hit this once and the edge got stuck in `UPDATING`.
 
 **Cloudflare layer for HTML:**
 
@@ -27,13 +27,13 @@ The catch-all `location /` in `nginx/web.conf` deliberately sets no `Cache-Contr
 
 **Cloudflare layer for everything else** (API, assets, images): honors origin headers as-is, both for edge and for the client.
 
-Forcing the client to `no-cache` for HTML means there's no browser-side cache to wait out on deploy — purging Cloudflare's edge is sufficient to roll a new version to every anonymous visitor on the next request. The app's `public, max-age=300, stale-while-revalidate=3600` on anonymous HTML is therefore an instruction to Cloudflare, not to the browser. The `private, no-cache` on authenticated HTML stops the browser from caching personalized content — Cloudflare passes the bypassed response through unchanged, so the origin header is what the client sees.
+Forcing the client to `no-cache` for HTML means there's no browser-side cache to wait out on deploy: purging Cloudflare's edge is sufficient to roll a new version to every anonymous visitor on the next request. The app's `public, max-age=300, stale-while-revalidate=3600` on anonymous HTML is therefore an instruction to Cloudflare, not to the browser. The `private, no-cache` on authenticated HTML stops the browser from caching personalized content. Cloudflare passes the bypassed response through unchanged, so the origin header is what the client sees.
 
 ## Consequences
 
 - Anonymous HTML is served from the edge, so most traffic doesn't hit the origin SSR.
-- Authenticated requests always hit origin — fine, since they're personalized and a minority of traffic.
-- Deploys include a targeted Cloudflare purge step (HTML shells + `/api/` by prefix, host-scoped). Hashed `/assets/` and `/media/` are never purged — content-addressed URLs can't go stale, and keeping them warm avoids cold-cache page loads after a release.
+- Authenticated requests always hit origin, which is fine since they're personalized and a minority of traffic.
+- Deploys include a targeted Cloudflare purge step (HTML shells + `/api/` by prefix, host-scoped). Hashed `/assets/` and `/media/` are never purged: content-addressed URLs can't go stale, and keeping them warm avoids cold-cache page loads after a release.
 - API endpoints without an explicit `Cache-Control` fall through to Cloudflare's default heuristic. Nothing enforces that a new route sets one.
 
 ## Confirmation

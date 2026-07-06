@@ -11,9 +11,9 @@ The API expresses per-route authentication two ways. A procedure's contract `met
 
 A review flagged this as an "authorization split-brain". The question underneath it: should admin move into the contract `meta` alongside `auth`, and is a prefix-gated admin surface a dead end once a second admin-ish role shows up?
 
-Today there is exactly one global role. The `admins` table is bare `userId` membership: no levels, no scoping. Everything else that looks role-like (`owner` / `member` / `judge` on friend groups, `giver` on trades) is a per-resource membership check inside handlers (`getMembership`), not a URL-level gate. So the current design is not "a route tree per role"; it is one URL prefix for the one global binary role, plus per-row checks for the rest.
+Today there is exactly one global role. The `admins` table is bare `userId` membership: no levels, no scoping. Everything else that looks role-like (`owner` / `member` / `judge` on friend groups, `giver` on trades) is a per-resource membership check inside handlers (`getMembership`), not a URL-level gate. So the current design is not "a route tree per role." It is one URL prefix for the one global binary role, plus per-row checks for the rest.
 
-We expect a second admin-ish role eventually, and the likely shape is a **cross-cutting capability** (e.g. a moderator who can delete user-generated content across every section but cannot create or configure) rather than a section-scoped subset. A cross-cutting boundary does not follow the URL tree, so a prefix cannot express it.
+We expect a second admin-ish role eventually, and the likely shape is a cross-cutting capability (e.g. a moderator who can delete user-generated content across every section but cannot create or configure) rather than a section-scoped subset. A cross-cutting boundary does not follow the URL tree, so a prefix cannot express it.
 
 ## Decision Drivers
 
@@ -33,24 +33,23 @@ We expect a second admin-ish role eventually, and the likely shape is a **cross-
 
 **Now:** admin authorization stays the `requireAdmin` middleware on the `/api/admin/v1/*` prefix. The only change is documentation fidelity: `applySecurity` stamps an `adminAuth` security marker onto every operation whose path starts with `/api/admin/`, mirroring the mount, and `app.ts` registers the `adminAuth` scheme (the same session cookie as `cookieAuth`, described as requiring the admin role). No contract `meta` change, no new role machinery.
 
-The marker is deliberately forward-compatible. An OpenAPI security requirement value is a **scopes list**, so today's `{ adminAuth: [] }` becomes `{ adminAuth: ["content:delete"] }` the day permissions arrive — a value change, not a redesign.
+The marker is deliberately forward-compatible. An OpenAPI security requirement value is a scopes list, so today's `{ adminAuth: [] }` becomes `{ adminAuth: ["content:delete"] }` the day permissions arrive, a value change rather than a redesign.
 
 **Later (when a cross-cutting role is specified):** migrate the admin surface to per-route permission metadata (RBAC), with these invariants:
 
 - Generalize `requireAdmin` into a coarse perimeter gate (`requireStaff`: "holds at least one admin-ish role") kept on the prefix. It stays the fail-closed perimeter and the admin/public OpenAPI doc split.
 - Each admin contract op declares `meta.permission` (e.g. `"users:manage"`). A single enforcement middleware resolves the caller's permission set and checks the route's requirement. The prefix gate plus the permission check is the perimeter-then-capability layering.
 - Roles become permission bundles in tables (`roles`, `role_permissions`, `user_roles`). `admin` = all permissions; `moderator` = a slice.
-- **Default-deny on untagged admin ops.** An admin route missing its `meta.permission` is denied (or restricted to full-admin), never silently open — the same fail-closed instinct the prefix encodes today, carried into the permission layer so the migration doesn't reintroduce the forgot-the-tag footgun.
+- **Default-deny on untagged admin ops.** An admin route missing its `meta.permission` is denied (or restricted to full-admin), never silently open. This carries the prefix's fail-closed instinct into the permission layer, so the migration doesn't reintroduce the forgot-the-tag footgun.
 
-**URLs stay stable through the migration.** Changing _who_ may call an endpoint is metadata's job, not the path's; an authz-model change is not a `v2`. The one genuine URL decision is for capabilities acting on resources that live _outside_ the admin prefix (a moderator deleting a user's deck at `/api/v1/decks/:id`): keep the existing URL and branch the authz when it is the same operation with a broader rule; mint a new endpoint under the admin prefix only when it is a semantically different admin action (audited, reason-required, ownership-bypassing).
+**URLs stay stable through the migration.** Changing _who_ may call an endpoint is metadata's job, not the path's. An authz-model change is not a `v2`. The one genuine URL decision is for capabilities acting on resources that live _outside_ the admin prefix (a moderator deleting a user's deck at `/api/v1/decks/:id`): keep the existing URL and branch the authz when it is the same operation with a broader rule. Mint a new endpoint under the admin prefix only when it is a semantically different admin action (audited, reason-required, ownership-bypassing).
 
 ### Consequences
 
 - Good, because the documentation gap is closed today with a localized change, and the marker already anticipates the cross-cutting future, so nothing has to be undone.
-- Good, because we avoid building an RBAC system whose permission boundaries we'd be guessing.
 - Good, because the fail-closed property is preserved now (prefix mount) and is a stated requirement of the future model (default-deny).
 - Good, because existing admin URLs are stable across the eventual migration; only net-new moderation operations on non-admin resources add paths.
-- Neutral, because the split between contract `meta.auth` (authentication) and middleware/permission (authorization) persists; the OpenAPI doc now reflects both, so the "split-brain" is a documented layering, not an invisible one.
+- Neutral, because the split between contract `meta.auth` (authentication) and middleware/permission (authorization) persists. The OpenAPI doc now reflects both, so the "split-brain" is a documented layering, not an invisible one.
 - Bad, because admin authorization is still not visible in the contract source itself (only in the prefix mount and, after migration, `meta.permission`); a reader of a single contract file does not see the gate. Accepted: the prefix makes the gate unforgettable, which is worth more than co-locating it.
 
 ### Confirmation

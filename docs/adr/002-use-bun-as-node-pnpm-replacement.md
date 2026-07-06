@@ -11,18 +11,6 @@ The project ran on Node.js 22 across the stack (Vite dev server, Hono API server
 
 Bun is a JavaScript runtime with native TypeScript execution, built-in `.env` loading, a built-in zero-dependency PostgreSQL client (`Bun.sql`), and workspace-aware package management. It is MIT-licensed with strong long-term corporate backing.
 
-This ADR documents the decision to replace both Node.js and pnpm with Bun.
-
-## Decision Drivers
-
-- TypeScript execution requires the `tsx` package under Node.js
-- Hono needs `@hono/node-server` adapter under Node.js but has first-class Bun support
-- `Bun.sql` could replace `pg`, reducing the dependency surface
-- Dual-tooling (Bun runtime + pnpm package manager) adds unnecessary complexity
-- `pnpm deploy` was the main reason to keep pnpm, but `bun install --production` against a copied `package.json` set sidesteps the need
-- Bun's workspace support (`workspaces` field + `workspace:*` protocol) is stable
-- Bun has strong long-term backing and an MIT license
-
 ## Considered Options
 
 ### Runtime
@@ -40,15 +28,15 @@ This ADR documents the decision to replace both Node.js and pnpm with Bun.
 
 ## Decision Outcome
 
-Chosen option: "Migrate fully to Bun (runtime and package manager)", because it removes dependencies (`tsx`, `pg`, `@hono/node-server`), eliminates dual-tooling, produces smaller Docker images, and Bun's native capabilities align well with the project's needs.
+We migrate fully to Bun, for both runtime and package management. It removes `tsx`, `pg`, and `@hono/node-server`, ends the dual-tool setup, and produces smaller Docker images.
 
 ### Runtime migration (phased)
 
-**Phase 1 — Dev scripts (low risk):** Replace `node --env-file-if-exists=../../.env --import tsx` with `bun` in all package.json scripts. Remove `tsx` dependency. Verify migrations, seeds, and the API dev server work correctly — particularly queries involving `text[]` columns.
+**Phase 1, Dev scripts (low risk):** Replace `node --env-file-if-exists=../../.env --import tsx` with `bun` in all package.json scripts. Remove `tsx` dependency. Verify migrations, seeds, and the API dev server work correctly, particularly queries involving `text[]` columns.
 
-**Phase 2 — API server adapter:** Replace `@hono/node-server` with Bun's native server. Swap `PostgresDialect` + `pg` for `PostgresJSDialect` + `Bun.sql` via `kysely-postgres-js`. Remove `pg` and `@hono/node-server` dependencies.
+**Phase 2, API server adapter:** Replace `@hono/node-server` with Bun's native server. Swap `PostgresDialect` + `pg` for `PostgresJSDialect` + `Bun.sql` via `kysely-postgres-js`. Remove `pg` and `@hono/node-server` dependencies.
 
-**Phase 3 — Docker and deployment:** Update `Dockerfile` from `node:22-alpine` to `oven/bun:1.3.14-alpine` (build stage uses the full Debian-based `oven/bun:1.3.14` so apt-installed `git` is available for the Sentry release tag). API stage runs `bun run apps/api/src/index.ts` against copied sources rather than a compiled binary — this keeps the migration runner in the same image and avoids a separate compile step. A second app stage on `oven/bun:1.3.14-alpine` runs the TanStack Start SSR server (`bun run .output/server/index.mjs`). An `nginx:alpine` stage serves the built static assets and acts as the reverse proxy.
+**Phase 3, Docker and deployment:** Update `Dockerfile` from `node:22-alpine` to `oven/bun:1.3.14-alpine` (build stage uses the full Debian-based `oven/bun:1.3.14` so apt-installed `git` is available for the Sentry release tag). API stage runs `bun run apps/api/src/index.ts` against copied sources rather than a compiled binary. This keeps the migration runner in the same image and avoids a separate compile step. A second app stage on `oven/bun:1.3.14-alpine` runs the TanStack Start SSR server (`bun run .output/server/index.mjs`). An `nginx:alpine` stage serves the built static assets and acts as the reverse proxy.
 
 ### Package manager migration
 
@@ -71,16 +59,13 @@ Chosen option: "Migrate fully to Bun (runtime and package manager)", because it 
 
 ### Consequences
 
-- Good, because it removes 3 dependencies (`tsx`, `pg`, `@hono/node-server`) and simplifies script invocations.
-- Good, because it eliminates dual-tooling (one tool for both runtime and package management).
+- Good, because it removes `tsx`, `pg`, and `@hono/node-server`, ending the dual-tool setup and simplifying script invocations.
 - Good, because native TypeScript execution and `.env` loading reduce tooling friction.
-- Good, because Bun's native PostgreSQL bindings avoid the Node compatibility layer overhead.
-- Good, because `kysely-postgres-js` is maintained by the Kysely core team, so Kysely queries and migrations remain untouched.
-- Good, because the alpine runtime image plus production-only `node_modules` is meaningfully smaller than the Node + pnpm equivalent, even without going distroless.
-- Good, because one fewer prerequisite for contributors (no pnpm installation needed).
+- Good, because Bun's native PostgreSQL bindings avoid the Node compatibility layer, and `kysely-postgres-js` (maintained by the Kysely core team) keeps queries and migrations untouched.
+- Good, because the alpine runtime image plus production-only `node_modules` is meaningfully smaller than the Node + pnpm equivalent, and contributors no longer need pnpm installed.
 - Bad, because `TEXT[]` array handling in Bun.sql has an open issue directly relevant to the schema.
 - Bad, because connection pool leak during hot reload requires a `globalThis` workaround in dev.
-- Bad, because `pg` is battle-tested over 10+ years; Bun.sql is ~1 year old.
+- Bad, because `pg` is battle-tested over 10+ years, and Bun.sql is ~1 year old.
 - Neutral, because Bun's workspace support is stable but less mature than pnpm's.
 
 ## Pros and Cons of the Options
@@ -118,7 +103,7 @@ Only 7 queries exist across the entire codebase: 3 SELECTs in the cards route, 1
 
 #### Database layer: `kysely-postgres-js` bridges Kysely and Bun.sql
 
-The [`kysely-postgres-js`](https://github.com/kysely-org/kysely-postgres-js) package (maintained by the Kysely core team) supports Bun's native `SQL` class as of v3.0.0. This means Kysely queries, migrations, and type definitions remain unchanged — only the dialect configuration changes:
+The [`kysely-postgres-js`](https://github.com/kysely-org/kysely-postgres-js) package (maintained by the Kysely core team) supports Bun's native `SQL` class as of v3.0.0. This means Kysely queries, migrations, and type definitions remain unchanged, only the dialect configuration changes:
 
 ```typescript
 // Before (Node + pg)
@@ -138,35 +123,27 @@ new Kysely<Database>({
 
 #### Bun.sql caveats
 
-Bun.sql is comprehensive (transactions, connection pooling, prepared statements, savepoints) but has open issues relevant to this project:
+Bun.sql covers transactions, connection pooling, prepared statements, and savepoints, but has open issues relevant to this project:
 
-- **`TEXT[]` array handling** ([oven-sh/bun#17798](https://github.com/oven-sh/bun/issues/17798)) — the schema uses `text[]` for `keywords`, `super_types`, and `tags`. Kysely's parameterization may insulate us, but this needs verification.
-- **Connection pool leak during hot reload** ([oven-sh/bun#23215](https://github.com/oven-sh/bun/issues/23215)) — workaround: store the SQL instance on `globalThis` in dev.
-- **No `LISTEN`/`NOTIFY`** — not currently used, but worth noting if real-time features are planned.
-- **No built-in migration framework** — not an issue since Kysely's `FileMigrationProvider` + `Migrator` handles this.
+- **`TEXT[]` array handling** ([oven-sh/bun#17798](https://github.com/oven-sh/bun/issues/17798)): the schema uses `text[]` for `keywords`, `super_types`, and `tags`. Kysely's parameterization may insulate us, but this needs verification.
+- **Connection pool leak during hot reload** ([oven-sh/bun#23215](https://github.com/oven-sh/bun/issues/23215)): workaround is to store the SQL instance on `globalThis` in dev.
+- **No `LISTEN`/`NOTIFY`**: not currently used, but relevant if real-time features are planned.
+- **No built-in migration framework**: not an issue since Kysely's `FileMigrationProvider` + `Migrator` handles this.
 
 #### What Bun eliminates
 
-- `tsx` package — Bun runs `.ts` natively
-- `--env-file-if-exists` flags — Bun loads `.env` automatically
-- `@hono/node-server` — Hono runs natively on Bun
-- `pg` driver — replaced by Bun's built-in `SQL`
+- `tsx` package: Bun runs `.ts` natively
+- `--env-file-if-exists` flags: Bun loads `.env` automatically
+- `@hono/node-server`: Hono runs natively on Bun
+- `pg` driver: replaced by Bun's built-in `SQL`
 
-- Good, because it removes 3 dependencies and simplifies script invocations.
-- Good, because native TypeScript execution and `.env` loading reduce tooling friction.
-- Good, because Bun's native PostgreSQL bindings avoid the Node compatibility layer overhead.
-- Good, because Hono has first-class Bun support — no adapter needed.
+- Good, because Hono has first-class Bun support, no adapter needed.
 - Good, because Bun has strong long-term backing and an MIT license.
-- Bad, because `TEXT[]` array issue in Bun.sql is open and directly relevant to the schema.
-- Bad, because connection pool leak during hot reload requires a `globalThis` workaround.
-- Bad, because `pg` is battle-tested over 10+ years; Bun.sql is ~1 year old.
 - Bad, because it adds Bun as a runtime requirement for all contributors.
 
 ### Stay on Node.js
 
 - Good, because `pg` is battle-tested and stable.
-- Good, because no migration effort required.
-- Good, because Node.js is universally familiar to contributors.
 - Bad, because `tsx` dependency is still needed for TypeScript execution.
 - Bad, because script invocations require `--env-file-if-exists` and `--import tsx` flags.
 - Bad, because `@hono/node-server` adapter is an extra dependency.
@@ -177,14 +154,14 @@ The build stage runs `bun install --frozen-lockfile` once. The API stage then co
 
 - Good, because the migration runner stays as plain TypeScript invoked via `bun run`, with no compile-step surgery for dynamic imports.
 - Good, because the API stage compiles native addons (sharp) on the same OS/libc it will run on.
-- Neutral, because pnpm is still gone — Bun is the single package manager.
+- Neutral, because pnpm is still gone, Bun is the single package manager.
 - Bad, because the resulting image is larger than a distroless compiled binary would be (still well under the previous Node + pnpm equivalent).
 
 ### `bun build --compile` (drop pnpm entirely)
 
 Bun compiles a TypeScript entry point into a single self-contained executable that bundles all dependencies, workspace packages, and the Bun runtime (JavaScriptCore). The resulting binary needs no `node_modules` and can run on a bare distroless image.
 
-This was considered but not chosen. Two issues bit: the migration runner (`packages/shared/src/db/migrate.ts`) uses Kysely's `FileMigrationProvider`, which dynamically imports migration files at runtime via `fs.readdir` + `import()` — that path can't be compiled into a single binary without surgery; and `sharp` (added later for image processing) is a native C++ addon that doesn't fit the compile-and-ship model. Both problems disappear when the runtime image just runs `bun run` against installed deps.
+This was considered but not chosen. Two issues bit. The migration runner (`packages/shared/src/db/migrate.ts`) uses Kysely's `FileMigrationProvider`, which dynamically imports migration files at runtime via `fs.readdir` + `import()`, so that path can't be compiled into a single binary without surgery. And `sharp` (added later for image processing) is a native C++ addon that doesn't fit the compile-and-ship model. Both problems disappear when the runtime image just runs `bun run` against installed deps.
 
 - Good, because smallest possible image size (~96–110 MB binary on distroless).
 - Good, because no `node_modules` to prune (everything is statically linked).
@@ -195,17 +172,15 @@ This was considered but not chosen. Two issues bit: the migration runner (`packa
 
 ### Keep `pnpm deploy` in Docker
 
-- Good, because it's the current proven behavior with small, clean production images.
+- Good, because it already produces small, clean production images.
 - Bad, because it requires maintaining both lockfiles and dual-tooling.
 
 ### `turbo prune` + `bun install --production`
 
-- Good, because it drops pnpm.
 - Bad, because multiple open Turborepo bugs with `bun.lock` make it unreliable ([vercel/turborepo#10782](https://github.com/vercel/turborepo/issues/10782), [#11007](https://github.com/vercel/turborepo/issues/11007), [#11074](https://github.com/vercel/turborepo/issues/11074)).
 
 ### Copy full `node_modules` from build
 
-- Good, because it's simple and drops pnpm.
 - Bad, because it results in large images (500+ MB including all devDependencies).
 
 ## More Information

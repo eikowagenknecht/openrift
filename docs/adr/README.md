@@ -13,6 +13,8 @@ If you are not sure which to use, go with the default:
 
 Only add the other sections if it really is needed.
 
+House style on top of MADR: state each fact once (drop an optional section rather than restate another one), keep only Good/Bad bullets that name something concrete about this project, open Decision Outcome with a direct sentence instead of `Chosen option: "..."`, and no em dashes in prose.
+
 The MADR documentation is available at <https://adr.github.io/madr/> while general information about ADRs is available at <https://adr.github.io/>.
 
 ## Overview
@@ -57,6 +59,6 @@ The MADR documentation is available at <https://adr.github.io/madr/> while gener
 - **[ADR-025](025-deck-check-for-judges.md)**: Deck Check for Tournament Judges
 - **[ADR-027](027-deck-check-entry-states.md)**: Deck-Check Entry Lifecycle States (supersedes ADR-026's edit gate and edit-takeover stances)
 - **[ADR-029](029-deck-plans.md)**: Deck Plans (Strategy, Mulligan, Battlefields, Sideboard)
-- **[ADR-033](033-unified-tournaments.md)**: Unified Tournaments — Hosts, Participants, and Capability Modules (supersedes ADR-022's single-owner/free-text-player stance and re-parents ADR-025/026/027 deck check)
+- **[ADR-033](033-unified-tournaments.md)**: Unified Tournaments: Hosts, Participants, and Capability Modules (supersedes ADR-022's single-owner/free-text-player stance and re-parents ADR-025/026/027 deck check)
 - **[ADR-035](035-anonymous-deck-builder.md)**: Anonymous (Logged-Out) Deck Builder
 - **[ADR-036](036-in-app-user-submissions.md)**: In-App User Card Submissions via the Candidate Pipeline (extends ADR-008 with a `usersubmission` provider)

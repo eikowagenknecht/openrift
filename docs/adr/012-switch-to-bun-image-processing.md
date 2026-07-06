@@ -3,7 +3,7 @@ status: rejected
 date: 2026-05-13
 ---
 
-# Switch to Bun image processing
+# ADR-012: Switch to Bun image processing
 
 ## Context and Problem Statement
 
@@ -32,8 +32,6 @@ Re-evaluate when a future Bun release adds `trim` and `extract` (or equivalents)
 
 ### Switch to `Bun.Image`
 
-- Good, because 1.2–1.38× faster on resize/format-conversion benchmarks.
-- Good, because removes a native dependency and shrinks the install footprint.
 - Bad, because no `trim` or `extract` means rewriting white-edge cropping ourselves on raw pixel buffers.
 - Bad, because `Bun.Image`'s rotation is restricted to 90/180/270 (acceptable today, but a future requirement for arbitrary angles would block us).
 
@@ -41,4 +39,3 @@ Re-evaluate when a future Bun release adds `trim` and `extract` (or equivalents)
 
 - Good, because `trim({ background: "white", threshold: 60 })` and `extract({ left, top, width, height })` are core to the rehost pipeline and have no `Bun.Image` equivalent.
 - Good, because sharp's libvips backing is mature and well understood.
-- Bad, because it's a native dep with per-platform binaries.

@@ -11,8 +11,8 @@ The card browser fetches all cards and prices in two requests (`GET /api/catalog
 
 ## Decision Drivers
 
-- Riftbound currently has ~664 cards across 3 sets — a small dataset
-- Filter interactions must feel instant; round-tripping to the server on every keystroke adds latency
+- Riftbound currently has ~664 cards across 3 sets, a small dataset
+- Filter interactions must feel instant. Round-tripping to the server on every keystroke adds latency
 - The app targets mobile devices with limited memory and bandwidth
 - Shared filter types in `packages/shared` already support both client and server use
 
@@ -23,18 +23,17 @@ The card browser fetches all cards and prices in two requests (`GET /api/catalog
 
 ## Decision Outcome
 
-Chosen option: "Keep client-side filtering with full-dataset fetch", because the dataset is small enough that the entire payload fits comfortably in memory and over the wire, and client-side filtering provides a noticeably better UX with zero-latency filter responses.
+We keep client-side filtering with a full-dataset fetch. The dataset is small enough that the entire payload fits comfortably in memory and over the wire, and client-side filtering gives instant filter responses.
 
 ### Consequences
 
-- Good, because filter changes are instant — no loading states, no debouncing, no network dependency.
-- Good, because the architecture is simple — one fetch, one cache, no query invalidation on filter changes.
+- Good, because the architecture stays simple: one fetch, one cache, no query invalidation on filter changes.
 - Good, because shareable URLs work via `nuqs` query params without server cooperation.
-- Bad, because this approach will not scale indefinitely; revisit when thresholds below are crossed.
+- Bad, because this approach will not scale indefinitely. Revisit when the thresholds below are crossed.
 
 ## When to Revisit
 
-Re-evaluate this decision when **any** of these hold:
+Re-evaluate this decision when any of these hold:
 
 | Signal             | Threshold               | How to measure                                   |
 | ------------------ | ----------------------- | ------------------------------------------------ |
@@ -48,15 +47,15 @@ Re-evaluate this decision when **any** of these hold:
 1. Add `WHERE`/`ORDER BY`/`LIMIT`+`OFFSET` (or keyset pagination) to `GET /api/catalog`, driven by the existing `CardFilters` type from `packages/shared`.
 2. Replace `useQuery` with `useInfiniteQuery` in `useCards`, fetching pages as the virtualizer scrolls.
 3. Debounce or defer filter params before sending to the server (200–300 ms).
-4. Keep `filterCards()` in `packages/shared` — it can still be used for optimistic client-side pre-filtering while the server response is in flight.
+4. Keep `filterCards()` in `packages/shared`. It can still be used for optimistic client-side pre-filtering while the server response is in flight.
 
 ## Pros and Cons of the Options
 
 ### Client-side filtering (current)
 
-- Good, because zero-latency filtering — `filterCards()` runs synchronously in ~1 ms for the current dataset.
+- Good, because filtering is zero-latency: `filterCards()` runs synchronously in ~1 ms for the current dataset.
 - Good, because `useDeferredValue` keeps the filter UI responsive even if the grid re-render is slow.
-- Good, because offline-capable after initial load; no network needed for filter changes.
+- Good, because it's offline-capable after initial load, with no network needed for filter changes.
 - Bad, because payload and memory cost grow linearly with card count.
 - Bad, because every client re-does work the server could do once.
 
@@ -65,5 +64,5 @@ Re-evaluate this decision when **any** of these hold:
 - Good, because payload size stays constant regardless of total card count.
 - Good, because the server can use DB indexes for fast filtered queries.
 - Bad, because every filter change requires a network round-trip, adding latency and loading states.
-- Bad, because significantly more complex — cache invalidation, infinite scroll coordination, debouncing, optimistic updates.
+- Bad, because it's significantly more complex: cache invalidation, infinite scroll coordination, debouncing, optimistic updates.
 - Bad, because shareable URLs need the server to understand the same filter vocabulary (already possible via shared types, but still more moving parts).

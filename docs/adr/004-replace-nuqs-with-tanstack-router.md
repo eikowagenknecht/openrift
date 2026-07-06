@@ -9,14 +9,7 @@ date: 2026-02-26
 
 OpenRift's `useCardFilters` hook originally used [nuqs](https://nuqs.47ng.com/) to sync all card filter state (search query, type, rarity, domain, variant, sort, view mode, etc.) to URL query strings. This gave users shareable, bookmarkable URLs that restored the exact filter configuration.
 
-With the adoption of TanStack Router for page routing, a built-in alternative became available: TanStack Router's `validateSearch` and typed search params. These provide route-level search parameter definitions with Zod validation, type-safe `useSearch()` hooks, and `<Link search={...}>` for navigation — all without an additional dependency.
-
-## Decision Drivers
-
-- nuqs works well and integrates cleanly via its TanStack Router adapter
-- TanStack Router search params would remove one dependency (~3 KB gzipped)
-- `useCardFilters` manages ~15 distinct query parameters — migration is large
-- URL behavior is identical either way — no user-visible benefit
+With the adoption of TanStack Router for page routing, a built-in alternative became available: TanStack Router's `validateSearch` and typed search params. These provide route-level search parameter definitions with Zod validation, type-safe `useSearch()` hooks, and `<Link search={...}>` for navigation, all without an additional dependency.
 
 ## Considered Options
 
@@ -26,15 +19,15 @@ With the adoption of TanStack Router for page routing, a built-in alternative be
 
 ## Decision Outcome
 
-Chosen option: "Migrate from nuqs to TanStack Router search params", because the TanStack Start adoption (ADR-003) made route-level search definitions the natural fit: search params are now validated on the server during SSR, the same Zod schemas drive `validateSearch` and the loader's typed input, and filter-heavy routes beyond `/cards` (deck builder, collections) appeared as anticipated.
+We migrate from nuqs to TanStack Router search params. The TanStack Start adoption (ADR-003) made route-level search definitions the natural fit: search params are now validated on the server during SSR, the same Zod schemas drive `validateSearch` and the loader's typed input, and filter-heavy routes beyond `/cards` (deck builder, collections) appeared as anticipated.
 
 This is a reversal of the original 2026-02-26 verdict ("Defer the migration"). The reversal triggers from the original "what would change this decision" list are all in play: the SSR migration required route-level search params anyway, additional filter-heavy routes were added, and `useCardFilters` was already being reworked.
 
 ### Consequences
 
-- Good, because nuqs is no longer a dependency.
+- Good, because nuqs is no longer a dependency (~3 KB gzipped).
 - Good, because filter state is validated at the route boundary with `validateSearch` + Zod, so loaders see a fully-typed search object during SSR.
-- Good, because the same Zod schemas now drive search-param parsing on the server, `useSearch()` hooks on the client, and `<Link search={...}>` navigation — one definition, three call sites.
+- Good, because the same Zod schemas now drive search-param parsing on the server, `useSearch()` hooks on the client, and `<Link search={...}>` navigation: one definition, three call sites.
 - Bad, because the migration touched every component that reads or writes filter state (FilterBar, ActiveFilters, CardBrowser, etc.).
 - Neutral, because URL behavior is identical from the user's perspective.
 
@@ -42,12 +35,8 @@ This is a reversal of the original 2026-02-26 verdict ("Defer the migration"). T
 
 ### Migrate from nuqs to TanStack Router search params now
 
-- Good, because it removes one dependency (~3 KB gzipped).
-- Good, because search params are defined at the route level with `validateSearch`, giving TypeScript the exact shape at compile time.
 - Good, because all URL state (path params, search params, hash) goes through the same router API.
-- Bad, because `useCardFilters` manages ~15 distinct query parameters with custom parsers, default values, and coordinated updates — the rewrite is large.
-- Bad, because every component that reads or writes filter state (FilterBar, ActiveFilters, CardBrowser, etc.) must change.
-- Bad, because it adds scope and risk with no user-facing benefit.
+- Bad, because `useCardFilters` manages ~15 distinct query parameters with custom parsers, default values, and coordinated updates, so the rewrite is large.
 
 ### Defer the migration
 

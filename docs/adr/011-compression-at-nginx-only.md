@@ -3,7 +3,7 @@ status: accepted
 date: 2026-03-17
 ---
 
-# Handle HTTP compression in nginx only, not in the application
+# ADR-011: Handle HTTP compression in nginx only, not in the application
 
 ## Context and Problem Statement
 
@@ -18,12 +18,11 @@ API responses pass through multiple layers: Hono (app) -> Docker nginx -> host n
 
 ## Decision Outcome
 
-Chosen option: "Compress in nginx only", because nginx buffers the full response before compressing, producing properly framed output that CDN proxies handle correctly. This is the conventional approach in reverse-proxy setups.
+We compress in nginx only. Buffering the full response before compressing produces properly framed output that CDN proxies handle correctly, which is the conventional approach in reverse-proxy setups.
 
 ### Consequences
 
 - Good, because compression config is centralized in one place (`nginx/web.conf`)
-- Good, because nginx produces well-formed compressed responses with proper framing
 - Neutral, because responses between Hono and nginx travel uncompressed over the Docker network (negligible on localhost)
 - Bad, because adding a new reverse proxy layer would require remembering to configure compression there instead
 
@@ -31,7 +30,6 @@ Chosen option: "Compress in nginx only", because nginx buffers the full response
 
 ### Compress in Hono only
 
-- Good, because the app controls compression directly
 - Bad, because Hono's streaming `compress()` sends chunked gzip without `Content-Length`, which some CDN proxies cannot handle efficiently
 - Bad, because nginx has more mature compression tuning (min length, mime types, compression level)
 

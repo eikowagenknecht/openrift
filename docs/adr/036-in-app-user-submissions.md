@@ -22,25 +22,25 @@ The catalog is currently fed by the source-agnostic candidate import pipeline fr
 
 ## Considered Options
 
-- **New standalone submission table + bespoke review UI** — a fresh `card_submissions` table and its own admin moderation screen.
-- **In-app submission into the existing candidate pipeline** — the form writes into `candidate_cards` / `candidate_printings` under a new `usersubmission` provider, and everything downstream (review tabs, accept, ignore) works unchanged.
-- **Keep GitHub, wrap it** — hide the GitHub mechanics behind a server bot that opens the PR on the user's behalf, so `openrift-data` stays canonical.
+- **New standalone submission table + bespoke review UI:** a fresh `card_submissions` table and its own admin moderation screen.
+- **In-app submission into the existing candidate pipeline:** the form writes into `candidate_cards` / `candidate_printings` under a new `usersubmission` provider, and everything downstream (review tabs, accept, ignore) works unchanged.
+- **Keep GitHub, wrap it:** hide the GitHub mechanics behind a server bot that opens the PR on the user's behalf, so `openrift-data` stays canonical.
 
 ## Decision Outcome
 
-Chosen option: **in-app submission into the existing candidate pipeline**, because ADR-008 deliberately made the pipeline source-agnostic and keyed candidates on `(provider, external_id)`. A new data source is just a new `provider` value. User submissions become candidates like any other source, land in exactly the same matched/unmatched review tabs, promote through exactly the same accept flow, and rejections go to `ignored_candidate_cards`. The database is already canonical for the catalog, so nothing about the source of truth changes.
+We add in-app submission into the existing candidate pipeline. ADR-008 deliberately made the pipeline source-agnostic and keyed candidates on `(provider, external_id)`, so a new data source is just a new `provider` value. User submissions become candidates like any other source, land in exactly the same matched/unmatched review tabs, promote through exactly the same accept flow, and rejections go to `ignored_candidate_cards`. The database is already canonical for the catalog, so nothing about the source of truth changes.
 
 The GitHub "new file" flow is retired from the user-facing form. `openrift-data` can remain as an optional public export target in the future, but it is no longer part of the contributor path.
 
 ### Consequences
 
 - Good, because contributors need only a signed-in OpenRift account, not GitHub.
-- Good, because no new review surface is built; user submissions flow into the candidate tabs the admin already uses.
+- Good, because no new review surface is built. User submissions flow into the candidate tabs the admin already uses.
 - Good, because the accept flow (including image rehosting from ADR-007) and the ignore flow are reused as-is.
 - Good, because `usersubmission` as a distinct provider means user-sourced candidates can be filtered and badged in the admin UI without special-casing.
 - Bad, because the submission endpoint is now an authenticated write surface that must defend against abuse, whereas GitHub previously absorbed that with account friction and its own spam controls.
 - Bad, because per-submission `external_id`s (see Design) mean the "skip an ignored `(provider, external_id)` on re-upload" protection does not block a resubmitted junk card. Abuse defense leans on the signed-in user, rate limiting, and the admin ban lever instead of the key.
-- Neutral, because `openrift-data` is decoupled from the app rather than removed; a public archive can be re-added later as an export without touching this path.
+- Neutral, because `openrift-data` is decoupled from the app rather than removed. A public archive can be re-added later as an export without touching this path.
 
 ## Design
 
@@ -67,8 +67,8 @@ Fill /contribute form       →    submission endpoint (authenticated, rate-limi
 
 ### Provider and Natural Key
 
-- `provider = "usersubmission"` for every in-app submission. A single provider covers all three flows; the flow is inferred from which fields the candidate populates (a full new card, an update diff, or a lone `image_url`), not from a separate provider. The admin filters all user submissions as one bucket.
-- `external_id` is **unique per submission**, not per card. Two different users submitting "Jinx" produce two candidate rows, both of which match the live Jinx by `norm_name` and appear in the Updates tab for the admin to handle independently. No submission silently overwrites another in staging.
+- `provider = "usersubmission"` for every in-app submission. A single provider covers all three flows. The flow is inferred from which fields the candidate populates (a full new card, an update diff, or a lone `image_url`), not from a separate provider. The admin filters all user submissions as one bucket.
+- `external_id` is unique per submission, not per card. Two different users submitting "Jinx" produce two candidate rows, both of which match the live Jinx by `norm_name` and appear in the Updates tab for the admin to handle independently. No submission silently overwrites another in staging.
   - Format: `<slug>--<UTC-datestamp>--<userId>`, reusing the `<slug>--<UTC-datestamp>` value the form already generates and appending the submitter's user id. This is human-readable in the admin table, self-documents who and when at a glance, and is unique per user per minute.
 
 ### New vs. Update Detection
@@ -77,14 +77,14 @@ Unchanged from ADR-008. The server normalizes each candidate's name into `norm_n
 
 - **New card** submissions surface in the New Cards tab.
 - **Correction** submissions (the `/contribute/:cardSlug` flow, slug locked) normalize to the existing card and surface in the Updates tab with the field-level diff.
-- **Image suggestion** submissions (the `/contribute/:cardSlug/image/:printingId` flow) are a sparse candidate update: the card matches by `norm_name`, the printing matches by its public code, and only the printing `image_url` is populated. The admin accepts just that field, and the image is rehosted through the ADR-007 pipeline. Input is an image URL only in v1 (matching today's form); direct file upload is out of scope.
+- **Image suggestion** submissions (the `/contribute/:cardSlug/image/:printingId` flow) are a sparse candidate update: the card matches by `norm_name`, the printing matches by its public code, and only the printing `image_url` is populated. The admin accepts just that field, and the image is rehosted through the ADR-007 pipeline. Input is an image URL only in v1 (matching today's form). Direct file upload is out of scope.
 
 ### Submitter Metadata
 
 Add dedicated columns to `candidate_cards`:
 
-- `submitted_by_user_id` (nullable, foreign key to users, indexed) — records who submitted the candidate.
-- `submission_note` (nullable text) — the contributor's free-text "where I spotted this" note.
+- `submitted_by_user_id` (nullable, foreign key to users, indexed): records who submitted the candidate.
+- `submission_note` (nullable text): the contributor's free-text "where I spotted this" note.
 
 These are chosen over stuffing the values into `extra_data jsonb` so that "submissions by user X", per-user rate limiting, and the admin ban lever are cheap and indexable. This costs one migration. The columns are nullable so admin-uploaded candidates from other providers (which have no submitter) are unaffected.
 
@@ -97,8 +97,8 @@ The column is what makes the v1 abuse story work even though the contributor exp
 
 ### Anti-Abuse (v1)
 
-- Per-user rate limit on the submission endpoint: 50 submissions per user per day, tunable via config. Loose enough that a keen contributor cataloguing a new set in one sitting is never blocked; a single bad actor is capped at 50 junk rows per day before the ban lever applies.
-- The signed-in requirement provides attribution and a ban lever; a banned or throttled user cannot flood the review queue.
+- Per-user rate limit on the submission endpoint: 50 submissions per user per day, tunable via config. Loose enough that a keen contributor cataloguing a new set in one sitting is never blocked. A single bad actor is capped at 50 junk rows per day before the ban lever applies.
+- The signed-in requirement provides attribution and a ban lever. A banned or throttled user cannot flood the review queue.
 - No captcha/Turnstile and no honeypot in v1. Add Turnstile later only if abuse actually appears. This is the lightest defense that still relies on a recorded identity, consistent with the fire-and-forget, rate-limit-only choices.
 
 ### Schema Mapping
@@ -115,7 +115,7 @@ A single authenticated, rate-limited submission route accepts the form payload, 
 
 ### GitHub Retirement
 
-The GitHub "new file" URL builders (`buildGithubNewFileUrl` / `buildContributionFilename` / `buildCommitMessage`) and the "submit via GitHub" UI are deleted; `contribute-json.ts` is now pure form-state, validation, and submission-payload logic. `openrift-data` is no longer referenced by the app's contribution path. If a public archive is wanted later, accepted submissions can be exported back to `openrift-data` as a separate, server-side concern without reintroducing GitHub into the user path.
+The GitHub "new file" URL builders (`buildGithubNewFileUrl` / `buildContributionFilename` / `buildCommitMessage`) and the "submit via GitHub" UI are deleted. `contribute-json.ts` is now pure form-state, validation, and submission-payload logic. `openrift-data` is no longer referenced by the app's contribution path. If a public archive is wanted later, accepted submissions can be exported back to `openrift-data` as a separate, server-side concern without reintroducing GitHub into the user path.
 
 ## Dependencies
 
@@ -125,9 +125,9 @@ The GitHub "new file" URL builders (`buildGithubNewFileUrl` / `buildContribution
 ## Implementation Notes
 
 - **Dedicated ingest, not `ingestCandidates`.** The batch `ingestCandidates` treats a provider as a full-replace namespace: its Phase 3 deletes any candidate rows under the provider that are absent from the payload. Since all user submissions share `provider = "usersubmission"`, batching one card through it would delete every other user's pending submission. The feature instead ships `services/ingest-user-submission.ts`, which inserts exactly one candidate card (+ printings) with a per-submission-unique `external_id` and never deletes. It reuses the batch ingest's validators (`candidateCardValidator` / `candidatePrintingValidator`, now exported) and the same live card/printing link resolution, so a correction or image suggestion still lands in the admin Updates tab.
-- **Server-generated keys.** The endpoint ignores any client-supplied ids. It mints `external_id = <slug>--<UTC-dateStamp>--<userId>` for the card and extends it per printing, from a server timestamp — the client never influences the natural key or the provider.
+- **Server-generated keys.** The endpoint ignores any client-supplied ids. It mints `external_id = <slug>--<UTC-dateStamp>--<userId>` for the card and extends it per printing, from a server timestamp. The client never influences the natural key or the provider.
 - **Submitter columns.** Migration `184-candidate-submitter` adds `candidate_cards.submitted_by_user_id` (FK `users(id) ON DELETE SET NULL`, partial index) and `submission_note` (CHECK `<> ''`), both nullable so other providers are unaffected.
-- **Rate limit is the daily cap.** `USER_SUBMISSION_DAILY_LIMIT = 50` is enforced inside the ingest transaction: a `pg_advisory_xact_lock(hashtext(userId))` (`ingestRepo.lockUserSubmissions`) serializes a user's concurrent submissions, then the user's candidate rows in the trailing 24h are counted (`ingestRepo.countRecentSubmissionsByUser`). The lock is what makes this race-safe — a plain COUNT under READ COMMITTED cannot see concurrent uncommitted inserts, so parallel requests would otherwise all pass the check. The cap survives restarts. A 256 KB Hono `bodyLimit` fronts the route; there is no per-IP burst limiter (the daily cap plus the signed-in requirement are the agreed defense).
+- **Rate limit is the daily cap.** `USER_SUBMISSION_DAILY_LIMIT = 50` is enforced inside the ingest transaction: a `pg_advisory_xact_lock(hashtext(userId))` (`ingestRepo.lockUserSubmissions`) serializes a user's concurrent submissions, then the user's candidate rows in the trailing 24h are counted (`ingestRepo.countRecentSubmissionsByUser`). The lock is what makes this race-safe. A plain COUNT under READ COMMITTED cannot see concurrent uncommitted inserts, so parallel requests would otherwise all pass the check. The cap survives restarts. A 256 KB Hono `bodyLimit` fronts the route. There is no per-IP burst limiter (the daily cap plus the signed-in requirement are the agreed defense).
 - **Sign-in is route-level, not in-form.** The three `/contribute` routes carry a `beforeLoad` guard that redirects a signed-out visitor to `/login` (redirect-back preserved), and the menu's Contribute entry joins the existing locked-feature set (lock glyph + `SignInRequiredDialog`) like Collection/Groups. So a contributor signs in before filling the form rather than losing their input at submit time. The forms therefore assume an authenticated user.
 - **Size and distribution channels carried end-to-end.** Migration `185-candidate-printing-size-channels` adds `size` + `distribution_channel_slugs` to `candidate_printings` (the pipeline previously dropped both). The form collects them, they flow through submission → staging, and `acceptPrinting` (which already supported them) now receives them from the candidate row, so a submitted oversized/channel lands on the accepted printing. Image suggestions stay sparse and assert neither.
 - **Admin surfacing.** `candidateCardSummarySchema` gained `hasUserSubmission` (true when any candidate in the normalized-name group is a user submission), computed in `candidate-queries.ts`. The admin candidate table shows a "user submission" badge and a filter toggle (`?source=usersubmission`) that composes with the existing "unchecked" filter.

@@ -13,7 +13,7 @@ ADR-026 also left two review concepts squeezed into one field. `check_status` (`
 
 This ADR replaces the invalidation-only model with an explicit entry lifecycle: every entry is in exactly one state, players can only edit in one of them, and moving between states is what players, judges, and providers do.
 
-Two constraints from the official Tournament Rules sharpen the design. TR 401.3 — "Once a decklist has been registered and delivered to a competition official, it can't be changed" — means a player must not be able to change a submitted list on their own; the only ambiguity is _when_ a list counts as delivered (at submission, or when the registration window closes), which is the organizer's call. And the same rule cuts the other way: a list a player is still editing must not be _visible_ to any competition official, or its delivery could be argued to have already happened.
+Two constraints from the official Tournament Rules sharpen the design. TR 401.3 ("Once a decklist has been registered and delivered to a competition official, it can't be changed") means a player must not be able to change a submitted list on their own. The only ambiguity is _when_ a list counts as delivered (at submission, or when the registration window closes), which is the organizer's call. The same rule cuts the other way: a list a player is still editing must not be _visible_ to any competition official, or its delivery could be argued to have already happened.
 
 ## Decision Drivers
 
@@ -27,7 +27,7 @@ Two constraints from the official Tournament Rules sharpen the design. TR 401.3 
 ## Considered Options
 
 1. **Entry lifecycle states** (chosen): `editable → submitted → approved → checked`, plus `withdrawn`; player edits only in `editable`; unlocking is a transition.
-2. **Pending-revision proposals:** keep entries always-editable but stage edits as a proposed list a judge applies or rejects. Rejected: a second stored list per entry, a second diff surface, and an approval queue — more machinery for the same guarantee the lock gives directly.
+2. **Pending-revision proposals:** keep entries always-editable but stage edits as a proposed list a judge applies or rejects. Rejected: a second stored list per entry, a second diff surface, and an approval queue, all more machinery for the same guarantee the lock gives directly.
 3. **Keep ADR-026 invalidation, add a per-event "lock after submission" flag.** Rejected: the flag would gate a boolean edit-allowed check but still provide no pre-event approval concept and no visible lifecycle; half the feedback unaddressed.
 
 ## Decision Outcome
@@ -50,41 +50,41 @@ One state column, five values, and a transition matrix.
 
 Player (entry must be linked to the caller; everything in this block also requires the submission window: event active, `submissions_close_at` null or in the future):
 
-- `editable → submitted` — "Submit for review". Stamps `submitted_at` and stores a `change_summary` diff against the list as the judge last saw it (below).
-- `submitted → editable` — only in an event's `at_deadline` lock mode (below): there the window is the registration period, so a not-yet-reviewed submission unlocks self-service. In the default `on_submit` mode, submitting _is_ the delivery (TR 401.3), so this transition is judge-only and the player files an unlock request instead.
-- unlock request — the player cannot unlock a locked entry themselves (an `approved` one never; a `submitted` one not in `on_submit` mode); they file a request (`unlock_requested_at`). A judge grants it (transition to `editable`) or declines it (clears the request). The player can cancel their own pending request.
-- An entry still `editable` when the deadline passes **auto-submits as-is**: the lazy settle (run when the entry or its event is next loaded) moves it to `submitted` with `submitted_at = submissions_close_at`. Nobody misses the event over a forgotten button; the judge sees exactly what existed at the deadline.
+- `editable → submitted`: "Submit for review". Stamps `submitted_at` and stores a `change_summary` diff against the list as the judge last saw it (below).
+- `submitted → editable`: only in an event's `at_deadline` lock mode (below). There the window is the registration period, so a not-yet-reviewed submission unlocks self-service. In the default `on_submit` mode, submitting _is_ the delivery (TR 401.3), so this transition is judge-only and the player files an unlock request instead.
+- unlock request: the player cannot unlock a locked entry themselves (an `approved` one never, a `submitted` one not in `on_submit` mode). They file a request (`unlock_requested_at`). A judge grants it (transition to `editable`) or declines it (clears the request). The player can cancel their own pending request.
+- An entry still `editable` when the deadline passes auto-submits as-is: the lazy settle (run when the entry or its event is next loaded) moves it to `submitted` with `submitted_at = submissions_close_at`. Nobody misses the event over a forgotten button, and the judge sees exactly what existed at the deadline.
 
 Judge (any state reachable below, deadline does not bind judges):
 
-- `submitted → approved` — approve. Sets `review_outcome = 'ok'`, clears the pending diff.
-- `approved → submitted` — revoke approval.
-- `submitted | approved → checked` — the event-day check, with an explicit outcome (`ok` or `issue`).
-- `checked → submitted` — re-open a check.
-- `submitted | approved | checked → editable` — hand the list back to the player: either a rejection ("fix this", `review_outcome = 'issue'`, usually with a `player_message`) or a plain unlock (granting an unlock request, or the after-deadline venue correction). Requires a linked player; for an unclaimed entry there is nobody to edit, so a judge instead records `review_outcome = 'issue'` on the spot without a transition.
-- `editable → submitted` — lock a list on the player's behalf (venue: "I'm done").
+- `submitted → approved`: approve. Sets `review_outcome = 'ok'`, clears the pending diff.
+- `approved → submitted`: revoke approval.
+- `submitted | approved → checked`: the event-day check, with an explicit outcome (`ok` or `issue`).
+- `checked → submitted`: re-open a check.
+- `submitted | approved | checked → editable`: hand the list back to the player, either a rejection ("fix this", `review_outcome = 'issue'`, usually with a `player_message`) or a plain unlock (granting an unlock request, or the after-deadline venue correction). Requires a linked player. For an unclaimed entry there is nobody to edit, so a judge instead records `review_outcome = 'issue'` on the spot without a transition.
+- `editable → submitted`: lock a list on the player's behalf (venue: "I'm done").
 
-Provider (push, **provider always wins** — edit-takeover is removed):
+Provider (push, provider always wins, and edit-takeover is removed):
 
-- A push with a changed list puts the entry in `submitted` with the new list, from any state — including `editable` (discards the player's in-progress edit) and `approved`/`checked` (invalidates the review, storing the diff as today). `list_owner` and `provider_push_ignored_at` are dropped; the ignored-push bookkeeping goes with them.
+- A push with a changed list puts the entry in `submitted` with the new list, from any state, including `editable` (discards the player's in-progress edit) and `approved`/`checked` (invalidates the review, storing the diff as today). `list_owner` and `provider_push_ignored_at` are dropped, and the ignored-push bookkeeping goes with them.
 - An identical re-push refreshes identity fields and leaves the state untouched.
-- `withdrawn: true` moves the entry to `withdrawn` from any state; a later push without the flag returns it to `submitted` (the pre-withdrawal state is not preserved — the push _is_ a fresh submission).
+- `withdrawn: true` moves the entry to `withdrawn` from any state. A later push without the flag returns it to `submitted` (the pre-withdrawal state is not preserved, because the push _is_ a fresh submission).
 - The `openrift:` external-id namespace stays reserved: a provider still cannot address a self-submitted entry, because the unique key would collide, not because of ownership.
 
-Token submission (the ADR-026 shared link) is unchanged in spirit: submitting through the link is an explicit "send for review", so a fresh entry is born `submitted` (not `editable`). When the caller already has a linked entry, the link replaces its list only while that entry is `editable` — or `submitted` in `at_deadline` mode, where that is the composed self-service unlock-replace-resubmit. Any other state sends the player to their deck page to request an unlock.
+Token submission (the ADR-026 shared link) is unchanged in spirit: submitting through the link is an explicit "send for review", so a fresh entry is born `submitted` (not `editable`). When the caller already has a linked entry, the link replaces its list only while that entry is `editable`, or `submitted` in `at_deadline` mode, where that is the composed self-service unlock-replace-resubmit. Any other state sends the player to their deck page to request an unlock.
 
 ### The list lock mode
 
 TR 401.3 leaves one judgment call to the organizer: when does a list count as "registered and delivered"? A per-event `list_lock_mode` answers it:
 
-- **`on_submit`** (default): submitting is the delivery. From that moment every change goes through a judge — the player's unlock action files a request even on a never-reviewed `submitted` entry, and the token link refuses to replace one.
+- **`on_submit`** (default): submitting is the delivery. From that moment every change goes through a judge: the player's unlock action files a request even on a never-reviewed `submitted` entry, and the token link refuses to replace one.
 - **`at_deadline`**: the submission window is the registration period and delivery happens when it closes. Until then a not-yet-reviewed submission unlocks self-service; `approved` stays judge-gated either way. For casual leagues where pre-deadline corrections are routine.
 
 The default is the strict mode: the feature exists for tournament judging, and rules-correct out of the box beats surprising an organizer with a violation.
 
 ### Officials never see an editable list
 
-The flip side of TR 401.3: a list the player is still working on must not be readable by a competition official, or its delivery could be argued to have already happened. While an entry is `editable`, every judge-facing surface withholds the deck content — the checker shows the entry's identity, state, and link status but no cards, no advisories, no stats; the event list shows no copy or progress counts; the card-repair and tick endpoints reject the entry; the event-wide re-resolve skips its lines. The provider feed was never able to read lists (the push API is write-only), so the boundary is entirely about OpenRift's own judge surfaces. The content becomes visible the moment the entry reaches `submitted` — including via the deadline auto-submit, which is precisely the registration happening.
+The flip side of TR 401.3: a list the player is still working on must not be readable by a competition official, or its delivery could be argued to have already happened. While an entry is `editable`, every judge-facing surface withholds the deck content: the checker shows the entry's identity, state, and link status but no cards, no advisories, no stats; the event list shows no copy or progress counts; the card-repair and tick endpoints reject the entry; the event-wide re-resolve skips its lines. The provider feed was never able to read lists (the push API is write-only), so the boundary is entirely about OpenRift's own judge surfaces. The content becomes visible the moment the entry reaches `submitted`, including via the deadline auto-submit, which is precisely the registration happening.
 
 ### The diff baseline
 

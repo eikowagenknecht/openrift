@@ -9,7 +9,7 @@ date: 2026-06-16
 
 A serious player doesn't just build a 40-card deck and a sideboard, they prepare a written plan for piloting it: the general gameplan, what to keep in the opening hand, which battlefield to take in each situation, and how to sideboard against specific opponents. Today an OpenRift deck has the raw zones for this (a `main` zone, a `sideboard` zone with max 8 cards / 3 copies, a `battlefield` zone) but no place to record _how to use them_. Players keep these notes in spreadsheets or external tools like [theMetaLab's MetaForge sideboard plans](https://www.themetalab.gg/metaforge/sideboard-plans).
 
-We want to attach an **optional** deck plan to a deck, edited in the deck builder and rendered read-only on the public shared deck page. It must be purely additive: a deck with no plan looks and behaves exactly as it does today.
+We want to attach an optional deck plan to a deck, edited in the deck builder and rendered read-only on the public shared deck page. It must be purely additive: a deck with no plan looks and behaves exactly as it does today.
 
 A deck plan has two layers:
 
@@ -35,7 +35,7 @@ For the **data model**:
 - **JSONB column on `decks`.** Store the whole plan structure as `plan jsonb`, following the `format_config` precedent.
 - **Reuse `deck_cards` with plan-scoped zones.** Encode swaps and battlefield picks as extra `deck_cards` rows under synthetic zones.
 
-For **opponent identity**: free-text label only / pick a **Legend** card + free-text subtitle / an optional card of **any** type plus a free-text label (at least one required) / link to another OpenRift deck.
+For **opponent identity**: free-text label only / pick a Legend card + free-text subtitle / an optional card of any type plus a free-text label (at least one required) / link to another OpenRift deck.
 
 For **swap constraints**: disciplined (out from maindeck, in from sideboard) / any card / deck cards only.
 
@@ -45,15 +45,15 @@ For **battlefields**: one card per scenario from the deck's battlefield zone / f
 
 ## Decision Outcome
 
-Chosen data model: **relational satellite tables** (`deck_plans` + `deck_matchup_plans` + `deck_matchup_swaps`), because the card-bearing parts (swaps, battlefields, the opponent card) should join cleanly to the catalog and to the deck's own `deck_cards`, and the public page renders them as a structured list. JSONB would make every render a parse and forfeit card FK integrity; overloading `deck_cards` zones would corrupt deck-size math and the zone reference table.
+We use relational satellite tables (`deck_plans` + `deck_matchup_plans` + `deck_matchup_swaps`). The card-bearing parts (swaps, battlefields, the opponent card) join cleanly to the catalog and to the deck's own `deck_cards`, and the public page renders them as a structured list. JSONB would make every render a parse and forfeit card FK integrity. Overloading `deck_cards` zones would corrupt deck-size math and the zone reference table.
 
-Chosen scope and rules, from the product decisions:
+Scope and rules, from the product decisions:
 
 - **Deck-level fields live on a 1:1 `deck_plans` row**, created lazily the first time a plan is saved:
   - **General strategy:** free text.
   - **Mulligan priority:** free text, with an optional split so going first and going second can carry different notes. When the user does not split, one shared note applies.
   - **Battlefields:** one battlefield per scenario (Game 1, going first, going second), each chosen from the deck's `battlefield` zone. Each scenario is independent and optional.
-- **Matchup plans:** zero or more per deck. Each is identified by an **optional catalog card of any type** plus a **free-text label**, with at least one of the two required. A linked card supplies the icon and a catalog link and is the primary name (a Legend like "Diana", a single card like "Aurora", a domain signpost); the label carries archetypes ("Aggro", "Control"), domains, or a build name ("Scorn of the Moon"), and stands alone when no card fits. No archetype table. Matchups are displayed in a user-controllable order; two may share an opponent (no uniqueness constraint).
+- **Matchup plans:** zero or more per deck. Each is identified by an optional catalog card of any type plus a free-text label, with at least one of the two required. A linked card supplies the icon and a catalog link and is the primary name (a Legend like "Diana", a single card like "Aurora", a domain signpost); the label carries archetypes ("Aggro", "Control"), domains, or a build name ("Scorn of the Moon"), and stands alone when no card fits. No archetype table. Matchups are displayed in a user-controllable order; two may share an opponent (no uniqueness constraint).
 - **Matchup notes:** one free-text note per matchup.
 - **Disciplined swaps:** the `out` picker offers cards in the deck's maindeck zones; the `in` picker offers cards in the `sideboard` zone. A swap is a card, a quantity, and a direction.
 - **Soft validation, never blocking.** Warn when a matchup's in-count differs from its out-count, when an `in` quantity exceeds the available sideboard copies, when an `out` quantity exceeds the maindeck copies, or when a chosen battlefield is not in the deck's battlefield zone. The user can still save.
@@ -120,7 +120,7 @@ create index deck_matchup_swaps_plan_id_idx  on deck_matchup_swaps (plan_id);
 Notes:
 
 - Matchups hang off `deck_id`, not `deck_plans.id`, so a matchup can be created without first materialising a `deck_plans` row. The "deck plan" in the UI is the composition of the optional `deck_plans` row and the deck's matchup rows; both are children of the deck.
-- `opponent_card_id` is nullable and `on delete set null` (any card type, not just Legend): deleting the linked card leaves a label-only matchup rather than cascading the whole plan away. `opponent_label` is `NOT NULL DEFAULT ''`; the `check` keeps a matchup from being nameless. There is no uniqueness constraint — two matchups may share an opponent, ordered by `sort_order`. (The original migration 158 shipped a required `opponent_legend_card_id` + `subtitle` with a `(deck, legend, subtitle)` unique; migration 160 renamed/relaxed it to this shape.)
+- `opponent_card_id` is nullable and `on delete set null` (any card type, not just Legend): deleting the linked card leaves a label-only matchup rather than cascading the whole plan away. `opponent_label` is `NOT NULL DEFAULT ''`; the `check` keeps a matchup from being nameless. There is no uniqueness constraint, so two matchups may share an opponent, ordered by `sort_order`. (The original migration 158 shipped a required `opponent_legend_card_id` + `subtitle` with a `(deck, legend, subtitle)` unique; migration 160 renamed/relaxed it to this shape.)
 - Mulligan is three free-text columns. When the plan is not split, only `mulligan_general` is populated; when split, `mulligan_first` / `mulligan_second` carry the play/draw difference. The UI toggles which columns are shown and saved.
 - Battlefields are three nullable single-card FKs, one per scenario, because in Riftbound a game uses one battlefield. The discipline (must be a battlefield the deck actually runs) is a soft, read-time check against the `battlefield` zone, not a DB constraint.
 - Swaps store only `card_id` + `quantity`; the printing shown is resolved from the deck's own `deck_cards.preferred_printing_id` for that card at render time.
@@ -135,7 +135,7 @@ Notes:
   - `GET /{id}/plan` for the owner.
   - `PUT /{id}/plan` to replace the whole plan (the editor saves it as a unit).
 - Public read: extend `decks.findByShareToken` and the `toPublicDeck` mapper (`apps/api/src/utils/mappers.ts`) to include the plan, so the existing `decks/share/{token}` payload carries it with no new route.
-- Server-side validation at the API boundary: referenced cards exist, each matchup has a card or a label (or both), the battlefield cards are battlefields, quantities are positive. The opponent card may be **any** type — no Legend constraint. The balance and availability checks (in vs out counts, copies available, battlefield-in-deck) are advisory and computed client-side against the loaded deck.
+- Server-side validation at the API boundary: referenced cards exist, each matchup has a card or a label (or both), the battlefield cards are battlefields, quantities are positive. The opponent card may be any type, with no Legend constraint. The balance and availability checks (in vs out counts, copies available, battlefield-in-deck) are advisory and computed client-side against the loaded deck.
 
 ### Editor UI
 

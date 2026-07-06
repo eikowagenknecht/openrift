@@ -7,60 +7,60 @@ date: 2026-05-29
 
 ## Context and Problem Statement
 
-ADR-013 gave friend groups a **discovery** surface: a live match view that intersects a member's wishlist with co-members' tradelists. It deliberately stopped there. ADR-013 states, verbatim, that _"Trade execution is intentionally **not** in the system... no proposals, counter-offers, or a two-sided ledger... This is a deliberate, permanent choice, not a deferral,"_ and lists both **Trade execution** under _Will Not Be Built_ and **Notifications** under _Deferred / Out of Scope_.
+ADR-013 gave friend groups a discovery surface: a live match view that intersects a member's wishlist with co-members' tradelists. It deliberately stopped there. ADR-013 states, verbatim, that _"Trade execution is intentionally **not** in the system... no proposals, counter-offers, or a two-sided ledger... This is a deliberate, permanent choice, not a deferral,"_ and lists both **Trade execution** under _Will Not Be Built_ and **Notifications** under _Deferred / Out of Scope_.
 
-Use has shown the gap. Members find a match, then have to leave the app entirely — Discord, in person — to actually do anything, and there is no way to signal interest, nothing stops two people from both chasing the same single copy, and after a swap each person has to remember to hand-edit their own collection and lists. The request that motivates this ADR: _"I want this card"_ should become a notification for the counterparty; on accept the copy is **reserved** for that person and hidden from everyone else; and after the trade is acknowledged, the affected cards leave/enter each side's collection, wishlist, and tradelist.
+Use has shown the gap. Members find a match, then have to leave the app entirely (Discord, in person) to actually do anything, and there is no way to signal interest, nothing stops two people from both chasing the same single copy, and after a swap each person has to remember to hand-edit their own collection and lists. The request that motivates this ADR: _"I want this card"_ should become a notification for the counterparty. On accept the copy is reserved for that person and hidden from everyone else. After the trade is acknowledged, the affected cards leave/enter each side's collection, wishlist, and tradelist.
 
-This ADR adds a **minimal trade-execution loop** on top of the existing discovery model: request → reserve → acknowledge → (proposed) sync. It does **not** add negotiation, payments, or a two-sided ledger.
+This ADR adds a minimal trade-execution loop on top of the existing discovery model: request → reserve → acknowledge → (proposed) sync. It does not add negotiation, payments, or a two-sided ledger.
 
 ### Relationship to ADR-013 (supersession)
 
-This ADR **supersedes two specific stances in ADR-013** and nothing else:
+This ADR supersedes two specific stances in ADR-013 and nothing else:
 
-- ADR-013 _Will Not Be Built → Trade execution_ — reversed. We now build a single-card request/reservation/acknowledge loop. We still do **not** build counter-offers, a negotiation thread, or payment.
-- ADR-013 _Deferred → Notifications_ — reversed. We add a persistent, pull/poll-based notification surface (a global bell) for trade activity.
+- ADR-013 _Will Not Be Built → Trade execution_: reversed. We now build a single-card request/reservation/acknowledge loop. We still do not build counter-offers, a negotiation thread, or payment.
+- ADR-013 _Deferred → Notifications_: reversed. We add a persistent, pull/poll-based notification surface (a global bell) for trade activity.
 
-Everything else in ADR-013 stands: groups, roles, opt-in list/collection sharing, the live match query, and the existing invite/request badges are unchanged. The match query gains exactly one new filter (reserved-copy exclusion); no existing column changes meaning.
+Everything else in ADR-013 stands: groups, roles, opt-in list/collection sharing, the live match query, and the existing invite/request badges are unchanged. The match query gains exactly one new filter (reserved-copy exclusion). No existing column changes meaning.
 
 ## Decision Drivers
 
 - The literal ask: a request must reach the counterparty as a notification, accepting must reserve and hide the copy from others, and acknowledging must (optionally) reconcile both sides' lists/collections.
-- Keep the surface narrow. ADR-013's "humans handle the trade out-of-band" instinct is right; we are adding coordination, not a marketplace. No prices, no payments, no chat.
-- Reuse existing primitives. Tradelist supply is already modelled as concrete owned **copies**; collections already track copies; lists already track wish demand. The new state is one trade record plus a reservation link.
-- No new delivery infrastructure. There is no websocket/SSE/service-worker/push/email stack today, and we are not building one for v1 — in-app polling only.
+- Keep the surface narrow. ADR-013's "humans handle the trade out-of-band" instinct is right. We are adding coordination, not a marketplace. No prices, no payments, no chat.
+- Reuse existing primitives. Tradelist supply is already modelled as concrete owned copies, collections already track copies, lists already track wish demand. The new state is one trade record plus a reservation link.
+- No new delivery infrastructure. There is no websocket/SSE/service-worker/push/email stack today, and we are not building one for v1: in-app polling only.
 - Correctness over cleverness: a reserved copy must be invisible to everyone else, exactly once, with no double-allocation.
 
 ## Considered Options
 
 The four load-bearing forks (each resolved with the project owner):
 
-1. **Trade unit** — one card per request _(chosen)_ · multi-card basket · two-sided proposal.
-2. **Post-trade sync** — propose, each side confirms its own changes _(chosen)_ · fully automatic · no automatic changes.
-3. **Completion trigger** — either party marks "traded" _(chosen)_ · both parties confirm.
-4. **Notification delivery** — in-app polling, global bell + per-group section _(chosen)_ · in-app + email · in-app + web push.
+1. **Trade unit**: one card per request _(chosen)_ · multi-card basket · two-sided proposal.
+2. **Post-trade sync**: propose, each side confirms its own changes _(chosen)_ · fully automatic · no automatic changes.
+3. **Completion trigger**: either party marks "traded" _(chosen)_ · both parties confirm.
+4. **Notification delivery**: in-app polling, global bell + per-group section _(chosen)_ · in-app + email · in-app + web push.
 
 Supporting forks (also resolved with the owner):
 
-5. **Initiation** — either direction: request a card you want _or_ offer one you have _(chosen)_ · wanter-requests-only.
-6. **Reservation granularity** — reserve by quantity; the remainder of a stack stays matchable _(chosen)_ · reserve the whole entry and auto-decline others.
-7. **Expiry** — pending requests auto-expire after **7d**; accepted reservations never auto-expire; either party can always cancel manually before completion _(chosen)_.
-8. **Terms** — bare yes/no, no message, no in-app negotiation _(chosen)_ · optional note · structured negotiation.
+5. **Initiation**: either direction: request a card you want _or_ offer one you have _(chosen)_ · wanter-requests-only.
+6. **Reservation granularity**: reserve by quantity, the remainder of a stack stays matchable _(chosen)_ · reserve the whole entry and auto-decline others.
+7. **Expiry**: pending requests auto-expire after 7d, accepted reservations never auto-expire, either party can always cancel manually before completion _(chosen)_.
+8. **Terms**: bare yes/no, no message, no in-app negotiation _(chosen)_ · optional note · structured negotiation.
 
 ## Decision Outcome
 
-Build a **single-card trade record** (`card_trades`) with an explicit state machine, a **per-copy reservation link** (`card_trade_copies`), a **reserved-copy exclusion** in the match query, a **propose-and-confirm post-trade sync** that drives the existing copy-mutation services (`addCopies` / `disposeCopies`) and list repo, a **global notification bell** fed by polling, and a per-group **Trades** tab. Pending requests expire after 7d via a cron job; reservations persist until completed or cancelled.
+Build a single-card trade record (`card_trades`) with an explicit state machine, a per-copy reservation link (`card_trade_copies`), a reserved-copy exclusion in the match query, a propose-and-confirm post-trade sync that drives the existing copy-mutation services (`addCopies` / `disposeCopies`) and list repo, a global notification bell fed by polling, and a per-group Trades tab. Pending requests expire after 7d via a cron job. Reservations persist until completed or cancelled.
 
-The decisive enabling fact (verified against `docs/schema.sql`, constraint `chk_lists_intent_kind`): a `trade`-intent list is **always `kind = 'copy'`**. Every tradable item is therefore a concrete owned `copy` with a known `printing_id`, living in a collection. This removes all ambiguity the feature could otherwise have — there is always a specific printing to reserve, a specific copy to remove from the giver's collection, and a specific printing to add to the receiver's. The match query already exposes `copyId` and `printingId` on every row (`MatchRow`, `apps/api/src/repositories/friend-group-matches.ts:39-49`).
+The decisive enabling fact (verified against `docs/schema.sql`, constraint `chk_lists_intent_kind`): a `trade`-intent list is always `kind = 'copy'`. Every tradable item is therefore a concrete owned `copy` with a known `printing_id`, living in a collection. This removes all ambiguity the feature could otherwise have: there is always a specific printing to reserve, a specific copy to remove from the giver's collection, and a specific printing to add to the receiver's. The match query already exposes `copyId` and `printingId` on every row (`MatchRow`, `apps/api/src/repositories/friend-group-matches.ts:39-49`).
 
 ### Consequences
 
-- Good — reservation is exact: pin specific `copy_id`s, exclude them from the match query with one `NOT EXISTS`. A reserved copy disappears for everyone; the rest of a stack keeps matching.
-- Good — post-trade sync is unambiguous and reuses the existing, event-emitting copy-mutation **services** (`addCopies` / `disposeCopies` in `apps/api/src/services/copies.ts`) plus list-entry mutations in the lists repo, so collection counts and `collection_events` stay consistent.
-- Good — no new delivery infrastructure; the bell is two query endpoints plus `refetchInterval`.
-- Good — the trade record is the single source of history; we don't need a separate audit log.
-- Bad — two new tables, a new top-level resource, a cron job, and a new header surface. Mitigated by the model being narrow, read-mostly, and additive.
-- Bad — "either party completes" trusts one side that the physical swap happened. Mitigated by sync being **proposed, not forced** — the other party still controls whether their own collection/lists change, and can simply not apply.
-- Bad — we knowingly allow a member to hold parallel pending/reserved trades for the same want (demand is not auto-consumed; see _Reservation semantics_). Accepted as simpler and truer to real life.
+- Good, because reservation is exact: pin specific `copy_id`s, exclude them from the match query with one `NOT EXISTS`. A reserved copy disappears for everyone, the rest of a stack keeps matching.
+- Good, because post-trade sync is unambiguous and reuses the existing, event-emitting copy-mutation services (`addCopies` / `disposeCopies` in `apps/api/src/services/copies.ts`) plus list-entry mutations in the lists repo, so collection counts and `collection_events` stay consistent.
+- Good, because there is no new delivery infrastructure: the bell is two query endpoints plus `refetchInterval`.
+- Good, because the trade record is the single source of history, so we don't need a separate audit log.
+- Bad, because it adds two new tables, a new top-level resource, a cron job, and a new header surface. Mitigated by the model being narrow, read-mostly, and additive.
+- Bad, because "either party completes" trusts one side that the physical swap happened. Mitigated by sync being proposed, not forced: the other party still controls whether their own collection/lists change, and can simply not apply.
+- Bad, because we knowingly allow a member to hold parallel pending/reserved trades for the same want (demand is not auto-consumed, see _Reservation semantics_). Accepted as simpler and truer to real life.
 
 ## Design Decisions
 
@@ -68,11 +68,11 @@ The decisive enabling fact (verified against `docs/schema.sql`, constraint `chk_
 
 One `card_trades` row = one card moving in one direction between two members of one group, for a `quantity` of copies. Roles are stored explicitly and do not depend on who clicked first:
 
-- `giver_user_id` — owns the copies (the supply / tradelist side).
-- `receiver_user_id` — wants the card (the demand / wishlist side).
-- `initiator ∈ {giver, receiver}` — who started it. `receiver`-initiated is the literal _"I want this card"_ request; `giver`-initiated is the _"I have this, want it?"_ offer. The party who must **accept** is always the non-initiator.
+- `giver_user_id`: owns the copies (the supply / tradelist side).
+- `receiver_user_id`: wants the card (the demand / wishlist side).
+- `initiator ∈ {giver, receiver}`: who started it. `receiver`-initiated is the literal _"I want this card"_ request, `giver`-initiated is the _"I have this, want it?"_ offer. The party who must accept is always the non-initiator.
 
-`printing_id` (the concrete printing, from the matched copies) and `card_id` (denormalised, for grouping/display) are fixed at creation. `quantity > 0` is the number of copies. There is no note and no price field — terms are settled out-of-band, exactly as ADR-013 intended for the swap itself. The effective trade preferences already surfaced in the match view (`sellPref` / `buyPref`) remain **informational** context on the row; they are not copied into the trade.
+`printing_id` (the concrete printing, from the matched copies) and `card_id` (denormalised, for grouping/display) are fixed at creation. `quantity > 0` is the number of copies. There is no note and no price field: terms are settled out-of-band, exactly as ADR-013 intended for the swap itself. The effective trade preferences already surfaced in the match view (`sellPref` / `buyPref`) remain informational context on the row. They are not copied into the trade.
 
 ### Trade lifecycle (state machine)
 
@@ -92,30 +92,30 @@ One `card_trades` row = one card moving in one direction between two members of 
                                                   their side's sync             their side's sync
 ```
 
-- **`pending`** — created by the initiator; awaiting the recipient. Carries `expires_at = created_at + 7d`. **No copies are reserved yet** (pending never hides anything — multiple members may have pending requests against the same stack).
-- **`reserved`** — the recipient accepted. `quantity` specific copies are pinned into `card_trade_copies` and become invisible in every match view. No expiry.
-- **`completed`** — either party marked the physical swap done. Each side independently gets a proposed sync (see below). Terminal as a trade; the only follow-up is each party resolving their own sync.
-- **`declined`** — recipient declined a pending request. Terminal.
-- **`cancelled`** — initiator cancelled while `pending`, or either party cancelled while `reserved`. Releases any reserved copies. Terminal.
-- **`expired`** — pending request hit 7d with no response (cron). Terminal.
+- **`pending`**: created by the initiator, awaiting the recipient. Carries `expires_at = created_at + 7d`. No copies are reserved yet (pending never hides anything, multiple members may have pending requests against the same stack).
+- **`reserved`**: the recipient accepted. `quantity` specific copies are pinned into `card_trade_copies` and become invisible in every match view. No expiry.
+- **`completed`**: either party marked the physical swap done. Each side independently gets a proposed sync (see below). Terminal as a trade. The only follow-up is each party resolving their own sync.
+- **`declined`**: recipient declined a pending request. Terminal.
+- **`cancelled`**: initiator cancelled while `pending`, or either party cancelled while `reserved`. Releases any reserved copies. Terminal.
+- **`expired`**: pending request hit 7d with no response (cron). Terminal.
 
 Status timestamps: `accepted_at`, `completed_at`, `closed_at` (declined/cancelled/expired), plus `created_at` / `updated_at`. `last_actor_user_id` records who caused the most recent transition (drives unread, below).
 
-**Auto-cancel of a pending request whose basis vanishes.** While `pending`, if the giver removes the underlying copies from the group (deletes them, moves them off the shared tradelist, or unshares the list) such that no matching shared copy remains, the pending request is auto-cancelled on next interaction (and surfaced as cancelled). Once `reserved`, the trade has snapshotted its copies and is **independent of later list edits** — editing or unsharing the tradelist does not void a reservation, because reservation is about the physical copies, not the list entry.
+**Auto-cancel of a pending request whose basis vanishes.** While `pending`, if the giver removes the underlying copies from the group (deletes them, moves them off the shared tradelist, or unshares the list) such that no matching shared copy remains, the pending request is auto-cancelled on next interaction (and surfaced as cancelled). Once `reserved`, the trade has snapshotted its copies and is independent of later list edits: editing or unsharing the tradelist does not void a reservation, because reservation is about the physical copies, not the list entry.
 
 ### Reservation semantics (supply-side, by quantity)
 
-On **accept**, the system selects `quantity` of the giver's copies of `printing_id` that are (a) currently in a `trade`-intent list shared with this group and (b) not already in `card_trade_copies`, and inserts a row per copy into `card_trade_copies(trade_id, copy_id)`. If fewer than `quantity` unreserved copies are available, **accept is rejected** with a clear "only N left" error — the recipient (giver) then declines, since there is no negotiation step to adjust quantity. Pending requests are **never** auto-declined by a competing acceptance; they simply expire at 7d or become un-acceptable once the stack is exhausted.
+On accept, the system selects `quantity` of the giver's copies of `printing_id` that are (a) currently in a `trade`-intent list shared with this group and (b) not already in `card_trade_copies`, and inserts a row per copy into `card_trade_copies(trade_id, copy_id)`. If fewer than `quantity` unreserved copies are available, accept is rejected with a clear "only N left" error. The recipient (giver) then declines, since there is no negotiation step to adjust quantity. Pending requests are never auto-declined by a competing acceptance. They simply expire at 7d or become un-acceptable once the stack is exhausted.
 
-`card_trade_copies` holds **only currently-spoken-for copies**. Rows are created on accept and removed when the claim ends:
+`card_trade_copies` holds only currently-spoken-for copies. Rows are created on accept and removed when the claim ends:
 
-- decline / cancel / expire → delete the rows (release the copies back to matching);
-- giver applies sync → the copies are deleted, FK cascade removes the rows;
-- giver skips sync → delete the rows explicitly (the copy physically left but the giver chose not to edit their data; the claim is released and the stale copy reappears as available until they fix it manually — that is the cost of skipping).
+- decline / cancel / expire → delete the rows (release the copies back to matching).
+- giver applies sync → the copies are deleted, FK cascade removes the rows.
+- giver skips sync → delete the rows explicitly (the copy physically left but the giver chose not to edit their data, so the claim is released and the stale copy reappears as available until they fix it manually: that is the cost of skipping).
 
-`UNIQUE (copy_id)` on `card_trade_copies` guarantees a copy is claimed by at most one live trade. Because rows exist **iff** a copy is currently reserved-or-completed-pending-sync, the match query excludes reserved copies with a bare `NOT EXISTS` — no status join needed (the cleanup invariant above is what makes this safe).
+`UNIQUE (copy_id)` on `card_trade_copies` guarantees a copy is claimed by at most one live trade. Because rows exist iff a copy is currently reserved-or-completed-pending-sync, the match query excludes reserved copies with a bare `NOT EXISTS`, no status join needed (the cleanup invariant above is what makes this safe).
 
-**Demand is deliberately not auto-consumed.** Reserving copies hides the _supply_ (the giver's copies) from everyone. It does **not** hide the receiver's _want_ from other potential suppliers. If Alice reserves a copy for Bob's want-of-one, Carol's matching offer still shows to Bob until the trade completes. Rationale: it is simpler (no cross-supplier quantity windowing in SQL), and it is truer to life — if Alice flakes, Carol's offer is still right there. The want is cleaned up the natural way: completing the trade decrements Bob's wishlist entry during sync (below). This is the chosen "remainder stays" model applied to the side the requirement actually named (the copy), and is listed under _Will Not Be Built_ for the demand side.
+**Demand is deliberately not auto-consumed.** Reserving copies hides the _supply_ (the giver's copies) from everyone. It does not hide the receiver's _want_ from other potential suppliers. If Alice reserves a copy for Bob's want-of-one, Carol's matching offer still shows to Bob until the trade completes. Rationale: it is simpler (no cross-supplier quantity windowing in SQL), and it is truer to life: if Alice flakes, Carol's offer is still right there. The want is cleaned up the natural way: completing the trade decrements Bob's wishlist entry during sync (below). This is the chosen "remainder stays" model applied to the side the requirement actually named (the copy), and is listed under _Will Not Be Built_ for the demand side.
 
 ### Match-query change
 
@@ -128,60 +128,60 @@ AND NOT EXISTS (
 )
 ```
 
-Nothing else changes. Both directions (`others-have-your-wants`, `others-want-your-haves`) inherit it because they share the one query body. The viewer's own reserved copies also vanish from their "members want your haves" panel, which is correct — a reserved copy is not on offer.
+Nothing else changes. Both directions (`others-have-your-wants`, `others-want-your-haves`) inherit it because they share the one query body. The viewer's own reserved copies also vanish from their "members want your haves" panel, which is correct: a reserved copy is not on offer.
 
 ### Post-trade sync (propose, each side confirms its own)
 
-`completed` is reached by **either** party's "mark as traded". It does **not** auto-mutate anyone's data. Instead each party independently gets a proposed set of changes to **their own** collection/lists, which they **Apply** or **Skip**. Tracked by `giver_sync_applied_at` / `receiver_sync_applied_at` (each set on Apply _or_ Skip, so the action drops out of the bell once resolved).
+`completed` is reached by either party's "mark as traded". It does not auto-mutate anyone's data. Instead each party independently gets a proposed set of changes to their own collection/lists, which they Apply or Skip. Tracked by `giver_sync_applied_at` / `receiver_sync_applied_at` (each set on Apply _or_ Skip, so the action drops out of the bell once resolved).
 
-- **Giver's proposed change:** _Remove `quantity` × [card] ([printing]) from your collection (they were on "[tradelist]")._ `applyGiverSync`, in one transaction: (1) delete this trade's `card_trade_copies` rows (releasing the reservation so the dispose guard below passes), then (2) `disposeCopies(transact, giverUserId, reservedCopyIds)` (the copies **service**, `apps/api/src/services/copies.ts`), which logs a `removed` collection event and hard-deletes the copies. Deleting each copy cascades through `fk_list_entries_copy_user` (`(copy_id, user_id) → copies(id, user_id)`, `ON DELETE CASCADE`, already in the schema) to remove its copy-kind tradelist entry. No new FK needed.
-- **Receiver's proposed change:** _Add `quantity` × [card] ([printing]) to [collection ▾ — default: your Inbox], and remove `quantity` from your wishlist "[list]"._ `applyReceiverSync`, in **one transaction** mirroring `addCopies`' body: insert `quantity` fresh copies of `printing_id` into the chosen collection (validate writable; default to the receiver's inbox via `ensureInbox` when omitted), `logEvents` an `added` event, then decrement the matched wish entry (`receiver_wish_entry_id`) via the lists repo (`updateEntry`, or `deleteEntry` at zero). If the wish entry no longer exists (`ON DELETE SET NULL` fired), skip the decrement and just add the copies. Do **not** split the copy-add and wish-decrement across two transactions.
+- **Giver's proposed change:** _Remove `quantity` × [card] ([printing]) from your collection (they were on "[tradelist]")._ `applyGiverSync`, in one transaction: (1) delete this trade's `card_trade_copies` rows (releasing the reservation so the dispose guard below passes), then (2) `disposeCopies(transact, giverUserId, reservedCopyIds)` (the copies service, `apps/api/src/services/copies.ts`), which logs a `removed` collection event and hard-deletes the copies. Deleting each copy cascades through `fk_list_entries_copy_user` (`(copy_id, user_id) → copies(id, user_id)`, `ON DELETE CASCADE`, already in the schema) to remove its copy-kind tradelist entry. No new FK needed.
+- **Receiver's proposed change:** _Add `quantity` × [card] ([printing]) to [collection ▾, default: your Inbox], and remove `quantity` from your wishlist "[list]"._ `applyReceiverSync`, in one transaction mirroring `addCopies`' body: insert `quantity` fresh copies of `printing_id` into the chosen collection (validate writable, default to the receiver's inbox via `ensureInbox` when omitted), `logEvents` an `added` event, then decrement the matched wish entry (`receiver_wish_entry_id`) via the lists repo (`updateEntry`, or `deleteEntry` at zero). If the wish entry no longer exists (`ON DELETE SET NULL` fired), skip the decrement and just add the copies. Do not split the copy-add and wish-decrement across two transactions.
 
-Both copy mutations go through the copies **service** (not the raw `copiesRepo`) so `collection_events` (`added` / `removed`, preserved-on-delete via the `SET NULL` FK from migration 140) and derived counts stay consistent. List-entry quantity changes do not emit collection events, so the wishlist decrement uses the lists repo directly. Never raw SQL (repo convention). Skipping is always allowed; the trade is "done" regardless, and a party who declines to let the app touch their data simply leaves their lists as-is.
+Both copy mutations go through the copies service (not the raw `copiesRepo`) so `collection_events` (`added` / `removed`, preserved-on-delete via the `SET NULL` FK from migration 140) and derived counts stay consistent. List-entry quantity changes do not emit collection events, so the wishlist decrement uses the lists repo directly. Never raw SQL (repo convention). Skipping is always allowed. The trade is "done" regardless, and a party who declines to let the app touch their data simply leaves their lists as-is.
 
 ### Notifications: a global bell, fed by polling
 
-A new **global bell** in the app header aggregates _trade_ activity across all the viewer's groups. No email, no web push, no service worker, no websocket — in-app only.
+A new global bell in the app header aggregates _trade_ activity across all the viewer's groups. No email, no web push, no service worker, no websocket: in-app only.
 
 - **Unread / actionable** for user U = trades where U is giver or receiver, the latest change was made by the _other_ party (`last_actor_user_id <> U`), U has not seen it (`U's seen_at IS NULL OR updated_at > U's seen_at`), and the status is one U can act on or cares about: a `pending` request awaiting U, an `accept`/`decline`/`cancel`/`expire` U didn't cause, or a `completed` trade whose U-side sync is unresolved.
-- The bell badge polls `GET /api/v1/trades/summary` with TanStack Query `refetchInterval: 30_000` (matching `apps/web/src/hooks/use-status.ts`) plus `refetchOnWindowFocus: true`. Opening the dropdown lists recent trade items grouped by trade, each deep-linking into the relevant group's **Trades** tab (below). Viewing marks the listed trades seen for the viewer (`giver_seen_at` / `receiver_seen_at`).
-- This bell is **separate from and additive to** ADR-013's two existing badges (the avatar-menu _invite_ badge and the per-group-row _join-request_ badge), which remain unchanged. Consolidating all three into one bell is explicitly out of scope here.
+- The bell badge polls `GET /api/v1/trades/summary` with TanStack Query `refetchInterval: 30_000` (matching `apps/web/src/hooks/use-status.ts`) plus `refetchOnWindowFocus: true`. Opening the dropdown lists recent trade items grouped by trade, each deep-linking into the relevant group's Trades tab (below). Viewing marks the listed trades seen for the viewer (`giver_seen_at` / `receiver_seen_at`).
+- This bell is separate from and additive to ADR-013's two existing badges (the avatar-menu _invite_ badge and the per-group-row _join-request_ badge), which remain unchanged. Consolidating all three into one bell is explicitly out of scope here.
 
 ### Expiry & cron
 
-Pending requests expire 7d after creation. A new cron job runs every 15 minutes and sets `status='expired'`, `closed_at=now()` for `pending` rows where `expires_at < now()`. Add a `cardTradesExpire: null as Cron | null` slot to the `cronJobs` object in `apps/api/src/cron-jobs.ts`, then wire the schedule in `apps/api/src/index.ts` alongside the existing jobs — `new Cron(schedule, { protect: true }, …)` calling `runJob({ repos, log }, "card-trades.expire", "cron", () => repos.cardTrades.expirePending())`. A partial index on `(expires_at) WHERE status='pending'` keeps the scan cheap. Reservations never auto-expire.
+Pending requests expire 7d after creation. A new cron job runs every 15 minutes and sets `status='expired'`, `closed_at=now()` for `pending` rows where `expires_at < now()`. Add a `cardTradesExpire: null as Cron | null` slot to the `cronJobs` object in `apps/api/src/cron-jobs.ts`, then wire the schedule in `apps/api/src/index.ts` alongside the existing jobs: `new Cron(schedule, { protect: true }, …)` calling `runJob({ repos, log }, "card-trades.expire", "cron", () => repos.cardTrades.expirePending())`. A partial index on `(expires_at) WHERE status='pending'` keeps the scan cheap. Reservations never auto-expire.
 
 ### Authorization
 
-- **create** — initiator must be a group member; the named counterparty must be a member; and a **live match must exist** between them in this group at creation time (the copies are on the giver's group-shared tradelist; the receiver has a matching group-shared wish). Validated by reusing the match repository so we never create a trade that wasn't a real match.
-- **accept / decline** — only the **non-initiator** of a `pending` trade.
-- **cancel** — `pending`: the initiator. `reserved`: either party.
-- **mark-traded (complete)** — `reserved`: either party.
-- **sync apply / skip** — each party for **their own** side, only while `completed`.
-- **seen** — either party, for trades they are in.
+- **create**: initiator must be a group member, the named counterparty must be a member, and a live match must exist between them in this group at creation time (the copies are on the giver's group-shared tradelist, the receiver has a matching group-shared wish). Validated by reusing the match repository so we never create a trade that wasn't a real match.
+- **accept / decline**: only the non-initiator of a `pending` trade.
+- **cancel**: when `pending`, the initiator. When `reserved`, either party.
+- **mark-traded (complete)**: when `reserved`, either party.
+- **sync apply / skip**: each party for their own side, only while `completed`.
+- **seen**: either party, for trades they are in.
 
 All group membership checks reuse `loadGroupForMember` / `getMembership` from the friend-groups route (`apps/api/src/routes/authenticated/friend-groups.ts:65-99`).
 
 ## User Experience Surfaces
 
-Pixel design is the implementing PR's concern; this is what the model and API must support.
+Pixel design is the implementing PR's concern. This is what the model and API must support.
 
 ### Initiation from the match view
 
 The Trading tab's match rows (`apps/web/src/components/friend-groups/match-row-card.tsx`) gain a single action per row:
 
-- An **incoming** row ("members have what you want") shows **Request** → opens a small dialog with a quantity stepper (`1..availableCount`, default `min(yourWishQuantity, availableCount)`) and a confirm. Creates a `receiver`-initiated trade.
-- An **outgoing** row ("members want what you have") shows **Offer** → same dialog (`1..availableCount`, default `min(theirWishQuantity, availableCount)`). Creates a `giver`-initiated trade.
+- An incoming row ("members have what you want") shows Request → opens a small dialog with a quantity stepper (`1..availableCount`, default `min(yourWishQuantity, availableCount)`) and a confirm. Creates a `receiver`-initiated trade.
+- An outgoing row ("members want what you have") shows Offer → same dialog (`1..availableCount`, default `min(theirWishQuantity, availableCount)`). Creates a `giver`-initiated trade.
 
 A row that already has a live trade between the two of you for that printing shows its status inline (Pending / Reserved) instead of the button.
 
 ### Per-group Trades tab
 
-The group page (Trading / Collections / Members tabs, from commit `30398b60`) gains a **Trades** tab (`?tab=trades`) listing the viewer's trades **in this group**, grouped:
+The group page (Trading / Collections / Members tabs, from commit `30398b60`) gains a Trades tab (`?tab=trades`) listing the viewer's trades in this group, grouped:
 
-- **Action needed** — pending requests awaiting you; completed trades whose sync you haven't resolved.
-- **Active** — your pending requests awaiting them; reserved trades not yet traded.
-- **History** — completed / declined / cancelled / expired.
+- **Action needed**: pending requests awaiting you, completed trades whose sync you haven't resolved.
+- **Active**: your pending requests awaiting them, reserved trades not yet traded.
+- **History**: completed / declined / cancelled / expired.
 
 Each item shows card thumbnail (reuse the `<CardCell>`/match-row visuals), counterparty (name + per-group nickname + avatar), direction, quantity, status, and the contextual action(s): Accept/Decline, Cancel, Mark traded, Apply/Skip sync. The counterparty's nickname (ADR-013) remains the channel for arranging the actual swap.
 
@@ -192,7 +192,7 @@ Each item shows card thumbnail (reuse the `<CardCell>`/match-row visuals), count
 
 ## Schema Sketch
 
-Next sequential migration: **`apps/api/src/db/migrations/143-card-trades.ts`** (current highest is `142-list-sort-order`). Register it in the barrel `apps/api/src/db/migrations/index.ts` (`import * as m143 …` + `"143-card-trades": m143`), then regenerate `docs/schema.sql` in the same commit (`docker exec openrift-db-1 pg_dump …`). Ask the user before running `bun db:migrate` — the DB is shared.
+Next sequential migration: `apps/api/src/db/migrations/143-card-trades.ts` (current highest is `142-list-sort-order`). Register it in the barrel `apps/api/src/db/migrations/index.ts` (`import * as m143 …` + `"143-card-trades": m143`), then regenerate `docs/schema.sql` in the same commit (`docker exec openrift-db-1 pg_dump …`). Ask the user before running `bun db:migrate`: the DB is shared.
 
 ```sql
 CREATE TABLE card_trades (
@@ -260,58 +260,58 @@ CREATE TABLE card_trade_copies (
 
 ## API, Repository, and Web Layers
 
-### Repository — `apps/api/src/repositories/card-trades.ts`
+### Repository: `apps/api/src/repositories/card-trades.ts`
 
 - `create({ groupId, initiator, giverUserId, receiverUserId, printingId, cardId, quantity, receiverWishEntryId })` → inserts `pending`, `expires_at = now() + interval '7 days'`, `last_actor = initiator`.
-- `accept(tradeId, byUserId)` → validates `byUserId` is the non-initiator; selects and pins `quantity` unreserved group-shared copies into `card_trade_copies` (rejects if too few); status → `reserved`.
-- `decline(tradeId, byUserId)` / `cancel(tradeId, byUserId)` → guard per _Authorization_; on cancel from `reserved`, delete the `card_trade_copies` rows.
+- `accept(tradeId, byUserId)` → validates `byUserId` is the non-initiator, selects and pins `quantity` unreserved group-shared copies into `card_trade_copies` (rejects if too few), status → `reserved`.
+- `decline(tradeId, byUserId)` / `cancel(tradeId, byUserId)` → guard per _Authorization_. On cancel from `reserved`, delete the `card_trade_copies` rows.
 - `markTraded(tradeId, byUserId)` → `reserved` → `completed`.
-- `applyGiverSync(tradeId)` → `disposeCopies(transact, giverUserId, reservedCopyIds)` (copies **service**); set `giver_sync_applied_at`. `applyReceiverSync(tradeId, targetCollectionId?)` → `addCopies(...)` (defaults to inbox) + wish-entry decrement via the lists repo; set `receiver_sync_applied_at`. Copy writes go through `apps/api/src/services/copies.ts`, never the raw repo, so events stay consistent.
-- `skipSync(tradeId, side)` → set the side's `*_sync_applied_at`; for the giver side, also delete the `card_trade_copies` rows.
-- `cancelForDepartingMember(transact, groupId, userId)` → cancel the user's `pending`/`reserved` trades in that group and release their reserved copies; called from the `/leave` and kick handlers.
+- `applyGiverSync(tradeId)` → `disposeCopies(transact, giverUserId, reservedCopyIds)` (copies service), set `giver_sync_applied_at`. `applyReceiverSync(tradeId, targetCollectionId?)` → `addCopies(...)` (defaults to inbox) + wish-entry decrement via the lists repo, set `receiver_sync_applied_at`. Copy writes go through `apps/api/src/services/copies.ts`, never the raw repo, so events stay consistent.
+- `skipSync(tradeId, side)` → set the side's `*_sync_applied_at`. For the giver side, also delete the `card_trade_copies` rows.
+- `cancelForDepartingMember(transact, groupId, userId)` → cancel the user's `pending`/`reserved` trades in that group and release their reserved copies. Called from the `/leave` and kick handlers.
 - `markSeen(tradeIds, byUserId)`; `listForUser(userId, { groupId?, statuses? })`; `getById`; `summaryForUser(userId)` → `{ unread }` for the bell; `expirePending()` (cron).
 
 Defensive `JSON.parse` is not needed here (no jsonb columns), but follow the repository-only DB-access rule throughout. Route handlers access it via `c.get("repos")`.
 
-### API routes — top-level `apps/api/src/routes/authenticated/card-trades.ts`
+### API routes: top-level `apps/api/src/routes/authenticated/card-trades.ts`
 
-Mounted at `/api/v1/trades` (top-level so the bell can read across groups; each row carries its `group_id`):
+Mounted at `/api/v1/trades` (top-level so the bell can read across groups, each row carries its `group_id`):
 
-- `POST /api/v1/trades` — create.
-- `GET  /api/v1/trades?groupId=&status=` — the viewer's trades (per-group Trades tab; omit filters for all).
-- `GET  /api/v1/trades/summary` — bell counts (polled).
+- `POST /api/v1/trades`: create.
+- `GET  /api/v1/trades?groupId=&status=`: the viewer's trades (per-group Trades tab, omit filters for all).
+- `GET  /api/v1/trades/summary`: bell counts (polled).
 - `POST /api/v1/trades/:id/accept` · `/decline` · `/cancel` · `/complete`
 - `POST /api/v1/trades/:id/sync` (body: `{ targetCollectionId? }`) · `POST /api/v1/trades/:id/sync/skip`
 - `POST /api/v1/trades/seen` (body: `{ tradeIds }`)
 
-### Web — `apps/web/src/hooks/use-card-trades.ts` + query keys
+### Web: `apps/web/src/hooks/use-card-trades.ts` + query keys
 
 Server functions + TanStack Query hooks mirroring the routes: `useUserTrades`, `useGroupTrades(slug)`, `useTradeSummary` (with `refetchInterval` + `refetchOnWindowFocus`), and mutations `useCreateTrade`, `useAcceptTrade`, `useDeclineTrade`, `useCancelTrade`, `useCompleteTrade`, `useApplyTradeSync`, `useSkipTradeSync`, `useMarkTradesSeen`. Add a `trades` block to `apps/web/src/lib/query-keys.ts` (alongside the existing `friendGroups` block). Mutations invalidate the affected group's `friendGroups.matches` key (reserved copies changed) plus the `trades.*` keys.
 
 ### React conventions
 
-- React Compiler is on — no `useMemo` / `useCallback` / `React.memo` in new code.
+- React Compiler is on, so no `useMemo` / `useCallback` / `React.memo` in new code.
 - The Trades-tab list `.map()` reads per-row status that changes on interaction (optimistic accept/cancel). Keep that changing state out of the parent closure with a Zustand store + per-row selector subscriptions, mirroring `match-variants-fold-store.ts` and the `RuleRow` pattern in `rules-page.tsx`. Any such store and any hook with logic gets a `*.test.ts`.
 - The global bell is a header surface; its open/closed state is local UI state, not a store.
-- Use BaseUI primitives, lucide `*Icon` imports, the type scale, and `cn()` — standard project conventions.
+- Use BaseUI primitives, lucide `*Icon` imports, the type scale, and `cn()` (standard project conventions).
 
 ## Resolved Details
 
 Everything below is decided. Implementation needs no further input.
 
-**Record fields beyond the schema.** No `direction` column — derive the label from `initiator` (`receiver` ⇒ "request/want", `giver` ⇒ "offer"). No note, price, or terms columns. No per-copy history; the `card_trades` row is the history.
+**Record fields beyond the schema.** No `direction` column: derive the label from `initiator` (`receiver` ⇒ "request/want", `giver` ⇒ "offer"). No note, price, or terms columns. No per-copy history. The `card_trades` row is the history.
 
-**Trade DTO** (returned by `GET /api/v1/trades` and `/:id`): `{ id, groupId, groupSlug, role ('giver'|'receiver' — the viewer's side), initiator, counterparty: { userId, name, nickname, gravatarHash }, printingId, cardId, quantity, status, createdAt, updatedAt, acceptedAt, completedAt, closedAt, expiresAt, viewerSeenAt, viewerSyncAppliedAt, counterpartySyncAppliedAt, unseen (bool), actionNeeded ('accept-or-decline'|'cancel'|'complete'|'apply-sync'|null) }`. Card name/image are **not** in the DTO — the web resolves them from the loaded catalog by `printingId`/`cardId`, exactly as match rows and copies do.
+**Trade DTO** (returned by `GET /api/v1/trades` and `/:id`): `{ id, groupId, groupSlug, role ('giver'|'receiver', the viewer's side), initiator, counterparty: { userId, name, nickname, gravatarHash }, printingId, cardId, quantity, status, createdAt, updatedAt, acceptedAt, completedAt, closedAt, expiresAt, viewerSeenAt, viewerSyncAppliedAt, counterpartySyncAppliedAt, unseen (bool), actionNeeded ('accept-or-decline'|'cancel'|'complete'|'apply-sync'|null) }`. Card name/image are not in the DTO: the web resolves them from the loaded catalog by `printingId`/`cardId`, exactly as match rows and copies do.
 
-**Creation — `POST /api/v1/trades`.** Originates only from a match row, so a matching shared wish always exists. The handler sets `giver_user_id` = the copy owner (`s_sell.userId` from the match), `receiver_user_id` = the wisher, `initiator` = the caller's role on that row, `receiver_wish_entry_id` = the match's `buyEntryId`, `printing_id`/`card_id` from the match, `group_id` from the row, `status='pending'`, `expires_at = now() + 7d`, `last_actor_user_id` = caller. Validates: caller and counterparty are both current members; the match still holds (re-run the match repo scoped to that counterparty + printing); `1 ≤ quantity ≤ availableCount`; and no existing live trade for `(group, giver, receiver, printing)` — `uq_card_trades_live` returns **409** otherwise. Dialog quantity: default `min(demandQuantity, availableCount)`, min 1, max `availableCount`; `availableCount` already nets out reserved copies (filtered from the match query).
+**Creation (`POST /api/v1/trades`).** Originates only from a match row, so a matching shared wish always exists. The handler sets `giver_user_id` = the copy owner (`s_sell.userId` from the match), `receiver_user_id` = the wisher, `initiator` = the caller's role on that row, `receiver_wish_entry_id` = the match's `buyEntryId`, `printing_id`/`card_id` from the match, `group_id` from the row, `status='pending'`, `expires_at = now() + 7d`, `last_actor_user_id` = caller. Validates: caller and counterparty are both current members; the match still holds (re-run the match repo scoped to that counterparty + printing); `1 ≤ quantity ≤ availableCount`; and no existing live trade for `(group, giver, receiver, printing)`. `uq_card_trades_live` returns 409 otherwise. Dialog quantity: default `min(demandQuantity, availableCount)`, min 1, max `availableCount`. `availableCount` already nets out reserved copies (filtered from the match query).
 
-**Acceptance — `POST /api/v1/trades/:id/accept`.** Caller must be the **non-initiator**. One transaction: select `quantity` copy ids that (a) belong to the giver, (b) sit on a `trade`-intent list shared with this group, and (c) are absent from `card_trade_copies`; if fewer than `quantity`, abort **409** "Only N copies still available". Insert the selected ids, flip `status='reserved'`, set `accepted_at`, `expires_at=NULL`, `last_actor`=caller. `UNIQUE(copy_id)` makes a racing concurrent accept of the same copy fail; the loser re-selects or returns the 409.
+**Acceptance (`POST /api/v1/trades/:id/accept`).** Caller must be the non-initiator. One transaction: select `quantity` copy ids that (a) belong to the giver, (b) sit on a `trade`-intent list shared with this group, and (c) are absent from `card_trade_copies`. If fewer than `quantity`, abort 409 "Only N copies still available". Insert the selected ids, flip `status='reserved'`, set `accepted_at`, `expires_at=NULL`, `last_actor`=caller. `UNIQUE(copy_id)` makes a racing concurrent accept of the same copy fail. The loser re-selects or returns the 409.
 
-**Reservation scope is global.** `card_trade_copies` is not group-scoped in the match exclusion, so a copy reserved in one group is hidden from every group's match view — a physical card is promised at most once.
+**Reservation scope is global.** `card_trade_copies` is not group-scoped in the match exclusion, so a copy reserved in one group is hidden from every group's match view: a physical card is promised at most once.
 
-**Reserved copies cannot be silently destroyed.** Add a guard to the `disposeCopies` service (the single copy-deletion choke point, `POST /copies/dispose`): if any `copyId ∈ card_trade_copies`, throw **409** "This card is reserved in an active trade — cancel the trade to free it." `applyGiverSync` deletes the reservation rows first, so it is exempt. `moveCopies` stays **unguarded** — moving a reserved copy between collections is fine (reservation is by copy id, collection-independent).
+**Reserved copies cannot be silently destroyed.** Add a guard to the `disposeCopies` service (the single copy-deletion choke point, `POST /copies/dispose`): if any `copyId ∈ card_trade_copies`, throw 409 "This card is reserved in an active trade — cancel the trade to free it." `applyGiverSync` deletes the reservation rows first, so it is exempt. `moveCopies` stays unguarded: moving a reserved copy between collections is fine (reservation is by copy id, collection-independent).
 
-**State transitions — who acts, `last_actor`, side effects.**
+**State transitions: who acts, `last_actor`, side effects.**
 
 | From → To            | Who           | `last_actor` | Side effects                    |
 | -------------------- | ------------- | ------------ | ------------------------------- |
@@ -325,22 +325,22 @@ Everything below is decided. Implementation needs no further input.
 
 Cron expiry uses `last_actor = NULL` ("system"), which counts as unseen for both parties until seen.
 
-**Notifications / bell.** Unread for viewer V = trades where V is giver or receiver, `(last_actor_user_id <> V OR last_actor_user_id IS NULL)`, and `(V's seen_at IS NULL OR updated_at > V's seen_at)`. **Bell badge = count of unread**; `GET /trades/summary` returns `{ unread }`. Opening the bell sets V's `seen_at = now()` for the listed trades; opening a group's Trades tab marks that group's trades seen. **"Action needed" is status-derived and independent of seen** — a pending awaiting you, a reserved you can complete, or a completed whose your-side sync is unresolved stays flagged even after the notification is read. Notification lines (card name resolved client-side):
+**Notifications / bell.** Unread for viewer V = trades where V is giver or receiver, `(last_actor_user_id <> V OR last_actor_user_id IS NULL)`, and `(V's seen_at IS NULL OR updated_at > V's seen_at)`. Bell badge = count of unread. `GET /trades/summary` returns `{ unread }`. Opening the bell sets V's `seen_at = now()` for the listed trades. Opening a group's Trades tab marks that group's trades seen. "Action needed" is status-derived and independent of seen: a pending awaiting you, a reserved you can complete, or a completed whose your-side sync is unresolved stays flagged even after the notification is read. Notification lines (card name resolved client-side):
 
-- new request → recipient: "{counterparty} wants {card}"; new offer → recipient: "{counterparty} offers you {card}"
-- accepted → initiator: "{counterparty} accepted — {card} is reserved"
+- new request → recipient: "{counterparty} wants {card}". new offer → recipient: "{counterparty} offers you {card}"
+- accepted → initiator: "{counterparty} accepted: {card} is reserved"
 - declined → initiator: "{counterparty} declined your request for {card}"
 - cancelled → other party: "{counterparty} cancelled the trade for {card}"
-- completed → other party: "{counterparty} marked {card} as traded — review your changes"
+- completed → other party: "{counterparty} marked {card} as traded: review your changes"
 - expired → initiator: "Your request for {card} expired"
 
-**Membership & account changes.** Leaving or being kicked **cancels the departing member's `pending`/`reserved` trades in that group and releases their reserved copies** — both the `/leave` and kick handlers (`apps/api/src/routes/authenticated/friend-groups.ts`) call `cardTrades.cancelForDepartingMember(transact, groupId, userId)` alongside `removeMember`. Account deletion needs no special code: `card_trades.{giver,receiver}_user_id → users ON DELETE CASCADE` deletes the user's trades, and `card_trade_copies` cascades from both `trade_id` and `copy_id`, releasing the counterparty's claims by FK.
+**Membership & account changes.** Leaving or being kicked cancels the departing member's `pending`/`reserved` trades in that group and releases their reserved copies: both the `/leave` and kick handlers (`apps/api/src/routes/authenticated/friend-groups.ts`) call `cardTrades.cancelForDepartingMember(transact, groupId, userId)` alongside `removeMember`. Account deletion needs no special code: `card_trades.{giver,receiver}_user_id → users ON DELETE CASCADE` deletes the user's trades, and `card_trade_copies` cascades from both `trade_id` and `copy_id`, releasing the counterparty's claims by FK.
 
-**Pending whose basis vanished.** No proactive hooks into the unshare / remove-copy paths — they stay decoupled from trades. A pending request whose underlying shared copies no longer exist simply fails acceptance (the availability check returns 409 and the request is set `cancelled`, `last_actor=NULL`) or lapses at the 7d expiry. Reserved trades are immune — their copies are pinned.
+**Pending whose basis vanished.** No proactive hooks into the unshare / remove-copy paths: they stay decoupled from trades. A pending request whose underlying shared copies no longer exist simply fails acceptance (the availability check returns 409 and the request is set `cancelled`, `last_actor=NULL`) or lapses at the 7d expiry. Reserved trades are immune: their copies are pinned.
 
-**Trades tab.** Three sections (Action needed / Active / History), each sorted `updated_at DESC`. Rows show card thumbnail, counterparty (name + nickname + avatar), derived direction, quantity, status, and the contextual buttons (Accept/Decline · Cancel · Mark traded · Apply/Skip sync). **Price/trade-type preferences are not shown here** — terms are out-of-band; prefs live only on discovery (match) rows.
+**Trades tab.** Three sections (Action needed / Active / History), each sorted `updated_at DESC`. Rows show card thumbnail, counterparty (name + nickname + avatar), derived direction, quantity, status, and the contextual buttons (Accept/Decline · Cancel · Mark traded · Apply/Skip sync). Price/trade-type preferences are not shown here: terms are out-of-band, prefs live only on discovery (match) rows.
 
-**Bell placement.** In the authenticated layout header, beside the avatar menu; separate from ADR-013's invite and join-request badges.
+**Bell placement.** In the authenticated layout header, beside the avatar menu. Separate from ADR-013's invite and join-request badges.
 
 **Suggested changelog entry** (implementing PR, under the ship date): `feat: Ask a group member for a card you want — they get a notification, accepting reserves it for you, and after the trade your collection, wishlist, and tradelist update with one click`.
 
@@ -349,13 +349,13 @@ Cron expiry uses `last_actor = NULL` ("system"), which counts as unseen for both
 - **Negotiation / counter-offers / messages.** A request is bare yes/no. No note field, no price proposal, no thread. Terms are settled out-of-band via the per-group nickname channel, exactly as ADR-013 intended for the swap.
 - **Payments / money handling.** Price preferences stay informational; OpenRift never touches money.
 - **Multi-card baskets or two-sided proposals.** One card per trade record. A multi-card swap is several independent records.
-- **Two-party completion confirmation.** Either party completes; the _sync_ is the per-party control, not a second completion handshake.
-- **Demand-side reservation.** Reserving hides the giver's copies only; it does not hide the receiver's want from other suppliers. The want clears via the wishlist decrement at completion-sync.
-- **Per-copy trade history / audit log.** The `card_trades` row is the history; `card_trade_copies` is live state only.
+- **Two-party completion confirmation.** Either party completes. The _sync_ is the per-party control, not a second completion handshake.
+- **Demand-side reservation.** Reserving hides the giver's copies only. It does not hide the receiver's want from other suppliers. The want clears via the wishlist decrement at completion-sync.
+- **Per-copy trade history / audit log.** The `card_trades` row is the history. `card_trade_copies` is live state only.
 
 ## Deferred / Out of Scope
 
-- **Email and web push.** In-app polling only for v1. Revisit if "I missed a request" becomes a real complaint — a service worker + Web Push, or transactional email, can layer on later without schema change.
+- **Email and web push.** In-app polling only for v1. Revisit if "I missed a request" becomes a real complaint: a service worker + Web Push, or transactional email, can layer on later without schema change.
 - **Real-time delivery (websocket / SSE).** Polling is sufficient at friend-group scale.
 - **Reservation auto-expiry.** Only pending requests expire (7d). A stuck reservation is resolved by manual cancel. Add a reservation TTL later only if abandoned reservations pile up.
 - **Bulk actions** (accept/cancel many at once) and a one-click "trade everything we match on".
@@ -364,32 +364,32 @@ Cron expiry uses `last_actor = NULL` ("system"), which counts as unseen for both
 
 ## Confirmation
 
-Repository / integration tests (`apps/api`, temporary DB via `setupTestDb()`, dropped in `afterAll` — never the dev DB; run from main, not a worktree):
+Repository / integration tests (`apps/api`, temporary DB via `setupTestDb()`, dropped in `afterAll`, never the dev DB, run from main, not a worktree):
 
-- A `pending` request reserves nothing; the matched copies still appear in every member's match view.
-- `accept` pins exactly `quantity` copies; those copies vanish from **all** members' match views (including the giver's own outgoing panel); the remainder of a larger stack still matches.
-- `accept` is rejected when fewer than `quantity` unreserved copies remain; the trade stays `pending`.
+- A `pending` request reserves nothing. The matched copies still appear in every member's match view.
+- `accept` pins exactly `quantity` copies. Those copies vanish from all members' match views (including the giver's own outgoing panel). The remainder of a larger stack still matches.
+- `accept` is rejected when fewer than `quantity` unreserved copies remain. The trade stays `pending`.
 - `decline` / `cancel` / `expire` release reserved copies back into matching.
 - `UNIQUE(copy_id)` prevents a copy being reserved by two live trades.
-- `complete` makes both sides' sync available; **giver Apply** (via `disposeCopies`) emits a `removed` event, deletes the reserved copies, and cascade-removes their copy-kind tradelist entries; **receiver Apply** (via `addCopies`) emits an `added` event, inserts `quantity` copies of the exact `printing_id` into the chosen collection (default inbox), and decrements/removes the matched wish entry; either side **Skip** resolves without mutating that side (giver Skip also releases the reserved copies).
-- A `pending` request is auto-cancelled when the giver removes/unshares its underlying copies before acceptance; a `reserved` trade survives later edits/unshares of the giver's tradelist.
+- `complete` makes both sides' sync available. Giver Apply (via `disposeCopies`) emits a `removed` event, deletes the reserved copies, and cascade-removes their copy-kind tradelist entries. Receiver Apply (via `addCopies`) emits an `added` event, inserts `quantity` copies of the exact `printing_id` into the chosen collection (default inbox), and decrements/removes the matched wish entry. Either side Skip resolves without mutating that side (giver Skip also releases the reserved copies).
+- A `pending` request is auto-cancelled when the giver removes/unshares its underlying copies before acceptance. A `reserved` trade survives later edits/unshares of the giver's tradelist.
 - `expirePending()` moves only `pending` rows past 7d to `expired`, nothing else.
-- Authorization: non-members cannot create; only the non-initiator can accept/decline; only the initiator can cancel a pending; either party can cancel a reservation and mark traded; each party can only sync their own side.
-- `uq_card_trades_live` rejects a second live trade for the same `(group, giver, receiver, printing)` with 409; once the first is terminal (declined/cancelled/expired/completed), a new one is allowed.
-- Two concurrent accepts that would pin the same copy: exactly one succeeds; the other gets the "only N available" 409 (enforced by `UNIQUE(copy_id)`).
-- `disposeCopies` refuses a copy that is in `card_trade_copies` (409); `moveCopies` on a reserved copy still succeeds; `applyGiverSync` (which releases the reservation first) disposes successfully.
-- Leaving or being kicked cancels the departing member's `pending`/`reserved` trades in that group and releases their reserved copies; remaining members' match views recover those copies.
-- Deleting a user's account cascades away their trades and releases the counterparty's reserved copies (FK only — no service code).
-- Cron expiry sets `status='expired'` and `last_actor=NULL` for `pending` past 7d only; the initiator sees the expired trade as unread until they view it.
-- Bell unread excludes changes the viewer made themselves and includes system (`last_actor IS NULL`) changes; opening the bell clears unread without clearing status-derived "action needed".
+- Authorization: non-members cannot create, only the non-initiator can accept/decline, only the initiator can cancel a pending, either party can cancel a reservation and mark traded, and each party can only sync their own side.
+- `uq_card_trades_live` rejects a second live trade for the same `(group, giver, receiver, printing)` with 409. Once the first is terminal (declined/cancelled/expired/completed), a new one is allowed.
+- Two concurrent accepts that would pin the same copy: exactly one succeeds, the other gets the "only N available" 409 (enforced by `UNIQUE(copy_id)`).
+- `disposeCopies` refuses a copy that is in `card_trade_copies` (409). `moveCopies` on a reserved copy still succeeds. `applyGiverSync` (which releases the reservation first) disposes successfully.
+- Leaving or being kicked cancels the departing member's `pending`/`reserved` trades in that group and releases their reserved copies. Remaining members' match views recover those copies.
+- Deleting a user's account cascades away their trades and releases the counterparty's reserved copies (FK only, no service code).
+- Cron expiry sets `status='expired'` and `last_actor=NULL` for `pending` past 7d only. The initiator sees the expired trade as unread until they view it.
+- Bell unread excludes changes the viewer made themselves and includes system (`last_actor IS NULL`) changes. Opening the bell clears unread without clearing status-derived "action needed".
 
-Unit tests (`apps/web`, vitest): the bell unread/actionable derivation (seen vs unseen, self-actor excluded, per status); the trade-action store reducers (optimistic transitions, reset between tests via `createStoreResetter()`); quantity-default computation for the Request/Offer dialog.
+Unit tests (`apps/web`, vitest): the bell unread/actionable derivation (seen vs unseen, self-actor excluded, per status), the trade-action store reducers (optimistic transitions, reset between tests via `createStoreResetter()`), and quantity-default computation for the Request/Offer dialog.
 
 The implementing PR adds a user-facing `feat:` entry to `apps/web/src/CHANGELOG.md` (feature is user-visible, not admin-only).
 
 ## More Information
 
-- ADR-013 (Friend Groups for Trading Discovery) — supersedes its _Trade execution_ (Will Not Be Built) and _Notifications_ (Deferred) items; everything else stands.
-- ADR-005 (Collection Tracking Data Model) — copies, collections, the deferred "trade sessions" idea.
-- ADR-017 (Trade Preferences) — the `sellPref` / `buyPref` shown informationally on match rows.
+- ADR-013 (Friend Groups for Trading Discovery): supersedes its _Trade execution_ (Will Not Be Built) and _Notifications_ (Deferred) items. Everything else stands.
+- ADR-005 (Collection Tracking Data Model): copies, collections, the deferred "trade sessions" idea.
+- ADR-017 (Trade Preferences): the `sellPref` / `buyPref` shown informationally on match rows.
 - Match query: `apps/api/src/repositories/friend-group-matches.ts`. Group auth: `apps/api/src/routes/authenticated/friend-groups.ts`. Copy mutations with event logging: `apps/api/src/services/copies.ts` (`addCopies`, `disposeCopies`) + `apps/api/src/services/event-logger.ts`. Cron registry: `apps/api/src/cron-jobs.ts` (schedule wiring in `apps/api/src/index.ts`).

@@ -30,7 +30,7 @@ This ADR records how we render those images and how we cache them. The text bloc
 
 ## Decision Outcome
 
-Chosen option: **C, server-side `satori` + `sharp`**, generated **on demand** behind a **version-keyed, immutable URL**, and wired as the `og:image` for both `/lists/share/<token>` and `/users/share/<token>`.
+We render the share image with server-side `satori` + `sharp` (option C), generated on demand behind a version-keyed, immutable URL, and wired as the `og:image` for both `/lists/share/<token>` and `/users/share/<token>`.
 
 C is the only option that feeds the link unfurl (ruling out B, which can only produce a downloadable image the user attaches manually, never the crawler-fetched preview) without standing up a browser in the container (ruling out A). It reuses `sharp`, already in `apps/api` for the card-rehost pipeline (ADR-012 kept it), so the only new dependency is `satori`, which is pure JavaScript and runs under Bun without native bindings.
 
@@ -51,7 +51,7 @@ Reconciling ADR-018: that ADR omitted an OG image to avoid putting a Gravatar in
 
 ### Rendering pipeline
 
-`list data -> satori -> SVG string -> sharp(svg).png() -> PNG bytes`. satori does layout and emits vector SVG; `sharp` 0.34.5 (already a dependency) rasterizes it. Canvas is **1200x630**, the Open Graph standard aspect ratio, so previews crop cleanly across platforms. Card thumbnails are preloaded to buffers before the satori call, since satori embeds images from data it is given rather than fetching arbitrary URLs at layout time. Card images are self-hosted (ADR-007), so they are reachable from the api container by direct filesystem read. Thumbnails are stored as WebP, which satori cannot embed, so each is transcoded to PNG with the existing `sharp` before being passed in. Card-kind wish-list entries do not reference a specific printing, so the renderer resolves a representative printing's front image for each (the same notion of a representative printing the card grids use); an entry with no resolvable art falls back to a name-only tile.
+`list data -> satori -> SVG string -> sharp(svg).png() -> PNG bytes`. satori does layout and emits vector SVG; `sharp` 0.34.5 (already a dependency) rasterizes it. Canvas is 1200x630, the Open Graph standard aspect ratio, so previews crop cleanly across platforms. Card thumbnails are preloaded to buffers before the satori call, since satori embeds images from data it is given rather than fetching arbitrary URLs at layout time. Card images are self-hosted (ADR-007), so they are reachable from the api container by direct filesystem read. Thumbnails are stored as WebP, which satori cannot embed, so each is transcoded to PNG with the existing `sharp` before being passed in. Card-kind wish-list entries do not reference a specific printing, so the renderer resolves a representative printing's front image for each (the same notion of a representative printing the card grids use); an entry with no resolvable art falls back to a name-only tile.
 
 The grid is capped at roughly 12 to 15 cards, with a "+N more" tile when the list is longer. This keeps the image legible at preview size and bounds render time (the dominant cost is decoding thumbnails, not satori itself).
 
@@ -67,7 +67,7 @@ The image is rendered on demand, not pre-generated or stored. Lists are mutable,
 /lists/share/<token>/image.png?v=<version>
 ```
 
-The version is `lists.updated_at` expressed as an epoch, on the invariant that **every entry mutation (insert, update, and delete) touches the parent list's `updated_at`**. The parent timestamp is the version precisely because it advances monotonically on every change. A `MAX(list_entries.updated_at)` over surviving rows cannot stand in for it, and removal is the case that rules it out: deleting any entry other than the most recently touched one leaves the max unchanged (so the version never moves and the cached image still shows the removed card), and deleting the most recent one rolls the max back to an earlier timestamp that was already cached with different content. A content-bust key has to advance forward on every change; a max over children does not.
+The version is `lists.updated_at` expressed as an epoch, on the invariant that every entry mutation (insert, update, and delete) touches the parent list's `updated_at`. The parent timestamp is the version precisely because it advances monotonically on every change. A `MAX(list_entries.updated_at)` over surviving rows cannot stand in for it, and removal is the case that rules it out: deleting any entry other than the most recently touched one leaves the max unchanged (so the version never moves and the cached image still shows the removed card), and deleting the most recent one rolls the max back to an earlier timestamp that was already cached with different content. A content-bust key has to advance forward on every change; a max over children does not.
 
 This invariant is enforced by a database trigger (migration `146-touch-list-on-entry-change`): a per-row `AFTER INSERT OR UPDATE OR DELETE ON list_entries` trigger that runs `UPDATE lists SET updated_at = now() WHERE id = COALESCE(NEW.list_id, OLD.list_id)`. A trigger, not an app-layer touch, because the app layer is blind to FK-cascade deletes: disposing a copy cascade-removes its copy-kind tradelist entry (`fk_list_entries_copy ON DELETE CASCADE`), and completing a trade does the same, neither through an explicit `deleteEntry` call, so an app-layer helper would leave those tradelist images stale. The trigger covers every path (explicit edits, bulk operations, trade sync, cascades) atomically. It is per-row rather than statement-level with transition tables so it reliably fires for cascade-induced deletes; a bulk insert touches the parent once per row, acceptable at personal-list scale. As a side benefit it also makes "sort lists by most recently updated" correct, which it was not before.
 
@@ -93,7 +93,7 @@ Three artifacts, all reachable from the existing share dialog:
 2. **Text block**: a copy-paste string, a header line with the list name, card count, and link, then `Nx Card Name` rows. Quantities only, no condition or price, matching the image. Generated by a web lib util with unit tests.
 3. **Link**: the existing public share URL, now with a rich preview.
 
-Which list fields appear is a product decision recorded here: **quantity and thumbnail only**. Condition, language, finish, and price are intentionally excluded to keep the artifact scannable; the link is where someone goes for detail.
+Which list fields appear is a product decision recorded here: quantity and thumbnail only. Condition, language, finish, and price are intentionally excluded to keep the artifact scannable; the link is where someone goes for detail.
 
 ### Routes
 

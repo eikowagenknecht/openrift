@@ -9,9 +9,9 @@ date: 2026-06-08
 
 OpenRift already has a card-shaped editing surface: the `/contribute` page (`apps/web/src/routes/_app/contribute.tsx` + `contribute.lazy.tsx`, form in `apps/web/src/components/contribute/contribute-form.tsx`) lets a contributor type a card's data and watch it render live in `CardPlaceholderImage` (`apps/web/src/components/cards/card-placeholder-image.tsx`). That preview is a DOM-layered, container-query-scaled card template: a domain-gradient base, an energy circle, a might shield, type / tag badges, a name bar, a text block, and a footer with rarity, code, and artist. The whole point of `/contribute`, though, is to open a GitHub pull request against the data repo; the preview is a means to an end and the background is always an auto-generated domain gradient.
 
-We want a **Card Designer**: a fun, standalone tool that reuses the same editing experience and the same card template, but lets the user **pick a background image** for the card and **take the finished card with them** (download a PNG, or copy it to the clipboard). It is creative, not contributory: the output is an image of an invented card, not a PR. There is no "correct" data to validate against, no set / printing metadata, and nothing is submitted anywhere.
+We want a Card Designer: a fun, standalone tool that reuses the same editing experience and the same card template, but lets the user pick a background image for the card and take the finished card with them (download a PNG, or copy it to the clipboard). It is creative, not contributory: the output is an image of an invented card, not a PR. There is no "correct" data to validate against, no set / printing metadata, and nothing is submitted anywhere.
 
-This is a tool surface, closest in spirit to **ADR-021 (Match Tracker)**: a standalone, client-only route with no server involvement. The user uploads an image, it stays in the browser as a data URL, the card renders, and the existing client-side rasterizer (`html2canvas-pro`, already used by the deck proxy export) turns the preview into a downloadable / copyable image. No account, no upload endpoint, no persistence. This ADR decides how the designer reuses the existing template and inputs, how the background image is placed and adjusted, how the export works, and what ships in v1.
+This is a tool surface, closest in spirit to ADR-021 (Match Tracker): a standalone, client-only route with no server involvement. The user uploads an image, it stays in the browser as a data URL, the card renders, and the existing client-side rasterizer (`html2canvas-pro`, already used by the deck proxy export) turns the preview into a downloadable / copyable image. No account, no upload endpoint, no persistence. This ADR decides how the designer reuses the existing template and inputs, how the background image is placed and adjusted, how the export works, and what ships in v1.
 
 ## Decision Drivers
 
@@ -67,37 +67,37 @@ This is a tool surface, closest in spirit to **ADR-021 (Match Tracker)**: a stan
 
 ## Decision Outcome
 
-Chosen: **a standalone, client-only `/card-designer` route that reuses the `/contribute` inputs and the `CardPlaceholderImage` template, lets the user upload a background image (held in-browser as a data URL) and frame it with zoom + drag, edits every field the card visibly shows, renders the attribution `openrift.app` into the artist footer slot, and exports the live preview as a PNG via `html2canvas-pro` for download or clipboard copy. No backend, no account, no persistence, no submission.**
+We ship a standalone, client-only `/card-designer` route that reuses the `/contribute` inputs and the `CardPlaceholderImage` template. The user uploads a background image (held in-browser as a data URL) and frames it with zoom + drag, edits every field the card visibly shows, and the card renders the attribution `openrift.app` into the artist footer slot. The live preview exports as a PNG via `html2canvas-pro` for download or clipboard copy. No backend, no account, no persistence, no submission.
 
 ### Behaviour
 
-- **Editable fields = everything the template renders.** Exactly the prop surface of `CardPlaceholderImage`: name, domains, energy, might, power, might bonus, type, super-types, tags, rules text, effect text, flavor text, rarity, code, and artist. **No** catalog / printing metadata (set, language, year, markers, finish, art variant, signed) — those are not drawn on the card and are meaningless for an invented one.
-- **Background image.** Upload from device (PNG / JPG / WebP / AVIF / GIF first frame). The file is read to a data URL and kept in the store; it is never uploaded. The image fills the whole card behind the overlays. A **zoom slider** (and optional wheel / pinch) plus **drag-to-reposition** frame it, clamped so it always covers the card. A "remove image" control clears it and the card falls back to the domain-gradient base.
+- **Editable fields = everything the template renders.** Exactly the prop surface of `CardPlaceholderImage`: name, domains, energy, might, power, might bonus, type, super-types, tags, rules text, effect text, flavor text, rarity, code, and artist. No catalog / printing metadata (set, language, year, markers, finish, art variant, signed): those are not drawn on the card and are meaningless for an invented one.
+- **Background image.** Upload from device (PNG / JPG / WebP / AVIF / GIF first frame). The file is read to a data URL and kept in the store; it is never uploaded. The image fills the whole card behind the overlays. A zoom slider (and optional wheel / pinch) plus drag-to-reposition frame it, clamped so it always covers the card. A "remove image" control clears it and the card falls back to the domain-gradient base.
 - **Legibility scrim.** When a background image is set, a darkening scrim renders behind the name bar and the text block so they stay readable over any photo. With no image, the card looks exactly as it does in `/contribute` today.
-- **Attribution.** The artist footer line renders `buildAttribution(artist)` — the user's artist text plus `· openrift.app`, or just `openrift.app` when empty. This shows in the preview and the export (WYSIWYG); the artist input itself holds only the raw text.
-- **Export.** Two actions: **Download PNG** and **Copy to clipboard**. Both rasterize an off-screen, fixed-resolution clone of the current preview. Clipboard copy uses the async Clipboard API (`ClipboardItem`) and falls back to download where it is unsupported or denied.
+- **Attribution.** The artist footer line renders `buildAttribution(artist)`: the user's artist text plus `· openrift.app`, or just `openrift.app` when empty. This shows in the preview and the export (WYSIWYG); the artist input itself holds only the raw text.
+- **Export.** Two actions: Download PNG and Copy to clipboard. Both rasterize an off-screen, fixed-resolution clone of the current preview. Clipboard copy uses the async Clipboard API (`ClipboardItem`) and falls back to download where it is unsupported or denied.
 - **No validation.** Every field is optional; any combination renders. There is nothing to submit, so there is no schema check (unlike `/contribute`).
 - **Ephemeral.** Nothing is saved; reloading starts from a blank card. (This matches the chosen non-persisted store.)
 
 ### Card layout & the background image
 
-`CardPlaceholderImage` keeps its current structure; the background sits **behind** all existing overlays and the overlays already carry their own backgrounds (energy circle on `bg-white/70`, might shield on `bg-black/70`, type / tag badges on a gradient or `bg-black/90`, the name bar on the domain gradient), so they stay legible over a photo without change. The only additions, all gated on a background image being present:
+`CardPlaceholderImage` keeps its current structure; the background sits behind all existing overlays and the overlays already carry their own backgrounds (energy circle on `bg-white/70`, might shield on `bg-black/70`, type / tag badges on a gradient or `bg-black/90`, the name bar on the domain gradient), so they stay legible over a photo without change. The only additions, all gated on a background image being present:
 
 - A full-bleed image layer (`absolute inset-0`, `object-cover`) directly above the gradient base and below every overlay, with the zoom / pan transform applied.
-- A **text scrim**: a bottom-anchored dark gradient covering roughly the lower 45% of the card (under the name bar, text block, and footer, over the image), so name / rules / effect / flavor / footer text reads against any background.
-- The centered logo watermark and the `feTurbulence` noise overlay are **hidden** when an image is present — both exist to make the empty placeholder look intentional, and a real photo replaces that purpose (hiding the noise also sidesteps the one filter `html2canvas-pro` is least likely to rasterize faithfully).
+- A text scrim: a bottom-anchored dark gradient covering roughly the lower 45% of the card (under the name bar, text block, and footer, over the image), so name / rules / effect / flavor / footer text reads against any background.
+- The centered logo watermark and the `feTurbulence` noise overlay are hidden when an image is present: both exist to make the empty placeholder look intentional, and a real photo replaces that purpose (hiding the noise also sidesteps the one filter `html2canvas-pro` is least likely to rasterize faithfully).
 
 With no background image, none of these render and the component is byte-for-byte the template used everywhere else.
 
 ### Consequences
 
-- Good — pure client feature: no upload endpoint, no storage, no migrations, no repositories, no privacy-policy change. The data-URL image is same-origin, so the export canvas is never tainted.
-- Good — one card template. The designer, `/contribute`, and the catalog grid all keep rendering through the same `CardPlaceholderImage`; the new props are inert when unused.
-- Good — reuses the `/contribute` inputs and the `html2canvas-pro` export path, so little new surface is invented.
-- Good — the Zustand + selector pattern keeps drag-to-reposition smooth (the preview updates without re-rendering the form), consistent with the repo's re-render conventions.
-- Bad — `html2canvas-pro` does not perfectly rasterize every CSS feature; the template uses container-query units, CSS gradients, and `brightness-0 invert` icon filters. Mitigated by rendering an off-screen fixed-width clone (so `cqw` resolves), hiding the noise filter under an image, and a fidelity spike as the first build step (see Confirmation).
-- Bad — large uploads are heavy in memory as data URLs. Mitigated by downscaling on load (cap the longest edge, e.g. ~2000 px) before storing.
-- Neutral — ephemeral: a refresh loses the design. Acceptable for a toy; persisting the text fields (not the image) is an additive follow-up.
+- Good, because it is a pure client feature: no upload endpoint, no storage, no migrations, no repositories, no privacy-policy change. The data-URL image is same-origin, so the export canvas is never tainted.
+- Good, because there is one card template: the designer, `/contribute`, and the catalog grid all keep rendering through the same `CardPlaceholderImage`, and the new props are inert when unused.
+- Good, because it reuses the `/contribute` inputs and the `html2canvas-pro` export path, so little new surface is invented.
+- Good, because the Zustand + selector pattern keeps drag-to-reposition smooth (the preview updates without re-rendering the form), consistent with the repo's re-render conventions.
+- Bad, because `html2canvas-pro` does not perfectly rasterize every CSS feature: the template uses container-query units, CSS gradients, and `brightness-0 invert` icon filters. Mitigated by rendering an off-screen fixed-width clone (so `cqw` resolves), hiding the noise filter under an image, and a fidelity spike as the first build step (see Confirmation).
+- Bad, because large uploads are heavy in memory as data URLs. Mitigated by downscaling on load (cap the longest edge, e.g. ~2000 px) before storing.
+- Neutral, because it is ephemeral: a refresh loses the design. Acceptable for a toy; persisting the text fields (not the image) is an additive follow-up.
 
 ## Design Decisions
 
@@ -124,9 +124,9 @@ When `backgroundImageUrl` is set: render the image layer with `transform: transl
 
 A pure-ish export module (e.g. `apps/web/src/lib/card-export.ts` + a thin hook):
 
-1. Render a hidden clone of the preview into an **off-screen container at a fixed width** (a `CARD_EXPORT_WIDTH` constant; recommend 1500 × 2100 px for a crisp 5:7 card) so all `cqw` units resolve against a known width. A pure `cardExportDimensions(width)` helper returns the matching height from the card aspect and is unit-tested.
+1. Render a hidden clone of the preview into an off-screen container at a fixed width (a `CARD_EXPORT_WIDTH` constant; recommend 1500 × 2100 px for a crisp 5:7 card) so all `cqw` units resolve against a known width. A pure `cardExportDimensions(width)` helper returns the matching height from the card aspect and is unit-tested.
 2. Await `document.fonts.ready` (and image load) so text and the background are present before capture.
-3. `html2canvas-pro` → canvas → `toBlob('image/png')`. **Download** triggers an `<a download>`; **copy** writes `new ClipboardItem({ 'image/png': blob })` via `navigator.clipboard.write`, falling back to download when the API is unavailable or the write is rejected.
+3. `html2canvas-pro` → canvas → `toBlob('image/png')`. Download triggers an `<a download>`; copy writes `new ClipboardItem({ 'image/png': blob })` via `navigator.clipboard.write`, falling back to download when the API is unavailable or the write is rejected.
 
 The proven precedent is `apps/web/src/components/deck/proxy-export-dialog.tsx`; reuse its capture approach.
 
@@ -136,7 +136,7 @@ A pure `buildAttribution(artist?: string): string` in `apps/web/src/lib/card-exp
 
 ### Store shape
 
-A single **non-persisted** Zustand store, `apps/web/src/stores/card-designer-store.ts`:
+A single non-persisted Zustand store, `apps/web/src/stores/card-designer-store.ts`:
 
 ```ts
 interface DesignerCard {
@@ -183,16 +183,16 @@ The transform-clamp logic lives in the pure helper called by `setImageTransform`
 
 ### Re-render isolation
 
-Per the repo's `.map()`-closure guidance: the editor's field inputs subscribe to their own slices, and the **preview** subscribes to `card` + `background` via selectors. A drag updating `background.offsetX/Y` re-renders only the preview, not the form. The page component closes only over stable refs. No `useMemo` / `useCallback` / `React.memo` (React Compiler).
+Per the repo's `.map()`-closure guidance: the editor's field inputs subscribe to their own slices, and the preview subscribes to `card` + `background` via selectors. A drag updating `background.offsetX/Y` re-renders only the preview, not the form. The page component closes only over stable refs. No `useMemo` / `useCallback` / `React.memo` (React Compiler).
 
 ### Route, navigation & hydration
 
 Split route like `/contribute`:
 
-- `apps/web/src/routes/_app/card-designer.tsx` — `createFileRoute`, `seoHead({ … noIndex: true })` (a tool, not indexable content).
-- `apps/web/src/routes/_app/card-designer.lazy.tsx` — `createLazyFileRoute`, mounts the page.
+- `apps/web/src/routes/_app/card-designer.tsx`: `createFileRoute`, `seoHead({ … noIndex: true })` (a tool, not indexable content).
+- `apps/web/src/routes/_app/card-designer.lazy.tsx`: `createLazyFileRoute`, mounts the page.
 - Components under `apps/web/src/components/card-designer/`: a page shell (editor pane + sticky preview), the form (reusing the `/contribute` domain pickers, enum selects, and `CardTextInput`), a background-image control (upload + zoom + drag), and export controls.
-- **Navigation:** add a **"Card Designer"** entry alongside Contribute in the header navigation (`apps/web/src/components/layout/header.tsx`) with a lucide `*Icon` (e.g. `PaletteIcon` or `WandSparklesIcon`).
+- **Navigation:** add a "Card Designer" entry alongside Contribute in the header navigation (`apps/web/src/components/layout/header.tsx`) with a lucide `*Icon` (e.g. `PaletteIcon` or `WandSparklesIcon`).
 - **Hydration:** the store is non-persisted, so there is no `localStorage` SSR mismatch and the route can SSR the blank card like `/contribute` does (no `useHydrated` gate needed). `html2canvas-pro` is imported lazily on the export action (client-only), as the proxy export already does.
 
 ### Conventions to honour
@@ -211,7 +211,7 @@ Split route like `/contribute`:
 ## Out of Scope (explicit non-goals for v1)
 
 - Other background sources: catalog card art, pasted image URLs, a bundled preset gallery. (Catalog art is the most natural follow-up; the upload path and template extension leave room for it.)
-- Saving designs, accounts, cross-device sync, shareable links, or a public gallery — and therefore any content-moderation surface (nothing is uploaded or shared).
+- Saving designs, accounts, cross-device sync, shareable links, or a public gallery, and therefore any content-moderation surface (nothing is uploaded or shared).
 - Foil / finish / tilt effects on the designed card (deferred to a possible v2).
 - Catalog / printing metadata fields (set, language, year, markers, finish, art variant, signed).
 - Schema validation of the card (there is nothing to submit).
@@ -224,11 +224,11 @@ Each is additive; the chosen store shape, the single shared template, and the ro
 Relationship to other ADRs and existing code:
 
 - **ADR-021 (Match Tracker)** is the structural sibling: a standalone, client-only, `noIndex` tool route backed by a Zustand store, with no server involvement. The Card Designer differs only in being non-persisted (the image data URL is too large to persist) and in producing an exportable artifact.
-- **`/contribute`** is the editing precedent — the same `CardPlaceholderImage` template and the same field inputs, minus the printing metadata and the GitHub-PR submission.
-- **`apps/web/src/components/deck/proxy-export-dialog.tsx`** is the rasterization precedent — `html2canvas-pro` capturing rendered card DOM to an image; the export here follows the same approach against an off-screen fixed-size clone.
+- **`/contribute`** is the editing precedent: the same `CardPlaceholderImage` template and the same field inputs, minus the printing metadata and the GitHub-PR submission.
+- **`apps/web/src/components/deck/proxy-export-dialog.tsx`** is the rasterization precedent: `html2canvas-pro` capturing rendered card DOM to an image; the export here follows the same approach against an off-screen fixed-size clone.
 
 ## Confirmation
 
-The single real risk is export fidelity, so the **first build step is a rasterization spike**, before the full form is built: render `CardPlaceholderImage` with a sample data-URL background into the off-screen fixed-width container and confirm `html2canvas-pro` reproduces, acceptably, the background image + transform, the domain gradients, the `brightness-0 invert` icon filters, the name bar, the scrim, and the footer attribution. If a feature does not rasterize, the fallbacks are: keep the noise filter hidden under images (already decided); if gradients or icon filters are wrong, pre-bake the affected layer or adjust to an html2canvas-friendly equivalent. Only once the spike confirms a faithful PNG does the full editor get built.
+The single real risk is export fidelity, so the first build step is a rasterization spike, before the full form is built: render `CardPlaceholderImage` with a sample data-URL background into the off-screen fixed-width container and confirm `html2canvas-pro` reproduces, acceptably, the background image + transform, the domain gradients, the `brightness-0 invert` icon filters, the name bar, the scrim, and the footer attribution. If a feature does not rasterize, the fallbacks are: keep the noise filter hidden under images (already decided); if gradients or icon filters are wrong, pre-bake the affected layer or adjust to an html2canvas-friendly equivalent. Only once the spike confirms a faithful PNG does the full editor get built.
 
 Beyond the spike, the feature is confirmed by the unit tests listed under "Conventions to honour" (store, pure helpers, upload hook) and a manual check that Download PNG and Copy to clipboard both produce an image matching the on-screen preview, including attribution, across Chromium, Firefox, and Safari (with the clipboard→download fallback exercised where the Clipboard API is unavailable).
