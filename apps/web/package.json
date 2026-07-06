@@ -23,6 +23,7 @@
     "@dnd-kit/utilities": "3.2.2",
     "@fontsource-variable/inter": "5.2.8",
     "@fontsource-variable/roboto-condensed": "5.2.8",
+    "@fontsource/chakra-petch": "5.2.7",
     "@fontsource/kanit": "5.2.8",
     "@fontsource/roboto": "5.2.10",
     "@hookform/resolvers": "5.4.0",

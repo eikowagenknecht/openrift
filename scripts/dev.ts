@@ -60,6 +60,11 @@ const children = [
       ...process.env,
       PORT: String(webPort),
       API_INTERNAL_URL: `http://localhost:${apiPort}`,
+      // Vite's browser proxy for /api/v1, /api/auth, /api/health falls back to
+      // localhost:3000 — without this, direct-from-browser fetches (e.g. the
+      // landing summary) silently hit another instance's api when this one got
+      // a shifted port.
+      VITE_API_PROXY_TARGET: `http://localhost:${apiPort}`,
     },
   }),
 ];

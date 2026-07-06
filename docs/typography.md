@@ -15,6 +15,18 @@ The web app uses a small, fixed type scale. Pick a token from this guide wheneve
 | Metadata                     | `text-xs`                        | Badges, timestamps, captions, inline labels next to data.                                                                                                                                                                        |
 | Micro                        | `text-2xs`                       | Footer, chart axes, fine print. Defined as `--text-2xs: 0.6875rem` in `apps/web/src/index.css`.                                                                                                                                  |
 
+## Display face (`font-heading`)
+
+The app chrome has a display face — **Chakra Petch**, exposed as `--font-heading` / the `font-heading` utility (defined in `apps/web/src/index.css`, weights 500/600/700). It marks _identity moments_, not reading text:
+
+- **Page titles** — `PageTopBarTitle` and `Heading` levels 1-2 apply it already; using those primitives is the normal path. Don't add `font-heading` to a hand-rolled heading that should be one of these components instead.
+- **Hero wordmark and hero CTAs** on the landing page.
+- **Big display numerals** (2xl and larger), opt-in per spot — e.g. the landing stats. Tabular data (prices, table counts) stays on the default face.
+
+Everything else — body copy, buttons, form labels, inputs, tables, badges, dropdowns, dialog titles, `Heading` level 3, card names in browser grids — keeps the default face (Inter). At body-adjacent sizes the display face reads as noise, not identity; when in doubt, leave it off.
+
+`--font-heading` is not `--font-display`: the latter is the printed-card face (Kanit, the Arpona stand-in) and is reserved for card renders (`card-placeholder-image.tsx`, the designer). Never mix the two roles.
+
 ## Display numerals
 
 One narrow exception sits above the Hero size: a **display numeral** — a single number meant to be read at a glance from across a room, not body or heading text. The only use today is the match-tracker scorepad, where the score scales with the card from `text-4xl` up to `text-9xl` (`scoreSizeClass` in `apps/web/src/lib/match-layout.ts`). This is deliberately not a general-purpose tier: don't reach for `text-6xl`+ on ordinary headings or copy. If you have a new display-numeral case, add it here.

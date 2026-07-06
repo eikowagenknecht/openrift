@@ -8,6 +8,9 @@
 @import "@fontsource/kanit/600.css";
 @import "@fontsource/kanit/400-italic.css";
 @import "@fontsource/roboto/600.css";
+@import "@fontsource/chakra-petch/500.css";
+@import "@fontsource/chakra-petch/600.css";
+@import "@fontsource/chakra-petch/700.css";
 @plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
@@ -242,6 +245,10 @@ html.hide-scrollbar::-webkit-scrollbar {
   --font-display: "Kanit", sans-serif;
   /* Energy and might stat numbers on the placeholder/designer card face. */
   --font-numeric: "Roboto", sans-serif;
+  /* App-chrome display face (wordmark, page titles, big numbers). Distinct
+   * from --font-display, which is reserved for the printed card face. Chakra
+   * Petch's squared terminals echo the angular corner-cut CTA motif. */
+  --font-heading: "Chakra Petch", sans-serif;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);

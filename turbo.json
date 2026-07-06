@@ -47,7 +47,8 @@
     "lint": {},
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "passThroughEnv": ["PORT", "API_INTERNAL_URL", "VITE_API_PROXY_TARGET"]
     }
   }
 }

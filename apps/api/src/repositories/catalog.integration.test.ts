@@ -134,6 +134,27 @@ describe.skipIf(!ctx)("catalogRepo (integration)", () => {
     }
   });
 
+  it("landingSummary only samples EN printings for thumbnails", async () => {
+    const summary = await repo.landingSummary(500);
+    if (summary.thumbnailIds.length === 0) {
+      return;
+    }
+    const nonEnglishRows = await db
+      .selectFrom("printingImages")
+      .innerJoin("printings", "printings.id", "printingImages.printingId")
+      .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
+      .select(["ci.id as imageId"])
+      .where("printingImages.face", "=", "front")
+      .where("printingImages.isActive", "=", true)
+      .where("ci.rehostedUrl", "is not", null)
+      .where("printings.language", "!=", "EN")
+      .execute();
+    const nonEnglishImageIds = new Set(nonEnglishRows.map((r) => r.imageId));
+    for (const imageId of summary.thumbnailIds) {
+      expect(nonEnglishImageIds.has(imageId)).toBe(false);
+    }
+  });
+
   it("printingsByCardId orders English printings before other languages", async () => {
     // Find a card that has both an EN printing and at least one non-EN printing
     // (e.g. a localized ZH version) so the sort key is exercised. SSR meta tags

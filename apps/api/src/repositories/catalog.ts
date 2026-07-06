@@ -348,6 +348,9 @@ export function catalogRepo(db: Kysely<Database>) {
           .where("printingImages.isActive", "=", true)
           .where(sql`${imageId("ci")}`, "is not", null)
           .where("cards.type", "!=", WellKnown.cardType.BATTLEFIELD)
+          // EN only: the landing hero shows these large, and mixed-language
+          // card faces read as noise to first-time visitors.
+          .where("printings.language", "=", "EN")
           .orderBy(sql`md5(printing_images.printing_id::text || current_date::text)`)
           .limit(sampleSize)
           .execute() as Promise<{ imageId: string }[]>,

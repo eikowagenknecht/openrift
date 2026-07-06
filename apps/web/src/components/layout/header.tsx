@@ -100,7 +100,7 @@ function LogoLink({ className }: { className?: string }) {
       }}
     >
       <img src="/logo-color.svg" alt="OpenRift" className="size-8" />
-      <span className="text-xl font-bold">OpenRift</span>
+      <span className="font-heading text-xl font-bold">OpenRift</span>
       <Badge
         variant="subtle"
         className="text-2xs h-auto rounded-sm px-1.5 leading-none font-semibold uppercase"
@@ -612,7 +612,7 @@ function MobileNav({
           <SheetTitle>
             <Link
               to="/cards"
-              className="flex items-center gap-2 font-bold"
+              className="font-heading flex items-center gap-2 font-bold"
               onClick={() => onOpenChange(false)}
             >
               <img src="/logo-color.svg" alt="OpenRift" className="size-6" />

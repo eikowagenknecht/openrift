@@ -64,7 +64,7 @@
     "// html2canvas": "Redirect jspdf's optional html2canvas dep to html2canvas-pro (the version we already use directly).",
     "@hono/node-server": "1.19.14",
     "@tanstack/query-core": "5.101.0",
-    "hono": "4.12.26",
+    "hono": "4.12.27",
     "html2canvas": "npm:html2canvas-pro@2.0.4"
   },
   "packageManager": "bun@1.3.11",

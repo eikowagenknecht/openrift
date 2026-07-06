@@ -169,17 +169,21 @@ export function PageTopBarTitle({ onToggleSidebar, children }: PageTopBarTitlePr
   if (onToggleSidebar) {
     return (
       <>
-        <h1 className="md:hidden">
+        {/* font-heading cascades into the Button label (buttonVariants sets
+            weight/size but no family). */}
+        <h1 className="font-heading md:hidden">
           <Button variant="ghost" className="mr-2 -ml-2.5 gap-1" onClick={onToggleSidebar}>
             {children}
             <ChevronDownIcon className="text-muted-foreground size-4" />
           </Button>
         </h1>
-        <h1 className="mr-2 hidden min-w-0 truncate text-lg font-semibold md:block">{children}</h1>
+        <h1 className="font-heading mr-2 hidden min-w-0 truncate text-lg font-semibold md:block">
+          {children}
+        </h1>
       </>
     );
   }
-  return <h1 className="mr-2 min-w-0 truncate text-lg font-semibold">{children}</h1>;
+  return <h1 className="font-heading mr-2 min-w-0 truncate text-lg font-semibold">{children}</h1>;
 }
 
 /**

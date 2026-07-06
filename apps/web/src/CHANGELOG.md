@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-07-06
+
+### Highlights
+
+- feat(App): **Redesigned landing page** — a fanned hand of real cards takes center stage: hover to tilt them, click to collect them all, with sharper copy and new angular buttons.
+- feat(App): **New display typeface** — page titles, section headings, and the OpenRift wordmark now use Chakra Petch, giving the app its own voice instead of the default font everywhere.
+
 ## 2026-07-05
 
 ### Other

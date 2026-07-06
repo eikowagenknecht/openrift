@@ -81,6 +81,7 @@
         "@dnd-kit/utilities": "3.2.2",
         "@fontsource-variable/inter": "5.2.8",
         "@fontsource-variable/roboto-condensed": "5.2.8",
+        "@fontsource/chakra-petch": "5.2.7",
         "@fontsource/kanit": "5.2.8",
         "@fontsource/roboto": "5.2.10",
         "@hookform/resolvers": "5.4.0",
@@ -203,7 +204,7 @@
     "// html2canvas": "Redirect jspdf's optional html2canvas dep to html2canvas-pro (the version we already use directly).",
     "@hono/node-server": "1.19.14",
     "@tanstack/query-core": "5.101.0",
-    "hono": "4.12.26",
+    "hono": "4.12.27",
     "html2canvas": "npm:html2canvas-pro@2.0.4",
   },
   "packages": {
@@ -414,6 +415,8 @@
     "@fontsource-variable/inter": ["@fontsource-variable/inter@5.2.8", "", {}, "sha512-kOfP2D+ykbcX/P3IFnokOhVRNoTozo5/JxhAIVYLpea/UBmCQ/YWPBfWIDuBImXX/15KH+eKh4xpEUyS2sQQGQ=="],
 
     "@fontsource-variable/roboto-condensed": ["@fontsource-variable/roboto-condensed@5.2.8", "", {}, "sha512-aIZ2kYSoJHkTI4z8x/PRgKX6Zb9TTtSE/u+fUYeiwL+5trP9rhYYEEeNjRttaMqRgoDHcSueArdRZ43wf/i2Kw=="],
+
+    "@fontsource/chakra-petch": ["@fontsource/chakra-petch@5.2.7", "", {}, "sha512-GLbun5WZJNAEc8FtWxwcgo+4Kurqdwejvf671l+YfIjyQgPvTjyxXYP7Ffg2HAY89NGnp3oOvKQjRzfm/fBECw=="],
 
     "@fontsource/kanit": ["@fontsource/kanit@5.2.8", "", {}, "sha512-vISPW1kRoy+BTqplYCymdYRJcNFGmlPxWXqo178eGPe7P+lMX24JiQOxWdI4HLWR+0ROUzaFneXy/v1I9u99yg=="],
 
@@ -1833,7 +1836,7 @@
 
     "hex-rgb": ["hex-rgb@4.3.0", "", {}, "sha512-Ox1pJVrDCyGHMG9CFg1tmrRUMRPRsAWYc/PinY0XzJU4K7y7vjNoLKIQ7BR5UJMCxNN8EM1MNDmHWA/B3aZUuw=="],
 
-    "hono": ["hono@4.12.26", "", {}, "sha512-uyZtpnYxM9CmQ7QsQknM4zN8EftNqhON1qYeIKM0Se67CCEe2c44xyGURwB0axX2fBDu1dqHrHAc1hmNT8ITkw=="],
+    "hono": ["hono@4.12.27", "", {}, "sha512-1yrb/+w6HWQJrUCLkJ2IF5jNIPvvFkblV5RNOYl6bV+OA6p9GLcMpHFFGTosSvHvcAUibuUukRqhlYI4z32C7Q=="],
 
     "hono-rate-limiter": ["hono-rate-limiter@0.5.3", "", { "peerDependencies": { "hono": "^4.10.8", "unstorage": "^1.17.3" }, "optionalPeers": ["unstorage"] }, "sha512-M0DxbVMpPELEzLi0AJg1XyBHLGJXz7GySjsPoK+gc5YeeBsdGDGe+2RvVuCAv8ydINiwlbxqYMNxUEyYfRji/A=="],
 
