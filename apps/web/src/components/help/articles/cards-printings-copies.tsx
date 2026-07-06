@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { CardText } from "@/components/cards/card-text";
+import { Heading } from "@/components/heading";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
 
@@ -119,7 +120,7 @@ export default function CardsPrintingsCopiesArticle() {
 
       {/* Cards */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Cards</h2>
+        <Heading className="mb-2">Cards</Heading>
         <p className="text-muted-foreground">
           A <strong className="text-foreground">card</strong> is the game concept itself: the name,
           rules text, type, domains, stats, and keywords. It&apos;s the same card regardless of
@@ -182,7 +183,7 @@ export default function CardsPrintingsCopiesArticle() {
 
       {/* Printings */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Printings</h2>
+        <Heading className="mb-2">Printings</Heading>
         <p className="text-muted-foreground">
           A <strong className="text-foreground">printing</strong> is a specific physical version of
           a card. It belongs to a set (like Origins or Spiritforged) and has its own short code,
@@ -227,7 +228,7 @@ export default function CardsPrintingsCopiesArticle() {
 
       {/* Copies */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Copies</h2>
+        <Heading className="mb-2">Copies</Heading>
         <p className="text-muted-foreground">
           Every time you add a card to your collection, you&apos;re recording a{" "}
           <strong className="text-foreground">copy</strong> of a specific printing. Three of the

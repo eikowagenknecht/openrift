@@ -7,6 +7,7 @@ import {
   XCircleIcon,
 } from "lucide-react";
 
+import { Heading } from "@/components/heading";
 import { DefinitionList, DefinitionRow } from "@/components/help/definition-list";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SOCIAL_LINKS } from "@/lib/social-links";
@@ -26,7 +27,7 @@ export default function ImportExportArticle() {
 
       {/* ── Import ─────────────────────────── */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Importing cards</h2>
+        <Heading className="mb-2">Importing cards</Heading>
         <p className="text-muted-foreground">
           Import brings cards from an external CSV file into one of your collections.{" "}
           <strong className="text-foreground">Paste or upload</strong> your data, then{" "}
@@ -210,7 +211,7 @@ export default function ImportExportArticle() {
 
       {/* ── Export ─────────────────────────── */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Exporting cards</h2>
+        <Heading className="mb-2">Exporting cards</Heading>
         <p className="text-muted-foreground">
           Export downloads your collection as a CSV file. Pick a collection and a format from the
           dropdowns, then click <strong className="text-foreground">Export</strong>. Choose{" "}
@@ -303,7 +304,7 @@ export default function ImportExportArticle() {
 
       {/* How matching works */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">How matching works</h2>
+        <Heading className="mb-2">How matching works</Heading>
         <p className="text-muted-foreground">
           When you import, OpenRift tries to identify each card automatically:
         </p>

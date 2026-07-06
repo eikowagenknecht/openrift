@@ -6,6 +6,7 @@ import {
   ShuffleIcon,
 } from "lucide-react";
 
+import { Heading } from "@/components/heading";
 import { DefinitionList, DefinitionRow } from "@/components/help/definition-list";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -99,7 +100,7 @@ export default function DeckBuildingArticle() {
 
       {/* Getting started */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Getting started</h2>
+        <Heading className="mb-2">Getting started</Heading>
         <p className="text-muted-foreground">
           Open <strong className="text-foreground">Decks</strong> from the top navigation and click{" "}
           <strong className="text-foreground">New Deck</strong>. Choose a name and a format:{" "}
@@ -118,7 +119,7 @@ export default function DeckBuildingArticle() {
 
       {/* Building your deck */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Building your deck step by step</h2>
+        <Heading className="mb-2">Building your deck step by step</Heading>
         <p className="text-muted-foreground">
           The browser guides you through each zone automatically. As you fill one zone, it suggests
           cards for the next.
@@ -155,7 +156,7 @@ export default function DeckBuildingArticle() {
 
       {/* Adding cards */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Adding cards</h2>
+        <Heading className="mb-2">Adding cards</Heading>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <FeatureCard
             icon={<PlusIcon className="size-4" />}
@@ -186,7 +187,7 @@ export default function DeckBuildingArticle() {
 
       {/* Validation rules */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Validation rules (Constructed format)</h2>
+        <Heading className="mb-2">Validation rules (Constructed format)</Heading>
         <p className="text-muted-foreground">
           In Constructed format, the editor validates your deck in real time. A green checkmark
           means your deck is legal. A yellow banner shows the next issue to fix.
@@ -236,7 +237,7 @@ export default function DeckBuildingArticle() {
 
       {/* Rune auto-population */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Rune auto-population</h2>
+        <Heading className="mb-2">Rune auto-population</Heading>
         <p className="text-muted-foreground">
           When you pick a legend, the editor automatically fills the rune zone with 12 runes split
           evenly across the legend&apos;s two domains (6 per domain). You can then swap individual
@@ -247,7 +248,7 @@ export default function DeckBuildingArticle() {
 
       {/* Domain filtering */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Domain filtering</h2>
+        <Heading className="mb-2">Domain filtering</Heading>
         <p className="text-muted-foreground">
           Once you&apos;ve selected a legend, the card browser filters to cards matching your
           legend&apos;s domains (plus colorless cards).
@@ -256,7 +257,7 @@ export default function DeckBuildingArticle() {
 
       {/* Stats panel */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Deck stats</h2>
+        <Heading className="mb-2">Deck stats</Heading>
         <p className="text-muted-foreground">
           Below the zone list in the sidebar, a collapsible stats panel shows a breakdown of your
           deck:
@@ -279,7 +280,7 @@ export default function DeckBuildingArticle() {
 
       {/* Managing decks */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Managing decks</h2>
+        <Heading className="mb-2">Managing decks</Heading>
         <p className="text-muted-foreground">
           The{" "}
           <a href="/decks" className="text-primary hover:underline">
@@ -312,7 +313,7 @@ export default function DeckBuildingArticle() {
 
       {/* Auto-save */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Auto-save</h2>
+        <Heading className="mb-2">Auto-save</Heading>
         <p className="text-muted-foreground">
           Changes save automatically as you edit, and a warning catches you if you try to leave
           mid-save. There&apos;s no manual save button.

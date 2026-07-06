@@ -11,6 +11,7 @@ import {
   UsersIcon,
 } from "lucide-react";
 
+import { Heading } from "@/components/heading";
 import { DefinitionList, DefinitionRow } from "@/components/help/definition-list";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -69,7 +70,7 @@ export default function GroupsArticle() {
 
       {/* Roles */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Roles and permissions</h2>
+        <Heading className="mb-2">Roles and permissions</Heading>
         <p className="text-muted-foreground">
           Every member has one of three roles. Each group has exactly one owner.
         </p>
@@ -91,7 +92,7 @@ export default function GroupsArticle() {
 
       {/* Starting a group */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Starting a group</h2>
+        <Heading className="mb-2">Starting a group</Heading>
         <p className="text-muted-foreground">
           Open <strong className="text-foreground">Groups</strong> from the top navigation and click{" "}
           <strong className="text-foreground">New group</strong>.
@@ -117,7 +118,7 @@ export default function GroupsArticle() {
 
       {/* Joining */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Joining a group</h2>
+        <Heading className="mb-2">Joining a group</Heading>
         <p className="text-muted-foreground">
           There are two ways to end up in someone else&apos;s group. Both require an admin to let
           you in.
@@ -138,7 +139,7 @@ export default function GroupsArticle() {
 
       {/* Sharing lists */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Sharing your lists</h2>
+        <Heading className="mb-2">Sharing your lists</Heading>
         <p className="text-muted-foreground">
           Open the group, scroll to{" "}
           <strong className="text-foreground">Settings &rarr; Share your lists</strong>, and tick
@@ -166,7 +167,7 @@ export default function GroupsArticle() {
 
       {/* Matches */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Matches</h2>
+        <Heading className="mb-2">Matches</Heading>
         <p className="text-muted-foreground">
           The Matches section at the top of the group page shows two views:
         </p>
@@ -194,7 +195,7 @@ export default function GroupsArticle() {
 
       {/* Group collections */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Group collections</h2>
+        <Heading className="mb-2">Group collections</Heading>
         <p className="text-muted-foreground">
           A group collection is a pooled inventory that any member of the group can add to or remove
           from. It&apos;s useful for a club cube, a draft pool, or a binder you run together with
@@ -214,7 +215,7 @@ export default function GroupsArticle() {
 
       {/* Personal collections shared with the group */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Personal collections</h2>
+        <Heading className="mb-2">Personal collections</Heading>
         <p className="text-muted-foreground">
           You can also let group members peek at one of your own personal binders without giving up
           control. Open a collection&apos;s share dialog and tick the groups you want to share it
@@ -232,7 +233,7 @@ export default function GroupsArticle() {
 
       {/* Members and contacts */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Members and contacts</h2>
+        <Heading className="mb-2">Members and contacts</Heading>
         <p className="text-muted-foreground">
           The Members section lists everyone in the group with their role. Click a member to open
           their profile inside this group, which shows their shared lists and your matches with them
@@ -249,7 +250,7 @@ export default function GroupsArticle() {
 
       {/* Leaving, deleting, transferring */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Leaving, deleting, transferring</h2>
+        <Heading className="mb-2">Leaving, deleting, transferring</Heading>
         <ul className="text-muted-foreground mt-2 list-inside list-disc space-y-1">
           <li>
             <strong className="text-foreground">Leave:</strong> members and admins can leave at any

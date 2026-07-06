@@ -12,6 +12,7 @@ import {
   Trash2Icon,
 } from "lucide-react";
 
+import { Heading } from "@/components/heading";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Kbd } from "@/components/ui/kbd";
@@ -81,7 +82,7 @@ export default function CollectionsArticle() {
 
       {/* Concept: physical location */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Collections as physical locations</h2>
+        <Heading className="mb-2">Collections as physical locations</Heading>
         <p className="text-muted-foreground">
           Collections mirror where your cards actually are in the real world. Moving a copy from
           &quot;Inbox&quot; to &quot;Red Deck Box&quot; records that you physically put that card in
@@ -100,9 +101,9 @@ export default function CollectionsArticle() {
 
       {/* Deck building availability */}
       <section>
-        <h2 id="deck-building-availability" className="mb-2 text-lg font-semibold">
+        <Heading id="deck-building-availability" className="mb-2">
           Deck building availability
-        </h2>
+        </Heading>
         <Alert>
           <ShieldCheckIcon className="text-primary" />
           <AlertDescription>
@@ -125,7 +126,7 @@ export default function CollectionsArticle() {
 
       {/* Getting started */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Getting started</h2>
+        <Heading className="mb-2">Getting started</Heading>
         <p className="text-muted-foreground">
           Open <strong className="text-foreground">Collections</strong> from the top navigation.
           Your first collection is the <strong className="text-foreground">Inbox</strong>, which is
@@ -141,7 +142,7 @@ export default function CollectionsArticle() {
 
       {/* Adding cards */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Adding cards</h2>
+        <Heading className="mb-2">Adding cards</Heading>
         <p className="text-muted-foreground">There are two ways to add cards to a collection:</p>
 
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -166,7 +167,7 @@ export default function CollectionsArticle() {
 
       {/* Organizing */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Organizing your cards</h2>
+        <Heading className="mb-2">Organizing your cards</Heading>
 
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <FeatureCard
@@ -194,7 +195,7 @@ export default function CollectionsArticle() {
 
       {/* View modes */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">View modes in collections</h2>
+        <Heading className="mb-2">View modes in collections</Heading>
         <p className="text-muted-foreground">
           Collections support the same three view modes as the card browser. You can also filter,
           sort, and group cards inside any collection just like in the catalog.
@@ -217,7 +218,7 @@ export default function CollectionsArticle() {
 
       {/* Sidebar info */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">The sidebar</h2>
+        <Heading className="mb-2">The sidebar</Heading>
         <p className="text-muted-foreground">
           The sidebar lists all your collections with a copy count badge. At the top,{" "}
           <strong className="text-foreground">All Cards</strong> shows everything you own across all

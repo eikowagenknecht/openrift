@@ -87,7 +87,12 @@ function StatCard({
           <Icon className="size-5" />
         </span>
         <span className="text-muted-foreground shrink-0 text-sm font-medium">{label}</span>
-        <span className={cn("ml-auto min-w-0 text-3xl font-semibold tabular-nums", valueClassName)}>
+        <span
+          className={cn(
+            "font-heading ml-auto min-w-0 text-3xl font-semibold tabular-nums",
+            valueClassName,
+          )}
+        >
           {value}
         </span>
         <ChevronRightIcon className="text-muted-foreground/40 group-hover:text-muted-foreground size-4 shrink-0 transition-transform group-hover:translate-x-0.5" />

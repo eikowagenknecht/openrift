@@ -15,6 +15,7 @@ import { GripVerticalIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { Heading } from "@/components/heading";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useReplaceTournamentPairing } from "@/hooks/use-tournaments";
@@ -138,7 +139,7 @@ export function PodPairingEditor({
     >
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-lg font-semibold">Edit round {round.roundNumber} pairing</h3>
+          <Heading as="h3">Edit round {round.roundNumber} pairing</Heading>
           <span className="text-muted-foreground text-sm tabular-nums">
             Penalty {Math.round(totalPenalty)}
           </span>

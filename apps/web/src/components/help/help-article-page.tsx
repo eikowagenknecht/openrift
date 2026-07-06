@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ChevronRightIcon } from "lucide-react";
 import { Suspense, lazy } from "react";
 
+import { Heading } from "@/components/heading";
 import { PAGE_PADDING } from "@/lib/utils";
 
 import type { HelpArticle } from "./articles";
@@ -29,7 +30,9 @@ export function HelpArticlePage({ article }: { article: HelpArticle }) {
         </ol>
       </nav>
 
-      <h1 className="mb-6 text-2xl font-bold">{article.title}</h1>
+      <Heading level={1} className="mb-6">
+        {article.title}
+      </Heading>
 
       <Suspense>
         <ArticleContent />

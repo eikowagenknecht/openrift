@@ -3,6 +3,7 @@ import { Suspense, useState } from "react";
 import { siDiscord, siGithub, siGithubsponsors, siKofi, siX } from "simple-icons";
 
 import { CardText } from "@/components/cards/card-text";
+import { Heading } from "@/components/heading";
 import { MarketplaceLink } from "@/components/marketplace-link";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -132,7 +133,9 @@ export function SupportPage() {
     <div className={`mx-auto flex w-full max-w-2xl flex-1 flex-col ${PAGE_PADDING}`}>
       {/* Hero */}
       <div className="mb-10">
-        <h1 className="mb-4 text-2xl font-bold">Support the Rift</h1>
+        <Heading level={1} className="mb-4">
+          Support the Rift
+        </Heading>
         <div className="text-muted-foreground space-y-3 text-sm leading-relaxed">
           <p>
             Every day, my server burns Energy to keep the Rift open so you can browse cards instead

@@ -20,8 +20,9 @@ The web app uses a small, fixed type scale. Pick a token from this guide wheneve
 The app chrome has a display face — **Chakra Petch**, exposed as `--font-heading` / the `font-heading` utility (defined in `apps/web/src/index.css`, weights 500/600/700). It marks _identity moments_, not reading text:
 
 - **Page titles** — `PageTopBarTitle` and `Heading` levels 1-2 apply it already; using those primitives is the normal path. Don't add `font-heading` to a hand-rolled heading that should be one of these components instead.
+- **Section h2s in long-form content** (help articles, legal/privacy prose, the rules version comments) sit on the same `text-lg font-semibold` tier as `Heading` level 2 and carry the face too — via `Heading` in article components, or the `prose-h1:`/`prose-h2:` modifiers in `ProsePage` (see rule 6).
 - **Hero wordmark and hero CTAs** on the landing page.
-- **Big display numerals** (2xl and larger), opt-in per spot — e.g. the landing stats. Tabular data (prices, table counts) stays on the default face.
+- **Big display numerals** (2xl and larger), opt-in per spot — the landing stats, the collection stats tiles, the friend-group and tournament overview counters, and the match-tracker score. Tabular data (prices, table counts) stays on the default face.
 
 Everything else — body copy, buttons, form labels, inputs, tables, badges, dropdowns, dialog titles, `Heading` level 3, card names in browser grids — keeps the default face (Inter). At body-adjacent sizes the display face reads as noise, not identity; when in doubt, leave it off.
 
@@ -29,7 +30,7 @@ Everything else — body copy, buttons, form labels, inputs, tables, badges, dro
 
 ## Display numerals
 
-One narrow exception sits above the Hero size: a **display numeral** — a single number meant to be read at a glance from across a room, not body or heading text. The only use today is the match-tracker scorepad, where the score scales with the card from `text-4xl` up to `text-9xl` (`scoreSizeClass` in `apps/web/src/lib/match-layout.ts`). This is deliberately not a general-purpose tier: don't reach for `text-6xl`+ on ordinary headings or copy. If you have a new display-numeral case, add it here.
+One narrow exception sits above the Hero size: a **display numeral** — a single number meant to be read at a glance from across a room, not body or heading text. The only use today is the match-tracker scorepad, where the score scales with the card from `text-4xl` up to `text-9xl` (`scoreSizeClass` in `apps/web/src/lib/match-layout.ts`). Display numerals carry `font-heading`. This is deliberately not a general-purpose tier: don't reach for `text-6xl`+ on ordinary headings or copy. If you have a new display-numeral case, add it here.
 
 ## Rules
 
@@ -38,7 +39,7 @@ One narrow exception sits above the Hero size: a **display numeral** — a singl
 3. **No arbitrary pixel sizes in components.** Don't use `text-[10px]`, `text-[11px]`, or any `text-[Npx]`. If you need micro-typography, use `text-2xs`. If `text-2xs` is genuinely too large, that's a scale change — discuss before extending. The one exception is the body/prose responsive base in `index.css`; nothing component-level should use arbitrary px.
 4. **Heading size and weight go together.** Always write the size _and_ weight together (`text-2xl font-bold`, `text-lg font-semibold`). The weight is part of the role.
 5. **Don't override shadcn defaults to land back on the same size.** `CardTitle` is already `text-base font-medium`; writing `<CardTitle className="text-base">` is noise. Only override when the role genuinely changes.
-6. **Prose pages map onto this scale.** When using the `prose` plugin (e.g. legal/privacy pages, markdown rules), set `prose-h1:text-2xl prose-h2:text-lg prose-h3:text-base` so prose matches the rest of the app.
+6. **Prose pages map onto this scale.** When using the `prose` plugin (e.g. legal/privacy pages, markdown rules), set `prose-h1:font-heading prose-h1:text-2xl prose-h1:font-bold prose-h2:font-heading prose-h2:text-lg prose-h2:font-semibold prose-h3:text-base prose-h3:font-semibold` so prose matches the rest of the app — h1/h2 carry the display face just like `Heading` levels 1-2. `ProsePage` (`apps/web/src/components/prose-page.tsx`) already does this; prefer it over repeating the string.
 
 ## shadcn defaults (for reference)
 
@@ -120,11 +121,11 @@ Inline icons (in labels, badges, headings, buttons with a label) should match th
 ## Examples
 
 ```tsx
-// ✅ Page
-<h1 className="text-2xl font-bold">Card Sets</h1>
+// ✅ Page — Heading level 1 is text-2xl font-bold + the display face
+<Heading level={1}>Card Sets</Heading>
 
-// ✅ Section heading
-<h2 className="text-lg font-semibold">Filters</h2>
+// ✅ Section heading — Heading level 2 is text-lg font-semibold + the display face
+<Heading>Filters</Heading>
 
 // ✅ Card title (use the default)
 <CardTitle>Display</CardTitle>

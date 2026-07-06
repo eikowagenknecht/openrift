@@ -91,7 +91,7 @@ function StatsHeroStats({ stats }: { stats: CollectionStats }) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-2xl font-semibold tabular-nums">
+          <p className="font-heading text-2xl font-semibold tabular-nums">
             {stats.uniqueCards.toLocaleString()}
           </p>
         </CardContent>
@@ -104,7 +104,7 @@ function StatsHeroStats({ stats }: { stats: CollectionStats }) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-2xl font-semibold tabular-nums">
+          <p className="font-heading text-2xl font-semibold tabular-nums">
             {stats.uniquePrintings.toLocaleString()}
           </p>
         </CardContent>
@@ -117,7 +117,7 @@ function StatsHeroStats({ stats }: { stats: CollectionStats }) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-2xl font-semibold tabular-nums">
+          <p className="font-heading text-2xl font-semibold tabular-nums">
             {stats.totalCopies.toLocaleString()}
           </p>
         </CardContent>
@@ -135,7 +135,7 @@ function StatsHeroStats({ stats }: { stats: CollectionStats }) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-semibold tabular-nums">
+            <p className="font-heading text-2xl font-semibold tabular-nums">
               {stats.formatPrice(stats.estimatedValue)}
             </p>
             <div className="text-muted-foreground text-xs">

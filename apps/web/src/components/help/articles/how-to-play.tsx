@@ -1,5 +1,6 @@
 import { CoinsIcon, FlagIcon, SwordIcon, TimerIcon, TrophyIcon, ZapIcon } from "lucide-react";
 
+import { Heading } from "@/components/heading";
 import { DefinitionList, DefinitionRow } from "@/components/help/definition-list";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,7 +27,7 @@ export default function HowToPlayArticle() {
 
       {/* The kit */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">What you bring to the table</h2>
+        <Heading className="mb-2">What you bring to the table</Heading>
         <p className="text-muted-foreground">
           Each player builds a kit around a single legend. The legend sets your two domains
           (colors), and every other card has to fit those domains.
@@ -76,7 +77,7 @@ export default function HowToPlayArticle() {
 
       {/* The board */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">The board</h2>
+        <Heading className="mb-2">The board</Heading>
         <p className="text-muted-foreground">
           Each player has a <strong className="text-foreground">base</strong> where their units
           deploy. Between the players sits a row of battlefields, contributed from both kits but up
@@ -98,7 +99,7 @@ export default function HowToPlayArticle() {
 
       {/* A turn */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">A turn at a glance</h2>
+        <Heading className="mb-2">A turn at a glance</Heading>
         <p className="text-muted-foreground">
           Players alternate turns. Each turn moves through three phases.
         </p>
@@ -124,7 +125,7 @@ export default function HowToPlayArticle() {
 
       {/* Runes and power */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Runes and power</h2>
+        <Heading className="mb-2">Runes and power</Heading>
         <p className="text-muted-foreground">
           Runes are your resource. They live in a separate 12-card deck and you gain two new ones
           every turn. There are two ways to spend a rune.
@@ -146,7 +147,7 @@ export default function HowToPlayArticle() {
 
       {/* Battlefields */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Battlefields and Showdowns</h2>
+        <Heading className="mb-2">Battlefields and Showdowns</Heading>
         <p className="text-muted-foreground">
           Battlefields are how you score, so they are where the fights happen.
         </p>
@@ -178,7 +179,7 @@ export default function HowToPlayArticle() {
 
       {/* Domains */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">The six domains</h2>
+        <Heading className="mb-2">The six domains</Heading>
         <p className="text-muted-foreground">
           Domains are Riftbound&apos;s colors. Every legend has two, and your deck can only use
           cards from those two domains plus colorless. Each domain has a flavor.
@@ -204,7 +205,7 @@ export default function HowToPlayArticle() {
 
       {/* Keywords */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Keywords</h2>
+        <Heading className="mb-2">Keywords</Heading>
         <p className="text-muted-foreground">
           Cards use short keywords (Shield, Deflect, Ganking, Accelerate, and more) as shorthand for
           rules text. You don&apos;t need to memorize them upfront. The starter decks introduce a
@@ -214,7 +215,7 @@ export default function HowToPlayArticle() {
 
       {/* Card costs explainer */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Reading a card</h2>
+        <Heading className="mb-2">Reading a card</Heading>
         <p className="text-muted-foreground">
           Most cards show an energy cost in the top corner, a name and type, an effect, and (for
           units) a Might value used in Showdowns. Costs include both colored pips, which require
@@ -230,7 +231,7 @@ export default function HowToPlayArticle() {
 
       {/* Next steps */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Where to go next</h2>
+        <Heading className="mb-2">Where to go next</Heading>
         <p className="text-muted-foreground">
           That covers the shape of a game. For the full rules, jump in here:
         </p>

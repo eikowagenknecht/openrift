@@ -1,5 +1,6 @@
 import { ImageIcon, InfoIcon, RulerIcon, ScissorsIcon, ShieldCheckIcon } from "lucide-react";
 
+import { Heading } from "@/components/heading";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -34,7 +35,7 @@ export default function ProxyPrintingArticle() {
 
       {/* Getting started */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Getting started</h2>
+        <Heading className="mb-2">Getting started</Heading>
         <p className="text-muted-foreground">There are two ways to open the proxy export dialog:</p>
         <div className="mt-3 space-y-2">
           <StepRow
@@ -52,7 +53,7 @@ export default function ProxyPrintingArticle() {
 
       {/* Options */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Export options</h2>
+        <Heading className="mb-2">Export options</Heading>
 
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <OptionCard
@@ -80,7 +81,7 @@ export default function ProxyPrintingArticle() {
 
       {/* Generating */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Generating the PDF</h2>
+        <Heading className="mb-2">Generating the PDF</Heading>
         <p className="text-muted-foreground">
           Click <strong className="text-foreground">Generate PDF</strong> to start. The dialog shows
           a progress indicator as each unique card is rendered. Once all cards are ready,
@@ -95,7 +96,7 @@ export default function ProxyPrintingArticle() {
 
       {/* Limitations */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Current limitations</h2>
+        <Heading className="mb-2">Current limitations</Heading>
         <Alert>
           <InfoIcon className="text-primary" />
           <AlertDescription>
@@ -110,7 +111,7 @@ export default function ProxyPrintingArticle() {
 
       {/* Printing tip */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Printing</h2>
+        <Heading className="mb-2">Printing</Heading>
         <p className="text-muted-foreground">
           Make sure scaling is set to 100% or &quot;Actual size&quot; in your print dialog,
           otherwise the cards won&apos;t be standard size. After cutting, slip each proxy in front

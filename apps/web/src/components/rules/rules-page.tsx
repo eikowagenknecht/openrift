@@ -610,7 +610,7 @@ const VERSION_COMMENT_COMPONENTS: Components = {
   ),
   ul: ({ children }) => <ul className="my-2 ml-6 list-disc">{children}</ul>,
   ol: ({ children }) => <ol className="my-2 ml-6 list-decimal">{children}</ol>,
-  h2: ({ children }) => <h2 className="mt-3 text-lg font-semibold">{children}</h2>,
+  h2: ({ children }) => <h2 className="font-heading mt-3 text-lg font-semibold">{children}</h2>,
   h3: ({ children }) => <h3 className="mt-3 font-semibold">{children}</h3>,
   blockquote: ({ children }) => (
     <blockquote className="border-border text-muted-foreground my-2 border-l-2 pl-3">

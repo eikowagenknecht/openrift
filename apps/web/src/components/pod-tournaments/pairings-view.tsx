@@ -9,6 +9,7 @@ import { computePairingWarnings } from "@openrift/shared";
 import { useState } from "react";
 import type { ReactNode } from "react";
 
+import { Heading } from "@/components/heading";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -109,7 +110,7 @@ export function PairingsView({
           <section key={round.id} className="flex flex-col gap-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <h3 className="text-lg font-semibold">Round {round.roundNumber}</h3>
+                <Heading as="h3">Round {round.roundNumber}</Heading>
                 <Badge variant={round.status === "finalized" ? "secondary" : "default"}>
                   {round.status === "finalized" ? "Finalized" : "Reporting"}
                 </Badge>

@@ -10,6 +10,7 @@ import {
   UploadIcon,
 } from "lucide-react";
 
+import { Heading } from "@/components/heading";
 import { DefinitionList, DefinitionRow } from "@/components/help/definition-list";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -42,7 +43,7 @@ export default function ListsArticle() {
 
       {/* Kinds */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">What lists can be made of</h2>
+        <Heading className="mb-2">What lists can be made of</Heading>
         <p className="text-muted-foreground">
           Every list has a <strong className="text-foreground">kind</strong>, picked when you create
           it. The kind decides what goes on the list. See{" "}
@@ -68,7 +69,7 @@ export default function ListsArticle() {
 
       {/* Creating a wishlist */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Creating a wishlist</h2>
+        <Heading className="mb-2">Creating a wishlist</Heading>
         <p className="text-muted-foreground">
           Open the <strong className="text-foreground">Collections</strong> sidebar and click{" "}
           <strong className="text-foreground">+ New wishlist</strong>.
@@ -94,7 +95,7 @@ export default function ListsArticle() {
 
       {/* Filling a wishlist */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Filling a wishlist</h2>
+        <Heading className="mb-2">Filling a wishlist</Heading>
         <p className="text-muted-foreground">
           A fresh wishlist opens with a <strong className="text-foreground">Browse catalog</strong>{" "}
           button. Clicking it puts the catalog into add-mode (a small pulsing dot in the toolbar
@@ -136,7 +137,7 @@ export default function ListsArticle() {
 
       {/* Creating a tradelist */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Creating a tradelist</h2>
+        <Heading className="mb-2">Creating a tradelist</Heading>
         <p className="text-muted-foreground">
           Open the <strong className="text-foreground">Collections</strong> sidebar and click{" "}
           <strong className="text-foreground">+ New tradelist</strong>.
@@ -162,7 +163,7 @@ export default function ListsArticle() {
 
       {/* Filling a tradelist */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Filling a tradelist</h2>
+        <Heading className="mb-2">Filling a tradelist</Heading>
         <p className="text-muted-foreground">
           Tradelists hold individual copies, so you fill them from the{" "}
           <a href="/help/collections" className="text-primary hover:underline">
@@ -191,7 +192,7 @@ export default function ListsArticle() {
 
       {/* Trade preferences */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Setting prices and trade preferences</h2>
+        <Heading className="mb-2">Setting prices and trade preferences</Heading>
         <p className="text-muted-foreground">
           Trade preferences live in two layers: a default that applies to the whole list, and
           optional per-card overrides. When the list is shared into a group, these are what show up
@@ -229,7 +230,7 @@ export default function ListsArticle() {
 
       {/* Adjusting quantities and removing entries */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Adjusting quantities and removing entries</h2>
+        <Heading className="mb-2">Adjusting quantities and removing entries</Heading>
         <p className="text-muted-foreground">
           Wishlists have <strong className="text-foreground">−</strong> /{" "}
           <strong className="text-foreground">+</strong> next to the quantity. Tradelists show a
@@ -240,7 +241,7 @@ export default function ListsArticle() {
 
       {/* Importing and exporting */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Importing and exporting</h2>
+        <Heading className="mb-2">Importing and exporting</Heading>
         <p className="text-muted-foreground">
           Card-kind lists can be imported from and exported to plain text (one card per line with
           quantities). Printing-kind and copy-kind lists can&apos;t, since pasted text can&apos;t
@@ -254,7 +255,7 @@ export default function ListsArticle() {
 
       {/* Sharing with a group */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Sharing a list with a group</h2>
+        <Heading className="mb-2">Sharing a list with a group</Heading>
         <p className="text-muted-foreground">
           Lists are private by default. To share one with a{" "}
           <a href="/help/groups" className="text-primary hover:underline">
@@ -269,7 +270,7 @@ export default function ListsArticle() {
 
       {/* Organize lists */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">A note on organize lists</h2>
+        <Heading className="mb-2">A note on organize lists</Heading>
         <p className="text-muted-foreground">
           Alongside wishlists and tradelists there&apos;s an{" "}
           <strong className="text-foreground">organize list</strong> for grouping cards that

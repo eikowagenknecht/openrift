@@ -5,6 +5,7 @@ import { Link, createLazyFileRoute } from "@tanstack/react-router";
 import { CalendarIcon, LayersIcon } from "lucide-react";
 
 import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
+import { Heading } from "@/components/heading";
 import { Skeleton } from "@/components/ui/skeleton";
 import { publicSetListQueryOptions } from "@/hooks/use-public-sets";
 import { formatAbsoluteDate } from "@/lib/format-date";
@@ -45,7 +46,7 @@ function HeroSetCard({ set }: { set: SetListEntry }) {
         )}
       </div>
       <div className="flex min-w-0 flex-col justify-center gap-1 p-4">
-        <h2 className="truncate text-lg font-semibold">{set.name}</h2>
+        <Heading className="truncate">{set.name}</Heading>
         <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
           <span className="flex items-center gap-1.5">
             <LayersIcon className="size-3.5" />
@@ -74,7 +75,9 @@ function SetsPage() {
 
   return (
     <div className={PAGE_PADDING}>
-      <h1 className="mb-4 text-2xl font-bold">Card Sets</h1>
+      <Heading level={1} className="mb-4">
+        Card Sets
+      </Heading>
       <div className={SET_GRID}>
         {mainSets.map((set) => (
           <HeroSetCard key={set.id} set={set} />
@@ -82,7 +85,7 @@ function SetsPage() {
       </div>
       {supplementalSets.length > 0 && (
         <>
-          <h2 className="mt-8 mb-4 text-lg font-semibold">Supplemental Sets</h2>
+          <Heading className="mt-8 mb-4">Supplemental Sets</Heading>
           <div className={SET_GRID}>
             {supplementalSets.map((set) => (
               <HeroSetCard key={set.id} set={set} />

@@ -11,7 +11,7 @@ import { PAGE_PADDING } from "@/lib/utils";
 export function ProsePage({ children }: { children: ReactNode }) {
   return (
     <article
-      className={`prose dark:prose-invert prose-headings:font-semibold prose-h1:text-2xl prose-h2:text-lg prose-h3:text-base mx-auto max-w-2xl ${PAGE_PADDING}`}
+      className={`prose dark:prose-invert prose-h1:font-heading prose-h1:text-2xl prose-h1:font-bold prose-h2:font-heading prose-h2:text-lg prose-h2:font-semibold prose-h3:text-base prose-h3:font-semibold mx-auto max-w-2xl ${PAGE_PADDING}`}
     >
       {children}
     </article>

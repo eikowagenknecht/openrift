@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
+import { Heading } from "@/components/heading";
 import { DefinitionList, DefinitionRow } from "@/components/help/definition-list";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -23,7 +24,7 @@ export default function WhyOpenRiftArticle() {
   return (
     <div className="space-y-8">
       <section>
-        <h2 className="mb-3 text-lg font-semibold">Why this exists</h2>
+        <Heading className="mb-3">Why this exists</Heading>
         <div className="text-muted-foreground space-y-3">
           <p>Honestly? I just wanted to track my collection.</p>
           <p>
@@ -61,7 +62,7 @@ export default function WhyOpenRiftArticle() {
 
       {/* What this site is (and isn't) */}
       <section>
-        <h2 className="mb-3 text-lg font-semibold">What this site is (and isn&apos;t)</h2>
+        <Heading className="mb-3">What this site is (and isn&apos;t)</Heading>
         <div className="grid gap-3 sm:grid-cols-2">
           <FeatureCard
             icon={<Code2Icon className="size-4" />}
@@ -101,7 +102,7 @@ export default function WhyOpenRiftArticle() {
 
       {/* Where OpenRift is catching up */}
       <section>
-        <h2 className="mb-3 text-lg font-semibold">Where OpenRift is catching up</h2>
+        <Heading className="mb-3">Where OpenRift is catching up</Heading>
         <p className="text-muted-foreground mb-3">
           Beyond the feature gaps below, there are two things a table can&apos;t capture:
         </p>
@@ -128,7 +129,7 @@ export default function WhyOpenRiftArticle() {
 
       {/* Comparison table */}
       <section>
-        <h2 className="mb-3 text-lg font-semibold">Feature comparison</h2>
+        <Heading className="mb-3">Feature comparison</Heading>
         <p className="text-muted-foreground mb-3">
           The table compares OpenRift against the four most popular Riftbound card browsers, the
           ones you&apos;re most likely to have tried. A checkmark means the feature is available; a
@@ -193,7 +194,7 @@ export default function WhyOpenRiftArticle() {
 
       {/* Tech stack */}
       <section>
-        <h2 className="mb-3 text-lg font-semibold">Tech stack</h2>
+        <Heading className="mb-3">Tech stack</Heading>
         <p className="text-muted-foreground mb-3">
           For the technically curious, or if you&apos;re thinking about contributing:
         </p>

@@ -154,7 +154,7 @@ export function PlayerPanel({
         </div>
         <div className="flex flex-1 flex-col items-center justify-center">
           {isWinner && <CrownIcon aria-label="Winner" className="text-primary mb-1 size-6" />}
-          <span className={cn("leading-none font-bold tabular-nums", scoreClass)}>
+          <span className={cn("font-heading leading-none font-bold tabular-nums", scoreClass)}>
             {player.points}
           </span>
           <span className="text-muted-foreground mt-1 text-xs">of {pointsTarget}</span>

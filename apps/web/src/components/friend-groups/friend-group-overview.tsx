@@ -362,7 +362,7 @@ function StatCard({
           <Icon className="size-5" />
         </span>
         <span className="text-muted-foreground text-sm font-medium">{label}</span>
-        <span className="ml-auto text-3xl font-semibold tabular-nums">{value}</span>
+        <span className="font-heading ml-auto text-3xl font-semibold tabular-nums">{value}</span>
         <ChevronRightIcon className="text-muted-foreground/40 group-hover:text-muted-foreground size-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
       </div>
       {children}
