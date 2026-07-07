@@ -13,6 +13,7 @@ import {
   PlusIcon,
 } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { CandidateSpreadsheet } from "@/components/admin/candidate-spreadsheet";
 import type { FieldDef } from "@/components/admin/candidate-spreadsheet";
@@ -50,7 +51,9 @@ import {
   useReassignCandidatePrinting,
 } from "@/hooks/use-admin-card-mutations";
 import { useAllCards, useUnmatchedCardDetail } from "@/hooks/use-admin-card-queries";
+import { describeAcceptCardFieldIssues } from "@/lib/accept-card-validation";
 import { queryKeys } from "@/lib/query-keys";
+import { PERSISTENT_ERROR_TOAST } from "@/lib/toast";
 
 interface NewCardColumnActionsProps {
   row?: CandidateCardResponse | CandidatePrintingResponse;
@@ -181,11 +184,17 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
       return;
     }
     const id = newModeCardId.trim();
+    const cardFields = { id, ...activeCard } as AcceptNewCardBody["cardFields"];
+    // Validate against the same schema the API enforces so the admin sees which
+    // field is wrong (e.g. a hand-typed number, an empty Domains list) instead
+    // of the server's generic "Input validation failed" toast.
+    const issues = describeAcceptCardFieldIssues(cardFields);
+    if (issues.length > 0) {
+      toast.error(`Can't accept this card:\n${issues.join("\n")}`, PERSISTENT_ERROR_TOAST);
+      return;
+    }
     acceptNewCard.mutate(
-      {
-        name: identifier,
-        cardFields: { id, ...activeCard } as AcceptNewCardBody["cardFields"],
-      },
+      { name: identifier, cardFields },
       {
         onSuccess: () => {
           void navigate({ to: "/admin/cards/$cardSlug", params: { cardSlug: id } });

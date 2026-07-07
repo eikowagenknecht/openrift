@@ -116,7 +116,7 @@ export type AcceptPrintingFieldBody = z.infer<typeof acceptPrintingFieldBodySche
 const setSlug = z.string().min(1);
 const setName = z.string().min(1);
 
-const cardFieldsSchema = z.object({
+export const cardFieldsSchema = z.object({
   id: cardFieldRules.slug,
   name: cardFieldRules.name,
   type: cardFieldRules.type,

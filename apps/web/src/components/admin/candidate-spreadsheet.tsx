@@ -74,9 +74,9 @@ export interface FieldDef {
 export function buildCandidateCardFields(orders: EnumOrders, labels: EnumLabels): FieldDef[] {
   return [
     { key: "externalId", label: "External ID", readOnly: true },
-    { key: "energy", label: "Energy" },
-    { key: "power", label: "Power" },
-    { key: "might", label: "Might" },
+    { key: "energy", label: "Energy", type: "number" },
+    { key: "power", label: "Power", type: "number" },
+    { key: "might", label: "Might", type: "number" },
     {
       key: "superTypes",
       label: "Supertypes",
@@ -97,7 +97,7 @@ export function buildCandidateCardFields(orders: EnumOrders, labels: EnumLabels)
     },
     { key: "rulesText", label: "Rules Text", multiline: true },
     { key: "effectText", label: "Effect Text", multiline: true },
-    { key: "mightBonus", label: "Might Bonus" },
+    { key: "mightBonus", label: "Might Bonus", type: "number" },
     { key: "tags", label: "Tags", array: true },
     { key: "comment", label: "Comment" },
     { key: "extraData", label: "Extra Data", readOnly: true, collapsible: true },

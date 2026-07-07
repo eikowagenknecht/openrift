@@ -1,9 +1,12 @@
+import type { EnumOrders } from "@openrift/shared";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
+import type { EnumLabels } from "@/hooks/use-enums";
+
 import type { FieldDef } from "./candidate-spreadsheet";
-import { CandidateSpreadsheet } from "./candidate-spreadsheet";
+import { CandidateSpreadsheet, buildCandidateCardFields } from "./candidate-spreadsheet";
 
 const markerField: FieldDef = {
   key: "markerSlugs",
@@ -89,5 +92,19 @@ describe("CandidateSpreadsheet multi-select", () => {
 
     expect(onActiveChange).toHaveBeenCalledTimes(1);
     expect(onActiveChange).toHaveBeenCalledWith("markerSlugs", null);
+  });
+});
+
+describe("buildCandidateCardFields", () => {
+  // Regression: without `type: "number"`, hand-typed Energy/Power/Might values
+  // commit as strings and the accept endpoint rejects them with a generic
+  // "Input validation failed".
+  it("marks the numeric card fields as number so typed values are coerced", () => {
+    const orders = { superTypes: [], cardTypes: [], domains: [] } as unknown as EnumOrders;
+    const labels = { superTypes: {}, cardTypes: {}, domains: {} } as unknown as EnumLabels;
+    const byKey = new Map(buildCandidateCardFields(orders, labels).map((f) => [f.key, f]));
+    for (const key of ["energy", "power", "might", "mightBonus"]) {
+      expect(byKey.get(key)?.type).toBe("number");
+    }
   });
 });
