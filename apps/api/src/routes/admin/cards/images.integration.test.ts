@@ -126,7 +126,7 @@ if (ctx) {
     .values({
       provider: "csi-source",
       name: "CSI Test Card",
-      type: "unit",
+      types: ["unit"],
       superTypes: [],
       domains: ["mind"],
       might: null,
@@ -175,7 +175,7 @@ if (ctx) {
     .values({
       provider: "csi-source-2",
       name: "CSI Test Card",
-      type: "unit",
+      types: ["unit"],
       superTypes: [],
       domains: ["mind"],
       might: null,
@@ -293,7 +293,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
         .values({
           provider: "csi-alt-source",
           name: "CSI Test Card",
-          type: "unit",
+          types: ["unit"],
           superTypes: [],
           domains: ["mind"],
           might: null,

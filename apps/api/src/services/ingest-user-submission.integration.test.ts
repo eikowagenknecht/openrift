@@ -26,7 +26,7 @@ function submission(slug: string, note: string | null): CardSubmissionInput {
     slug,
     card: {
       name: `Test ${slug}`,
-      type: "unit",
+      types: ["unit"],
       super_types: [],
       domains: ["fury"],
       might: 2,
@@ -134,7 +134,7 @@ describe.skipIf(!ctx)("ingestUserSubmission integration", () => {
             provider: USER_SUBMISSION_PROVIDER,
             externalId: `seed--${offset + index}`,
             name: `Seed ${offset + index}`,
-            type: "unit",
+            types: ["unit"],
             superTypes: [],
             domains: ["fury"],
             tags: [],

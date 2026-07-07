@@ -187,7 +187,7 @@ if (ctx) {
     .values({
       provider: "csq-spreadsheet",
       name: "CSQ Test Card",
-      type: "unit",
+      types: ["unit"],
       superTypes: [],
       domains: ["mind"],
       might: null,
@@ -211,7 +211,7 @@ if (ctx) {
     .values({
       provider: "csq-gallery",
       name: "CSQ Unknown Card",
-      type: "rune",
+      types: ["rune"],
       superTypes: [],
       domains: ["chaos"],
       might: null,
@@ -235,7 +235,7 @@ if (ctx) {
     .values({
       provider: "csq-spreadsheet",
       name: "CSQ No Image Card",
-      type: "unit",
+      types: ["unit"],
       superTypes: [],
       domains: ["fury"],
       might: 3,

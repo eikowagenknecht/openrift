@@ -280,7 +280,20 @@ export const adminCardMutationsRouter = {
     // Card types live in the card_card_types junction; the repo keeps the
     // denormalized cards.type scalar in sync (ADR-037).
     if (field === "types") {
-      await mut.replaceCardTypesById(cardId, finalValue as string[]);
+      try {
+        await mut.replaceCardTypesById(cardId, finalValue as string[]);
+      } catch (error: unknown) {
+        // FK violation on card_types(slug) — unknown type slug, mirror the
+        // scalar-column 400 below.
+        if (error instanceof Error && "code" in error && error.code === "23503") {
+          throw new AppError(
+            400,
+            ERROR_CODES.VALIDATION_ERROR,
+            `Invalid value for ${field}: ${String(finalValue)}`,
+          );
+        }
+        throw error;
+      }
       await context.repos.catalog.refreshCardAggregates();
       return;
     }

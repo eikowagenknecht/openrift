@@ -110,7 +110,7 @@ if (ctx) {
     .values({
       provider: "csm-spreadsheet",
       name: "CSM Test Card",
-      type: "unit",
+      types: ["unit"],
       superTypes: [],
       domains: ["mind"],
       might: null,
@@ -134,7 +134,7 @@ if (ctx) {
     .values({
       provider: "csm-gallery",
       name: "CSM New Card",
-      type: "spell",
+      types: ["spell"],
       superTypes: [],
       domains: ["calm"],
       might: null,
@@ -210,7 +210,7 @@ if (ctx) {
     .values({
       provider: "csm-accept-new-src",
       name: "CSM Test Card",
-      type: "unit",
+      types: ["unit"],
       superTypes: [],
       domains: ["mind"],
       might: null,
@@ -666,11 +666,11 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       await db.updateTable("cards").set({ energy: 2 }).where("slug", "=", cardSlug).execute();
     });
 
-    it("updates type field", async () => {
+    it("updates the types field and keeps the scalar type in sync (ADR-037)", async () => {
       const res = await app.fetch(
         adminReq("POST", `${P}/${cardId}/accept-field`, {
-          field: "type",
-          value: "spell",
+          field: "types",
+          value: ["spell", "gear"],
         }),
       );
       expect(res.status).toBe(204);
@@ -681,16 +681,32 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .where("slug", "=", cardSlug)
         .executeTakeFirstOrThrow();
       expect(row.type).toBe("spell");
+      const junction = await db
+        .selectFrom("cardCardTypes")
+        .select(["typeSlug", "position"])
+        .where("cardId", "=", cardId)
+        .orderBy("position")
+        .execute();
+      expect(junction).toEqual([
+        { typeSlug: "spell", position: 0 },
+        { typeSlug: "gear", position: 1 },
+      ]);
 
-      // Restore
-      await db.updateTable("cards").set({ type: "unit" }).where("slug", "=", cardSlug).execute();
+      // Restore via the same endpoint so scalar and junction stay in sync
+      const restore = await app.fetch(
+        adminReq("POST", `${P}/${cardId}/accept-field`, {
+          field: "types",
+          value: ["unit"],
+        }),
+      );
+      expect(restore.status).toBe(204);
     });
 
-    it("returns 400 for validation error on type", async () => {
+    it("returns 400 for validation error on types", async () => {
       const res = await app.fetch(
         adminReq("POST", `${P}/${cardId}/accept-field`, {
-          field: "type",
-          value: "InvalidType",
+          field: "types",
+          value: ["InvalidType"],
         }),
       );
       expect(res.status).toBe(400);
@@ -909,7 +925,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           cardFields: {
             id: "CSM-NEW-001",
             name: "CSM New Card",
-            type: "spell",
+            types: ["spell"],
             domains: ["calm"],
             energy: 1,
           },
@@ -949,7 +965,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .values({
           provider: "csm-gallery",
           name: "CSM Another Unmatched",
-          type: "rune",
+          types: ["rune"],
           superTypes: [],
           domains: ["mind"],
           might: null,
@@ -1259,7 +1275,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
             {
               card: {
                 name: "CSM Upload Card",
-                type: "unit",
+                types: ["unit"],
                 super_types: [],
                 domains: ["mind"],
                 might: null,

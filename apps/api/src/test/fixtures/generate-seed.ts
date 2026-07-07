@@ -140,6 +140,16 @@ const cardSuperTypes = await sql<Record<string, unknown>[]>`
   ORDER BY cst.card_id, cst.super_type_slug
 `;
 
+const cardCardTypes = await sql<Record<string, unknown>[]>`
+  SELECT DISTINCT cct.card_id, cct.type_slug, cct.position
+  FROM card_card_types cct
+  JOIN cards c ON c.id = cct.card_id
+  JOIN printings p ON p.card_id = c.id
+  JOIN sets s ON s.id = p.set_id
+  WHERE s.slug = ${SET_SLUG} OR c.slug = ANY(${EXTRA_CARD_SLUGS})
+  ORDER BY cct.card_id, cct.position
+`;
+
 const cardDomains = await sql<Record<string, unknown>[]>`
   SELECT DISTINCT cd.card_id, cd.domain_slug, cd.ordinal
   FROM card_domains cd
@@ -473,6 +483,7 @@ const seedSql = [
   "-- Sets and cards",
   toInsert("sets", sets),
   toInsert("cards", cards),
+  toInsert("card_card_types", cardCardTypes),
   toInsert("card_super_types", cardSuperTypes),
   toInsert("card_domains", cardDomains),
   toInsert("card_name_aliases", cardNameAliases),
@@ -509,7 +520,7 @@ console.log(
     `  Reference: ${domains.length} domains, ${rarities.length} rarities, ${cardTypes.length} card types, ${superTypes.length} super types,`,
     `    ${finishes.length} finishes, ${artVariants.length} art variants, ${languages.length} languages, ${formats.length} formats,`,
     `    ${deckFormats.length} deck formats, ${deckZones.length} deck zones, ${keywords.length} keywords, ${keywordTranslations.length} keyword translations`,
-    `  Catalog: ${sets.length} sets, ${cards.length} cards, ${cardSuperTypes.length} card super types, ${cardDomains.length} card domains,`,
+    `  Catalog: ${sets.length} sets, ${cards.length} cards, ${cardCardTypes.length} card types (junction), ${cardSuperTypes.length} card super types, ${cardDomains.length} card domains,`,
     `    ${cardNameAliases.length} aliases, ${syntheticCardErrata.length} errata (synthetic), ${distributionChannels.length} distribution channels`,
     `  Printings: ${printings.length} printings, ${imageFiles.length} image files, ${printingImages.length} printing images, ${printingMarkers.length} marker links, ${printingDistributionChannels.length} channel links`,
     `  Bans: ${syntheticCardBans.length} card bans (synthetic)`,
