@@ -554,6 +554,37 @@ describe("useCardFilters", () => {
     expect(source).not.toMatch(/\[`\$\{[^`]+\}[^`]*`\]\s*:/u);
   });
 
+  // Regression (the /collections redraw loop): passing the whole `filterState`
+  // object into a helper call makes React Compiler treat it as maybe-mutated.
+  // That un-memoizes toFilterState, so `filters` got a fresh identity on every
+  // render, and useDeferredValue(sortedCards) downstream chased it forever in
+  // a self-sustaining background render loop. The presence map must stay
+  // inlined (or helpers must take primitive fields, never the whole object).
+  // Source-level guard because vitest runs uncompiled code, where identity
+  // stability cannot be asserted directly. Returning filterState from the hook
+  // is fine (escape-by-return stays memoizable); only call arguments poison.
+  it("never passes the whole filterState object into a function call (React Compiler memo poisoning)", () => {
+    const source = readFileSync(path.resolve(__dirname, "./use-card-filters.ts"), "utf-8");
+    expect(source).not.toMatch(/[\w$]\(\s*filterState\s*[,)]/u);
+  });
+
+  it("maps presence params into filters.presence (channels → distributionChannels)", () => {
+    mockSearch = { markersPresence: "any", channelsPresence: "none" };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+
+    expect(result.current.filters.presence).toEqual({
+      markers: "any",
+      distributionChannels: "none",
+    });
+  });
+
+  it("returns an empty presence map when no presence params are set", () => {
+    mockSearch = {};
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+
+    expect(result.current.filters.presence).toEqual({});
+  });
+
   it("toggleArrayFilter adds an owned bucket value", () => {
     mockSearch = {};
     const { result } = renderHook(() => useCardFilters(), { wrapper });

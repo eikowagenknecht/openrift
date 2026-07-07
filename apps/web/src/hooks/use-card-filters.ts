@@ -159,24 +159,6 @@ function toFilterState(raw: FilterSearch, defaultView: DefaultCardView) {
 }
 
 /**
- * Collapses the per-dimension presence params into the shared `CardFilters`
- * presence map, dropping dimensions with no constraint (null).
- * @returns The presence map keyed by dimension.
- */
-function buildPresence(
-  filterState: ReturnType<typeof toFilterState>,
-): Partial<Record<PresenceDimension, PresenceState>> {
-  const presence: Partial<Record<PresenceDimension, PresenceState>> = {};
-  for (const dimension of Object.keys(PRESENCE_PARAMS) as PresenceDimension[]) {
-    const value = filterState[PRESENCE_PARAMS[dimension]];
-    if (value) {
-      presence[dimension] = value;
-    }
-  }
-  return presence;
-}
-
-/**
  * Returns the read-only filter, sort, and view state derived from URL query
  * parameters. Components that only need to read (not write) filter state should
  * prefer this hook — it avoids subscribing to the setter functions, which are
@@ -188,6 +170,29 @@ export function useFilterValues() {
   const defaultView = useDisplayStore((s) => s.defaultCardView);
   const filterState = toFilterState(raw, defaultView);
   const searchScope = useSearchScopeStore((s) => s.scope);
+
+  // The presence map is built inline, not via a helper. Passing the whole
+  // filterState object into a helper call makes React Compiler treat it as
+  // maybe-mutated, which stops it from caching toFilterState and re-mints
+  // `filters` on every render. useDeferredValue(sortedCards) downstream then
+  // never sees a stable value and re-renders forever (the /collections redraw
+  // loop). A source-level guard test in use-card-filters.test.ts enforces this.
+  const presence: Partial<Record<PresenceDimension, PresenceState>> = {};
+  if (filterState.markersPresence) {
+    presence.markers = filterState.markersPresence;
+  }
+  if (filterState.superTypesPresence) {
+    presence.superTypes = filterState.superTypesPresence;
+  }
+  if (filterState.customTagsPresence) {
+    presence.customTags = filterState.customTagsPresence;
+  }
+  if (filterState.channelsPresence) {
+    presence.distributionChannels = filterState.channelsPresence;
+  }
+  if (filterState.keywordsPresence) {
+    presence.keywords = filterState.keywordsPresence;
+  }
 
   const filters = {
     search: filterState.search,
@@ -207,7 +212,7 @@ export function useFilterValues() {
     ownedCountMin: filterState.ownedCountMin,
     ownedCountMax: filterState.ownedCountMax,
     isSigned: filterState.signed ?? null,
-    presence: buildPresence(filterState),
+    presence,
     markers: filterState.markers,
     channels: filterState.channels,
     markerSlugs: filterState.markers,

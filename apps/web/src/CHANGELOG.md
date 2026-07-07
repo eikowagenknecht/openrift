@@ -7,6 +7,7 @@
 - feat(Collection): **Track each copy's condition** — right-click any owned card to record its condition or professional grade, an altered flag, notes, and photo links; imports and exports keep conditions, and removing a copy with details asks first.
 - feat(Cards): **Multi-type card support** — cards with more than one type (like the new Unit Gear cards) now count for every type they carry: filters, grouping, deck rules, and copy limits all recognize both, and the card shows a glyph for each.
 - feat(App): **New body typeface** — everyday text across the app, and the generated share and deck images, now use Hanken Grotesk, a warmer face that reads softer than the old default.
+- fix(App): **Constant background redraw on card pages** — a hidden render loop kept the card, collection, and deck pages working nonstop even when idle, draining CPU and battery for nothing.
 
 ### Other
 

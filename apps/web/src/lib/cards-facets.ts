@@ -125,8 +125,8 @@ export function extractSetLabels(catalog: CatalogResponse): Record<string, strin
  */
 /**
  * Builds the shared presence map from the URL presence params (channels →
- * distributionChannels), dropping unset dimensions. Mirrors `buildPresence` in
- * `use-card-filters.ts` for the server path.
+ * distributionChannels), dropping unset dimensions. Mirrors the inline
+ * presence construction in `useFilterValues` for the server path.
  * @returns The presence map keyed by dimension.
  */
 function presenceFromSearch(
