@@ -145,7 +145,7 @@ export function LandingPage() {
               </div>
             </div>
             <p className="text-muted-foreground text-lg">
-              The fastest way to track your Riftbound collection.
+              The Riftbound app for you and your playgroup. Fast, free, and open source.
             </p>
             <HeroCtas />
             {data && (
