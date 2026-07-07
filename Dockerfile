@@ -70,6 +70,14 @@ CMD ["bun", "run", ".output/server/index.mjs"]
 FROM nginx:1.31.2-alpine AS proxy
 
 RUN rm /etc/nginx/conf.d/default.conf
+# Electric shape long-polls (ADR-027) hold connections open ~20s each, and
+# every held browser request occupies TWO slots here (downstream + upstream).
+# The stock 1024 worker_connections would cap out at ~100 concurrent
+# signed-in users (5 live per-user shapes each); 8192 gives an order of
+# magnitude of headroom for a few MB of memory. The sed is verified so a
+# base-image format change fails the build instead of silently keeping 1024.
+RUN sed -i 's/worker_connections[[:space:]]*1024;/worker_connections 8192;/' /etc/nginx/nginx.conf \
+    && grep -q "worker_connections 8192;" /etc/nginx/nginx.conf
 COPY nginx/web.conf /etc/nginx/conf.d/web.conf
 # Built client assets (JS/CSS with content hashes) served directly by nginx
 COPY --from=build /app/apps/web/.output/public /srv/static
