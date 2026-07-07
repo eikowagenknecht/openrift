@@ -111,7 +111,14 @@ export function CardBrowserLayout({
         <div
           ref={toolbarRef}
           className={cn(
-            "bg-background/80 mx-safe-neg px-safe sticky z-20 backdrop-blur-lg",
+            // z-30 (co-planar with the page top bar, not below it): the toolbar
+            // sits flush under the bar with no top padding, so a focused
+            // control's 3px outset ring pokes up into the bar's pb gap. At
+            // z-20 the bar's blurred bg painted over that strip and clipped the
+            // ring; co-planar lets the ring win the overlap. The bar has no
+            // bottom border, so its edge is covered invisibly in any real
+            // overlap. See the sticky z-ladder note in CLAUDE.md.
+            "bg-background/80 mx-safe-neg px-safe sticky z-30 backdrop-blur-lg",
             // Only pad the top when this toolbar is the first tier under the
             // global header. When a page top bar sits above it, that bar's
             // pb-3 already provides the gap (avoids a doubled 24px band).

@@ -6,6 +6,10 @@
 
 - feat(App): **New body typeface** — everyday text across the app, and the generated share and deck images, now use Hanken Grotesk, a warmer face that reads softer than the old default.
 
+### Other
+
+- fix(App): **Clipped toolbar focus rings** — the highlight ring around the search box and toolbar buttons on the card pages no longer gets cut off along the top.
+
 ## 2026-07-06
 
 ### Highlights
