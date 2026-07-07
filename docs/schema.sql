@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict ltPBzRpv9GRUHXVIceHGunDf6lNZ4kHxyTlDEe6u0xwuItqxQHTaXRf0NT7dN0n
+\restrict c6fAkOKuknT3VLOM6ZoOLYI78cfSJGIcH3gvmDthh2T8is70pJQfxWyQYSESVh4
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -268,6 +268,42 @@ CREATE FUNCTION public.rebalance_organization_owner() RETURNS trigger
       END LOOP;
       RETURN OLD;
     END;
+    $$;
+
+
+--
+-- Name: recompute_printing_canonical_ranks(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.recompute_printing_canonical_ranks() RETURNS void
+    LANGUAGE sql
+    AS $$
+      UPDATE printings p
+      SET canonical_rank = r.rn
+      FROM (
+        SELECT p.id,
+               (row_number() OVER (
+                 ORDER BY
+                   l.sort_order,
+                   s.sort_order,
+                   p.short_code,
+                   array_length(p.marker_slugs, 1) IS NOT NULL,
+                   COALESCE(
+                     (SELECT MIN(m.sort_order) FROM markers m
+                      WHERE m.slug = ANY(p.marker_slugs)),
+                     0
+                   ),
+                   f.sort_order,
+                   cs.sort_order
+               ))::int AS rn
+        FROM printings p
+        JOIN sets       s  ON s.id   = p.set_id
+        JOIN finishes   f  ON f.slug = p.finish
+        JOIN card_sizes cs ON cs.slug = p.size
+        JOIN languages  l  ON l.code = p.language
+      ) r
+      WHERE p.id = r.id
+        AND p.canonical_rank IS DISTINCT FROM r.rn;
     $$;
 
 
@@ -1448,6 +1484,26 @@ CREATE TABLE public.languages (
 
 
 --
+-- Name: latest_printing_prices; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.latest_printing_prices (
+    printing_id uuid NOT NULL,
+    marketplace text NOT NULL,
+    headline_cents integer NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT latest_printing_prices_headline_cents_check CHECK ((headline_cents >= 0))
+);
+
+
+--
+-- Name: TABLE latest_printing_prices; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.latest_printing_prices IS 'Latest headline marketplace price per (printing_id, marketplace), in cents. Replaces the mv_latest_printing_prices materialized view: this is a real table so Electric can sync current prices to the client (a materialized view emits no logical-replication events). Maintained by refreshLatestPrices() on every price import; the full price history lives in marketplace_product_prices and is never synced.';
+
+
+--
 -- Name: list_entries; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1665,31 +1721,6 @@ CREATE MATERIALIZED VIEW public.mv_card_aggregates AS
 
 
 --
--- Name: mv_latest_printing_prices; Type: MATERIALIZED VIEW; Schema: public; Owner: -
---
-
-CREATE MATERIALIZED VIEW public.mv_latest_printing_prices AS
- SELECT DISTINCT ON (mpv.printing_id, mp.marketplace) mpv.printing_id,
-    mp.marketplace,
-        CASE
-            WHEN (mp.marketplace = 'cardtrader'::text) THEN COALESCE(pp.zero_low_cents, pp.low_cents)
-            WHEN (mp.marketplace = 'cardmarket'::text) THEN COALESCE(pp.low_cents, pp.market_cents)
-            ELSE COALESCE(pp.market_cents, pp.low_cents)
-        END AS headline_cents
-   FROM ((public.marketplace_product_variants mpv
-     JOIN public.marketplace_products mp ON ((mp.id = mpv.marketplace_product_id)))
-     JOIN public.marketplace_product_prices pp ON ((pp.marketplace_product_id = mp.id)))
-  WHERE (
-        CASE
-            WHEN (mp.marketplace = 'cardtrader'::text) THEN COALESCE(pp.zero_low_cents, pp.low_cents)
-            WHEN (mp.marketplace = 'cardmarket'::text) THEN COALESCE(pp.low_cents, pp.market_cents)
-            ELSE COALESCE(pp.market_cents, pp.low_cents)
-        END IS NOT NULL)
-  ORDER BY mpv.printing_id, mp.marketplace, (pp.zero_low_cents IS NULL), pp.recorded_at DESC
-  WITH NO DATA;
-
-
---
 -- Name: organization_members; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1874,6 +1905,7 @@ CREATE TABLE public.printings (
     marker_slugs text[] DEFAULT '{}'::text[] NOT NULL,
     printed_year smallint,
     size text DEFAULT 'standard'::text NOT NULL,
+    canonical_rank integer,
     CONSTRAINT chk_printings_artist_not_empty CHECK ((artist <> ''::text)),
     CONSTRAINT chk_printings_no_empty_comment CHECK ((comment <> ''::text)),
     CONSTRAINT chk_printings_no_empty_flavor_text CHECK ((flavor_text <> ''::text)),
@@ -1886,60 +1918,33 @@ CREATE TABLE public.printings (
 
 
 --
--- Name: sets; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.sets (
-    name text NOT NULL,
-    printed_total integer,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    sort_order integer DEFAULT 0 NOT NULL,
-    released_at date,
-    slug text NOT NULL,
-    id uuid DEFAULT uuidv7() NOT NULL,
-    set_type public.set_type DEFAULT 'main'::public.set_type NOT NULL,
-    released boolean DEFAULT true NOT NULL,
-    CONSTRAINT chk_sets_name_not_empty CHECK ((name <> ''::text)),
-    CONSTRAINT chk_sets_printed_total_non_negative CHECK ((printed_total >= 0)),
-    CONSTRAINT chk_sets_slug_not_empty CHECK ((slug <> ''::text))
-);
-
-
---
 -- Name: printings_ordered; Type: VIEW; Schema: public; Owner: -
 --
 
 CREATE VIEW public.printings_ordered AS
- SELECT p.short_code,
-    p.rarity,
-    p.art_variant,
-    p.is_signed,
-    p.finish,
-    p.artist,
-    p.public_code,
-    p.printed_rules_text,
-    p.printed_effect_text,
-    p.created_at,
-    p.updated_at,
-    p.flavor_text,
-    p.id,
-    p.card_id,
-    p.set_id,
-    p.comment,
-    p.language,
-    p.printed_name,
-    p.marker_slugs,
-    p.printed_year,
-    p.size,
-    (row_number() OVER (ORDER BY l.sort_order, s.sort_order, p.short_code, (array_length(p.marker_slugs, 1) IS NOT NULL), COALESCE(( SELECT min(m.sort_order) AS min
-           FROM public.markers m
-          WHERE (m.slug = ANY (p.marker_slugs))), 0), f.sort_order, cs.sort_order))::integer AS canonical_rank
-   FROM ((((public.printings p
-     JOIN public.sets s ON ((s.id = p.set_id)))
-     JOIN public.finishes f ON ((f.slug = p.finish)))
-     JOIN public.card_sizes cs ON ((cs.slug = p.size)))
-     JOIN public.languages l ON ((l.code = p.language)));
+ SELECT short_code,
+    rarity,
+    art_variant,
+    is_signed,
+    finish,
+    artist,
+    public_code,
+    printed_rules_text,
+    printed_effect_text,
+    created_at,
+    updated_at,
+    flavor_text,
+    id,
+    card_id,
+    set_id,
+    comment,
+    language,
+    printed_name,
+    marker_slugs,
+    printed_year,
+    size,
+    canonical_rank
+   FROM public.printings;
 
 
 --
@@ -2020,6 +2025,27 @@ CREATE TABLE public.sessions (
     user_agent text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: sets; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.sets (
+    name text NOT NULL,
+    printed_total integer,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    sort_order integer DEFAULT 0 NOT NULL,
+    released_at date,
+    slug text NOT NULL,
+    id uuid DEFAULT uuidv7() NOT NULL,
+    set_type public.set_type DEFAULT 'main'::public.set_type NOT NULL,
+    released boolean DEFAULT true NOT NULL,
+    CONSTRAINT chk_sets_name_not_empty CHECK ((name <> ''::text)),
+    CONSTRAINT chk_sets_printed_total_non_negative CHECK ((printed_total >= 0)),
+    CONSTRAINT chk_sets_slug_not_empty CHECK ((slug <> ''::text))
 );
 
 
@@ -2731,6 +2757,14 @@ ALTER TABLE ONLY public.kysely_migration
 
 ALTER TABLE ONLY public.languages
     ADD CONSTRAINT languages_pkey PRIMARY KEY (code);
+
+
+--
+-- Name: latest_printing_prices latest_printing_prices_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.latest_printing_prices
+    ADD CONSTRAINT latest_printing_prices_pkey PRIMARY KEY (printing_id, marketplace);
 
 
 --
@@ -3626,13 +3660,6 @@ CREATE UNIQUE INDEX idx_mv_card_aggregates_pk ON public.mv_card_aggregates USING
 
 
 --
--- Name: idx_mv_latest_printing_prices_pk; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX idx_mv_latest_printing_prices_pk ON public.mv_latest_printing_prices USING btree (printing_id, marketplace);
-
-
---
 -- Name: idx_organization_members_user; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4204,13 +4231,6 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.custom_tag_categories 
 --
 
 CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.custom_tags FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
-
-
---
--- Name: deck_cards trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.deck_cards FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 
 --
@@ -5481,5 +5501,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict ltPBzRpv9GRUHXVIceHGunDf6lNZ4kHxyTlDEe6u0xwuItqxQHTaXRf0NT7dN0n
+\unrestrict c6fAkOKuknT3VLOM6ZoOLYI78cfSJGIcH3gvmDthh2T8is70pJQfxWyQYSESVh4
 

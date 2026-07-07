@@ -246,7 +246,7 @@ if (ctx) {
     .execute();
 
   // GET /prices reads headline prices from the latest_printing_prices table
-  // (migration 194 replaced the mv_latest_printing_prices MV with it). The
+  // (migration 196 replaced the mv_latest_printing_prices MV with it). The
   // runner maintains it during setup, before this file seeds its prices at
   // import time — so re-run the maintenance to surface them.
   await marketplaceRepo(db).refreshLatestPrices();

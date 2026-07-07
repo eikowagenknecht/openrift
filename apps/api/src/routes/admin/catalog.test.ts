@@ -21,7 +21,7 @@ const mockSetsRepo = {
 };
 
 // Set reorder shifts the printing canonical ranks, so the route calls
-// catalog.recomputeCanonicalRanks() after reordering (migration 193).
+// catalog.recomputeCanonicalRanks() after reordering (migration 195).
 const mockCatalogRepo = {
   recomputeCanonicalRanks: vi.fn(() => Promise.resolve()),
 };

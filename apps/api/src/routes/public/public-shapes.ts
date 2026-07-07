@@ -113,7 +113,7 @@ const PUBLIC_SHAPES = {
     columns: "id,slug",
   },
   // Current marketplace prices: latest headline price per (printing, marketplace).
-  // Migration 194 made this a real table (replacing mv_latest_printing_prices) so
+  // Migration 196 made this a real table (replacing mv_latest_printing_prices) so
   // it can be a shape — a materialized view can't sync. Public + read-only; the
   // client rebuilds the static marketplace→currency map itself, so no currency
   // column is synced. The 466k-row price history is never synced.

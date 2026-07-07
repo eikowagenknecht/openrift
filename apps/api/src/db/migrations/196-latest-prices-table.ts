@@ -13,7 +13,7 @@ import { sql } from "kysely";
 //   `marketplace_product_prices` history table. So the denormalized "latest
 //   headline per key" result has to live in a plain table that Electric can
 //   publish. This is the same denormalize-for-sync pattern used for
-//   `printings.canonical_rank` (migration 193).
+//   `printings.canonical_rank` (migration 195).
 //
 // SHAPE: one row per (printing_id, marketplace) holding the headline price in
 //   cents — the exact rows the old MV held, same PK. The table is MAINTAINED by

@@ -62,7 +62,9 @@ describe("GET /api/v1/shapes/copies", () => {
     expect(upstreamUrl?.origin).toBe("http://electric.internal:3000");
     expect(upstreamUrl?.pathname).toBe("/v1/shape");
     expect(upstreamUrl?.searchParams.get("table")).toBe("copies");
-    expect(upstreamUrl?.searchParams.get("columns")).toBe("id,collection_id,printing_id");
+    expect(upstreamUrl?.searchParams.get("columns")).toBe(
+      "id,collection_id,printing_id,condition,grader,grade,notes_public,notes_private,is_altered,links",
+    );
     expect(upstreamUrl?.searchParams.get("where")).toContain("collection_id IN");
     expect(upstreamUrl?.searchParams.get("params[1]")).toBe(USER_ID);
     expect(upstreamUrl?.searchParams.get("secret")).toBe("s3cret");
@@ -81,7 +83,9 @@ describe("GET /api/v1/shapes/copies", () => {
     // The injection attempts are overwritten by the server-pinned values.
     expect(upstreamUrl?.searchParams.get("table")).toBe("copies");
     expect(upstreamUrl?.searchParams.get("where")).toContain("collection_id IN");
-    expect(upstreamUrl?.searchParams.get("columns")).toBe("id,collection_id,printing_id");
+    expect(upstreamUrl?.searchParams.get("columns")).toBe(
+      "id,collection_id,printing_id,condition,grader,grade,notes_public,notes_private,is_altered,links",
+    );
   });
 
   it("passes Electric protocol headers through, strips hop headers, never caches", async () => {

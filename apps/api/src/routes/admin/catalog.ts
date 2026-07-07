@@ -110,7 +110,7 @@ export const adminCatalogRouter = {
     }
 
     await setsRepo.reorder(ids);
-    // Set sort_order feeds the printing canonical rank (migration 193).
+    // Set sort_order feeds the printing canonical rank (migration 195).
     await catalog.recomputeCanonicalRanks();
   }),
 };

@@ -11,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Mock } from "vitest";
 
 import type { CopiesWriteCollection, CopyShapeRow } from "@/lib/copies-collection";
+import { stubCopyShapeRow } from "@/test/factories";
 
 vi.mock("@tanstack/react-start", () => ({
   createServerFn: () => {
@@ -282,8 +283,8 @@ describe("useMoveCopies", () => {
     // localOnly collections apply writes locally without a server handler,
     // so plain inserts seed the pre-move state.
     writer.collection.insert([
-      { id: "a", collection_id: "old", printing_id: "pr-1" },
-      { id: "b", collection_id: "old", printing_id: "pr-2" },
+      stubCopyShapeRow({ id: "a", collection_id: "old", printing_id: "pr-1" }),
+      stubCopyShapeRow({ id: "b", collection_id: "old", printing_id: "pr-2" }),
     ]);
 
     const { result } = renderHook(() => useMoveCopies(), { wrapper: wrap(client) });
@@ -314,8 +315,8 @@ describe("useDisposeCopies", () => {
     const writer = makeWriter();
     collectionMocks.writer = writer;
     writer.collection.insert([
-      { id: "x", collection_id: "col-1", printing_id: "pr-1" },
-      { id: "y", collection_id: "col-1", printing_id: "pr-2" },
+      stubCopyShapeRow({ id: "x", collection_id: "col-1", printing_id: "pr-1" }),
+      stubCopyShapeRow({ id: "y", collection_id: "col-1", printing_id: "pr-2" }),
     ]);
 
     const { result } = renderHook(() => useDisposeCopies(), { wrapper: wrap(client) });

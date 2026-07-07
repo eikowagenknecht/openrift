@@ -134,6 +134,9 @@ export async function addCopies(
  * Cross-field state is normalized via {@link normalizeCopyMetadataPatch}
  * (shared with the client's optimistic update) so a patch only has to be
  * internally consistent.
+ *
+ * @returns The Postgres txid of the update, for Electric stream matching
+ *   (ADR-027 step 2).
  */
 export async function updateCopies(
   transact: Transact,

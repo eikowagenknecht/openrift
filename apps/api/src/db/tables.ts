@@ -156,7 +156,7 @@ export interface PrintingsTable {
   /** Year stamped on the physical card (e.g. 2025). Differs from set release for reprints. */
   printedYear: number | null;
   /**
-   * Denormalized canonical sort rank (migration 193). Encodes
+   * Denormalized canonical sort rank (migration 195). Encodes
    * (language.sort_order, set.sort_order, short_code, has_markers,
    * primary_marker.sort_order, finish.sort_order) as a single global integer.
    * Nullable in the DB, but `recompute_printing_canonical_ranks()` repopulates
@@ -1483,7 +1483,7 @@ interface CardCardTypesTable {
   position: number;
 }
 
-// ─── Latest prices table (migration 194, replaced the MV from 085/111) ───────
+// ─── Latest prices table (migration 196, replaced the MV from 085/111) ───────
 
 /**
  * Latest headline price per `(printingId, marketplace)`, in cents. Migration 194
@@ -1510,7 +1510,7 @@ interface MvCardAggregatesView {
 // ─── Views (migration 096, denormalized in 193) ──────────────────────────────
 
 /**
- * Since migration 193 `printings_ordered` is a plain passthrough
+ * Since migration 195 `printings_ordered` is a plain passthrough
  * (`SELECT * FROM printings`) — `canonical_rank` is now a stored column on
  * `printings` rather than a window expression. The view stays so existing
  * Kysely consumers keep selecting `canonicalRank` unchanged.
@@ -1675,7 +1675,7 @@ export interface Database {
   // Job runs (migration 101)
   jobRuns: JobRunsTable;
 
-  // Latest prices table (migration 194, replaced the MV from 085/111)
+  // Latest prices table (migration 196, replaced the MV from 085/111)
   latestPrintingPrices: LatestPrintingPricesTable;
 
   // Materialized views (migration 085)

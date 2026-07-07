@@ -276,7 +276,7 @@ export async function bootstrapSeededTestDb(
     const seedSql = readFileSync(new URL("fixtures/seed.sql", import.meta.url), "utf-8");
     const sql = postgres(testUrl, { onnotice: noop });
     await sql.unsafe(seedSql);
-    // `printings.canonical_rank` is a denormalized column (migration 193) that
+    // `printings.canonical_rank` is a denormalized column (migration 195) that
     // production write-paths repopulate via
     // `recompute_printing_canonical_ranks()` at the end of every
     // ordering-mutating transaction. The static seed inserts printings
@@ -286,7 +286,7 @@ export async function bootstrapSeededTestDb(
     await sql`SELECT recompute_printing_canonical_ranks()`;
     if (options?.refreshMaterializedViews) {
       // Migrations create the views before the seed data exists. The
-      // latest_printing_prices table (migration 194) replaced the
+      // latest_printing_prices table (migration 196) replaced the
       // mv_latest_printing_prices MV so Electric can sync it; populate it with
       // the same DISTINCT-ON upsert refreshLatestPrices() runs.
       console.log("Refreshing materialized views...");

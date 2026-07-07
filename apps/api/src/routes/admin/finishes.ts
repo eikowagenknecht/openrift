@@ -30,7 +30,7 @@ export const adminFinishesRouter = {
       unknownLabel: "finish slugs",
     });
     await repo.reorder(slugs);
-    // Finish sort_order feeds the printing canonical rank (migration 193).
+    // Finish sort_order feeds the printing canonical rank (migration 195).
     await context.repos.catalog.recomputeCanonicalRanks();
   }),
 

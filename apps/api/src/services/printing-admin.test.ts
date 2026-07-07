@@ -17,7 +17,7 @@ import { deleteRehostFiles } from "./image-rehost.js";
 
 function mockTransact(trxRepos: unknown): Transact {
   // Every ordering-mutating service recomputes the printing canonical ranks
-  // inside its transaction (migration 193). Inject a catalog stub so each test's
+  // inside its transaction (migration 195). Inject a catalog stub so each test's
   // hand-rolled trxRepos doesn't need to declare it.
   const repos = trxRepos as Record<string, unknown>;
   if (repos && typeof repos === "object" && !("catalog" in repos)) {

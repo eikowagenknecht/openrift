@@ -16,6 +16,7 @@ import type {
 } from "@openrift/shared";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
+import type { CopyShapeRow } from "@/lib/copies-collection";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import type { DeckCardShapeRow } from "@/lib/decks-offline";
 
@@ -44,6 +45,28 @@ export function resetIdCounter(): void {
  * Creates a stub CopyResponse with empty metadata (ADR-038) defaults.
  * @returns A complete CopyResponse with overrides applied.
  */
+/**
+ * A raw copies shape row (snake_case Electric columns) with the ADR-038
+ * metadata columns defaulted.
+ *
+ * @returns The stubbed shape row.
+ */
+export function stubCopyShapeRow(overrides: Partial<CopyShapeRow> = {}): CopyShapeRow {
+  return {
+    id: nextId(),
+    collection_id: nextId(),
+    printing_id: nextId(),
+    condition: null,
+    grader: null,
+    grade: null,
+    notes_public: null,
+    notes_private: null,
+    is_altered: false,
+    links: [],
+    ...overrides,
+  };
+}
+
 export function stubCopy(overrides: Partial<CopyResponse> = {}): CopyResponse {
   return {
     id: nextId(),

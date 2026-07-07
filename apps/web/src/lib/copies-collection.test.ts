@@ -5,6 +5,7 @@ import { createLiveQueryCollection } from "@tanstack/react-db";
 import { QueryClient } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { stubCopyShapeRow } from "../test/factories.js";
 import {
   createCopyOfflineMutationFns,
   getCopiesCollection,
@@ -208,7 +209,7 @@ describe("createCopyOfflineMutationFns", () => {
   });
 
   function makeRow(id: string, collectionId = "col-1", printingId = "pr-1") {
-    return { id, collection_id: collectionId, printing_id: printingId };
+    return stubCopyShapeRow({ id, collection_id: collectionId, printing_id: printingId });
   }
 
   // The mutation functions only touch utils.awaitTxId on the collection.
@@ -236,7 +237,22 @@ describe("createCopyOfflineMutationFns", () => {
     expect(requests).toHaveLength(1);
     expect(requests[0].url).toContain("/api/v1/copies");
     expect(requests[0].body).toEqual({
-      copies: [{ id: "id-1", printingId: "pr-1", collectionId: "col-1" }],
+      copies: [
+        {
+          id: "id-1",
+          printingId: "pr-1",
+          collectionId: "col-1",
+          // The ADR-038 metadata rides along so CSV-import conditions persist
+          // at insert time.
+          condition: null,
+          grader: null,
+          grade: null,
+          notesPublic: null,
+          notesPrivate: null,
+          isAltered: false,
+          links: [],
+        },
+      ],
     });
     expect(awaitTxId).toHaveBeenCalledWith(42);
     expect(invalidateSpy.mock.calls.map(([arg]) => arg?.queryKey)).toContainEqual(

@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import type { CopyViewRow } from "@/lib/copies-collection";
+import { stubCopy } from "@/test/factories";
 
 import { decideRemoval, pickNewestCopy } from "./use-quick-add-actions-helpers";
 
 function copy(id: string, printingId: string, collectionId: string, synced = true): CopyViewRow {
-  return { id, printingId, collectionId, groupId: null, synced };
+  return { ...stubCopy({ id, printingId, collectionId }), synced };
 }
 
 describe("pickNewestCopy", () => {

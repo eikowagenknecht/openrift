@@ -109,9 +109,10 @@ export type CopyViewRow = CopyResponse & { synced: boolean };
 // vertical). The lists/list-entries and deck-cards shapes joined at v4 — a
 // NEW shape never needs a bump (its table starts empty), only widening an
 // already-shipped shape's columns does. v5: the rebase onto post-ADR-037 main
-// widened the catalog printings shape with `size` and the card-bans/card-errata
+// widened the catalog printings shape with `size`, the card-bans/card-errata
 // shapes with their `id` primary key (Electric rejects a shape whose column
-// list omits the PK, so both had synced empty).
+// list omits the PK, so both had synced empty), and the copies shape with the
+// ADR-038 per-copy metadata columns.
 //
 // Exported so the public catalog collections (catalog-collection.ts) reuse the
 // SAME version — they share the one persistence coordinator + adapter slot, and

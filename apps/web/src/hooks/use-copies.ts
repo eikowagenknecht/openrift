@@ -1,4 +1,8 @@
-import type { CopyListMembershipsResponse, CopyMetadataPatch, CopyResponse } from "@openrift/shared";
+import type {
+  CopyListMembershipsResponse,
+  CopyMetadataPatch,
+  CopyResponse,
+} from "@openrift/shared";
 import { normalizeCopyMetadataPatch } from "@openrift/shared";
 import { copiesContract } from "@openrift/shared/contracts";
 import type { OfflineExecutor } from "@tanstack/offline-transactions";
