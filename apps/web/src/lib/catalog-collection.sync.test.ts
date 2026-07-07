@@ -94,6 +94,22 @@ const SHAPE_ROWS: Record<string, { table: string; rows: ReturnType<typeof insert
       }),
     ],
   },
+  "/public-shapes/card-card-types": {
+    table: "card_card_types",
+    rows: [
+      // Deliberately out of position order to prove the sort.
+      insert("card_card_types", "card-1:gear", {
+        card_id: "card-1",
+        type_slug: "gear",
+        position: 1,
+      }),
+      insert("card_card_types", "card-1:unit", {
+        card_id: "card-1",
+        type_slug: "unit",
+        position: 0,
+      }),
+    ],
+  },
   "/public-shapes/printings": {
     table: "printings",
     rows: [
@@ -106,6 +122,7 @@ const SHAPE_ROWS: Record<string, { table: string; rows: ReturnType<typeof insert
         art_variant: "normal",
         is_signed: false,
         finish: "normal",
+        size: "standard",
         artist: "Artist",
         public_code: "rb1-001",
         printed_rules_text: null,
@@ -223,7 +240,8 @@ const SHAPE_ROWS: Record<string, { table: string; rows: ReturnType<typeof insert
   "/public-shapes/card-bans": {
     table: "card_bans",
     rows: [
-      insert("card_bans", "card-1:standard:2025-02-01", {
+      insert("card_bans", "ban-1", {
+        id: "ban-1",
         card_id: "card-1",
         format_id: "standard",
         banned_at: "2025-02-01",
@@ -231,7 +249,8 @@ const SHAPE_ROWS: Record<string, { table: string; rows: ReturnType<typeof insert
         reason: "too strong",
       }),
       // Already unbanned — must be filtered out.
-      insert("card_bans", "card-1:legacy:2025-01-01", {
+      insert("card_bans", "ban-2", {
+        id: "ban-2",
         card_id: "card-1",
         format_id: "legacy",
         banned_at: "2025-01-01",
@@ -302,6 +321,7 @@ describe("catalog fed by mocked Electric shapes", () => {
 
     // canonicalRank rides through from the synced row.
     expect(printing.canonicalRank).toBe(42);
+    expect(printing.size).toBe("standard");
 
     // Markers resolved from marker_slugs against the markers vocabulary.
     expect(printing.markers).toEqual([
@@ -322,6 +342,8 @@ describe("catalog fed by mocked Electric shapes", () => {
     const card = result.cardsById["card-1"];
     expect(card.domains).toEqual(["calm", "fury"]);
     expect(card.superTypes).toEqual(["champion"]);
+    // Multi-type list (ADR-037) ordered by position, not arrival order.
+    expect(card.types).toEqual(["unit", "gear"]);
     expect(card.bans).toEqual([
       {
         formatId: "standard",

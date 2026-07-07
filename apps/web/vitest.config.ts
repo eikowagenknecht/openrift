@@ -6,6 +6,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   define: {
     __COMMIT_HASH__: JSON.stringify("test"),
+    __ELECTRIC_SHAPE_ORIGIN__: JSON.stringify(""),
   },
   resolve: {
     alias: {

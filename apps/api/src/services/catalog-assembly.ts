@@ -1,12 +1,7 @@
-import type {
-  CatalogResponse,
-  CatalogResponseCardValue,
-  CatalogResponsePrintingValue,
-  Printing,
-} from "@openrift/shared";
+import type { CatalogResponse, Printing } from "@openrift/shared";
+import { assembleCatalogStaticParts } from "@openrift/shared/catalog-assembly";
 
 import type { Repos } from "../deps.js";
-import { loadMarkerAndChannelMaps, resolveMarkers } from "../utils/printing-response.js";
 
 /**
  * Assembles the full catalog (cards + printings + sets) server-side. Extracted
@@ -14,20 +9,29 @@ import { loadMarkerAndChannelMaps, resolveMarkers } from "../utils/printing-resp
  * evaluation (ADR-034), which needs a server-side `Printing[]` to run
  * `filterCards` against.
  *
+ * The static parts (sets, cards, printings, custom-tag assignments) come from
+ * the shared `assembleCatalogStaticParts` — the exact same pure transform the
+ * synced web client runs over Electric rows (ADR-027), so the server response
+ * and the client-assembled catalog can never drift. This function is a thin
+ * DB-fetch + assembly + dynamic-merge caller; `totalCopies` is the only
+ * dynamic field merged here.
+ *
  * @returns The catalog response (cards/printings keyed by id, sets as array).
  */
 export async function assembleCatalogResponse(repos: Repos): Promise<CatalogResponse> {
-  const { catalog } = repos;
+  const { catalog, distributionChannels, customTags } = repos;
 
   const [
-    sets,
+    setRows,
     cardRows,
     printingRows,
     imageRows,
     banRows,
     errataRows,
+    markerRows,
+    allChannels,
+    customTagAssignmentRows,
     totalCopies,
-    customTagAssignmentsMap,
   ] = await Promise.all([
     catalog.sets(),
     catalog.cards(),
@@ -35,65 +39,33 @@ export async function assembleCatalogResponse(repos: Repos): Promise<CatalogResp
     catalog.printingImages(),
     catalog.cardBans(),
     catalog.cardErrata(),
+    catalog.markersList(),
+    distributionChannels.listAll(),
+    customTags.assignmentRows(),
     catalog.totalCopies(),
-    repos.customTags.assignmentsByCard(),
   ]);
 
-  const { markerBySlug, channelsByPrinting } = await loadMarkerAndChannelMaps(
-    repos,
-    printingRows.map((p) => p.id),
+  const channelLinkRows = await distributionChannels.listForPrintingIds(
+    printingRows.map((printing) => printing.id),
   );
 
-  const bansByCard = Map.groupBy(banRows, (r) => r.cardId);
-
-  const errataByCard = new Map(
-    errataRows.map((r) => [
-      r.cardId,
-      {
-        correctedRulesText: r.correctedRulesText,
-        correctedEffectText: r.correctedEffectText,
-        source: r.source,
-        sourceUrl: r.sourceUrl,
-        effectiveDate: r.effectiveDate ? String(r.effectiveDate) : null,
-      },
-    ]),
-  );
-
-  const cards: Record<string, CatalogResponseCardValue> = {};
-  for (const { id, ...rest } of cardRows) {
-    cards[id] = {
-      ...rest,
-      errata: errataByCard.get(id) ?? null,
-      bans: (bansByCard.get(id) ?? []).map((b) => ({
-        formatId: b.formatId,
-        formatName: b.formatName,
-        bannedAt: b.bannedAt,
-        reason: b.reason,
-      })),
-    };
-  }
-
-  const imagesByPrinting = Map.groupBy(imageRows, (r) => r.printingId);
-
-  const printings: Record<string, CatalogResponsePrintingValue> = {};
-  for (const { id, markerSlugs, ...rest } of printingRows) {
-    printings[id] = {
-      ...rest,
-      markers: resolveMarkers(markerSlugs, markerBySlug),
-      distributionChannels: channelsByPrinting.get(id) ?? [],
-      images: (imagesByPrinting.get(id) ?? []).map((i) => ({
-        face: i.face,
-        imageId: i.imageId,
-      })),
-    };
-  }
+  const staticParts = assembleCatalogStaticParts({
+    setRows,
+    cardRows,
+    printingRows,
+    imageRows,
+    banRows,
+    errataRows,
+    markerRows,
+    allChannels,
+    channelLinkRows,
+    customTagAssignmentRows,
+  });
 
   return {
-    sets,
-    cards,
-    printings,
+    ...staticParts,
+    // Dynamic, per-request community scalar — never part of the synced shape.
     totalCopies,
-    customTagAssignments: Object.fromEntries(customTagAssignmentsMap),
   };
 }
 

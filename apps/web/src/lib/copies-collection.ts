@@ -27,7 +27,13 @@ import { electricCollectionOptions } from "@tanstack/electric-db-collection";
 import type { ElectricCollectionUtils, Txid } from "@tanstack/electric-db-collection";
 import { IndexedDBAdapter, startOfflineExecutor } from "@tanstack/offline-transactions";
 import type { OfflineConfig, OfflineExecutor } from "@tanstack/offline-transactions";
-import { coalesce, createCollection, createLiveQueryCollection, eq } from "@tanstack/react-db";
+import {
+  BasicIndex,
+  coalesce,
+  createCollection,
+  createLiveQueryCollection,
+  eq,
+} from "@tanstack/react-db";
 import type { Collection } from "@tanstack/react-db";
 import { useQueryClient } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
@@ -41,6 +47,7 @@ import type { CollectionShapeRow, CollectionsWriteCollection } from "@/lib/colle
 import { usePersistence } from "@/lib/db-persistence";
 import { createDeckOfflineMutationFns } from "@/lib/decks-offline";
 import type { DeckCardShapeRow, DeckCardsWriteCollection } from "@/lib/decks-offline";
+import { electricAuthenticatedFetch, electricShapeOrigin } from "@/lib/electric-origin";
 import { createListOfflineMutationFns } from "@/lib/lists-offline";
 import type {
   ListEntriesWriteCollection,
@@ -101,12 +108,15 @@ export type CopyViewRow = CopyResponse & { synced: boolean };
 // is_inbox, and sort_order for the synced collections UI (ADR-027 collections
 // vertical). The lists/list-entries and deck-cards shapes joined at v4 — a
 // NEW shape never needs a bump (its table starts empty), only widening an
-// already-shipped shape's columns does.
+// already-shipped shape's columns does. v5: the rebase onto post-ADR-037 main
+// widened the catalog printings shape with `size` and the card-bans/card-errata
+// shapes with their `id` primary key (Electric rejects a shape whose column
+// list omits the PK, so both had synced empty).
 //
 // Exported so the public catalog collections (catalog-collection.ts) reuse the
 // SAME version — they share the one persistence coordinator + adapter slot, and
 // diverging the version would silently cross-wipe these collections' rows.
-export const PERSISTED_SCHEMA_VERSION = 4;
+export const PERSISTED_SCHEMA_VERSION = 5;
 
 // The API caps copy mutations at 500 ids/rows per request.
 const BATCH_SIZE = 500;
@@ -424,7 +434,8 @@ function createCopiesShapeCollection(
       // still resumes past them, leaving the collection permanently empty.
       // With it, the bump also invalidates the resume point and forces a full
       // refetch. The proxy ignores the parameter.
-      url: `${globalThis.location.origin}/api/v1/shapes/copies?v=${PERSISTED_SCHEMA_VERSION}`,
+      url: `${electricShapeOrigin()}/api/v1/shapes/copies?v=${PERSISTED_SCHEMA_VERSION}`,
+      fetchClient: electricAuthenticatedFetch,
     },
     getKey: (row) => row.id,
     // No onInsert/onUpdate/onDelete: every write goes through the offline
@@ -461,7 +472,8 @@ function createCollectionsShapeCollection(
     shapeOptions: {
       // Schema version in the URL for the same resume-point-invalidation
       // reason as the copies shape above.
-      url: `${globalThis.location.origin}/api/v1/shapes/collections?v=${PERSISTED_SCHEMA_VERSION}`,
+      url: `${electricShapeOrigin()}/api/v1/shapes/collections?v=${PERSISTED_SCHEMA_VERSION}`,
+      fetchClient: electricAuthenticatedFetch,
     },
     getKey: (row) => row.id,
     // No onInsert/onUpdate/onDelete: collection CRUD goes through the offline
@@ -493,7 +505,8 @@ function createListsShapeCollection(
     shapeOptions: {
       // Schema version in the URL for the same resume-point-invalidation
       // reason as the copies shape above.
-      url: `${globalThis.location.origin}/api/v1/shapes/lists?v=${PERSISTED_SCHEMA_VERSION}`,
+      url: `${electricShapeOrigin()}/api/v1/shapes/lists?v=${PERSISTED_SCHEMA_VERSION}`,
+      fetchClient: electricAuthenticatedFetch,
     },
     getKey: (row) => row.id,
     // No onInsert/onUpdate/onDelete: list CRUD goes through the offline
@@ -525,7 +538,8 @@ function createListEntriesShapeCollection(
     shapeOptions: {
       // Schema version in the URL for the same resume-point-invalidation
       // reason as the copies shape above.
-      url: `${globalThis.location.origin}/api/v1/shapes/list-entries?v=${PERSISTED_SCHEMA_VERSION}`,
+      url: `${electricShapeOrigin()}/api/v1/shapes/list-entries?v=${PERSISTED_SCHEMA_VERSION}`,
+      fetchClient: electricAuthenticatedFetch,
     },
     getKey: (row) => row.id,
     // No onInsert/onUpdate/onDelete: entry mutations go through the offline
@@ -557,7 +571,8 @@ function createDeckCardsShapeCollection(
     shapeOptions: {
       // Schema version in the URL for the same resume-point-invalidation
       // reason as the copies shape above.
-      url: `${globalThis.location.origin}/api/v1/shapes/deck-cards?v=${PERSISTED_SCHEMA_VERSION}`,
+      url: `${electricShapeOrigin()}/api/v1/shapes/deck-cards?v=${PERSISTED_SCHEMA_VERSION}`,
+      fetchClient: electricAuthenticatedFetch,
     },
     getKey: (row) => row.id,
     // No onInsert/onUpdate/onDelete: deck-card edits go through the offline
@@ -616,6 +631,12 @@ function createEntry(
     } as unknown as OfflineConfig["mutationFns"],
     storage: new IndexedDBAdapter(`openrift-outbox-${userId}`, "transactions"),
   });
+
+  // Index the collections shape on `id` before the view joins on it: without
+  // an index, the live-query leftJoin falls back to a full scan of the
+  // collections shape per copy row — O(copies × collections) on every initial
+  // sync and every collections change.
+  collectionsShape.createIndex((row) => row.id, { indexType: BasicIndex });
 
   // The derived view: raw copies joined with the collections projection,
   // shaped exactly like the old `CopyResponse` feed. Left join so a copy

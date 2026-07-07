@@ -45,10 +45,16 @@ const PUBLIC_SHAPES = {
     table: "card_super_types",
     columns: "card_id,super_type_slug",
   },
+  // Ordered multi-type rows (ADR-037). Position 0 mirrors `cards.type`; the
+  // client rebuilds the per-card `types` array ordered by position.
+  cardCardTypes: {
+    table: "card_card_types",
+    columns: "card_id,type_slug,position",
+  },
   printings: {
     table: "printings",
     columns:
-      "id,card_id,set_id,short_code,rarity,art_variant,is_signed,finish,artist,public_code,printed_rules_text,printed_effect_text,flavor_text,printed_name,printed_year,language,marker_slugs,comment,canonical_rank",
+      "id,card_id,set_id,short_code,rarity,art_variant,is_signed,finish,size,artist,public_code,printed_rules_text,printed_effect_text,flavor_text,printed_name,printed_year,language,marker_slugs,comment,canonical_rank",
   },
   sets: {
     table: "sets",
@@ -77,15 +83,20 @@ const PUBLIC_SHAPES = {
     table: "printing_distribution_channels",
     columns: "printing_id,channel_id,distribution_note",
   },
+  // `id` is the table's primary key — Electric rejects any shape whose column
+  // list omits the PK with a 400 ("columns must include all primary key
+  // columns"), which made this shape sync permanently empty in the first
+  // ADR-027 attempt.
   cardErrata: {
     table: "card_errata",
-    columns: "card_id,corrected_rules_text,corrected_effect_text,source,source_url,effective_date",
+    columns:
+      "id,card_id,corrected_rules_text,corrected_effect_text,source,source_url,effective_date",
   },
   // The client keeps a ban while `unbanned_at` is null and resolves the format
-  // display name from the `formats` shape.
+  // display name from the `formats` shape. `id` required — see cardErrata.
   cardBans: {
     table: "card_bans",
-    columns: "card_id,format_id,banned_at,unbanned_at,reason",
+    columns: "id,card_id,format_id,banned_at,unbanned_at,reason",
   },
   formats: {
     table: "formats",
@@ -102,7 +113,7 @@ const PUBLIC_SHAPES = {
     columns: "id,slug",
   },
   // Current marketplace prices: latest headline price per (printing, marketplace).
-  // Migration 159 made this a real table (replacing mv_latest_printing_prices) so
+  // Migration 194 made this a real table (replacing mv_latest_printing_prices) so
   // it can be a shape — a materialized view can't sync. Public + read-only; the
   // client rebuilds the static marketplace→currency map itself, so no currency
   // column is synced. The 466k-row price history is never synced.
@@ -130,6 +141,7 @@ export const publicShapesRoute = new Hono<{ Variables: Variables }>()
   .get("/cards", (c) => proxyPublicShape(c, PUBLIC_SHAPES.cards))
   .get("/card-domains", (c) => proxyPublicShape(c, PUBLIC_SHAPES.cardDomains))
   .get("/card-super-types", (c) => proxyPublicShape(c, PUBLIC_SHAPES.cardSuperTypes))
+  .get("/card-card-types", (c) => proxyPublicShape(c, PUBLIC_SHAPES.cardCardTypes))
   .get("/printings", (c) => proxyPublicShape(c, PUBLIC_SHAPES.printings))
   .get("/sets", (c) => proxyPublicShape(c, PUBLIC_SHAPES.sets))
   .get("/printing-images", (c) => proxyPublicShape(c, PUBLIC_SHAPES.printingImages))

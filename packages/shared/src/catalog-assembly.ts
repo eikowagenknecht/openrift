@@ -32,11 +32,11 @@ import type {
 } from "./types/catalog.js";
 import type {
   ArtVariant,
+  CardSize,
   CardType,
   Domain,
   Finish,
   Rarity,
-  SetType,
   SuperType,
 } from "./types/enums.js";
 
@@ -52,7 +52,7 @@ export interface CatalogSetRowInput {
   name: string;
   releasedAt: string | null;
   released: boolean;
-  setType: SetType;
+  setType: "main" | "supplemental";
 }
 
 /**
@@ -66,6 +66,8 @@ export interface CatalogCardRowInput {
   slug: string;
   name: string;
   type: CardType;
+  /** Ordered multi-type list (ADR-037); position 0 mirrors `type`. */
+  types: CardType[];
   might: number | null;
   energy: number | null;
   power: number | null;
@@ -108,6 +110,8 @@ export interface CatalogPrintingRowInput {
   artVariant: ArtVariant;
   isSigned: boolean;
   finish: Finish;
+  /** Physical card size slug (migration 180); ranked into `canonicalRank`. */
+  size: CardSize;
   artist: string;
   publicCode: string;
   printedRulesText: string | null;
@@ -374,6 +378,7 @@ export function shapeCards(
       slug: row.slug,
       name: row.name,
       type: row.type,
+      types: row.types,
       superTypes: row.superTypes,
       domains: row.domains,
       might: row.might,
@@ -412,6 +417,7 @@ export function shapePrintings(
       markers: resolveMarkers(row.markerSlugs, markerBySlug),
       distributionChannels: channelsByPrinting.get(row.id) ?? [],
       finish: row.finish,
+      size: row.size,
       images: imagesByPrinting.get(row.id) ?? [],
       artist: row.artist,
       publicCode: row.publicCode,

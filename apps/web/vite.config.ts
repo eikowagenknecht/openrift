@@ -178,6 +178,14 @@ export default defineConfig(({ mode, command }) => {
   return {
     define: {
       __COMMIT_HASH__: JSON.stringify(commitHash),
+      // Dev server only: Electric shape long-polls go straight to the API
+      // origin instead of through the vite proxy. The dev server speaks
+      // HTTP/1.1 (server.proxy rules out vite's h2), where the browser caps
+      // connections at ~6 per origin — standing shape long-polls through the
+      // proxy would starve the app's own requests (the ADR-027 saturation).
+      // A separate origin gets its own connection pool. Production builds get
+      // "" (same-origin; nginx/Cloudflare terminate with HTTP/2+).
+      __ELECTRIC_SHAPE_ORIGIN__: JSON.stringify(command === "serve" ? apiProxyTarget : ""),
     },
     resolve: {
       tsconfigPaths: true,

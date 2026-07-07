@@ -1,7 +1,7 @@
 // Public card-catalog sync (ADR-027 catalog vertical, WEB half).
 //
 // The card catalog is public, read-only, and identical for every visitor, so
-// it is synced through 15 single-table Electric shapes (no `where` clause, no
+// it is synced through 16 single-table Electric shapes (no `where` clause, no
 // per-user params) and reassembled client-side into the same `UseCardsResult`
 // the edge-fetch path produces. Once the shapes are synced, `useCards` reads
 // from here and never touches the network again on return visits — the local
@@ -20,7 +20,7 @@
 // verticals' rows (see the long comment in copies-collection.ts).
 //
 // Derivation strategy: the catalog changes rarely, so rather than wiring a
-// 15-way differential live-query join we recompute the enriched
+// 16-way differential live-query join we recompute the enriched
 // `UseCardsResult` from plain collection snapshots, memoized on a version key
 // that bumps whenever any shape emits a change. The recompute is cheap relative
 // to how often it runs (essentially once, after the initial sync settles).
@@ -52,6 +52,7 @@ import { enrichCatalog } from "@/lib/catalog-query";
 import type { UseCardsResult } from "@/lib/catalog-query";
 import { PERSISTED_SCHEMA_VERSION } from "@/lib/copies-collection";
 import { usePersistence } from "@/lib/db-persistence";
+import { electricShapeOrigin } from "@/lib/electric-origin";
 
 // ── Raw shape rows ───────────────────────────────────────────────────────────
 //
@@ -86,6 +87,12 @@ type CatalogCardSuperTypeShapeRow = {
   super_type_slug: string;
 };
 
+type CatalogCardTypeShapeRow = {
+  card_id: string;
+  type_slug: string;
+  position: number;
+};
+
 type CatalogPrintingShapeRow = {
   id: string;
   card_id: string;
@@ -95,6 +102,7 @@ type CatalogPrintingShapeRow = {
   art_variant: string;
   is_signed: boolean;
   finish: string;
+  size: string;
   artist: string;
   public_code: string;
   printed_rules_text: string | null;
@@ -156,6 +164,7 @@ type CatalogPrintingDistributionChannelShapeRow = {
 };
 
 type CatalogErrataShapeRow = {
+  id: string;
   card_id: string;
   corrected_rules_text: string | null;
   corrected_effect_text: string | null;
@@ -165,6 +174,7 @@ type CatalogErrataShapeRow = {
 };
 
 type CatalogBanShapeRow = {
+  id: string;
   card_id: string;
   format_id: string;
   banned_at: string;
@@ -188,7 +198,7 @@ type CatalogCustomTagShapeRow = {
 };
 // oxlint-enable typescript/consistent-type-definitions
 
-// Any of the 15 catalog shape collections (the row types differ, but the
+// Any of the 16 catalog shape collections (the row types differ, but the
 // readiness / version machinery treats them uniformly).
 type AnyCatalogCollection = Collection<Record<string, unknown>, string | number>;
 
@@ -196,6 +206,7 @@ interface CatalogCollections {
   cards: Collection<CatalogCardShapeRow, string | number>;
   cardDomains: Collection<CatalogCardDomainShapeRow, string | number>;
   cardSuperTypes: Collection<CatalogCardSuperTypeShapeRow, string | number>;
+  cardCardTypes: Collection<CatalogCardTypeShapeRow, string | number>;
   printings: Collection<CatalogPrintingShapeRow, string | number>;
   sets: Collection<CatalogSetShapeRow, string | number>;
   printingImages: Collection<CatalogPrintingImageShapeRow, string | number>;
@@ -215,7 +226,7 @@ interface CatalogCollections {
 
 interface CatalogStoreEntry {
   collections: CatalogCollections;
-  /** All 15 collections as a flat array, for uniform iteration. */
+  /** All 16 collections as a flat array, for uniform iteration. */
   all: AnyCatalogCollection[];
   /**
    * Monotonic version, bumped on every change emitted by any collection.
@@ -247,7 +258,17 @@ function createCatalogShapeCollection<TRow extends Record<string, unknown>>(
     shapeOptions: {
       // Public, unauthenticated, CDN-cacheable. Schema version in the URL for
       // the same resume-point-invalidation reason as the copies shape.
-      url: `${globalThis.location.origin}/api/v1/public-shapes/${endpoint}?v=${PERSISTED_SCHEMA_VERSION}`,
+      url: `${electricShapeOrigin()}/api/v1/public-shapes/${endpoint}?v=${PERSISTED_SCHEMA_VERSION}`,
+      // Catch up, then STOP — no standing live long-poll. The catalog changes
+      // weeks apart, but a live catalog costs 16 held connections per visitor
+      // at every hop (browser where HTTP/1.1 applies, host nginx, proxy
+      // nginx, the Bun API proxying each stream, Electric itself) — the
+      // connection-saturation that got ADR-027 pulled from main. With
+      // subscribe: false the shapes sync to head on page load (a cheap 204
+      // when nothing changed, thanks to the persisted resume point) and hold
+      // nothing open; freshness becomes per-page-load, which for this catalog
+      // is indistinguishable from live. The 5 per-user shapes stay live.
+      subscribe: false,
     },
     getKey,
     // No onInsert/onUpdate/onDelete — the catalog is read-only.
@@ -276,6 +297,11 @@ function createCollections(
     cardSuperTypes: createCatalogShapeCollection<CatalogCardSuperTypeShapeRow>(
       "card-super-types",
       (row) => `${row.card_id}:${row.super_type_slug}`,
+      persistence,
+    ),
+    cardCardTypes: createCatalogShapeCollection<CatalogCardTypeShapeRow>(
+      "card-card-types",
+      (row) => `${row.card_id}:${row.type_slug}`,
       persistence,
     ),
     printings: createCatalogShapeCollection<CatalogPrintingShapeRow>(
@@ -312,12 +338,12 @@ function createCollections(
       ),
     cardErrata: createCatalogShapeCollection<CatalogErrataShapeRow>(
       "card-errata",
-      (row) => row.card_id,
+      (row) => row.id,
       persistence,
     ),
     cardBans: createCatalogShapeCollection<CatalogBanShapeRow>(
       "card-bans",
-      (row) => `${row.card_id}:${row.format_id}:${row.banned_at}`,
+      (row) => row.id,
       persistence,
     ),
     formats: createCatalogShapeCollection<CatalogFormatShapeRow>(
@@ -377,6 +403,7 @@ function getEntry(
     collections.cards as unknown as AnyCatalogCollection,
     collections.cardDomains as unknown as AnyCatalogCollection,
     collections.cardSuperTypes as unknown as AnyCatalogCollection,
+    collections.cardCardTypes as unknown as AnyCatalogCollection,
     collections.printings as unknown as AnyCatalogCollection,
     collections.sets as unknown as AnyCatalogCollection,
     collections.printingImages as unknown as AnyCatalogCollection,
@@ -448,7 +475,7 @@ function registerSyncDebug(store: CatalogStoreEntry): void {
 }
 
 /**
- * Whether all 15 catalog shapes have finished their initial sync — i.e. the
+ * Whether all 16 catalog shapes have finished their initial sync — i.e. the
  * derived `UseCardsResult` is trustworthy. `useCards` only switches to the
  * synced path once this is true.
  *
@@ -494,23 +521,41 @@ function deriveCardsResult(store: CatalogStoreEntry): UseCardsResult {
       superTypesByCard.set(row.card_id, [row.super_type_slug]);
     }
   }
+  // Ordered multi-type list (ADR-037), position 0 first. Falls back to the
+  // card's own `type` column for a card whose junction rows haven't synced
+  // yet — `types` is contractually non-empty and position 0 mirrors `type`.
+  const typesByCard = new Map<string, CatalogCardTypeShapeRow[]>();
+  for (const row of collections.cardCardTypes.toArray) {
+    const existing = typesByCard.get(row.card_id);
+    if (existing) {
+      existing.push(row);
+    } else {
+      typesByCard.set(row.card_id, [row]);
+    }
+  }
 
-  const cardRows: CatalogCardRowInput[] = collections.cards.toArray.map((row) => ({
-    id: row.id,
-    slug: row.slug,
-    name: row.name,
-    type: row.type,
-    might: row.might,
-    energy: row.energy,
-    power: row.power,
-    mightBonus: row.might_bonus,
-    keywords: row.keywords,
-    tags: row.tags,
-    domains: (domainsByCard.get(row.id) ?? [])
-      .toSorted((a, b) => a.ordinal - b.ordinal)
-      .map((domainRow): Domain => domainRow.domain_slug),
-    superTypes: superTypesByCard.get(row.id) ?? [],
-  }));
+  const cardRows: CatalogCardRowInput[] = collections.cards.toArray.map((row) => {
+    const typeRows = typesByCard.get(row.id);
+    return {
+      id: row.id,
+      slug: row.slug,
+      name: row.name,
+      type: row.type,
+      types: typeRows?.length
+        ? typeRows.toSorted((a, b) => a.position - b.position).map((typeRow) => typeRow.type_slug)
+        : [row.type],
+      might: row.might,
+      energy: row.energy,
+      power: row.power,
+      mightBonus: row.might_bonus,
+      keywords: row.keywords,
+      tags: row.tags,
+      domains: (domainsByCard.get(row.id) ?? [])
+        .toSorted((a, b) => a.ordinal - b.ordinal)
+        .map((domainRow): Domain => domainRow.domain_slug),
+      superTypes: superTypesByCard.get(row.id) ?? [],
+    };
+  });
 
   const setRows: CatalogSetRowInput[] = collections.sets.toArray.map((row) => ({
     id: row.id,
@@ -530,6 +575,7 @@ function deriveCardsResult(store: CatalogStoreEntry): UseCardsResult {
     artVariant: row.art_variant,
     isSigned: row.is_signed,
     finish: row.finish,
+    size: row.size,
     artist: row.artist,
     publicCode: row.public_code,
     printedRulesText: row.printed_rules_text,
