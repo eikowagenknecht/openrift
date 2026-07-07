@@ -149,3 +149,20 @@ export { adminReq, req } from "./integration-helper.js";
 export async function refreshCardAggregates(db: Db): Promise<void> {
   await sql`REFRESH MATERIALIZED VIEW CONCURRENTLY mv_card_aggregates`.execute(db);
 }
+
+/**
+ * Mirror `cards.type` into the `card_card_types` junction (ADR-037) for any
+ * card missing junction rows. Test files that insert cards directly (instead
+ * of going through the repos, which write both) must call this before anything
+ * refreshes the MV — a card with an empty type set violates the catalog
+ * response contract, and because the parallel files share one database, one
+ * file's bare insert can 500 another file's catalog test.
+ * @returns A promise that resolves when the backfill completes.
+ */
+export async function syncCardCardTypes(db: Db): Promise<void> {
+  await sql`
+    INSERT INTO card_card_types (card_id, type_slug, position)
+    SELECT id, type, 0 FROM cards
+    ON CONFLICT (card_id, type_slug) DO NOTHING
+  `.execute(db);
+}

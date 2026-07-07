@@ -4,6 +4,7 @@ import {
   adminReq,
   createTestContext,
   refreshCardAggregates,
+  syncCardCardTypes,
 } from "../../../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
@@ -60,6 +61,7 @@ if (ctx) {
     .returning("id")
     .execute();
   card1Id = card1.id;
+  await syncCardCardTypes(db);
 
   await db
     .insertInto("cardDomains")
@@ -82,6 +84,7 @@ if (ctx) {
     .returning("id")
     .execute();
   _card2Id = card2.id;
+  await syncCardCardTypes(db);
 
   await db
     .insertInto("cardDomains")
@@ -105,6 +108,7 @@ if (ctx) {
     .returning("id")
     .execute();
   card3Id = card3.id;
+  await syncCardCardTypes(db);
 
   await db
     .insertInto("cardDomains")
@@ -734,7 +738,7 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
       expect(json.sources).toHaveLength(1);
       expect(json.sources[0].provider).toBe("csq-gallery");
       expect(json.sources[0].name).toBe("CSQ Unknown Card");
-      expect(json.sources[0].type).toBe("rune");
+      expect(json.sources[0].types).toEqual(["rune"]);
       expect(json.sources[0].domains).toEqual(["chaos"]);
 
       // Printing sources

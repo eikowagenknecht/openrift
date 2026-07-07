@@ -374,7 +374,7 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
     expect(ours).toBeDefined();
     expect(ours!).toHaveProperty("provider");
     expect(ours!).toHaveProperty("name");
-    expect(ours!).toHaveProperty("type");
+    expect(ours!).toHaveProperty("types");
     expect(ours!).toHaveProperty("superTypes");
     expect(ours!).toHaveProperty("domains");
     expect(ours!).toHaveProperty("rulesText");

@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createRepos } from "../../deps.js";
 import { CARD_FURY_UNIT } from "../../test/fixtures/constants.js";
-import { createTestContext, req } from "../../test/integration-context.js";
+import { createTestContext, req, syncCardCardTypes } from "../../test/integration-context.js";
 
 // Fresh ids, not in run-integration.ts's TEST_USERS registry: the suite seeds
 // its own users (like the deck-check-player suite) so the FK targets exist.
@@ -153,6 +153,7 @@ describe.skipIf(!ownerCtx)("deck-check ingest push (integration, ADR-033)", () =
 
   afterAll(async () => {
     await db.deleteFrom("friendGroups").where("id", "=", groupId).execute();
+    await syncCardCardTypes(db);
     if (ambiguousCardIds.length > 0) {
       await db.deleteFrom("cards").where("id", "in", ambiguousCardIds).execute();
     }
@@ -412,6 +413,7 @@ describe.skipIf(!ownerCtx)("deck-check ingest push (integration, ADR-033)", () =
         .set({ resolvedCardId: null, resolvedPrintingId: null, matchStatus: "unmatched" })
         .where("resolvedCardId", "=", inserted.id)
         .execute();
+      await syncCardCardTypes(db);
       await db.deleteFrom("cards").where("id", "=", inserted.id).execute();
     }
   });

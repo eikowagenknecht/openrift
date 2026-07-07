@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 
 import { createTransact } from "../deps.js";
 import type { IngestCard, IngestPrinting } from "../routes/admin/cards/schemas.js";
-import { createTestContext } from "../test/integration-context.js";
+import { createTestContext, syncCardCardTypes } from "../test/integration-context.js";
 import { ingestCandidates } from "./ingest-candidates.js";
 
 // Helpers — default external_id from short_code (cards) or short_code (printings)
@@ -108,6 +108,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
       .values({ cardId: seedCardId, domainSlug: "fury", ordinal: 0 })
       .onConflict((oc) => oc.columns(["cardId", "domainSlug"]).doNothing())
       .execute();
+    await syncCardCardTypes(db);
 
     // uq_printings_identity is now DEFERRABLE (migration 092) and so cannot be
     // used as an ON CONFLICT arbiter; do a select-or-insert dance instead.
@@ -167,6 +168,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
       .values({ cardId: aliasCardId, domainSlug: "mind", ordinal: 0 })
       .onConflict((oc) => oc.columns(["cardId", "domainSlug"]).doNothing())
       .execute();
+    await syncCardCardTypes(db);
 
     // Create an alias so "ingestbetaalias" → aliasCardId
     await db
@@ -244,7 +246,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
       .executeTakeFirst();
     expect(row).toBeDefined();
     expect(row?.name).toBe("Solo Card");
-    expect(row?.type).toBe("unit");
+    expect(row?.types).toEqual(["unit"]);
     expect(row?.might).toBe(3);
   });
 

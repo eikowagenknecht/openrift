@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createTransact } from "../deps.js";
-import { createDbContext } from "../test/integration-context.js";
+import { createDbContext, syncCardCardTypes } from "../test/integration-context.js";
 import { updatePrintingMarkers } from "./printing-admin.js";
 
 // ---------------------------------------------------------------------------
@@ -67,6 +67,7 @@ describe.skipIf(!ctx)("updatePrintingMarkers (integration)", () => {
       .returning("id")
       .execute();
     cardId = cardRow.id;
+    await syncCardCardTypes(db);
 
     await db.insertInto("cardDomains").values({ cardId, domainSlug: "fury", ordinal: 0 }).execute();
 

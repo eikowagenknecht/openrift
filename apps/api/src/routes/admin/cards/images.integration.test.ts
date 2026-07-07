@@ -5,6 +5,7 @@ import {
   adminReq,
   createTestContext,
   refreshCardAggregates,
+  syncCardCardTypes,
 } from "../../../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
@@ -92,6 +93,7 @@ if (ctx) {
     })
     .returning("id")
     .execute();
+  await syncCardCardTypes(db);
 
   await db
     .insertInto("cardDomains")

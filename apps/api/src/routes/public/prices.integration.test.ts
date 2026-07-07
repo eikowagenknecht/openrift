@@ -1,7 +1,7 @@
 import { sql } from "kysely";
 import { describe, expect, it } from "vitest";
 
-import { createTestContext, req } from "../../test/integration-context.js";
+import { createTestContext, req, syncCardCardTypes } from "../../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Prices routes
@@ -53,6 +53,7 @@ if (ctx) {
     .returning("id")
     .execute();
   cardId = cardRow.id;
+  await syncCardCardTypes(db);
 
   await db.insertInto("cardDomains").values({ cardId, domainSlug: "mind", ordinal: 0 }).execute();
 

@@ -614,6 +614,8 @@ ${typedPrintings
 export const CARD_FURY_UNIT = CARDS["annie-fiery"];
 /** A Spell card in the Fury domain (Uncommon rarity): Firestorm */
 export const CARD_FURY_SPELL = CARDS["firestorm"];
+/** A Rune card in the Fury domain: Fury Rune (printed in OGN/SFD, not OGS) */
+export const CARD_FURY_RUNE = CARDS["fury-rune"];
 /** A Unit card in the Calm domain (Rare rarity): Master Yi, Meditative */
 export const CARD_CALM_UNIT = CARDS["master-yi-meditative"];
 /** A Unit card in the Body domain (Rare rarity): Garen, Rugged */

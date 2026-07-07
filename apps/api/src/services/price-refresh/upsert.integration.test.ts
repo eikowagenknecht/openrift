@@ -2,7 +2,7 @@ import type { Logger } from "@openrift/shared/logger";
 import { beforeAll, describe, expect, it } from "vitest";
 
 import { priceRefreshRepo } from "../../repositories/price-refresh.js";
-import { createTestContext } from "../../test/integration-context.js";
+import { createTestContext, syncCardCardTypes } from "../../test/integration-context.js";
 import type { PriceUpsertConfig, StagingRow } from "./types.js";
 import { upsertPriceData } from "./upsert.js";
 
@@ -67,6 +67,7 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
     cardId = insertedCard.id;
 
     await db.insertInto("cardDomains").values({ cardId, domainSlug: "mind", ordinal: 0 }).execute();
+    await syncCardCardTypes(db);
 
     // Seed group for cardmarket marketplace
     await db

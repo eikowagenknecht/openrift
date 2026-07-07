@@ -4,6 +4,7 @@ import {
   adminReq,
   createTestContext,
   refreshCardAggregates,
+  syncCardCardTypes,
 } from "../../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
@@ -54,6 +55,7 @@ if (ctx) {
     .returning("id")
     .execute();
   cardId = cardRow.id;
+  await syncCardCardTypes(db);
 
   await db.insertInto("cardDomains").values({ cardId, domainSlug: "mind", ordinal: 0 }).execute();
 
@@ -96,6 +98,7 @@ if (ctx) {
     .returning("id")
     .execute();
   secondCardId = secondCardRow.id;
+  await syncCardCardTypes(db);
 
   await db
     .insertInto("cardDomains")

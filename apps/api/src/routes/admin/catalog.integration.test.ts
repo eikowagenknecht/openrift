@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { adminReq, createTestContext } from "../../test/integration-context.js";
+import { adminReq, createTestContext, syncCardCardTypes } from "../../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Admin catalog routes (sets + marketplace groups)
@@ -311,6 +311,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
         })
         .returning("id")
         .execute();
+      await syncCardCardTypes(testDb);
 
       await testDb
         .insertInto("cardDomains")

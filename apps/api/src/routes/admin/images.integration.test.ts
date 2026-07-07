@@ -1,3 +1,4 @@
+import { sql } from "kysely";
 import { describe, expect, it } from "vitest";
 
 import type { Io } from "../../io.js";
@@ -110,10 +111,13 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
 
   describe("POST /admin/clear-rehosted", () => {
     it("returns 200 with cleared count", async () => {
-      // Ensure no card_images have rehostedUrl without originalUrl (would violate chk_image_files_has_url)
+      // Ensure no card_images have rehostedUrl without originalUrl (would violate
+      // chk_image_files_has_url). The URL must be unique per row
+      // (idx_image_files_original_url), and the seed contains several uploaded
+      // images with a NULL originalUrl, so derive it from the row id.
       await db
         .updateTable("imageFiles")
-        .set({ originalUrl: "https://example.com/placeholder.png" })
+        .set({ originalUrl: sql<string>`'https://example.com/placeholder-' || id || '.png'` })
         .where("rehostedUrl", "is not", null)
         .where("originalUrl", "is", null)
         .execute();

@@ -6,6 +6,7 @@ import {
   adminReq,
   createTestContext,
   createUnauthenticatedTestContext,
+  syncCardCardTypes,
 } from "../../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
@@ -85,6 +86,7 @@ async function seedMarketplaceData(marketplace: string) {
     })
     .returning("id")
     .execute();
+  await syncCardCardTypes(db);
 
   await db
     .insertInto("cardDomains")
