@@ -10,7 +10,7 @@ import { sql } from "kysely";
 // in a view can't ride along. So we store the rank as a real column.
 //
 // `recompute_printing_canonical_ranks()` reruns the exact same ordering (copied
-// verbatim from migration 119 / the schema snapshot) and writes the result back
+// verbatim from migration 180 / the schema snapshot) and writes the result back
 // into `printings.canonical_rank`. Every write path that changes an ordering
 // input (printing insert/update/delete, marker/set/finish/language reorder)
 // calls this function once at the end of its transaction. The view becomes a
@@ -26,7 +26,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .execute();
 
   // The function body's ORDER BY must stay byte-for-byte identical to the old
-  // view (migration 119) so the stored ranks match what the view produced.
+  // view (migration 180) so the stored ranks match what the view produced.
   // `IS DISTINCT FROM` keeps the UPDATE to only the rows whose rank actually
   // changed, minimizing replication churn into the Electric shape.
   await sql`
@@ -49,12 +49,14 @@ export async function up(db: Kysely<unknown>): Promise<void> {
                       WHERE m.slug = ANY(p.marker_slugs)),
                      0
                    ),
-                   f.sort_order
+                   f.sort_order,
+                   cs.sort_order
                ))::int AS rn
         FROM printings p
-        JOIN sets      s ON s.id   = p.set_id
-        JOIN finishes  f ON f.slug = p.finish
-        JOIN languages l ON l.code = p.language
+        JOIN sets       s  ON s.id   = p.set_id
+        JOIN finishes   f  ON f.slug = p.finish
+        JOIN card_sizes cs ON cs.slug = p.size
+        JOIN languages  l  ON l.code = p.language
       ) r
       WHERE p.id = r.id
         AND p.canonical_rank IS DISTINCT FROM r.rn;
@@ -81,7 +83,7 @@ export async function down(db: Kysely<unknown>): Promise<void> {
 
   await sql`DROP FUNCTION IF EXISTS recompute_printing_canonical_ranks()`.execute(db);
 
-  // Recreate the original computing view (definition from migration 119).
+  // Recreate the original computing view (definition from migration 180).
   await sql`
     CREATE VIEW printings_ordered AS
     SELECT p.*,
@@ -96,11 +98,13 @@ export async function down(db: Kysely<unknown>): Promise<void> {
                   WHERE m.slug = ANY(p.marker_slugs)),
                  0
                ),
-               f.sort_order
+               f.sort_order,
+               cs.sort_order
            ))::int AS canonical_rank
     FROM printings p
-    JOIN sets      s ON s.id   = p.set_id
-    JOIN finishes  f ON f.slug = p.finish
-    JOIN languages l ON l.code = p.language
+    JOIN sets       s  ON s.id   = p.set_id
+    JOIN finishes   f  ON f.slug = p.finish
+    JOIN card_sizes cs ON cs.slug = p.size
+    JOIN languages  l  ON l.code = p.language
   `.execute(db);
 }

@@ -88,7 +88,6 @@ import { filterPrintingsByLanguages } from "@/lib/filter-printings-by-languages"
 import { formatterForMarketplace } from "@/lib/format";
 import { maxOwnedCount } from "@/lib/owned-bucket";
 import { isStackSelected, resolveContextActionTarget } from "@/lib/stack-selection";
-import { isTempCopyId } from "@/lib/temp-copy-id";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 import { useAddModeStore } from "@/stores/add-mode-store";
 import type { VariantPopoverIntent } from "@/stores/add-mode-store";
@@ -1077,11 +1076,11 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     ? currentCollection.unpricedCopyCount
     : collections.reduce((sum, col) => sum + (col.unpricedCopyCount ?? 0), 0);
 
-  // Count of selectable copies in the filtered grid, mirroring the temp-id
-  // filtering `toggleSelectAll` applies, so "all selected" lines up with what a
-  // select-all click can actually select (optimistic temp copies never enter
-  // the selection).
-  const selectableRealCount = selectableCopyIds.filter((id) => !isTempCopyId(id)).length;
+  // Count of selectable copies in the filtered grid. Copy ids are
+  // client-generated and final (ADR-027 step 2), so optimistic rows are
+  // selectable like any other and the count is simply everything the grid
+  // shows.
+  const selectableRealCount = selectableCopyIds.length;
 
   const collectionTopBar = (
     <CollectionTopBar

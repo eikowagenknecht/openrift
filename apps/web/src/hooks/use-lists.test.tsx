@@ -631,6 +631,32 @@ describe("useUpdateList", () => {
     });
     expect(writer.executor.opened).toEqual([{ mutationFnName: "updateLists" }]);
   });
+
+  it("routes a rules-bearing update to the API instead of the offline tx (ADR-034)", async () => {
+    // Rules are not shape columns — the offline path would silently drop
+    // them. The direct path skips the writer entirely and invalidates the
+    // query layer so the server-expanded entries refetch.
+    const client = makeClient();
+    const invalidateSpy = vi.spyOn(client, "invalidateQueries");
+    const writer = makeWriter();
+    writer.lists.insert([makeListRow("lst-1", { name: "Old Name" })]);
+    collectionMocks.writer = writer;
+
+    const { result } = renderHook(() => useUpdateList(), { wrapper: wrap(client) });
+    await result.current.mutateAsync({
+      listId: "lst-1",
+      rules: [],
+      ruleCombine: null,
+    });
+
+    expect(writer.executor.opened).toEqual([]);
+    expect(writer.mutationFn).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: queryKeys.lists.detail(USER_ID, "lst-1"),
+      });
+    });
+  });
 });
 
 describe("useDeleteList", () => {

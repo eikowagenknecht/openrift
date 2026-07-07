@@ -128,7 +128,7 @@ export async function deletePrinting(
     await trxMut.deletePrintingById(printing.id);
 
     // Removing a printing shifts every higher rank down — recompute in the
-    // same transaction (migration 158).
+    // same transaction (migration 193).
     await trxRepos.catalog.recomputeCanonicalRanks();
 
     return images.map((img) => img.imageFileId);
@@ -327,7 +327,7 @@ export async function acceptPrinting(
     }
 
     // A new printing changes the global canonical ordering — recompute once,
-    // inside this transaction, so the new rank commits atomically (migration 158).
+    // inside this transaction, so the new rank commits atomically (migration 193).
     await trxRepos.catalog.recomputeCanonicalRanks();
   });
 

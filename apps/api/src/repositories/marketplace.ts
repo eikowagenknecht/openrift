@@ -595,7 +595,7 @@ export function marketplaceRepo(db: Kysely<Database>) {
      *
      * Recomputes the latest headline price per `(printing_id, marketplace)` with
      * the same DISTINCT-ON query the old `mv_latest_printing_prices` materialized
-     * view used (migration 159 replaced the MV with this table so Electric can
+     * view used (migration 194 replaced the MV with this table so Electric can
      * sync current prices to the client). In one transaction it upserts every
      * current key and deletes keys that no longer have a price. The
      * `IS DISTINCT FROM` upsert guard touches only rows whose headline actually

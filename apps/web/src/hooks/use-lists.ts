@@ -362,12 +362,32 @@ interface UpdateListInput {
   ruleCombine?: ListRuleCombine | null;
 }
 
+const updateListFn = createServerFn({ method: "POST" })
+  .validator((input: UpdateListInput) => input)
+  .middleware([withCookies])
+  .handler(({ context, data }): Promise<ListResponse> => {
+    const { listId, ...fields } = data;
+    return apiOrpcClient(listsContract, context.cookie).update({ id: listId, ...fields });
+  });
+
 export function useUpdateList() {
+  const userId = useRequiredUserId();
   const writer = useListsWriter();
+  const queryClient = useQueryClient();
 
   return useMutation({
     networkMode: "always",
     mutationFn: async (body: UpdateListInput) => {
+      // ADR-034 rules are not shape columns — rule expansion is server-side
+      // and the synced lists shape can't carry them — so a rules-bearing
+      // update goes straight to the API (same reasoning as share/unshare and
+      // entry moves below). The updated shape fields flow back through the
+      // Electric stream; the query invalidation in onSettled re-expands the
+      // detail entries.
+      if (body.rules !== undefined || body.ruleCombine !== undefined) {
+        await updateListFn({ data: body });
+        return;
+      }
       if (!writer) {
         throw new Error("Cannot update a list while signed out");
       }
@@ -388,6 +408,16 @@ export function useUpdateList() {
         });
       });
       await settleForFeedback(tx.commit(), writer.executor);
+    },
+    onSettled: (_data, _error, body) => {
+      // Only the direct path needs the refetch: rule changes alter the
+      // server-expanded entries and hasRule, which live on the query layer.
+      if (body.rules !== undefined || body.ruleCombine !== undefined) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.lists.all(userId) });
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.lists.detail(userId, body.listId),
+        });
+      }
     },
   });
 }

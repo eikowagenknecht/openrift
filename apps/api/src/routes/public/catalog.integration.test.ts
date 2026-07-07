@@ -160,7 +160,7 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
 
   describe("GET /catalog", () => {
     // The catalog contract requires a numeric `canonicalRank` on every printing.
-    // That column is denormalized (migration 166) and only repopulated by write
+    // That column is denormalized (migration 193) and only repopulated by write
     // paths via `recompute_printing_canonical_ranks()`. This test (and sibling
     // files sharing the DB) insert printings directly, leaving their rank NULL,
     // which fails the route's output validation with a 500. Recompute before

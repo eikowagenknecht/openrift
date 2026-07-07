@@ -42,7 +42,7 @@ export const adminLanguagesRouter = {
       unknownLabel: "language codes",
     });
     await repo.reorder(codes);
-    // Language sort_order feeds the printing canonical rank (migration 158).
+    // Language sort_order feeds the printing canonical rank (migration 193).
     await context.repos.catalog.recomputeCanonicalRanks();
   }),
 

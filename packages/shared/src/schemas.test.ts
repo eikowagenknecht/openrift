@@ -410,6 +410,7 @@ describe("createListSchema", () => {
   it("accepts a wish rule on a wish list", () => {
     expect(
       createListSchema.safeParse({
+        id: VALID_UUID,
         name: "Wants",
         intent: "wish",
         kind: "card",
@@ -443,6 +444,7 @@ describe("createListSchema", () => {
   it("accepts several rules on a trade list (ADR-034 amendment 2)", () => {
     expect(
       createListSchema.safeParse({
+        id: VALID_UUID,
         name: "Surplus",
         intent: "trade",
         kind: "copy",
@@ -454,6 +456,7 @@ describe("createListSchema", () => {
   it("accepts a combine mode matching the intent", () => {
     expect(
       createListSchema.safeParse({
+        id: VALID_UUID,
         name: "Surplus",
         intent: "trade",
         kind: "copy",
@@ -463,6 +466,7 @@ describe("createListSchema", () => {
     ).toBe(true);
     expect(
       createListSchema.safeParse({
+        id: VALID_UUID,
         name: "Wants",
         intent: "wish",
         kind: "card",

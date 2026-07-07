@@ -1,7 +1,7 @@
-import type { CopyResponse } from "@openrift/shared";
 import { renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { CopyViewRow } from "@/lib/copies-collection";
 import { stubCopy, stubPrinting } from "@/test/factories";
 import { createStoreResetter } from "@/test/store-helpers";
 
@@ -17,7 +17,7 @@ vi.mock("@/hooks/use-copies", () => ({
 }));
 
 // The copies collection is mocked per-test via this mutable array.
-let copies: CopyResponse[] = [];
+let copies: CopyViewRow[] = [];
 vi.mock("@/lib/copies-collection", () => ({
   useCopiesCollection: () => ({ toArray: copies }),
 }));
@@ -27,12 +27,17 @@ const { useAddModeStore } = await import("@/stores/add-mode-store");
 
 const COLLECTION_ID = "11111111-1111-1111-1111-111111111111";
 
-function personalCopy(printingId: string): CopyResponse {
-  return stubCopy({
-    id: "22222222-2222-2222-2222-222222222222",
-    printingId,
-    collectionId: COLLECTION_ID,
-  });
+function personalCopy(printingId: string): CopyViewRow {
+  return {
+    ...stubCopy({
+      id: "22222222-2222-2222-2222-222222222222",
+      printingId,
+      collectionId: COLLECTION_ID,
+    }),
+    // The minus paths only target rows whose add has round-tripped
+    // (decideRemoval skips unsynced optimistic overlays).
+    synced: true,
+  };
 }
 
 // Regression: disposing a copy can fail for an expected reason (the copy is

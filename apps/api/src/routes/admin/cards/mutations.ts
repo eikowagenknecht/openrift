@@ -426,7 +426,7 @@ export const adminCardMutationsRouter = {
       await mut.recomputeKeywordsForPrintingCard(printingId);
     }
 
-    // Recompute canonical ranks when an ordering input changes (migration 158).
+    // Recompute canonical ranks when an ordering input changes (migration 193).
     // Only set_id, short_code, finish and language feed the rank, so other
     // field edits skip the recompute.
     if (field === "setId" || field === "shortCode" || field === "finish" || field === "language") {
