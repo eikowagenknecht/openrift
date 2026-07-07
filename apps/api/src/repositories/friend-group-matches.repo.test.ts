@@ -134,6 +134,7 @@ function makeCatalogPrinting(
       slug: cardId,
       name: `Card ${cardId}`,
       type: overrides.type ?? "unit",
+      types: [overrides.type ?? "unit"],
       superTypes: [],
       domains: ["fury"],
       energy: 1,

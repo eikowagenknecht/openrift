@@ -41,6 +41,7 @@ const stubCardValue: CatalogResponseCardValue = {
   slug: "RB1-001",
   name: "Test Card",
   type: "unit",
+  types: ["unit"],
   superTypes: [],
   domains: [],
   might: 1,

@@ -1,4 +1,4 @@
-import type { DeckZone, SuperType } from "@openrift/shared";
+import type { CardType, DeckZone, SuperType } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -11,7 +11,7 @@ import {
 
 describe("isCardAllowedInZone", () => {
   it("allows Legend cards in the legend zone and overflow, nowhere else", () => {
-    const legend = { cardType: "legend" as const, superTypes: [] as SuperType[] };
+    const legend = { cardTypes: ["legend"] as CardType[], superTypes: [] as SuperType[] };
     expect(isCardAllowedInZone(legend, "legend")).toBe(true);
     expect(isCardAllowedInZone(legend, "overflow")).toBe(true);
     expect(isCardAllowedInZone(legend, "main")).toBe(false);
@@ -22,19 +22,19 @@ describe("isCardAllowedInZone", () => {
   });
 
   it("allows Champion supertype in champion zone but not Legends", () => {
-    const champion = { cardType: "unit" as const, superTypes: ["champion"] as SuperType[] };
+    const champion = { cardTypes: ["unit"] as CardType[], superTypes: ["champion"] as SuperType[] };
     expect(isCardAllowedInZone(champion, "champion")).toBe(true);
     expect(isCardAllowedInZone(champion, "main")).toBe(true);
 
     const legendChampion = {
-      cardType: "legend" as const,
+      cardTypes: ["legend"] as CardType[],
       superTypes: ["champion"] as SuperType[],
     };
     expect(isCardAllowedInZone(legendChampion, "champion")).toBe(false);
   });
 
   it("allows Rune cards in the runes zone and overflow, nowhere else", () => {
-    const rune = { cardType: "rune" as const, superTypes: [] as SuperType[] };
+    const rune = { cardTypes: ["rune"] as CardType[], superTypes: [] as SuperType[] };
     expect(isCardAllowedInZone(rune, "runes")).toBe(true);
     expect(isCardAllowedInZone(rune, "overflow")).toBe(true);
     expect(isCardAllowedInZone(rune, "main")).toBe(false);
@@ -42,7 +42,7 @@ describe("isCardAllowedInZone", () => {
   });
 
   it("allows Battlefield cards in the battlefield zone and overflow, nowhere else", () => {
-    const battlefield = { cardType: "battlefield" as const, superTypes: [] as SuperType[] };
+    const battlefield = { cardTypes: ["battlefield"] as CardType[], superTypes: [] as SuperType[] };
     expect(isCardAllowedInZone(battlefield, "battlefield")).toBe(true);
     expect(isCardAllowedInZone(battlefield, "overflow")).toBe(true);
     expect(isCardAllowedInZone(battlefield, "main")).toBe(false);
@@ -51,7 +51,7 @@ describe("isCardAllowedInZone", () => {
 
   it("allows Unit/Spell/Gear in main, sideboard, overflow", () => {
     for (const cardType of ["unit", "spell", "gear"] as const) {
-      const card = { cardType, superTypes: [] as SuperType[] };
+      const card = { cardTypes: [cardType] as CardType[], superTypes: [] as SuperType[] };
       expect(isCardAllowedInZone(card, "main")).toBe(true);
       expect(isCardAllowedInZone(card, "sideboard")).toBe(true);
       expect(isCardAllowedInZone(card, "overflow")).toBe(true);
@@ -60,13 +60,24 @@ describe("isCardAllowedInZone", () => {
 
   it("allows every card type in overflow — it is a free park-here zone", () => {
     for (const cardType of ["unit", "spell", "gear", "legend", "rune", "battlefield"] as const) {
-      const card = { cardType, superTypes: [] as SuperType[] };
+      const card = { cardTypes: [cardType] as CardType[], superTypes: [] as SuperType[] };
       expect(isCardAllowedInZone(card, "overflow")).toBe(true);
     }
   });
 
+  it("gates multi-type cards on the whole type set (ADR-037)", () => {
+    // A Unit Gear is a normal main-deck card.
+    const unitGear = { cardTypes: ["unit", "gear"] as CardType[], superTypes: [] as SuperType[] };
+    expect(isCardAllowedInZone(unitGear, "main")).toBe(true);
+    expect(isCardAllowedInZone(unitGear, "sideboard")).toBe(true);
+    // Any Legend/Rune/Battlefield type in the set locks the card out of main.
+    const unitRune = { cardTypes: ["unit", "rune"] as CardType[], superTypes: [] as SuperType[] };
+    expect(isCardAllowedInZone(unitRune, "main")).toBe(false);
+    expect(isCardAllowedInZone(unitRune, "runes")).toBe(true);
+  });
+
   it("returns false for unknown zones", () => {
-    const card = { cardType: "unit" as const, superTypes: [] as SuperType[] };
+    const card = { cardTypes: ["unit"] as CardType[], superTypes: [] as SuperType[] };
     expect(isCardAllowedInZone(card, "unknown" as DeckZone)).toBe(false);
   });
 });
@@ -385,7 +396,7 @@ describe("buildDeckQuantityByCell", () => {
 describe("getAllowedMoveTargets", () => {
   it("offers champion + sideboard/overflow for a Champion unit currently in main, in sidebar order", () => {
     const card = {
-      cardType: "unit" as const,
+      cardTypes: ["unit"] as CardType[],
       superTypes: ["champion"] as SuperType[],
       zone: "main" as DeckZone,
     };
@@ -398,7 +409,7 @@ describe("getAllowedMoveTargets", () => {
 
   it("excludes the current zone", () => {
     const card = {
-      cardType: "unit" as const,
+      cardTypes: ["unit"] as CardType[],
       superTypes: [] as SuperType[],
       zone: "sideboard" as DeckZone,
     };
@@ -407,7 +418,7 @@ describe("getAllowedMoveTargets", () => {
 
   it("offers only overflow for a Legend in legend (its sole other home)", () => {
     const card = {
-      cardType: "legend" as const,
+      cardTypes: ["legend"] as CardType[],
       superTypes: [] as SuperType[],
       zone: "legend" as DeckZone,
     };
@@ -416,7 +427,7 @@ describe("getAllowedMoveTargets", () => {
 
   it("offers only overflow for a Rune in runes", () => {
     const card = {
-      cardType: "rune" as const,
+      cardTypes: ["rune"] as CardType[],
       superTypes: [] as SuperType[],
       zone: "runes" as DeckZone,
     };
@@ -425,7 +436,7 @@ describe("getAllowedMoveTargets", () => {
 
   it("offers only overflow for a Battlefield card in battlefield", () => {
     const card = {
-      cardType: "battlefield" as const,
+      cardTypes: ["battlefield"] as CardType[],
       superTypes: [] as SuperType[],
       zone: "battlefield" as DeckZone,
     };
@@ -434,7 +445,7 @@ describe("getAllowedMoveTargets", () => {
 
   it("lets a Champion move out of the champion zone into main/sideboard/overflow", () => {
     const card = {
-      cardType: "unit" as const,
+      cardTypes: ["unit"] as CardType[],
       superTypes: ["champion"] as SuperType[],
       zone: "champion" as DeckZone,
     };
@@ -443,7 +454,7 @@ describe("getAllowedMoveTargets", () => {
 
   it("drops sideboard as a target in custom-region but keeps it as a source", () => {
     const mainCard = {
-      cardType: "unit" as const,
+      cardTypes: ["unit"] as CardType[],
       superTypes: [] as SuperType[],
       zone: "main" as DeckZone,
     };

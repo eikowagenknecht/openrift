@@ -10,6 +10,7 @@ export interface ResolvedCard {
   cardId: string;
   cardName: string;
   cardType: CardType;
+  cardTypes: CardType[];
   superTypes: SuperType[];
   domains: Domain[];
   /** A representative short code for display. */
@@ -174,6 +175,7 @@ function cardFromPrinting(printing: Printing): ResolvedCard {
     cardId: printing.cardId,
     cardName: printing.card.name,
     cardType: printing.card.type,
+    cardTypes: printing.card.types,
     superTypes: printing.card.superTypes,
     domains: printing.card.domains,
     shortCode: printing.shortCode,
@@ -197,7 +199,7 @@ function inferEntryZone(entry: DeckImportEntry, card: ResolvedCard | null): Deck
         : WellKnown.deckZone.MAIN;
   }
 
-  return inferZone(card.cardType, card.superTypes, entry.sourceSlot);
+  return inferZone(card.cardTypes, card.superTypes, entry.sourceSlot);
 }
 
 /**

@@ -8,7 +8,7 @@ function renderLabel(props: Partial<Parameters<typeof CardMetaLabel>[0]> = {}) {
     <CardMetaLabel
       shortCode="OGN-007"
       name="Ice Golem"
-      type="unit"
+      types={["unit"]}
       superTypes={[]}
       rarity="common"
       {...props}

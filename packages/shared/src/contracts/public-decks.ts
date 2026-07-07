@@ -53,6 +53,7 @@ export const publicDeckCardResponseSchema = z
     cardName: z.string(),
     cardSlug: z.string(),
     cardType: cardTypeSchema,
+    cardTypes: z.array(cardTypeSchema).nonempty(),
     superTypes: z.array(superTypeSchema),
     domains: z.array(domainSchema),
     tags: z.array(z.string()),

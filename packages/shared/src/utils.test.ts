@@ -49,6 +49,7 @@ function makePrinting(overrides: Partial<Printing> & { language: string }): Prin
       slug: "card-1",
       name: "Card 1",
       type: "unit",
+      types: ["unit"],
       superTypes: [],
       domains: [],
       might: null,
@@ -67,24 +68,24 @@ function makePrinting(overrides: Partial<Printing> & { language: string }): Prin
 describe("legendDisplayName", () => {
   it("prepends the champion tag for a Legend", () => {
     expect(
-      legendDisplayName({ name: "Emperor of the Sands", type: "legend", tags: ["Azir"] }),
+      legendDisplayName({ name: "Emperor of the Sands", types: ["legend"], tags: ["Azir"] }),
     ).toBe("Azir, Emperor of the Sands");
   });
 
   it("returns the bare name for a Legend with no tags", () => {
-    expect(legendDisplayName({ name: "Nameless Legend", type: "legend", tags: [] })).toBe(
+    expect(legendDisplayName({ name: "Nameless Legend", types: ["legend"], tags: [] })).toBe(
       "Nameless Legend",
     );
   });
 
   it("uses the first tag when a Legend has several", () => {
     expect(
-      legendDisplayName({ name: "Twin Souls", type: "legend", tags: ["Kindred", "Lamb"] }),
+      legendDisplayName({ name: "Twin Souls", types: ["legend"], tags: ["Kindred", "Lamb"] }),
     ).toBe("Kindred, Twin Souls");
   });
 
   it("returns the bare name for non-Legend cards even when tagged", () => {
-    expect(legendDisplayName({ name: "Recall", type: "spell", tags: ["Azir"] })).toBe("Recall");
+    expect(legendDisplayName({ name: "Recall", types: ["spell"], tags: ["Azir"] })).toBe("Recall");
   });
 });
 
@@ -379,27 +380,27 @@ describe("emptyToNull", () => {
 
 describe("getOrientation", () => {
   it("returns landscape for Battlefield type", () => {
-    expect(getOrientation("battlefield")).toBe("landscape");
+    expect(getOrientation(["battlefield"])).toBe("landscape");
   });
 
   it("returns portrait for Unit type", () => {
-    expect(getOrientation("unit")).toBe("portrait");
+    expect(getOrientation(["unit"])).toBe("portrait");
   });
 
   it("returns portrait for Spell type", () => {
-    expect(getOrientation("spell")).toBe("portrait");
+    expect(getOrientation(["spell"])).toBe("portrait");
   });
 
   it("returns portrait for Legend type", () => {
-    expect(getOrientation("legend")).toBe("portrait");
+    expect(getOrientation(["legend"])).toBe("portrait");
   });
 
   it("returns portrait for Rune type", () => {
-    expect(getOrientation("rune")).toBe("portrait");
+    expect(getOrientation(["rune"])).toBe("portrait");
   });
 
   it("returns portrait for Gear type", () => {
-    expect(getOrientation("gear")).toBe("portrait");
+    expect(getOrientation(["gear"])).toBe("portrait");
   });
 });
 

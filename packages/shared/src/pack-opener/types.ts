@@ -7,7 +7,7 @@ export interface PackPrinting {
   cardId: string;
   cardName: string;
   cardSlug: string;
-  cardType: string;
+  cardTypes: string[];
   cardSuperTypes: string[];
   /** Champion-identifier tags (e.g. ["Azir"] on a Legend) for display names. */
   tags: string[];

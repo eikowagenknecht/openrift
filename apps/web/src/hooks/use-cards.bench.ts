@@ -62,10 +62,12 @@ function buildFixture(): Printing[] {
   const cardById = new Map<string, Card>();
   for (let i = 0; i < CARD_COUNT; i++) {
     const id = `card-${i}`;
+    const type = pick(TYPES, r);
     cardById.set(id, {
       slug: id,
       name: `Card ${i}`,
-      type: pick(TYPES, r),
+      type,
+      types: [type],
       superTypes: [],
       domains: [pick(DOMAINS, r)],
       might: Math.floor(r() * 10) - 1,

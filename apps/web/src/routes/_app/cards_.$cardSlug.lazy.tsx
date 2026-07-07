@@ -45,7 +45,7 @@ import { useEnumOrders, useLanguageLabels } from "@/hooks/use-enums";
 import { usePriceHistory } from "@/hooks/use-price-history";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { formatPublicCode, formatterForMarketplace } from "@/lib/format";
-import { getFilterIconPath, getTypeIconPath } from "@/lib/icons";
+import { getFilterIconPath, getTypeIconPaths } from "@/lib/icons";
 import { MARKETPLACE_SHORT_LABELS } from "@/lib/marketplace-meta";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
@@ -111,7 +111,7 @@ function CardDetailPage() {
   }
 
   const frontImage = selectedPrinting.images.find((i) => i.face === "front");
-  const isLandscape = getOrientation(card.type) === "landscape";
+  const isLandscape = getOrientation(card.types) === "landscape";
   const heroWidth = isLandscape ? 558 : 400;
   const heroHeight = isLandscape ? 400 : 558;
 
@@ -187,8 +187,8 @@ function CardDetailPage() {
       "Type",
       <TypeValue
         key="type"
-        type={card.type}
-        typeLabel={labels.cardTypes[card.type]}
+        types={card.types}
+        typeLabel={card.types.map((slug) => labels.cardTypes[slug]).join(" ")}
         superTypes={card.superTypes}
       />,
     ],
@@ -270,7 +270,7 @@ function CardDetailPage() {
               energy={card.energy}
               might={card.might}
               power={card.power}
-              type={card.type}
+              types={card.types}
               superTypes={card.superTypes}
               tags={card.tags}
               rulesText={selectedPrinting.printedRulesText}
@@ -527,19 +527,21 @@ function InfoRow({ label, children }: { label: string; children: ReactNode }) {
 }
 
 function TypeValue({
-  type,
+  types,
   typeLabel,
   superTypes,
 }: {
-  type: string;
+  types: string[];
   typeLabel: string;
   superTypes: string[];
 }) {
-  const iconPath = getTypeIconPath(type, superTypes);
+  const iconPaths = getTypeIconPaths(types, superTypes);
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span className="inline-flex w-4 shrink-0 justify-center">
-        {iconPath && <img src={iconPath} alt="" className="size-4 brightness-0 dark:invert" />}
+      <span className="inline-flex w-4 shrink-0 justify-center gap-0.5">
+        {iconPaths.map((path) => (
+          <img key={path} src={path} alt="" className="size-4 brightness-0 dark:invert" />
+        ))}
       </span>
       {typeLabel}
     </span>

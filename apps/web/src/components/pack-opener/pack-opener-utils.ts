@@ -7,7 +7,7 @@ export function toPackPrinting(p: Printing): PackPrinting {
     cardId: p.cardId,
     cardName: p.card.name,
     cardSlug: p.card.slug,
-    cardType: p.card.type,
+    cardTypes: p.card.types,
     cardSuperTypes: p.card.superTypes,
     tags: p.card.tags,
     rarity: p.rarity,

@@ -964,6 +964,7 @@ function deduplicateToCards(allPrintings: Printing[], query: string): ResolvedCa
         cardId: printing.cardId,
         cardName: displayName,
         cardType: printing.card.type,
+        cardTypes: printing.card.types,
         superTypes: printing.card.superTypes,
         domains: printing.card.domains,
         shortCode: printing.shortCode,

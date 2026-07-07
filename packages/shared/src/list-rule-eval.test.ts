@@ -56,6 +56,7 @@ function makePrinting(
       slug: cardId,
       name: `Card ${cardId}`,
       type: type ?? "unit",
+      types: [type ?? "unit"],
       superTypes: [],
       domains: ["fury"],
       energy: 1,

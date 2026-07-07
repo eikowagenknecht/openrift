@@ -9,7 +9,7 @@ function printing(overrides: Partial<PackPrinting>): PackPrinting {
     cardId: "c",
     cardName: "Card",
     cardSlug: "card",
-    cardType: "unit",
+    cardTypes: ["unit"],
     cardSuperTypes: [],
     tags: [],
     rarity: "common",
@@ -33,9 +33,9 @@ describe("buildPool", () => {
       printing({ id: "fu1", rarity: "uncommon", finish: "foil" }),
       printing({ id: "r1", rarity: "rare", finish: "foil" }),
       printing({ id: "e1", rarity: "epic", finish: "foil" }),
-      printing({ id: "run1", cardType: "rune", rarity: "common" }),
-      printing({ id: "frun1", cardType: "rune", rarity: "common", finish: "foil" }),
-      printing({ id: "arun1", cardType: "rune", rarity: "common", artVariant: "altart" }),
+      printing({ id: "run1", cardTypes: ["rune"], rarity: "common" }),
+      printing({ id: "frun1", cardTypes: ["rune"], rarity: "common", finish: "foil" }),
+      printing({ id: "arun1", cardTypes: ["rune"], rarity: "common", artVariant: "altart" }),
       printing({ id: "tok1", cardSuperTypes: ["token"] }),
       printing({ id: "sa1", rarity: "showcase", finish: "foil", artVariant: "altart" }),
       printing({ id: "so1", rarity: "showcase", finish: "foil", artVariant: "overnumbered" }),
@@ -73,7 +73,7 @@ describe("buildPool", () => {
   it("keeps Common Runes out of the common pool", () => {
     const printings: PackPrinting[] = [
       printing({ id: "c", rarity: "common" }),
-      printing({ id: "rune", cardType: "rune", rarity: "common" }),
+      printing({ id: "rune", cardTypes: ["rune"], rarity: "common" }),
     ];
     const pool = buildPool(printings);
     expect(pool.commons.map((p) => p.id)).toEqual(["c"]);
@@ -84,7 +84,7 @@ describe("buildPool", () => {
     const printings: PackPrinting[] = [
       printing({ id: "c", rarity: "common" }),
       // Sprite/Recruit are Common-rarity Unit cards with the Token super type.
-      printing({ id: "sprite", cardType: "unit", cardSuperTypes: ["token"], rarity: "common" }),
+      printing({ id: "sprite", cardTypes: ["unit"], cardSuperTypes: ["token"], rarity: "common" }),
     ];
     const pool = buildPool(printings);
     expect(pool.commons.map((p) => p.id)).toEqual(["c"]);

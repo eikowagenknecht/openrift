@@ -19,10 +19,12 @@ function makeSet(
 }
 
 function makeCard(overrides: Partial<CatalogResponseCardValue> = {}): CatalogResponseCardValue {
+  const type = overrides.type ?? overrides.types?.[0] ?? "unit";
   return {
     slug: "test-card",
     name: "Test Card",
-    type: "unit",
+    type,
+    types: [type],
     superTypes: [],
     domains: [],
     might: null,

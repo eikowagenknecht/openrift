@@ -33,6 +33,7 @@ function makePrinting(overrides: Partial<Printing> = {}): Printing {
       slug: "SET1-001",
       name: "Test Card",
       type: "unit",
+      types: ["unit"],
       superTypes: [],
       domains: ["fury"],
       energy: 3,

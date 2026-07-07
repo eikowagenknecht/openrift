@@ -20,7 +20,7 @@ function fullState(): ContributeFormState {
     slug: "ahri-alluring",
     card: {
       name: "Ahri, Alluring",
-      type: "unit",
+      types: ["unit"],
       superTypes: ["champion"],
       domains: ["calm"],
       might: 4,
@@ -180,7 +180,7 @@ describe("buildContributionJson", () => {
     expect(json.$schema).toBe("../../schemas/card.schema.json");
     expect(json.card).toMatchObject({
       name: "Ahri, Alluring",
-      type: "unit",
+      types: ["unit"],
       super_types: ["champion"],
       domains: ["calm"],
       might: 4,
@@ -281,7 +281,7 @@ describe("buildSubmissionPayload", () => {
     expect(payload.slug).toBe("ahri-alluring");
     expect(payload.card).toMatchObject({
       name: "Ahri, Alluring",
-      type: "unit",
+      types: ["unit"],
       super_types: ["champion"],
       domains: ["calm"],
       might: 4,

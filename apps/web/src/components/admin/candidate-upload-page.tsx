@@ -343,7 +343,7 @@ const EXAMPLE_CANDIDATES_JSON = `[
     "card": {
       "name": "Jinx, Rebel",
       "external_id": "jinx-rebel-001",
-      "type": "unit",
+      "types": ["unit"],
       "super_types": ["champion"],
       "domains": ["chaos"],
       "might": 3,

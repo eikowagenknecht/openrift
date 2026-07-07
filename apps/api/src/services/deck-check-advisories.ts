@@ -38,6 +38,7 @@ export interface EntryAdvisories {
 interface CardDetail {
   name: string;
   type: string;
+  types: string[];
   superTypes: string[];
 }
 
@@ -91,7 +92,7 @@ export function computeZoneSuggestions(
       continue;
     }
     const suggestedZone = inferZone(
-      detail.type as CardType,
+      detail.types as CardType[],
       detail.superTypes as SuperType[],
       "mainDeck",
     );
@@ -180,6 +181,7 @@ export async function buildEntryAdvisories(
           quantity: card.quantity,
           cardName: detail.name,
           cardType: detail.type as CardType,
+          cardTypes: detail.types as CardType[],
           superTypes: detail.superTypes as SuperType[],
           domains: detail.domains as Domain[],
           tags: detail.tags,

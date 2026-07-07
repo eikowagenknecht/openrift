@@ -123,7 +123,7 @@ function printingMatchesField(
   }
   if (field === "type") {
     return (
-      card.type.toLowerCase().includes(lower) ||
+      card.types.some((t) => t.toLowerCase().includes(lower)) ||
       card.superTypes.some((st) => st.toLowerCase().includes(lower))
     );
   }
@@ -386,7 +386,7 @@ export function filterCards(
       includes(filters.sets, printing.setSlug) &&
       includes(filters.languages, printing.language) &&
       matchesDomains(filters.domains, card.domains) &&
-      includes(filters.types, card.type) &&
+      overlaps(filters.types, card.types) &&
       overlaps(filters.superTypes, card.superTypes) &&
       includes(filters.rarities, printing.rarity) &&
       includes(filters.artVariants, artVariant) &&
@@ -395,7 +395,7 @@ export function filterCards(
       notExcluded(filters.setsExclude, printing.setSlug) &&
       notExcluded(filters.languagesExclude, printing.language) &&
       notExcluded(filters.raritiesExclude, printing.rarity) &&
-      notExcluded(filters.typesExclude, card.type) &&
+      noneExcluded(filters.typesExclude, card.types) &&
       notExcluded(filters.artVariantsExclude, artVariant) &&
       notExcluded(filters.finishesExclude, printing.finish) &&
       noneExcluded(filters.superTypesExclude, card.superTypes) &&
@@ -523,7 +523,7 @@ export function getAvailableFilters(
   const domains = unique(printings.flatMap((p) => p.card.domains)).sort(
     (a, b) => orderIndex(orders.domains, a) - orderIndex(orders.domains, b),
   );
-  const types = unique(printings.map((p) => p.card.type)).sort(
+  const types = unique(printings.flatMap((p) => p.card.types)).sort(
     (a, b) => orderIndex(orders.cardTypes, a) - orderIndex(orders.cardTypes, b),
   );
   const superTypes = unique(printings.flatMap((p) => p.card.superTypes))
@@ -672,7 +672,7 @@ const COUNTABLE_DIMENSIONS: readonly CountableDimension[] = [
     key: "types",
     filterField: "types",
     excludeField: "typesExclude",
-    values: (p) => [p.card.type],
+    values: (p) => p.card.types,
   },
   {
     key: "superTypes",

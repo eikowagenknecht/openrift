@@ -22,7 +22,7 @@ function p(overrides: Partial<PackPrinting> & { id: string }): PackPrinting {
     cardId: overrides.id,
     cardName: overrides.id,
     cardSlug: overrides.id,
-    cardType: "unit",
+    cardTypes: ["unit"],
     cardSuperTypes: [],
     tags: [],
     rarity: "common",
@@ -47,10 +47,10 @@ function samplePool() {
     ...Array.from({ length: 6 }, (_, i) => p({ id: `r${i}`, rarity: "rare", finish: "foil" })),
     ...Array.from({ length: 6 }, (_, i) => p({ id: `e${i}`, rarity: "epic", finish: "foil" })),
     ...Array.from({ length: 6 }, (_, i) =>
-      p({ id: `run${i}`, cardType: "rune", rarity: "common" }),
+      p({ id: `run${i}`, cardTypes: ["rune"], rarity: "common" }),
     ),
-    p({ id: "frun1", cardType: "rune", rarity: "common", finish: "foil" }),
-    p({ id: "arun1", cardType: "rune", rarity: "common", artVariant: "altart" }),
+    p({ id: "frun1", cardTypes: ["rune"], rarity: "common", finish: "foil" }),
+    p({ id: "arun1", cardTypes: ["rune"], rarity: "common", artVariant: "altart" }),
     p({ id: "tok1", cardSuperTypes: ["token"], rarity: "common" }),
     p({ id: "tok2", cardSuperTypes: ["token"], rarity: "common" }),
     p({ id: "sa1", rarity: "showcase", finish: "foil", artVariant: "altart" }),
@@ -106,7 +106,7 @@ describe("openPack", () => {
       p({ id: "fu", rarity: "uncommon", finish: "foil" }),
       p({ id: "r", rarity: "rare", finish: "foil" }),
       p({ id: "e", rarity: "epic", finish: "foil" }),
-      p({ id: "rn", cardType: "rune", rarity: "common" }),
+      p({ id: "rn", cardTypes: ["rune"], rarity: "common" }),
     ]);
     const rng = mulberry32(7);
     const result = openPack(pool, rng);
@@ -121,7 +121,7 @@ describe("openPack", () => {
     for (let i = 0; i < 200; i++) {
       const result = openPack(pool, rng);
       const token = result.pulls.find((pull) => pull.slot === "token");
-      const isRune = token?.printing.cardType === "rune";
+      const isRune = token?.printing.cardTypes.includes("rune");
       const isToken = token?.printing.cardSuperTypes.includes("token") ?? false;
       expect(isRune || isToken).toBe(true);
     }
@@ -155,7 +155,7 @@ describe("openPack", () => {
       for (const pull of result.pulls) {
         if (
           pull.slot === "token" &&
-          pull.printing.cardType === "rune" &&
+          pull.printing.cardTypes.includes("rune") &&
           pull.printing.finish === "foil"
         ) {
           foilRuneCount++;
@@ -177,7 +177,7 @@ describe("openPack", () => {
       p({ id: "fu", rarity: "uncommon", finish: "foil" }),
       p({ id: "r", rarity: "rare", finish: "foil" }),
       p({ id: "e", rarity: "epic", finish: "foil" }),
-      p({ id: "rn", cardType: "rune", rarity: "common" }),
+      p({ id: "rn", cardTypes: ["rune"], rarity: "common" }),
     ]);
     const rng = mulberry32(11);
     for (let i = 0; i < 200; i++) {
@@ -251,7 +251,7 @@ describe("openPack", () => {
       p({ id: "fu", rarity: "uncommon", finish: "foil" }),
       p({ id: "r1", rarity: "rare", finish: "foil" }),
       p({ id: "r2", rarity: "rare", finish: "foil" }),
-      p({ id: "rn", cardType: "rune", rarity: "common" }),
+      p({ id: "rn", cardTypes: ["rune"], rarity: "common" }),
     ]);
     const rng = mulberry32(7);
     for (let i = 0; i < 100; i++) {

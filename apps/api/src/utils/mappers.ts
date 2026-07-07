@@ -444,6 +444,7 @@ export function toCollectionEvent(row: {
   imageId: string | null;
   cardName: string;
   cardType: string;
+  cardTypes: string[];
   cardSuperTypes: string[];
   tags: string[];
 }): CollectionEventResponse {
@@ -462,6 +463,7 @@ export function toCollectionEvent(row: {
     imageId: row.imageId,
     cardName: row.cardName,
     cardType: row.cardType as CollectionEventResponse["cardType"],
+    cardTypes: row.cardTypes as CollectionEventResponse["cardTypes"],
     cardSuperTypes: row.cardSuperTypes,
     tags: row.tags,
   };
@@ -531,6 +533,7 @@ export function toPublicDeckCard(
     name: string;
     slug: string;
     type: CardType;
+    types: CardType[];
     superTypes: SuperType[];
     domains: Domain[];
     tags: string[];
@@ -553,6 +556,7 @@ export function toPublicDeckCard(
     cardName: cardMeta.name,
     cardSlug: cardMeta.slug,
     cardType: cardMeta.type,
+    cardTypes: cardMeta.types as PublicDeckCardResponse["cardTypes"],
     superTypes: cardMeta.superTypes,
     domains: cardMeta.domains,
     tags: cardMeta.tags,

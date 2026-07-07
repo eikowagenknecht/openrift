@@ -21,7 +21,7 @@ export function PrintingThumbnail({
 }) {
   const frontImageId = printing.images.find((image) => image.face === "front")?.imageId ?? null;
   const thumbnail = frontImageId ? imageUrl(frontImageId, "120w") : null;
-  const landscape = getOrientation(printing.card.type) === "landscape";
+  const landscape = getOrientation(printing.card.types) === "landscape";
   const thumbnailSize = landscape ? "h-10 w-14" : "h-14 w-10";
 
   return thumbnail ? (

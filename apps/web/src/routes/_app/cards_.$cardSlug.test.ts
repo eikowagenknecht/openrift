@@ -8,6 +8,7 @@ const card: CardDetailResponse["card"] = {
   slug: "inferna",
   name: "Inferna",
   type: "unit",
+  types: ["unit"],
   superTypes: [],
   domains: ["fury"],
   energy: 3,

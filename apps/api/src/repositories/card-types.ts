@@ -1,4 +1,3 @@
-import type { CardType } from "@openrift/shared/types";
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
@@ -40,10 +39,12 @@ export function cardTypesRepo(db: Kysely<Database>) {
     },
 
     isInUse(slug: string) {
+      // Membership lives in the card_card_types junction (ADR-037), so a slug
+      // used only as a secondary type still counts as in use.
       return db
-        .selectFrom("cards")
-        .select("id")
-        .where("type", "=", slug as CardType)
+        .selectFrom("cardCardTypes")
+        .select("cardId")
+        .where("typeSlug", "=", slug)
         .limit(1)
         .executeTakeFirst();
     },

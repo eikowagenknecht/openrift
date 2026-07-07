@@ -159,7 +159,7 @@ function PaletteInner({
   // is plenty (400w covers ~160px CSS at DPR 2).
   const previewThumbnailMobile = previewImageId ? imageUrl(previewImageId, "400w") : null;
   const previewRotated = previewPrinting
-    ? needsCssRotation(getOrientation(previewPrinting.card.type))
+    ? needsCssRotation(getOrientation(previewPrinting.card.types))
     : false;
 
   // Clamp selection when results change

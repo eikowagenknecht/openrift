@@ -93,7 +93,7 @@ export function CardImage({
               energy={card.energy}
               might={card.might}
               power={card.power}
-              type={card.type}
+              types={card.types}
               superTypes={card.superTypes}
               tags={card.tags}
               rulesText={printing.printedRulesText}

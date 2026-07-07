@@ -33,6 +33,14 @@
             }
           ]
         },
+        "types": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
         "super_types": {
           "type": "array",
           "items": {

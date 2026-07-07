@@ -19,6 +19,27 @@ const SUPERTYPE_ICONS = new Set<string>([WellKnown.superType.CHAMPION]);
  * @returns Path to the SVG icon, or undefined if none exists.
  */
 export function getTypeIconPath(type: string, superTypes: string[]): string | undefined {
+  return getTypeIconPaths([type], superTypes)[0];
+}
+
+/**
+ * Icons for a multi-type card's type row — one glyph per type, in printed
+ * order (ADR-037). The champion icon substitutes for the unit glyph on
+ * Champion/Signature Units; types without an asset (e.g. "Other") are skipped.
+ * @returns SVG icon paths, one per type that has an asset.
+ */
+export function getTypeIconPaths(types: readonly string[], superTypes: string[]): string[] {
+  const paths: string[] = [];
+  for (const type of types) {
+    const path = singleTypeIconPath(type, superTypes);
+    if (path && !paths.includes(path)) {
+      paths.push(path);
+    }
+  }
+  return paths;
+}
+
+function singleTypeIconPath(type: string, superTypes: string[]): string | undefined {
   if (
     type === WellKnown.cardType.UNIT &&
     (superTypes.includes(WellKnown.superType.CHAMPION) ||

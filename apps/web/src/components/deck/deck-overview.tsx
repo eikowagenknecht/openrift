@@ -883,7 +883,7 @@ function ZoneThumb({
   const dragData: DeckCardDragData = {
     type: "deck-card",
     cardId: card.cardId,
-    cardName: legendDisplayName({ name: card.cardName, type: card.cardType, tags: card.tags }),
+    cardName: legendDisplayName({ name: card.cardName, types: card.cardTypes, tags: card.tags }),
     fromZone: zone,
     quantity: card.quantity,
     preferredPrintingId: card.preferredPrintingId,
@@ -931,7 +931,7 @@ function ZoneThumb({
     >
       <img
         src={thumbnail}
-        alt={legendDisplayName({ name: card.cardName, type: card.cardType, tags: card.tags })}
+        alt={legendDisplayName({ name: card.cardName, types: card.cardTypes, tags: card.tags })}
         className={cn(
           "rounded-md object-cover shadow-sm",
           isLandscape ? "h-20 w-28" : "h-28 w-20",

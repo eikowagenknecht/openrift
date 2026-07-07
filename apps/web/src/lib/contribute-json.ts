@@ -72,7 +72,8 @@ function mapJsonPathToFormPath(path: readonly PropertyKey[]): string {
 
 interface ContributeFormCard {
   name: string;
-  type: string | null;
+  /** Ordered card types (ADR-037); a Unit Gear is ["unit", "gear"]. */
+  types: string[];
   superTypes: string[];
   domains: string[];
   might: number | null;
@@ -124,7 +125,7 @@ interface ValidationResult {
 function emptyCard(): ContributeFormCard {
   return {
     name: "",
-    type: null,
+    types: [],
     superTypes: [],
     domains: [],
     might: null,
@@ -277,7 +278,7 @@ const isNonEmptyString = (v: unknown): boolean => typeof v === "string" && v.len
 
 function buildCardJson(card: ContributeFormCard, externalId: string): SnakeCardJson {
   const out: SnakeCardJson = { name: card.name.trim(), external_id: externalId };
-  setIfPresent(out, "type", trimOrNull(card.type), isNonEmptyString);
+  setIfPresent(out, "types", card.types, isNonEmptyArray);
   setIfPresent(out, "super_types", card.superTypes, isNonEmptyArray);
   setIfPresent(out, "domains", card.domains, isNonEmptyArray);
   setIfPresent(out, "might", card.might, isNonNull);
@@ -453,7 +454,7 @@ export function prefillFromCard(
     slug: card.slug,
     card: {
       name: card.name,
-      type: card.type || null,
+      types: [...card.types],
       superTypes: [...card.superTypes],
       domains: [...card.domains],
       might: card.might,

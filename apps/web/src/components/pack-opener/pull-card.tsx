@@ -48,10 +48,10 @@ export function PullCard({ pull, image, className, shimmer = true }: PullCardPro
   // to make pulls feel exciting. Whether the overlay animates (shimmer) is a
   // per-page toggle.
   const showFoil = printing.finish === WellKnown.finish.FOIL;
-  const rotated = needsCssRotation(getOrientation(printing.cardType));
+  const rotated = needsCssRotation(getOrientation(printing.cardTypes));
   const displayName = legendDisplayName({
     name: printing.cardName,
-    type: printing.cardType,
+    types: printing.cardTypes,
     tags: printing.tags,
   });
 

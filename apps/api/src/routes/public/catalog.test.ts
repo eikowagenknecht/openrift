@@ -63,6 +63,7 @@ const dbCard = {
   slug: "OGS-001",
   name: "Fire Dragon",
   type: "unit",
+  types: ["unit"],
   superTypes: ["Elite"],
   domains: ["fury"],
   might: 4,

@@ -63,6 +63,7 @@ type DeckCardDetailRow = Pick<
   Pick<Selectable<CardsTable>, "energy" | "might" | "power"> & {
     cardName: string;
     cardType: CardType;
+    cardTypes: CardType[];
     domains: Domain[];
     superTypes: SuperType[];
     tags: string[];
@@ -212,6 +213,7 @@ export function decksRepo(db: Kysely<Database>) {
           "dc.preferredPrintingId",
           "c.name as cardName",
           "c.type as cardType",
+          "mca.types as cardTypes",
           "c.tags",
           "c.keywords",
           "c.energy",
@@ -260,6 +262,7 @@ export function decksRepo(db: Kysely<Database>) {
           "dc.preferredPrintingId",
           "c.name as cardName",
           "c.type as cardType",
+          "mca.types as cardTypes",
           "mca.domains",
           "mca.superTypes",
           "c.tags",

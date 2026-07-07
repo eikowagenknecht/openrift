@@ -671,7 +671,7 @@ export function ExistingCardDetailPage({
               fields={candidateCardFields.filter(
                 (f) => f.key !== "rulesText" && f.key !== "effectText",
               )}
-              requiredKeys={["name", "type", "domains"]}
+              requiredKeys={["name", "types", "domains"]}
               activeRow={{ ...card }}
               candidateRows={sources}
               providerSettings={providerSettings}

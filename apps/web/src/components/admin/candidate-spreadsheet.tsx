@@ -96,9 +96,10 @@ export function buildCandidateCardFields(orders: EnumOrders, labels: EnumLabels)
       array: true,
     },
     {
-      key: "type",
-      label: "Type",
+      key: "types",
+      label: "Types",
       labeledOptions: toLabeledOptions(orders.cardTypes, labels.cardTypes),
+      array: true,
     },
     { key: "name", label: "Name" },
     {

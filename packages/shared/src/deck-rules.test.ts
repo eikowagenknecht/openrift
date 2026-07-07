@@ -23,12 +23,14 @@ import {
 } from "./deck-rules";
 
 function makeCard(overrides: Partial<DeckCard> = {}): DeckCard {
+  const cardType = overrides.cardType ?? overrides.cardTypes?.[0] ?? "unit";
   return {
     cardId: "card-1",
     zone: "main",
     quantity: 1,
     cardName: "Test Card",
-    cardType: "unit",
+    cardType,
+    cardTypes: [cardType],
     superTypes: [],
     domains: ["fury"],
     tags: [],
@@ -229,6 +231,16 @@ describe("runesAllTypeRune", () => {
     expect(violations).toHaveLength(1);
     expect(violations[0].code).toBe("RUNE_WRONG_TYPE");
     expect(violations[0].cardId).toBe("bad");
+  });
+
+  it("passes when a multi-type card carries Rune among its types (ADR-037)", () => {
+    const card = makeCard({
+      zone: "runes",
+      cardType: "unit",
+      cardTypes: ["unit", "rune"],
+      cardId: "dual",
+    });
+    expect(runesAllTypeRune(makeState([card]))).toEqual([]);
   });
 });
 

@@ -8,7 +8,7 @@ import type { z } from "zod";
 const FIELD_LABELS: Record<string, string> = {
   id: "Card ID",
   name: "Name",
-  type: "Type",
+  types: "Types",
   superTypes: "Supertypes",
   domains: "Domains",
   might: "Might",

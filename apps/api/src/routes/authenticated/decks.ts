@@ -284,6 +284,7 @@ export const decksRouter = {
                 quantity: card.quantity,
                 cardName: card.cardName,
                 cardType: card.cardType as CardType,
+                cardTypes: card.cardTypes as CardType[],
                 superTypes: card.superTypes as SuperType[],
                 domains: card.domains as Domain[],
                 tags: card.tags,

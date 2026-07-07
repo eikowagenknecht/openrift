@@ -213,7 +213,7 @@ describe("GET /api/admin/v1/cards/export", () => {
       {
         card: {
           name: "Fireball",
-          type: "spell",
+          types: ["spell"],
           super_types: [],
           domains: [],
           might: null,
@@ -252,6 +252,7 @@ describe("GET /api/admin/v1/cards/:cardSlug", () => {
         slug: "fireball",
         name: "Fireball",
         type: "spell",
+        types: ["spell"],
         superTypes: [],
         domains: [],
         might: null,

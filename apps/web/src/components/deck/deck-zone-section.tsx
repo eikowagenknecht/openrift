@@ -25,7 +25,7 @@ import {
 } from "@/lib/deck-builder-card";
 import { compareGroupedCards, GROUPED_ZONES, TYPE_GROUP_ORDER } from "@/lib/deck-card-order";
 import { ZONE_LABELS, zoneEmptyHint, zoneExpected } from "@/lib/deck-zone-labels";
-import { getTypeIconPath } from "@/lib/icons";
+import { getTypeIconPath, getTypeIconPaths } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { useSelectionStore } from "@/stores/selection-store";
 
@@ -327,17 +327,18 @@ export function DeckZoneSection({
           ) : (
             <div className="flex flex-col gap-0.5">
               {cards.map((card) => {
-                const typeIconPath = getTypeIconPath(card.cardType, card.superTypes);
+                const typeIconPaths = getTypeIconPaths(card.cardTypes, card.superTypes);
                 return (
                   <div key={getDeckCardKey(card)} className="flex">
-                    <div className="flex w-7 shrink-0 items-center justify-center">
-                      {typeIconPath && (
+                    <div className="flex w-7 shrink-0 flex-wrap items-center justify-center gap-0.5">
+                      {typeIconPaths.map((path) => (
                         <img
-                          src={typeIconPath}
-                          alt={card.cardType}
+                          key={path}
+                          src={path}
+                          alt={card.cardTypes.join(" ")}
                           className="size-3.5 brightness-0 dark:invert"
                         />
-                      )}
+                      ))}
                     </div>
                     <div className="min-w-0 flex-1">{renderCardRow(card)}</div>
                   </div>

@@ -95,7 +95,7 @@ export function buildUserSubmissionCard(
 
   return {
     name: card.name,
-    type: card.type ?? null,
+    types: card.types ?? (card.type ? [card.type] : []),
     super_types: card.super_types ?? [],
     domains: card.domains ?? [],
     might: card.might ?? null,
@@ -165,7 +165,7 @@ export function ingestUserSubmission(
     const errors: string[] = [];
     const cardValidation = candidateCardValidator.safeParse({
       name: card.name,
-      type: card.type,
+      types: card.types,
       might: card.might,
       energy: card.energy,
       power: card.power,
@@ -235,7 +235,7 @@ export function ingestUserSubmission(
     const cardInsert: Insertable<CandidateCardsTable> = {
       provider: USER_SUBMISSION_PROVIDER,
       name: card.name,
-      type: card.type,
+      types: card.types,
       superTypes: card.super_types,
       domains: card.domains,
       might: card.might,

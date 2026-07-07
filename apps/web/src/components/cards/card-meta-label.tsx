@@ -4,13 +4,13 @@ import type { ReactNode } from "react";
 
 import { FinishIcon } from "@/components/cards/finish-icon";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { getFilterIconPath, getTypeIconPath } from "@/lib/icons";
+import { getFilterIconPath, getTypeIconPaths } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 interface CardMetaLabelProps {
   shortCode: string;
   name: string;
-  type: CardType;
+  types: CardType[];
   superTypes: string[];
   rarity: Rarity;
   /** Finish slug — renders a per-finish icon when it's foil/metal/metal-deluxe. */
@@ -40,7 +40,7 @@ interface CardMetaLabelProps {
 export function CardMetaLabel({
   shortCode,
   name,
-  type,
+  types,
   superTypes,
   rarity,
   finish,
@@ -53,8 +53,9 @@ export function CardMetaLabel({
   className,
   price,
 }: CardMetaLabelProps) {
-  const typeLabel = superTypes.length > 0 ? `${superTypes.join(" ")} ${type}` : type;
-  const typeIconPath = getTypeIconPath(type, superTypes);
+  const typeText = types.join(" ");
+  const typeLabel = superTypes.length > 0 ? `${superTypes.join(" ")} ${typeText}` : typeText;
+  const typeIconPaths = getTypeIconPaths(types, superTypes);
   const rarityIconPath = getFilterIconPath("rarities", rarity);
 
   return (
@@ -67,14 +68,15 @@ export function CardMetaLabel({
       <div className="text-muted-foreground flex min-h-4 items-center justify-between gap-1 text-xs">
         <span className="truncate font-medium">{shortCode}</span>
         <span className="flex shrink-0 items-center gap-1">
-          {typeIconPath && (
+          {typeIconPaths.map((path) => (
             <img
-              src={typeIconPath}
+              key={path}
+              src={path}
               alt={typeLabel}
               title={typeLabel}
               className="size-3.5 brightness-0 dark:invert"
             />
-          )}
+          ))}
           {rarityIconPath && (
             <img
               src={rarityIconPath}

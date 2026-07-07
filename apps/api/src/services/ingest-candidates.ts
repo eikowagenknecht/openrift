@@ -48,7 +48,7 @@ function jsonOrNull(value: unknown): unknown {
 /** Maps camelCase DB column names to snake_case IngestCard field names. */
 const CARD_FIELD_MAP: Record<string, string> = {
   name: "name",
-  type: "type",
+  types: "types",
   superTypes: "super_types",
   domains: "domains",
   might: "might",
@@ -95,7 +95,7 @@ function normalize(value: unknown): unknown {
 // Exported so the user-submission ingest (ADR-036) validates against the identical rules.
 export const candidateCardValidator = z.object({
   name: candidateCardFieldRules.name,
-  type: candidateCardFieldRules.type,
+  types: candidateCardFieldRules.types,
   might: candidateCardFieldRules.might,
   energy: candidateCardFieldRules.energy,
   power: candidateCardFieldRules.power,
@@ -269,7 +269,7 @@ export async function ingestCandidates(
       // Validate card data against DB CHECK constraints (using normalized values)
       const cardValidation = candidateCardValidator.safeParse({
         name: card.name,
-        type: card.type,
+        types: card.types,
         might: card.might,
         energy: card.energy,
         power: card.power,
@@ -312,7 +312,7 @@ export async function ingestCandidates(
           });
           const cardUpdate: Record<string, unknown> = {
             name: card.name,
-            type: card.type,
+            types: card.types,
             superTypes: card.super_types,
             domains: card.domains,
             might: card.might,
@@ -342,7 +342,7 @@ export async function ingestCandidates(
         const cardInsert: Insertable<CandidateCardsTable> = {
           provider,
           name: card.name,
-          type: card.type,
+          types: card.types,
           superTypes: card.super_types,
           domains: card.domains,
           might: card.might,

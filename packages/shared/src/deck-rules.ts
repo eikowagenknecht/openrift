@@ -9,7 +9,10 @@ export interface DeckCard {
   zone: DeckZone;
   quantity: number;
   cardName: string;
+  /** Primary type (`cardTypes[0]`); used only for display/sort bucketing. */
   cardType: CardType;
+  /** Full ordered type set (ADR-037); rules check membership here. */
+  cardTypes: CardType[];
   superTypes: SuperType[];
   domains: Domain[];
   tags: string[];
@@ -103,7 +106,7 @@ export const legendExactlyOne: DeckRule = (state) => {
   }
 
   const legend = legends[0];
-  if (legend.cardType !== WellKnown.cardType.LEGEND) {
+  if (!legend.cardTypes.includes(WellKnown.cardType.LEGEND)) {
     return [
       {
         zone: WellKnown.deckZone.LEGEND,
@@ -225,7 +228,7 @@ export const runesAllTypeRune: DeckRule = (state) => {
   const violations: DeckViolation[] = [];
 
   for (const card of cardsInZone(state.cards, WellKnown.deckZone.RUNES)) {
-    if (card.cardType !== WellKnown.cardType.RUNE) {
+    if (!card.cardTypes.includes(WellKnown.cardType.RUNE)) {
       violations.push({
         zone: WellKnown.deckZone.RUNES,
         code: "RUNE_WRONG_TYPE",
@@ -507,7 +510,7 @@ export const battlefieldAllTypeBattlefield: DeckRule = (state) => {
   const violations: DeckViolation[] = [];
 
   for (const card of cardsInZone(state.cards, WellKnown.deckZone.BATTLEFIELD)) {
-    if (card.cardType !== WellKnown.cardType.BATTLEFIELD) {
+    if (!card.cardTypes.includes(WellKnown.cardType.BATTLEFIELD)) {
       violations.push({
         zone: WellKnown.deckZone.BATTLEFIELD,
         code: "BATTLEFIELD_WRONG_TYPE",
@@ -718,7 +721,7 @@ const cardsCarryFormatTag: DeckRule = (state) => {
     // Runes carry no region tags and only provide generic power — every rune
     // is legal in a tag-locked deck. Count/type checks still apply via
     // runesExactlyTwelve / runesAllTypeRune.
-    if (card.cardType === WellKnown.cardType.RUNE) {
+    if (card.cardTypes.includes(WellKnown.cardType.RUNE)) {
       continue;
     }
     const ok = allowed.some((slug) => card.customTagSlugs.includes(slug));

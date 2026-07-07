@@ -197,7 +197,11 @@ async function linesFromCardList(
     const resolution = resolutions.get(cardResolutionKey(line.name));
     const detail = resolution?.resolvedCardId ? details.get(resolution.resolvedCardId) : undefined;
     if (detail) {
-      line.zone = inferZone(detail.type as CardType, detail.superTypes as SuperType[], "mainDeck");
+      line.zone = inferZone(
+        detail.types as CardType[],
+        detail.superTypes as SuperType[],
+        "mainDeck",
+      );
     }
   }
   return lines;
@@ -252,7 +256,7 @@ async function linesFromDeckCode(repos: Repos, deckCode: string): Promise<DeckCh
     }
     lines.push({
       name: card.name,
-      zone: inferZone(card.type as CardType, [], slot),
+      zone: inferZone(card.types as CardType[], [], slot),
       quantity: count,
     });
   };

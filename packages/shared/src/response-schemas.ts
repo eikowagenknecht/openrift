@@ -140,6 +140,10 @@ export const catalogCardResponseSchema = z.object({
   slug: z.string().openapi({ example: "jinx-rebel" }),
   name: z.string().openapi({ example: "Jinx, Rebel" }),
   type: cardTypeSchema,
+  types: z
+    .array(cardTypeSchema)
+    .nonempty()
+    .openapi({ example: ["Unit"] }),
   superTypes: z.array(superTypeSchema).openapi({ example: ["Champion"] }),
   domains: z.array(domainSchema).openapi({ example: ["Chaos"] }),
   might: z.number().nullable().openapi({ example: 5 }),

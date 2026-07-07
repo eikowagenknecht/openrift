@@ -50,8 +50,10 @@ export function localDeckToListItem(
     if (!COUNTED_ZONES.has(card.zone)) {
       continue;
     }
-    if (!EXCLUDED_TYPES.has(card.cardType)) {
-      typeCountMap.set(card.cardType, (typeCountMap.get(card.cardType) ?? 0) + card.quantity);
+    for (const cardType of card.cardTypes) {
+      if (!EXCLUDED_TYPES.has(cardType)) {
+        typeCountMap.set(cardType, (typeCountMap.get(cardType) ?? 0) + card.quantity);
+      }
     }
     for (const domain of card.domains) {
       domainCountMap.set(domain, (domainCountMap.get(domain) ?? 0) + card.quantity);

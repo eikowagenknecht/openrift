@@ -59,6 +59,7 @@ function stub(overrides: Partial<Printing> = {}): Printing {
       slug: "OGS-001",
       name: "",
       type: "unit",
+      types: ["unit"],
       superTypes: [],
       domains: [],
       energy: 0,

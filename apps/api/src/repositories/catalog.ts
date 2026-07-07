@@ -1,5 +1,5 @@
 import { WellKnown } from "@openrift/shared";
-import type { Domain, SuperType } from "@openrift/shared/types";
+import type { CardType, Domain, SuperType } from "@openrift/shared/types";
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
@@ -18,6 +18,7 @@ import { imageId } from "./query-helpers.js";
 type CatalogCardRow = Omit<Selectable<CardsTable>, "normName" | "createdAt" | "updatedAt"> & {
   domains: Domain[];
   superTypes: SuperType[];
+  types: CardType[];
 };
 
 /** Active ban row returned by the catalog. */
@@ -120,7 +121,10 @@ export function catalogRepo(db: Kysely<Database>) {
       const result = await sql<{ tag: string }>`
         SELECT DISTINCT unnest(tags) AS tag
         FROM cards
-        WHERE type = ${WellKnown.cardType.LEGEND}
+        WHERE EXISTS (
+          SELECT 1 FROM card_card_types cct
+          WHERE cct.card_id = cards.id AND cct.type_slug = ${WellKnown.cardType.LEGEND}
+        )
         ORDER BY tag
       `.execute(db);
       return result.rows.map((row) => row.tag);
@@ -145,6 +149,7 @@ export function catalogRepo(db: Kysely<Database>) {
           "cards.comment",
           "mca.domains",
           "mca.superTypes",
+          "mca.types",
         ])
         .orderBy("cards.name")
         .execute() as Promise<CatalogCardRow[]>;
@@ -392,6 +397,7 @@ export function catalogRepo(db: Kysely<Database>) {
           "cards.comment",
           "mca.domains",
           "mca.superTypes",
+          "mca.types",
         ])
         .where("cards.slug", "=", slug)
         .executeTakeFirst() as Promise<CatalogCardRow | undefined>;
@@ -557,6 +563,7 @@ export function catalogRepo(db: Kysely<Database>) {
           "cards.comment",
           "mca.domains",
           "mca.superTypes",
+          "mca.types",
         ])
         .where("cards.id", "in", ids)
         .orderBy("cards.name")

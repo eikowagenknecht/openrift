@@ -31,7 +31,10 @@ export interface DeckBuilderCard {
   /** Printing pinned for display, or null for "default art". */
   preferredPrintingId: string | null;
   cardName: string;
+  /** Primary type (`cardTypes[0]`); used for display/sort bucketing only. */
   cardType: CardType;
+  /** Full ordered type set (ADR-037); zone gating checks membership here. */
+  cardTypes: CardType[];
   superTypes: SuperType[];
   domains: Domain[];
   tags: string[];
@@ -67,6 +70,7 @@ export function toRuleEngineCard(
     quantity: card.quantity,
     cardName: card.cardName,
     cardType: card.cardType,
+    cardTypes: card.cardTypes,
     superTypes: card.superTypes,
     domains: card.domains,
     tags: card.tags,
@@ -105,7 +109,7 @@ const MOVE_TARGET_ORDER: readonly DeckZone[] = [
  */
 export function getAllowedMoveTargets(
   card: {
-    cardType: CardType;
+    cardTypes: CardType[];
     superTypes: SuperType[];
     zone: DeckZone;
   },
@@ -125,24 +129,24 @@ export function getAllowedMoveTargets(
  * @returns true if the card's type is valid for the zone
  */
 export function isCardAllowedInZone(
-  card: { cardType: CardType; superTypes: SuperType[] },
+  card: { cardTypes: CardType[]; superTypes: SuperType[] },
   zone: DeckZone,
 ): boolean {
   switch (zone) {
     case WellKnown.deckZone.LEGEND: {
-      return card.cardType === WellKnown.cardType.LEGEND;
+      return card.cardTypes.includes(WellKnown.cardType.LEGEND);
     }
     case WellKnown.deckZone.CHAMPION: {
       return (
         card.superTypes.includes(WellKnown.superType.CHAMPION) &&
-        card.cardType !== WellKnown.cardType.LEGEND
+        !card.cardTypes.includes(WellKnown.cardType.LEGEND)
       );
     }
     case WellKnown.deckZone.RUNES: {
-      return card.cardType === WellKnown.cardType.RUNE;
+      return card.cardTypes.includes(WellKnown.cardType.RUNE);
     }
     case WellKnown.deckZone.BATTLEFIELD: {
-      return card.cardType === WellKnown.cardType.BATTLEFIELD;
+      return card.cardTypes.includes(WellKnown.cardType.BATTLEFIELD);
     }
     case WellKnown.deckZone.OVERFLOW: {
       // Overflow is a free "park here" holding area: any card type is welcome,
@@ -154,9 +158,9 @@ export function isCardAllowedInZone(
     case WellKnown.deckZone.MAIN:
     case WellKnown.deckZone.SIDEBOARD: {
       return (
-        card.cardType !== WellKnown.cardType.LEGEND &&
-        card.cardType !== WellKnown.cardType.RUNE &&
-        card.cardType !== WellKnown.cardType.BATTLEFIELD
+        !card.cardTypes.includes(WellKnown.cardType.LEGEND) &&
+        !card.cardTypes.includes(WellKnown.cardType.RUNE) &&
+        !card.cardTypes.includes(WellKnown.cardType.BATTLEFIELD)
       );
     }
     default: {
@@ -280,6 +284,7 @@ export function catalogCardToDeckBuilderCard(cardId: string, card: Card): DeckBu
     preferredPrintingId: null,
     cardName: card.name,
     cardType: card.type,
+    cardTypes: card.types,
     superTypes: card.superTypes,
     domains: card.domains,
     tags: card.tags,
@@ -310,6 +315,7 @@ export function toDeckBuilderCard(
     preferredPrintingId: deckCard.preferredPrintingId,
     cardName: card.name,
     cardType: card.type,
+    cardTypes: card.types,
     superTypes: card.superTypes,
     domains: card.domains,
     tags: card.tags ?? EMPTY_ARRAY,

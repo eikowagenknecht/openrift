@@ -302,7 +302,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           | "keywords"
           | "tags"
           | "comment"
-        > & { domains: string[]; superTypes: string[] })
+        > & { domains: string[]; superTypes: string[]; types: string[] })
       | undefined
     > {
       return db
@@ -323,6 +323,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           "cards.comment",
           "mca.domains",
           "mca.superTypes",
+          "mca.types",
         ])
         .where("cards.slug", "=", slug)
         .executeTakeFirst() as Promise<any>;
@@ -594,7 +595,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         | "id"
         | "provider"
         | "name"
-        | "type"
+        | "types"
         | "superTypes"
         | "domains"
         | "might"
@@ -616,7 +617,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           "id",
           "provider",
           "name",
-          "type",
+          "types",
           "superTypes",
           "domains",
           "might",
@@ -644,13 +645,13 @@ export function candidateCardsRepo(db: Kysely<Database>) {
 
     /** @returns All cards with all columns, ordered by name. */
     exportCards(): Promise<
-      (Selectable<CardsTable> & { domains: string[]; superTypes: string[] })[]
+      (Selectable<CardsTable> & { domains: string[]; superTypes: string[]; types: string[] })[]
     > {
       return db
         .selectFrom("cards")
         .innerJoin("mvCardAggregates as mca", "mca.cardId", "cards.id")
         .selectAll("cards")
-        .select(["mca.domains", "mca.superTypes"])
+        .select(["mca.domains", "mca.superTypes", "mca.types"])
         .orderBy("cards.name")
         .execute() as any;
     },

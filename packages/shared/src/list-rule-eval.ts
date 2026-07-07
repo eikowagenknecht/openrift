@@ -118,7 +118,7 @@ function resolveQuantity(quantity: RuleQuantity, card: Card): number {
   if (quantity.mode === "fixed") {
     return Math.max(0, quantity.n);
   }
-  return getPlaysetSize(card.type, card.keywords) * quantity.multiplier;
+  return getPlaysetSize(card.types, card.keywords) * quantity.multiplier;
 }
 
 /**

@@ -14,13 +14,6 @@ import {
 } from "@/components/ui/combobox";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useCreateCard } from "@/hooks/use-admin-card-mutations";
 import { useEnumOrders } from "@/hooks/use-enums";
@@ -42,7 +35,8 @@ export function CreateCardPage() {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [slugDirty, setSlugDirty] = useState(false);
-  const [type, setType] = useState<string>(orders.cardTypes[0] ?? "");
+  // Ordered multi-type (ADR-037): selection order matters, first type is primary.
+  const [types, setTypes] = useState<string[]>([]);
   const [domains, setDomains] = useState<string[]>([]);
   const [superTypes, setSuperTypes] = useState<string[]>([]);
   const [numeric, setNumeric] = useState<Record<NumField, string>>({
@@ -67,7 +61,7 @@ export function CreateCardPage() {
   const canSubmit =
     name.trim().length > 0 &&
     effectiveSlug.trim().length > 0 &&
-    type.length > 0 &&
+    types.length > 0 &&
     domains.length > 0 &&
     !createCard.isPending;
 
@@ -91,7 +85,7 @@ export function CreateCardPage() {
       {
         id: effectiveSlug.trim(),
         name: name.trim(),
-        type,
+        types,
         domains,
         ...(superTypes.length > 0 && { superTypes }),
         ...(numeric.might !== "" && { might: parseNum(numeric.might) }),
@@ -152,19 +146,21 @@ export function CreateCardPage() {
             </div>
 
             <Field>
-              <FieldLabel>Type *</FieldLabel>
-              <Select value={type} onValueChange={(value) => value && setType(value)}>
-                <SelectTrigger className="w-48">
-                  <SelectValue>{(value: string) => labels.cardTypes[value] ?? value}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {orders.cardTypes.map((typeSlug) => (
-                    <SelectItem key={typeSlug} value={typeSlug}>
-                      {labels.cardTypes[typeSlug] ?? typeSlug}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <FieldLabel>Types *</FieldLabel>
+              <ToggleGroup
+                multiple
+                variant="outline"
+                spacing={2}
+                value={types}
+                onValueChange={setTypes}
+                className="w-full flex-wrap"
+              >
+                {orders.cardTypes.map((typeSlug) => (
+                  <ToggleGroupItem key={typeSlug} value={typeSlug}>
+                    {labels.cardTypes[typeSlug] ?? typeSlug}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
             </Field>
 
             <Field>

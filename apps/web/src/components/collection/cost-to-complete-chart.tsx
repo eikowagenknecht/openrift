@@ -184,12 +184,12 @@ function computeForCopies(
   marketplace: Marketplace,
 ): CostToCompleteData {
   // Total target copies per card
-  const allCardSlugs = new Map<string, { name: string; type: CardType; keywords: string[] }>();
+  const allCardSlugs = new Map<string, { name: string; types: CardType[]; keywords: string[] }>();
   for (const printing of scopedPrintings) {
     if (!allCardSlugs.has(printing.card.slug)) {
       allCardSlugs.set(printing.card.slug, {
         name: printing.card.name,
-        type: printing.card.type,
+        types: printing.card.types,
         keywords: printing.card.keywords,
       });
     }
@@ -211,7 +211,7 @@ function computeForCopies(
   let ownedItems = 0;
 
   for (const [slug, card] of allCardSlugs) {
-    const target = getPlaysetSize(card.type, card.keywords);
+    const target = getPlaysetSize(card.types, card.keywords);
     const owned = Math.min(ownedCopiesBySlug.get(slug) ?? 0, target);
     const missing = target - owned;
     totalItems += target;

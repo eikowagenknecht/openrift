@@ -81,7 +81,7 @@ export function PackStats({ packs, prices, marketplace }: PackStatsProps) {
         unpricedPulls.push({
           cardName: legendDisplayName({
             name: pull.printing.cardName,
-            type: pull.printing.cardType,
+            types: pull.printing.cardTypes,
             tags: pull.printing.tags,
           }),
           shortCode: pull.printing.shortCode,
@@ -180,7 +180,7 @@ function buildNotablePulls(
     notable.push({
       cardName: legendDisplayName({
         name: pull.printing.cardName,
-        type: pull.printing.cardType,
+        types: pull.printing.cardTypes,
         tags: pull.printing.tags,
       }),
       shortCode: pull.printing.shortCode,

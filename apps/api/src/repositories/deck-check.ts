@@ -1406,20 +1406,21 @@ export function deckCheckRepo(db: Kysely<Database>) {
      */
     async getCardsByShortCodes(
       shortCodes: string[],
-    ): Promise<Map<string, { cardId: string; name: string; type: string }>> {
+    ): Promise<Map<string, { cardId: string; name: string; types: string[] }>> {
       if (shortCodes.length === 0) {
         return new Map();
       }
       const rows = await db
         .selectFrom("printings as p")
         .innerJoin("cards as c", "c.id", "p.cardId")
-        .select(["p.shortCode", "c.id", "c.name", "c.type"])
+        .innerJoin("mvCardAggregates as mca", "mca.cardId", "c.id")
+        .select(["p.shortCode", "c.id", "c.name", "mca.types"])
         .where("p.shortCode", "in", [...new Set(shortCodes)])
         .execute();
-      const byShortCode = new Map<string, { cardId: string; name: string; type: string }>();
+      const byShortCode = new Map<string, { cardId: string; name: string; types: string[] }>();
       for (const row of rows) {
         if (!byShortCode.has(row.shortCode)) {
-          byShortCode.set(row.shortCode, { cardId: row.id, name: row.name, type: row.type });
+          byShortCode.set(row.shortCode, { cardId: row.id, name: row.name, types: row.types });
         }
       }
       return byShortCode;
@@ -1436,6 +1437,7 @@ export function deckCheckRepo(db: Kysely<Database>) {
           id: string;
           name: string;
           type: string;
+          types: string[];
           superTypes: string[];
           domains: string[];
           tags: string[];
@@ -1453,6 +1455,7 @@ export function deckCheckRepo(db: Kysely<Database>) {
           "c.id",
           "c.name",
           "c.type",
+          "mca.types",
           "mca.superTypes",
           "mca.domains",
           "c.tags",
@@ -1467,6 +1470,7 @@ export function deckCheckRepo(db: Kysely<Database>) {
             id: row.id,
             name: row.name,
             type: row.type,
+            types: row.types ?? [row.type],
             superTypes: row.superTypes ?? [],
             domains: row.domains ?? [],
             tags: row.tags ?? [],

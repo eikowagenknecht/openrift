@@ -304,8 +304,10 @@ function emptyPlanResponse(overrides?: Partial<DeckPlanResponse>): DeckPlanRespo
 }
 
 function card(overrides: Partial<Card> & { slug: string; name: string }): Card {
+  const type = overrides.type ?? overrides.types?.[0] ?? "unit";
   return {
-    type: "unit",
+    type,
+    types: [type],
     superTypes: [],
     domains: [],
     might: null,

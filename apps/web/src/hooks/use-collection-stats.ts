@@ -86,8 +86,8 @@ export interface CollectionStats {
  * collection stats agree with the deck builder. Do not re-derive it here.
  * @returns The deck-relevant max copies, or 3 when the card is unknown.
  */
-function copiesTarget(card?: { type: CardType; keywords: readonly string[] }): number {
-  return card ? getPlaysetSize(card.type, card.keywords) : 3;
+function copiesTarget(card?: { types: CardType[]; keywords: readonly string[] }): number {
+  return card ? getPlaysetSize(card.types, card.keywords) : 3;
 }
 
 // ── Completion computation ─────────────────────────────────────────────────
@@ -209,7 +209,8 @@ function getGroupKey(printing: Printing, groupBy: CompletionGroupBy): string[] {
       return [printing.rarity];
     }
     case "type": {
-      return [printing.card.type];
+      // Multi-type cards count in every type group, like domains (ADR-037).
+      return printing.card.types;
     }
   }
 }
@@ -231,10 +232,10 @@ function buildTotals(
 
   // "cards" and "copies" modes: count unique cards, optionally multiplied by target
   const cardsByKey = new Map<string, Set<string>>();
-  const cardInfo = new Map<string, { type: CardType; keywords: string[] }>(); // slug -> info
+  const cardInfo = new Map<string, { types: CardType[]; keywords: string[] }>(); // slug -> info
   for (const printing of scopedPrintings) {
     const slug = printing.card.slug;
-    cardInfo.set(slug, { type: printing.card.type, keywords: printing.card.keywords });
+    cardInfo.set(slug, { types: printing.card.types, keywords: printing.card.keywords });
     for (const key of getGroupKey(printing, groupBy)) {
       getOrCreate(cardsByKey, key).add(slug);
     }
@@ -308,10 +309,10 @@ function buildOwned(
 function stackCard(
   stacks: StackedEntry[],
   slug: string,
-): { type: CardType; keywords: string[] } | undefined {
+): { types: CardType[]; keywords: string[] } | undefined {
   for (const stack of stacks) {
     if (stack.printing.card.slug === slug) {
-      return { type: stack.printing.card.type, keywords: stack.printing.card.keywords };
+      return { types: stack.printing.card.types, keywords: stack.printing.card.keywords };
     }
   }
   return undefined;
@@ -515,19 +516,21 @@ export function computeCollectionStats(input: ComputeInput): Omit<CollectionStat
   const typeByDomain = new Map<string, Map<Domain, number>>();
   const typeTotal = new Map<string, number>();
 
+  // Multi-type cards count under each of their types, like the domain
+  // breakdown, so totals can exceed the collection size (ADR-037).
   for (const stack of stacks) {
-    const cardType = stack.printing.card.type;
     const quantity = stack.copyIds.length;
-
-    let domainMap = typeByDomain.get(cardType);
-    if (!domainMap) {
-      domainMap = new Map();
-      typeByDomain.set(cardType, domainMap);
+    for (const cardType of stack.printing.card.types) {
+      let domainMap = typeByDomain.get(cardType);
+      if (!domainMap) {
+        domainMap = new Map();
+        typeByDomain.set(cardType, domainMap);
+      }
+      for (const domain of stack.printing.card.domains) {
+        domainMap.set(domain, (domainMap.get(domain) ?? 0) + quantity);
+      }
+      typeTotal.set(cardType, (typeTotal.get(cardType) ?? 0) + quantity);
     }
-    for (const domain of stack.printing.card.domains) {
-      domainMap.set(domain, (domainMap.get(domain) ?? 0) + quantity);
-    }
-    typeTotal.set(cardType, (typeTotal.get(cardType) ?? 0) + quantity);
   }
 
   const typeDomainSet = new Set<Domain>();
@@ -656,7 +659,7 @@ export function matchesScope(printing: Printing, scope: CompletionScopePreferenc
   ) {
     return false;
   }
-  if (types && types.length > 0 && !types.includes(printing.card.type)) {
+  if (types && types.length > 0 && !printing.card.types.some((t) => types.includes(t))) {
     return false;
   }
   if (rarities && rarities.length > 0 && !rarities.includes(printing.rarity)) {

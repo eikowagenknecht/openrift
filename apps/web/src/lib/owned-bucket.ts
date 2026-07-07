@@ -48,7 +48,7 @@ export function applyOwnedBucketFilter(
       selectedSet.has(
         bucketFor(
           ownedCountByPrinting[printing.id] ?? 0,
-          getPlaysetSize(printing.card.type, printing.card.keywords),
+          getPlaysetSize(printing.card.types, printing.card.keywords),
         ),
       ),
     );
@@ -68,7 +68,7 @@ export function applyOwnedBucketFilter(
     if (!card) {
       continue;
     }
-    if (selectedSet.has(bucketFor(total, getPlaysetSize(card.type, card.keywords)))) {
+    if (selectedSet.has(bucketFor(total, getPlaysetSize(card.types, card.keywords)))) {
       matchingCardIds.add(cardId);
     }
   }

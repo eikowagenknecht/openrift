@@ -7,7 +7,7 @@ import { Fragment } from "react";
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { FinishIcon } from "@/components/cards/finish-icon";
 import { Pressable } from "@/components/ui/pressable";
-import { getFilterIconPath, getTypeIconPath } from "@/lib/icons";
+import { getFilterIconPath, getTypeIconPaths } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 export const CARD_TABLE_ROW_HEIGHT = 56;
@@ -260,11 +260,11 @@ export function CardTableRow({
   const setName = setNameBySlug.get(printing.setSlug) ?? printing.setSlug;
   const typeLabel = [
     ...printing.card.superTypes.map((slug) => superTypeLabels[slug]),
-    cardTypeLabels[printing.card.type],
+    ...printing.card.types.map((slug) => cardTypeLabels[slug]),
   ]
     .filter(Boolean)
     .join(" ");
-  const typeIconPath = getTypeIconPath(printing.card.type, printing.card.superTypes);
+  const typeIconPaths = getTypeIconPaths(printing.card.types, printing.card.superTypes);
   const rarityIconPath = getFilterIconPath("rarities", printing.rarity);
   const rarityLabel = rarityLabels[printing.rarity];
 
@@ -286,9 +286,9 @@ export function CardTableRow({
     set: <div className="text-muted-foreground min-w-0 truncate px-3">{setName}</div>,
     type: (
       <div className="text-muted-foreground flex min-w-0 items-center gap-2 px-3">
-        {typeIconPath && (
-          <img src={typeIconPath} alt="" className="size-4 shrink-0 brightness-0 dark:invert" />
-        )}
+        {typeIconPaths.map((path) => (
+          <img key={path} src={path} alt="" className="size-4 shrink-0 brightness-0 dark:invert" />
+        ))}
         <span className="truncate">{typeLabel}</span>
       </div>
     ),

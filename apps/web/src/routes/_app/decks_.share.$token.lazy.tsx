@@ -72,6 +72,7 @@ function toBuilderCardFromPublic(card: PublicDeckCardResponse): DeckBuilderCard 
     preferredPrintingId: card.preferredPrintingId,
     cardName: card.cardName,
     cardType: card.cardType,
+    cardTypes: card.cardTypes,
     superTypes: card.superTypes,
     domains: card.domains,
     tags: card.tags,

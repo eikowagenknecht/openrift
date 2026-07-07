@@ -22,7 +22,7 @@ function makePull(overrides: Partial<PackPrinting> = {}): PackPull {
     cardId: "00000000-0000-0000-0000-000000000002",
     cardName: "Test Card",
     cardSlug: "test-card",
-    cardType: "unit",
+    cardTypes: ["unit"],
     cardSuperTypes: [],
     tags: [],
     rarity: "common",
@@ -43,14 +43,16 @@ const IMAGE = { face: "front" as const, imageId: "test-image-id-aa" };
 describe("PullCard battlefield rotation", () => {
   it("rotates landscape battlefield images so they fit the portrait slot", () => {
     const { container } = render(
-      <PullCard pull={makePull({ cardType: "battlefield" })} image={IMAGE} />,
+      <PullCard pull={makePull({ cardTypes: ["battlefield"] })} image={IMAGE} />,
     );
     const wrapper = container.querySelector("img")?.parentElement;
     expect(wrapper?.getAttribute("style")).toContain("rotate(-90deg)");
   });
 
   it("does not rotate portrait card images", () => {
-    const { container } = render(<PullCard pull={makePull({ cardType: "unit" })} image={IMAGE} />);
+    const { container } = render(
+      <PullCard pull={makePull({ cardTypes: ["unit"] })} image={IMAGE} />,
+    );
     const img = container.querySelector("img");
     // The image is rendered directly (no rotation wrapper) so its parent is the
     // outer aspect-card box, not a styled rotation wrapper.

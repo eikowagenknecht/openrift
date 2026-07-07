@@ -40,7 +40,7 @@ describe("CardPlaceholderImage", () => {
         energy={2}
         might={3}
         power={1}
-        type="unit"
+        types={["unit"]}
         superTypes={["champion"]}
         tags={["Yordle"]}
         rulesText="Pay :rb_energy_1: to hide a card with [Hidden] instead of :rb_rune_rainbow:."
@@ -68,7 +68,7 @@ describe("CardPlaceholderImage", () => {
         energy={null}
         might={null}
         power={null}
-        type="gear"
+        types={["gear"]}
         superTypes={[]}
         tags={[]}
         rulesText={null}
@@ -83,6 +83,39 @@ describe("CardPlaceholderImage", () => {
     expect(container.textContent).toContain("+2");
   });
 
+  it("renders one glyph per type and the gear cost diamond for multi-type cards (ADR-037)", () => {
+    const { container } = render(
+      <CardPlaceholderImage
+        name="Hexcore Carrier"
+        domain={["fury"]}
+        energy={2}
+        might={3}
+        power={1}
+        types={["unit", "gear"]}
+        superTypes={[]}
+        tags={[]}
+        rulesText={null}
+        effectText={null}
+        mightBonus={null}
+        flavorText={null}
+      />,
+      { wrapper: makeWrapper() },
+    );
+
+    // One type glyph per type, in printed order. The glyphs render as masked
+    // <span>s (GlyphIcon's arbitrary-tint branch), so query the mask images.
+    const glyphSpans = [...container.querySelectorAll("span")].filter((el) =>
+      el.style.maskImage.includes("/images/types/"),
+    );
+    expect(glyphSpans.map((el) => el.style.maskImage)).toEqual([
+      'url("/images/types/unit.svg")',
+      'url("/images/types/gear.svg")',
+    ]);
+    // A Gear type in the set gives the energy badge the rotated diamond frame.
+    const diamond = container.querySelector('[aria-label="Energy: 2"] .rotate-45');
+    expect(diamond).not.toBeNull();
+  });
+
   it("omits the rarity glyph when no rarity is set", () => {
     // Regression: the contribute-form preview used to fall back to a "common"
     // glyph when rarity was unset, making it look like the user had picked
@@ -94,7 +127,7 @@ describe("CardPlaceholderImage", () => {
         energy={1}
         might={null}
         power={null}
-        type="spell"
+        types={["spell"]}
         superTypes={[]}
         tags={[]}
         rulesText={null}
@@ -120,7 +153,7 @@ describe("CardPlaceholderImage", () => {
         energy={1}
         might={null}
         power={null}
-        type="spell"
+        types={["spell"]}
         superTypes={[]}
         tags={[]}
         rulesText="Pay :rb_energy_1: to draw."

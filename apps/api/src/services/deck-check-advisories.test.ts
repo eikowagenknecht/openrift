@@ -21,11 +21,14 @@ function line(overrides: Partial<AdvisoryCardLine> = {}): AdvisoryCardLine {
 }
 
 const details = new Map([
-  ["legend-card", { name: "A Legend", type: "legend", superTypes: [] }],
-  ["rune-card", { name: "A Rune", type: "rune", superTypes: [] }],
-  ["battlefield-card", { name: "A Battlefield", type: "battlefield", superTypes: [] }],
-  ["unit-card", { name: "A Unit", type: "unit", superTypes: [] }],
-  ["spell-card", { name: "A Spell", type: "spell", superTypes: [] }],
+  ["legend-card", { name: "A Legend", type: "legend", types: ["legend"], superTypes: [] }],
+  ["rune-card", { name: "A Rune", type: "rune", types: ["rune"], superTypes: [] }],
+  [
+    "battlefield-card",
+    { name: "A Battlefield", type: "battlefield", types: ["battlefield"], superTypes: [] },
+  ],
+  ["unit-card", { name: "A Unit", type: "unit", types: ["unit"], superTypes: [] }],
+  ["spell-card", { name: "A Spell", type: "spell", types: ["spell"], superTypes: [] }],
 ]);
 
 describe("computeZoneSuggestions", () => {
@@ -161,6 +164,7 @@ describe("buildEntryAdvisories", () => {
           id: "legend-karma",
           name: "Karma",
           type: "legend",
+          types: ["legend"],
           superTypes: [],
           domains: [],
           tags: ["Karma"],
@@ -173,6 +177,7 @@ describe("buildEntryAdvisories", () => {
           id: "sig-daisy",
           name: "Daisy!",
           type: "unit",
+          types: ["unit"],
           superTypes: ["signature"],
           domains: [],
           tags: ["Ivern", "Ionia"],
@@ -214,6 +219,7 @@ describe("buildEntryAdvisories", () => {
           id: "legend-karma",
           name: "Karma",
           type: "legend",
+          types: ["legend"],
           superTypes: [],
           domains: [],
           tags: ["Karma"],

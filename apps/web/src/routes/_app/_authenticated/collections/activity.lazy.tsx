@@ -32,7 +32,7 @@ import { useCollections } from "@/hooks/use-collections";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { usePrices } from "@/hooks/use-prices";
 import { compactFormatterForMarketplace, priceColorClass } from "@/lib/format";
-import { getFilterIconPath, getTypeIconPath } from "@/lib/icons";
+import { getFilterIconPath, getTypeIconPaths } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 import { useDisplayStore } from "@/stores/display-store";
@@ -224,12 +224,12 @@ function EventCard({
   const Icon = config.icon;
   const displayName = legendDisplayName({
     name: event.cardName,
-    type: event.cardType,
+    types: event.cardTypes,
     tags: event.tags,
   });
   const totalPrice = price === undefined ? undefined : price * count;
   const { labels } = useEnumOrders();
-  const cardTypeLabel = labels.cardTypes[event.cardType];
+  const cardTypeLabel = event.cardTypes.map((slug) => labels.cardTypes[slug]).join(" ");
   const superTypeLabels = event.cardSuperTypes.map((slug) => labels.superTypes[slug]);
   const rarityLabel = labels.rarities[event.rarity];
 
@@ -240,7 +240,7 @@ function EventCard({
     collectionFilter === "all" &&
     (event.toCollectionName ?? event.fromCollectionName);
   const showCollection = isMove || isUnfilteredAddRemove;
-  const typeIconPath = getTypeIconPath(event.cardType, event.cardSuperTypes);
+  const typeIconPaths = getTypeIconPaths(event.cardTypes, event.cardSuperTypes);
   const rarityIconPath = getFilterIconPath("rarities", event.rarity);
 
   return (
@@ -281,9 +281,10 @@ function EventCard({
         </div>
         <p className="text-muted-foreground flex items-center gap-1 text-xs">
           {event.shortCode}
-          {typeIconPath && (
+          {typeIconPaths.map((path) => (
             <img
-              src={typeIconPath}
+              key={path}
+              src={path}
               alt={cardTypeLabel}
               title={
                 superTypeLabels.length > 0
@@ -292,7 +293,7 @@ function EventCard({
               }
               className="size-3.5 brightness-0 dark:invert"
             />
-          )}
+          ))}
           {rarityIconPath && (
             <img src={rarityIconPath} alt={rarityLabel} title={rarityLabel} className="size-3.5" />
           )}

@@ -254,7 +254,7 @@ function CardImageContent({
     energy: number | null;
     might?: number | null;
     power?: number | null;
-    type?: string;
+    types?: string[];
     superTypes?: string[];
     tags?: string[];
     rulesText?: string | null;
@@ -286,7 +286,7 @@ function CardImageContent({
           energy={card.energy}
           might={card.might}
           power={card.power}
-          type={card.type}
+          types={card.types}
           superTypes={card.superTypes}
           tags={card.tags}
           rulesText={card.rulesText}
@@ -434,11 +434,11 @@ export const CardThumbnail = memo(function CardThumbnail({
     flavorText: printing.flavorText,
   };
   // Legends read as "Azir, Emperor of the Sands" — the champion tag is prepended
-  // for display only (read printing.card.type/tags directly so `card` stays
+  // for display only (read printing.card.types/tags directly so `card` stays
   // memoizable, mirroring the orientation note below).
   const displayName = legendDisplayName({
     name: card.name,
-    type: printing.card.type,
+    types: printing.card.types,
     tags: printing.card.tags,
   });
   const frontImage = printing.images[0] ?? null;
@@ -446,7 +446,7 @@ export const CardThumbnail = memo(function CardThumbnail({
   // `card` object here would couple its construction to this call and prevent
   // React Compiler from memoizing `card`. That unmemoized `card` would then
   // cascade into re-creating the `<CardImageContent>` JSX on every render.
-  const orientation = getOrientation(printing.card.type);
+  const orientation = getOrientation(printing.card.types);
   const thumbnailUrl = showImages && frontImage ? imageUrl(frontImage.imageId, "400w") : null;
   // Full ladder so the browser can pick a smaller variant for tight cells
   // (DPR-1 phones, dense desktop grids) without sacrificing sharpness on
@@ -649,7 +649,7 @@ export const CardThumbnail = memo(function CardThumbnail({
       <CardMetaLabel
         shortCode={printing.shortCode}
         name={displayName}
-        type={card.type}
+        types={card.types}
         superTypes={card.superTypes}
         rarity={printing.rarity}
         finish={printing.finish}

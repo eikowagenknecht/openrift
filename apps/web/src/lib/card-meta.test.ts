@@ -13,6 +13,7 @@ const baseCard: CardDetailResponse["card"] = {
   slug: "brazen-buccaneer",
   name: "Brazen Buccaneer",
   type: "unit",
+  types: ["unit"],
   superTypes: [],
   domains: ["fury"],
   energy: 3,

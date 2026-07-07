@@ -13,7 +13,7 @@ const sampleExport = [
   {
     card: {
       name: "Test Card",
-      type: "Unit",
+      types: ["Unit"],
       super_types: [] as string[],
       domains: ["Fury"],
       might: 3,
@@ -65,6 +65,16 @@ describe("candidate export ↔ upload round-trip", () => {
       candidates: sampleExport,
     });
     expect(result.success).toBe(true);
+  });
+
+  it("a legacy export with a scalar `type` still uploads, folded into `types` (ADR-037)", () => {
+    const legacy = structuredClone(sampleExport) as unknown as Record<string, unknown>[];
+    const card = (legacy[0] as { card: Record<string, unknown> }).card;
+    delete card.types;
+    card.type = "Unit";
+    const result = uploadCandidatesSchema.safeParse({ provider: "roundtrip", candidates: legacy });
+    expect(result.success).toBe(true);
+    expect(result.data?.candidates[0].types).toEqual(["Unit"]);
   });
 
   it("language and printed_name are part of the exported document (not droppable)", () => {

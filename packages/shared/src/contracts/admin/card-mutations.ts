@@ -67,7 +67,7 @@ export type PatchCandidatePrintingBody = z.infer<z.ZodObject<typeof patchCandida
 const acceptCardFieldBodySchema = z.object({
   field: z.enum([
     "name",
-    "type",
+    "types",
     "superTypes",
     "domains",
     "might",
@@ -119,7 +119,7 @@ const setName = z.string().min(1);
 export const cardFieldsSchema = z.object({
   id: cardFieldRules.slug,
   name: cardFieldRules.name,
-  type: cardFieldRules.type,
+  types: cardFieldRules.types,
   superTypes: cardFieldRules.superTypes.optional(),
   domains: cardFieldRules.domains,
   might: cardFieldRules.might.optional(),
@@ -188,9 +188,12 @@ export const ingestPrintingSchema = z.object({
   printed_name: nullStr,
 });
 
-export const ingestCardFieldsSchema = z.object({
+const ingestCardFieldsObject = z.object({
   name: candidateCardFieldRules.name,
-  type: candidateCardFieldRules.type.optional().default(null),
+  types: candidateCardFieldRules.types.optional().default([]),
+  // Legacy single-type wire field from older scraper exports; folded into
+  // `types` by the transform below.
+  type: z.string().min(1).nullable().optional().default(null),
   super_types: z.array(z.string()).optional().default([]),
   domains: z.array(z.string()).optional().default([]),
   might: candidateCardFieldRules.might.optional().default(null),
@@ -204,6 +207,11 @@ export const ingestCardFieldsSchema = z.object({
   external_id: candidateCardFieldRules.externalId,
   extra_data: candidateCardFieldRules.extraData.optional().default(null),
 });
+
+export const ingestCardFieldsSchema = ingestCardFieldsObject.transform(({ type, ...rest }) => ({
+  ...rest,
+  types: rest.types.length > 0 ? rest.types : type === null ? [] : [type],
+}));
 
 /** A single ingested printing row (snake_case wire shape). */
 export type IngestPrinting = z.infer<typeof ingestPrintingSchema>;
@@ -237,7 +245,7 @@ export type UploadCandidatesBody = z.input<typeof uploadCandidatesSchema>;
 // here); every other field round-trips.
 const candidateExportCardSchema = z.object({
   name: z.string(),
-  type: z.string().nullable(),
+  types: z.array(z.string()),
   super_types: z.array(z.string()),
   domains: z.array(z.string()),
   might: z.number().nullable(),

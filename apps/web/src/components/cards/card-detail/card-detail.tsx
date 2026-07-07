@@ -59,7 +59,7 @@ export function CardDetail({
   const domainColors = useDomainColors();
   const { labels } = useEnumOrders();
   const setNumber = formatPublicCode(printing);
-  const orientation = getOrientation(card.type);
+  const orientation = getOrientation(card.types);
   const isFoil = printing.finish === WellKnown.finish.FOIL;
   const rarityIcon = getFilterIconPath("rarities", printing.rarity);
 

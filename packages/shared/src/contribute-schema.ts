@@ -48,7 +48,10 @@ export const contributionCardSchema = z
   .object({
     name: cardFieldRules.name,
     external_id: communityId,
+    // Legacy single-type field; kept so existing contribution files stay valid.
     type: cardFieldRules.type.nullable().optional(),
+    // Ordered card types (ADR-037); wins over `type` when both are present.
+    types: cardFieldRules.types.optional(),
     super_types: cardFieldRules.superTypes.optional(),
     // Looser than DB: openrift-data accepts an empty domains array (the
     // maintainer fills in the right ones if the contributor isn't sure).

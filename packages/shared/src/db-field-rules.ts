@@ -27,6 +27,8 @@ export const cardFieldRules = {
   slug: z.string().min(1),
   name: z.string().min(1),
   type: z.string().min(1),
+  /** Ordered card types (ADR-037); at least one, first entry mirrors `cards.type`. */
+  types: z.array(z.string().min(1)).min(1),
   superTypes: z.array(z.string().min(1)),
   domains: z.array(z.string().min(1)).min(1),
   might: z.number().int().min(0).nullable(),
@@ -68,7 +70,8 @@ export const cardErrataFieldRules = {
 export const candidateCardFieldRules = {
   provider: z.string().min(1),
   name: z.string().min(1),
-  type: z.string().min(1).nullable(),
+  /** Ordered card types (ADR-037); empty when the source didn't provide one. */
+  types: z.array(z.string().min(1)),
   might: z.number().int().min(0).nullable(),
   energy: z.number().int().min(0).nullable(),
   power: z.number().int().min(0).nullable(),

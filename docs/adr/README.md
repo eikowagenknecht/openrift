@@ -44,6 +44,7 @@ The MADR documentation is available at <https://adr.github.io/madr/> while gener
 - **[ADR-030](030-trade-email-notifications.md)**: Transactional Email Notifications for Trades
 - **[ADR-032](032-admin-authorization-model.md)**: Admin Authorization stays Prefix-Gated until a Cross-Cutting Role appears
 - **[ADR-034](034-dynamic-list-rules.md)**: Dynamic List Rules (supersedes ADR-005's dynamic-rules stance for wish and trade lists)
+- **[ADR-037](037-multi-type-cards.md)**: Multi-Type Card Data Model
 
 ### Rejected
 

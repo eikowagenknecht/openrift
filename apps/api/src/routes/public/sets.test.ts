@@ -56,6 +56,7 @@ const dbCard = {
   slug: "jinx-rebel",
   name: "Jinx, Rebel",
   type: "Unit",
+  types: ["Unit"],
   superTypes: ["Champion"],
   domains: ["Chaos"],
   might: 5,

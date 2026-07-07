@@ -6,7 +6,7 @@ import { useId } from "react";
 import { CardText } from "@/components/cards/card-text";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { getDomainGradientStyle, getPipBackgroundStyle, getPipGlyphTint } from "@/lib/domain";
-import { getFilterIconPath, getTypeIconPath } from "@/lib/icons";
+import { getFilterIconPath, getTypeIconPaths } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { getCachedTintedIcon, TINT_BLACK, TINT_WHITE } from "@/lib/white-icon";
 
@@ -76,7 +76,7 @@ interface CardPlaceholderImageProps {
   energy: number | null;
   might?: number | null;
   power?: number | null;
-  type?: string;
+  types?: string[];
   superTypes?: string[];
   tags?: string[];
   rulesText?: string | null;
@@ -112,7 +112,7 @@ export function CardPlaceholderImage({
   energy,
   might,
   power,
-  type,
+  types,
   superTypes,
   tags,
   rulesText,
@@ -138,10 +138,12 @@ export function CardPlaceholderImage({
   // The pip rune sits on the domain background; tint it for legible contrast
   // (matches the foreground the admin domains/rarities previews use).
   const runePipColor = getPipGlyphTint(domain, domainColors);
-  const typeIconPath = type ? getTypeIconPath(type, superTypes ?? []) : undefined;
+  const typeIconPaths = getTypeIconPaths(types ?? [], superTypes ?? []);
+  const typeText = types?.join(" ") ?? "";
   // Gear shows its energy cost in a diamond (a square rotated 45°) instead of
-  // the circular badge every other type uses.
-  const isGear = type === WellKnown.cardType.GEAR;
+  // the circular badge every other type uses. Any Gear type in the set counts
+  // (a Unit Gear has the diamond frame — ADR-037).
+  const isGear = types?.includes(WellKnown.cardType.GEAR) ?? false;
   const bgStyle = getDomainGradientStyle(domain, "", domainColors);
   const noiseId = useId();
 
@@ -216,7 +218,7 @@ export function CardPlaceholderImage({
               {energy}
             </div>
           ))}
-        {type === WellKnown.cardType.LEGEND &&
+        {types?.includes(WellKnown.cardType.LEGEND) &&
           domain.some((d) => d !== WellKnown.domain.COLORLESS) &&
           domain
             .filter((d) => d !== WellKnown.domain.COLORLESS)
@@ -272,23 +274,28 @@ export function CardPlaceholderImage({
       )}
 
       {/* Type + Tags */}
-      {(type || (tags && tags.length > 0)) && (
+      {(typeText || (tags && tags.length > 0)) && (
         <div className="absolute top-[55%] ml-[1.7cqw] flex -translate-y-full items-center gap-[1.5cqw] px-[3cqw] pb-[1cqw]">
-          {typeIconPath && (
-            <span className="flex h-[8cqw] w-[6cqw] translate-y-[1cqw] items-center justify-center rounded-full bg-black">
+          {typeIconPaths.map((path) => (
+            <span
+              key={path}
+              className="flex h-[8cqw] w-[6cqw] translate-y-[1cqw] items-center justify-center rounded-full bg-black"
+            >
               <GlyphIcon
-                src={typeIconPath}
+                src={path}
                 color={TYPE_ICON_COLOR}
                 tinted={tintIcons}
                 className="size-[4cqw]"
               />
             </span>
-          )}
-          {type && (
+          ))}
+          {typeText && (
             <span className="relative inline-flex translate-y-[1cqw] items-center pr-[1.5cqw] pl-[1cqw]">
               <span className="absolute inset-0 -skew-x-[15deg]" style={bgStyle} />
               <span className="font-condensed relative text-[3cqw] font-semibold tracking-tighter text-white uppercase italic">
-                {superTypes && superTypes.length > 0 ? `${superTypes.join(" ")} ${type}` : type}
+                {superTypes && superTypes.length > 0
+                  ? `${superTypes.join(" ")} ${typeText}`
+                  : typeText}
               </span>
             </span>
           )}

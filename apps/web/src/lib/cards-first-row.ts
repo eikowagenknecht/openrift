@@ -120,7 +120,7 @@ export function extractFirstRow(
       cardName: legendDisplayName(printing.card),
       setSlug: printing.setSlug,
       imageId: front.imageId,
-      rotated: needsCssRotation(getOrientation(printing.card.type)),
+      rotated: needsCssRotation(getOrientation(printing.card.types)),
     });
   }
   return result;

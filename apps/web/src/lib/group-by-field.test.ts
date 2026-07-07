@@ -68,6 +68,20 @@ describe("groupItemsByField", () => {
     expect(groups.map((g) => g.group.name)).toEqual(["Unit", "Spell"]);
   });
 
+  it("fans multi-type cards into one section per type (ADR-037)", () => {
+    const unitGear = item(stubPrinting({ card: { types: ["unit", "gear"] } }));
+    const spell = item(stubPrinting({ card: { type: "spell" } }));
+
+    const groups = groupItemsByField([unitGear, spell], "type", ORDERS, LABELS);
+
+    // "gear" is not in ORDERS.cardTypes, so it appends after the known types.
+    expect(groups.map((g) => g.group.id)).toEqual(["unit", "spell", "gear"]);
+    const unitGroup = groups.find((g) => g.group.id === "unit");
+    const gearGroup = groups.find((g) => g.group.id === "gear");
+    expect(unitGroup?.items.map((i) => i.id)).toContain(unitGear.id);
+    expect(gearGroup?.items.map((i) => i.id)).toContain(unitGear.id);
+  });
+
   it("labels domain headers with the display name and fans multi-domain cards into each", () => {
     const dual = item(stubPrinting({ card: { domains: ["fury", "calm"] } }));
 

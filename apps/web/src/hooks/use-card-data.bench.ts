@@ -59,22 +59,26 @@ function buildFixture() {
     setType: i < 5 ? "main" : "supplemental",
   }));
 
-  const cards: (Card & { id: string })[] = Array.from({ length: CARD_COUNT }, (_, i) => ({
-    id: `card-${i}`,
-    slug: `card-${i}`,
-    name: `Card ${i} ${pick(["Hero", "Rebel", "Ghost", "Knight", "Sage"], r)}`,
-    type: pick(TYPES, r),
-    superTypes: r() > 0.8 ? ["champion"] : [],
-    domains: [pick(DOMAINS, r), ...(r() > 0.7 ? [pick(DOMAINS, r)] : [])],
-    might: Math.floor(r() * 10) - 1,
-    energy: Math.floor(r() * 8) + 1,
-    power: r() > 0.5 ? Math.floor(r() * 6) : null,
-    keywords: r() > 0.5 ? [pick(KEYWORDS_POOL, r)] : [],
-    tags: [],
-    mightBonus: null,
-    errata: null,
-    bans: [],
-  }));
+  const cards: (Card & { id: string })[] = Array.from({ length: CARD_COUNT }, (_, i) => {
+    const type = pick(TYPES, r);
+    return {
+      id: `card-${i}`,
+      slug: `card-${i}`,
+      name: `Card ${i} ${pick(["Hero", "Rebel", "Ghost", "Knight", "Sage"], r)}`,
+      type,
+      types: [type],
+      superTypes: r() > 0.8 ? ["champion"] : [],
+      domains: [pick(DOMAINS, r), ...(r() > 0.7 ? [pick(DOMAINS, r)] : [])],
+      might: Math.floor(r() * 10) - 1,
+      energy: Math.floor(r() * 8) + 1,
+      power: r() > 0.5 ? Math.floor(r() * 6) : null,
+      keywords: r() > 0.5 ? [pick(KEYWORDS_POOL, r)] : [],
+      tags: [],
+      mightBonus: null,
+      errata: null,
+      bans: [],
+    };
+  });
 
   const printings: Printing[] = Array.from({ length: PRINTING_COUNT }, (_, i) => {
     const card = cards[i % CARD_COUNT];

@@ -963,7 +963,7 @@ describe("POST /cards/new/:name/accept", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        cardFields: { id: "fire-dragon", name: "Fire Dragon", type: "unit", domains: ["fury"] },
+        cardFields: { id: "fire-dragon", name: "Fire Dragon", types: ["unit"], domains: ["fury"] },
       }),
     });
     expect(res.status).toBe(204);
@@ -1129,7 +1129,7 @@ describe("POST /cards/create", () => {
       body: JSON.stringify({
         id: "fire-dragon",
         name: "Fire Dragon",
-        type: "unit",
+        types: ["unit"],
         domains: ["fury"],
       }),
     });

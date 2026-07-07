@@ -71,7 +71,9 @@ export function groupItemsByField(
   const config: Record<typeof groupBy, FieldConfig> = {
     type: {
       order: orders.cardTypes,
-      getKeysAndItems: (item) => [{ key: item.printing.card.type, mapped: item }],
+      // Multi-type cards (ADR-037) fan out into one section per type,
+      // matching the superType/domain behavior.
+      getKeysAndItems: (item) => item.printing.card.types.map((key) => ({ key, mapped: item })),
       label: (key) => labels.cardTypes[key],
     },
     superType: {

@@ -11,7 +11,7 @@ function submission(overrides: Partial<CardSubmissionInput> = {}): CardSubmissio
     slug: "ahri-alluring",
     card: {
       name: "Ahri, Alluring",
-      type: "unit",
+      types: ["unit"],
       super_types: ["champion"],
       domains: ["calm"],
       might: 4,
@@ -57,7 +57,7 @@ describe("buildUserSubmissionCard", () => {
     const card = buildUserSubmissionCard(submission(), USER_ID, STAMP);
     expect(card).toMatchObject({
       name: "Ahri, Alluring",
-      type: "unit",
+      types: ["unit"],
       super_types: ["champion"],
       domains: ["calm"],
       might: 4,

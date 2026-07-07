@@ -8,7 +8,7 @@ type CardFields = AcceptNewCardBody["cardFields"];
 const validCard: CardFields = {
   id: "kennen-storm-of-shuriken",
   name: "Kennen, Storm of Shuriken",
-  type: "unit",
+  types: ["unit"],
   domains: ["fury"],
   energy: 3,
   power: 2,
@@ -37,9 +37,14 @@ describe("describeAcceptCardFieldIssues", () => {
     expect(describeAcceptCardFieldIssues(card)).toEqual(["Domains: is required"]);
   });
 
-  it("flags a required text field left empty", () => {
-    const card = { ...validCard, type: "" };
-    expect(describeAcceptCardFieldIssues(card)).toEqual(["Type: is required"]);
+  it("flags an empty Types list", () => {
+    const card = { ...validCard, types: [] };
+    expect(describeAcceptCardFieldIssues(card)).toEqual(["Types: needs at least one entry"]);
+  });
+
+  it("flags a Types entry that is blank", () => {
+    const card = { ...validCard, types: [""] };
+    expect(describeAcceptCardFieldIssues(card)).toEqual(["Types: is required"]);
   });
 
   it("flags a missing required field", () => {
@@ -53,9 +58,9 @@ describe("describeAcceptCardFieldIssues", () => {
   });
 
   it("reports every invalid field at once", () => {
-    const card = { ...validCard, energy: "x", domains: [], type: "" } as unknown as CardFields;
+    const card = { ...validCard, energy: "x", domains: [], types: [] } as unknown as CardFields;
     expect(describeAcceptCardFieldIssues(card)).toEqual([
-      "Type: is required",
+      "Types: needs at least one entry",
       "Domains: needs at least one entry",
       "Energy: must be a whole number",
     ]);

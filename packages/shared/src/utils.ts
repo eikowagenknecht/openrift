@@ -26,8 +26,8 @@ export function slugifyName(name: string): string {
  *
  * @returns `"{tag}, {name}"` for tagged Legends, otherwise the card's `name`.
  */
-export function legendDisplayName(card: Pick<Card, "name" | "type" | "tags">): string {
-  if (card.type === WellKnown.cardType.LEGEND && card.tags.length > 0) {
+export function legendDisplayName(card: Pick<Card, "name" | "types" | "tags">): string {
+  if (card.types.includes(WellKnown.cardType.LEGEND) && card.tags.length > 0) {
     return `${card.tags[0]}, ${card.name}`;
   }
   return card.name;
@@ -251,8 +251,8 @@ export function boundsOf(vals: number[]): { min: number; max: number } {
   };
 }
 
-export function getOrientation(type: CardType): "portrait" | "landscape" {
-  return type === WellKnown.cardType.BATTLEFIELD ? "landscape" : "portrait";
+export function getOrientation(types: readonly CardType[]): "portrait" | "landscape" {
+  return types.includes(WellKnown.cardType.BATTLEFIELD) ? "landscape" : "portrait";
 }
 
 /**

@@ -58,6 +58,7 @@ const dbEvent = {
   imageId: "uuid-base",
   cardName: "Fire Dragon",
   cardType: "unit",
+  cardTypes: ["unit"],
   cardSuperTypes: ["Dragon"],
   tags: [],
 };

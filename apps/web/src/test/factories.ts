@@ -44,10 +44,13 @@ export function resetIdCounter(): void {
  */
 export function stubCard(overrides: Partial<Card> = {}): Card {
   const slug = overrides.slug ?? `RB1-${nextId().slice(-3)}`;
+  // Keep `type` and `types` consistent when only one is overridden (ADR-037).
+  const type = overrides.type ?? overrides.types?.[0] ?? "unit";
   return {
     slug,
     name: "Test Card",
-    type: "unit",
+    type,
+    types: [type],
     superTypes: [],
     domains: [],
     might: 1,
@@ -136,13 +139,15 @@ export function stubPriceLookup(
  * @returns A DeckBuilderCard with overrides applied.
  */
 export function stubDeckBuilderCard(overrides: Partial<DeckBuilderCard> = {}): DeckBuilderCard {
+  const cardType = overrides.cardType ?? overrides.cardTypes?.[0] ?? ("unit" as CardType);
   return {
     cardId: overrides.cardId ?? nextId(),
     zone: "main" as DeckZone,
     quantity: 1,
     preferredPrintingId: null,
     cardName: "Test Card",
-    cardType: "unit" as CardType,
+    cardType,
+    cardTypes: [cardType],
     superTypes: [] as SuperType[],
     domains: [] as Domain[],
     tags: [],

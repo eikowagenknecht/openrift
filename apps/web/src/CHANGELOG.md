@@ -4,6 +4,7 @@
 
 ### Highlights
 
+- feat(Cards): **Multi-type card support** — cards with more than one type (like the new Unit Gear cards) now count for every type they carry: filters, grouping, deck rules, and copy limits all recognize both, and the card shows a glyph for each.
 - feat(App): **New body typeface** — everyday text across the app, and the generated share and deck images, now use Hanken Grotesk, a warmer face that reads softer than the old default.
 
 ### Other

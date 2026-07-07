@@ -323,7 +323,7 @@ describe("candidateMutationsRepo", () => {
         {
           id: "OGS-NEW",
           name: "New Card",
-          type: "spell",
+          types: ["spell"],
           domains: ["fury"],
           rulesText: "Deal 3 damage.",
         },
@@ -339,7 +339,7 @@ describe("candidateMutationsRepo", () => {
         {
           id: "OGS-DUP",
           name: "Keyword Card",
-          type: "spell",
+          types: ["spell"],
           domains: ["fury"],
           rulesText: "[Shield] this unit. [Shield] again.",
           effectText: "[Shield] once more.",

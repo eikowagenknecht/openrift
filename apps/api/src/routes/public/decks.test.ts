@@ -85,6 +85,7 @@ const cardMeta = {
   slug: "fury-aggro-legend",
   name: "Fury Aggro Legend",
   type: "legend",
+  types: ["legend"],
   might: null,
   energy: null,
   power: null,

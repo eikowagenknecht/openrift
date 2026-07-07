@@ -51,6 +51,7 @@ function makePrinting(
 ): Printing {
   const { card: cardOverrides, ...printingOverrides } = overrides;
   const cardSlug = cardOverrides?.slug ?? "SET1-001";
+  const cardType = cardOverrides?.type ?? cardOverrides?.types?.[0] ?? "unit";
   return {
     id: "00000000-0000-0000-0000-000000000001",
     cardId: "00000000-0000-0000-0000-000000000001",
@@ -79,7 +80,8 @@ function makePrinting(
     card: {
       slug: cardSlug,
       name: "Test Card",
-      type: "unit",
+      type: cardType,
+      types: [cardType],
       superTypes: [],
       domains: ["fury"],
       energy: 3,
@@ -452,6 +454,21 @@ describe("filterCards", () => {
     const result = filterCards(printings, emptyFilters({ types: ["spell"] }));
     expect(result).toHaveLength(1);
     expect(result[0].card.name).toBe("Mind Weaver");
+  });
+
+  it("matches multi-type cards under every type they carry (ADR-037)", () => {
+    const unitGear = makePrinting({
+      id: "p-dual",
+      cardId: "c-dual",
+      card: { name: "Hexcore Carrier", type: "unit", types: ["unit", "gear"] },
+    });
+    const all = [...printings, unitGear];
+    const byUnit = filterCards(all, emptyFilters({ types: ["unit"] }));
+    const byGear = filterCards(all, emptyFilters({ types: ["gear"] }));
+    expect(byUnit.map((p) => p.id)).toContain("p-dual");
+    expect(byGear.map((p) => p.id)).toContain("p-dual");
+    const excluded = filterCards(all, emptyFilters({ typesExclude: ["gear"] }));
+    expect(excluded.map((p) => p.id)).not.toContain("p-dual");
   });
 
   // -- SuperType filter --

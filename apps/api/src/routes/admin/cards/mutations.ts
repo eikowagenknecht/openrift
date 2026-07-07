@@ -249,7 +249,7 @@ export const adminCardMutationsRouter = {
     const { cardId, field, value } = input;
 
     // Normalize null to empty array for array-typed fields
-    const arrayFields = new Set(["superTypes", "domains", "tags"]);
+    const arrayFields = new Set(["types", "superTypes", "domains", "tags"]);
     const normalized = value === null && arrayFields.has(field) ? [] : value;
 
     const validator = cardFieldRules[field as keyof typeof cardFieldRules];
@@ -274,6 +274,13 @@ export const adminCardMutationsRouter = {
     }
     if (field === "superTypes") {
       await mut.replaceCardSuperTypesById(cardId, finalValue as string[]);
+      await context.repos.catalog.refreshCardAggregates();
+      return;
+    }
+    // Card types live in the card_card_types junction; the repo keeps the
+    // denormalized cards.type scalar in sync (ADR-037).
+    if (field === "types") {
+      await mut.replaceCardTypesById(cardId, finalValue as string[]);
       await context.repos.catalog.refreshCardAggregates();
       return;
     }
@@ -422,7 +429,7 @@ export const adminCardMutationsRouter = {
       // FK constraints validate values at DB level — safe to cast from z.string()
       await trxRepos.candidateMutations.acceptNewCardFromSources(
         cardFields as typeof cardFields & {
-          type: CardType;
+          types: CardType[];
           domains: Domain[];
           superTypes?: SuperType[];
         },
@@ -531,7 +538,7 @@ export const adminCardMutationsRouter = {
     await context.transact(async (trxRepos) => {
       await trxRepos.candidateMutations.acceptNewCardFromSources(
         cardFields as typeof cardFields & {
-          type: CardType;
+          types: CardType[];
           domains: Domain[];
           superTypes?: SuperType[];
         },

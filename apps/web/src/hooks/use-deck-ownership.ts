@@ -170,7 +170,11 @@ export function computeDeckOwnership(
     const entry: CardOwnership = {
       cardId: card.cardId,
       cardName: card.cardName,
-      displayName: legendDisplayName({ name: card.cardName, type: card.cardType, tags: card.tags }),
+      displayName: legendDisplayName({
+        name: card.cardName,
+        types: card.cardTypes,
+        tags: card.tags,
+      }),
       zone: card.zone,
       needed: card.quantity,
       owned: ownedInZone,

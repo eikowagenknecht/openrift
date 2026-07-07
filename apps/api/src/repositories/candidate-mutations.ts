@@ -409,6 +409,22 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
       }
     },
 
+    /**
+     * Replace all card types for a card by UUID (delete + insert), keeping the
+     * denormalized `cards.type` scalar in sync with the first type (ADR-037).
+     */
+    async replaceCardTypesById(cardId: string, types: string[]): Promise<void> {
+      if (types.length === 0) {
+        throw new Error("A card must have at least one type");
+      }
+      await db.deleteFrom("cardCardTypes").where("cardId", "=", cardId).execute();
+      await db
+        .insertInto("cardCardTypes")
+        .values(types.map((type, index) => ({ cardId, typeSlug: type, position: index })))
+        .execute();
+      await db.updateTable("cards").set({ type: types[0] }).where("id", "=", cardId).execute();
+    },
+
     /** Replace all super types for a card by UUID (delete + insert). */
     async replaceCardSuperTypesById(cardId: string, superTypes: string[]): Promise<void> {
       await db.deleteFrom("cardSuperTypes").where("cardId", "=", cardId).execute();
@@ -713,7 +729,7 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
       cardFields: {
         id: string;
         name: string;
-        type: CardType;
+        types: CardType[];
         superTypes?: SuperType[];
         domains: Domain[];
         might?: number | null;
@@ -724,12 +740,15 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
       },
       normalizedName: string,
     ): Promise<void> {
+      if (cardFields.types.length === 0) {
+        throw new Error("A card must have at least one type");
+      }
       const { id: cardUuid } = await db
         .insertInto("cards")
         .values({
           slug: cardFields.id,
           name: cardFields.name,
-          type: cardFields.type,
+          type: cardFields.types[0],
           might: cardFields.might ?? null,
           energy: cardFields.energy ?? null,
           power: cardFields.power ?? null,
@@ -739,6 +758,18 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
         })
         .returning("id")
         .executeTakeFirstOrThrow();
+
+      // Write card types to junction table (position 0 mirrors cards.type)
+      await db
+        .insertInto("cardCardTypes")
+        .values(
+          cardFields.types.map((type, index) => ({
+            cardId: cardUuid,
+            typeSlug: type,
+            position: index,
+          })),
+        )
+        .execute();
 
       // Write domains to junction table
       if (cardFields.domains.length > 0) {

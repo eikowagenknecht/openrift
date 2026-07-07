@@ -137,6 +137,7 @@ import * as m188 from "./188-organization-owner-rebalance.js";
 import * as m189 from "./189-friend-group-previous-slug.js";
 import * as m190 from "./190-list-rule-combine.js";
 import * as m191 from "./191-keyword-cost-flag.js";
+import * as m192 from "./192-multi-type-cards.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -333,4 +334,5 @@ export const migrations: Record<string, Migration> = {
   "189-friend-group-previous-slug": m189,
   "190-list-rule-combine": m190,
   "191-keyword-cost-flag": m191,
+  "192-multi-type-cards": m192,
 };

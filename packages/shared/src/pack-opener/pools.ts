@@ -62,7 +62,7 @@ export function buildPool(printings: readonly PackPrinting[]): PackPool {
       }
       continue;
     }
-    if (p.cardType === runeType) {
+    if (p.cardTypes.includes(runeType)) {
       if (p.finish === normalFinish && p.artVariant === normalArt) {
         pool.runes.push(p);
       } else if (p.finish === foilFinish && p.artVariant === normalArt) {

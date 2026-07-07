@@ -35,7 +35,7 @@ function formatCandidateCard(
     | "id"
     | "provider"
     | "name"
-    | "type"
+    | "types"
     | "superTypes"
     | "domains"
     | "might"
@@ -322,7 +322,7 @@ export async function buildExport(repo: Repo) {
     return {
       card: {
         name: card.name,
-        type: card.type,
+        types: card.types,
         super_types: card.superTypes,
         domains: card.domains,
         might: card.might,
@@ -521,6 +521,7 @@ async function buildDetailResponse(
           slug: card.slug,
           name: card.name,
           type: card.type,
+          types: card.types,
           superTypes: card.superTypes,
           domains: card.domains,
           might: card.might,

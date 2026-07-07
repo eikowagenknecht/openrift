@@ -14,7 +14,7 @@ export type SourceSlot = "mainDeck" | "sideboard" | "chosenChampion";
  * @returns The inferred DeckZone.
  */
 export function inferZone(
-  cardType: CardType,
+  cardTypes: readonly CardType[],
   _superTypes: SuperType[],
   sourceSlot: SourceSlot,
 ): DeckZone {
@@ -25,14 +25,14 @@ export function inferZone(
     return WellKnown.deckZone.SIDEBOARD;
   }
 
-  // mainDeck — infer from card type
-  if (cardType === WellKnown.cardType.LEGEND) {
+  // mainDeck — infer from the card's type set (ADR-037: any type qualifies)
+  if (cardTypes.includes(WellKnown.cardType.LEGEND)) {
     return WellKnown.deckZone.LEGEND;
   }
-  if (cardType === WellKnown.cardType.RUNE) {
+  if (cardTypes.includes(WellKnown.cardType.RUNE)) {
     return WellKnown.deckZone.RUNES;
   }
-  if (cardType === WellKnown.cardType.BATTLEFIELD) {
+  if (cardTypes.includes(WellKnown.cardType.BATTLEFIELD)) {
     return WellKnown.deckZone.BATTLEFIELD;
   }
 

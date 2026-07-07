@@ -461,7 +461,7 @@ export function ProxyExportDialog({
               energy={renderingCard.card.energy}
               might={renderingCard.card.might}
               power={renderingCard.card.power}
-              type={renderingCard.card.type}
+              types={renderingCard.card.types}
               superTypes={renderingCard.card.superTypes}
               tags={renderingCard.card.tags}
               rulesText={renderingCard.rulesText}

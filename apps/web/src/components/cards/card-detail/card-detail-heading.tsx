@@ -1,7 +1,7 @@
 import type { Printing } from "@openrift/shared";
 
 import { Heading } from "@/components/heading";
-import { getTypeIconPath } from "@/lib/icons";
+import { getTypeIconPaths } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 export function CardDetailHeading({
@@ -18,7 +18,8 @@ export function CardDetailHeading({
   titleClassName?: string;
 }) {
   const { card } = printing;
-  const typeIconPath = getTypeIconPath(card.type, card.superTypes);
+  const typeIconPaths = getTypeIconPaths(card.types, card.superTypes);
+  const typeText = card.types.join(" ");
   return (
     <div className={cn(truncate && "min-w-0")}>
       <Heading level={2} className={cn(truncate && "truncate", titleClassName)}>
@@ -34,10 +35,10 @@ export function CardDetailHeading({
       </Heading>
       <div className="text-muted-foreground flex flex-wrap items-center gap-1.5 text-sm uppercase">
         <span className="inline-flex items-center gap-1">
-          {typeIconPath && (
-            <img src={typeIconPath} alt="" className="size-4 brightness-0 dark:invert" />
-          )}
-          {card.superTypes.length > 0 ? `${card.superTypes.join(" ")} ${card.type}` : card.type}
+          {typeIconPaths.map((path) => (
+            <img key={path} src={path} alt="" className="size-4 brightness-0 dark:invert" />
+          ))}
+          {card.superTypes.length > 0 ? `${card.superTypes.join(" ")} ${typeText}` : typeText}
         </span>
         {card.tags.map((tag) => (
           // oxlint-disable-next-line react/forbid-elements -- bespoke skewed tag chip; transform-styled, no primitive fits

@@ -244,16 +244,22 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
                   })}
                 </ToggleGroup>
               </FieldRow>
+              <FieldRow label="Types">
+                <ToggleGroup
+                  multiple
+                  variant="outline"
+                  spacing={0}
+                  value={state.card.types}
+                  onValueChange={(next) => setCardField("types", next)}
+                >
+                  {orders.cardTypes.map((slug) => (
+                    <ToggleGroupItem key={slug} value={slug}>
+                      {labels.cardTypes[slug]}
+                    </ToggleGroupItem>
+                  ))}
+                </ToggleGroup>
+              </FieldRow>
               <div className="grid gap-4 sm:grid-cols-2">
-                <FieldRow label="Type">
-                  <SingleSelect
-                    value={state.card.type}
-                    onChange={(v) => setCardField("type", v)}
-                    options={orders.cardTypes}
-                    labels={labels.cardTypes}
-                    placeholder="Pick a type"
-                  />
-                </FieldRow>
                 <FieldRow label="Supertypes">
                   <ToggleGroup
                     multiple
@@ -486,7 +492,7 @@ function CardLayoutHelp({
   const printing = state.printings[activePrinting] ?? state.printings[0];
   const cardName = state.card.name || "Your card name";
   const cardDomains = state.card.domains.length > 0 ? state.card.domains : ["fury"];
-  const cardType = state.card.type ?? WellKnown.cardType.UNIT;
+  const cardTypes = state.card.types.length > 0 ? state.card.types : [WellKnown.cardType.UNIT];
   const cardSuperTypes =
     state.card.superTypes.length > 0 ? state.card.superTypes : [WellKnown.superType.CHAMPION];
   const cardTags = state.card.tags.length > 0 ? state.card.tags : ["Tag"];
@@ -514,7 +520,7 @@ function CardLayoutHelp({
             energy={cardEnergy}
             might={cardMight}
             power={cardPower}
-            type={cardType}
+            types={cardTypes}
             superTypes={cardSuperTypes}
             tags={cardTags}
             rulesText={cardRulesText}
@@ -567,7 +573,7 @@ function LivePreview({
             energy={state.card.energy}
             might={state.card.might}
             power={state.card.power}
-            type={state.card.type ?? undefined}
+            types={state.card.types}
             superTypes={state.card.superTypes}
             tags={state.card.tags}
             rulesText={printing?.printedRulesText ?? null}

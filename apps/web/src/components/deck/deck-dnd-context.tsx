@@ -210,7 +210,7 @@ export function DeckDndContext({ deckId, children }: { deckId: string; children:
         cardId: data.card.cardId,
         cardName: legendDisplayName({
           name: data.card.cardName,
-          type: data.card.cardType,
+          types: data.card.cardTypes,
           tags: data.card.tags,
         }),
         quantity: 1,

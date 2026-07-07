@@ -289,7 +289,7 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
         </p>
         <CandidateSpreadsheet
           fields={candidateCardFields}
-          requiredKeys={["name", "type", "domains"]}
+          requiredKeys={["name", "types", "domains"]}
           activeRow={Object.keys(activeCard).length > 0 ? activeCard : null}
           candidateRows={sources}
           providerSettings={providerSettings}

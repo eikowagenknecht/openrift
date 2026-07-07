@@ -151,22 +151,26 @@ export function useDeckStats(cards: DeckBuilderCard[]): DeckStats {
     }
   }
 
-  // Type breakdown — exclude types with dedicated zones, stacked by domain color
+  // Type breakdown — exclude types with dedicated zones, stacked by domain
+  // color. Multi-type cards count under each of their types (like the domain
+  // breakdown), so totals can exceed the deck size (ADR-037).
   const typeByDomain = new Map<string, Map<Domain, number>>();
   const typeTotal = new Map<string, number>();
   for (const card of mainCards) {
-    if (EXCLUDED_CARD_TYPES.has(card.cardType)) {
-      continue;
+    for (const cardType of card.cardTypes) {
+      if (EXCLUDED_CARD_TYPES.has(cardType)) {
+        continue;
+      }
+      let domainMap = typeByDomain.get(cardType);
+      if (!domainMap) {
+        domainMap = new Map();
+        typeByDomain.set(cardType, domainMap);
+      }
+      for (const domain of card.domains) {
+        domainMap.set(domain, (domainMap.get(domain) ?? 0) + card.quantity);
+      }
+      typeTotal.set(cardType, (typeTotal.get(cardType) ?? 0) + card.quantity);
     }
-    let domainMap = typeByDomain.get(card.cardType);
-    if (!domainMap) {
-      domainMap = new Map();
-      typeByDomain.set(card.cardType, domainMap);
-    }
-    for (const domain of card.domains) {
-      domainMap.set(domain, (domainMap.get(domain) ?? 0) + card.quantity);
-    }
-    typeTotal.set(card.cardType, (typeTotal.get(card.cardType) ?? 0) + card.quantity);
   }
   const typeDomainSet = new Set<Domain>();
   for (const domainMap of typeByDomain.values()) {

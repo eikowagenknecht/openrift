@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict J0Zl3MWTgPqeCdHdwO1hbj6hlR2dkZaB6fcqKtzcjMCOXJxycBZC3CL90ryhupX
+\restrict Nrp7BNf2nG98LoZJecr6bdjXaSifPRcWkbm8B56dqTlCIBBC68q69cTTwDDqEMW
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -491,7 +491,6 @@ CREATE TABLE public.candidate_cards (
     short_code text,
     external_id text NOT NULL,
     name text NOT NULL,
-    type text,
     super_types text[] DEFAULT '{}'::text[] NOT NULL,
     domains text[] NOT NULL,
     might integer,
@@ -508,6 +507,7 @@ CREATE TABLE public.candidate_cards (
     norm_name text NOT NULL,
     submitted_by_user_id text,
     submission_note text,
+    types text[] DEFAULT '{}'::text[] NOT NULL,
     CONSTRAINT candidate_cards_submission_note_check CHECK ((submission_note <> ''::text)),
     CONSTRAINT chk_candidate_cards_energy_non_negative CHECK ((energy >= 0)),
     CONSTRAINT chk_candidate_cards_might_bonus_non_negative CHECK ((might_bonus >= 0)),
@@ -518,7 +518,6 @@ CREATE TABLE public.candidate_cards (
     CONSTRAINT chk_candidate_cards_no_empty_extra_data CHECK (((extra_data <> '{}'::jsonb) AND (extra_data <> 'null'::jsonb))),
     CONSTRAINT chk_candidate_cards_no_empty_rules_text CHECK ((rules_text <> ''::text)),
     CONSTRAINT chk_candidate_cards_no_empty_short_code CHECK ((short_code <> ''::text)),
-    CONSTRAINT chk_candidate_cards_no_empty_type CHECK ((type <> ''::text)),
     CONSTRAINT chk_candidate_cards_power_non_negative CHECK ((power >= 0)),
     CONSTRAINT chk_candidate_cards_provider_not_empty CHECK ((provider <> ''::text))
 );
@@ -588,6 +587,18 @@ CREATE TABLE public.card_bans (
     reason text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT chk_card_bans_reason_not_empty CHECK ((reason <> ''::text))
+);
+
+
+--
+-- Name: card_card_types; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.card_card_types (
+    card_id uuid NOT NULL,
+    type_slug text NOT NULL,
+    "position" smallint NOT NULL,
+    CONSTRAINT card_card_types_position_check CHECK (("position" >= 0))
 );
 
 
@@ -1557,7 +1568,10 @@ CREATE MATERIALIZED VIEW public.mv_card_aggregates AS
           WHERE (cd.card_id = c.id)), '{}'::text[]) AS domains,
     COALESCE(( SELECT array_agg(cst.super_type_slug) AS array_agg
            FROM public.card_super_types cst
-          WHERE (cst.card_id = c.id)), '{}'::text[]) AS super_types
+          WHERE (cst.card_id = c.id)), '{}'::text[]) AS super_types,
+    COALESCE(( SELECT array_agg(cct.type_slug ORDER BY cct."position") AS array_agg
+           FROM public.card_card_types cct
+          WHERE (cct.card_id = c.id)), '{}'::text[]) AS types
    FROM public.cards c
   WITH NO DATA;
 
@@ -2149,6 +2163,22 @@ ALTER TABLE ONLY public.candidate_printings
 
 ALTER TABLE ONLY public.card_bans
     ADD CONSTRAINT card_bans_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: card_card_types card_card_types_card_id_position_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_card_types
+    ADD CONSTRAINT card_card_types_card_id_position_key UNIQUE (card_id, "position");
+
+
+--
+-- Name: card_card_types card_card_types_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_card_types
+    ADD CONSTRAINT card_card_types_pkey PRIMARY KEY (card_id, type_slug);
 
 
 --
@@ -3132,6 +3162,13 @@ CREATE INDEX idx_candidate_printings_candidate_card ON public.candidate_printing
 --
 
 CREATE UNIQUE INDEX idx_candidate_printings_card_external_id ON public.candidate_printings USING btree (candidate_card_id, external_id);
+
+
+--
+-- Name: idx_card_card_types_type_slug; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_card_card_types_type_slug ON public.card_card_types USING btree (type_slug);
 
 
 --
@@ -4317,6 +4354,22 @@ ALTER TABLE ONLY public.card_bans
 
 
 --
+-- Name: card_card_types card_card_types_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_card_types
+    ADD CONSTRAINT card_card_types_card_id_fkey FOREIGN KEY (card_id) REFERENCES public.cards(id) ON DELETE CASCADE;
+
+
+--
+-- Name: card_card_types card_card_types_type_slug_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_card_types
+    ADD CONSTRAINT card_card_types_type_slug_fkey FOREIGN KEY (type_slug) REFERENCES public.card_types(slug);
+
+
+--
 -- Name: card_custom_tags card_custom_tags_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5280,5 +5333,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict J0Zl3MWTgPqeCdHdwO1hbj6hlR2dkZaB6fcqKtzcjMCOXJxycBZC3CL90ryhupX
+\unrestrict Nrp7BNf2nG98LoZJecr6bdjXaSifPRcWkbm8B56dqTlCIBBC68q69cTTwDDqEMW
 

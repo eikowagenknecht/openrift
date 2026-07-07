@@ -17,8 +17,14 @@ type PlaysetSize = 1 | 3;
  *
  * @returns 1 for unique-style cards, 3 otherwise.
  */
-export function getPlaysetSize(cardType: CardType, keywords: readonly string[]): PlaysetSize {
-  if (cardType === WellKnown.cardType.LEGEND || cardType === WellKnown.cardType.BATTLEFIELD) {
+export function getPlaysetSize(
+  cardTypes: readonly CardType[],
+  keywords: readonly string[],
+): PlaysetSize {
+  if (
+    cardTypes.includes(WellKnown.cardType.LEGEND) ||
+    cardTypes.includes(WellKnown.cardType.BATTLEFIELD)
+  ) {
     return 1;
   }
   if (keywords.includes(WellKnown.keyword.UNIQUE)) {

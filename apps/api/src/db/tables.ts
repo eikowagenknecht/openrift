@@ -79,7 +79,7 @@ export interface CardsTable {
   /** CHECK: <> '' */
   name: string;
   normName: Generated<string>;
-  /** FK → card_types(slug) */
+  /** FK → card_types(slug). Always the first entry of `card_card_types` (position 0); see ADR-037. */
   type: CardType;
   /** CHECK: >= 0 */
   might: number | null;
@@ -971,8 +971,8 @@ export interface CandidateCardsTable {
   /** CHECK: <> '' */
   name: string;
   normName: Generated<string>;
-  /** CHECK: <> '' */
-  type: string | null;
+  /** Ordered card types (ADR-037); empty when the source didn't provide one. */
+  types: string[];
   superTypes: string[];
   domains: string[];
   /** CHECK: >= 0 */
@@ -1451,6 +1451,13 @@ interface CardSuperTypesTable {
   superTypeSlug: string;
 }
 
+/** Ordered card-type junction (ADR-037). Position 0 mirrors `cards.type`. */
+interface CardCardTypesTable {
+  cardId: string;
+  typeSlug: string;
+  position: number;
+}
+
 // ─── Materialized views (migration 085) ─────────────────────────────────────
 
 interface MvLatestPrintingPricesView {
@@ -1463,6 +1470,7 @@ interface MvCardAggregatesView {
   cardId: string;
   domains: string[];
   superTypes: string[];
+  types: string[];
 }
 
 // ─── Views (migration 096) ───────────────────────────────────────────────────
@@ -1618,6 +1626,7 @@ export interface Database {
   // Junction tables (migration 062)
   cardDomains: CardDomainsTable;
   cardSuperTypes: CardSuperTypesTable;
+  cardCardTypes: CardCardTypesTable;
 
   // Printing events (migration 071)
   printingEvents: PrintingEventsTable;

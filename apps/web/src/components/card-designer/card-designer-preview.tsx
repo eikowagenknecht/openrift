@@ -113,7 +113,7 @@ export function CardDesignerPreview({
         energy={card.energy}
         might={card.might}
         power={card.power}
-        type={card.type || undefined}
+        types={card.type ? [card.type] : undefined}
         superTypes={card.superTypes}
         tags={card.tags}
         rulesText={card.rulesText || null}

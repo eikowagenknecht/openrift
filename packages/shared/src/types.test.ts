@@ -6,27 +6,35 @@ import { getOrientation } from "./utils";
 
 describe("getOrientation", () => {
   it("returns landscape for Battlefield", () => {
-    expect(getOrientation("battlefield")).toBe("landscape");
+    expect(getOrientation(["battlefield"])).toBe("landscape");
   });
 
   it("returns portrait for Unit", () => {
-    expect(getOrientation("unit")).toBe("portrait");
+    expect(getOrientation(["unit"])).toBe("portrait");
   });
 
   it("returns portrait for Spell", () => {
-    expect(getOrientation("spell")).toBe("portrait");
+    expect(getOrientation(["spell"])).toBe("portrait");
   });
 
   it("returns portrait for Legend", () => {
-    expect(getOrientation("legend")).toBe("portrait");
+    expect(getOrientation(["legend"])).toBe("portrait");
   });
 
   it("returns portrait for Rune", () => {
-    expect(getOrientation("rune")).toBe("portrait");
+    expect(getOrientation(["rune"])).toBe("portrait");
   });
 
   it("returns portrait for Gear", () => {
-    expect(getOrientation("gear")).toBe("portrait");
+    expect(getOrientation(["gear"])).toBe("portrait");
+  });
+
+  it("returns portrait for multi-type cards without Battlefield (Unit Gear)", () => {
+    expect(getOrientation(["unit", "gear"])).toBe("portrait");
+  });
+
+  it("returns landscape when any type is Battlefield", () => {
+    expect(getOrientation(["unit", "battlefield"])).toBe("landscape");
   });
 });
 

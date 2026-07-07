@@ -70,7 +70,7 @@ export async function acceptFavoriteNewCard(
         {
           id: cardSlug,
           name: primaryCandidate.name,
-          type: primaryCandidate.type as CardType,
+          types: primaryCandidate.types as CardType[],
           superTypes: (primaryCandidate.superTypes ?? []) as SuperType[],
           domains: (primaryCandidate.domains ?? []) as Domain[],
           might: primaryCandidate.might,
