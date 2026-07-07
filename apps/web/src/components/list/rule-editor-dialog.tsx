@@ -473,28 +473,21 @@ function RuleFields({
         {isTrade
           ? "Keep this many per card, and offer the rest. 0 trades all."
           : kind === "card"
-            ? "How many of each matched card to want."
-            : "How many of each matched printing to want."}
+            ? "How many of each matched card you want."
+            : "How many of each matched printing you want."}
       </p>
 
       {!isTrade && (
-        <>
-          <FilterRow
-            label="Only what I'm missing"
-            hint="Subtract the copies you already own, so the list shows only the shortfall toward the quantity above. Anything you already have enough of drops off."
-          >
-            <Switch
-              aria-label="Only what I'm missing"
-              checked={rule.netOwned}
-              onCheckedChange={(next) => setNetOwned(index, next)}
-            />
-          </FilterRow>
-          {rule.netOwned && (
-            <p className="text-muted-foreground -mt-1 text-sm">
-              Heads up: when shared, the quantities reveal how many you own.
-            </p>
-          )}
-        </>
+        <FilterRow
+          label="Only what I'm missing"
+          hint="Subtract the copies you already own, so the list shows only the shortfall toward the quantity above. Anything you already have enough of drops off."
+        >
+          <Switch
+            aria-label="Only what I'm missing"
+            checked={rule.netOwned}
+            onCheckedChange={(next) => setNetOwned(index, next)}
+          />
+        </FilterRow>
       )}
 
       <RuleExclusions
