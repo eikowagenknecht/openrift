@@ -417,12 +417,19 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
       if (types.length === 0) {
         throw new Error("A card must have at least one type");
       }
-      await db.deleteFrom("cardCardTypes").where("cardId", "=", cardId).execute();
-      await db
-        .insertInto("cardCardTypes")
-        .values(types.map((type, index) => ({ cardId, typeSlug: type, position: index })))
-        .execute();
-      await db.updateTable("cards").set({ type: types[0] }).where("id", "=", cardId).execute();
+      // Delete + insert must share a transaction: the deferred constraint
+      // trigger from migration 193 rejects any COMMIT that leaves a card with
+      // zero junction rows, and outside a transaction each statement commits
+      // on its own — the bare delete would be rejected before the insert runs.
+      const run = async (trx: typeof db): Promise<void> => {
+        await trx.deleteFrom("cardCardTypes").where("cardId", "=", cardId).execute();
+        await trx
+          .insertInto("cardCardTypes")
+          .values(types.map((type, index) => ({ cardId, typeSlug: type, position: index })))
+          .execute();
+        await trx.updateTable("cards").set({ type: types[0] }).where("id", "=", cardId).execute();
+      };
+      await (db.isTransaction ? run(db) : db.transaction().execute(run));
     },
 
     /** Replace all super types for a card by UUID (delete + insert). */
