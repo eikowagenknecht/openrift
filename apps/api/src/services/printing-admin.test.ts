@@ -210,6 +210,9 @@ describe("acceptPrinting", () => {
           { slug: "showcase", label: "showcase", color: null, sortOrder: 5, isWellKnown: true },
         ]),
       },
+      keywords: {
+        listCostKeywords: vi.fn(async () => ["Equip", "Repeat"]),
+      },
       ...overrides,
     };
   }
@@ -365,6 +368,9 @@ describe("acceptPrinting", () => {
           { slug: "epic", label: "epic", color: null, sortOrder: 4, isWellKnown: true },
           { slug: "showcase", label: "showcase", color: null, sortOrder: 5, isWellKnown: true },
         ]),
+      },
+      keywords: {
+        listCostKeywords: vi.fn(async () => ["Equip", "Repeat"]),
       },
     };
 

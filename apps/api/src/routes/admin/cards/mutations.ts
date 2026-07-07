@@ -363,7 +363,8 @@ export const adminCardMutationsRouter = {
     if (source === "provider") {
       const printingTextFields = new Set(["printedRulesText", "printedEffectText"]);
       if (printingTextFields.has(field) && typeof normalizedValue === "string") {
-        normalizedValue = fixTypography(normalizedValue);
+        const costKeywords = await context.repos.keywords.listCostKeywords();
+        normalizedValue = fixTypography(normalizedValue, { costKeywords });
       }
       if (field === "flavorText" && typeof normalizedValue === "string") {
         normalizedValue = fixTypography(normalizedValue, {

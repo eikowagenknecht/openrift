@@ -49,7 +49,8 @@ function fixTagList(tags: string[]): string[] {
  */
 export const adminTypographyReviewRouter = {
   list: os.list.handler(async ({ context }) => {
-    const { catalog } = context.repos;
+    const { catalog, keywords } = context.repos;
+    const costKeywords = await keywords.listCostKeywords();
     const diffs: TypographyDiff[] = [];
 
     const cards = await catalog.cards();
@@ -91,7 +92,7 @@ export const adminTypographyReviewRouter = {
         if (current === null) {
           continue;
         }
-        const proposed = fixTypography(current, options);
+        const proposed = fixTypography(current, { ...options, costKeywords });
         if (proposed !== current) {
           diffs.push({
             entity: "card",
@@ -112,7 +113,7 @@ export const adminTypographyReviewRouter = {
         if (current === null) {
           continue;
         }
-        const proposed = fixTypography(current, options);
+        const proposed = fixTypography(current, { ...options, costKeywords });
         if (proposed !== current) {
           diffs.push({
             entity: "printing",

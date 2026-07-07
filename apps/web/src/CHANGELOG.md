@@ -8,6 +8,7 @@
 
 ### Other
 
+- feat(Cards): **Punctuation helpers when submitting cards** — the contribute form's text fields gained quick buttons for curly quotes, apostrophes, em dashes, and ellipses, and flavor text now shows a live preview.
 - feat(Collection): **Live match counts on list rules** — each dynamic wishlist or tradelist rule now shows how many cards it wants or copies it offers, plus a combined total once you stack several.
 - fix(App): **Clipped toolbar focus rings** — the highlight ring around the search box and toolbar buttons on the card pages no longer gets cut off along the top.
 

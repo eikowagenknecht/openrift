@@ -136,6 +136,7 @@ import * as m187 from "./187-release-hardening-indexes.js";
 import * as m188 from "./188-organization-owner-rebalance.js";
 import * as m189 from "./189-friend-group-previous-slug.js";
 import * as m190 from "./190-list-rule-combine.js";
+import * as m191 from "./191-keyword-cost-flag.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -331,4 +332,5 @@ export const migrations: Record<string, Migration> = {
   "188-organization-owner-rebalance": m188,
   "189-friend-group-previous-slug": m189,
   "190-list-rule-combine": m190,
+  "191-keyword-cost-flag": m191,
 };

@@ -39,11 +39,16 @@ import {
   useUpsertTranslation,
 } from "@/hooks/use-keywords";
 
+// Fallback badge color, matching getKeywordStyle's FALLBACK_COLOR. Used when a
+// keyword with no style row is flagged as a cost keyword (which needs a row).
+const FALLBACK_KEYWORD_COLOR = "#6a6a6a";
+
 interface KeywordRow {
   keyword: string;
   count: number;
   color: string | null;
   darkText: boolean;
+  costKeyword: boolean;
   translations: { language: string; label: string }[];
 }
 
@@ -51,6 +56,7 @@ interface KeywordDraft {
   keyword: string;
   color: string;
   darkText: boolean;
+  costKeyword: boolean;
 }
 
 interface TranslationRow {
@@ -102,6 +108,7 @@ function DarkTextCell({ row }: AdminCellSlotProps<KeywordRow>) {
           name: row.keyword,
           color,
           darkText: checked,
+          costKeyword: row.costKeyword,
         })
       }
     />
@@ -187,6 +194,40 @@ function DarkTextInput({ draft, setDraft }: AdminDraftSlotProps<KeywordDraft>) {
   );
 }
 
+function CostKeywordCell({ row }: AdminCellSlotProps<KeywordRow>) {
+  const updateStyle = useUpdateKeywordStyle();
+  if (!row) {
+    return null;
+  }
+  // Toggling on a keyword with no style row still needs a row to hold the flag,
+  // so fall back to the neutral badge color (keeps the rendered badge unchanged).
+  return (
+    <Checkbox
+      checked={row.costKeyword}
+      onCheckedChange={(checked) =>
+        updateStyle.mutate({
+          name: row.keyword,
+          color: row.color ?? FALLBACK_KEYWORD_COLOR,
+          darkText: row.darkText,
+          costKeyword: checked,
+        })
+      }
+    />
+  );
+}
+
+function CostKeywordInput({ draft, setDraft }: AdminDraftSlotProps<KeywordDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Checkbox
+      checked={draft.costKeyword}
+      onCheckedChange={(checked) => setDraft((prev) => ({ ...prev, costKeyword: checked }))}
+    />
+  );
+}
+
 const columns: AdminColumnDef<KeywordRow, KeywordDraft>[] = [
   {
     header: "Keyword",
@@ -212,6 +253,13 @@ const columns: AdminColumnDef<KeywordRow, KeywordDraft>[] = [
     cell: <DarkTextCell />,
     editCell: <DarkTextInput />,
     addCell: <DarkTextInput />,
+  },
+  {
+    header: "Cost keyword",
+    align: "center",
+    cell: <CostKeywordCell />,
+    editCell: <CostKeywordInput />,
+    addCell: <CostKeywordInput />,
   },
   {
     header: "Translations",
@@ -244,6 +292,7 @@ export function KeywordsPage() {
         count: c.count,
         color: style?.color ?? null,
         darkText: style?.darkText ?? false,
+        costKeyword: style?.costKeyword ?? false,
         translations: translationsByKeyword.get(c.keyword) ?? [],
       };
     }),
@@ -254,6 +303,7 @@ export function KeywordsPage() {
         count: 0,
         color: s.color,
         darkText: s.darkText,
+        costKeyword: s.costKeyword,
         translations: translationsByKeyword.get(s.name) ?? [],
       })),
   ];
@@ -353,12 +403,13 @@ export function KeywordsPage() {
           </p>
         }
         add={{
-          emptyDraft: { keyword: "", color: "#6366f1", darkText: false },
+          emptyDraft: { keyword: "", color: "#6366f1", darkText: false, costKeyword: false },
           onSave: (draft) =>
             createStyle.mutateAsync({
               name: draft.keyword.trim(),
               color: draft.color,
               darkText: draft.darkText,
+              costKeyword: draft.costKeyword,
             }),
           validate: (draft) => {
             const name = draft.keyword.trim();
@@ -377,12 +428,14 @@ export function KeywordsPage() {
             keyword: row.keyword,
             color: row.color ?? "#707070",
             darkText: row.darkText,
+            costKeyword: row.costKeyword,
           }),
           onSave: (draft) =>
             updateStyle.mutateAsync({
               name: draft.keyword,
               color: draft.color,
               darkText: draft.darkText,
+              costKeyword: draft.costKeyword,
             }),
         }}
         delete={{

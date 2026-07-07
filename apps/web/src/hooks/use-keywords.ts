@@ -38,7 +38,9 @@ export function useRecomputeKeywords() {
 }
 
 const updateKeywordStyleFn = createServerFn({ method: "POST" })
-  .validator((input: { name: string; color: string; darkText: boolean }) => input)
+  .validator(
+    (input: { name: string; color: string; darkText: boolean; costKeyword: boolean }) => input,
+  )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await apiOrpcClient(adminKeywordsContract, context.cookie).updateStyle(data);
@@ -47,8 +49,12 @@ const updateKeywordStyleFn = createServerFn({ method: "POST" })
 export function useUpdateKeywordStyle() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (params: { name: string; color: string; darkText: boolean }) =>
-      updateKeywordStyleFn({ data: params }),
+    mutationFn: (params: {
+      name: string;
+      color: string;
+      darkText: boolean;
+      costKeyword: boolean;
+    }) => updateKeywordStyleFn({ data: params }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.keywordStats });
       queryClient.invalidateQueries({ queryKey: queryKeys.init.all });
@@ -57,7 +63,9 @@ export function useUpdateKeywordStyle() {
 }
 
 const createKeywordStyleFn = createServerFn({ method: "POST" })
-  .validator((input: { name: string; color: string; darkText: boolean }) => input)
+  .validator(
+    (input: { name: string; color: string; darkText: boolean; costKeyword: boolean }) => input,
+  )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await apiOrpcClient(adminKeywordsContract, context.cookie).createStyle(data);
@@ -66,8 +74,12 @@ const createKeywordStyleFn = createServerFn({ method: "POST" })
 export function useCreateKeywordStyle() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (params: { name: string; color: string; darkText: boolean }) =>
-      createKeywordStyleFn({ data: params }),
+    mutationFn: (params: {
+      name: string;
+      color: string;
+      darkText: boolean;
+      costKeyword: boolean;
+    }) => createKeywordStyleFn({ data: params }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.keywordStats });
       queryClient.invalidateQueries({ queryKey: queryKeys.init.all });

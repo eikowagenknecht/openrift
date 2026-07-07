@@ -30,7 +30,11 @@ const PRINTING_ID = "a0000000-0001-4000-a000-0000000000bb";
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
-  c.set("repos", { catalog: mockCatalog, candidateMutations: mockMutations } as never);
+  c.set("repos", {
+    catalog: mockCatalog,
+    candidateMutations: mockMutations,
+    keywords: { listCostKeywords: vi.fn().mockResolvedValue(["Equip", "Repeat"]) },
+  } as never);
   await next();
 });
 registerRouterForTest(app, adminTypographyReviewRouter);

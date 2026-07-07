@@ -24,6 +24,7 @@ export const adminKeywordsRouter = {
       name: s.name,
       color: s.color,
       darkText: s.darkText,
+      costKeyword: s.costKeyword,
     }));
     return { counts, styles, translations };
   }),
@@ -33,8 +34,8 @@ export const adminKeywordsRouter = {
   }),
 
   updateStyle: os.updateStyle.handler(async ({ input, context }): Promise<void> => {
-    const { name, color, darkText } = input;
-    await context.repos.keywords.upsertStyle({ name, color, darkText });
+    const { name, color, darkText, costKeyword } = input;
+    await context.repos.keywords.upsertStyle({ name, color, darkText, costKeyword });
   }),
 
   removeStyle: os.removeStyle.handler(async ({ input, context }): Promise<void> => {

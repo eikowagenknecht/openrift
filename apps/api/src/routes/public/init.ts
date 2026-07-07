@@ -33,7 +33,11 @@ export const initRouter = {
 
     const keywordsMap: Record<string, KeywordEntry> = {};
     for (const row of keywordRows) {
-      keywordsMap[row.name] = { color: row.color, darkText: row.darkText };
+      keywordsMap[row.name] = {
+        color: row.color,
+        darkText: row.darkText,
+        costKeyword: row.costKeyword,
+      };
     }
 
     for (const translation of translations) {

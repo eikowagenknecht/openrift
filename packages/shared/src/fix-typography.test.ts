@@ -85,56 +85,91 @@ describe("fixTypography", () => {
 
   // ── Keyword glyphs ──────────────────────────────────────────────────────
 
-  it("moves trailing glyphs inside keyword brackets", () => {
-    expect(fixTypography("[Equip] :rb_rune_mind:")).toBe("[Equip :rb_rune_mind:]");
+  // Cost keywords are data-driven: the caller passes the set (mirrors the
+  // keyword admin flag). No keyword names are baked into fixTypography.
+  const COST = ["Equip", "Repeat"];
+
+  it("moves trailing glyphs inside cost-keyword brackets", () => {
+    expect(fixTypography("[Equip] :rb_rune_mind:", { costKeywords: COST })).toBe(
+      "[Equip :rb_rune_mind:]",
+    );
   });
 
   it("moves multiple glyphs inside cost-keyword brackets", () => {
-    expect(fixTypography("[Equip] :rb_energy_1::rb_rune_body:")).toBe(
+    expect(fixTypography("[Equip] :rb_energy_1::rb_rune_body:", { costKeywords: COST })).toBe(
       "[Equip :rb_energy_1::rb_rune_body:]",
     );
   });
 
-  it("moves space-separated glyphs inside keyword brackets", () => {
-    expect(fixTypography("[Repeat] :rb_energy_2: :rb_rune_fury:")).toBe(
+  it("moves space-separated glyphs inside cost-keyword brackets", () => {
+    expect(fixTypography("[Repeat] :rb_energy_2: :rb_rune_fury:", { costKeywords: COST })).toBe(
       "[Repeat :rb_energy_2: :rb_rune_fury:]",
     );
   });
 
   it("preserves space after closing bracket when glyphs are moved inside", () => {
-    expect(fixTypography("[Repeat] :rb_energy_3: (You may pay the additional cost.)")).toBe(
-      "[Repeat :rb_energy_3:] _(You may pay the additional cost.)_",
+    expect(
+      fixTypography("[Repeat] :rb_energy_3: (You may pay the additional cost.)", {
+        costKeywords: COST,
+      }),
+    ).toBe("[Repeat :rb_energy_3:] _(You may pay the additional cost.)_");
+  });
+
+  it("keeps a flagged cost keyword's glyphs inside its bracket", () => {
+    // Regression: Empower is a cost keyword — its glyphs must NOT be split out.
+    expect(
+      fixTypography("[Empower :rb_energy_2: :rb_rune_fury:]", {
+        costKeywords: ["Equip", "Repeat", "Empower"],
+      }),
+    ).toBe("[Empower :rb_energy_2: :rb_rune_fury:]");
+  });
+
+  it("splits glyphs out of a keyword that is not flagged as a cost keyword", () => {
+    // Empower absent from the cost list → treated as a wrongly-merged keyword.
+    expect(fixTypography("[Empower :rb_energy_2: :rb_rune_fury:]", { costKeywords: COST })).toBe(
+      "[Empower] :rb_energy_2: :rb_rune_fury:",
     );
   });
 
+  it("does not merge any keyword when the cost list is empty", () => {
+    // Data-driven default: with no cost keywords, nothing merges into brackets.
+    expect(fixTypography("[Equip] :rb_rune_mind:")).toBe("[Equip] :rb_rune_mind:");
+  });
+
   it("does not move glyphs for non-cost keywords like Add", () => {
-    expect(fixTypography("[Add] :rb_energy_1:.")).toBe("[Add] :rb_energy_1:.");
+    expect(fixTypography("[Add] :rb_energy_1:.", { costKeywords: COST })).toBe(
+      "[Add] :rb_energy_1:.",
+    );
   });
 
   it("does not move glyphs across newlines", () => {
-    expect(fixTypography("[Deflect]\n :rb_energy_2: :rb_rune_fury:")).toBe(
+    expect(fixTypography("[Deflect]\n :rb_energy_2: :rb_rune_fury:", { costKeywords: COST })).toBe(
       "[Deflect]\n:rb_energy_2: :rb_rune_fury:",
     );
   });
 
   it("unfixes wrongly-merged non-cost keywords", () => {
-    expect(fixTypography("[Add :rb_energy_1::rb_rune_rainbow:]")).toBe(
+    expect(fixTypography("[Add :rb_energy_1::rb_rune_rainbow:]", { costKeywords: COST })).toBe(
       "[Add] :rb_energy_1::rb_rune_rainbow:",
     );
   });
 
   it("does not move glyphs into non-word brackets like [>]", () => {
-    expect(fixTypography("[Reaction][>] :rb_exhaust::")).toBe("[Reaction][>] :rb_exhaust::");
+    expect(fixTypography("[Reaction][>] :rb_exhaust::", { costKeywords: COST })).toBe(
+      "[Reaction][>] :rb_exhaust::",
+    );
   });
 
   it("leaves already-correct cost-keyword brackets unchanged", () => {
-    expect(fixTypography("[Equip :rb_rune_mind:]")).toBe("[Equip :rb_rune_mind:]");
+    expect(fixTypography("[Equip :rb_rune_mind:]", { costKeywords: COST })).toBe(
+      "[Equip :rb_rune_mind:]",
+    );
   });
 
   it("skips keyword glyphs when keywordGlyphs is false", () => {
-    expect(fixTypography("[Equip] :rb_rune_mind:", { keywordGlyphs: false })).toBe(
-      "[Equip] :rb_rune_mind:",
-    );
+    expect(
+      fixTypography("[Equip] :rb_rune_mind:", { keywordGlyphs: false, costKeywords: COST }),
+    ).toBe("[Equip] :rb_rune_mind:");
   });
 
   // ── Combined ─────────────────────────────────────────────────────────────

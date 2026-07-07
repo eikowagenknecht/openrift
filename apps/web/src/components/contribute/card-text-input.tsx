@@ -1,4 +1,4 @@
-import { HelpCircleIcon, ItalicIcon } from "lucide-react";
+import { HelpCircleIcon, ItalicIcon, WandSparklesIcon } from "lucide-react";
 import { useId, useRef, useState } from "react";
 
 import { CardText } from "@/components/cards/card-text";
@@ -68,12 +68,27 @@ export function wrapAtCaret(
   return { value: before + wrapped + after, caret };
 }
 
+/**
+ * "rules" — full card-syntax toolbar (glyphs, runes, keywords, italic) and a
+ * CardText-rendered preview. For printed rules / effect text.
+ * "flavor" — punctuation only (curly quotes, apostrophe, em dash) and a plain
+ * italic preview, since flavor text renders as prose, not card syntax.
+ */
+export type CardTextVariant = "rules" | "flavor";
+
 interface CardTextInputProps {
   label: string;
   value: string;
   onChange: (next: string) => void;
   rows?: number;
   placeholder?: string;
+  variant?: CardTextVariant;
+  /**
+   * When provided, shows a "Fix" button that reformats the current value
+   * through this transform (typically `fixTypography`). The caller owns the
+   * options (cost keywords, flavor vs rules) so the transform stays correct.
+   */
+  reformat?: (value: string) => string;
 }
 
 export function CardTextInput({
@@ -82,6 +97,8 @@ export function CardTextInput({
   onChange,
   rows = 2,
   placeholder,
+  variant = "rules",
+  reformat,
 }: CardTextInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const id = useId();
@@ -122,9 +139,14 @@ export function CardTextInput({
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-between gap-2">
         <Label htmlFor={id}>{label}</Label>
-        <SyntaxHelpPopover />
+        {variant === "rules" && <SyntaxHelpPopover />}
       </div>
-      <SyntaxToolbar onInsert={insert} onWrap={wrap} />
+      <SyntaxToolbar
+        onInsert={insert}
+        onWrap={wrap}
+        variant={variant}
+        onReformat={reformat ? () => onChange(reformat(value)) : undefined}
+      />
       <Textarea
         id={id}
         ref={textareaRef}
@@ -133,7 +155,7 @@ export function CardTextInput({
         placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
       />
-      <CardTextPreview text={value} />
+      <CardTextPreview text={value} variant={variant} />
     </div>
   );
 }
@@ -141,75 +163,142 @@ export function CardTextInput({
 function SyntaxToolbar({
   onInsert,
   onWrap,
+  variant,
+  onReformat,
 }: {
   onInsert: (token: string) => void;
   onWrap: (prefix: string, suffix: string) => void;
+  variant: CardTextVariant;
+  onReformat?: () => void;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      <ButtonGroup aria-label="Text formatting">
+      {variant === "rules" && (
+        <ButtonGroup aria-label="Text formatting">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon-sm"
+            title="Italic (_text_)"
+            aria-label="Italic"
+            onClick={() => onWrap("_", "_")}
+          >
+            <ItalicIcon className="size-4" />
+          </Button>
+        </ButtonGroup>
+      )}
+      <ButtonGroup aria-label="Punctuation">
+        <PunctuationButton
+          label="Curly double quotes"
+          title="Curly double quotes (“ ”)"
+          onClick={() => onWrap("“", "”")}
+        >
+          “”
+        </PunctuationButton>
+        <PunctuationButton label="Apostrophe" title="Apostrophe (’)" onClick={() => onInsert("’")}>
+          ’
+        </PunctuationButton>
+        <PunctuationButton label="Em dash" title="Em dash (—)" onClick={() => onInsert("—")}>
+          —
+        </PunctuationButton>
+        <PunctuationButton label="Ellipsis" title="Ellipsis (…)" onClick={() => onInsert("…")}>
+          …
+        </PunctuationButton>
+      </ButtonGroup>
+      {onReformat && (
         <Button
           type="button"
           variant="outline"
-          size="icon-sm"
-          title="Italic (_text_)"
-          aria-label="Italic"
-          onClick={() => onWrap("_", "_")}
+          size="sm"
+          title="Reformat typography (curly quotes, ellipsis, minus signs, spacing)"
+          onClick={onReformat}
         >
-          <ItalicIcon className="size-4" />
+          <WandSparklesIcon className="size-3.5" />
+          Fix
         </Button>
-      </ButtonGroup>
-      <ButtonGroup aria-label="Energy glyphs">
-        {ENERGY_GLYPHS.map((n) => (
-          <GlyphButton
-            key={`energy_${n.toString()}`}
-            token={`:rb_energy_${n.toString()}:`}
-            label={`Insert ${n.toString()} energy`}
-            onInsert={onInsert}
-          >
-            <span
-              className="bg-foreground text-background text-2xs inline-flex size-4 items-center justify-center rounded-full font-bold"
-              aria-hidden
-            >
-              {n}
-            </span>
-          </GlyphButton>
-        ))}
-      </ButtonGroup>
-      <ButtonGroup aria-label="Rune glyphs">
-        {RUNE_GLYPHS.map((rune) => (
-          <GlyphButton
-            key={rune.token}
-            token={`:rb_${rune.token}:`}
-            label={`Insert ${rune.label} rune`}
-            onInsert={onInsert}
-          >
-            <img
-              src={`/images/glyphs/${rune.token.replaceAll("_", "-")}.svg`}
-              alt=""
-              className="size-4"
-            />
-          </GlyphButton>
-        ))}
-      </ButtonGroup>
-      <ButtonGroup aria-label="Utility glyphs">
-        {UTILITY_GLYPHS.map((g) => (
-          <GlyphButton
-            key={g.token}
-            token={`:rb_${g.token}:`}
-            label={`Insert ${g.label}`}
-            onInsert={onInsert}
-          >
-            <img
-              src={`/images/glyphs/${g.token.replaceAll("_", "-")}.svg`}
-              alt=""
-              className="size-4 brightness-0 dark:invert"
-            />
-          </GlyphButton>
-        ))}
-      </ButtonGroup>
-      <KeywordPicker onInsert={onInsert} />
+      )}
+      {variant === "flavor" ? null : (
+        <>
+          <ButtonGroup aria-label="Energy glyphs">
+            {ENERGY_GLYPHS.map((n) => (
+              <GlyphButton
+                key={`energy_${n.toString()}`}
+                token={`:rb_energy_${n.toString()}:`}
+                label={`Insert ${n.toString()} energy`}
+                onInsert={onInsert}
+              >
+                <span
+                  className="bg-foreground text-background text-2xs inline-flex size-4 items-center justify-center rounded-full font-bold"
+                  aria-hidden
+                >
+                  {n}
+                </span>
+              </GlyphButton>
+            ))}
+          </ButtonGroup>
+          <ButtonGroup aria-label="Rune glyphs">
+            {RUNE_GLYPHS.map((rune) => (
+              <GlyphButton
+                key={rune.token}
+                token={`:rb_${rune.token}:`}
+                label={`Insert ${rune.label} rune`}
+                onInsert={onInsert}
+              >
+                <img
+                  src={`/images/glyphs/${rune.token.replaceAll("_", "-")}.svg`}
+                  alt=""
+                  className="size-4"
+                />
+              </GlyphButton>
+            ))}
+          </ButtonGroup>
+          <ButtonGroup aria-label="Utility glyphs">
+            {UTILITY_GLYPHS.map((g) => (
+              <GlyphButton
+                key={g.token}
+                token={`:rb_${g.token}:`}
+                label={`Insert ${g.label}`}
+                onInsert={onInsert}
+              >
+                <img
+                  src={`/images/glyphs/${g.token.replaceAll("_", "-")}.svg`}
+                  alt=""
+                  className="size-4 brightness-0 dark:invert"
+                />
+              </GlyphButton>
+            ))}
+          </ButtonGroup>
+          <KeywordPicker onInsert={onInsert} />
+        </>
+      )}
     </div>
+  );
+}
+
+function PunctuationButton({
+  label,
+  title,
+  onClick,
+  children,
+}: {
+  label: string;
+  title: string;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="icon-sm"
+      title={title}
+      aria-label={label}
+      onClick={onClick}
+    >
+      <span aria-hidden className="text-sm">
+        {children}
+      </span>
+    </Button>
   );
 }
 
@@ -347,7 +436,7 @@ function SyntaxHelpPopover() {
   );
 }
 
-function CardTextPreview({ text }: { text: string }) {
+function CardTextPreview({ text, variant }: { text: string; variant: CardTextVariant }) {
   const trimmed = text.trim();
   if (!trimmed) {
     return (
@@ -358,7 +447,12 @@ function CardTextPreview({ text }: { text: string }) {
   }
   return (
     <div className="border-input bg-muted/20 text-foreground rounded-md border px-2.5 py-1.5 text-sm">
-      <CardText text={text} interactive={false} />
+      {variant === "flavor" ? (
+        // Flavor text renders as plain italic prose, not card syntax.
+        <p className="text-muted-foreground/80 whitespace-pre-wrap italic">{text}</p>
+      ) : (
+        <CardText text={text} interactive={false} />
+      )}
     </div>
   );
 }

@@ -57,8 +57,16 @@ describe.skipIf(!ctx)("Init route (integration)", () => {
     const res = await app.fetch(req("GET", "/init"));
     const json = await res.json();
 
-    expect(json.keywords["INIT-Shield"]).toEqual({ color: "#4488ff", darkText: false });
-    expect(json.keywords["INIT-Burn"]).toEqual({ color: "#ff4400", darkText: true });
+    expect(json.keywords["INIT-Shield"]).toEqual({
+      color: "#4488ff",
+      darkText: false,
+      costKeyword: false,
+    });
+    expect(json.keywords["INIT-Burn"]).toEqual({
+      color: "#ff4400",
+      darkText: true,
+      costKeyword: false,
+    });
   });
 
   it("sets Cache-Control with public caching", async () => {

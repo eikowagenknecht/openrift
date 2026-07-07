@@ -71,6 +71,7 @@ import {
   useAllCards,
   useNextUncheckedCard,
 } from "@/hooks/use-admin-card-queries";
+import { useKeywordStyles } from "@/hooks/use-keyword-styles";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 import {
@@ -234,6 +235,7 @@ export function ExistingCardDetailPage({
   const linkPrintingSources = useLinkCandidatePrintings(invalidateScope);
   const deletePrintingMutation = useDeletePrinting(invalidateScope);
   const { data: allCards } = useAllCards();
+  const keywordStyles = useKeywordStyles();
 
   // --- State ---
   const collapsedPrintings = useAdminCardFoldStore((state) => getCollapsedPrintings(state, cardId));
@@ -440,6 +442,9 @@ export function ExistingCardDetailPage({
   const printings = existingData.printings;
   const printingImages = existingData.printingImages;
   const setTotals = existingData.setTotals ?? {};
+  const costKeywords = Object.entries(keywordStyles)
+    .filter(([, entry]) => entry.costKeyword)
+    .map(([name]) => name);
   const marketplaceMappings = existingData.marketplaceMappings ?? [];
   const expectedCardId = existingData.expectedCardId;
   const isCardIdStale = cardId !== expectedCardId;
@@ -829,6 +834,7 @@ export function ExistingCardDetailPage({
               providerSettings,
               printingSourceFields,
               setTotals,
+              costKeywords,
             );
             const headerBgClass =
               matchStatus === "match"
@@ -950,7 +956,13 @@ export function ExistingCardDetailPage({
                         providerLabels={sourceLabels}
                         providerNames={sourceNames}
                         providerSettings={providerSettings}
-                        normalizeCandidate={buildPrintingNormalizer(setTotals, printing.setSlug)}
+                        activeImageUrl={printingWithImage.imageUrl}
+                        costKeywords={costKeywords}
+                        normalizeCandidate={buildPrintingNormalizer(
+                          setTotals,
+                          printing.setSlug,
+                          costKeywords,
+                        )}
                         onCellClick={(field, value) => {
                           acceptPrintingField.mutate({
                             printingId,

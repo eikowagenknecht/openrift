@@ -794,13 +794,12 @@ function PrintingCard({
           value={printing.printedEffectText ?? ""}
           onChange={(v) => onChange("printedEffectText", v || null)}
         />
-        <FieldRow label="Flavor text">
-          <Textarea
-            rows={2}
-            value={printing.flavorText ?? ""}
-            onChange={(e) => onChange("flavorText", e.target.value || null)}
-          />
-        </FieldRow>
+        <CardTextInput
+          label="Flavor text"
+          variant="flavor"
+          value={printing.flavorText ?? ""}
+          onChange={(v) => onChange("flavorText", v || null)}
+        />
         <FieldRow
           label="Image URL"
           hint="Direct link to the best quality image (.png, .jpg, .webp, etc.) you can find. Official images preferred, but a clear scan works too."

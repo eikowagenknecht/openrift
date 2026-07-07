@@ -1,9 +1,10 @@
 import type { AdminCardDetailResponse } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import { WellKnown, fixTypography } from "@openrift/shared";
 import { useNavigate } from "@tanstack/react-router";
 import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 
+import { CardTextInput } from "@/components/contribute/card-text-input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,12 +27,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { useCreatePrinting } from "@/hooks/use-admin-card-mutations";
 import type { CreatePrintingBody } from "@/hooks/use-admin-card-mutations";
 import { useAdminCardDetail } from "@/hooks/use-admin-card-queries";
 import { useDistributionChannels } from "@/hooks/use-distribution-channels";
 import { useEnumOrders } from "@/hooks/use-enums";
+import { useKeywordStyles } from "@/hooks/use-keyword-styles";
 import { useLanguages } from "@/hooks/use-languages";
 import { useMarkers } from "@/hooks/use-markers";
 import { useSets } from "@/hooks/use-sets";
@@ -56,6 +57,13 @@ export function CreatePrintingPage({
   const { data: languagesData } = useLanguages();
   const { data: channelsData } = useDistributionChannels();
   const { orders, labels } = useEnumOrders();
+  const keywordStyles = useKeywordStyles();
+  const costKeywords = Object.entries(keywordStyles)
+    .filter(([, entry]) => entry.costKeyword)
+    .map(([name]) => name);
+  const reformatRules = (value: string) => fixTypography(value, { costKeywords });
+  const reformatFlavor = (value: string) =>
+    fixTypography(value, { italicParens: false, keywordGlyphs: false });
 
   const sets = setsData.sets;
   const markers = markersData.markers;
@@ -180,7 +188,7 @@ export function CreatePrintingPage({
   }
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-4xl">
       <Card>
         <CardHeader>
           <CardTitle>{source ? "Duplicate printing" : "Create new printing"}</CardTitle>
@@ -393,46 +401,52 @@ export function CreatePrintingPage({
               </Field>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field>
-                <FieldLabel htmlFor="create-printing-rules">Printed rules text</FieldLabel>
-                <Textarea
-                  id="create-printing-rules"
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,18rem)_1fr]">
+              <Field className="lg:sticky lg:top-20 lg:self-start">
+                <FieldLabel htmlFor="create-printing-image">Reference image</FieldLabel>
+                {imageUrl.trim() ? (
+                  <img
+                    src={imageUrl.trim()}
+                    alt="Card reference"
+                    className="max-h-[70vh] w-full rounded-md object-contain"
+                  />
+                ) : (
+                  <div className="text-muted-foreground border-input flex h-48 items-center justify-center rounded-md border border-dashed px-3 text-center">
+                    Paste an image URL to preview the card while you type.
+                  </div>
+                )}
+                <Input
+                  id="create-printing-image"
+                  value={imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
+                  placeholder="Image URL — https://…"
+                />
+              </Field>
+              <div className="space-y-4">
+                <CardTextInput
+                  label="Printed rules text"
                   value={printedRulesText}
-                  onChange={(e) => setPrintedRulesText(e.target.value)}
+                  onChange={setPrintedRulesText}
                   rows={3}
+                  reformat={reformatRules}
                 />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="create-printing-effect">Printed effect text</FieldLabel>
-                <Textarea
-                  id="create-printing-effect"
+                <CardTextInput
+                  label="Printed effect text"
                   value={printedEffectText}
-                  onChange={(e) => setPrintedEffectText(e.target.value)}
+                  onChange={setPrintedEffectText}
                   rows={3}
+                  reformat={reformatRules}
                 />
-              </Field>
+                <CardTextInput
+                  label="Flavor text"
+                  variant="flavor"
+                  value={flavorText}
+                  onChange={setFlavorText}
+                  rows={2}
+                  reformat={reformatFlavor}
+                />
+              </div>
             </div>
-
-            <Field>
-              <FieldLabel htmlFor="create-printing-flavor">Flavor text</FieldLabel>
-              <Textarea
-                id="create-printing-flavor"
-                value={flavorText}
-                onChange={(e) => setFlavorText(e.target.value)}
-                rows={2}
-              />
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="create-printing-image">Image URL</FieldLabel>
-              <Input
-                id="create-printing-image"
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                placeholder="https://…"
-              />
-            </Field>
 
             {errorMsg && (
               <Alert variant="destructive">

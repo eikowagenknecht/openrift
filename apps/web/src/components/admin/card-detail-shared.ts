@@ -234,6 +234,7 @@ export function computePrintingMatchStatus(
   providerSettings: readonly ProviderSettingResponse[],
   printingFields: readonly FieldDef[],
   setTotals: Record<string, number>,
+  costKeywords: readonly string[] = [],
 ): "match" | "mismatch" {
   const favoriteProviders = new Set(
     providerSettings.filter((s) => s.isFavorite).map((s) => s.provider),
@@ -244,7 +245,7 @@ export function computePrintingMatchStatus(
   if (favoritedSources.length === 0) {
     return "match";
   }
-  const normalize = buildPrintingNormalizer(setTotals, printing.setSlug);
+  const normalize = buildPrintingNormalizer(setTotals, printing.setSlug, costKeywords);
   const printingRecord = printing as unknown as Record<string, unknown>;
   for (const field of printingFields) {
     if (field.readOnly) {
@@ -285,6 +286,7 @@ const TYPOGRAPHY_FIELDS = new Set(["printedRulesText", "printedEffectText"]);
 export function buildPrintingNormalizer(
   setTotals: Record<string, number>,
   candidateSetSlug?: string | null,
+  costKeywords: readonly string[] = [],
 ): (fieldKey: string, value: unknown) => unknown {
   const printedTotal = candidateSetSlug ? (setTotals[candidateSetSlug] ?? null) : null;
   return (fieldKey: string, value: unknown): unknown => {
@@ -292,7 +294,7 @@ export function buildPrintingNormalizer(
       return value;
     }
     if (TYPOGRAPHY_FIELDS.has(fieldKey)) {
-      return fixTypography(value);
+      return fixTypography(value, { costKeywords });
     }
     if (fieldKey === "flavorText") {
       return fixTypography(value, { italicParens: false, keywordGlyphs: false });

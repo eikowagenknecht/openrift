@@ -17,4 +17,36 @@ describe.skipIf(!ctx)("keywordsRepo (integration)", () => {
       expect(names).toEqual([...names].sort());
     }
   });
+
+  it("listCostKeywords returns only keywords flagged as cost keywords", async () => {
+    await repo.upsertStyle({
+      name: "KW-CostFlag",
+      color: "#123456",
+      darkText: false,
+      costKeyword: true,
+    });
+    await repo.upsertStyle({
+      name: "KW-PlainFlag",
+      color: "#123456",
+      darkText: false,
+      costKeyword: false,
+    });
+    try {
+      const costKeywords = await repo.listCostKeywords();
+      expect(costKeywords).toContain("KW-CostFlag");
+      expect(costKeywords).not.toContain("KW-PlainFlag");
+
+      // Flipping the flag off via upsert removes it from the list.
+      await repo.upsertStyle({
+        name: "KW-CostFlag",
+        color: "#123456",
+        darkText: false,
+        costKeyword: false,
+      });
+      expect(await repo.listCostKeywords()).not.toContain("KW-CostFlag");
+    } finally {
+      await repo.deleteStyle("KW-CostFlag");
+      await repo.deleteStyle("KW-PlainFlag");
+    }
+  });
 });

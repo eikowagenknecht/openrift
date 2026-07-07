@@ -122,6 +122,7 @@ app.use("*", async (c, next) => {
         .fn()
         .mockResolvedValue([{ slug: "common" }, { slug: "uncommon" }, { slug: "rare" }]),
     },
+    keywords: { listCostKeywords: vi.fn().mockResolvedValue(["Equip", "Repeat"]) },
   } as never);
   c.set("services", {
     importErrata: mockImportErrata,
@@ -879,7 +880,9 @@ describe("POST /cards/printing/:printingId/accept-field", () => {
       body: JSON.stringify({ field: "printedRulesText", value: "Raw text", source: "provider" }),
     });
     expect(res.status).toBe(204);
-    expect(mockFixTypography).toHaveBeenCalledWith("Raw text");
+    expect(mockFixTypography).toHaveBeenCalledWith("Raw text", {
+      costKeywords: ["Equip", "Repeat"],
+    });
     expect(mockMut.updatePrintingFieldById).toHaveBeenCalledWith(
       PRINTING_ID,
       "printedRulesText",

@@ -8,6 +8,8 @@ extendZodWithOpenApi(z);
 export const keywordEntrySchema = z.object({
   color: z.string().openapi({ example: "#24705f" }),
   darkText: z.boolean().openapi({ example: false }),
+  /** Keyword whose glyph cost renders inside its bracket, e.g. `[Equip :rb_energy_1:]`. */
+  costKeyword: z.boolean().openapi({ example: false }),
   translations: z
     .record(z.string(), z.string())
     .optional()

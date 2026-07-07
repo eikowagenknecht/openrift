@@ -4,6 +4,7 @@ import type {
   EnumOrders,
   ProviderSettingResponse,
 } from "@openrift/shared";
+import { fixTypography } from "@openrift/shared";
 import {
   CheckIcon,
   ChevronDownIcon,
@@ -14,6 +15,9 @@ import {
 } from "lucide-react";
 import { Fragment, cloneElement, useRef, useState } from "react";
 
+import { CardTextExpandDialog } from "@/components/admin/card-text-expand-dialog";
+import { CardText } from "@/components/cards/card-text";
+import type { CardTextVariant } from "@/components/contribute/card-text-input";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -63,6 +67,14 @@ export interface FieldDef {
   collapsible?: boolean;
   /** When true, renders a textarea that supports newlines instead of a single-line input. */
   multiline?: boolean;
+  /**
+   * When true, the Active cell renders a rich preview and edits go through an
+   * expand dialog (token toolbar + live preview + card image) instead of the
+   * inline textarea. For rules/effect/flavor text.
+   */
+  richText?: boolean;
+  /** Rich-text editor variant — "rules" (default) or "flavor". */
+  richTextVariant?: CardTextVariant;
   /** When true, the value is a string[] -- comma-separated input is split into an array on commit. */
   array?: boolean;
   /** Free-text suggestions shown as a filterable combobox (user can still type a custom value). */
@@ -95,8 +107,8 @@ export function buildCandidateCardFields(orders: EnumOrders, labels: EnumLabels)
       labeledOptions: toLabeledOptions(orders.domains, labels.domains),
       array: true,
     },
-    { key: "rulesText", label: "Rules Text", multiline: true },
-    { key: "effectText", label: "Effect Text", multiline: true },
+    { key: "rulesText", label: "Rules Text", multiline: true, richText: true },
+    { key: "effectText", label: "Effect Text", multiline: true, richText: true },
     { key: "mightBonus", label: "Might Bonus", type: "number" },
     { key: "tags", label: "Tags", array: true },
     { key: "comment", label: "Comment" },
@@ -165,9 +177,15 @@ export function buildCandidatePrintingFields(
     },
     { key: "printedName", label: "Printed Name" },
     { key: "printedYear", label: "Printed Year", type: "number" },
-    { key: "printedRulesText", label: "Printed Rules", multiline: true },
-    { key: "printedEffectText", label: "Printed Effect", multiline: true },
-    { key: "flavorText", label: "Flavor Text", multiline: true },
+    { key: "printedRulesText", label: "Printed Rules", multiline: true, richText: true },
+    { key: "printedEffectText", label: "Printed Effect", multiline: true, richText: true },
+    {
+      key: "flavorText",
+      label: "Flavor Text",
+      multiline: true,
+      richText: true,
+      richTextVariant: "flavor",
+    },
     { key: "comment", label: "Comment" },
     { key: "extraData", label: "Extra Data", readOnly: true, collapsible: true },
     { key: "imageUrl", label: "Image", readOnly: true, collapsible: true },
@@ -214,6 +232,10 @@ interface CandidateSpreadsheetProps {
    * Used to account for server-side transformations (e.g. typography fixes)
    * so that accepted-but-reformatted values no longer highlight as different. */
   normalizeCandidate?: (fieldKey: string, value: unknown) => unknown;
+  /** Active printing image, shown beside the editor in richText field expand dialogs. */
+  activeImageUrl?: string | null;
+  /** Cost keywords, so the richText "Fix" button reformats rules/effect correctly. */
+  costKeywords?: readonly string[];
 }
 
 /** Field keys where word-level diff highlighting is applied. */
@@ -406,6 +428,8 @@ export function CandidateSpreadsheet({
   columnClassName,
   cellWarning,
   normalizeCandidate,
+  activeImageUrl,
+  costKeywords = [],
 }: CandidateSpreadsheetProps) {
   const settingsMap = new Map(providerSettings?.map((s) => [s.provider, s]));
   const favoriteProviders = new Set(
@@ -551,7 +575,13 @@ export function CandidateSpreadsheet({
                         : "hover:bg-muted/30 cursor-text"),
                   )}
                   onClick={() => {
-                    if (!onActiveChange || field.readOnly || editingField === field.key) {
+                    if (
+                      !onActiveChange ||
+                      field.readOnly ||
+                      field.richText ||
+                      editingField === field.key
+                    ) {
+                      // richText fields edit through the expand dialog, not inline.
                       return;
                     }
                     if (field.type === "boolean") {
@@ -573,7 +603,40 @@ export function CandidateSpreadsheet({
                     });
                   }}
                 >
-                  {editingField === field.key && isMultiSelect(field) ? (
+                  {field.richText ? (
+                    <div className="flex items-start justify-between gap-1">
+                      <div className="min-w-0 flex-1 break-words whitespace-normal">
+                        {hasValue(activeValue) ? (
+                          field.richTextVariant === "flavor" ? (
+                            <span className="text-muted-foreground/80 italic">
+                              {String(activeValue)}
+                            </span>
+                          ) : (
+                            <CardText text={String(activeValue)} interactive={false} />
+                          )
+                        ) : (
+                          <span className={isMissing ? "text-red-400" : "text-muted-foreground"}>
+                            {isMissing ? "required" : "—"}
+                          </span>
+                        )}
+                      </div>
+                      {onActiveChange && !field.readOnly && (
+                        <CardTextExpandDialog
+                          label={field.label}
+                          value={hasValue(activeValue) ? String(activeValue) : ""}
+                          imageUrl={activeImageUrl}
+                          variant={field.richTextVariant}
+                          reformat={(value) =>
+                            field.richTextVariant === "flavor"
+                              ? fixTypography(value, { italicParens: false, keywordGlyphs: false })
+                              : fixTypography(value, { costKeywords })
+                          }
+                          onSave={(next) => onActiveChange(field.key, next.trim() || null)}
+                          triggerClassName="text-muted-foreground shrink-0"
+                        />
+                      )}
+                    </div>
+                  ) : editingField === field.key && isMultiSelect(field) ? (
                     (() => {
                       const originalValues = Array.isArray(activeValue)
                         ? (activeValue as string[])
@@ -796,6 +859,7 @@ export function CandidateSpreadsheet({
                   )}
                   {onActiveChange &&
                     !field.readOnly &&
+                    !field.richText &&
                     !isRequired &&
                     hasValue(activeValue) &&
                     editingField !== field.key && (

@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict g7eP8oprzheIuYe5jZee2dgBMTw1SsbWB6AsyzHokoroeqpFnWQvXQsiquNiYuS
+\restrict J0Zl3MWTgPqeCdHdwO1hbj6hlR2dkZaB6fcqKtzcjMCOXJxycBZC3CL90ryhupX
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1307,6 +1307,7 @@ CREATE TABLE public.keywords (
     created_at timestamp with time zone DEFAULT now() CONSTRAINT keyword_styles_created_at_not_null NOT NULL,
     updated_at timestamp with time zone DEFAULT now() CONSTRAINT keyword_styles_updated_at_not_null NOT NULL,
     is_well_known boolean DEFAULT false NOT NULL,
+    cost_keyword boolean DEFAULT false NOT NULL,
     CONSTRAINT keywords_color_check CHECK ((color ~ '^#[0-9a-fA-F]{6}$'::text)),
     CONSTRAINT keywords_name_check CHECK ((name <> ''::text))
 );
@@ -5279,5 +5280,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict g7eP8oprzheIuYe5jZee2dgBMTw1SsbWB6AsyzHokoroeqpFnWQvXQsiquNiYuS
+\unrestrict J0Zl3MWTgPqeCdHdwO1hbj6hlR2dkZaB6fcqKtzcjMCOXJxycBZC3CL90ryhupX
 

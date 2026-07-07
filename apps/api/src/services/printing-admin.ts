@@ -268,6 +268,8 @@ export async function acceptPrinting(
       );
     }
 
+    const costKeywords = await trxRepos.keywords.listCostKeywords();
+
     insertedId = await trxRepos.candidateMutations.upsertPrinting({
       cardId,
       setId: setUuid,
@@ -280,8 +282,8 @@ export async function acceptPrinting(
       size,
       artist: printingFields.artist,
       publicCode: appendSetTotal(printingFields.publicCode, setPrintedTotal),
-      printedRulesText: fixTypography(printingFields.printedRulesText ?? null),
-      printedEffectText: fixTypography(printingFields.printedEffectText ?? null),
+      printedRulesText: fixTypography(printingFields.printedRulesText ?? null, { costKeywords }),
+      printedEffectText: fixTypography(printingFields.printedEffectText ?? null, { costKeywords }),
       flavorText: fixTypography(printingFields.flavorText ?? null, {
         italicParens: false,
         keywordGlyphs: false,

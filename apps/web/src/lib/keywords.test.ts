@@ -4,12 +4,12 @@ import { describe, expect, it } from "vitest";
 import { getKeywordStyle } from "./keywords";
 
 const MOCK_STYLES: KeywordsResponse["items"] = {
-  Accelerate: { color: "#24705f", darkText: false },
-  Shield: { color: "#cd346f", darkText: false },
-  Deathknell: { color: "#95b229", darkText: true },
-  Deflect: { color: "#95b229", darkText: true },
-  Ganking: { color: "#95b229", darkText: true },
-  Temporary: { color: "#95b229", darkText: true },
+  Accelerate: { color: "#24705f", darkText: false, costKeyword: false },
+  Shield: { color: "#cd346f", darkText: false, costKeyword: false },
+  Deathknell: { color: "#95b229", darkText: true, costKeyword: false },
+  Deflect: { color: "#95b229", darkText: true, costKeyword: false },
+  Ganking: { color: "#95b229", darkText: true, costKeyword: false },
+  Temporary: { color: "#95b229", darkText: true, costKeyword: false },
 };
 
 describe("getKeywordStyle", () => {

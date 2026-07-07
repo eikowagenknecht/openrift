@@ -56,7 +56,7 @@ describe("GET /keyword-stats", () => {
   it("returns counts, styles, and translations", async () => {
     mockKeywords.getKeywordCounts.mockResolvedValue([{ keyword: "Accelerate", count: 4 }]);
     mockKeywords.listAll.mockResolvedValue([
-      { name: "Accelerate", color: "#24705f", darkText: false },
+      { name: "Accelerate", color: "#24705f", darkText: false, costKeyword: false },
     ]);
     mockKeywords.listAllTranslations.mockResolvedValue([
       { keywordName: "Accelerate", language: "de", label: "Beschleunigen" },
@@ -66,7 +66,9 @@ describe("GET /keyword-stats", () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.counts).toEqual([{ keyword: "Accelerate", count: 4 }]);
-    expect(json.styles).toEqual([{ name: "Accelerate", color: "#24705f", darkText: false }]);
+    expect(json.styles).toEqual([
+      { name: "Accelerate", color: "#24705f", darkText: false, costKeyword: false },
+    ]);
     expect(json.translations).toEqual([
       { keywordName: "Accelerate", language: "de", label: "Beschleunigen" },
     ]);
@@ -84,13 +86,19 @@ describe("POST /keywords (createStyle)", () => {
     const res = await app.request("/api/admin/v1/keywords", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: "Accelerate", color: "#24705f", darkText: false }),
+      body: JSON.stringify({
+        name: "Accelerate",
+        color: "#24705f",
+        darkText: false,
+        costKeyword: false,
+      }),
     });
     expect(res.status).toBe(204);
     expect(mockKeywords.createStyle).toHaveBeenCalledWith({
       name: "Accelerate",
       color: "#24705f",
       darkText: false,
+      costKeyword: false,
     });
   });
 });
@@ -106,13 +114,14 @@ describe("PUT /keywords/:name (updateStyle)", () => {
     const res = await app.request("/api/admin/v1/keywords/Accelerate", {
       method: "PUT",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ color: "#112233", darkText: true }),
+      body: JSON.stringify({ color: "#112233", darkText: true, costKeyword: true }),
     });
     expect(res.status).toBe(204);
     expect(mockKeywords.upsertStyle).toHaveBeenCalledWith({
       name: "Accelerate",
       color: "#112233",
       darkText: true,
+      costKeyword: true,
     });
   });
 });

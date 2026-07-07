@@ -1266,6 +1266,8 @@ export interface KeywordsTable {
   color: string;
   darkText: boolean;
   isWellKnown: boolean;
+  /** Glyph cost renders inside the keyword bracket, e.g. `[Equip :rb_energy_1:]` (migration 191). */
+  costKeyword: ColumnType<boolean, boolean | undefined, boolean>;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }

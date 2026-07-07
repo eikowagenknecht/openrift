@@ -22,6 +22,21 @@ export function keywordsRepo(db: Kysely<Database>) {
       return db.selectFrom("keywords").selectAll().orderBy("name").execute();
     },
 
+    /**
+     * Names of keywords flagged as cost keywords (glyph cost inside the bracket).
+     * Fed to `fixTypography` so the cost-keyword set stays data-driven.
+     * @returns Sorted array of cost-keyword names.
+     */
+    async listCostKeywords(): Promise<string[]> {
+      const rows = await db
+        .selectFrom("keywords")
+        .select("name")
+        .where("costKeyword", "=", true)
+        .orderBy("name")
+        .execute();
+      return rows.map((row) => row.name);
+    },
+
     /** @returns All keyword translations. */
     listAllTranslations(): Promise<KeywordTranslationRow[]> {
       return db
@@ -47,7 +62,12 @@ export function keywordsRepo(db: Kysely<Database>) {
     },
 
     /** Insert or update a keyword. */
-    async upsertStyle(values: { name: string; color: string; darkText: boolean }): Promise<void> {
+    async upsertStyle(values: {
+      name: string;
+      color: string;
+      darkText: boolean;
+      costKeyword: boolean;
+    }): Promise<void> {
       await db
         .insertInto("keywords")
         .values({ ...values, isWellKnown: false })
@@ -55,13 +75,19 @@ export function keywordsRepo(db: Kysely<Database>) {
           oc.column("name").doUpdateSet((eb) => ({
             color: eb.ref("excluded.color"),
             darkText: eb.ref("excluded.darkText"),
+            costKeyword: eb.ref("excluded.costKeyword"),
           })),
         )
         .execute();
     },
 
     /** Insert a new keyword. */
-    async createStyle(values: { name: string; color: string; darkText: boolean }): Promise<void> {
+    async createStyle(values: {
+      name: string;
+      color: string;
+      darkText: boolean;
+      costKeyword: boolean;
+    }): Promise<void> {
       await db
         .insertInto("keywords")
         .values({ ...values, isWellKnown: false })

@@ -27,7 +27,11 @@ const mockEnumsRepo = {
 };
 
 const mockKeywordsRepo = {
-  listAll: vi.fn(() => Promise.resolve([] as { name: string; color: string; darkText: boolean }[])),
+  listAll: vi.fn(() =>
+    Promise.resolve(
+      [] as { name: string; color: string; darkText: boolean; costKeyword: boolean }[],
+    ),
+  ),
   listAllTranslations: vi.fn(() =>
     Promise.resolve([] as { keywordName: string; language: string; label: string }[]),
   ),
@@ -95,20 +99,20 @@ describe("GET /api/v1/init", () => {
 
   it("returns keywords as name-keyed map", async () => {
     mockKeywordsRepo.listAll.mockResolvedValue([
-      { name: "Shield", color: "#4488ff", darkText: false },
-      { name: "Burn", color: "#ff4400", darkText: true },
+      { name: "Shield", color: "#4488ff", darkText: false, costKeyword: false },
+      { name: "Burn", color: "#ff4400", darkText: true, costKeyword: true },
     ]);
     const res = await app.request("/api/v1/init");
     const json = await res.json();
     expect(json.keywords).toEqual({
-      Shield: { color: "#4488ff", darkText: false },
-      Burn: { color: "#ff4400", darkText: true },
+      Shield: { color: "#4488ff", darkText: false, costKeyword: false },
+      Burn: { color: "#ff4400", darkText: true, costKeyword: true },
     });
   });
 
   it("includes keyword translations when available", async () => {
     mockKeywordsRepo.listAll.mockResolvedValue([
-      { name: "Shield", color: "#4488ff", darkText: false },
+      { name: "Shield", color: "#4488ff", darkText: false, costKeyword: false },
     ]);
     mockKeywordsRepo.listAllTranslations.mockResolvedValue([
       { keywordName: "Shield", language: "ZH", label: "护盾" },
@@ -120,7 +124,7 @@ describe("GET /api/v1/init", () => {
 
   it("omits translations key when keyword has none", async () => {
     mockKeywordsRepo.listAll.mockResolvedValue([
-      { name: "Shield", color: "#4488ff", darkText: false },
+      { name: "Shield", color: "#4488ff", darkText: false, costKeyword: false },
     ]);
     const res = await app.request("/api/v1/init");
     const json = await res.json();

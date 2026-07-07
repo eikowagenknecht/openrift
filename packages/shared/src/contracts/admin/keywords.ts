@@ -11,7 +11,14 @@ const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/u);
 
 const keywordStatsSchema = z.object({
   counts: z.array(z.object({ keyword: z.string(), count: z.number() })),
-  styles: z.array(z.object({ name: z.string(), color: z.string(), darkText: z.boolean() })),
+  styles: z.array(
+    z.object({
+      name: z.string(),
+      color: z.string(),
+      darkText: z.boolean(),
+      costKeyword: z.boolean(),
+    }),
+  ),
   translations: z.array(
     z.object({ keywordName: z.string(), language: z.string(), label: z.string() }),
   ),
@@ -44,10 +51,23 @@ export const adminKeywordsContract = {
     .output(keywordStatsSchema),
   createStyle: authedRoute
     .route({ method: "POST", path: `${BASE}/keywords`, tags: [TAG], successStatus: 204 })
-    .input(z.object({ name: z.string().min(1), color: hexColor, darkText: z.boolean() })),
+    .input(
+      z.object({
+        name: z.string().min(1),
+        color: hexColor,
+        darkText: z.boolean(),
+        costKeyword: z.boolean(),
+      }),
+    ),
   updateStyle: authedRoute
     .route({ method: "PUT", path: `${BASE}/keywords/{name}`, tags: [TAG], successStatus: 204 })
-    .input(withParams(nameParamSchema, { color: hexColor, darkText: z.boolean() })),
+    .input(
+      withParams(nameParamSchema, {
+        color: hexColor,
+        darkText: z.boolean(),
+        costKeyword: z.boolean(),
+      }),
+    ),
   removeStyle: authedRoute
     .route({ method: "DELETE", path: `${BASE}/keywords/{name}`, tags: [TAG], successStatus: 204 })
     .input(nameParamSchema),
