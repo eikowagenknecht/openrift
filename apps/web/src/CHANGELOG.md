@@ -10,6 +10,7 @@
 
 ### Other
 
+- feat(Tournaments): **Save your tournament deck to your decks** — a new button on your tournament deck copies the handed-in list into a regular deck, so you can keep building on it after the event.
 - feat(Cards): **Punctuation helpers when submitting cards** — the contribute form's text fields gained quick buttons for curly quotes, apostrophes, em dashes, and ellipses, and flavor text now shows a live preview.
 - feat(Collection): **Live match counts on list rules** — each dynamic wishlist or tradelist rule now shows how many cards it wants or copies it offers, plus a combined total once you stack several.
 - fix(App): **Hairline gap under the header** — at some browser zoom levels a thin line of scrolling content peeked through between the header and the sticky bars below it.

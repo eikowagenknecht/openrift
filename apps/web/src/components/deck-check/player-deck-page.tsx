@@ -3,8 +3,10 @@ import type {
   PlayerDeckCheckEntryDetailResponse,
 } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
+import { useNavigate } from "@tanstack/react-router";
 import { TriangleAlertIcon } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { CardCell } from "@/components/cards/card-cell";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
@@ -41,7 +43,9 @@ import {
   useSubmitMyTournamentDeck,
   useUnlockMyTournamentDeck,
 } from "@/hooks/use-deck-check-player";
-import { useZoneOrder } from "@/hooks/use-enums";
+import { useCreateDeck, useSaveDeckCards } from "@/hooks/use-decks";
+import { useDeckFormatList, useZoneOrder } from "@/hooks/use-enums";
+import { deckCardsFromCheckEntry } from "@/lib/deck-check-save";
 import { formatAbsoluteDate } from "@/lib/format-date";
 import { PAGE_PADDING } from "@/lib/utils";
 
@@ -106,6 +110,7 @@ export function PlayerDeckPage({ entryId }: { entryId: string }) {
             <PageTopBarBack to="/tournaments/my-decks" aria-label="Back to my tournament decks" />
             <PageTopBarTitle>{entry.eventName}</PageTopBarTitle>
             <PageTopBarActions>
+              <SaveToDecksButton data={data} />
               <PlayerDeckActions entry={entry} />
             </PageTopBarActions>
           </PageTopBar>
@@ -320,6 +325,65 @@ function PlayerCardCell({ card }: { card: DeckCheckEntryCardResponse }) {
       // oxlint-disable-next-line no-empty-function -- read-only cell, clicks do nothing
       onClick={() => {}}
     />
+  );
+}
+
+/**
+ * Copies the entry's resolved list into a new deck in the player's /decks
+ * collection, named after the tournament. Available in every entry state,
+ * since the list is the player's own. Hidden when no line resolved to a
+ * catalog card.
+ * @returns The button, or null.
+ */
+function SaveToDecksButton({ data }: { data: PlayerDeckCheckEntryDetailResponse }) {
+  const createDeck = useCreateDeck();
+  const saveDeckCards = useSaveDeckCards();
+  const navigate = useNavigate();
+  const { formats } = useDeckFormatList();
+  const [isSaving, setIsSaving] = useState(false);
+
+  const { cards, skippedCount } = deckCardsFromCheckEntry(data.cards);
+  if (cards.length === 0) {
+    return null;
+  }
+
+  const save = () => {
+    setIsSaving(true);
+    const name = data.entry.eventName;
+    createDeck.mutate(
+      { name, format: data.entry.format ?? formats[0]?.slug ?? "" },
+      {
+        onSuccess: (deck) => {
+          saveDeckCards.mutate(
+            { deckId: deck.id, cards },
+            {
+              onSuccess: () => {
+                toast.success(
+                  skippedCount > 0
+                    ? `Saved "${name}" to your decks, skipping ${skippedCount} unmatched ${skippedCount === 1 ? "card" : "cards"}.`
+                    : `Saved "${name}" to your decks.`,
+                );
+                void navigate({ to: "/decks/$deckId", params: { deckId: deck.id } });
+              },
+              onError: () => {
+                toast.error("Failed to save the deck's cards.");
+                setIsSaving(false);
+              },
+            },
+          );
+        },
+        onError: () => {
+          toast.error("Failed to create the deck.");
+          setIsSaving(false);
+        },
+      },
+    );
+  };
+
+  return (
+    <PageTopBarButton disabled={isSaving} onClick={save}>
+      Save to my decks
+    </PageTopBarButton>
   );
 }
 
