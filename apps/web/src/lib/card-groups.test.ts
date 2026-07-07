@@ -30,6 +30,8 @@ const LABELS: EnumLabels = {
   superTypes: {},
   artVariants: {},
   cardSizes: { standard: "Standard", oversized: "Oversized" },
+  conditions: {},
+  graders: {},
 };
 
 function item(setId: string): CardViewerItem {

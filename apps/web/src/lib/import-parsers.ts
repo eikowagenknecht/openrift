@@ -1,7 +1,24 @@
-import type { ArtVariant, Finish } from "@openrift/shared";
+import type { ArtVariant, CopyLink, Finish } from "@openrift/shared";
 import { isAlwaysFoilRarity, WellKnown } from "@openrift/shared";
 
+import { conditionSlugFromSource } from "@/lib/condition-codes";
 import { parseCSV, parseCSVWithHeaders } from "@/lib/csv";
+
+/**
+ * Per-copy metadata carried by an import entry (ADR-038). Applied to every
+ * copy the entry expands into. Other tools only export a condition; our own
+ * format round-trips the full set.
+ */
+export interface ImportCopyMetadata {
+  /** House condition slug (already normalized by the parser). */
+  condition?: string;
+  grader?: string;
+  grade?: number;
+  isAltered?: boolean;
+  notesPublic?: string;
+  notesPrivate?: string;
+  links?: CopyLink[];
+}
 
 /** Normalized entry produced by any format parser. */
 export interface ImportEntry {
@@ -23,6 +40,8 @@ export interface ImportEntry {
   isPromo?: boolean;
   /** Two-letter language code from the source CSV (e.g. "EN", "ZH"), used to prefer the correct language printing. */
   language?: string;
+  /** Per-copy metadata to persist on every imported copy (ADR-038). */
+  metadata?: ImportCopyMetadata;
   /** Pass-through of interesting fields from the source CSV, for display in the detail panel. */
   rawFields: Record<string, string>;
 }
@@ -162,7 +181,9 @@ export function parseImportData(text: string): ParseResult {
  *
  * Foil is encoded as `-Foil` suffix on Variant Number, or "Foil" in Variant Label.
  * Alt art is encoded as a letter suffix (e.g. `a`) or Variant Type = "Alt Art".
- * Duplicate rows (same variant, different conditions) are summed.
+ * Duplicate rows of the same variant AND condition are summed; rows that
+ * differ only in condition stay separate so each imports with its condition
+ * recorded (ADR-038).
  * @returns Parsed entries and any parse errors.
  */
 function parsePiltoverArchive(text: string): ParseResult {
@@ -229,6 +250,7 @@ function parsePiltoverArchive(text: string): ParseResult {
       Condition: record["Condition"],
     });
 
+    const condition = conditionSlugFromSource(record["Condition"]);
     const entry: ImportEntry = {
       setPrefix: parsed?.setPrefix ?? record["Set Prefix"]?.trim() ?? "",
       finish,
@@ -238,15 +260,18 @@ function parsePiltoverArchive(text: string): ParseResult {
       sourceCode: parsed?.shortCode ?? variantNumber,
       isPromo: parsed?.promoSuffix ? true : undefined,
       language: normalizeLanguage(record["Language"]),
+      metadata: condition ? { condition } : undefined,
       rawFields,
     };
 
-    // Aggregate duplicates (same variant, different conditions). Include the raw promo suffix
-    // so rows with different promo variants (e.g. "-Nexus" vs "-Launch") stay separate, and
-    // include the language so EN and ZH printings of the same variant aren't merged.
+    // Aggregate duplicates. Include the raw promo suffix so rows with
+    // different promo variants (e.g. "-Nexus" vs "-Launch") stay separate,
+    // the language so EN and ZH printings of the same variant aren't merged,
+    // and the condition so each condition imports as its own entry (ADR-038).
     const promoKey = parsed?.promoSuffix?.toLowerCase() ?? "";
     const languageKey = entry.language ?? "";
-    const key = `${entry.sourceCode}::${entry.finish}::${promoKey}::${languageKey}`;
+    const conditionKey = condition ?? "";
+    const key = `${entry.sourceCode}::${entry.finish}::${promoKey}::${languageKey}::${conditionKey}`;
     const existing = aggregated.get(key);
     if (existing) {
       existing.quantity += entry.quantity;
@@ -326,13 +351,70 @@ function parsePiltoverVariantNumber(variantNumber: string): PiltoverVariantParts
 // ---------------------------------------------------------------------------
 
 /**
+ * Parses the `Links` export cell: `url|label` entries joined by `;`.
+ * @returns The parsed links (capped at 10), or undefined when none survive.
+ */
+function parseLinksCell(cell: string | undefined): CopyLink[] | undefined {
+  const trimmed = cell?.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  const links: CopyLink[] = [];
+  for (const part of trimmed.split(";")) {
+    const token = part.trim();
+    if (!token) {
+      continue;
+    }
+    const pipeIndex = token.indexOf("|");
+    const url = (pipeIndex === -1 ? token : token.slice(0, pipeIndex)).trim();
+    const label = pipeIndex === -1 ? "" : token.slice(pipeIndex + 1).trim();
+    if (!/^https?:\/\//u.test(url)) {
+      continue;
+    }
+    links.push(label ? { url, label } : { url });
+  }
+  return links.length > 0 ? links.slice(0, 10) : undefined;
+}
+
+/**
+ * Builds an entry's metadata from our own export columns (ADR-038). Grading
+ * only counts when both grader and a finite grade are present, and it takes
+ * precedence over a condition (they are mutually exclusive in the contract).
+ * @returns The metadata, or undefined when every field is empty.
+ */
+function parseOpenRiftMetadata(record: Record<string, string>): ImportCopyMetadata | undefined {
+  const grader = record["Grader"]?.trim().toLowerCase() || undefined;
+  const gradeRaw = record["Grade"]?.trim();
+  const grade = gradeRaw ? Number(gradeRaw) : Number.NaN;
+  const graded = grader !== undefined && Number.isFinite(grade);
+  const condition = graded ? undefined : conditionSlugFromSource(record["Condition"]);
+  const isAltered = /^(?:yes|true|1)$/iu.test(record["Altered"]?.trim() ?? "");
+  const notesPublic = record["Public Notes"]?.trim() || undefined;
+  const notesPrivate = record["Private Notes"]?.trim() || undefined;
+  const links = parseLinksCell(record["Links"]);
+
+  const metadata: ImportCopyMetadata = {
+    ...(condition && { condition }),
+    ...(graded && { grader, grade }),
+    ...(isAltered && { isAltered }),
+    ...(notesPublic && { notesPublic }),
+    ...(notesPrivate && { notesPrivate }),
+    ...(links && { links }),
+  };
+  return Object.keys(metadata).length > 0 ? metadata : undefined;
+}
+
+/**
  * Parses an OpenRift CSV export (the format produced by our own export).
  *
- * Columns: Card ID, Card Name, Rarity, Type, Domain, Finish, Art Variant, Promo, Language, Quantity
+ * Columns: Card ID, Card Name, Rarity, Type, Domain, Finish, Art Variant,
+ *          Promo, Language, Quantity, plus the per-copy metadata columns
+ *          (Condition, Grader, Grade, Altered, Public Notes, Private Notes,
+ *          Links — ADR-038).
  *
  * All fields map directly to internal types, so no translation is needed.
  * The Promo column may be empty (non-promo) or contain a promo slug like "nexus".
- * Older exports without the Promo column are also supported.
+ * Older exports without the Promo or metadata columns are also supported.
  * @returns Parsed entries and any parse errors.
  */
 function parseOpenRift(text: string): ParseResult {
@@ -397,6 +479,7 @@ function parseOpenRift(text: string): ParseResult {
       sourceCode: cardId,
       promoSlug,
       language: record["Language"]?.trim() || undefined,
+      metadata: parseOpenRiftMetadata(record),
       rawFields: buildRawFields({
         "Source Code": cardId,
         Rarity: record["Rarity"],
@@ -406,6 +489,9 @@ function parseOpenRift(text: string): ParseResult {
         "Art Variant": record["Art Variant"],
         Promo: record["Promo"],
         Language: record["Language"],
+        Condition: record["Condition"],
+        Grader: record["Grader"],
+        Grade: record["Grade"],
       }),
     });
   }
@@ -626,7 +712,9 @@ function parseRiftCoreCardId(cardId: string): RiftCoreCardParts | null {
  * Normal and foil quantities are separate columns. Alt art uses lowercase letter
  * suffix on Card ID (e.g. "OGN-007a"), overnumbered uses "*" (e.g. "OGN-301*").
  * Promo cards have a `-p` or `-P` suffix (e.g. "OGN-001-p", "OGN-XXX-P").
- * Condition columns encode quantity per condition (e.g. "NM:2;HP:3;SEAL:1").
+ * Condition columns encode quantity per condition (e.g. "NM:2;HP:3;SEAL:1"),
+ * which splits into one entry per recognized condition (ADR-038); tokens we
+ * can't map (like "SEAL") import without a recorded condition.
  * @returns Parsed entries and any parse errors.
  */
 function parseRiftMana(text: string): ParseResult {
@@ -685,43 +773,101 @@ function parseRiftMana(text: string): ParseResult {
 
     if (normalQty > 0) {
       const finish: Finish = alwaysFoil ? WellKnown.finish.FOIL : WellKnown.finish.NORMAL;
-      entries.push({
-        setPrefix: parsed.setPrefix,
-        finish,
-        artVariant: parsed.artVariant,
-        quantity: normalQty,
-        cardName,
-        sourceCode: parsed.shortCode,
-        isPromo: parsed.isPromo || undefined,
-        language,
-        rawFields: buildRawFields({
-          ...baseRawFields,
-          Finish: finish === WellKnown.finish.FOIL ? "Foil" : "Normal",
-          Condition: record["Normal Condition"],
-        }),
-      });
+      for (const split of splitQuantityByCondition(normalQty, record["Normal Condition"])) {
+        entries.push({
+          setPrefix: parsed.setPrefix,
+          finish,
+          artVariant: parsed.artVariant,
+          quantity: split.quantity,
+          cardName,
+          sourceCode: parsed.shortCode,
+          isPromo: parsed.isPromo || undefined,
+          language,
+          metadata: split.condition ? { condition: split.condition } : undefined,
+          rawFields: buildRawFields({
+            ...baseRawFields,
+            Finish: finish === WellKnown.finish.FOIL ? "Foil" : "Normal",
+            Condition: split.sourceLabel,
+          }),
+        });
+      }
     }
 
     if (foilQty > 0) {
-      entries.push({
-        setPrefix: parsed.setPrefix,
-        finish: WellKnown.finish.FOIL,
-        artVariant: parsed.artVariant,
-        quantity: foilQty,
-        cardName,
-        sourceCode: parsed.shortCode,
-        isPromo: parsed.isPromo || undefined,
-        language,
-        rawFields: buildRawFields({
-          ...baseRawFields,
-          Finish: "Foil",
-          Condition: record["Foil Condition"],
-        }),
-      });
+      for (const split of splitQuantityByCondition(foilQty, record["Foil Condition"])) {
+        entries.push({
+          setPrefix: parsed.setPrefix,
+          finish: WellKnown.finish.FOIL,
+          artVariant: parsed.artVariant,
+          quantity: split.quantity,
+          cardName,
+          sourceCode: parsed.shortCode,
+          isPromo: parsed.isPromo || undefined,
+          language,
+          metadata: split.condition ? { condition: split.condition } : undefined,
+          rawFields: buildRawFields({
+            ...baseRawFields,
+            Finish: "Foil",
+            Condition: split.sourceLabel,
+          }),
+        });
+      }
     }
   }
 
   return { entries, errors, source: "riftmana", rowCount };
+}
+
+/**
+ * Splits a RiftMana quantity across its per-condition encoding
+ * (e.g. `NM:2;HP:3;SEAL:1`). Tokens whose condition we can't map, and any
+ * quantity the encoding doesn't cover, pool into one condition-less split so
+ * the total always matches the quantity column. Each split carries the source
+ * token it came from (`sourceLabel`) so the detail panel shows this entry's
+ * own condition instead of the whole encoded cell.
+ * @returns At least one split summing to `totalQuantity`.
+ */
+function splitQuantityByCondition(
+  totalQuantity: number,
+  conditionCell: string | undefined,
+): { quantity: number; condition?: string; sourceLabel?: string }[] {
+  const cell = conditionCell?.trim();
+  if (!cell) {
+    return [{ quantity: totalQuantity }];
+  }
+  const splits: { quantity: number; condition?: string; sourceLabel?: string }[] = [];
+  let remaining = totalQuantity;
+  let unrecognized = 0;
+  const unrecognizedTokens: string[] = [];
+  for (const part of cell.split(";")) {
+    const token = part.trim();
+    if (!token || remaining <= 0) {
+      continue;
+    }
+    const [rawCondition, rawQuantity] = token.split(":");
+    // oxlint-disable-next-line unicorn/prefer-number-coercion -- lenient parse of an imported cell; Number() would yield NaN on trailing text
+    const parsedQuantity = Number.parseInt(rawQuantity ?? "", 10);
+    if (!Number.isFinite(parsedQuantity) || parsedQuantity <= 0) {
+      continue;
+    }
+    const quantity = Math.min(parsedQuantity, remaining);
+    remaining -= quantity;
+    const condition = conditionSlugFromSource(rawCondition);
+    if (condition) {
+      splits.push({ quantity, condition, sourceLabel: rawCondition.trim() });
+    } else {
+      unrecognized += quantity;
+      unrecognizedTokens.push(rawCondition.trim());
+    }
+  }
+  const leftover = remaining + unrecognized;
+  if (leftover > 0) {
+    splits.push({
+      quantity: leftover,
+      sourceLabel: unrecognizedTokens.length > 0 ? unrecognizedTokens.join("; ") : undefined,
+    });
+  }
+  return splits.length > 0 ? splits : [{ quantity: totalQuantity }];
 }
 
 interface RiftManaCardParts {

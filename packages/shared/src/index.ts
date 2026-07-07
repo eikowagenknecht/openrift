@@ -93,6 +93,13 @@ export {
 
 export { compareRuleNumbers } from "./rules.js";
 
+export type { CopyMetadata } from "./copy-metadata.js";
+export {
+  copyHasMetadata,
+  definedCopyMetadataFields,
+  normalizeCopyMetadataPatch,
+} from "./copy-metadata.js";
+
 export { hostSlugFromUrl } from "./host-slug.js";
 
 export type {

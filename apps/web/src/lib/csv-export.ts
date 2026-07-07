@@ -1,6 +1,8 @@
+import type { CopyResponse } from "@openrift/shared";
 import { isAlwaysFoilRarity, straightenApostrophes, WellKnown } from "@openrift/shared";
 
 import type { StackedEntry } from "@/hooks/use-stacked-copies";
+import { piltoverConditionCode } from "@/lib/condition-codes";
 
 const HEADERS = [
   "Card ID",
@@ -13,6 +15,13 @@ const HEADERS = [
   "Promo",
   "Language",
   "Quantity",
+  "Condition",
+  "Grader",
+  "Grade",
+  "Altered",
+  "Public Notes",
+  "Private Notes",
+  "Links",
 ] as const;
 
 /** Piltover Archive column order, matching its CSV export and our import parser. */
@@ -36,28 +45,104 @@ function escapeField(value: string): string {
   return value;
 }
 
+/** One export row's worth of copies sharing identical metadata (ADR-038). */
+interface MetadataGroup {
+  quantity: number;
+  /** A representative copy row, or undefined when no metadata is available. */
+  copy: CopyResponse | undefined;
+}
+
 /**
- * Generates a CSV string from stacked copy entries.
- * @returns CSV text with headers and one row per unique printing.
+ * Splits a stack's copies into groups with identical metadata so each group
+ * exports as its own row. Without a `copiesById` lookup the whole stack is one
+ * metadata-less group (legacy call shape).
+ * @returns The metadata groups, insertion-ordered.
  */
-export function generateExportCSV(stacks: StackedEntry[]): string {
+function groupStackByMetadata(
+  copyIds: readonly string[],
+  copiesById?: ReadonlyMap<string, CopyResponse>,
+): MetadataGroup[] {
+  if (!copiesById) {
+    return [{ quantity: copyIds.length, copy: undefined }];
+  }
+  const groups = new Map<string, MetadataGroup>();
+  for (const copyId of copyIds) {
+    const copy = copiesById.get(copyId);
+    const key = copy
+      ? JSON.stringify([
+          copy.condition,
+          copy.grader,
+          copy.grade,
+          copy.isAltered,
+          copy.notesPublic,
+          copy.notesPrivate,
+          copy.links,
+        ])
+      : "";
+    const existing = groups.get(key);
+    if (existing) {
+      existing.quantity++;
+    } else {
+      groups.set(key, { quantity: 1, copy });
+    }
+  }
+  return [...groups.values()];
+}
+
+/**
+ * Encodes a copy's links as a single CSV cell: `url|label` entries joined by
+ * `; `. Pipes and semicolons are stripped from labels so the encoding stays
+ * parseable on import.
+ * @returns The encoded cell value.
+ */
+function encodeLinks(copy: CopyResponse | undefined): string {
+  if (!copy || copy.links.length === 0) {
+    return "";
+  }
+  return copy.links
+    .map((link) =>
+      link.label ? `${link.url}|${link.label.replaceAll(/[|;]/gu, " ").trim()}` : link.url,
+    )
+    .join("; ");
+}
+
+/**
+ * Generates a CSV string from stacked copy entries. With a `copiesById`
+ * lookup, a printing exports one row per distinct metadata combination
+ * (condition, grading, notes, links — ADR-038) instead of one summed row.
+ * @returns CSV text with headers and one row per printing+metadata group.
+ */
+export function generateExportCSV(
+  stacks: StackedEntry[],
+  copiesById?: ReadonlyMap<string, CopyResponse>,
+): string {
   const lines: string[] = [HEADERS.join(",")];
 
   for (const stack of stacks) {
     const { printing } = stack;
-    const row = [
-      printing.shortCode,
-      straightenApostrophes(printing.card.name),
-      printing.rarity,
-      printing.card.type,
-      printing.card.domains.join(" / "),
-      printing.finish,
-      printing.artVariant,
-      printing.markers.map((m) => m.slug).join("+"),
-      printing.language,
-      String(stack.copyIds.length),
-    ].map((field) => escapeField(field));
-    lines.push(row.join(","));
+    for (const group of groupStackByMetadata(stack.copyIds, copiesById)) {
+      const { copy } = group;
+      const row = [
+        printing.shortCode,
+        straightenApostrophes(printing.card.name),
+        printing.rarity,
+        printing.card.type,
+        printing.card.domains.join(" / "),
+        printing.finish,
+        printing.artVariant,
+        printing.markers.map((m) => m.slug).join("+"),
+        printing.language,
+        String(group.quantity),
+        copy?.condition ?? "",
+        copy?.grader ?? "",
+        copy?.grade === undefined || copy.grade === null ? "" : String(copy.grade),
+        copy?.isAltered ? "Yes" : "",
+        copy?.notesPublic ?? "",
+        copy?.notesPrivate ?? "",
+        encodeLinks(copy),
+      ].map((field) => escapeField(field));
+      lines.push(row.join(","));
+    }
   }
 
   return lines.join("\n");
@@ -111,9 +196,16 @@ function promoSuffixToken(label: string): string {
  * or label — Piltover Archive implies the finish from the rarity and rejects
  * the redundant marker. The importer infers foil the same way, so the round
  * trip is preserved.
- * @returns CSV text with Piltover Archive headers and one row per printing.
+ *
+ * With a `copiesById` lookup, a printing exports one row per condition
+ * (ADR-038). Unrecorded and graded copies fall back to "NM" because the
+ * format requires a condition value.
+ * @returns CSV text with Piltover Archive headers and one row per printing+condition.
  */
-export function generatePiltoverArchiveCSV(stacks: StackedEntry[]): string {
+export function generatePiltoverArchiveCSV(
+  stacks: StackedEntry[],
+  copiesById?: ReadonlyMap<string, CopyResponse>,
+): string {
   const lines: string[] = [PILTOVER_HEADERS.join(",")];
 
   for (const stack of stacks) {
@@ -138,19 +230,29 @@ export function generatePiltoverArchiveCSV(stacks: StackedEntry[]): string {
 
     const setPrefix = printing.shortCode.split("-")[0] ?? "";
 
-    const row = [
-      variantNumber,
-      straightenApostrophes(printing.card.name),
-      titleCaseSlug(printing.setSlug),
-      setPrefix,
-      titleCaseSlug(printing.rarity),
-      piltoverVariantType(printing.artVariant),
-      labelParts.join(" "),
-      String(stack.copyIds.length),
-      printing.language,
-      "NM",
-    ].map((field) => escapeField(field));
-    lines.push(row.join(","));
+    // One row per condition. Piltover's format has no grading concept, so
+    // graded copies export under the NM fallback like unrecorded ones.
+    const byCondition = new Map<string, number>();
+    for (const group of groupStackByMetadata(stack.copyIds, copiesById)) {
+      const code = piltoverConditionCode(group.copy?.condition ?? null);
+      byCondition.set(code, (byCondition.get(code) ?? 0) + group.quantity);
+    }
+
+    for (const [conditionCode, quantity] of byCondition) {
+      const row = [
+        variantNumber,
+        straightenApostrophes(printing.card.name),
+        titleCaseSlug(printing.setSlug),
+        setPrefix,
+        titleCaseSlug(printing.rarity),
+        piltoverVariantType(printing.artVariant),
+        labelParts.join(" "),
+        String(quantity),
+        printing.language,
+        conditionCode,
+      ].map((field) => escapeField(field));
+      lines.push(row.join(","));
+    }
   }
 
   return lines.join("\n");

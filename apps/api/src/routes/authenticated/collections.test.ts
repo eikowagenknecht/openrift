@@ -146,6 +146,13 @@ const dbCopy = {
   collectionId: dbCollection.id,
   groupId: null,
   createdAt: now,
+  condition: null,
+  grader: null,
+  grade: null,
+  notesPublic: null,
+  notesPrivate: null,
+  isAltered: false,
+  links: [],
 };
 
 // ---------------------------------------------------------------------------

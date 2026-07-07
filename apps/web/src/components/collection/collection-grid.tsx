@@ -1,5 +1,5 @@
 import type { GroupByField, Marketplace, Printing } from "@openrift/shared";
-import { legendDisplayName } from "@openrift/shared";
+import { copyHasMetadata, legendDisplayName } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   BookOpenIcon,
@@ -31,6 +31,7 @@ import {
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { CollectionTableActions } from "@/components/cards/collection-table-actions";
+import { AnnotatedDisposeDialog } from "@/components/collection/annotated-dispose-dialog";
 import { CollectionGridCell } from "@/components/collection/collection-grid-cell";
 import { CollectionIntroBanner } from "@/components/collection/collection-intro-banner";
 import { CollectionValueSummary } from "@/components/collection/collection-value-summary";
@@ -82,6 +83,7 @@ import type { WishEntryFlat } from "@/hooks/use-wish-entries";
 import { useSession } from "@/lib/auth-session";
 import { cardsViewTileKey, splitsCardIntoTiles, tileSiblings } from "@/lib/card-tiles";
 import { collectionTableActionsColumn } from "@/lib/collection-table";
+import { useCopiesCollection } from "@/lib/copies-collection";
 import { filterPrintingsByLanguages } from "@/lib/filter-printings-by-languages";
 import { formatterForMarketplace } from "@/lib/format";
 import { maxOwnedCount } from "@/lib/owned-bucket";
@@ -100,6 +102,8 @@ import { useSiblingOverrideStore } from "@/stores/sibling-override-store";
 
 import { computeDragSelectionSummary, dragSelectionNoun } from "./collection-drag";
 import { CollectionShareDialog } from "./collection-share-dialog";
+import type { CopyDetailsTarget } from "./copy-details-dialog";
+import { CopyDetailsDialog } from "./copy-details-dialog";
 import { DeleteCollectionDialog } from "./delete-collection-dialog";
 import { DisposeDialog } from "./dispose-dialog";
 import { DraggableCard } from "./draggable-card";
@@ -468,6 +472,12 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   // Add-to-list dialog can offer a "how many copies" stepper instead of always
   // adding every copy.
   const [actionSingleCard, setActionSingleCard] = useState(false);
+  // How many of `actionCopyIds` carry recorded details (ADR-038), snapshotted
+  // when the dispose dialog opens so it can warn about deleting them.
+  const [actionAnnotatedCount, setActionAnnotatedCount] = useState(0);
+  // Per-copy metadata dialog (ADR-038): the right-clicked tile's copies plus
+  // the printing behind each, so the dialog can label rows across printings.
+  const [copyDetailsTarget, setCopyDetailsTarget] = useState<CopyDetailsTarget | null>(null);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -489,6 +499,8 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   } | null>(null);
   const moveCopies = useMoveCopies();
   const disposeCopies = useDisposeCopies();
+  // Raw synced copy rows, for metadata-aware checks at action time (ADR-038).
+  const copiesStore = useCopiesCollection();
   // Which of the viewer's lists reference the copies about to be disposed — only
   // checked while the dispose dialog is open so the warning can name them.
   const disposeListMemberships = useCopyListMemberships(actionCopyIds, disposeOpen);
@@ -545,6 +557,10 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     handleOpenVariants,
     handleDisposeFromCollection,
     closeVariants,
+    pendingAnnotatedDispose,
+    confirmAnnotatedDispose,
+    cancelAnnotatedDispose,
+    disposeIsPending,
   } = useQuickAddActions(addTarget, collectionId);
   const [addCollectionTarget, setAddCollectionTarget] = useState<Printing | null>(null);
   // Clear the in-popover "add to another collection" page whenever the popover
@@ -643,6 +659,14 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       setActionSingleCard(copyIdsShareOneCard(copyIds));
       setAddToListOpen(true);
     } else {
+      // Count targets with recorded details (ADR-038) so the dispose dialog
+      // can warn that removing them deletes those details.
+      const ids = new Set(copyIds);
+      setActionAnnotatedCount(
+        copiesStore
+          ? copiesStore.toArray.filter((copy) => ids.has(copy.id) && copyHasMetadata(copy)).length
+          : 0,
+      );
       setDisposeOpen(true);
     }
   };
@@ -839,6 +863,25 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     const cardCopyIds = stacked
       ? (allCopyIdsByTile.get(cardsViewTileKey(stack.printing, tileGroupBy)) ?? stack.copyIds)
       : [itemId];
+    // Copy details always targets the clicked tile (never the selection): the
+    // dialog edits one copy at a time, so selection narrowing doesn't apply.
+    if (action === "copyDetails") {
+      const idSet = new Set(cardCopyIds);
+      const printingByCopyId = new Map<string, Printing>();
+      for (const entry of stacks) {
+        for (const copyId of entry.copyIds) {
+          if (idSet.has(copyId)) {
+            printingByCopyId.set(copyId, entry.printing);
+          }
+        }
+      }
+      setCopyDetailsTarget({
+        copyIds: cardCopyIds,
+        cardName: legendDisplayName(stack.printing.card),
+        printingByCopyId,
+      });
+      return;
+    }
     const { copyIds, narrowSelectionTo } = resolveContextActionTarget({
       mode,
       stacked,
@@ -1188,6 +1231,20 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           shareToken={currentCollection.shareToken}
         />
       )}
+      <AnnotatedDisposeDialog
+        pending={pendingAnnotatedDispose}
+        onConfirm={() => void confirmAnnotatedDispose()}
+        onCancel={cancelAnnotatedDispose}
+        isPending={disposeIsPending}
+      />
+      <CopyDetailsDialog
+        target={copyDetailsTarget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCopyDetailsTarget(null);
+          }
+        }}
+      />
       <TakeConfirmDialog
         printing={takeConfirm?.printing ?? null}
         maxQuantity={takeConfirm?.availableCopyIds.length ?? 1}
@@ -1385,6 +1442,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
             isPending={disposeCopies.isPending}
             memberships={disposeListMemberships.data}
             membershipsLoading={disposeListMemberships.isLoading}
+            annotatedCount={actionAnnotatedCount}
           />
 
           <AddToListDialog

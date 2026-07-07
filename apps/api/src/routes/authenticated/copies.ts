@@ -71,6 +71,25 @@ export const copiesRouter = {
     );
   }),
 
+  // Apply one metadata patch (condition, grading, notes, links) to copies.
+  update: os.update.handler(async ({ input, context, errors }): Promise<void> => {
+    const { updateCopies: updateCopiesService } = context.services;
+    try {
+      await updateCopiesService(context.transact, context.userId, input.copyIds, input.patch);
+    } catch (error) {
+      // 23503 = foreign_key_violation (unknown condition/grader slug);
+      // 23514 = check_violation (grader/grade pairing). Both are bad input.
+      if (
+        error instanceof Error &&
+        "code" in error &&
+        (error.code === "23503" || error.code === "23514")
+      ) {
+        throw errors.BAD_REQUEST({ message: "Unknown condition or grader" });
+      }
+      throw error;
+    }
+  }),
+
   // Dispose copies (disposal) — hard-deletes with metadata snapshot.
   dispose: os.dispose.handler(async ({ input, context }): Promise<void> => {
     const { disposeCopies: disposeCopiesService } = context.services;

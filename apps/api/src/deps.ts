@@ -70,7 +70,7 @@ import {
 } from "./services/card-trades.js";
 import { assembleRuleCatalog, createCatalogPrintingsCache } from "./services/catalog-assembly.js";
 import { deleteCollection } from "./services/collections.js";
-import { addCopies, disposeCopies, moveCopies } from "./services/copies.js";
+import { addCopies, disposeCopies, moveCopies, updateCopies } from "./services/copies.js";
 import { logEvents } from "./services/event-logger.js";
 import { importErrata } from "./services/import-errata.js";
 import { ensureInbox } from "./services/inbox.js";
@@ -145,6 +145,7 @@ export interface Services {
   deleteCollection: typeof deleteCollection;
   addCopies: typeof addCopies;
   moveCopies: typeof moveCopies;
+  updateCopies: typeof updateCopies;
   moveListEntries: typeof moveListEntries;
   disposeCopies: typeof disposeCopies;
   getMappingOverview: typeof getMappingOverview;
@@ -269,6 +270,7 @@ export const services: Services = {
   deleteCollection,
   addCopies,
   moveCopies,
+  updateCopies,
   moveListEntries,
   disposeCopies,
   getMappingOverview,

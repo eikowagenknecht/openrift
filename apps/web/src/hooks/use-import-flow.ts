@@ -12,6 +12,7 @@ import { useBulkAddListEntries, useLists } from "@/hooks/use-lists";
 import { useCopiesCollection } from "@/lib/copies-collection";
 import type { MatchStatus, MatchedEntry } from "@/lib/import-matcher";
 import { matchEntries } from "@/lib/import-matcher";
+import type { ImportCopyMetadata } from "@/lib/import-parsers";
 import { copyIdsInCollection, LIST_TARGET_PREFIX } from "@/lib/import-replace";
 import { summarizeMatchedEntries } from "@/lib/import-summary";
 import { parseListImport } from "@/lib/list-import-parser";
@@ -257,13 +258,15 @@ export function useImportFlow() {
       }
     }
 
-    // Build copies payload — expand quantities into individual entries
-    const copies: { printingId: string; collectionId: string }[] = [];
+    // Build copies payload — expand quantities into individual entries, each
+    // carrying the entry's per-copy metadata (condition etc., ADR-038).
+    const copies: ({ printingId: string; collectionId: string } & ImportCopyMetadata)[] = [];
     for (const entry of importableEntries) {
       for (let count = 0; count < entry.entry.quantity; count++) {
         copies.push({
           printingId: entry.resolvedPrinting?.id ?? "",
           collectionId: targetCollectionId,
+          ...entry.entry.metadata,
         });
       }
     }

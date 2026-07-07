@@ -1,7 +1,8 @@
-import type { Printing } from "@openrift/shared";
+import type { CopyResponse, Printing } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
 import type { StackedEntry } from "@/hooks/use-stacked-copies";
+import { stubCopy } from "@/test/factories";
 
 import { generateExportCSV, generatePiltoverArchiveCSV } from "./csv-export";
 import { parseImportData } from "./import-parsers";
@@ -43,11 +44,12 @@ function makeStack(overrides: {
 }
 
 describe("generateExportCSV", () => {
-  it("includes the Promo column in headers", () => {
+  it("includes the Promo and metadata columns in headers", () => {
     const csv = generateExportCSV([]);
     const headers = csv.split("\n")[0];
     expect(headers).toBe(
-      "Card ID,Card Name,Rarity,Type,Domain,Finish,Art Variant,Promo,Language,Quantity",
+      "Card ID,Card Name,Rarity,Type,Domain,Finish,Art Variant,Promo,Language,Quantity," +
+        "Condition,Grader,Grade,Altered,Public Notes,Private Notes,Links",
     );
   });
 
@@ -60,14 +62,14 @@ describe("generateExportCSV", () => {
     });
     const csv = generateExportCSV([stack]);
     const lines = csv.split("\n");
-    expect(lines[1]).toBe("OGN-042,Promo Card,common,unit,Arcane,normal,normal,nexus,EN,2");
+    expect(lines[1]).toBe("OGN-042,Promo Card,common,unit,Arcane,normal,normal,nexus,EN,2,,,,,,,");
   });
 
   it("exports empty promo field for non-promo cards", () => {
     const stack = makeStack({ shortCode: "OGN-001", name: "Regular Card" });
     const csv = generateExportCSV([stack]);
     const lines = csv.split("\n");
-    expect(lines[1]).toBe("OGN-001,Regular Card,common,unit,Arcane,normal,normal,,EN,1");
+    expect(lines[1]).toBe("OGN-001,Regular Card,common,unit,Arcane,normal,normal,,EN,1,,,,,,,");
   });
 
   it("escapes fields with commas", () => {
@@ -75,6 +77,84 @@ describe("generateExportCSV", () => {
     const csv = generateExportCSV([stack]);
     const lines = csv.split("\n");
     expect(lines[1]).toContain('"Card, the Great"');
+  });
+
+  it("splits a stack into one row per metadata combination (ADR-038)", () => {
+    const stack = makeStack({ shortCode: "OGN-001", name: "Regular Card", copyCount: 4 });
+    stack.copyIds = ["c1", "c2", "c3", "c4"];
+    const copiesById = new Map<string, CopyResponse>([
+      ["c1", stubCopy({ id: "c1", condition: "near-mint" })],
+      ["c2", stubCopy({ id: "c2", condition: "near-mint" })],
+      ["c3", stubCopy({ id: "c3", condition: "played", isAltered: true })],
+      ["c4", stubCopy({ id: "c4" })],
+    ]);
+    const csv = generateExportCSV([stack], copiesById);
+    const lines = csv.split("\n");
+    expect(lines).toHaveLength(4);
+    expect(lines[1]).toBe(
+      "OGN-001,Regular Card,common,unit,Arcane,normal,normal,,EN,2,near-mint,,,,,,",
+    );
+    expect(lines[2]).toBe(
+      "OGN-001,Regular Card,common,unit,Arcane,normal,normal,,EN,1,played,,,Yes,,,",
+    );
+    expect(lines[3]).toBe("OGN-001,Regular Card,common,unit,Arcane,normal,normal,,EN,1,,,,,,,");
+  });
+
+  it("exports grading, notes, and encoded links (ADR-038)", () => {
+    const stack = makeStack({ shortCode: "OGN-001", name: "Regular Card", copyCount: 1 });
+    stack.copyIds = ["c1"];
+    const copiesById = new Map<string, CopyResponse>([
+      [
+        "c1",
+        stubCopy({
+          id: "c1",
+          grader: "psa",
+          grade: 9.5,
+          notesPublic: "Pack fresh",
+          notesPrivate: "From Worlds",
+          links: [
+            { url: "https://example.com/a.jpg", label: "Front" },
+            { url: "https://example.com/b.jpg" },
+          ],
+        }),
+      ],
+    ]);
+    const csv = generateExportCSV([stack], copiesById);
+    const lines = csv.split("\n");
+    expect(lines[1]).toBe(
+      "OGN-001,Regular Card,common,unit,Arcane,normal,normal,,EN,1,,psa,9.5,,Pack fresh,From Worlds," +
+        "https://example.com/a.jpg|Front; https://example.com/b.jpg",
+    );
+  });
+
+  it("round-trips metadata through the OpenRift importer (ADR-038)", () => {
+    const stack = makeStack({ shortCode: "OGN-001", name: "Regular Card", copyCount: 2 });
+    stack.copyIds = ["c1", "c2"];
+    const copiesById = new Map<string, CopyResponse>([
+      ["c1", stubCopy({ id: "c1", condition: "light-played", notesPublic: "worn edge" })],
+      [
+        "c2",
+        stubCopy({
+          id: "c2",
+          grader: "bgs",
+          grade: 8.5,
+          links: [{ url: "https://example.com/slab.jpg" }],
+        }),
+      ],
+    ]);
+    const csv = generateExportCSV([stack], copiesById);
+    const result = parseImportData(csv);
+    expect(result.errors).toHaveLength(0);
+    expect(result.entries).toHaveLength(2);
+    expect(result.entries[0].metadata).toEqual({
+      condition: "light-played",
+      notesPublic: "worn edge",
+    });
+    expect(result.entries[1].metadata).toEqual({
+      grader: "bgs",
+      grade: 8.5,
+      links: [{ url: "https://example.com/slab.jpg" }],
+    });
   });
 
   it("emits straight apostrophes for card names with curly ones", () => {
@@ -87,6 +167,22 @@ describe("generateExportCSV", () => {
 });
 
 describe("generatePiltoverArchiveCSV", () => {
+  it("splits a stack into one row per condition with NM fallback (ADR-038)", () => {
+    const stack = makeStack({ shortCode: "OGN-001", name: "Regular Card", copyCount: 3 });
+    stack.copyIds = ["c1", "c2", "c3"];
+    const copiesById = new Map<string, CopyResponse>([
+      ["c1", stubCopy({ id: "c1", condition: "light-played" })],
+      ["c2", stubCopy({ id: "c2", grader: "psa", grade: 10 })],
+      ["c3", stubCopy({ id: "c3" })],
+    ]);
+    const csv = generatePiltoverArchiveCSV([stack], copiesById);
+    const lines = csv.split("\n");
+    // Graded and unrecorded copies pool under the NM fallback.
+    expect(lines).toHaveLength(3);
+    expect(lines[1]).toBe("OGN-001,Regular Card,Origins,OGN,Common,Standard,,1,EN,LP");
+    expect(lines[2]).toBe("OGN-001,Regular Card,Origins,OGN,Common,Standard,,2,EN,NM");
+  });
+
   it("emits the Piltover Archive header row", () => {
     const csv = generatePiltoverArchiveCSV([]);
     expect(csv.split("\n")[0]).toBe(

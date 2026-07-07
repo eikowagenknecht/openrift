@@ -771,6 +771,72 @@ describe("friend-groups route", () => {
     expect(body.viewerRole).toBe("member");
   });
 
+  // Private notes stay owner-only on personal collections shared into a group
+  // (ADR-038): the route nulls notesPrivate for every viewer but the owner.
+  describe("GET /{slug}/collections/{id} private notes", () => {
+    const sharedCopyRow = {
+      id: "a0000000-0001-4000-a000-000000000020",
+      printingId: "a0000000-0001-4000-a000-000000000030",
+      collectionId: COLLECTION_ID,
+      groupId: null,
+      createdAt: now,
+      condition: "near-mint",
+      grader: null,
+      grade: null,
+      notesPublic: "Pack fresh",
+      notesPrivate: "paid too much",
+      isAltered: false,
+      links: [],
+    };
+
+    const sharedBy = (ownerUserId: string) => ({
+      getBySlug: vi.fn(() => Promise.resolve(group)),
+      getSharedCollection: vi.fn(() =>
+        Promise.resolve({
+          collection: {
+            id: COLLECTION_ID,
+            userId: ownerUserId,
+            name: "Friend's Binder",
+            description: null,
+            sortOrder: 0,
+          },
+          ownerName: "Friend",
+          viewerRole: "member" as const,
+        }),
+      ),
+    });
+
+    it("nulls notesPrivate for a non-owner member, keeping public metadata", async () => {
+      const { app } = makeApp({
+        friendGroups: sharedBy(OTHER_ID),
+        copies: { listForCollection: vi.fn(() => Promise.resolve([sharedCopyRow])) },
+      });
+      const res = await app.request(`/api/v1/friend-groups/playgroup/collections/${COLLECTION_ID}`);
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as {
+        copies: {
+          condition: string | null;
+          notesPublic: string | null;
+          notesPrivate: string | null;
+        }[];
+      };
+      expect(body.copies[0].condition).toBe("near-mint");
+      expect(body.copies[0].notesPublic).toBe("Pack fresh");
+      expect(body.copies[0].notesPrivate).toBeNull();
+    });
+
+    it("keeps notesPrivate when the viewer is the collection owner", async () => {
+      const { app } = makeApp({
+        friendGroups: sharedBy(USER_ID),
+        copies: { listForCollection: vi.fn(() => Promise.resolve([sharedCopyRow])) },
+      });
+      const res = await app.request(`/api/v1/friend-groups/playgroup/collections/${COLLECTION_ID}`);
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { copies: { notesPrivate: string | null }[] };
+      expect(body.copies[0].notesPrivate).toBe("paid too much");
+    });
+  });
+
   it("GET /{slug}/collections/{id} returns 404 when viewer is not a group member", async () => {
     const { app } = makeApp({
       friendGroups: {

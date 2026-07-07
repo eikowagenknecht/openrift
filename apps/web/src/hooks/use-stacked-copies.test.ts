@@ -1,8 +1,8 @@
-import type { CopyResponse, Printing } from "@openrift/shared";
+import type { Printing } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
 import { buildStacks } from "@/hooks/use-stacked-copies";
-import { stubPrinting } from "@/test/factories";
+import { stubCopy, stubPrinting } from "@/test/factories";
 
 const standard = stubPrinting({ id: "pr-standard", cardId: "card-1", shortCode: "UNL-001" });
 const foil = stubPrinting({
@@ -17,7 +17,7 @@ const printingById = new Map<string, Printing>([
 ]);
 
 function copy(id: string, printingId: string, collectionId: string, groupId: string | null = null) {
-  return { id, printingId, collectionId, groupId } satisfies CopyResponse;
+  return stubCopy({ id, printingId, collectionId, groupId });
 }
 
 describe("buildStacks", () => {

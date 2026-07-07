@@ -30,6 +30,8 @@ export function enumsRepo(db: Kysely<Database>) {
       | "cardSizes"
       | "deckFormats"
       | "deckZones"
+      | "conditions"
+      | "graders"
     >,
   ): Promise<EnumRow[]> {
     return db.selectFrom(table).selectAll().orderBy("sortOrder").execute();
@@ -67,6 +69,8 @@ export function enumsRepo(db: Kysely<Database>) {
         cardSizes,
         deckFormats,
         deckZones,
+        conditions,
+        graders,
         languageRows,
         markers,
       ] = await Promise.all([
@@ -79,6 +83,8 @@ export function enumsRepo(db: Kysely<Database>) {
         list("cardSizes"),
         list("deckFormats"),
         list("deckZones"),
+        list("conditions"),
+        list("graders"),
         db.selectFrom("languages").selectAll().orderBy("sortOrder").orderBy("name").execute(),
         db.selectFrom("markers").selectAll().orderBy("sortOrder").orderBy("label").execute(),
       ]);
@@ -101,6 +107,8 @@ export function enumsRepo(db: Kysely<Database>) {
         cardSizes,
         deckFormats,
         deckZones,
+        conditions,
+        graders,
         languages,
         markers,
       };

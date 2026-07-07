@@ -27,6 +27,8 @@ const TEST_LABELS: EnumLabels = {
     ultimate: "Ultimate",
   },
   cardSizes: { standard: "Standard", oversized: "Oversized" },
+  conditions: {},
+  graders: {},
 };
 
 function stub(overrides: Partial<Printing> = {}): Printing {

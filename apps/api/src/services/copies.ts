@@ -1,4 +1,5 @@
-import { ERROR_CODES } from "@openrift/shared";
+import { ERROR_CODES, normalizeCopyMetadataPatch } from "@openrift/shared";
+import type { CopyLink, CopyMetadataPatch } from "@openrift/shared";
 
 import type { Repos, Transact } from "../deps.js";
 import { AppError } from "../errors.js";
@@ -9,6 +10,14 @@ import { ensureInbox } from "./inbox.js";
 interface AddCopyInput {
   printingId: string;
   collectionId?: string;
+  /** Per-copy metadata (ADR-038), optional at insert time. */
+  condition?: string | null;
+  grader?: string | null;
+  grade?: number | null;
+  notesPublic?: string | null;
+  notesPrivate?: string | null;
+  isAltered?: boolean;
+  links?: CopyLink[];
 }
 
 interface AddCopyResult {
@@ -20,6 +29,13 @@ interface AddCopyResult {
    * Derived from the collection so the client no longer has to synthesize it.
    */
   groupId: string | null;
+  condition: string | null;
+  grader: string | null;
+  grade: number | null;
+  notesPublic: string | null;
+  notesPrivate: string | null;
+  isAltered: boolean;
+  links: CopyLink[];
 }
 
 /**
@@ -57,6 +73,13 @@ export async function addCopies(
     const copyValues = copies.map((item) => ({
       printingId: item.printingId,
       collectionId: item.collectionId ?? inboxId,
+      condition: item.condition ?? null,
+      grader: item.grader ?? null,
+      grade: item.grade ?? null,
+      notesPublic: item.notesPublic ?? null,
+      notesPrivate: item.notesPrivate ?? null,
+      isAltered: item.isAltered ?? false,
+      links: item.links ? JSON.stringify(item.links) : undefined,
     }));
 
     const copyRows = await trxRepos.copies.insertBatch(copyValues);
@@ -81,14 +104,50 @@ export async function addCopies(
     );
 
     return copyRows.map((row) => ({
-      id: row.id,
-      printingId: row.printingId,
-      collectionId: row.collectionId,
+      ...row,
       groupId: collectionGroupIds.get(row.collectionId) ?? null,
     }));
   });
 
   return created;
+}
+
+/**
+ * Applies one metadata patch (ADR-038) to a batch of copies. The viewer must
+ * have write access to every collection the copies live in — the same rule as
+ * {@link moveCopies}. Metadata edits are not logged to `collection_events`
+ * (the ledger stays a movement history).
+ *
+ * Cross-field state is normalized via {@link normalizeCopyMetadataPatch}
+ * (shared with the client's optimistic update) so a patch only has to be
+ * internally consistent.
+ */
+export async function updateCopies(
+  transact: Transact,
+  userId: string,
+  copyIds: string[],
+  patch: CopyMetadataPatch,
+): Promise<void> {
+  const normalized = normalizeCopyMetadataPatch(patch);
+
+  await transact(async (trxRepos) => {
+    const copies = await trxRepos.copies.listWithCollectionContext(copyIds);
+
+    if (copies.length !== copyIds.length) {
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "One or more copies not found");
+    }
+
+    const sourceIds = [...new Set(copies.map((row) => row.collectionId))];
+    const writableSources = await trxRepos.collections.filterWritableByViewer(sourceIds, userId);
+    if (writableSources.length !== sourceIds.length) {
+      throw new AppError(403, ERROR_CODES.FORBIDDEN, "One or more copies are not writable by you");
+    }
+
+    await trxRepos.copies.updateMetadataBatchById(copyIds, {
+      ...normalized,
+      links: normalized.links ? JSON.stringify(normalized.links) : undefined,
+    });
+  });
 }
 
 /**

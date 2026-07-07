@@ -9,8 +9,12 @@ export interface CardRowClickModifiers {
   ctrl?: boolean;
 }
 
-/** Bulk actions offered by the /collections right-click menu (mirror the floating action bar). */
-export type CollectionContextAction = "move" | "addToList" | "dispose";
+/**
+ * Actions offered by the /collections right-click menu. The bulk trio mirrors
+ * the floating action bar; "copyDetails" opens the per-copy metadata dialog
+ * (ADR-038) for the clicked tile's copies.
+ */
+export type CollectionContextAction = "move" | "addToList" | "dispose" | "copyDetails";
 
 /**
  * Bulk actions offered by the /lists right-click menu (mirror the floating

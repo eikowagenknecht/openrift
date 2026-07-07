@@ -1,7 +1,9 @@
 import type { CopyResponse } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
-import { decideRemoval, pickNewestCopy } from "./use-quick-add-actions-helpers";
+import { stubCopy } from "@/test/factories";
+
+import { decideRemoval, pickNewestCopy, pickRemovalCopy } from "./use-quick-add-actions-helpers";
 
 function copy(
   id: string,
@@ -9,7 +11,16 @@ function copy(
   collectionId: string,
   groupId: string | null = null,
 ): CopyResponse {
-  return { id, printingId, collectionId, groupId };
+  return stubCopy({ id, printingId, collectionId, groupId });
+}
+
+function annotatedCopy(
+  id: string,
+  printingId: string,
+  collectionId: string,
+  overrides: Partial<CopyResponse> = { condition: "near-mint" },
+): CopyResponse {
+  return stubCopy({ id, printingId, collectionId, groupId: null, ...overrides });
 }
 
 describe("pickNewestCopy", () => {
@@ -30,6 +41,27 @@ describe("pickNewestCopy", () => {
   });
 });
 
+describe("pickRemovalCopy", () => {
+  it("prefers the newest bare copy over a newer annotated one (ADR-038)", () => {
+    const bareOlder = copy("01900000-0000-7000-8000-000000000001", "pr-1", "col-1");
+    const bareNewer = copy("01900000-0000-7000-8000-000000000050", "pr-1", "col-1");
+    const annotatedNewest = annotatedCopy("01900000-0000-7000-8000-000000000099", "pr-1", "col-1");
+    expect(pickRemovalCopy([bareOlder, annotatedNewest, bareNewer])).toBe(bareNewer);
+  });
+
+  it("falls back to the newest annotated copy when every copy is annotated", () => {
+    const older = annotatedCopy("01900000-0000-7000-8000-000000000001", "pr-1", "col-1");
+    const newer = annotatedCopy("01900000-0000-7000-8000-000000000099", "pr-1", "col-1", {
+      notesPrivate: "graded at Worlds",
+    });
+    expect(pickRemovalCopy([older, newer])).toBe(newer);
+  });
+
+  it("returns undefined for an empty list", () => {
+    expect(pickRemovalCopy([])).toBeUndefined();
+  });
+});
+
 describe("decideRemoval", () => {
   it("returns 'none' when no copies match the printing", () => {
     const copies = [copy("c1", "pr-OTHER", "col-1")];
@@ -39,6 +71,24 @@ describe("decideRemoval", () => {
   it("returns 'none' when the scoped collection has no matching copies", () => {
     const copies = [copy("c1", "pr-1", "col-1")];
     expect(decideRemoval(copies, "pr-1", "col-OTHER")).toEqual({ kind: "none" });
+  });
+
+  it("prefers a bare copy over a newer annotated one within the collection (ADR-038)", () => {
+    const bare = copy("01900000-0000-7000-8000-000000000001", "pr-1", "col-1");
+    const annotated = annotatedCopy("01900000-0000-7000-8000-000000000099", "pr-1", "col-1");
+    expect(decideRemoval([bare, annotated], "pr-1", "col-1")).toEqual({
+      kind: "dispose",
+      copyId: bare.id,
+    });
+  });
+
+  it("asks for confirmation when only annotated copies remain (ADR-038)", () => {
+    const older = annotatedCopy("01900000-0000-7000-8000-000000000001", "pr-1", "col-1");
+    const newer = annotatedCopy("01900000-0000-7000-8000-000000000099", "pr-1", "col-1");
+    expect(decideRemoval([older, newer], "pr-1", "col-1")).toEqual({
+      kind: "confirmDispose",
+      copyId: newer.id,
+    });
   });
 
   it("disposes the newest copy when all matches live in one collection", () => {

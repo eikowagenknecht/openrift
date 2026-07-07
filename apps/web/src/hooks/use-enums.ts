@@ -22,6 +22,8 @@ export interface EnumLabels {
   superTypes: Record<string, string>;
   artVariants: Record<string, string>;
   cardSizes: Record<string, string>;
+  conditions: Record<string, string>;
+  graders: Record<string, string>;
 }
 
 function sorted(rows: EnumRow[]): EnumRow[] {
@@ -95,6 +97,28 @@ export function useDeckFormatList(): {
     formats: rows.map((row) => ({ slug: row.slug, label: row.label })),
     labels: Object.fromEntries(rows.map((row) => [row.slug, row.label])),
   };
+}
+
+/**
+ * Returns ordered condition rows (best first: Mint → Poor) from /init, for the
+ * copy-details condition picker (ADR-038).
+ *
+ * @returns An ordered array of `{ slug, label }` condition entries.
+ */
+export function useConditionList(): { slug: string; label: string }[] {
+  const { data } = useSuspenseQuery(initQueryOptions);
+  return sorted(data.enums.conditions ?? []).map((row) => ({ slug: row.slug, label: row.label }));
+}
+
+/**
+ * Returns ordered grading-company rows from /init, for the copy-details grader
+ * picker (ADR-038).
+ *
+ * @returns An ordered array of `{ slug, label }` grader entries.
+ */
+export function useGraderList(): { slug: string; label: string }[] {
+  const { data } = useSuspenseQuery(initQueryOptions);
+  return sorted(data.enums.graders ?? []).map((row) => ({ slug: row.slug, label: row.label }));
 }
 
 /**
@@ -187,6 +211,8 @@ export function useEnumOrders(): {
       superTypes: labelMap(d.superTypes ?? []),
       artVariants: labelMap(d.artVariants ?? []),
       cardSizes: labelMap(d.cardSizes ?? []),
+      conditions: labelMap(d.conditions ?? []),
+      graders: labelMap(d.graders ?? []),
     },
     domainColors: Object.fromEntries(
       domainRows

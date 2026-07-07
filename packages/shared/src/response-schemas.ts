@@ -208,6 +208,32 @@ export const catalogPrintingResponseSchema = z.object({
 
 // ── Copies ───────────────────────────────────────────────────────────────────
 
+export const copyLinkSchema = z
+  .object({
+    url: z.url({ protocol: /^https?$/u }).max(500),
+    label: z.string().min(1).max(100).optional(),
+  })
+  .openapi("CopyLink");
+
+/**
+ * Per-copy metadata (ADR-038), shared by the authenticated copy shape and the
+ * public share projection. `notesPrivate` is deliberately not part of this
+ * shape: it exists only on the authenticated schema and is stripped from every
+ * public surface.
+ */
+export const copyMetadataResponseShape = {
+  /** Ungraded condition slug (`conditions` reference table); null = unrecorded. */
+  condition: z.string().nullable(),
+  /** Grading company slug (`graders` reference table); set together with `grade`. */
+  grader: z.string().nullable(),
+  /** 1 to 10 in half steps; non-null exactly when `grader` is non-null. */
+  grade: z.number().nullable(),
+  notesPublic: z.string().nullable(),
+  isAltered: z.boolean(),
+  /** Ordered photo/video links. */
+  links: z.array(copyLinkSchema),
+};
+
 export const copyResponseSchema = z
   .object({
     id: z.string(),
@@ -219,6 +245,12 @@ export const copyResponseSchema = z
      * totals while still showing them inside the group collection.
      */
     groupId: z.string().nullable(),
+    ...copyMetadataResponseShape,
+    /**
+     * Visible to anyone with access to the copy's collection (group members
+     * included). "Private" means stripped from public share surfaces only.
+     */
+    notesPrivate: z.string().nullable(),
   })
   .openapi("CopyResponse");
 

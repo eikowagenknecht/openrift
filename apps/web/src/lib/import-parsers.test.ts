@@ -211,10 +211,19 @@ describe("parseImportData — RiftMana format", () => {
   it("strips lowercase -p promo suffix and sets isPromo", () => {
     const csv = `${header}\n0,8,Blazing Scorcher,OGN-001-p,Promotional Cards,Fury,Common,0.00,0.24,,NM:4;HP:3;SEAL:1,,English`;
     const result = parseImportData(csv);
-    expect(result.entries).toHaveLength(1);
-    expect(result.entries[0].sourceCode).toBe("OGN-001");
-    expect(result.entries[0].setPrefix).toBe("OGN");
-    expect(result.entries[0].isPromo).toBe(true);
+    // The condition encoding splits the 8 foils into NM:4, HP:3, and SEAL:1
+    // (unmapped, so it imports without a condition).
+    expect(result.entries).toHaveLength(3);
+    expect(result.entries.every((e) => e.sourceCode === "OGN-001")).toBe(true);
+    expect(result.entries.every((e) => e.setPrefix === "OGN")).toBe(true);
+    expect(result.entries.every((e) => e.isPromo === true)).toBe(true);
+    const byCondition = new Map(result.entries.map((e) => [e.metadata?.condition, e.quantity]));
+    expect(byCondition.get("near-mint")).toBe(4);
+    expect(byCondition.get("poor")).toBe(3);
+    expect(byCondition.get(undefined)).toBe(1);
+    // Each split entry's detail panel shows its own token, not the whole cell.
+    const conditionsShown = result.entries.map((e) => e.rawFields["Condition"]);
+    expect(conditionsShown).toEqual(["NM", "HP", "SEAL"]);
   });
 
   it("strips uppercase -P promo suffix and sets isPromo", () => {
@@ -259,7 +268,9 @@ describe("parseImportData — RiftMana format", () => {
     expect(raw["Set"]).toBe("Origins");
     expect(raw["Rarity"]).toBe("Common");
     expect(raw["Language"]).toBe("English");
-    expect(raw["Condition"]).toBe("NM:1");
+    // The detail panel shows this entry's own condition token, not the whole
+    // encoded cell (the encoding may span several split entries).
+    expect(raw["Condition"]).toBe("NM");
   });
 
   it("returns empty entries for missing required columns", () => {
@@ -299,8 +310,9 @@ describe("parseImportData — RiftMana format", () => {
     expect(result.rowCount).toBe(19);
     // Rows with both normal+foil: Blazing Scorcher, Brazen Buccaneer, Chemtech Enforcer = 3 rows → 6 entries
     // Rows with only one qty: 16 rows → 16 entries
-    // Total: 22 entries
-    expect(result.entries).toHaveLength(22);
+    // The promo Blazing Scorcher's NM:4;HP:3;SEAL:1 encoding adds 2 more splits
+    // Total: 24 entries
+    expect(result.entries).toHaveLength(24);
   });
 });
 
@@ -351,16 +363,30 @@ describe("parseImportData — Piltover Archive language", () => {
     expect(byLanguage.get("ZH")).toBe(2);
   });
 
-  it("still aggregates same-language rows with different conditions", () => {
+  it("keeps same-language rows with different conditions separate (ADR-038)", () => {
     const csv = [
       header,
       "OGN-001,Test,Origins,OGN,Common,Standard,,1,English,NM",
       "OGN-001,Test,Origins,OGN,Common,Standard,,2,English,LP",
     ].join("\n");
     const result = parseImportData(csv);
+    expect(result.entries).toHaveLength(2);
+    const byCondition = new Map(result.entries.map((e) => [e.metadata?.condition, e.quantity]));
+    expect(byCondition.get("near-mint")).toBe(1);
+    expect(byCondition.get("light-played")).toBe(2);
+    expect(result.entries.every((e) => e.language === "EN")).toBe(true);
+  });
+
+  it("aggregates rows with the same condition", () => {
+    const csv = [
+      header,
+      "OGN-001,Test,Origins,OGN,Common,Standard,,1,English,NM",
+      "OGN-001,Test,Origins,OGN,Common,Standard,,2,English,NM",
+    ].join("\n");
+    const result = parseImportData(csv);
     expect(result.entries).toHaveLength(1);
     expect(result.entries[0].quantity).toBe(3);
-    expect(result.entries[0].language).toBe("EN");
+    expect(result.entries[0].metadata?.condition).toBe("near-mint");
   });
 });
 
@@ -394,15 +420,17 @@ describe("parseImportData — Piltover Archive promo", () => {
     expect(quantities).toEqual([1, 2]);
   });
 
-  it("aggregates rows with the same promo suffix and different conditions", () => {
+  it("keeps rows with the same promo suffix but different conditions separate (ADR-038)", () => {
     const csv = [
       header,
       "OGN-001-Nexus,Hero,Origins,OGN,Common,Standard,Nexus,1,English,NM",
       "OGN-001-Nexus,Hero,Origins,OGN,Common,Standard,Nexus,2,English,LP",
     ].join("\n");
     const result = parseImportData(csv);
-    expect(result.entries).toHaveLength(1);
-    expect(result.entries[0].quantity).toBe(3);
+    expect(result.entries).toHaveLength(2);
+    const byCondition = new Map(result.entries.map((e) => [e.metadata?.condition, e.quantity]));
+    expect(byCondition.get("near-mint")).toBe(1);
+    expect(byCondition.get("light-played")).toBe(2);
   });
 });
 

@@ -1,4 +1,4 @@
-import { BookOpenIcon, HandIcon, ListPlusIcon, Trash2Icon } from "lucide-react";
+import { BookOpenIcon, HandIcon, ListPlusIcon, NotebookPenIcon, Trash2Icon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import {
@@ -25,6 +25,12 @@ interface CollectionCardContextMenuProps {
    * `min(wished, copies in box)`. Only renders the extra item when > 1.
    */
   takeAllCount?: number;
+  /**
+   * True in stacked views (the tile stands for N copies), false in copies view
+   * (the tile is one physical copy). Labels the copy-details entry accordingly:
+   * "Copies…" opens the picker list, "Copy details" edits the one copy.
+   */
+  stacked?: boolean;
   children?: ReactNode;
 }
 
@@ -41,6 +47,7 @@ export function CollectionCardContextMenu({
   itemId,
   canTake,
   takeAllCount,
+  stacked = true,
   children,
 }: CollectionCardContextMenuProps) {
   return (
@@ -77,6 +84,15 @@ export function CollectionCardContextMenu({
             <ContextMenuSeparator />
           </>
         )}
+        <ContextMenuItem
+          onClick={(event) => {
+            event.stopPropagation();
+            dispatchContextAction(itemId, "copyDetails");
+          }}
+        >
+          <NotebookPenIcon />
+          {stacked ? "Copies…" : "Copy details"}
+        </ContextMenuItem>
         <ContextMenuItem
           onClick={(event) => {
             event.stopPropagation();

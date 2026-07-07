@@ -22,6 +22,8 @@ interface DisposeDialogProps {
   memberships?: CopyListMembershipsResponse;
   /** True while the list-membership check is still in flight. */
   membershipsLoading?: boolean;
+  /** How many targets carry recorded details (condition, notes, photos — ADR-038). */
+  annotatedCount?: number;
 }
 
 /**
@@ -40,6 +42,7 @@ export function DisposeDialog({
   isPending,
   memberships,
   membershipsLoading = false,
+  annotatedCount = 0,
 }: DisposeDialogProps) {
   const cardNoun = `card${count === 1 ? "" : "s"}`;
   const { showListWarning, needsTypeConfirm, copiesOnAnyList } = disposeConfirmState(
@@ -91,6 +94,20 @@ export function DisposeDialog({
                 ))}
               </ul>
             </div>
+          </div>
+        )}
+
+        {annotatedCount > 0 && (
+          <div className="border-destructive/40 bg-destructive/10 text-destructive flex gap-3 rounded-lg border p-3 text-sm">
+            <TriangleAlertIcon className="mt-0.5 size-5 shrink-0" />
+            <p>
+              <span className="font-medium">
+                {annotatedCount} of these {annotatedCount === 1 ? "card has" : "cards have"} details
+                recorded
+              </span>{" "}
+              (condition, grading, notes, or photo links). Removing{" "}
+              {annotatedCount === 1 ? "it" : "them"} permanently deletes those details too.
+            </p>
           </div>
         )}
 

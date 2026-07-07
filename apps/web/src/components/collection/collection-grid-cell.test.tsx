@@ -1,11 +1,11 @@
 import type { Printing } from "@openrift/shared";
 import { render, screen } from "@testing-library/react";
-import type { ReactNode } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { useGridSelectionStore } from "@/stores/grid-selection-store";
-import { stubPrinting } from "@/test/factories";
+import { stubCopy, stubPrinting } from "@/test/factories";
 import { createStoreResetter } from "@/test/store-helpers";
 
 // Two printings of one card — the /collections "printings" view renders each
@@ -27,8 +27,8 @@ function copiesFor(printingIds: readonly string[]): string[] {
 // Stub the per-cell live queries: return exactly the copies for whatever
 // printingIds the cell decides to query. The fix is about which ids it queries.
 vi.mock("@/hooks/use-owned-count", () => ({
-  useOwnedCopyIdsForPrintings: (printingIds: readonly string[]) => ({
-    data: copiesFor(printingIds),
+  useCopyRowsForPrintings: (printingIds: readonly string[]) => ({
+    data: copiesFor(printingIds).map((id) => stubCopy({ id })),
   }),
   useOwnedCountsForPrintings: (printingIds: readonly string[]) => {
     const totals = Object.fromEntries(
@@ -40,12 +40,19 @@ vi.mock("@/hooks/use-owned-count", () => ({
 }));
 
 // Render the left overlay (where the SelectionCheckbox lives) and a marker for
-// whether the cell decided to produce a strip; skip the whole thumbnail tree.
+// which strip the cell decided to produce (count strip vs. the ADR-038 copy
+// metadata strip), identified by the element's component name; skip the whole
+// thumbnail tree.
 vi.mock("@/components/cards/card-cell", () => ({
-  CardCell: ({ leftOverlay, strip }: { leftOverlay?: ReactNode; strip?: ReactNode }) => (
+  CardCell: ({ leftOverlay, strip }: { leftOverlay?: ReactNode; strip?: ReactElement }) => (
     <div>
       {leftOverlay}
-      {strip ? <div data-testid="cell-strip" /> : null}
+      {strip ? (
+        <div
+          data-testid="cell-strip"
+          data-strip-kind={typeof strip.type === "function" ? strip.type.name : String(strip.type)}
+        />
+      ) : null}
     </div>
   ),
 }));
@@ -130,11 +137,11 @@ describe("CollectionGridCell selection checkbox", () => {
   });
 });
 
-function renderStripCell(props: { stacked: boolean; mode: "browse" | "select" }) {
+function renderStripCell(props: { stacked: boolean; mode: "browse" | "select"; itemId?: string }) {
   return render(
     <CollectionGridCell
       printing={printingX}
-      itemId="p-x"
+      itemId={props.itemId ?? "p-x"}
       cardWidth={200}
       priority={false}
       dataView="printings"
@@ -155,19 +162,20 @@ describe("CollectionGridCell strip gating", () => {
   afterEach(resetSelection);
 
   // A copies-view tile (`!stacked`) is a single physical copy, so its count is
-  // always 1 and the per-printing strip controls don't apply — no strip.
-  it("renders no strip on a copies-view tile in browse mode", () => {
-    renderStripCell({ stacked: false, mode: "browse" });
-    expect(screen.queryByTestId("cell-strip")).toBeNull();
+  // always 1 and the per-printing count controls don't apply — the strip row
+  // instead carries the copy's metadata chips (ADR-038).
+  it("renders the metadata strip, not the count strip, on a copies-view tile in browse mode", () => {
+    renderStripCell({ stacked: false, mode: "browse", itemId: "cx1" });
+    expect(screen.getByTestId("cell-strip").dataset.stripKind).toBe("CopyMetadataStrip");
   });
 
-  it("renders no strip on a copies-view tile in select mode", () => {
-    renderStripCell({ stacked: false, mode: "select" });
-    expect(screen.queryByTestId("cell-strip")).toBeNull();
+  it("renders the metadata strip on a copies-view tile in select mode", () => {
+    renderStripCell({ stacked: false, mode: "select", itemId: "cx1" });
+    expect(screen.getByTestId("cell-strip").dataset.stripKind).toBe("CopyMetadataStrip");
   });
 
-  it("still renders the aggregate strip on a stacked tile in browse mode", () => {
+  it("still renders the aggregate count strip on a stacked tile in browse mode", () => {
     renderStripCell({ stacked: true, mode: "browse" });
-    expect(screen.getByTestId("cell-strip")).toBeDefined();
+    expect(screen.getByTestId("cell-strip").dataset.stripKind).toBe("CardCountStrip");
   });
 });

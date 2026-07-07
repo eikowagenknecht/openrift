@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict qLnnJx58snxgCbZr5YmuhClEzBbkeft2eJ8knnpUuYO6XRdeTGn6TjanodXTxdE
+\restrict ltPBzRpv9GRUHXVIceHGunDf6lNZ4kHxyTlDEe6u0xwuItqxQHTaXRf0NT7dN0n
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -870,6 +870,18 @@ CREATE TABLE public.collections (
 
 
 --
+-- Name: conditions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.conditions (
+    slug text NOT NULL,
+    label text NOT NULL,
+    sort_order smallint NOT NULL,
+    is_well_known boolean DEFAULT false NOT NULL
+);
+
+
+--
 -- Name: copies; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -878,7 +890,17 @@ CREATE TABLE public.copies (
     collection_id uuid NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    printing_id uuid NOT NULL
+    printing_id uuid NOT NULL,
+    condition text,
+    grader text,
+    grade double precision,
+    notes_public text,
+    notes_private text,
+    is_altered boolean DEFAULT false NOT NULL,
+    links jsonb DEFAULT '[]'::jsonb NOT NULL,
+    CONSTRAINT chk_copies_condition_or_graded CHECK (((condition IS NULL) OR (grader IS NULL))),
+    CONSTRAINT chk_copies_grade_half_steps CHECK (((grade IS NULL) OR ((grade >= (1)::double precision) AND (grade <= (10)::double precision) AND ((grade * (2)::double precision) = trunc((grade * (2)::double precision)))))),
+    CONSTRAINT chk_copies_grader_with_grade CHECK (((grader IS NULL) = (grade IS NULL)))
 );
 
 
@@ -1275,6 +1297,18 @@ CREATE TABLE public.friend_groups (
     CONSTRAINT chk_friend_groups_name CHECK (((length(name) >= 1) AND (length(name) <= 60))),
     CONSTRAINT chk_friend_groups_previous_slug CHECK (((previous_slug IS NULL) OR (previous_slug ~ '^[a-z0-9][a-z0-9-]{2,29}$'::text))),
     CONSTRAINT chk_friend_groups_slug CHECK ((slug ~ '^[a-z0-9][a-z0-9-]{2,29}$'::text))
+);
+
+
+--
+-- Name: graders; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.graders (
+    slug text NOT NULL,
+    label text NOT NULL,
+    sort_order smallint NOT NULL,
+    is_well_known boolean DEFAULT false NOT NULL
 );
 
 
@@ -2372,6 +2406,14 @@ ALTER TABLE ONLY public.collections
 
 
 --
+-- Name: conditions conditions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.conditions
+    ADD CONSTRAINT conditions_pkey PRIMARY KEY (slug);
+
+
+--
 -- Name: copies copies_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2617,6 +2659,14 @@ ALTER TABLE ONLY public.friend_groups
 
 ALTER TABLE ONLY public.friend_groups
     ADD CONSTRAINT friend_groups_slug_key UNIQUE (slug);
+
+
+--
+-- Name: graders graders_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.graders
+    ADD CONSTRAINT graders_pkey PRIMARY KEY (slug);
 
 
 --
@@ -4010,6 +4060,13 @@ CREATE TRIGGER trg_cards_norm_name BEFORE INSERT OR UPDATE OF name ON public.car
 
 
 --
+-- Name: conditions trg_conditions_protect_well_known; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_conditions_protect_well_known BEFORE DELETE OR UPDATE ON public.conditions FOR EACH ROW EXECUTE FUNCTION public.protect_well_known();
+
+
+--
 -- Name: deck_formats trg_deck_formats_protect_well_known; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -4035,6 +4092,13 @@ CREATE TRIGGER trg_domains_protect_well_known BEFORE DELETE OR UPDATE ON public.
 --
 
 CREATE TRIGGER trg_finishes_protect_well_known BEFORE DELETE OR UPDATE ON public.finishes FOR EACH ROW EXECUTE FUNCTION public.protect_well_known();
+
+
+--
+-- Name: graders trg_graders_protect_well_known; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_graders_protect_well_known BEFORE DELETE OR UPDATE ON public.graders FOR EACH ROW EXECUTE FUNCTION public.protect_well_known();
 
 
 --
@@ -4603,6 +4667,22 @@ ALTER TABLE ONLY public.collections
 
 ALTER TABLE ONLY public.collections
     ADD CONSTRAINT collections_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: copies copies_condition_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.copies
+    ADD CONSTRAINT copies_condition_fkey FOREIGN KEY (condition) REFERENCES public.conditions(slug);
+
+
+--
+-- Name: copies copies_grader_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.copies
+    ADD CONSTRAINT copies_grader_fkey FOREIGN KEY (grader) REFERENCES public.graders(slug);
 
 
 --
@@ -5401,5 +5481,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict qLnnJx58snxgCbZr5YmuhClEzBbkeft2eJ8knnpUuYO6XRdeTGn6TjanodXTxdE
+\unrestrict ltPBzRpv9GRUHXVIceHGunDf6lNZ4kHxyTlDEe6u0xwuItqxQHTaXRf0NT7dN0n
 

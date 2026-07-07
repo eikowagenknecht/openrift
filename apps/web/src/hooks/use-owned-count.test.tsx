@@ -4,6 +4,8 @@ import { renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
+import { stubCopy } from "@/test/factories";
+
 import type { OwnedBreakdownVariant } from "./use-owned-count";
 
 vi.mock("@tanstack/react-start", () => ({
@@ -43,21 +45,20 @@ const v1: OwnedBreakdownVariant = { id: "p1", shortCode: "OGN-001", finish: "nor
 const v2: OwnedBreakdownVariant = { id: "p2", shortCode: "OGN-001p", finish: "foil" as Finish };
 
 function copy(printingId: string, collectionId: string): CopyResponse {
-  return {
+  return stubCopy({
     id: `${printingId}-${collectionId}-${Math.random()}`,
     printingId,
     collectionId,
-    groupId: null,
-  };
+  });
 }
 
 function groupCopy(printingId: string, collectionId: string, groupId: string): CopyResponse {
-  return {
+  return stubCopy({
     id: `${printingId}-${collectionId}-${Math.random()}`,
     printingId,
     collectionId,
     groupId,
-  };
+  });
 }
 
 const NAME_MAP = new Map([

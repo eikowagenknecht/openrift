@@ -1,4 +1,9 @@
-import type { CopyListMembershipsResponse, CopyResponse } from "@openrift/shared";
+import type {
+  CopyListMembershipsResponse,
+  CopyMetadataPatch,
+  CopyResponse,
+} from "@openrift/shared";
+import { definedCopyMetadataFields, normalizeCopyMetadataPatch } from "@openrift/shared";
 import { copiesContract } from "@openrift/shared/contracts";
 import { createTransaction, eq, useLiveQuery } from "@tanstack/react-db";
 import { useBatcher } from "@tanstack/react-pacer";
@@ -109,11 +114,20 @@ export function useCopyListMemberships(
 //   - Deletes: collection.delete inside createTransaction; mutationFn
 //     confirms via utils.writeDelete.
 
-interface AddCopyResult {
-  id: string;
-  printingId: string;
-  collectionId: string;
-}
+/** A created copy as returned by POST /copies — CopyResponse minus groupId
+ *  (derived client-side from the cached collections list). */
+type AddCopyResult = Omit<CopyResponse, "groupId">;
+
+/** Metadata defaults for optimistic rows created before the server responds. */
+const EMPTY_COPY_METADATA = {
+  condition: null,
+  grader: null,
+  grade: null,
+  notesPublic: null,
+  notesPrivate: null,
+  isAltered: false,
+  links: [],
+} satisfies Partial<CopyResponse>;
 
 // Normalize a genuine network failure (offline/DNS/CORS, which fetch throws as a
 // TypeError) into a message the toast can show. An abort throws a
@@ -199,9 +213,7 @@ export function useAddCopies() {
           },
         );
         const realRows: CopyResponse[] = apiResult.map((item) => ({
-          id: item.id,
-          printingId: item.printingId,
-          collectionId: item.collectionId,
+          ...item,
           groupId: groupIdForCollection(queryClient, userId, item.collectionId),
         }));
         if (copiesCollection) {
@@ -310,6 +322,74 @@ export function useMoveCopies() {
   });
 }
 
+async function updateCopiesApi(
+  body: { copyIds: string[]; patch: CopyMetadataPatch },
+  signal: AbortSignal,
+): Promise<void> {
+  try {
+    await browserApiOrpcClient(copiesContract).update(body, { signal });
+  } catch (error) {
+    rethrowAsNetworkError(error);
+  }
+}
+
+/**
+ * Applies one metadata patch (condition, grading, notes, links — ADR-038) to a
+ * batch of copies, optimistically. The patch is normalized with the same
+ * shared helper the server uses, so the optimistic rows match what the next
+ * feed refetch would return.
+ *
+ * @returns The mutation; call `mutate({ copyIds, patch })`.
+ */
+export function useUpdateCopies() {
+  const userId = useUserId();
+  const queryClient = useQueryClient();
+  const copiesCollection = useCopiesCollection();
+
+  return useMutation({
+    networkMode: "always",
+    mutationFn: async ({ copyIds, patch }: { copyIds: string[]; patch: CopyMetadataPatch }) => {
+      if (!userId || !copiesCollection) {
+        return;
+      }
+      // Drop optimistic temp ids — rows still in flight from
+      // useBatchedAddCopies aren't valid uuids, so the API would 400.
+      const realCopyIds = copyIds.filter((id) => !isTempCopyId(id));
+      if (realCopyIds.length === 0) {
+        return;
+      }
+      const applied = definedCopyMetadataFields(normalizeCopyMetadataPatch(patch));
+      const collection = copiesCollection;
+      const tx = createTransaction<CopyResponse>({
+        mutationFn: async ({ transaction }) => {
+          const ids = transaction.mutations.map((m) => String(m.key));
+          for (const batch of chunks(ids, BATCH_SIZE)) {
+            const controller = new AbortController();
+            await withTimeout(updateCopiesApi({ copyIds: batch, patch }, controller.signal), {
+              label: "Update copies",
+              abortController: controller,
+            });
+          }
+          // Confirm the patch in the synced store — partial updates keyed by id.
+          collection.utils.writeUpdate(ids.map((id) => ({ id, ...applied })));
+          void queryClient.invalidateQueries({
+            queryKey: queryKeys.copies.all(userId),
+            refetchType: "none",
+          });
+        },
+      });
+      tx.mutate(() => {
+        for (const id of realCopyIds) {
+          collection.update(id, (draft) => {
+            Object.assign(draft, applied);
+          });
+        }
+      });
+      await tx.isPersisted.promise;
+    },
+  });
+}
+
 // ── Batched add ─────────────────────────────────────────────────────────────
 
 const BATCH_DELAY = 300;
@@ -398,7 +478,9 @@ export function useBatchedAddCopies(callbacks?: BatchedAddCallbacks) {
       const tempId = `${TEMP_COPY_ID_PREFIX}${randomUuid()}`;
       if (copiesCollection) {
         const groupId = userId ? groupIdForCollection(queryClient, userId, collectionId) : null;
-        copiesCollection.utils.writeInsert([{ id: tempId, printingId, collectionId, groupId }]);
+        copiesCollection.utils.writeInsert([
+          { id: tempId, printingId, collectionId, groupId, ...EMPTY_COPY_METADATA },
+        ]);
       }
       // oxlint-disable-next-line promise/avoid-new -- deferred pattern needed to batch individual calls into one POST
       const result = new Promise<AddCopyResult>((resolve, reject) => {

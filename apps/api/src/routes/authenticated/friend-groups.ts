@@ -33,7 +33,7 @@ import { hasRole, loadGroupForMember, requireRole } from "../../lib/group-access
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import type { Group, MemberWithUser } from "../../repositories/friend-groups.js";
-import { toListEntryDetail } from "../../utils/mappers.js";
+import { toCopy, toListEntryDetail } from "../../utils/mappers.js";
 import { getFavoriteMarketplace } from "../../utils/preferences.js";
 import { generateShareToken } from "../../utils/share-token.js";
 
@@ -873,6 +873,12 @@ export const friendGroupsRouter = {
       // copy and reports the exact copyCount. Unbounded by design today.
       const copyRows = await copies.listForCollection(input.collectionId);
 
+      // This route serves personally-owned collections shared into the group,
+      // so private notes stay owner-only (ADR-038): null them out for every
+      // viewer but the owner. (Group-owned collections flow through the copies
+      // feed instead, where members legitimately see private notes.)
+      const viewerIsOwner = shared.collection.userId === viewerId;
+
       return {
         collection: {
           id: shared.collection.id,
@@ -884,12 +890,10 @@ export const friendGroupsRouter = {
           ownerUserId: shared.collection.userId,
           ownerName: shared.ownerName,
         },
-        copies: copyRows.map((row) => ({
-          id: row.id,
-          printingId: row.printingId,
-          collectionId: row.collectionId,
-          groupId: row.groupId,
-        })),
+        copies: copyRows.map((row) => {
+          const copy = toCopy(row);
+          return viewerIsOwner ? copy : { ...copy, notesPrivate: null };
+        }),
         viewerRole: shared.viewerRole,
       };
     },

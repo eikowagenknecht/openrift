@@ -188,10 +188,13 @@ function ExportSection() {
           stack !== undefined,
       );
 
+    // Per-copy metadata (ADR-038): each printing exports one row per distinct
+    // metadata combination, so conditions and notes survive the round trip.
+    const copiesById = new Map(copies.map((copy) => [copy.id, copy]));
     const csv =
       exportFormat === "piltover"
-        ? generatePiltoverArchiveCSV(sortedStacks)
-        : generateExportCSV(sortedStacks);
+        ? generatePiltoverArchiveCSV(sortedStacks, copiesById)
+        : generateExportCSV(sortedStacks, copiesById);
 
     const collectionName =
       exportCollectionId === "__all__"

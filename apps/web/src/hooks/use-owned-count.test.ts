@@ -1,10 +1,12 @@
 import type { CopyResponse } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
+import { stubCopy } from "@/test/factories";
+
 import { aggregateScopedCount, aggregateScopedTotals } from "./use-owned-count";
 
 function copy(printingId: string, collectionId: string, groupId: string | null): CopyResponse {
-  return { id: `${collectionId}:${printingId}`, printingId, collectionId, groupId };
+  return stubCopy({ id: `${collectionId}:${printingId}`, printingId, collectionId, groupId });
 }
 
 describe("aggregateScopedCount", () => {

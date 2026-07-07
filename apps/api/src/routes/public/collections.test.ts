@@ -72,6 +72,15 @@ const dbCopy = {
   collectionId: COLLECTION_ID,
   groupId: "a0000000-0001-4000-a000-000000000040",
   createdAt: NOW,
+  condition: "near-mint",
+  grader: null,
+  grade: null,
+  notesPublic: "Pack fresh",
+  // Private notes never reach anonymous viewers (ADR-038); the projection
+  // test below proves they're stripped alongside collectionId/groupId.
+  notesPrivate: "secret",
+  isAltered: false,
+  links: [],
 };
 
 describe("GET /api/v1/collections/share/:token", () => {
@@ -128,7 +137,7 @@ describe("GET /api/v1/collections/share/:token", () => {
   // Regression (CPL-1): the anonymous share endpoint must not leak owner-internal
   // collectionId/groupId. toPublicCopy narrows each copy to { id, printingId };
   // the repo row above deliberately carries both owner-internal fields.
-  it("narrows public copies to { id, printingId }, stripping owner-internal collectionId/groupId", async () => {
+  it("narrows public copies, stripping collectionId/groupId/notesPrivate (ADR-038)", async () => {
     mockCollectionsRepo.findByShareToken.mockResolvedValue({
       collection: dbCollection,
       ownerName: "Alice",
@@ -137,9 +146,19 @@ describe("GET /api/v1/collections/share/:token", () => {
 
     const res = await app.request("/api/v1/collections/share/tok-abc");
     const json = await res.json();
-    expect(json.items[0]).toEqual({ id: dbCopy.id, printingId: dbCopy.printingId });
+    expect(json.items[0]).toEqual({
+      id: dbCopy.id,
+      printingId: dbCopy.printingId,
+      condition: "near-mint",
+      grader: null,
+      grade: null,
+      notesPublic: "Pack fresh",
+      isAltered: false,
+      links: [],
+    });
     expect(json.items[0]).not.toHaveProperty("collectionId");
     expect(json.items[0]).not.toHaveProperty("groupId");
+    expect(json.items[0]).not.toHaveProperty("notesPrivate");
   });
 
   it("falls back to 'Anonymous' when the owner has no display name", async () => {

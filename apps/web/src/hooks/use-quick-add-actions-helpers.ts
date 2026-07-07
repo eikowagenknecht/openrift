@@ -1,4 +1,5 @@
 import type { CopyResponse } from "@openrift/shared";
+import { copyHasMetadata } from "@openrift/shared";
 
 import { isTempCopyId } from "@/lib/temp-copy-id";
 
@@ -14,7 +15,25 @@ export function pickNewestCopy(copies: readonly CopyResponse[]): CopyResponse | 
   return copies.toSorted((a, b) => b.id.localeCompare(a.id))[0];
 }
 
-type RemovalDecision = { kind: "none" } | { kind: "dispose"; copyId: string } | { kind: "picker" };
+/**
+ * Picks the copy the minus button should remove: the newest copy WITHOUT
+ * recorded details (ADR-038), so conditions/notes survive routine count
+ * adjustments. Only when every copy is annotated does it fall back to the
+ * newest annotated one — callers confirm that removal with the user.
+ * @returns The removal candidate, or undefined if the list is empty.
+ */
+export function pickRemovalCopy(copies: readonly CopyResponse[]): CopyResponse | undefined {
+  const bare = copies.filter((copy) => !copyHasMetadata(copy));
+  return pickNewestCopy(bare.length > 0 ? bare : copies);
+}
+
+type RemovalDecision =
+  | { kind: "none" }
+  | { kind: "dispose"; copyId: string }
+  // The only removable copies carry recorded details (ADR-038) — the caller
+  // must ask before destroying them.
+  | { kind: "confirmDispose"; copyId: string }
+  | { kind: "picker" };
 
 /**
  * Decides what the minus button should do given the user's copies of a
@@ -23,7 +42,8 @@ type RemovalDecision = { kind: "none" } | { kind: "dispose"; copyId: string } | 
  * only the viewer's personal copies are considered — copies in a friend-group
  * collection belong to the group, not the viewer, so the personal minus must
  * not remove them (matching the personal-only owned badge). Single collection →
- * silent dispose of the newest. Multiple collections → open the picker.
+ * silent dispose of the newest bare copy, or a confirm request when only
+ * annotated copies remain (ADR-038). Multiple collections → open the picker.
  * @returns The removal decision for the caller to act on.
  */
 export function decideRemoval(
@@ -53,8 +73,13 @@ export function decideRemoval(
   }
   const collectionIds = new Set(filtered.map((c) => c.collectionId));
   if (collectionIds.size === 1) {
-    const newest = pickNewestCopy(filtered);
-    return newest ? { kind: "dispose", copyId: newest.id } : { kind: "none" };
+    const candidate = pickRemovalCopy(filtered);
+    if (!candidate) {
+      return { kind: "none" };
+    }
+    return copyHasMetadata(candidate)
+      ? { kind: "confirmDispose", copyId: candidate.id }
+      : { kind: "dispose", copyId: candidate.id };
   }
   return { kind: "picker" };
 }

@@ -2,7 +2,7 @@ import type { CopyResponse } from "@openrift/shared";
 import { renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { stubPrinting } from "@/test/factories";
+import { stubCopy, stubPrinting } from "@/test/factories";
 import { createStoreResetter } from "@/test/store-helpers";
 
 // Mock the copies mutation hooks so the dispose mutation rejects on demand,
@@ -28,12 +28,11 @@ const { useAddModeStore } = await import("@/stores/add-mode-store");
 const COLLECTION_ID = "11111111-1111-1111-1111-111111111111";
 
 function personalCopy(printingId: string): CopyResponse {
-  return {
+  return stubCopy({
     id: "22222222-2222-2222-2222-222222222222",
     printingId,
     collectionId: COLLECTION_ID,
-    groupId: null,
-  };
+  });
 }
 
 // Regression: disposing a copy can fail for an expected reason (the copy is

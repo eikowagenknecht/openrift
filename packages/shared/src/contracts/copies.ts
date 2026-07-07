@@ -1,5 +1,9 @@
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
-import { copyListResponseSchema, copyResponseSchema } from "@openrift/shared/response-schemas";
+import {
+  copyLinkSchema,
+  copyListResponseSchema,
+  copyResponseSchema,
+} from "@openrift/shared/response-schemas";
 import { copiesQuerySchema } from "@openrift/shared/schemas";
 import { z } from "zod";
 
@@ -7,16 +11,60 @@ import { authedRoute } from "./_base.js";
 
 extendZodWithOpenApi(z);
 
+/**
+ * Metadata fields settable on a copy (ADR-038), shared between `add` items
+ * (so CSV import persists condition at insert time) and the `update` patch.
+ * Field pairing mirrors the `copies` check constraints so violations fail at
+ * the contract instead of as a database error.
+ */
+const copyMetadataInputShape = {
+  condition: z.string().max(50).nullish(),
+  grader: z.string().max(50).nullish(),
+  grade: z.number().min(1).max(10).multipleOf(0.5).nullish(),
+  notesPublic: z.string().max(2000).nullish(),
+  notesPrivate: z.string().max(2000).nullish(),
+  isAltered: z.boolean().optional(),
+  links: z.array(copyLinkSchema).max(10).optional(),
+};
+
+const unset = (value: unknown): boolean => value === null || value === undefined;
+
+const metadataConsistent = (value: {
+  condition?: string | null;
+  grader?: string | null;
+  grade?: number | null;
+}) => unset(value.grader) === unset(value.grade) && (unset(value.condition) || unset(value.grader));
+
+const METADATA_CONSISTENCY_MESSAGE =
+  "grader and grade must be set together, and a graded copy cannot also carry a condition";
+
 export const addCopiesSchema = z.object({
   copies: z
     .array(
-      z.object({
-        printingId: z.uuid(),
-        collectionId: z.uuid().optional(),
-      }),
+      z
+        .object({
+          printingId: z.uuid(),
+          collectionId: z.uuid().optional(),
+          ...copyMetadataInputShape,
+        })
+        .refine(metadataConsistent, METADATA_CONSISTENCY_MESSAGE),
     )
     .min(1)
     .max(500),
+});
+
+/**
+ * Partial metadata patch. Absent keys stay untouched; explicit nulls clear.
+ * The service normalizes cross-field state (setting a condition clears
+ * grading and vice versa), so a patch only has to be internally consistent.
+ */
+export const copyMetadataPatchSchema = z
+  .object(copyMetadataInputShape)
+  .refine(metadataConsistent, METADATA_CONSISTENCY_MESSAGE);
+
+export const updateCopiesSchema = z.object({
+  copyIds: z.array(z.uuid()).min(1).max(500),
+  patch: copyMetadataPatchSchema,
 });
 
 export const moveCopiesSchema = z.object({
@@ -69,10 +117,11 @@ export const copyListMembershipsResponseSchema = z
 /**
  * oRPC contract for the authenticated copies endpoints. All require a session
  * (the mount applies `requireAuth`), so they share the `authedRoute` base
- * (UNAUTHORIZED + FORBIDDEN). `add` returns 201; `move` and `dispose` return
- * 204 with no body. Domain codes per route: `add` → BAD_REQUEST (a copy
+ * (UNAUTHORIZED + FORBIDDEN). `add` returns 201; `move`, `update` and `dispose`
+ * return 204 with no body. Domain codes per route: `add` → BAD_REQUEST (a copy
  * references a non-existent printing); `move` → NOT_FOUND (target collection or
- * copies missing); `dispose` → NOT_FOUND + CONFLICT.
+ * copies missing); `update` → NOT_FOUND + BAD_REQUEST (unknown condition or
+ * grader slug); `dispose` → NOT_FOUND + CONFLICT.
  */
 export const copiesContract = {
   list: authedRoute
@@ -88,6 +137,13 @@ export const copiesContract = {
     .route({ method: "POST", path: "/api/v1/copies/move", tags: ["Copies"], successStatus: 204 })
     .errors({ NOT_FOUND: { message: "Target collection or copies not found" } })
     .input(moveCopiesSchema),
+  update: authedRoute
+    .route({ method: "POST", path: "/api/v1/copies/update", tags: ["Copies"], successStatus: 204 })
+    .errors({
+      NOT_FOUND: { message: "One or more copies not found" },
+      BAD_REQUEST: { message: "Unknown condition or grader" },
+    })
+    .input(updateCopiesSchema),
   dispose: authedRoute
     .route({ method: "POST", path: "/api/v1/copies/dispose", tags: ["Copies"], successStatus: 204 })
     .errors({

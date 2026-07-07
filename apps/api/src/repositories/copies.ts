@@ -1,4 +1,4 @@
-import type { OwnedCopyRow } from "@openrift/shared";
+import type { CopyLink, OwnedCopyRow } from "@openrift/shared";
 import type { Insertable, Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
@@ -9,10 +9,47 @@ import type { CopiesTable, Database } from "../db/index.js";
  * `groupId` is the owning group of the copy's collection (null for personal
  * collections); the client uses it to keep group-owned copies out of personal
  * "owned" totals while still showing them inside the group collection.
+ * Carries the per-copy metadata (ADR-038) so the synced client store has it.
  */
-type CopyRow = Pick<Selectable<CopiesTable>, "id" | "printingId" | "collectionId" | "createdAt"> & {
+type CopyRow = Pick<
+  Selectable<CopiesTable>,
+  | "id"
+  | "printingId"
+  | "collectionId"
+  | "createdAt"
+  | "condition"
+  | "grader"
+  | "grade"
+  | "notesPublic"
+  | "notesPrivate"
+  | "isAltered"
+  | "links"
+> & {
   groupId: string | null;
 };
+
+/** The per-copy metadata columns (ADR-038), aliased for `cp`-joined queries. */
+const COPY_METADATA_COLUMNS = [
+  "cp.condition",
+  "cp.grader",
+  "cp.grade",
+  "cp.notesPublic",
+  "cp.notesPrivate",
+  "cp.isAltered",
+  "cp.links",
+] as const;
+
+/** postgres.js under Bun returns jsonb columns as a string instead of a parsed
+ *  array. This helper normalises `links` so callers always get an array.
+ *  @returns the parsed links array */
+function parseLinks(links: CopyLink[] | string): CopyLink[] {
+  return typeof links === "string" ? (JSON.parse(links) as CopyLink[]) : links;
+}
+
+/** @returns The row with its `links` jsonb normalised to a parsed array. */
+function withParsedLinks<T extends { links: CopyLink[] | string }>(row: T): T {
+  return { ...row, links: parseLinks(row.links) };
+}
 
 const CURSOR_SEPARATOR = "_";
 
@@ -88,6 +125,7 @@ export function copiesRepo(db: Kysely<Database>) {
           "cp.collectionId",
           "cp.createdAt",
           "col.groupId as groupId",
+          ...COPY_METADATA_COLUMNS,
         ])
         .where((eb) => eb.or([eb("col.userId", "=", userId), eb("gm.userId", "=", userId)]))
         .orderBy("cp.createdAt", "desc")
@@ -105,7 +143,7 @@ export function copiesRepo(db: Kysely<Database>) {
             )
           : query.where(tsMs, "<", time);
       }
-      return query.execute();
+      return query.execute().then((rows) => rows.map((row) => withParsedLinks(row)));
     },
 
     /**
@@ -180,6 +218,7 @@ export function copiesRepo(db: Kysely<Database>) {
           "cp.collectionId",
           "cp.createdAt",
           "col.groupId as groupId",
+          ...COPY_METADATA_COLUMNS,
         ])
         .where("cp.collectionId", "=", collectionId)
         .orderBy("cp.createdAt", "desc")
@@ -196,18 +235,59 @@ export function copiesRepo(db: Kysely<Database>) {
             )
           : query.where(tsMs, "<", time);
       }
-      return query.execute();
+      return query.execute().then((rows) => rows.map((row) => withParsedLinks(row)));
     },
 
-    /** @returns The inserted copy rows with `id`, `printingId`, and `collectionId`. */
+    /** @returns The inserted copy rows including their metadata (ADR-038). */
     insertBatch(
       values: Insertable<CopiesTable>[],
-    ): Promise<Pick<Selectable<CopiesTable>, "id" | "printingId" | "collectionId">[]> {
+    ): Promise<Omit<CopyRow, "groupId" | "createdAt">[]> {
       return db
         .insertInto("copies")
         .values(values)
-        .returning(["id", "printingId", "collectionId"])
-        .execute();
+        .returning([
+          "id",
+          "printingId",
+          "collectionId",
+          "condition",
+          "grader",
+          "grade",
+          "notesPublic",
+          "notesPrivate",
+          "isAltered",
+          "links",
+        ])
+        .execute()
+        .then((rows) => rows.map((row) => withParsedLinks(row)));
+    },
+
+    /**
+     * Applies one metadata patch to all given copies (ADR-038); caller verified
+     * write access. Only defined keys are written, so absent patch fields stay
+     * untouched. `links` arrives pre-stringified for the jsonb column.
+     */
+    async updateMetadataBatchById(
+      copyIds: string[],
+      patch: {
+        condition?: string | null;
+        grader?: string | null;
+        grade?: number | null;
+        notesPublic?: string | null;
+        notesPrivate?: string | null;
+        isAltered?: boolean;
+        links?: string;
+      },
+    ): Promise<void> {
+      if (copyIds.length === 0) {
+        return;
+      }
+      const set = Object.fromEntries(
+        Object.entries(patch).filter(([, value]) => value !== undefined),
+      );
+      if (Object.keys(set).length === 0) {
+        return;
+      }
+      await db.updateTable("copies").set(set).where("id", "in", copyIds).execute();
     },
 
     /**

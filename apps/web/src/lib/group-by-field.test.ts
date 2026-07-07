@@ -28,6 +28,8 @@ const LABELS: EnumLabels = {
   superTypes: { champion: "Champion", signature: "Signature" },
   artVariants: { normal: "Normal" },
   cardSizes: { standard: "Standard", oversized: "Oversized" },
+  conditions: {},
+  graders: {},
 };
 
 function item(printing: ReturnType<typeof stubPrinting>): CardViewerItem {

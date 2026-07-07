@@ -6,13 +6,14 @@ import type {
 import type {
   copyAddResponseSchema,
   copyListMembershipsResponseSchema,
+  copyMetadataPatchSchema,
 } from "@openrift/shared/contracts/copies";
 import type {
   publicCollectionDetailResponseSchema,
   publicCollectionResponseSchema,
   publicCopyResponseSchema,
 } from "@openrift/shared/contracts/public-collections";
-import type { copyListResponseSchema } from "@openrift/shared/response-schemas";
+import type { copyLinkSchema, copyListResponseSchema } from "@openrift/shared/response-schemas";
 import type { z } from "zod";
 
 export type CollectionResponse = z.infer<typeof collectionResponseSchema>;
@@ -34,6 +35,15 @@ export type PublicCopyResponse = z.infer<typeof publicCopyResponseSchema>;
 export type CollectionShareResponse = z.infer<typeof collectionShareResponseSchema>;
 
 export type CopyListResponse = z.infer<typeof copyListResponseSchema>;
+
+/** One photo/video link on a copy (ADR-038). */
+export type CopyLink = z.infer<typeof copyLinkSchema>;
+
+/**
+ * Partial metadata patch for `copies.update`. Absent keys stay untouched;
+ * explicit nulls clear the field.
+ */
+export type CopyMetadataPatch = z.infer<typeof copyMetadataPatchSchema>;
 
 export interface CopyCollectionBreakdownEntry {
   collectionId: string;

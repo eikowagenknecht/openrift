@@ -195,21 +195,20 @@ export function useOwnedCountsForPrintings(
 }
 
 /**
- * Per-card copy IDs (in-collection when `collectionId` is set, otherwise
- * global). Same live-query subscription shape as
- * {@link useOwnedCountsForPrintings} but returns the raw IDs so the cell can
- * power its own drag-and-drop without taking the parent's `allCopyIdsByTile`
- * map as a prop. Only re-fires when one of the listed siblings' copies
- * actually changes.
+ * Full copy rows (including the ADR-038 metadata) for a set of printings.
+ * Same live-query subscription shape as {@link useOwnedCountsForPrintings};
+ * scoped to a collection when `collectionId` is set, otherwise personal
+ * copies only. Lets a grid cell derive its copy IDs (drag/select wiring) and
+ * its metadata badges from one per-cell subscription. Only re-fires when one
+ * of the listed siblings' copies actually changes.
  *
- * @returns A flat array of copy IDs across the sibling set, or undefined
- *   when disabled or still loading.
+ * @returns The scoped copy rows, or undefined when disabled or still loading.
  */
-export function useOwnedCopyIdsForPrintings(
+export function useCopyRowsForPrintings(
   printingIds: readonly string[],
   enabled: boolean,
   collectionId?: string,
-): { data: string[] | undefined } {
+): { data: CopyResponse[] | undefined } {
   const copiesCollection = useCopiesCollection();
   const idsKey = printingIds.join(",");
 
@@ -228,11 +227,11 @@ export function useOwnedCopyIdsForPrintings(
   }
   const filtered =
     collectionId === undefined
-      ? // Global owned-copy IDs = personal copies only (group copies aren't the
+      ? // Global owned copies = personal copies only (group copies aren't the
         // viewer's). Scoped to a collection, include every copy in it.
         copies.filter((copy) => copy.groupId === null)
       : copies.filter((copy) => copy.collectionId === collectionId);
-  return { data: filtered.map((copy) => copy.id) };
+  return { data: filtered };
 }
 
 /** Per-printing copy counts split by deck-building availability. */

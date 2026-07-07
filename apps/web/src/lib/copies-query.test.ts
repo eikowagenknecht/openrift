@@ -1,15 +1,12 @@
 import type { CopyResponse } from "@openrift/shared";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { stubCopy } from "@/test/factories";
+
 import { copiesQueryOptions, fetchCopies } from "./copies-query";
 
 function makeCopy(id: string): CopyResponse {
-  return {
-    id,
-    printingId: `print-${id}`,
-    collectionId: "col-1",
-    groupId: null,
-  };
+  return stubCopy({ id, printingId: `print-${id}`, collectionId: "col-1" });
 }
 
 // fetchCopies builds an absolute same-origin URL (window.location.origin is

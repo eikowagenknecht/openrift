@@ -139,6 +139,7 @@ import * as m190 from "./190-list-rule-combine.js";
 import * as m191 from "./191-keyword-cost-flag.js";
 import * as m192 from "./192-multi-type-cards.js";
 import * as m193 from "./193-card-type-junction-triggers.js";
+import * as m194 from "./194-copy-metadata.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -337,4 +338,5 @@ export const migrations: Record<string, Migration> = {
   "191-keyword-cost-flag": m191,
   "192-multi-type-cards": m192,
   "193-card-type-junction-triggers": m193,
+  "194-copy-metadata": m194,
 };

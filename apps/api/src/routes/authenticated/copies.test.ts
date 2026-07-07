@@ -61,6 +61,13 @@ const dbCopy = {
   collectionId: "a0000000-0001-4000-a000-000000000010",
   groupId: null,
   createdAt: now,
+  condition: null,
+  grader: null,
+  grade: null,
+  notesPublic: null,
+  notesPrivate: null,
+  isAltered: false,
+  links: [],
 };
 
 const COPY_ID = "a0000000-0001-4000-a000-000000000020";
@@ -143,6 +150,13 @@ describe("POST /api/v1/copies", () => {
         printingId: PRINTING_ID,
         collectionId: COLLECTION_ID,
         groupId: null,
+        condition: null,
+        grader: null,
+        grade: null,
+        notesPublic: null,
+        notesPrivate: null,
+        isAltered: false,
+        links: [],
       },
     ];
     mockAddCopies.mockResolvedValue(created);

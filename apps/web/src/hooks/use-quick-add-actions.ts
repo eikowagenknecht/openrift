@@ -1,14 +1,27 @@
-import type { Printing } from "@openrift/shared";
-import { useRef } from "react";
+import type { CopyResponse, Printing } from "@openrift/shared";
+import { copyHasMetadata } from "@openrift/shared";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useBatchedAddCopies, useDisposeCopies } from "@/hooks/use-copies";
-import { decideRemoval, pickNewestCopy } from "@/hooks/use-quick-add-actions-helpers";
+import { decideRemoval, pickRemovalCopy } from "@/hooks/use-quick-add-actions-helpers";
 import { useCopiesCollection } from "@/lib/copies-collection";
 import { summarizeBatchAdd } from "@/lib/summarize-batch-add";
 import { isTempCopyId } from "@/lib/temp-copy-id";
 import { useAddModeStore } from "@/stores/add-mode-store";
 import type { VariantPopoverIntent } from "@/stores/add-mode-store";
+
+/**
+ * A minus-button removal that landed on a copy with recorded details
+ * (ADR-038) and now waits for the user's confirmation. `sessionUndo` marks
+ * the session-undo path, whose add-mode bookkeeping must only run when the
+ * dispose actually happens.
+ */
+export interface PendingAnnotatedDispose {
+  copy: CopyResponse;
+  printing: Printing;
+  sessionUndo?: boolean;
+}
 
 /**
  * Shared add/undo logic for collection add mode. Optimistic count changes
@@ -52,6 +65,34 @@ export function useQuickAddActions(addTarget?: string, viewCollectionId?: string
   const disposeCopies = useDisposeCopies();
   const copiesCollection = useCopiesCollection();
 
+  // A minus press that would destroy recorded details (ADR-038) parks here
+  // instead of disposing; the consumer renders AnnotatedDisposeDialog against
+  // this state and calls confirm/cancel.
+  const [pendingAnnotatedDispose, setPendingAnnotatedDispose] =
+    useState<PendingAnnotatedDispose | null>(null);
+
+  const confirmAnnotatedDispose = async () => {
+    if (!pendingAnnotatedDispose) {
+      return;
+    }
+    const { copy, printing, sessionUndo } = pendingAnnotatedDispose;
+    setPendingAnnotatedDispose(null);
+    if (sessionUndo) {
+      useAddModeStore.getState().recordUndo(printing.id);
+    }
+    try {
+      await disposeCopies.mutateAsync({ copyIds: [copy.id] });
+    } catch {
+      // Expected failures (e.g. trade-reserved) toast via the global mutation
+      // onError handler; restore the session entry so a later undo still works.
+      if (sessionUndo) {
+        useAddModeStore.getState().recordAdd(printing, copy.id);
+      }
+    }
+  };
+
+  const cancelAnnotatedDispose = () => setPendingAnnotatedDispose(null);
+
   // Add one copy of `printing` to a specific collection, with optimistic
   // session tracking for undo. Both the default-target quick-add and the
   // variant×collection popover's per-collection `+` funnel through here.
@@ -89,6 +130,13 @@ export function useQuickAddActions(addTarget?: string, viewCollectionId?: string
         const entry = useAddModeStore.getState().addedItems.get(printing.id);
         const sessionCopyId = entry?.copyIds.at(-1);
         if (sessionCopyId) {
+          // Even a copy added this session may have been annotated since
+          // (ADR-038) — destroying those details still needs a confirmation.
+          const sessionCopy = copiesCollection?.toArray.find((c) => c.id === sessionCopyId);
+          if (sessionCopy && copyHasMetadata(sessionCopy)) {
+            setPendingAnnotatedDispose({ copy: sessionCopy, printing, sessionUndo: true });
+            return "done";
+          }
           useAddModeStore.getState().recordUndo(printing.id);
           try {
             await disposeCopies.mutateAsync({ copyIds: [sessionCopyId] });
@@ -102,6 +150,13 @@ export function useQuickAddActions(addTarget?: string, viewCollectionId?: string
         }
         const decision = decideRemoval(copiesCollection.toArray, printing.id, viewCollectionId);
         if (decision.kind === "none") {
+          return "done";
+        }
+        if (decision.kind === "confirmDispose") {
+          const copy = copiesCollection.toArray.find((c) => c.id === decision.copyId);
+          if (copy) {
+            setPendingAnnotatedDispose({ copy, printing });
+          }
           return "done";
         }
         if (decision.kind === "dispose") {
@@ -120,9 +175,10 @@ export function useQuickAddActions(addTarget?: string, viewCollectionId?: string
       }
     : undefined;
 
-  // Remove the newest copy of `printing` from a specific collection. The
+  // Remove the newest bare copy of `printing` from a specific collection. The
   // variant×collection popover's per-collection `-` calls this directly (the
-  // collection is already chosen, so no disambiguation is needed).
+  // collection is already chosen, so no disambiguation is needed). When only
+  // annotated copies remain, park the removal for confirmation (ADR-038).
   const handleDisposeFromCollection = async (printing: Printing, fromCollectionId: string) => {
     if (!copiesCollection) {
       return;
@@ -131,17 +187,22 @@ export function useQuickAddActions(addTarget?: string, viewCollectionId?: string
       (c) =>
         c.printingId === printing.id && c.collectionId === fromCollectionId && !isTempCopyId(c.id),
     );
-    const newest = pickNewestCopy(copies);
-    if (newest) {
-      try {
-        await disposeCopies.mutateAsync({ copyIds: [newest.id] });
-      } catch {
-        // The remove can fail for an expected reason (e.g. the copy is reserved
-        // in an active trade). The error toast is fired by the global mutation
-        // onError handler; swallow the rejection here so it doesn't surface as
-        // an uncaught promise (this handler is wired straight into the popover's
-        // onRemoveFromCollection click prop, which does not catch).
-      }
+    const candidate = pickRemovalCopy(copies);
+    if (!candidate) {
+      return;
+    }
+    if (copyHasMetadata(candidate)) {
+      setPendingAnnotatedDispose({ copy: candidate, printing });
+      return;
+    }
+    try {
+      await disposeCopies.mutateAsync({ copyIds: [candidate.id] });
+    } catch {
+      // The remove can fail for an expected reason (e.g. the copy is reserved
+      // in an active trade). The error toast is fired by the global mutation
+      // onError handler; swallow the rejection here so it doesn't surface as
+      // an uncaught promise (this handler is wired straight into the popover's
+      // onRemoveFromCollection click prop, which does not catch).
     }
   };
 
@@ -204,5 +265,11 @@ export function useQuickAddActions(addTarget?: string, viewCollectionId?: string
     handleDisposeFromCollection,
     closeVariants,
     adjustedCount,
+    // Annotated-copy removal confirmation (ADR-038): consumers render
+    // AnnotatedDisposeDialog against this state.
+    pendingAnnotatedDispose,
+    confirmAnnotatedDispose,
+    cancelAnnotatedDispose,
+    disposeIsPending: disposeCopies.isPending,
   };
 }

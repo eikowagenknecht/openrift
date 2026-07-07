@@ -229,6 +229,153 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
     });
   });
 
+  // ── POST /copies/update (ADR-038 metadata) ───────────────────────────────
+
+  describe("POST /copies/update", () => {
+    let annotatedId: string;
+
+    it("setup: adds a copy with metadata at insert time", async () => {
+      const res = await app.fetch(
+        req("POST", "/copies", {
+          copies: [
+            {
+              printingId: PRINTING_1.id,
+              collectionId,
+              condition: "near-mint",
+              notesPublic: "Pack fresh",
+              notesPrivate: "Bought at Worlds",
+              links: [{ url: "https://example.com/front.jpg", label: "Front" }],
+            },
+          ],
+        }),
+      );
+      expect(res.status).toBe(201);
+      const json = (await res.json()) as {
+        items: { id: string; condition: string | null; links: { url: string }[] }[];
+      };
+      expect(json.items[0].condition).toBe("near-mint");
+      expect(json.items[0].links).toEqual([
+        { url: "https://example.com/front.jpg", label: "Front" },
+      ]);
+      annotatedId = json.items[0].id;
+    });
+
+    it("applies a metadata patch and round-trips it through GET /copies", async () => {
+      const res = await app.fetch(
+        req("POST", "/copies/update", {
+          copyIds: [annotatedId],
+          patch: { condition: "played", isAltered: true, notesPrivate: null },
+        }),
+      );
+      expect(res.status).toBe(204);
+
+      const listRes = await app.fetch(req("GET", "/copies"));
+      const list = (await listRes.json()) as {
+        items: {
+          id: string;
+          condition: string | null;
+          isAltered: boolean;
+          notesPublic: string | null;
+          notesPrivate: string | null;
+        }[];
+      };
+      const updated = list.items.find((item) => item.id === annotatedId);
+      expect(updated?.condition).toBe("played");
+      expect(updated?.isAltered).toBe(true);
+      // Absent patch keys stay untouched; explicit nulls clear.
+      expect(updated?.notesPublic).toBe("Pack fresh");
+      expect(updated?.notesPrivate).toBeNull();
+    });
+
+    it("switching to graded clears the condition (service normalization)", async () => {
+      const res = await app.fetch(
+        req("POST", "/copies/update", {
+          copyIds: [annotatedId],
+          patch: { grader: "psa", grade: 9.5 },
+        }),
+      );
+      expect(res.status).toBe(204);
+
+      const listRes = await app.fetch(req("GET", "/copies"));
+      const list = (await listRes.json()) as {
+        items: {
+          id: string;
+          condition: string | null;
+          grader: string | null;
+          grade: number | null;
+        }[];
+      };
+      const updated = list.items.find((item) => item.id === annotatedId);
+      expect(updated?.grader).toBe("psa");
+      expect(updated?.grade).toBe(9.5);
+      expect(updated?.condition).toBeNull();
+    });
+
+    it("rejects an unknown condition slug with 400", async () => {
+      const res = await app.fetch(
+        req("POST", "/copies/update", {
+          copyIds: [annotatedId],
+          patch: { condition: "shredded" },
+        }),
+      );
+      expect(res.status).toBe(400);
+    });
+
+    it("rejects a grade without a grader at the contract", async () => {
+      const res = await app.fetch(
+        req("POST", "/copies/update", { copyIds: [annotatedId], patch: { grade: 8 } }),
+      );
+      expect(res.status).toBe(400);
+    });
+
+    it("returns 404 for non-existent copy IDs", async () => {
+      const fakeId = "00000000-0000-4000-a000-000000000000";
+      const res = await app.fetch(
+        req("POST", "/copies/update", { copyIds: [fakeId], patch: { condition: "mint" } }),
+      );
+      expect(res.status).toBe(404);
+    });
+  });
+
+  // ── Public share projection (ADR-038) ─────────────────────────────────────
+
+  describe("public share strips private notes", () => {
+    it("exposes public metadata but never notesPrivate", async () => {
+      // Ensure at least one copy in the collection carries a private note.
+      const addRes = await app.fetch(
+        req("POST", "/copies", {
+          copies: [
+            {
+              printingId: PRINTING_2.id,
+              collectionId,
+              condition: "mint",
+              notesPublic: "Shiny",
+              notesPrivate: "secret",
+            },
+          ],
+        }),
+      );
+      expect(addRes.status).toBe(201);
+
+      const shareRes = await app.fetch(req("POST", `/collections/${collectionId}/share`));
+      expect(shareRes.status).toBe(200);
+      const { shareToken } = (await shareRes.json()) as { shareToken: string };
+
+      const publicRes = await app.fetch(req("GET", `/collections/share/${shareToken}`));
+      expect(publicRes.status).toBe(200);
+      const publicJson = (await publicRes.json()) as {
+        items: Record<string, unknown>[];
+      };
+      expect(publicJson.items.length).toBeGreaterThan(0);
+      const shiny = publicJson.items.find((item) => item.notesPublic === "Shiny");
+      expect(shiny).toBeDefined();
+      expect(shiny?.condition).toBe("mint");
+      for (const item of publicJson.items) {
+        expect(item).not.toHaveProperty("notesPrivate");
+      }
+    });
+  });
+
   // ── POST /copies/dispose ──────────────────────────────────────────────────
 
   describe("POST /copies/dispose", () => {

@@ -1,4 +1,5 @@
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
+import { copyMetadataResponseShape } from "@openrift/shared/response-schemas";
 import { copiesQuerySchema } from "@openrift/shared/schemas";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
@@ -21,12 +22,15 @@ export const publicCollectionResponseSchema = z
 /**
  * Copy projection for anonymous share viewers — deliberately narrower than
  * {@link copyResponseSchema}: `groupId`/`collectionId` are owner-internal and
- * are withheld from unauthenticated viewers.
+ * `notesPrivate` never leaves authenticated surfaces. Public copy metadata
+ * (condition, grading, altered flag, public notes, links) is included per
+ * ADR-038.
  */
 export const publicCopyResponseSchema = z
   .object({
     id: z.string(),
     printingId: z.string(),
+    ...copyMetadataResponseShape,
   })
   .openapi("PublicCopyResponse");
 

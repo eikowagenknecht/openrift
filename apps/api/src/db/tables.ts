@@ -13,6 +13,7 @@ import type {
   CardSize,
   CardType,
   ContactMethodType,
+  CopyLink,
   DeckFormat,
   DeckFormatConfig,
   DeckZone,
@@ -353,6 +354,18 @@ export interface CopiesTable {
   collectionId: string;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
+  /** FK → conditions(slug); null = unrecorded. Mutually exclusive with grading. */
+  condition: string | null;
+  /** FK → graders(slug); non-null exactly when `grade` is non-null. */
+  grader: string | null;
+  /** 1 to 10 in half steps. Double precision so postgres.js returns a number. */
+  grade: number | null;
+  notesPublic: string | null;
+  /** Visible to anyone with collection access; stripped from public shares. */
+  notesPrivate: string | null;
+  isAltered: Generated<boolean>;
+  /** JSONB array of { url, label? }; reads back as a string under Bun. */
+  links: ColumnType<CopyLink[], string | undefined, string>;
 }
 
 /**
@@ -1397,6 +1410,9 @@ type ArtVariantsTable = ReferenceTable;
 type CardSizesTable = ReferenceTable;
 type DeckFormatsTable = ReferenceTable;
 type DeckZonesTable = ReferenceTable;
+// Copy metadata reference tables (migration 194, ADR-038)
+type ConditionsTable = ReferenceTable;
+type GradersTable = ReferenceTable;
 
 // ─── Printing events (migration 071) ────────────────────────────────────────
 
@@ -1622,6 +1638,8 @@ export interface Database {
   cardSizes: CardSizesTable;
   deckFormats: DeckFormatsTable;
   deckZones: DeckZonesTable;
+  conditions: ConditionsTable;
+  graders: GradersTable;
 
   // Junction tables (migration 062)
   cardDomains: CardDomainsTable;

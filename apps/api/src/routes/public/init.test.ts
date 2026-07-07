@@ -18,6 +18,8 @@ const emptyEnums = {
   cardSizes: [],
   deckFormats: [],
   deckZones: [],
+  conditions: [],
+  graders: [],
   languages: [],
   markers: [],
 };

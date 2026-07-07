@@ -1,5 +1,5 @@
 import type { Printing } from "@openrift/shared";
-import { legendDisplayName } from "@openrift/shared";
+import { copyHasMetadata, legendDisplayName } from "@openrift/shared";
 import { ArrowDownToLineIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { memo } from "react";
@@ -11,10 +11,11 @@ import { OwnedCollectionsPopover } from "@/components/cards/card-detail/owned-co
 import type { CardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { WishlistHeart } from "@/components/cards/wishlist-heart";
 import { CollectionCardContextMenu } from "@/components/collection/collection-card-context-menu";
+import { CopyMetadataStrip, StackMetadataChip } from "@/components/collection/copy-metadata-badges";
 import { DraggableCard } from "@/components/collection/draggable-card";
 import { SelectionCheckbox } from "@/components/collection/selection-checkbox";
 import { Button } from "@/components/ui/button";
-import { useOwnedCopyIdsForPrintings, useOwnedCountsForPrintings } from "@/hooks/use-owned-count";
+import { useCopyRowsForPrintings, useOwnedCountsForPrintings } from "@/hooks/use-owned-count";
 import type { WishEntryFlat } from "@/hooks/use-wish-entries";
 import { isStackSelected } from "@/lib/stack-selection";
 import {
@@ -148,10 +149,12 @@ export const CollectionGridCell = memo(function CollectionGridCell({
   const siblingIds = inCardsView && siblings ? siblings.map((s) => s.id) : [displayPrinting.id];
   const { data: counts } = useOwnedCountsForPrintings(siblingIds, true, collectionId);
 
-  // Per-cell copy IDs for select-mode toggles and drag wrap. The underlying
-  // live query is the same shape as the counts hook above, so subscribing to
-  // both is cheap (TanStack DB shares the live query plumbing).
-  const { data: cardCopyIds } = useOwnedCopyIdsForPrintings(siblingIds, true, collectionId);
+  // Per-cell copy rows for select-mode toggles, drag wrap, and the metadata
+  // badges (ADR-038). The underlying live query is the same shape as the
+  // counts hook above, so subscribing to both is cheap (TanStack DB shares
+  // the live query plumbing).
+  const { data: cardCopies } = useCopyRowsForPrintings(siblingIds, true, collectionId);
+  const cardCopyIds = cardCopies?.map((copy) => copy.id);
 
   const ownedCount = counts?.totals[displayPrinting.id] ?? 0;
   const totalInCollection =
@@ -179,17 +182,19 @@ export const CollectionGridCell = memo(function CollectionGridCell({
           dispatchOpenVariants(displayPrinting, event.currentTarget, "add")
       : undefined;
 
-  // The strip is a per-printing aggregate control (count badge + add/remove +
-  // locations popover), so it only belongs on stacked tiles that stand in for N
-  // copies. A copies-view tile (`!stacked`) is a single physical copy — its
-  // count is always 1 and the per-printing controls don't apply — so it gets no
-  // strip. The genuine per-copy actions (drag-to-move, the right-click menu)
-  // stay below.
+  // The strip row above the card carries per-printing aggregate controls on
+  // stacked tiles (count badge + add/remove + locations popover), and the
+  // copy's metadata chips on copies-view tiles (ADR-038), where the count is
+  // always 1 and the per-printing controls don't apply.
   //
-  // Stacked strip variants:
-  //  - browse: full +/-, count pill opens the variant×collection popover
-  //  - select + owned: read-only count, OwnedCollectionsPopover
-  //  - select + unowned: no strip (nothing to display)
+  // Strip variants:
+  //  - copies view: metadata chips (condition/grade, altered, notes, links);
+  //    an empty row for bare copies so tiles in a row stay aligned
+  //  - stacked browse: full +/-, count pill opens the variant×collection popover
+  //  - stacked select + owned: read-only count, OwnedCollectionsPopover
+  //  - stacked select + unowned: no strip (nothing to display)
+  // Stacked strips append an annotated-copies chip in the extras slot when any
+  // copy carries metadata.
   // Group "bulk box" controls that live inside the count strip, next to the
   // amount: a wishlist heart (with the total wished quantity, opening a popover
   // of every wishlist the card is on) and a one-click Take button. Only
@@ -221,8 +226,21 @@ export const CollectionGridCell = memo(function CollectionGridCell({
       </>
     ) : undefined;
 
+  // Metadata (ADR-038): the copies-view tile's own copy row, and the stacked
+  // annotated-copies chip for the count strip's extras slot.
+  const singleCopy = stacked ? undefined : cardCopies?.find((copy) => copy.id === itemId);
+  const annotatedCount = stacked
+    ? (cardCopies?.filter((copy) => copyHasMetadata(copy)).length ?? 0)
+    : 0;
+  const metadataChip =
+    annotatedCount > 0 ? (
+      <StackMetadataChip itemId={itemId} annotatedCount={annotatedCount} />
+    ) : undefined;
+
   let strip: ReactNode | undefined;
-  if (stacked && mode === "browse") {
+  if (!stacked) {
+    strip = <CopyMetadataStrip copy={singleCopy} />;
+  } else if (mode === "browse") {
     strip = (
       <CardCountStrip
         count={ownedCount}
@@ -247,10 +265,17 @@ export const CollectionGridCell = memo(function CollectionGridCell({
               : `Choose variant for ${legendDisplayName(displayPrinting.card)}`
             : undefined
         }
-        extras={boxExtras}
+        extras={
+          metadataChip || boxExtras ? (
+            <>
+              {metadataChip}
+              {boxExtras}
+            </>
+          ) : undefined
+        }
       />
     );
-  } else if (stacked && (ownedCount > 0 || cardTotalInCollection > 0)) {
+  } else if (ownedCount > 0 || cardTotalInCollection > 0) {
     strip = (
       <CardCountStrip
         count={ownedCount}
@@ -265,6 +290,7 @@ export const CollectionGridCell = memo(function CollectionGridCell({
             siblings={inCardsView ? siblings : undefined}
           />
         }
+        extras={metadataChip}
       />
     );
   }
@@ -337,14 +363,15 @@ export const CollectionGridCell = memo(function CollectionGridCell({
       strip={strip}
       leftOverlay={leftOverlay}
       contextMenu={
-        // Right-click move / add-to-list / dispose (+ "Take a copy" on a group
-        // box). Only owned cards have copies to act on, so unowned library tiles
-        // get no menu.
+        // Right-click copy details / move / add-to-list / dispose (+ "Take a
+        // copy" on a group box). Only owned cards have copies to act on, so
+        // unowned library tiles get no menu.
         cardTotalInCollection > 0 ? (
           <CollectionCardContextMenu
             itemId={itemId}
             canTake={canTake}
             takeAllCount={takeAllCount}
+            stacked={stacked}
           />
         ) : undefined
       }

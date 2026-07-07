@@ -39,7 +39,7 @@ vi.mock("@/lib/copies-collection", () => ({
   useCopiesCollection: () => null,
 }));
 
-const { useAddCopies, useBatchedAddCopies, useDisposeCopies, useMoveCopies } =
+const { useAddCopies, useBatchedAddCopies, useDisposeCopies, useMoveCopies, useUpdateCopies } =
   await import("./use-copies");
 
 function wrap(client: QueryClient) {
@@ -74,6 +74,11 @@ describe("copies mutation hooks tolerate an unauthenticated session at mount", (
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     expect(() => renderHook(() => useBatchedAddCopies(), { wrapper: wrap(client) })).not.toThrow();
   });
+
+  it("useUpdateCopies does not throw when no session is cached", () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    expect(() => renderHook(() => useUpdateCopies(), { wrapper: wrap(client) })).not.toThrow();
+  });
 });
 
 // Regression: adding a card refreshes copyCount instantly via the live
@@ -90,7 +95,23 @@ describe("copy mutations refresh derived collection totals", () => {
     // envelope drift is caught here instead of crashing in production.
     globalThis.fetch = vi.fn(async () =>
       Response.json(
-        { items: [{ id: "real-1", printingId: "p1", collectionId: "c1", groupId: null }] },
+        {
+          items: [
+            {
+              id: "real-1",
+              printingId: "p1",
+              collectionId: "c1",
+              groupId: null,
+              condition: null,
+              grader: null,
+              grade: null,
+              notesPublic: null,
+              notesPrivate: null,
+              isAltered: false,
+              links: [],
+            },
+          ],
+        },
         { status: 201 },
       ),
     ) as typeof fetch;
@@ -145,6 +166,20 @@ describe("copy mutations refresh derived collection totals", () => {
       copies: [{ printingId: "p1", collectionId: "c1" }],
     });
 
-    expect(added).toEqual([{ id: "real-1", printingId: "p1", collectionId: "c1", groupId: null }]);
+    expect(added).toEqual([
+      {
+        id: "real-1",
+        printingId: "p1",
+        collectionId: "c1",
+        groupId: null,
+        condition: null,
+        grader: null,
+        grade: null,
+        notesPublic: null,
+        notesPrivate: null,
+        isAltered: false,
+        links: [],
+      },
+    ]);
   });
 });

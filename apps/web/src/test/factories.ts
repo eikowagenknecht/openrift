@@ -5,6 +5,7 @@
 import type {
   Card,
   CardType,
+  CopyResponse,
   DeckZone,
   Domain,
   Marketplace,
@@ -36,6 +37,27 @@ function nextId(): string {
  */
 export function resetIdCounter(): void {
   idCounter = 0;
+}
+
+/**
+ * Creates a stub CopyResponse with empty metadata (ADR-038) defaults.
+ * @returns A complete CopyResponse with overrides applied.
+ */
+export function stubCopy(overrides: Partial<CopyResponse> = {}): CopyResponse {
+  return {
+    id: nextId(),
+    printingId: nextId(),
+    collectionId: nextId(),
+    groupId: null,
+    condition: null,
+    grader: null,
+    grade: null,
+    notesPublic: null,
+    notesPrivate: null,
+    isAltered: false,
+    links: [],
+    ...overrides,
+  };
 }
 
 /**
