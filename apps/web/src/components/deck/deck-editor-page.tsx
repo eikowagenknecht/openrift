@@ -70,7 +70,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useFilterActions } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
-import { useDeckCards } from "@/hooks/use-deck-builder";
+import { useDeckCards, useDeckCardsReady, useDeckSaveStatus } from "@/hooks/use-deck-builder";
 import { useDeckItems } from "@/hooks/use-deck-items";
 import { useDeckOwnership } from "@/hooks/use-deck-ownership";
 import { deckPlanQueryOptions } from "@/hooks/use-deck-plan";
@@ -87,7 +87,7 @@ import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { useSession, useUserId } from "@/lib/auth-session";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { toDeckBuilderCard } from "@/lib/deck-builder-card";
-import { hydrateDeckDraft, useDeckSaveStatus } from "@/lib/deck-builder-collection";
+import { hydrateDeckDraft } from "@/lib/deck-builder-collection";
 import { toEncodeDeckCards } from "@/lib/deck-encode-input";
 import { isPlanDraftEmpty, planResponseToDraft } from "@/lib/deck-plan";
 import { ZONE_LABELS } from "@/lib/deck-zone-labels";
@@ -145,17 +145,18 @@ function DeckEditorContent({
   const queryClient = useQueryClient();
   const userId = useUserId();
   // Browser-local deck (ADR-035): drafts persist to localStorage, no account
-  // features (plan, server share). The draft cache is keyed under a "local"
-  // sentinel scope so it works logged out; a server deck keys under its userId.
+  // features (plan, server share), no network. A server deck instead reads
+  // the synced deck-cards shape and saves through the offline outbox
+  // (ADR-027 decks vertical) — no draft, no hydrate.
   const isLocal = isLocalDeckId(deckId);
-  const scope = isLocal ? "local" : (userId ?? "");
   const navigate = useNavigate();
   const { data } = useDeckDetail(deckId);
   const { cardsById, allPrintings } = useCards();
   const { getPreferredPrinting } = usePreferredPrinting();
   const [hydratedId, setHydratedId] = useState<string | null>(null);
   const deckCards = useDeckCards(deckId);
-  const saveStatus = useDeckSaveStatus(queryClient, scope, deckId);
+  const deckCardsReady = useDeckCardsReady(deckId);
+  const saveStatus = useDeckSaveStatus(deckId);
   const { isMobile, setOpenMobile, toggleSidebar } = useSidebar();
   const activeZone = useDeckBuilderUiStore((state) => state.activeZone);
   const setActiveZone = useDeckBuilderUiStore((state) => state.setActiveZone);
@@ -239,26 +240,27 @@ function DeckEditorContent({
     setRunesByDomain(buildRunesByDomain(allPrintings));
   }, [allPrintings, setRunesByDomain]);
 
-  // Seed the draft from the server's deck detail when the deck id changes or
-  // when a fresh load arrives. The collection's save handler is auto-wired —
-  // any user edit after this debounces a PUT back to the server.
+  // Local decks only: seed the draft from the local-decks-store entry (the
+  // deck detail resolves to it for `local:` ids). Server decks have no
+  // hydrate step — their cards come from the synced deck-cards shape, which
+  // is its own source of truth.
   useEffect(() => {
-    if (data && hydratedId !== deckId) {
+    if (isLocal && data && hydratedId !== deckId) {
       const builderCards = data.cards
         .map((card) => toDeckBuilderCard(card, cardsById))
         .filter((card): card is DeckBuilderCard => card !== null);
-      hydrateDeckDraft(queryClient, scope, deckId, builderCards);
+      hydrateDeckDraft(queryClient, deckId, builderCards);
       setHydratedId(deckId);
     }
-  }, [data, deckId, hydratedId, queryClient, scope, cardsById]);
+  }, [isLocal, data, deckId, hydratedId, queryClient, cardsById]);
 
   // On unmount, reset UI scalars (active zone, runes catalog) so the next
-  // deck load starts clean. The draft collection itself is intentionally
-  // left alone: it stays cached per user so re-entering the same deck after
-  // a brief navigation away skips re-hydration. On a user change the cache
-  // is evicted and `cleanupWhenIdle` tears it down reactively. Any
-  // debounced / in-flight save also keeps running so edits made right
-  // before navigating away still persist.
+  // deck load starts clean. The deck data itself is intentionally left
+  // alone: a server deck's synced collection stays current via the Electric
+  // stream, and a local draft stays cached so re-entering the same deck
+  // skips re-hydration. Any debounced / in-flight save also keeps running
+  // (the save windows live module-level) so edits made right before
+  // navigating away still persist.
   useEffect(
     () => () => {
       resetUi();
@@ -478,7 +480,9 @@ function DeckEditorContent({
     .reduce((sum, card) => sum + card.quantity, 0);
   const totalCards = deckCards.reduce((sum, card) => sum + card.quantity, 0);
 
-  if (hydratedId !== deckId) {
+  // The editor's mount gate: a local deck waits for its hydrate step, a
+  // server deck waits for the synced deck-cards shape to deliver.
+  if (isLocal ? hydratedId !== deckId : !deckCardsReady) {
     return null;
   }
 

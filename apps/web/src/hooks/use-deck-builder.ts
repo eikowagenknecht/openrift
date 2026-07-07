@@ -6,12 +6,13 @@ import type {
   Domain,
 } from "@openrift/shared";
 import { WellKnown, validateDeck } from "@openrift/shared";
-import { useLiveQuery } from "@tanstack/react-db";
-import type { Collection } from "@tanstack/react-db";
+import { eq, useLiveQuery } from "@tanstack/react-db";
 
+import { useCards } from "@/hooks/use-cards";
 import { useCustomTagAssignments } from "@/hooks/use-custom-tag-assignments";
 import { useDeckDetail } from "@/hooks/use-decks";
 import { useChampionIdentifierTags } from "@/hooks/use-enums";
+import { useDecksWriter, useSyncedDeckCards } from "@/lib/copies-collection";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import {
   COPY_LIMIT_ZONES,
@@ -20,12 +21,22 @@ import {
   RUNE_TARGET,
   toRuleEngineCard,
 } from "@/lib/deck-builder-card";
-import { useDeckDraftCollection } from "@/lib/deck-builder-collection";
+import { useDeckDraftCollection, useLocalDeckSaveStatus } from "@/lib/deck-builder-collection";
+import {
+  createDeckDraft,
+  deckCardsFromShapeRows,
+  useSyncedDeckSaveStatus,
+} from "@/lib/deck-builder-synced";
+import type { DeckDraft, DeckSaveStatus } from "@/lib/deck-builder-synced";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
+import { isLocalDeckId } from "@/stores/local-decks-store";
 
 const EMPTY_CARDS: DeckBuilderCard[] = [];
 
-type DeckCollection = Collection<DeckBuilderCard, string | number>;
+// The actions' read/write surface: the synced draft facade for server decks,
+// the local draft collection for `local:` decks (structurally identical), and
+// a plain DeckBuilderCard collection in the unit tests.
+type DeckCollection = DeckDraft;
 
 function allCards(collection: DeckCollection): DeckBuilderCard[] {
   return [...collection.values()];
@@ -632,16 +643,47 @@ interface DeckBuilderActions {
   setLegend: (card: DeckBuilderCard, runesByDomain?: Map<string, DeckBuilderCard[]>) => void;
 }
 
+/**
+ * The draft surface for a deck, picked by kind: the local draft collection for
+ * `local:` decks, the synced facade over the deck-cards shape for server
+ * decks. The facade is stateless and cheap; the open debounce window it
+ * routes into lives module-level keyed by the executor, so recreating it per
+ * render never splits a save batch.
+ *
+ * @returns The deck's draft, or null while no backend is available (signed
+ *   out on a server deck, or the brief persistence-init window).
+ */
+function useDeckDraft(deckId: string): DeckDraft | null {
+  const isLocal = isLocalDeckId(deckId);
+  const localCollection = useDeckDraftCollection(deckId);
+  const writer = useDecksWriter();
+  const { cardsById } = useCards();
+  if (isLocal) {
+    return localCollection;
+  }
+  if (!writer) {
+    return null;
+  }
+  return createDeckDraft({
+    collection: writer.deckCards,
+    executor: writer.executor,
+    userId: writer.userId,
+    deckId,
+    cardsById,
+  });
+}
+
 export function useDeckBuilderActions(deckId: string): DeckBuilderActions {
-  const collection = useDeckDraftCollection(deckId);
+  const collection = useDeckDraft(deckId);
   const runesByDomain = useDeckBuilderUiStore((state) => state.runesByDomain);
   const activeZone = useDeckBuilderUiStore((state) => state.activeZone);
   const { data: deckDetail } = useDeckDetail(deckId);
   const format = deckDetail.deck.format;
 
-  // Mid-sign-out the collection briefly goes null while React commits the
-  // unmount of this route. Make all actions no-ops in that window — by the
-  // next paint the user is on a public route and this hook is gone.
+  // Mid-sign-out (and during the sub-100ms persistence init right after
+  // hydration) the draft is briefly null while React commits the unmount of
+  // this route. Make all actions no-ops in that window — by the next paint
+  // the user is on a public route and this hook is gone.
   if (!collection) {
     // oxlint-disable-next-line typescript/no-empty-function -- intentional no-op stand-ins while the collection is null
     const noop = (): void => {};
@@ -686,13 +728,62 @@ export function useDeckBuilderActions(deckId: string): DeckBuilderActions {
   };
 }
 
-export function useDeckCards(deckId: string): DeckBuilderCard[] {
-  const collection = useDeckDraftCollection(deckId);
-  const { data } = useLiveQuery(
-    (q) => (collection ? q.from({ card: collection }) : null),
-    [deckId, collection],
+function useDeckCardRows(deckId: string): {
+  cards: DeckBuilderCard[];
+  isReady: boolean;
+} {
+  const isLocal = isLocalDeckId(deckId);
+  const localCollection = useDeckDraftCollection(deckId);
+  const shape = useSyncedDeckCards();
+  const { cardsById } = useCards();
+  // Both live queries run unconditionally (hooks rules); each resolves to a
+  // null query when it isn't this deck's backend.
+  const { data: localCards } = useLiveQuery(
+    (q) => (localCollection ? q.from({ card: localCollection }) : null),
+    [deckId, localCollection],
   );
-  return data ?? EMPTY_CARDS;
+  const { data: shapeRows, isReady: shapeReady } = useLiveQuery(
+    (q) =>
+      isLocal || !shape ? null : q.from({ row: shape }).where(({ row }) => eq(row.deck_id, deckId)),
+    [deckId, isLocal, shape],
+  );
+  if (isLocal) {
+    // Local drafts are synchronous; readiness is the editor's hydrate gate.
+    return { cards: localCards ?? EMPTY_CARDS, isReady: true };
+  }
+  const cards =
+    shapeRows && shapeRows.length > 0 ? deckCardsFromShapeRows(shapeRows, cardsById) : EMPTY_CARDS;
+  return { cards, isReady: shape !== null && shapeReady };
+}
+
+export function useDeckCards(deckId: string): DeckBuilderCard[] {
+  return useDeckCardRows(deckId).cards;
+}
+
+/**
+ * Whether the deck's cards are readable: immediately for a local deck (the
+ * draft is synchronous; the editor gates on its own hydrate step), and once
+ * the synced deck-cards shape has delivered for a server deck — the mount
+ * gate that replaced the old hydrate-from-server-detail step.
+ *
+ * @returns true once the deck's cards are readable.
+ */
+export function useDeckCardsReady(deckId: string): boolean {
+  return useDeckCardRows(deckId).isReady;
+}
+
+/**
+ * Unified save status for the editor: local decks report the debounced
+ * localStorage write-through, server decks report the offline-transaction
+ * lifecycle (dirty in the debounce window, saving while awaiting
+ * confirmation, clean once synced or durably queued).
+ *
+ * @returns The save status for `deckId`.
+ */
+export function useDeckSaveStatus(deckId: string): DeckSaveStatus {
+  const local = useLocalDeckSaveStatus(deckId);
+  const synced = useSyncedDeckSaveStatus(deckId);
+  return isLocalDeckId(deckId) ? local : synced;
 }
 
 export function useDeckViolations(
