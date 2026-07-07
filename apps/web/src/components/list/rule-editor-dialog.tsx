@@ -1,4 +1,5 @@
 import type {
+  CopyResponse,
   ListIntent,
   ListKind,
   ListRule,
@@ -9,12 +10,13 @@ import type {
 } from "@openrift/shared";
 import {
   defaultRuleCombine,
+  evaluateListRule,
   evaluateListRules,
   expandList,
   legendDisplayName,
   MAX_LIST_RULES,
 } from "@openrift/shared";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { PlusIcon, Trash2Icon, XIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Suspense, useLayoutEffect } from "react";
@@ -45,6 +47,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { useCards } from "@/hooks/use-cards";
 import { useCustomTagAssignments } from "@/hooks/use-custom-tag-assignments";
+import { useEnumOrders } from "@/hooks/use-enums";
 import { initQueryOptions } from "@/hooks/use-init";
 import { useUpdateList } from "@/hooks/use-lists";
 import { useOwnedCount } from "@/hooks/use-owned-count";
@@ -177,12 +180,15 @@ function RuleList({
   isTrade,
   collectionOptions,
   emptyMessage,
+  perRuleCounts,
   footer,
 }: {
   kind: ListKind;
   isTrade: boolean;
   collectionOptions: { value: string; label: string }[];
   emptyMessage: string;
+  /** Wish only: how many cards/printings each rule matches on its own (by index). */
+  perRuleCounts?: number[];
   footer?: ReactNode;
 }) {
   const rules = useRuleEditorStore((state) => state.rules);
@@ -204,6 +210,7 @@ function RuleList({
           index={index}
           kind={kind}
           title={`Rule ${index + 1}`}
+          matchCount={perRuleCounts?.[index]}
           isTrade={isTrade}
           collectionOptions={collectionOptions}
         />
@@ -293,17 +300,53 @@ function RuleCombineRow({ isTrade }: { isTrade: boolean }) {
 /**
  * Trade-list rule editor: the shared {@link RuleList} with the trade-only
  * collection scope. Several rules combine per the list's mode (ADR-034
- * amendment 2).
+ * amendment 2). Each block shows how many copies that rule offers; a footer
+ * shows the combined total once two rules exist.
  * @returns The trade editor node.
  */
 function TradeRuleEditor({ kind }: { kind: ListKind }) {
   const userId = useRequiredUserId();
   const { data: collections } = useSuspenseQuery(collectionsQueryOptions(userId));
+  const { allPrintings, printingsById } = useCards();
+  const customTagAssignments = useCustomTagAssignments();
+  // Reference orders make the offered-copy count exact (same keep/offer split as
+  // the server) rather than sort-dependent in overlapping protect cases.
+  const { orders: enumOrders } = useEnumOrders();
+  const rules = useRuleEditorStore((state) => state.rules);
+  const ruleCombine = useRuleEditorStore((state) => state.ruleCombine);
 
   const collectionOptions = collections.map((collection) => ({
     value: collection.id,
     label: collection.name,
   }));
+
+  // The offered-copies preview needs the owner's real copies (not the catalog),
+  // so fetch them without suspending: the editor renders immediately and the
+  // counts fill in once the (possibly large) copy list loads. Skip the fetch
+  // until there's a rule worth previewing.
+  const { data: copies } = useQuery({
+    ...copiesQueryOptions(userId),
+    enabled: rules.length > 0,
+  });
+
+  // Serialize from the reactive `rules` value (see WishRuleEditor).
+  const serialized = serializeRules(rules, "trade");
+  const ctx = {
+    catalog: allPrintings,
+    ownedCopies: copies ? ownedCopiesFromCopyList(copies, printingsById) : [],
+    customTagAssignments,
+    enumOrders,
+  };
+  // Per-rule: copies each rule offers on its own. Combined: the deduped offer set
+  // under the combine mode. Undefined/null while copies load, so the UI shows no
+  // count rather than a misleading zero.
+  const perRuleCounts = copies
+    ? serialized.map((rule) => evaluateListRule(rule, kind, ctx).length)
+    : undefined;
+  const previewCount =
+    copies && rules.length > 0
+      ? expandList(kind, [], evaluateListRules(serialized, kind, ctx, ruleCombine)).length
+      : null;
 
   return (
     <RuleList
@@ -311,13 +354,24 @@ function TradeRuleEditor({ kind }: { kind: ListKind }) {
       isTrade
       collectionOptions={collectionOptions}
       emptyMessage="No rule yet. Add one to automatically offer copies in your collection that match a filter."
+      perRuleCounts={perRuleCounts}
+      footer={
+        rules.length >= 2 && previewCount !== null ? (
+          <p className="text-muted-foreground -mt-1 text-sm">
+            Combined, that&apos;s {matchLabel(previewCount, kind)} right now.
+          </p>
+        ) : null
+      }
     />
   );
 }
 
 /**
  * Wish-list rule editor: zero or more rules, each its own block, plus an
- * "Add rule" button. A live preview counts the deduped matches across all rules.
+ * "Add rule" button. Each block shows how many cards/printings that rule matches
+ * on its own; once two rules exist, a footer shows the combined total after they
+ * merge (which, under sum or netting, need not equal the sum of the per-rule
+ * counts).
  * @returns The wish editor node.
  */
 function WishRuleEditor({ kind }: { kind: ListKind }) {
@@ -333,26 +387,18 @@ function WishRuleEditor({ kind }: { kind: ListKind }) {
   const { data: ownedCounts } = useOwnedCount(needsOwned);
   const ownedCopies = ownedCopiesFromCounts(needsOwned ? ownedCounts : undefined, printingsById);
 
-  // Live preview: the deduped union across every rule is the count the user
-  // will actually get. Serialize from the reactive `rules` value (not the
-  // store's `buildRules`, which reads `get()`) so the React Compiler sees the
-  // filter contents as a dependency and recomputes on every edit.
+  // Serialize from the reactive `rules` value (not the store's `buildRules`,
+  // which reads `get()`) so the React Compiler sees the filter contents as a
+  // dependency and recomputes on every edit.
+  const serialized = serializeRules(rules, "wish");
+  const ctx = { catalog: allPrintings, ownedCopies, customTagAssignments };
+  // Per-rule: what each rule matches on its own (owned-netting applied per rule).
+  const perRuleCounts = serialized.map((rule) => evaluateListRule(rule, kind, ctx).length);
+  // Combined: the deduped union across every rule under the combine mode — the
+  // count the user actually gets.
   const previewCount =
     rules.length > 0
-      ? expandList(
-          kind,
-          [],
-          evaluateListRules(
-            serializeRules(rules, "wish"),
-            kind,
-            {
-              catalog: allPrintings,
-              ownedCopies,
-              customTagAssignments,
-            },
-            ruleCombine,
-          ),
-        ).length
+      ? expandList(kind, [], evaluateListRules(serialized, kind, ctx, ruleCombine)).length
       : null;
 
   return (
@@ -361,34 +407,53 @@ function WishRuleEditor({ kind }: { kind: ListKind }) {
       isTrade={false}
       collectionOptions={[]}
       emptyMessage="No rules yet. Add one to automatically want every card that matches a filter."
+      perRuleCounts={perRuleCounts}
       footer={
-        previewCount !== null && (
+        rules.length >= 2 && previewCount !== null ? (
           <p className="text-muted-foreground -mt-1 text-sm">
-            Matches {previewCount} {kind === "card" ? "card" : "printing"}
-            {previewCount === 1 ? "" : "s"} right now.
+            Combined, that&apos;s {matchLabel(previewCount, kind)} right now.
           </p>
-        )
+        ) : null
       }
     />
   );
 }
 
 /**
+ * Pluralized rule-count label, e.g. "42 cards" / "1 printing" / "3 copies".
+ * Wish counts are cards/printings; trade counts are copies.
+ * @returns The count with its pluralized noun.
+ */
+function matchLabel(count: number, kind: ListKind): string {
+  const [one, many] =
+    kind === "card"
+      ? ["card", "cards"]
+      : kind === "printing"
+        ? ["printing", "printings"]
+        : ["copy", "copies"];
+  return `${count} ${count === 1 ? one : many}`;
+}
+
+/**
  * One rule, rendered as a bordered block with a remove button and the full facet
  * editor + quantity control. Shared by the wish and trade editors; `title` is the
- * header label ("Rule 1" for wish, "Rule" for the single trade rule).
+ * header label ("Rule 1", "Rule 2", …). `matchCount` shows how many
+ * cards/printings a wish rule matches (or copies a trade rule offers) on its
+ * own, next to the title.
  * @returns The block node.
  */
 function RuleBlock({
   index,
   kind,
   title,
+  matchCount,
   isTrade,
   collectionOptions,
 }: {
   index: number;
   kind: ListKind;
   title: string;
+  matchCount?: number;
   isTrade: boolean;
   collectionOptions: { value: string; label: string }[];
 }) {
@@ -397,7 +462,14 @@ function RuleBlock({
   return (
     <div className="border-border flex flex-col gap-3 rounded-lg border p-3">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium">{title}</span>
+        <div className="flex items-baseline gap-2">
+          <span className="text-sm font-medium">{title}</span>
+          {matchCount !== undefined && (
+            <span className="text-muted-foreground text-xs">
+              {isTrade ? "offers" : "matches"} {matchLabel(matchCount, kind)}
+            </span>
+          )}
+        </div>
         <Button
           type="button"
           variant="ghost"
@@ -636,6 +708,39 @@ function ownedCopiesFromCounts(
         reserved: false,
       });
     }
+  }
+  return rows;
+}
+
+/**
+ * Maps the owner's real copies to the {@link OwnedCopyRow}s a trade rule
+ * evaluates, for the offered-copies preview. Personal copies only
+ * (`groupId === null`), mirroring the server's `ownedRowsForUser` — a trade list
+ * offers only what you personally own. `cardId` comes from the catalog; a copy
+ * whose printing isn't in the catalog is skipped. `reserved` is irrelevant to
+ * the offered *count* (reserved copies are still offered), so it's left false.
+ * @returns One owned-copy row per previewable personal copy.
+ */
+function ownedCopiesFromCopyList(
+  copies: CopyResponse[],
+  printingsById: Record<string, Printing>,
+): OwnedCopyRow[] {
+  const rows: OwnedCopyRow[] = [];
+  for (const copy of copies) {
+    if (copy.groupId !== null) {
+      continue;
+    }
+    const printing = printingsById[copy.printingId];
+    if (!printing) {
+      continue;
+    }
+    rows.push({
+      copyId: copy.id,
+      printingId: copy.printingId,
+      cardId: printing.cardId,
+      collectionId: copy.collectionId,
+      reserved: false,
+    });
   }
   return rows;
 }
