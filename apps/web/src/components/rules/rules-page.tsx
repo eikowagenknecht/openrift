@@ -1610,7 +1610,9 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
                   PAGE_TOP_BAR_STICKY,
                   "z-20 mb-4 flex flex-wrap items-center gap-3 px-0",
                 )}
-                style={{ top: `calc(var(--header-height) + ${topBarHeight}px)` }}
+                // -1px matches the page top bar's own -1px offset in
+                // PAGE_TOP_BAR_STICKY, keeping this tier flush with its bottom.
+                style={{ top: `calc(var(--header-height) + ${topBarHeight - 1}px)` }}
               >
                 <PageTocMobileTrigger items={tocItems} />
                 <RulesSearchBar trailing={ruleCountLabel} />

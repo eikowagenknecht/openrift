@@ -4,6 +4,23 @@ import { describe, expect, it } from "vitest";
 import { PageTopBarSticky } from "./page-top-bar";
 
 describe("PageTopBarSticky", () => {
+  it("tucks 1px under the header instead of sitting flush", () => {
+    // Regression: a flush top-(--header-height) opened a 1px seam of raw
+    // scrolling content at fractional browser zoom (independent device-pixel
+    // snapping of the header and bar layers). The bar overlaps the z-50
+    // header by 1px so rounding can never expose a gap.
+    const { container } = render(
+      <PageTopBarSticky>
+        <span>content</span>
+      </PageTopBarSticky>,
+    );
+    const outer = container.firstElementChild as HTMLElement;
+    expect(outer.className).toContain("top-[calc(var(--header-height)_-_1px)]");
+    // -mt-px keeps the flow position equal to the pin position; without it the
+    // bar visibly travels 1px on the first scroll before sticking.
+    expect(outer.className).toContain("-mt-px");
+  });
+
   it("keeps the gutter on the sticky layer when no maxWidth is given", () => {
     const { container } = render(
       <PageTopBarSticky>

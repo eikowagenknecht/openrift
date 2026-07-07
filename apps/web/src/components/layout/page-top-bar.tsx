@@ -44,8 +44,13 @@ export function useMeasuredHeight(el: HTMLElement | null) {
  * {@link PageTopBar}. Sticks below the global header so the back button and
  * title stay visible while scrolling. Expect the hosting element to have room
  * to scroll (a tall parent); applying this to a wrapper that hugs its content
- * makes sticky a no-op. `--header-height` already includes the header's 1px
- * border, so the bar lands flush below it.
+ * makes sticky a no-op. `--header-height` includes the header's 1px border;
+ * the bar sticks 1px above that (`calc(... - 1px)`) so it tucks under the
+ * z-50 header — at fractional browser zoom the two blurred layers snap to the
+ * device-pixel grid independently, and a flush edge can round apart into a
+ * 1px seam of raw scrolling content. `-mt-px` shifts the bar's flow position
+ * up by the same 1px so it equals the pin position — without it the bar
+ * visibly travels 1px on the first scroll before sticking.
  */
 // Base sticky styles WITHOUT the horizontal gutter. `px-safe` is a custom
 // utility that tailwind-merge does not recognise, so adding `px-0` later does
@@ -59,7 +64,7 @@ export function useMeasuredHeight(el: HTMLElement | null) {
 // keeps the 12px gap (`sm:pb-3`); the top stays 12px since the header's border
 // anchors it (no optical inflation there).
 const PAGE_TOP_BAR_STICKY_BASE =
-  "bg-background/80 sticky top-(--header-height) z-30 pt-3 pb-2 backdrop-blur-lg sm:pb-3";
+  "bg-background/80 sticky top-[calc(var(--header-height)_-_1px)] z-30 -mt-px pt-3 pb-2 backdrop-blur-lg sm:pb-3";
 
 export const PAGE_TOP_BAR_STICKY = `${PAGE_TOP_BAR_STICKY_BASE} px-safe`;
 

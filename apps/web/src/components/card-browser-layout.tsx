@@ -101,7 +101,14 @@ export function CardBrowserLayout({
     return () => observer.disconnect();
   }, []);
 
-  const headerOffset = useHeaderHeight() + pageTopBarHeight;
+  // -1: tuck the tier chain 1px up under the header. The header and this
+  // toolbar are separate composited layers (both backdrop-blur); at fractional
+  // browser zoom their shared edge lands between device pixels and each layer
+  // snaps to the grid independently, which can open a 1px seam of raw
+  // scrolling content. The overlapped strip hides behind the z-50 header.
+  // PAGE_TOP_BAR_STICKY carries the same -1px for the same reason, so with a
+  // page top bar present the toolbar stays flush with the bar's bottom edge.
+  const headerOffset = useHeaderHeight() + pageTopBarHeight - 1;
   const toolbarOffset = headerOffset + toolbarHeight;
   const stickyOffset = toolbarOffset + aboveGridHeight;
 
@@ -122,7 +129,11 @@ export function CardBrowserLayout({
             // Only pad the top when this toolbar is the first tier under the
             // global header. When a page top bar sits above it, that bar's
             // pb-3 already provides the gap (avoids a doubled 24px band).
-            pageTopBarHeight === 0 && "pt-3",
+            // -mt-px pairs with headerOffset's -1: it moves the flow position
+            // up to match the pin position, so the toolbar doesn't travel 1px
+            // on the first scroll before sticking. With a page top bar above,
+            // the bar's own -mt-px already shifted this tier's flow position.
+            pageTopBarHeight === 0 && "-mt-px pt-3",
             aboveGridHeight === 0 && "sm:rounded-b-xl",
           )}
           style={{ top: headerOffset }}

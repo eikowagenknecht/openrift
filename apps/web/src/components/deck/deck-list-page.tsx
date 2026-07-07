@@ -286,10 +286,12 @@ export function DeckListPage() {
     );
   }
   // Stick the toolbar directly below the title bar: measure the title bar and
-  // add its height to the header height, mirroring CardBrowserLayout's offset.
+  // add its height to the header height, mirroring CardBrowserLayout's offset
+  // (including its -1px: the title bar tucks 1px under the header via
+  // PAGE_TOP_BAR_STICKY, so its bottom edge sits 1px higher too).
   const [titleSlot, setTitleSlot] = useState<HTMLDivElement | null>(null);
   const titleHeight = useMeasuredHeight(titleSlot);
-  const toolbarOffset = useHeaderHeight() + titleHeight;
+  const toolbarOffset = useHeaderHeight() + titleHeight - 1;
 
   const search = useDeckListPrefsStore((state) => state.search);
   const sortField = useDeckListPrefsStore((state) => state.sortField);
