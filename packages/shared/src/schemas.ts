@@ -5,7 +5,13 @@ import { z } from "zod";
 // alongside the `CardFilters` type it backs (ADR-034).
 export { cardFiltersSchema } from "./types/search.js";
 // List-rule schema (ADR-034), defined alongside its inferred type.
-export { listRuleSchema, listRulesSchema } from "./types/list-rule.js";
+export {
+  defaultRuleCombine,
+  listRuleCombineSchema,
+  listRuleSchema,
+  listRulesSchema,
+  ruleCombineMatchesIntent,
+} from "./types/list-rule.js";
 
 export const listEntryFieldRules = {
   quantity: z.number().int().positive(),

@@ -19,6 +19,7 @@ import type {
   Finish,
   ListIntent,
   ListKind,
+  ListRuleCombine,
   ListRules,
   OrganizationRole,
   PodPlayerStatus,
@@ -525,6 +526,11 @@ export interface ListsTable {
    * omit it. Empty array = manual-only list.
    */
   rules: ColumnType<ListRules, ListRules, ListRules>;
+  /**
+   * How several rules combine (ADR-034 amendment 2, migration 190). NULL = the
+   * intent's default (wish: sum, trade: protect). CHECK constrains the slugs.
+   */
+  ruleCombine: ListRuleCombine | null;
 }
 
 /**

@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict UDz4l69VrOIzRNN8UPzBjehbKgC69R1rtdAm1xSaCFOdLP3epTQuDKSYlO4Wq77
+\restrict g7eP8oprzheIuYe5jZee2dgBMTw1SsbWB6AsyzHokoroeqpFnWQvXQsiquNiYuS
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1395,6 +1395,7 @@ CREATE TABLE public.lists (
     currency text,
     sort_order integer DEFAULT 0 NOT NULL,
     rules jsonb DEFAULT '[]'::jsonb NOT NULL,
+    rule_combine text,
     CONSTRAINT chk_lists_currency CHECK (((currency IS NULL) OR (currency = ANY (ARRAY['EUR'::text, 'USD'::text])))),
     CONSTRAINT chk_lists_default_absolute_positive CHECK (((default_price_absolute_cents IS NULL) OR (default_price_absolute_cents > 0))),
     CONSTRAINT chk_lists_default_absolute_shape CHECK (((default_price_pref = 'absolute'::text) = (default_price_absolute_cents IS NOT NULL))),
@@ -1405,7 +1406,8 @@ CREATE TABLE public.lists (
     CONSTRAINT chk_lists_kind CHECK ((kind = ANY (ARRAY['card'::text, 'printing'::text, 'copy'::text]))),
     CONSTRAINT chk_lists_name_not_empty CHECK ((name <> ''::text)),
     CONSTRAINT chk_lists_prefs_only_on_trade_intents CHECK (((intent = ANY (ARRAY['wish'::text, 'trade'::text])) OR ((default_price_pref IS NULL) AND (default_price_absolute_cents IS NULL) AND (default_trade_type IS NULL) AND (currency IS NULL)))),
-    CONSTRAINT chk_lists_rules_intent CHECK (((jsonb_array_length(rules) = 0) OR (intent = ANY (ARRAY['wish'::text, 'trade'::text]))))
+    CONSTRAINT chk_lists_rules_intent CHECK (((jsonb_array_length(rules) = 0) OR (intent = ANY (ARRAY['wish'::text, 'trade'::text])))),
+    CONSTRAINT lists_rule_combine_check CHECK ((rule_combine = ANY (ARRAY['sum'::text, 'max'::text, 'protect'::text, 'count-sum'::text, 'count-max'::text])))
 );
 
 
@@ -5277,5 +5279,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict UDz4l69VrOIzRNN8UPzBjehbKgC69R1rtdAm1xSaCFOdLP3epTQuDKSYlO4Wq77
+\unrestrict g7eP8oprzheIuYe5jZee2dgBMTw1SsbWB6AsyzHokoroeqpFnWQvXQsiquNiYuS
 

@@ -86,6 +86,7 @@ const dbList = {
   kind: "card" as const,
   isPublic: false,
   shareToken: null,
+  ruleCombine: null,
   defaultPricePref: null,
   defaultPriceAbsoluteCents: null,
   defaultTradeType: null,
@@ -177,6 +178,7 @@ describe("POST /api/v1/lists", () => {
       defaultTradeType: null,
       currency: null,
       rules: [],
+      ruleCombine: null,
     });
   });
 
@@ -341,6 +343,60 @@ describe("PATCH /api/v1/lists/:id", () => {
     });
     expect(res.status).toBe(400);
     expect(mockListsRepo.update).not.toHaveBeenCalled();
+  });
+
+  // ADR-034 amendment 2: several trade rules are accepted (the old one-rule
+  // cap is gone) and the combine mode is validated against the intent.
+  it("accepts several rules on a trade list", async () => {
+    const tradeList = { ...dbList, intent: "trade" as const, kind: "copy" as const };
+    mockListsRepo.getByIdForUser.mockResolvedValue(tradeList);
+    mockListsRepo.update.mockResolvedValue(tradeList);
+    const tradeRule = {
+      kind: "trade",
+      filter: {},
+      collectionIds: null,
+      keepPerCard: { mode: "fixed", n: 1 },
+      excludeCopyIds: [],
+    };
+    const res = await app.request(`/api/v1/lists/${LIST_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ rules: [tradeRule, tradeRule] }),
+    });
+    expect(res.status).toBe(200);
+  });
+
+  it("persists a combine mode matching the intent", async () => {
+    mockListsRepo.update.mockResolvedValue(dbList);
+    const res = await app.request(`/api/v1/lists/${LIST_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ruleCombine: "max" }),
+    });
+    expect(res.status).toBe(200);
+    expect(mockListsRepo.update).toHaveBeenCalledWith(LIST_ID, USER_ID, { ruleCombine: "max" });
+  });
+
+  it("rejects a combine mode from the other intent with 400", async () => {
+    const res = await app.request(`/api/v1/lists/${LIST_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      // dbList is a wish list; protect is a trade mode.
+      body: JSON.stringify({ ruleCombine: "protect" }),
+    });
+    expect(res.status).toBe(400);
+    expect(mockListsRepo.update).not.toHaveBeenCalled();
+  });
+
+  it("clears the combine mode back to the default with null", async () => {
+    mockListsRepo.update.mockResolvedValue(dbList);
+    const res = await app.request(`/api/v1/lists/${LIST_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ruleCombine: null }),
+    });
+    expect(res.status).toBe(200);
+    expect(mockListsRepo.update).toHaveBeenCalledWith(LIST_ID, USER_ID, { ruleCombine: null });
   });
 
   // F6: a PATCH carrying trade prefs on an organize list strips them (the DB

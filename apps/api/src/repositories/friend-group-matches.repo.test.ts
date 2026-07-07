@@ -153,7 +153,6 @@ function ownedCopy(overrides: Partial<OwnedCopyRow> & { copyId: string }): Owned
     printingId: "prt-1",
     cardId: "crd-1",
     collectionId: "col-1",
-    deckbuildingAvailable: true,
     reserved: false,
     ...overrides,
   };

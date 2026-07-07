@@ -374,6 +374,7 @@ describe("toListDetail", () => {
       currency: "EUR",
       // The DB column is typed ListRules but arrives as a raw JSON string.
       rules: rulesJson as never,
+      ruleCombine: null,
     });
 
     // The mapper backfilled the missing dimensions.

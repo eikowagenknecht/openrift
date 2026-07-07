@@ -10,6 +10,7 @@ import type {
   EffectiveTradePreference,
   Finish,
   ListKind,
+  ListRuleCombine,
   ListRules,
   ManualEntryRow,
   OwnedCopyRow,
@@ -201,6 +202,7 @@ interface SharedListRow {
   defaultTradeType: TradePreference["tradeType"];
   currency: Currency | null;
   rules: ListRules;
+  ruleCombine: ListRuleCombine | null;
 }
 
 interface ManualEntryWithMeta extends ManualEntryRow {
@@ -271,6 +273,7 @@ async function loadSharedLists(
       "l.defaultTradeType",
       "l.currency",
       "l.rules",
+      "l.ruleCombine",
     ])
     .where("s.groupId", "=", groupId)
     .where("l.intent", "=", intent)
@@ -286,6 +289,7 @@ async function loadSharedLists(
     defaultTradeType: row.defaultTradeType as TradePreference["tradeType"],
     currency: row.currency as Currency | null,
     rules: parseRules(row.rules),
+    ruleCombine: row.ruleCombine,
   }));
 }
 
@@ -644,7 +648,7 @@ async function runMatchQuery(
     if (list.rules.length > 0 && providers) {
       supplyRuleEntries.set(
         list.listId,
-        evaluateListRules(list.rules, "copy", evalContextFor(list.ownerUserId)),
+        evaluateListRules(list.rules, "copy", evalContextFor(list.ownerUserId), list.ruleCombine),
       );
     }
   }
@@ -681,7 +685,12 @@ async function runMatchQuery(
   for (const list of scopedDemand) {
     const ruleEntries =
       list.rules.length > 0 && providers
-        ? evaluateListRules(list.rules, list.kind, evalContextFor(list.ownerUserId))
+        ? evaluateListRules(
+            list.rules,
+            list.kind,
+            evalContextFor(list.ownerUserId),
+            list.ruleCombine,
+          )
         : [];
     demand.push(...buildDemand(list, demandManual.get(list.listId) ?? [], ruleEntries));
   }
@@ -838,7 +847,7 @@ async function resolveGiverPrintingSupply(
       }
     }
     if (list.rules.length > 0 && providers) {
-      const ruleEntries = evaluateListRules(list.rules, "copy", evalContext);
+      const ruleEntries = evaluateListRules(list.rules, "copy", evalContext, list.ruleCombine);
       ruleByList.set(list.listId, ruleEntries);
       for (const entry of ruleEntries) {
         if (entry.copyId) {

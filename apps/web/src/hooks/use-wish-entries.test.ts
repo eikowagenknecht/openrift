@@ -26,6 +26,7 @@ function wishList(
       currency: null,
       hasRule: false,
       rules: [],
+      ruleCombine: null,
     },
     entries,
   };

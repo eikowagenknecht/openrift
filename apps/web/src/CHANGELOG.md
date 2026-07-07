@@ -4,6 +4,7 @@
 
 ### Highlights
 
+- feat(Collection): **Multiple rules per tradelist** — tradelists can now stack up to 10 dynamic rules, and both wishlists and tradelists let you pick how overlapping rules combine.
 - feat(Collection): **Replace on import** — importing into a collection that already has copies now asks whether to add to it or replace everything with the import.
 - feat(App): **Redesigned landing page** — a fanned hand of real cards takes center stage: hover to tilt them, click to collect them all, with sharper copy and new angular buttons.
 - feat(App): **New display typeface** — page titles, section headings, big stat numbers, and the OpenRift wordmark now use Chakra Petch, giving the app its own voice instead of the default font everywhere.
@@ -13,6 +14,8 @@
 
 ### Other
 
+- feat(Collection): **Overlapping wish rules add up** — a card matched by several wishlist rules is now wanted once per rule; switch a list to "highest rule wins" to get the old behavior.
+- feat(Collection): **Special copies kept first** — trade rules now hold back foil, signed, and promo copies before plain ones when deciding what to offer.
 - feat(App): **Expanded "Why OpenRift" article** — more on the story behind the app, what the other trackers do well, and a comparison table with its own trading and groups section.
 - feat(App): **Refreshed interface components** — buttons now respond to hover everywhere, dialogs got subtly lighter surfaces, and mobile drawers track your finger with snappier fling-to-close.
 - feat(Decks): **Placeholders for missing key cards** — deck tiles now show labeled dashed cards for a legend or champion you haven't picked yet, instead of a generic icon.

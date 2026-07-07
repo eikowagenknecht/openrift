@@ -209,13 +209,29 @@ describe("useRuleEditorStore", () => {
     expect(useRuleEditorStore.getState().rules).toEqual([]);
   });
 
+  it("load seeds the combine mode and defaults it to null", () => {
+    useRuleEditorStore.getState().load([], "count-sum");
+    expect(useRuleEditorStore.getState().ruleCombine).toBe("count-sum");
+    useRuleEditorStore.getState().load([]);
+    expect(useRuleEditorStore.getState().ruleCombine).toBeNull();
+  });
+
+  it("setRuleCombine sets and clears the combine mode", () => {
+    useRuleEditorStore.getState().setRuleCombine("max");
+    expect(useRuleEditorStore.getState().ruleCombine).toBe("max");
+    useRuleEditorStore.getState().setRuleCombine(null);
+    expect(useRuleEditorStore.getState().ruleCombine).toBeNull();
+  });
+
   it("reset empties a populated store", () => {
     const store = useRuleEditorStore.getState();
     store.addRule();
     store.setFilter(0, { ...EMPTY_CARD_FILTERS, rarities: ["common"] });
+    store.setRuleCombine("sum");
     expect(useRuleEditorStore.getState().rules).toHaveLength(1);
     useRuleEditorStore.getState().reset();
     expect(useRuleEditorStore.getState().rules).toEqual([]);
+    expect(useRuleEditorStore.getState().ruleCombine).toBeNull();
   });
 
   it("serializeRules reflects the passed rules without touching the store", () => {

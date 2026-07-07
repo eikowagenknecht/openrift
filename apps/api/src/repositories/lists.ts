@@ -6,6 +6,7 @@ import type {
   KeepPriorityOrders,
   ListIntent,
   ListKind,
+  ListRuleCombine,
   ListRules,
   ManualEntryRow,
   OwnedCopyRow,
@@ -161,6 +162,8 @@ export type NewListValues = Pick<
 > & {
   /** Optional dynamic rules (ADR-034); the repo serializes them before insert. */
   rules?: ListRules | null;
+  /** Optional combine mode (ADR-034 amendment 2); null = the intent's default. */
+  ruleCombine?: ListRuleCombine | null;
 };
 
 /**
@@ -848,7 +851,10 @@ async function expandAndEnrich(
 ): Promise<ListEntryRow[]> {
   const manual = await fetchEnrichedEntries(db, kind, scope);
 
-  let ruleQuery = db.selectFrom("lists").select(["rules", "userId"]).where("id", "=", scope.listId);
+  let ruleQuery = db
+    .selectFrom("lists")
+    .select(["rules", "ruleCombine", "userId"])
+    .where("id", "=", scope.listId);
   if (scope.userId !== undefined) {
     ruleQuery = ruleQuery.where("userId", "=", scope.userId);
   }
@@ -870,12 +876,17 @@ async function expandAndEnrich(
   // wish rules don't, so only pay for the reference orders on a trade rule.
   const needsKeepOrder = rules.some((rule) => rule.kind === "trade");
   const enumOrders = needsKeepOrder ? await providers.enumOrders() : undefined;
-  const ruleEntries = evaluateListRules(rules, kind, {
-    catalog,
-    ownedCopies,
-    customTagAssignments,
-    enumOrders,
-  });
+  const ruleEntries = evaluateListRules(
+    rules,
+    kind,
+    {
+      catalog,
+      ownedCopies,
+      customTagAssignments,
+      enumOrders,
+    },
+    listRow.ruleCombine,
+  );
   const expanded = expandList(
     kind,
     manual.map((row) => toManualEntryRow(row)),

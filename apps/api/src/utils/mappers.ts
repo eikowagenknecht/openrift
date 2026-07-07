@@ -267,7 +267,7 @@ export function parseListRules(value: ListRules | string | null | undefined): Li
 export function toListDetail(
   row: Selectable<ListsTable> & { entryCount?: number },
 ): ListDetailListResponse {
-  return { ...toList(row), rules: parseListRules(row.rules) };
+  return { ...toList(row), rules: parseListRules(row.rules), ruleCombine: row.ruleCombine };
 }
 
 /** @returns Public-facing list fields — excludes shareToken, isPublic, userId. */

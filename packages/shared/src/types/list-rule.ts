@@ -57,6 +57,57 @@ export type TradeRule = z.infer<typeof tradeRuleSchema>;
 export const listRuleSchema = z.discriminatedUnion("kind", [wishRuleSchema, tradeRuleSchema]);
 export type ListRule = z.infer<typeof listRuleSchema>;
 
+/** Combine modes for wish lists: how overlapping rules reconcile a quantity. */
+export const WISH_RULE_COMBINES = ["sum", "max"] as const;
+/** Combine modes for trade lists: how overlapping rules reconcile keep-per-card. */
+export const TRADE_RULE_COMBINES = ["protect", "count-sum", "count-max"] as const;
+
+/**
+ * How a list combines the output of several rules (ADR-034 amendment 2).
+ * Wish (card/printing quantities):
+ * - `sum` (default): each matching rule adds its want; two reasons, two counts.
+ * - `max`: the most demanding rule wins; overlapping rules never double-count.
+ * Trade (copy keep/offer splits):
+ * - `protect` (default): a copy is offered only when every rule matching it
+ *   agreed to offer it — no rule's kept copy is ever listed.
+ * - `count-sum` / `count-max`: per card, combine the rules' keep counts
+ *   (sum or max), keep the nicest that-many across the union of matched
+ *   copies, offer the rest.
+ */
+export const listRuleCombineSchema = z.enum([...WISH_RULE_COMBINES, ...TRADE_RULE_COMBINES]);
+export type ListRuleCombine = z.infer<typeof listRuleCombineSchema>;
+export type WishRuleCombine = (typeof WISH_RULE_COMBINES)[number];
+export type TradeRuleCombine = (typeof TRADE_RULE_COMBINES)[number];
+
+/**
+ * The default combine mode per list intent: wish lists sum overlapping rules,
+ * trade lists protect every rule's kept copies. A persisted `null` means this
+ * default, so lists created before the setting existed follow it too.
+ * @returns The intent's default combine mode.
+ */
+export function defaultRuleCombine(intent: "wish" | "trade"): ListRuleCombine {
+  return intent === "wish" ? "sum" : "protect";
+}
+
+/**
+ * Whether a combine mode belongs to the given list intent (wish modes on wish
+ * lists, trade modes on trade lists). Write-boundary validation companion to
+ * {@link listRuleCombineSchema}.
+ * @returns True when the mode is valid for the intent.
+ */
+export function ruleCombineMatchesIntent(
+  combine: ListRuleCombine,
+  intent: "wish" | "trade" | "organize",
+): boolean {
+  if (intent === "wish") {
+    return (WISH_RULE_COMBINES as readonly string[]).includes(combine);
+  }
+  if (intent === "trade") {
+    return (TRADE_RULE_COMBINES as readonly string[]).includes(combine);
+  }
+  return false;
+}
+
 /**
  * The hard ceiling on rules per list. Every rule runs a full-catalog
  * `filterCards` pass at read time (including the uncached anonymous public-share
@@ -65,10 +116,10 @@ export type ListRule = z.infer<typeof listRuleSchema>;
 export const MAX_LIST_RULES = 10;
 
 /**
- * A list's full set of dynamic rules (ADR-034). Wish lists may carry several (up
- * to {@link MAX_LIST_RULES}); trade lists are capped at one by the route layer
- * (the overlapping keep-per-card semantics are out of scope for v1). The rendered
- * list is the union of every rule's output, deduped by `expandList`.
+ * A list's full set of dynamic rules (ADR-034). Wish and trade lists may both
+ * carry several (up to {@link MAX_LIST_RULES}); overlapping outputs combine per
+ * the list's {@link ListRuleCombine} mode in `evaluateListRules`, then merge
+ * with manual entries via `expandList`.
  */
 export const listRulesSchema = z
   .array(listRuleSchema)

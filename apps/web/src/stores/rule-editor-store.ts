@@ -1,4 +1,10 @@
-import type { CardFilters, ListIntent, ListRule, RuleQuantity } from "@openrift/shared";
+import type {
+  CardFilters,
+  ListIntent,
+  ListRule,
+  ListRuleCombine,
+  RuleQuantity,
+} from "@openrift/shared";
 import { EMPTY_CARD_FILTERS } from "@openrift/shared";
 import { create } from "zustand";
 
@@ -26,16 +32,22 @@ export interface DraftRule {
 
 /**
  * Draft state for the dynamic list-rule editor (ADR-034). One list is edited at
- * a time. A wish list may carry several rules; a trade list at most one (the
- * route layer enforces the cap). `load` seeds the drafts from the list's saved
- * rules, the setters mutate one rule by index, and `buildRules` serializes the
+ * a time; wish and trade lists may both carry several rules, combined per the
+ * list's mode. `load` seeds the drafts from the list's saved rules + combine
+ * mode, the setters mutate one rule by index, and `buildRules` serializes the
  * drafts back to {@link ListRule}s for the PATCH.
  */
 export interface RuleEditorState {
   /** The list's draft rules. Empty = no dynamic rules. */
   rules: DraftRule[];
+  /**
+   * How several rules combine (ADR-034 amendment 2). null = the intent's
+   * default (wish: sum, trade: protect).
+   */
+  ruleCombine: ListRuleCombine | null;
 
-  load: (rules: ListRule[]) => void;
+  load: (rules: ListRule[], ruleCombine?: ListRuleCombine | null) => void;
+  setRuleCombine: (ruleCombine: ListRuleCombine | null) => void;
   /** Appends a fresh rule. `languages` seeds its language filter (the user's preferred languages). */
   addRule: (languages?: string[]) => void;
   removeRule: (index: number) => void;
@@ -141,8 +153,12 @@ function patchRule(
 
 export const useRuleEditorStore = create<RuleEditorState>()((set, get) => ({
   rules: [],
+  ruleCombine: null,
 
-  load: (rules) => set({ rules: rules.map((rule) => draftFromRule(rule)) }),
+  load: (rules, ruleCombine = null) =>
+    set({ rules: rules.map((rule) => draftFromRule(rule)), ruleCombine }),
+
+  setRuleCombine: (ruleCombine) => set({ ruleCombine }),
 
   addRule: (languages) => set((state) => ({ rules: [...state.rules, emptyDraft(languages)] })),
 
@@ -189,7 +205,7 @@ export const useRuleEditorStore = create<RuleEditorState>()((set, get) => ({
       })),
     })),
 
-  reset: () => set({ rules: [] }),
+  reset: () => set({ rules: [], ruleCombine: null }),
 
   buildRules: (intent) => serializeRules(get().rules, intent),
 }));

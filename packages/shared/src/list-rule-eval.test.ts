@@ -76,7 +76,6 @@ function ownedCopy(overrides: Partial<OwnedCopyRow> & { copyId: string }): Owned
     printingId: "p1",
     cardId: "c1",
     collectionId: "col-1",
-    deckbuildingAvailable: true,
     reserved: false,
     ...overrides,
   };
@@ -314,33 +313,22 @@ describe("evaluateListRule — trade", () => {
     expect(out.map((e) => e.copyId)).toEqual(["cp2", "cp3"]);
   });
 
-  it("protects deck-available copies first when choosing what to keep", () => {
-    const ownedCopies = [
-      ownedCopy({ copyId: "cp1", printingId: "p1", cardId: "c1", deckbuildingAvailable: false }),
-      ownedCopy({ copyId: "cp2", printingId: "p1", cardId: "c1", deckbuildingAvailable: true }),
-    ];
-    const out = evaluateListRule(tradeRule({ keepPerCard: { mode: "fixed", n: 1 } }), "copy", {
-      catalog,
-      ownedCopies,
-    });
-    // cp2 (deck-available) is kept; cp1 is traded.
-    expect(out.map((e) => e.copyId)).toEqual(["cp1"]);
-  });
-
   // Reference orders for niceness ranking: plain first, premium last.
   const enumOrders = {
     finishes: ["normal", "foil", "metal"],
     rarities: ["common", "uncommon", "rare"],
     artVariants: ["normal", "altart"],
   };
-  // Three printings of the same card, ranked plain → nice by the orders above.
+  // Three printings of the same card. `foil` (common + foil) is the only
+  // non-standard one — a foil common is a premium treatment; `rare` + normal
+  // finish is that rarity's plain (standard) version.
   const nicenessCatalog = [
     makePrinting("plain", "c1", { rarity: "common", finish: "normal" }),
     makePrinting("foil", "c1", { rarity: "common", finish: "foil" }),
     makePrinting("rare", "c1", { rarity: "rare", finish: "normal" }),
   ];
 
-  it("keeps the nicer printings and offers the plainer ones", () => {
+  it("keeps the special copy first, then the rarer standard one", () => {
     const ownedCopies = [
       ownedCopy({ copyId: "cpPlain", printingId: "plain", cardId: "c1" }),
       ownedCopy({ copyId: "cpFoil", printingId: "foil", cardId: "c1" }),
@@ -351,31 +339,26 @@ describe("evaluateListRule — trade", () => {
       ownedCopies,
       enumOrders,
     });
-    // Rarity dominates, so the rare copy is kept; foil then plain are offered.
-    expect(out.map((entry) => entry.copyId)).toEqual(["cpFoil", "cpPlain"]);
+    // Standard-vs-special is the top keep tier: the foil common (special) is
+    // kept even over the rare (standard); the standard copies are offered
+    // rarest-first.
+    expect(out.map((entry) => entry.copyId)).toEqual(["cpRare", "cpPlain"]);
   });
 
-  it("protects deck-available copies ahead of niceness", () => {
+  it("keeps a signed common over a plain rare (special outranks rarity)", () => {
+    const signedCatalog = [
+      makePrinting("signed", "c1", { rarity: "common", finish: "normal", isSigned: true }),
+      makePrinting("rare", "c1", { rarity: "rare", finish: "normal" }),
+    ];
     const ownedCopies = [
-      ownedCopy({
-        copyId: "cpRare",
-        printingId: "rare",
-        cardId: "c1",
-        deckbuildingAvailable: false,
-      }),
-      ownedCopy({
-        copyId: "cpPlain",
-        printingId: "plain",
-        cardId: "c1",
-        deckbuildingAvailable: true,
-      }),
+      ownedCopy({ copyId: "cpSigned", printingId: "signed", cardId: "c1" }),
+      ownedCopy({ copyId: "cpRare", printingId: "rare", cardId: "c1" }),
     ];
     const out = evaluateListRule(tradeRule({ keepPerCard: { mode: "fixed", n: 1 } }), "copy", {
-      catalog: nicenessCatalog,
+      catalog: signedCatalog,
       ownedCopies,
       enumOrders,
     });
-    // The nicer copy is deck-unavailable, so the deck-available plain copy is kept.
     expect(out.map((entry) => entry.copyId)).toEqual(["cpRare"]);
   });
 
@@ -628,16 +611,211 @@ describe("evaluateListRules — multiple", () => {
     expect(evaluateListRules([], "card", { catalog })).toEqual([]);
   });
 
-  it("overlapping rules deduplicate to the max quantity via expandList", () => {
+  it("overlapping rules sum their quantities by default", () => {
     const rules: ListRule[] = [
       { kind: "wish", filter: filters(), quantity: { mode: "fixed", n: 2 }, excludeIds: [] },
       { kind: "wish", filter: filters(), quantity: { mode: "fixed", n: 4 }, excludeIds: [] },
     ];
-    const ruleEntries = evaluateListRules(rules, "card", { catalog });
-    const expanded = expandList("card", [], ruleEntries);
-    // Three distinct cards, each wanted at the higher of the two quantities.
-    expect(expanded).toHaveLength(3);
-    expect(expanded.every((entry) => entry.quantity === 4 && entry.source === "rule")).toBe(true);
+    const out = evaluateListRules(rules, "card", { catalog });
+    // Entries arrive pre-combined: one per card, each wanted 2 + 4 = 6.
+    expect(out).toHaveLength(3);
+    expect(out.every((entry) => entry.quantity === 6)).toBe(true);
+    const expanded = expandList("card", [], out);
+    expect(expanded.every((entry) => entry.quantity === 6 && entry.source === "rule")).toBe(true);
+  });
+
+  it("max mode takes the most demanding rule instead of summing", () => {
+    const rules: ListRule[] = [
+      { kind: "wish", filter: filters(), quantity: { mode: "fixed", n: 2 }, excludeIds: [] },
+      { kind: "wish", filter: filters(), quantity: { mode: "fixed", n: 4 }, excludeIds: [] },
+    ];
+    const out = evaluateListRules(rules, "card", { catalog }, "max");
+    expect(out).toHaveLength(3);
+    expect(out.every((entry) => entry.quantity === 4)).toBe(true);
+  });
+
+  it("a key excluded by one rule still gets the other rule's contribution", () => {
+    const rules: ListRule[] = [
+      { kind: "wish", filter: filters(), quantity: { mode: "fixed", n: 2 }, excludeIds: ["c2"] },
+      { kind: "wish", filter: filters(), quantity: { mode: "fixed", n: 4 }, excludeIds: [] },
+    ];
+    const out = evaluateListRules(rules, "card", { catalog });
+    const byCard = new Map(out.map((entry) => [entry.cardId, entry.quantity]));
+    expect(byCard.get("c1")).toBe(6);
+    expect(byCard.get("c2")).toBe(4); // only rule 2 contributes
+  });
+
+  it("summed netOwned rules share one owned pool (no double-crediting)", () => {
+    // Rules A (want 3, net) + B (want 1, net) on the same card, owning 2:
+    // combined demand 4 − owned 2 = 2. Per-rule netting would wrongly give
+    // (3−2) + max(0, 1−2) = 1.
+    const rules: ListRule[] = [
+      {
+        kind: "wish",
+        filter: filters(),
+        quantity: { mode: "fixed", n: 3 },
+        excludeIds: [],
+        netOwned: true,
+      },
+      {
+        kind: "wish",
+        filter: filters(),
+        quantity: { mode: "fixed", n: 1 },
+        excludeIds: [],
+        netOwned: true,
+      },
+    ];
+    const singleCard = [makePrinting("p1", "c1")];
+    const ownedCopies = [
+      ownedCopy({ copyId: "x1", printingId: "p1", cardId: "c1" }),
+      ownedCopy({ copyId: "x2", printingId: "p1", cardId: "c1" }),
+    ];
+    const out = evaluateListRules(rules, "card", { catalog: singleCard, ownedCopies });
+    expect(out).toEqual([{ kind: "card", cardId: "c1", quantity: 2 }]);
+  });
+
+  it("owned copies only net the netOwned rules' share of a mixed sum", () => {
+    // A (want 3, net) + B (want 2, plain), owning 1: B's 2 stand as-is, A nets
+    // to 2 → total 4.
+    const rules: ListRule[] = [
+      {
+        kind: "wish",
+        filter: filters(),
+        quantity: { mode: "fixed", n: 3 },
+        excludeIds: [],
+        netOwned: true,
+      },
+      { kind: "wish", filter: filters(), quantity: { mode: "fixed", n: 2 }, excludeIds: [] },
+    ];
+    const singleCard = [makePrinting("p1", "c1")];
+    const ownedCopies = [ownedCopy({ copyId: "x1", printingId: "p1", cardId: "c1" })];
+    const out = evaluateListRules(rules, "card", { catalog: singleCard, ownedCopies });
+    expect(out).toEqual([{ kind: "card", cardId: "c1", quantity: 4 }]);
+  });
+
+  it("max mode nets the owned pool off the largest netOwned demand", () => {
+    const rules: ListRule[] = [
+      {
+        kind: "wish",
+        filter: filters(),
+        quantity: { mode: "fixed", n: 3 },
+        excludeIds: [],
+        netOwned: true,
+      },
+      {
+        kind: "wish",
+        filter: filters(),
+        quantity: { mode: "fixed", n: 1 },
+        excludeIds: [],
+        netOwned: true,
+      },
+    ];
+    const singleCard = [makePrinting("p1", "c1")];
+    const ownedCopies = [
+      ownedCopy({ copyId: "x1", printingId: "p1", cardId: "c1" }),
+      ownedCopy({ copyId: "x2", printingId: "p1", cardId: "c1" }),
+    ];
+    const out = evaluateListRules(rules, "card", { catalog: singleCard, ownedCopies }, "max");
+    // max(3, 1) − 2 owned = 1.
+    expect(out).toEqual([{ kind: "card", cardId: "c1", quantity: 1 }]);
+  });
+});
+
+describe("evaluateListRules — trade combine (the Zeri matrix)", () => {
+  // One card, five owned copies, ranked keep-first:
+  //   Z1 foil+signed (special) > Z2 foil (special) > Z3 > Z4 > Z5 (plains).
+  const enumOrders = {
+    finishes: ["normal", "foil", "metal"],
+    rarities: ["common", "uncommon", "rare"],
+    artVariants: ["normal", "altart"],
+  };
+  const catalog = [
+    makePrinting("z-plain", "zeri", { rarity: "common", finish: "normal" }),
+    makePrinting("z-foil", "zeri", { rarity: "common", finish: "foil" }),
+    makePrinting("z-foil-signed", "zeri", { rarity: "common", finish: "foil", isSigned: true }),
+  ];
+  const ownedCopies = [
+    ownedCopy({ copyId: "z1", printingId: "z-foil-signed", cardId: "zeri" }),
+    ownedCopy({ copyId: "z2", printingId: "z-foil", cardId: "zeri" }),
+    ownedCopy({ copyId: "z3", printingId: "z-plain", cardId: "zeri" }),
+    ownedCopy({ copyId: "z4", printingId: "z-plain", cardId: "zeri" }),
+    ownedCopy({ copyId: "z5", printingId: "z-plain", cardId: "zeri" }),
+  ];
+  // Rule A: offer my extras across everything, keep 1 (keeps Z1).
+  // Rule B: hold back plains for a second deck, keep 2 (keeps Z3 + Z4).
+  const rules: ListRule[] = [
+    {
+      kind: "trade",
+      filter: filters(),
+      collectionIds: null,
+      keepPerCard: { mode: "fixed", n: 1 },
+      excludeCopyIds: [],
+    },
+    {
+      kind: "trade",
+      filter: filters({ finishes: ["normal"] }),
+      collectionIds: null,
+      keepPerCard: { mode: "fixed", n: 2 },
+      excludeCopyIds: [],
+    },
+  ];
+  const ctx = { catalog, ownedCopies, enumOrders };
+
+  it("protect (default): a copy any rule kept is never offered", () => {
+    const out = evaluateListRules(rules, "copy", ctx);
+    // Kept: Z1 (rule A) + Z3, Z4 (rule B). Offered: the spare foil + spare plain.
+    expect(out.map((entry) => entry.copyId).sort()).toEqual(["z2", "z5"]);
+  });
+
+  it("count-sum: keep 1 + 2 = 3 nicest across the union", () => {
+    const out = evaluateListRules(rules, "copy", ctx, "count-sum");
+    // Keeps Z1, Z2, Z3 (nicest three), offers Z4 + Z5 — including plains rule B
+    // guarded, which is the documented count-mode trade-off.
+    expect(out.map((entry) => entry.copyId).sort()).toEqual(["z4", "z5"]);
+  });
+
+  it("count-max: keep max(1, 2) = 2 nicest across the union", () => {
+    const out = evaluateListRules(rules, "copy", ctx, "count-max");
+    expect(out.map((entry) => entry.copyId).sort()).toEqual(["z3", "z4", "z5"]);
+  });
+
+  it("single rule: every mode degenerates to the same keep-N split", () => {
+    for (const mode of [undefined, "protect", "count-sum", "count-max"] as const) {
+      const out = evaluateListRules([rules[0]!], "copy", ctx, mode);
+      expect(out.map((entry) => entry.copyId).sort()).toEqual(["z2", "z3", "z4", "z5"]);
+    }
+  });
+
+  it("protect never leaks a copy excluded by the only rule matching it", () => {
+    // Rule B excludes Z5; rule A doesn't match plains here. Z5 must not appear.
+    const scoped: ListRule[] = [
+      {
+        kind: "trade",
+        filter: filters({ finishes: ["foil"] }),
+        collectionIds: null,
+        keepPerCard: { mode: "fixed", n: 1 },
+        excludeCopyIds: [],
+      },
+      {
+        kind: "trade",
+        filter: filters({ finishes: ["normal"] }),
+        collectionIds: null,
+        keepPerCard: { mode: "fixed", n: 1 },
+        excludeCopyIds: ["z5"],
+      },
+    ];
+    const out = evaluateListRules(scoped, "copy", ctx);
+    // Foil pool keeps Z1, offers Z2; plain pool (minus excluded Z5) keeps Z3,
+    // offers Z4.
+    expect(out.map((entry) => entry.copyId).sort()).toEqual(["z2", "z4"]);
+  });
+
+  it("carries the reserved annotation through combination", () => {
+    const reservedCopies = ownedCopies.map((copy) =>
+      copy.copyId === "z5" ? { ...copy, reserved: true } : copy,
+    );
+    const out = evaluateListRules(rules, "copy", { ...ctx, ownedCopies: reservedCopies });
+    expect(out.find((entry) => entry.copyId === "z5")?.reserved).toBe(true);
   });
 });
 

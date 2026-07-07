@@ -12,8 +12,10 @@ import {
   idParamSchema,
   listEntryFieldRules,
   listEntryInputShape,
+  listRuleCombineSchema,
   listRulesSchema,
   oneListEntryTarget,
+  ruleCombineMatchesIntent,
   tradePreferenceInputSchema,
   withParams,
 } from "@openrift/shared/schemas";
@@ -64,9 +66,11 @@ export const createListSchema = z
     tradeDefaults: tradePreferenceInputSchema.optional(),
     currency: currencySchema.nullable().optional(),
     // Dynamic list rules (ADR-034). Only valid on wish/trade lists; each rule's
-    // discriminant must match the list intent. Trade lists are capped at one
-    // rule (see refinements below).
+    // discriminant must match the list intent (see refinements below).
     rules: listRulesSchema.optional(),
+    // How several rules combine (ADR-034 amendment 2). null/absent = the
+    // intent's default (wish: sum, trade: protect).
+    ruleCombine: listRuleCombineSchema.nullable().optional(),
   })
   .refine((data) => isAllowedIntentKind(data.intent, data.kind), {
     message:
@@ -86,18 +90,24 @@ export const createListSchema = z
   .refine((data) => (data.rules ?? []).every((rule) => rule.kind === data.intent), {
     message: "rule kind must match the list intent",
   })
-  .refine((data) => data.intent !== "trade" || (data.rules ?? []).length <= 1, {
-    message: "trade lists support at most one dynamic rule",
-  });
+  .refine(
+    (data) =>
+      data.ruleCombine === null ||
+      data.ruleCombine === undefined ||
+      ruleCombineMatchesIntent(data.ruleCombine, data.intent),
+    { message: "rule combine mode must match the list intent" },
+  );
 
 export const updateListSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   tradeDefaults: tradePreferenceInputSchema.optional(),
   currency: currencySchema.nullable().optional(),
   // Set/replace the dynamic rules (ADR-034). An empty array clears them. The
-  // route layer validates each rule's kind (and the trade single-rule cap)
-  // against the existing list's intent.
+  // route layer validates each rule's kind against the existing list's intent.
   rules: listRulesSchema.optional(),
+  // Set/clear the combine mode (ADR-034 amendment 2). null = back to the
+  // intent's default. The route layer validates the mode against the intent.
+  ruleCombine: listRuleCombineSchema.nullable().optional(),
 });
 
 /**
@@ -171,7 +181,12 @@ export const listResponseSchema = z.object(listResponseShape).openapi("ListRespo
 
 /** Detail responses also carry the rules themselves so the editor can load them. */
 export const listDetailListResponseSchema = z
-  .object({ ...listResponseShape, rules: listRulesSchema })
+  .object({
+    ...listResponseShape,
+    rules: listRulesSchema,
+    // null = the intent's default combine mode (ADR-034 amendment 2).
+    ruleCombine: listRuleCombineSchema.nullable(),
+  })
   .openapi("ListDetailListResponse");
 
 export const listListResponseSchema = z

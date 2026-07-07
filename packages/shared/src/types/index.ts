@@ -53,15 +53,29 @@ export {
   SORT_OPTIONS,
 } from "./search.js";
 
-export type { ListRule, ListRules, RuleQuantity, TradeRule, WishRule } from "./list-rule.js";
+export type {
+  ListRule,
+  ListRuleCombine,
+  ListRules,
+  RuleQuantity,
+  TradeRule,
+  TradeRuleCombine,
+  WishRule,
+  WishRuleCombine,
+} from "./list-rule.js";
 export {
+  defaultRuleCombine,
   hydrateListRules,
+  listRuleCombineSchema,
   listRuleSchema,
   listRulesSchema,
   MAX_LIST_RULES,
   normalizeListRules,
+  ruleCombineMatchesIntent,
   ruleQuantitySchema,
+  TRADE_RULE_COMBINES,
   tradeRuleSchema,
+  WISH_RULE_COMBINES,
   wishRuleSchema,
 } from "./list-rule.js";
 

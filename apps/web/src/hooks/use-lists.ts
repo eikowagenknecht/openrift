@@ -9,6 +9,7 @@ import type {
   ListMoveResponse,
   ListResponse,
   ListRule,
+  ListRuleCombine,
   ListShareResponse,
   PublicListDetailResponse,
   TradePreference,
@@ -121,6 +122,8 @@ interface UpdateListInput {
   currency?: Currency | null;
   /** ADR-034: set/replace the dynamic rules. An empty array clears them. */
   rules?: ListRule[];
+  /** ADR-034 amendment 2: the combine mode; null = the intent's default. */
+  ruleCombine?: ListRuleCombine | null;
 }
 
 const updateListFn = createServerFn({ method: "POST" })

@@ -28,6 +28,7 @@ import {
 import { Empty, EmptyDescription, EmptyHeader } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Pressable } from "@/components/ui/pressable";
 import {
   Select,
   SelectContent,
@@ -383,11 +384,10 @@ export function DeckListPage() {
           {/* A real, openable deck as the page's second act: one click builds
               it (locally when signed out) and opens the builder. */}
           {sampleCards && sampleLegendImage && (
-            <button
-              type="button"
+            <Pressable
               onClick={handleTrySample}
               disabled={creatingSample}
-              className="mt-6 block w-full max-w-xs cursor-pointer text-left disabled:pointer-events-none disabled:opacity-60"
+              className="mt-6 block w-full max-w-xs disabled:pointer-events-none disabled:opacity-60"
             >
               <span className="text-muted-foreground mb-2 block text-center text-sm">
                 or explore the builder with a ready-made deck:
@@ -409,7 +409,7 @@ export function DeckListPage() {
                   <ChevronRightIcon className="text-muted-foreground size-4 shrink-0" />
                 </span>
               </Card>
-            </button>
+            </Pressable>
           )}
         </EmptyState>
       ) : (

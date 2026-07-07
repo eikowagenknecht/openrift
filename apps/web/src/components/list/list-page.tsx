@@ -367,6 +367,7 @@ export function ListPage({ listId }: ListPageProps) {
       intent={data.list.intent}
       kind={data.list.kind}
       currentRules={data.list.rules}
+      currentRuleCombine={data.list.ruleCombine}
       open
       onOpenChange={setRuleOpen}
     />

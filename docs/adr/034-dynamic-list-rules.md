@@ -23,6 +23,12 @@ This ADR was scoped in a question-driven design session with the product owner (
 > 1. **A list carries an _array_ of rules** (`rules jsonb`, `NOT NULL DEFAULT '[]'`) rather than one nullable `rule` column. Wish lists may stack several rules (capped at `MAX_LIST_RULES = 10`). Trade lists are capped at one by the route layer. Every rule's output unions into the same deduped result. The shared evaluator gains an array wrapper `evaluateListRules`. This moves the old _Out of scope_ "Multiple rules per list" item into v1.
 > 2. **Wish rules gain an optional `netOwned` flag** that subtracts the owner's owned copies and emits only the positive shortfall, so "a playset of every card" can mean "…of every card I don't already own." It falls back to the full target when owned copies are unavailable.
 
+> **Amendment 2 (2026-07-06).** Trade lists may now carry several rules too (same `MAX_LIST_RULES` ceiling), and every list gets a `rule_combine` mode (migration 190, `lists.rule_combine text NULL`) naming how overlapping rule outputs reconcile. NULL means the intent's default, so existing lists follow the new defaults without a backfill. The spec sections below have been updated to match.
+>
+> 1. **Wish modes:** `sum` (default) adds overlapping rules' quantities; `max` keeps the old highest-rule-wins behavior. This changes existing multi-rule wish lists from max to sum, a deliberate product decision. Owned netting happens after combination: plain and `netOwned` targets accumulate in separate buckets and the owned count subtracts from the net bucket once, so two summed `netOwned` rules share one owned pool.
+> 2. **Trade modes:** `protect` (default) offers a copy only when no rule that matches it kept it, so stacking rules can only widen protection. `count-sum` / `count-max` combine the per-card keep counts into one total and keep the nicest that-many across the union of matched copies. The old behavior (union of offers, which silently overrode any other rule's keep) is gone; it is exactly why trade lists were capped at one rule.
+> 3. **Keep-priority ladder change:** the deck-availability tier is removed, and standard-vs-special (`isStandardPrinting`) becomes the top tier, so a special copy (marked, signed, alt art, premium finish) is kept over a plain one even across rarities. Below it: rarity, finish, art variant, signed, then `canonicalRank` / copy id. No dedicated marker or distribution-channel tier; a marked copy already counts as special at the top tier.
+
 ## Decision Drivers
 
 - All four use cases must be expressible. They span every `intent` × `kind` combo a list can take.
@@ -85,7 +91,7 @@ Current vocab: finishes `normal | foil | metal | metal-deluxe`; rarities `common
 
 ### 3. Storage & merge
 
-One JSONB `rules` column on `lists` (an array, `NOT NULL DEFAULT '[]'`), app-validated. Wish lists may carry several rules (≤ `MAX_LIST_RULES`). Trade lists carry at most one. A list may carry rules and manual `list_entries`. The rendered list is `manual ∪ (every rule's output)`, deduped (§Impl 4). When a manual entry and a rule collide on the same card/printing, their quantities add: the manual entry keeps its own row, `id`, and trade override and stays independently editable, while the rule contributes on top (so "I always want 1 of this, plus a playset from the rule" reads as 4, not 3). Two rules that both match the same card contribute their max, never double-counting overlapping rules. Copies union by `copyId` (one physical card can't be wanted twice). Cross-list additive stacking (ADR-005 shopping list) is unchanged.
+One JSONB `rules` column on `lists` (an array, `NOT NULL DEFAULT '[]'`), app-validated. Wish and trade lists may both carry several rules (≤ `MAX_LIST_RULES`), combined per the list's `rule_combine` mode (Amendment 2). A list may carry rules and manual `list_entries`. The rendered list is `manual ∪ (combined rule output)`, deduped (§Impl 4). When a manual entry and a rule collide on the same card/printing, their quantities add: the manual entry keeps its own row, `id`, and trade override and stays independently editable, while the rule contributes on top (so "I always want 1 of this, plus a playset from the rule" reads as 4, not 3). Overlapping wish rules combine per the mode (`sum` default, `max` optional) inside `evaluateListRules`, before `expandList`. Copies union by `copyId` (one physical card can't be wanted twice). Cross-list additive stacking (ADR-005 shopping list) is unchanged.
 
 ### 4. Evaluation & sharing
 
@@ -172,7 +178,7 @@ export interface TradeRule {
 export type ListRule = WishRule | TradeRule;
 ```
 
-Add `listRuleSchema = z.discriminatedUnion("kind", [wishRuleSchema, tradeRuleSchema])` to `packages/shared/src/contracts/lists.ts` (reusing `cardFiltersSchema`), then wrap it as `listRulesSchema = z.array(listRuleSchema).max(MAX_LIST_RULES)` with `MAX_LIST_RULES = 10`. The route layer must reject any rule whose `kind !== list.intent`, and reject more than one rule on a trade list.
+Add `listRuleSchema = z.discriminatedUnion("kind", [wishRuleSchema, tradeRuleSchema])` to `packages/shared/src/contracts/lists.ts` (reusing `cardFiltersSchema`), then wrap it as `listRulesSchema = z.array(listRuleSchema).max(MAX_LIST_RULES)` with `MAX_LIST_RULES = 10`. The route layer must reject any rule whose `kind !== list.intent`, and reject a `ruleCombine` mode that does not belong to the list intent (Amendment 2).
 
 ### II.3 Evaluator (`packages/shared`)
 
@@ -184,7 +190,6 @@ export interface OwnedCopyRow {
   printingId: string;
   cardId: string;
   collectionId: string;
-  deckbuildingAvailable: boolean;
   reserved: boolean;
 }
 export interface RuleEvalContext {
@@ -211,7 +216,7 @@ export function evaluateListRule(
 - **Wish, listKind="printing":** `matched = filterCards(ctx.catalog, rule.filter)`. For each `p` with `p.id ∉ excludeIds`, emit `{kind:"printing", printingId:p.id, quantity: resolveQuantity(rule.quantity, p.card)}`.
 - **Wish, listKind="card":** group `matched` by `cardId`. For each `cardId ∉ excludeIds`, emit `{kind:"card", cardId, quantity: resolveQuantity(rule.quantity, card)}`.
 - **Wish `netOwned`:** when set, subtract the owner's owned count from each emitted quantity (per `printingId` for printing-kind, per `cardId` for card-kind) and drop entries whose remaining `quantity <= 0`. Copies reserved by a live (outgoing) trade are excluded from the owned count. They're about to leave the collection, so they must not suppress the shortfall (incoming copies aren't in the owner's collection yet, so they never reach the set). Falls back to the full target when `ctx.ownedCopies` is absent.
-- **Trade (listKind="copy"):** require `ownedCopies`. `passing = new Set(filterCards(ctx.catalog, rule.filter).map(p => p.id))`. Candidates = copies where `(rule.collectionIds === null || collectionIds.includes(c.collectionId))` and `passing.has(c.printingId)` and `c.copyId ∉ excludeCopyIds`. Group by `cardId`. `keepN = resolveQuantity(rule.keepPerCard, card)`. Sort each group by `[deckbuildingAvailable desc, copyId asc]` (protect deck-available copies first, then stable by uuidv7 id), and emit `{kind:"copy", copyId, quantity:1, reserved}` for copies after the first `keepN`. Reserved copies stay in the pool and are emitted with `reserved:true`. Consumers filter/annotate them (matching excludes reserved; display shows status), mirroring today's `copyEntryQuery` behavior.
+- **Trade (listKind="copy"):** require `ownedCopies`. `passing = new Set(filterCards(ctx.catalog, rule.filter).map(p => p.id))`. Candidates = copies where `(rule.collectionIds === null || collectionIds.includes(c.collectionId))` and `passing.has(c.printingId)` and `c.copyId ∉ excludeCopyIds`. Group by `cardId`. `keepN = resolveQuantity(rule.keepPerCard, card)`. Sort each group keep-first by the keep-priority ladder (standard-vs-special, then rarity / finish / art variant / signed against the reference orders, then `canonicalRank`, then copy id; Amendment 2), and emit `{kind:"copy", copyId, quantity:1, reserved}` for copies after the first `keepN`. With several rules the per-rule splits combine per the trade mode (`protect` default, `count-sum`, `count-max`; Amendment 2). Reserved copies stay in the pool and are emitted with `reserved:true`. Consumers filter/annotate them (matching excludes reserved; display shows status), mirroring today's `copyEntryQuery` behavior.
 - Tests `list-rule-eval.test.ts`: each of UC1–UC4 plus empty results, exclusions, playset-1 vs playset-3 cards, keep=0, reserved handling, collection scoping.
 
 ### II.4 `expandList` (union authority, `packages/shared`)
@@ -237,7 +242,7 @@ export function expandList(
 ```
 
 - Dedup key: copy lists by `copyId`; card/printing lists by `cardId`/`printingId`.
-- Conflict: card/printing quantity = `manualQuantity + ruleContribution`, where `ruleContribution` is the `max` across any overlapping rules (overlapping rules never double-count); `source = "both"`. The rule part is reported separately as `ruleQuantity` so the manual part (`quantity − ruleQuantity`) stays editable. Copies: union; manual wins (keeps its `id` + per-entry trade override); `source = "both"` if also rule-produced.
+- Conflict: card/printing quantity = `manualQuantity + ruleContribution`, where `ruleContribution` arrives pre-combined per key from `evaluateListRules` (Amendment 2); `source = "both"`. The rule part is reported separately as `ruleQuantity` so the manual part (`quantity − ruleQuantity`) stays editable. Copies: union; manual wins (keeps its `id` + per-entry trade override); `source = "both"` if also rule-produced.
 - Manual entries keep their real `list_entries.id` and own trade prefs. Rule-only entries get `id: null`, `source:"rule"`, and inherit the list's trade defaults.
 - Tests for every conflict/merge case.
 
@@ -251,7 +256,7 @@ export function expandList(
 ### II.6 Repository + service wiring (`apps/api`)
 
 - **Server catalog provider:** add a repo method to assemble the full `Printing[]` server-side (reuse the assembly already feeding the public catalog route, `assembleCatalogPrintings` in `apps/api/src/services/catalog-assembly.ts`). The assembly is memoized process-wide and content-addressed by `createCatalogPrintingsCache`: each read first runs a cheap `catalogContentVersion()` probe (`count(*)` + `max(updated_at)` over the tables that feed the `Printing[]`, ~5ms), reuses the cached catalog while the token is unchanged, and reassembles the instant an admin edit rolls it. This keeps reads both cheap (no rebuild per request) and always fresh (no staleness window), which matters because expansion runs inline on every list read, including the uncached anonymous public-share path. (Earlier drafts said "cache per-request." A single process-wide content-addressed memo is strictly better: same freshness, far less work.)
-- **Owner copies:** add `copiesRepo.ownedRowsForUser(userId): OwnedCopyRow[]` joining `copies → collections (deckbuilding availability) → cards` and the reservation set (`cardTradeCopies`, as `copyEntryQuery` does). New repo method (none exists today).
+- **Owner copies:** add `copiesRepo.ownedRowsForUser(userId): OwnedCopyRow[]` joining `copies → collections → cards` and the reservation set (`cardTradeCopies`, as `copyEntryQuery` does). New repo method (none exists today).
 - **`lists.entriesWithDetails()` (lists.ts:390) and `lists.entriesWithDetailsAnon()` (line 399):** before enrichment, if `list.rules` is non-empty, call `evaluateListRules` (owner = the list's `user_id`, even in the Anon path) then `expandList`, and enrich the resulting `ExpandedEntry[]` through the existing `cardEntryQuery` / `printingEntryQuery` / `copyEntryQuery` joins (now keyed off the expanded ids). Carry `source` + nullable `id` through. These two methods cover GET /lists/{id}, public share (`public/lists.ts`), group shared list (`friend-groups.ts:702`), bundle list (`public/user-share.ts:63`), and all three share-image routes. No other detail path needs changes.
 
 ### II.7 Read-path checklist (must all be handled)

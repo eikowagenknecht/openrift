@@ -365,7 +365,8 @@ describe("createListSchema", () => {
   });
 
   // Dynamic-rule refinements (ADR-034): each rule's discriminant must match the
-  // list intent, organize lists carry none, and trade lists are capped at one.
+  // list intent, organize lists carry none, and the combine mode must belong to
+  // the intent (amendment 2).
   const wishRuleDraft: ListRule = {
     kind: "wish",
     filter: EMPTY_CARD_FILTERS,
@@ -413,13 +414,64 @@ describe("createListSchema", () => {
     ).toBe(false);
   });
 
-  it("caps trade lists at one rule", () => {
+  it("accepts several rules on a trade list (ADR-034 amendment 2)", () => {
     expect(
       createListSchema.safeParse({
         name: "Surplus",
         intent: "trade",
         kind: "copy",
         rules: [tradeRuleDraft, tradeRuleDraft],
+      }).success,
+    ).toBe(true);
+  });
+
+  it("accepts a combine mode matching the intent", () => {
+    expect(
+      createListSchema.safeParse({
+        name: "Surplus",
+        intent: "trade",
+        kind: "copy",
+        rules: [tradeRuleDraft],
+        ruleCombine: "count-sum",
+      }).success,
+    ).toBe(true);
+    expect(
+      createListSchema.safeParse({
+        name: "Wants",
+        intent: "wish",
+        kind: "card",
+        rules: [wishRuleDraft],
+        ruleCombine: "max",
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rejects a combine mode from the other intent", () => {
+    expect(
+      createListSchema.safeParse({
+        name: "Bad",
+        intent: "wish",
+        kind: "card",
+        ruleCombine: "protect",
+      }).success,
+    ).toBe(false);
+    expect(
+      createListSchema.safeParse({
+        name: "Bad",
+        intent: "trade",
+        kind: "copy",
+        ruleCombine: "sum",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects any combine mode on an organize list", () => {
+    expect(
+      createListSchema.safeParse({
+        name: "Bad",
+        intent: "organize",
+        kind: "card",
+        ruleCombine: "sum",
       }).success,
     ).toBe(false);
   });

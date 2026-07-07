@@ -2,11 +2,18 @@ import type {
   ListIntent,
   ListKind,
   ListRule,
+  ListRuleCombine,
   OwnedCopyRow,
   Printing,
   RuleQuantity,
 } from "@openrift/shared";
-import { evaluateListRules, expandList, legendDisplayName, MAX_LIST_RULES } from "@openrift/shared";
+import {
+  defaultRuleCombine,
+  evaluateListRules,
+  expandList,
+  legendDisplayName,
+  MAX_LIST_RULES,
+} from "@openrift/shared";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { PlusIcon, Trash2Icon, XIcon } from "lucide-react";
 import type { ReactNode } from "react";
@@ -53,6 +60,8 @@ interface RuleEditorDialogProps {
   intent: ListIntent;
   kind: ListKind;
   currentRules: ListRule[];
+  /** The saved combine mode; null = the intent's default (ADR-034 amendment 2). */
+  currentRuleCombine: ListRuleCombine | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -61,8 +70,9 @@ interface RuleEditorDialogProps {
  * Editor for a list's dynamic rules (ADR-034). Each rule's predicate is the full
  * controlled {@link RuleFilterEditor} (the same facets as the card browser) plus
  * mode math (target quantity for wish, keep-threshold + collection scope for
- * trade). Wish lists may carry several rules (add/remove); trade lists are
- * capped at one. A live preview counts the deduped wish matches.
+ * trade). Wish and trade lists may both carry several rules (add/remove); with
+ * two or more, a combine-mode select says how they reconcile. A live preview
+ * counts the deduped wish matches.
  * @returns The dialog node.
  */
 export function RuleEditorDialog({
@@ -70,6 +80,7 @@ export function RuleEditorDialog({
   intent,
   kind,
   currentRules,
+  currentRuleCombine,
   open,
   onOpenChange,
 }: RuleEditorDialogProps) {
@@ -94,11 +105,11 @@ export function RuleEditorDialog({
     if (!open) {
       return;
     }
-    load(currentRules);
+    load(currentRules, currentRuleCombine);
     void queryClient.ensureQueryData(catalogQueryOptions);
     void queryClient.ensureQueryData(initQueryOptions);
     return () => reset();
-  }, [open, currentRules, load, reset, queryClient]);
+  }, [open, currentRules, currentRuleCombine, load, reset, queryClient]);
 
   const isTrade = intent === "trade";
 
@@ -107,8 +118,9 @@ export function RuleEditorDialog({
       return;
     }
     const next = buildRules(intent);
+    const ruleCombine = useRuleEditorStore.getState().ruleCombine;
     updateList.mutate(
-      { listId, rules: next },
+      { listId, rules: next, ruleCombine },
       {
         onSuccess: () => {
           toast.success(next.length > 0 ? "Rules saved" : "Rules removed");
@@ -123,10 +135,10 @@ export function RuleEditorDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{isTrade ? "Dynamic rule" : "Dynamic rules"}</DialogTitle>
+          <DialogTitle>Dynamic rules</DialogTitle>
           <DialogDescription>
             {isTrade
-              ? "Automatically offer copies in your collection that match these filters."
+              ? "Automatically offer copies in your collection that match these filters. Add more than one rule to combine them."
               : "Automatically want every card that matches these filters. Add more than one rule to combine them."}
           </DialogDescription>
         </DialogHeader>
@@ -155,9 +167,9 @@ export function RuleEditorDialog({
 
 /**
  * The shared rule-list shell: an empty-state hint, one {@link RuleBlock} per draft
- * rule, an optional footer (the wish preview), and an "Add rule" button that hides
- * once the rule count reaches `maxRules`. The wish editor caps at `MAX_LIST_RULES`
- * (each rule is a full-catalog pass at read time); the trade editor caps at one.
+ * rule, the combine-mode select (once two rules exist), an optional footer (the
+ * wish preview), and an "Add rule" button that hides once the rule count reaches
+ * `MAX_LIST_RULES` (each rule is a full-catalog pass at read time).
  * @returns The list shell node.
  */
 function RuleList({
@@ -165,14 +177,12 @@ function RuleList({
   isTrade,
   collectionOptions,
   emptyMessage,
-  maxRules,
   footer,
 }: {
   kind: ListKind;
   isTrade: boolean;
   collectionOptions: { value: string; label: string }[];
   emptyMessage: string;
-  maxRules: number;
   footer?: ReactNode;
 }) {
   const rules = useRuleEditorStore((state) => state.rules);
@@ -193,15 +203,17 @@ function RuleList({
           key={index}
           index={index}
           kind={kind}
-          title={maxRules === 1 ? "Rule" : `Rule ${index + 1}`}
+          title={`Rule ${index + 1}`}
           isTrade={isTrade}
           collectionOptions={collectionOptions}
         />
       ))}
 
+      {rules.length >= 2 && <RuleCombineRow isTrade={isTrade} />}
+
       {footer}
 
-      {rules.length < maxRules && (
+      {rules.length < MAX_LIST_RULES && (
         <Button
           type="button"
           variant="outline"
@@ -216,9 +228,72 @@ function RuleList({
   );
 }
 
+const WISH_COMBINE_OPTIONS = [
+  { value: "sum", label: "Add up the quantities" },
+  { value: "max", label: "Highest rule wins" },
+] as const;
+
+const TRADE_COMBINE_OPTIONS = [
+  { value: "protect", label: "Keep everything a rule keeps" },
+  { value: "count-sum", label: "Keep the totals added up" },
+  { value: "count-max", label: "Keep the highest total" },
+] as const;
+
 /**
- * Trade-list rule editor: the shared {@link RuleList} capped at one rule (the
- * route layer enforces the cap too), with the trade-only collection scope.
+ * The combine-mode select, shown once a list has two or more rules (ADR-034
+ * amendment 2). Wish lists reconcile overlapping quantities (sum / max); trade
+ * lists reconcile keep-per-card splits (protect / count-sum / count-max). The
+ * store's `null` renders as the intent's default so the select never looks
+ * unset.
+ * @returns The combine row node.
+ */
+function RuleCombineRow({ isTrade }: { isTrade: boolean }) {
+  const ruleCombine = useRuleEditorStore((state) => state.ruleCombine);
+  const setRuleCombine = useRuleEditorStore((state) => state.setRuleCombine);
+  const options = isTrade ? TRADE_COMBINE_OPTIONS : WISH_COMBINE_OPTIONS;
+  const value = ruleCombine ?? defaultRuleCombine(isTrade ? "trade" : "wish");
+
+  return (
+    <>
+      <FilterRow label="When rules overlap">
+        <Select
+          items={options}
+          value={value}
+          onValueChange={(next) => setRuleCombine(next as ListRuleCombine)}
+        >
+          <SelectTrigger className={CONTROL_WIDTH} aria-label="When rules overlap">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              {options.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </FilterRow>
+      <p className="text-muted-foreground -mt-3 text-sm">
+        {isTrade
+          ? value === "protect"
+            ? "A copy is only offered when every rule that matches it agrees to offer it."
+            : value === "count-sum"
+              ? "Adds up the keep counts per card and keeps your best copies up to that total."
+              : "Uses the highest keep count per card and keeps your best copies up to it."
+          : value === "sum"
+            ? "A card matched by several rules is wanted once per rule, added together."
+            : "A card matched by several rules is wanted as much as the most demanding rule."}
+      </p>
+    </>
+  );
+}
+
+/**
+ * Trade-list rule editor: the shared {@link RuleList} with the trade-only
+ * collection scope. Several rules combine per the list's mode (ADR-034
+ * amendment 2).
  * @returns The trade editor node.
  */
 function TradeRuleEditor({ kind }: { kind: ListKind }) {
@@ -236,7 +311,6 @@ function TradeRuleEditor({ kind }: { kind: ListKind }) {
       isTrade
       collectionOptions={collectionOptions}
       emptyMessage="No rule yet. Add one to automatically offer copies in your collection that match a filter."
-      maxRules={1}
     />
   );
 }
@@ -250,6 +324,7 @@ function WishRuleEditor({ kind }: { kind: ListKind }) {
   const { allPrintings, printingsById } = useCards();
   const customTagAssignments = useCustomTagAssignments();
   const rules = useRuleEditorStore((state) => state.rules);
+  const ruleCombine = useRuleEditorStore((state) => state.ruleCombine);
 
   // Net-owned rules subtract the user's copies, so the preview needs them too.
   // Expand the per-printing owned counts into rows the evaluator can tally
@@ -267,11 +342,16 @@ function WishRuleEditor({ kind }: { kind: ListKind }) {
       ? expandList(
           kind,
           [],
-          evaluateListRules(serializeRules(rules, "wish"), kind, {
-            catalog: allPrintings,
-            ownedCopies,
-            customTagAssignments,
-          }),
+          evaluateListRules(
+            serializeRules(rules, "wish"),
+            kind,
+            {
+              catalog: allPrintings,
+              ownedCopies,
+              customTagAssignments,
+            },
+            ruleCombine,
+          ),
         ).length
       : null;
 
@@ -281,7 +361,6 @@ function WishRuleEditor({ kind }: { kind: ListKind }) {
       isTrade={false}
       collectionOptions={[]}
       emptyMessage="No rules yet. Add one to automatically want every card that matches a filter."
-      maxRules={MAX_LIST_RULES}
       footer={
         previewCount !== null && (
           <p className="text-muted-foreground -mt-1 text-sm">
@@ -561,7 +640,6 @@ function ownedCopiesFromCounts(
         printingId,
         cardId: printing.cardId,
         collectionId: "",
-        deckbuildingAvailable: false,
         reserved: false,
       });
     }
