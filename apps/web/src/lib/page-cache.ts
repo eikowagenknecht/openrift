@@ -1,4 +1,4 @@
-import interLatinWoff2 from "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url";
+import hankenGroteskLatinWoff2 from "@fontsource-variable/hanken-grotesk/files/hanken-grotesk-latin-wght-normal.woff2?url";
 
 import indexCss from "@/index.css?url";
 
@@ -13,12 +13,12 @@ const PRIVATE_PAGE_CACHE_CONTROL = "private, no-cache";
 // Cloudflare's Early Hints feature caches `Link: <...>; rel=preload` headers
 // from origin 200 responses and replays them as `103 Early Hints` on the next
 // visit, before this server even runs. Same hints work for every HTML route
-// (one CSS bundle, one Latin Inter face), so emitted statically here.
+// (one CSS bundle, one Latin Hanken Grotesk face), so emitted statically here.
 // Bare `crossorigin` token (no `=anonymous`) is the canonical RFC 8288 form
 // for fonts; quoted attribute values would trip stricter parsers.
 const PRELOAD_LINKS = [
   `<${indexCss}>; rel=preload; as=style`,
-  `<${interLatinWoff2}>; rel=preload; as=font; type="font/woff2"; crossorigin`,
+  `<${hankenGroteskLatinWoff2}>; rel=preload; as=font; type="font/woff2"; crossorigin`,
 ];
 
 // Adding a path here makes its HTML edge-cached, which means it must also be

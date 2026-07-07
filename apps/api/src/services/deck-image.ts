@@ -756,7 +756,7 @@ export async function renderDeckImage(io: Io, input: DeckImageInput, scale = 1):
       padding: PAD,
       backgroundColor: COLORS.background,
       color: COLORS.text,
-      fontFamily: "Inter",
+      fontFamily: "Hanken Grotesk",
       overflow: "hidden",
     },
     titleRow,

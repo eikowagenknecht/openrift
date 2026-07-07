@@ -312,7 +312,7 @@ export async function renderShareImage(io: Io, input: ShareImageInput): Promise<
       height: HEIGHT,
       backgroundColor: COLORS.background,
       color: COLORS.text,
-      fontFamily: "Inter",
+      fontFamily: "Hanken Grotesk",
       overflow: "hidden",
     },
     captionBar(input),

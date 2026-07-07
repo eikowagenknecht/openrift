@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-07-07
+
+### Highlights
+
+- feat(App): **New body typeface** — everyday text across the app, and the generated share and deck images, now use Hanken Grotesk, a warmer face that reads softer than the old default.
+
 ## 2026-07-06
 
 ### Highlights

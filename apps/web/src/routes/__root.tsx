@@ -1,4 +1,4 @@
-import interLatinWoff2 from "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url";
+import hankenGroteskLatinWoff2 from "@fontsource-variable/hanken-grotesk/files/hanken-grotesk-latin-wght-normal.woff2?url";
 import type { Palette } from "@openrift/shared";
 import type { AppEnv } from "@openrift/shared/app-env";
 import { parseAppEnv } from "@openrift/shared/app-env";
@@ -140,7 +140,7 @@ export const Route = createRootRouteWithContext<{
           rel: "preload",
           as: "font",
           type: "font/woff2",
-          href: interLatinWoff2,
+          href: hankenGroteskLatinWoff2,
           crossOrigin: "anonymous",
         },
         { rel: "stylesheet", href: indexCss },

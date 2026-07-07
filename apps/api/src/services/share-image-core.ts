@@ -84,9 +84,10 @@ interface SatoriFont {
 let cachedFonts: SatoriFont[] | null = null;
 
 /**
- * Loads the bundled Inter weights once and reuses them across renders. The TTFs
- * ship in the api image (the Dockerfile copies all of apps/api and runs from
- * source); satori cannot read the WOFF2 the web app uses, hence the static TTFs.
+ * Loads the bundled Hanken Grotesk weights once and reuses them across renders.
+ * These match the app UI font. The TTFs ship in the api image (the Dockerfile
+ * copies all of apps/api and runs from source); satori cannot read the WOFF2
+ * the web app uses, so these are static instances of the same variable face.
  * @returns The satori `fonts` array.
  */
 async function loadFonts(io: Io): Promise<SatoriFont[]> {
@@ -96,9 +97,24 @@ async function loadFonts(io: Io): Promise<SatoriFont[]> {
   const fontDir = `${import.meta.dirname}/../assets/fonts`;
   const read = (file: string): Promise<Buffer> => io.fs.readFile(`${fontDir}/${file}`);
   cachedFonts = [
-    { name: "Inter", data: await read("Inter-Regular.ttf"), weight: 400, style: "normal" },
-    { name: "Inter", data: await read("Inter-SemiBold.ttf"), weight: 600, style: "normal" },
-    { name: "Inter", data: await read("Inter-Bold.ttf"), weight: 700, style: "normal" },
+    {
+      name: "Hanken Grotesk",
+      data: await read("HankenGrotesk-Regular.ttf"),
+      weight: 400,
+      style: "normal",
+    },
+    {
+      name: "Hanken Grotesk",
+      data: await read("HankenGrotesk-SemiBold.ttf"),
+      weight: 600,
+      style: "normal",
+    },
+    {
+      name: "Hanken Grotesk",
+      data: await read("HankenGrotesk-Bold.ttf"),
+      weight: 700,
+      style: "normal",
+    },
   ];
   return cachedFonts;
 }
