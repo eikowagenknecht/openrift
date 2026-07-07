@@ -199,6 +199,14 @@ function SignInRequiredDialog({
   );
 }
 
+// The pill background is reserved for hover/focus; the active route is marked
+// by text emphasis only. Otherwise an active item next to a hovered one renders
+// as two same-color pills fused at their rounded corners.
+const DESKTOP_NAV_ITEM_CLASS = cn(
+  navigationMenuTriggerStyle(),
+  "text-muted-foreground hover:text-foreground focus:text-foreground data-[status=active]:text-foreground data-[status=active]:font-semibold",
+);
+
 function DesktopNav({
   isLoggedIn,
   showGlossary,
@@ -214,14 +222,11 @@ function DesktopNav({
 }) {
   return (
     <NavigationMenu>
-      <NavigationMenuList>
+      <NavigationMenuList className="gap-1">
         <NavigationMenuItem>
           <NavigationMenuLink
             render={<Link to="/cards" search={(prev) => prev} />}
-            className={cn(
-              navigationMenuTriggerStyle(),
-              "data-[status=active]:bg-muted data-[status=active]:font-semibold",
-            )}
+            className={DESKTOP_NAV_ITEM_CLASS}
           >
             Cards
           </NavigationMenuLink>
@@ -230,10 +235,7 @@ function DesktopNav({
           {isLoggedIn ? (
             <NavigationMenuLink
               render={<Link to="/collections" />}
-              className={cn(
-                navigationMenuTriggerStyle(),
-                "data-[status=active]:bg-muted data-[status=active]:font-semibold",
-              )}
+              className={DESKTOP_NAV_ITEM_CLASS}
             >
               Collection
             </NavigationMenuLink>
@@ -241,7 +243,7 @@ function DesktopNav({
             <NavigationMenuLink
               // oxlint-disable-next-line jsx-a11y/control-has-associated-label, react/forbid-elements -- bare render slot; NavigationMenuLink owns all styling and provides the label as children
               render={<button type="button" onClick={() => onLockedClick("collections")} />}
-              className={cn(navigationMenuTriggerStyle(), "gap-1.5")}
+              className={cn(DESKTOP_NAV_ITEM_CLASS, "gap-1.5")}
             >
               Collection
               <LockIcon className="text-muted-foreground size-3.5" />
@@ -250,23 +252,14 @@ function DesktopNav({
         </NavigationMenuItem>
         {showDecks && (
           <NavigationMenuItem>
-            <NavigationMenuLink
-              render={<Link to="/decks" />}
-              className={navigationMenuTriggerStyle()}
-            >
+            <NavigationMenuLink render={<Link to="/decks" />} className={DESKTOP_NAV_ITEM_CLASS}>
               Decks
             </NavigationMenuLink>
           </NavigationMenuItem>
         )}
         <NavigationMenuItem>
           {isLoggedIn ? (
-            <NavigationMenuLink
-              render={<Link to="/groups" />}
-              className={cn(
-                navigationMenuTriggerStyle(),
-                "data-[status=active]:bg-muted data-[status=active]:font-semibold",
-              )}
-            >
+            <NavigationMenuLink render={<Link to="/groups" />} className={DESKTOP_NAV_ITEM_CLASS}>
               Groups
               {groupsBadge > 0 && (
                 <Badge
@@ -282,7 +275,7 @@ function DesktopNav({
             <NavigationMenuLink
               // oxlint-disable-next-line jsx-a11y/control-has-associated-label, react/forbid-elements -- bare render slot; NavigationMenuLink owns all styling and provides the label as children
               render={<button type="button" onClick={() => onLockedClick("groups")} />}
-              className={cn(navigationMenuTriggerStyle(), "gap-1.5")}
+              className={cn(DESKTOP_NAV_ITEM_CLASS, "gap-1.5")}
             >
               Groups
               <LockIcon className="text-muted-foreground size-3.5" />
@@ -290,7 +283,9 @@ function DesktopNav({
           )}
         </NavigationMenuItem>
         <NavigationMenuItem>
-          <NavigationMenuTrigger>More</NavigationMenuTrigger>
+          <NavigationMenuTrigger className="text-muted-foreground hover:text-foreground focus:text-foreground data-popup-open:text-foreground">
+            More
+          </NavigationMenuTrigger>
           <NavigationMenuContent>
             <ul className="grid w-64 gap-1 p-1">
               <li>
@@ -521,8 +516,10 @@ function UserMenu({
   );
 }
 
+// Same active-state treatment as DESKTOP_NAV_ITEM_CLASS: background for
+// hover only, text emphasis for the active route.
 const MOBILE_NAV_ITEM_CLASS =
-  "hover:bg-muted data-[status=active]:bg-muted flex items-center gap-3 rounded-lg px-3 py-3.5 text-base data-[status=active]:font-semibold";
+  "text-muted-foreground hover:bg-muted hover:text-foreground flex items-center gap-3 rounded-lg px-3 py-3.5 text-base data-[status=active]:font-semibold data-[status=active]:text-foreground";
 
 function MobileNavLink({
   to,
