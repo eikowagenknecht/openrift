@@ -162,6 +162,13 @@ import { Toggle } from "@/components/ui/toggle";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { UserAvatar } from "@/components/user-avatar";
+import { useCssVars } from "@/hooks/use-css-vars";
+import {
+  formatSpecLine,
+  isTransparentColor,
+  parsePx,
+  useElementSpec,
+} from "@/hooks/use-element-spec";
 import { cn } from "@/lib/utils";
 
 const BUTTON_VARIANTS = [
@@ -194,6 +201,7 @@ const BADGE_VARIANTS = [
 ] as const;
 
 const SECTIONS = [
+  { id: "tokens", title: "Tokens" },
   { id: "buttons", title: "Buttons" },
   { id: "top-bar-buttons", title: "Top-bar buttons" },
   { id: "toggles", title: "Toggles" },
@@ -223,7 +231,9 @@ export function DesignPage() {
           Every UI primitive in one place. Check both themes with the header toggle. Raw{" "}
           <code className="font-mono text-sm">&lt;button&gt;</code> elements are banned by lint
           outside <code className="font-mono text-sm">components/ui/</code>, so everything
-          interactive below is the canonical way to build it.
+          interactive below is the canonical way to build it. Spec captions (size, radius, text
+          size, colors) are measured from the rendered DOM, so they update live with the theme and
+          can never drift from the source.
         </p>
         <nav className="flex flex-wrap gap-x-4 gap-y-1">
           {SECTIONS.map((section) => (
@@ -238,6 +248,7 @@ export function DesignPage() {
         </nav>
       </div>
 
+      <TokensSection />
       <ButtonsSection />
       <TopBarButtonsSection />
       <TogglesSection />
@@ -257,11 +268,13 @@ function DemoSection({
   id,
   title,
   note,
+  docs,
   children,
 }: {
   id: string;
   title: string;
   note?: string;
+  docs?: string;
   children: ReactNode;
 }) {
   return (
@@ -269,35 +282,117 @@ function DemoSection({
       <div className="space-y-1">
         <Heading level={2}>{title}</Heading>
         {note && <p className="text-muted-foreground text-sm">{note}</p>}
+        {docs && <p className="text-muted-foreground text-2xs font-mono">→ {docs}</p>}
       </div>
       {children}
     </section>
   );
 }
 
-function DemoRow({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+function DemoRow({
+  label,
+  hint,
+  className,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  className?: string;
+  children: ReactNode;
+}) {
   return (
     <div className="space-y-2">
       <div className="space-y-0.5">
         <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">{label}</p>
         {hint && <p className="text-muted-foreground text-xs">{hint}</p>}
       </div>
-      <div className="flex flex-wrap items-center gap-2">{children}</div>
+      <div className={cn("flex flex-wrap items-center gap-2", className)}>{children}</div>
     </div>
+  );
+}
+
+// A variant-sweep row of Swatches: bottom-aligned so the captions line up,
+// with wider gaps to keep caption columns readable.
+function SwatchRow({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: ReactNode;
+}) {
+  return (
+    <DemoRow label={label} hint={hint} className="items-end gap-x-5 gap-y-4">
+      {children}
+    </DemoRow>
+  );
+}
+
+// One variant/size sample: the live component, its token name, and a spec
+// caption (size, radius, text size) measured from the rendered DOM so the
+// numbers can never drift from the cva source. `colors` adds bg/fg chips
+// with the resolved computed color in the tooltip.
+function Swatch({
+  label,
+  colors = false,
+  children,
+}: {
+  label: string;
+  colors?: boolean;
+  children: ReactNode;
+}) {
+  const { ref, spec } = useElementSpec<HTMLDivElement>();
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div ref={ref} className="flex items-start">
+        {children}
+      </div>
+      <div className="space-y-0.5">
+        <div className="flex items-center gap-1.5">
+          <p className="font-mono text-xs">{label}</p>
+          {colors && spec && (
+            <span className="flex items-center gap-1">
+              {!isTransparentColor(spec.background) && (
+                <ColorChip value={spec.background} label={`bg ${spec.background}`} />
+              )}
+              <ColorChip value={spec.color} label={`text ${spec.color}`} />
+            </span>
+          )}
+        </div>
+        <p className="text-muted-foreground text-2xs font-mono">
+          {spec ? formatSpecLine(spec) : "measuring…"}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// Tiny inline color sample; the resolved computed value lives in the tooltip.
+function ColorChip({ value, label }: { value: string; label: string }) {
+  return (
+    <span
+      title={label}
+      className="border-border-opaque inline-block size-3 shrink-0 rounded-sm border"
+      style={{ backgroundColor: value }}
+    />
   );
 }
 
 // One component per cell: the component's name, a one-line "what it's for"
 // hint, then the live demo. Sections whose demos are variant sweeps of a
-// single component (Buttons, Badges) use DemoRow instead.
+// single component (Buttons, Badges) use SwatchRow instead. `spec` carries
+// convention facts that can't be measured (tier names, doc rules).
 function Demo({
   name,
   hint,
+  spec,
   children,
   className,
 }: {
   name: string;
   hint: string;
+  spec?: string;
   children: ReactNode;
   className?: string;
 }) {
@@ -306,6 +401,7 @@ function Demo({
       <div className="space-y-0.5">
         <p className="font-mono text-sm font-medium">{name}</p>
         <p className="text-muted-foreground text-xs">{hint}</p>
+        {spec && <p className="text-muted-foreground text-2xs font-mono">{spec}</p>}
       </div>
       <div className="flex min-w-0 flex-1 flex-wrap content-start items-center gap-2">
         {children}
@@ -318,34 +414,236 @@ function DemoGrid({ children }: { children: ReactNode }) {
   return <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{children}</div>;
 }
 
+const COLOR_PAIRS = [
+  { token: "--background", fg: "var(--foreground)" },
+  { token: "--card", fg: "var(--card-foreground)" },
+  { token: "--popover", fg: "var(--popover-foreground)" },
+  { token: "--primary", fg: "var(--primary-foreground)" },
+  { token: "--secondary", fg: "var(--secondary-foreground)" },
+  { token: "--muted", fg: "var(--muted-foreground)" },
+  { token: "--accent", fg: "var(--accent-foreground)" },
+  // Buttons put white text on the destructive fill; there is no
+  // --destructive-foreground in this theme.
+  { token: "--destructive", fg: "white" },
+] as const;
+
+const LINE_COLOR_TOKENS = [
+  "--border",
+  "--border-accent",
+  "--border-opaque",
+  "--input",
+  "--ring",
+] as const;
+
+const CHART_COLOR_TOKENS = [
+  "--chart-1",
+  "--chart-2",
+  "--chart-3",
+  "--chart-4",
+  "--chart-5",
+] as const;
+
+const TOKEN_NAMES = [
+  ...COLOR_PAIRS.map((pair) => pair.token),
+  ...LINE_COLOR_TOKENS,
+  ...CHART_COLOR_TOKENS,
+];
+
+// Literal class names so Tailwind's scanner generates them.
+const RADIUS_CLASSES = [
+  "rounded-sm",
+  "rounded-md",
+  "rounded-lg",
+  "rounded-xl",
+  "rounded-2xl",
+  "rounded-3xl",
+  "rounded-4xl",
+  "rounded-full",
+] as const;
+
+const HEIGHT_TIERS = [
+  { cls: "h-5", note: "count pills, chips" },
+  { cls: "h-6", note: "xs buttons" },
+  { cls: "h-7", note: "sm buttons" },
+  { cls: "h-8", note: "default controls" },
+  { cls: "h-9", note: "lg buttons" },
+  { cls: "h-14", note: "global header" },
+] as const;
+
+const TYPE_TIERS: readonly { role: string; cls: string; note?: string }[] = [
+  { role: "Hero", cls: "text-4xl font-bold", note: "landing only, md:text-5xl" },
+  { role: "Page title (h1)", cls: "font-heading text-2xl font-bold" },
+  { role: "Section (h2)", cls: "font-heading text-lg font-semibold" },
+  { role: "Subsection / card title (h3)", cls: "text-base font-medium" },
+  { role: "Body", cls: "", note: "responsive: 1.05rem phone, 15px from sm:" },
+  { role: "Compact UI", cls: "text-sm" },
+  { role: "Metadata", cls: "text-xs" },
+  { role: "Micro", cls: "text-2xs" },
+];
+
+// One theme color: a click-to-copy tile filled with the token's color. When
+// `fg` is set, the tile shows an "Aa" sample in that color (the token's
+// paired foreground); line/chart tokens omit it.
+function ColorTokenTile({ token, fg, value }: { token: string; fg?: string; value?: string }) {
+  return (
+    <Pressable
+      className="group flex min-w-0 flex-col gap-1 text-left"
+      onClick={async () => {
+        await navigator.clipboard.writeText(`var(${token})`);
+        toast.success(`Copied var(${token})`);
+      }}
+    >
+      <span
+        className="border-border-opaque flex h-12 items-center justify-center rounded-md border text-sm"
+        style={{ backgroundColor: `var(${token})`, color: fg }}
+      >
+        {fg ? "Aa" : null}
+      </span>
+      <span className="truncate font-mono text-xs">{token.slice(2)}</span>
+      <span className="text-muted-foreground text-2xs truncate font-mono" title={value}>
+        {value ?? "…"}
+      </span>
+    </Pressable>
+  );
+}
+
+// One type-scale tier: live sample text plus role, class token, and the
+// measured font size.
+function TypeSpecimen({ role, cls, note }: { role: string; cls: string; note?: string }) {
+  const { ref, spec } = useElementSpec<HTMLDivElement>();
+  const fontSize = spec ? parsePx(spec.fontSize) : Number.NaN;
+  return (
+    <div className="flex flex-col gap-0.5 border-b pb-3 last:border-b-0 last:pb-0 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+      <div ref={ref} className="min-w-0">
+        <p className={cn("truncate", cls)}>Summoner Skirmish</p>
+      </div>
+      <div className="flex shrink-0 flex-wrap items-baseline gap-x-3 gap-y-0.5">
+        <span className="text-muted-foreground text-xs">{note ? `${role} · ${note}` : role}</span>
+        <span className="font-mono text-xs">{cls === "" ? "(no size class)" : cls}</span>
+        <span className="text-muted-foreground text-2xs font-mono">
+          {Number.isFinite(fontSize) ? `${Math.round(fontSize * 10) / 10}px` : ""}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function TokensSection() {
+  const values = useCssVars(TOKEN_NAMES);
+  return (
+    <DemoSection
+      id="tokens"
+      title="Tokens"
+      note="The theme vocabulary everything below is built from. Values are read live from the rendered page: toggle theme or palette in the header and they follow. The sidebar-* variables mirror the core set for the app chrome and are omitted here."
+      docs="apps/web/src/index.css · docs/design-language.md · docs/typography.md"
+    >
+      <DemoRow
+        label="Color pairs"
+        hint="Background token with its paired foreground as the Aa sample. Click a tile to copy its var()."
+      >
+        <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
+          {COLOR_PAIRS.map((pair) => (
+            <ColorTokenTile
+              key={pair.token}
+              token={pair.token}
+              fg={pair.fg}
+              value={values[pair.token]}
+            />
+          ))}
+        </div>
+      </DemoRow>
+      <DemoRow label="Lines & focus" hint="Borders, input outlines, and the focus ring.">
+        <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-5">
+          {LINE_COLOR_TOKENS.map((token) => (
+            <ColorTokenTile key={token} token={token} value={values[token]} />
+          ))}
+        </div>
+      </DemoRow>
+      <DemoRow label="Charts" hint="Use in ChartContainer configs as var(--chart-N).">
+        <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-5">
+          {CHART_COLOR_TOKENS.map((token) => (
+            <ColorTokenTile key={token} token={token} value={values[token]} />
+          ))}
+        </div>
+      </DemoRow>
+      <SwatchRow
+        label="Radius scale"
+        hint="--radius is 0.375rem (6px); sm through 4xl derive from it by ±px offsets. rounded-lg is the default control radius."
+      >
+        {RADIUS_CLASSES.map((cls) => (
+          <Swatch key={cls} label={cls}>
+            <div className={cn("bg-muted border-border-accent size-12 border", cls)} />
+          </Swatch>
+        ))}
+      </SwatchRow>
+      <SwatchRow
+        label="Corner cut"
+        hint="Filled buttons (default, secondary, destructive) swap border-radius for the clip-path corner-cut signature: --btn-cut 8px by default, 5px on xs/sm sizes."
+      >
+        <Swatch label="btn-corner-cut" colors>
+          <Button>Primary</Button>
+        </Swatch>
+        <Swatch label="--btn-cut: 5px" colors>
+          <Button size="sm">Compact</Button>
+        </Swatch>
+      </SwatchRow>
+      <SwatchRow
+        label="Height ladder"
+        hint="Boxed controls sharing a row must share a tier; h-8 is the default control height (docs/design-language.md)."
+      >
+        {HEIGHT_TIERS.map(({ cls, note }) => (
+          <Swatch key={cls} label={`${cls} · ${note}`}>
+            <div className={cn("bg-muted border-border-opaque w-14 rounded-md border", cls)} />
+          </Swatch>
+        ))}
+      </SwatchRow>
+      <DemoRow
+        label="Type scale"
+        hint="Pick a tier from docs/typography.md, never invent a size. h1/h2 carry font-heading (Chakra Petch); everything else keeps the default face. Measured sizes update with the viewport."
+      >
+        <div className="w-full space-y-3">
+          {TYPE_TIERS.map((tier) => (
+            <TypeSpecimen key={tier.role} role={tier.role} cls={tier.cls} note={tier.note} />
+          ))}
+        </div>
+      </DemoRow>
+    </DemoSection>
+  );
+}
+
 function ButtonsSection() {
   return (
     <DemoSection
       id="buttons"
       title="Buttons"
       note="One filled primary per surface; ghost for secondary icon actions. Never hand-roll heights."
+      docs="docs/design-language.md"
     >
-      <DemoRow label="Variants">
+      <SwatchRow label="Variants" hint="All variants at the default size (h-8).">
         {BUTTON_VARIANTS.map((variant) => (
-          <Button key={variant} variant={variant}>
-            {variant}
-          </Button>
+          <Swatch key={variant} label={variant} colors>
+            <Button variant={variant}>{variant}</Button>
+          </Swatch>
         ))}
-      </DemoRow>
-      <DemoRow label="Sizes">
+      </SwatchRow>
+      <SwatchRow label="Sizes" hint="Labeled sizes shown on the outline variant.">
         {BUTTON_SIZES.map((size) => (
-          <Button key={size} variant="outline" size={size}>
-            {size}
-          </Button>
+          <Swatch key={size} label={size}>
+            <Button variant="outline" size={size}>
+              Button
+            </Button>
+          </Swatch>
         ))}
-      </DemoRow>
-      <DemoRow label="Icon sizes (ghost)">
+      </SwatchRow>
+      <SwatchRow label="Icon sizes" hint="Square icon-only sizes, shown on the ghost variant.">
         {ICON_SIZES.map((size) => (
-          <Button key={size} variant="ghost" size={size} aria-label={`Settings (${size})`}>
-            <SettingsIcon />
-          </Button>
+          <Swatch key={size} label={size}>
+            <Button variant="ghost" size={size} aria-label={`Settings (${size})`}>
+              <SettingsIcon />
+            </Button>
+          </Swatch>
         ))}
-      </DemoRow>
+      </SwatchRow>
       <DemoRow label="With icon / disabled / group">
         <Button>
           <PlusIcon /> Add card
@@ -371,19 +669,28 @@ function TopBarButtonsSection() {
     <DemoSection
       id="top-bar-buttons"
       title="Top-bar buttons"
-      note="Only inside PageTopBarActions. One PageTopBarPrimaryButton per bar, everything else ghost."
+      note="Only inside PageTopBarActions. One PageTopBarPrimaryButton per bar, everything else ghost. The wrappers lock variant and size so every bar shares the h-8 tier."
     >
-      <DemoRow label="Ladder">
-        <PageTopBarButton>
-          <CopyIcon /> Copy code
-        </PageTopBarButton>
-        <PageTopBarPrimaryButton>
-          <PlusIcon /> New deck
-        </PageTopBarPrimaryButton>
-        <PageTopBarIconButton aria-label="Notifications">
-          <BellIcon />
-        </PageTopBarIconButton>
-      </DemoRow>
+      <SwatchRow label="Ladder">
+        <Swatch label="PageTopBarButton" colors>
+          <PageTopBarButton>
+            <CopyIcon /> Copy code
+          </PageTopBarButton>
+        </Swatch>
+        <Swatch label="PageTopBarPrimaryButton" colors>
+          <PageTopBarPrimaryButton>
+            <PlusIcon /> New deck
+          </PageTopBarPrimaryButton>
+        </Swatch>
+        <Swatch label="PageTopBarIconButton">
+          <PageTopBarIconButton aria-label="Notifications">
+            <BellIcon />
+          </PageTopBarIconButton>
+        </Swatch>
+        <Swatch label="PageTopBarBack">
+          <PageTopBarBack to="/admin" aria-label="Back to admin" />
+        </Swatch>
+      </SwatchRow>
     </DemoSection>
   );
 }
@@ -411,17 +718,23 @@ function TogglesSection() {
           outline pressed
         </Toggle>
       </DemoRow>
-      <DemoRow label="Toggle sizes">
-        <Toggle variant="outline" size="sm" aria-label="Small toggle">
-          <HeartIcon /> sm
-        </Toggle>
-        <Toggle variant="outline" aria-label="Default-size toggle">
-          <HeartIcon /> default
-        </Toggle>
-        <Toggle variant="outline" size="lg" aria-label="Large toggle">
-          <HeartIcon /> lg
-        </Toggle>
-      </DemoRow>
+      <SwatchRow label="Toggle sizes">
+        <Swatch label="sm">
+          <Toggle variant="outline" size="sm" aria-label="Small toggle">
+            <HeartIcon /> Foils
+          </Toggle>
+        </Swatch>
+        <Swatch label="default">
+          <Toggle variant="outline" aria-label="Default-size toggle">
+            <HeartIcon /> Foils
+          </Toggle>
+        </Swatch>
+        <Swatch label="lg">
+          <Toggle variant="outline" size="lg" aria-label="Large toggle">
+            <HeartIcon /> Foils
+          </Toggle>
+        </Swatch>
+      </SwatchRow>
       <DemoRow label="ToggleGroup" hint="The exclusive-choice strip (view modes).">
         <ToggleGroup
           value={[view]}
@@ -448,13 +761,13 @@ function BadgesChipsSection() {
       title="Badges & chips"
       note="ChipRemoveButton is the only way to put an action inside a Badge. CountPill for the h-5 count strips."
     >
-      <DemoRow label="Badge variants">
+      <SwatchRow label="Badge variants">
         {BADGE_VARIANTS.map((variant) => (
-          <Badge key={variant} variant={variant}>
-            {variant}
-          </Badge>
+          <Swatch key={variant} label={variant} colors>
+            <Badge variant={variant}>{variant}</Badge>
+          </Swatch>
         ))}
-      </DemoRow>
+      </SwatchRow>
       <DemoRow label="Removable chips (ChipRemoveButton)">
         {tags.map((tag) => (
           <Badge key={tag} variant="secondary" className="gap-1">
@@ -475,22 +788,32 @@ function BadgesChipsSection() {
           </Button>
         )}
       </DemoRow>
-      <DemoRow label="CountPill">
-        <CountPill>
-          <PackageIcon className="size-3" />
-          <span>×4</span>
-        </CountPill>
-        <CountPill variant="primary">Requested</CountPill>
-        <CountPill variant="success">Reserved</CountPill>
-        <CountPillButton onClick={() => toast.success("Requested")}>
-          <HeartIcon className="size-3" />
-          <span>Request</span>
-        </CountPillButton>
-        <CountPillButton disabled>
-          <HeartIcon className="size-3" />
-          <span>Request</span>
-        </CountPillButton>
-      </DemoRow>
+      <SwatchRow label="CountPill" hint="All pills share the h-5 tier.">
+        <Swatch label="default" colors>
+          <CountPill>
+            <PackageIcon className="size-3" />
+            <span>×4</span>
+          </CountPill>
+        </Swatch>
+        <Swatch label="primary" colors>
+          <CountPill variant="primary">Requested</CountPill>
+        </Swatch>
+        <Swatch label="success" colors>
+          <CountPill variant="success">Reserved</CountPill>
+        </Swatch>
+        <Swatch label="CountPillButton">
+          <CountPillButton onClick={() => toast.success("Requested")}>
+            <HeartIcon className="size-3" />
+            <span>Request</span>
+          </CountPillButton>
+        </Swatch>
+        <Swatch label="disabled">
+          <CountPillButton disabled>
+            <HeartIcon className="size-3" />
+            <span>Request</span>
+          </CountPillButton>
+        </Swatch>
+      </SwatchRow>
     </DemoSection>
   );
 }
@@ -555,7 +878,11 @@ function FormControlsSection() {
       note="Date entry always via DatePicker. Selects pass items when values differ from labels."
     >
       <DemoGrid>
-        <Demo name="Field + Input" hint="Label, control, helper text. The standard form row.">
+        <Demo
+          name="Field + Input"
+          hint="Label, control, helper text. The standard form row."
+          spec="input h-8 · text-base mobile, md:text-sm"
+        >
           <Field>
             <FieldLabel htmlFor="design-name">Deck name</FieldLabel>
             <Input id="design-name" placeholder="Jinx Aggro" />
@@ -575,7 +902,11 @@ function FormControlsSection() {
             <Textarea id="design-notes" placeholder="Mulligan aggressively for early units…" />
           </Field>
         </Demo>
-        <Demo name="Select" hint="Pass items when values differ from labels (BaseUI quirk).">
+        <Demo
+          name="Select"
+          hint="Pass items when values differ from labels (BaseUI quirk)."
+          spec="trigger h-8 · keep the default size in top bars, never size=sm"
+        >
           <Select
             items={energyItems}
             value={energy}
@@ -648,7 +979,8 @@ function FormControlsSection() {
         </Demo>
         <Demo
           name="Control row"
-          hint="Boxed controls in one row share the h-8 tier: default Select, Input, and Button align. Never mix in sm/xs boxes (docs/design-language.md)."
+          hint="Boxed controls in one row share the h-8 tier: default Select, Input, and Button align. Never mix in sm/xs boxes."
+          spec="all boxed controls h-8 · compact sizes never mix in (docs/design-language.md)"
           className="sm:col-span-2"
         >
           <div className="flex w-full items-center gap-2">
@@ -1100,9 +1432,15 @@ function CompositesSection() {
           />
         </Demo>
         <Demo name="UserAvatar" hint="Avatar with initials fallback, in its three sizes.">
-          <UserAvatar name="Vi Piltover" size="sm" />
-          <UserAvatar name="Vi Piltover" />
-          <UserAvatar name="Vi Piltover" size="lg" />
+          <Swatch label="sm">
+            <UserAvatar name="Vi Piltover" size="sm" />
+          </Swatch>
+          <Swatch label="default">
+            <UserAvatar name="Vi Piltover" />
+          </Swatch>
+          <Swatch label="lg">
+            <UserAvatar name="Vi Piltover" size="lg" />
+          </Swatch>
         </Demo>
       </DemoGrid>
     </DemoSection>
