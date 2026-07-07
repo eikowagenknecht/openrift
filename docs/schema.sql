@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict Nrp7BNf2nG98LoZJecr6bdjXaSifPRcWkbm8B56dqTlCIBBC68q69cTTwDDqEMW
+\restrict qLnnJx58snxgCbZr5YmuhClEzBbkeft2eJ8knnpUuYO6XRdeTGn6TjanodXTxdE
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -316,6 +316,60 @@ CREATE FUNCTION public.touch_list_on_entry_change() RETURNS trigger
     BEGIN
       UPDATE lists SET updated_at = now()
       WHERE id = COALESCE(NEW.list_id, OLD.list_id);
+      RETURN NULL;
+    END;
+    $$;
+
+
+--
+-- Name: trg_card_card_types_sync(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.trg_card_card_types_sync() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+    DECLARE
+      affected_card_id uuid;
+      primary_slug text;
+    BEGIN
+      affected_card_id := COALESCE(NEW.card_id, OLD.card_id);
+
+      -- Card deleted in the same transaction (ON DELETE CASCADE) — nothing to check.
+      IF NOT EXISTS (SELECT 1 FROM cards WHERE id = affected_card_id) THEN
+        RETURN NULL;
+      END IF;
+
+      SELECT type_slug INTO primary_slug
+      FROM card_card_types
+      WHERE card_id = affected_card_id
+      ORDER BY position
+      LIMIT 1;
+
+      IF primary_slug IS NULL THEN
+        RAISE EXCEPTION 'card % must keep at least one card_card_types row (ADR-037)',
+          affected_card_id;
+      END IF;
+
+      UPDATE cards SET type = primary_slug
+      WHERE id = affected_card_id AND type IS DISTINCT FROM primary_slug;
+
+      RETURN NULL;
+    END;
+    $$;
+
+
+--
+-- Name: trg_cards_seed_card_types(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.trg_cards_seed_card_types() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM card_card_types WHERE card_id = NEW.id) THEN
+        INSERT INTO card_card_types (card_id, type_slug, position)
+        VALUES (NEW.id, NEW.type, 0);
+      END IF;
       RETURN NULL;
     END;
     $$;
@@ -3858,6 +3912,20 @@ CREATE UNIQUE INDEX uq_users_share_token ON public.users USING btree (share_toke
 
 
 --
+-- Name: card_card_types card_card_types_sync; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE CONSTRAINT TRIGGER card_card_types_sync AFTER INSERT OR DELETE OR UPDATE ON public.card_card_types DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.trg_card_card_types_sync();
+
+
+--
+-- Name: cards cards_seed_card_types; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE CONSTRAINT TRIGGER cards_seed_card_types AFTER INSERT ON public.cards DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.trg_cards_seed_card_types();
+
+
+--
 -- Name: distribution_channels distribution_channels_validate; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -5333,5 +5401,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict Nrp7BNf2nG98LoZJecr6bdjXaSifPRcWkbm8B56dqTlCIBBC68q69cTTwDDqEMW
+\unrestrict qLnnJx58snxgCbZr5YmuhClEzBbkeft2eJ8knnpUuYO6XRdeTGn6TjanodXTxdE
 

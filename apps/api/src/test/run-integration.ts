@@ -32,6 +32,7 @@ import { bootstrapSeededTestDb, dropTempDb, sweepStaleTestDatabases } from "./in
 const PARALLEL_FILES = [
   "src/auth-rate-limit.integration.test.ts",
   "src/authorization.integration.test.ts",
+  "src/db/card-type-triggers.integration.test.ts",
   // Authenticated routes
   "src/routes/authenticated/collections.integration.test.ts",
   "src/routes/authenticated/copies.integration.test.ts",

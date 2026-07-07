@@ -33,7 +33,7 @@ Option 1 ships fastest but is wrong at the model level: filtering by "Gear" woul
 - Good, because filters, facets, grouping, search, and deck rules treat multi-type cards correctly with the same array semantics domains and super types already use.
 - Good, because single-type cards (the entire existing catalogue) behave identically; the change is purely additive until multi-type data lands.
 - Good, because the schema and shared-contract work can ship before the first Unit Gear is ingested.
-- Bad, because `cards.type` and `card_card_types` are redundant for single-type cards and must be kept consistent (write paths always write both; the scalar is always `types[0]`).
+- Bad, because `cards.type` and `card_card_types` are redundant for single-type cards and must be kept consistent (write paths always write both; the scalar is always `types[0]`). Mitigated after rollout: migration 193 added deferred constraint triggers that seed the junction from the scalar on bare card inserts, reject any transaction leaving a card with zero junction rows, and re-sync the scalar to the position-0 slug.
 - Bad, because type-derived charts (deck stats, collection completion) double-count multi-type cards, so bars no longer sum to the deck or collection size. Accepted: domain breakdowns already behave this way.
 
 ### Confirmation
