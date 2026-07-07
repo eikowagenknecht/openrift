@@ -22,6 +22,113 @@ import { useSyncExternalStore } from "react";
 
 const DATABASE_NAME = "openrift.sqlite";
 
+// ── TanStack/db#1589 self-heal ───────────────────────────────────────────────
+//
+// A schema-mismatch reset in @tanstack/db-sqlite-persistence-core deletes a
+// collection's rows but leaves its `collection_metadata` intact, so the
+// Electric resume point (`electric:resume`: offset + handle) survives the
+// wipe. On the next load the collection restores 0 rows, resumes the stream
+// "up to date" past all the data, and marks itself ready — permanently empty,
+// nothing logged (https://github.com/TanStack/db/issues/1589).
+//
+// Until that's fixed upstream, wrap every adapter's `loadCollectionMetadata`:
+// when it would return a `kind: "resume"` cursor for a collection whose row
+// table is empty, drop that entry so the Electric layer takes a fresh
+// snapshot instead. This also heals installs already poisoned by an earlier
+// wipe. Cost: one LIMIT-1 row probe per collection load, plus one redundant
+// empty-snapshot fetch for collections that are genuinely empty server-side.
+
+interface MetadataCapableAdapter {
+  loadCollectionMetadata: (collectionId: string) => Promise<{ key: string; value: unknown }[]>;
+  scanRows: (collectionId: string, options?: { limit?: number }) => Promise<unknown[]>;
+}
+
+function hasMetadataApi(adapter: unknown): adapter is MetadataCapableAdapter {
+  return (
+    typeof adapter === "object" &&
+    adapter !== null &&
+    typeof (adapter as MetadataCapableAdapter).loadCollectionMetadata === "function" &&
+    typeof (adapter as MetadataCapableAdapter).scanRows === "function"
+  );
+}
+
+const wrappedAdapters = new WeakMap<object, object>();
+
+function wrapAdapterWithResumeSelfHeal<T extends object>(adapter: T): T {
+  if (!hasMetadataApi(adapter)) {
+    return adapter;
+  }
+  const cached = wrappedAdapters.get(adapter);
+  if (cached) {
+    return cached as T;
+  }
+  const wrapped = new Proxy(adapter, {
+    get(target, property, receiver) {
+      if (property !== "loadCollectionMetadata") {
+        const value = Reflect.get(target, property, receiver);
+        // Rebind methods to the real adapter so private-state access works.
+        return typeof value === "function" ? value.bind(target) : value;
+      }
+      return async (collectionId: string) => {
+        const entries = await target.loadCollectionMetadata(collectionId);
+        const resume = entries.find((entry) => entry.key === "electric:resume");
+        const kind = (resume?.value as { kind?: string } | undefined)?.kind;
+        if (kind !== "resume") {
+          return entries;
+        }
+        const rows = await target.scanRows(collectionId, { limit: 1 });
+        if (rows.length > 0) {
+          return entries;
+        }
+        console.warn(
+          `Dropping stale Electric resume point for empty collection "${collectionId}" (TanStack/db#1589) — forcing a fresh snapshot.`,
+        );
+        return entries.filter((entry) => entry.key !== "electric:resume");
+      };
+    },
+  });
+  wrappedAdapters.set(adapter, wrapped);
+  return wrapped;
+}
+
+/**
+ * Wrap a persistence handle so every adapter it resolves self-heals stale
+ * Electric resume points (see the TanStack/db#1589 block comment above).
+ * Exported for unit tests.
+ *
+ * @returns The same persistence surface with wrapped adapters.
+ */
+export function wrapPersistenceWithResumeSelfHeal(
+  persistence: PersistedCollectionPersistence,
+): PersistedCollectionPersistence {
+  const source = persistence as PersistedCollectionPersistence & {
+    resolvePersistenceForCollection?: (options: unknown) => { adapter: object };
+    resolvePersistenceForMode?: (mode: unknown) => { adapter: object };
+  };
+  const resolveForCollection = source.resolvePersistenceForCollection;
+  const resolveForMode = source.resolvePersistenceForMode;
+  return {
+    ...source,
+    adapter: wrapAdapterWithResumeSelfHeal(source.adapter as object),
+    ...(resolveForCollection
+      ? {
+          resolvePersistenceForCollection: (options: unknown) => {
+            const resolved = resolveForCollection(options);
+            return { ...resolved, adapter: wrapAdapterWithResumeSelfHeal(resolved.adapter) };
+          },
+        }
+      : {}),
+    ...(resolveForMode
+      ? {
+          resolvePersistenceForMode: (mode: unknown) => {
+            const resolved = resolveForMode(mode);
+            return { ...resolved, adapter: wrapAdapterWithResumeSelfHeal(resolved.adapter) };
+          },
+        }
+      : {}),
+  } as PersistedCollectionPersistence;
+}
+
 export type PersistenceState =
   | { status: "pending" }
   | { status: "ready"; persistence: PersistedCollectionPersistence | null };
@@ -46,19 +153,43 @@ function settle(persistence: PersistedCollectionPersistence | null): void {
 
 async function initialize(): Promise<void> {
   try {
+    // OPFS is gated on a secure context, and the package's own feature probe
+    // misses that: `navigator.storage.getDirectory` exists in insecure
+    // contexts but throws a SecurityError inside the worker ("Security error
+    // when calling GetDirectory" — the failure seen in the first ADR-027
+    // landing). Firefox private windows fail the same way. Check up front so
+    // the console names the actual cause instead of a worker-side DOMException.
+    if (globalThis.isSecureContext === false) {
+      console.info(
+        "Local persistence unavailable: OPFS needs a secure context. Open the app via http://localhost or https (a LAN IP or custom hostname over plain http won't persist).",
+      );
+      settle(null);
+      return;
+    }
     // Open the database before constructing the coordinator: the open call
     // does the feature detection (OPFS + Worker), so unsupported browsers
     // never create a BroadcastChannel.
     const database = await openBrowserWASQLiteOPFSDatabase({ databaseName: DATABASE_NAME });
     const coordinator = new BrowserCollectionCoordinator({ dbName: DATABASE_NAME });
     databaseHandle = database;
-    settle(createBrowserWASQLitePersistence({ database, coordinator }));
+    settle(
+      wrapPersistenceWithResumeSelfHeal(
+        createBrowserWASQLitePersistence({ database, coordinator }),
+      ),
+    );
   } catch (error) {
     if (error instanceof PersistenceUnavailableError) {
       // Expected on browsers without OPFS sync-access support (older Safari,
       // some private-browsing modes). The app works identically, minus the
       // local cache.
       console.info(`Local persistence unavailable, running in-memory: ${error.message}`);
+    } else if (error instanceof DOMException && error.name === "SecurityError") {
+      // getDirectory() threw inside the worker despite a secure context:
+      // typically a private-browsing window (Firefox always, others by
+      // policy) or an enterprise storage policy.
+      console.info(
+        `Local persistence unavailable (browser denied OPFS storage — private window or storage policy), running in-memory: ${error.message}`,
+      );
     } else {
       console.warn("Local persistence failed to initialize, running in-memory:", error);
     }

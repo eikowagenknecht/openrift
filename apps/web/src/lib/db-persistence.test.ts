@@ -12,6 +12,7 @@ import {
   resetPersistenceForTesting,
   subscribeToPersistence,
   wipePersistedData,
+  wrapPersistenceWithResumeSelfHeal,
 } from "./db-persistence";
 
 vi.mock("@tanstack/browser-db-sqlite-persistence", () => ({
@@ -95,6 +96,41 @@ describe("subscribeToPersistence", () => {
 
       expect(getPersistenceSnapshot()).toEqual({ status: "ready", persistence: null });
       expect(infoSpy).toHaveBeenCalledOnce();
+      expect(warnSpy).not.toHaveBeenCalled();
+    } finally {
+      infoSpy.mockRestore();
+      warnSpy.mockRestore();
+    }
+  });
+
+  it("settles ready(null) without touching OPFS in an insecure context", async () => {
+    vi.stubGlobal("isSecureContext", false);
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+
+    try {
+      subscribeToPersistence(vi.fn());
+      await waitForReady();
+
+      expect(getPersistenceSnapshot()).toEqual({ status: "ready", persistence: null });
+      expect(openDatabase).not.toHaveBeenCalled();
+      expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining("secure context"));
+    } finally {
+      infoSpy.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("settles ready(null) with a storage-denied hint when the worker throws SecurityError", async () => {
+    openDatabase.mockRejectedValue(new DOMException("GetDirectory denied", "SecurityError"));
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    try {
+      subscribeToPersistence(vi.fn());
+      await waitForReady();
+
+      expect(getPersistenceSnapshot()).toEqual({ status: "ready", persistence: null });
+      expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining("denied OPFS storage"));
       expect(warnSpy).not.toHaveBeenCalled();
     } finally {
       infoSpy.mockRestore();
@@ -205,5 +241,104 @@ describe("wipePersistedData", () => {
     } finally {
       warnSpy.mockRestore();
     }
+  });
+});
+
+describe("wrapPersistenceWithResumeSelfHeal (TanStack/db#1589)", () => {
+  const RESUME_ENTRY = {
+    key: "electric:resume",
+    value: { kind: "resume", offset: "123_0", handle: "h1", shapeId: "s1", updatedAt: 1 },
+  };
+  const OTHER_ENTRY = { key: "something:else", value: { a: 1 } };
+
+  function makeAdapter(options: { rows: unknown[]; entries?: { key: string; value: unknown }[] }) {
+    return {
+      loadCollectionMetadata: vi.fn(async () => options.entries ?? [RESUME_ENTRY, OTHER_ENTRY]),
+      scanRows: vi.fn(async () => options.rows),
+    };
+  }
+
+  function wrap(adapter: object) {
+    const persistence = wrapPersistenceWithResumeSelfHeal({
+      adapter,
+      coordinator: {},
+    } as unknown as PersistedCollectionPersistence);
+    return persistence.adapter as unknown as {
+      loadCollectionMetadata: (id: string) => Promise<{ key: string; value: unknown }[]>;
+      scanRows: (id: string, options?: { limit?: number }) => Promise<unknown[]>;
+    };
+  }
+
+  it("drops a resume cursor whose row table is empty and warns", async () => {
+    const adapter = makeAdapter({ rows: [] });
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    try {
+      const entries = await wrap(adapter).loadCollectionMetadata("copies:u1");
+      expect(entries).toEqual([OTHER_ENTRY]);
+      expect(adapter.scanRows).toHaveBeenCalledWith("copies:u1", { limit: 1 });
+      expect(warnSpy).toHaveBeenCalledOnce();
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it("keeps the resume cursor when rows exist", async () => {
+    const adapter = makeAdapter({ rows: [{ id: "row-1" }] });
+
+    const entries = await wrap(adapter).loadCollectionMetadata("copies:u1");
+
+    expect(entries).toEqual([RESUME_ENTRY, OTHER_ENTRY]);
+  });
+
+  it("leaves non-resume records (kind: reset) untouched without probing rows", async () => {
+    const resetEntry = { key: "electric:resume", value: { kind: "reset", updatedAt: 1 } };
+    const adapter = makeAdapter({ rows: [], entries: [resetEntry] });
+
+    const entries = await wrap(adapter).loadCollectionMetadata("copies:u1");
+
+    expect(entries).toEqual([resetEntry]);
+    expect(adapter.scanRows).not.toHaveBeenCalled();
+  });
+
+  it("passes adapters without the metadata API through unwrapped", () => {
+    const bare = {};
+    const persistence = wrapPersistenceWithResumeSelfHeal({
+      adapter: bare,
+      coordinator: {},
+    } as unknown as PersistedCollectionPersistence);
+
+    expect(persistence.adapter).toBe(bare);
+  });
+
+  it("wraps adapters resolved via resolvePersistenceForCollection", async () => {
+    const adapter = makeAdapter({ rows: [] });
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    try {
+      const persistence = wrapPersistenceWithResumeSelfHeal({
+        adapter: {},
+        coordinator: {},
+        resolvePersistenceForCollection: () => ({ adapter, coordinator: {} }),
+      } as unknown as PersistedCollectionPersistence);
+      const resolved = (
+        persistence as unknown as {
+          resolvePersistenceForCollection: (options: unknown) => { adapter: object };
+        }
+      ).resolvePersistenceForCollection({ mode: "sync-present", schemaVersion: 5 });
+      const entries = await (
+        resolved.adapter as { loadCollectionMetadata: (id: string) => Promise<unknown[]> }
+      ).loadCollectionMetadata("lists:u1");
+
+      expect(entries).toEqual([OTHER_ENTRY]);
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it("keeps other adapter methods callable through the wrapper", async () => {
+    const adapter = makeAdapter({ rows: [{ id: "row-1" }] });
+
+    await expect(wrap(adapter).scanRows("copies:u1")).resolves.toEqual([{ id: "row-1" }]);
   });
 });
