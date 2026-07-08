@@ -64,6 +64,7 @@ describe("NewPrintingGroupCard", () => {
         onDelete={noop}
         onIgnore={noop}
         isAccepting={false}
+        isAdmin
         printingFields={[]}
         costKeywords={["Empower"]}
         invalidates={[]}

@@ -74,8 +74,10 @@ describe("queryKeys", () => {
 // ---------------------------------------------------------------------------
 
 describe("queryKeys.admin", () => {
-  it("me", () => {
-    expect(queryKeys.admin.me).toEqual(["admin", "me"]);
+  it("me is keyed per user so identities never share a cache slot", () => {
+    expect(queryKeys.admin.me("user-1")).toEqual(["admin", "me", "user-1"]);
+    expect(queryKeys.admin.me(null)).toEqual(["admin", "me", null]);
+    expect(queryKeys.admin.me("user-1")).not.toEqual(queryKeys.admin.me("user-2"));
   });
 
   it("sets", () => {

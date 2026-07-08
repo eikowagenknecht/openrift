@@ -48,7 +48,9 @@ export const Route = createFileRoute("/_app/_authenticated/admin/cards_/$cardSlu
   loader: async ({ context, params }) => {
     // Already warm from the admin layout beforeLoad. The marketplace section
     // is admin-only — card-review grant holders cannot reach its endpoint.
-    const access = await context.queryClient.ensureQueryData(adminAccessQueryOptions);
+    const access = await context.queryClient.ensureQueryData(
+      adminAccessQueryOptions(context.userId),
+    );
     const [detail] = await Promise.all([
       context.queryClient.ensureQueryData(adminCardDetailQueryOptions(params.cardSlug)),
       context.queryClient.ensureQueryData(adminMarkersQueryOptions),

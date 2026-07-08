@@ -8,7 +8,11 @@ import type { SourceMappingConfig } from "@/components/admin/price-mappings-type
 // Convention: anything that fetches per-user data from the API (collections,
 // copies, decks, preferences, collection events, value history) is keyed
 // per-user. Catalog data, sets, prices, marketplace info, and admin queries
-// are not — they're either public or admin-scoped.
+// are not — they're either public or admin-scoped. Exception: `admin.me` is
+// the caller's own access level, so it is user-scoped like any other
+// per-user query. A global key would survive sign-in/sign-out (login only
+// invalidates the session query) and keep serving the previous identity's
+// cached answer.
 
 export const queryKeys = {
   featureFlags: {
@@ -202,7 +206,10 @@ export const queryKeys = {
     byVersion: (kind: string, version: string) => ["rules", kind, version] as const,
   },
   admin: {
-    me: ["admin", "me"] as const,
+    // Per-user (see the exception note at the top): `null` is the signed-out
+    // slot, so an anonymous "no access" answer can never shadow a user's real
+    // one after sign-in.
+    me: (userId: string | null) => ["admin", "me", userId] as const,
     sets: ["admin", "sets"] as const,
     cards: {
       all: ["admin", "cards"] as const,

@@ -30,7 +30,9 @@ export const Route = createFileRoute("/_app/_authenticated/admin/cards")({
     // Already warm from the admin layout beforeLoad. Unified mappings are a
     // marketplace endpoint that card-review grant holders cannot reach — only
     // prefetch it for full admins.
-    const access = await context.queryClient.ensureQueryData(adminAccessQueryOptions);
+    const access = await context.queryClient.ensureQueryData(
+      adminAccessQueryOptions(context.userId),
+    );
     await Promise.all([
       context.queryClient.ensureQueryData(adminCardListQueryOptions),
       context.queryClient.ensureQueryData(providerSettingsQueryOptions),

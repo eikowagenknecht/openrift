@@ -19,7 +19,9 @@ export const Route = createFileRoute("/_app/_authenticated/admin")({
   // they hold (anything else, including the /admin root redirect target,
   // bounces them to their first granted section).
   beforeLoad: async ({ context, location }) => {
-    const access = await context.queryClient.ensureQueryData(adminAccessQueryOptions);
+    const access = await context.queryClient.ensureQueryData(
+      adminAccessQueryOptions(context.userId),
+    );
     if (access.isAdmin) {
       return;
     }
