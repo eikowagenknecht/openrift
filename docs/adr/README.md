@@ -1,7 +1,7 @@
 # Decisions
 
 For new Architectural Decision Records (ADRs), please use the following template as a starting point: [adr-template.md](adr-template.md).
-It has a lot of sections, but most are optional and should only be used if they add value for this specific MADR!
+It has a lot of sections, but most are optional.
 
 If you are not sure which to use, go with the default:
 
@@ -11,9 +11,7 @@ If you are not sure which to use, go with the default:
 - Decision Outcome
 - Consequences
 
-Only add the other sections if it really is needed.
-
-House style on top of MADR: state each fact once (drop an optional section rather than restate another one), keep only Good/Bad bullets that name something concrete about this project, open Decision Outcome with a direct sentence instead of `Chosen option: "..."`, and no em dashes in prose.
+Make sure to keep ADRs concise and short. State facts only once. Do not get lost on tangents. Avoid repeating information that is already in other sections. Use the optional sections only if they add value for this specific MADR.
 
 The MADR documentation is available at <https://adr.github.io/madr/> while general information about ADRs is available at <https://adr.github.io/>.
 
