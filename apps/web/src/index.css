@@ -109,6 +109,13 @@ html.hide-scrollbar::-webkit-scrollbar {
     radial-gradient(ellipse 60% 50% at 50% 0%, oklch(0.38 0.05 195 / 0.08) 0%, transparent 70%),
     radial-gradient(ellipse 45% 50% at 0% 70%, oklch(0.55 0.1 75 / 0.1) 0%, transparent 70%),
     radial-gradient(ellipse 40% 45% at 100% 30%, oklch(0.65 0.08 75 / 0.08) 0%, transparent 70%);
+  /* Ambient app-shell background: the hero gradient at roughly half alpha,
+     quiet enough to sit behind card grids and tables. Painted by
+     <AppBackground/> on a viewport-fixed layer. */
+  --app-gradient:
+    radial-gradient(ellipse 60% 50% at 50% 0%, oklch(0.38 0.05 195 / 0.04) 0%, transparent 70%),
+    radial-gradient(ellipse 45% 50% at 0% 70%, oklch(0.55 0.1 75 / 0.05) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 45% at 100% 30%, oklch(0.65 0.08 75 / 0.04) 0%, transparent 70%);
 }
 
 /* Default palette — dark scheme. Navy ground, warm-amber primary, teal
@@ -151,6 +158,10 @@ html.hide-scrollbar::-webkit-scrollbar {
     radial-gradient(ellipse 60% 50% at 50% 0%, oklch(0.6 0.1 185 / 0.18) 0%, transparent 70%),
     radial-gradient(ellipse 45% 50% at 0% 70%, oklch(0.35 0.15 280 / 0.14) 0%, transparent 70%),
     radial-gradient(ellipse 40% 45% at 100% 30%, oklch(0.65 0.12 80 / 0.1) 0%, transparent 70%);
+  --app-gradient:
+    radial-gradient(ellipse 60% 50% at 50% 0%, oklch(0.6 0.1 185 / 0.09) 0%, transparent 70%),
+    radial-gradient(ellipse 45% 50% at 0% 70%, oklch(0.35 0.15 280 / 0.07) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 45% at 100% 30%, oklch(0.65 0.12 80 / 0.05) 0%, transparent 70%);
 }
 
 /* Minimal palette — light scheme. Neutral shadcn baseline with the
@@ -193,6 +204,10 @@ html.hide-scrollbar::-webkit-scrollbar {
     radial-gradient(ellipse 60% 50% at 50% 0%, oklch(0.6 0.1 185 / 0.1) 0%, transparent 70%),
     radial-gradient(ellipse 45% 50% at 0% 70%, oklch(0.35 0.15 280 / 0.08) 0%, transparent 70%),
     radial-gradient(ellipse 40% 45% at 100% 30%, oklch(0.65 0.12 80 / 0.07) 0%, transparent 70%);
+  --app-gradient:
+    radial-gradient(ellipse 60% 50% at 50% 0%, oklch(0.6 0.1 185 / 0.05) 0%, transparent 70%),
+    radial-gradient(ellipse 45% 50% at 0% 70%, oklch(0.35 0.15 280 / 0.04) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 45% at 100% 30%, oklch(0.65 0.12 80 / 0.04) 0%, transparent 70%);
 }
 
 /* Minimal palette — dark scheme. */
@@ -234,6 +249,10 @@ html.hide-scrollbar::-webkit-scrollbar {
     radial-gradient(ellipse 60% 50% at 50% 0%, oklch(0.6 0.1 185 / 0.18) 0%, transparent 70%),
     radial-gradient(ellipse 45% 50% at 0% 70%, oklch(0.35 0.15 280 / 0.14) 0%, transparent 70%),
     radial-gradient(ellipse 40% 45% at 100% 30%, oklch(0.65 0.12 80 / 0.1) 0%, transparent 70%);
+  --app-gradient:
+    radial-gradient(ellipse 60% 50% at 50% 0%, oklch(0.6 0.1 185 / 0.09) 0%, transparent 70%),
+    radial-gradient(ellipse 45% 50% at 0% 70%, oklch(0.35 0.15 280 / 0.07) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 45% at 100% 30%, oklch(0.65 0.12 80 / 0.05) 0%, transparent 70%);
 }
 
 @theme inline {

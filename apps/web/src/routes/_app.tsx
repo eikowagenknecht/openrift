@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet, useLocation, useMatches } from "@tanstack/react-router";
 import { useEffect } from "react";
 
+import { AppBackground } from "@/components/layout/app-background";
 import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
 import { usePreferencesSync } from "@/hooks/use-preferences-sync";
@@ -35,6 +36,7 @@ function AppLayout() {
 
   return (
     <>
+      <AppBackground />
       <Header />
       <main className={`flex min-h-0 flex-1 flex-col ${CONTAINER_WIDTH}`}>
         <div className="flex min-h-0 flex-1 flex-col">

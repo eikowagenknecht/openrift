@@ -250,7 +250,9 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 function RootComponent() {
   return (
     <>
-      <div className="bg-background text-foreground flex min-h-screen flex-col">
+      {/* `isolate` scopes descendant z-indexes to this div so AppBackground's
+          -z-10 layer paints above this background instead of behind it. */}
+      <div className="bg-background text-foreground isolate flex min-h-screen flex-col">
         <Outlet />
         <Toaster position="bottom-right" />
       </div>

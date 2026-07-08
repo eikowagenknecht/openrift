@@ -9,6 +9,7 @@
 
 ### Other
 
+- feat(App): **Ambient background color** — the soft color washes from the landing page now carry through the whole app in a quieter form, in both light and dark mode.
 - fix(App): **Recover from rare blank-page crashes** — a rare crash that used to leave a dead white page now reloads the app once automatically.
 
 ## 2026-07-07
