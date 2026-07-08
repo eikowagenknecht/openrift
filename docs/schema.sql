@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 3ZgdCdGSILJbicYl2B9597Kln84gE8Utgeb0TMI3lprSUeOCQrcU18BQUYDFHPy
+\restrict 41z1vhhZGDrdnGQNpPD4yVeOpof3H4Oglajo6UhEcYmsLBxVLCFnPPf1MJ7yBJD
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -2031,6 +2031,7 @@ CREATE TABLE public.provider_settings (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     is_favorite boolean DEFAULT false NOT NULL,
+    helper_reviewable boolean DEFAULT false NOT NULL,
     CONSTRAINT provider_settings_provider_check CHECK ((provider <> ''::text))
 );
 
@@ -5715,5 +5716,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 3ZgdCdGSILJbicYl2B9597Kln84gE8Utgeb0TMI3lprSUeOCQrcU18BQUYDFHPy
+\unrestrict 41z1vhhZGDrdnGQNpPD4yVeOpof3H4Oglajo6UhEcYmsLBxVLCFnPPf1MJ7yBJD
 
