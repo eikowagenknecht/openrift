@@ -424,6 +424,52 @@ describe("friend-groups route", () => {
     expect(body.pendingRequests).toHaveLength(1);
   });
 
+  it("GET /{slug} expands rule-based shares so their entryCount is the real size", async () => {
+    const ruledShare = {
+      groupId: GROUP_ID,
+      listId: LIST_ID,
+      userId: USER_ID,
+      sharedAt: now,
+      listName: "More than 2 PS",
+      listIntent: "trade",
+      listKind: "copy",
+      // Materialized count is 0 for a rule-only list — the bug this covers.
+      entryCount: 0,
+      hasRule: true,
+      userName: "Test Owner",
+    };
+    const manualShare = {
+      ...ruledShare,
+      listId: "00000000-0000-4000-a000-000000000011",
+      listName: "Fixed picks",
+      entryCount: 4,
+      hasRule: false,
+    };
+    const entriesWithDetailsAnon = vi.fn(() =>
+      Promise.resolve([{ id: "e1" }, { id: "e2" }, { id: "e3" }]),
+    );
+    const { app } = makeApp({
+      friendGroups: {
+        getBySlug: vi.fn(() => Promise.resolve(group)),
+        getMembership: vi.fn(() => Promise.resolve(ownerMembership)),
+        getInvite: vi.fn(() => Promise.resolve(undefined)),
+        listMembers: vi.fn(() => Promise.resolve([enrichedOwner])),
+        listSharesForGroup: vi.fn(() => Promise.resolve([ruledShare, manualShare])),
+      },
+      lists: { entriesWithDetailsAnon },
+    });
+    const res = await app.request("/api/v1/friend-groups/playgroup");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { shares: { listId: string; entryCount: number }[] };
+    const byId = new Map(body.shares.map((s) => [s.listId, s.entryCount]));
+    // Rule-based list reports the expanded size, not the materialized 0.
+    expect(byId.get(LIST_ID)).toBe(3);
+    // Manual list keeps its cheap count and is never expanded.
+    expect(byId.get(manualShare.listId)).toBe(4);
+    expect(entriesWithDetailsAnon).toHaveBeenCalledTimes(1);
+    expect(entriesWithDetailsAnon).toHaveBeenCalledWith(LIST_ID, "copy");
+  });
+
   // ── Authz ───────────────────────────────────────────────────────────────
   it("PATCH /{slug} rejects plain members with 403", async () => {
     const { app } = makeApp({

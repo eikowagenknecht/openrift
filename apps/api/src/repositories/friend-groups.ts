@@ -503,6 +503,7 @@ export function friendGroupsRepo(db: Kysely<Database>) {
         listIntent: string;
         listKind: string;
         entryCount: number;
+        hasRule: boolean;
         userName: string | null;
       })[]
     > {
@@ -515,9 +516,12 @@ export function friendGroupsRepo(db: Kysely<Database>) {
           "l.name as listName",
           "l.intent as listIntent",
           "l.kind as listKind",
+          // Cheap materialized-row count. Exact for manual lists; rule-based
+          // lists report 0 here and get an expanded count in the route (ADR-034).
           sql<number>`(select count(*)::int from list_entries where list_entries.list_id = l.id)`.as(
             "entryCount",
           ),
+          sql<boolean>`(jsonb_array_length(l.rules) > 0)`.as("hasRule"),
           "u.name as userName",
         ])
         .where("s.groupId", "=", groupId)

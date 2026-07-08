@@ -265,7 +265,7 @@ export const friendGroupsRouter = {
   // ── DETAIL ──────────────────────────────────────────────────────────────
   get: os.get.handler(async ({ input, context }): Promise<FriendGroupDetailResponse> => {
     const viewerId = context.userId;
-    const { friendGroups } = context.repos;
+    const { friendGroups, lists } = context.repos;
 
     const group = await friendGroups.getBySlugOrPrevious(input.slug);
     if (!group) {
@@ -302,12 +302,27 @@ export const friendGroupsRouter = {
       friendGroups.getRevealedContactsForMembers(group.id),
     ]);
 
+    // The materialized `entryCount` counts only manual rows, so rule-based lists
+    // report 0. Expand just those lists (manual lists are already exact) to show
+    // their real size — the same expansion the list detail page uses (ADR-034).
+    const expandedCounts = new Map<string, number>();
+    await Promise.all(
+      shares
+        .filter((row) => row.hasRule)
+        .map(async (row) => {
+          const entries = await lists.entriesWithDetailsAnon(row.listId, row.listKind as ListKind);
+          expandedCounts.set(row.listId, entries.length);
+        }),
+    );
+
     return {
       group: toGroup(group, canSeeCode(membership.role)),
       viewerStatus: "member",
       viewerRole: membership.role,
       members: members.map((row) => toMember(row, contactsByUser.get(row.userId) ?? [])),
-      shares: shares.map((row) => toShare(row)),
+      shares: shares.map((row) =>
+        toShare({ ...row, entryCount: expandedCounts.get(row.listId) ?? row.entryCount }),
+      ),
       collectionShares: collectionShares.map((row) => toCollectionShare(row)),
       pendingRequests: pendingRequests.map((row) => toRequest(row)),
     };

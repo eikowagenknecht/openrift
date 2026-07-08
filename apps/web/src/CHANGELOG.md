@@ -14,6 +14,7 @@
 - feat(App): **Ambient background color** — the soft color washes from the landing page now carry through the whole app in a quieter form, in both light and dark mode.
 - fix(App): **Update prompt loop after releases** — for a while after a release, the app could repeatedly show the "new version available" prompt and reload on every page change; it now updates once and settles.
 - fix(App): **Recover from rare blank-page crashes** — a rare crash that used to leave a dead white page now reloads the app once automatically.
+- fix(Groups): **Rule-based list counts on the group trades page** — dynamic wishlists and tradelists showed 0 items there even when they held cards; they now show their real size.
 
 ## 2026-07-07
 
