@@ -193,6 +193,7 @@ export function DomainsPage() {
       data={domains}
       getRowKey={(domain) => domain.slug}
       emptyText="No domains yet."
+      title="Domains"
       toolbar={
         <p className="text-muted-foreground text-sm">
           Domains are the color identities for cards (e.g. Fury, Calm, Mind). Colors are shown

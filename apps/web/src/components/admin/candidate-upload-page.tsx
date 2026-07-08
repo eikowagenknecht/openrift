@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useRef, useState } from "react";
 
+import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { AdminTable } from "@/components/admin/admin-table";
 import type { AdminCellSlotProps, AdminColumnDef } from "@/components/admin/admin-table";
 import { Button } from "@/components/ui/button";
@@ -137,6 +138,7 @@ export function CandidateUploadPage() {
 
   return (
     <div className="space-y-6">
+      <AdminPageTopBar title="Sources" />
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

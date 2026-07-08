@@ -16,7 +16,6 @@ interface CreatePrintingSearch {
 export const Route = createFileRoute(
   "/_app/_authenticated/admin/cards_/$cardSlug_/printings/create",
 )({
-  staticData: { title: "Create Printing" },
   head: () => adminSeoHead("Create Printing"),
   validateSearch: (search: Record<string, unknown>): CreatePrintingSearch => {
     const result: CreatePrintingSearch = {};

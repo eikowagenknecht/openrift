@@ -126,7 +126,7 @@ export function AdminSidebar() {
     .filter((group) => group.pages.length > 0);
 
   return (
-    <NestedSidebar>
+    <NestedSidebar className="ml-safe">
       <SidebarContent>
         {visibleGroups.map((group) => (
           <SidebarGroup key={group.label}>

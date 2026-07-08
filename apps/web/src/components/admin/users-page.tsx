@@ -232,6 +232,7 @@ export function UsersPage() {
       getRowKey={(user) => user.id}
       emptyText="No users yet."
       defaultSort={{ column: "Joined", direction: "desc" }}
+      title="Users"
       toolbar={
         <p className="text-muted-foreground text-sm">
           {data.users.length} registered {data.users.length === 1 ? "user" : "users"}

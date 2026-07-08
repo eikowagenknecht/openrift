@@ -7,7 +7,6 @@ import { adminUsersQueryOptions } from "@/hooks/use-admin-users";
 import { adminSeoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/users")({
-  staticData: { title: "Users" },
   head: () => adminSeoHead("Users"),
   loader: ({ context }) =>
     Promise.all([

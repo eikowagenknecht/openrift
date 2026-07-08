@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 
+import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -110,6 +111,7 @@ export function CreateCardPage() {
 
   return (
     <div className="max-w-2xl">
+      <AdminPageTopBar title="Create Card" />
       <Card>
         <CardHeader>
           <CardTitle>Create new card</CardTitle>

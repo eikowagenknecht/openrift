@@ -4,6 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { CheckIcon, LoaderIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 
+import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { ConfirmClearButton } from "@/components/admin/confirm-clear-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -647,6 +648,7 @@ function LowResImagesSection() {
 export function ImagesPage() {
   return (
     <div className="space-y-4">
+      <AdminPageTopBar title="Images" />
       <BrokenImagesSection />
       <LowResImagesSection />
       <MissingImagesSection />

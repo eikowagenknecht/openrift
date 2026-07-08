@@ -2,6 +2,7 @@ import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog
 import { EraserIcon, LoaderIcon, RefreshCwIcon, TrashIcon } from "lucide-react";
 import { toast } from "sonner";
 
+import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -45,6 +46,7 @@ export function CachePage() {
 
   return (
     <div className="space-y-4">
+      <AdminPageTopBar title="Cache" />
       <Card>
         <CardHeader>
           <CardTitle>SSR Cache</CardTitle>

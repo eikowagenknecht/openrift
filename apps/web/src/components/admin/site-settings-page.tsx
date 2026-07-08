@@ -195,6 +195,7 @@ export function SiteSettingsPage() {
         data={settings}
         getRowKey={(setting) => setting.key}
         emptyText="No site settings yet."
+        title="Site Settings"
         toolbar={
           <p className="text-muted-foreground text-sm">
             Site settings are key-value pairs loaded at runtime. Web-scoped settings are available

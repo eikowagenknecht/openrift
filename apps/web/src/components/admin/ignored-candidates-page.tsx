@@ -1,5 +1,6 @@
 import { Undo2Icon } from "lucide-react";
 
+import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { AdminTable } from "@/components/admin/admin-table";
 import type { AdminCellSlotProps, AdminColumnDef } from "@/components/admin/admin-table";
 import { Badge } from "@/components/ui/badge";
@@ -151,6 +152,7 @@ export function IgnoredCandidatesPage() {
 
   return (
     <div className="space-y-8">
+      <AdminPageTopBar title="Ignored Sources" />
       <section className="space-y-3">
         <h2 className="text-sm font-semibold">Ignored Candidate Cards</h2>
         <AdminTable

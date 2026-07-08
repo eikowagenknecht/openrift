@@ -16,6 +16,8 @@ import {
 import type { ReactElement, ReactNode } from "react";
 import { Fragment, cloneElement, useState } from "react";
 
+import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
+import { PageTopBarButton, PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -107,6 +109,14 @@ interface AdminTableProps<TData, TDraft = TData> {
 
   /** Initial sort state. `column` must match a column's `header` that has `sortValue`. */
   defaultSort?: { column: string; direction: "asc" | "desc" };
+
+  /**
+   * Page title. When set, the table owns the page's sticky top bar
+   * ({@link AdminPageTopBar}) and lifts the Add / Export buttons into it.
+   * Omit on pages that render several tables (or their own top bar) — the
+   * buttons then stay in the inline toolbar row above the table.
+   */
+  title?: ReactNode;
 
   /** Optional toolbar content rendered above the table (description, filters, etc.) */
   toolbar?: ReactNode;
@@ -240,6 +250,7 @@ export function AdminTable<TData, TDraft = TData>({
   getRowKey,
   emptyText = "No data.",
   defaultSort,
+  title,
   toolbar,
   add,
   addChild,
@@ -396,32 +407,57 @@ export function AdminTable<TData, TDraft = TData>({
       </TableRow>
     ) : null;
 
+  const handleExport = exportConfig
+    ? () => {
+        const payload = exportConfig.transform ? exportConfig.transform(data) : data;
+        downloadJSON(payload, exportConfig.filename);
+      }
+    : undefined;
+
   return (
     <div className="space-y-4">
-      {(toolbar || add || exportConfig) && (
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex-1">{toolbar}</div>
-          <div className="flex items-center gap-2">
-            {exportConfig && (
-              <Button
-                variant="outline"
-                onClick={() => {
-                  const payload = exportConfig.transform ? exportConfig.transform(data) : data;
-                  downloadJSON(payload, exportConfig.filename);
-                }}
-              >
-                <DownloadIcon className="h-4 w-4" />
-                Export JSON
-              </Button>
-            )}
-            {add && !adding && (
-              <Button variant="outline" onClick={() => startAdding()}>
-                {add.label ?? "Add"}
-              </Button>
-            )}
-          </div>
-        </div>
+      {title !== undefined && (
+        <AdminPageTopBar
+          title={title}
+          actions={
+            (exportConfig || add) && (
+              <>
+                {handleExport && (
+                  <PageTopBarButton onClick={handleExport}>
+                    <DownloadIcon />
+                    Export JSON
+                  </PageTopBarButton>
+                )}
+                {add && (
+                  <PageTopBarPrimaryButton onClick={() => startAdding()} disabled={adding}>
+                    {add.label ?? "Add"}
+                  </PageTopBarPrimaryButton>
+                )}
+              </>
+            )
+          }
+        />
       )}
+      {title === undefined
+        ? (toolbar || add || exportConfig) && (
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex-1">{toolbar}</div>
+              <div className="flex items-center gap-2">
+                {handleExport && (
+                  <Button variant="outline" onClick={handleExport}>
+                    <DownloadIcon className="h-4 w-4" />
+                    Export JSON
+                  </Button>
+                )}
+                {add && !adding && (
+                  <Button variant="outline" onClick={() => startAdding()}>
+                    {add.label ?? "Add"}
+                  </Button>
+                )}
+              </div>
+            </div>
+          )
+        : toolbar}
 
       <div className="overflow-x-auto">
         <Table>

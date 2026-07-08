@@ -1,6 +1,7 @@
 import type { RuleKind, RuleVersionResponse } from "@openrift/shared";
 import { useState } from "react";
 
+import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import {
   SectionHeader,
   SectionHeaderDescription,
@@ -81,6 +82,7 @@ export function RulesImportPage() {
 
   return (
     <div className="space-y-8 p-4">
+      <AdminPageTopBar title="Rules" />
       <SectionHeader>
         <SectionHeaderGroup>
           <SectionHeaderTitle>Import Rules</SectionHeaderTitle>

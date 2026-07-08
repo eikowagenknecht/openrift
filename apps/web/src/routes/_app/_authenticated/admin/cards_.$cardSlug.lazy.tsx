@@ -1,5 +1,6 @@
 import { createLazyFileRoute, useParams, useSearch } from "@tanstack/react-router";
 
+import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { ExistingCardDetailPage } from "@/components/admin/existing-card-detail-page";
 
 function ExistingCardPage() {
@@ -8,14 +9,17 @@ function ExistingCardPage() {
     from: "/_app/_authenticated/admin/cards_/$cardSlug",
   });
   return (
-    <ExistingCardDetailPage
-      key={cardSlug}
-      identifier={cardSlug}
-      focusMarketplace={focusMarketplace}
-      focusFinish={focusFinish}
-      focusLanguage={focusLanguage}
-      setSlug={set}
-    />
+    <>
+      <AdminPageTopBar title="Card Source" />
+      <ExistingCardDetailPage
+        key={cardSlug}
+        identifier={cardSlug}
+        focusMarketplace={focusMarketplace}
+        focusFinish={focusFinish}
+        focusLanguage={focusLanguage}
+        setSlug={set}
+      />
+    </>
   );
 }
 

@@ -134,6 +134,7 @@ export function CardTypesPage() {
       data={cardTypes}
       getRowKey={(cardType) => cardType.slug}
       emptyText="No card types yet."
+      title="Card Types"
       toolbar={
         <p className="text-muted-foreground text-sm">
           Card types categorize cards by their game role (e.g. Unit, Spell, Battlefield, Legend,

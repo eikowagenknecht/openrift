@@ -1,6 +1,7 @@
 import type { CustomTagCategoryResponse, CustomTagResponse } from "@openrift/shared";
 import { useMemo, useState } from "react";
 
+import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { AdminTable } from "@/components/admin/admin-table";
 import type {
   AdminCellSlotProps,
@@ -73,6 +74,7 @@ export function CustomTagsPage() {
 
   return (
     <div className="space-y-8">
+      <AdminPageTopBar title="Custom Tags" />
       <CategoriesSection categories={categories} />
 
       <TagsSection tags={tags} categories={categories} />

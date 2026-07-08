@@ -3,6 +3,7 @@ import { CheckIcon, LoaderIcon, RefreshCwIcon, RotateCcwIcon, SendIcon, XIcon } 
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -91,12 +92,15 @@ export function PrintingEventsPage() {
     setRetryingIds(new Set());
   }
 
+  const topBar = <AdminPageTopBar title="Printing Events" />;
+
   if (!data) {
-    return null;
+    return topBar;
   }
 
   return (
     <div className="space-y-4">
+      {topBar}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-muted-foreground text-sm">
           The Discord webhook queue. Pending events are flushed every 15 minutes; events that fail 5

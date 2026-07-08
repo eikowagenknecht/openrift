@@ -6,7 +6,6 @@ import { adminCacheStatusQueryOptions } from "@/hooks/use-cache-purge";
 import { adminSeoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/cache")({
-  staticData: { title: "Cache" },
   head: () => adminSeoHead("Cache"),
   loader: ({ context }) => context.queryClient.ensureQueryData(adminCacheStatusQueryOptions),
   pendingComponent: AdminPending,

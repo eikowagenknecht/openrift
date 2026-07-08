@@ -6,7 +6,6 @@ import { adminDomainsQueryOptions } from "@/hooks/use-domains";
 import { adminSeoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/domains")({
-  staticData: { title: "Domains" },
   head: () => adminSeoHead("Domains"),
   loader: ({ context }) => context.queryClient.ensureQueryData(adminDomainsQueryOptions),
   pendingComponent: AdminPending,

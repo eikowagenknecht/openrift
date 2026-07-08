@@ -178,6 +178,7 @@ export function IgnoredProductsPage() {
       }
       emptyText="No ignored products."
       defaultSort={{ column: "Ignored At", direction: "desc" }}
+      title="Ignored Products"
       toolbar={
         products.length > 0 ? (
           <p className="text-muted-foreground text-sm">

@@ -7,7 +7,6 @@ import { adminOrganizationsQueryOptions } from "@/hooks/use-organizations";
 import { adminSeoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/organizations")({
-  staticData: { title: "Organizations" },
   head: () => adminSeoHead("Organizations"),
   loader: ({ context }) =>
     Promise.all([

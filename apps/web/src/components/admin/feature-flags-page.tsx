@@ -2,6 +2,7 @@ import type { FeatureFlagResponse } from "@openrift/shared";
 import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 
+import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { AdminTable } from "@/components/admin/admin-table";
 import type {
   AdminCellSlotProps,
@@ -490,6 +491,7 @@ function OverridesSection() {
 export function FeatureFlagsPage() {
   return (
     <div className="space-y-8">
+      <AdminPageTopBar title="Feature Flags" />
       <div>
         <h2 className="mb-2 text-lg font-semibold">Global Flags</h2>
         <GlobalFlagsSection />

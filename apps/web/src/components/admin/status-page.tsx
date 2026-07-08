@@ -13,7 +13,9 @@ import {
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { JobStatusBadge } from "@/components/admin/job-status-badge";
+import { PageTopBarButton } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -101,23 +103,30 @@ export function StatusPage() {
     }
   }, [dataUpdatedAt]);
 
+  const topBar = (
+    <AdminPageTopBar
+      title="Status"
+      actions={
+        <PageTopBarButton onClick={() => refetch()} disabled={isFetching}>
+          <RefreshCwIcon className={isFetching ? "animate-spin" : ""} />
+          Refresh
+        </PageTopBarButton>
+      }
+    />
+  );
+
   if (!data) {
-    return null;
+    return topBar;
   }
 
   const { server, database, cron, app, pricing } = data;
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-muted-foreground text-sm">
-          Auto-refreshes every 30 seconds.{lastUpdated && ` Last updated ${lastUpdated}.`}
-        </p>
-        <Button variant="outline" onClick={() => refetch()} disabled={isFetching}>
-          <RefreshCwIcon className={isFetching ? "animate-spin" : ""} />
-          Refresh
-        </Button>
-      </div>
+      {topBar}
+      <p className="text-muted-foreground text-sm">
+        Auto-refreshes every 30 seconds.{lastUpdated && ` Last updated ${lastUpdated}.`}
+      </p>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {/* Server */}

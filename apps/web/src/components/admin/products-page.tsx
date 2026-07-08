@@ -4,6 +4,8 @@ import { Link } from "@tanstack/react-router";
 import { RefreshCwIcon } from "lucide-react";
 import { useState } from "react";
 
+import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
+import { PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -391,6 +393,14 @@ export function AdminProductsPage() {
 
   return (
     <div className="space-y-4">
+      <AdminPageTopBar
+        title="Products"
+        actions={
+          <PageTopBarPrimaryButton onClick={() => setCreateOpen(true)}>
+            Create product
+          </PageTopBarPrimaryButton>
+        }
+      />
       <AdminTable
         columns={productColumns}
         data={data.products}
@@ -398,13 +408,10 @@ export function AdminProductsPage() {
         emptyText="No products yet — create one from a printing list."
         defaultSort={{ column: "Name", direction: "asc" }}
         toolbar={
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-muted-foreground">
-              Products are public the moment they exist. Contents change only by re-syncing from a
-              list.
-            </p>
-            <Button onClick={() => setCreateOpen(true)}>Create product</Button>
-          </div>
+          <p className="text-muted-foreground">
+            Products are public the moment they exist. Contents change only by re-syncing from a
+            list.
+          </p>
         }
         edit={{
           toDraft: (product) => ({

@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { JobStatusBadge } from "@/components/admin/job-status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -125,8 +126,10 @@ export function JobRunsPage() {
     });
   }
 
+  const topBar = <AdminPageTopBar title="Job Runs" />;
+
   if (!data) {
-    return null;
+    return topBar;
   }
 
   const { runs, total, limit, kinds } = data;
@@ -136,6 +139,7 @@ export function JobRunsPage() {
 
   return (
     <div className="space-y-4">
+      {topBar}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-muted-foreground text-sm">
           Auto-refreshes every 15 seconds on the first page.

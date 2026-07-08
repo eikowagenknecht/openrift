@@ -279,6 +279,7 @@ export function MarketplaceGroupsPage() {
       data={groups}
       getRowKey={(g) => `${g.marketplace}:${g.groupId}`}
       emptyText="No groups yet. They appear after a price scrape runs."
+      title="Marketplace Groups"
     />
   );
 }

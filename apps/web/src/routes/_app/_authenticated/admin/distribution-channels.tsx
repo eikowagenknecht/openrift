@@ -6,7 +6,6 @@ import { adminDistributionChannelsQueryOptions } from "@/hooks/use-distribution-
 import { adminSeoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/distribution-channels")({
-  staticData: { title: "Distribution Channels" },
   head: () => adminSeoHead("Distribution Channels"),
   loader: ({ context }) =>
     context.queryClient.ensureQueryData(adminDistributionChannelsQueryOptions),

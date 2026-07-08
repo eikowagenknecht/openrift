@@ -396,6 +396,7 @@ export function KeywordsPage() {
         getRowKey={(row) => row.keyword}
         defaultSort={{ column: "Cards", direction: "desc" }}
         emptyText="No keywords found. Try running recompute first."
+        title="Keywords"
         toolbar={
           <p className="text-muted-foreground text-sm">
             Keywords extracted from card and printing text. Styles control how keyword badges

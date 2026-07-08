@@ -1,10 +1,16 @@
 import { createLazyFileRoute, useParams } from "@tanstack/react-router";
 
+import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { NewCardDetailPage } from "@/components/admin/new-card-detail-page";
 
 function NewCardPage() {
   const { name } = useParams({ from: "/_app/_authenticated/admin/cards_/new/$name" });
-  return <NewCardDetailPage key={name} identifier={decodeURIComponent(name)} />;
+  return (
+    <>
+      <AdminPageTopBar title="New Card" />
+      <NewCardDetailPage key={name} identifier={decodeURIComponent(name)} />
+    </>
+  );
 }
 
 export const Route = createLazyFileRoute("/_app/_authenticated/admin/cards_/new/$name")({

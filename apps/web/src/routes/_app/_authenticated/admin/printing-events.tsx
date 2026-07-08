@@ -6,7 +6,6 @@ import { adminPrintingEventsQueryOptions } from "@/hooks/use-flush-printing-even
 import { adminSeoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/printing-events")({
-  staticData: { title: "Printing Events" },
   head: () => adminSeoHead("Printing Events"),
   loader: ({ context }) => context.queryClient.ensureQueryData(adminPrintingEventsQueryOptions),
   pendingComponent: AdminPending,

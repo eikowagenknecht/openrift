@@ -134,6 +134,7 @@ export function FinishesPage() {
       data={finishes}
       getRowKey={(finish) => finish.slug}
       emptyText="No finishes yet."
+      title="Finishes"
       toolbar={
         <p className="text-muted-foreground text-sm">
           Finishes describe the physical treatment of a card (e.g. Non-Foil, Foil, Etched).

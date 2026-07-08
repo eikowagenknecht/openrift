@@ -6,7 +6,6 @@ import { adminJobRunsQueryOptions } from "@/hooks/use-job-runs";
 import { adminSeoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/job-runs")({
-  staticData: { title: "Job Runs" },
   head: () => adminSeoHead("Job Runs"),
   loader: ({ context }) =>
     context.queryClient.ensureQueryData(adminJobRunsQueryOptions({ page: 1 })),

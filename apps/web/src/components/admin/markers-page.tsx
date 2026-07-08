@@ -153,6 +153,7 @@ export function MarkersPage() {
       data={markers}
       getRowKey={(m) => m.id}
       emptyText="No markers yet."
+      title="Markers"
       toolbar={
         <p className="text-muted-foreground">
           Markers describe what is physically printed on a card (e.g. promo stamp, Top 8 placement).

@@ -1,7 +1,7 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
-import { Heading } from "@/components/heading";
+import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { Button } from "@/components/ui/button";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/admin/error-test")({
@@ -11,7 +11,7 @@ export const Route = createLazyFileRoute("/_app/_authenticated/admin/error-test"
 function ErrorTestPage() {
   return (
     <div className="flex flex-col gap-4 p-6">
-      <Heading level={1}>Error boundary test</Heading>
+      <AdminPageTopBar title="Error Test" />
       <p className="text-muted-foreground text-sm">
         Click the button to throw during render, which triggers the error boundary.
       </p>

@@ -325,6 +325,7 @@ export function SetsPage() {
       data={sets}
       getRowKey={(s) => s.id}
       emptyText="No sets yet."
+      title="Sets"
       toolbar={
         <p className="text-muted-foreground text-sm">
           Set order controls which printing a card defaults to wherever no specific printing is

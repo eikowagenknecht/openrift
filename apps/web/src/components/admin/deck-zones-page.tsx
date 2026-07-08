@@ -82,6 +82,7 @@ export function DeckZonesPage() {
       data={deckZones}
       getRowKey={(zone) => zone.slug}
       emptyText="No deck zones."
+      title="Deck Zones"
       toolbar={
         <p className="text-muted-foreground text-sm">
           Deck zones define the sections of a deck (Legend, Main Deck, etc.). Reorder to control

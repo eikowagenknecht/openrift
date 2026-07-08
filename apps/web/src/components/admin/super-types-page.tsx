@@ -134,6 +134,7 @@ export function SuperTypesPage() {
       data={superTypes}
       getRowKey={(superType) => superType.slug}
       emptyText="No supertypes yet."
+      title="Supertypes"
       toolbar={
         <p className="text-muted-foreground text-sm">
           Supertypes are qualifiers applied on top of a card&apos;s type (e.g. Champion, Signature).

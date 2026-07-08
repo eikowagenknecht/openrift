@@ -9,7 +9,6 @@ import {
 import { adminSeoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/custom-tags")({
-  staticData: { title: "Custom Tags" },
   head: () => adminSeoHead("Custom Tags"),
   loader: ({ context }) =>
     Promise.all([

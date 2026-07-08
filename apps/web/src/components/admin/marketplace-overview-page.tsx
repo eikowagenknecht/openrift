@@ -2,6 +2,7 @@ import type { PriceRefreshResponse } from "@openrift/shared";
 import { priceRefreshResponseSchema } from "@openrift/shared/contracts/admin/job-results";
 import { CheckIcon, LoaderIcon, XIcon } from "lucide-react";
 
+import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { formatRelativeTime, refreshActions } from "@/components/admin/refresh-actions";
 import type { CronStatus } from "@/components/admin/refresh-actions";
 import { Button } from "@/components/ui/button";
@@ -174,6 +175,7 @@ export function MarketplaceOverviewPage() {
 
   return (
     <div className="space-y-4">
+      <AdminPageTopBar title="Marketplace Overview" />
       <PriceSection
         label="TCGplayer"
         groups={tcgGroups.length}

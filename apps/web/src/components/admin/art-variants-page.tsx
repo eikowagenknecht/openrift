@@ -134,6 +134,7 @@ export function ArtVariantsPage() {
       data={artVariants}
       getRowKey={(artVariant) => artVariant.slug}
       emptyText="No art variants yet."
+      title="Art Variants"
       toolbar={
         <p className="text-muted-foreground text-sm">
           Art variants describe alternate artwork treatments for a printing (e.g. Normal, Alternate,

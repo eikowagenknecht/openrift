@@ -134,6 +134,7 @@ export function DeckFormatsPage() {
       data={deckFormats}
       getRowKey={(deckFormat) => deckFormat.slug}
       emptyText="No deck formats yet."
+      title="Deck Formats"
       toolbar={
         <p className="text-muted-foreground text-sm">
           Deck formats describe the construction rules a deck follows (e.g. Constructed, Freeform).

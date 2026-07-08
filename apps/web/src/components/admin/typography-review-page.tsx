@@ -1,6 +1,7 @@
 import { CheckIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAcceptTypographyFix, useTypographyReview } from "@/hooks/use-typography-review";
@@ -70,16 +71,22 @@ export function TypographyReviewPage() {
   const { data } = useTypographyReview();
   const accept = useAcceptTypographyFix();
 
+  const topBar = <AdminPageTopBar title="Typography" />;
+
   if (data.diffs.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16">
-        <p className="text-muted-foreground text-sm">All text fields have correct typography.</p>
-      </div>
+      <>
+        {topBar}
+        <div className="flex flex-col items-center justify-center py-16">
+          <p className="text-muted-foreground text-sm">All text fields have correct typography.</p>
+        </div>
+      </>
     );
   }
 
   return (
     <div className="space-y-4">
+      {topBar}
       <div className="flex items-center justify-between">
         <p className="text-muted-foreground text-sm">
           {String(data.diffs.length)} {data.diffs.length === 1 ? "mismatch" : "mismatches"} found

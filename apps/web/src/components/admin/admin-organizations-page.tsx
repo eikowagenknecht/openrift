@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -223,6 +224,7 @@ export function AdminOrganizationsPage() {
 
   return (
     <div className="flex max-w-3xl flex-col gap-8">
+      <AdminPageTopBar title="Organizations" />
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Create organization</h2>
         <div className="grid gap-3 sm:grid-cols-2">

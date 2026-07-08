@@ -403,6 +403,7 @@ export function DistributionChannelsPage() {
       data={orderedChannels}
       getRowKey={(c) => c.id}
       emptyText="No distribution channels yet."
+      title="Distribution Channels"
       toolbar={
         <p className="text-muted-foreground">
           Distribution channels describe where a printing was distributed: tournament events

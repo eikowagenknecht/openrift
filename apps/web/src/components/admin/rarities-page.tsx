@@ -193,6 +193,7 @@ export function RaritiesPage() {
       data={rarities}
       getRowKey={(rarity) => rarity.slug}
       emptyText="No rarities yet."
+      title="Rarities"
       toolbar={
         <p className="text-muted-foreground text-sm">
           Rarities describe the scarcity tier of a printing (e.g. Common, Uncommon, Rare). Colors

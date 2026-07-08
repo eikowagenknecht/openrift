@@ -7,7 +7,6 @@ import { setsQueryOptions } from "@/hooks/use-sets";
 import { adminSeoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/marketplace-groups")({
-  staticData: { title: "Marketplace Groups" },
   head: () => adminSeoHead("Marketplace Groups"),
   loader: ({ context }) =>
     Promise.all([

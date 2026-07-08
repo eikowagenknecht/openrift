@@ -2,6 +2,7 @@ import type { Printing } from "@openrift/shared";
 import { imageUrl } from "@openrift/shared";
 import { useRef, useState } from "react";
 
+import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -177,6 +178,7 @@ export function ScanTestPage() {
 
   return (
     <div className="space-y-6">
+      <AdminPageTopBar title="Scan Test" />
       <div className="text-muted-foreground text-sm">
         Test camera-based card scanning with two approaches: OCR (text recognition) and perceptual
         image hashing (visual similarity). Capture a card image and compare results.

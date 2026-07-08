@@ -21,7 +21,6 @@ interface CardDetailSearch {
 }
 
 export const Route = createFileRoute("/_app/_authenticated/admin/cards_/$cardSlug")({
-  staticData: { title: "Card Source" },
   head: ({ loaderData }) => {
     const data = loaderData as AdminCardDetailResponse | undefined;
     return adminSeoHead(data?.displayName ?? "Card");

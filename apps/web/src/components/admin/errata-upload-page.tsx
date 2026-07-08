@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useRef, useState } from "react";
 
+import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -113,6 +114,7 @@ export function ErrataUploadPage() {
 
   return (
     <div className="space-y-6">
+      <AdminPageTopBar title="Errata" />
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

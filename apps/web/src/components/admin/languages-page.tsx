@@ -117,6 +117,7 @@ export function LanguagesPage() {
       data={languages}
       getRowKey={(lang) => lang.code}
       emptyText="No languages yet."
+      title="Languages"
       toolbar={
         <p className="text-muted-foreground text-sm">
           Languages classify the printing language of each card (e.g. English, Japanese).

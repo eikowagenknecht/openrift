@@ -18,6 +18,7 @@ import { useState } from "react";
 import { Area, AreaChart } from "recharts";
 import { toast } from "sonner";
 
+import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { CardCountStrip } from "@/components/cards/card-count-strip";
 import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 import { MultiSelectCombobox } from "@/components/filters/multi-select-combobox";
@@ -225,8 +226,8 @@ const SECTIONS = [
 export function DesignPage() {
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-10 pb-16">
+      <AdminPageTopBar title="Design" />
       <div className="space-y-3">
-        <Heading level={1}>Design</Heading>
         <p className="text-muted-foreground">
           Every UI primitive in one place. Check both themes with the header toggle. Raw{" "}
           <code className="font-mono text-sm">&lt;button&gt;</code> elements are banned by lint

@@ -1,5 +1,6 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
+import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useAdminSettingsStore } from "@/hooks/use-admin-settings";
@@ -14,6 +15,7 @@ function SettingsPage() {
 
   return (
     <div className="space-y-8">
+      <AdminPageTopBar title="Settings" />
       <section className="space-y-4">
         <div>
           <h2 className="text-base font-semibold">Developer Tools</h2>
