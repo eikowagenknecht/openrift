@@ -5,6 +5,7 @@ import { implement } from "@orpc/server";
 import { AppError } from "../../../errors.js";
 import { requireAuthedUser } from "../../../orpc/base.js";
 import type { ApiContext } from "../../../orpc/context.js";
+import { recordAdminEvent } from "../../../services/record-admin-event.js";
 import { assertFound } from "../../../utils/assertions.js";
 
 const os = implement(adminCardBansContract).$context<ApiContext>().use(requireAuthedUser);
@@ -49,6 +50,17 @@ export const adminCardBansRouter = {
 
     const row = await cardBans.create({ cardId: id, formatId, bannedAt, reason: reason ?? null });
 
+    // catalog.cardById only returns the id — fetch name/slug for the label
+    const cardDetails = await context.repos.candidateMutations.getCardById(id);
+    await recordAdminEvent(context.repos, context.userId, {
+      action: "ban.add",
+      entityType: "ban",
+      entityId: row.id,
+      entityLabel: cardDetails?.name ?? null,
+      cardSlug: cardDetails?.slug ?? null,
+      newValues: { cardId: id, formatId, bannedAt, reason: reason ?? null },
+    });
+
     return {
       ban: {
         id: row.id,
@@ -74,8 +86,18 @@ export const adminCardBansRouter = {
       fields.reason = reason;
     }
 
+    const before = await cardBans.findActiveBan(id, formatId);
+
     const row = await cardBans.update(id, formatId, fields);
     assertFound(row, `No active ban found for format ${formatId}`);
+
+    await recordAdminEvent(context.repos, context.userId, {
+      action: "ban.update",
+      entityType: "ban",
+      entityId: row.id,
+      oldValues: before ? { bannedAt: before.bannedAt, reason: before.reason } : null,
+      newValues: fields,
+    });
 
     return {
       ban: {
@@ -94,6 +116,8 @@ export const adminCardBansRouter = {
     const { cardBans } = context.repos;
     const { id, formatId } = input;
 
+    const before = await cardBans.findActiveBan(id, formatId);
+
     // `unban` returns a boolean (not a row), so use an explicit check rather
     // than `assertFound` (which only catches null/undefined) — this 404s when
     // no active ban matched, consistent with the PATCH handler above.
@@ -101,5 +125,12 @@ export const adminCardBansRouter = {
     if (!removed) {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, `No active ban found for format ${formatId}`);
     }
+
+    await recordAdminEvent(context.repos, context.userId, {
+      action: "ban.delete",
+      entityType: "ban",
+      entityId: before?.id ?? null,
+      oldValues: { cardId: id, formatId, bannedAt: before?.bannedAt, reason: before?.reason },
+    });
   }),
 };

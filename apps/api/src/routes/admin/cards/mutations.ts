@@ -23,6 +23,7 @@ import {
   updatePrintingDistributionChannels,
   updatePrintingMarkers,
 } from "../../../services/printing-admin.js";
+import { recordAdminEvent } from "../../../services/record-admin-event.js";
 import { assertDeleted, assertFound, assertUpdated } from "../../../utils/assertions.js";
 
 const os = implement(adminCardMutationsContract).$context<ApiContext>().use(requireAuthedUser);
@@ -106,16 +107,49 @@ export const adminCardMutationsRouter = {
         throw new AppError(400, ERROR_CODES.BAD_REQUEST, "No valid fields to update");
       }
 
+      const before = await mut.getCandidatePrintingById(id);
+
       const result = await mut.patchCandidatePrinting(id, updates);
       assertUpdated(result, "Candidate printing not found");
+
+      await recordAdminEvent(context.repos, context.userId, {
+        action: "candidate-printing.patch",
+        entityType: "candidate-printing",
+        entityId: id,
+        entityLabel: before?.shortCode ?? null,
+        oldValues: before
+          ? Object.fromEntries(
+              Object.keys(updates).map((k) => [k, (before as Record<string, unknown>)[k]]),
+            )
+          : null,
+        newValues: updates,
+      });
     },
   ),
 
   deleteCandidatePrinting: os.deleteCandidatePrinting.handler(
     async ({ input, context }): Promise<void> => {
       const { candidateMutations: mut } = context.repos;
+      const before = await mut.getCandidatePrintingById(input.id);
       const result = await mut.deleteCandidatePrinting(input.id);
       assertDeleted(result, "Candidate printing not found");
+
+      await recordAdminEvent(context.repos, context.userId, {
+        action: "candidate-printing.delete",
+        entityType: "candidate-printing",
+        entityId: input.id,
+        entityLabel: before?.shortCode ?? null,
+        oldValues: before
+          ? {
+              shortCode: before.shortCode,
+              setId: before.setId,
+              rarity: before.rarity,
+              finish: before.finish,
+              artVariant: before.artVariant,
+              externalId: before.externalId,
+            }
+          : null,
+      });
     },
   ),
 
@@ -135,6 +169,14 @@ export const adminCardMutationsRouter = {
       assertFound(target, "Target printing not found");
 
       await mut.copyCandidatePrinting(ps, target);
+
+      await recordAdminEvent(context.repos, context.userId, {
+        action: "candidate-printing.copy",
+        entityType: "candidate-printing",
+        entityId: id,
+        entityLabel: ps.shortCode,
+        newValues: { targetPrintingId: printingId },
+      });
     },
   ),
 
@@ -153,6 +195,13 @@ export const adminCardMutationsRouter = {
       await (printingId
         ? mut.upsertPrintingLinkOverrides(candidatePrintingIds, printingId)
         : mut.removePrintingLinkOverrides(candidatePrintingIds));
+
+      await recordAdminEvent(context.repos, context.userId, {
+        action: "candidate-printing.link",
+        entityType: "candidate-printing",
+        entityId: printingId ?? null,
+        newValues: { candidatePrintingIds, printingId: printingId ?? null },
+      });
     },
   ),
 
@@ -173,17 +222,53 @@ export const adminCardMutationsRouter = {
 
     // UUID PK is immutable -- only the slug changes
     await mut.renameCardSlugById(card.id, newId.trim());
+
+    await recordAdminEvent(context.repos, context.userId, {
+      action: "card.rename",
+      entityType: "card",
+      entityId: card.id,
+      entityLabel: card.name,
+      cardSlug: newId.trim(),
+      oldValues: { slug: card.slug },
+      newValues: { slug: newId.trim() },
+    });
   }),
 
   deletePrinting: os.deletePrinting.handler(async ({ input, context }): Promise<void> => {
     const { candidateMutations } = context.repos;
+    const before = await candidateMutations.getFullPrintingById(input.printingId);
     await deletePrinting(context.transact, context.io, { candidateMutations }, input.printingId);
+
+    await recordAdminEvent(context.repos, context.userId, {
+      action: "printing.delete",
+      entityType: "printing",
+      entityId: input.printingId,
+      entityLabel: before?.shortCode ?? null,
+      oldValues: before
+        ? {
+            cardId: before.cardId,
+            shortCode: before.shortCode,
+            finish: before.finish,
+            publicCode: before.publicCode,
+            language: before.language,
+          }
+        : null,
+    });
   }),
 
   deleteCard: os.deleteCard.handler(async ({ input, context }): Promise<void> => {
     const { candidateMutations } = context.repos;
+    const before = await candidateMutations.getCardById(input.cardId);
     await deleteCard(context.transact, context.io, { candidateMutations }, input.cardId);
     await context.repos.catalog.refreshCardAggregates();
+
+    await recordAdminEvent(context.repos, context.userId, {
+      action: "card.delete",
+      entityType: "card",
+      entityId: input.cardId,
+      entityLabel: before?.name ?? null,
+      oldValues: before ? { id: before.id, name: before.name, slug: before.slug } : null,
+    });
   }),
 
   checkByProvider: os.checkByProvider.handler(async ({ input, context }) => {
@@ -202,6 +287,15 @@ export const adminCardMutationsRouter = {
       throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Provider name is required");
     }
     const deleted = await mut.deleteByProvider(provider.trim());
+
+    await recordAdminEvent(context.repos, context.userId, {
+      action: "provider.delete-candidates",
+      entityType: "provider",
+      entityId: provider.trim(),
+      entityLabel: provider.trim(),
+      newValues: { deleted },
+    });
+
     return { provider, deleted };
   }),
 
@@ -209,6 +303,9 @@ export const adminCardMutationsRouter = {
     const { candidateMutations: mut } = context.repos;
     const { cardId, correctedRulesText, correctedEffectText, source, sourceUrl, effectiveDate } =
       input;
+
+    const [errataBefore] = await mut.getErrataByCardIds([cardId]);
+    const card = await mut.getCardById(cardId);
 
     await mut.upsertCardErrata(cardId, {
       correctedRulesText,
@@ -230,11 +327,24 @@ export const adminCardMutationsRouter = {
     ].filter((v, i, a) => a.indexOf(v) === i);
 
     await mut.updateCardById(cardId, { keywords });
+
+    await recordAdminEvent(context.repos, context.userId, {
+      action: "errata.upsert",
+      entityType: "errata",
+      entityId: cardId,
+      entityLabel: card?.name ?? null,
+      cardSlug: card?.slug ?? null,
+      oldValues: errataBefore ?? null,
+      newValues: { correctedRulesText, correctedEffectText, source, sourceUrl, effectiveDate },
+    });
   }),
 
   deleteErrata: os.deleteErrata.handler(async ({ input, context }): Promise<void> => {
     const { candidateMutations: mut } = context.repos;
     const { cardId } = input;
+
+    const [errataBefore] = await mut.getErrataByCardIds([cardId]);
+    const card = await mut.getCardById(cardId);
 
     await mut.deleteCardErrata(cardId);
 
@@ -248,14 +358,39 @@ export const adminCardMutationsRouter = {
       .filter((v, i, a) => a.indexOf(v) === i);
 
     await mut.updateCardById(cardId, { keywords });
+
+    await recordAdminEvent(context.repos, context.userId, {
+      action: "errata.delete",
+      entityType: "errata",
+      entityId: cardId,
+      entityLabel: card?.name ?? null,
+      cardSlug: card?.slug ?? null,
+      oldValues: errataBefore ?? null,
+    });
   }),
 
   uploadErrata: os.uploadErrata.handler(async ({ input, context }) => {
     const { importErrata } = context.services;
-    return await importErrata(context.transact, {
+    const result = await importErrata(context.transact, {
       entries: input.entries,
       dryRun: input.dryRun,
     });
+
+    // A dry run mutates nothing — no audit event.
+    if (!input.dryRun) {
+      await recordAdminEvent(context.repos, context.userId, {
+        action: "errata.upload",
+        entityType: "upload",
+        newValues: {
+          newCount: result.newCount,
+          updatedCount: result.updatedCount,
+          unchangedCount: result.unchangedCount,
+          errors: result.errors.length,
+        },
+      });
+    }
+
+    return result;
   }),
 
   acceptField: os.acceptField.handler(async ({ input, context }): Promise<void> => {
@@ -288,15 +423,40 @@ export const adminCardMutationsRouter = {
 
     const finalValue = normalized;
 
+    // Snapshot before the write for the audit event. domains/superTypes live
+    // only in junction tables — no cheap before-read, so their old is null;
+    // types uses the denormalized cards.type scalar (ADR-037).
+    const cardBefore = await mut.getFullCardById(cardId);
+    const auditEvent = () =>
+      recordAdminEvent(context.repos, context.userId, {
+        action: "card.accept-field",
+        entityType: "card",
+        entityId: cardId,
+        entityLabel: cardBefore?.name ?? null,
+        cardSlug: cardBefore?.slug ?? null,
+        oldValues:
+          field === "domains" || field === "superTypes"
+            ? null
+            : {
+                [field]:
+                  field === "types"
+                    ? cardBefore?.type
+                    : (cardBefore as Record<string, unknown> | undefined)?.[field],
+              },
+        newValues: { [field]: finalValue },
+      });
+
     // Domains and superTypes are stored in junction tables, not on the cards row
     if (field === "domains") {
       await mut.replaceCardDomainsById(cardId, finalValue as string[]);
       await context.repos.catalog.refreshCardAggregates();
+      await auditEvent();
       return;
     }
     if (field === "superTypes") {
       await mut.replaceCardSuperTypesById(cardId, finalValue as string[]);
       await context.repos.catalog.refreshCardAggregates();
+      await auditEvent();
       return;
     }
     // Card types live in the card_card_types junction; the repo keeps the
@@ -317,6 +477,7 @@ export const adminCardMutationsRouter = {
         throw error;
       }
       await context.repos.catalog.refreshCardAggregates();
+      await auditEvent();
       return;
     }
 
@@ -334,6 +495,8 @@ export const adminCardMutationsRouter = {
       }
       throw error;
     }
+
+    await auditEvent();
   }),
 
   acceptPrintingField: os.acceptPrintingField.handler(async ({ input, context }): Promise<void> => {
@@ -381,6 +544,22 @@ export const adminCardMutationsRouter = {
       );
     }
 
+    // Audit snapshot: distributionChannelSlugs lives only in a junction table
+    // (no denormalized column), so its old is null; everything else — including
+    // markerSlugs — is on the printings row already fetched above.
+    const auditEvent = (written: unknown) =>
+      recordAdminEvent(context.repos, context.userId, {
+        action: "printing.accept-field",
+        entityType: "printing",
+        entityId: printingId,
+        entityLabel: printingBefore.shortCode,
+        oldValues:
+          field === "distributionChannelSlugs"
+            ? null
+            : { [field]: (printingBefore as Record<string, unknown>)[field] },
+        newValues: { [field]: written },
+      });
+
     // When markerSlugs changes, update via dedicated function (printing_markers
     // join is the source of truth; the trigger keeps printings.marker_slugs in sync).
     if (field === "markerSlugs") {
@@ -388,6 +567,7 @@ export const adminCardMutationsRouter = {
         ? (normalizedValue as string[]).filter((s) => typeof s === "string")
         : [];
       await updatePrintingMarkers(context.transact, printingId, newSlugs);
+      await auditEvent(newSlugs);
       return;
     }
 
@@ -402,6 +582,7 @@ export const adminCardMutationsRouter = {
         printingId,
         newSlugs,
       );
+      await auditEvent(newSlugs);
       return;
     }
 
@@ -425,6 +606,10 @@ export const adminCardMutationsRouter = {
       const setTotal = await mut.getSetPrintedTotalForPrinting(printingId);
       normalizedValue = appendSetTotal(normalizedValue, setTotal?.printedTotal);
     }
+
+    // Audit the human-readable value: for setId that's the slug, not the UUID
+    // the conversion below writes.
+    const auditValue = normalizedValue;
 
     // Candidate printings store setId as a slug; printings store it as a UUID FK
     if (field === "setId" && normalizedValue) {
@@ -451,6 +636,8 @@ export const adminCardMutationsRouter = {
     if (field === "printedRulesText" || field === "printedEffectText") {
       await mut.recomputeKeywordsForPrintingCard(printingId);
     }
+
+    await auditEvent(auditValue);
   }),
 
   acceptNewCard: os.acceptNewCard.handler(async ({ input, context }): Promise<void> => {
@@ -483,6 +670,15 @@ export const adminCardMutationsRouter = {
     });
 
     await context.repos.catalog.refreshCardAggregates();
+
+    await recordAdminEvent(context.repos, context.userId, {
+      action: "card.accept-new",
+      entityType: "card",
+      entityId: cardFields.id,
+      entityLabel: cardFields.name,
+      cardSlug: cardFields.id,
+      newValues: cardFields,
+    });
   }),
 
   acceptFavoriteNewCard: os.acceptFavoriteNewCard.handler(async ({ input, context }) => {
@@ -514,6 +710,15 @@ export const adminCardMutationsRouter = {
 
     await context.repos.catalog.refreshCardAggregates();
 
+    await recordAdminEvent(context.repos, context.userId, {
+      action: "card.accept-favorites",
+      entityType: "card",
+      entityId: result.cardSlug,
+      entityLabel: input.name,
+      cardSlug: result.cardSlug,
+      newValues: { cardSlug: result.cardSlug, printingsCreated: result.printingsCreated },
+    });
+
     return result;
   }),
 
@@ -529,7 +734,7 @@ export const adminCardMutationsRouter = {
     } = context.repos;
     const favoriteProviders = await providerSettings.favoriteProviders();
 
-    return await acceptFavoritePrintingsForCard(
+    const result = await acceptFavoritePrintingsForCard(
       context.transact,
       context.io,
       {
@@ -543,6 +748,16 @@ export const adminCardMutationsRouter = {
       input.cardSlug,
       favoriteProviders,
     );
+
+    await recordAdminEvent(context.repos, context.userId, {
+      action: "printing.accept-favorites",
+      entityType: "printing",
+      entityLabel: input.cardSlug,
+      cardSlug: input.cardSlug,
+      newValues: { printingsCreated: result.printingsCreated, skipped: result.skipped.length },
+    });
+
+    return result;
   }),
 
   linkUnmatched: os.linkUnmatched.handler(async ({ input, context }): Promise<void> => {
@@ -558,6 +773,15 @@ export const adminCardMutationsRouter = {
 
     await context.transact(async (trxRepos) => {
       await trxRepos.candidateMutations.createNameAliases(name, card.id);
+    });
+
+    await recordAdminEvent(context.repos, context.userId, {
+      action: "card.link-unmatched",
+      entityType: "card",
+      entityId: card.id,
+      entityLabel: card.name,
+      cardSlug: card.slug,
+      newValues: { name, cardId },
     });
   }),
 
@@ -591,6 +815,16 @@ export const adminCardMutationsRouter = {
       candidatePrintingIds,
     );
 
+    const card = await candidateMutations.getCardById(cardId);
+    await recordAdminEvent(context.repos, context.userId, {
+      action: "printing.accept",
+      entityType: "printing",
+      entityId: printingId,
+      entityLabel: printingFields.shortCode,
+      cardSlug: card?.slug ?? null,
+      newValues: { printingFields, candidatePrintingIds },
+    });
+
     return { printingId };
   }),
 
@@ -610,6 +844,15 @@ export const adminCardMutationsRouter = {
 
     await context.repos.catalog.refreshCardAggregates();
 
+    await recordAdminEvent(context.repos, context.userId, {
+      action: "card.create",
+      entityType: "card",
+      entityId: cardFields.id,
+      entityLabel: cardFields.name,
+      cardSlug: cardFields.id,
+      newValues: cardFields,
+    });
+
     return { cardSlug: cardFields.id };
   }),
 
@@ -626,6 +869,16 @@ export const adminCardMutationsRouter = {
       [],
     );
 
+    const card = await candidateMutations.getCardById(cardId);
+    await recordAdminEvent(context.repos, context.userId, {
+      action: "printing.create",
+      entityType: "printing",
+      entityId: printingId,
+      entityLabel: printingFields.shortCode,
+      cardSlug: card?.slug ?? null,
+      newValues: printingFields,
+    });
+
     return { printingId };
   }),
 
@@ -634,6 +887,25 @@ export const adminCardMutationsRouter = {
 
     const { ingestCandidates } = context.services;
     const result = await ingestCandidates(context.transact, provider.trim(), cards);
+
+    // Counts only — the per-card detail arrays are unbounded.
+    await recordAdminEvent(context.repos, context.userId, {
+      action: "candidates.upload",
+      entityType: "upload",
+      entityId: provider.trim(),
+      entityLabel: provider.trim(),
+      newValues: {
+        newCards: result.newCards,
+        removedCards: result.removedCards,
+        updates: result.updates,
+        unchanged: result.unchanged,
+        newPrintings: result.newPrintings,
+        removedPrintings: result.removedPrintings,
+        printingUpdates: result.printingUpdates,
+        printingsUnchanged: result.printingsUnchanged,
+        errors: result.errors.length,
+      },
+    });
 
     return {
       provider: result.provider,

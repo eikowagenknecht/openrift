@@ -18,6 +18,9 @@ const mockRepo = {
   unignorePrinting: vi.fn(),
 };
 
+// Audit event sink (record-admin-event.ts); handlers write here best-effort.
+const mockAdminEvents = { insert: vi.fn() };
+
 // ---------------------------------------------------------------------------
 // Test app — mount the oRPC router directly (without the requireAdmin gate).
 // ---------------------------------------------------------------------------
@@ -27,7 +30,7 @@ const USER_ID = "a0000000-0001-4000-a000-000000000001";
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
-  c.set("repos", { ignoredCandidates: mockRepo } as never);
+  c.set("repos", { ignoredCandidates: mockRepo, adminEvents: mockAdminEvents } as never);
   await next();
 });
 registerRouterForTest(app, adminIgnoredCandidatesRouter);
@@ -240,5 +243,30 @@ describe("DELETE /api/admin/v1/ignored-candidates/printings", () => {
     });
     expect(res.status).toBe(204);
     expect(mockRepo.unignorePrinting).toHaveBeenCalledWith("tcgplayer", "54321", null);
+  });
+});
+
+describe("audit events", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("ignoring a card records a composite-id event", async () => {
+    mockRepo.ignoreCard.mockResolvedValue(undefined);
+
+    const res = await app.request("/api/admin/v1/ignored-candidates/cards", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider: "gallery", externalId: "ext-1" }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockAdminEvents.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "candidate-card.ignore",
+        entityType: "candidate-card",
+        entityId: "gallery:ext-1",
+        newValues: { provider: "gallery", externalId: "ext-1" },
+      }),
+    );
   });
 });

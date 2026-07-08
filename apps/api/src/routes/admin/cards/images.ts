@@ -22,6 +22,7 @@ import {
   regenerateFromOrig,
   rehostSingleImage,
 } from "../../../services/image-rehost.js";
+import { recordAdminEvent } from "../../../services/record-admin-event.js";
 import { assertFound } from "../../../utils/assertions.js";
 
 const os = implement(adminCardImagesContract).$context<ApiContext>().use(requireAuthedUser);
@@ -63,6 +64,19 @@ export const adminCardImagesRouter = {
     if (imageId) {
       await rehostSingleImage(context.io, printingImages, imageId);
     }
+
+    await recordAdminEvent(context.repos, context.userId, {
+      action: "image.set-from-candidate",
+      entityType: "image",
+      entityId: imageId ?? null,
+      entityLabel: ps.shortCode,
+      newValues: {
+        candidatePrintingId: id,
+        printingId: ps.printingId,
+        imageUrl: ps.imageUrl,
+        mode,
+      },
+    });
   }),
 
   deleteImage: os.deleteImage.handler(async ({ input, context }): Promise<void> => {
@@ -86,6 +100,13 @@ export const adminCardImagesRouter = {
       // Clean up the orphaned image_files row
       await printingImages.deleteOrphanedImageFiles();
     }
+
+    await recordAdminEvent(context.repos, context.userId, {
+      action: "image.delete",
+      entityType: "image",
+      entityId: imageId,
+      oldValues: { rehostedUrl: image.rehostedUrl, imageFileId },
+    });
   }),
 
   activateImage: os.activateImage.handler(async ({ input, context }): Promise<void> => {
@@ -103,6 +124,13 @@ export const adminCardImagesRouter = {
       }
 
       await trxRepos.printingImages.setActive(imageId, active);
+    });
+
+    await recordAdminEvent(context.repos, context.userId, {
+      action: "image.activate",
+      entityType: "image",
+      entityId: imageId,
+      newValues: { active, printingId: image.printingId },
     });
   }),
 
@@ -137,6 +165,13 @@ export const adminCardImagesRouter = {
     }
 
     await printingImages.updateRehostedUrl(imageFileId, null);
+
+    await recordAdminEvent(context.repos, context.userId, {
+      action: "image.unrehost",
+      entityType: "image",
+      entityId: imageId,
+      oldValues: { rehostedUrl: image.rehostedUrl },
+    });
   }),
 
   rehostImage: os.rehostImage.handler(async ({ input, context }) => {
@@ -166,6 +201,13 @@ export const adminCardImagesRouter = {
 
     await printingImages.updateRehostedUrl(image.imageFileId, rehostedUrl);
 
+    await recordAdminEvent(context.repos, context.userId, {
+      action: "image.rehost",
+      entityType: "image",
+      entityId: imageId,
+      newValues: { rehostedUrl },
+    });
+
     return { rehostedUrl };
   }),
 
@@ -184,6 +226,14 @@ export const adminCardImagesRouter = {
       image.needsTrim,
       image.originalUrl,
     );
+
+    await recordAdminEvent(context.repos, context.userId, {
+      action: "image.rotate",
+      entityType: "image",
+      entityId: imageId,
+      oldValues: { rotation: image.rotation },
+      newValues: { rotation },
+    });
   }),
 
   setNeedsTrim: os.setNeedsTrim.handler(async ({ input, context }): Promise<void> => {
@@ -201,6 +251,14 @@ export const adminCardImagesRouter = {
       needsTrim,
       image.originalUrl,
     );
+
+    await recordAdminEvent(context.repos, context.userId, {
+      action: "image.set-needs-trim",
+      entityType: "image",
+      entityId: imageId,
+      oldValues: { needsTrim: image.needsTrim },
+      newValues: { needsTrim },
+    });
   }),
 
   addImageUrl: os.addImageUrl.handler(async ({ input, context }): Promise<void> => {
@@ -219,6 +277,13 @@ export const adminCardImagesRouter = {
 
     await context.transact(async (trxRepos) => {
       await trxRepos.printingImages.insertImage(printing.id, url, mode);
+    });
+
+    await recordAdminEvent(context.repos, context.userId, {
+      action: "image.add-url",
+      entityType: "image",
+      entityId: printingId,
+      newValues: { url, mode },
     });
   }),
 
@@ -256,6 +321,13 @@ export const adminCardImagesRouter = {
         mode,
       }),
     );
+
+    await recordAdminEvent(context.repos, context.userId, {
+      action: "image.upload",
+      entityType: "image",
+      entityId: imageId,
+      newValues: { printingId: printing.id, mode, rehostedUrl },
+    });
 
     return { rehostedUrl };
   }),

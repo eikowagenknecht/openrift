@@ -75,6 +75,7 @@ const PARALLEL_FILES = [
   "src/routes/admin/cards/mutations.integration.test.ts",
   "src/routes/admin/cards/images.integration.test.ts",
   "src/routes/admin/cards/card-review-grant.integration.test.ts",
+  "src/routes/admin/audit-events.integration.test.ts",
   // Services
   "src/services/price-refresh/upsert.integration.test.ts",
   "src/services/ingest-candidates.integration.test.ts",
@@ -83,6 +84,7 @@ const PARALLEL_FILES = [
   "src/services/printing-admin.integration.test.ts",
   "src/services/products.integration.test.ts",
   // Repositories
+  "src/repositories/admin-events.integration.test.ts",
   "src/repositories/admins.integration.test.ts",
   "src/repositories/candidate-cards.integration.test.ts",
   "src/repositories/catalog.integration.test.ts",

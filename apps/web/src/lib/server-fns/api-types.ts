@@ -61,6 +61,12 @@ export type {
 // contract (re-exported below near the other contract types).
 // printing-events migrated to oRPC; its response types now live on the contract.
 export type { PrintingEventsListResponse, PrintingEventView } from "@openrift/shared/contracts";
+// admin audit log (migration 201); response types live on the contract.
+export type {
+  AdminAuditActorsResponse,
+  AdminAuditEventResponse,
+  AdminAuditEventsListResponse,
+} from "@openrift/shared/contracts";
 // admin sets (catalog) migrated to oRPC; its response type lives on the contract.
 export type { AdminSetsResponse } from "@openrift/shared/contracts";
 // Unified marketplace mappings migrated to oRPC; response types live on the

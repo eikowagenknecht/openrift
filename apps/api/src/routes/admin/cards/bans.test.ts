@@ -19,10 +19,19 @@ const mockCatalog = {
   cardById: vi.fn(),
 };
 
+// ban.add fetches name/slug for the audit label; audit inserts land here.
+const mockCandidateMutations = { getCardById: vi.fn() };
+const mockAdminEvents = { insert: vi.fn() };
+
 // Mount the oRPC router directly (without the requireAdmin gate).
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
-  c.set("repos", { cardBans: mockCardBans, catalog: mockCatalog } as never);
+  c.set("repos", {
+    cardBans: mockCardBans,
+    catalog: mockCatalog,
+    candidateMutations: mockCandidateMutations,
+    adminEvents: mockAdminEvents,
+  } as never);
   c.set("user", { id: "a0000000-0001-4000-a000-000000000001" } as never);
   await next();
 });
@@ -219,5 +228,56 @@ describe("DELETE /api/admin/v1/cards/:id/bans", () => {
     const json = await res.json();
     expect(json.message).toContain("No active ban found");
     expect(mockCardBans.unban).toHaveBeenCalledWith(CARD_ID, "standard");
+  });
+});
+
+describe("audit events", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("ban create records an event with the card label", async () => {
+    mockCatalog.cardById.mockResolvedValue({ id: CARD_ID });
+    mockCardBans.findActiveBan.mockResolvedValue(null);
+    mockCardBans.create.mockResolvedValue(banRow);
+    mockCandidateMutations.getCardById.mockResolvedValue({
+      id: CARD_ID,
+      name: "Fireball",
+      slug: "fireball",
+    });
+
+    const res = await app.request(`/api/admin/v1/cards/${CARD_ID}/bans`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ formatId: "standard", bannedAt: "2026-01-15" }),
+    });
+    expect(res.status).toBe(201);
+    expect(mockAdminEvents.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "ban.add",
+        entityType: "ban",
+        entityLabel: "Fireball",
+        cardSlug: "fireball",
+        newValues: expect.objectContaining({ formatId: "standard" }),
+      }),
+    );
+  });
+
+  it("ban removal records the prior ban as oldValues", async () => {
+    mockCardBans.findActiveBan.mockResolvedValue(banRow);
+    mockCardBans.unban.mockResolvedValue(true);
+
+    const res = await app.request(`/api/admin/v1/cards/${CARD_ID}/bans`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ formatId: "standard" }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockAdminEvents.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "ban.delete",
+        oldValues: expect.objectContaining({ formatId: "standard" }),
+      }),
+    );
   });
 });

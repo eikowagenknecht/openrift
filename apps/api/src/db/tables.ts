@@ -437,6 +437,84 @@ export interface CollectionEventsTable {
   createdAt: CreatedAt;
 }
 
+// ─── Admin audit events (migration 201) ──────────────────────────────────────
+
+/** Action vocabulary for {@link AdminEventsTable}. Enforced here, not by a DB CHECK, so new actions don't need a migration. */
+export type AdminEventAction =
+  | "card.accept-new"
+  | "card.accept-favorites"
+  | "card.accept-field"
+  | "card.create"
+  | "card.rename"
+  | "card.delete"
+  | "card.link-unmatched"
+  | "printing.accept"
+  | "printing.accept-favorites"
+  | "printing.accept-field"
+  | "printing.create"
+  | "printing.delete"
+  | "candidate-printing.patch"
+  | "candidate-printing.delete"
+  | "candidate-printing.copy"
+  | "candidate-printing.link"
+  | "candidate-printing.ignore"
+  | "candidate-printing.unignore"
+  | "candidate-card.ignore"
+  | "candidate-card.unignore"
+  | "image.set-from-candidate"
+  | "image.activate"
+  | "image.rotate"
+  | "image.rehost"
+  | "image.unrehost"
+  | "image.set-needs-trim"
+  | "image.add-url"
+  | "image.upload"
+  | "image.delete"
+  | "errata.upsert"
+  | "errata.delete"
+  | "errata.upload"
+  | "ban.add"
+  | "ban.update"
+  | "ban.delete"
+  | "provider.delete-candidates"
+  | "candidates.upload";
+
+/** Entity vocabulary for {@link AdminEventsTable}. */
+export type AdminEventEntityType =
+  | "card"
+  | "printing"
+  | "candidate-card"
+  | "candidate-printing"
+  | "image"
+  | "errata"
+  | "ban"
+  | "provider"
+  | "upload";
+
+/**
+ * Admin audit log (one row per card-catalog admin mutation). Written
+ * best-effort after the mutation commits; check/uncheck bookkeeping is
+ * deliberately not logged. `actorUserId` has no FK so rows survive user
+ * deletion; reads LEFT JOIN users for display names.
+ */
+export interface AdminEventsTable {
+  id: Generated<string>;
+  actorUserId: string;
+  action: AdminEventAction;
+  entityType: AdminEventEntityType;
+  /** uuid, slug, or composite "provider:externalId"; null for name-keyed events */
+  entityId: string | null;
+  /** Denormalized human-readable label — stays useful after rename/delete */
+  entityLabel: string | null;
+  /** Link target for /admin/cards/$cardSlug when resolvable */
+  cardSlug: string | null;
+  /** jsonb; null for creates. Reads must go through parseJsonb. */
+  oldValues: Record<string, unknown> | null;
+  /** jsonb; null for deletes. Reads must go through parseJsonb. */
+  newValues: Record<string, unknown> | null;
+  createdAt: CreatedAt;
+}
+
 /** @see deckFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
 export interface DecksTable {
   id: Generated<string>;
@@ -1625,6 +1703,9 @@ export interface Database {
   copies: CopiesTable;
   collectionDeckbuildingPrefs: CollectionDeckbuildingPrefsTable;
   collectionEvents: CollectionEventsTable;
+
+  // Admin audit events (migration 201)
+  adminEvents: AdminEventsTable;
   decks: DecksTable;
   deckCards: DeckCardsTable;
   deckPlans: DeckPlansTable;

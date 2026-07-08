@@ -70,10 +70,15 @@ const mockMut = {
   replaceCardDomainsById: vi.fn(),
   replaceCardSuperTypesById: vi.fn(),
   getFullPrintingById: vi.fn(),
+  getFullCardById: vi.fn(),
+  getErrataByCardIds: vi.fn(async () => []),
   updatePrintingFieldById: vi.fn(),
   recomputeKeywordsForPrintingCard: vi.fn(),
   getSetPrintedTotalForPrinting: vi.fn(),
 };
+
+// Audit event sink (record-admin-event.ts); handlers write here best-effort.
+const mockAdminEvents = { insert: vi.fn() };
 
 const mockTrxMut = {
   acceptNewCardFromSources: vi.fn(),
@@ -112,6 +117,7 @@ app.use("*", async (c, next) => {
   c.set("transact", mockTransact as never);
   c.set("repos", {
     candidateMutations: mockMut,
+    adminEvents: mockAdminEvents,
     candidateCards: mockCandidateCards,
     printingImages: {},
     markers: { listBySlugs: vi.fn(async () => []), setForPrinting: vi.fn() },
@@ -1247,5 +1253,143 @@ describe("POST /cards/upload", () => {
       body: JSON.stringify({ provider: "x", candidates: [] }),
     });
     expect(res.status).toBe(400);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Audit events (record-admin-event wiring)
+// ---------------------------------------------------------------------------
+
+describe("audit events", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mockTransact.mockImplementation(async (cb) =>
+      cb({ candidateMutations: mockTrxMut, printingImages: {} }),
+    );
+  });
+
+  it("accept-field on a card records old and new value", async () => {
+    mockMut.getFullCardById.mockResolvedValue({
+      id: CARD_ID2,
+      name: "Flame Drake",
+      slug: "flame-drake",
+      energy: 2,
+    });
+    mockMut.updateCardById.mockResolvedValue(undefined);
+
+    const res = await app.request(`/api/admin/v1/cards/${CARD_ID2}/accept-field`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ field: "energy", value: 4 }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockAdminEvents.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorUserId: USER_ID,
+        action: "card.accept-field",
+        entityType: "card",
+        entityId: CARD_ID2,
+        entityLabel: "Flame Drake",
+        cardSlug: "flame-drake",
+        oldValues: { energy: 2 },
+        newValues: { energy: 4 },
+      }),
+    );
+  });
+
+  it("accept-field on a printing records the prior value from printingBefore", async () => {
+    mockMut.getFullPrintingById.mockResolvedValue({
+      id: PRINTING_ID,
+      cardId: CARD_ID2,
+      shortCode: "OGN-001",
+      artist: "Old Artist",
+    });
+    mockMut.updatePrintingFieldById.mockResolvedValue(undefined);
+
+    const res = await app.request(`/api/admin/v1/cards/printing/${PRINTING_ID}/accept-field`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ field: "artist", value: "New Artist" }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockAdminEvents.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "printing.accept-field",
+        entityType: "printing",
+        entityId: PRINTING_ID,
+        entityLabel: "OGN-001",
+        oldValues: { artist: "Old Artist" },
+        newValues: { artist: "New Artist" },
+      }),
+    );
+  });
+
+  it("deleting a candidate printing records the deleted key fields", async () => {
+    mockMut.getCandidatePrintingById.mockResolvedValue({
+      id: CP_ID,
+      shortCode: "OGN-002",
+      setId: "ogn",
+      rarity: "rare",
+      finish: "foil",
+      artVariant: "normal",
+      externalId: "ext-2",
+    });
+    mockMut.deleteCandidatePrinting.mockResolvedValue({ numDeletedRows: 1n });
+
+    const res = await app.request(`/api/admin/v1/cards/candidate-printings/${CP_ID}`, {
+      method: "DELETE",
+    });
+    expect(res.status).toBe(204);
+    expect(mockAdminEvents.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "candidate-printing.delete",
+        entityId: CP_ID,
+        entityLabel: "OGN-002",
+        oldValues: expect.objectContaining({ shortCode: "OGN-002", finish: "foil" }),
+      }),
+    );
+  });
+
+  it("renaming a card records the slug transition", async () => {
+    mockMut.getCardById.mockResolvedValue({ id: CARD_ID, name: "Fireball", slug: "old-slug" });
+    mockMut.renameCardSlugById.mockResolvedValue(undefined);
+
+    const res = await app.request(`/api/admin/v1/cards/${CARD_ID}/rename`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ newId: "new-slug" }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockAdminEvents.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "card.rename",
+        oldValues: { slug: "old-slug" },
+        newValues: { slug: "new-slug" },
+        cardSlug: "new-slug",
+      }),
+    );
+  });
+
+  it("check/uncheck bookkeeping writes NO audit event", async () => {
+    mockMut.checkCandidatePrinting.mockResolvedValue({ numUpdatedRows: 1n });
+
+    const res = await app.request(`/api/admin/v1/cards/candidate-printings/${CP_ID}/check`, {
+      method: "POST",
+    });
+    expect(res.status).toBe(204);
+    expect(mockAdminEvents.insert).not.toHaveBeenCalled();
+  });
+
+  it("a failing audit insert does not fail the mutation", async () => {
+    mockMut.getCardById.mockResolvedValue({ id: CARD_ID, name: "Fireball", slug: "old-slug" });
+    mockMut.renameCardSlugById.mockResolvedValue(undefined);
+    mockAdminEvents.insert.mockRejectedValue(new Error("audit table on fire"));
+
+    const res = await app.request(`/api/admin/v1/cards/${CARD_ID}/rename`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ newId: "new-slug" }),
+    });
+    expect(res.status).toBe(204);
   });
 });

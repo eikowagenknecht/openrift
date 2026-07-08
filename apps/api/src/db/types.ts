@@ -1,5 +1,8 @@
 // Re-export all table types from the local tables file (single source of truth).
 export type {
+  AdminEventAction,
+  AdminEventEntityType,
+  AdminEventsTable,
   CollectionEventsTable,
   CandidateCardsTable,
   CandidatePrintingsTable,

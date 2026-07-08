@@ -146,6 +146,7 @@ import * as m197 from "./197-drop-printing-event-changes.js";
 import * as m198 from "./198-products.js";
 import * as m199 from "./199-helper-reviewable-providers.js";
 import * as m200 from "./200-api-keys.js";
+import * as m201 from "./201-admin-events.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -351,4 +352,5 @@ export const migrations: Record<string, Migration> = {
   "198-products": m198,
   "199-helper-reviewable-providers": m199,
   "200-api-keys": m200,
+  "201-admin-events": m201,
 };

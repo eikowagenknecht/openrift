@@ -79,6 +79,9 @@ const mockTransact = vi.fn(
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 const mockIo = { fetch: vi.fn() };
 
+// Audit event sink (record-admin-event.ts); handlers write here best-effort.
+const mockAdminEvents = { insert: vi.fn() };
+
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
@@ -87,7 +90,7 @@ app.use("*", async (c, next) => {
   c.set("adminAccess", { isAdmin: true, sections: [] });
   c.set("io", mockIo as never);
   c.set("transact", mockTransact as never);
-  c.set("repos", { printingImages: mockPrintingImages } as never);
+  c.set("repos", { printingImages: mockPrintingImages, adminEvents: mockAdminEvents } as never);
   await next();
 });
 registerRouterForTest(app, adminCardImagesRouter);
@@ -700,5 +703,42 @@ describe("POST /printing/:printingId/upload-image", () => {
       },
     );
     expect(res.status).toBe(404);
+  });
+});
+
+describe("audit events", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mockTransact.mockImplementation(async (cb) => cb({ printingImages: mockTrxPrintingImages }));
+  });
+
+  it("set-image records the candidate source and mode", async () => {
+    mockPrintingImages.getCandidatePrintingById.mockResolvedValue({
+      printingId: "printing-1",
+      imageUrl: "https://example.com/img.png",
+      candidateCardId: "cc-1",
+      shortCode: "OGN-001",
+    });
+    mockTrxPrintingImages.insertImage.mockResolvedValue("image-id-1");
+    mockRehostSingleImage.mockResolvedValue(undefined);
+
+    const res = await app.request(SET_IMAGE, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: "main" }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockAdminEvents.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "image.set-from-candidate",
+        entityType: "image",
+        entityId: "image-id-1",
+        newValues: expect.objectContaining({
+          printingId: "printing-1",
+          imageUrl: "https://example.com/img.png",
+          mode: "main",
+        }),
+      }),
+    );
   });
 });

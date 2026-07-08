@@ -2,6 +2,7 @@ import type { Kysely } from "kysely";
 
 import type { Database } from "./db/index.js";
 import { instrumentRepo } from "./db/instrumented-repo.js";
+import { adminEventsRepo } from "./repositories/admin-events.js";
 import { adminGrantsRepo } from "./repositories/admin-grants.js";
 import { adminsRepo } from "./repositories/admins.js";
 import { artVariantsRepo } from "./repositories/art-variants.js";
@@ -94,6 +95,7 @@ import type { TradeEmailDeps } from "./services/trade-notifications.js";
 export interface Repos {
   collectionEvents: ReturnType<typeof collectionEventsRepo>;
   admins: ReturnType<typeof adminsRepo>;
+  adminEvents: ReturnType<typeof adminEventsRepo>;
   adminGrants: ReturnType<typeof adminGrantsRepo>;
   artVariants: ReturnType<typeof artVariantsRepo>;
   cardBans: ReturnType<typeof cardBansRepo>;
@@ -201,6 +203,7 @@ export function createRepos(db: Kysely<Database>): Repos {
   const raw = {
     collectionEvents: collectionEventsRepo(db),
     admins: adminsRepo(db),
+    adminEvents: adminEventsRepo(db),
     adminGrants: adminGrantsRepo(db),
     artVariants: artVariantsRepo(db),
     cardBans: cardBansRepo(db),

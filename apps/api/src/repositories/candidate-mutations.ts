@@ -245,6 +245,11 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
       return db.selectFrom("printings").selectAll().where("id", "=", id).executeTakeFirst();
     },
 
+    /** @returns A full card row by UUID (for change tracking / audit events). */
+    getFullCardById(id: string): Promise<Selectable<CardsTable> | undefined> {
+      return db.selectFrom("cards").selectAll().where("id", "=", id).executeTakeFirst();
+    },
+
     /** @returns A printing's cardId by composite key (shortCode, finish, markerSlugs, language). */
     getPrintingCardIdByComposite(
       shortCode: string,

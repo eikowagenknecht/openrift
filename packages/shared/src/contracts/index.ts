@@ -2,6 +2,7 @@
 // client (which builds typed links from them). New endpoints migrated off
 // `@hono/zod-openapi` add their contract here.
 export * from "./admin/art-variants.js";
+export * from "./admin/audit-events.js";
 export * from "./admin/cache.js";
 export * from "./admin/card-bans.js";
 export * from "./admin/card-images.js";
