@@ -223,6 +223,10 @@ describe("appendSetTotal", () => {
     expect(appendSetTotal("UNL-R02b-P", 219)).toBe("UNL-R02b-P");
   });
 
+  it("does not append for rune codes with a language suffix", () => {
+    expect(appendSetTotal("VEN-R02-EN", 166)).toBe("VEN-R02-EN");
+  });
+
   it("does not append for token codes", () => {
     expect(appendSetTotal("SFD-T01", 221)).toBe("SFD-T01");
   });

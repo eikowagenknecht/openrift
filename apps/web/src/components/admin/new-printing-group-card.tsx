@@ -4,7 +4,7 @@ import type {
   CandidatePrintingResponse,
   ProviderSettingResponse,
 } from "@openrift/shared";
-import { formatPrintingLabel } from "@openrift/shared";
+import { appendSetTotal, formatPrintingLabel } from "@openrift/shared";
 import {
   ArrowRightIcon,
   CheckCheckIcon,
@@ -130,7 +130,9 @@ export function NewPrintingGroupCard({
   const [activePrinting, setActivePrinting] = useState<Record<string, unknown>>({});
 
   /**
-   * Append `/{printedTotal}` to a public code if the set total is known and not already present.
+   * Append `/{printedTotal}` to a public code via the shared `appendSetTotal`,
+   * which skips runes/tokens and codes that already carry a slash — so a full
+   * code like `VEN-R02-EN` is left untouched.
    *
    * @returns The record with publicCode updated, or unchanged if not applicable.
    */
@@ -140,11 +142,8 @@ export function NewPrintingGroupCard({
     if (typeof code !== "string" || typeof setSlug !== "string") {
       return record;
     }
-    const total = setTotals[setSlug];
-    if (!total || code.includes("/")) {
-      return record;
-    }
-    return { ...record, publicCode: `${code}/${total}` };
+    const withTotal = appendSetTotal(code, setTotals[setSlug]);
+    return withTotal === code ? record : { ...record, publicCode: withTotal };
   }
 
   const hasRequired = REQUIRED_PRINTING_KEYS.every((k) => {
