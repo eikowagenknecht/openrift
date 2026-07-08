@@ -237,6 +237,9 @@ interface CandidateSpreadsheetProps {
   activeImageUrl?: string | null;
   /** Cost keywords, so the richText "Fix" button reformats rules/effect correctly. */
   costKeywords?: readonly string[];
+  /** Small marker rendered next to the "Active" column header, e.g. a "Pre-filled"
+   * badge signalling the Active values are suggestions that aren't saved yet. */
+  activeColumnBadge?: React.ReactNode;
 }
 
 /** Field keys where word-level diff highlighting is applied. */
@@ -431,6 +434,7 @@ export function CandidateSpreadsheet({
   normalizeCandidate,
   activeImageUrl,
   costKeywords = [],
+  activeColumnBadge,
 }: CandidateSpreadsheetProps) {
   const settingsMap = new Map(providerSettings?.map((s) => [s.provider, s]));
   const favoriteProviders = new Set(
@@ -493,7 +497,12 @@ export function CandidateSpreadsheet({
             <th className="bg-muted/50 sticky left-0 z-10 w-[150px] px-3 py-2 text-left font-medium">
               Field
             </th>
-            <th className="w-[300px] border-l px-3 py-2 text-left font-medium">Active</th>
+            <th className="w-[300px] border-l px-3 py-2 text-left font-medium">
+              <span className="inline-flex items-center gap-1.5">
+                Active
+                {activeColumnBadge}
+              </span>
+            </th>
             {sortedRows.map((row) => (
               <th
                 key={row.id}

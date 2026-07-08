@@ -12,12 +12,13 @@ import {
   LinkIcon,
   PlusIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { CandidateSpreadsheet } from "@/components/admin/candidate-spreadsheet";
 import type { FieldDef } from "@/components/admin/candidate-spreadsheet";
 import {
+  buildPreseededActiveCard,
   buildPrintingGroups,
   buildSourceLabels,
   useCardDetailData,
@@ -32,6 +33,7 @@ import {
   SectionHeaderGroup,
   SectionHeaderTitle,
 } from "@/components/section-header";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -163,9 +165,29 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
 
   // --- State ---
   const [activeCard, setActiveCard] = useState<Record<string, unknown>>({});
+  // Once the admin edits the Active column the pre-seed stops re-applying and the
+  // "Pre-filled" marker clears. From then on the selection is their explicit choice.
+  const [touched, setTouched] = useState(false);
   const [newCardId, setNewCardId] = useState<string | null>(null);
   const [linkCardId, setLinkCardId] = useState("");
   const [linkSearch, setLinkSearch] = useState("");
+
+  // Pre-seed the Active column from the highest-priority source so the admin
+  // reviews a filled-in candidate instead of an empty grid. Re-runs while
+  // untouched so it converges once the enum/provider lists finish loading.
+  useEffect(() => {
+    if (touched || !unmatchedData) {
+      return;
+    }
+    const seed = buildPreseededActiveCard(
+      unmatchedData.sources,
+      candidateCardFields,
+      providerSettings,
+    );
+    // Bail out when the seed is unchanged so an unstable dep reference can't spin
+    // the effect into a render loop (React skips the update when we return `prev`).
+    setActiveCard((prev) => (JSON.stringify(prev) === JSON.stringify(seed) ? prev : seed));
+  }, [touched, unmatchedData, candidateCardFields, providerSettings]);
 
   // --- Loading state ---
   if (isLoading || !unmatchedData) {
@@ -183,6 +205,8 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
   const defaultCardId = unmatchedData.defaultCardId;
   const newModeCardId = newCardId ?? defaultCardId;
   const hasRequiredFields = hasRequiredActiveFields(activeCard);
+  // Active values came from the pre-seed and the admin hasn't touched them yet.
+  const isPreseeded = !touched && Object.keys(activeCard).length > 0;
 
   const { labels: sourceLabels, names: sourceNames } = buildSourceLabels(sources);
 
@@ -251,6 +275,58 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
         </SectionHeaderGroup>
       </SectionHeader>
 
+      {/* ── Card Fields ────────────────────────────────────────────────────── */}
+      <section className="space-y-2">
+        <Heading level={3}>Card Fields</Heading>
+        <p className="text-muted-foreground text-sm">
+          {isPreseeded
+            ? "The Active column is pre-filled from the highest-priority source. Review it, click any cell to override, then accept below. Nothing is saved yet."
+            : "Click a cell to select it for the new card. The Active column shows your selections."}
+        </p>
+        <CandidateSpreadsheet
+          fields={candidateCardFields}
+          requiredKeys={["name", "types", "domains"]}
+          activeRow={Object.keys(activeCard).length > 0 ? activeCard : null}
+          candidateRows={sources}
+          providerSettings={providerSettings}
+          costKeywords={costKeywords}
+          activeColumnBadge={
+            isPreseeded ? (
+              <Badge variant="warning" className="font-normal">
+                Pre-filled
+              </Badge>
+            ) : null
+          }
+          onCellClick={(field, value) => {
+            setTouched(true);
+            setActiveCard((prev) => ({ ...prev, [field]: value }));
+          }}
+          onActiveChange={(field, value) => {
+            setTouched(true);
+            setActiveCard((prev) =>
+              value === null || value === undefined
+                ? Object.fromEntries(Object.entries(prev).filter(([k]) => k !== field))
+                : { ...prev, [field]: value },
+            );
+          }}
+          onCheck={isAdmin ? (candidateId) => checkCandidateCard.mutate(candidateId) : undefined}
+          onUncheck={
+            isAdmin ? (candidateId) => uncheckCandidateCard.mutate(candidateId) : undefined
+          }
+          columnActions={
+            <NewCardColumnActions
+              candidateCardFields={candidateCardFields}
+              setActiveCard={(updater) => {
+                setTouched(true);
+                setActiveCard(updater);
+              }}
+              onIgnoreSource={(input) => ignoreCardSource.mutate(input)}
+              isAdmin={isAdmin}
+            />
+          }
+        />
+      </section>
+
       {/* ── Link / Accept bar ────────────────────────────────────────────────── */}
       <section className="flex flex-wrap items-end gap-4 rounded-md border p-4">
         {isAdmin && (
@@ -300,44 +376,6 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
         {!hasRequiredFields && (
           <p className="text-muted-foreground">Select name, type, and domains first.</p>
         )}
-      </section>
-
-      {/* ── Card Fields ────────────────────────────────────────────────────── */}
-      <section className="space-y-2">
-        <Heading level={3}>Card Fields</Heading>
-        <p className="text-muted-foreground text-sm">
-          Click a cell to select it for the new card. The Active column shows your selections.
-        </p>
-        <CandidateSpreadsheet
-          fields={candidateCardFields}
-          requiredKeys={["name", "types", "domains"]}
-          activeRow={Object.keys(activeCard).length > 0 ? activeCard : null}
-          candidateRows={sources}
-          providerSettings={providerSettings}
-          costKeywords={costKeywords}
-          onCellClick={(field, value) => {
-            setActiveCard((prev) => ({ ...prev, [field]: value }));
-          }}
-          onActiveChange={(field, value) => {
-            setActiveCard((prev) =>
-              value === null || value === undefined
-                ? Object.fromEntries(Object.entries(prev).filter(([k]) => k !== field))
-                : { ...prev, [field]: value },
-            );
-          }}
-          onCheck={isAdmin ? (candidateId) => checkCandidateCard.mutate(candidateId) : undefined}
-          onUncheck={
-            isAdmin ? (candidateId) => uncheckCandidateCard.mutate(candidateId) : undefined
-          }
-          columnActions={
-            <NewCardColumnActions
-              candidateCardFields={candidateCardFields}
-              setActiveCard={setActiveCard}
-              onIgnoreSource={(input) => ignoreCardSource.mutate(input)}
-              isAdmin={isAdmin}
-            />
-          }
-        />
       </section>
 
       {/* ── Printings ──────────────────────────────────────────────────────── */}
