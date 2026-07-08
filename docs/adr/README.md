@@ -45,6 +45,8 @@ The MADR documentation is available at <https://adr.github.io/madr/> while gener
 - **[ADR-032](032-admin-authorization-model.md)**: Admin Authorization stays Prefix-Gated until a Cross-Cutting Role appears
 - **[ADR-034](034-dynamic-list-rules.md)**: Dynamic List Rules (supersedes ADR-005's dynamic-rules stance for wish and trade lists)
 - **[ADR-037](037-multi-type-cards.md)**: Multi-Type Card Data Model
+- **[ADR-038](038-per-copy-metadata.md)**: Per-Copy Metadata (Condition, Grading, Notes, Links)
+- **[ADR-040](040-per-section-admin-grants.md)**: Per-Section Admin Grants (extends ADR-032's binary admin role with section-scoped grants)
 
 ### Rejected
 
