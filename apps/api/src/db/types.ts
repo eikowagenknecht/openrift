@@ -29,7 +29,6 @@ export type {
   ListsTable,
   // Preconstructed products (migration 198, ADR-015)
   ProductsTable,
-  ProductPrintingsTable,
   // Friend groups (migration 134, 141)
   FriendGroupCollectionSharesTable,
   FriendGroupInviteDirection,

@@ -29,7 +29,6 @@ export type {
   ListEntriesTable,
   ListsTable,
   ProductsTable,
-  ProductPrintingsTable,
   FriendGroupCollectionSharesTable,
   FriendGroupInviteDirection,
   FriendGroupInvitesTable,

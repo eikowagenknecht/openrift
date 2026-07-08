@@ -1287,7 +1287,7 @@ export interface ProductsTable {
 }
 
 /** Product contents at printing granularity. Composite PK (productId, printingId). */
-export interface ProductPrintingsTable {
+interface ProductPrintingsTable {
   /** PK part 1 — FK → products.id, ON DELETE CASCADE */
   productId: string;
   /** PK part 2 — FK → printings.id, NO cascade (printing undeletable while referenced) */
