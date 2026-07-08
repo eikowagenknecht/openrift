@@ -1,6 +1,7 @@
 import { BanIcon, CheckIcon, PencilIcon, PlusIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 
+import { Heading } from "@/components/heading";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -78,7 +79,7 @@ export function CardBanManager({ cardId, showForm, onShowFormChange }: CardBanMa
     <section className="space-y-2">
       <div className="flex items-center gap-2">
         <BanIcon className="text-muted-foreground size-4" />
-        <h3 className="font-medium">Bans</h3>
+        <Heading level={3}>Bans</Heading>
       </div>
 
       {isLoading ? (

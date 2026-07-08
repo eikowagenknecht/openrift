@@ -6,6 +6,7 @@ import type {
   AdminColumnDef,
   AdminDraftSlotProps,
 } from "@/components/admin/admin-table";
+import { PageDescription } from "@/components/layout/page-top-bar";
 import { Input } from "@/components/ui/input";
 import {
   useCreateLanguage,
@@ -119,9 +120,9 @@ export function LanguagesPage() {
       emptyText="No languages yet."
       title="Languages"
       toolbar={
-        <p className="text-muted-foreground text-sm">
+        <PageDescription>
           Languages classify the printing language of each card (e.g. English, Japanese).
-        </p>
+        </PageDescription>
       }
       add={{
         emptyDraft: { code: "", name: "" },

@@ -10,6 +10,7 @@ import type {
 } from "@/components/admin/admin-table";
 import { CardSearchDropdown } from "@/components/cards/card-search-dropdown";
 import type { CardSearchResult } from "@/components/cards/card-search-dropdown";
+import { PageDescription } from "@/components/layout/page-top-bar";
 import {
   SectionHeader,
   SectionHeaderDescription,
@@ -222,10 +223,10 @@ function CategoriesSection({ categories }: { categories: CustomTagCategoryRespon
       getRowKey={(cat) => cat.id}
       emptyText="No categories yet — create one before adding tags."
       toolbar={
-        <p className="text-muted-foreground">
+        <PageDescription>
           Categories namespace custom tags so each deck-builder format only sees its own vocabulary.
           Delete is blocked while tags still reference the category.
-        </p>
+        </PageDescription>
       }
       add={{
         emptyDraft: { id: "", slug: "", label: "", description: "" },

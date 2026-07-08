@@ -4,6 +4,7 @@ import type {
   AdminColumnDef,
   AdminDraftSlotProps,
 } from "@/components/admin/admin-table";
+import { PageDescription } from "@/components/layout/page-top-bar";
 import { Input } from "@/components/ui/input";
 import {
   useCreateFinish,
@@ -136,9 +137,9 @@ export function FinishesPage() {
       emptyText="No finishes yet."
       title="Finishes"
       toolbar={
-        <p className="text-muted-foreground text-sm">
+        <PageDescription>
           Finishes describe the physical treatment of a card (e.g. Non-Foil, Foil, Etched).
-        </p>
+        </PageDescription>
       }
       add={{
         emptyDraft: { slug: "", label: "" },

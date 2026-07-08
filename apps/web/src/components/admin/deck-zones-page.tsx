@@ -4,6 +4,7 @@ import type {
   AdminColumnDef,
   AdminDraftSlotProps,
 } from "@/components/admin/admin-table";
+import { PageDescription } from "@/components/layout/page-top-bar";
 import { Input } from "@/components/ui/input";
 import { useDeckZones, useReorderDeckZones, useUpdateDeckZone } from "@/hooks/use-deck-zones";
 
@@ -84,10 +85,10 @@ export function DeckZonesPage() {
       emptyText="No deck zones."
       title="Deck Zones"
       toolbar={
-        <p className="text-muted-foreground text-sm">
+        <PageDescription>
           Deck zones define the sections of a deck (Legend, Main Deck, etc.). Reorder to control
           display order in the deck builder and import views.
-        </p>
+        </PageDescription>
       }
       edit={{
         toDraft: (zone) => ({ slug: zone.slug, label: zone.label }),

@@ -9,6 +9,7 @@ import type {
   AdminDraftSlotProps,
 } from "@/components/admin/admin-table";
 import { CountBadge } from "@/components/admin/count-badge";
+import { PageDescription } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
@@ -327,11 +328,11 @@ export function SetsPage() {
       emptyText="No sets yet."
       title="Sets"
       toolbar={
-        <p className="text-muted-foreground text-sm">
+        <PageDescription>
           Set order controls which printing a card defaults to wherever no specific printing is
           pinned (general display, and name-based deck imports). The default is the first printing
           by language, then by set order, so moving a set higher makes its printings win.
-        </p>
+        </PageDescription>
       }
       reorder={{
         onMove: moveSet,

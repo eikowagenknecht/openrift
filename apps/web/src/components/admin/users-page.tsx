@@ -4,6 +4,7 @@ import { EllipsisVerticalIcon } from "lucide-react";
 
 import { AdminTable } from "@/components/admin/admin-table";
 import type { AdminCellSlotProps, AdminColumnDef } from "@/components/admin/admin-table";
+import { PageDescription } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -234,9 +235,9 @@ export function UsersPage() {
       defaultSort={{ column: "Joined", direction: "desc" }}
       title="Users"
       toolbar={
-        <p className="text-muted-foreground text-sm">
+        <PageDescription>
           {data.users.length} registered {data.users.length === 1 ? "user" : "users"}
-        </p>
+        </PageDescription>
       }
     />
   );

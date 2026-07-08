@@ -15,7 +15,7 @@ import { toast } from "sonner";
 
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { JobStatusBadge } from "@/components/admin/job-status-badge";
-import { PageTopBarButton } from "@/components/layout/page-top-bar";
+import { PageDescription, PageTopBarButton } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -124,9 +124,9 @@ export function StatusPage() {
   return (
     <div className="space-y-4">
       {topBar}
-      <p className="text-muted-foreground text-sm">
+      <PageDescription>
         Auto-refreshes every 30 seconds.{lastUpdated && ` Last updated ${lastUpdated}.`}
-      </p>
+      </PageDescription>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {/* Server */}

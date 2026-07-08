@@ -6,6 +6,7 @@ import type {
   AdminColumnDef,
   AdminDraftSlotProps,
 } from "@/components/admin/admin-table";
+import { PageDescription } from "@/components/layout/page-top-bar";
 import { Input } from "@/components/ui/input";
 import {
   useCreateMarker,
@@ -155,10 +156,10 @@ export function MarkersPage() {
       emptyText="No markers yet."
       title="Markers"
       toolbar={
-        <p className="text-muted-foreground">
+        <PageDescription>
           Markers describe what is physically printed on a card (e.g. promo stamp, Top 8 placement).
           Two printings with different markers are visually distinct and have separate prices.
-        </p>
+        </PageDescription>
       }
       add={{
         emptyDraft: { id: "", slug: "", label: "", description: "" },

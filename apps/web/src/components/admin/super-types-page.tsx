@@ -4,6 +4,7 @@ import type {
   AdminColumnDef,
   AdminDraftSlotProps,
 } from "@/components/admin/admin-table";
+import { PageDescription } from "@/components/layout/page-top-bar";
 import { Input } from "@/components/ui/input";
 import {
   useCreateSuperType,
@@ -136,9 +137,9 @@ export function SuperTypesPage() {
       emptyText="No supertypes yet."
       title="Supertypes"
       toolbar={
-        <p className="text-muted-foreground text-sm">
+        <PageDescription>
           Supertypes are qualifiers applied on top of a card&apos;s type (e.g. Champion, Signature).
-        </p>
+        </PageDescription>
       }
       add={{
         emptyDraft: { slug: "", label: "" },

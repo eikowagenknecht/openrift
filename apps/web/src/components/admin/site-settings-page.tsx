@@ -9,6 +9,7 @@ import type {
   AdminDraftSlotProps,
 } from "@/components/admin/admin-table";
 import { Eyebrow } from "@/components/heading";
+import { PageDescription } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, FieldContent, FieldDescription, FieldLabel } from "@/components/ui/field";
@@ -197,10 +198,10 @@ export function SiteSettingsPage() {
         emptyText="No site settings yet."
         title="Site Settings"
         toolbar={
-          <p className="text-muted-foreground text-sm">
+          <PageDescription>
             Site settings are key-value pairs loaded at runtime. Web-scoped settings are available
             to the frontend. API-scoped settings are server-only.
-          </p>
+          </PageDescription>
         }
         add={{
           emptyDraft: { key: "", value: "", scope: "web" },
@@ -247,7 +248,7 @@ export function SiteSettingsPage() {
 
       {missingKnown.length > 0 && (
         <div className="space-y-2">
-          <h3 className="text-muted-foreground text-sm font-medium">Available settings</h3>
+          <Eyebrow className="mb-0">Available settings</Eyebrow>
           <div className="divide-border divide-y rounded-md border">
             {missingKnown.map((known) => (
               <KnownSettingRow

@@ -4,6 +4,7 @@ import type {
   AdminColumnDef,
   AdminDraftSlotProps,
 } from "@/components/admin/admin-table";
+import { PageDescription } from "@/components/layout/page-top-bar";
 import { Input } from "@/components/ui/input";
 import {
   useCreateDeckFormat,
@@ -136,9 +137,9 @@ export function DeckFormatsPage() {
       emptyText="No deck formats yet."
       title="Deck Formats"
       toolbar={
-        <p className="text-muted-foreground text-sm">
+        <PageDescription>
           Deck formats describe the construction rules a deck follows (e.g. Constructed, Freeform).
-        </p>
+        </PageDescription>
       }
       add={{
         emptyDraft: { slug: "", label: "" },

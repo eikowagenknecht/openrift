@@ -4,6 +4,7 @@ import type {
   AdminColumnDef,
   AdminDraftSlotProps,
 } from "@/components/admin/admin-table";
+import { PageDescription } from "@/components/layout/page-top-bar";
 import { Input } from "@/components/ui/input";
 import {
   useArtVariants,
@@ -136,10 +137,10 @@ export function ArtVariantsPage() {
       emptyText="No art variants yet."
       title="Art Variants"
       toolbar={
-        <p className="text-muted-foreground text-sm">
+        <PageDescription>
           Art variants describe alternate artwork treatments for a printing (e.g. Normal, Alternate,
           Extended).
-        </p>
+        </PageDescription>
       }
       add={{
         emptyDraft: { slug: "", label: "" },

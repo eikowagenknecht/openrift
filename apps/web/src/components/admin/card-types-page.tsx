@@ -4,6 +4,7 @@ import type {
   AdminColumnDef,
   AdminDraftSlotProps,
 } from "@/components/admin/admin-table";
+import { PageDescription } from "@/components/layout/page-top-bar";
 import { Input } from "@/components/ui/input";
 import {
   useCardTypes,
@@ -136,10 +137,10 @@ export function CardTypesPage() {
       emptyText="No card types yet."
       title="Card Types"
       toolbar={
-        <p className="text-muted-foreground text-sm">
+        <PageDescription>
           Card types categorize cards by their game role (e.g. Unit, Spell, Battlefield, Legend,
           Rune).
-        </p>
+        </PageDescription>
       }
       add={{
         emptyDraft: { slug: "", label: "" },

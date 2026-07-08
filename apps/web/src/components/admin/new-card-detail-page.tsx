@@ -25,6 +25,7 @@ import {
 import { GroupImagePreview } from "@/components/admin/image-preview";
 import type { CardSearchResult } from "@/components/cards/card-search-dropdown";
 import { CardSearchDropdown } from "@/components/cards/card-search-dropdown";
+import { Heading } from "@/components/heading";
 import {
   SectionHeader,
   SectionHeaderDescription,
@@ -286,7 +287,7 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
 
       {/* ── Card Fields ────────────────────────────────────────────────────── */}
       <section className="space-y-2">
-        <h3 className="font-medium">Card Fields</h3>
+        <Heading level={3}>Card Fields</Heading>
         <p className="text-muted-foreground text-sm">
           Click a cell to select it for the new card. The Active column shows your selections.
         </p>
@@ -320,7 +321,7 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
 
       {/* ── Printings ──────────────────────────────────────────────────────── */}
       <section className="space-y-3">
-        <h3 className="font-medium">Printings</h3>
+        <Heading level={3}>Printings</Heading>
         {groups.map((group) => {
           const guessedId = group.expectedPrintingId;
 

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
+import { PageDescription } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -102,11 +103,11 @@ export function PrintingEventsPage() {
     <div className="space-y-4">
       {topBar}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-muted-foreground text-sm">
+        <PageDescription>
           The Discord webhook queue. Pending events are flushed every 15 minutes; events that fail 5
           retries are marked failed and stop being retried automatically. Auto-refreshes every 30
           seconds.
-        </p>
+        </PageDescription>
         <div className="flex items-center gap-2">
           {failed.length > 0 && (
             <Button

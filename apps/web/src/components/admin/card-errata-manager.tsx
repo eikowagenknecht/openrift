@@ -2,6 +2,7 @@ import type { CardErrata } from "@openrift/shared";
 import { CheckIcon, FileWarningIcon, PencilIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 
+import { Heading } from "@/components/heading";
 import { Alert, AlertAction } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -102,7 +103,7 @@ export function CardErrataManager({
     <section className="space-y-2">
       <div className="flex items-center gap-2">
         <FileWarningIcon className="text-muted-foreground size-4" />
-        <h3 className="font-medium">Errata</h3>
+        <Heading level={3}>Errata</Heading>
       </div>
 
       {/* Display existing errata */}

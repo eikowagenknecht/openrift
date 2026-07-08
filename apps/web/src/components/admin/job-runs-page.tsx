@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { JobStatusBadge } from "@/components/admin/job-status-badge";
+import { PageDescription } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -141,13 +142,13 @@ export function JobRunsPage() {
     <div className="space-y-4">
       {topBar}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-muted-foreground text-sm">
+        <PageDescription>
           Auto-refreshes every 15 seconds on the first page.
           {lastUpdated && ` Last updated ${lastUpdated}.`}{" "}
           {total === 0
             ? "No runs match the current filters."
             : `Showing ${rangeStart}–${rangeEnd} of ${total} runs.`}
-        </p>
+        </PageDescription>
         <div className="flex items-center gap-2">
           <FilterSelect
             value={kindFilter}

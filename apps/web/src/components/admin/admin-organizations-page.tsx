@@ -4,6 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
+import { Heading } from "@/components/heading";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -226,7 +227,7 @@ export function AdminOrganizationsPage() {
     <div className="flex max-w-3xl flex-col gap-8">
       <AdminPageTopBar title="Organizations" />
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">Create organization</h2>
+        <Heading level={2}>Create organization</Heading>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="org-slug">Slug</Label>
@@ -286,7 +287,7 @@ export function AdminOrganizationsPage() {
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">Organizations</h2>
+        <Heading level={2}>Organizations</Heading>
         {data.items.length === 0 ? (
           <p className="text-muted-foreground">No organizations yet.</p>
         ) : (

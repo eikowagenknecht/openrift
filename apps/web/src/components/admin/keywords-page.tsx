@@ -7,6 +7,7 @@ import type {
   AdminColumnDef,
   AdminDraftSlotProps,
 } from "@/components/admin/admin-table";
+import { PageDescription } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -398,10 +399,10 @@ export function KeywordsPage() {
         emptyText="No keywords found. Try running recompute first."
         title="Keywords"
         toolbar={
-          <p className="text-muted-foreground text-sm">
+          <PageDescription>
             Keywords extracted from card and printing text. Styles control how keyword badges
             appear.
-          </p>
+          </PageDescription>
         }
         add={{
           emptyDraft: { keyword: "", color: "#6366f1", darkText: false, costKeyword: false },

@@ -3,6 +3,7 @@ import { Undo2Icon } from "lucide-react";
 
 import { AdminTable } from "@/components/admin/admin-table";
 import type { AdminCellSlotProps, AdminColumnDef } from "@/components/admin/admin-table";
+import { PageDescription } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useIgnoredProducts, useUnignoreProduct } from "@/hooks/use-ignored-products";
@@ -181,10 +182,10 @@ export function IgnoredProductsPage() {
       title="Ignored Products"
       toolbar={
         products.length > 0 ? (
-          <p className="text-muted-foreground text-sm">
+          <PageDescription>
             {products.length} ignored entr{products.length === 1 ? "y" : "ies"} across all
             marketplaces
-          </p>
+          </PageDescription>
         ) : undefined
       }
       actions={<UnignoreAction />}

@@ -4,6 +4,7 @@ import type {
   AdminColumnDef,
   AdminDraftSlotProps,
 } from "@/components/admin/admin-table";
+import { PageDescription } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
@@ -195,10 +196,10 @@ export function RaritiesPage() {
       emptyText="No rarities yet."
       title="Rarities"
       toolbar={
-        <p className="text-muted-foreground text-sm">
+        <PageDescription>
           Rarities describe the scarcity tier of a printing (e.g. Common, Uncommon, Rare). Colors
           are shown throughout the UI wherever rarities appear.
-        </p>
+        </PageDescription>
       }
       add={{
         emptyDraft: { slug: "", label: "", color: "#A6A6A6" },

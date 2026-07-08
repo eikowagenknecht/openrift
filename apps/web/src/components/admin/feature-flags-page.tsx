@@ -9,6 +9,7 @@ import type {
   AdminColumnDef,
   AdminDraftSlotProps,
 } from "@/components/admin/admin-table";
+import { Eyebrow, Heading } from "@/components/heading";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -223,7 +224,7 @@ function GlobalFlagsSection() {
 
       {missingKnown.length > 0 && (
         <div className="space-y-2">
-          <h3 className="text-muted-foreground text-sm font-medium">Available flags</h3>
+          <Eyebrow className="mb-0">Available flags</Eyebrow>
           <div className="divide-border divide-y rounded-md border">
             {missingKnown.map((known) => (
               <KnownFlagRow
@@ -492,12 +493,12 @@ export function FeatureFlagsPage() {
   return (
     <div className="space-y-8">
       <AdminPageTopBar title="Feature Flags" />
-      <div>
-        <h2 className="mb-2 text-lg font-semibold">Global Flags</h2>
+      <div className="space-y-2">
+        <Heading level={2}>Global Flags</Heading>
         <GlobalFlagsSection />
       </div>
-      <div>
-        <h2 className="mb-2 text-lg font-semibold">Per-User Overrides</h2>
+      <div className="space-y-2">
+        <Heading level={2}>Per-User Overrides</Heading>
         <OverridesSection />
       </div>
     </div>

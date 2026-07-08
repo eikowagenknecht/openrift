@@ -7,6 +7,7 @@ import type {
   AdminColumnDef,
   AdminDraftSlotProps,
 } from "@/components/admin/admin-table";
+import { PageDescription } from "@/components/layout/page-top-bar";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -405,11 +406,11 @@ export function DistributionChannelsPage() {
       emptyText="No distribution channels yet."
       title="Distribution Channels"
       toolbar={
-        <p className="text-muted-foreground">
+        <PageDescription>
           Distribution channels describe where a printing was distributed: tournament events
           (Worlds, prereleases) or retail products (starter decks, bundles). Channels can nest (e.g.
           Regional Event › Houston › Top 1). Printings can only attach to leaf channels.
-        </p>
+        </PageDescription>
       }
       addChild={{
         toDraft: (parent) => ({

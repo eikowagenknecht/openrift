@@ -4,6 +4,7 @@ import type {
   AdminColumnDef,
   AdminDraftSlotProps,
 } from "@/components/admin/admin-table";
+import { PageDescription } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
@@ -195,10 +196,10 @@ export function DomainsPage() {
       emptyText="No domains yet."
       title="Domains"
       toolbar={
-        <p className="text-muted-foreground text-sm">
+        <PageDescription>
           Domains are the color identities for cards (e.g. Fury, Calm, Mind). Colors are shown
           throughout the UI wherever domains appear.
-        </p>
+        </PageDescription>
       }
       add={{
         emptyDraft: { slug: "", label: "", color: "#737373" },

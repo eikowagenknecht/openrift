@@ -5,7 +5,7 @@ import { RefreshCwIcon } from "lucide-react";
 import { useState } from "react";
 
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
-import { PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
+import { PageDescription, PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -408,10 +408,10 @@ export function AdminProductsPage() {
         emptyText="No products yet — create one from a printing list."
         defaultSort={{ column: "Name", direction: "asc" }}
         toolbar={
-          <p className="text-muted-foreground">
+          <PageDescription>
             Products are public the moment they exist. Contents change only by re-syncing from a
             list.
-          </p>
+          </PageDescription>
         }
         edit={{
           toDraft: (product) => ({

@@ -2,6 +2,7 @@ import type { RuleKind, RuleVersionResponse } from "@openrift/shared";
 import { useState } from "react";
 
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
+import { Heading } from "@/components/heading";
 import {
   SectionHeader,
   SectionHeaderDescription,
@@ -183,9 +184,9 @@ export function RulesImportPage() {
         }
         return (
           <div key={targetKind}>
-            <h3 className="mb-2 text-sm font-semibold">
+            <Heading level={3} className="mb-2">
               Existing {KIND_LABELS[targetKind]} Versions
-            </h3>
+            </Heading>
             <div className="space-y-2">
               {entries.map((entry) => (
                 <VersionRow

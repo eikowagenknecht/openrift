@@ -652,7 +652,7 @@ export function ExistingCardDetailPage({
             className="hover:opacity-80"
             onClick={() => toggleSection("cardFields")}
           >
-            <h3 className="font-medium">Card Fields</h3>
+            <Heading level={3}>Card Fields</Heading>
           </ExpandToggle>
           {sources.some((s) => !s.checkedAt) && (
             <Button
@@ -717,7 +717,7 @@ export function ExistingCardDetailPage({
           className="hover:opacity-80"
           onClick={() => toggleSection("marketplace")}
         >
-          <h3 className="font-medium">Marketplace</h3>
+          <Heading level={3}>Marketplace</Heading>
         </ExpandToggle>
         {marketplaceExpanded && <AdminCardMarketplaceSection cardId={identifier} />}
       </section>
@@ -730,7 +730,7 @@ export function ExistingCardDetailPage({
             className="hover:opacity-80"
             onClick={() => toggleSection("printings")}
           >
-            <h3 className="font-medium">Printings</h3>
+            <Heading level={3}>Printings</Heading>
           </ExpandToggle>
           {printingsExpanded && (
             <Button
