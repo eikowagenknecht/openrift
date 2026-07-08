@@ -203,6 +203,26 @@ function isBareRejection(reason: unknown): boolean {
   return reason === undefined || reason === null || reason === "";
 }
 
+// The render-phase twin of isSameOriginBareThrow: a bare throw during React
+// rendering that no error boundary held (a thrown `undefined` slips through
+// boundaries that check their caught error for truthiness) unmounts the whole
+// tree — white page. React reports it through hydrateRoot's onUncaughtError,
+// and supplying that callback REPLACES React's default (reportGlobalError), so
+// the window "error" listener in initChunkErrorReloader never fires for it.
+// client.tsx routes uncaught render errors here instead so the bare-throw
+// subset gets the same reload-once recovery. No origin filter is needed: the
+// error was thrown while rendering our own tree, so it can't be extension
+// noise. Real Errors are deliberately not reloaded — they're deterministic
+// bugs a reload won't fix, and Sentry must keep surfacing them.
+// @returns Whether `error` was a bare throw (and the reload-once path ran).
+export function reloadIfUncaughtBareThrow(error: unknown): boolean {
+  if (!isBareRejection(error)) {
+    return false;
+  }
+  reloadOnce(`bare throw (${String(error)}) escaped React error boundaries`);
+  return true;
+}
+
 // Install-once guard: repeated calls (only tests do this — client.tsx calls
 // once per page load) must not stack duplicate listeners, which would make a
 // single chunk failure run the reload logic multiple times. Deliberately NOT

@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-07-08
+
+### Other
+
+- fix(App): **Recover from rare blank-page crashes** — a rare crash that used to leave a dead white page now reloads the app once automatically.
+
 ## 2026-07-07
 
 ### Highlights

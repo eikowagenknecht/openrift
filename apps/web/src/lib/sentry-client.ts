@@ -28,6 +28,12 @@ export function enrichBareThrow(event: SentryErrorEvent, hint: SentryEventHint):
   return {
     ...event,
     message: `Bare throw (${String(original)}) on ${pathname}`,
+    // A bare throw has no stack of its own, so `attachStacktrace` synthesizes
+    // one from the capture site — which is the same reporting helper for every
+    // bare throw, so Sentry groups unrelated routes into a single issue.
+    // Fingerprint per route so each surface gets its own issue and a new
+    // route regressing doesn't hide inside an old resolved/ignored one.
+    fingerprint: ["bare-throw", pathname],
     tags: { ...event.tags, bare_throw: true },
     extra: {
       ...event.extra,

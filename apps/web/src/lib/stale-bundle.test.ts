@@ -17,6 +17,7 @@ import {
   initVersionStaleNavigationReload,
   isStaleServerFnError,
   reloadIfStaleServerFnError,
+  reloadIfUncaughtBareThrow,
   STALE_SERVER_FN_ERROR_PATTERN,
 } from "./stale-bundle-reload";
 
@@ -500,6 +501,43 @@ describe("reloadIfStaleServerFnError", () => {
     expect(isStaleServerFnError(new Error("network down"))).toBe(false);
     expect(isStaleServerFnError(undefined)).toBe(false);
     expect(reloadSpy).not.toHaveBeenCalled();
+  });
+});
+
+// Regression coverage for OPENRIFT-SSR-16: a bare `throw undefined` during
+// React rendering escapes every error boundary and unmounts the tree (white
+// page). React reports it through hydrateRoot's onUncaughtError — and because
+// client.tsx supplies that callback, React's default reportGlobalError never
+// runs, so the window "error" listener's bare-throw recovery never fired.
+// client.tsx now routes uncaught render errors through this helper.
+describe("reloadIfUncaughtBareThrow", () => {
+  test.each([
+    ["undefined", undefined],
+    ["null", null],
+    ["empty string", ""],
+  ])("reloads once on a bare throw of %s and reports it handled", (_label, thrown) => {
+    expect(reloadIfUncaughtBareThrow(thrown)).toBe(true);
+    expect(reloadSpy).toHaveBeenCalledTimes(1);
+  });
+
+  test("leaves real Errors alone — no reload, reports unhandled", () => {
+    expect(reloadIfUncaughtBareThrow(new TypeError("x is null"))).toBe(false);
+    expect(reloadSpy).not.toHaveBeenCalled();
+  });
+
+  test("leaves non-empty thrown strings alone", () => {
+    expect(reloadIfUncaughtBareThrow("NOT_FOUND")).toBe(false);
+    expect(reloadSpy).not.toHaveBeenCalled();
+  });
+
+  test("respects the once-per-session loop guard", () => {
+    // If the reload lands on a page that immediately bare-throws again, the
+    // guard must stop the second automatic reload and prompt instead.
+    reloadIfUncaughtBareThrow(undefined);
+    reloadIfUncaughtBareThrow(undefined);
+
+    expect(reloadSpy).toHaveBeenCalledTimes(1);
+    expect(toast).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -6,7 +6,7 @@ import { bufferHydrationError } from "./lib/hydration-error-buffer";
 import type { HydrationErrorPhase } from "./lib/hydration-error-buffer";
 import { preventIOSOverscroll } from "./lib/ios-overscroll-prevention";
 import { initStaleBundleWatcher, initVisibilityVersionCheck } from "./lib/stale-bundle";
-import { initChunkErrorReloader } from "./lib/stale-bundle-reload";
+import { initChunkErrorReloader, reloadIfUncaughtBareThrow } from "./lib/stale-bundle-reload";
 
 if (import.meta.env.DEV && !import.meta.env.VITE_DISABLE_DEVTOOLS) {
   const { scan } = await import("react-scan");
@@ -57,6 +57,15 @@ function reportHydrationError(
       error,
       componentStack: errorInfo.componentStack,
     });
+  }
+  // Supplying onUncaughtError replaces React's default (reportGlobalError), so
+  // an uncaught render error never reaches the window "error" listener where
+  // initChunkErrorReloader's bare-throw recovery lives — and uncaught means no
+  // boundary held it, so React unmounted the tree and the user is on a white
+  // page. Recover the bare-throw subset the same way: reload once. Runs after
+  // the Sentry buffering above so the event is captured (or queued) first.
+  if (phase === "uncaught") {
+    reloadIfUncaughtBareThrow(error);
   }
 }
 

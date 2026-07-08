@@ -68,6 +68,14 @@ describe("enrichBareThrow", () => {
     });
   });
 
+  test("fingerprints per route so unrelated surfaces don't group into one issue", () => {
+    // Regression (OPENRIFT-SSR-16): attachStacktrace synthesizes the stack from
+    // the shared capture helper, so bare throws on /decks, /collections, and
+    // /cards all collapsed into a single Sentry issue.
+    const result = enrichBareThrow({ type: undefined }, { originalException: undefined });
+    expect(result.fingerprint).toEqual(["bare-throw", "/collections/abc"]);
+  });
+
   test("enriches throw null", () => {
     const result = enrichBareThrow({ type: undefined }, { originalException: null });
     expect(result.message).toBe("Bare throw (null) on /collections/abc");
