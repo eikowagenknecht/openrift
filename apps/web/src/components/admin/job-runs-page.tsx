@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { JobStatusBadge } from "@/components/admin/job-status-badge";
-import { PageDescription } from "@/components/layout/page-top-bar";
+import { PageDescription, PageTopBarButton } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -127,7 +127,17 @@ export function JobRunsPage() {
     });
   }
 
-  const topBar = <AdminPageTopBar title="Job Runs" />;
+  const topBar = (
+    <AdminPageTopBar
+      title="Job Runs"
+      actions={
+        <PageTopBarButton onClick={() => refetch()} disabled={isFetching}>
+          <RefreshCwIcon className={isFetching ? "animate-spin" : ""} />
+          Refresh
+        </PageTopBarButton>
+      }
+    />
+  );
 
   if (!data) {
     return topBar;
@@ -141,61 +151,55 @@ export function JobRunsPage() {
   return (
     <div className="space-y-4">
       {topBar}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <PageDescription>
-          Auto-refreshes every 15 seconds on the first page.
-          {lastUpdated && ` Last updated ${lastUpdated}.`}{" "}
-          {total === 0
-            ? "No runs match the current filters."
-            : `Showing ${rangeStart}–${rangeEnd} of ${total} runs.`}
-        </PageDescription>
-        <div className="flex items-center gap-2">
-          <FilterSelect
-            value={kindFilter}
-            onChange={(value) => changeFilter(setKindFilter, value)}
-            width="w-52"
-            options={[
-              { value: ANY, label: "All kinds" },
-              ...kinds.map((kind) => ({ value: kind, label: kind })),
-            ]}
-          />
-          <FilterSelect
-            value={triggerFilter}
-            onChange={(value) => changeFilter(setTriggerFilter, value)}
-            width="w-36"
-            options={[
-              { value: ANY, label: "All triggers" },
-              { value: "cron", label: "cron" },
-              { value: "admin", label: "admin" },
-              { value: "api", label: "api" },
-            ]}
-          />
-          <FilterSelect
-            value={statusFilter}
-            onChange={(value) => changeFilter(setStatusFilter, value)}
-            width="w-36"
-            options={[
-              { value: ANY, label: "All statuses" },
-              { value: "running", label: "running" },
-              { value: "succeeded", label: "succeeded" },
-              { value: "failed", label: "failed" },
-            ]}
-          />
-          <FilterSelect
-            value={activityFilter}
-            onChange={(value) => changeFilter(setActivityFilter, value)}
-            width="w-36"
-            options={[
-              { value: ANY, label: "All activity" },
-              { value: "did-work", label: "did work" },
-              { value: "noop", label: "no-op" },
-            ]}
-          />
-          <Button variant="outline" onClick={() => refetch()} disabled={isFetching}>
-            <RefreshCwIcon className={isFetching ? "animate-spin" : ""} />
-            Refresh
-          </Button>
-        </div>
+      <PageDescription>
+        Auto-refreshes every 15 seconds on the first page.
+        {lastUpdated && ` Last updated ${lastUpdated}.`}{" "}
+        {total === 0
+          ? "No runs match the current filters."
+          : `Showing ${rangeStart}–${rangeEnd} of ${total} runs.`}
+      </PageDescription>
+      <div className="flex flex-wrap items-center gap-2">
+        <FilterSelect
+          value={kindFilter}
+          onChange={(value) => changeFilter(setKindFilter, value)}
+          width="w-52"
+          options={[
+            { value: ANY, label: "All kinds" },
+            ...kinds.map((kind) => ({ value: kind, label: kind })),
+          ]}
+        />
+        <FilterSelect
+          value={triggerFilter}
+          onChange={(value) => changeFilter(setTriggerFilter, value)}
+          width="w-36"
+          options={[
+            { value: ANY, label: "All triggers" },
+            { value: "cron", label: "cron" },
+            { value: "admin", label: "admin" },
+            { value: "api", label: "api" },
+          ]}
+        />
+        <FilterSelect
+          value={statusFilter}
+          onChange={(value) => changeFilter(setStatusFilter, value)}
+          width="w-36"
+          options={[
+            { value: ANY, label: "All statuses" },
+            { value: "running", label: "running" },
+            { value: "succeeded", label: "succeeded" },
+            { value: "failed", label: "failed" },
+          ]}
+        />
+        <FilterSelect
+          value={activityFilter}
+          onChange={(value) => changeFilter(setActivityFilter, value)}
+          width="w-36"
+          options={[
+            { value: ANY, label: "All activity" },
+            { value: "did-work", label: "did work" },
+            { value: "noop", label: "no-op" },
+          ]}
+        />
       </div>
 
       <Table>

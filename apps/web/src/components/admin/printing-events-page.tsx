@@ -4,7 +4,11 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
-import { PageDescription } from "@/components/layout/page-top-bar";
+import {
+  PageDescription,
+  PageTopBarButton,
+  PageTopBarPrimaryButton,
+} from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -93,7 +97,32 @@ export function PrintingEventsPage() {
     setRetryingIds(new Set());
   }
 
-  const topBar = <AdminPageTopBar title="Printing Events" />;
+  const topBar = (
+    <AdminPageTopBar
+      title="Printing Events"
+      actions={
+        <>
+          {failed.length > 0 && (
+            <PageTopBarButton
+              onClick={() => handleRetry(failed.map((e) => e.id))}
+              disabled={retry.isPending}
+            >
+              {retry.isPending ? <LoaderIcon className="animate-spin" /> : <RotateCcwIcon />}
+              Retry all failed
+            </PageTopBarButton>
+          )}
+          <PageTopBarButton onClick={() => refetch()} disabled={isFetching}>
+            <RefreshCwIcon className={isFetching ? "animate-spin" : ""} />
+            Refresh
+          </PageTopBarButton>
+          <PageTopBarPrimaryButton onClick={handleFlush} disabled={isFlushRunning}>
+            {isFlushRunning ? <LoaderIcon className="animate-spin" /> : <SendIcon />}
+            Flush now
+          </PageTopBarPrimaryButton>
+        </>
+      }
+    />
+  );
 
   if (!data) {
     return topBar;
@@ -102,33 +131,11 @@ export function PrintingEventsPage() {
   return (
     <div className="space-y-4">
       {topBar}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <PageDescription>
-          The Discord webhook queue. Pending events are flushed every 15 minutes; events that fail 5
-          retries are marked failed and stop being retried automatically. Auto-refreshes every 30
-          seconds.
-        </PageDescription>
-        <div className="flex items-center gap-2">
-          {failed.length > 0 && (
-            <Button
-              variant="outline"
-              onClick={() => handleRetry(failed.map((e) => e.id))}
-              disabled={retry.isPending}
-            >
-              {retry.isPending ? <LoaderIcon className="animate-spin" /> : <RotateCcwIcon />}
-              Retry all failed
-            </Button>
-          )}
-          <Button onClick={handleFlush} disabled={isFlushRunning}>
-            {isFlushRunning ? <LoaderIcon className="animate-spin" /> : <SendIcon />}
-            Flush now
-          </Button>
-          <Button variant="outline" onClick={() => refetch()} disabled={isFetching}>
-            <RefreshCwIcon className={isFetching ? "animate-spin" : ""} />
-            Refresh
-          </Button>
-        </div>
-      </div>
+      <PageDescription>
+        The Discord webhook queue. Pending events are flushed every 15 minutes; events that fail 5
+        retries are marked failed and stop being retried automatically. Auto-refreshes every 30
+        seconds.
+      </PageDescription>
 
       <div className="text-muted-foreground flex gap-4 text-sm">
         <span>
