@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useCards } from "@/hooks/use-cards";
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { useDeckOwnership } from "@/hooks/use-deck-ownership";
+import { useBorrowedCounts } from "@/hooks/use-loans";
 import { useDeckBuildingCounts } from "@/hooks/use-owned-count";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 
@@ -32,6 +33,7 @@ export function SharedDeckOwnershipBridge({
 }: SharedDeckOwnershipBridgeProps) {
   const { allPrintings } = useCards();
   const { data: counts } = useDeckBuildingCounts(isLoggedIn);
+  const { data: borrowedCounts } = useBorrowedCounts(isLoggedIn);
 
   // Pass `{}` for logged-out viewers so useDeckOwnership still computes deck
   // pricing (it bails out only when the map is undefined). Matches the
@@ -42,6 +44,7 @@ export function SharedDeckOwnershipBridge({
     counts?.available ?? (isLoggedIn ? undefined : {}),
     marketplace,
     counts?.locked,
+    borrowedCounts,
   );
 
   useEffect(() => {

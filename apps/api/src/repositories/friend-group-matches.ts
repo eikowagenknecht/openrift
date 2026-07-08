@@ -354,6 +354,7 @@ interface CopyMeta {
   cardId: string;
   createdAt: Date;
   reserved: boolean;
+  loaned: boolean;
 }
 
 async function loadCopyMeta(
@@ -368,12 +369,14 @@ async function loadCopyMeta(
     .selectFrom("copies as cp")
     .innerJoin("printings as p", "p.id", "cp.printingId")
     .leftJoin("cardTradeCopies as ctc", "ctc.copyId", "cp.id")
+    .leftJoin("loanCopies as lc", "lc.copyId", "cp.id")
     .select([
       "cp.id",
       "cp.printingId",
       "p.cardId",
       "cp.createdAt",
       sql<boolean>`(ctc.copy_id is not null)`.as("reserved"),
+      sql<boolean>`(lc.copy_id is not null)`.as("loaned"),
     ])
     .where("cp.id", "in", copyIds)
     .execute();
@@ -383,6 +386,7 @@ async function loadCopyMeta(
       cardId: row.cardId,
       createdAt: row.createdAt,
       reserved: row.reserved,
+      loaned: row.loaned,
     });
   }
   return meta;
@@ -433,7 +437,8 @@ function buildSupply(
     }
     const meta = copyMeta.get(entry.copyId);
     // ADR-019: copies reserved by a live trade are invisible to matching.
-    if (!meta || meta.reserved) {
+    // ADR-039: copies out on a loan are physically absent, same treatment.
+    if (!meta || meta.reserved || meta.loaned) {
       continue;
     }
     const manualEntry = entry.id === null ? undefined : manualById.get(entry.id);

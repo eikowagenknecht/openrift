@@ -67,6 +67,7 @@ function copyEntry(printing: Printing, quantity: number): ListEntryDetailRespons
     language: printing.language,
     imageId: null,
     reserved: false,
+    onLoan: false,
     ruleQuantity: 0,
     source: "manual",
     tradeOverride: EMPTY_TRADE_PREFERENCE,

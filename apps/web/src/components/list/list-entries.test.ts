@@ -33,7 +33,16 @@ function printingEntry(id: string, printingId: string): ListEntryDetailResponse 
 }
 
 function copyEntry(id: string | null, copyId: string, printingId: string): ListEntryDetailResponse {
-  return { ...entryBase, id, kind: "copy", copyId, printingId, ...printingFields, reserved: false };
+  return {
+    ...entryBase,
+    id,
+    kind: "copy",
+    copyId,
+    printingId,
+    ...printingFields,
+    reserved: false,
+    onLoan: false,
+  };
 }
 
 describe("kindToView", () => {

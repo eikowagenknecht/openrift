@@ -48,6 +48,7 @@ import {
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
 import { AddToListDialog } from "@/components/list/add-to-list-dialog";
+import { LendCardDialog } from "@/components/loans/lend-card-dialog";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -263,7 +264,12 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   // ── Filter state (active in all modes) ──────────────────────────────
   const { filters, sortBy, sortDir, view, groupBy, groupDir, hasActiveFilters } = useFilterValues();
   const { setSearch } = useFilterActions();
-  const { allPrintings, sets, printingsByCardId: catalogAllPrintingsByCardId } = useCards();
+  const {
+    allPrintings,
+    cardsById,
+    sets,
+    printingsByCardId: catalogAllPrintingsByCardId,
+  } = useCards();
   const channels = useChannelRegistry();
   const prices = display.prices;
   const { data: session } = useSession();
@@ -463,6 +469,10 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const [moveOpen, setMoveOpen] = useState(false);
   const [disposeOpen, setDisposeOpen] = useState(false);
   const [addToListOpen, setAddToListOpen] = useState(false);
+  // "Lend to a friend" (ADR-039): the clicked stack's printing + a stepper cap.
+  const [lendTarget, setLendTarget] = useState<{ printing: Printing; maxQuantity: number } | null>(
+    null,
+  );
   // Copy IDs the Move / Add-to-list / Dispose dialogs operate on. The floating
   // action bar sets this to the whole selection; the right-click menu sets it
   // to the selection or to just the clicked card. Decoupled from `selected` so
@@ -855,9 +865,27 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   // Right-click menu action on a card. See resolveContextActionTarget for the
   // browse-vs-select rules; here we apply any selection narrowing and open the
   // matching dialog on the resolved copy ids.
-  const handleContextAction = (itemId: string, action: CollectionContextAction) => {
+  const handleContextAction = (
+    itemId: string,
+    action: CollectionContextAction,
+    printing?: Printing,
+  ) => {
     const stack = stackByItemId.get(itemId);
     if (!stack) {
+      return;
+    }
+    // Lend targets one printing, never the multi-selection: a loan row is a
+    // single printing + quantity (ADR-039). It follows the cell's *displayed*
+    // printing (sibling swaps included) when that variant has copies in scope,
+    // falling back to the tile's representative stack — the dialog names the
+    // printing either way. The stepper is capped to the copies in view; the
+    // server enforces the true unclaimed bound.
+    if (action === "lend") {
+      const lendStack = (printing && stackByPrintingId.get(printing.id)) || stack;
+      setLendTarget({
+        printing: lendStack.printing,
+        maxQuantity: stacked ? lendStack.copyIds.length : 1,
+      });
       return;
     }
     const cardCopyIds = stacked
@@ -1453,6 +1481,21 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
             singleCard={actionSingleCard}
             onAdded={clearSelection}
           />
+
+          {lendTarget ? (
+            <LendCardDialog
+              open
+              onOpenChange={(open) => {
+                if (!open) {
+                  setLendTarget(null);
+                }
+              }}
+              printing={lendTarget.printing}
+              cardName={cardsById[lendTarget.printing.cardId]?.name ?? "this card"}
+              maxQuantity={lendTarget.maxQuantity}
+              contextCollectionId={collectionId}
+            />
+          ) : null}
         </BrowserCardViewer>
 
         {/* Variant×collection popover (browse add mode only) */}

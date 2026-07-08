@@ -22,6 +22,7 @@ import {
   useMeasuredHeight,
 } from "@/components/layout/page-top-bar";
 import { TopBarBreadcrumbSeparator } from "@/components/layout/top-bar-breadcrumb";
+import { OnLoanBadge } from "@/components/loans/on-loan-badge";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { useCardData } from "@/hooks/use-card-data";
@@ -176,8 +177,15 @@ function SharedCollectionGrid({ data }: { data: PublicCollectionDetailResponse }
   const view = rawView === "copies" ? "printings" : rawView;
 
   const countByPrintingId: Record<string, number> = {};
-  for (const copy of copies) {
+  // Copies out on a loan (ADR-039). The friend-group projection carries the
+  // flag (badge-only, no borrower identity); the anonymous public share
+  // deliberately doesn't, so this map stays empty there and no badges render.
+  const onLoanByPrintingId: Record<string, number> = {};
+  for (const copy of copies as { printingId: string; onLoan?: boolean }[]) {
     countByPrintingId[copy.printingId] = (countByPrintingId[copy.printingId] ?? 0) + 1;
+    if (copy.onLoan) {
+      onLoanByPrintingId[copy.printingId] = (onLoanByPrintingId[copy.printingId] ?? 0) + 1;
+    }
   }
   const collectionPrintings: Printing[] = [];
   for (const printingId of Object.keys(countByPrintingId)) {
@@ -272,6 +280,7 @@ function SharedCollectionGrid({ data }: { data: PublicCollectionDetailResponse }
         siblings={view === "cards" ? printingsByCardId.get(cardId) : undefined}
         priceRange={priceRangeByCardId?.get(cardId)}
         strip={<CardCountStrip count={countByPrintingId[item.printing.id] ?? 0} />}
+        imageOverlay={<OnLoanBadge count={onLoanByPrintingId[item.printing.id] ?? 0} />}
       />
     );
   };

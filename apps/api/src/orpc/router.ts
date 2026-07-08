@@ -57,6 +57,7 @@ import { deckCheckPlayerRouter } from "../routes/authenticated/deck-check-player
 import { decksRouter } from "../routes/authenticated/decks.js";
 import { friendGroupsRouter } from "../routes/authenticated/friend-groups.js";
 import { listsRouter } from "../routes/authenticated/lists.js";
+import { loansRouter } from "../routes/authenticated/loans.js";
 import { organizationsRouter } from "../routes/authenticated/organizations.js";
 import { preferencesRouter } from "../routes/authenticated/preferences.js";
 import { tournamentDeckCheckRouter } from "../routes/authenticated/tournament-deck-check.js";
@@ -142,6 +143,7 @@ const apiRouter = {
   decksRouter,
   friendGroupsRouter,
   listsRouter,
+  loansRouter,
   organizationsRouter,
   preferencesRouter,
   tournamentDeckCheckRouter,

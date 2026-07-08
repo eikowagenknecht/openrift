@@ -6,6 +6,7 @@ import {
   CircleHelpIcon,
   ExternalLinkIcon,
   GavelIcon,
+  HandHeartIcon,
   GiftIcon,
   EllipsisVerticalIcon,
   HeartIcon,
@@ -74,6 +75,7 @@ import {
   useFriendGroupPendingInvitesCount,
   useFriendGroupPendingRequestsCount,
 } from "@/hooks/use-friend-groups";
+import { useLoanActionCounts } from "@/hooks/use-loans";
 import { signOut } from "@/lib/auth-client";
 import { sessionQueryOptions, useSession } from "@/lib/auth-session";
 import { useGravatarHash } from "@/lib/gravatar";
@@ -122,7 +124,7 @@ function MenuButton({ onClick, className }: { onClick: () => void; className?: s
 // Nav entries that require an account. Signed out, these still show in the nav
 // (with a lock glyph) so a new visitor can see what an account unlocks; clicking
 // one opens SignInRequiredDialog instead of navigating. Copy mirrors the README.
-type LockedFeatureKey = "collections" | "groups" | "tournaments" | "contribute";
+type LockedFeatureKey = "collections" | "groups" | "loans" | "tournaments" | "contribute";
 
 const LOCKED_FEATURES: Record<
   LockedFeatureKey,
@@ -141,6 +143,13 @@ const LOCKED_FEATURES: Record<
       "Form a private group with friends or your local store, with shared collections and trade matching that shows who has the cards you want.",
     to: "/groups",
     icon: UsersIcon,
+  },
+  loans: {
+    title: "Lending",
+    description:
+      "Keep track of cards you lend to friends: who has them, and what you're borrowing back.",
+    to: "/loans",
+    icon: HandHeartIcon,
   },
   tournaments: {
     title: "Tournaments",
@@ -212,12 +221,14 @@ function DesktopNav({
   showGlossary,
   showDecks,
   groupsBadge,
+  loansBadge,
   onLockedClick,
 }: {
   isLoggedIn: boolean;
   showGlossary: boolean;
   showDecks: boolean;
   groupsBadge: number;
+  loansBadge: number;
   onLockedClick: (key: LockedFeatureKey) => void;
 }) {
   return (
@@ -342,6 +353,48 @@ function DesktopNav({
                     </div>
                   </div>
                 </NavigationMenuLink>
+              </li>
+              <li>
+                {isLoggedIn ? (
+                  <NavigationMenuLink closeOnClick render={<Link to="/loans" />}>
+                    <HandHeartIcon />
+                    <div>
+                      <div className="font-medium">
+                        Lending
+                        {loansBadge > 0 && (
+                          <Badge
+                            variant="count"
+                            aria-label={`${loansBadge} loans need your confirmation`}
+                            className="ml-1.5"
+                          >
+                            {loansBadge > 9 ? "9+" : loansBadge}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="text-muted-foreground text-xs">
+                        Cards lent to friends and cards you&apos;re borrowing
+                      </div>
+                    </div>
+                  </NavigationMenuLink>
+                ) : (
+                  <NavigationMenuLink
+                    closeOnClick
+                    // A native <button> shrinks to its content and centers its text; force
+                    // it to fill and left-align so it matches the <Link>-rendered rows.
+                    className="w-full text-left"
+                    // oxlint-disable-next-line jsx-a11y/control-has-associated-label, react/forbid-elements -- bare render slot; NavigationMenuLink owns all styling and provides the label as children
+                    render={<button type="button" onClick={() => onLockedClick("loans")} />}
+                  >
+                    <HandHeartIcon />
+                    <div>
+                      <div className="font-medium">Lending</div>
+                      <div className="text-muted-foreground text-xs">
+                        Cards lent to friends and cards you&apos;re borrowing
+                      </div>
+                    </div>
+                    <LockIcon className="text-muted-foreground ml-auto size-3.5 self-center" />
+                  </NavigationMenuLink>
+                )}
               </li>
               <li>
                 {isLoggedIn ? (
@@ -586,6 +639,7 @@ function MobileNav({
   showGlossary,
   showDecks,
   groupsBadge,
+  loansBadge,
   onLockedClick,
 }: {
   open: boolean;
@@ -594,6 +648,7 @@ function MobileNav({
   showGlossary: boolean;
   showDecks: boolean;
   groupsBadge: number;
+  loansBadge: number;
   onLockedClick: (key: LockedFeatureKey) => void;
 }) {
   return (
@@ -693,6 +748,22 @@ function MobileNav({
           >
             Match tracker
           </MobileNavLink>
+          {isLoggedIn ? (
+            <MobileNavLink
+              to="/loans"
+              icon={<HandHeartIcon className="text-muted-foreground size-5" />}
+              badge={loansBadge}
+            >
+              Lending
+            </MobileNavLink>
+          ) : (
+            <MobileNavLockedItem
+              icon={<HandHeartIcon className="text-muted-foreground size-5" />}
+              onClick={() => onLockedClick("loans")}
+            >
+              Lending
+            </MobileNavLockedItem>
+          )}
           {isLoggedIn ? (
             <MobileNavLink
               to="/tournaments"
@@ -829,6 +900,10 @@ export function Header() {
   const { data: pendingInvitesData } = useFriendGroupPendingInvitesCount({ enabled: isLoggedIn });
   const { data: pendingRequestsData } = useFriendGroupPendingRequestsCount({ enabled: isLoggedIn });
   const { data: tradeActionCounts } = useTradeActionCounts();
+  // Loans awaiting the viewer's acknowledgment as borrower (ADR-039), shown on
+  // the Lending entries in the More menus.
+  const { data: loanActionCounts } = useLoanActionCounts();
+  const loansBadge = loanActionCounts?.total ?? 0;
   // One "Groups need your attention" badge: pending invites to you + join
   // requests awaiting your approval + trades awaiting action.
   const groupsBadge =
@@ -859,6 +934,7 @@ export function Header() {
             showGlossary={showGlossary}
             showDecks={showDecks}
             groupsBadge={groupsBadge}
+            loansBadge={loansBadge}
             onLockedClick={setLockedFeature}
           />
         </div>
@@ -892,6 +968,7 @@ export function Header() {
         showGlossary={showGlossary}
         showDecks={showDecks}
         groupsBadge={groupsBadge}
+        loansBadge={loansBadge}
         onLockedClick={setLockedFeature}
       />
 

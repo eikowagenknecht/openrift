@@ -308,6 +308,69 @@ describe("computeDeckOwnership", () => {
     expect(result.deckValueCents).toBe(8);
   });
 
+  it("counts borrowed copies as buildable, tracked separately from owned", () => {
+    // ADR-039: copies borrowed from a friend are physically in hand, so they
+    // reduce the shortfall — but they aren't owned. 1 owned + 2 borrowed of a
+    // 4-of card leaves exactly 1 missing.
+    const cardId = "card-1";
+    const printingId = "printing-1";
+
+    const deckCards = [stubDeckBuilderCard({ cardId, quantity: 4, zone: "main" })];
+    const printings = [stubPrinting({ id: printingId, cardId })];
+    const available = { [printingId]: 1 };
+    const borrowed = { [printingId]: 2 };
+
+    const result = computeDeckOwnership(
+      deckCards,
+      printings,
+      available,
+      "tcgplayer",
+      EMPTY_PRICE_LOOKUP,
+      EN_FIRST,
+      undefined,
+      borrowed,
+    );
+
+    expect(result.totalNeeded).toBe(4);
+    expect(result.totalOwned).toBe(1);
+    expect(result.totalBorrowed).toBe(2);
+    expect(result.missingCount).toBe(1);
+
+    const entry = result.byCardZone.get(`${cardId}:main`);
+    expect(entry?.owned).toBe(1);
+    expect(entry?.borrowed).toBe(2);
+    expect(entry?.shortfall).toBe(1);
+  });
+
+  it("distributes borrowed copies across zones without double-claiming", () => {
+    const cardId = "card-1";
+    const printingId = "printing-1";
+
+    const deckCards = [
+      stubDeckBuilderCard({ cardId, quantity: 2, zone: "main" }),
+      stubDeckBuilderCard({ cardId, quantity: 2, zone: "sideboard" }),
+    ];
+    const printings = [stubPrinting({ id: printingId, cardId })];
+    const borrowed = { [printingId]: 3 };
+
+    const result = computeDeckOwnership(
+      deckCards,
+      printings,
+      {},
+      "tcgplayer",
+      EMPTY_PRICE_LOOKUP,
+      EN_FIRST,
+      undefined,
+      borrowed,
+    );
+
+    expect(result.totalBorrowed).toBe(3);
+    expect(result.missingCount).toBe(1);
+    expect(result.byCardZone.get(`${cardId}:main`)?.borrowed).toBe(2);
+    expect(result.byCardZone.get(`${cardId}:sideboard`)?.borrowed).toBe(1);
+    expect(result.byCardZone.get(`${cardId}:sideboard`)?.shortfall).toBe(1);
+  });
+
   it("treats locked copies as not-owned and reports them per zone", () => {
     // Regression: when a collection is excluded from deck building, the
     // deck-builder should not count its copies as fulfilling the deck. A

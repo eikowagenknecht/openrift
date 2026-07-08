@@ -53,6 +53,12 @@ export const queryKeys = {
   },
   copies: {
     all: (userId: string) => ["copies", userId] as const,
+    // The react-db copies store's own query (see copies-collection.ts). Its
+    // queryFn re-reads `copies.all` via fetchQuery, so invalidate BOTH keys to
+    // force a server round-trip that syncs fresh rows into the store (loan
+    // mutations do this — the server picks which copies get pinned, so there
+    // is nothing to write optimistically).
+    syncedStore: (userId: string) => ["copies-collection", userId] as const,
     byCollection: (userId: string, id: string) => ["copies", userId, id] as const,
     listMemberships: (userId: string, copyIds: readonly string[], excludeListId?: string) =>
       ["copies", userId, "list-memberships", copyIds, excludeListId ?? null] as const,
@@ -178,6 +184,13 @@ export const queryKeys = {
     all: (userId: string) => ["trades", userId] as const,
     byGroup: (userId: string, groupId: string) => ["trades", userId, "group", groupId] as const,
     actionCounts: (userId: string) => ["trades", userId, "action-counts"] as const,
+  },
+  loans: {
+    // Same prefix-invalidation shape as trades (ADR-039): mutations invalidate
+    // `all`, which also clears actionCounts and borrowerOptions.
+    all: (userId: string) => ["loans", userId] as const,
+    actionCounts: (userId: string) => ["loans", userId, "action-counts"] as const,
+    borrowerOptions: (userId: string) => ["loans", userId, "borrower-options"] as const,
   },
   rules: {
     all: (kind: string) => ["rules", kind] as const,

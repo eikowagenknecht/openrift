@@ -1,4 +1,12 @@
-import { BookOpenIcon, HandIcon, ListPlusIcon, NotebookPenIcon, Trash2Icon } from "lucide-react";
+import type { Printing } from "@openrift/shared";
+import {
+  BookOpenIcon,
+  HandHeartIcon,
+  HandIcon,
+  ListPlusIcon,
+  NotebookPenIcon,
+  Trash2Icon,
+} from "lucide-react";
 import type { ReactNode } from "react";
 
 import {
@@ -31,6 +39,17 @@ interface CollectionCardContextMenuProps {
    * "Copies…" opens the picker list, "Copy details" edits the one copy.
    */
   stacked?: boolean;
+  /**
+   * Personal collections only: offer "Lend to a friend" (ADR-039). Group-owned
+   * copies belong to the group, so they can't be lent by a member.
+   */
+  canLend?: boolean;
+  /**
+   * The cell's *displayed* printing (sibling swaps included). A loan targets
+   * one printing, so the lend action follows what the tile currently shows,
+   * not the tile's representative printing.
+   */
+  lendPrinting?: Printing;
   children?: ReactNode;
 }
 
@@ -48,6 +67,8 @@ export function CollectionCardContextMenu({
   canTake,
   takeAllCount,
   stacked = true,
+  canLend,
+  lendPrinting,
   children,
 }: CollectionCardContextMenuProps) {
   return (
@@ -111,6 +132,17 @@ export function CollectionCardContextMenu({
           <ListPlusIcon />
           Add to list
         </ContextMenuItem>
+        {canLend && (
+          <ContextMenuItem
+            onClick={(event) => {
+              event.stopPropagation();
+              dispatchContextAction(itemId, "lend", lendPrinting);
+            }}
+          >
+            <HandHeartIcon />
+            Lend to a friend
+          </ContextMenuItem>
+        )}
         <ContextMenuItem
           variant="destructive"
           onClick={(event) => {

@@ -145,6 +145,7 @@ const dbCopy = {
   printingId: "OGS-001:rare:normal:",
   collectionId: dbCollection.id,
   groupId: null,
+  onLoan: false,
   createdAt: now,
   condition: null,
   grader: null,

@@ -45,6 +45,20 @@ function DeckOwnershipBody({ data, marketplace, onViewMissing }: DeckOwnershipPa
     <div className="space-y-3">
       <div className="space-y-1 text-sm">
         <Row label="Owned" value={`${data.totalOwned} / ${data.totalNeeded}`} />
+        {data.totalBorrowed > 0 && (
+          <Tooltip>
+            <TooltipTrigger render={<div />}>
+              <Row
+                label="Borrowed"
+                value={`${data.totalBorrowed} ${data.totalBorrowed === 1 ? "card" : "cards"}`}
+              />
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-64 text-xs">
+              Copies you&apos;re borrowing from friends. They count as buildable while you have
+              them, but they aren&apos;t part of your collection.
+            </TooltipContent>
+          </Tooltip>
+        )}
         {data.missingCount > 0 && (
           <Row
             label="Missing"

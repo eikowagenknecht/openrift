@@ -364,6 +364,7 @@ export function toListEntryDetail(
         language: string;
         imageId: string | null;
         reserved: boolean;
+        onLoan: boolean;
         tradeOverride: TradePreference;
       },
 ): ListEntryDetailResponse {
@@ -422,6 +423,7 @@ export function toListEntryDetail(
     language: row.language,
     imageId: row.imageId,
     reserved: row.reserved,
+    onLoan: row.onLoan,
     tradeOverride: row.tradeOverride,
   };
 }
@@ -493,6 +495,7 @@ export function toCopy(
     printingId: string;
     collectionId: string;
     groupId: string | null;
+    onLoan: boolean;
   } & CopyMetadataFields,
 ): CopyResponse {
   return {
@@ -500,6 +503,7 @@ export function toCopy(
     printingId: row.printingId,
     collectionId: row.collectionId,
     groupId: row.groupId,
+    onLoan: row.onLoan,
     condition: row.condition,
     grader: row.grader,
     grade: row.grade,

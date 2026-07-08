@@ -12,9 +12,10 @@ export interface CardRowClickModifiers {
 /**
  * Actions offered by the /collections right-click menu. The bulk trio mirrors
  * the floating action bar; "copyDetails" opens the per-copy metadata dialog
- * (ADR-038) for the clicked tile's copies.
+ * (ADR-038) for the clicked tile's copies; "lend" opens the lend-to-a-friend
+ * dialog (ADR-039) for the clicked tile's printing.
  */
-export type CollectionContextAction = "move" | "addToList" | "dispose" | "copyDetails";
+export type CollectionContextAction = "move" | "addToList" | "lend" | "dispose" | "copyDetails";
 
 /**
  * Bulk actions offered by the /lists right-click menu (mirror the floating
@@ -50,9 +51,11 @@ interface CardRowHandlers {
   /**
    * /collections: a right-click menu action on a card. The grid resolves the
    * target — the current multi-selection when this card is part of it,
-   * otherwise just this card — then opens the matching dialog.
+   * otherwise just this card — then opens the matching dialog. `printing` is
+   * the cell's *displayed* printing (sibling swaps included), for actions that
+   * target one printing rather than the whole tile ("lend", ADR-039).
    */
-  onContextAction?: (itemId: string, action: CollectionContextAction) => void;
+  onContextAction?: (itemId: string, action: CollectionContextAction, printing?: Printing) => void;
   /**
    * /collections group "bulk box": take `count` copies of this card from the
    * shared group collection into the viewer's inbox (a free-pile claim, capped
@@ -142,8 +145,12 @@ export function dispatchItemToggle(itemId: string): void {
   useCardRowActionsStore.getState().handlers.onItemToggle?.(itemId);
 }
 
-export function dispatchContextAction(itemId: string, action: CollectionContextAction): void {
-  useCardRowActionsStore.getState().handlers.onContextAction?.(itemId, action);
+export function dispatchContextAction(
+  itemId: string,
+  action: CollectionContextAction,
+  printing?: Printing,
+): void {
+  useCardRowActionsStore.getState().handlers.onContextAction?.(itemId, action, printing);
 }
 
 export function dispatchTake(itemId: string, count: number): void {

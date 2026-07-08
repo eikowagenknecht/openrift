@@ -779,6 +779,7 @@ describe("friend-groups route", () => {
       printingId: "a0000000-0001-4000-a000-000000000030",
       collectionId: COLLECTION_ID,
       groupId: null,
+      onLoan: false,
       createdAt: now,
       condition: "near-mint",
       grader: null,

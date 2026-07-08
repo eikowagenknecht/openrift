@@ -226,6 +226,16 @@ export type {
 } from "./card-trade.js";
 
 export type {
+  LoanActionCountsResponse,
+  LoanBorrowerOptionsResponse,
+  LoanCounterparty,
+  LoanListResponse,
+  LoanResponse,
+  LoanRole,
+  LoanStatus,
+} from "./loan.js";
+
+export type {
   PodByeResponse,
   PodMemberResponse,
   PodPenaltyView,

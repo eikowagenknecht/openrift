@@ -255,6 +255,13 @@ export function aggregateDeckBuildingCounts(
   const available: Record<string, number> = {};
   const locked: Record<string, number> = {};
   for (const copy of copies) {
+    // A copy out on a loan (ADR-039) is physically absent: never available,
+    // whatever its collection's flag says. It is still owned, so it counts as
+    // locked — lending only draws from personal collections, so no group check.
+    if (copy.onLoan) {
+      locked[copy.printingId] = (locked[copy.printingId] ?? 0) + 1;
+      continue;
+    }
     // Default to available when the collection is unknown (race during create
     // or stale collections cache) — better to count an in-flight copy than to
     // mis-flag it as locked. `availableForDeckbuilding` is viewer-effective:

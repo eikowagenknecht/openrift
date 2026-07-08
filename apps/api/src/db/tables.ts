@@ -974,6 +974,43 @@ interface CardTradeCopiesTable {
   copyId: string;
 }
 
+// ─── Loans (migration 195, ADR-039) ──────────────────────────────────────────
+
+type LoanStatus = "active" | "returned" | "written_off";
+
+export interface LoansTable {
+  id: Generated<string>;
+  /** Owns the copies; the loan is their personal ledger entry. */
+  lenderUserId: string;
+  /**
+   * Exactly one of borrowerUserId / borrowerName is set at creation. Both-null
+   * only after a member borrower deleted their account (FK SET NULL).
+   */
+  borrowerUserId: string | null;
+  /** CHECK: <> '' when set. */
+  borrowerName: string | null;
+  printingId: string;
+  /** Denormalised from the printing, for grouping/display. */
+  cardId: string;
+  /** CHECK: > 0 */
+  quantity: number;
+  /** CHECK: 0 <= returned_quantity <= quantity; = quantity when status 'returned'. */
+  returnedQuantity: Generated<number>;
+  status: Generated<LoanStatus>;
+  /** Member-borrower consent, orthogonal to status; mutually exclusive with rejectedAt. */
+  acknowledgedAt: Date | null;
+  rejectedAt: Date | null;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+  /** returned / written_off */
+  closedAt: Date | null;
+}
+
+interface LoanCopiesTable {
+  loanId: string;
+  copyId: string;
+}
+
 // ─── Candidate cards (migration 018, renamed in 038) ─────────────────────────
 
 /** @see candidateCardFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
@@ -1561,6 +1598,10 @@ export interface Database {
   // Card trades (migration 143, ADR-019)
   cardTrades: CardTradesTable;
   cardTradeCopies: CardTradeCopiesTable;
+
+  // Loans (migration 195, ADR-039)
+  loans: LoansTable;
+  loanCopies: LoanCopiesTable;
 
   // Deck check (migration 149, ADR-025; re-parented to tournaments in 169/170)
   deckCheckEntries: DeckCheckEntriesTable;

@@ -44,11 +44,12 @@ const {
 const v1: OwnedBreakdownVariant = { id: "p1", shortCode: "OGN-001", finish: "normal" as Finish };
 const v2: OwnedBreakdownVariant = { id: "p2", shortCode: "OGN-001p", finish: "foil" as Finish };
 
-function copy(printingId: string, collectionId: string): CopyResponse {
+function copy(printingId: string, collectionId: string, onLoan = false): CopyResponse {
   return stubCopy({
     id: `${printingId}-${collectionId}-${Math.random()}`,
     printingId,
     collectionId,
+    onLoan,
   });
 }
 
@@ -198,6 +199,18 @@ describe("aggregateDeckBuildingCounts", () => {
     expect(aggregateDeckBuildingCounts(copies, availability)).toEqual({
       available: { p1: 2, p2: 1 },
       locked: {},
+    });
+  });
+
+  // ADR-039: a copy out on a loan is physically absent — never available,
+  // even when its collection is marked available. It's still owned, so it
+  // buckets as locked.
+  it("buckets on-loan copies as locked even in available collections", () => {
+    const copies = [copy("p1", "c-playset"), copy("p1", "c-playset", true)];
+    const availability = new Map([["c-playset", true]]);
+    expect(aggregateDeckBuildingCounts(copies, availability)).toEqual({
+      available: { p1: 1 },
+      locked: { p1: 1 },
     });
   });
 

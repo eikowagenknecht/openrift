@@ -33,6 +33,7 @@ function createMockRepos(overrides: {
     collectionName: string;
   }[];
   reservedCopies?: string[];
+  loanedCopies?: string[];
 }) {
   const targetExists = overrides.targetCollection !== undefined;
   const repos = {
@@ -69,6 +70,10 @@ function createMockRepos(overrides: {
     cardTrades: {
       filterReservedCopyIds: (copyIds: readonly string[]) =>
         Promise.resolve((overrides.reservedCopies ?? []).filter((id) => copyIds.includes(id))),
+    },
+    loans: {
+      filterLoanedCopyIds: (copyIds: readonly string[]) =>
+        Promise.resolve((overrides.loanedCopies ?? []).filter((id) => copyIds.includes(id))),
     },
   } as unknown as Repos;
 

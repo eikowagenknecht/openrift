@@ -44,6 +44,8 @@ export type {
   PodsTable,
   // Card trades (migration 143, ADR-019)
   CardTradesTable,
+  // Loans (migration 195, ADR-039)
+  LoansTable,
   // Deck check (migration 149, ADR-025)
   DeckCheckEntriesTable,
   DeckCheckEntryCardsTable,

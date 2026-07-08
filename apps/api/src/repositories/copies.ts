@@ -26,6 +26,8 @@ type CopyRow = Pick<
   | "links"
 > & {
   groupId: string | null;
+  /** True when the copy is out on a live loan (ADR-039). */
+  onLoan: boolean;
 };
 
 /** The per-copy metadata columns (ADR-038), aliased for `cp`-joined queries. */
@@ -119,6 +121,9 @@ export function copiesRepo(db: Kysely<Database>) {
         .leftJoin("friendGroupMembers as gm", (join) =>
           join.onRef("gm.groupId", "=", "col.groupId").on("gm.userId", "=", userId),
         )
+        // A copy is pinned by at most one live loan (UNIQUE copy_id), so this
+        // join can't multiply rows (ADR-039).
+        .leftJoin("loanCopies as lc", "lc.copyId", "cp.id")
         .select([
           "cp.id",
           "cp.printingId",
@@ -126,6 +131,7 @@ export function copiesRepo(db: Kysely<Database>) {
           "cp.createdAt",
           "col.groupId as groupId",
           ...COPY_METADATA_COLUMNS,
+          sql<boolean>`(lc.copy_id is not null)`.as("onLoan"),
         ])
         .where((eb) => eb.or([eb("col.userId", "=", userId), eb("gm.userId", "=", userId)]))
         .orderBy("cp.createdAt", "desc")
@@ -212,6 +218,7 @@ export function copiesRepo(db: Kysely<Database>) {
       let query = db
         .selectFrom("copies as cp")
         .innerJoin("collections as col", "col.id", "cp.collectionId")
+        .leftJoin("loanCopies as lc", "lc.copyId", "cp.id")
         .select([
           "cp.id",
           "cp.printingId",
@@ -219,6 +226,7 @@ export function copiesRepo(db: Kysely<Database>) {
           "cp.createdAt",
           "col.groupId as groupId",
           ...COPY_METADATA_COLUMNS,
+          sql<boolean>`(lc.copy_id is not null)`.as("onLoan"),
         ])
         .where("cp.collectionId", "=", collectionId)
         .orderBy("cp.createdAt", "desc")
@@ -239,10 +247,10 @@ export function copiesRepo(db: Kysely<Database>) {
     },
 
     /** @returns The inserted copy rows including their metadata (ADR-038). */
-    insertBatch(
+    async insertBatch(
       values: Insertable<CopiesTable>[],
     ): Promise<Omit<CopyRow, "groupId" | "createdAt">[]> {
-      return db
+      const rows = await db
         .insertInto("copies")
         .values(values)
         .returning([
@@ -257,8 +265,9 @@ export function copiesRepo(db: Kysely<Database>) {
           "isAltered",
           "links",
         ])
-        .execute()
-        .then((rows) => rows.map((row) => withParsedLinks(row)));
+        .execute();
+      // A freshly inserted copy is never out on a loan (ADR-039).
+      return rows.map((row) => ({ ...withParsedLinks(row), onLoan: false }));
     },
 
     /**
@@ -343,25 +352,38 @@ export function copiesRepo(db: Kysely<Database>) {
     countByCardAndPrintingForDeckbuilding(
       userId: string,
     ): Promise<{ cardId: string; printingId: string; count: number }[]> {
-      return db
-        .selectFrom("copies as cp")
-        .innerJoin("collections as col", "col.id", "cp.collectionId")
-        .innerJoin("printings as p", "p.id", "cp.printingId")
-        .leftJoin("friendGroupMembers as gm", (join) =>
-          join.onRef("gm.groupId", "=", "col.groupId").on("gm.userId", "=", userId),
-        )
-        .leftJoin("collectionDeckbuildingPrefs as pref", (join) =>
-          join.onRef("pref.collectionId", "=", "col.id").on("pref.userId", "=", userId),
-        )
-        .select((eb) => [
-          "p.cardId" as const,
-          "cp.printingId" as const,
-          eb.cast<number>(eb.fn.countAll(), "integer").as("count"),
-        ])
-        .where((eb) => eb.or([eb("col.userId", "=", userId), eb("gm.userId", "=", userId)]))
-        .where(sql`coalesce(pref.available, col.group_id is null)`, "=", true)
-        .groupBy(["p.cardId", "cp.printingId"])
-        .execute();
+      return (
+        db
+          .selectFrom("copies as cp")
+          .innerJoin("collections as col", "col.id", "cp.collectionId")
+          .innerJoin("printings as p", "p.id", "cp.printingId")
+          .leftJoin("friendGroupMembers as gm", (join) =>
+            join.onRef("gm.groupId", "=", "col.groupId").on("gm.userId", "=", userId),
+          )
+          .leftJoin("collectionDeckbuildingPrefs as pref", (join) =>
+            join.onRef("pref.collectionId", "=", "col.id").on("pref.userId", "=", userId),
+          )
+          .select((eb) => [
+            "p.cardId" as const,
+            "cp.printingId" as const,
+            eb.cast<number>(eb.fn.countAll(), "integer").as("count"),
+          ])
+          .where((eb) => eb.or([eb("col.userId", "=", userId), eb("gm.userId", "=", userId)]))
+          .where(sql`coalesce(pref.available, col.group_id is null)`, "=", true)
+          // ADR-039: a copy out on a loan is physically absent, so it never
+          // counts toward deck-building inventory, whatever its collection says.
+          .where(({ not, exists, selectFrom }) =>
+            not(
+              exists(
+                selectFrom("loanCopies as lc")
+                  .select("lc.copyId")
+                  .whereRef("lc.copyId", "=", "cp.id"),
+              ),
+            ),
+          )
+          .groupBy(["p.cardId", "cp.printingId"])
+          .execute()
+      );
     },
 
     /**

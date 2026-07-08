@@ -118,6 +118,7 @@ function copyEntry(
     language: "EN",
     imageId: null,
     reserved: false,
+    onLoan: false,
     tradeOverride: EMPTY_TRADE_PREFERENCE,
   };
 }

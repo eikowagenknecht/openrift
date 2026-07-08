@@ -125,6 +125,8 @@ export type ListEntryRow =
         collectionId: string;
         /** True when the copy is pinned to a live in-app trade (ADR-019). */
         reserved: boolean;
+        /** True when the copy is out on a live loan (ADR-039). */
+        onLoan: boolean;
       });
 
 /**
@@ -942,6 +944,7 @@ interface CopyDetail extends PrintingDetail {
   printingId: string;
   collectionId: string;
   reserved: boolean;
+  onLoan: boolean;
 }
 
 /**
@@ -1048,6 +1051,7 @@ function buildRuleOnlyRow(
     language: detail.language,
     imageId: detail.imageId,
     reserved: detail.reserved,
+    onLoan: detail.onLoan,
     tradeOverride: entry.tradeOverride,
   };
 }
@@ -1133,6 +1137,7 @@ async function copyDetailsByIds(
     )
     .leftJoin("imageFiles as ci", "ci.id", "pi.imageFileId")
     .leftJoin("cardTradeCopies as ctc", "ctc.copyId", "cp.id")
+    .leftJoin("loanCopies as lc", "lc.copyId", "cp.id")
     .select([
       "cp.id",
       "cp.printingId",
@@ -1146,6 +1151,7 @@ async function copyDetailsByIds(
       "p.language",
       imageId("ci").as("imageId"),
       "ctc.copyId as reservedByTradeCopyId",
+      "lc.copyId as pinnedByLoanCopyId",
     ])
     .where("cp.id", "in", ids)
     .execute();
@@ -1164,6 +1170,7 @@ async function copyDetailsByIds(
         language: row.language,
         imageId: row.imageId,
         reserved: row.reservedByTradeCopyId !== null,
+        onLoan: row.pinnedByLoanCopyId !== null,
       },
     ]),
   );
@@ -1299,6 +1306,8 @@ async function copyEntryQuery(
     // A copy is pinned to at most one live trade (UNIQUE copy_id), so this
     // join can't multiply rows. Its presence means the copy is reserved.
     .leftJoin("cardTradeCopies as ctc", "ctc.copyId", "cp.id")
+    // Same shape for loans (ADR-039): at most one live loan per copy.
+    .leftJoin("loanCopies as lc", "lc.copyId", "cp.id")
     .where("le.listId", "=", scope.listId);
   if (scope.userId !== undefined) {
     q = q.where("le.userId", "=", scope.userId);
@@ -1323,6 +1332,7 @@ async function copyEntryQuery(
       "cp.collectionId",
       "cp.printingId",
       "ctc.copyId as reservedByTradeCopyId",
+      "lc.copyId as pinnedByLoanCopyId",
     ])
     .execute();
   return rows.map((row) => ({
@@ -1344,6 +1354,7 @@ async function copyEntryQuery(
     language: row.language,
     imageId: row.imageId,
     reserved: row.reservedByTradeCopyId !== null,
+    onLoan: row.pinnedByLoanCopyId !== null,
     tradeOverride: tradeOverrideFromRow(row),
   }));
 }

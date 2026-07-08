@@ -60,6 +60,7 @@ const dbCopy = {
   printingId: "OGS-001:rare:normal:",
   collectionId: "a0000000-0001-4000-a000-000000000010",
   groupId: null,
+  onLoan: false,
   createdAt: now,
   condition: null,
   grader: null,
@@ -157,6 +158,7 @@ describe("POST /api/v1/copies", () => {
         notesPrivate: null,
         isAltered: false,
         links: [],
+        onLoan: false,
       },
     ];
     mockAddCopies.mockResolvedValue(created);

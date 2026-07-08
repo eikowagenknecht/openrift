@@ -1,6 +1,7 @@
 import type { Printing } from "@openrift/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { stubPrinting } from "@/test/factories";
 import { createStoreResetter } from "@/test/store-helpers";
 
 import {
@@ -54,7 +55,15 @@ describe("useCardRowActionsStore", () => {
     const onContextAction = vi.fn();
     useCardRowActionsStore.getState().setHandlers({ onContextAction });
     dispatchContextAction("item-1", "dispose");
-    expect(onContextAction).toHaveBeenCalledWith("item-1", "dispose");
+    expect(onContextAction).toHaveBeenCalledWith("item-1", "dispose", undefined);
+  });
+
+  it("dispatchContextAction forwards the displayed printing for printing-scoped actions", () => {
+    const onContextAction = vi.fn();
+    useCardRowActionsStore.getState().setHandlers({ onContextAction });
+    const foilPrinting = stubPrinting({ id: "p-foil" });
+    dispatchContextAction("item-1", "lend", foilPrinting);
+    expect(onContextAction).toHaveBeenCalledWith("item-1", "lend", foilPrinting);
   });
 
   it("dispatchContextAction is a no-op when no handler is registered", () => {

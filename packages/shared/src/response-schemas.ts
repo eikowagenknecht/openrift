@@ -251,6 +251,8 @@ export const copyResponseSchema = z
      * included). "Private" means stripped from public share surfaces only.
      */
     notesPrivate: z.string().nullable(),
+    /** True when the copy is out on a live loan (ADR-039): still owned, physically absent. */
+    onLoan: z.boolean(),
   })
   .openapi("CopyResponse");
 
@@ -382,6 +384,9 @@ export const listEntryDetailResponseSchema = z
       // True when the copy is pinned to a live in-app trade (ADR-019): it's
       // mid-trade, so the tradelist shows a "Reserved" badge and blocks Sold.
       reserved: z.boolean(),
+      // True when the copy is out on a live loan (ADR-039): physically absent,
+      // so the tradelist shows an "On loan" badge and it never matches.
+      onLoan: z.boolean(),
     }),
   ])
   .openapi("ListEntryDetailResponse");

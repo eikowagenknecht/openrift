@@ -19,6 +19,7 @@ import { useMemo } from "react";
 import { useSession } from "@/lib/auth-session";
 import { markOrphaned } from "@/lib/collection-cleanup";
 import { copiesQueryOptions } from "@/lib/copies-query";
+import { queryKeys } from "@/lib/query-keys";
 
 interface CacheEntry {
   userId: string;
@@ -48,7 +49,7 @@ export function getCopiesCollection(
       // a slot. Distinct from copiesQueryOptions' queryKey: this one stores
       // an array (what QueryCollection expects), the other stores the full
       // CopyListResponse object. The fetch is deduped via fetchQuery below.
-      queryKey: ["copies-collection", userId],
+      queryKey: [...queryKeys.copies.syncedStore(userId)],
       queryFn: async () => {
         // fetchQuery respects staleTime: returns cached data if fresh, but
         // refetches from the server if stale. ensureQueryData (what we used

@@ -36,6 +36,7 @@ import { jobRunsRepo } from "./repositories/job-runs.js";
 import { keywordsRepo } from "./repositories/keywords.js";
 import { languagesRepo } from "./repositories/languages.js";
 import { listsRepo } from "./repositories/lists.js";
+import { loansRepo } from "./repositories/loans.js";
 import { markersRepo } from "./repositories/markers.js";
 import { marketplaceAdminRepo } from "./repositories/marketplace-admin.js";
 import { marketplaceMappingRepo } from "./repositories/marketplace-mapping.js";
@@ -77,6 +78,14 @@ import { ensureInbox } from "./services/inbox.js";
 import { ingestCandidates } from "./services/ingest-candidates.js";
 import { ingestUserSubmission } from "./services/ingest-user-submission.js";
 import { moveListEntries } from "./services/lists.js";
+import {
+  acknowledgeLoan,
+  createLoan,
+  deleteLoan,
+  rejectLoan,
+  returnLoanCopies,
+  writeOffLoan,
+} from "./services/loans.js";
 import { getMappingOverview } from "./services/marketplace-mapping.js";
 import type { TradeEmailDeps } from "./services/trade-notifications.js";
 
@@ -117,6 +126,7 @@ export interface Repos {
   languages: ReturnType<typeof languagesRepo>;
   ignoredCandidates: ReturnType<typeof ignoredCandidatesRepo>;
   lists: ReturnType<typeof listsRepo>;
+  loans: ReturnType<typeof loansRepo>;
   marketplace: ReturnType<typeof marketplaceRepo>;
   marketplaceAdmin: ReturnType<typeof marketplaceAdminRepo>;
   printingImages: ReturnType<typeof printingImagesRepo>;
@@ -160,6 +170,12 @@ export interface Services {
   setTradeQuantity: typeof setTradeQuantity;
   applyTradeSync: typeof applyTradeSync;
   skipTradeSync: typeof skipTradeSync;
+  createLoan: typeof createLoan;
+  returnLoanCopies: typeof returnLoanCopies;
+  writeOffLoan: typeof writeOffLoan;
+  acknowledgeLoan: typeof acknowledgeLoan;
+  rejectLoan: typeof rejectLoan;
+  deleteLoan: typeof deleteLoan;
 }
 
 export function createRepos(db: Kysely<Database>): Repos {
@@ -228,6 +244,7 @@ export function createRepos(db: Kysely<Database>): Repos {
       ownedCopies: (ownerId) => copiesRepo(db).ownedRowsForUser(ownerId),
       enumOrders: () => enumsRepo(db).keepPriorityOrders(),
     }),
+    loans: loansRepo(db),
     marketplace: marketplaceRepo(db),
     marketplaceAdmin: marketplaceAdminRepo(db),
     printingImages: printingImagesRepo(db),
@@ -285,6 +302,12 @@ export const services: Services = {
   setTradeQuantity,
   applyTradeSync,
   skipTradeSync,
+  createLoan,
+  returnLoanCopies,
+  writeOffLoan,
+  acknowledgeLoan,
+  rejectLoan,
+  deleteLoan,
 };
 
 /**

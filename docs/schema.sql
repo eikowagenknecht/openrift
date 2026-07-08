@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict ltPBzRpv9GRUHXVIceHGunDf6lNZ4kHxyTlDEe6u0xwuItqxQHTaXRf0NT7dN0n
+\restrict d7g5zgzvAjxjfgZ0hbbiEgIVojOuoDFRPvtPlQwIKHEVuZdP7y1hhK7VszVLpFA
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1512,6 +1512,47 @@ CREATE TABLE public.lists (
 
 
 --
+-- Name: loan_copies; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.loan_copies (
+    loan_id uuid NOT NULL,
+    copy_id uuid NOT NULL
+);
+
+
+--
+-- Name: loans; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.loans (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    lender_user_id text NOT NULL,
+    borrower_user_id text,
+    borrower_name text,
+    printing_id uuid NOT NULL,
+    card_id uuid NOT NULL,
+    quantity integer NOT NULL,
+    returned_quantity integer DEFAULT 0 NOT NULL,
+    status text DEFAULT 'active'::text NOT NULL,
+    acknowledged_at timestamp with time zone,
+    rejected_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    closed_at timestamp with time zone,
+    CONSTRAINT chk_loans_ack_reject CHECK ((NOT ((acknowledged_at IS NOT NULL) AND (rejected_at IS NOT NULL)))),
+    CONSTRAINT chk_loans_borrower_name_not_empty CHECK (((borrower_name IS NULL) OR (borrower_name <> ''::text))),
+    CONSTRAINT chk_loans_borrower_shape CHECK ((NOT ((borrower_user_id IS NOT NULL) AND (borrower_name IS NOT NULL)))),
+    CONSTRAINT chk_loans_closed_shape CHECK (((status = 'active'::text) = (closed_at IS NULL))),
+    CONSTRAINT chk_loans_distinct_parties CHECK (((borrower_user_id IS NULL) OR (borrower_user_id <> lender_user_id))),
+    CONSTRAINT chk_loans_quantity CHECK ((quantity > 0)),
+    CONSTRAINT chk_loans_returned_bounds CHECK (((returned_quantity >= 0) AND (returned_quantity <= quantity))),
+    CONSTRAINT chk_loans_returned_complete CHECK (((status <> 'returned'::text) OR (returned_quantity = quantity))),
+    CONSTRAINT chk_loans_status CHECK ((status = ANY (ARRAY['active'::text, 'returned'::text, 'written_off'::text])))
+);
+
+
+--
 -- Name: markers; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -2758,6 +2799,22 @@ ALTER TABLE ONLY public.lists
 
 
 --
+-- Name: loan_copies loan_copies_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.loan_copies
+    ADD CONSTRAINT loan_copies_pkey PRIMARY KEY (loan_id, copy_id);
+
+
+--
+-- Name: loans loans_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.loans
+    ADD CONSTRAINT loans_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: markers markers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3123,6 +3180,14 @@ ALTER TABLE ONLY public.lists
 
 ALTER TABLE ONLY public.lists
     ADD CONSTRAINT uq_lists_id_user UNIQUE (id, user_id);
+
+
+--
+-- Name: loan_copies uq_loan_copies_copy; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.loan_copies
+    ADD CONSTRAINT uq_loan_copies_copy UNIQUE (copy_id);
 
 
 --
@@ -3602,6 +3667,20 @@ CREATE INDEX idx_lists_user_id ON public.lists USING btree (user_id);
 --
 
 CREATE INDEX idx_lists_user_intent ON public.lists USING btree (user_id, intent);
+
+
+--
+-- Name: idx_loans_borrower; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_loans_borrower ON public.loans USING btree (borrower_user_id, status);
+
+
+--
+-- Name: idx_loans_lender; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_loans_lender ON public.loans USING btree (lender_user_id, status);
 
 
 --
@@ -5158,6 +5237,54 @@ ALTER TABLE ONLY public.lists
 
 
 --
+-- Name: loan_copies loan_copies_copy_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.loan_copies
+    ADD CONSTRAINT loan_copies_copy_id_fkey FOREIGN KEY (copy_id) REFERENCES public.copies(id) ON DELETE CASCADE;
+
+
+--
+-- Name: loan_copies loan_copies_loan_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.loan_copies
+    ADD CONSTRAINT loan_copies_loan_id_fkey FOREIGN KEY (loan_id) REFERENCES public.loans(id) ON DELETE CASCADE;
+
+
+--
+-- Name: loans loans_borrower_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.loans
+    ADD CONSTRAINT loans_borrower_user_id_fkey FOREIGN KEY (borrower_user_id) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: loans loans_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.loans
+    ADD CONSTRAINT loans_card_id_fkey FOREIGN KEY (card_id) REFERENCES public.cards(id);
+
+
+--
+-- Name: loans loans_lender_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.loans
+    ADD CONSTRAINT loans_lender_user_id_fkey FOREIGN KEY (lender_user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: loans loans_printing_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.loans
+    ADD CONSTRAINT loans_printing_id_fkey FOREIGN KEY (printing_id) REFERENCES public.printings(id);
+
+
+--
 -- Name: marketplace_groups marketplace_groups_set_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5481,5 +5608,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict ltPBzRpv9GRUHXVIceHGunDf6lNZ4kHxyTlDEe6u0xwuItqxQHTaXRf0NT7dN0n
+\unrestrict d7g5zgzvAjxjfgZ0hbbiEgIVojOuoDFRPvtPlQwIKHEVuZdP7y1hhK7VszVLpFA
 

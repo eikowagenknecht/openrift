@@ -59,6 +59,7 @@ export * from "./friend-groups.js";
 export * from "./init.js";
 export * from "./landing-summary.js";
 export * from "./lists.js";
+export * from "./loans.js";
 export * from "./organizations.js";
 export * from "./preferences.js";
 export * from "./prices.js";

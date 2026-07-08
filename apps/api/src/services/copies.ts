@@ -36,6 +36,8 @@ interface AddCopyResult {
   notesPrivate: string | null;
   isAltered: boolean;
   links: CopyLink[];
+  /** Always false for a copy that was just created (ADR-039). */
+  onLoan: boolean;
 }
 
 /**
@@ -252,6 +254,8 @@ export async function disposeCopiesInTransaction(
   }
 
   // A reserved copy is physically promised to a trade — refuse to destroy it.
+  // Same for a copy out on a loan (ADR-039): write-off releases its pins first
+  // and then disposes in the same transaction, so the guard passes there.
   if (options?.skipReservationGuard !== true) {
     const reserved = await trxRepos.cardTrades.filterReservedCopyIds(copyIds);
     if (reserved.length > 0) {
@@ -259,6 +263,14 @@ export async function disposeCopiesInTransaction(
         409,
         ERROR_CODES.CONFLICT,
         "This card is reserved in an active trade — cancel the trade to free it.",
+      );
+    }
+    const loaned = await trxRepos.loans.filterLoanedCopyIds(copyIds);
+    if (loaned.length > 0) {
+      throw new AppError(
+        409,
+        ERROR_CODES.CONFLICT,
+        "This card is lent out — mark the loan returned or written off to free it.",
       );
     }
   }

@@ -82,6 +82,7 @@ import {
 } from "@/hooks/use-decks";
 import { useDeckFormatList } from "@/hooks/use-enums";
 import { useHeaderHeight } from "@/hooks/use-header-height";
+import { useBorrowedCounts } from "@/hooks/use-loans";
 import { useDeckBuildingCounts } from "@/hooks/use-owned-count";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { useSession, useUserId } from "@/lib/auth-session";
@@ -219,6 +220,8 @@ function DeckEditorContent({
   // each collection's availableForDeckbuilding flag.
   const { data: session } = useSession();
   const { data: deckCounts } = useDeckBuildingCounts(Boolean(session?.user));
+  // Copies borrowed from friends (ADR-039) are in hand and buildable.
+  const { data: borrowedCounts } = useBorrowedCounts(Boolean(session?.user));
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
   const marketplace = marketplaceOrder[0] ?? "cardtrader";
   const ownershipData = useDeckOwnership(
@@ -227,6 +230,7 @@ function DeckEditorContent({
     deckCounts?.available,
     marketplace,
     deckCounts?.locked,
+    borrowedCounts,
   );
 
   // Build the runes-by-domain catalog up here (always-mounted parent) so the

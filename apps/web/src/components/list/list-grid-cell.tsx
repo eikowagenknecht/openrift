@@ -322,6 +322,7 @@ function buildStrip({
   // the static quantity / Reserved signal sits alongside.
   if (entry.id === null) {
     const reserved = entry.kind === "copy" && entry.reserved;
+    const onLoan = entry.kind === "copy" && entry.onLoan;
     return (
       <div className="relative z-30 mb-1 flex h-5 items-center justify-center gap-1">
         <RuleSourceBadge
@@ -330,6 +331,7 @@ function buildStrip({
           excludeLabel={`Don't include ${entry.cardName}`}
         />
         {reserved && <Badge variant="success">Reserved</Badge>}
+        {onLoan && <Badge variant="secondary">On loan</Badge>}
       </div>
     );
   }
@@ -360,11 +362,19 @@ function buildStrip({
     // take-off button float to the edges, so an uneven-width badge can't shove
     // the pill off-center. `entry` is guaranteed non-null here.
     const reserved = entry.kind === "copy" && entry.reserved;
+    // A copy can't be both reserved and lent (the claims exclude each other),
+    // so at most one of the two edge badges renders.
+    const onLoan = entry.kind === "copy" && entry.onLoan;
     return (
       <div className="relative z-30 mb-1 flex h-5 items-center justify-center gap-1">
         {reserved && (
           <Badge variant="success" className="absolute top-1/2 left-0 -translate-y-1/2">
             Reserved
+          </Badge>
+        )}
+        {onLoan && (
+          <Badge variant="secondary" className="absolute top-1/2 left-0 -translate-y-1/2">
+            On loan
           </Badge>
         )}
         {isRuleSourced(entry.source) && <RuleSourceBadge />}

@@ -42,6 +42,7 @@ export type {
   PodRoundsTable,
   PodsTable,
   CardTradesTable,
+  LoansTable,
   DeckCheckEntriesTable,
   DeckCheckEntryCardsTable,
   DeckCheckKeysTable,
