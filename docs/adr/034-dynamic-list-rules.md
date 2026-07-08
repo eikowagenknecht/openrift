@@ -29,6 +29,11 @@ This ADR was scoped in a question-driven design session with the product owner (
 > 2. **Trade modes:** `protect` (default) offers a copy only when no rule that matches it kept it, so stacking rules can only widen protection. `count-sum` / `count-max` combine the per-card keep counts into one total and keep the nicest that-many across the union of matched copies. The old behavior (union of offers, which silently overrode any other rule's keep) is gone; it is exactly why trade lists were capped at one rule.
 > 3. **Keep-priority ladder change:** the deck-availability tier is removed, and standard-vs-special (`isStandardPrinting`) becomes the top tier, so a special copy (marked, signed, alt art, premium finish) is kept over a plain one even across rarities. Below it: rarity, finish, art variant, signed, then `canonicalRank` / copy id. No dedicated marker or distribution-channel tier; a marked copy already counts as special at the top tier.
 
+> **Amendment 3 (2026-07-08).** Card-kind wish rules are filter-aware end to end. Previously the filters only decided which cards enter the list: the resulting card want matched any printing of the card in group trade matching, and `netOwned` counted any owned copy toward the target. Both now respect the filters.
+>
+> 1. **Acceptable printings in matching:** each rule-produced card entry carries the union of the contributing rules' matched printing ids (`VirtualEntry.acceptablePrintingIds`, surviving `expandList` on rule-only entries). The group matcher rejects a supply copy whose printing is outside the set. A manual entry on the same card lifts the restriction, so manual card wants keep matching any printing. Printing-kind demand is unaffected, its key is already exact.
+> 2. **Filter-aware netting:** `netOwned` subtracts only owned copies whose printing one of the `netOwned` rules matched, so an owned copy outside the filters (excluded art variant, other language) no longer fills the want. Printing-kind netting already keyed per printing and is unchanged.
+
 ## Decision Drivers
 
 - All four use cases must be expressible. They span every `intent` × `kind` combo a list can take.

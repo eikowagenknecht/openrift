@@ -2,6 +2,10 @@
 
 ## 2026-07-08
 
+### Highlights
+
+- fix(Trades): **Wishlist rule filters now limit matches** — a dynamic card want no longer matches printings its filters exclude (like overnumbered variants), and "only what I'm missing" no longer counts such copies as owned.
+
 ### Other
 
 - fix(App): **Recover from rare blank-page crashes** — a rare crash that used to leave a dead white page now reloads the app once automatically.

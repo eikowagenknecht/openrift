@@ -107,6 +107,13 @@ export interface VirtualEntry {
   quantity: number;
   /** Reserved annotation on copy entries (ADR-019). */
   reserved?: boolean;
+  /**
+   * Card entries only: the printings the producing wish rules' filters matched
+   * — the only printings allowed to satisfy this want (ADR-034 amendment 3).
+   * Group matching rejects supply copies outside the set. `undefined` means any
+   * printing satisfies (non-card kinds; manual entries never restrict).
+   */
+  acceptablePrintingIds?: ReadonlySet<string>;
 }
 
 /**
@@ -121,23 +128,34 @@ function resolveQuantity(quantity: RuleQuantity, card: Card): number {
   return getPlaysetSize(card.types, card.keywords) * quantity.multiplier;
 }
 
+/** One wish rule's evaluated matches, keyed for the list's kind. */
+interface WishRuleTargets {
+  /** Key (printing id or card id) → pre-net target quantity. */
+  targets: Map<string, number>;
+  /** Card kind only: card id → the printing ids the rule's filter matched. */
+  matchedPrintings: Map<string, Set<string>>;
+}
+
 /**
  * One wish rule's per-key targets: matched keys (post-exclusion) mapped to the
  * rule's resolved quantity, before any `netOwned` subtraction. Netting happens
  * after combination in {@link combineWishRules} so summed rules share one
- * owned pool instead of each subtracting it again.
- * @returns Key (printing id or card id) → pre-net target quantity.
+ * owned pool instead of each subtracting it again. For card kind the matched
+ * printing ids per card come along too — they become the want's acceptable
+ * printings and the netting pool (ADR-034 amendment 3).
+ * @returns The rule's targets plus, for card kind, its matched printings.
  */
 function wishRuleTargets(
   rule: WishRule,
   listKind: ListKind,
   ctx: RuleEvalContext,
-): Map<string, number> {
+): WishRuleTargets {
   const matched = filterCards(ctx.catalog, rule.filter, {
     customTagAssignments: ctx.customTagAssignments,
   });
   const excluded = new Set(rule.excludeIds);
   const targets = new Map<string, number>();
+  const matchedPrintings = new Map<string, Set<string>>();
   if (listKind === "printing") {
     for (const printing of matched) {
       if (excluded.has(printing.id)) {
@@ -145,40 +163,84 @@ function wishRuleTargets(
       }
       targets.set(printing.id, resolveQuantity(rule.quantity, printing.card));
     }
-    return targets;
+    return { targets, matchedPrintings };
   }
-  // listKind === "card": collapse matched printings to their cards.
+  // listKind === "card": collapse matched printings to their cards, keeping
+  // every matched printing id per card.
   for (const printing of matched) {
-    if (excluded.has(printing.cardId) || targets.has(printing.cardId)) {
+    if (excluded.has(printing.cardId)) {
       continue;
     }
-    targets.set(printing.cardId, resolveQuantity(rule.quantity, printing.card));
+    if (!targets.has(printing.cardId)) {
+      targets.set(printing.cardId, resolveQuantity(rule.quantity, printing.card));
+    }
+    const printings = matchedPrintings.get(printing.cardId);
+    if (printings) {
+      printings.add(printing.id);
+    } else {
+      matchedPrintings.set(printing.cardId, new Set([printing.id]));
+    }
   }
-  return targets;
+  return { targets, matchedPrintings };
 }
 
 /**
- * The owner's non-reserved copy counts, keyed per printing and per card, for
- * `netOwned` wish rules. Reserved copies are pinned to a live outgoing trade
- * (ADR-019) — they are about to leave the collection, so they no longer count
- * as owned and must not suppress the shortfall. (Incoming copies aren't in the
- * owner's collection yet, so they never reach this set.)
- * @returns Copy counts by printing id and by card id.
+ * The owner's non-reserved copy counts per printing, for `netOwned` wish
+ * rules. Reserved copies are pinned to a live outgoing trade (ADR-019) — they
+ * are about to leave the collection, so they no longer count as owned and must
+ * not suppress the shortfall. (Incoming copies aren't in the owner's
+ * collection yet, so they never reach this set.)
+ * @returns Copy counts by printing id.
  */
-function ownedCounts(ctx: RuleEvalContext): {
-  byPrinting: Map<string, number>;
-  byCard: Map<string, number>;
-} {
+function ownedCountsByPrinting(ctx: RuleEvalContext): Map<string, number> {
   const byPrinting = new Map<string, number>();
-  const byCard = new Map<string, number>();
   for (const copy of ctx.ownedCopies ?? []) {
     if (copy.reserved) {
       continue;
     }
     byPrinting.set(copy.printingId, (byPrinting.get(copy.printingId) ?? 0) + 1);
-    byCard.set(copy.cardId, (byCard.get(copy.cardId) ?? 0) + 1);
   }
-  return { byPrinting, byCard };
+  return byPrinting;
+}
+
+/**
+ * Merges `printings` into the set stored under `key`, creating it on first use.
+ * @returns Nothing; mutates `map` in place.
+ */
+function unionInto(
+  map: Map<string, Set<string>>,
+  key: string,
+  printings: ReadonlySet<string>,
+): void {
+  const existing = map.get(key);
+  if (existing) {
+    for (const id of printings) {
+      existing.add(id);
+    }
+  } else {
+    map.set(key, new Set(printings));
+  }
+}
+
+/**
+ * Total owned copies across a card's netting pool (filter-aware netting,
+ * ADR-034 amendment 3): only copies whose printing a `netOwned` rule matched
+ * count toward the target, so an owned copy outside the filter (excluded art
+ * variant, other language) doesn't fill the want.
+ * @returns The owned-copy count within the pool (0 for a missing pool).
+ */
+function countOwnedInPool(
+  pool: ReadonlySet<string> | undefined,
+  ownedByPrinting: Map<string, number>,
+): number {
+  if (!pool) {
+    return 0;
+  }
+  let count = 0;
+  for (const printingId of pool) {
+    count += ownedByPrinting.get(printingId) ?? 0;
+  }
+  return count;
 }
 
 /**
@@ -188,6 +250,12 @@ function ownedCounts(ctx: RuleEvalContext): {
  * count is then subtracted from the net bucket **once**, so two summed
  * `netOwned` rules share one owned pool instead of double-crediting it. The
  * final quantity is the op over [plain bucket, clamped net shortfall].
+ *
+ * Card kind is filter-aware on both sides (ADR-034 amendment 3): each entry
+ * carries the union of the contributing rules' matched printings as its
+ * acceptable set, and netting only counts owned copies whose printing a
+ * `netOwned` rule matched — an owned copy outside the filters neither fills
+ * the want nor satisfies it in matching.
  * @returns One virtual entry per key with a positive combined quantity.
  */
 function combineWishRules(
@@ -198,10 +266,15 @@ function combineWishRules(
 ): VirtualEntry[] {
   const combine = (a: number, b: number): number => (mode === "sum" ? a + b : Math.max(a, b));
   const byKey = new Map<string, { plain: number; net: number }>();
+  // Card kind only: per card, the printings any contributing rule matched
+  // (acceptable set) and the ones the netOwned rules matched (netting pool).
+  const acceptableByKey = new Map<string, Set<string>>();
+  const netPoolByKey = new Map<string, Set<string>>();
   let anyNet = false;
   for (const rule of rules) {
     anyNet ||= rule.netOwned === true;
-    for (const [key, target] of wishRuleTargets(rule, listKind, ctx)) {
+    const { targets, matchedPrintings } = wishRuleTargets(rule, listKind, ctx);
+    for (const [key, target] of targets) {
       const acc = byKey.get(key) ?? { plain: 0, net: 0 };
       if (rule.netOwned) {
         acc.net = combine(acc.net, target);
@@ -209,13 +282,22 @@ function combineWishRules(
         acc.plain = combine(acc.plain, target);
       }
       byKey.set(key, acc);
+      const printings = matchedPrintings.get(key);
+      if (printings) {
+        unionInto(acceptableByKey, key, printings);
+        if (rule.netOwned) {
+          unionInto(netPoolByKey, key, printings);
+        }
+      }
     }
   }
-  const owned = anyNet ? ownedCounts(ctx) : undefined;
+  const ownedByPrinting = anyNet ? ownedCountsByPrinting(ctx) : undefined;
   const entries: VirtualEntry[] = [];
   for (const [key, acc] of byKey) {
-    const ownedCount = owned
-      ? ((listKind === "printing" ? owned.byPrinting : owned.byCard).get(key) ?? 0)
+    const ownedCount = ownedByPrinting
+      ? listKind === "printing"
+        ? (ownedByPrinting.get(key) ?? 0)
+        : countOwnedInPool(netPoolByKey.get(key), ownedByPrinting)
       : 0;
     const quantity = combine(acc.plain, Math.max(0, acc.net - ownedCount));
     if (quantity <= 0) {
@@ -224,7 +306,12 @@ function combineWishRules(
     entries.push(
       listKind === "printing"
         ? { kind: "printing", printingId: key, quantity }
-        : { kind: "card", cardId: key, quantity },
+        : {
+            kind: "card",
+            cardId: key,
+            quantity,
+            acceptablePrintingIds: acceptableByKey.get(key),
+          },
     );
   }
   return entries;
@@ -453,6 +540,13 @@ export interface ExpandedEntry {
   source: EntrySource;
   tradeOverride: TradePreference;
   reserved?: boolean;
+  /**
+   * Rule-only card entries: the printings allowed to satisfy this want, from
+   * {@link VirtualEntry.acceptablePrintingIds}. A manual part (`source` manual
+   * or both) lifts the restriction — a manual card want accepts any printing —
+   * so the field is `undefined` there (ADR-034 amendment 3).
+   */
+  acceptablePrintingIds?: ReadonlySet<string>;
 }
 
 /**
@@ -486,6 +580,7 @@ interface ExpansionAcc {
   hasRule: boolean;
   tradeOverride: TradePreference;
   reserved?: boolean;
+  acceptablePrintingIds?: ReadonlySet<string>;
 }
 
 /**
@@ -502,6 +597,9 @@ interface ExpansionAcc {
  *   rule∩rule stays `source = "rule"`.
  * - rule-only entries get `id: null`, `source: "rule"`, and an empty trade
  *   override (so they inherit the list's defaults downstream).
+ * - rule-only card entries keep their acceptable-printing set (rule∩rule
+ *   overlaps union theirs); any manual part lifts the restriction (ADR-034
+ *   amendment 3).
  *
  * @returns The deduped expanded entries (no guaranteed order).
  */
@@ -549,6 +647,7 @@ export function expandList(
         hasRule: true,
         tradeOverride: EMPTY_TRADE_PREFERENCE,
         reserved: rule.reserved,
+        acceptablePrintingIds: rule.acceptablePrintingIds,
       });
       continue;
     }
@@ -562,6 +661,12 @@ export function expandList(
       // Rule entries arrive pre-combined (one per key); duplicate keys dedupe
       // to their max as a residual guard rather than double-counting.
       existing.ruleQuantity = Math.max(existing.ruleQuantity, rule.quantity);
+      // Acceptable sets union across rule entries; an unrestricted part (a
+      // manual entry, or a rule entry without a set) lifts the restriction.
+      existing.acceptablePrintingIds =
+        !existing.hasManual && existing.acceptablePrintingIds && rule.acceptablePrintingIds
+          ? new Set([...existing.acceptablePrintingIds, ...rule.acceptablePrintingIds])
+          : undefined;
     }
   }
   return [...byKey.values()].map((acc) => ({
@@ -580,5 +685,7 @@ export function expandList(
     source: acc.hasManual && acc.hasRule ? "both" : acc.hasManual ? "manual" : "rule",
     tradeOverride: acc.tradeOverride,
     reserved: acc.reserved,
+    // A manual part accepts any printing, so only rule-only entries restrict.
+    acceptablePrintingIds: acc.hasManual ? undefined : acc.acceptablePrintingIds,
   }));
 }

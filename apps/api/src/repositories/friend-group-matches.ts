@@ -234,6 +234,12 @@ interface DemandEntry {
   sharedAt: Date;
   createdAt: Date | null;
   buyPref: EffectiveTradePreference;
+  /**
+   * Card demand produced purely by a rule only accepts printings the rule's
+   * filters matched (ADR-034 amendment 3). `null` means any printing of the
+   * card satisfies the want (manual entries, printing demand).
+   */
+  acceptablePrintingIds: ReadonlySet<string> | null;
 }
 
 /**
@@ -489,6 +495,7 @@ function buildDemand(
         listDefaultPref(list),
         list.currency,
       ),
+      acceptablePrintingIds: entry.acceptablePrintingIds ?? null,
     };
   });
 }
@@ -731,6 +738,15 @@ async function runMatchQuery(
     for (const demandEntry of matches) {
       // Never match a user with themselves.
       if (supplyEntry.ownerUserId === demandEntry.ownerUserId) {
+        continue;
+      }
+      // A rule-produced card want only accepts printings its filters matched —
+      // a copy of the right card in an excluded printing (overnumbered variant,
+      // other language) is not a match (ADR-034 amendment 3).
+      if (
+        demandEntry.acceptablePrintingIds !== null &&
+        !demandEntry.acceptablePrintingIds.has(supplyEntry.printingId)
+      ) {
         continue;
       }
       const counterparty = isOthersHave ? supplyEntry : demandEntry;

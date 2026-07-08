@@ -103,7 +103,7 @@ function filters(overrides: Partial<CardFilters> = {}): CardFilters {
 function makeCatalogPrinting(
   id: string,
   cardId: string,
-  overrides: { type?: string; keywords?: string[] } = {},
+  overrides: { type?: string; keywords?: string[]; artVariant?: string } = {},
 ): Printing {
   return {
     id,
@@ -113,7 +113,7 @@ function makeCatalogPrinting(
     setSlug: "set-alpha",
     setReleased: true,
     rarity: "common",
-    artVariant: "normal",
+    artVariant: overrides.artVariant ?? "normal",
     isSigned: false,
     markers: [],
     distributionChannels: [],
@@ -685,6 +685,99 @@ describe("friendGroupMatchesRepo — dynamic rules (ADR-034)", () => {
     const rows = await repo.othersHaveYourWants({ groupId: "g", viewerUserId: "viewer" });
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ cardId: "crd-2", copyId: "cp-s2" });
+  });
+
+  it("a rule-produced card want only matches printings its filters accept", async () => {
+    const queues = {
+      friendGroupListShares: [
+        [tradeShare({ ownerUserId: "seller" })],
+        [
+          wishShare({
+            ownerUserId: "viewer",
+            rules: [
+              {
+                kind: "wish",
+                filter: filters({ artVariantsExclude: ["overnumbered"] }),
+                quantity: { mode: "fixed", n: 3 },
+                excludeIds: [],
+              },
+            ],
+          }),
+        ],
+      ],
+      // The seller offers a normal-art copy and an overnumbered copy of the
+      // same card; only the normal-art one may satisfy the filtered want.
+      listEntries: [
+        [supplyEntry({ id: "e-s1", copyId: "cp-1" }), supplyEntry({ id: "e-s2", copyId: "cp-2" })],
+        [],
+      ],
+      copies: [
+        [
+          copyRow({ id: "cp-1", printingId: "prt-1", cardId: "crd-1" }),
+          copyRow({ id: "cp-2", printingId: "prt-2", cardId: "crd-1" }),
+        ],
+      ],
+      users: [[userRow({ id: "seller", name: "Alice", email: "a@x.com" })]],
+      printings: [
+        [
+          printingRow({ id: "prt-1", cardName: "Annie, Fiery" }),
+          printingRow({ id: "prt-2", cardName: "Annie, Fiery" }),
+        ],
+      ],
+    };
+    const providers = providersWith({
+      catalog: [
+        makeCatalogPrinting("prt-1", "crd-1"),
+        makeCatalogPrinting("prt-2", "crd-1", { artVariant: "overnumbered" }),
+      ],
+    });
+    const repo = friendGroupMatchesRepo(makeDb(queues), providers);
+    const rows = await repo.othersHaveYourWants({ groupId: "g", viewerUserId: "viewer" });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ copyId: "cp-1", printingId: "prt-1", buyEntryId: null });
+  });
+
+  it("owned copies outside a netOwned rule's filters don't fill the want", async () => {
+    const queues = {
+      friendGroupListShares: [
+        [tradeShare({ ownerUserId: "seller" })],
+        [
+          wishShare({
+            ownerUserId: "viewer",
+            rules: [
+              {
+                kind: "wish",
+                filter: filters({ artVariantsExclude: ["overnumbered"] }),
+                quantity: { mode: "playset", multiplier: 1 },
+                excludeIds: [],
+                netOwned: true,
+              },
+            ],
+          }),
+        ],
+      ],
+      listEntries: [[supplyEntry({ id: "e-s1", copyId: "cp-1" })], []],
+      copies: [[copyRow({ id: "cp-1", printingId: "prt-1", cardId: "crd-1" })]],
+      users: [[userRow({ id: "seller", name: "Alice", email: "a@x.com" })]],
+      printings: [[printingRow({ id: "prt-1", cardName: "Annie, Fiery" })]],
+    };
+    const providers = providersWith({
+      catalog: [
+        makeCatalogPrinting("prt-1", "crd-1"),
+        makeCatalogPrinting("prt-2", "crd-1", { artVariant: "overnumbered" }),
+      ],
+      // The viewer owns a full playset, but only in the excluded overnumbered
+      // variant — the want must survive netting and still match.
+      owned: {
+        viewer: [1, 2, 3].map((index) =>
+          ownedCopy({ copyId: `o${index}`, printingId: "prt-2", cardId: "crd-1" }),
+        ),
+      },
+    });
+    const repo = friendGroupMatchesRepo(makeDb(queues), providers);
+    const rows = await repo.othersHaveYourWants({ groupId: "g", viewerUserId: "viewer" });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ copyId: "cp-1", cardId: "crd-1", buyQuantity: 3 });
   });
 
   it("unions a manual wish entry with a rule wish entry on the same list", async () => {

@@ -672,7 +672,9 @@ describe("evaluateListRules — multiple", () => {
       ownedCopy({ copyId: "x2", printingId: "p1", cardId: "c1" }),
     ];
     const out = evaluateListRules(rules, "card", { catalog: singleCard, ownedCopies });
-    expect(out).toEqual([{ kind: "card", cardId: "c1", quantity: 2 }]);
+    expect(out).toEqual([
+      { kind: "card", cardId: "c1", quantity: 2, acceptablePrintingIds: new Set(["p1"]) },
+    ]);
   });
 
   it("owned copies only net the netOwned rules' share of a mixed sum", () => {
@@ -691,7 +693,9 @@ describe("evaluateListRules — multiple", () => {
     const singleCard = [makePrinting("p1", "c1")];
     const ownedCopies = [ownedCopy({ copyId: "x1", printingId: "p1", cardId: "c1" })];
     const out = evaluateListRules(rules, "card", { catalog: singleCard, ownedCopies });
-    expect(out).toEqual([{ kind: "card", cardId: "c1", quantity: 4 }]);
+    expect(out).toEqual([
+      { kind: "card", cardId: "c1", quantity: 4, acceptablePrintingIds: new Set(["p1"]) },
+    ]);
   });
 
   it("max mode nets the owned pool off the largest netOwned demand", () => {
@@ -718,7 +722,110 @@ describe("evaluateListRules — multiple", () => {
     ];
     const out = evaluateListRules(rules, "card", { catalog: singleCard, ownedCopies }, "max");
     // max(3, 1) − 2 owned = 1.
-    expect(out).toEqual([{ kind: "card", cardId: "c1", quantity: 1 }]);
+    expect(out).toEqual([
+      { kind: "card", cardId: "c1", quantity: 1, acceptablePrintingIds: new Set(["p1"]) },
+    ]);
+  });
+});
+
+describe("evaluateListRules — acceptable printings and filter-aware netting (amendment 3)", () => {
+  // One card in two printings: p1 is the plain version, p2 the foil.
+  const catalog = [
+    makePrinting("p1", "c1", { finish: "normal" }),
+    makePrinting("p2", "c1", { finish: "foil" }),
+  ];
+
+  function wishRule(overrides: Partial<Extract<ListRule, { kind: "wish" }>> = {}): ListRule {
+    return {
+      kind: "wish",
+      filter: filters(),
+      quantity: { mode: "fixed", n: 3 },
+      excludeIds: [],
+      ...overrides,
+    };
+  }
+
+  it("card entries carry the printings the filter matched as their acceptable set", () => {
+    const out = evaluateListRules(
+      [wishRule({ filter: filters({ finishesExclude: ["foil"] }) })],
+      "card",
+      { catalog },
+    );
+    expect(out).toEqual([
+      { kind: "card", cardId: "c1", quantity: 3, acceptablePrintingIds: new Set(["p1"]) },
+    ]);
+  });
+
+  it("an unrestricted filter still lists every printing of the card", () => {
+    const out = evaluateListRules([wishRule()], "card", { catalog });
+    expect(out[0]?.acceptablePrintingIds).toEqual(new Set(["p1", "p2"]));
+  });
+
+  it("printing-kind entries carry no acceptable set (the key is the printing)", () => {
+    const out = evaluateListRules([wishRule()], "printing", { catalog });
+    expect(out.every((entry) => entry.acceptablePrintingIds === undefined)).toBe(true);
+  });
+
+  it("overlapping rules union their acceptable printings", () => {
+    const rules = [
+      wishRule({ filter: filters({ finishes: ["normal"] }) }),
+      wishRule({ filter: filters({ finishes: ["foil"] }) }),
+    ];
+    const out = evaluateListRules(rules, "card", { catalog });
+    expect(out).toHaveLength(1);
+    expect(out[0]?.acceptablePrintingIds).toEqual(new Set(["p1", "p2"]));
+  });
+
+  it("netOwned ignores owned copies whose printing the filter excludes", () => {
+    // Want 3 non-foil c1; owning two foil copies must not fill the want, while
+    // the one plain copy nets as before → shortfall 2.
+    const ownedCopies = [
+      ownedCopy({ copyId: "x1", printingId: "p2", cardId: "c1" }),
+      ownedCopy({ copyId: "x2", printingId: "p2", cardId: "c1" }),
+      ownedCopy({ copyId: "x3", printingId: "p1", cardId: "c1" }),
+    ];
+    const out = evaluateListRules(
+      [wishRule({ filter: filters({ finishesExclude: ["foil"] }), netOwned: true })],
+      "card",
+      { catalog, ownedCopies },
+    );
+    expect(out).toEqual([
+      { kind: "card", cardId: "c1", quantity: 2, acceptablePrintingIds: new Set(["p1"]) },
+    ]);
+  });
+
+  it("the netting pool comes from the netOwned rules only, not every rule", () => {
+    // Rule A (net, plain-only, want 2) + rule B (plain bucket, foil-only,
+    // want 1). The owned foil copy is acceptable to B but must not net A's
+    // bucket: total = 1 + max(0, 2 − 0) = 3.
+    const rules = [
+      wishRule({
+        filter: filters({ finishes: ["normal"] }),
+        quantity: { mode: "fixed", n: 2 },
+        netOwned: true,
+      }),
+      wishRule({ filter: filters({ finishes: ["foil"] }), quantity: { mode: "fixed", n: 1 } }),
+    ];
+    const ownedCopies = [ownedCopy({ copyId: "x1", printingId: "p2", cardId: "c1" })];
+    const out = evaluateListRules(rules, "card", { catalog, ownedCopies });
+    expect(out[0]?.quantity).toBe(3);
+  });
+
+  it("expandList keeps the set on rule-only entries and drops it on manual overlap", () => {
+    const ruleEntries: VirtualEntry[] = [
+      { kind: "card", cardId: "c1", quantity: 3, acceptablePrintingIds: new Set(["p1"]) },
+      { kind: "card", cardId: "c2", quantity: 3, acceptablePrintingIds: new Set(["p3"]) },
+    ];
+    const out = expandList(
+      "card",
+      [{ id: "e1", kind: "card", cardId: "c1", quantity: 1, tradeOverride: EMPTY_TRADE }],
+      ruleEntries,
+    );
+    const both = out.find((entry) => entry.cardId === "c1");
+    const ruleOnly = out.find((entry) => entry.cardId === "c2");
+    // The manual part accepts any printing, so the merged entry is unrestricted.
+    expect(both).toMatchObject({ source: "both", acceptablePrintingIds: undefined });
+    expect(ruleOnly?.acceptablePrintingIds).toEqual(new Set(["p3"]));
   });
 });
 
