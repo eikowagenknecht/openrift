@@ -225,6 +225,7 @@ export const queryKeys = {
     jobRunsByKind: (kind: string) => ["admin", "job-runs", "by-kind", kind] as const,
     cronStatus: ["admin", "cron-status"] as const,
     cacheStatus: ["admin", "cache-status"] as const,
+    apiKeys: ["admin", "api-keys"] as const,
     rehostStatus: ["admin", "rehost-status"] as const,
     brokenImages: ["admin", "broken-images"] as const,
     lowResImages: ["admin", "low-res-images"] as const,

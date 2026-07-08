@@ -230,6 +230,8 @@ export const TEST_USERS: TestUser[] = [
   // non-admin grant holder (the test file seeds its admin_grants row itself)
   { id: "a0000000-0198-4000-a000-000000000001", email: "admin-0198@test.com", isAdmin: true },
   { id: "a0000000-0199-4000-a000-000000000001", email: "crg-0199@test.com", isAdmin: false },
+  // API key auth tests (migration 200)
+  { id: "a0000000-0200-4000-a000-000000000001", email: "key-0200@test.com", isAdmin: false },
 ];
 
 /**

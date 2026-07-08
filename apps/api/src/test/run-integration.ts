@@ -30,6 +30,7 @@ import { bootstrapSeededTestDb, dropTempDb, sweepStaleTestDatabases } from "./in
  * migrations file, which runs separately below).
  */
 const PARALLEL_FILES = [
+  "src/auth-api-key.integration.test.ts",
   "src/auth-rate-limit.integration.test.ts",
   "src/authorization.integration.test.ts",
   "src/db/card-type-triggers.integration.test.ts",

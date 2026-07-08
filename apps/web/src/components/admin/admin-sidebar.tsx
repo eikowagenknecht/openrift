@@ -13,6 +13,7 @@ import {
   GlobeIcon,
   HashIcon,
   ImageIcon,
+  KeyRoundIcon,
   LanguagesIcon,
   LayoutDashboardIcon,
   LayoutListIcon,
@@ -93,6 +94,7 @@ const systemPages = [
   { to: "/admin/organizations" as const, icon: CrownIcon, title: "Organizations" },
   { to: "/admin/feature-flags" as const, icon: FlagIcon, title: "Feature Flags" },
   { to: "/admin/site-settings" as const, icon: GlobeIcon, title: "Site Settings" },
+  { to: "/admin/api-keys" as const, icon: KeyRoundIcon, title: "API Keys" },
   { to: "/admin/cache" as const, icon: CloudIcon, title: "Cache" },
   { to: "/admin/scan" as const, icon: CameraIcon, title: "Scan Test" },
 ];

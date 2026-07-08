@@ -1,3 +1,4 @@
+import { apiKey } from "@better-auth/api-key";
 import { validateRiotId } from "@openrift/shared";
 import { betterAuth } from "better-auth";
 import { APIError } from "better-auth/api";
@@ -57,6 +58,40 @@ export function createAuth(deps: {
           verifyCurrentEmail: true,
         },
         overrideDefaultEmailVerification: true,
+      }),
+      apiKey({
+        // A valid `x-api-key` header resolves to a session for the key's
+        // owner via `auth.api.getSession`, so requireAuth/requireAdmin work
+        // unchanged for script callers (e.g. candidate uploads).
+        enableSessionForAPIKeys: true,
+        defaultPrefix: "orift_",
+        // Plugin default is 10 requests per day, far too tight for upload
+        // scripts. Keys are minted on /admin/api-keys.
+        rateLimit: {
+          enabled: true,
+          timeWindow: 60 * 60 * 1000,
+          maxRequests: 1000,
+        },
+        schema: {
+          apikey: {
+            modelName: "api_keys",
+            fields: {
+              configId: "config_id",
+              referenceId: "reference_id",
+              refillInterval: "refill_interval",
+              refillAmount: "refill_amount",
+              lastRefillAt: "last_refill_at",
+              rateLimitEnabled: "rate_limit_enabled",
+              rateLimitTimeWindow: "rate_limit_time_window",
+              rateLimitMax: "rate_limit_max",
+              requestCount: "request_count",
+              lastRequest: "last_request",
+              expiresAt: "expires_at",
+              createdAt: "created_at",
+              updatedAt: "updated_at",
+            },
+          },
+        },
       }),
     ],
     emailVerification: {

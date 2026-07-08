@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 41z1vhhZGDrdnGQNpPD4yVeOpof3H4Oglajo6UhEcYmsLBxVLCFnPPf1MJ7yBJD
+\restrict 7IZqpbLmBN1YSlD6ZUMr0Egh5R8EIuCF08tb34Bd6VRLbaPMV0eX9vn6cwqiaf7
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -531,6 +531,36 @@ CREATE TABLE public.admins (
     user_id text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: api_keys; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.api_keys (
+    id text NOT NULL,
+    config_id text DEFAULT 'default'::text NOT NULL,
+    name text,
+    start text,
+    prefix text,
+    key text NOT NULL,
+    reference_id text NOT NULL,
+    refill_interval integer,
+    refill_amount integer,
+    last_refill_at timestamp with time zone,
+    enabled boolean DEFAULT true NOT NULL,
+    rate_limit_enabled boolean DEFAULT true NOT NULL,
+    rate_limit_time_window integer,
+    rate_limit_max integer,
+    request_count integer DEFAULT 0 NOT NULL,
+    remaining integer,
+    last_request timestamp with time zone,
+    expires_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    permissions text,
+    metadata text
 );
 
 
@@ -2309,6 +2339,14 @@ ALTER TABLE ONLY public.admins
 
 
 --
+-- Name: api_keys api_keys_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_keys
+    ADD CONSTRAINT api_keys_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: art_variants art_variants_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3345,6 +3383,27 @@ ALTER TABLE ONLY public.verifications
 --
 
 CREATE INDEX idx_accounts_user_id ON public.accounts USING btree (user_id);
+
+
+--
+-- Name: idx_api_keys_config_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_api_keys_config_id ON public.api_keys USING btree (config_id);
+
+
+--
+-- Name: idx_api_keys_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_api_keys_key ON public.api_keys USING btree (key);
+
+
+--
+-- Name: idx_api_keys_reference_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_api_keys_reference_id ON public.api_keys USING btree (reference_id);
 
 
 --
@@ -4625,6 +4684,14 @@ ALTER TABLE ONLY public.admins
 
 
 --
+-- Name: api_keys api_keys_reference_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_keys
+    ADD CONSTRAINT api_keys_reference_id_fkey FOREIGN KEY (reference_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
 -- Name: candidate_cards candidate_cards_submitted_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5716,5 +5783,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 41z1vhhZGDrdnGQNpPD4yVeOpof3H4Oglajo6UhEcYmsLBxVLCFnPPf1MJ7yBJD
+\unrestrict 7IZqpbLmBN1YSlD6ZUMr0Egh5R8EIuCF08tb34Bd6VRLbaPMV0eX9vn6cwqiaf7
 

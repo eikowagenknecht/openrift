@@ -336,6 +336,37 @@ interface VerificationsTable {
   updatedAt: UpdatedAt;
 }
 
+/**
+ * better-auth `@better-auth/api-key` plugin table (migration 200). Owned and
+ * written exclusively by the plugin (column names mapped in auth.ts); typed
+ * here so scripts can read keys for display.
+ */
+interface ApiKeysTable {
+  id: string;
+  configId: Generated<string>;
+  name: string | null;
+  start: string | null;
+  prefix: string | null;
+  /** Hash of the key, never the plaintext. */
+  key: string;
+  referenceId: string;
+  refillInterval: number | null;
+  refillAmount: number | null;
+  lastRefillAt: Date | null;
+  enabled: Generated<boolean>;
+  rateLimitEnabled: Generated<boolean>;
+  rateLimitTimeWindow: number | null;
+  rateLimitMax: number | null;
+  requestCount: Generated<number>;
+  remaining: number | null;
+  lastRequest: Date | null;
+  expiresAt: Date | null;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+  permissions: string | null;
+  metadata: string | null;
+}
+
 // ─── Collection tracking (migration 009) ────────────────────────────────────
 
 /** @see collectionFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
@@ -1587,6 +1618,7 @@ export interface Database {
   sessions: SessionsTable;
   accounts: AccountsTable;
   verifications: VerificationsTable;
+  apiKeys: ApiKeysTable;
 
   // Collection tracking (migration 009)
   collections: CollectionsTable;

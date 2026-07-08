@@ -44,6 +44,8 @@ bun db:rollback   # Roll back the last migration
 bun make-admin -- <email>  # Grant admin role to a user
 ```
 
+API keys authenticate script calls to the API: send the key as an `x-api-key` header and the request runs as the key's owner (same permissions, including admin). Keys are created on the `/admin/api-keys` page and shown once at creation.
+
 Migrations live in `apps/api/src/db/migrations/` and must be registered in that directory's `index.ts` barrel. The `bun db:migrate` / `bun db:rollback` scripts wrap `scripts/run-migrations.ts`.
 
 To open a psql shell against the local database:
@@ -62,10 +64,10 @@ docker exec openrift-db-1 psql -U openrift -c "SELECT count(*) FROM cards;"
 
 **"Failed to load cards" in the browser**
 
-| Cause                         | Fix                       |
-| ----------------------------- | ------------------------- |
-| Database not running          | `docker compose up db -d` |
-| Migrations not applied        | `bun db:migrate`          |
+| Cause                         | Fix                                                                                                                                             |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Database not running          | `docker compose up db -d`                                                                                                                       |
+| Migrations not applied        | `bun db:migrate`                                                                                                                                |
 | Database empty (no card data) | Import the catalog from the admin panel (`/admin`) — there is no CLI seed command. Grant yourself admin with `bun make-admin -- <email>` first. |
 
 ## Linting and Formatting
