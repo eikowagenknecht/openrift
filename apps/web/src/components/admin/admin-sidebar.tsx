@@ -17,6 +17,7 @@ import {
   LayoutDashboardIcon,
   LayoutListIcon,
   ListChecksIcon,
+  PackageIcon,
   PaintbrushIcon,
   PaletteIcon,
   LayersIcon,
@@ -52,6 +53,7 @@ const catalogPages = [
   { to: "/admin/sources" as const, icon: DatabaseIcon, title: "Sources" },
   { to: "/admin/images" as const, icon: ImageIcon, title: "Images" },
   { to: "/admin/ignored-sources" as const, icon: BanIcon, title: "Ignored Sources" },
+  { to: "/admin/products" as const, icon: PackageIcon, title: "Products" },
 ];
 
 const taxonomyPages = [

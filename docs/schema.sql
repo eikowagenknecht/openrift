@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict jewNSBedZEkgSS5WMbcz3dZumbhO1ZlId63xB9Xg7cl8ExNcgOVLFychFnBQyVi
+\restrict 3ZgdCdGSILJbicYl2B9597Kln84gE8Utgeb0TMI3lprSUeOCQrcU18BQUYDFHPy
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1992,6 +1992,35 @@ CREATE VIEW public.printings_ordered AS
 
 
 --
+-- Name: product_printings; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.product_printings (
+    product_id uuid NOT NULL,
+    printing_id uuid NOT NULL,
+    quantity integer NOT NULL,
+    CONSTRAINT chk_product_printings_quantity CHECK ((quantity > 0))
+);
+
+
+--
+-- Name: products; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.products (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    slug text NOT NULL,
+    name text NOT NULL,
+    description text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_products_description CHECK (((description IS NULL) OR (length(description) <= 2000))),
+    CONSTRAINT chk_products_name CHECK (((length(name) >= 1) AND (length(name) <= 120))),
+    CONSTRAINT chk_products_slug CHECK ((slug ~ '^[a-z0-9][a-z0-9-]{2,79}$'::text))
+);
+
+
+--
 -- Name: provider_settings; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -3015,6 +3044,30 @@ ALTER TABLE ONLY public.printings
 
 
 --
+-- Name: product_printings product_printings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.product_printings
+    ADD CONSTRAINT product_printings_pkey PRIMARY KEY (product_id, printing_id);
+
+
+--
+-- Name: products products_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: products products_slug_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_slug_key UNIQUE (slug);
+
+
+--
 -- Name: provider_settings provider_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3847,6 +3900,13 @@ CREATE INDEX idx_printings_set_id ON public.printings USING btree (set_id);
 
 
 --
+-- Name: idx_product_printings_printing; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_product_printings_printing ON public.product_printings USING btree (printing_id);
+
+
+--
 -- Name: idx_rules_kind_version_sort; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4453,6 +4513,13 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.printing_images FOR EA
 --
 
 CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.printings FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: products trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.products FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 
 --
@@ -5517,6 +5584,22 @@ ALTER TABLE ONLY public.printings
 
 
 --
+-- Name: product_printings product_printings_printing_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.product_printings
+    ADD CONSTRAINT product_printings_printing_fkey FOREIGN KEY (printing_id) REFERENCES public.printings(id);
+
+
+--
+-- Name: product_printings product_printings_product_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.product_printings
+    ADD CONSTRAINT product_printings_product_fkey FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE CASCADE;
+
+
+--
 -- Name: rules rules_kind_version_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5632,5 +5715,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict jewNSBedZEkgSS5WMbcz3dZumbhO1ZlId63xB9Xg7cl8ExNcgOVLFychFnBQyVi
+\unrestrict 3ZgdCdGSILJbicYl2B9597Kln84gE8Utgeb0TMI3lprSUeOCQrcU18BQUYDFHPy
 

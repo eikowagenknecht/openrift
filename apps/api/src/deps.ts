@@ -47,6 +47,7 @@ import { podTournamentsRepo } from "./repositories/pod-tournaments.js";
 import { priceRefreshRepo } from "./repositories/price-refresh.js";
 import { printingEventsRepo } from "./repositories/printing-events.js";
 import { printingImagesRepo } from "./repositories/printing-images.js";
+import { productsRepo } from "./repositories/products.js";
 import { providerSettingsRepo } from "./repositories/provider-settings.js";
 import { raritiesRepo } from "./repositories/rarities.js";
 import { rulesRepo } from "./repositories/rules.js";
@@ -132,6 +133,7 @@ export interface Repos {
   marketplace: ReturnType<typeof marketplaceRepo>;
   marketplaceAdmin: ReturnType<typeof marketplaceAdminRepo>;
   printingImages: ReturnType<typeof printingImagesRepo>;
+  products: ReturnType<typeof productsRepo>;
   markers: ReturnType<typeof markersRepo>;
   distributionChannels: ReturnType<typeof distributionChannelsRepo>;
   rarities: ReturnType<typeof raritiesRepo>;
@@ -251,6 +253,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     marketplace: marketplaceRepo(db),
     marketplaceAdmin: marketplaceAdminRepo(db),
     printingImages: printingImagesRepo(db),
+    products: productsRepo(db),
     markers: markersRepo(db),
     distributionChannels: distributionChannelsRepo(db),
     rarities: raritiesRepo(db),

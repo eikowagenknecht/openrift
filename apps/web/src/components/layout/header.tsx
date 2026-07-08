@@ -17,6 +17,7 @@ import {
   MenuIcon,
   MessageSquareIcon,
   MoonIcon,
+  PackageIcon,
   PackagePlusIcon,
   PaletteIcon,
   PencilLineIcon,
@@ -328,6 +329,17 @@ function DesktopNav({
                     <div className="font-medium">Promos</div>
                     <div className="text-muted-foreground text-xs">
                       Alternate printings from events and giveaways
+                    </div>
+                  </div>
+                </NavigationMenuLink>
+              </li>
+              <li>
+                <NavigationMenuLink closeOnClick render={<Link to="/products" />}>
+                  <PackageIcon />
+                  <div>
+                    <div className="font-medium">Products</div>
+                    <div className="text-muted-foreground text-xs">
+                      Full card lists for official products
                     </div>
                   </div>
                 </NavigationMenuLink>
@@ -731,6 +743,12 @@ function MobileNav({
           )}
           <MobileNavLink to="/promos" icon={<GiftIcon className="text-muted-foreground size-5" />}>
             Promos
+          </MobileNavLink>
+          <MobileNavLink
+            to="/products"
+            icon={<PackageIcon className="text-muted-foreground size-5" />}
+          >
+            Products
           </MobileNavLink>
           <MobileNavLink
             to="/pack-opener"

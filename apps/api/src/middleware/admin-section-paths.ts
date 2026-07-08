@@ -14,6 +14,10 @@ const BASE = "/api/admin/v1";
  *
  * custom-tags additionally needs the read-only all-cards list (the tag pages'
  * card pickers) and the per-card assignment endpoints under `/cards/{id}`.
+ *
+ * products needs only its own prefix: the admin page's reads (product list,
+ * the admin's own lists for the snapshot picker) are public / authenticated
+ * endpoints outside the admin mount.
  */
 const SECTION_PATH_MATCHERS: Record<AdminSectionSlug, (path: string) => boolean> = {
   "custom-tags": (path) =>
@@ -21,6 +25,7 @@ const SECTION_PATH_MATCHERS: Record<AdminSectionSlug, (path: string) => boolean>
     underPrefix(path, `${BASE}/custom-tag-categories`) ||
     path === `${BASE}/cards/all-cards` ||
     /^\/api\/admin\/v1\/cards\/[^/]+\/custom-tags$/u.test(path),
+  products: (path) => underPrefix(path, `${BASE}/products`),
 };
 
 /**

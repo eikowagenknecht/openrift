@@ -28,6 +28,8 @@ export type {
   SetsTable,
   ListEntriesTable,
   ListsTable,
+  ProductsTable,
+  ProductPrintingsTable,
   FriendGroupCollectionSharesTable,
   FriendGroupInviteDirection,
   FriendGroupInvitesTable,

@@ -7,6 +7,7 @@ import type { AdminSectionSlug } from "@openrift/shared";
  */
 export const ADMIN_SECTION_ROUTES = {
   "custom-tags": "/admin/custom-tags",
+  products: "/admin/products",
 } as const satisfies Record<AdminSectionSlug, `/admin/${string}`>;
 
 /**

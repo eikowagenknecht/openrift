@@ -1,0 +1,439 @@
+import type { ProductSummary } from "@openrift/shared/contracts";
+import { productSlugRegex, RESERVED_PRODUCT_SLUGS } from "@openrift/shared/contracts";
+import { Link } from "@tanstack/react-router";
+import { RefreshCwIcon } from "lucide-react";
+import { useState } from "react";
+
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { useLists } from "@/hooks/use-lists";
+import {
+  useCreateProduct,
+  useDeleteProduct,
+  useProductsList,
+  useResyncProduct,
+  useUpdateProduct,
+} from "@/hooks/use-products";
+
+import type { AdminCellSlotProps, AdminColumnDef, AdminDraftSlotProps } from "./admin-table";
+import { AdminTable } from "./admin-table";
+
+interface ProductDraft {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+}
+
+/** @returns A client-side validation error for the metadata fields, or null. */
+function validateDraft(draft: { name: string; slug: string }): string | null {
+  if (!draft.name.trim()) {
+    return "Name is required";
+  }
+  if (!productSlugRegex.test(draft.slug)) {
+    return "Slug must be 3-80 chars of lowercase letters, digits, and dashes";
+  }
+  if ((RESERVED_PRODUCT_SLUGS as readonly string[]).includes(draft.slug)) {
+    return "This slug is reserved";
+  }
+  return null;
+}
+
+// ── Display cells ────────────────────────────────────────────────────────────
+
+function NameCell({ row }: AdminCellSlotProps<ProductSummary>) {
+  if (!row) {
+    return null;
+  }
+  return (
+    <Link to="/products/$slug" params={{ slug: row.slug }} className="font-medium hover:underline">
+      {row.name}
+    </Link>
+  );
+}
+
+function SlugCell({ row }: AdminCellSlotProps<ProductSummary>) {
+  return <span className="text-muted-foreground font-mono text-xs">{row?.slug}</span>;
+}
+
+function DescriptionCell({ row }: AdminCellSlotProps<ProductSummary>) {
+  return <span className="text-muted-foreground line-clamp-1 max-w-64">{row?.description}</span>;
+}
+
+function CardTotalCell({ row }: AdminCellSlotProps<ProductSummary>) {
+  return <span>{row?.cardTotal}</span>;
+}
+
+function PrintingCountCell({ row }: AdminCellSlotProps<ProductSummary>) {
+  return <span>{row?.printingCount}</span>;
+}
+
+function UpdatedCell({ row }: AdminCellSlotProps<ProductSummary>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="text-muted-foreground text-xs">{`${row.updatedAt.slice(0, 16)}Z`}</span>;
+}
+
+// ── Edit draft cells ─────────────────────────────────────────────────────────
+
+function NameInput({ draft, setDraft }: AdminDraftSlotProps<ProductDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.name}
+      onChange={(e) => setDraft((prev) => ({ ...prev, name: e.target.value }))}
+      className="h-8"
+    />
+  );
+}
+
+function SlugInput({ draft, setDraft }: AdminDraftSlotProps<ProductDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.slug}
+      onChange={(e) => setDraft((prev) => ({ ...prev, slug: e.target.value.toLowerCase() }))}
+      className="h-8 w-56 font-mono"
+    />
+  );
+}
+
+function DescriptionInput({ draft, setDraft }: AdminDraftSlotProps<ProductDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.description}
+      onChange={(e) => setDraft((prev) => ({ ...prev, description: e.target.value }))}
+      placeholder="Optional markdown description"
+      className="h-8"
+    />
+  );
+}
+
+const productColumns: AdminColumnDef<ProductSummary, ProductDraft>[] = [
+  { header: "Name", sortValue: (p) => p.name, cell: <NameCell />, editCell: <NameInput /> },
+  { header: "Slug", sortValue: (p) => p.slug, cell: <SlugCell />, editCell: <SlugInput /> },
+  { header: "Description", cell: <DescriptionCell />, editCell: <DescriptionInput /> },
+  { header: "Cards", align: "right", sortValue: (p) => p.cardTotal, cell: <CardTotalCell /> },
+  {
+    header: "Unique",
+    align: "right",
+    sortValue: (p) => p.printingCount,
+    cell: <PrintingCountCell />,
+  },
+  { header: "Updated", sortValue: (p) => p.updatedAt, cell: <UpdatedCell /> },
+];
+
+// ── List picker (shared by create + re-sync dialogs) ─────────────────────────
+
+function ListPicker({ value, onChange }: { value: string; onChange: (listId: string) => void }) {
+  const { data: lists } = useLists();
+  const printingLists = lists.filter((list) => list.kind === "printing");
+  const items = printingLists.map((list) => ({
+    value: list.id,
+    label: `${list.name} (${list.entryCount} entries)`,
+  }));
+
+  if (items.length === 0) {
+    return (
+      <p className="text-muted-foreground text-sm">
+        You have no printing lists yet. Build the product in an organize list with printing
+        granularity first, then snapshot it here.
+      </p>
+    );
+  }
+  return (
+    <Select items={items} value={value} onValueChange={(next) => onChange(next ?? "")}>
+      <SelectTrigger aria-label="Source list" className="w-full">
+        <SelectValue placeholder="Pick one of your printing lists" />
+      </SelectTrigger>
+      <SelectContent>
+        {items.map((item) => (
+          <SelectItem key={item.value} value={item.value}>
+            {item.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+// ── Create dialog ────────────────────────────────────────────────────────────
+
+const EMPTY_CREATE_DRAFT = { name: "", slug: "", description: "", listId: "" };
+
+function CreateProductDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [draft, setDraft] = useState(EMPTY_CREATE_DRAFT);
+  const [error, setError] = useState<string | null>(null);
+  const createProduct = useCreateProduct();
+
+  const handleOpenChange = (next: boolean) => {
+    if (!next) {
+      setDraft(EMPTY_CREATE_DRAFT);
+      setError(null);
+    }
+    onOpenChange(next);
+  };
+
+  const handleSubmit = async () => {
+    let validationError = validateDraft(draft);
+    if (!validationError && !draft.listId) {
+      validationError = "Pick the list to snapshot";
+    }
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+    // Built outside try/catch: the React Compiler can't yet handle value
+    // blocks (||, ?:) inside try statements and would skip the component.
+    const payload = {
+      name: draft.name.trim(),
+      slug: draft.slug,
+      description: draft.description.trim() || null,
+      listId: draft.listId,
+    };
+    try {
+      await createProduct.mutateAsync(payload);
+      handleOpenChange(false);
+    } catch (submitError) {
+      if (submitError instanceof Error) {
+        setError(submitError.message);
+      } else {
+        setError("Creating the product failed");
+      }
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Create product from list</DialogTitle>
+        </DialogHeader>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="product-name">Name</Label>
+            <Input
+              id="product-name"
+              value={draft.name}
+              onChange={(e) => setDraft((prev) => ({ ...prev, name: e.target.value }))}
+              placeholder="Origins Starter Set"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="product-slug">Slug</Label>
+            <Input
+              id="product-slug"
+              value={draft.slug}
+              onChange={(e) =>
+                setDraft((prev) => ({ ...prev, slug: e.target.value.toLowerCase() }))
+              }
+              placeholder="origins-starter-set"
+              className="font-mono"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="product-description">Description</Label>
+            <Textarea
+              id="product-description"
+              value={draft.description}
+              onChange={(e) => setDraft((prev) => ({ ...prev, description: e.target.value }))}
+              placeholder="Optional markdown blurb shown on the product page."
+              rows={3}
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label>Source list</Label>
+            <ListPicker
+              value={draft.listId}
+              onChange={(listId) => setDraft((prev) => ({ ...prev, listId }))}
+            />
+            <p className="text-muted-foreground text-xs">
+              The list&apos;s cards and quantities become the product&apos;s contents. The product
+              is a snapshot: later list edits don&apos;t apply until you re-sync.
+            </p>
+          </div>
+          {error && <p className="text-destructive text-sm">{error}</p>}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => handleOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit} disabled={createProduct.isPending}>
+            Create product
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Re-sync dialog ───────────────────────────────────────────────────────────
+
+function ResyncDialog({
+  product,
+  onOpenChange,
+}: {
+  product: ProductSummary | null;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [listId, setListId] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const resyncProduct = useResyncProduct();
+
+  const handleOpenChange = (next: boolean) => {
+    if (!next) {
+      setListId("");
+      setError(null);
+    }
+    onOpenChange(next);
+  };
+
+  const handleSubmit = async () => {
+    if (!product) {
+      return;
+    }
+    if (!listId) {
+      setError("Pick the list to snapshot");
+      return;
+    }
+    const payload = { id: product.id, listId };
+    try {
+      await resyncProduct.mutateAsync(payload);
+      handleOpenChange(false);
+    } catch (submitError) {
+      if (submitError instanceof Error) {
+        setError(submitError.message);
+      } else {
+        setError("Re-syncing failed");
+      }
+    }
+  };
+
+  return (
+    <Dialog open={product !== null} onOpenChange={handleOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Re-sync contents{product ? `: ${product.name}` : ""}</DialogTitle>
+        </DialogHeader>
+        <div className="flex flex-col gap-3">
+          <p className="text-muted-foreground text-sm">
+            Replaces the product&apos;s entire contents with a fresh snapshot of the picked list.
+          </p>
+          <ListPicker value={listId} onChange={setListId} />
+          {error && <p className="text-destructive text-sm">{error}</p>}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => handleOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit} disabled={resyncProduct.isPending}>
+            Replace contents
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ResyncAction({
+  row,
+  onResync,
+}: AdminCellSlotProps<ProductSummary> & { onResync: (product: ProductSummary) => void }) {
+  if (!row) {
+    return null;
+  }
+  return (
+    <Button variant="ghost" size="sm" onClick={() => onResync(row)}>
+      <RefreshCwIcon />
+      Re-sync
+    </Button>
+  );
+}
+
+// ── Page ─────────────────────────────────────────────────────────────────────
+
+export function AdminProductsPage() {
+  const { data } = useProductsList();
+  const updateProduct = useUpdateProduct();
+  const deleteProduct = useDeleteProduct();
+  const [createOpen, setCreateOpen] = useState(false);
+  const [resyncTarget, setResyncTarget] = useState<ProductSummary | null>(null);
+
+  return (
+    <div className="space-y-4">
+      <AdminTable
+        columns={productColumns}
+        data={data.products}
+        getRowKey={(product) => product.id}
+        emptyText="No products yet — create one from a printing list."
+        defaultSort={{ column: "Name", direction: "asc" }}
+        toolbar={
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-muted-foreground">
+              Products are public the moment they exist. Contents change only by re-syncing from a
+              list.
+            </p>
+            <Button onClick={() => setCreateOpen(true)}>Create product</Button>
+          </div>
+        }
+        edit={{
+          toDraft: (product) => ({
+            id: product.id,
+            name: product.name,
+            slug: product.slug,
+            description: product.description ?? "",
+          }),
+          onSave: (draft) =>
+            updateProduct.mutateAsync({
+              id: draft.id,
+              name: draft.name.trim(),
+              slug: draft.slug,
+              description: draft.description.trim() || null,
+            }),
+          validate: validateDraft,
+        }}
+        delete={{
+          onDelete: (product) => deleteProduct.mutateAsync({ id: product.id }),
+          confirm: (product) => ({
+            title: `Delete "${product.name}"?`,
+            description:
+              "The product and its contents are removed immediately. Collections, decks, and lists are not affected.",
+          }),
+        }}
+        actions={<ResyncAction onResync={setResyncTarget} />}
+      />
+      <CreateProductDialog open={createOpen} onOpenChange={setCreateOpen} />
+      <ResyncDialog product={resyncTarget} onOpenChange={() => setResyncTarget(null)} />
+    </div>
+  );
+}

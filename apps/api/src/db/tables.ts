@@ -1267,6 +1267,35 @@ interface CardCustomTagsTable {
   customTagId: string;
 }
 
+// ─── Preconstructed products (migration 198, ADR-015) ────────────────────────
+
+/**
+ * Fixed-content Riot products. Catalog data, not user
+ * data: contents are written only by snapshotting a list server-side, and
+ * nothing here touches collections or decks.
+ */
+export interface ProductsTable {
+  id: Generated<string>;
+  /** UNIQUE, CHECK: ~ '^[a-z0-9][a-z0-9-]{2,79}$' — mutable, used in URLs */
+  slug: string;
+  /** CHECK: length 1..120 */
+  name: string;
+  /** Markdown. CHECK: NULL or length <= 2000 */
+  description: string | null;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
+/** Product contents at printing granularity. Composite PK (productId, printingId). */
+export interface ProductPrintingsTable {
+  /** PK part 1 — FK → products.id, ON DELETE CASCADE */
+  productId: string;
+  /** PK part 2 — FK → printings.id, NO cascade (printing undeletable while referenced) */
+  printingId: string;
+  /** CHECK: > 0 */
+  quantity: number;
+}
+
 // ─── Distribution channels (migration 090, renamed from promo_types/034) ─────
 
 /**
@@ -1636,6 +1665,10 @@ export interface Database {
   customTagCategories: CustomTagCategoriesTable;
   customTags: CustomTagsTable;
   cardCustomTags: CardCustomTagsTable;
+
+  // Preconstructed products (migration 198, ADR-015)
+  products: ProductsTable;
+  productPrintings: ProductPrintingsTable;
 
   // Provider settings (migration 035, renamed in 038)
   providerSettings: ProviderSettingsTable;

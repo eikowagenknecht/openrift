@@ -36,6 +36,7 @@ import { adminMarketplaceGroupsRouter } from "../routes/admin/marketplace-groups
 import { adminOperationsRouter } from "../routes/admin/operations.js";
 import { adminOrganizationsRouter } from "../routes/admin/organizations.js";
 import { adminPrintingEventsRouter } from "../routes/admin/printing-events.js";
+import { adminProductsRouter } from "../routes/admin/products.js";
 import { adminProviderSettingsRouter } from "../routes/admin/provider-settings.js";
 import { adminRaritiesRouter } from "../routes/admin/rarities.js";
 import { adminRulesRouter } from "../routes/admin/rules.js";
@@ -76,6 +77,7 @@ import { landingSummaryRouter } from "../routes/public/landing-summary.js";
 import { publicListsRouter } from "../routes/public/lists.js";
 import { publicPodTournamentsRouter } from "../routes/public/pod-tournaments.js";
 import { pricesRouter } from "../routes/public/prices.js";
+import { productsRouter } from "../routes/public/products.js";
 import { promosRouter } from "../routes/public/promos.js";
 import { rulesRouter } from "../routes/public/rules.js";
 import { setsRouter } from "../routes/public/sets.js";
@@ -123,6 +125,7 @@ const apiRouter = {
   adminOperationsRouter,
   adminOrganizationsRouter,
   adminPrintingEventsRouter,
+  adminProductsRouter,
   adminProviderSettingsRouter,
   adminRaritiesRouter,
   adminRulesRouter,
@@ -163,6 +166,7 @@ const apiRouter = {
   publicListsRouter,
   publicPodTournamentsRouter,
   pricesRouter,
+  productsRouter,
   promosRouter,
   rulesRouter,
   setsRouter,

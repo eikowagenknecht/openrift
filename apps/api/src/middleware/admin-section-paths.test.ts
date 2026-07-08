@@ -35,6 +35,31 @@ describe("sectionAllowsPath", () => {
     });
   });
 
+  describe("products", () => {
+    it.each([
+      "/api/admin/v1/products",
+      "/api/admin/v1/products/some-id",
+      "/api/admin/v1/products/some-id/contents",
+    ])("allows %s", (path) => {
+      expect(sectionAllowsPath("products", path)).toBe(true);
+    });
+
+    it.each([
+      // prefix must match on a segment boundary, not as a raw string prefix
+      "/api/admin/v1/products-evil",
+      // other admin surfaces stay closed
+      "/api/admin/v1/custom-tags",
+      "/api/admin/v1/users",
+      "/api/admin/v1/cards/all-cards",
+    ])("rejects %s", (path) => {
+      expect(sectionAllowsPath("products", path)).toBe(false);
+    });
+
+    it("does not leak products paths to other sections", () => {
+      expect(sectionAllowsPath("custom-tags", "/api/admin/v1/products")).toBe(false);
+    });
+  });
+
   it("fails closed for unknown section slugs", () => {
     expect(sectionAllowsPath("not-a-section", "/api/admin/v1/custom-tags")).toBe(false);
     expect(sectionAllowsPath("", "/api/admin/v1/custom-tags")).toBe(false);

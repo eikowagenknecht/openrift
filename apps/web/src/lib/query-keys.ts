@@ -36,6 +36,10 @@ export const queryKeys = {
   promos: {
     all: ["promos"] as const,
   },
+  products: {
+    all: ["products"] as const,
+    detail: (slug: string) => ["products", slug] as const,
+  },
   init: {
     all: ["init"] as const,
   },

@@ -143,6 +143,7 @@ import * as m194 from "./194-copy-metadata.js";
 import * as m195 from "./195-card-loans.js";
 import * as m196 from "./196-admin-grants.js";
 import * as m197 from "./197-drop-printing-event-changes.js";
+import * as m198 from "./198-products.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -345,4 +346,5 @@ export const migrations: Record<string, Migration> = {
   "195-card-loans": m195,
   "196-admin-grants": m196,
   "197-drop-printing-event-changes": m197,
+  "198-products": m198,
 };

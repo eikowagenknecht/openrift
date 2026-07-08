@@ -10,12 +10,13 @@
  * route (`ADMIN_SECTION_ROUTES` in `apps/web/src/lib/admin-sections.ts`).
  * Both sides fail closed for unmapped slugs.
  */
-export const ADMIN_SECTION_SLUGS = ["custom-tags"] as const;
+export const ADMIN_SECTION_SLUGS = ["custom-tags", "products"] as const;
 
 export type AdminSectionSlug = (typeof ADMIN_SECTION_SLUGS)[number];
 
 export const ADMIN_SECTION_LABELS: Record<AdminSectionSlug, string> = {
   "custom-tags": "Custom Tags",
+  products: "Products",
 };
 
 /** @returns Whether the given string is a known grantable admin section slug. */
