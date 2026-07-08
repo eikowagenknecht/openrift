@@ -23,6 +23,16 @@ interface UserWithCounts {
  */
 export function usersRepo(db: Kysely<Database>) {
   return {
+    /** @returns Whether a user with the given id exists. */
+    async existsById(userId: string): Promise<boolean> {
+      const row = await db
+        .selectFrom("users")
+        .select("id")
+        .where("id", "=", userId)
+        .executeTakeFirst();
+      return row !== undefined;
+    },
+
     /** @returns All users with aggregate card, deck, collection, and list counts. */
     async listWithCounts(): Promise<UserWithCounts[]> {
       const rows = await db

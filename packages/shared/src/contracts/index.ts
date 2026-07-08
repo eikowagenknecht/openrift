@@ -19,6 +19,7 @@ export * from "./admin/domains.js";
 export * from "./admin/feature-flags.js";
 export * from "./admin/finishes.js";
 export * from "./admin/formats.js";
+export * from "./admin/grants.js";
 export * from "./admin/ignored-candidates.js";
 export * from "./admin/ignored-products.js";
 export * from "./admin/images.js";

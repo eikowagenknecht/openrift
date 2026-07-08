@@ -24,6 +24,7 @@ import { adminDomainsRouter } from "../routes/admin/domains.js";
 import { adminFeatureFlagsRouter } from "../routes/admin/feature-flags.js";
 import { adminFinishesRouter } from "../routes/admin/finishes.js";
 import { adminFormatsRouter } from "../routes/admin/formats.js";
+import { adminGrantsRouter } from "../routes/admin/grants.js";
 import { adminIgnoredCandidatesRouter } from "../routes/admin/ignored-candidates.js";
 import { adminIgnoredProductsRouter } from "../routes/admin/ignored-products.js";
 import { adminImagesRouter } from "../routes/admin/images.js";
@@ -110,6 +111,7 @@ const apiRouter = {
   adminFeatureFlagsRouter,
   adminFinishesRouter,
   adminFormatsRouter,
+  adminGrantsRouter,
   adminIgnoredCandidatesRouter,
   adminIgnoredProductsRouter,
   adminImagesRouter,

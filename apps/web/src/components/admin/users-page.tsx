@@ -1,9 +1,19 @@
 import type { AdminUserResponse } from "@openrift/shared";
+import { ADMIN_SECTION_LABELS, ADMIN_SECTION_SLUGS } from "@openrift/shared";
+import { EllipsisVerticalIcon } from "lucide-react";
 
 import { AdminTable } from "@/components/admin/admin-table";
 import type { AdminCellSlotProps, AdminColumnDef } from "@/components/admin/admin-table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { UserAvatar } from "@/components/user-avatar";
+import { useAddAdminGrant, useAdminGrants, useRemoveAdminGrant } from "@/hooks/use-admin-grants";
 import { useAdminUsers } from "@/hooks/use-admin-users";
 import { formatAbsoluteDate } from "@/lib/format-date";
 import { useGravatarHash } from "@/lib/gravatar";
@@ -46,6 +56,57 @@ function RoleCell({ row }: AdminCellSlotProps<AdminUserResponse>) {
     <Badge variant="default">Admin</Badge>
   ) : (
     <Badge variant="secondary">User</Badge>
+  );
+}
+
+function GrantsCell({ row }: AdminCellSlotProps<AdminUserResponse>) {
+  const { data } = useAdminGrants();
+  const addGrant = useAddAdminGrant();
+  const removeGrant = useRemoveAdminGrant();
+  if (!row) {
+    return null;
+  }
+  // Full admins have every section implicitly — a grant would be meaningless.
+  if (row.isAdmin) {
+    return <span className="text-muted-foreground">—</span>;
+  }
+  const granted = data.grants.filter((g) => g.userId === row.id).map((g) => g.section);
+  return (
+    <div className="flex items-center justify-center gap-1">
+      {granted.map((section) => (
+        <Badge key={section} variant="secondary">
+          {ADMIN_SECTION_LABELS[section]}
+        </Badge>
+      ))}
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={<Button variant="ghost" size="icon-sm" aria-label="Edit admin grants" />}
+        >
+          <EllipsisVerticalIcon />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {ADMIN_SECTION_SLUGS.map((section) => {
+            const checked = granted.includes(section);
+            return (
+              <DropdownMenuCheckboxItem
+                key={section}
+                checked={checked}
+                onSelect={(e) => e.preventDefault()}
+                onCheckedChange={() => {
+                  if (checked) {
+                    removeGrant.mutate({ userId: row.id, section });
+                  } else {
+                    addGrant.mutate({ userId: row.id, section });
+                  }
+                }}
+              >
+                {ADMIN_SECTION_LABELS[section]}
+              </DropdownMenuCheckboxItem>
+            );
+          })}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 }
 
@@ -111,6 +172,13 @@ const columns: AdminColumnDef<AdminUserResponse>[] = [
     align: "center",
     width: "w-24",
     cell: <RoleCell />,
+  },
+  {
+    header: "Grants",
+    headerTitle: "Per-section admin access for non-admin users",
+    align: "center",
+    width: "w-36",
+    cell: <GrantsCell />,
   },
   {
     header: "Cards",

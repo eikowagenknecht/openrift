@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict d7g5zgzvAjxjfgZ0hbbiEgIVojOuoDFRPvtPlQwIKHEVuZdP7y1hhK7VszVLpFA
+\restrict 6kdfvitKKldzTswDeWbt8kqb2bCHYbWZgKGqPe6BbOuUVWMrgF4lPlTp45gPUBU
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -509,6 +509,17 @@ CREATE TABLE public.accounts (
     password text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: admin_grants; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.admin_grants (
+    user_id text NOT NULL,
+    section text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
 
@@ -2252,6 +2263,14 @@ CREATE TABLE public.verifications (
 
 ALTER TABLE ONLY public.accounts
     ADD CONSTRAINT accounts_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: admin_grants admin_grants_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.admin_grants
+    ADD CONSTRAINT admin_grants_pkey PRIMARY KEY (user_id, section);
 
 
 --
@@ -4525,6 +4544,14 @@ ALTER TABLE ONLY public.accounts
 
 
 --
+-- Name: admin_grants admin_grants_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.admin_grants
+    ADD CONSTRAINT admin_grants_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
 -- Name: admins admins_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5608,5 +5635,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict d7g5zgzvAjxjfgZ0hbbiEgIVojOuoDFRPvtPlQwIKHEVuZdP7y1hhK7VszVLpFA
+\unrestrict 6kdfvitKKldzTswDeWbt8kqb2bCHYbWZgKGqPe6BbOuUVWMrgF4lPlTp45gPUBU
 

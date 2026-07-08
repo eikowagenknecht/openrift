@@ -279,6 +279,13 @@ interface AdminsTable {
   updatedAt: UpdatedAt;
 }
 
+/** Per-section admin grants (migration 196) — selective, non-full admin access. */
+interface AdminGrantsTable {
+  userId: string;
+  section: string;
+  createdAt: CreatedAt;
+}
+
 // ─── Auth (migration 003) ─────────────────────────────────────────────────
 
 interface UsersTable {
@@ -1549,8 +1556,9 @@ export interface Database {
   marketplaceIgnoredVariants: MarketplaceIgnoredVariantsTable;
   marketplaceProductCardOverrides: MarketplaceProductCardOverridesTable;
 
-  // Admin (migration 012)
+  // Admin (migration 012), per-section grants (migration 196)
   admins: AdminsTable;
+  adminGrants: AdminGrantsTable;
 
   // Auth tables (migration 003)
   users: UsersTable;

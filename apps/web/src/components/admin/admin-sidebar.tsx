@@ -43,6 +43,8 @@ import {
   SidebarMenuItem,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
+import { useAdminAccess } from "@/hooks/use-admin";
+import { adminSectionFromPathname } from "@/lib/admin-sections";
 
 const catalogPages = [
   { to: "/admin/sets" as const, icon: DatabaseIcon, title: "Sets" },
@@ -93,112 +95,72 @@ const systemPages = [
   { to: "/admin/scan" as const, icon: CameraIcon, title: "Scan Test" },
 ];
 
+const groups = [
+  { label: "Catalog", pages: catalogPages },
+  { label: "Taxonomy", pages: taxonomyPages },
+  { label: "Content", pages: contentPages },
+  { label: "Marketplaces", pages: marketplacePages },
+  { label: "System", pages: systemPages },
+];
+
 export function AdminSidebar() {
   const matches = useMatches();
   const currentPath = matches.at(-1)?.fullPath;
+  const { data: access } = useAdminAccess();
+
+  // Partial admins (per-section grants, no full admin role) only see the
+  // sections they hold; groups left empty disappear entirely.
+  const isAdmin = access?.isAdmin === true;
+  const sections = access?.sections ?? [];
+  const visibleGroups = groups
+    .map((group) => ({
+      ...group,
+      pages: isAdmin
+        ? group.pages
+        : group.pages.filter((page) =>
+            sections.some((section) => section === adminSectionFromPathname(page.to)),
+          ),
+    }))
+    .filter((group) => group.pages.length > 0);
 
   return (
     <NestedSidebar>
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Catalog</SidebarGroupLabel>
-          <SidebarMenu className="gap-1">
-            {catalogPages.map((page) => (
-              <SidebarMenuItem key={page.to}>
-                <SidebarMenuButton
-                  isActive={currentPath === page.to}
-                  render={<Link to={page.to} />}
-                >
-                  <page.icon />
-                  <span>{page.title}</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Taxonomy</SidebarGroupLabel>
-          <SidebarMenu className="gap-1">
-            {taxonomyPages.map((page) => (
-              <SidebarMenuItem key={page.to}>
-                <SidebarMenuButton
-                  isActive={currentPath === page.to}
-                  render={<Link to={page.to} />}
-                >
-                  <page.icon />
-                  <span>{page.title}</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Content</SidebarGroupLabel>
-          <SidebarMenu className="gap-1">
-            {contentPages.map((page) => (
-              <SidebarMenuItem key={page.to}>
-                <SidebarMenuButton
-                  isActive={currentPath === page.to}
-                  render={<Link to={page.to} />}
-                >
-                  <page.icon />
-                  <span>{page.title}</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Marketplaces</SidebarGroupLabel>
-          <SidebarMenu className="gap-1">
-            {marketplacePages.map((page) => (
-              <SidebarMenuItem key={page.to}>
-                <SidebarMenuButton
-                  isActive={currentPath === page.to}
-                  render={<Link to={page.to} />}
-                >
-                  <page.icon />
-                  <span>{page.title}</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel>System</SidebarGroupLabel>
-          <SidebarMenu className="gap-1">
-            {systemPages.map((page) => (
-              <SidebarMenuItem key={page.to}>
-                <SidebarMenuButton
-                  isActive={currentPath === page.to}
-                  render={<Link to={page.to} />}
-                >
-                  <page.icon />
-                  <span>{page.title}</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </SidebarGroup>
+        {visibleGroups.map((group) => (
+          <SidebarGroup key={group.label}>
+            <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+            <SidebarMenu className="gap-1">
+              {group.pages.map((page) => (
+                <SidebarMenuItem key={page.to}>
+                  <SidebarMenuButton
+                    isActive={currentPath === page.to}
+                    render={<Link to={page.to} />}
+                  >
+                    <page.icon />
+                    <span>{page.title}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroup>
+        ))}
       </SidebarContent>
-      <SidebarFooter>
-        <SidebarSeparator />
-        <SidebarMenu className="gap-1">
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              isActive={currentPath === "/admin/site-settings"}
-              render={<Link to="/admin/site-settings" />}
-            >
-              <SettingsIcon />
-              <span>Settings</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
+      {isAdmin && (
+        <SidebarFooter>
+          <SidebarSeparator />
+          <SidebarMenu className="gap-1">
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                isActive={currentPath === "/admin/site-settings"}
+                render={<Link to="/admin/site-settings" />}
+              >
+                <SettingsIcon />
+                <span>Settings</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
+      )}
     </NestedSidebar>
   );
 }

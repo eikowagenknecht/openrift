@@ -66,7 +66,7 @@ describe.skipIf(!ctx)("Admin core routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json).toEqual({ isAdmin: true });
+      expect(json).toEqual({ isAdmin: true, sections: [] });
     });
   });
 

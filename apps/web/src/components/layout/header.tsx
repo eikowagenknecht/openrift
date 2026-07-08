@@ -68,7 +68,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { UserAvatar } from "@/components/user-avatar";
-import { useIsAdmin } from "@/hooks/use-admin";
+import { useAdminAccess } from "@/hooks/use-admin";
 import { useTradeActionCounts } from "@/hooks/use-card-trades";
 import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import {
@@ -460,7 +460,9 @@ function UserMenuItems({ isLoggedIn }: { isLoggedIn: boolean }) {
   const theme = useThemeStore((s) => s.theme);
   const toggleTheme = useThemeStore((s) => s.toggleTheme);
   const darkMode = theme === "dark";
-  const { data: isAdmin } = useIsAdmin();
+  const { data: adminAccess } = useAdminAccess();
+  const hasAdminAccess =
+    adminAccess !== undefined && (adminAccess.isAdmin || adminAccess.sections.length > 0);
   const queryClient = useQueryClient();
   const router = useRouter();
 
@@ -497,7 +499,7 @@ function UserMenuItems({ isLoggedIn }: { isLoggedIn: boolean }) {
           My tournament decks
         </DropdownMenuItem>
       )}
-      {isLoggedIn && isAdmin && (
+      {isLoggedIn && hasAdminAccess && (
         <DropdownMenuItem render={<Link to="/admin" />}>
           <ShieldIcon className="size-4" />
           Admin

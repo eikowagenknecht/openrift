@@ -212,6 +212,7 @@ export const queryKeys = {
     marketplaceGroups: ["admin", "marketplace-groups"] as const,
     featureFlags: ["admin", "feature-flags"] as const,
     featureFlagOverrides: ["admin", "feature-flag-overrides"] as const,
+    grants: ["admin", "grants"] as const,
     siteSettings: ["admin", "site-settings"] as const,
     status: ["admin", "status"] as const,
     jobRuns: ["admin", "job-runs"] as const,

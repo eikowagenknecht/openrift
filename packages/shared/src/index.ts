@@ -30,6 +30,9 @@ export { CONTACT_METHOD_LABELS, formatContactMethodsSummary } from "./contact-me
 
 export { snapshotHeadline } from "./types/api/pricing.js";
 export { ERROR_CODES } from "./error-codes.js";
+
+export { ADMIN_SECTION_LABELS, ADMIN_SECTION_SLUGS, isAdminSectionSlug } from "./admin-sections.js";
+export type { AdminSectionSlug } from "./admin-sections.js";
 export type { ErrorCode } from "./error-codes.js";
 
 export { EMPTY_PRICE_LOOKUP, priceLookupFromMap } from "./price-lookup.js";
