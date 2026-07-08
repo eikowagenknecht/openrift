@@ -9,10 +9,12 @@ import {
   FileWarningIcon,
   FolderSyncIcon,
   Gamepad2Icon,
+  HandHeartIcon,
   HeartIcon,
   LayersIcon,
   LibraryIcon,
   ListChecksIcon,
+  MedalIcon,
   PackageOpenIcon,
   PaletteIcon,
   PieChartIcon,
@@ -63,6 +65,22 @@ const roadmapItems: RoadmapItem[] = [
     done: false,
   },
   // Done
+  {
+    title: "Card Lending",
+    description:
+      "Lend cards to friends: they stay owned but stop counting for decks and trades until they're back.",
+    icon: <HandHeartIcon className="size-4" />,
+    done: true,
+    date: "Jul 2026",
+  },
+  {
+    title: "Condition Tracking",
+    description:
+      "Record each copy's condition or professional grade, plus an altered flag, notes, and photo links.",
+    icon: <MedalIcon className="size-4" />,
+    done: true,
+    date: "Jul 2026",
+  },
   {
     title: "Tournament Tools",
     description:

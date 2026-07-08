@@ -125,8 +125,8 @@ export default function WhyOpenRiftArticle() {
         </p>
         <ul className="text-muted-foreground list-disc space-y-1.5 pl-5">
           <li>
-            <span className="text-foreground font-medium">Piltover Archive</span> has condition
-            tracking, deck versioning, a sample hand simulator, a massive library of user and
+            <span className="text-foreground font-medium">Piltover Archive</span> has bulk adding of
+            cards, deck versioning, a sample hand simulator, a massive library of user and
             tournament decklists, and by far the biggest community.
           </li>
           <li>
@@ -167,8 +167,8 @@ export default function WhyOpenRiftArticle() {
           not sure. Features that only OpenRift has are listed separately below the table.
         </p>
         <p className="text-muted-foreground mb-3">
-          OpenRift&apos;s own rows were last refreshed on 2026-07-01. The competitor counts and
-          features were last verified on 2026-05-27 and may have drifted since. When you&apos;re
+          OpenRift&apos;s own rows were last refreshed on 2026-07-08. The other sites&apos; counts
+          and features were last verified on 2026-05-27 and may have drifted since. When you&apos;re
           reading this, it&apos;s probably already slightly out of date, as counts and features
           change regularly. You can follow what changes on OpenRift&apos;s side in the{" "}
           <Link to="/changelog" className="text-primary hover:underline">
@@ -244,6 +244,11 @@ export default function WhyOpenRiftArticle() {
           <li>
             <span className="text-foreground font-medium">Shared group collections:</span> pool
             spare cards into a collection the whole group can see and take from.
+          </li>
+          <li>
+            <span className="text-foreground font-medium">Card lending:</span> lend a card to a
+            friend and it stays in your collection, but stops counting for decks and trades until it
+            comes back. A lending page tracks who has what, including cards you&apos;re borrowing.
           </li>
           <li>
             <span className="text-foreground font-medium">Tournament organizer tools:</span> run a
@@ -515,11 +520,23 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
   },
   {
     kind: "row",
+    feature: "Bulk adding",
+    values: ["no", "yes", "no", "no", "no"],
+    detail: {
+      general: "Add many cards at once by pasting or typing a list, without browsing card by card.",
+      openrift:
+        "Not available yet. CSV import and the quick card entry palette cover parts of this, but there's no paste-a-list flow.",
+    },
+  },
+  {
+    kind: "row",
     feature: "Condition tracking",
-    values: ["no", "yes", "no", "yes", "no"],
+    values: ["yes", "yes", "no", "yes", "no"],
     detail: {
       general:
         "Track the physical condition of each copy (mint, played, damaged, etc.) alongside quantity.",
+      openrift:
+        "Each copy can carry a condition or professional grade, an altered flag, notes, and photo links. All of it survives CSV import and export.",
     },
   },
   {
@@ -792,7 +809,7 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
         "To be honest, I don't expect anyone to ever self-host this. But you COULD if you wanted.",
     },
   },
-  // Per-competitor Blacklight tracker counts are kept out of the rendered
+  // Per-site Blacklight tracker counts are kept out of the rendered
   // table on purpose: the comparison should present OpenRift, not shame other
   // hobby projects. Preserved here so the next refresh doesn't re-measure
   // from scratch. Blacklight (themarkup.org/blacklight), measured 2026-05-27:
