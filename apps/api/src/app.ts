@@ -24,6 +24,7 @@ import { loadSession } from "./middleware/load-session.js";
 import { createMetricsMiddleware } from "./middleware/metrics.js";
 import { otelRequestMiddleware } from "./middleware/otel-request.js";
 import { requireAdmin } from "./middleware/require-admin.js";
+import { versionHeadersMiddleware } from "./middleware/version-headers.js";
 import { generateContractOpenAPIDocument } from "./openapi-doc.js";
 import { ETAG_PATHS } from "./orpc/cache-policy.js";
 import { buildApiContext } from "./orpc/context.js";
@@ -187,16 +188,13 @@ export function createApp(deps: AppDeps) {
     cors({
       credentials: true,
       origin: (origin) => matchOrigin(origin, config.corsOrigin),
-      exposeHeaders: ["X-Build-Id"],
+      exposeHeaders: ["X-Build-Id", "X-Api-Format"],
     }),
   );
 
-  if (config.buildId) {
-    app.use("/api/*", async (c, next) => {
-      await next();
-      c.res.headers.set("X-Build-Id", config.buildId);
-    });
-  }
+  // X-Build-Id on non-cacheable responses, X-Api-Format on cacheable ones —
+  // see middleware/version-headers.ts for why the split matters.
+  app.use("/api/*", versionHeadersMiddleware(config.buildId));
 
   if (config.logRequests) {
     app.use("/api/*", async (c, next) => {

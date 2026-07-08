@@ -1,3 +1,4 @@
+import { API_FORMAT_VERSION } from "@openrift/shared/contracts";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
@@ -110,6 +111,60 @@ describe("initStaleBundleWatcher", () => {
     expect(toast).not.toHaveBeenCalled();
   });
 
+  test("ignores a mismatched X-Build-Id on a cacheable response (browser-cache replay)", async () => {
+    // First-deploy transition: bodies cached before the server stopped
+    // stamping cacheable responses still carry the previous build's id. A
+    // cache-served copy says nothing about the live server, so it must not
+    // trip the prompt.
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response("ok", {
+        headers: {
+          "X-Build-Id": "deadbeef",
+          "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400",
+        },
+      }),
+    );
+    initStaleBundleWatcher();
+
+    await globalThis.fetch("/api/v1/catalog");
+
+    expect(reloadSpy).not.toHaveBeenCalled();
+    expect(toast).not.toHaveBeenCalled();
+  });
+
+  test("a matching X-Build-Id on a cacheable response does not confirm the bundle", async () => {
+    vi.useFakeTimers();
+    try {
+      initChunkErrorReloader();
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        new Response("ok", {
+          headers: { "X-Build-Id": "test", "Cache-Control": "public, max-age=3600" },
+        }),
+      );
+      initStaleBundleWatcher();
+
+      globalThis.dispatchEvent(
+        new ErrorEvent("error", {
+          message: "Failed to fetch dynamically imported module: /assets/foo-OLD.js",
+        }),
+      );
+      expect(reloadSpy).toHaveBeenCalledTimes(1); // guard set
+
+      await globalThis.fetch("/api/v1/catalog"); // cache-served — must not re-arm
+      vi.advanceTimersByTime(10_000);
+
+      globalThis.dispatchEvent(
+        new ErrorEvent("error", {
+          message: "Failed to fetch dynamically imported module: /assets/foo-OLD.js",
+        }),
+      );
+      expect(reloadSpy).toHaveBeenCalledTimes(1); // still guarded — prompt instead
+      expect(toast).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   test("prompts only once even on repeated mismatches", async () => {
     globalThis.fetch = vi
       .fn()
@@ -121,6 +176,87 @@ describe("initStaleBundleWatcher", () => {
     await globalThis.fetch("/api/v1/cards");
 
     expect(toast).toHaveBeenCalledTimes(1);
+  });
+});
+
+// Cacheable API responses carry X-Api-Format (the payload format version)
+// instead of X-Build-Id. An older body means a cache replayed a pre-deploy
+// payload the current bundle may not parse — refetch fresh, transparently. A
+// newer body means the bundle itself is stale — prompt, don't crash.
+describe("initStaleBundleWatcher API format check", () => {
+  function formatResponse(format: number | string, body = "cached"): Response {
+    return new Response(body, { headers: { "X-Api-Format": String(format) } });
+  }
+
+  test("does nothing when the format matches", async () => {
+    const fetchSpy = vi.fn().mockResolvedValue(formatResponse(API_FORMAT_VERSION));
+    globalThis.fetch = fetchSpy;
+    initStaleBundleWatcher();
+
+    const response = await globalThis.fetch("/api/v1/catalog");
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(await response.text()).toBe("cached");
+    expect(toast).not.toHaveBeenCalled();
+  });
+
+  test("transparently refetches an older-format body with cache: no-store", async () => {
+    const fetchSpy = vi
+      .fn()
+      .mockResolvedValueOnce(formatResponse(API_FORMAT_VERSION - 1, "stale"))
+      .mockResolvedValueOnce(formatResponse(API_FORMAT_VERSION, "fresh"));
+    globalThis.fetch = fetchSpy;
+    initStaleBundleWatcher();
+
+    const response = await globalThis.fetch("/api/v1/catalog");
+
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(fetchSpy).toHaveBeenLastCalledWith("/api/v1/catalog", { cache: "no-store" });
+    expect(await response.text()).toBe("fresh");
+    expect(toast).not.toHaveBeenCalled();
+    expect(reloadSpy).not.toHaveBeenCalled();
+  });
+
+  test("does not refetch when the request already bypassed caches", async () => {
+    const fetchSpy = vi.fn().mockResolvedValue(formatResponse(API_FORMAT_VERSION - 1, "stale"));
+    globalThis.fetch = fetchSpy;
+    initStaleBundleWatcher();
+
+    const response = await globalThis.fetch("/api/v1/catalog", { cache: "no-store" });
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(await response.text()).toBe("stale");
+  });
+
+  test("does not refetch non-GET requests", async () => {
+    const fetchSpy = vi.fn().mockResolvedValue(formatResponse(API_FORMAT_VERSION - 1));
+    globalThis.fetch = fetchSpy;
+    initStaleBundleWatcher();
+
+    await globalThis.fetch("/api/v1/catalog", { method: "POST" });
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  test("prompts via the new-version toast when the body format is newer than the bundle", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(formatResponse(API_FORMAT_VERSION + 1));
+    initStaleBundleWatcher();
+
+    await globalThis.fetch("/api/v1/catalog");
+
+    expect(toast).toHaveBeenCalledTimes(1);
+    expect(reloadSpy).not.toHaveBeenCalled();
+  });
+
+  test("ignores a malformed format header", async () => {
+    const fetchSpy = vi.fn().mockResolvedValue(formatResponse("not-a-number"));
+    globalThis.fetch = fetchSpy;
+    initStaleBundleWatcher();
+
+    await globalThis.fetch("/api/v1/catalog");
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(toast).not.toHaveBeenCalled();
   });
 });
 
@@ -170,19 +306,83 @@ describe("reload loop guard", () => {
   });
 
   test("a matching X-Build-Id clears the guard and re-arms the automatic reload", async () => {
-    initChunkErrorReloader();
-    globalThis.fetch = vi
-      .fn()
-      .mockResolvedValue(new Response("ok", { headers: { "X-Build-Id": "test" } }));
-    initStaleBundleWatcher();
+    vi.useFakeTimers();
+    try {
+      initChunkErrorReloader();
+      globalThis.fetch = vi
+        .fn()
+        .mockResolvedValue(new Response("ok", { headers: { "X-Build-Id": "test" } }));
+      initStaleBundleWatcher();
 
-    dispatchChunkError(); // automatic reload — sets the loop guard
-    expect(reloadSpy).toHaveBeenCalledTimes(1);
+      dispatchChunkError(); // automatic reload — sets the loop guard
+      expect(reloadSpy).toHaveBeenCalledTimes(1);
 
-    await globalThis.fetch("/api/v1/cards"); // bundle confirmed current — guard cleared
+      await globalThis.fetch("/api/v1/cards"); // bundle confirmed current…
+      vi.advanceTimersByTime(10_000); // …and no mismatch vetoed it — guard cleared
 
-    dispatchChunkError(); // next deploy's chunk failure auto-reloads again
-    expect(reloadSpy).toHaveBeenCalledTimes(2);
+      dispatchChunkError(); // next deploy's chunk failure auto-reloads again
+      expect(reloadSpy).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  // Regression coverage for the post-deploy reload loop seen in production:
+  // after a release, the browser HTTP cache kept replaying a pre-deploy
+  // /api/v1/catalog response whose X-Build-Id was the previous build, while
+  // live no-store responses matched the current bundle. The instant guard
+  // clear on the first match re-armed the automatic reload on every page
+  // load, so every navigation reloaded again for up to the cache's max-age.
+  // A page load that sees ANY mismatch must keep the guard.
+
+  test("a stale cache-served response vetoes a pending guard clear", async () => {
+    vi.useFakeTimers();
+    try {
+      initChunkErrorReloader();
+      globalThis.fetch = vi
+        .fn()
+        .mockResolvedValueOnce(new Response("ok", { headers: { "X-Build-Id": "test" } }))
+        .mockResolvedValueOnce(new Response("ok", { headers: { "X-Build-Id": "deadbeef" } }));
+      initStaleBundleWatcher();
+
+      dispatchChunkError(); // automatic reload — sets the loop guard
+      expect(reloadSpy).toHaveBeenCalledTimes(1);
+
+      await globalThis.fetch("/api/health"); // live response, current build — clear scheduled
+      await globalThis.fetch("/api/v1/catalog"); // cached pre-deploy response — cancels the clear
+      vi.advanceTimersByTime(10_000);
+
+      dispatchChunkError(); // guard must still be set — prompt, don't reload
+      expect(reloadSpy).toHaveBeenCalledTimes(1);
+      expect(toast).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test("a match arriving after a mismatch does not clear the guard either", async () => {
+    vi.useFakeTimers();
+    try {
+      initChunkErrorReloader();
+      globalThis.fetch = vi
+        .fn()
+        .mockResolvedValueOnce(new Response("ok", { headers: { "X-Build-Id": "deadbeef" } }))
+        .mockResolvedValueOnce(new Response("ok", { headers: { "X-Build-Id": "test" } }));
+      initStaleBundleWatcher();
+
+      dispatchChunkError(); // automatic reload — sets the loop guard
+      expect(reloadSpy).toHaveBeenCalledTimes(1);
+
+      await globalThis.fetch("/api/v1/catalog"); // cached pre-deploy response — mismatch flagged
+      await globalThis.fetch("/api/health"); // live match must not schedule a clear now
+      vi.advanceTimersByTime(10_000);
+
+      dispatchChunkError(); // guard must still be set — prompt, don't reload
+      expect(reloadSpy).toHaveBeenCalledTimes(1);
+      expect(toast).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

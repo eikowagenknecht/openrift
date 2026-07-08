@@ -12,8 +12,10 @@
 // back to the toast instead of reloading forever. The flag only gates
 // *automatic* reloads — the toast's Reload button always goes through (each
 // attempt costs a deliberate click, so it can't loop) — and it is cleared again
-// once an API response confirms the running bundle is current, re-arming the
-// single automatic reload for the next deploy.
+// once an API response confirms the running bundle is current (deferred, so a
+// cache-served stale response arriving in the same page load can veto the
+// clear — see scheduleReloadFlagClear), re-arming the single automatic reload
+// for the next deploy.
 
 const RELOAD_FLAG = "openrift:reload-attempted";
 
@@ -23,11 +25,20 @@ const RELOAD_FLAG = "openrift:reload-attempted";
 // one module instance in the client bundle, so the flag is genuinely global.
 let newVersionAvailable = false;
 
+// Timer handle for the deferred loop-guard clear (see scheduleReloadFlagClear).
+let pendingReloadFlagClear: ReturnType<typeof setTimeout> | undefined;
+
 // ESM live bindings are read-only from the importing side, so stale-bundle.ts
 // flips the flag through this setter when the watcher sees a mismatch. Returns
 // false when the flag was already set, which is what makes announceNewVersion
-// idempotent.
+// idempotent. A mismatch also cancels any pending loop-guard clear — see
+// scheduleReloadFlagClear for why a page load that saw a mismatch must never
+// re-arm the automatic reload.
 export function markNewVersionAvailable(): boolean {
+  if (pendingReloadFlagClear !== undefined) {
+    clearTimeout(pendingReloadFlagClear);
+    pendingReloadFlagClear = undefined;
+  }
   if (newVersionAvailable) {
     return false;
   }
@@ -67,12 +78,34 @@ export function forceReload(reason: string): void {
 // gets its one automatic reload again. Without this, the flag outlives the
 // stale period (sessionStorage survives reloads) and permanently disables
 // auto-recovery for the rest of the tab session.
-export function clearReloadFlag(): void {
-  try {
-    sessionStorage.removeItem(RELOAD_FLAG);
-  } catch {
-    // sessionStorage unavailable — nothing to clear.
+//
+// The clear is DEFERRED, not immediate. A page load can carry mixed signals: a
+// live response matching this bundle plus a cache-served response (browser
+// HTTP cache replaying a pre-deploy payload) still stamped with the previous
+// build's id. Clearing the guard the instant the first match arrives re-arms
+// the automatic reload that just ran — and since the cached response survives
+// the reload, every navigation reloads again until the cache entry expires: a
+// reload loop we shipped to production once. Waiting out the page's initial
+// fetch burst lets any mismatch cancel the clear first (markNewVersionAvailable
+// above); once a mismatch was seen this page load, the guard stays put and only
+// a future, fully-clean page load re-arms the auto reload.
+const RELOAD_FLAG_CLEAR_DELAY_MS = 10_000;
+
+export function scheduleReloadFlagClear(): void {
+  if (newVersionAvailable || pendingReloadFlagClear !== undefined) {
+    return;
   }
+  pendingReloadFlagClear = setTimeout(() => {
+    pendingReloadFlagClear = undefined;
+    if (newVersionAvailable) {
+      return;
+    }
+    try {
+      sessionStorage.removeItem(RELOAD_FLAG);
+    } catch {
+      // sessionStorage unavailable — nothing to clear.
+    }
+  }, RELOAD_FLAG_CLEAR_DELAY_MS);
 }
 
 function reloadOnce(reason: string): void {
@@ -291,4 +324,8 @@ export function _resetReloadStateForTesting(): void {
     }
   }
   newVersionAvailable = false;
+  if (pendingReloadFlagClear !== undefined) {
+    clearTimeout(pendingReloadFlagClear);
+    pendingReloadFlagClear = undefined;
+  }
 }
