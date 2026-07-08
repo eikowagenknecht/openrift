@@ -1,7 +1,6 @@
 export type {
   AdminEventAction,
   AdminEventEntityType,
-  AdminEventsTable,
   CollectionEventsTable,
   CandidateCardsTable,
   CandidatePrintingsTable,

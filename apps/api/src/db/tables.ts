@@ -497,7 +497,7 @@ export type AdminEventEntityType =
  * deliberately not logged. `actorUserId` has no FK so rows survive user
  * deletion; reads LEFT JOIN users for display names.
  */
-export interface AdminEventsTable {
+interface AdminEventsTable {
   id: Generated<string>;
   actorUserId: string;
   action: AdminEventAction;
