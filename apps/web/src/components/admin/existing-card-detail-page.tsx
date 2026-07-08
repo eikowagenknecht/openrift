@@ -1147,6 +1147,7 @@ export function ExistingCardDetailPage({
               isAccepting={acceptPrintingGroup.isPending}
               isLinking={linkPrintingSources.isPending}
               printingFields={printingSourceFields}
+              costKeywords={costKeywords}
               invalidates={invalidateScope}
               isAdmin={isAdmin}
             />

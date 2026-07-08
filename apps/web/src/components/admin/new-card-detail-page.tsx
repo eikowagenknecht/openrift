@@ -53,6 +53,7 @@ import {
   useReassignCandidatePrinting,
 } from "@/hooks/use-admin-card-mutations";
 import { useAllCards, useUnmatchedCardDetail } from "@/hooks/use-admin-card-queries";
+import { useKeywordStyles } from "@/hooks/use-keyword-styles";
 import {
   describeAcceptCardFieldIssues,
   hasRequiredActiveFields,
@@ -155,6 +156,10 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
   const linkCard = useLinkCard();
   const reassignPrinting = useReassignCandidatePrinting(invalidateScope);
   const { data: allCards } = useAllCards();
+  const keywordStyles = useKeywordStyles();
+  const costKeywords = Object.entries(keywordStyles)
+    .filter(([, entry]) => entry.costKeyword)
+    .map(([name]) => name);
 
   // --- State ---
   const [activeCard, setActiveCard] = useState<Record<string, unknown>>({});
@@ -309,6 +314,7 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
           activeRow={Object.keys(activeCard).length > 0 ? activeCard : null}
           candidateRows={sources}
           providerSettings={providerSettings}
+          costKeywords={costKeywords}
           onCellClick={(field, value) => {
             setActiveCard((prev) => ({ ...prev, [field]: value }));
           }}

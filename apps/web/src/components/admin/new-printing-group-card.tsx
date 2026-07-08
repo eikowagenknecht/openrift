@@ -112,6 +112,7 @@ export function NewPrintingGroupCard({
   isAccepting,
   isLinking,
   printingFields,
+  costKeywords = [],
   invalidates,
   isAdmin,
 }: {
@@ -131,6 +132,7 @@ export function NewPrintingGroupCard({
   isAccepting: boolean;
   isLinking?: boolean;
   printingFields: FieldDef[];
+  costKeywords?: readonly string[];
   invalidates: readonly (readonly unknown[])[];
   /** Card-review grant holders keep the accept flow; check/assign/ignore/delete stay full-admin. */
   isAdmin: boolean;
@@ -268,7 +270,12 @@ export function NewPrintingGroupCard({
                 providerLabels={providerLabels}
                 providerNames={providerNames}
                 providerSettings={providerSettings}
-                normalizeCandidate={buildPrintingNormalizer(setTotals, group.candidates[0]?.setId)}
+                costKeywords={costKeywords}
+                normalizeCandidate={buildPrintingNormalizer(
+                  setTotals,
+                  group.candidates[0]?.setId,
+                  costKeywords,
+                )}
                 onCellClick={(field, value) => {
                   setActivePrinting((prev) => withSetTotal({ ...prev, [field]: value }));
                 }}
