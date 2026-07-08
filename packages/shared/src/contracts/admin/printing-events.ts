@@ -1,7 +1,6 @@
 import { isoDateTime } from "@openrift/shared/schemas";
 import { z } from "zod";
 
-import { diffValueSchema } from "../../response-schemas.js";
 import { authedRoute } from "../_base.js";
 import { jobStartedResponseSchema } from "./shared.js";
 
@@ -9,16 +8,8 @@ const TAG = "Admin - Operations";
 
 const PE = "/api/admin/v1/printing-events";
 
-const fieldChangeSchema = z.object({
-  field: z.string(),
-  // Heterogeneous field values (scalars / scalar arrays); serializable, typed.
-  from: diffValueSchema,
-  to: diffValueSchema,
-});
-
 const printingEventViewSchema = z.object({
   id: z.uuid(),
-  eventType: z.enum(["new", "changed"]),
   status: z.enum(["pending", "sent", "failed"]),
   retryCount: z.number(),
   printingId: z.string(),
@@ -33,7 +24,6 @@ const printingEventViewSchema = z.object({
   language: z.string().nullable(),
   languageName: z.string().nullable(),
   frontImageId: z.string().nullable(),
-  changes: z.array(fieldChangeSchema).nullable(),
   createdAt: isoDateTime,
 });
 

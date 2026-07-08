@@ -1,4 +1,3 @@
-import { humanizePrintingField } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { CheckIcon, LoaderIcon, RefreshCwIcon, RotateCcwIcon, SendIcon, XIcon } from "lucide-react";
 import { useState } from "react";
@@ -35,21 +34,6 @@ function StatusBadge({ status }: { status: PrintingEventView["status"] }) {
   return <Badge variant="secondary">pending</Badge>;
 }
 
-function EventTypeBadge({ eventType }: { eventType: PrintingEventView["eventType"] }) {
-  if (eventType === "new") {
-    return (
-      <Badge variant="outline" className="border-green-600 text-green-600 dark:text-green-400">
-        new
-      </Badge>
-    );
-  }
-  return (
-    <Badge variant="outline" className="border-yellow-600 text-yellow-700 dark:text-yellow-400">
-      changed
-    </Badge>
-  );
-}
-
 function formatTimeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const seconds = Math.round(diff / 1000);
@@ -66,16 +50,6 @@ function formatTimeAgo(iso: string): string {
   }
   const days = Math.round(hours / 24);
   return `${days}d ago`;
-}
-
-function formatValue(value: unknown): string {
-  if (value === null || value === undefined) {
-    return "—";
-  }
-  if (Array.isArray(value)) {
-    return value.length === 0 ? "—" : value.map(String).join(", ");
-  }
-  return String(value);
 }
 
 export function PrintingEventsPage() {
@@ -166,7 +140,6 @@ export function PrintingEventsPage() {
         <TableHeader>
           <TableRow>
             <TableHead className="w-24">Status</TableHead>
-            <TableHead className="w-24">Type</TableHead>
             <TableHead>Card</TableHead>
             <TableHead className="w-28">Set</TableHead>
             <TableHead className="w-20 text-right">Retries</TableHead>
@@ -177,7 +150,7 @@ export function PrintingEventsPage() {
         <TableBody>
           {events.length === 0 && (
             <TableRow>
-              <TableCell colSpan={7} className="text-muted-foreground h-24 text-center">
+              <TableCell colSpan={6} className="text-muted-foreground h-24 text-center">
                 No queued events. The webhook is caught up.
               </TableCell>
             </TableRow>
@@ -206,106 +179,53 @@ function PrintingEventRow({
   onRetry: () => void;
 }) {
   return (
-    <>
-      <TableRow>
-        <TableCell>
-          <StatusBadge status={event.status} />
-        </TableCell>
-        <TableCell>
-          <EventTypeBadge eventType={event.eventType} />
-        </TableCell>
-        <TableCell>
-          {event.cardSlug ? (
-            <Link
-              to="/cards/$cardSlug"
-              params={{ cardSlug: event.cardSlug }}
-              className="hover:underline"
-            >
-              {event.cardName ?? event.cardSlug}
-            </Link>
-          ) : (
-            <span className="text-muted-foreground">{event.cardName ?? "—"}</span>
-          )}
-          {event.shortCode !== null && (
-            <span className="text-muted-foreground ml-2 font-mono">{event.shortCode}</span>
-          )}
-        </TableCell>
-        <TableCell className="text-muted-foreground text-sm">{event.setName ?? "—"}</TableCell>
-        <TableCell className="text-right font-mono">{event.retryCount}</TableCell>
-        <TableCell
-          className="font-mono text-sm"
-          title={new Date(event.createdAt).toLocaleString(undefined, { hourCycle: "h23" })}
-        >
-          {formatTimeAgo(event.createdAt)}
-        </TableCell>
-        <TableCell>
-          {event.status === "failed" && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-7"
-              onClick={onRetry}
-              disabled={isRetrying}
-              title="Reset to pending"
-            >
-              {isRetrying ? (
-                <LoaderIcon className="size-3.5 animate-spin" />
-              ) : (
-                <RotateCcwIcon className="size-3.5" />
-              )}
-            </Button>
-          )}
-        </TableCell>
-      </TableRow>
-      {event.changes !== null && event.changes.length > 0 && (
-        <TableRow>
-          <TableCell />
-          <TableCell colSpan={6} className="pb-4 whitespace-normal">
-            <div className="space-y-2">
-              {event.changes.map((change, idx) => (
-                <FieldChangeRow
-                  key={`${event.id}-${idx}`}
-                  field={change.field}
-                  from={change.from}
-                  to={change.to}
-                />
-              ))}
-            </div>
-          </TableCell>
-        </TableRow>
-      )}
-    </>
-  );
-}
-
-const MULTILINE_THRESHOLD = 80;
-
-function FieldChangeRow({ field, from, to }: { field: string; from: unknown; to: unknown }) {
-  const fromStr = formatValue(from);
-  const toStr = formatValue(to);
-  const isLong = fromStr.length > MULTILINE_THRESHOLD || toStr.length > MULTILINE_THRESHOLD;
-
-  if (isLong) {
-    return (
-      <div className="space-y-1 text-sm">
-        <div className="font-medium">{humanizePrintingField(field)}</div>
-        <div className="text-muted-foreground grid grid-cols-[5rem_1fr] gap-x-2 font-mono break-words">
-          <span>Before</span>
-          <span className="text-foreground">{fromStr}</span>
-          <span>After</span>
-          <span className="text-foreground">{toStr}</span>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="text-sm break-words">
-      <span className="font-medium">{humanizePrintingField(field)}:</span>{" "}
-      <span className="font-mono">{fromStr}</span>
-      <span className="text-muted-foreground"> → </span>
-      <span className="font-mono">{toStr}</span>
-    </div>
+    <TableRow>
+      <TableCell>
+        <StatusBadge status={event.status} />
+      </TableCell>
+      <TableCell>
+        {event.cardSlug ? (
+          <Link
+            to="/cards/$cardSlug"
+            params={{ cardSlug: event.cardSlug }}
+            className="hover:underline"
+          >
+            {event.cardName ?? event.cardSlug}
+          </Link>
+        ) : (
+          <span className="text-muted-foreground">{event.cardName ?? "—"}</span>
+        )}
+        {event.shortCode !== null && (
+          <span className="text-muted-foreground ml-2 font-mono">{event.shortCode}</span>
+        )}
+      </TableCell>
+      <TableCell className="text-muted-foreground text-sm">{event.setName ?? "—"}</TableCell>
+      <TableCell className="text-right font-mono">{event.retryCount}</TableCell>
+      <TableCell
+        className="font-mono text-sm"
+        title={new Date(event.createdAt).toLocaleString(undefined, { hourCycle: "h23" })}
+      >
+        {formatTimeAgo(event.createdAt)}
+      </TableCell>
+      <TableCell>
+        {event.status === "failed" && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-7"
+            onClick={onRetry}
+            disabled={isRetrying}
+            title="Reset to pending"
+          >
+            {isRetrying ? (
+              <LoaderIcon className="size-3.5 animate-spin" />
+            ) : (
+              <RotateCcwIcon className="size-3.5" />
+            )}
+          </Button>
+        )}
+      </TableCell>
+    </TableRow>
   );
 }
 

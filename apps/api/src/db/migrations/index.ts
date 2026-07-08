@@ -142,6 +142,7 @@ import * as m193 from "./193-card-type-junction-triggers.js";
 import * as m194 from "./194-copy-metadata.js";
 import * as m195 from "./195-card-loans.js";
 import * as m196 from "./196-admin-grants.js";
+import * as m197 from "./197-drop-printing-event-changes.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -343,4 +344,5 @@ export const migrations: Record<string, Migration> = {
   "194-copy-metadata": m194,
   "195-card-loans": m195,
   "196-admin-grants": m196,
+  "197-drop-printing-event-changes": m197,
 };

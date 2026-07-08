@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 6kdfvitKKldzTswDeWbt8kqb2bCHYbWZgKGqPe6BbOuUVWMrgF4lPlTp45gPUBU
+\restrict jewNSBedZEkgSS5WMbcz3dZumbhO1ZlId63xB9Xg7cl8ExNcgOVLFychFnBQyVi
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1849,14 +1849,11 @@ CREATE TABLE public.printing_distribution_channels (
 
 CREATE TABLE public.printing_events (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
-    event_type text NOT NULL,
     printing_id uuid NOT NULL,
-    changes jsonb,
     status text DEFAULT 'pending'::text NOT NULL,
     retry_count integer DEFAULT 0 NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT chk_printing_events_event_type CHECK ((event_type = ANY (ARRAY['new'::text, 'changed'::text]))),
     CONSTRAINT chk_printing_events_status CHECK ((status = ANY (ARRAY['pending'::text, 'sent'::text, 'failed'::text])))
 );
 
@@ -5635,5 +5632,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 6kdfvitKKldzTswDeWbt8kqb2bCHYbWZgKGqPe6BbOuUVWMrgF4lPlTp45gPUBU
+\unrestrict jewNSBedZEkgSS5WMbcz3dZumbhO1ZlId63xB9Xg7cl8ExNcgOVLFychFnBQyVi
 

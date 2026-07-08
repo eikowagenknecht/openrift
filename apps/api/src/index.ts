@@ -210,10 +210,7 @@ if (config.cron.changelogSchedule) {
       () =>
         flushPendingPrintingEvents(
           repos,
-          {
-            newPrintings: config.discordWebhooks.newPrintings,
-            printingChanges: config.discordWebhooks.printingChanges,
-          },
+          { newPrintings: config.discordWebhooks.newPrintings },
           config.appBaseUrl,
           peLog,
         ),

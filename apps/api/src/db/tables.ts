@@ -1462,20 +1462,11 @@ type GradersTable = ReferenceTable;
 
 interface PrintingEventsTable {
   id: Generated<string>;
-  eventType: "new" | "changed";
   printingId: string;
-  /** JSONB array of { field, from, to } for changed events */
-  changes: ColumnType<FieldChange[] | null, string | null, string | null>;
   status: "pending" | "sent" | "failed";
   retryCount: number;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
-}
-
-export interface FieldChange {
-  field: string;
-  from: unknown;
-  to: unknown;
 }
 
 // ─── Job runs (migration 101) ────────────────────────────────────────────────

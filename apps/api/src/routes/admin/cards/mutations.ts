@@ -17,7 +17,6 @@ import {
   updatePrintingDistributionChannels,
   updatePrintingMarkers,
 } from "../../../services/printing-admin.js";
-import { recordPrintingChangeEvent } from "../../../services/record-printing-event.js";
 import { assertDeleted, assertFound, assertUpdated } from "../../../utils/assertions.js";
 
 const os = implement(adminCardMutationsContract).$context<ApiContext>().use(requireAuthedUser);
@@ -315,7 +314,7 @@ export const adminCardMutationsRouter = {
   }),
 
   acceptPrintingField: os.acceptPrintingField.handler(async ({ input, context }): Promise<void> => {
-    const { candidateMutations: mut, printingEvents, rarities } = context.repos;
+    const { candidateMutations: mut, rarities } = context.repos;
     const { printingId, field, value, source } = input;
 
     // Normalize enum fields that have DB check constraints (before validation
@@ -342,7 +341,8 @@ export const adminCardMutationsRouter = {
       normalizedValue = parsed.data;
     }
 
-    // Read the printing before mutation so we can capture old values for change tracking
+    // Ensure the printing exists before mutating so a bad id 404s instead of
+    // silently updating nothing.
     const printingBefore = await mut.getFullPrintingById(printingId);
     assertFound(printingBefore, "Printing not found");
 
@@ -353,15 +353,6 @@ export const adminCardMutationsRouter = {
         ? (normalizedValue as string[]).filter((s) => typeof s === "string")
         : [];
       await updatePrintingMarkers(context.transact, printingId, newSlugs);
-
-      const oldValue = [...printingBefore.markerSlugs].sort();
-      const newValue = [...newSlugs].sort();
-      if (oldValue.join(",") !== newValue.join(",")) {
-        await recordPrintingChangeEvent(printingEvents, printingId, [
-          { field: "markerSlugs", from: oldValue, to: newValue },
-        ]);
-      }
-
       return;
     }
 
@@ -424,14 +415,6 @@ export const adminCardMutationsRouter = {
     // Recompute card-level keywords when printing text changes
     if (field === "printedRulesText" || field === "printedEffectText") {
       await mut.recomputeKeywordsForPrintingCard(printingId);
-    }
-
-    // Record change event
-    const oldValue = printingBefore[field as keyof typeof printingBefore] ?? null;
-    if (oldValue !== normalizedValue) {
-      await recordPrintingChangeEvent(printingEvents, printingId, [
-        { field, from: oldValue, to: normalizedValue },
-      ]);
     }
   }),
 

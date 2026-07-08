@@ -9,7 +9,7 @@ import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 interface WebhookFailure {
-  channel: "newPrintings" | "printingChanges";
+  channel: "newPrintings";
   status?: number;
   detail: string;
 }

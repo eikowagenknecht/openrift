@@ -1,43 +1,13 @@
 import type { Logger } from "@openrift/shared/logger";
 
-import type { EnrichedPrintingEvent, printingEventsRepo } from "../repositories/printing-events.js";
-import type { raritiesRepo } from "../repositories/rarities.js";
-import type { setsRepo } from "../repositories/sets.js";
-import type { ChangeValueLookups, WebhookFailure } from "./discord-webhook.js";
+import type { printingEventsRepo } from "../repositories/printing-events.js";
+import type { WebhookFailure } from "./discord-webhook.js";
 import { flushPrintingEvents } from "./discord-webhook.js";
 
 type PrintingEventsRepo = ReturnType<typeof printingEventsRepo>;
-type RaritiesRepo = ReturnType<typeof raritiesRepo>;
-type SetsRepo = ReturnType<typeof setsRepo>;
-
-/**
- * Collect every distinct setId UUID referenced by a `setId` field change so we
- * can resolve them to human-readable set names in a single query.
- *
- * @returns Distinct setId UUIDs that appear as either `from` or `to` on a
- * `setId` change.
- */
-function collectChangedSetIds(events: EnrichedPrintingEvent[]): string[] {
-  const ids = new Set<string>();
-  for (const event of events) {
-    for (const change of event.changes ?? []) {
-      if (change.field !== "setId") {
-        continue;
-      }
-      if (typeof change.from === "string") {
-        ids.add(change.from);
-      }
-      if (typeof change.to === "string") {
-        ids.add(change.to);
-      }
-    }
-  }
-  return [...ids];
-}
 
 interface DiscordWebhookUrls {
   newPrintings: string | null;
-  printingChanges: string | null;
 }
 
 interface FlushSummary {
@@ -64,8 +34,8 @@ function describeFailures(failures: WebhookFailure[]): string {
 }
 
 /**
- * Flush pending printing events to Discord webhooks.
- * Webhook URLs come from environment variables (DISCORD_WEBHOOK_*).
+ * Flush pending printing events to the Discord webhook.
+ * The webhook URL comes from an environment variable (DISCORD_WEBHOOK_*).
  *
  * Marks succeeded events `sent` and increments retry counts on failures.
  * Throws when every attempted webhook call failed so the caller's job_runs
@@ -76,7 +46,7 @@ function describeFailures(failures: WebhookFailure[]): string {
  * detail. Throws if all delivery attempts failed.
  */
 export async function flushPendingPrintingEvents(
-  repos: { printingEvents: PrintingEventsRepo; rarities: RaritiesRepo; sets: SetsRepo },
+  repos: { printingEvents: PrintingEventsRepo },
   webhookUrls: DiscordWebhookUrls,
   appBaseUrl: string,
   log: Logger,
@@ -86,19 +56,11 @@ export async function flushPendingPrintingEvents(
     return { sent: 0, failed: 0 };
   }
 
-  const [setNamesById, rarities] = await Promise.all([
-    repos.sets.getNamesByIds(collectChangedSetIds(events)),
-    repos.rarities.listAll(),
-  ]);
-  const rarityLabelsBySlug = new Map(rarities.map((r) => [r.slug, r.label]));
-  const lookups: ChangeValueLookups = { setNamesById, rarityLabelsBySlug };
-
   const { sentIds, failedIds, failures } = await flushPrintingEvents(
     events,
     webhookUrls,
     appBaseUrl,
     log,
-    lookups,
   );
 
   await repos.printingEvents.markSent(sentIds);

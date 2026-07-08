@@ -56,8 +56,6 @@ export type {
   MarkersTable,
   RaritiesTable,
   ReferenceTable,
-  // Printing events (migration 071)
-  FieldChange,
   // Job runs (migration 101)
   JobStatus,
   JobTrigger,

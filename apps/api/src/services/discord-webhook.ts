@@ -1,22 +1,14 @@
-import { humanizePrintingField, imageUrl, WellKnown } from "@openrift/shared";
+import { imageUrl, WellKnown } from "@openrift/shared";
 import type { Logger } from "@openrift/shared/logger";
 
-import type { FieldChange } from "../db/index.js";
 import type { EnrichedPrintingEvent } from "../repositories/printing-events.js";
 
 // Discord allows up to 10 embeds per message
 const MAX_EMBEDS_PER_MESSAGE = 10;
 // If more than this many new printings in a batch, send a summary instead
 const SUMMARY_THRESHOLD = 20;
-// Discord embed field value limit is 1024 chars; budget per side leaves room
-// for the separator/labels and a small safety margin.
-const FIELD_VALUE_MAX = 460;
-// Above this length on either side we switch to a multi-line "Before / After"
-// layout so long values like rules text stay readable.
-const MULTILINE_THRESHOLD = 80;
 
 const COLOR_NEW = 0x57_f2_87; // green
-const COLOR_CHANGED = 0xfe_e7_5c; // yellow
 
 interface DiscordEmbed {
   title: string;
@@ -36,21 +28,11 @@ interface DiscordWebhookPayload {
 
 export interface WebhookFailure {
   /** Which webhook URL was being called. */
-  channel: "newPrintings" | "printingChanges";
+  channel: "newPrintings";
   /** HTTP status if Discord responded, undefined if fetch threw. */
   status?: number;
   /** Response body (for HTTP failures) or thrown error message. */
   detail: string;
-}
-
-/**
- * Lookups used to resolve opaque change values (UUIDs for sets, slugs for rarities)
- * to human-readable names before they're rendered in Discord embeds. Maps are keyed
- * by the raw value; entries not present fall back to the raw value.
- */
-export interface ChangeValueLookups {
-  setNamesById?: Map<string, string>;
-  rarityLabelsBySlug?: Map<string, string>;
 }
 
 // Discord requires absolute URLs for embed images. Build the 400w variant
@@ -63,52 +45,37 @@ function absoluteImageUrl(appBaseUrl: string, id: string | null): string | undef
 }
 
 /**
- * Build Discord embed messages from a batch of printing events and send them
- * to the configured webhook URLs.
+ * Build Discord embed messages from a batch of new-printing events and send them
+ * to the configured webhook URL.
  *
  * @returns Sent/failed event ids and per-channel failure detail (HTTP status
  * and response body) for any non-2xx responses or fetch errors.
  */
 export async function flushPrintingEvents(
   events: EnrichedPrintingEvent[],
-  webhookUrls: { newPrintings: string | null; printingChanges: string | null },
+  webhookUrls: { newPrintings: string | null },
   appBaseUrl: string,
   log: Logger,
-  lookups: ChangeValueLookups = {},
 ): Promise<{ sentIds: string[]; failedIds: string[]; failures: WebhookFailure[] }> {
-  const newEvents = events.filter((e) => e.eventType === "new");
-  const changedEvents = events.filter((e) => e.eventType === "changed");
-
   const sentIds: string[] = [];
   const failedIds: string[] = [];
   const failures: WebhookFailure[] = [];
 
-  if (newEvents.length > 0 && webhookUrls.newPrintings) {
-    const payloads = buildNewPrintingPayloads(newEvents, appBaseUrl);
+  if (events.length === 0) {
+    return { sentIds, failedIds, failures };
+  }
+
+  if (webhookUrls.newPrintings) {
+    const payloads = buildNewPrintingPayloads(events, appBaseUrl);
     const result = await sendPayloads(webhookUrls.newPrintings, payloads, log);
-    for (const event of newEvents) {
+    for (const event of events) {
       (result.ok ? sentIds : failedIds).push(event.id);
     }
     for (const err of result.errors) {
       failures.push({ ...err, channel: "newPrintings" });
     }
   } else {
-    for (const event of newEvents) {
-      sentIds.push(event.id);
-    }
-  }
-
-  if (changedEvents.length > 0 && webhookUrls.printingChanges) {
-    const payloads = buildChangedPrintingPayloads(changedEvents, appBaseUrl, lookups);
-    const result = await sendPayloads(webhookUrls.printingChanges, payloads, log);
-    for (const event of changedEvents) {
-      (result.ok ? sentIds : failedIds).push(event.id);
-    }
-    for (const err of result.errors) {
-      failures.push({ ...err, channel: "printingChanges" });
-    }
-  } else {
-    for (const event of changedEvents) {
+    for (const event of events) {
       sentIds.push(event.id);
     }
   }
@@ -260,130 +227,6 @@ function buildNewPrintingSummary(
   }
 
   return payloads;
-}
-
-/**
- * Build webhook payloads for changed printing events.
- * Consolidates multiple changes to the same printing into one embed.
- *
- * @returns Array of Discord webhook payloads to send.
- */
-export function buildChangedPrintingPayloads(
-  events: EnrichedPrintingEvent[],
-  appBaseUrl: string,
-  lookups: ChangeValueLookups = {},
-): DiscordWebhookPayload[] {
-  const byPrinting = Map.groupBy(events, (e) => e.printingId);
-  const embeds: DiscordEmbed[] = [];
-
-  for (const [, printingEvents] of byPrinting) {
-    const first = printingEvents[0];
-    const allChanges: FieldChange[] = [];
-
-    for (const event of printingEvents) {
-      allChanges.push(...(event.changes ?? []));
-    }
-
-    // Deduplicate: keep earliest "from" and latest "to" per field
-    const fieldMap = new Map<string, { from: unknown; to: unknown }>();
-    for (const change of allChanges) {
-      const existing = fieldMap.get(change.field);
-      if (existing) {
-        existing.to = change.to;
-      } else {
-        fieldMap.set(change.field, { from: change.from, to: change.to });
-      }
-    }
-
-    // Drop fields whose value flipped back to where it started — the user
-    // toggled and reverted, the net change is nothing.
-    const fields = [...fieldMap.entries()]
-      .filter(([, { from, to }]) => !valuesEqual(from, to))
-      .map(([field, { from, to }]) => ({
-        name: humanizePrintingField(field),
-        value: formatChange(field, from, to, lookups),
-        inline: false,
-      }));
-
-    if (fields.length === 0) {
-      continue;
-    }
-
-    const titleParts = [first.cardName ?? "Unknown Card"];
-    if (first.shortCode) {
-      titleParts.push(`(${first.shortCode})`);
-    }
-
-    const thumbnail = absoluteImageUrl(appBaseUrl, first.frontImageId);
-
-    embeds.push({
-      title: `Updated: ${titleParts.join(" ")}`,
-      url: cardUrl(appBaseUrl, first.cardSlug),
-      color: COLOR_CHANGED,
-      ...(thumbnail ? { thumbnail: { url: thumbnail } } : {}),
-      fields,
-      timestamp: first.createdAt.toISOString(),
-    });
-  }
-
-  return chunkEmbeds(embeds);
-}
-
-// Deep equality for the JSON-shaped values that show up in FieldChange
-// (string, number, boolean, null, or arrays of those). Order matters for
-// arrays — markerSlugs ["a","b"] is treated as different from ["b","a"]
-// since the recording side already sorts them when comparing.
-function valuesEqual(a: unknown, b: unknown): boolean {
-  if (a === b) {
-    return true;
-  }
-  if (Array.isArray(a) && Array.isArray(b)) {
-    if (a.length !== b.length) {
-      return false;
-    }
-    return a.every((value, index) => valuesEqual(value, b[index]));
-  }
-  return false;
-}
-
-function formatValue(value: unknown): string {
-  if (value === null || value === undefined) {
-    return "*empty*";
-  }
-  const str = Array.isArray(value) ? value.map(String).join(", ") : String(value);
-  if (str.length > FIELD_VALUE_MAX) {
-    return `${str.slice(0, FIELD_VALUE_MAX - 3)}...`;
-  }
-  return str;
-}
-
-// Fields whose stored value is an opaque key (UUID FK for setId, slug for rarity).
-// The raw value isn't useful in a Discord embed, so we resolve it via the matching
-// lookup.
-function resolveFieldValue(field: string, value: unknown, lookups: ChangeValueLookups): unknown {
-  if (field === "setId" && typeof value === "string" && lookups.setNamesById) {
-    return lookups.setNamesById.get(value) ?? value;
-  }
-  if (field === "rarity" && typeof value === "string" && lookups.rarityLabelsBySlug) {
-    return lookups.rarityLabelsBySlug.get(value) ?? value;
-  }
-  return value;
-}
-
-function formatChange(
-  field: string,
-  from: unknown,
-  to: unknown,
-  lookups: ChangeValueLookups,
-): string {
-  const fromStr = formatValue(resolveFieldValue(field, from, lookups));
-  const toStr = formatValue(resolveFieldValue(field, to, lookups));
-  // Long values (rules text, flavor text) wrap badly inside an inline arrow,
-  // so split them onto labelled lines for legibility.
-  if (fromStr.length > MULTILINE_THRESHOLD || toStr.length > MULTILINE_THRESHOLD) {
-    return `**Before:** ${fromStr}\n**After:** ${toStr}`;
-  }
-  return `${fromStr} → ${toStr}`;
 }
 
 function chunkEmbeds(embeds: DiscordEmbed[]): DiscordWebhookPayload[] {

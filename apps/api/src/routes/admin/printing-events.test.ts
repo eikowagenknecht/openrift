@@ -25,7 +25,6 @@ const mockRepo = {
 const config = {
   discordWebhooks: {
     newPrintings: "https://discord.example/new",
-    printingChanges: "https://discord.example/changes",
   },
   appBaseUrl: "https://openrift.example",
 };
@@ -46,7 +45,6 @@ const RUN_ID = "019d4999-4219-72f6-b7bb-64004e1b1bff";
 
 const eventRow = {
   id: "019d4999-4219-72f6-b7bb-64004e1b1c01",
-  eventType: "new" as const,
   status: "pending" as const,
   retryCount: 0,
   printingId: "019d4999-4219-72f6-b7bb-64004e1b1c02",
@@ -61,7 +59,6 @@ const eventRow = {
   language: "en",
   languageName: "English",
   frontImageId: "019d4999-4219-72f6-b7bb-64004e1b1c03",
-  changes: null,
   createdAt: now,
 };
 
@@ -93,7 +90,6 @@ describe("GET /printing-events", () => {
     expect(json.events).toHaveLength(1);
     expect(json.events[0].id).toBe(eventRow.id);
     expect(json.events[0].createdAt).toBe(now.toISOString());
-    expect(json.events[0].changes).toBeNull();
     expect(mockRepo.listByStatus).toHaveBeenCalledWith(["pending", "failed"]);
   });
 

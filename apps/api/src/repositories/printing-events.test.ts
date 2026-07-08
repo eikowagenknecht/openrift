@@ -38,35 +38,9 @@ describe("printingEventsRepo", () => {
     expect(db.insertInto).toHaveBeenCalledWith("printingEvents");
     expect(db.chain.values).toHaveBeenCalledWith(
       expect.objectContaining({
-        eventType: "new",
         printingId: "p-1",
         status: "pending",
-        changes: null,
-      }),
-    );
-  });
-
-  it("recordChange skips when changes array is empty", async () => {
-    const db = mockDb();
-    const repo = printingEventsRepo(db as any);
-
-    await repo.recordChange("p-1", []);
-
-    expect(db.insertInto).not.toHaveBeenCalled();
-  });
-
-  it("recordChange inserts a changed event with diff data", async () => {
-    const db = mockDb();
-    const repo = printingEventsRepo(db as any);
-
-    await repo.recordChange("p-1", [{ field: "artist", from: "Old", to: "New" }]);
-
-    expect(db.insertInto).toHaveBeenCalledWith("printingEvents");
-    expect(db.chain.values).toHaveBeenCalledWith(
-      expect.objectContaining({
-        eventType: "changed",
-        printingId: "p-1",
-        changes: JSON.stringify([{ field: "artist", from: "Old", to: "New" }]),
+        retryCount: 0,
       }),
     );
   });
@@ -109,6 +83,16 @@ describe("printingEventsRepo", () => {
     expect(db.chain.where).toHaveBeenCalledWith("pe.status", "in", ["pending", "failed"]);
   });
 
+  it("listPending filters to pending events", async () => {
+    const db = mockDb();
+    const repo = printingEventsRepo(db as any);
+
+    await repo.listPending();
+
+    expect(db.selectFrom).toHaveBeenCalledWith("printingEvents as pe");
+    expect(db.chain.where).toHaveBeenCalledWith("pe.status", "=", "pending");
+  });
+
   it("retryFailed resets status and retry counter for the supplied ids", async () => {
     const db = mockDb();
     const repo = printingEventsRepo(db as any);
@@ -127,63 +111,5 @@ describe("printingEventsRepo", () => {
     await repo.retryFailed([]);
 
     expect(db.updateTable).not.toHaveBeenCalled();
-  });
-
-  it("listByStatus parses the changes column when postgres.js returns it as a JSON string", async () => {
-    const stringRow = {
-      id: "evt-1",
-      eventType: "changed",
-      printingId: "p-1",
-      changes: '[{"field":"artist","from":"Old","to":"New"}]',
-      createdAt: new Date(),
-      status: "pending",
-      retryCount: 0,
-      cardName: null,
-      cardSlug: null,
-      setName: null,
-      shortCode: null,
-      rarity: null,
-      finish: null,
-      finishLabel: null,
-      artist: null,
-      language: null,
-      languageName: null,
-      frontImageId: null,
-    };
-    const db = mockDb();
-    db.chain.execute.mockResolvedValueOnce([stringRow]);
-    const repo = printingEventsRepo(db as any);
-
-    const [event] = await repo.listByStatus(["pending"]);
-
-    expect(event.changes).toEqual([{ field: "artist", from: "Old", to: "New" }]);
-  });
-
-  it("listPending leaves null changes alone for new-printing events", async () => {
-    const nullRow = {
-      id: "evt-1",
-      eventType: "new",
-      printingId: "p-1",
-      changes: null,
-      createdAt: new Date(),
-      cardName: null,
-      cardSlug: null,
-      setName: null,
-      shortCode: null,
-      rarity: null,
-      finish: null,
-      finishLabel: null,
-      artist: null,
-      language: null,
-      languageName: null,
-      frontImageId: null,
-    };
-    const db = mockDb();
-    db.chain.execute.mockResolvedValueOnce([nullRow]);
-    const repo = printingEventsRepo(db as any);
-
-    const [event] = await repo.listPending();
-
-    expect(event.changes).toBeNull();
   });
 });

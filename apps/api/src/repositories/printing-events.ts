@@ -1,33 +1,14 @@
 import type { Kysely } from "kysely";
 
-import type { Database, FieldChange } from "../db/index.js";
+import type { Database } from "../db/index.js";
 import { imageId } from "./query-helpers.js";
 
 const MAX_RETRIES = 5;
 
-// postgres.js under Bun returns jsonb columns as a JSON-encoded string rather
-// than a parsed value (see also user-preferences.ts). Rows that came back from
-// listPending/listByStatus need their `changes` field run through this before
-// callers can iterate it as an array.
-function parseChanges<T extends { changes: unknown }>(
-  row: T,
-): T & { changes: FieldChange[] | null } {
-  const raw = row.changes;
-  if (raw === null || raw === undefined) {
-    return { ...row, changes: null };
-  }
-  if (typeof raw === "string") {
-    return { ...row, changes: JSON.parse(raw) as FieldChange[] };
-  }
-  return { ...row, changes: raw as FieldChange[] };
-}
-
 /** A pending event enriched with printing/card/set/image context. */
 export interface EnrichedPrintingEvent {
   id: string;
-  eventType: "new" | "changed";
   printingId: string;
-  changes: FieldChange[] | null;
   createdAt: Date;
   // Joined context
   cardName: string | null;
@@ -65,28 +46,7 @@ export function printingEventsRepo(db: Kysely<Database>) {
     async recordNew(printingId: string): Promise<void> {
       await db
         .insertInto("printingEvents")
-        .values({ eventType: "new", printingId, changes: null, status: "pending", retryCount: 0 })
-        .execute();
-    },
-
-    /**
-     * Record a "changed" event with before/after field diffs.
-     * Skips if changes array is empty.
-     * @returns Resolves when the event has been inserted.
-     */
-    async recordChange(printingId: string, changes: FieldChange[]): Promise<void> {
-      if (changes.length === 0) {
-        return;
-      }
-      await db
-        .insertInto("printingEvents")
-        .values({
-          eventType: "changed",
-          printingId,
-          changes: JSON.stringify(changes),
-          status: "pending",
-          retryCount: 0,
-        })
+        .values({ printingId, status: "pending", retryCount: 0 })
         .execute();
     },
 
@@ -95,7 +55,7 @@ export function printingEventsRepo(db: Kysely<Database>) {
      * @returns Enriched pending events ordered by creation time.
      */
     async listPending(): Promise<EnrichedPrintingEvent[]> {
-      const rows = await db
+      return await db
         .selectFrom("printingEvents as pe")
         .innerJoin("printings as p", "p.id", "pe.printingId")
         .innerJoin("cards as c", "c.id", "p.cardId")
@@ -112,9 +72,7 @@ export function printingEventsRepo(db: Kysely<Database>) {
         .leftJoin("imageFiles as imgf", "imgf.id", "pi.imageFileId")
         .select([
           "pe.id",
-          "pe.eventType",
           "pe.printingId",
-          "pe.changes",
           "pe.createdAt",
           "c.name as cardName",
           "c.slug as cardSlug",
@@ -132,7 +90,6 @@ export function printingEventsRepo(db: Kysely<Database>) {
         .where("pe.status", "=", "pending")
         .orderBy("pe.createdAt", "asc")
         .execute();
-      return rows.map((row) => parseChanges(row));
     },
 
     /**
@@ -144,7 +101,7 @@ export function printingEventsRepo(db: Kysely<Database>) {
       if (statuses.length === 0) {
         return [];
       }
-      const rows = await db
+      return await db
         .selectFrom("printingEvents as pe")
         .innerJoin("printings as p", "p.id", "pe.printingId")
         .innerJoin("cards as c", "c.id", "p.cardId")
@@ -161,9 +118,7 @@ export function printingEventsRepo(db: Kysely<Database>) {
         .leftJoin("imageFiles as imgf", "imgf.id", "pi.imageFileId")
         .select([
           "pe.id",
-          "pe.eventType",
           "pe.printingId",
-          "pe.changes",
           "pe.createdAt",
           "pe.status",
           "pe.retryCount",
@@ -183,7 +138,6 @@ export function printingEventsRepo(db: Kysely<Database>) {
         .where("pe.status", "in", statuses)
         .orderBy("pe.createdAt", "desc")
         .execute();
-      return rows.map((row) => parseChanges(row));
     },
 
     /**

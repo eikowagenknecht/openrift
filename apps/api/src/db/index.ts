@@ -49,7 +49,6 @@ export type {
   UserPreferencesTable,
   RaritiesTable,
   ReferenceTable,
-  FieldChange,
   JobStatus,
   JobTrigger,
 } from "./types.js";

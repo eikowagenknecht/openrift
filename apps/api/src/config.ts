@@ -78,7 +78,6 @@ export function createConfig(env: Record<string, string | undefined>) {
 
     discordWebhooks: {
       newPrintings: env.DISCORD_WEBHOOK_NEW_PRINTINGS ?? null,
-      printingChanges: env.DISCORD_WEBHOOK_PRINTING_CHANGES ?? null,
       changelog: env.DISCORD_WEBHOOK_CHANGELOG ?? null,
     },
 
