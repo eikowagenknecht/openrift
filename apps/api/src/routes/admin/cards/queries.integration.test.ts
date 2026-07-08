@@ -394,7 +394,7 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
       expect(sorted[2].name).toBe("CSQ Test Card");
     });
 
-    it("returns correct shape (id, slug, name, type, setSlugs)", async () => {
+    it("returns correct shape (id, slug, name, type, types, setSlugs)", async () => {
       const res = await app.fetch(adminReq("GET", "/cards/all-cards"));
       const json = await res.json();
 
@@ -404,8 +404,17 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
       expect(csqCard.slug).toBeTypeOf("string");
       expect(csqCard.name).toBeTypeOf("string");
       expect(csqCard.type).toBeTypeOf("string");
+      // Full ordered type set alongside the primary `type` scalar (ADR-037)
+      expect(csqCard.types).toEqual(["unit"]);
       expect(Array.isArray(csqCard.setSlugs)).toBe(true);
-      expect(Object.keys(csqCard).sort()).toEqual(["id", "name", "setSlugs", "slug", "type"]);
+      expect(Object.keys(csqCard).sort()).toEqual([
+        "id",
+        "name",
+        "setSlugs",
+        "slug",
+        "type",
+        "types",
+      ]);
     });
 
     it("includes the set slugs of accepted printings in setSlugs", async () => {
@@ -564,7 +573,8 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
       expect(json.card).toBeDefined();
       expect(json.card.slug).toBe("CSQ-001");
       expect(json.card.name).toBe("CSQ Test Card");
-      expect(json.card.type).toBe("unit");
+      // The detail card carries the full ordered type set (ADR-037), no scalar
+      expect(json.card.types).toEqual(["unit"]);
       expect(json.card.domains).toEqual(["mind"]);
       expect(json.card.energy).toBe(2);
       expect(json.card.keywords).toEqual(["Flash"]);
