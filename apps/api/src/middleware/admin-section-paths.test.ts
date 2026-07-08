@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { sectionAllowsPath } from "./admin-section-paths";
+import { sectionAllowsRequest } from "./admin-section-paths";
 
-describe("sectionAllowsPath", () => {
+describe("sectionAllowsRequest", () => {
   describe("custom-tags", () => {
     it.each([
       "/api/admin/v1/custom-tags",
@@ -14,7 +14,9 @@ describe("sectionAllowsPath", () => {
       "/api/admin/v1/cards/all-cards",
       "/api/admin/v1/cards/0197a1b2-0000-7000-a000-000000000001/custom-tags",
     ])("allows %s", (path) => {
-      expect(sectionAllowsPath("custom-tags", path)).toBe(true);
+      expect(sectionAllowsRequest("custom-tags", "GET", path)).toBe(true);
+      // custom-tags matching is method-agnostic (its endpoints are all its own prefix)
+      expect(sectionAllowsRequest("custom-tags", "POST", path)).toBe(true);
     });
 
     it.each([
@@ -31,7 +33,7 @@ describe("sectionAllowsPath", () => {
       "/api/admin/v1/feature-flags",
       "/api/admin/v1/site-settings",
     ])("rejects %s", (path) => {
-      expect(sectionAllowsPath("custom-tags", path)).toBe(false);
+      expect(sectionAllowsRequest("custom-tags", "GET", path)).toBe(false);
     });
   });
 
@@ -41,7 +43,7 @@ describe("sectionAllowsPath", () => {
       "/api/admin/v1/products/some-id",
       "/api/admin/v1/products/some-id/contents",
     ])("allows %s", (path) => {
-      expect(sectionAllowsPath("products", path)).toBe(true);
+      expect(sectionAllowsRequest("products", "GET", path)).toBe(true);
     });
 
     it.each([
@@ -52,16 +54,119 @@ describe("sectionAllowsPath", () => {
       "/api/admin/v1/users",
       "/api/admin/v1/cards/all-cards",
     ])("rejects %s", (path) => {
-      expect(sectionAllowsPath("products", path)).toBe(false);
+      expect(sectionAllowsRequest("products", "GET", path)).toBe(false);
     });
 
     it("does not leak products paths to other sections", () => {
-      expect(sectionAllowsPath("custom-tags", "/api/admin/v1/products")).toBe(false);
+      expect(sectionAllowsRequest("custom-tags", "GET", "/api/admin/v1/products")).toBe(false);
+    });
+  });
+
+  describe("card-review", () => {
+    it.each([
+      "/api/admin/v1/cards",
+      "/api/admin/v1/cards/all-cards",
+      "/api/admin/v1/cards/distinct-artists",
+      "/api/admin/v1/cards/some-card-slug",
+      "/api/admin/v1/cards/new/some-name",
+      "/api/admin/v1/provider-settings",
+      "/api/admin/v1/markers",
+      "/api/admin/v1/languages",
+      "/api/admin/v1/distribution-channels",
+      "/api/admin/v1/sets",
+    ])("allows GET %s", (path) => {
+      expect(sectionAllowsRequest("card-review", "GET", path)).toBe(true);
+    });
+
+    it.each([
+      "/api/admin/v1/cards/new/some-name/accept",
+      "/api/admin/v1/cards/some-card-id/accept-field",
+      "/api/admin/v1/cards/printing/some-printing-id/accept-field",
+      "/api/admin/v1/cards/some-card-id/accept-printing",
+      "/api/admin/v1/cards/candidate-printings/some-id/set-image",
+      "/api/admin/v1/cards/printing-images/some-image-id/activate",
+      "/api/admin/v1/cards/printing-images/some-image-id/rotate",
+      "/api/admin/v1/cards/printing-images/some-image-id/rehost",
+      "/api/admin/v1/cards/printing-images/some-image-id/set-needs-trim",
+    ])("allows POST %s", (path) => {
+      expect(sectionAllowsRequest("card-review", "POST", path)).toBe(true);
+    });
+
+    it("allows PATCH on candidate printings but not DELETE (same path)", () => {
+      const path = "/api/admin/v1/cards/candidate-printings/some-id";
+      expect(sectionAllowsRequest("card-review", "PATCH", path)).toBe(true);
+      expect(sectionAllowsRequest("card-review", "DELETE", path)).toBe(false);
+    });
+
+    it("allows GET on enum collections but not their POST create (same path)", () => {
+      for (const path of [
+        "/api/admin/v1/sets",
+        "/api/admin/v1/markers",
+        "/api/admin/v1/languages",
+        "/api/admin/v1/distribution-channels",
+      ]) {
+        expect(sectionAllowsRequest("card-review", "GET", path)).toBe(true);
+        expect(sectionAllowsRequest("card-review", "POST", path)).toBe(false);
+      }
+    });
+
+    it.each([
+      // reads that share the /cards/{slug} shape but stay admin-only
+      "/api/admin/v1/cards/export",
+      "/api/admin/v1/cards/provider-stats",
+      "/api/admin/v1/cards/provider-names",
+    ])("rejects GET %s despite matching the card-detail shape", (path) => {
+      expect(sectionAllowsRequest("card-review", "GET", path)).toBe(false);
+    });
+
+    it.each([
+      // triage stays full-admin
+      ["POST", "/api/admin/v1/cards/some-id/check"],
+      ["POST", "/api/admin/v1/cards/some-id/uncheck"],
+      ["POST", "/api/admin/v1/cards/some-id/check-all"],
+      ["POST", "/api/admin/v1/cards/candidate-printings/some-id/check"],
+      ["POST", "/api/admin/v1/cards/candidate-printings/some-id/uncheck"],
+      ["POST", "/api/admin/v1/cards/candidate-printings/check-all"],
+      ["POST", "/api/admin/v1/ignored-candidates/cards"],
+      ["DELETE", "/api/admin/v1/ignored-candidates/cards"],
+      // accept-favorites shortcuts stay full-admin (anchored accept patterns)
+      ["POST", "/api/admin/v1/cards/new/some-name/accept-favorites"],
+      ["POST", "/api/admin/v1/cards/some-slug/accept-favorite-printings"],
+      // manual creation / structural edits stay full-admin
+      ["POST", "/api/admin/v1/cards/create"],
+      ["POST", "/api/admin/v1/cards/some-id/printings"],
+      ["POST", "/api/admin/v1/cards/some-id/rename"],
+      ["POST", "/api/admin/v1/cards/new/some-name/link"],
+      ["POST", "/api/admin/v1/cards/candidate-printings/some-id/copy"],
+      ["POST", "/api/admin/v1/cards/candidate-printings/link"],
+      ["DELETE", "/api/admin/v1/cards/printing/some-id"],
+      // errata / bans / upload / by-provider stay full-admin
+      ["POST", "/api/admin/v1/cards/some-id/errata"],
+      ["DELETE", "/api/admin/v1/cards/some-id/errata"],
+      ["POST", "/api/admin/v1/cards/errata/upload"],
+      ["POST", "/api/admin/v1/cards/upload"],
+      ["POST", "/api/admin/v1/cards/by-provider/some-provider/check"],
+      ["DELETE", "/api/admin/v1/cards/by-provider/some-provider"],
+      // destructive / external image actions stay full-admin
+      ["DELETE", "/api/admin/v1/cards/printing-images/some-id"],
+      ["POST", "/api/admin/v1/cards/printing-images/some-id/unrehost"],
+      ["POST", "/api/admin/v1/cards/printing/some-id/add-image-url"],
+      ["POST", "/api/admin/v1/cards/printing/some-id/upload-image"],
+      // provider-settings writes stay full-admin (list GET is allowed)
+      ["PATCH", "/api/admin/v1/provider-settings/some-provider"],
+      ["PUT", "/api/admin/v1/provider-settings/reorder"],
+      // marketplace and other admin surfaces stay closed
+      ["GET", "/api/admin/v1/unified-mappings"],
+      ["GET", "/api/admin/v1/custom-tags"],
+      ["GET", "/api/admin/v1/users"],
+      ["GET", "/api/admin/v1/me"],
+    ])("rejects %s %s", (method, path) => {
+      expect(sectionAllowsRequest("card-review", method, path)).toBe(false);
     });
   });
 
   it("fails closed for unknown section slugs", () => {
-    expect(sectionAllowsPath("not-a-section", "/api/admin/v1/custom-tags")).toBe(false);
-    expect(sectionAllowsPath("", "/api/admin/v1/custom-tags")).toBe(false);
+    expect(sectionAllowsRequest("not-a-section", "GET", "/api/admin/v1/custom-tags")).toBe(false);
+    expect(sectionAllowsRequest("", "GET", "/api/admin/v1/custom-tags")).toBe(false);
   });
 });

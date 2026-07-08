@@ -651,6 +651,65 @@ export function candidateCardsRepo(db: Kysely<Database>) {
       return rows.map((row) => ({ ...row, extraData: parseJsonb(row.extraData) }));
     },
 
+    // ── card-review provider scoping lookups ─────────────────────────────────
+
+    /** @returns Provider of each given candidate printing (via its candidate card). */
+    providersForCandidatePrintings(ids: string[]): Promise<{ id: string; provider: string }[]> {
+      if (ids.length === 0) {
+        return Promise.resolve([]);
+      }
+      return db
+        .selectFrom("candidatePrintings")
+        .innerJoin("candidateCards", "candidateCards.id", "candidatePrintings.candidateCardId")
+        .select(["candidatePrintings.id", "candidateCards.provider"])
+        .where("candidatePrintings.id", "in", ids)
+        .execute();
+    },
+
+    /**
+     * @returns Distinct providers of visible (non-ignored, non-hidden)
+     * candidate cards with the given normalized name.
+     */
+    async candidateProvidersForNormName(normName: string): Promise<string[]> {
+      const rows = await db
+        .selectFrom("candidateCards")
+        .select("provider")
+        .distinct()
+        .where("candidateCards.normName", "=", normName)
+        .where(notIgnoredCard("candidateCards"))
+        .where(notHiddenSource("candidateCards"))
+        .execute();
+      return rows.map((r) => r.provider);
+    },
+
+    /**
+     * @returns Distinct providers of candidate data attached to a card:
+     * visible candidate cards matched via the card's name aliases, plus
+     * candidate printings linked to the card's accepted printings.
+     */
+    async candidateProvidersForCard(cardId: string): Promise<string[]> {
+      const [byAlias, byPrinting] = await Promise.all([
+        db
+          .selectFrom("candidateCards")
+          .innerJoin("cardNameAliases", "cardNameAliases.normName", "candidateCards.normName")
+          .select("candidateCards.provider")
+          .distinct()
+          .where("cardNameAliases.cardId", "=", cardId)
+          .where(notIgnoredCard("candidateCards"))
+          .where(notHiddenSource("candidateCards"))
+          .execute(),
+        db
+          .selectFrom("candidatePrintings")
+          .innerJoin("candidateCards", "candidateCards.id", "candidatePrintings.candidateCardId")
+          .innerJoin("printings", "printings.id", "candidatePrintings.printingId")
+          .select("candidateCards.provider")
+          .distinct()
+          .where("printings.cardId", "=", cardId)
+          .execute(),
+      ]);
+      return [...new Set([...byAlias, ...byPrinting].map((r) => r.provider))];
+    },
+
     // ── GET /export ───────────────────────────────────────────────────────
 
     /** @returns All cards with all columns, ordered by name. */

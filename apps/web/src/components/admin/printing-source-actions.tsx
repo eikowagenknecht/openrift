@@ -23,10 +23,10 @@ interface PrintingSourceActionsProps {
   onAcceptAll?: () => void;
   /** Remove manual assignment */
   onUnassign?: () => void;
-  /** Permanently ignore this source */
-  onIgnore: () => void;
-  /** Delete this source */
-  onDelete: () => void;
+  /** Permanently ignore this source (omitted for card-review grant holders — triage is full-admin) */
+  onIgnore?: () => void;
+  /** Delete this source (omitted for card-review grant holders) */
+  onDelete?: () => void;
 }
 
 export function PrintingSourceActions({
@@ -82,14 +82,18 @@ export function PrintingSourceActions({
           Unassign
         </DropdownMenuItem>
       )}
-      <DropdownMenuItem onClick={onIgnore}>
-        <BanIcon className="mr-2 size-3.5" />
-        Ignore permanently
-      </DropdownMenuItem>
-      <DropdownMenuItem onClick={onDelete}>
-        <Trash2Icon className="mr-2 size-3.5" />
-        Delete
-      </DropdownMenuItem>
+      {onIgnore && (
+        <DropdownMenuItem onClick={onIgnore}>
+          <BanIcon className="mr-2 size-3.5" />
+          Ignore permanently
+        </DropdownMenuItem>
+      )}
+      {onDelete && (
+        <DropdownMenuItem onClick={onDelete}>
+          <Trash2Icon className="mr-2 size-3.5" />
+          Delete
+        </DropdownMenuItem>
+      )}
     </>
   );
 }

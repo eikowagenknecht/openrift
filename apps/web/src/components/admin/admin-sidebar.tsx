@@ -45,7 +45,7 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { useAdminAccess } from "@/hooks/use-admin";
-import { adminSectionFromPathname } from "@/lib/admin-sections";
+import { adminSectionForPathname } from "@/lib/admin-sections";
 
 const catalogPages = [
   { to: "/admin/sets" as const, icon: DatabaseIcon, title: "Sets" },
@@ -120,7 +120,7 @@ export function AdminSidebar() {
       pages: isAdmin
         ? group.pages
         : group.pages.filter((page) =>
-            sections.some((section) => section === adminSectionFromPathname(page.to)),
+            sections.some((section) => section === adminSectionForPathname(page.to)),
           ),
     }))
     .filter((group) => group.pages.length > 0);

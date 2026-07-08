@@ -111,7 +111,7 @@ const OVERSCAN = 20;
 // Component
 // ---------------------------------------------------------------------------
 
-export function CandidateCardsTable({ data }: { data: Row[] }) {
+export function CandidateCardsTable({ data, isAdmin }: { data: Row[]; isAdmin: boolean }) {
   const linkCard = useLinkCard();
   const acceptFavorite = useAcceptFavoriteNewCard();
   const { data: allCards } = useAllCards();
@@ -217,7 +217,7 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
     [globalFilter, navigate],
   );
 
-  const columns = makeColumns({ linkCard, acceptFavorite, allCards });
+  const columns = makeColumns({ linkCard, acceptFavorite, allCards, isAdmin });
 
   const table = useReactTable({
     data: filteredData,
@@ -281,7 +281,7 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
           </Button>
         )}
 
-        {acceptableCount > 0 && (
+        {isAdmin && acceptableCount > 0 && (
           <Button
             variant="outline"
             disabled={acceptAll.isPending}

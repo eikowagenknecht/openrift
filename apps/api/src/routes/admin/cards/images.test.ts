@@ -82,6 +82,9 @@ const mockIo = { fetch: vi.fn() };
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
+  // requireAdmin isn't mounted here; emulate the access it would resolve for
+  // a full admin (the setImage handler reads it for card-review provider scoping).
+  c.set("adminAccess", { isAdmin: true, sections: [] });
   c.set("io", mockIo as never);
   c.set("transact", mockTransact as never);
   c.set("repos", { printingImages: mockPrintingImages } as never);

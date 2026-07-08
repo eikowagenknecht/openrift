@@ -273,6 +273,7 @@ const COLUMN_WIDTHS: Record<string, string> = {
 function buildColumns(
   coverageBySlug: Map<string, CardCoverage>,
   setSlug: string | undefined,
+  isAdmin: boolean,
 ): ColumnDef<Row>[] {
   return [
     {
@@ -309,16 +310,24 @@ function buildColumns(
         return <span className="text-muted-foreground">{codes.join(", ")}</span>;
       },
     },
-    {
-      id: "marketplaces",
-      accessorFn: (r) => coverageSortValue(coverageBySlug.get(r.cardSlug ?? "")),
-      header: ({ column }) => <SortableHeader column={column} label="Marketplaces" />,
-      enableGlobalFilter: false,
-      sortingFn: "basic",
-      cell: ({ row }) => (
-        <MarketplaceCoverageBadges coverage={coverageBySlug.get(row.original.cardSlug ?? "")} />
-      ),
-    },
+    // Marketplace data is admin-only (the endpoint 403s for card-review
+    // grant holders), so the column disappears for them entirely.
+    ...(isAdmin
+      ? [
+          {
+            id: "marketplaces",
+            accessorFn: (r) => coverageSortValue(coverageBySlug.get(r.cardSlug ?? "")),
+            header: ({ column }) => <SortableHeader column={column} label="Marketplaces" />,
+            enableGlobalFilter: false,
+            sortingFn: "basic",
+            cell: ({ row }) => (
+              <MarketplaceCoverageBadges
+                coverage={coverageBySlug.get(row.original.cardSlug ?? "")}
+              />
+            ),
+          } satisfies ColumnDef<Row>,
+        ]
+      : []),
     {
       id: "candidatePrintings",
       accessorFn: (r) => r.stagingShortCodes.length,
@@ -346,7 +355,7 @@ function buildColumns(
                 );
               })}
             </span>
-            {row.original.cardSlug && favoriteCount > 0 && (
+            {isAdmin && row.original.cardSlug && favoriteCount > 0 && (
               <AcceptFavoriteButton cardSlug={row.original.cardSlug} count={favoriteCount} />
             )}
           </span>
@@ -371,10 +380,12 @@ export function AcceptedCardsTable({
   data,
   coverageBySlug,
   assignBucketsBySlug,
+  isAdmin,
 }: {
   data: Row[];
   coverageBySlug: Map<string, CardCoverage>;
   assignBucketsBySlug: Map<string, PriceAssignBucket[]>;
+  isAdmin: boolean;
 }) {
   const queryClient = useQueryClient();
   const [acceptAllProgress, setAcceptAllProgress] = useState<{
@@ -393,7 +404,7 @@ export function AcceptedCardsTable({
     }),
   });
 
-  const columns = buildColumns(coverageBySlug, setSlug);
+  const columns = buildColumns(coverageBySlug, setSlug, isAdmin);
 
   const uncheckedCount = data.filter(
     (r) => r.uncheckedCardCount + r.uncheckedPrintingCount > 0,
@@ -622,7 +633,7 @@ export function AcceptedCardsTable({
           </Button>
         )}
 
-        {pricesToAssignTotal && (
+        {isAdmin && pricesToAssignTotal && (
           <>
             <Button
               variant={activeStatus === "prices-to-assign" ? "default" : "outline"}
@@ -649,14 +660,14 @@ export function AcceptedCardsTable({
 
         <p className="text-muted-foreground">
           {rows.length} of {data.length} cards
-          {acceptableCount > 0 && (
+          {isAdmin && acceptableCount > 0 && (
             <span className="ml-2 text-orange-600">
               ({acceptableCount} with pending ★ printings)
             </span>
           )}
         </p>
 
-        {acceptableCount > 0 && (
+        {isAdmin && acceptableCount > 0 && (
           <Button
             variant="outline"
             disabled={acceptAll.isPending}

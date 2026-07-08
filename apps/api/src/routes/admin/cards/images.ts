@@ -10,6 +10,10 @@ import { AppError } from "../../../errors.js";
 import { requireAuthedUser } from "../../../orpc/base.js";
 import type { ApiContext } from "../../../orpc/context.js";
 import {
+  assertCandidatePrintingsInScope,
+  reviewableProviderScope,
+} from "../../../services/card-review-scope.js";
+import {
   CARD_MEDIA_DIR,
   deleteRehostFiles,
   downloadImage,
@@ -30,8 +34,11 @@ const os = implement(adminCardImagesContract).$context<ApiContext>().use(require
  */
 export const adminCardImagesRouter = {
   setImage: os.setImage.handler(async ({ input, context }): Promise<void> => {
-    const { printingImages } = context.repos;
+    const { printingImages, candidateCards, providerSettings } = context.repos;
     const { id, mode } = input;
+
+    const scope = await reviewableProviderScope(context.adminAccess, providerSettings);
+    await assertCandidatePrintingsInScope(candidateCards, [id], scope);
 
     const ps = await printingImages.getCandidatePrintingById(id);
     assertFound(ps, "Candidate printing not found");

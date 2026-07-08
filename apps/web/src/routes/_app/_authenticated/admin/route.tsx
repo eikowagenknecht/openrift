@@ -3,7 +3,7 @@ import { createContext } from "react";
 
 import { RouteErrorFallback } from "@/components/error-message";
 import { adminAccessQueryOptions } from "@/hooks/use-admin";
-import { ADMIN_SECTION_ROUTES, adminSectionFromPathname } from "@/lib/admin-sections";
+import { ADMIN_SECTION_ROUTES, adminSectionForPathname } from "@/lib/admin-sections";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 
@@ -27,7 +27,7 @@ export const Route = createFileRoute("/_app/_authenticated/admin")({
     if (firstGranted === undefined) {
       throw redirect({ to: "/cards" });
     }
-    const section = adminSectionFromPathname(location.pathname);
+    const section = adminSectionForPathname(location.pathname);
     if (section === null || !access.sections.some((s) => s === section)) {
       throw redirect({ to: ADMIN_SECTION_ROUTES[firstGranted] });
     }

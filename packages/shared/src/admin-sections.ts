@@ -5,16 +5,17 @@
  * page and its API surface.
  *
  * Adding a section here is not enough on its own — the API must also map the
- * slug to its endpoint paths (`sectionAllowsPath` in
+ * slug to its endpoint requests (`sectionAllowsRequest` in
  * `apps/api/src/middleware/admin-section-paths.ts`) and the web app to its
  * route (`ADMIN_SECTION_ROUTES` in `apps/web/src/lib/admin-sections.ts`).
  * Both sides fail closed for unmapped slugs.
  */
-export const ADMIN_SECTION_SLUGS = ["custom-tags", "products"] as const;
+export const ADMIN_SECTION_SLUGS = ["card-review", "custom-tags", "products"] as const;
 
 export type AdminSectionSlug = (typeof ADMIN_SECTION_SLUGS)[number];
 
 export const ADMIN_SECTION_LABELS: Record<AdminSectionSlug, string> = {
+  "card-review": "Card Review",
   "custom-tags": "Custom Tags",
   products: "Products",
 };

@@ -54,6 +54,7 @@ import {
 import { ExpandToggle } from "@/components/ui/expand-toggle";
 import { Kbd } from "@/components/ui/kbd";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAdminAccess } from "@/hooks/use-admin";
 import {
   useAcceptCardField,
   useAcceptPrintingField,
@@ -91,6 +92,8 @@ interface ExistingCardColumnActionsProps {
     source?: "manual" | "provider";
   }) => void;
   onIgnoreSource: (input: { provider: string; externalId: string }) => void;
+  /** Ignoring is triage and stays full-admin; card-review grant holders only accept. */
+  isAdmin: boolean;
 }
 
 function ExistingCardColumnActions({
@@ -99,6 +102,7 @@ function ExistingCardColumnActions({
   candidateCardFields,
   onAcceptField,
   onIgnoreSource,
+  isAdmin,
 }: ExistingCardColumnActionsProps) {
   if (!row) {
     return null;
@@ -123,17 +127,19 @@ function ExistingCardColumnActions({
         <CopyCheckIcon className="mr-2" />
         Accept all fields
       </DropdownMenuItem>
-      <DropdownMenuItem
-        onClick={() =>
-          onIgnoreSource({
-            provider: cardRow.provider,
-            externalId: row.externalId,
-          })
-        }
-      >
-        <BanIcon className="mr-2" />
-        Ignore permanently
-      </DropdownMenuItem>
+      {isAdmin && (
+        <DropdownMenuItem
+          onClick={() =>
+            onIgnoreSource({
+              provider: cardRow.provider,
+              externalId: row.externalId,
+            })
+          }
+        >
+          <BanIcon className="mr-2" />
+          Ignore permanently
+        </DropdownMenuItem>
+      )}
     </>
   );
 }
@@ -194,6 +200,11 @@ export function ExistingCardDetailPage({
 }) {
   const navigate = useNavigate();
   const cardId = identifier;
+  const { data: access } = useAdminAccess();
+  // card-review grant holders keep the per-field accept flow and image
+  // finishing; triage (check/ignore), printing create/delete, rename, bans,
+  // errata, and marketplace stay full-admin.
+  const isAdmin = access?.isAdmin === true;
 
   // Narrow invalidation so mutations only refetch this card's detail + the
   // admin card list — not every query under `admin.cards`.
@@ -270,7 +281,7 @@ export function ExistingCardDetailPage({
   // oxlint-disable-next-line no-empty-function -- default no-op until the effect below installs the real handler
   const prevNextRef = useRef<(dir: "prev" | "next") => void>(() => {});
   useHotkey("Mod+Shift+Enter", () => checkAllAndNextRef.current(), {
-    enabled: !isCheckingAll,
+    enabled: !isCheckingAll && isAdmin,
   });
   useHotkey("Mod+ArrowLeft", () => prevNextRef.current("prev"));
   useHotkey("Mod+ArrowRight", () => prevNextRef.current("next"));
@@ -558,84 +569,90 @@ export function ExistingCardDetailPage({
             </Button>
           </div>
           <Heading level={2}>{canonicalName}</Heading>
-          <Button
-            variant={hasUnchecked ? "default" : "outline"}
-            className="gap-1.5"
-            disabled={isCheckingAll}
-            onClick={() => void handleCheckAllAndNext()}
-          >
-            {isCheckingAll ? <LoaderIcon className="animate-spin" /> : <CheckCheckIcon />}
-            {isCheckingAll ? "Checking…" : "Check all & next"}
-            <Kbd className="bg-background/20 pointer-events-none ml-1 leading-none text-inherit opacity-60">
-              Ctrl ⇧ ↵
-            </Kbd>
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger render={<Button variant="ghost" size="icon" />}>
-              <EllipsisVerticalIcon />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                render={
-                  <Link
-                    to="/admin/cards/$cardSlug/printings/create"
-                    params={{ cardSlug: cardId }}
-                  />
-                }
-              >
-                <PlusIcon className="mr-2" />
-                Create printing
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => {
-                  if (!cardFieldsExpanded) {
-                    toggleSection("cardFields");
+          {isAdmin && (
+            <Button
+              variant={hasUnchecked ? "default" : "outline"}
+              className="gap-1.5"
+              disabled={isCheckingAll}
+              onClick={() => void handleCheckAllAndNext()}
+            >
+              {isCheckingAll ? <LoaderIcon className="animate-spin" /> : <CheckCheckIcon />}
+              {isCheckingAll ? "Checking…" : "Check all & next"}
+              <Kbd className="bg-background/20 pointer-events-none ml-1 leading-none text-inherit opacity-60">
+                Ctrl ⇧ ↵
+              </Kbd>
+            </Button>
+          )}
+          {isAdmin && (
+            <DropdownMenu>
+              <DropdownMenuTrigger render={<Button variant="ghost" size="icon" />}>
+                <EllipsisVerticalIcon />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  render={
+                    <Link
+                      to="/admin/cards/$cardSlug/printings/create"
+                      params={{ cardSlug: cardId }}
+                    />
                   }
-                  setShowBanForm(true);
-                }}
-              >
-                <BanIcon className="mr-2" />
-                Add ban
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => {
-                  if (!cardFieldsExpanded) {
-                    toggleSection("cardFields");
-                  }
-                  setShowErrataForm(true);
-                }}
-              >
-                <FileWarningIcon className="mr-2" />
-                {card.errata ? "Edit errata" : "Add errata"}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                >
+                  <PlusIcon className="mr-2" />
+                  Create printing
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    if (!cardFieldsExpanded) {
+                      toggleSection("cardFields");
+                    }
+                    setShowBanForm(true);
+                  }}
+                >
+                  <BanIcon className="mr-2" />
+                  Add ban
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    if (!cardFieldsExpanded) {
+                      toggleSection("cardFields");
+                    }
+                    setShowErrataForm(true);
+                  }}
+                >
+                  <FileWarningIcon className="mr-2" />
+                  {card.errata ? "Edit errata" : "Add errata"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
         <p className="text-muted-foreground flex items-center gap-2 text-sm">
           <span className={isCardIdStale ? "text-orange-600 line-through" : ""}>{cardId}</span>
           {isCardIdStale && (
             <>
               <span>&rarr; {expectedCardId}</span>
-              <Button
-                variant="ghost"
-                disabled={renameCard.isPending}
-                onClick={() =>
-                  renameCard.mutate(
-                    { cardId: card.id, newId: expectedCardId },
-                    {
-                      onSuccess: () => {
-                        void navigate({
-                          to: "/admin/cards/$cardSlug",
-                          params: { cardSlug: expectedCardId },
-                        });
+              {isAdmin && (
+                <Button
+                  variant="ghost"
+                  disabled={renameCard.isPending}
+                  onClick={() =>
+                    renameCard.mutate(
+                      { cardId: card.id, newId: expectedCardId },
+                      {
+                        onSuccess: () => {
+                          void navigate({
+                            to: "/admin/cards/$cardSlug",
+                            params: { cardSlug: expectedCardId },
+                          });
+                        },
                       },
-                    },
-                  )
-                }
-              >
-                <RefreshCwIcon className="mr-1" />
-                Regenerate
-              </Button>
+                    )
+                  }
+                >
+                  <RefreshCwIcon className="mr-1" />
+                  Regenerate
+                </Button>
+              )}
             </>
           )}
           <span>
@@ -654,7 +671,7 @@ export function ExistingCardDetailPage({
           >
             <Heading level={3}>Card Fields</Heading>
           </ExpandToggle>
-          {sources.some((s) => !s.checkedAt) && (
+          {isAdmin && sources.some((s) => !s.checkedAt) && (
             <Button
               variant="outline"
               disabled={checkAllCardSources.isPending}
@@ -684,43 +701,54 @@ export function ExistingCardDetailPage({
                 }
                 acceptCardField.mutate({ cardId: card.id, field, value });
               }}
-              onCheck={(candidateId) => checkCandidateCard.mutate(candidateId)}
-              onUncheck={(candidateId) => uncheckCandidateCard.mutate(candidateId)}
+              onCheck={
+                isAdmin ? (candidateId) => checkCandidateCard.mutate(candidateId) : undefined
+              }
+              onUncheck={
+                isAdmin ? (candidateId) => uncheckCandidateCard.mutate(candidateId) : undefined
+              }
               columnActions={
                 <ExistingCardColumnActions
                   cardId={card.id}
                   candidateCardFields={candidateCardFields}
                   onAcceptField={(input) => acceptCardField.mutate(input)}
                   onIgnoreSource={(input) => ignoreCardSource.mutate(input)}
+                  isAdmin={isAdmin}
                 />
               }
             />
-            <CardBanManager
-              cardId={card.id}
-              showForm={showBanForm}
-              onShowFormChange={setShowBanForm}
-            />
-            <CardErrataManager
-              cardId={card.id}
-              errata={card.errata}
-              showForm={showErrataForm}
-              onShowFormChange={setShowErrataForm}
-            />
+            {isAdmin && (
+              <CardBanManager
+                cardId={card.id}
+                showForm={showBanForm}
+                onShowFormChange={setShowBanForm}
+              />
+            )}
+            {isAdmin && (
+              <CardErrataManager
+                cardId={card.id}
+                errata={card.errata}
+                showForm={showErrataForm}
+                onShowFormChange={setShowErrataForm}
+              />
+            )}
           </>
         )}
       </section>
 
-      {/* ── Marketplace ─────────────────────────────────────────────────────── */}
-      <section className="space-y-3">
-        <ExpandToggle
-          expanded={marketplaceExpanded}
-          className="hover:opacity-80"
-          onClick={() => toggleSection("marketplace")}
-        >
-          <Heading level={3}>Marketplace</Heading>
-        </ExpandToggle>
-        {marketplaceExpanded && <AdminCardMarketplaceSection cardId={identifier} />}
-      </section>
+      {/* ── Marketplace (admin-only: the endpoint 403s for grant holders) ───── */}
+      {isAdmin && (
+        <section className="space-y-3">
+          <ExpandToggle
+            expanded={marketplaceExpanded}
+            className="hover:opacity-80"
+            onClick={() => toggleSection("marketplace")}
+          >
+            <Heading level={3}>Marketplace</Heading>
+          </ExpandToggle>
+          {marketplaceExpanded && <AdminCardMarketplaceSection cardId={identifier} />}
+        </section>
+      )}
 
       {/* ── Printings ──────────────────────────────────────────────────────── */}
       <section className="space-y-3">
@@ -880,7 +908,7 @@ export function ExistingCardDetailPage({
                       mappings={marketplaceMappings}
                     />
                   </span>
-                  {allSources.some((ps) => !ps.checkedAt) && (
+                  {isAdmin && allSources.some((ps) => !ps.checkedAt) && (
                     <Button
                       variant="outline"
                       disabled={checkAllCandidatePrintings.isPending}
@@ -893,49 +921,51 @@ export function ExistingCardDetailPage({
                       Check {allSources.filter((ps) => !ps.checkedAt).length} unchecked
                     </Button>
                   )}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="ml-auto"
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      }
-                    >
-                      <EllipsisVerticalIcon />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
+                  {isAdmin && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
                         render={
-                          <Link
-                            to="/admin/cards/$cardSlug/printings/create"
-                            params={{ cardSlug: cardId }}
-                            search={{ duplicateFrom: printingId }}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="ml-auto"
+                            onClick={(e) => e.stopPropagation()}
                           />
                         }
                       >
-                        <CopyIcon className="mr-2" />
-                        Duplicate printing
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        disabled={deletePrintingMutation.isPending}
-                        onClick={() => {
-                          if (
-                            globalThis.confirm(
-                              `Delete printing "${printingLabel}"? This cannot be undone.`,
-                            )
-                          ) {
-                            deletePrintingMutation.mutate(printingId);
+                        <EllipsisVerticalIcon />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          render={
+                            <Link
+                              to="/admin/cards/$cardSlug/printings/create"
+                              params={{ cardSlug: cardId }}
+                              search={{ duplicateFrom: printingId }}
+                            />
                           }
-                        }}
-                      >
-                        <Trash2Icon className="text-destructive mr-2" />
-                        <span className="text-destructive">Delete</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                        >
+                          <CopyIcon className="mr-2" />
+                          Duplicate printing
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          disabled={deletePrintingMutation.isPending}
+                          onClick={() => {
+                            if (
+                              globalThis.confirm(
+                                `Delete printing "${printingLabel}"? This cannot be undone.`,
+                              )
+                            ) {
+                              deletePrintingMutation.mutate(printingId);
+                            }
+                          }}
+                        >
+                          <Trash2Icon className="text-destructive mr-2" />
+                          <span className="text-destructive">Delete</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </div>
                 {isExpanded && (
                   <div className="flex gap-3 border-t p-3">
@@ -946,6 +976,7 @@ export function ExistingCardDetailPage({
                       providerSettings={providerSettings}
                       sourceImages={sourceImagesForSwitcher}
                       invalidates={invalidateScope}
+                      isAdmin={isAdmin}
                     />
                     <div className="min-w-0 flex-1 space-y-3">
                       <CandidateSpreadsheet
@@ -977,22 +1008,24 @@ export function ExistingCardDetailPage({
                           }
                           acceptPrintingField.mutate({ printingId, field, value });
                         }}
-                        onCheck={(id) => checkPrintingSource.mutate(id)}
-                        onUncheck={(id) => uncheckPrintingSource.mutate(id)}
+                        onCheck={isAdmin ? (id) => checkPrintingSource.mutate(id) : undefined}
+                        onUncheck={isAdmin ? (id) => uncheckPrintingSource.mutate(id) : undefined}
                         columnActions={
-                          <ExistingPrintingColumnActions
-                            targets={printings
-                              .filter((p) => p.id !== printingId)
-                              .map((p) => ({
-                                id: p.id,
-                                label: p.expectedPrintingId,
-                              }))}
-                            sourceLabels={sourceLabels}
-                            onAssign={(input) => linkPrintingSources.mutate(input)}
-                            onCopy={(input) => copyPrintingSource.mutate(input)}
-                            onIgnore={(input) => ignorePrintingSource.mutate(input)}
-                            onDelete={(id) => deletePrintingSource.mutate(id)}
-                          />
+                          isAdmin ? (
+                            <ExistingPrintingColumnActions
+                              targets={printings
+                                .filter((p) => p.id !== printingId)
+                                .map((p) => ({
+                                  id: p.id,
+                                  label: p.expectedPrintingId,
+                                }))}
+                              sourceLabels={sourceLabels}
+                              onAssign={(input) => linkPrintingSources.mutate(input)}
+                              onCopy={(input) => copyPrintingSource.mutate(input)}
+                              onIgnore={(input) => ignorePrintingSource.mutate(input)}
+                              onDelete={(id) => deletePrintingSource.mutate(id)}
+                            />
+                          ) : undefined
                         }
                       />
                     </div>
@@ -1003,7 +1036,8 @@ export function ExistingCardDetailPage({
           })}
 
         {/* Bulk assign all matchable ambiguous groups */}
-        {printingsExpanded &&
+        {isAdmin &&
+          printingsExpanded &&
           ambiguousGroups.length > 0 &&
           (() => {
             const matchable = ambiguousGroups.filter((g) =>
@@ -1091,6 +1125,7 @@ export function ExistingCardDetailPage({
               isLinking={linkPrintingSources.isPending}
               printingFields={printingSourceFields}
               invalidates={invalidateScope}
+              isAdmin={isAdmin}
             />
           ))}
       </section>

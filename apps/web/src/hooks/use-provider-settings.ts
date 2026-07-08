@@ -45,8 +45,13 @@ export function useReorderProviderSettings() {
 
 const updateProviderSettingFn = createServerFn({ method: "POST" })
   .validator(
-    (input: { provider: string; sortOrder?: number; isHidden?: boolean; isFavorite?: boolean }) =>
-      input,
+    (input: {
+      provider: string;
+      sortOrder?: number;
+      isHidden?: boolean;
+      isFavorite?: boolean;
+      helperReviewable?: boolean;
+    }) => input,
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
@@ -60,6 +65,7 @@ export function useUpdateProviderSetting() {
       sortOrder?: number;
       isHidden?: boolean;
       isFavorite?: boolean;
+      helperReviewable?: boolean;
     }) => {
       await updateProviderSettingFn({ data: vars });
     },

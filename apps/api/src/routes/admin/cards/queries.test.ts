@@ -59,6 +59,9 @@ const USER_ID = "a0000000-0001-4000-a000-000000000001";
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
+  // requireAdmin isn't mounted here; emulate the access it would resolve for
+  // a full admin (handlers read it for card-review provider scoping).
+  c.set("adminAccess", { isAdmin: true, sections: [] });
   c.set("repos", {
     candidateCards: mockCandidateCards,
     providerSettings: mockProviderSettings,
@@ -206,7 +209,11 @@ describe("GET /api/admin/v1/cards (candidate list)", () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json).toEqual(candidates);
-    expect(mockBuildCandidateCardList).toHaveBeenCalledWith(mockCandidateCards, expect.any(Set));
+    expect(mockBuildCandidateCardList).toHaveBeenCalledWith(
+      mockCandidateCards,
+      expect.any(Set),
+      null,
+    );
   });
 });
 
@@ -291,6 +298,7 @@ describe("GET /api/admin/v1/cards/:cardSlug", () => {
       mockCandidateCards,
       mockMarketplaceMapping,
       "fireball",
+      null,
     );
   });
 
@@ -304,6 +312,7 @@ describe("GET /api/admin/v1/cards/:cardSlug", () => {
       mockCandidateCards,
       mockMarketplaceMapping,
       "abandon",
+      null,
     );
   });
 });
@@ -329,7 +338,7 @@ describe("GET /api/admin/v1/cards/new/:name", () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.displayName).toBe("New Card");
-    expect(mockBuildUnmatchedDetail).toHaveBeenCalledWith(mockCandidateCards, "newcard");
+    expect(mockBuildUnmatchedDetail).toHaveBeenCalledWith(mockCandidateCards, "newcard", null);
   });
 
   it("decodes URI-encoded name parameter", async () => {
@@ -338,7 +347,7 @@ describe("GET /api/admin/v1/cards/new/:name", () => {
 
     await app.request("/api/admin/v1/cards/new/card%20name");
 
-    expect(mockBuildUnmatchedDetail).toHaveBeenCalledWith(mockCandidateCards, "card name");
+    expect(mockBuildUnmatchedDetail).toHaveBeenCalledWith(mockCandidateCards, "card name", null);
   });
 
   it("handles special characters in name", async () => {
@@ -347,6 +356,6 @@ describe("GET /api/admin/v1/cards/new/:name", () => {
 
     await app.request("/api/admin/v1/cards/new/ki%27ryn");
 
-    expect(mockBuildUnmatchedDetail).toHaveBeenCalledWith(mockCandidateCards, "ki'ryn");
+    expect(mockBuildUnmatchedDetail).toHaveBeenCalledWith(mockCandidateCards, "ki'ryn", null);
   });
 });

@@ -2110,3 +2110,185 @@ describe("buildUnmatchedDetail", () => {
     expect(result).not.toHaveProperty("printingImages");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Provider scoping (card-review grants: allowedProviders)
+// ---------------------------------------------------------------------------
+
+describe("provider scoping (allowedProviders)", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  /** @returns A minimal candidate card row for detail queries. */
+  function candidate(id: string, provider: string, name = "X") {
+    return {
+      id,
+      provider,
+      name,
+      type: null,
+      superTypes: [],
+      domains: [],
+      might: null,
+      energy: null,
+      power: null,
+      mightBonus: null,
+      rulesText: null,
+      effectText: null,
+      tags: [],
+      shortCode: null,
+      externalId: `ext-${id}`,
+      extraData: null,
+      checkedAt: null,
+    };
+  }
+
+  it("buildCandidateCardList filters candidates to allowed providers", async () => {
+    const repo = createMockRepo({
+      listCardsForSourceList: vi.fn().mockResolvedValue([]),
+      listCandidateCardsForSourceList: vi.fn().mockResolvedValue([
+        { id: "cc-1", normName: "alpha", name: "Alpha", provider: "gallery", checkedAt: null },
+        { id: "cc-2", normName: "alpha", name: "Alpha", provider: "ocr", checkedAt: null },
+      ]),
+    });
+
+    const result = await buildCandidateCardList(repo, new Set(), new Set(["gallery"]));
+
+    expect(result).toHaveLength(1);
+    expect(result[0].candidateCount).toBe(1);
+  });
+
+  it("buildCandidateCardList drops matched cards with no allowed candidates", async () => {
+    const repo = createMockRepo({
+      listCardsForSourceList: vi.fn().mockResolvedValue([
+        { id: "card-1", slug: "alpha", name: "Alpha", normName: "alpha" },
+        { id: "card-2", slug: "beta", name: "Beta", normName: "beta" },
+      ]),
+      listCandidateCardsForSourceList: vi.fn().mockResolvedValue([
+        { id: "cc-1", normName: "alpha", name: "Alpha", provider: "gallery", checkedAt: null },
+        { id: "cc-2", normName: "beta", name: "Beta", provider: "ocr", checkedAt: null },
+      ]),
+    });
+
+    const result = await buildCandidateCardList(repo, new Set(), new Set(["gallery"]));
+
+    // beta's only candidate is from a disallowed provider; alpha survives
+    expect(result.map((r) => r.cardSlug)).toEqual(["alpha"]);
+  });
+
+  it("buildCandidateCardList drops unmatched groups with only disallowed candidates", async () => {
+    const repo = createMockRepo({
+      listCandidateCardsForSourceList: vi
+        .fn()
+        .mockResolvedValue([
+          { id: "cc-1", normName: "newcard", name: "New Card", provider: "ocr", checkedAt: null },
+        ]),
+    });
+
+    const result = await buildCandidateCardList(repo, new Set(), new Set(["gallery"]));
+    expect(result).toEqual([]);
+  });
+
+  it("buildCandidateCardList is unscoped when allowedProviders is null", async () => {
+    const repo = createMockRepo({
+      listCardsForSourceList: vi
+        .fn()
+        .mockResolvedValue([{ id: "card-1", slug: "alpha", name: "Alpha", normName: "alpha" }]),
+      listCandidateCardsForSourceList: vi.fn().mockResolvedValue([]),
+    });
+
+    // full admin: matched cards without candidates stay in the list
+    const result = await buildCandidateCardList(repo, new Set(), null);
+    expect(result).toHaveLength(1);
+    expect(result[0].candidateCount).toBe(0);
+  });
+
+  it("buildCardDetail filters sources and their candidate printings", async () => {
+    const matchedCard = {
+      id: "card-1",
+      slug: "x",
+      name: "X",
+      normName: "x",
+      type: null,
+      superTypes: [],
+      domains: [],
+      might: null,
+      energy: null,
+      power: null,
+      mightBonus: null,
+      keywords: [],
+      tags: [],
+      comment: null,
+    };
+    const candidatePrintingsForDetail = vi.fn().mockResolvedValue([]);
+    const repo = createMockRepo({
+      cardForDetailBySlug: vi.fn().mockResolvedValue(matchedCard),
+      cardNameAliases: vi.fn().mockResolvedValue([{ normName: "x" }]),
+      candidateCardsForDetail: vi
+        .fn()
+        .mockResolvedValue([candidate("cc-1", "gallery"), candidate("cc-2", "ocr")]),
+      candidatePrintingsForDetail,
+    });
+
+    const result = await buildCardDetail(repo, mpRepo(), "x", new Set(["gallery"]));
+
+    expect(result.sources.map((s) => s.provider)).toEqual(["gallery"]);
+    // candidate printings are fetched only for the filtered candidate ids
+    expect(candidatePrintingsForDetail).toHaveBeenCalledWith(["cc-1"]);
+  });
+
+  it("buildCardDetail skips marketplace mappings for scoped callers", async () => {
+    const matchedCard = {
+      id: "card-1",
+      slug: "x",
+      name: "X",
+      normName: "x",
+      type: null,
+      superTypes: [],
+      domains: [],
+      might: null,
+      energy: null,
+      power: null,
+      mightBonus: null,
+      keywords: [],
+      tags: [],
+      comment: null,
+    };
+    const repo = createMockRepo({
+      cardForDetailBySlug: vi.fn().mockResolvedValue(matchedCard),
+      cardNameAliases: vi.fn().mockResolvedValue([{ normName: "x" }]),
+      candidateCardsForDetail: vi.fn().mockResolvedValue([candidate("cc-1", "gallery")]),
+    });
+    const marketplaceRepo = createMockMarketplaceRepo();
+
+    const result = await buildCardDetail(repo, marketplaceRepo, "x", new Set(["gallery"]));
+
+    expect(marketplaceRepo.variantsForCard).not.toHaveBeenCalled();
+    expect(result.marketplaceMappings).toEqual([]);
+  });
+
+  it("buildUnmatchedDetail filters sources to allowed providers", async () => {
+    const repo = createMockRepo({
+      cardForDetailBySlug: vi.fn().mockResolvedValue(undefined),
+      candidateCardsForDetail: vi
+        .fn()
+        .mockResolvedValue([
+          candidate("cc-1", "gallery", "New Card"),
+          candidate("cc-2", "ocr", "New Card"),
+        ]),
+    });
+
+    const result = await buildUnmatchedDetail(repo, "newcard", new Set(["gallery"]));
+    expect(result.sources.map((s) => s.provider)).toEqual(["gallery"]);
+  });
+
+  it("an empty allowlist scopes to nothing (fail closed)", async () => {
+    const repo = createMockRepo({
+      cardForDetailBySlug: vi.fn().mockResolvedValue(undefined),
+      candidateCardsForDetail: vi.fn().mockResolvedValue([candidate("cc-1", "gallery")]),
+    });
+
+    const result = await buildUnmatchedDetail(repo, "newcard", new Set());
+    expect(result.sources).toEqual([]);
+  });
+});

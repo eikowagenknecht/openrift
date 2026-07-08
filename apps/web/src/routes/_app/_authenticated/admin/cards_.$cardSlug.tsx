@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { AdminPending } from "@/components/admin/admin-route-components";
 import { RouteErrorFallback } from "@/components/error-message";
+import { adminAccessQueryOptions } from "@/hooks/use-admin";
 import { adminCardDetailQueryOptions, allCardsQueryOptions } from "@/hooks/use-admin-card-queries";
 import { adminDistinctArtistsQueryOptions } from "@/hooks/use-distinct-artists";
 import { adminLanguagesQueryOptions } from "@/hooks/use-languages";
@@ -45,6 +46,9 @@ export const Route = createFileRoute("/_app/_authenticated/admin/cards_/$cardSlu
     return result;
   },
   loader: async ({ context, params }) => {
+    // Already warm from the admin layout beforeLoad. The marketplace section
+    // is admin-only — card-review grant holders cannot reach its endpoint.
+    const access = await context.queryClient.ensureQueryData(adminAccessQueryOptions);
     const [detail] = await Promise.all([
       context.queryClient.ensureQueryData(adminCardDetailQueryOptions(params.cardSlug)),
       context.queryClient.ensureQueryData(adminMarkersQueryOptions),
@@ -55,7 +59,9 @@ export const Route = createFileRoute("/_app/_authenticated/admin/cards_/$cardSlu
       // Preload the marketplace section so it's warm by the time the page
       // mounts. The endpoint accepts a slug, so this can run in parallel with
       // the card detail fetch without waiting for the UUID resolution.
-      context.queryClient.ensureQueryData(unifiedMappingsForCardQueryOptions(params.cardSlug)),
+      ...(access.isAdmin
+        ? [context.queryClient.ensureQueryData(unifiedMappingsForCardQueryOptions(params.cardSlug))]
+        : []),
     ]);
     return detail;
   },

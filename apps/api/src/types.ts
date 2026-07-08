@@ -2,6 +2,7 @@ import type { createAuth } from "./auth.js";
 import type { createConfig } from "./config.js";
 import type { Repos, Services, Transact } from "./deps.js";
 import type { Io } from "./io.js";
+import type { AdminAccess } from "./middleware/require-admin.js";
 
 export type Auth = ReturnType<typeof createAuth>;
 export type Config = ReturnType<typeof createConfig>;
@@ -16,6 +17,9 @@ export interface Variables {
   // alike (`if (!user) ...`).
   user: Auth["$Infer"]["Session"]["user"] | null | undefined;
   session: Auth["$Infer"]["Session"]["session"] | null | undefined;
+  // Set by `requireAdmin` (for full admins and grant holders alike);
+  // undefined on routes that middleware didn't run on.
+  adminAccess: AdminAccess | undefined;
   repos: Repos;
   services: Services;
   transact: Transact;

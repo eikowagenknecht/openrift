@@ -23,6 +23,7 @@ export function providerSettingsRepo(db: Kysely<Database>) {
               sortOrder: i + 1,
               isHidden: false,
               isFavorite: false,
+              helperReviewable: false,
             })
             .onConflict((oc) => oc.column("provider").doUpdateSet({ sortOrder: i + 1 }))
             .execute();
@@ -32,7 +33,12 @@ export function providerSettingsRepo(db: Kysely<Database>) {
 
     upsert(
       provider: string,
-      updates: { sortOrder?: number; isHidden?: boolean; isFavorite?: boolean },
+      updates: {
+        sortOrder?: number;
+        isHidden?: boolean;
+        isFavorite?: boolean;
+        helperReviewable?: boolean;
+      },
     ) {
       return db
         .insertInto("providerSettings")
@@ -41,12 +47,16 @@ export function providerSettingsRepo(db: Kysely<Database>) {
           sortOrder: updates.sortOrder ?? 0,
           isHidden: updates.isHidden ?? false,
           isFavorite: updates.isFavorite ?? false,
+          helperReviewable: updates.helperReviewable ?? false,
         })
         .onConflict((oc) =>
           oc.column("provider").doUpdateSet({
             ...(updates.sortOrder === undefined ? {} : { sortOrder: updates.sortOrder }),
             ...(updates.isHidden === undefined ? {} : { isHidden: updates.isHidden }),
             ...(updates.isFavorite === undefined ? {} : { isFavorite: updates.isFavorite }),
+            ...(updates.helperReviewable === undefined
+              ? {}
+              : { helperReviewable: updates.helperReviewable }),
           }),
         )
         .returningAll()
@@ -58,6 +68,15 @@ export function providerSettingsRepo(db: Kysely<Database>) {
         .selectFrom("providerSettings")
         .select("provider")
         .where("isFavorite", "=", true)
+        .execute();
+      return new Set(rows.map((r) => r.provider));
+    },
+
+    async helperReviewableProviders(): Promise<Set<string>> {
+      const rows = await db
+        .selectFrom("providerSettings")
+        .select("provider")
+        .where("helperReviewable", "=", true)
         .execute();
       return new Set(rows.map((r) => r.provider));
     },

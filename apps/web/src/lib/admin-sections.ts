@@ -1,24 +1,40 @@
 import type { AdminSectionSlug } from "@openrift/shared";
+import { ADMIN_SECTION_SLUGS } from "@openrift/shared";
 
 /**
  * Route for each grantable admin section, used to redirect partial admins to
- * a section they can access. The `satisfies` clause keeps this map exhaustive
- * as sections are added to the shared registry.
+ * a section they can access and to resolve which section a pathname belongs
+ * to. The `satisfies` clause keeps this map exhaustive as sections are added
+ * to the shared registry.
  */
 export const ADMIN_SECTION_ROUTES = {
+  "card-review": "/admin/cards",
   "custom-tags": "/admin/custom-tags",
   products: "/admin/products",
 } as const satisfies Record<AdminSectionSlug, `/admin/${string}`>;
 
 /**
- * Extracts the section slug from an `/admin/...` pathname, e.g.
- * `/admin/custom-tags` → `custom-tags` and `/admin/custom-tags/x` →
- * `custom-tags`.
+ * Resolves which grantable section an `/admin/...` pathname belongs to, by
+ * matching against each section's route on segment boundaries (so
+ * `/admin/card-types` does not match card-review's `/admin/cards`).
  *
- * @returns The first path segment after `/admin`, or null for the admin root
- * (or a non-admin path).
+ * card-review's manual-create pages (`.../create`) resolve to null on
+ * purpose: grant holders get bounced off them by the admin layout guard
+ * (the API blocks the create endpoints regardless).
+ *
+ * @returns The matching section slug, or null when no section claims the
+ * pathname.
  */
-export function adminSectionFromPathname(pathname: string): string | null {
-  const match = /^\/admin\/(?<section>[^/]+)/u.exec(pathname);
-  return match?.groups?.section ?? null;
+export function adminSectionForPathname(pathname: string): AdminSectionSlug | null {
+  for (const slug of ADMIN_SECTION_SLUGS) {
+    const route = ADMIN_SECTION_ROUTES[slug];
+    if (pathname !== route && !pathname.startsWith(`${route}/`)) {
+      continue;
+    }
+    if (slug === "card-review" && pathname.endsWith("/create")) {
+      return null;
+    }
+    return slug;
+  }
+  return null;
 }

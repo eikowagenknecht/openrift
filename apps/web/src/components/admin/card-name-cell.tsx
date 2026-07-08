@@ -11,6 +11,8 @@ export interface CardNameCellMeta {
   linkCard: ReturnType<typeof useLinkCard>;
   acceptFavorite: ReturnType<typeof useAcceptFavoriteNewCard>;
   allCards: { id: string; slug: string; name: string; types: string[] }[];
+  /** Full admin — card-review grant holders only get the name link (their accept flow lives on the detail pages). */
+  isAdmin: boolean;
 }
 
 export function CardNameCell({
@@ -20,7 +22,7 @@ export function CardNameCell({
   row: CandidateCardSummaryResponse;
   meta: CardNameCellMeta;
 }) {
-  const { linkCard, acceptFavorite, allCards } = meta;
+  const { linkCard, acceptFavorite, allCards, isAdmin } = meta;
   const suggestedCardId =
     !row.cardSlug && row.stagingShortCodes.length > 0
       ? extractCardIdFromShortCode(row.stagingShortCodes[0])
@@ -40,7 +42,7 @@ export function CardNameCell({
         )}{" "}
         {row.name}
       </Link>
-      {!row.cardSlug && row.suggestedCardSlug && (
+      {isAdmin && !row.cardSlug && row.suggestedCardSlug && (
         <Button
           variant="outline"
           className="ml-2"
@@ -56,7 +58,7 @@ export function CardNameCell({
           {row.suggestedCardSlug}
         </Button>
       )}
-      {!row.cardSlug && row.hasFavorite && (
+      {isAdmin && !row.cardSlug && row.hasFavorite && (
         <Button
           variant="outline"
           className="ml-2"
@@ -71,7 +73,7 @@ export function CardNameCell({
           Accept
         </Button>
       )}
-      {!row.cardSlug && allCards && (
+      {isAdmin && !row.cardSlug && allCards && (
         <AssignButton normalizedName={row.normalizedName} allCards={allCards} linkCard={linkCard} />
       )}
     </>

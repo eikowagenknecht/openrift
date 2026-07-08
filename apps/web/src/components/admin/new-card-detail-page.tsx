@@ -42,6 +42,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAdminAccess } from "@/hooks/use-admin";
 import type {
   AcceptNewCardBody,
   PatchCandidatePrintingBody,
@@ -64,6 +65,8 @@ interface NewCardColumnActionsProps {
   candidateCardFields: FieldDef[];
   setActiveCard: (updater: (prev: Record<string, unknown>) => Record<string, unknown>) => void;
   onIgnoreSource: (input: { provider: string; externalId: string }) => void;
+  /** Ignoring is triage and stays full-admin; card-review grant holders only accept. */
+  isAdmin: boolean;
 }
 
 function NewCardColumnActions({
@@ -71,6 +74,7 @@ function NewCardColumnActions({
   candidateCardFields,
   setActiveCard,
   onIgnoreSource,
+  isAdmin,
 }: NewCardColumnActionsProps) {
   if (!row) {
     return null;
@@ -95,23 +99,29 @@ function NewCardColumnActions({
         <CopyCheckIcon className="mr-2 size-3.5" />
         Accept all fields
       </DropdownMenuItem>
-      <DropdownMenuItem
-        onClick={() =>
-          onIgnoreSource({
-            provider: cardRow.provider,
-            externalId: row.externalId,
-          })
-        }
-      >
-        <BanIcon className="mr-2 size-3.5" />
-        Ignore permanently
-      </DropdownMenuItem>
+      {isAdmin && (
+        <DropdownMenuItem
+          onClick={() =>
+            onIgnoreSource({
+              provider: cardRow.provider,
+              externalId: row.externalId,
+            })
+          }
+        >
+          <BanIcon className="mr-2 size-3.5" />
+          Ignore permanently
+        </DropdownMenuItem>
+      )}
     </>
   );
 }
 
 export function NewCardDetailPage({ identifier }: { identifier: string }) {
   const navigate = useNavigate();
+  const { data: access } = useAdminAccess();
+  // card-review grant holders keep the per-field accept flow; linking,
+  // check/uncheck bookkeeping, and ignoring stay full-admin.
+  const isAdmin = access?.isAdmin === true;
 
   // Narrow invalidation to this unmatched group and the admin card list.
   // `allCards` is included because accepting/linking adds a new accepted card
@@ -238,29 +248,31 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
 
       {/* ── Link / Accept bar ────────────────────────────────────────────────── */}
       <section className="flex flex-wrap items-end gap-4 rounded-md border p-4">
-        <div className="flex items-end gap-2">
-          <div className="space-y-1">
-            <Label>Link to existing card</Label>
-            <CardSearchDropdown
-              results={cardSearchResults}
-              onSearch={(q) => {
-                setLinkSearch(q);
-                setLinkCardId("");
-              }}
-              onSelect={(id) => setLinkCardId(id)}
-              placeholder="Search by name…"
-              className="w-64"
-            />
+        {isAdmin && (
+          <div className="flex items-end gap-2">
+            <div className="space-y-1">
+              <Label>Link to existing card</Label>
+              <CardSearchDropdown
+                results={cardSearchResults}
+                onSearch={(q) => {
+                  setLinkSearch(q);
+                  setLinkCardId("");
+                }}
+                onSelect={(id) => setLinkCardId(id)}
+                placeholder="Search by name…"
+                className="w-64"
+              />
+            </div>
+            <Button
+              variant="outline"
+              disabled={!linkCardId.trim() || linkCard.isPending}
+              onClick={handleLink}
+            >
+              <LinkIcon className="mr-1 size-4" />
+              Link
+            </Button>
           </div>
-          <Button
-            variant="outline"
-            disabled={!linkCardId.trim() || linkCard.isPending}
-            onClick={handleLink}
-          >
-            <LinkIcon className="mr-1 size-4" />
-            Link
-          </Button>
-        </div>
+        )}
 
         <div className="flex items-end gap-2">
           <div className="space-y-1">
@@ -307,13 +319,16 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
                 : { ...prev, [field]: value },
             );
           }}
-          onCheck={(candidateId) => checkCandidateCard.mutate(candidateId)}
-          onUncheck={(candidateId) => uncheckCandidateCard.mutate(candidateId)}
+          onCheck={isAdmin ? (candidateId) => checkCandidateCard.mutate(candidateId) : undefined}
+          onUncheck={
+            isAdmin ? (candidateId) => uncheckCandidateCard.mutate(candidateId) : undefined
+          }
           columnActions={
             <NewCardColumnActions
               candidateCardFields={candidateCardFields}
               setActiveCard={setActiveCard}
               onIgnoreSource={(input) => ignoreCardSource.mutate(input)}
+              isAdmin={isAdmin}
             />
           }
         />
@@ -393,8 +408,8 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
                     providerLabels={sourceLabels}
                     providerNames={sourceNames}
                     providerSettings={providerSettings}
-                    onCheck={(id) => checkPrintingSource.mutate(id)}
-                    onUncheck={(id) => uncheckPrintingSource.mutate(id)}
+                    onCheck={isAdmin ? (id) => checkPrintingSource.mutate(id) : undefined}
+                    onUncheck={isAdmin ? (id) => uncheckPrintingSource.mutate(id) : undefined}
                   />
                 </div>
               </div>

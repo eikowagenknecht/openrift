@@ -5,7 +5,7 @@ import type { MiddlewareHandler } from "hono";
 import type { Repos } from "../deps.js";
 import { AppError } from "../errors.js";
 import type { Variables } from "../types.js";
-import { sectionAllowsPath } from "./admin-section-paths.js";
+import { sectionAllowsRequest } from "./admin-section-paths.js";
 import { resolveSession } from "./load-session.js";
 
 /** Resolved admin authorization for one user: full admin, or per-section grants. */
@@ -58,11 +58,16 @@ export const requireAdmin: MiddlewareHandler<{ Variables: Variables }> = async (
   }
 
   const access = await getAdminAccess(c.get("repos"), user.id);
+  // Expose the resolved access so handlers can apply finer-grained scoping
+  // than the path gate (e.g. card-review's per-provider candidate allowlist).
+  c.set("adminAccess", access);
   if (!access.isAdmin) {
     const path = c.req.path;
+    const method = c.req.method;
     const allowed =
       access.sections.length > 0 &&
-      (path === ME_PATH || access.sections.some((section) => sectionAllowsPath(section, path)));
+      (path === ME_PATH ||
+        access.sections.some((section) => sectionAllowsRequest(section, method, path)));
     if (!allowed) {
       throw new AppError(403, ERROR_CODES.FORBIDDEN, "Forbidden");
     }

@@ -3,6 +3,7 @@ import type { Context } from "hono";
 import type { Repos, Services, Transact } from "../deps.js";
 import type { Io } from "../io.js";
 import { resolveSession } from "../middleware/load-session.js";
+import type { AdminAccess } from "../middleware/require-admin.js";
 import type { Auth, Config, Variables } from "../types.js";
 
 type SessionUser = NonNullable<Variables["user"]>;
@@ -26,6 +27,13 @@ export interface ApiContext {
   io: Io;
   auth: Auth;
   user: SessionUser | null;
+  /**
+   * Admin authorization resolved by `requireAdmin` (full admins and grant
+   * holders alike); null on mounts without that middleware. Admin handlers
+   * that scope data beyond the path gate (card-review's provider allowlist)
+   * read it to distinguish full admins from grant holders.
+   */
+  adminAccess: AdminAccess | null;
   /**
    * Resolves the session lazily (better-auth `getSession`, idempotent — paid at
    * most once per request, and only when an auth-gated procedure calls it).
@@ -64,6 +72,7 @@ export function buildApiContext(c: Context<{ Variables: Variables }>): ApiContex
     io: c.get("io"),
     auth: c.get("auth"),
     user: c.get("user") ?? null,
+    adminAccess: c.get("adminAccess") ?? null,
     loadUser: async () => {
       await resolveSession(c);
       return c.get("user") ?? null;

@@ -59,6 +59,7 @@ export function PrintingImageSwitcher({
   sourceImages,
   providerSettings,
   invalidates,
+  isAdmin,
 }: {
   printingId: string;
   printingLabel: string;
@@ -66,6 +67,8 @@ export function PrintingImageSwitcher({
   sourceImages: DeduplicatedSourceImage[];
   providerSettings: ProviderSettingResponse[];
   invalidates?: readonly (readonly unknown[])[];
+  /** Card-review grant holders keep image finishing (activate/rehost/rotate/trim, set from candidate); un-rehost, delete, URL/file add stay full-admin. */
+  isAdmin: boolean;
 }) {
   const deletePrintingImage = useDeletePrintingImage(invalidates);
   const activatePrintingImage = useActivatePrintingImage(invalidates);
@@ -264,7 +267,7 @@ export function PrintingImageSwitcher({
                 </Button>
               </>
             )}
-            {effectiveImage.rehostedUrl && effectiveImage.originalUrl && (
+            {isAdmin && effectiveImage.rehostedUrl && effectiveImage.originalUrl && (
               <Button
                 variant="ghost"
                 size="icon"
@@ -276,16 +279,18 @@ export function PrintingImageSwitcher({
                 <XIcon className="size-3" />
               </Button>
             )}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-destructive size-6"
-              title="Remove"
-              disabled={deletePrintingImage.isPending}
-              onClick={() => deletePrintingImage.mutate(effectiveImage.id)}
-            >
-              <Trash2Icon className="size-3" />
-            </Button>
+            {isAdmin && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-destructive size-6"
+                title="Remove"
+                disabled={deletePrintingImage.isPending}
+                onClick={() => deletePrintingImage.mutate(effectiveImage.id)}
+              >
+                <Trash2Icon className="size-3" />
+              </Button>
+            )}
           </div>
         </div>
       )}
@@ -370,20 +375,22 @@ export function PrintingImageSwitcher({
       </div>
 
       {/* Add from URL / Upload */}
-      <div className="flex gap-1">
-        <Button variant="outline" onClick={() => setShowUrlInput((v) => !v)}>
-          <ImagePlusIcon className="mr-1" />
-          From URL
-        </Button>
-        <Button
-          variant="outline"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploadPrintingImage.isPending}
-        >
-          <UploadIcon className="mr-1" />
-          Upload
-        </Button>
-      </div>
+      {isAdmin && (
+        <div className="flex gap-1">
+          <Button variant="outline" onClick={() => setShowUrlInput((v) => !v)}>
+            <ImagePlusIcon className="mr-1" />
+            From URL
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploadPrintingImage.isPending}
+          >
+            <UploadIcon className="mr-1" />
+            Upload
+          </Button>
+        </div>
+      )}
 
       <input
         ref={fileInputRef}

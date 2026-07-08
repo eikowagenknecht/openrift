@@ -14,9 +14,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAdminAccess } from "@/hooks/use-admin";
 import { useAdminCardList, useAllCards } from "@/hooks/use-admin-card-queries";
 import { useSets } from "@/hooks/use-sets";
-import { useUnifiedMappings } from "@/hooks/use-unified-mappings";
+import { useUnifiedMappingsWhen } from "@/hooks/use-unified-mappings";
 import { filterCardsBySet } from "@/lib/admin-cards-search";
 import { buildCoverageMapBySlug, buildPriceAssignBucketsBySlug } from "@/lib/marketplace-coverage";
 import { Route } from "@/routes/_app/_authenticated/admin/cards";
@@ -25,12 +26,18 @@ const ALL_SETS = "__all__";
 
 export function AdminCardListPage() {
   const { data } = useAdminCardList();
-  const { data: unified } = useUnifiedMappings();
+  const { data: access } = useAdminAccess();
+  // card-review grant holders share this page with full admins; everything
+  // beyond reviewing candidates (creating cards, marketplace data, the
+  // unmatched-products tab) is admin-only and hidden for them.
+  const isAdmin = access?.isAdmin === true;
+  const { data: unified } = useUnifiedMappingsWhen(isAdmin);
   const { data: allCards } = useAllCards();
   const { data: setsData } = useSets();
-  const { tab, setSlug } = Route.useSearch({
+  const { tab: rawTab, setSlug } = Route.useSearch({
     select: (s) => ({ tab: s.tab ?? "cards", setSlug: s.set }),
   });
+  const tab = !isAdmin && rawTab === "unmatched" ? "cards" : rawTab;
   const navigate = useNavigate({ from: Route.fullPath });
 
   const setOptions = [
@@ -53,13 +60,14 @@ export function AdminCardListPage() {
     setSlugsByCardSlug,
   );
   const candidates = data.filter((r) => !r.cardSlug);
-  const unmatchedCount =
-    unified.unmatchedProducts.tcgplayer.length +
-    unified.unmatchedProducts.cardmarket.length +
-    unified.unmatchedProducts.cardtrader.length;
+  const unmatchedCount = unified
+    ? unified.unmatchedProducts.tcgplayer.length +
+      unified.unmatchedProducts.cardmarket.length +
+      unified.unmatchedProducts.cardtrader.length
+    : 0;
 
-  const coverageBySlug = buildCoverageMapBySlug(unified.groups);
-  const assignBucketsBySlug = buildPriceAssignBucketsBySlug(unified.groups);
+  const coverageBySlug = buildCoverageMapBySlug(unified?.groups ?? []);
+  const assignBucketsBySlug = buildPriceAssignBucketsBySlug(unified?.groups ?? []);
 
   function changeSet(value: string | null) {
     const next = value && value !== ALL_SETS ? value : undefined;
@@ -90,17 +98,19 @@ export function AdminCardListPage() {
       <AdminPageTopBar
         title="Cards"
         actions={
-          <PageTopBarPrimaryButton render={<Link to="/admin/cards/create" />}>
-            <PlusIcon className="mr-1 size-4" />
-            New card
-          </PageTopBarPrimaryButton>
+          isAdmin ? (
+            <PageTopBarPrimaryButton render={<Link to="/admin/cards/create" />}>
+              <PlusIcon className="mr-1 size-4" />
+              New card
+            </PageTopBarPrimaryButton>
+          ) : undefined
         }
       />
       <div className="flex items-center justify-between gap-4">
         <TabsList variant="line">
           <TabsTrigger value="cards">Cards ({cards.length})</TabsTrigger>
           <TabsTrigger value="candidates">Candidates ({candidates.length})</TabsTrigger>
-          <TabsTrigger value="unmatched">Unmatched ({unmatchedCount})</TabsTrigger>
+          {isAdmin && <TabsTrigger value="unmatched">Unmatched ({unmatchedCount})</TabsTrigger>}
         </TabsList>
         <Select items={setOptions} value={setSlug ?? ALL_SETS} onValueChange={changeSet}>
           <SelectTrigger size="sm" aria-label="Filter by set" className="w-48">
@@ -120,14 +130,17 @@ export function AdminCardListPage() {
           data={cards}
           coverageBySlug={coverageBySlug}
           assignBucketsBySlug={assignBucketsBySlug}
+          isAdmin={isAdmin}
         />
       </TabsContent>
       <TabsContent value="candidates" className="flex min-h-0 flex-1 flex-col">
-        <CandidateCardsTable data={candidates} />
+        <CandidateCardsTable data={candidates} isAdmin={isAdmin} />
       </TabsContent>
-      <TabsContent value="unmatched" className="flex min-h-0 flex-1 flex-col">
-        <UnmatchedProductsPanel />
-      </TabsContent>
+      {isAdmin && (
+        <TabsContent value="unmatched" className="flex min-h-0 flex-1 flex-col">
+          <UnmatchedProductsPanel />
+        </TabsContent>
+      )}
     </Tabs>
   );
 }

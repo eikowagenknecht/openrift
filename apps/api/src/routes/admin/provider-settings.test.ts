@@ -36,6 +36,7 @@ const dbSetting1 = {
   sortOrder: 0,
   isHidden: false,
   isFavorite: false,
+  helperReviewable: false,
 };
 
 const dbSetting2 = {
@@ -43,6 +44,7 @@ const dbSetting2 = {
   sortOrder: 1,
   isHidden: true,
   isFavorite: true,
+  helperReviewable: true,
 };
 
 // ---------------------------------------------------------------------------
@@ -65,12 +67,14 @@ describe("GET /provider-settings", () => {
       sortOrder: 0,
       isHidden: false,
       isFavorite: false,
+      helperReviewable: false,
     });
     expect(json.providerSettings[1]).toEqual({
       provider: "cardmarket",
       sortOrder: 1,
       isHidden: true,
       isFavorite: true,
+      helperReviewable: true,
     });
   });
 
@@ -147,5 +151,16 @@ describe("PATCH /provider-settings/:provider", () => {
     });
     expect(res.status).toBe(204);
     expect(mockRepo.upsert).toHaveBeenCalledWith("cardtrader", { sortOrder: 2, isHidden: false });
+  });
+
+  it("returns 204 when updating helperReviewable", async () => {
+    mockRepo.upsert.mockResolvedValue(undefined);
+    const res = await app.request("/api/admin/v1/provider-settings/gallery", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ helperReviewable: true }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockRepo.upsert).toHaveBeenCalledWith("gallery", { helperReviewable: true });
   });
 });

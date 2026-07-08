@@ -12,6 +12,7 @@ import {
   StarIcon,
   Trash2Icon,
   UploadIcon,
+  UserCheckIcon,
   XIcon,
 } from "lucide-react";
 import { useRef, useState } from "react";
@@ -594,6 +595,7 @@ interface ProviderRow {
   stats: ProviderStatsResponse | undefined;
   isHidden: boolean;
   isFavorite: boolean;
+  helperReviewable: boolean;
 }
 
 function ProviderNameCell({ row }: AdminCellSlotProps<ProviderRow>) {
@@ -635,6 +637,36 @@ function ProviderFavoriteCell({ row }: AdminCellSlotProps<ProviderRow>) {
       aria-label={row.isFavorite ? "Remove from favorites" : "Add to favorites"}
     >
       <StarIcon className="size-4" fill={row.isFavorite ? "currentColor" : "none"} />
+    </Button>
+  );
+}
+
+function ProviderHelperReviewableCell({ row }: AdminCellSlotProps<ProviderRow>) {
+  const updateSetting = useUpdateProviderSetting();
+  if (!row) {
+    return null;
+  }
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon-sm"
+      className={row.helperReviewable ? "text-primary" : "text-muted-foreground"}
+      onClick={() =>
+        updateSetting.mutate({ provider: row.name, helperReviewable: !row.helperReviewable })
+      }
+      title={
+        row.helperReviewable
+          ? "Disallow card-review grant holders"
+          : "Allow card-review grant holders"
+      }
+      aria-label={
+        row.helperReviewable
+          ? "Disallow card-review grant holders"
+          : "Allow card-review grant holders"
+      }
+    >
+      <UserCheckIcon className="size-4" />
     </Button>
   );
 }
@@ -698,6 +730,11 @@ const providerColumns: AdminColumnDef<ProviderRow>[] = [
     cell: <ProviderFavoriteCell />,
   },
   {
+    header: "Helper",
+    width: "w-20",
+    cell: <ProviderHelperReviewableCell />,
+  },
+  {
     header: "Cards",
     width: "w-24",
     align: "right",
@@ -748,6 +785,7 @@ function ManageProvidersCard({
       stats: statsByProvider.get(name),
       isHidden: settingsMap.get(name)?.isHidden ?? false,
       isFavorite: settingsMap.get(name)?.isFavorite ?? false,
+      helperReviewable: settingsMap.get(name)?.helperReviewable ?? false,
     }));
 
   function moveProvider(index: number, direction: -1 | 1) {

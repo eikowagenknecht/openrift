@@ -3,7 +3,13 @@ import {
   adminStagingCardOverridesContract,
   adminUnifiedMappingsContract,
 } from "@openrift/shared/contracts";
-import { queryOptions, useMutation, useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  queryOptions,
+  useMutation,
+  useQuery,
+  useSuspenseQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 
@@ -31,6 +37,17 @@ export function unifiedMappingsQueryOptions() {
 
 export function useUnifiedMappings() {
   return useSuspenseQuery(unifiedMappingsQueryOptions());
+}
+
+/**
+ * Gated variant for pages card-review grant holders share with full admins:
+ * the marketplace endpoint 403s for them, so the query only runs when the
+ * caller is a full admin and `data` stays undefined otherwise.
+ *
+ * @returns The unified-mappings query, disabled unless `enabled`.
+ */
+export function useUnifiedMappingsWhen(enabled: boolean) {
+  return useQuery({ ...unifiedMappingsQueryOptions(), enabled });
 }
 
 const fetchUnifiedMappingsForCard = createServerFn({ method: "GET" })

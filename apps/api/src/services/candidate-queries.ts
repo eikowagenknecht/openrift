@@ -123,14 +123,23 @@ function resolveFinish(finish: string | null, rarity: string | null): string {
 export async function buildCandidateCardList(
   repo: Repo,
   favoriteProviders: Set<string>,
+  allowedProviders: Set<string> | null = null,
 ): Promise<CandidateCardSummaryResponse[]> {
-  const [cards, candidateCards, printings, candidatePrintings, aliases] = await Promise.all([
+  const [cards, allCandidateCards, printings, candidatePrintings, aliases] = await Promise.all([
     repo.listCardsForSourceList(),
     repo.listCandidateCardsForSourceList(),
     repo.listPrintingsForSourceList(),
     repo.listCandidatePrintingsForSourceList(),
     repo.listAliasesForSourceList(),
   ]);
+
+  // card-review grant holders only see candidates from allowed providers
+  // (null = full admin, unscoped). Filtering here keeps every derived
+  // structure (groups, staging codes, counts) consistent for free.
+  const candidateCards =
+    allowedProviders === null
+      ? allCandidateCards
+      : allCandidateCards.filter((cc) => allowedProviders.has(cc.provider));
 
   // Accepted printings live on cards — e.g. { cardUUID → ["OGN-001a", "OGN-001b"] }
   // Non-EN printings get a " [FR]" suffix so the list page can distinguish languages
@@ -292,7 +301,11 @@ export async function buildCandidateCardList(
     });
   }
 
-  return results;
+  // When provider-scoped, a matched card with no visible candidates is noise
+  // for the reviewer — drop it so the list only shows reviewable groups.
+  // (Unmatched rows derive from the filtered candidates, so they always keep
+  // at least one.)
+  return allowedProviders === null ? results : results.filter((row) => row.candidateCount > 0);
 }
 
 // ── GET /export ─────────────────────────────────────────────────────────────
@@ -376,8 +389,17 @@ async function buildDetailResponse(
   errata: Awaited<ReturnType<Repo["cardErrataForDetail"]>>,
   normNames: string[],
   fallbackDisplayName: string,
+  allowedProviders: Set<string> | null = null,
 ) {
-  const candidates = normNames.length > 0 ? await repo.candidateCardsForDetail(normNames) : [];
+  const allCandidates = normNames.length > 0 ? await repo.candidateCardsForDetail(normNames) : [];
+  // card-review grant holders only see candidates from allowed providers
+  // (null = full admin, unscoped). Candidate printings, groups, and source
+  // images all derive from the filtered ids. Accepted printings/images stay
+  // unfiltered — that's live catalog data, not candidate data.
+  const candidates =
+    allowedProviders === null
+      ? allCandidates
+      : allCandidates.filter((s) => allowedProviders.has(s.provider));
   const candidateIds = candidates.map((s) => s.id);
   const candidatePrintings =
     candidateIds.length > 0 ? await repo.candidatePrintingsForDetail(candidateIds) : [];
@@ -447,8 +469,10 @@ async function buildDetailResponse(
   // Marketplace mappings (TCGplayer / Cardmarket / CardTrader) — fetched for
   // matched cards only, so the admin can assign/unmap products from the card
   // detail view instead of navigating out to a separate mappings page.
+  // Marketplace data is admin-only, so provider-scoped callers (card-review
+  // grant holders) get an empty list.
   const marketplaceMappings: AdminPrintingMarketplaceMappingResponse[] = [];
-  if (card && marketplaceRepo) {
+  if (card && marketplaceRepo && allowedProviders === null) {
     const variantRows = await marketplaceRepo.variantsForCard(card.id);
     for (const row of variantRows) {
       const marketplace = toMarketplaceName(row.marketplace);
@@ -577,10 +601,11 @@ export async function buildCardDetail(
   repo: Repo,
   marketplaceRepo: MarketplaceMappingRepo,
   cardSlug: string,
+  allowedProviders: Set<string> | null = null,
 ) {
   const card = await repo.cardForDetailBySlug(cardSlug);
   if (!card) {
-    return buildDetailResponse(repo, marketplaceRepo, null, null, [], cardSlug);
+    return buildDetailResponse(repo, marketplaceRepo, null, null, [], cardSlug, allowedProviders);
   }
 
   const aliases = await repo.cardNameAliases(card.id);
@@ -594,7 +619,15 @@ export async function buildCardDetail(
 
   const errata = await repo.cardErrataForDetail(card.id);
   const normNames = aliases.map((a) => a.normName);
-  return buildDetailResponse(repo, marketplaceRepo, card, errata, normNames, card.name);
+  return buildDetailResponse(
+    repo,
+    marketplaceRepo,
+    card,
+    errata,
+    normNames,
+    card.name,
+    allowedProviders,
+  );
 }
 
 // ── GET /new/:name — unmatched candidate detail ────────────────────────────
@@ -603,8 +636,20 @@ export async function buildCardDetail(
  * Detail view for unmatched candidates (no card exists yet, looked up by normName).
  * @returns Candidate detail with sources, candidate printings, groups, and set totals.
  */
-export async function buildUnmatchedDetail(repo: Repo, normName: string) {
-  const result = await buildDetailResponse(repo, null, null, null, [normName], normName);
+export async function buildUnmatchedDetail(
+  repo: Repo,
+  normName: string,
+  allowedProviders: Set<string> | null = null,
+) {
+  const result = await buildDetailResponse(
+    repo,
+    null,
+    null,
+    null,
+    [normName],
+    normName,
+    allowedProviders,
+  );
   return {
     displayName: result.displayName,
     sources: result.sources,

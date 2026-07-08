@@ -41,6 +41,8 @@ interface NewPrintingColumnActionsProps {
   onAcceptAllForRow: (rowId: string, values: Record<string, unknown>) => void;
   onIgnore: (externalId: string, finish: string) => void;
   onDelete: (id: string) => void;
+  /** Card-review grant holders keep only the client-side "Accept all fields". */
+  isAdmin: boolean;
 }
 
 function NewPrintingColumnActions({
@@ -52,6 +54,7 @@ function NewPrintingColumnActions({
   onAcceptAllForRow,
   onIgnore,
   onDelete,
+  isAdmin,
 }: NewPrintingColumnActionsProps) {
   if (!row) {
     return null;
@@ -62,8 +65,8 @@ function NewPrintingColumnActions({
         id: p.id,
         label: p.expectedPrintingId,
       }))}
-      onAssign={(pid) => onLink(pid, [row.id])}
-      onCopy={(pid) => onCopy(row.id, pid)}
+      onAssign={isAdmin ? (pid) => onLink(pid, [row.id]) : undefined}
+      onCopy={isAdmin ? (pid) => onCopy(row.id, pid) : undefined}
       onAcceptAll={() => {
         const record = row as unknown as Record<string, unknown>;
         const values: Record<string, unknown> = {};
@@ -82,8 +85,12 @@ function NewPrintingColumnActions({
         }
         onAcceptAllForRow(row.id, values);
       }}
-      onIgnore={() => onIgnore(row.externalId, (row as unknown as Record<string, string>).finish)}
-      onDelete={() => onDelete(row.id)}
+      onIgnore={
+        isAdmin
+          ? () => onIgnore(row.externalId, (row as unknown as Record<string, string>).finish)
+          : undefined
+      }
+      onDelete={isAdmin ? () => onDelete(row.id) : undefined}
     />
   );
 }
@@ -106,6 +113,7 @@ export function NewPrintingGroupCard({
   isLinking,
   printingFields,
   invalidates,
+  isAdmin,
 }: {
   group: PrintingGroup & { groupKey: string };
   existingPrintings: AdminPrintingResponse[];
@@ -124,6 +132,8 @@ export function NewPrintingGroupCard({
   isLinking?: boolean;
   printingFields: FieldDef[];
   invalidates: readonly (readonly unknown[])[];
+  /** Card-review grant holders keep the accept flow; check/assign/ignore/delete stay full-admin. */
+  isAdmin: boolean;
 }) {
   const { checkPrintingSource, uncheckPrintingSource, checkAllCandidatePrintings } =
     useCardDetailData(invalidates);
@@ -189,7 +199,7 @@ export function NewPrintingGroupCard({
         </span>
         {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- stopPropagation wrapper, not interactive */}
         <div className="flex flex-wrap items-end gap-2" onClick={(e) => e.stopPropagation()}>
-          {group.candidates.some((s) => !s.checkedAt) && (
+          {isAdmin && group.candidates.some((s) => !s.checkedAt) && (
             <Button
               variant="outline"
               disabled={checkAllCandidatePrintings.isPending}
@@ -205,7 +215,7 @@ export function NewPrintingGroupCard({
             </Button>
           )}
           {/* custom: quick-assign all candidates to matching existing printing */}
-          {matchingExisting && (
+          {isAdmin && matchingExisting && (
             <Button
               variant="default"
               disabled={isLinking}
@@ -269,8 +279,8 @@ export function NewPrintingGroupCard({
                       : withSetTotal({ ...prev, [field]: value }),
                   );
                 }}
-                onCheck={(id) => checkPrintingSource.mutate(id)}
-                onUncheck={(id) => uncheckPrintingSource.mutate(id)}
+                onCheck={isAdmin ? (id) => checkPrintingSource.mutate(id) : undefined}
+                onUncheck={isAdmin ? (id) => uncheckPrintingSource.mutate(id) : undefined}
                 columnActions={
                   <NewPrintingColumnActions
                     existingPrintings={existingPrintings}
@@ -282,6 +292,7 @@ export function NewPrintingGroupCard({
                     }
                     onIgnore={onIgnore}
                     onDelete={onDelete}
+                    isAdmin={isAdmin}
                   />
                 }
               />

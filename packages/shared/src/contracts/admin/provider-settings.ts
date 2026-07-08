@@ -12,6 +12,7 @@ export const providerSettingSchema = z.object({
   sortOrder: z.number(),
   isHidden: z.boolean(),
   isFavorite: z.boolean(),
+  helperReviewable: z.boolean(),
 });
 
 const providerParamSchema = z.object({ provider: z.string().min(1) });
@@ -38,6 +39,7 @@ export const adminProviderSettingsContract = {
         sortOrder: z.number().int().optional(),
         isHidden: z.boolean().optional(),
         isFavorite: z.boolean().optional(),
+        helperReviewable: z.boolean().optional(),
       }),
     ),
 };

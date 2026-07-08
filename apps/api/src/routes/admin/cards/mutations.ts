@@ -12,6 +12,11 @@ import type { ApiContext } from "../../../orpc/context.js";
 import { acceptFavoritePrintingsForCard } from "../../../services/accept-favorite-printings.js";
 import { acceptFavoriteNewCard } from "../../../services/accept-gallery.js";
 import {
+  assertCandidatePrintingsInScope,
+  assertSomeProviderInScope,
+  reviewableProviderScope,
+} from "../../../services/card-review-scope.js";
+import {
   acceptPrinting,
   deletePrinting,
   updatePrintingDistributionChannels,
@@ -80,8 +85,11 @@ export const adminCardMutationsRouter = {
 
   patchCandidatePrinting: os.patchCandidatePrinting.handler(
     async ({ input, context }): Promise<void> => {
-      const { candidateMutations: mut } = context.repos;
+      const { candidateMutations: mut, candidateCards, providerSettings } = context.repos;
       const { id, ...body } = input;
+
+      const scope = await reviewableProviderScope(context.adminAccess, providerSettings);
+      await assertCandidatePrintingsInScope(candidateCards, [id], scope);
 
       const allowedFields = ["artVariant", "isSigned", "finish", "setId", "shortCode", "rarity"];
 
@@ -244,8 +252,16 @@ export const adminCardMutationsRouter = {
   }),
 
   acceptField: os.acceptField.handler(async ({ input, context }): Promise<void> => {
-    const { candidateMutations: mut } = context.repos;
+    const { candidateMutations: mut, candidateCards, providerSettings } = context.repos;
     const { cardId, field, value } = input;
+
+    // Grant holders may only edit cards that still have candidate data from
+    // an allowed provider — without this, accept-field would be unscoped
+    // card editing by id.
+    const scope = await reviewableProviderScope(context.adminAccess, providerSettings);
+    if (scope !== null) {
+      assertSomeProviderInScope(await candidateCards.candidateProvidersForCard(cardId), scope);
+    }
 
     // Normalize null to empty array for array-typed fields
     const arrayFields = new Set(["types", "superTypes", "domains", "tags"]);
@@ -346,6 +362,18 @@ export const adminCardMutationsRouter = {
     const printingBefore = await mut.getFullPrintingById(printingId);
     assertFound(printingBefore, "Printing not found");
 
+    // Same scoping rule as acceptField, resolved via the printing's card.
+    const scope = await reviewableProviderScope(
+      context.adminAccess,
+      context.repos.providerSettings,
+    );
+    if (scope !== null) {
+      assertSomeProviderInScope(
+        await context.repos.candidateCards.candidateProvidersForCard(printingBefore.cardId),
+        scope,
+      );
+    }
+
     // When markerSlugs changes, update via dedicated function (printing_markers
     // join is the source of truth; the trigger keeps printings.marker_slugs in sync).
     if (field === "markerSlugs") {
@@ -420,6 +448,20 @@ export const adminCardMutationsRouter = {
 
   acceptNewCard: os.acceptNewCard.handler(async ({ input, context }): Promise<void> => {
     const { name, cardFields } = input;
+
+    // Grant holders may only accept names that have candidate data from an
+    // allowed provider — otherwise this endpoint is arbitrary card creation
+    // (the manual createCard is excluded from the card-review section).
+    const scope = await reviewableProviderScope(
+      context.adminAccess,
+      context.repos.providerSettings,
+    );
+    if (scope !== null) {
+      assertSomeProviderInScope(
+        await context.repos.candidateCards.candidateProvidersForNormName(name),
+        scope,
+      );
+    }
 
     await context.transact(async (trxRepos) => {
       // FK constraints validate values at DB level — safe to cast from z.string()
@@ -516,6 +558,23 @@ export const adminCardMutationsRouter = {
     const { candidateMutations, printingImages, markers, distributionChannels, printingEvents } =
       context.repos;
     const { cardId, printingFields, candidatePrintingIds } = input;
+
+    const scope = await reviewableProviderScope(
+      context.adminAccess,
+      context.repos.providerSettings,
+    );
+    if (scope !== null) {
+      // Without candidate ids this is de-facto manual printing creation
+      // (createPrinting), which the card-review section excludes.
+      if (candidatePrintingIds.length === 0) {
+        throw new AppError(403, ERROR_CODES.FORBIDDEN, "Forbidden");
+      }
+      await assertCandidatePrintingsInScope(
+        context.repos.candidateCards,
+        candidatePrintingIds,
+        scope,
+      );
+    }
 
     const printingId = await acceptPrinting(
       context.transact,

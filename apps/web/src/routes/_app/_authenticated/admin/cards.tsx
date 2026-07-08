@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { AdminPending } from "@/components/admin/admin-route-components";
 import { RouteErrorFallback } from "@/components/error-message";
+import { adminAccessQueryOptions } from "@/hooks/use-admin";
 import { adminCardListQueryOptions, allCardsQueryOptions } from "@/hooks/use-admin-card-queries";
 import { providerSettingsQueryOptions } from "@/hooks/use-provider-settings";
 import { setsQueryOptions } from "@/hooks/use-sets";
@@ -26,11 +27,17 @@ export const Route = createFileRoute("/_app/_authenticated/admin/cards")({
     source: z.enum(["usersubmission"]).optional(),
   }),
   loader: async ({ context }) => {
+    // Already warm from the admin layout beforeLoad. Unified mappings are a
+    // marketplace endpoint that card-review grant holders cannot reach — only
+    // prefetch it for full admins.
+    const access = await context.queryClient.ensureQueryData(adminAccessQueryOptions);
     await Promise.all([
       context.queryClient.ensureQueryData(adminCardListQueryOptions),
       context.queryClient.ensureQueryData(providerSettingsQueryOptions),
       context.queryClient.ensureQueryData(allCardsQueryOptions),
-      context.queryClient.ensureQueryData(unifiedMappingsQueryOptions()),
+      ...(access.isAdmin
+        ? [context.queryClient.ensureQueryData(unifiedMappingsQueryOptions())]
+        : []),
       context.queryClient.ensureQueryData(setsQueryOptions),
     ]);
   },

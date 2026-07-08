@@ -226,6 +226,10 @@ export const TEST_USERS: TestUser[] = [
   // emailVerified per-case. Do not add them here or reuse these IDs elsewhere.
   // Products snapshot service tests (ADR-015)
   { id: "a0000000-0197-4000-a000-000000000001", email: "repo-0197@test.com", isAdmin: false },
+  // card-review grant tests (ADR-040 lineage): one admin control, one
+  // non-admin grant holder (the test file seeds its admin_grants row itself)
+  { id: "a0000000-0198-4000-a000-000000000001", email: "admin-0198@test.com", isAdmin: true },
+  { id: "a0000000-0199-4000-a000-000000000001", email: "crg-0199@test.com", isAdmin: false },
 ];
 
 /**

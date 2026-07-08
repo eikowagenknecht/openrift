@@ -1339,6 +1339,8 @@ interface ProviderSettingsTable {
   sortOrder: number;
   isHidden: boolean;
   isFavorite: boolean;
+  /** Whether card-review grant holders may review this provider's candidates (migration 199). */
+  helperReviewable: boolean;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }

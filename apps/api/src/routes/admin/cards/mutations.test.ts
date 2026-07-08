@@ -105,6 +105,9 @@ const USER_ID = "a0000000-0001-4000-a000-000000000001";
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
+  // requireAdmin isn't mounted here; emulate the access it would resolve for
+  // a full admin (handlers read it for card-review provider scoping).
+  c.set("adminAccess", { isAdmin: true, sections: [] });
   c.set("io", mockIo as never);
   c.set("transact", mockTransact as never);
   c.set("repos", {

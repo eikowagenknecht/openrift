@@ -14,7 +14,11 @@ import { requireAdmin } from "./require-admin.js";
 const mockIsAdmin = vi.fn<(userId: string) => Promise<boolean>>();
 const mockSectionsForUser = vi.fn<(userId: string) => Promise<string[]>>();
 
-function createMockContext(options: { user?: { id: string } | null; path?: string }) {
+function createMockContext(options: {
+  user?: { id: string } | null;
+  path?: string;
+  method?: string;
+}) {
   const session = options.user ? { user: options.user, session: { id: "s-1" } } : null;
   const vars: Record<string, unknown> = {
     auth: {
@@ -33,7 +37,11 @@ function createMockContext(options: { user?: { id: string } | null; path?: strin
     set: (key: string, value: unknown) => {
       vars[key] = value;
     },
-    req: { raw: { headers: new Headers() }, path: options.path ?? "/api/admin/v1/sets" },
+    req: {
+      raw: { headers: new Headers() },
+      path: options.path ?? "/api/admin/v1/sets",
+      method: options.method ?? "GET",
+    },
   } as any;
 }
 
@@ -184,6 +192,58 @@ describe("require-admin middleware", () => {
       expect(mockIsAdmin).toHaveBeenCalledTimes(1);
       expect(mockSectionsForUser).toHaveBeenCalledTimes(1);
       expect(next).toHaveBeenCalledTimes(2);
+    });
+
+    it("passes the request method to the section matcher", async () => {
+      mockIsAdmin.mockResolvedValue(false);
+      mockSectionsForUser.mockResolvedValue(["card-review"]);
+      const path = "/api/admin/v1/cards/candidate-printings/some-id";
+
+      const patchCtx = createMockContext({
+        user: { id: "grant-user-6" },
+        path,
+        method: "PATCH",
+      });
+      const next = vi.fn(() => Promise.resolve());
+      await requireAdmin(patchCtx, next);
+      expect(next).toHaveBeenCalledTimes(1);
+
+      const deleteCtx = createMockContext({
+        user: { id: "grant-user-6" },
+        path,
+        method: "DELETE",
+      });
+      try {
+        await requireAdmin(deleteCtx, next);
+        expect.unreachable("Should have thrown");
+      } catch (error: any) {
+        expect(error).toBeInstanceOf(AppError);
+        expect(error.status).toBe(403);
+      }
+    });
+  });
+
+  describe("adminAccess context exposure", () => {
+    it("exposes the resolved access for full admins", async () => {
+      mockIsAdmin.mockResolvedValue(true);
+      const ctx = createMockContext({ user: { id: "expose-admin" } });
+      const next = vi.fn(() => Promise.resolve());
+
+      await requireAdmin(ctx, next);
+      expect(ctx.get("adminAccess")).toEqual({ isAdmin: true, sections: [] });
+    });
+
+    it("exposes the resolved access for grant holders", async () => {
+      mockIsAdmin.mockResolvedValue(false);
+      mockSectionsForUser.mockResolvedValue(["card-review"]);
+      const ctx = createMockContext({
+        user: { id: "expose-grant" },
+        path: "/api/admin/v1/cards",
+      });
+      const next = vi.fn(() => Promise.resolve());
+
+      await requireAdmin(ctx, next);
+      expect(ctx.get("adminAccess")).toEqual({ isAdmin: false, sections: ["card-review"] });
     });
   });
 });
