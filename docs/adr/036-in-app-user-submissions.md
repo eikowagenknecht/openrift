@@ -1,6 +1,6 @@
 ---
-status: proposed
-date: 2026-07-02
+status: accepted
+date: 2026-07-08
 ---
 
 # ADR-036: In-App User Card Submissions via the Candidate Pipeline

@@ -39,11 +39,19 @@ The MADR documentation is available at <https://adr.github.io/madr/> while gener
 - **[ADR-019](019-trade-execution.md)**: In-App Trade Execution for Friend Groups (supersedes ADR-013's "no trade execution" and "notifications deferred" stances)
 - **[ADR-021](021-match-tracker.md)**: Local Match Tracker for Points and XP
 - **[ADR-022](022-ffa-pod-pairing.md)**: FFA Pod Pairing for Multiplayer Tournaments
+- **[ADR-023](023-card-designer.md)**: Card Designer for Custom Riftbound Cards
+- **[ADR-024](024-share-images-for-lists.md)**: Server-Rendered Share Images for Lists
+- **[ADR-025](025-deck-check-for-judges.md)**: Deck Check for Tournament Judges
 - **[ADR-026](026-player-self-service-for-deck-checks.md)**: Player Self-Service for Deck Checks (supersedes ADR-025's "no player accounts", "no in-app submission", and "no non-judge visibility" stances)
+- **[ADR-027](027-deck-check-entry-states.md)**: Deck-Check Entry Lifecycle States (supersedes ADR-026's edit gate and edit-takeover stances)
 - **[ADR-028](028-user-profile-riot-id.md)**: Free-Text Riot ID on the User Profile
+- **[ADR-029](029-deck-plans.md)**: Deck Plans (Strategy, Mulligan, Battlefields, Sideboard)
 - **[ADR-030](030-trade-email-notifications.md)**: Transactional Email Notifications for Trades
 - **[ADR-032](032-admin-authorization-model.md)**: Admin Authorization stays Prefix-Gated until a Cross-Cutting Role appears
+- **[ADR-033](033-unified-tournaments.md)**: Unified Tournaments: Hosts, Participants, and Capability Modules (supersedes ADR-022's single-owner/free-text-player stance and re-parents ADR-025/026/027 deck check)
 - **[ADR-034](034-dynamic-list-rules.md)**: Dynamic List Rules (supersedes ADR-005's dynamic-rules stance for wish and trade lists)
+- **[ADR-035](035-anonymous-deck-builder.md)**: Anonymous (Logged-Out) Deck Builder
+- **[ADR-036](036-in-app-user-submissions.md)**: In-App User Card Submissions via the Candidate Pipeline (extends ADR-008 with a `usersubmission` provider)
 - **[ADR-037](037-multi-type-cards.md)**: Multi-Type Card Data Model
 - **[ADR-038](038-per-copy-metadata.md)**: Per-Copy Metadata (Condition, Grading, Notes, Links)
 - **[ADR-040](040-per-section-admin-grants.md)**: Per-Section Admin Grants (extends ADR-032's binary admin role with section-scoped grants)
@@ -57,12 +65,4 @@ The MADR documentation is available at <https://adr.github.io/madr/> while gener
 - **[ADR-014](014-tournament-decks.md)**: Tournament Decks Archive
 - **[ADR-015](015-preconstructed-product-catalog.md)**: Preconstructed Product Catalog
 - **[ADR-020](020-double-sided-token-data-model.md)**: Double-Sided Token Data Model
-- **[ADR-023](023-card-designer.md)**: Card Designer for Custom Riftbound Cards
-- **[ADR-024](024-share-images-for-lists.md)**: Server-Rendered Share Images for Lists
-- **[ADR-025](025-deck-check-for-judges.md)**: Deck Check for Tournament Judges
-- **[ADR-027](027-deck-check-entry-states.md)**: Deck-Check Entry Lifecycle States (supersedes ADR-026's edit gate and edit-takeover stances)
-- **[ADR-029](029-deck-plans.md)**: Deck Plans (Strategy, Mulligan, Battlefields, Sideboard)
-- **[ADR-033](033-unified-tournaments.md)**: Unified Tournaments: Hosts, Participants, and Capability Modules (supersedes ADR-022's single-owner/free-text-player stance and re-parents ADR-025/026/027 deck check)
-- **[ADR-035](035-anonymous-deck-builder.md)**: Anonymous (Logged-Out) Deck Builder
-- **[ADR-036](036-in-app-user-submissions.md)**: In-App User Card Submissions via the Candidate Pipeline (extends ADR-008 with a `usersubmission` provider)
 - **[ADR-039](039-card-lending.md)**: Card Lending Ledger
