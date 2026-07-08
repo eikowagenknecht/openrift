@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 7IZqpbLmBN1YSlD6ZUMr0Egh5R8EIuCF08tb34Bd6VRLbaPMV0eX9vn6cwqiaf7
+\restrict EazXPA7p7FBNv1ykJS3MciW9js3K1QJQglYaaAcs9hc4eabH8Eef5pB1Ih3TgGx
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -509,6 +509,24 @@ CREATE TABLE public.accounts (
     password text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: admin_events; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.admin_events (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    actor_user_id text NOT NULL,
+    action text NOT NULL,
+    entity_type text NOT NULL,
+    entity_id text,
+    entity_label text,
+    card_slug text,
+    old_values jsonb,
+    new_values jsonb,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
 
@@ -2323,6 +2341,14 @@ ALTER TABLE ONLY public.accounts
 
 
 --
+-- Name: admin_events admin_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.admin_events
+    ADD CONSTRAINT admin_events_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: admin_grants admin_grants_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3383,6 +3409,20 @@ ALTER TABLE ONLY public.verifications
 --
 
 CREATE INDEX idx_accounts_user_id ON public.accounts USING btree (user_id);
+
+
+--
+-- Name: idx_admin_events_actor; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_admin_events_actor ON public.admin_events USING btree (actor_user_id, created_at DESC, id DESC);
+
+
+--
+-- Name: idx_admin_events_created; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_admin_events_created ON public.admin_events USING btree (created_at DESC, id DESC);
 
 
 --
@@ -5783,5 +5823,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 7IZqpbLmBN1YSlD6ZUMr0Egh5R8EIuCF08tb34Bd6VRLbaPMV0eX9vn6cwqiaf7
+\unrestrict EazXPA7p7FBNv1ykJS3MciW9js3K1QJQglYaaAcs9hc4eabH8Eef5pB1Ih3TgGx
 
