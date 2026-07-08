@@ -58,20 +58,20 @@ export function createLoan(transact: Transact, input: CreateLoanInput): Promise<
   const { lenderUserId, printingId, quantity, borrowerUserId, borrowerName, contextCollectionId } =
     input;
 
-  // The contract's refine already enforces this shape; re-check because the
-  // service is also called from tests and future in-process callers.
-  if ((borrowerUserId === undefined) === (borrowerName === undefined)) {
-    throw new AppError(
-      400,
-      ERROR_CODES.BAD_REQUEST,
-      "Set exactly one of borrowerUserId or borrowerName",
-    );
-  }
-  if (borrowerUserId === lenderUserId) {
-    throw new AppError(400, ERROR_CODES.BAD_REQUEST, "You cannot lend to yourself");
-  }
-
   return transact(async (trxRepos) => {
+    // The contract's refine already enforces this shape; re-check inside the
+    // promise (never a synchronous throw — callers expect a rejection) because
+    // the service is also called from tests and future in-process callers.
+    if ((borrowerUserId === undefined) === (borrowerName === undefined)) {
+      throw new AppError(
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Set exactly one of borrowerUserId or borrowerName",
+      );
+    }
+    if (borrowerUserId === lenderUserId) {
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "You cannot lend to yourself");
+    }
     if (borrowerUserId !== undefined) {
       const shared = await trxRepos.loans.isCoMember(lenderUserId, borrowerUserId);
       if (!shared) {

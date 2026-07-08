@@ -112,6 +112,8 @@ const PARALLEL_FILES = [
   "src/repositories/tournaments-schema.integration.test.ts",
   // Card trades (ADR-019)
   "src/repositories/card-trades.integration.test.ts",
+  // Card lending (ADR-039)
+  "src/repositories/loans.integration.test.ts",
   // Trade email notifications (ADR-030)
   "src/services/trade-request-email.integration.test.ts",
   "src/services/trade-request-coalesce.integration.test.ts",
