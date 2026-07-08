@@ -531,7 +531,7 @@ function CategorySelect({
 
 // ── Card tag editor ───────────────────────────────────────────────────────
 
-function CardTagEditor({ tags }: { tags: CustomTagResponse[] }) {
+export function CardTagEditor({ tags }: { tags: CustomTagResponse[] }) {
   const { data: allCards } = useAllCards();
   const [search, setSearch] = useState("");
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
@@ -563,7 +563,12 @@ function CardTagEditor({ tags }: { tags: CustomTagResponse[] }) {
           results={searchResults}
           onSearch={(q) => {
             setSearch(q);
-            setSelectedCardId(null);
+            // Picking a result makes the Combobox fill the input with the
+            // card's name, which fires this handler too — only drop the
+            // selection when the text no longer matches the selected card.
+            setSelectedCardId((prev) =>
+              prev !== null && allCards.find((c) => c.id === prev)?.name === q ? prev : null,
+            );
           }}
           onSelect={(id) => setSelectedCardId(id)}
           placeholder="Search by name…"
