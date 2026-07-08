@@ -51,7 +51,10 @@ import {
   useReassignCandidatePrinting,
 } from "@/hooks/use-admin-card-mutations";
 import { useAllCards, useUnmatchedCardDetail } from "@/hooks/use-admin-card-queries";
-import { describeAcceptCardFieldIssues } from "@/lib/accept-card-validation";
+import {
+  describeAcceptCardFieldIssues,
+  hasRequiredActiveFields,
+} from "@/lib/accept-card-validation";
 import { queryKeys } from "@/lib/query-keys";
 import { PERSISTENT_ERROR_TOAST } from "@/lib/toast";
 
@@ -163,7 +166,7 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
   const candidatePrintings = unmatchedData.candidatePrintings;
   const defaultCardId = unmatchedData.defaultCardId;
   const newModeCardId = newCardId ?? defaultCardId;
-  const hasRequiredFields = activeCard.name && activeCard.type && activeCard.domains;
+  const hasRequiredFields = hasRequiredActiveFields(activeCard);
 
   const { labels: sourceLabels, names: sourceNames } = buildSourceLabels(sources);
 

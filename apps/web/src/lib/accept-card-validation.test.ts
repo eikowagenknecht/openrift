@@ -1,7 +1,7 @@
 import type { AcceptNewCardBody } from "@openrift/shared/contracts";
 import { describe, expect, it } from "vitest";
 
-import { describeAcceptCardFieldIssues } from "./accept-card-validation";
+import { describeAcceptCardFieldIssues, hasRequiredActiveFields } from "./accept-card-validation";
 
 type CardFields = AcceptNewCardBody["cardFields"];
 
@@ -64,5 +64,35 @@ describe("describeAcceptCardFieldIssues", () => {
       "Domains: needs at least one entry",
       "Energy: must be a whole number",
     ]);
+  });
+});
+
+describe("hasRequiredActiveFields", () => {
+  // The Active column keys its selections by the spreadsheet field keys, where
+  // the card-type field is `types` (plural). Regression: the button gate read
+  // `type` (singular), so it never saw the selection and stayed disabled forever.
+  it("recognizes a fully selected Active column keyed by `types`", () => {
+    expect(hasRequiredActiveFields({ name: "Ambessa", types: ["unit"], domains: ["order"] })).toBe(
+      true,
+    );
+  });
+
+  it("does not accept the legacy singular `type` key", () => {
+    expect(hasRequiredActiveFields({ name: "Ambessa", type: ["unit"], domains: ["order"] })).toBe(
+      false,
+    );
+  });
+
+  it.each([
+    ["name missing", { types: ["unit"], domains: ["order"] }],
+    ["types missing", { name: "Ambessa", domains: ["order"] }],
+    ["domains missing", { name: "Ambessa", types: ["unit"] }],
+    ["empty", {}],
+  ])("requires every field (%s)", (_label, activeCard) => {
+    expect(hasRequiredActiveFields(activeCard)).toBe(false);
+  });
+
+  it("treats empty strings as not selected", () => {
+    expect(hasRequiredActiveFields({ name: "", types: ["unit"], domains: ["order"] })).toBe(false);
   });
 });

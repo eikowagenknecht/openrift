@@ -18,6 +18,20 @@ const FIELD_LABELS: Record<string, string> = {
   tags: "Tags",
 };
 
+/** The Active-column fields that must be selected before a candidate can be
+ * accepted as a new card. Keys match the spreadsheet field keys — note `types`
+ * is plural, matching `buildCandidateCardFields`. */
+const REQUIRED_ACTIVE_FIELDS = ["name", "types", "domains"] as const;
+
+/** Whether the Active column has the minimum fields picked to enable the
+ * "Accept as new card" button: name, types, and domains, each truthy. Deeper
+ * validity (empty arrays, numeric fields) is checked at click time by
+ * `describeAcceptCardFieldIssues`.
+ * @returns True when every required field is present and truthy. */
+export function hasRequiredActiveFields(activeCard: Record<string, unknown>): boolean {
+  return REQUIRED_ACTIVE_FIELDS.every((key) => Boolean(activeCard[key]));
+}
+
 /** Turn one Zod issue into a short, jargon-free reason. Falls back to Zod's own
  * message for anything the common cases don't cover.
  * @returns The reason text (without the field label). */
