@@ -232,6 +232,8 @@ export const TEST_USERS: TestUser[] = [
   { id: "a0000000-0199-4000-a000-000000000001", email: "crg-0199@test.com", isAdmin: false },
   // API key auth tests (migration 200)
   { id: "a0000000-0200-4000-a000-000000000001", email: "key-0200@test.com", isAdmin: false },
+  // ID 0201 is RESERVED (not pre-seeded): the card-admin service test
+  // self-inserts its own user so its teardown can delete it freely.
 ];
 
 /**

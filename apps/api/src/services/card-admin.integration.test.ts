@@ -14,7 +14,10 @@ import { deleteCard } from "./card-admin.js";
 // ---------------------------------------------------------------------------
 
 // Self-inserted (not in the pre-seeded registry) so this file owns its user.
-const USER_ID = "a0000000-0199-4000-a000-000000000001";
+// 0201 is marked RESERVED in integration-setup TEST_USERS — 0199 is taken by
+// the pre-seeded card-review-grant user, which a self-insert would collide
+// with (and the teardown delete would break that file mid-run).
+const USER_ID = "a0000000-0201-4000-a000-000000000001";
 const ctx = createDbContext(USER_ID);
 
 describe.skipIf(!ctx)("deleteCard (integration)", () => {
@@ -37,7 +40,7 @@ describe.skipIf(!ctx)("deleteCard (integration)", () => {
       .insertInto("users")
       .values({
         id: USER_ID,
-        email: "card-admin-0199@test.com",
+        email: "card-admin-0201@test.com",
         name: "Test User",
         emailVerified: true,
         image: null,
