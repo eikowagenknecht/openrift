@@ -1,3 +1,4 @@
+import type { DiffValue } from "@openrift/shared/response-schemas";
 import { emptyToNull, normalizeNameForMatching } from "@openrift/shared/utils";
 import type { Insertable } from "kysely";
 import { z } from "zod";
@@ -13,7 +14,7 @@ interface ItemDetail {
 }
 
 interface UpdatedCardDetail extends ItemDetail {
-  fields: { field: string; from: unknown; to: unknown }[];
+  fields: { field: string; from: DiffValue; to: DiffValue }[];
 }
 
 interface IngestResult {
@@ -123,13 +124,36 @@ export const candidatePrintingValidator = z.object({
   external_id: candidatePrintingFieldRules.externalId,
 });
 
+const isDiffScalar = (v: unknown): v is string | number | boolean | null =>
+  v === null || typeof v === "string" || typeof v === "number" || typeof v === "boolean";
+
+/**
+ * Coerces a normalized field value into the serializable {@link DiffValue} the
+ * response contract exposes (scalar or scalar[]). Non-scalar values — notably
+ * `extra_data`, an arbitrary JSON object — are JSON-stringified so the diff stays
+ * human-readable without widening `diffValueSchema` to a recursive JSON type
+ * (which breaks openapi/hc/tanstack — see response-schemas.ts). Change detection
+ * still runs on the raw normalized values, so this only affects display.
+ *
+ * @returns a scalar or scalar array; non-scalar values as their JSON string.
+ */
+function toDiffValue(value: unknown): DiffValue {
+  if (isDiffScalar(value)) {
+    return value;
+  }
+  if (Array.isArray(value) && value.every((v) => isDiffScalar(v))) {
+    return value;
+  }
+  return JSON.stringify(value);
+}
+
 function getChangedFields(
   existing: Record<string, unknown>,
   incoming: Record<string, unknown>,
   fields: readonly string[],
   fieldMap?: Record<string, string>,
-): { field: string; from: unknown; to: unknown }[] {
-  const diffs: { field: string; from: unknown; to: unknown }[] = [];
+): { field: string; from: DiffValue; to: DiffValue }[] {
+  const diffs: { field: string; from: DiffValue; to: DiffValue }[] = [];
   for (const f of fields) {
     const incomingKey = fieldMap?.[f] ?? f;
     if (!(incomingKey in incoming)) {
@@ -138,7 +162,7 @@ function getChangedFields(
     const a = normalize(existing[f]);
     const b = normalize(incoming[incomingKey]);
     if (!Bun.deepEquals(a, b)) {
-      diffs.push({ field: f, from: a, to: b });
+      diffs.push({ field: f, from: toDiffValue(a), to: toDiffValue(b) });
     }
   }
   return diffs;

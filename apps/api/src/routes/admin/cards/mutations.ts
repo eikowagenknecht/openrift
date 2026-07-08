@@ -1,5 +1,5 @@
 import { appendSetTotal, fixTypography, ERROR_CODES } from "@openrift/shared";
-import type { CandidateCardUploadResponse, CardType, Domain, SuperType } from "@openrift/shared";
+import type { CardType, Domain, SuperType } from "@openrift/shared";
 import { adminCardMutationsContract } from "@openrift/shared/contracts";
 import { cardFieldRules, printingFieldRules } from "@openrift/shared/db-field-rules";
 import { extractKeywords } from "@openrift/shared/keywords";
@@ -648,12 +648,10 @@ export const adminCardMutationsRouter = {
       errors: result.errors,
       newCardDetails: result.newCardDetails,
       removedCardDetails: result.removedCardDetails,
-      // The ingest service diffs opaque field values (`unknown`); narrow to the
-      // serializable DiffValue the API contract exposes (sound — they're JSON).
-      updatedCards: result.updatedCards as CandidateCardUploadResponse["updatedCards"],
+      updatedCards: result.updatedCards,
       newPrintingDetails: result.newPrintingDetails,
       removedPrintingDetails: result.removedPrintingDetails,
-      updatedPrintings: result.updatedPrintings as CandidateCardUploadResponse["updatedPrintings"],
+      updatedPrintings: result.updatedPrintings,
     };
   }),
 };

@@ -369,6 +369,40 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     expect(mightDiff?.to).toBe(5);
   });
 
+  it("serializes non-scalar (extra_data) field diffs to a JSON string", async () => {
+    // Regression: extra_data is an arbitrary JSON object, but the response
+    // contract's diffValueSchema only accepts scalars / scalar[]. Emitting the
+    // raw object made the upload endpoint fail output validation with a 500.
+    // The diff value must be coerced to a serializable scalar.
+    const base = {
+      name: "Extra Card",
+      types: ["unit"] as const,
+      super_types: [] as string[],
+      domains: ["mind"],
+      might: 1,
+      energy: 1,
+      power: 1,
+      might_bonus: null,
+      rules_text: null,
+      effect_text: null,
+      tags: [] as string[],
+      short_code: "EXT-001",
+    };
+
+    await ingestCandidates(transact, SOURCE, [card({ ...base, extra_data: { rank: "gold" } })]);
+    const result = await ingestCandidates(transact, SOURCE, [
+      card({ ...base, extra_data: { rank: "platinum" } }),
+    ]);
+
+    expect(result.updates).toBe(1);
+    const extraDiff = result.updatedCards[0].fields.find((f) => f.field === "extraData");
+    expect(extraDiff).toBeDefined();
+    // Coerced to a scalar string, not the raw object.
+    expect(typeof extraDiff?.from).toBe("string");
+    expect(typeof extraDiff?.to).toBe("string");
+    expect(JSON.parse(extraDiff?.to as string)).toEqual({ rank: "platinum" });
+  });
+
   it("returns unchanged when candidate_card has not changed", async () => {
     // First ingest
     await ingestCandidates(transact, SOURCE, [
