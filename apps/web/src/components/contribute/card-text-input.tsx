@@ -204,6 +204,9 @@ function SyntaxToolbar({
         <PunctuationButton label="Ellipsis" title="Ellipsis (…)" onClick={() => onInsert("…")}>
           …
         </PunctuationButton>
+        <PunctuationButton label="Bullet" title="Bullet (•)" onClick={() => onInsert("•")}>
+          •
+        </PunctuationButton>
       </ButtonGroup>
       {onReformat && (
         <Button
