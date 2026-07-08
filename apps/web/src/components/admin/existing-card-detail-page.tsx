@@ -49,6 +49,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ExpandToggle } from "@/components/ui/expand-toggle";
@@ -62,6 +63,7 @@ import {
   useCheckAllCandidateCards,
   useCopyCandidatePrinting,
   useDeleteCandidatePrinting,
+  useDeleteCard,
   useDeletePrinting,
   useLinkCandidatePrintings,
   useRenameCard,
@@ -245,6 +247,7 @@ export function ExistingCardDetailPage({
   const deletePrintingSource = useDeleteCandidatePrinting(invalidateScope);
   const linkPrintingSources = useLinkCandidatePrintings(invalidateScope);
   const deletePrintingMutation = useDeletePrinting(invalidateScope);
+  const deleteCardMutation = useDeleteCard();
   const { data: allCards } = useAllCards();
   const keywordStyles = useKeywordStyles();
 
@@ -621,6 +624,26 @@ export function ExistingCardDetailPage({
                 >
                   <FileWarningIcon className="mr-2" />
                   {card.errata ? "Edit errata" : "Add errata"}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  disabled={deleteCardMutation.isPending}
+                  onClick={() => {
+                    if (
+                      globalThis.confirm(
+                        `Delete card "${canonicalName}" and all its printings? This cannot be undone.`,
+                      )
+                    ) {
+                      deleteCardMutation.mutate(card.id, {
+                        onSuccess: () => {
+                          void navigate({ to: "/admin/cards" });
+                        },
+                      });
+                    }
+                  }}
+                >
+                  <Trash2Icon className="text-destructive mr-2" />
+                  <span className="text-destructive">Delete card</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

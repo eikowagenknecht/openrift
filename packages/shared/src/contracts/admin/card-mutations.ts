@@ -336,7 +336,8 @@ export interface AcceptPrintingBody {
  * rename/checkByProvider/deleteByProvider/deletePrinting verbs → BAD_REQUEST
  * (and NOT_FOUND for entity lookups); `acceptPrinting` / `createPrinting` →
  * BAD_REQUEST + NOT_FOUND + CONFLICT; `acceptPrintingField` → NOT_FOUND;
- * `acceptFavoritePrintings` → NOT_FOUND.
+ * `acceptFavoritePrintings` → NOT_FOUND; `deleteCard` → NOT_FOUND + CONFLICT
+ * (when user data or marketplace mappings still reference the card).
  */
 export const adminCardMutationsContract = {
   checkCandidateCard: authedRoute
@@ -455,6 +456,18 @@ export const adminCardMutationsContract = {
       BAD_REQUEST: { message: "Printing cannot be deleted" },
     })
     .input(printingIdParam),
+  deleteCard: authedRoute
+    .route({
+      method: "DELETE",
+      path: `${CARDS}/{cardId}`,
+      tags: [TAG],
+      successStatus: 204,
+    })
+    .errors({
+      NOT_FOUND: { message: "Card not found" },
+      CONFLICT: { message: "Card is still referenced and cannot be deleted" },
+    })
+    .input(cardIdParam),
   checkByProvider: authedRoute
     .route({ method: "POST", path: `${CARDS}/by-provider/{provider}/check`, tags: [TAG] })
     .errors({ BAD_REQUEST: { message: "Provider name is required" } })

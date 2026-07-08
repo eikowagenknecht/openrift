@@ -11,6 +11,7 @@ import { requireAuthedUser } from "../../../orpc/base.js";
 import type { ApiContext } from "../../../orpc/context.js";
 import { acceptFavoritePrintingsForCard } from "../../../services/accept-favorite-printings.js";
 import { acceptFavoriteNewCard } from "../../../services/accept-gallery.js";
+import { deleteCard } from "../../../services/card-admin.js";
 import {
   assertCandidatePrintingsInScope,
   assertSomeProviderInScope,
@@ -177,6 +178,12 @@ export const adminCardMutationsRouter = {
   deletePrinting: os.deletePrinting.handler(async ({ input, context }): Promise<void> => {
     const { candidateMutations } = context.repos;
     await deletePrinting(context.transact, context.io, { candidateMutations }, input.printingId);
+  }),
+
+  deleteCard: os.deleteCard.handler(async ({ input, context }): Promise<void> => {
+    const { candidateMutations } = context.repos;
+    await deleteCard(context.transact, context.io, { candidateMutations }, input.cardId);
+    await context.repos.catalog.refreshCardAggregates();
   }),
 
   checkByProvider: os.checkByProvider.handler(async ({ input, context }) => {

@@ -209,6 +209,15 @@ const deletePrintingFn = createServerFn({ method: "POST" })
     });
   });
 
+const deleteCardFn = createServerFn({ method: "POST" })
+  .validator((input: { cardId: string }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    await apiOrpcClient(adminCardMutationsContract, context.cookie).deleteCard({
+      cardId: data.cardId,
+    });
+  });
+
 const acceptPrintingGroupFn = createServerFn({ method: "POST" })
   .validator(
     (input: {
@@ -501,6 +510,15 @@ export function useDeletePrinting(invalidates: Scope = defaultScope) {
       await deletePrintingFn({ data: { printingId } });
     },
     invalidates,
+  });
+}
+
+export function useDeleteCard() {
+  return useMutationWithInvalidation({
+    mutationFn: async (cardId: string) => {
+      await deleteCardFn({ data: { cardId } });
+    },
+    invalidates: [queryKeys.admin.cards.list, queryKeys.admin.cards.allCards],
   });
 }
 

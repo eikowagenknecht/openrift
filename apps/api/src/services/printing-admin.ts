@@ -100,6 +100,49 @@ export async function updatePrintingDistributionChannels(
 // ── deletePrinting ──────────────────────────────────────────────────────────
 
 /**
+ * Delete a printing's rows inside an already-open transaction: unlink its
+ * candidate printings, drop its images and link overrides, then the printing
+ * row itself.
+ * @returns Image file IDs that may be orphaned once the transaction commits.
+ */
+export async function deletePrintingRows(
+  trxMut: CandidateMutationsRepo,
+  printingId: string,
+): Promise<string[]> {
+  await trxMut.unlinkCandidatePrintingsByPrintingId(printingId);
+  const images = await trxMut.deletePrintingImagesByPrintingId(printingId);
+  await trxMut.deletePrintingLinkOverridesById(printingId);
+  await trxMut.deletePrintingById(printingId);
+  return images.map((img) => img.imageFileId);
+}
+
+/**
+ * Delete image files (DB row + rehosted files) that no longer have any
+ * references. Runs outside the deleting transaction: rehost deletion touches
+ * external storage and must only happen after the DB delete is committed.
+ * @returns Promise that resolves when the orphaned files are gone.
+ */
+export async function cleanupOrphanedImageFiles(
+  io: Io,
+  mut: CandidateMutationsRepo,
+  imageFileIds: string[],
+): Promise<void> {
+  for (const imageFileId of imageFileIds) {
+    const imageFile = await mut.getImageFileById(imageFileId);
+    if (!imageFile) {
+      continue;
+    }
+    const stillReferenced = await mut.isImageFileReferenced(imageFileId);
+    if (!stillReferenced) {
+      if (imageFile.rehostedUrl) {
+        await deleteRehostFiles(io, imageFile.rehostedUrl);
+      }
+      await mut.deleteImageFileById(imageFileId);
+    }
+  }
+}
+
+/**
  * Delete a printing and clean up all related data.
  */
 export async function deletePrinting(
@@ -113,30 +156,11 @@ export async function deletePrinting(
   const printing = await mut.getPrintingById(printingId);
   assertFound(printing, "Printing not found");
 
-  const deletedImageFileIds = await transact(async (trxRepos) => {
-    const trxMut = trxRepos.candidateMutations;
+  const deletedImageFileIds = await transact((trxRepos) =>
+    deletePrintingRows(trxRepos.candidateMutations, printing.id),
+  );
 
-    await trxMut.unlinkCandidatePrintingsByPrintingId(printing.id);
-    const images = await trxMut.deletePrintingImagesByPrintingId(printing.id);
-    await trxMut.deletePrintingLinkOverridesById(printing.id);
-    await trxMut.deletePrintingById(printing.id);
-
-    return images.map((img) => img.imageFileId);
-  });
-
-  for (const imageFileId of deletedImageFileIds) {
-    const imageFile = await repos.candidateMutations.getImageFileById(imageFileId);
-    if (!imageFile) {
-      continue;
-    }
-    const stillReferenced = await repos.candidateMutations.isImageFileReferenced(imageFileId);
-    if (!stillReferenced) {
-      if (imageFile.rehostedUrl) {
-        await deleteRehostFiles(io, imageFile.rehostedUrl);
-      }
-      await repos.candidateMutations.deleteImageFileById(imageFileId);
-    }
-  }
+  await cleanupOrphanedImageFiles(io, mut, deletedImageFileIds);
 }
 
 // ── acceptPrinting ───────────────────────────────────────────────────────────

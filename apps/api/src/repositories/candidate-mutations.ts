@@ -13,6 +13,18 @@ import type { DeleteResult, Kysely, Selectable, Updateable, UpdateResult } from 
 
 import type { CandidatePrintingsTable, CardsTable, Database, PrintingsTable } from "../db/index.js";
 
+/** Per-source counts of rows that block a card deletion (RESTRICT FKs). */
+export interface CardDeleteBlockers {
+  copies: number;
+  collectionEvents: number;
+  deckCards: number;
+  listEntries: number;
+  loans: number;
+  cardTrades: number;
+  marketplaceProductVariants: number;
+  productPrintings: number;
+}
+
 /**
  * Mutation queries for candidate cards, candidate printings, cards, and printings
  * used by the admin card-source management routes.
@@ -430,6 +442,58 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
         await trx.updateTable("cards").set({ type: types[0] }).where("id", "=", cardId).execute();
       };
       await (db.isTransaction ? run(db) : db.transaction().execute(run));
+    },
+
+    /**
+     * Count rows that reference a card (directly or via its printings) and
+     * block deletion: user-owned data plus marketplace product mappings.
+     * Cascading / SET NULL children are not counted.
+     * @returns Per-source blocker counts, all zero when the card is deletable.
+     */
+    async countCardDeleteBlockers(cardId: string): Promise<CardDeleteBlockers> {
+      const result = await sql<CardDeleteBlockers>`
+        SELECT
+          (SELECT count(*) FROM copies c
+             JOIN printings p ON p.id = c.printing_id
+            WHERE p.card_id = ${cardId})::int AS "copies",
+          (SELECT count(*) FROM collection_events ce
+             JOIN printings p ON p.id = ce.printing_id
+            WHERE p.card_id = ${cardId})::int AS "collectionEvents",
+          (SELECT count(*) FROM deck_cards WHERE card_id = ${cardId})::int AS "deckCards",
+          (SELECT count(*) FROM list_entries WHERE card_id = ${cardId})::int AS "listEntries",
+          (SELECT count(*) FROM loans WHERE card_id = ${cardId})::int AS "loans",
+          (SELECT count(*) FROM card_trades WHERE card_id = ${cardId})::int AS "cardTrades",
+          (SELECT count(*) FROM marketplace_product_variants v
+             JOIN printings p ON p.id = v.printing_id
+            WHERE p.card_id = ${cardId})::int AS "marketplaceProductVariants",
+          (SELECT count(*) FROM product_printings pp
+             JOIN printings p ON p.id = pp.printing_id
+            WHERE p.card_id = ${cardId})::int AS "productPrintings"
+      `.execute(db);
+      return result.rows[0];
+    },
+
+    /** @returns Printing UUIDs for a card by card UUID. */
+    getPrintingIdsByCardId(cardId: string): Promise<{ id: string }[]> {
+      return db.selectFrom("printings").select("id").where("cardId", "=", cardId).execute();
+    },
+
+    /** Delete all bans for a card by UUID. */
+    async deleteCardBansByCardId(cardId: string): Promise<void> {
+      await db.deleteFrom("cardBans").where("cardId", "=", cardId).execute();
+    },
+
+    /** Delete manual marketplace card overrides pointing at a card by UUID. */
+    async deleteMarketplaceCardOverridesByCardId(cardId: string): Promise<void> {
+      await db.deleteFrom("marketplaceProductCardOverrides").where("cardId", "=", cardId).execute();
+    },
+
+    /**
+     * Delete a card by UUID.
+     * @returns The deleted row's ID, or undefined if not found.
+     */
+    deleteCardById(id: string): Promise<{ id: string } | undefined> {
+      return db.deleteFrom("cards").where("id", "=", id).returning("id").executeTakeFirst();
     },
 
     /** Replace all super types for a card by UUID (delete + insert). */
