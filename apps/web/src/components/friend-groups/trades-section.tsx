@@ -6,6 +6,7 @@ import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { UserAvatar } from "@/components/user-avatar";
 import {
   useAcceptTrade,
   useApplyTradeSync,
@@ -17,8 +18,11 @@ import {
 } from "@/hooks/use-card-trades";
 import { useCards } from "@/hooks/use-cards";
 import { useEnumOrders } from "@/hooks/use-enums";
-import { tradeSection } from "@/lib/trade-derivation";
+import { usePrices } from "@/hooks/use-prices";
+import type { TradeCounterpartyGroup } from "@/lib/trade-derivation";
+import { groupTradesByCounterparty, sumTradeValues, tradeSection } from "@/lib/trade-derivation";
 import { cn } from "@/lib/utils";
+import { useDisplayStore } from "@/stores/display-store";
 import { useTradeActionStore } from "@/stores/trade-action-store";
 
 import { AddToCollectionDialog } from "./add-to-collection-dialog";
@@ -30,6 +34,7 @@ import {
   TradeEstimatedPrice,
   TradeExpiry,
   TradeStatusBadge,
+  TradeValueSummary,
 } from "./trade-row-parts";
 
 /**
@@ -203,16 +208,149 @@ function TradeRow({ trade }: { trade: CardTradeResponse }) {
   );
 }
 
-function TradeGroup({ heading, trades }: { heading: string; trades: CardTradeResponse[] }) {
+/** Which bulk action a counterparty group offers, keyed to its lifecycle bucket:
+ * accept/decline for the requests awaiting the viewer, cancel for the requests
+ * the viewer sent, or none (completed history). */
+type BulkMode = "accept-decline" | "cancel" | "none";
+
+/**
+ * The bulk action buttons on a counterparty group header. Acts on the trades in
+ * this group whose contextual action matches the mode — accept/decline for
+ * "Your move" requests, cancel for the viewer's own pending ones — firing one
+ * mutation per trade and driving the shared action store so every affected row
+ * shows its in-flight state. Renders nothing until there are at least two to act
+ * on, since a lone trade is served fine by its own row button.
+ * @returns The bulk-action buttons, or null when fewer than two apply.
+ */
+function BulkTradeActions({ trades, mode }: { trades: CardTradeResponse[]; mode: BulkMode }) {
+  const accept = useAcceptTrade();
+  const decline = useDeclineTrade();
+  const cancel = useCancelTrade();
+  const begin = useTradeActionStore((state) => state.begin);
+  const settle = useTradeActionStore((state) => state.settle);
+
+  const needle = mode === "accept-decline" ? "accept-or-decline" : "cancel";
+  const targets = trades.filter((trade) => trade.actionNeeded === needle);
+  const acting = useTradeActionStore((state) =>
+    targets.some((trade) => state.pending.has(trade.id)),
+  );
+
+  if (mode === "none" || targets.length < 2) {
+    return null;
+  }
+
+  function runAll(mutation: {
+    mutate: (
+      variables: { tradeId: string; groupSlug?: string },
+      options?: { onSettled?: () => void },
+    ) => void;
+  }): void {
+    for (const trade of targets) {
+      begin(trade.id);
+      mutation.mutate(
+        { tradeId: trade.id, groupSlug: trade.groupSlug },
+        { onSettled: () => settle(trade.id) },
+      );
+    }
+  }
+
+  if (mode === "cancel") {
+    return (
+      <Button
+        size="sm"
+        variant="outline"
+        className="shrink-0"
+        disabled={acting}
+        onClick={() => runAll(cancel)}
+      >
+        Cancel all ({targets.length})
+      </Button>
+    );
+  }
+  return (
+    <div className="flex shrink-0 items-center gap-1.5">
+      <Button size="sm" variant="outline" disabled={acting} onClick={() => runAll(decline)}>
+        Decline all
+      </Button>
+      <Button size="sm" disabled={acting} onClick={() => runAll(accept)}>
+        Accept all ({targets.length})
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * One counterparty's trades under a collapsible header: avatar, name, count, and
+ * the estimated get/give value, with the bulk action for the bucket next to it.
+ * Default-open so the rows are visible, but collapsible so a big pile from one
+ * person can be folded away.
+ * @returns The per-counterparty trade group.
+ */
+function CounterpartyTradeGroup({
+  group,
+  bulk,
+}: {
+  group: TradeCounterpartyGroup;
+  bulk: BulkMode;
+}) {
+  const { counterparty, trades } = group;
+  const prices = usePrices();
+  const marketplace = useDisplayStore((state) => state.marketplaceOrder[0] ?? "cardtrader");
+  const split = sumTradeValues(trades, (printingId) => prices.get(printingId, marketplace));
+
+  return (
+    <Collapsible defaultOpen>
+      <div className="flex items-center gap-2">
+        <CollapsibleTrigger className="group hover:bg-muted/50 flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left font-medium">
+          <UserAvatar
+            image={counterparty.image}
+            name={counterparty.name}
+            gravatarHash={counterparty.gravatarHash}
+            size="sm"
+          />
+          <span className="truncate">{counterparty.name ?? "Member"}</span>
+          <span className="text-muted-foreground shrink-0 text-xs">({trades.length})</span>
+          <TradeValueSummary split={split} marketplace={marketplace} className="ml-auto" />
+          <ChevronRightIcon className="text-muted-foreground size-4 shrink-0 transition-transform group-data-[panel-open]:rotate-90" />
+        </CollapsibleTrigger>
+        <BulkTradeActions trades={trades} mode={bulk} />
+      </div>
+      <CollapsibleContent>
+        <div className="mt-1 flex flex-col gap-2">
+          {trades.map((trade) => (
+            <TradeRow key={trade.id} trade={trade} />
+          ))}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+/**
+ * A lifecycle bucket (In progress / Action needed), its trades grouped per
+ * counterparty so a pile of requests to one person reads as a single foldable
+ * block with a running value and a bulk action.
+ * @returns The bucket section, or null when empty.
+ */
+function CounterpartyGroupedBucket({
+  heading,
+  trades,
+  bulk,
+}: {
+  heading: string;
+  trades: CardTradeResponse[];
+  bulk: BulkMode;
+}) {
   if (trades.length === 0) {
     return null;
   }
+  const groups = groupTradesByCounterparty(trades);
   return (
     <section className="flex flex-col gap-3">
       <h3 className={SECTION_HEADING}>{heading}</h3>
       <div className="flex flex-col gap-2">
-        {trades.map((trade) => (
-          <TradeRow key={trade.id} trade={trade} />
+        {groups.map((group) => (
+          <CounterpartyTradeGroup key={group.counterparty.userId} group={group} bulk={bulk} />
         ))}
       </div>
     </section>
@@ -220,15 +358,16 @@ function TradeGroup({ heading, trades }: { heading: string; trades: CardTradeRes
 }
 
 /**
- * Completed trades, collapsed by default behind a clickable heading. History
- * accrues and rarely needs acting on, so it stays out of the way until the
- * viewer expands it.
+ * Completed trades, collapsed by default behind a clickable heading and grouped
+ * per counterparty inside. History accrues and rarely needs acting on, so it
+ * stays out of the way until the viewer expands it.
  * @returns The collapsible completed group, or null when empty.
  */
-function CompletedTradeGroup({ trades }: { trades: CardTradeResponse[] }) {
+function CompletedBucket({ trades }: { trades: CardTradeResponse[] }) {
   if (trades.length === 0) {
     return null;
   }
+  const groups = groupTradesByCounterparty(trades);
   return (
     <Collapsible defaultOpen={false} className="flex flex-col gap-3">
       <h3>
@@ -245,8 +384,8 @@ function CompletedTradeGroup({ trades }: { trades: CardTradeResponse[] }) {
       </h3>
       <CollapsibleContent>
         <div className="flex flex-col gap-2">
-          {trades.map((trade) => (
-            <TradeRow key={trade.id} trade={trade} />
+          {groups.map((group) => (
+            <CounterpartyTradeGroup key={group.counterparty.userId} group={group} bulk="none" />
           ))}
         </div>
       </CollapsibleContent>
@@ -301,11 +440,15 @@ export function TradesSection({ groupId, suggestions, memberLists }: TradesSecti
 
   return (
     <div className="flex flex-col gap-8">
-      <TradeGroup heading="In progress" trades={active} />
-      <TradeGroup heading="Action needed" trades={actionNeeded} />
+      <CounterpartyGroupedBucket heading="In progress" trades={active} bulk="cancel" />
+      <CounterpartyGroupedBucket
+        heading="Action needed"
+        trades={actionNeeded}
+        bulk="accept-decline"
+      />
       {suggestions}
       {memberLists}
-      <CompletedTradeGroup trades={history} />
+      <CompletedBucket trades={history} />
     </div>
   );
 }

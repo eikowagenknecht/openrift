@@ -6,13 +6,16 @@ import type {
   MarketplaceInfo,
 } from "@openrift/shared";
 import { legendDisplayName } from "@openrift/shared";
+import { ChevronRightIcon } from "lucide-react";
 import { useState } from "react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { MatchPreferenceCell } from "@/components/trade-preferences/match-preference-cell";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ExpandToggle } from "@/components/ui/expand-toggle";
 import { Pressable } from "@/components/ui/pressable";
+import { UserAvatar } from "@/components/user-avatar";
 import {
   useAcceptTrade,
   useCreateTrade,
@@ -24,8 +27,8 @@ import { useEnumOrders } from "@/hooks/use-enums";
 import { useMarketplaceInfo } from "@/hooks/use-marketplace-info";
 import { usePrices } from "@/hooks/use-prices";
 import { compactFormatterForMarketplace, priceColorClass } from "@/lib/format";
-import type { MatchDirection } from "@/lib/trade-derivation";
-import { describeViewerSource, matchSuggestionKey } from "@/lib/trade-derivation";
+import type { MatchDirection, TradeValueSplit } from "@/lib/trade-derivation";
+import { describeViewerSource, matchSuggestionKey, maxTradeQuantity } from "@/lib/trade-derivation";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 import { useMatchVariantsFoldStore } from "@/stores/match-variants-fold-store";
@@ -37,6 +40,7 @@ import {
   TradeDirectionIcon,
   TradePerCopyPrice,
   TradeStatusBadge,
+  TradeValueSummary,
 } from "./trade-row-parts";
 
 // Receive-first, give-second: incoming rows sort ahead of outgoing ones, then
@@ -578,6 +582,186 @@ function MatchTradeRowGroup({
   );
 }
 
+/**
+ * Renders one suggestion group as the collapsed multi-variant card when a
+ * card-level wish spans several printings, or a single wide row otherwise.
+ * Shared by the flat (member-detail) list and the per-counterparty groups.
+ * @returns The suggestion element.
+ */
+function MatchGroupItem({
+  group,
+  groupSlug,
+  infosByPrinting,
+  showCounterparty,
+  liveTradeByKey,
+}: {
+  group: MatchTradeGroup;
+  groupSlug: string;
+  infosByPrinting: Record<string, Record<Marketplace, MarketplaceInfo>>;
+  showCounterparty: boolean;
+  liveTradeByKey: Map<string, CardTradeResponse>;
+}) {
+  if (group.variants.length > 1) {
+    return (
+      <MatchTradeRowGroup
+        group={group}
+        groupSlug={groupSlug}
+        infosByPrinting={infosByPrinting}
+        showCounterparty={showCounterparty}
+        liveTradeByKey={liveTradeByKey}
+      />
+    );
+  }
+  const variant = group.variants[0];
+  return (
+    <MatchRow
+      match={variant}
+      groupSlug={groupSlug}
+      marketplaceInfos={infosByPrinting[variant.printingId] ?? null}
+      showCounterparty={showCounterparty}
+      liveTrade={liveTradeByKey.get(liveTradeKey(variant.counterpartyUserId, variant.printingId))}
+    />
+  );
+}
+
+/**
+ * Whether a suggestion can be bulk-requested: a single-printing card coming to
+ * the viewer with at least one copy available. Multi-printing wishes are
+ * ambiguous (which version?) so they keep their per-row Request button and its
+ * picker; outgoing "offer" suggestions aren't requests at all.
+ * @returns True when "Request all" can fire this suggestion unattended.
+ */
+function isBulkRequestable(group: MatchTradeGroup): boolean {
+  return (
+    group.direction === "incoming" &&
+    group.variants.length === 1 &&
+    maxTradeQuantity(group.buyQuantity, group.totalAvailable) > 0
+  );
+}
+
+/**
+ * Estimates a counterparty's suggestions' value, split by direction. A
+ * suggestion's quantity is only ever what you *could* trade (`maxTradeQuantity`
+ * — the wished amount capped by what they have), and its per-copy price is the
+ * cheapest across a card wish's variants, so this is a rough "if you traded it
+ * all" figure. Unpriced groups are skipped.
+ * @returns The get/give value split for the person's suggestions.
+ */
+function sumMatchValues(
+  matches: MatchTradeGroup[],
+  prices: ReturnType<typeof usePrices>,
+  marketplace: Marketplace,
+): TradeValueSplit {
+  const split: TradeValueSplit = { get: 0, give: 0, hasGet: false, hasGive: false };
+  for (const group of matches) {
+    const unitPrices = group.variants
+      .map((variant) => prices.get(variant.printingId, marketplace))
+      .filter((price) => price !== undefined);
+    if (unitPrices.length === 0) {
+      continue;
+    }
+    const value =
+      Math.min(...unitPrices) * maxTradeQuantity(group.buyQuantity, group.totalAvailable);
+    if (group.direction === "incoming") {
+      split.get += value;
+      split.hasGet = true;
+    } else {
+      split.give += value;
+      split.hasGive = true;
+    }
+  }
+  return split;
+}
+
+/**
+ * One counterparty's suggestions under a collapsible header: avatar, name, a
+ * "possible" count, and the estimated get/give value, with a "Request all"
+ * button that fires every unambiguous single-printing card you want from them at
+ * its default quantity. Multi-printing wishes and outgoing offers keep their own
+ * per-row buttons.
+ * @returns The per-counterparty suggestions group.
+ */
+function MatchCounterpartyGroup({
+  matches,
+  groupSlug,
+  infosByPrinting,
+  liveTradeByKey,
+}: {
+  matches: MatchTradeGroup[];
+  groupSlug: string;
+  infosByPrinting: Record<string, Record<Marketplace, MarketplaceInfo>>;
+  liveTradeByKey: Map<string, CardTradeResponse>;
+}) {
+  const prices = usePrices();
+  const marketplace = useDisplayStore((state) => state.marketplaceOrder[0] ?? "cardtrader");
+  const createTrade = useCreateTrade();
+
+  const first = matches[0];
+  const split = sumMatchValues(matches, prices, marketplace);
+  const requestable = matches.filter((group) => isBulkRequestable(group));
+
+  function requestAll(): void {
+    for (const group of requestable) {
+      const variant = group.variants[0];
+      createTrade.mutate({
+        groupSlug,
+        counterpartyUserId: variant.counterpartyUserId,
+        role: "receiver",
+        printingId: variant.printingId,
+        quantity: maxTradeQuantity(group.buyQuantity, group.totalAvailable),
+      });
+    }
+  }
+
+  return (
+    <Collapsible defaultOpen>
+      <div className="flex items-center gap-2">
+        <CollapsibleTrigger className="group hover:bg-muted/50 flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left font-medium">
+          <UserAvatar
+            image={first.counterpartyImage}
+            name={first.counterpartyName}
+            gravatarHash={first.counterpartyGravatarHash}
+            size="sm"
+          />
+          <span className="truncate">{first.counterpartyName ?? "Member"}</span>
+          <span className="text-muted-foreground shrink-0 text-xs">({matches.length})</span>
+          <TradeValueSummary
+            split={split}
+            marketplace={marketplace}
+            conditional
+            className="ml-auto"
+          />
+          <ChevronRightIcon className="text-muted-foreground size-4 shrink-0 transition-transform group-data-[panel-open]:rotate-90" />
+        </CollapsibleTrigger>
+        {requestable.length >= 2 ? (
+          <Button
+            size="sm"
+            className="shrink-0"
+            disabled={createTrade.isPending}
+            onClick={requestAll}
+          >
+            Request all ({requestable.length})
+          </Button>
+        ) : null}
+      </div>
+      <CollapsibleContent>
+        <div className="mt-1 flex flex-col gap-2">
+          {matches.map((group) => (
+            <MatchGroupItem
+              key={group.foldId}
+              group={group}
+              groupSlug={groupSlug}
+              infosByPrinting={infosByPrinting}
+              showCounterparty={false}
+              liveTradeByKey={liveTradeByKey}
+            />
+          ))}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
 interface MatchTradeListProps {
   /** Rows where a member has a card you want (the card flows to you). */
   incoming: FriendGroupMatchRow[];
@@ -589,11 +773,13 @@ interface MatchTradeListProps {
 }
 
 /**
- * The unified trades view: one flat list of wide rows, everything you'd receive
- * first, then everything you'd give. Each row carries its own direction
- * indicator and the counterparty's price preference. Used on the group page
- * (with the counterparty chip) and the member-detail page (without it).
- * @returns The flat list of match rows.
+ * The unified trades view. On the group page suggestions are grouped per
+ * counterparty (each foldable, with a running value and a "Request all"), so a
+ * long list of possible trades with several people reads as a handful of blocks.
+ * On the member-detail page (`showCounterparty` false) the whole list is one
+ * member already, so it stays a flat list of wide rows — everything you'd
+ * receive first, then everything you'd give.
+ * @returns The grouped or flat list of match rows.
  */
 export function MatchTradeList({
   incoming,
@@ -637,31 +823,45 @@ export function MatchTradeList({
   );
   const infosByPrinting = marketplaceInfo?.infos ?? {};
 
-  return (
-    <div className="flex flex-col gap-2">
-      {groups.map((group) =>
-        group.variants.length > 1 ? (
-          <MatchTradeRowGroup
+  // Member-detail page: one member, so a flat list reads best.
+  if (!showCounterparty) {
+    return (
+      <div className="flex flex-col gap-2">
+        {groups.map((group) => (
+          <MatchGroupItem
             key={group.foldId}
             group={group}
             groupSlug={groupSlug}
             infosByPrinting={infosByPrinting}
-            showCounterparty={showCounterparty}
+            showCounterparty={false}
             liveTradeByKey={liveTradeByKey}
           />
-        ) : (
-          <MatchRow
-            key={group.foldId}
-            match={group.variants[0]}
-            groupSlug={groupSlug}
-            marketplaceInfos={infosByPrinting[group.variants[0].printingId] ?? null}
-            showCounterparty={showCounterparty}
-            liveTrade={liveTradeByKey.get(
-              liveTradeKey(group.variants[0].counterpartyUserId, group.variants[0].printingId),
-            )}
-          />
-        ),
-      )}
+        ))}
+      </div>
+    );
+  }
+
+  // Group page: bucket the suggestions per counterparty, biggest pile first,
+  // then by name. Each person's suggestions keep the direction/name order above.
+  const byCounterparty = [
+    ...Map.groupBy(groups, (group) => group.counterpartyUserId).values(),
+  ].toSorted(
+    (a, b) =>
+      b.length - a.length ||
+      (a[0].counterpartyName ?? "").localeCompare(b[0].counterpartyName ?? ""),
+  );
+
+  return (
+    <div className="flex flex-col gap-2">
+      {byCounterparty.map((matches) => (
+        <MatchCounterpartyGroup
+          key={matches[0].counterpartyUserId}
+          matches={matches}
+          groupSlug={groupSlug}
+          infosByPrinting={infosByPrinting}
+          liveTradeByKey={liveTradeByKey}
+        />
+      ))}
     </div>
   );
 }

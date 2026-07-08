@@ -4,6 +4,7 @@
 
 ### Highlights
 
+- feat(Trades): **Trades grouped by person** — the Trades page now stacks your trades and possible trades under each member with a running value estimate, plus bulk Accept all, Decline all, Cancel all, and Request all buttons.
 - feat(Cards): **Product catalog** — the new Products page lists official products with every card inside, and cards you don't own yet show dimmed so gaps stand out.
 - feat(Collection): **Card lending** — right-click a card in your collection to lend it to a friend: it stays owned but stops counting for decks and trades until it's back, and the new Lending page tracks who has what, including cards you're borrowing.
 - fix(Trades): **Wishlist rule filters now limit matches** — a dynamic card want no longer matches printings its filters exclude (like overnumbered variants), and "only what I'm missing" no longer counts such copies as owned.

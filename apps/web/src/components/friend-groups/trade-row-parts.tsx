@@ -1,4 +1,4 @@
-import type { CardTradeStatus, Finish, Rarity } from "@openrift/shared";
+import type { CardTradeStatus, Finish, Marketplace, Rarity } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { ArrowDownLeftIcon, ArrowUpRightIcon, BellIcon, CheckIcon, ClockIcon } from "lucide-react";
 import type { ReactNode } from "react";
@@ -11,6 +11,7 @@ import { compactFormatterForMarketplace, priceColorClass } from "@/lib/format";
 import { formatTimeRemaining } from "@/lib/format-relative-time";
 import { getFilterIconPath } from "@/lib/icons";
 import { marketplaceLabel } from "@/lib/marketplace-meta";
+import type { TradeValueSplit } from "@/lib/trade-derivation";
 import { tradeStatusLabel } from "@/lib/trade-derivation";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
@@ -143,6 +144,51 @@ export function TradeEstimatedPrice({
         {compactFormatterForMarketplace(marketplace)(total)}
       </span>
     </>
+  );
+}
+
+/**
+ * The per-person estimated value shown on a counterparty group header, split by
+ * direction: "You get ≈X · give ≈Y" when cards flow both ways, or a single side
+ * when they don't. `conditional` switches to the "You'd get/give" wording used
+ * for suggestions (a value you'd realise *if* you traded), versus the plain
+ * "You get/give" of trades already agreed. Renders nothing when neither side has
+ * a priced item. The "≈" flags it as an estimate over what's priced.
+ * @returns The value-summary element, or null when nothing is priced.
+ */
+export function TradeValueSummary({
+  split,
+  marketplace,
+  conditional = false,
+  className,
+}: {
+  split: TradeValueSplit;
+  marketplace: Marketplace;
+  /** Use "You'd get/give" (suggestions) instead of "You get/give" (agreed). */
+  conditional?: boolean;
+  className?: string;
+}) {
+  if (!split.hasGet && !split.hasGive) {
+    return null;
+  }
+  const fmt = compactFormatterForMarketplace(marketplace);
+  const getVerb = conditional ? "You'd get" : "You get";
+  const giveVerb = conditional ? "You'd give" : "You give";
+  let text: string;
+  if (split.hasGet && split.hasGive) {
+    text = `${getVerb} ≈${fmt(split.get)} · give ≈${fmt(split.give)}`;
+  } else if (split.hasGet) {
+    text = `${getVerb} ≈${fmt(split.get)}`;
+  } else {
+    text = `${giveVerb} ≈${fmt(split.give)}`;
+  }
+  return (
+    <span
+      className={cn("text-muted-foreground shrink-0 text-xs whitespace-nowrap", className)}
+      title={`Estimated value (${marketplaceLabel(marketplace)})`}
+    >
+      {text}
+    </span>
   );
 }
 

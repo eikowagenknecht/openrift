@@ -5,8 +5,10 @@ import type { MatchSuggestionFields } from "./trade-derivation";
 import {
   countTradeSuggestions,
   describeViewerSource,
+  groupTradesByCounterparty,
   matchSuggestionKey,
   maxTradeQuantity,
+  sumTradeValues,
   tradeSection,
   tradeStatusLabel,
   withoutLiveTradeMatches,
@@ -319,5 +321,76 @@ describe("countTradeSuggestions", () => {
       stubSuggestion({ counterpartyListId: "list-2" }),
     ];
     expect(countTradeSuggestions(incoming, [])).toBe(4);
+  });
+});
+
+function stubCounterparty(userId: string, name: string | null): CardTradeResponse["counterparty"] {
+  return { userId, name, image: null, gravatarHash: `${userId}-hash`, contactMethods: [] };
+}
+
+describe("groupTradesByCounterparty", () => {
+  it("groups trades by counterparty, preserving input order within a group", () => {
+    const alice1 = stubTrade({ id: "a1", counterparty: stubCounterparty("alice", "Alice") });
+    const alice2 = stubTrade({ id: "a2", counterparty: stubCounterparty("alice", "Alice") });
+    const bob = stubTrade({ id: "b1", counterparty: stubCounterparty("bob", "Bob") });
+
+    const groups = groupTradesByCounterparty([alice1, bob, alice2]);
+
+    const alice = groups.find((group) => group.counterparty.userId === "alice");
+    expect(alice?.trades.map((trade) => trade.id)).toEqual(["a1", "a2"]);
+  });
+
+  it("orders groups by trade count descending, then by name", () => {
+    const trades = [
+      stubTrade({ id: "z1", counterparty: stubCounterparty("zoe", "Zoe") }),
+      stubTrade({ id: "a1", counterparty: stubCounterparty("alice", "Alice") }),
+      stubTrade({ id: "a2", counterparty: stubCounterparty("alice", "Alice") }),
+      stubTrade({ id: "m1", counterparty: stubCounterparty("mia", "Mia") }),
+    ];
+
+    const groups = groupTradesByCounterparty(trades);
+
+    // Alice (2) first; Mia and Zoe (1 each) tie-break alphabetically.
+    expect(groups.map((group) => group.counterparty.userId)).toEqual(["alice", "mia", "zoe"]);
+  });
+
+  it("returns an empty array for no trades", () => {
+    expect(groupTradesByCounterparty([])).toEqual([]);
+  });
+});
+
+describe("sumTradeValues", () => {
+  const price = (map: Record<string, number>) => (printingId: string) => map[printingId];
+
+  it("splits value by direction: receiver into get, giver into give", () => {
+    const trades = [
+      stubTrade({ role: "receiver", printingId: "p1", quantity: 2 }),
+      stubTrade({ role: "giver", printingId: "p2", quantity: 1 }),
+    ];
+
+    const split = sumTradeValues(trades, price({ p1: 5, p2: 3 }));
+
+    expect(split).toEqual({ get: 10, give: 3, hasGet: true, hasGive: true });
+  });
+
+  it("skips unpriced printings and leaves the flag false when a side is all-unpriced", () => {
+    const trades = [
+      stubTrade({ role: "receiver", printingId: "p1", quantity: 2 }),
+      stubTrade({ role: "receiver", printingId: "p2", quantity: 4 }),
+    ];
+
+    const split = sumTradeValues(trades, price({ p1: 5 }));
+
+    // p2 has no price, so only p1 contributes; the give side stays empty.
+    expect(split).toEqual({ get: 10, give: 0, hasGet: true, hasGive: false });
+  });
+
+  it("returns an all-empty split for no trades", () => {
+    expect(sumTradeValues([], price({}))).toEqual({
+      get: 0,
+      give: 0,
+      hasGet: false,
+      hasGive: false,
+    });
   });
 });

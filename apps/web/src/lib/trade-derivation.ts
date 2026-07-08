@@ -161,3 +161,79 @@ export function tradeStatusLabel(status: CardTradeResponse["status"]): string {
 export function maxTradeQuantity(demandQuantity: number, availableCount: number): number {
   return Math.max(0, Math.min(demandQuantity, availableCount));
 }
+
+/** One counterparty's trades, kept together so the Trades tab can show one
+ * per-person header (avatar, count, value) above their rows. */
+export interface TradeCounterpartyGroup {
+  counterparty: CardTradeResponse["counterparty"];
+  trades: CardTradeResponse[];
+}
+
+/**
+ * Buckets trades by counterparty so the Trades tab can group a pile of requests
+ * to one person under a single header. Trades keep their input order within a
+ * group; groups are ordered biggest first (most trades), then by name, so the
+ * heaviest pile — the one the grouping most helps — sits at the top.
+ * @param trades The trades in one lifecycle bucket.
+ * @returns One group per counterparty.
+ */
+export function groupTradesByCounterparty(
+  trades: readonly CardTradeResponse[],
+): TradeCounterpartyGroup[] {
+  const byId = new Map<string, TradeCounterpartyGroup>();
+  for (const trade of trades) {
+    let group = byId.get(trade.counterparty.userId);
+    if (!group) {
+      group = { counterparty: trade.counterparty, trades: [] };
+      byId.set(trade.counterparty.userId, group);
+    }
+    group.trades.push(trade);
+  }
+  return [...byId.values()].sort(
+    (a, b) =>
+      b.trades.length - a.trades.length ||
+      (a.counterparty.name ?? "").localeCompare(b.counterparty.name ?? ""),
+  );
+}
+
+/** A per-person estimated value, split by which way the cards flow. `get` is the
+ * value coming to the viewer, `give` the value leaving; the `has*` flags say
+ * whether any priced item contributed, so an all-unpriced side stays hidden
+ * rather than reading as "≈0". */
+export interface TradeValueSplit {
+  get: number;
+  give: number;
+  hasGet: boolean;
+  hasGive: boolean;
+}
+
+/**
+ * Sums the estimated market value of a set of trades, split by direction. A
+ * receiver-role trade brings the card to the viewer (`get`); a giver-role trade
+ * sends it away (`give`). Unpriced printings are skipped, exactly as the per-row
+ * price does, so the total is a rough estimate over what's priced.
+ * @param trades The trades to value.
+ * @param unitPrice Per-copy price lookup at the viewer's marketplace, or undefined.
+ * @returns The get/give value split.
+ */
+export function sumTradeValues(
+  trades: readonly CardTradeResponse[],
+  unitPrice: (printingId: string) => number | undefined,
+): TradeValueSplit {
+  const split: TradeValueSplit = { get: 0, give: 0, hasGet: false, hasGive: false };
+  for (const trade of trades) {
+    const unit = unitPrice(trade.printingId);
+    if (unit === undefined) {
+      continue;
+    }
+    const value = unit * trade.quantity;
+    if (trade.role === "receiver") {
+      split.get += value;
+      split.hasGet = true;
+    } else {
+      split.give += value;
+      split.hasGive = true;
+    }
+  }
+  return split;
+}
