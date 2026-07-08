@@ -9,22 +9,22 @@ import { createTestContext, req } from "../../test/integration-context.js";
 // unrelated user), the host-scoped integration keys (a user host and an org
 // host), and the group "Events" tournament lens.
 
-const HOST_ID = "a0000000-0220-4000-a000-000000000001";
-const JUDGE_ID = "a0000000-0221-4000-a000-000000000001";
-const STRANGER_ID = "a0000000-0222-4000-a000-000000000001";
-const ORG_OWNER_ID = "a0000000-0223-4000-a000-000000000001";
-const MEMBER_ID = "a0000000-0224-4000-a000-000000000001";
+const HOST_ID = crypto.randomUUID();
+const JUDGE_ID = crypto.randomUUID();
+const STRANGER_ID = crypto.randomUUID();
+const ORG_OWNER_ID = crypto.randomUUID();
+const MEMBER_ID = crypto.randomUUID();
 
-const ORG_ID = "01900000-0220-7000-8000-000000000001";
+const ORG_ID = crypto.randomUUID();
 const GROUP_SLUG = "tdc-itest-group";
 
 const ALL_IDS = [HOST_ID, JUDGE_ID, STRANGER_ID, ORG_OWNER_ID, MEMBER_ID];
 
-const hostCtx = createTestContext(HOST_ID, "tdc-host@test.com");
-const judgeCtx = createTestContext(JUDGE_ID, "tdc-judge@test.com");
-const strangerCtx = createTestContext(STRANGER_ID, "tdc-stranger@test.com");
-const orgOwnerCtx = createTestContext(ORG_OWNER_ID, "tdc-org@test.com");
-const memberCtx = createTestContext(MEMBER_ID, "tdc-member@test.com");
+const hostCtx = createTestContext(HOST_ID, `test-${HOST_ID}@test.com`);
+const judgeCtx = createTestContext(JUDGE_ID, `test-${JUDGE_ID}@test.com`);
+const strangerCtx = createTestContext(STRANGER_ID, `test-${STRANGER_ID}@test.com`);
+const orgOwnerCtx = createTestContext(ORG_OWNER_ID, `test-${ORG_OWNER_ID}@test.com`);
+const memberCtx = createTestContext(MEMBER_ID, `test-${MEMBER_ID}@test.com`);
 
 interface EntrySummary {
   id: string;
@@ -55,12 +55,11 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
         .insertInto("users")
         .values({
           id: userId,
-          email: `tdc-${userId.slice(11, 15)}@test.com`,
+          email: `test-${userId}@test.com`,
           name: "T",
           emailVerified: true,
           image: null,
         })
-        .onConflict((oc) => oc.column("id").doNothing())
         .execute();
     }
 
@@ -68,7 +67,6 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
     await host.db
       .insertInto("organizations")
       .values({ id: ORG_ID, slug: "tdc-org", name: "TDC Org", ownerUserId: ORG_OWNER_ID })
-      .onConflict((oc) => oc.column("id").doNothing())
       .execute();
     await host.db
       .insertInto("organizationMembers")

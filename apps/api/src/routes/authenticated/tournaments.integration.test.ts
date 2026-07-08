@@ -7,16 +7,16 @@ import { createTestContext, req } from "../../test/integration-context.js";
 // cancel/delete, staff grants (by candidate id, with eligibility + invite links),
 // and the participant roster (walk-in, approve/deny, drop, unlink, remove guard).
 
-const HOST_ID = "a0000000-0210-4000-a000-000000000001";
-const OTHER_ID = "a0000000-0211-4000-a000-000000000001";
-const JUDGE_ID = "a0000000-0212-4000-a000-000000000001";
-const LINK_ID = "a0000000-0213-4000-a000-000000000001";
-const ORG_ID = "01900000-0210-7000-8000-000000000001";
-const ORG2_ID = "01900000-0210-7000-8000-000000000002";
+const HOST_ID = crypto.randomUUID();
+const OTHER_ID = crypto.randomUUID();
+const JUDGE_ID = crypto.randomUUID();
+const LINK_ID = crypto.randomUUID();
+const ORG_ID = crypto.randomUUID();
+const ORG2_ID = crypto.randomUUID();
 
-const hostCtx = createTestContext(HOST_ID, "trn-host@test.com");
-const otherCtx = createTestContext(OTHER_ID, "trn-other@test.com");
-const judgeCtx = createTestContext(JUDGE_ID, "trn-judge@test.com");
+const hostCtx = createTestContext(HOST_ID, `test-${HOST_ID}@test.com`);
+const otherCtx = createTestContext(OTHER_ID, `test-${OTHER_ID}@test.com`);
+const judgeCtx = createTestContext(JUDGE_ID, `test-${JUDGE_ID}@test.com`);
 
 const ALL_IDS = [HOST_ID, OTHER_ID, JUDGE_ID, LINK_ID];
 
@@ -48,19 +48,17 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
           .insertInto("users")
           .values({
             id: userId,
-            email: `trn-${userId.slice(11, 15)}@test.com`,
+            email: `test-${userId}@test.com`,
             name: "T",
             emailVerified: true,
             image: null,
           })
-          .onConflict((oc) => oc.column("id").doNothing())
           .execute();
       }
       // An org hosted by OTHER (OTHER is the only member) for the host-authz test.
       await host.db
         .insertInto("organizations")
         .values({ id: ORG_ID, slug: "trn-org", name: "Trn Org", ownerUserId: OTHER_ID })
-        .onConflict((oc) => oc.column("id").doNothing())
         .execute();
       await host.db
         .insertInto("organizationMembers")
@@ -71,7 +69,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       await host.db
         .insertInto("organizations")
         .values({ id: ORG2_ID, slug: "trn-org2", name: "Trn Org 2", ownerUserId: HOST_ID })
-        .onConflict((oc) => oc.column("id").doNothing())
         .execute();
       await host.db
         .insertInto("organizationMembers")

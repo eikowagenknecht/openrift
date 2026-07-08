@@ -7,7 +7,7 @@ import { createDbContext } from "../test/integration-context.js";
 // exercised directly against the shared integration DB. An empty tournament (no
 // pairings, no decks) is allowed since the format collapse (178); the deck-check
 // toggle and its coupling are gone since 179, so collecting lists is all it takes.
-const HOST_ID = "a0000000-0033-4000-a000-000000000001";
+const HOST_ID = crypto.randomUUID();
 const ctx = createDbContext(HOST_ID);
 
 describe.skipIf(!ctx)("tournaments schema invariants (integration)", () => {
@@ -19,12 +19,11 @@ describe.skipIf(!ctx)("tournaments schema invariants (integration)", () => {
       .insertInto("users")
       .values({
         id: HOST_ID,
-        email: "umbrella-host@test.com",
+        email: `test-${HOST_ID}@test.com`,
         name: "Umbrella Host",
         emailVerified: true,
         image: null,
       })
-      .onConflict((oc) => oc.column("id").doNothing())
       .execute();
     const org = await db
       .insertInto("organizations")
@@ -75,13 +74,13 @@ describe.skipIf(!ctx)("tournaments schema invariants (integration)", () => {
   });
 
   it("detaches the host and keeps the tournament when the host account is deleted", async () => {
-    const detachHostId = "a0000000-0042-4000-a000-000000000042";
+    const detachHostId = crypto.randomUUID();
     await db
       .insertInto("users")
       .values({
         id: detachHostId,
         name: "Doomed Host",
-        email: "doomed-host@example.com",
+        email: `test-${detachHostId}@test.com`,
         emailVerified: true,
       })
       .execute();

@@ -10,13 +10,13 @@ import { createTrade } from "./card-trades.js";
 import { flushCoalescedTradeRequests } from "./trade-notifications.js";
 import type { TradeEmailDeps } from "./trade-notifications.js";
 
-// Own user IDs (0064/0065), self-inserted below — NOT the digest test's 0059/0060,
-// which the TEST_USERS registry pre-seeds with `digest-*` emails.
-const GIVER_ID = "a0000000-0064-4000-a000-000000000001";
-const RECEIVER_ID = "a0000000-0065-4000-a000-000000000001";
+// Random per-file users, self-inserted below. This file keeps its own upsert
+// (rather than seedTestUser) because it toggles emailVerified per-case.
+const GIVER_ID = crypto.randomUUID();
+const RECEIVER_ID = crypto.randomUUID();
 const ALL_USER_IDS = [GIVER_ID, RECEIVER_ID];
-const GIVER_EMAIL = "coalesce-0064@test.com";
-const RECEIVER_EMAIL = "coalesce-0065@test.com";
+const GIVER_EMAIL = `test-${GIVER_ID}@test.com`;
+const RECEIVER_EMAIL = `test-${RECEIVER_ID}@test.com`;
 
 const ctx = createDbContext(GIVER_ID);
 

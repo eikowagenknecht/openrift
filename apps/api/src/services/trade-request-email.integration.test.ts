@@ -9,11 +9,11 @@ import { createTrade } from "./card-trades.js";
 import type { TradeEmailDeps } from "./trade-notifications.js";
 import { TRADE_REQUEST_EMAIL_FLAG } from "./trade-notifications.js";
 
-const GIVER_ID = "a0000000-0057-4000-a000-000000000001";
-const RECEIVER_ID = "a0000000-0058-4000-a000-000000000001";
+const GIVER_ID = crypto.randomUUID();
+const RECEIVER_ID = crypto.randomUUID();
 const ALL_USER_IDS = [GIVER_ID, RECEIVER_ID];
-const GIVER_EMAIL = "req-0057@test.com";
-const RECEIVER_EMAIL = "req-0058@test.com";
+const GIVER_EMAIL = `test-${GIVER_ID}@test.com`;
+const RECEIVER_EMAIL = `test-${RECEIVER_ID}@test.com`;
 
 const ctx = createDbContext(GIVER_ID);
 

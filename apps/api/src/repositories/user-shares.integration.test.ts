@@ -1,11 +1,14 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { createDbContext } from "../test/integration-context.js";
+import { createDbContext, seedTestUser } from "../test/integration-context.js";
 import { friendGroupsRepo } from "./friend-groups.js";
 import { listsRepo } from "./lists.js";
 import { userSharesRepo } from "./user-shares.js";
 
-const ctx = createDbContext("a0000000-0136-4000-a000-000000000001");
+// Random per-file user (seeded via seedTestUser in beforeAll) so this file
+// cannot collide with pre-seeded registry users or other files' fixtures.
+const USER_ID = crypto.randomUUID();
+const ctx = createDbContext(USER_ID);
 
 describe.skipIf(!ctx)("userSharesRepo (integration)", () => {
   const { db, userId } = ctx!;
@@ -17,17 +20,7 @@ describe.skipIf(!ctx)("userSharesRepo (integration)", () => {
   const createdViewerIds: string[] = [];
 
   beforeAll(async () => {
-    await db
-      .insertInto("users")
-      .values({
-        id: userId,
-        email: `repo-${userId.slice(11, 15)}@test.com`,
-        name: "Bundle Tester",
-        emailVerified: true,
-        image: null,
-      })
-      .onConflict((oc) => oc.column("id").doNothing())
-      .execute();
+    await seedTestUser(db, { id: userId });
   });
 
   afterAll(async () => {
@@ -121,18 +114,8 @@ describe.skipIf(!ctx)("userSharesRepo (integration)", () => {
   });
 
   it("listsForOwner: viewer in the same friend group sees group-shared lists", async () => {
-    const viewerId = "a0000000-0136-4000-a000-000000000002";
-    await db
-      .insertInto("users")
-      .values({
-        id: viewerId,
-        email: `viewer-${viewerId.slice(11, 15)}@test.com`,
-        name: "Bundle Viewer",
-        emailVerified: true,
-        image: null,
-      })
-      .onConflict((oc) => oc.column("id").doNothing())
-      .execute();
+    const viewerId = crypto.randomUUID();
+    await seedTestUser(db, { id: viewerId });
     createdViewerIds.push(viewerId);
 
     const group = await groups.createWithOwner(
@@ -161,18 +144,8 @@ describe.skipIf(!ctx)("userSharesRepo (integration)", () => {
     const groupOnlyRow = memberRows.find((row) => row.list.id === groupOnly.id);
     expect(groupOnlyRow?.viaGroups).toEqual([{ id: group.id, slug: group.slug, name: group.name }]);
 
-    const outsiderId = "a0000000-0136-4000-a000-000000000003";
-    await db
-      .insertInto("users")
-      .values({
-        id: outsiderId,
-        email: `outsider-${outsiderId.slice(11, 15)}@test.com`,
-        name: "Bundle Outsider",
-        emailVerified: true,
-        image: null,
-      })
-      .onConflict((oc) => oc.column("id").doNothing())
-      .execute();
+    const outsiderId = crypto.randomUUID();
+    await seedTestUser(db, { id: outsiderId });
     createdViewerIds.push(outsiderId);
 
     const outsiderRows = await repo.listsForOwner(userId, outsiderId);

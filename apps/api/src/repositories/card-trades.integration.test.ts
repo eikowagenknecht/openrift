@@ -16,12 +16,12 @@ import {
 } from "../services/card-trades.js";
 import { disposeCopies, moveCopies } from "../services/copies.js";
 import { CARD_FURY_UNIT, PRINTING_1 } from "../test/fixtures/constants.js";
-import { createDbContext } from "../test/integration-context.js";
+import { createDbContext, seedTestUser } from "../test/integration-context.js";
 import { friendGroupsRepo } from "./friend-groups.js";
 
-const GIVER_ID = "a0000000-0054-4000-a000-000000000001";
-const RECEIVER_ID = "a0000000-0055-4000-a000-000000000001";
-const OUTSIDER_ID = "a0000000-0056-4000-a000-000000000001";
+const GIVER_ID = crypto.randomUUID();
+const RECEIVER_ID = crypto.randomUUID();
+const OUTSIDER_ID = crypto.randomUUID();
 const ALL_USER_IDS = [GIVER_ID, RECEIVER_ID, OUTSIDER_ID];
 
 const ctx = createDbContext(GIVER_ID);
@@ -36,17 +36,7 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
 
   beforeAll(async () => {
     for (const id of ALL_USER_IDS) {
-      await db
-        .insertInto("users")
-        .values({
-          id,
-          email: `repo-${id.slice(11, 15)}@test.com`,
-          name: "Test User",
-          emailVerified: true,
-          image: null,
-        })
-        .onConflict((oc) => oc.column("id").doNothing())
-        .execute();
+      await seedTestUser(db, { id });
     }
   });
 
@@ -75,20 +65,8 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
       )
       .execute();
     await db.deleteFrom("collections").where("userId", "in", ALL_USER_IDS).execute();
-    // Restore the users for any later test file that reuses these ids.
-    for (const id of ALL_USER_IDS) {
-      await db
-        .insertInto("users")
-        .values({
-          id,
-          email: `repo-${id.slice(11, 15)}@test.com`,
-          name: "Test User",
-          emailVerified: true,
-          image: null,
-        })
-        .onConflict((oc) => oc.column("id").doNothing())
-        .execute();
-    }
+    // Users are file-owned; delete them last, once nothing references them.
+    await db.deleteFrom("users").where("id", "in", ALL_USER_IDS).execute();
   });
 
   async function uniqueSlug(): Promise<string> {

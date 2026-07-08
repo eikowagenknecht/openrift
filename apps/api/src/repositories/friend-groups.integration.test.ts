@@ -6,14 +6,14 @@ import {
   PRINTING_1,
   PRINTING_2,
 } from "../test/fixtures/constants.js";
-import { createDbContext } from "../test/integration-context.js";
+import { createDbContext, seedTestUser } from "../test/integration-context.js";
 import { friendGroupMatchesRepo } from "./friend-group-matches.js";
 import { friendGroupsRepo } from "./friend-groups.js";
 
-const VIEWER_ID = "a0000000-0050-4000-a000-000000000001";
-const ADMIN_ID = "a0000000-0051-4000-a000-000000000001";
-const SELLER_ID = "a0000000-0052-4000-a000-000000000001";
-const OUTSIDER_ID = "a0000000-0053-4000-a000-000000000001";
+const VIEWER_ID = crypto.randomUUID();
+const ADMIN_ID = crypto.randomUUID();
+const SELLER_ID = crypto.randomUUID();
+const OUTSIDER_ID = crypto.randomUUID();
 
 const ALT_PRINTING_OF_FURY_UNIT = "019d17a1-2723-733a-a21e-4630e4370046";
 
@@ -43,6 +43,11 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
     if (createdCollectionIds.length > 0) {
       await db.deleteFrom("collections").where("id", "in", createdCollectionIds).execute();
     }
+    // Users are file-owned; delete them last, once nothing references them.
+    await db
+      .deleteFrom("users")
+      .where("id", "in", [VIEWER_ID, ADMIN_ID, SELLER_ID, OUTSIDER_ID])
+      .execute();
   });
 
   // Restore any users a test deleted (cascade scenarios) BEFORE the next test —
@@ -51,36 +56,16 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
   // the rest of the suite.)
   afterEach(async () => {
     for (const userId of recreatedUserIds) {
-      await db
-        .insertInto("users")
-        .values({
-          id: userId,
-          email: `repo-${userId.slice(11, 15)}@test.com`,
-          name: "Test User",
-          emailVerified: true,
-          image: null,
-        })
-        .onConflict((oc) => oc.column("id").doNothing())
-        .execute();
+      await seedTestUser(db, { id: userId });
     }
     recreatedUserIds.length = 0;
   });
 
   beforeAll(async () => {
-    // Ensure the four test users exist (the test harness pre-seeds them but
-    // earlier tests may have deleted them as part of a cascade scenario).
+    // Seed the four file-owned users. Some tests delete them as part of a
+    // cascade scenario; afterEach recreates any that were removed.
     for (const id of [VIEWER_ID, ADMIN_ID, SELLER_ID, OUTSIDER_ID]) {
-      await db
-        .insertInto("users")
-        .values({
-          id,
-          email: `repo-${id.slice(11, 15)}@test.com`,
-          name: "Test User",
-          emailVerified: true,
-          image: null,
-        })
-        .onConflict((oc) => oc.column("id").doNothing())
-        .execute();
+      await seedTestUser(db, { id });
     }
   });
 

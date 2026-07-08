@@ -12,11 +12,11 @@ import {
 // one-participant-per-account index), and the staff-invite link whose grant fires
 // only on the explicit confirm POST (never the scanner-reachable GET landing).
 
-const HOST_ID = "a0000000-0220-4000-a000-000000000001";
-const JOINER_ID = "a0000000-0221-4000-a000-000000000001";
+const HOST_ID = crypto.randomUUID();
+const JOINER_ID = crypto.randomUUID();
 
-const hostCtx = createTestContext(HOST_ID, "ptrn-host@test.com");
-const joinerCtx = createTestContext(JOINER_ID, "ptrn-joiner@test.com");
+const hostCtx = createTestContext(HOST_ID, `test-${HOST_ID}@test.com`);
+const joinerCtx = createTestContext(JOINER_ID, `test-${JOINER_ID}@test.com`);
 const anonCtx = createUnauthenticatedTestContext();
 
 const ALL_IDS = [HOST_ID, JOINER_ID];
@@ -36,12 +36,11 @@ describe.skipIf(!hostCtx || !joinerCtx || !anonCtx)(
           .insertInto("users")
           .values({
             id: userId,
-            email: `ptrn-${userId.slice(11, 15)}@test.com`,
+            email: `test-${userId}@test.com`,
             name: "T",
             emailVerified: true,
             image: null,
           })
-          .onConflict((oc) => oc.column("id").doNothing())
           .execute();
       }
       const create = await host.app.fetch(

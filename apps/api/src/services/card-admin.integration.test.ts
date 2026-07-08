@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createTransact } from "../deps.js";
 import type { Io } from "../io.js";
 import { candidateMutationsRepo } from "../repositories/candidate-mutations.js";
-import { createDbContext, syncCardCardTypes } from "../test/integration-context.js";
+import { createDbContext, seedTestUser, syncCardCardTypes } from "../test/integration-context.js";
 import { deleteCard } from "./card-admin.js";
 
 // ---------------------------------------------------------------------------
@@ -13,12 +13,9 @@ import { deleteCard } from "./card-admin.js";
 // (aliases) in one transaction.
 // ---------------------------------------------------------------------------
 
-// Self-inserted (not in the pre-seeded registry) so this file owns its user.
-// 0230 is marked RESERVED in integration-setup TEST_USERS — 0199 (pre-seeded
-// card-review-grant user) and 0200-0204 (self-inserted by the organizations
-// route tests, with their own teardown deletes) would both race a plain
-// self-insert here.
-const USER_ID = "a0000000-0230-4000-a000-000000000001";
+// Random per-file user (seeded via seedTestUser in beforeAll) so this file
+// cannot collide with pre-seeded registry users or other files' fixtures.
+const USER_ID = crypto.randomUUID();
 const ctx = createDbContext(USER_ID);
 
 describe.skipIf(!ctx)("deleteCard (integration)", () => {
@@ -37,16 +34,7 @@ describe.skipIf(!ctx)("deleteCard (integration)", () => {
   let copyId = "";
 
   beforeAll(async () => {
-    await db
-      .insertInto("users")
-      .values({
-        id: USER_ID,
-        email: "card-admin-0230@test.com",
-        name: "Test User",
-        emailVerified: true,
-        image: null,
-      })
-      .execute();
+    await seedTestUser(db, { id: USER_ID });
 
     const [setRow] = await db
       .insertInto("sets")

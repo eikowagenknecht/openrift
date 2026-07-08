@@ -1,27 +1,29 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { adminReq, createTestContext, req } from "../../test/integration-context.js";
+import { adminReq, createTestContext, req, seedTestUser } from "../../test/integration-context.js";
 
 // Route-level integration tests for the ADR-033 organization surfaces: admin
 // provisioning (under /api/admin/v1, requireAdmin-gated) and authenticated
 // member management (owner/manager rules, last-owner guard).
 
-const ADMIN_ID = "a0000000-0200-4000-a000-000000000001";
-const OWNER_ID = "a0000000-0201-4000-a000-000000000001";
-const MANAGER_ID = "a0000000-0202-4000-a000-000000000001";
-const OUTSIDER_ID = "a0000000-0203-4000-a000-000000000001";
-const EXTRA_ID = "a0000000-0204-4000-a000-000000000001";
+// Random per-file users (seeded via seedTestUser in beforeAll) so this file
+// cannot collide with pre-seeded registry users or other files' fixtures.
+const ADMIN_ID = crypto.randomUUID();
+const OWNER_ID = crypto.randomUUID();
+const MANAGER_ID = crypto.randomUUID();
+const OUTSIDER_ID = crypto.randomUUID();
+const EXTRA_ID = crypto.randomUUID();
 
-const adminCtx = createTestContext(ADMIN_ID, "org-admin@test.com");
-const ownerCtx = createTestContext(OWNER_ID, "org-owner@test.com");
-const managerCtx = createTestContext(MANAGER_ID, "org-manager@test.com");
-const outsiderCtx = createTestContext(OUTSIDER_ID, "org-outsider@test.com");
-const extraCtx = createTestContext(EXTRA_ID, "org-extra@test.com");
+const adminCtx = createTestContext(ADMIN_ID, `test-${ADMIN_ID}@test.com`);
+const ownerCtx = createTestContext(OWNER_ID, `test-${OWNER_ID}@test.com`);
+const managerCtx = createTestContext(MANAGER_ID, `test-${MANAGER_ID}@test.com`);
+const outsiderCtx = createTestContext(OUTSIDER_ID, `test-${OUTSIDER_ID}@test.com`);
+const extraCtx = createTestContext(EXTRA_ID, `test-${EXTRA_ID}@test.com`);
 
 const ALL_IDS = [ADMIN_ID, OWNER_ID, MANAGER_ID, OUTSIDER_ID, EXTRA_ID];
 
 // Mirrors the seed email assigned in beforeAll; members are added by email.
-const emailFor = (userId: string) => `org-${userId.slice(11, 15)}@test.com`;
+const emailFor = (userId: string) => `test-${userId}@test.com`;
 
 describe.skipIf(!adminCtx || !ownerCtx || !managerCtx || !outsiderCtx || !extraCtx)(
   "Organization routes (integration)",
@@ -34,24 +36,11 @@ describe.skipIf(!adminCtx || !ownerCtx || !managerCtx || !outsiderCtx || !extraC
     let orgId = "";
 
     beforeAll(async () => {
-      for (const userId of ALL_IDS) {
-        await admin.db
-          .insertInto("users")
-          .values({
-            id: userId,
-            email: `org-${userId.slice(11, 15)}@test.com`,
-            name: "T",
-            emailVerified: true,
-            image: null,
-          })
-          .onConflict((oc) => oc.column("id").doNothing())
-          .execute();
-      }
-      await admin.db
-        .insertInto("admins")
-        .values({ userId: ADMIN_ID })
-        .onConflict((oc) => oc.column("userId").doNothing())
-        .execute();
+      await seedTestUser(admin.db, { id: ADMIN_ID, isAdmin: true });
+      await seedTestUser(admin.db, { id: OWNER_ID });
+      await seedTestUser(admin.db, { id: MANAGER_ID });
+      await seedTestUser(admin.db, { id: OUTSIDER_ID });
+      await seedTestUser(admin.db, { id: EXTRA_ID });
     });
 
     afterAll(async () => {

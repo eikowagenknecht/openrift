@@ -11,7 +11,7 @@ import {
 } from "../services/pod-pairing.js";
 import { createDbContext } from "../test/integration-context.js";
 
-const OWNER_ID = "a0000000-0099-4000-a000-000000000001";
+const OWNER_ID = crypto.randomUUID();
 const ctx = createDbContext(OWNER_ID);
 
 describe.skipIf(!ctx)("podTournamentsRepo (integration)", () => {
@@ -29,12 +29,11 @@ describe.skipIf(!ctx)("podTournamentsRepo (integration)", () => {
       .insertInto("users")
       .values({
         id: OWNER_ID,
-        email: "pod-owner@test.com",
+        email: `test-${OWNER_ID}@test.com`,
         name: "Pod Owner",
         emailVerified: true,
         image: null,
       })
-      .onConflict((oc) => oc.column("id").doNothing())
       .execute();
   });
 

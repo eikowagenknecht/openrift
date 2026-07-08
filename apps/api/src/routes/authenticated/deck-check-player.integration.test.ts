@@ -4,19 +4,19 @@ import { createRepos } from "../../deps.js";
 import { CARD_FURY_UNIT } from "../../test/fixtures/constants.js";
 import { createTestContext, req } from "../../test/integration-context.js";
 
-const OWNER_ID = "a0000000-0160-4000-a000-000000000001";
-const ADMIN_ID = "a0000000-0161-4000-a000-000000000001";
-const JUDGE_ID = "a0000000-0162-4000-a000-000000000001";
-const MEMBER_ID = "a0000000-0163-4000-a000-000000000001";
-const PLAYER_ID = "a0000000-0164-4000-a000-000000000001";
-const STRANGER_ID = "a0000000-0165-4000-a000-000000000001";
-const UNVERIFIED_ID = "a0000000-0166-4000-a000-000000000001";
-const OUTSIDER_ID = "a0000000-0167-4000-a000-000000000001";
+const OWNER_ID = crypto.randomUUID();
+const ADMIN_ID = crypto.randomUUID();
+const JUDGE_ID = crypto.randomUUID();
+const MEMBER_ID = crypto.randomUUID();
+const PLAYER_ID = crypto.randomUUID();
+const STRANGER_ID = crypto.randomUUID();
+const UNVERIFIED_ID = crypto.randomUUID();
+const OUTSIDER_ID = crypto.randomUUID();
 
-const PLAYER_EMAIL = "dc-player@test.com";
-const STRANGER_EMAIL = "dc-stranger@test.com";
-const UNVERIFIED_EMAIL = "dc-unverified@test.com";
-const OUTSIDER_EMAIL = "dc-outsider@test.com";
+const PLAYER_EMAIL = `test-${PLAYER_ID}@test.com`;
+const STRANGER_EMAIL = `test-${STRANGER_ID}@test.com`;
+const UNVERIFIED_EMAIL = `test-${UNVERIFIED_ID}@test.com`;
+const OUTSIDER_EMAIL = `test-${OUTSIDER_ID}@test.com`;
 
 const GROUP_SLUG = "deck-check-player-itest";
 
@@ -77,15 +77,14 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
         emailVerified: verified,
         image: null,
       })
-      .onConflict((oc) => oc.column("id").doNothing())
       .execute();
   }
 
   beforeAll(async () => {
-    await createUser(OWNER_ID, "dc-p-owner@test.com", true);
-    await createUser(ADMIN_ID, "dc-p-admin@test.com", true);
-    await createUser(JUDGE_ID, "dc-p-judge@test.com", true);
-    await createUser(MEMBER_ID, "dc-p-member@test.com", true);
+    await createUser(OWNER_ID, `test-${OWNER_ID}@test.com`, true);
+    await createUser(ADMIN_ID, `test-${ADMIN_ID}@test.com`, true);
+    await createUser(JUDGE_ID, `test-${JUDGE_ID}@test.com`, true);
+    await createUser(MEMBER_ID, `test-${MEMBER_ID}@test.com`, true);
     await createUser(PLAYER_ID, PLAYER_EMAIL, true);
     await createUser(STRANGER_ID, STRANGER_EMAIL, true);
     await createUser(UNVERIFIED_ID, UNVERIFIED_EMAIL, false);

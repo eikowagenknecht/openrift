@@ -6,8 +6,8 @@ import { createTestContext, req, syncCardCardTypes } from "../../test/integratio
 
 // Fresh ids, not in run-integration.ts's TEST_USERS registry: the suite seeds
 // its own users (like the deck-check-player suite) so the FK targets exist.
-const OWNER_ID = "a0000000-0150-4000-a000-000000000001";
-const JUDGE_ID = "a0000000-0152-4000-a000-000000000001";
+const OWNER_ID = crypto.randomUUID();
+const JUDGE_ID = crypto.randomUUID();
 
 const GROUP_SLUG = "deck-check-ingest-itest";
 
@@ -92,13 +92,12 @@ describe.skipIf(!ownerCtx)("deck-check ingest push (integration, ADR-033)", () =
         emailVerified: true,
         image: null,
       })
-      .onConflict((oc) => oc.column("id").doNothing())
       .execute();
   }
 
   beforeAll(async () => {
-    await createUser(OWNER_ID, "dc-ingest-owner@test.com");
-    await createUser(JUDGE_ID, "dc-ingest-judge@test.com");
+    await createUser(OWNER_ID, `test-${OWNER_ID}@test.com`);
+    await createUser(JUDGE_ID, `test-${JUDGE_ID}@test.com`);
 
     const group = await repos.friendGroups.createWithOwner(
       { slug: GROUP_SLUG, name: "Ingest Test Group", description: null, code: null },

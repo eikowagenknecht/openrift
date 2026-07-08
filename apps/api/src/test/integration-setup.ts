@@ -132,20 +132,23 @@ export interface TestUser {
 }
 
 /**
- * Test user registry — one per test file. Shared by the integration and
- * coverage runners so the two can never drift apart (they once did: the
- * coverage runner's copy was missing users 0054+, so trade tests could not
- * have run under it).
+ * Test user registry — pre-seeded users for test files that reference them
+ * without inserting them. Shared by the integration and coverage runners so
+ * the two can never drift apart (they once did: the coverage runner's copy
+ * was missing users 0054+, so trade tests could not have run under it).
+ *
+ * Do NOT add entries for new test files. New files own their users: generate
+ * IDs with `crypto.randomUUID()` at module scope and insert them via
+ * `seedTestUser` (test/integration-context.ts) in `beforeAll`. Fixed IDs in a
+ * shared database couple files together — a plain insert collides with a
+ * pre-seeded row, and a teardown delete breaks any later file that still
+ * needs the row.
  */
 export const TEST_USERS: TestUser[] = [
   // User-scoped tests
   { id: "a0000000-0001-4000-a000-000000000001", email: "user-0001@test.com", isAdmin: false },
   { id: "a0000000-0002-4000-a000-000000000001", email: "user-0002@test.com", isAdmin: false },
   { id: "a0000000-0003-4000-a000-000000000001", email: "user-0003@test.com", isAdmin: false },
-  { id: "a0000000-0004-4000-a000-000000000001", email: "user-0004@test.com", isAdmin: false },
-  { id: "a0000000-0005-4000-a000-000000000001", email: "user-0005@test.com", isAdmin: false },
-  { id: "a0000000-0006-4000-a000-000000000001", email: "user-0006@test.com", isAdmin: false },
-  { id: "a0000000-0007-4000-a000-000000000001", email: "user-0007@test.com", isAdmin: false },
   { id: "a0000000-0008-4000-a000-000000000001", email: "user-0008@test.com", isAdmin: false },
   { id: "a0000000-0009-4000-a000-000000000001", email: "user-0009@test.com", isAdmin: false },
   // Admin tests (not pre-promoted — admin-core tests non-admin access first)
@@ -170,19 +173,15 @@ export const TEST_USERS: TestUser[] = [
   { id: "a0000000-0023-4000-a000-000000000001", email: "user-0023@test.com", isAdmin: false },
   { id: "a0000000-0024-4000-a000-000000000001", email: "user-0024@test.com", isAdmin: false },
   // Repository integration tests
-  { id: "a0000000-0025-4000-a000-000000000001", email: "repo-0025@test.com", isAdmin: false },
   { id: "a0000000-0026-4000-a000-000000000001", email: "repo-0026@test.com", isAdmin: false },
   { id: "a0000000-0027-4000-a000-000000000001", email: "repo-0027@test.com", isAdmin: false },
   { id: "a0000000-0028-4000-a000-000000000001", email: "repo-0028@test.com", isAdmin: false },
   { id: "a0000000-0029-4000-a000-000000000001", email: "repo-0029@test.com", isAdmin: false },
   { id: "a0000000-0030-4000-a000-000000000001", email: "repo-0030@test.com", isAdmin: false },
   { id: "a0000000-0031-4000-a000-000000000001", email: "repo-0031@test.com", isAdmin: true },
-  { id: "a0000000-0032-4000-a000-000000000001", email: "repo-0032@test.com", isAdmin: false },
-  { id: "a0000000-0033-4000-a000-000000000001", email: "repo-0033@test.com", isAdmin: false },
   // Batch 2 — repo coverage tests
   { id: "a0000000-0034-4000-a000-000000000001", email: "repo-0034@test.com", isAdmin: false },
   { id: "a0000000-0035-4000-a000-000000000001", email: "repo-0035@test.com", isAdmin: false },
-  { id: "a0000000-0036-4000-a000-000000000001", email: "repo-0036@test.com", isAdmin: false },
   { id: "a0000000-0037-4000-a000-000000000001", email: "repo-0037@test.com", isAdmin: false },
   { id: "a0000000-0038-4000-a000-000000000001", email: "repo-0038@test.com", isAdmin: false },
   { id: "a0000000-0039-4000-a000-000000000001", email: "repo-0039@test.com", isAdmin: false },
@@ -199,31 +198,16 @@ export const TEST_USERS: TestUser[] = [
   { id: "a0000000-0048-4000-a000-000000000001", email: "admin-0048@test.com", isAdmin: true },
   // Non-admin user for admin route 403 checks
   { id: "a0000000-0049-4000-a000-000000000001", email: "user-0049@test.com", isAdmin: false },
-  // Friend-groups repo + route integration tests (ADR-013)
-  { id: "a0000000-0050-4000-a000-000000000001", email: "repo-0050@test.com", isAdmin: false },
-  { id: "a0000000-0051-4000-a000-000000000001", email: "repo-0051@test.com", isAdmin: false },
-  { id: "a0000000-0052-4000-a000-000000000001", email: "repo-0052@test.com", isAdmin: false },
-  { id: "a0000000-0053-4000-a000-000000000001", email: "repo-0053@test.com", isAdmin: false },
   // Second user for the deck-clone route test ("clone as another user").
   { id: "a0000000-0008-4000-a000-000000000002", email: "user-0008b@test.com", isAdmin: false },
   // Second user for the preferences route test (clean-first-PATCH
   // emailNotifications round-trip, ADR-030).
   { id: "a0000000-0044-4000-a000-000000000002", email: "user-0044b@test.com", isAdmin: false },
-  // Card-trades repo integration tests (ADR-019)
-  { id: "a0000000-0054-4000-a000-000000000001", email: "repo-0054@test.com", isAdmin: false },
-  { id: "a0000000-0055-4000-a000-000000000001", email: "repo-0055@test.com", isAdmin: false },
+  // user-contact-methods repo tests (0056, 0057) and deck-plans repo tests
+  // (0058) reference these without inserting them
   { id: "a0000000-0056-4000-a000-000000000001", email: "repo-0056@test.com", isAdmin: false },
-  // Trade email-notification tests (ADR-030)
   { id: "a0000000-0057-4000-a000-000000000001", email: "req-0057@test.com", isAdmin: false },
   { id: "a0000000-0058-4000-a000-000000000001", email: "req-0058@test.com", isAdmin: false },
-  { id: "a0000000-0059-4000-a000-000000000001", email: "digest-0059@test.com", isAdmin: false },
-  { id: "a0000000-0060-4000-a000-000000000001", email: "digest-0060@test.com", isAdmin: false },
-  { id: "a0000000-0061-4000-a000-000000000001", email: "digest-0061@test.com", isAdmin: false },
-  { id: "a0000000-0062-4000-a000-000000000001", email: "digest-0062@test.com", isAdmin: false },
-  { id: "a0000000-0063-4000-a000-000000000001", email: "unsub-0063@test.com", isAdmin: false },
-  // IDs 0064-0067 are RESERVED (not pre-seeded): the trade-request-coalesce and
-  // trade-status-email tests self-insert their own users so they can toggle
-  // emailVerified per-case. Do not add them here or reuse these IDs elsewhere.
   // Products snapshot service tests (ADR-015)
   { id: "a0000000-0197-4000-a000-000000000001", email: "repo-0197@test.com", isAdmin: false },
   // card-review grant tests (ADR-040 lineage): one admin control, one
@@ -232,10 +216,6 @@ export const TEST_USERS: TestUser[] = [
   { id: "a0000000-0199-4000-a000-000000000001", email: "crg-0199@test.com", isAdmin: false },
   // API key auth tests (migration 200)
   { id: "a0000000-0200-4000-a000-000000000001", email: "key-0200@test.com", isAdmin: false },
-  // IDs 0200-0204 are also self-inserted (conflict-tolerant) and torn down by
-  // the organizations route tests — do not park new self-inserting tests there.
-  // ID 0230 is RESERVED (not pre-seeded): the card-admin service test
-  // self-inserts its own user so its teardown can delete it freely.
 ];
 
 /**

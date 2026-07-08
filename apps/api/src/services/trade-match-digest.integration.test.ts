@@ -4,25 +4,18 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createRepos } from "../deps.js";
 import { friendGroupsRepo } from "../repositories/friend-groups.js";
 import { CARD_FURY_UNIT, PRINTING_1 } from "../test/fixtures/constants.js";
-import { createDbContext } from "../test/integration-context.js";
+import { createDbContext, seedTestUser } from "../test/integration-context.js";
 import type { TradeMatchDigestDeps } from "./trade-match-digest.js";
 import { sendTradeMatchDigest, TRADE_MATCH_DIGEST_FLAG } from "./trade-match-digest.js";
 
-const GIVER_ID = "a0000000-0060-4000-a000-000000000001";
-const DIGEST_ID = "a0000000-0059-4000-a000-000000000001";
-const OPTED_OUT_ID = "a0000000-0061-4000-a000-000000000001";
-const UNVERIFIED_ID = "a0000000-0062-4000-a000-000000000001";
+const GIVER_ID = crypto.randomUUID();
+const DIGEST_ID = crypto.randomUUID();
+const OPTED_OUT_ID = crypto.randomUUID();
+const UNVERIFIED_ID = crypto.randomUUID();
 const ALL_USER_IDS = [GIVER_ID, DIGEST_ID, OPTED_OUT_ID, UNVERIFIED_ID];
-const DIGEST_EMAIL = "digest-0059@test.com";
+const DIGEST_EMAIL = `test-${DIGEST_ID}@test.com`;
 
 const ctx = createDbContext(GIVER_ID);
-
-const EMAILS: Record<string, string> = {
-  [GIVER_ID]: "digest-0060@test.com",
-  [DIGEST_ID]: DIGEST_EMAIL,
-  [OPTED_OUT_ID]: "digest-0061@test.com",
-  [UNVERIFIED_ID]: "digest-0062@test.com",
-};
 
 describe.skipIf(!ctx)("trade match digest (integration)", () => {
   const { db } = ctx!;
@@ -48,21 +41,11 @@ describe.skipIf(!ctx)("trade match digest (integration)", () => {
     };
   }
 
-  async function insertUser(id: string, verified: boolean) {
-    await db
-      .insertInto("users")
-      .values({ id, email: EMAILS[id], name: "Test User", emailVerified: verified, image: null })
-      .onConflict((oc) =>
-        oc.column("id").doUpdateSet((eb) => ({ emailVerified: eb.ref("excluded.emailVerified") })),
-      )
-      .execute();
-  }
-
   beforeAll(async () => {
-    await insertUser(GIVER_ID, true);
-    await insertUser(DIGEST_ID, true);
-    await insertUser(OPTED_OUT_ID, true);
-    await insertUser(UNVERIFIED_ID, false);
+    await seedTestUser(db, { id: GIVER_ID });
+    await seedTestUser(db, { id: DIGEST_ID });
+    await seedTestUser(db, { id: OPTED_OUT_ID });
+    await seedTestUser(db, { id: UNVERIFIED_ID, emailVerified: false });
   });
 
   beforeEach(async () => {

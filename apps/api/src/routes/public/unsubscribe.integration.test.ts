@@ -2,11 +2,11 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { createRepos } from "../../deps.js";
 import { signUnsubscribeToken } from "../../emails/unsubscribe-token.js";
-import { createUnauthenticatedTestContext } from "../../test/integration-context.js";
+import { createUnauthenticatedTestContext, seedTestUser } from "../../test/integration-context.js";
 
 // Mirrors the secret in integration-context's mockConfig.auth.secret.
 const SECRET = "test";
-const USER_ID = "a0000000-0063-4000-a000-000000000001";
+const USER_ID = crypto.randomUUID();
 
 const ctx = createUnauthenticatedTestContext();
 
@@ -15,17 +15,7 @@ describe.skipIf(!ctx)("unsubscribe (integration)", () => {
   const repos = createRepos(db);
 
   beforeAll(async () => {
-    await db
-      .insertInto("users")
-      .values({
-        id: USER_ID,
-        email: "unsub-0063@test.com",
-        name: "Test User",
-        emailVerified: true,
-        image: null,
-      })
-      .onConflict((oc) => oc.column("id").doNothing())
-      .execute();
+    await seedTestUser(db, { id: USER_ID });
   });
 
   beforeEach(async () => {

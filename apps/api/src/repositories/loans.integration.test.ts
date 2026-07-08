@@ -12,12 +12,12 @@ import {
   writeOffLoan,
 } from "../services/loans.js";
 import { CARD_FURY_UNIT, PRINTING_1, PRINTING_2 } from "../test/fixtures/constants.js";
-import { createDbContext } from "../test/integration-context.js";
+import { createDbContext, seedTestUser } from "../test/integration-context.js";
 import { friendGroupsRepo } from "./friend-groups.js";
 
-const LENDER_ID = "a0000000-0060-4000-a000-000000000001";
-const BORROWER_ID = "a0000000-0061-4000-a000-000000000001";
-const OUTSIDER_ID = "a0000000-0062-4000-a000-000000000001";
+const LENDER_ID = crypto.randomUUID();
+const BORROWER_ID = crypto.randomUUID();
+const OUTSIDER_ID = crypto.randomUUID();
 const ALL_USER_IDS = [LENDER_ID, BORROWER_ID, OUTSIDER_ID];
 
 const ctx = createDbContext(LENDER_ID);
@@ -32,24 +32,14 @@ describe.skipIf(!ctx)("loansRepo (integration)", () => {
 
   beforeAll(async () => {
     for (const id of ALL_USER_IDS) {
-      await db
-        .insertInto("users")
-        .values({
-          id,
-          email: `repo-${id.slice(11, 15)}@test.com`,
-          name: "Test User",
-          emailVerified: true,
-          image: null,
-        })
-        .onConflict((oc) => oc.column("id").doNothing())
-        .execute();
+      await seedTestUser(db, { id });
     }
   });
 
   afterAll(async () => {
     // Loans first (cascading loan_copies), then trades, groups, lists, copies
     // (before their collections — a trigger blocks deleting a non-empty
-    // collection), and collections. Users are restored for later test files.
+    // collection), and collections. Users are file-owned and deleted last.
     await db
       .deleteFrom("loans")
       .where((eb) =>
@@ -75,19 +65,7 @@ describe.skipIf(!ctx)("loansRepo (integration)", () => {
       )
       .execute();
     await db.deleteFrom("collections").where("userId", "in", ALL_USER_IDS).execute();
-    for (const id of ALL_USER_IDS) {
-      await db
-        .insertInto("users")
-        .values({
-          id,
-          email: `repo-${id.slice(11, 15)}@test.com`,
-          name: "Test User",
-          emailVerified: true,
-          image: null,
-        })
-        .onConflict((oc) => oc.column("id").doNothing())
-        .execute();
-    }
+    await db.deleteFrom("users").where("id", "in", ALL_USER_IDS).execute();
   });
 
   let collectionCounter = 0;

@@ -6,6 +6,7 @@ import {
   createTestContext,
   createUnauthenticatedTestContext,
   req,
+  seedTestUser,
 } from "../../test/integration-context.js";
 
 // ADR-016 optional-auth coupling guard.
@@ -25,8 +26,10 @@ import {
 // The ETag/304 + Cache-Control half of the same wiring is covered in
 // catalog.integration.test.ts.
 
-const USER_ID = "a0000000-00fa-4000-a000-000000000001";
-const USER_EMAIL = "optional-auth-guard-00fa@test.com";
+// Random per-file user (seeded via seedTestUser in beforeAll) so this file
+// cannot collide with pre-seeded registry users or other files' fixtures.
+const USER_ID = crypto.randomUUID();
+const USER_EMAIL = `test-${USER_ID}@test.com`;
 const FLAG_KEY = "optional-auth-guard-flag";
 
 const anonCtx = createUnauthenticatedTestContext();
@@ -40,11 +43,7 @@ describe.skipIf(!anonCtx || !authCtx)("Optional-auth public reads (integration)"
 
   beforeAll(async () => {
     // The override row FKs to users(id); seed a user to hang it off.
-    await auth.db
-      .insertInto("users")
-      .values({ id: USER_ID, email: USER_EMAIL, name: "Optional Auth Guard", emailVerified: true })
-      .onConflict((oc) => oc.column("id").doNothing())
-      .execute();
+    await seedTestUser(auth.db, { id: USER_ID });
     // Global default OFF, per-user override ON: the signed-in viewer only sees
     // the flag enabled if `loadSession` resolved them onto `context.user`.
     await featureFlagsRepo(auth.db).create({ key: FLAG_KEY, enabled: false, description: null });

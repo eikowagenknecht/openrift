@@ -1,14 +1,17 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { createDbContext } from "../test/integration-context.js";
+import { createDbContext, seedTestUser } from "../test/integration-context.js";
 
 // Migration 188 invariants: deleting a user account must rebalance the
 // organizations they own to the best surviving member (owner > manager >
 // judge, oldest first) instead of cascading the org away. Only a memberless
 // org dies with its owner.
-const OWNER_ID = "a0000000-0188-4000-a000-000000000001";
-const CO_OWNER_ID = "a0000000-0188-4000-a000-000000000002";
-const MANAGER_ID = "a0000000-0188-4000-a000-000000000003";
+//
+// Random per-file users (seeded via seedTestUser in beforeAll) so this file
+// cannot collide with pre-seeded registry users or other files' fixtures.
+const OWNER_ID = crypto.randomUUID();
+const CO_OWNER_ID = crypto.randomUUID();
+const MANAGER_ID = crypto.randomUUID();
 const ctx = createDbContext(OWNER_ID);
 
 describe.skipIf(!ctx)("organization owner rebalance on user deletion (integration)", () => {
@@ -18,18 +21,9 @@ describe.skipIf(!ctx)("organization owner rebalance on user deletion (integratio
   let soloOrgId: string;
 
   beforeAll(async () => {
-    const users = [
-      { id: OWNER_ID, email: "org-owner-188@test.com", name: "Org Owner" },
-      { id: CO_OWNER_ID, email: "org-co-owner-188@test.com", name: "Co Owner" },
-      { id: MANAGER_ID, email: "org-manager-188@test.com", name: "Manager" },
-    ];
-    for (const user of users) {
-      await db
-        .insertInto("users")
-        .values({ ...user, emailVerified: true, image: null })
-        .onConflict((oc) => oc.column("id").doNothing())
-        .execute();
-    }
+    await seedTestUser(db, { id: OWNER_ID });
+    await seedTestUser(db, { id: CO_OWNER_ID });
+    await seedTestUser(db, { id: MANAGER_ID });
 
     const insertOrg = async (slug: string) => {
       const org = await db

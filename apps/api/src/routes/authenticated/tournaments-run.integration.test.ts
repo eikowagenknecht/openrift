@@ -9,21 +9,21 @@ import { createTestContext, req } from "../../test/integration-context.js";
 // pod route was owner-only, which 403'd everyone (including the org host) on an
 // org-hosted tournament. Auth is mocked; the shared DB is real.
 
-const HOST_ID = "a0000000-0220-4000-a000-000000000001";
-const ORGOWNER_ID = "a0000000-0221-4000-a000-000000000001";
-const ORGJUDGE_ID = "a0000000-0222-4000-a000-000000000001";
-const PARTICIPANT_ID = "a0000000-0223-4000-a000-000000000001";
-const STRANGER_ID = "a0000000-0224-4000-a000-000000000001";
-const ORG_ID = "01900000-0220-7000-8000-000000000001";
+const HOST_ID = crypto.randomUUID();
+const ORGOWNER_ID = crypto.randomUUID();
+const ORGJUDGE_ID = crypto.randomUUID();
+const PARTICIPANT_ID = crypto.randomUUID();
+const STRANGER_ID = crypto.randomUUID();
+const ORG_ID = crypto.randomUUID();
 const UNKNOWN_ID = "01900000-0220-7000-8000-0000000000ff";
 
 const ALL_IDS = [HOST_ID, ORGOWNER_ID, ORGJUDGE_ID, PARTICIPANT_ID, STRANGER_ID];
 
-const hostCtx = createTestContext(HOST_ID, "run-host@test.com");
-const orgOwnerCtx = createTestContext(ORGOWNER_ID, "run-orgowner@test.com");
-const orgJudgeCtx = createTestContext(ORGJUDGE_ID, "run-orgjudge@test.com");
-const participantCtx = createTestContext(PARTICIPANT_ID, "run-participant@test.com");
-const strangerCtx = createTestContext(STRANGER_ID, "run-stranger@test.com");
+const hostCtx = createTestContext(HOST_ID, `test-${HOST_ID}@test.com`);
+const orgOwnerCtx = createTestContext(ORGOWNER_ID, `test-${ORGOWNER_ID}@test.com`);
+const orgJudgeCtx = createTestContext(ORGJUDGE_ID, `test-${ORGJUDGE_ID}@test.com`);
+const participantCtx = createTestContext(PARTICIPANT_ID, `test-${PARTICIPANT_ID}@test.com`);
+const strangerCtx = createTestContext(STRANGER_ID, `test-${STRANGER_ID}@test.com`);
 
 const ready =
   hostCtx && orgOwnerCtx && orgJudgeCtx && participantCtx && strangerCtx ? hostCtx : null;
@@ -61,19 +61,17 @@ describe.skipIf(!ready)("Tournament running surface (integration)", () => {
         .insertInto("users")
         .values({
           id: userId,
-          email: `run-${userId.slice(11, 15)}@test.com`,
+          email: `test-${userId}@test.com`,
           name: "T",
           emailVerified: true,
           image: null,
         })
-        .onConflict((oc) => oc.column("id").doNothing())
         .execute();
     }
     // An org owned by ORGOWNER with ORGJUDGE as a judge member.
     await host.db
       .insertInto("organizations")
       .values({ id: ORG_ID, slug: "run-org", name: "Run Org", ownerUserId: ORGOWNER_ID })
-      .onConflict((oc) => oc.column("id").doNothing())
       .execute();
     await host.db
       .insertInto("organizationMembers")

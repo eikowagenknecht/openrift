@@ -140,6 +140,41 @@ export function createDbContext(userId: string): DbContext | null {
 export { adminReq, req } from "./integration-helper.js";
 
 /**
+ * Seed a unique throwaway user owned by the calling test file.
+ *
+ * Integration test files share one database, so fixed user IDs create hidden
+ * cross-file coupling: a plain insert collides with a pre-seeded row, and a
+ * teardown `DELETE FROM users` breaks any later file that still needs the
+ * row. A random UUID per file removes the coupling entirely — the file can
+ * insert without `onConflict` and delete its user freely in `afterAll`.
+ *
+ * Pass `id` when the value must exist at module scope (e.g. for
+ * `createTestContext`) — generate it there with `crypto.randomUUID()`.
+ * @returns The inserted user's `id` and `email`.
+ */
+export async function seedTestUser(
+  db: Db,
+  opts?: { id?: string; isAdmin?: boolean; emailVerified?: boolean },
+): Promise<{ id: string; email: string }> {
+  const id = opts?.id ?? crypto.randomUUID();
+  const email = `test-${id}@test.com`;
+  await db
+    .insertInto("users")
+    .values({
+      id,
+      email,
+      name: "Test User",
+      emailVerified: opts?.emailVerified ?? true,
+      image: null,
+    })
+    .execute();
+  if (opts?.isAdmin) {
+    await db.insertInto("admins").values({ userId: id }).execute();
+  }
+  return { id, email };
+}
+
+/**
  * Refresh `mv_card_aggregates`. The integration harness refreshes it once at
  * startup, but test files that insert their own cards + card_domains need to
  * refresh again so INNER JOINs on the MV (e.g. in unified-mappings queries)

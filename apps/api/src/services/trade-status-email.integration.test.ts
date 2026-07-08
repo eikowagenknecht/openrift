@@ -9,13 +9,13 @@ import { acceptTrade, cancelTrade, createTrade, declineTrade } from "./card-trad
 import { flushTradeStatusEmails } from "./trade-status-notifications.js";
 import type { TradeStatusFlushDeps } from "./trade-status-notifications.js";
 
-// Own user IDs (0066/0067), self-inserted below — NOT the digest test's 0061/0062,
-// which the TEST_USERS registry pre-seeds with `digest-*` emails.
-const GIVER_ID = "a0000000-0066-4000-a000-000000000001";
-const RECEIVER_ID = "a0000000-0067-4000-a000-000000000001";
+// Random per-file users, self-inserted below. This file keeps its own upsert
+// (rather than seedTestUser) because it toggles emailVerified per-case.
+const GIVER_ID = crypto.randomUUID();
+const RECEIVER_ID = crypto.randomUUID();
 const ALL_USER_IDS = [GIVER_ID, RECEIVER_ID];
-const GIVER_EMAIL = "status-0066@test.com";
-const RECEIVER_EMAIL = "status-0067@test.com";
+const GIVER_EMAIL = `test-${GIVER_ID}@test.com`;
+const RECEIVER_EMAIL = `test-${RECEIVER_ID}@test.com`;
 
 const ctx = createDbContext(GIVER_ID);
 
