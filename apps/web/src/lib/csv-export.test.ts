@@ -12,6 +12,7 @@ function makeStack(overrides: {
   name?: string;
   rarity?: string;
   type?: string;
+  types?: string[];
   domains?: string[];
   finish?: string;
   artVariant?: string;
@@ -32,6 +33,7 @@ function makeStack(overrides: {
     card: {
       name: overrides.name ?? "Test Card",
       type: overrides.type ?? "unit",
+      types: overrides.types ?? [overrides.type ?? "unit"],
       domains: overrides.domains ?? ["Arcane"],
     },
   } as unknown as Printing;
@@ -70,6 +72,15 @@ describe("generateExportCSV", () => {
     const csv = generateExportCSV([stack]);
     const lines = csv.split("\n");
     expect(lines[1]).toBe("OGN-001,Regular Card,common,unit,Arcane,normal,normal,,EN,1,,,,,,,");
+  });
+
+  // ADR-037: the Type column joins every type of a multi-type card, matching
+  // the sibling Domain column's separator, instead of emitting only the primary.
+  it("joins all types for a multi-type card", () => {
+    const stack = makeStack({ shortCode: "OGN-001", name: "Unit Gear", types: ["unit", "gear"] });
+    const csv = generateExportCSV([stack]);
+    const lines = csv.split("\n");
+    expect(lines[1]).toBe("OGN-001,Unit Gear,common,unit / gear,Arcane,normal,normal,,EN,1,,,,,,,");
   });
 
   it("escapes fields with commas", () => {

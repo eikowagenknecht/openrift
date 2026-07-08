@@ -324,7 +324,6 @@ export function toListEntryDetail(
         ruleQuantity: number;
         cardId: string;
         cardName: string;
-        cardType: string;
         tradeOverride: TradePreference;
       }
     | {
@@ -336,7 +335,6 @@ export function toListEntryDetail(
         ruleQuantity: number;
         printingId: string;
         cardName: string;
-        cardType: string;
         setId: string;
         rarity: string;
         finish: string;
@@ -356,7 +354,6 @@ export function toListEntryDetail(
         printingId: string;
         collectionId: string;
         cardName: string;
-        cardType: string;
         setId: string;
         rarity: string;
         finish: string;
@@ -378,7 +375,6 @@ export function toListEntryDetail(
       ruleQuantity: row.ruleQuantity,
       cardId: row.cardId,
       cardName: row.cardName,
-      cardType: row.cardType as CardType,
       tradeOverride: row.tradeOverride,
     };
   }
@@ -392,7 +388,6 @@ export function toListEntryDetail(
       ruleQuantity: row.ruleQuantity,
       printingId: row.printingId,
       cardName: row.cardName,
-      cardType: row.cardType as CardType,
       setId: row.setId,
       rarity: row.rarity as Rarity,
       finish: row.finish as Finish,
@@ -415,7 +410,6 @@ export function toListEntryDetail(
     // holds the copy, but it is never consumed by clients and it leaked to
     // anonymous viewers of public/group-shared lists (G3). Dropped from the wire.
     cardName: row.cardName,
-    cardType: row.cardType as CardType,
     setId: row.setId,
     rarity: row.rarity as Rarity,
     finish: row.finish as Finish,
@@ -446,7 +440,6 @@ export function toCollectionEvent(row: {
   rarity: string;
   imageId: string | null;
   cardName: string;
-  cardType: string;
   cardTypes: string[];
   cardSuperTypes: string[];
   tags: string[];
@@ -465,7 +458,6 @@ export function toCollectionEvent(row: {
     rarity: row.rarity as CollectionEventResponse["rarity"],
     imageId: row.imageId,
     cardName: row.cardName,
-    cardType: row.cardType as CollectionEventResponse["cardType"],
     cardTypes: row.cardTypes as CollectionEventResponse["cardTypes"],
     cardSuperTypes: row.cardSuperTypes,
     tags: row.tags,

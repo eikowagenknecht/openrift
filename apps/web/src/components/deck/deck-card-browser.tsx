@@ -129,7 +129,7 @@ function DeckActionsCell({
 export function buildRunesByDomain(allPrintings: Printing[]): Map<string, DeckBuilderCard[]> {
   const runesByDomain = new Map<string, DeckBuilderCard[]>();
   for (const entry of allPrintings) {
-    if (entry.card.type !== WellKnown.cardType.RUNE) {
+    if (!entry.card.types.includes(WellKnown.cardType.RUNE)) {
       continue;
     }
     const runeCard = catalogCardToDeckBuilderCard(entry.cardId, entry.card);

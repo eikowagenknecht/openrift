@@ -2,7 +2,6 @@ import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
   artVariantSchema,
   cardSizeSchema,
-  cardTypeSchema,
   domainSchema,
   finishSchema,
   raritySchema,
@@ -110,7 +109,6 @@ export const unifiedMappingGroupResponseSchema = z
     cardId: z.string().openapi({ example: "019cfc3b-0389-744b-837c-792fd586300e" }),
     cardSlug: z.string().openapi({ example: "jinx-rebel" }),
     cardName: z.string().openapi({ example: "Jinx, Rebel" }),
-    cardType: cardTypeSchema,
     superTypes: z.array(superTypeSchema).openapi({ example: ["Champion"] }),
     domains: z.array(domainSchema).openapi({ example: ["Chaos"] }),
     energy: z.number().nullable().openapi({ example: 5 }),

@@ -5,7 +5,6 @@ import {
   resolveEffectiveTradePreference,
 } from "@openrift/shared";
 import type {
-  CardType,
   Currency,
   EffectiveTradePreference,
   Finish,
@@ -58,7 +57,6 @@ export interface MatchRow {
   printingId: string;
   cardId: string;
   cardName: string;
-  cardType: CardType;
   setId: string;
   rarity: Rarity;
   finish: Finish;
@@ -507,7 +505,6 @@ function buildDemand(
 
 interface PrintingDetail {
   cardName: string;
-  cardType: CardType;
   setId: string;
   rarity: Rarity;
   finish: Finish;
@@ -539,7 +536,6 @@ async function loadPrintingDetails(
     .select([
       "p.id",
       "card.name as cardName",
-      "card.type as cardType",
       "p.setId",
       "p.rarity",
       "p.finish",
@@ -550,7 +546,6 @@ async function loadPrintingDetails(
   for (const row of rows) {
     map.set(row.id, {
       cardName: row.cardName,
-      cardType: row.cardType,
       setId: row.setId,
       rarity: row.rarity,
       finish: row.finish,
@@ -777,7 +772,6 @@ async function runMatchQuery(
         printingId: supplyEntry.printingId,
         cardId: supplyEntry.cardId,
         cardName: detail.cardName,
-        cardType: detail.cardType,
         setId: detail.setId,
         rarity: detail.rarity,
         finish: detail.finish,

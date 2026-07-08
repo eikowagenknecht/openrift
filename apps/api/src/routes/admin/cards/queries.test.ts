@@ -79,8 +79,15 @@ describe("GET /api/admin/v1/cards/all-cards", () => {
 
   it("returns 200 with all cards", async () => {
     const cards = [
-      { id: "card-1", slug: "fireball", name: "Fireball", type: "spell", setSlugs: ["ogn"] },
-      { id: "card-2", slug: "bolt", name: "Bolt", type: "spell", setSlugs: [] },
+      {
+        id: "card-1",
+        slug: "fireball",
+        name: "Fireball",
+        type: "spell",
+        types: ["spell"],
+        setSlugs: ["ogn"],
+      },
+      { id: "card-2", slug: "bolt", name: "Bolt", type: "spell", types: ["spell"], setSlugs: [] },
     ];
     mockCandidateCards.listAllCards.mockResolvedValue(cards);
 

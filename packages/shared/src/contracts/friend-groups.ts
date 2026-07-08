@@ -1,6 +1,5 @@
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
-  cardTypeSchema,
   contactMethodSchema,
   copyResponseSchema,
   currencyResponseSchema,
@@ -277,7 +276,6 @@ export const friendGroupMatchRowSchema = z
     printingId: z.string(),
     cardId: z.string(),
     cardName: z.string(),
-    cardType: cardTypeSchema,
     setId: z.string(),
     rarity: raritySchema,
     finish: finishSchema,

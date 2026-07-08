@@ -71,7 +71,7 @@ export const deckPlanCardMetaResponseSchema = z.object({
   cardId: z.string(),
   cardName: z.string(),
   cardSlug: z.string(),
-  cardType: cardTypeSchema,
+  cardTypes: z.array(cardTypeSchema).nonempty(),
   imageId: z.string().nullable(),
 });
 

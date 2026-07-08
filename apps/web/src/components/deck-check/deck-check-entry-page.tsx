@@ -4,7 +4,7 @@ import type {
   DeckCheckEntryDetailResponse,
   Printing,
 } from "@openrift/shared";
-import { WellKnown, imageUrl, legendDisplayName } from "@openrift/shared";
+import { WellKnown, getOrientation, imageUrl, legendDisplayName } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   BanIcon,
@@ -988,7 +988,7 @@ function CardNameSearchField({
         <>
           <span className="truncate font-medium">{legendDisplayName(printing.card)}</span>
           <span className="text-muted-foreground shrink-0">
-            {labels.cardTypes[printing.card.type]}
+            {printing.card.types.map((slug) => labels.cardTypes[slug]).join(" ")}
           </span>
         </>
       )}
@@ -1583,7 +1583,7 @@ function CardChecklist({
         ? {
             thumbnailUrl: imageUrl(front.imageId, "400w"),
             fullUrl: imageUrl(front.imageId, "full"),
-            landscape: printing.card.type === WellKnown.cardType.BATTLEFIELD,
+            landscape: getOrientation(printing.card.types) === "landscape",
           }
         : null,
     );

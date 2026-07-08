@@ -497,7 +497,6 @@ describe("toListEntryDetail", () => {
       quantity: 2,
       cardId: "card-1",
       cardName: "Fire Dragon",
-      cardType: "unit",
     });
     expect(result).toEqual({
       kind: "card",
@@ -506,7 +505,6 @@ describe("toListEntryDetail", () => {
       quantity: 2,
       cardId: "card-1",
       cardName: "Fire Dragon",
-      cardType: "unit",
     });
   });
 
@@ -518,7 +516,6 @@ describe("toListEntryDetail", () => {
       quantity: 1,
       printingId: "p-1",
       cardName: "Fire Dragon",
-      cardType: "unit",
       setId: "set-1",
       rarity: "rare",
       finish: "foil",
@@ -531,7 +528,6 @@ describe("toListEntryDetail", () => {
       quantity: 1,
       printingId: "p-1",
       cardName: "Fire Dragon",
-      cardType: "unit",
       setId: "set-1",
       rarity: "rare",
       finish: "foil",
@@ -552,7 +548,6 @@ describe("toListEntryDetail", () => {
       printingId: "p-1",
       collectionId: "col-1",
       cardName: "Fire Dragon",
-      cardType: "unit",
       setId: "set-1",
       rarity: "rare",
       finish: "foil",
@@ -567,7 +562,6 @@ describe("toListEntryDetail", () => {
       copyId: "copy-1",
       printingId: "p-1",
       cardName: "Fire Dragon",
-      cardType: "unit",
       setId: "set-1",
       rarity: "rare",
       finish: "foil",
@@ -655,7 +649,6 @@ describe("toCollectionEvent", () => {
       rarity: "rare",
       imageId: "uuid-base",
       cardName: "Shadow Knight",
-      cardType: "unit",
       cardSuperTypes: ["champion"],
       tags: ["Hecarim"],
     });
@@ -673,7 +666,6 @@ describe("toCollectionEvent", () => {
       rarity: "rare",
       imageId: "uuid-base",
       cardName: "Shadow Knight",
-      cardType: "unit",
       cardSuperTypes: ["champion"],
       tags: ["Hecarim"],
     });
@@ -694,7 +686,6 @@ describe("toCollectionEvent", () => {
       rarity: "rare",
       imageId: null,
       cardName: "Shadow Knight",
-      cardType: "unit",
       cardSuperTypes: ["champion"],
       tags: [],
     });

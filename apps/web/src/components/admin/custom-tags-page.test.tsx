@@ -6,8 +6,22 @@ import { describe, expect, it, vi } from "vitest";
 import { CardTagEditor } from "./custom-tags-page";
 
 const cards = [
-  { id: "card-1", slug: "brazen-buccaneer", name: "Brazen Buccaneer", type: "Unit", setSlugs: [] },
-  { id: "card-2", slug: "riptide-rex", name: "Riptide Rex", type: "Unit", setSlugs: [] },
+  {
+    id: "card-1",
+    slug: "brazen-buccaneer",
+    name: "Brazen Buccaneer",
+    type: "Unit",
+    types: ["Unit"],
+    setSlugs: [],
+  },
+  {
+    id: "card-2",
+    slug: "riptide-rex",
+    name: "Riptide Rex",
+    type: "Unit",
+    types: ["Unit"],
+    setSlugs: [],
+  },
 ];
 
 vi.mock("@/hooks/use-admin-card-queries", () => ({

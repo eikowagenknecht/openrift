@@ -1,5 +1,5 @@
 import type { DeckFormat } from "@openrift/shared";
-import { imageUrl, legendDisplayName, WellKnown } from "@openrift/shared";
+import { getOrientation, imageUrl, legendDisplayName, WellKnown } from "@openrift/shared";
 import {
   AlertTriangleIcon,
   ArrowDownIcon,
@@ -94,7 +94,7 @@ function CardChip({
   const { getPreferredPrinting } = usePreferredPrinting();
   const printing = getPreferredPrinting(cardId);
   const frontImage = printing?.images.find((image) => image.face === "front");
-  const landscape = printing?.card.type === WellKnown.cardType.BATTLEFIELD;
+  const landscape = getOrientation(printing?.card.types ?? []) === "landscape";
   const field = variant === "field";
   return (
     <span
@@ -498,7 +498,7 @@ export function DeckPlanEditor({
       cardCandidates.push({
         cardId: printing.cardId,
         cardName: legendDisplayName(printing.card),
-        cardType: labels.cardTypes[printing.card.type],
+        cardType: printing.card.types.map((slug) => labels.cardTypes[slug]).join(" "),
       });
     }
   }

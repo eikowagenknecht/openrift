@@ -57,7 +57,6 @@ const dbEvent = {
   rarity: "rare",
   imageId: "uuid-base",
   cardName: "Fire Dragon",
-  cardType: "unit",
   cardTypes: ["unit"],
   cardSuperTypes: ["Dragon"],
   tags: [],
@@ -154,7 +153,7 @@ describe("GET /api/v1/collection-events", () => {
     expect(event.rarity).toBe("rare");
     expect(event.imageId).toBe("uuid-base");
     expect(event.cardName).toBe("Fire Dragon");
-    expect(event.cardType).toBe("unit");
+    expect(event.cardTypes).toEqual(["unit"]);
     expect(event.cardSuperTypes).toEqual(["Dragon"]);
   });
 

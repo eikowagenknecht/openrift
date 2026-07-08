@@ -326,7 +326,7 @@ export function buildPlanCardMeta(
         cardId,
         cardName: card.name,
         cardSlug: card.slug,
-        cardType: card.type,
+        cardTypes: card.types,
         imageId: getImageId(cardId),
       },
     ];

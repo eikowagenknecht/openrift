@@ -544,7 +544,7 @@ export function CardTagEditor({ tags }: { tags: CustomTagResponse[] }) {
       ? allCards
           .filter((c) => c.name.toLowerCase().includes(search.toLowerCase()))
           .slice(0, 20)
-          .map((c) => ({ id: c.id, label: c.name, sublabel: c.slug, detail: c.type }))
+          .map((c) => ({ id: c.id, label: c.name, sublabel: c.slug, detail: c.types.join(" ") }))
       : [];
 
   const selectedCard = selectedCardId ? allCards.find((c) => c.id === selectedCardId) : undefined;

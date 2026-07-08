@@ -1470,7 +1470,7 @@ export function deckCheckRepo(db: Kysely<Database>) {
             id: row.id,
             name: row.name,
             type: row.type,
-            types: row.types ?? [row.type],
+            types: row.types,
             superTypes: row.superTypes ?? [],
             domains: row.domains ?? [],
             tags: row.tags ?? [],

@@ -50,7 +50,6 @@ const dbEntry = {
   source: "manual" as const,
   cardId: "c0000000-0001-4000-a000-000000000001",
   cardName: "Jinx, Rebel",
-  cardType: "Unit",
   tradeOverride: { pricePref: null, priceAbsoluteCents: null, tradeType: null },
 };
 

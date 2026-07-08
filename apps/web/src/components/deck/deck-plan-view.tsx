@@ -3,7 +3,7 @@ import type {
   DeckPlanCardMetaResponse,
   DeckPlanResponse,
 } from "@openrift/shared";
-import { imageUrl, WellKnown } from "@openrift/shared";
+import { getOrientation, imageUrl } from "@openrift/shared";
 
 // Read-only render of a deck's plan (ADR-029) for the public share page. Purely
 // presentational: it takes the plan plus a denormalized card-meta lookup so it
@@ -21,7 +21,7 @@ function CardLine({
   quantity?: number;
 }) {
   const meta = lookup(cardId);
-  const landscape = meta?.cardType === WellKnown.cardType.BATTLEFIELD;
+  const landscape = getOrientation(meta?.cardTypes ?? []) === "landscape";
   return (
     <span className="inline-flex items-center gap-2">
       {meta?.imageId ? (

@@ -520,7 +520,6 @@ async function buildDetailResponse(
           id: card.id,
           slug: card.slug,
           name: card.name,
-          type: card.type,
           types: card.types,
           superTypes: card.superTypes,
           domains: card.domains,

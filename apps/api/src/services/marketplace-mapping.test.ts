@@ -83,7 +83,6 @@ function makeCardPrintingRow(overrides: Record<string, unknown> = {}) {
     cardId: "card-1",
     cardSlug: "fireball",
     cardName: "Fireball",
-    cardType: "spell",
     superTypes: [],
     domains: ["fury"],
     energy: 2,

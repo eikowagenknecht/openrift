@@ -86,7 +86,7 @@ export const publicDecksRouter = {
           cardId,
           cardName: meta.name,
           cardSlug: meta.slug,
-          cardType: meta.type,
+          cardTypes: meta.types,
           imageId: planPrintingMetas[index]?.imageId ?? null,
         };
       });

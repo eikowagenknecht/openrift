@@ -160,7 +160,6 @@ const printingKindList: PublicListDetailResponse = {
       tradeOverride: EMPTY_TRADE_PREFERENCE,
       source: "manual",
       cardName: printingOnList.card.name,
-      cardType: printingOnList.card.type,
       setId: printingOnList.setId,
       rarity: printingOnList.rarity,
       finish: printingOnList.finish,

@@ -41,7 +41,6 @@ interface CardGroup {
   cardId: string;
   cardSlug: string;
   cardName: string;
-  cardType: string;
   superTypes: string[];
   domains: string[];
   energy: number | null;
@@ -63,7 +62,6 @@ export function buildCardIndex(
     cardId: string;
     cardSlug: string;
     cardName: string;
-    cardType: string;
     superTypes: unknown;
     domains: unknown;
     energy: number | null;
@@ -104,7 +102,6 @@ export function buildCardIndex(
         cardId: row.cardId,
         cardSlug: row.cardSlug,
         cardName: row.cardName,
-        cardType: row.cardType,
         superTypes: row.superTypes as string[],
         domains: row.domains as string[],
         energy: row.energy,

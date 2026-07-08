@@ -160,7 +160,6 @@ describe("listsRepo", () => {
         cardId: "card-1",
         quantity: 1,
         cardName: "Fire Dragon",
-        cardType: "unit",
       },
     ];
     const db = createMockDb(enriched);

@@ -1,5 +1,5 @@
 import type { DeckZone } from "@openrift/shared";
-import { formatHasSideboard, imageUrl, WellKnown } from "@openrift/shared";
+import { formatHasSideboard, getOrientation, imageUrl, WellKnown } from "@openrift/shared";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
@@ -473,7 +473,7 @@ function DeckEditorContent({
       ? {
           thumbnailUrl: imageUrl(hoveredFrontImage.imageId, "400w"),
           fullUrl: imageUrl(hoveredFrontImage.imageId, "full"),
-          landscape: hoveredPrinting.card.type === WellKnown.cardType.BATTLEFIELD,
+          landscape: getOrientation(hoveredPrinting.card.types) === "landscape",
         }
       : null;
 

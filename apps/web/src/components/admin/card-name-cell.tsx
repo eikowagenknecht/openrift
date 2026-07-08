@@ -10,7 +10,7 @@ import type { useAcceptFavoriteNewCard, useLinkCard } from "@/hooks/use-admin-ca
 export interface CardNameCellMeta {
   linkCard: ReturnType<typeof useLinkCard>;
   acceptFavorite: ReturnType<typeof useAcceptFavoriteNewCard>;
-  allCards: { id: string; slug: string; name: string; type: string }[];
+  allCards: { id: string; slug: string; name: string; types: string[] }[];
 }
 
 export function CardNameCell({

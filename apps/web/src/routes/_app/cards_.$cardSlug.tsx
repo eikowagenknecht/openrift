@@ -105,7 +105,7 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
         productJsonLd({
           siteUrl,
           name: data.card.name,
-          description: `${data.card.name} is a ${data.card.type} card from Riftbound.`,
+          description: `${data.card.name} is a ${data.card.types.join(" ")} card from Riftbound.`,
           image: imageUrl,
           url: cardPath,
           marketplaceOffers: loaded.marketplaceOffers,

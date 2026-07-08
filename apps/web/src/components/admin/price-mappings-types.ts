@@ -25,7 +25,6 @@ export interface MappingGroup {
   cardId: string;
   cardSlug: string;
   cardName: string;
-  cardType: string;
   superTypes: string[];
   domains: string[];
   energy: number | null;

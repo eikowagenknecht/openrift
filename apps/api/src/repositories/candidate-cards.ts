@@ -106,7 +106,10 @@ export function candidateCardsRepo(db: Kysely<Database>) {
      *   to a single set.
      */
     listAllCards(): Promise<
-      (Pick<Selectable<CardsTable>, "id" | "slug" | "name" | "type"> & { setSlugs: string[] })[]
+      (Pick<Selectable<CardsTable>, "id" | "slug" | "name" | "type"> & {
+        types: string[];
+        setSlugs: string[];
+      })[]
     > {
       return db
         .selectFrom("cards as c")
@@ -117,6 +120,13 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           "c.slug",
           "c.name",
           "c.type",
+          // Full ordered type set (ADR-037) via a correlated subquery so it
+          // isn't multiplied by the printings/sets join above.
+          sql<string[]>`(
+            select array_agg(cct.type_slug order by cct.position)
+            from card_card_types cct
+            where cct.card_id = c.id
+          )`.as("types"),
           eb.fn
             .coalesce(
               sql<string[]>`array_agg(distinct s.slug) filter (where s.slug is not null)`,

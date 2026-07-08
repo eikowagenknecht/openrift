@@ -1,6 +1,5 @@
 import { evaluateListRules, expandList, hydrateListRules } from "@openrift/shared";
 import type {
-  CardType,
   EntrySource,
   Finish,
   KeepPriorityOrders,
@@ -70,7 +69,6 @@ interface ListEntryRowBase {
   /** Rule's contribution to `quantity` (ADR-034 additive model); 0 for manual-only. */
   ruleQuantity: number;
   cardName: string;
-  cardType: CardType;
   tradeOverride: TradePreference;
 }
 
@@ -924,14 +922,13 @@ async function expandAndEnrich(
 }
 
 interface RuleOnlyDetails {
-  cards: Map<string, { cardName: string; cardType: CardType }>;
+  cards: Map<string, { cardName: string }>;
   printings: Map<string, PrintingDetail>;
   copies: Map<string, CopyDetail>;
 }
 
 interface PrintingDetail {
   cardName: string;
-  cardType: CardType;
   setId: string;
   rarity: Rarity;
   finish: Finish;
@@ -1007,7 +1004,6 @@ function buildRuleOnlyRow(
       source: "rule",
       cardId: entry.cardId,
       cardName: detail.cardName,
-      cardType: detail.cardType,
       tradeOverride: entry.tradeOverride,
     };
   }
@@ -1043,7 +1039,6 @@ function buildRuleOnlyRow(
     printingId: detail.printingId,
     collectionId: detail.collectionId,
     cardName: detail.cardName,
-    cardType: detail.cardType,
     setId: detail.setId,
     rarity: detail.rarity,
     finish: detail.finish,
@@ -1059,16 +1054,16 @@ function buildRuleOnlyRow(
 async function cardDetailsByIds(
   db: Kysely<Database>,
   ids: string[],
-): Promise<Map<string, { cardName: string; cardType: CardType }>> {
+): Promise<Map<string, { cardName: string }>> {
   if (ids.length === 0) {
     return new Map();
   }
   const rows = await db
     .selectFrom("cards as card")
-    .select(["card.id", "card.name as cardName", "card.type as cardType"])
+    .select(["card.id", "card.name as cardName"])
     .where("card.id", "in", ids)
     .execute();
-  return new Map(rows.map((row) => [row.id, { cardName: row.cardName, cardType: row.cardType }]));
+  return new Map(rows.map((row) => [row.id, { cardName: row.cardName }]));
 }
 
 async function printingDetailsByIds(
@@ -1091,7 +1086,6 @@ async function printingDetailsByIds(
     .select([
       "p.id",
       "card.name as cardName",
-      "card.type as cardType",
       "p.setId",
       "p.rarity",
       "p.finish",
@@ -1106,7 +1100,6 @@ async function printingDetailsByIds(
       row.id,
       {
         cardName: row.cardName,
-        cardType: row.cardType,
         setId: row.setId,
         rarity: row.rarity,
         finish: row.finish,
@@ -1143,7 +1136,6 @@ async function copyDetailsByIds(
       "cp.printingId",
       "cp.collectionId",
       "card.name as cardName",
-      "card.type as cardType",
       "p.setId",
       "p.rarity",
       "p.finish",
@@ -1162,7 +1154,6 @@ async function copyDetailsByIds(
         printingId: row.printingId,
         collectionId: row.collectionId,
         cardName: row.cardName,
-        cardType: row.cardType,
         setId: row.setId,
         rarity: row.rarity,
         finish: row.finish,
@@ -1202,7 +1193,6 @@ async function cardEntryQuery(
       "le.priceAbsoluteCents",
       "le.tradeType",
       "card.name as cardName",
-      "card.type as cardType",
     ])
     .execute();
   return rows.map((row) => ({
@@ -1214,7 +1204,6 @@ async function cardEntryQuery(
     source: "manual",
     cardId: row.cardId as string,
     cardName: row.cardName,
-    cardType: row.cardType as CardType,
     tradeOverride: tradeOverrideFromRow(row),
   }));
 }
@@ -1253,7 +1242,6 @@ async function printingEntryQuery(
       "le.priceAbsoluteCents",
       "le.tradeType",
       "card.name as cardName",
-      "card.type as cardType",
       "p.setId",
       "p.rarity",
       "p.finish",
@@ -1271,7 +1259,6 @@ async function printingEntryQuery(
     source: "manual",
     printingId: row.printingId as string,
     cardName: row.cardName,
-    cardType: row.cardType as CardType,
     setId: row.setId,
     rarity: row.rarity as Rarity,
     finish: row.finish as Finish,
@@ -1322,7 +1309,6 @@ async function copyEntryQuery(
       "le.priceAbsoluteCents",
       "le.tradeType",
       "card.name as cardName",
-      "card.type as cardType",
       "p.setId",
       "p.rarity",
       "p.finish",
@@ -1346,7 +1332,6 @@ async function copyEntryQuery(
     printingId: row.printingId,
     collectionId: row.collectionId,
     cardName: row.cardName,
-    cardType: row.cardType as CardType,
     setId: row.setId,
     rarity: row.rarity as Rarity,
     finish: row.finish as Finish,

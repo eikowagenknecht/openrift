@@ -126,7 +126,7 @@ export function generateExportCSV(
         printing.shortCode,
         straightenApostrophes(printing.card.name),
         printing.rarity,
-        printing.card.type,
+        printing.card.types.join(" / "),
         printing.card.domains.join(" / "),
         printing.finish,
         printing.artVariant,

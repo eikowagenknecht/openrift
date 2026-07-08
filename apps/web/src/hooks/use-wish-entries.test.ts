@@ -52,7 +52,6 @@ describe("buildWishMembership", () => {
           kind: "card",
           cardId: "card-1",
           cardName: "Ahri",
-          cardType: "unit",
         },
       ]),
     ]);
@@ -81,7 +80,6 @@ describe("buildWishMembership", () => {
           kind: "printing",
           printingId: "printing-9",
           cardName: "Ahri",
-          cardType: "unit",
           setId: "set-1",
           rarity: "rare",
           finish: "foil",
@@ -108,7 +106,6 @@ describe("buildWishMembership", () => {
           kind: "card",
           cardId: "card-1",
           cardName: "Ahri",
-          cardType: "unit",
         },
       ]),
       wishList("list-3", "Trade bait", "card", [
@@ -122,7 +119,6 @@ describe("buildWishMembership", () => {
           kind: "card",
           cardId: "card-1",
           cardName: "Ahri",
-          cardType: "unit",
         },
       ]),
     ]);
@@ -143,7 +139,6 @@ describe("buildWishMembership", () => {
           kind: "card",
           cardId: "card-1",
           cardName: "Ahri",
-          cardType: "unit",
         },
       ]),
       wishList("list-3", "Trade bait", "card", [
@@ -157,7 +152,6 @@ describe("buildWishMembership", () => {
           kind: "card",
           cardId: "card-1",
           cardName: "Ahri",
-          cardType: "unit",
         },
       ]),
     ]);
@@ -178,7 +172,6 @@ describe("buildWishMembership", () => {
           kind: "card",
           cardId: "card-1",
           cardName: "Ahri",
-          cardType: "unit",
         },
       ]),
       wishList("list-2", "Foils", "printing", [
@@ -192,7 +185,6 @@ describe("buildWishMembership", () => {
           kind: "printing",
           printingId: "printing-9",
           cardName: "Ahri",
-          cardType: "unit",
           setId: "set-1",
           rarity: "rare",
           finish: "foil",

@@ -113,7 +113,6 @@ function group(
     cardId: "card-1",
     cardSlug: "fireball",
     cardName: "Fireball",
-    cardType: "spell",
     superTypes: [],
     domains: ["fury"],
     energy: 1,

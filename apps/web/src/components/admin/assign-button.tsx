@@ -13,7 +13,7 @@ export function AssignButton({
   linkCard,
 }: {
   normalizedName: string;
-  allCards: { id: string; slug: string; name: string; type: string }[];
+  allCards: { id: string; slug: string; name: string; types: string[] }[];
   linkCard: ReturnType<typeof useLinkCard>;
 }) {
   const [open, setOpen] = useState(false);
@@ -29,7 +29,7 @@ export function AssignButton({
             id: card.id,
             label: card.name,
             sublabel: card.slug,
-            detail: card.type,
+            detail: card.types.join(" "),
           }))
       : [];
 

@@ -350,7 +350,6 @@ const listEntryDetailBaseShape = {
   // `quantity - ruleQuantity`.
   ruleQuantity: z.number(),
   cardName: z.string(),
-  cardType: cardTypeSchema,
 };
 
 const listEntryDetailPrintingFieldsShape = {

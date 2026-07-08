@@ -20,7 +20,6 @@ function cardEntry(
     cardId,
     quantity,
     cardName,
-    cardType: "unit",
     tradeOverride: EMPTY_TRADE_PREFERENCE,
   };
 }
@@ -55,7 +54,6 @@ describe("formatCardListAsDeckText", () => {
         printingId: "p1",
         quantity: 2,
         cardName: "Jinx, Rebel",
-        cardType: "unit",
         setId: "set-1",
         rarity: "common",
         finish: "normal",
@@ -84,7 +82,6 @@ function printingEntry(
     printingId: `p-${id}`,
     quantity,
     cardName,
-    cardType: "unit",
     setId: "set-1",
     rarity: "common",
     finish: opts.finish ?? "normal",
@@ -110,7 +107,6 @@ function copyEntry(
     printingId: opts.printingId,
     quantity: 1,
     cardName,
-    cardType: "unit",
     setId: "set-1",
     rarity: "common",
     finish: opts.finish ?? "normal",

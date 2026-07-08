@@ -77,7 +77,6 @@ function group(
     cardId: "c-1",
     cardSlug: "ahri",
     cardName,
-    cardType: "unit",
     superTypes: [],
     domains: ["fury"],
     energy: 2,

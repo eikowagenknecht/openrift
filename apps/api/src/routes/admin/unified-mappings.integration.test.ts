@@ -380,7 +380,6 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
       expect(alphaGroup).toBeDefined();
       expect(alphaGroup.cardId).toBeTypeOf("string");
       expect(alphaGroup.cardSlug).toBe("UNM-001");
-      expect(alphaGroup.cardType).toBe("unit");
       expect(alphaGroup.domains).toContain("mind");
       expect(alphaGroup.energy).toBe(3);
       expect(alphaGroup.setName).toBe("UNM Unified Test Set");

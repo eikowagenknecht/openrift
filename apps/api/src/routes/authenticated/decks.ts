@@ -234,16 +234,20 @@ export const decksRouter = {
         .filter((card) => card.zone !== WellKnown.deckZone.OVERFLOW)
         .reduce((sum, card) => sum + card.quantity, 0);
 
-      // Type counts (Unit/Spell/Gear from main+champion zones)
+      // Type counts (Unit/Spell/Gear from main+champion zones). Fan out over the
+      // full type set (ADR-037) like the domain distribution below, so a
+      // multi-type card is counted under each of its (non-excluded) types.
       const typeCountMap = new Map<CardType, number>();
       for (const card of cards) {
-        if (!countedZones.has(card.zone) || excludedTypes.has(card.cardType)) {
+        if (!countedZones.has(card.zone)) {
           continue;
         }
-        typeCountMap.set(
-          card.cardType as CardType,
-          (typeCountMap.get(card.cardType as CardType) ?? 0) + card.quantity,
-        );
+        for (const cardType of card.cardTypes as CardType[]) {
+          if (excludedTypes.has(cardType)) {
+            continue;
+          }
+          typeCountMap.set(cardType, (typeCountMap.get(cardType) ?? 0) + card.quantity);
+        }
       }
       const typeCounts = cardTypeOrder
         .filter((type) => typeCountMap.has(type as CardType))

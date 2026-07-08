@@ -61,7 +61,6 @@ function group(
     cardId,
     cardSlug: cardId,
     cardName: cardId,
-    cardType: "unit",
     superTypes: [],
     domains: [],
     energy: null,

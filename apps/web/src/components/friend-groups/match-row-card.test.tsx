@@ -46,7 +46,6 @@ function makeMatch(): AggregatedMatch {
     printingId: "printing-1",
     cardId: "card-1",
     cardName: "Fury Rune",
-    cardType: "unit",
     setId: "set-1",
     rarity: "common",
     finish: "foil",

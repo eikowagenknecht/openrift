@@ -66,7 +66,6 @@ interface MappingOverviewResult {
     cardId: string;
     cardSlug: string;
     cardName: string;
-    cardType: string;
     superTypes: string[];
     domains: string[];
     energy: number | null;
@@ -145,7 +144,6 @@ function mergeOverviewsByCard(
       cardId: group.cardId,
       cardSlug: group.cardSlug,
       cardName: group.cardName,
-      cardType: group.cardType,
       superTypes: group.superTypes,
       domains: group.domains,
       energy: group.energy,
@@ -221,7 +219,6 @@ function mergeOverviewsByCard(
         cardId: group.cardId,
         cardSlug: group.cardSlug,
         cardName: group.cardName,
-        cardType: group.cardType,
         superTypes: group.superTypes,
         domains: group.domains,
         energy: group.energy,
@@ -297,7 +294,6 @@ function mergeOverviewsByCard(
         cardId: group.cardId,
         cardSlug: group.cardSlug,
         cardName: group.cardName,
-        cardType: group.cardType,
         superTypes: group.superTypes,
         domains: group.domains,
         energy: group.energy,

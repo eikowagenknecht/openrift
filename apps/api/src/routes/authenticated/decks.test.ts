@@ -153,6 +153,7 @@ const dbDeckCardFull = {
   quantity: 4,
   cardName: "Fire Dragon",
   cardType: "unit",
+  cardTypes: ["unit"],
   superTypes: [],
   domains: ["fury"],
   tags: [],
@@ -183,6 +184,22 @@ describe("GET /api/v1/decks", () => {
     expect(json.items[0].totalCards).toBe(4);
     expect(json.items[0].typeCounts).toEqual([{ cardType: "unit", count: 4 }]);
     expect(json.items[0].isValid).toBe(false);
+  });
+
+  // ADR-037: type counts fan out over the full type set, so a multi-type card
+  // (e.g. Unit Gear) is counted under each of its non-excluded types.
+  it("counts a multi-type card under each of its types", async () => {
+    mockRepo.listForUser.mockResolvedValue([dbDeck]);
+    mockRepo.allCardsForUser.mockResolvedValue([
+      { ...dbDeckCardFull, cardType: "unit", cardTypes: ["unit", "gear"] },
+    ]);
+    const res = await app.request("/api/v1/decks");
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.items[0].typeCounts).toEqual([
+      { cardType: "unit", count: 4 },
+      { cardType: "gear", count: 4 },
+    ]);
   });
 
   it("passes wanted filter", async () => {

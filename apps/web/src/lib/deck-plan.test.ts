@@ -385,11 +385,22 @@ describe("buildPlanCardMeta", () => {
       cardId: OPPONENT,
       cardName: "Diana",
       cardSlug: "diana",
-      cardType: "legend",
+      cardTypes: ["legend"],
       imageId: "img-diana",
     });
     expect(meta.find((entry) => entry.cardId === BATTLEFIELD)?.imageId).toBeNull();
     expect(meta.find((entry) => entry.cardId === MAIN_CARD)).toBeUndefined();
+  });
+
+  // ADR-037: the plan card meta carries the full type set so downstream
+  // orientation/display sees every type, not just the primary.
+  it("emits the full type set for a multi-type card", () => {
+    const plan = emptyPlanResponse({ battlefieldGame1CardId: OPPONENT });
+    const cardsById: Record<string, Card> = {
+      [OPPONENT]: card({ slug: "unit-gear", name: "Unit Gear", types: ["unit", "gear"] }),
+    };
+    const meta = buildPlanCardMeta(plan, cardsById, () => null);
+    expect(meta.find((entry) => entry.cardId === OPPONENT)?.cardTypes).toEqual(["unit", "gear"]);
   });
 
   it("is empty when the plan references nothing", () => {

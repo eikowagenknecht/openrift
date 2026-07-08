@@ -128,7 +128,7 @@ function SharedDeckContent({
       if (card.imageId) {
         map.set(thumbKey(card.cardId, card.preferredPrintingId), {
           fullUrl: imageUrl(card.imageId, "full"),
-          landscape: card.cardType === WellKnown.cardType.BATTLEFIELD,
+          landscape: card.cardTypes.includes(WellKnown.cardType.BATTLEFIELD),
         });
       }
     }

@@ -28,7 +28,6 @@ export const collectionEventResponseSchema = z
     rarity: raritySchema,
     imageId: imageIdSchema.nullable(),
     cardName: z.string(),
-    cardType: cardTypeSchema,
     cardTypes: z.array(cardTypeSchema).nonempty(),
     cardSuperTypes: z.array(z.string()),
     tags: z.array(z.string()),

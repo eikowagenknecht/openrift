@@ -246,7 +246,6 @@ function printingRow(overrides: Record<string, unknown> = {}): Record<string, un
   return {
     id: "prt-1",
     cardName: "Annie, Fiery",
-    cardType: "unit",
     setId: "set-1",
     rarity: "common",
     finish: "normal",
@@ -664,8 +663,8 @@ describe("friendGroupMatchesRepo — dynamic rules (ADR-034)", () => {
       users: [[userRow({ id: "seller", name: "Alice", email: "a@x.com" })]],
       printings: [
         [
-          printingRow({ id: "prt-1", cardName: "Annie", cardType: "unit" }),
-          printingRow({ id: "prt-2", cardName: "Lux", cardType: "legend" }),
+          printingRow({ id: "prt-1", cardName: "Annie" }),
+          printingRow({ id: "prt-2", cardName: "Lux" }),
         ],
       ],
     };

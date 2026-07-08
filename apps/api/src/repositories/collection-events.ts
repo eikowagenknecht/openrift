@@ -42,7 +42,6 @@ type CollectionEventRow = Pick<
   Pick<Selectable<PrintingsTable>, "shortCode" | "rarity"> & {
     imageId: string | null;
     cardName: string;
-    cardType: CardType;
     cardTypes: CardType[];
     cardSuperTypes: string[];
     tags: string[];
@@ -87,7 +86,6 @@ export function collectionEventsRepo(db: Kysely<Database>) {
           "p.shortCode",
           "p.rarity",
           "card.name as cardName",
-          "card.type as cardType",
           "mca.types as cardTypes",
           "mca.superTypes as cardSuperTypes",
           "card.tags as tags",

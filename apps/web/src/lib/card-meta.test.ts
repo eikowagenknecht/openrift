@@ -55,13 +55,26 @@ function makePrinting(rulesText: string | null): CatalogPrintingResponse {
 
 const labels = {
   domains: { fury: "Fury", calm: "Calm" },
-  cardTypes: { unit: "Unit", legend: "Legend" },
+  cardTypes: { unit: "Unit", legend: "Legend", gear: "Gear" },
 };
 
 describe("buildCardMetaDescription", () => {
   it("uses the card name, domains and type when no rules text is present", () => {
     expect(buildCardMetaDescription(baseCard, makePrinting(null), labels)).toBe(
       "Brazen Buccaneer is a Fury Unit card from Riftbound.",
+    );
+  });
+
+  // ADR-037: a multi-type card must render every type in order, not just the
+  // primary. Reading the scalar `type` would drop the "Gear" here.
+  it("joins all types for a multi-type card", () => {
+    const unitGear: CardDetailResponse["card"] = {
+      ...baseCard,
+      type: "unit",
+      types: ["unit", "gear"],
+    };
+    expect(buildCardMetaDescription(unitGear, makePrinting(null), labels)).toBe(
+      "Brazen Buccaneer is a Fury Unit Gear card from Riftbound.",
     );
   });
 

@@ -246,7 +246,6 @@ describe("GET /api/v1/lists/:id", () => {
         quantity: 2,
         tradeOverride: { pricePref: null, priceAbsoluteCents: null, tradeType: null },
         cardName: "Fire Dragon",
-        cardType: "unit",
         setId: null,
         rarity: null,
         finish: null,

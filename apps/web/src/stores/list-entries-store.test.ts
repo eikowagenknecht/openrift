@@ -10,7 +10,6 @@ function stubEntry(overrides: Partial<ListEntryDetailResponse> = {}): ListEntryD
     kind: "card",
     cardId: "card-1",
     cardName: "Card 1",
-    cardType: "unit",
     quantity: 1,
     tradeOverride: {
       pricePref: null,

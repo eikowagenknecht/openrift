@@ -566,7 +566,6 @@ function toMarketplaceGroup(
     cardId: group.cardId,
     cardSlug: group.cardSlug,
     cardName: group.cardName,
-    cardType: group.cardType,
     superTypes: group.superTypes,
     domains: group.domains,
     energy: group.energy,

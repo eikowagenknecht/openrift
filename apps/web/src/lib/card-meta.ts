@@ -71,7 +71,7 @@ export function buildCardMetaDescription(
     card.domains.length > 0
       ? card.domains.map((slug) => labels?.domains?.[slug] ?? slug).join("/")
       : null;
-  const typeLabel = labels?.cardTypes?.[card.type] ?? card.type;
+  const typeLabel = card.types.map((slug) => labels?.cardTypes?.[slug] ?? slug).join(" ");
   const typeLine = domainLabels ? `${domainLabels} ${typeLabel}` : typeLabel;
   parts.push(`${card.name} is a ${typeLine} card from Riftbound.`);
 
