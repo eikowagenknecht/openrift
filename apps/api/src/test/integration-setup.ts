@@ -224,6 +224,8 @@ export const TEST_USERS: TestUser[] = [
   // IDs 0064-0067 are RESERVED (not pre-seeded): the trade-request-coalesce and
   // trade-status-email tests self-insert their own users so they can toggle
   // emailVerified per-case. Do not add them here or reuse these IDs elsewhere.
+  // Products snapshot service tests (ADR-015)
+  { id: "a0000000-0197-4000-a000-000000000001", email: "repo-0197@test.com", isAdmin: false },
 ];
 
 /**
