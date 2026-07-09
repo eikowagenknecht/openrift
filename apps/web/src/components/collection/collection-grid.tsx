@@ -302,6 +302,15 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     filters.ownedCountMin !== null ||
     filters.ownedCountMax !== null;
 
+  // A group-owned "bulk box" has no personal owner; every copy belongs to the
+  // group. There the Owned/Copies filter should measure the viewer's PERSONAL
+  // shortfall ("cards here I don't own a playset of yet"), not the box's own
+  // stock — so feed the personal owned map (group copies already excluded by
+  // useOwnedCount) into the collection data hook. A viewer's own personal
+  // collection keeps the default collection-scoped counts.
+  const currentCollection = collectionId ? collectionsMap.get(collectionId) : undefined;
+  const isGroupCollection = Boolean(currentCollection?.groupId);
+
   // The tile axis for per-card aggregation (counts, copy selection, siblings).
   // Only the collection's own cards-view grid splits a card into per-set /
   // per-rarity tiles; the library overlay keeps the catalog's one-tile-per-card
@@ -339,6 +348,8 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     ownedFilter: filters.ownedFilter,
     ownedCountMin: filters.ownedCountMin,
     ownedCountMax: filters.ownedCountMax,
+    // Group bulk box → filter by the viewer's personal shortfall, not box stock.
+    ownedCountOverride: isGroupCollection && ownedFilterActive ? ownedCountByPrinting : undefined,
   });
 
   // ── Catalog data (drives "show library" view + the quick-add palette in
@@ -522,12 +533,12 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const inbox = collections.find((collection) => collection.isInbox);
   const inboxId = inbox?.id;
   const inboxName = inbox?.name;
-  const currentCollection = collectionId ? collectionsMap.get(collectionId) : undefined;
   // In a group collection every copy is shared, not personally owned, so it
   // can't go on a trade/wish list. We gate the drag/add affordances on this.
   // (The "All cards" view has no single collection, so this is false there and
-  // the server still enforces the rule.)
-  const sourceCollectionIsGroup = Boolean(currentCollection?.groupId);
+  // the server still enforces the rule.) `currentCollection` / `isGroupCollection`
+  // are defined above (near the owned-filter wiring).
+  const sourceCollectionIsGroup = isGroupCollection;
   const addTarget = collectionId ?? inboxId;
 
   // A collection that loads empty opens straight in library mode, so a first
@@ -552,7 +563,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   // A group-owned collection is a communal "bulk box": any member can take a
   // copy into their own inbox (a free-pile claim, distinct from the 1:1 trade
   // matcher). Wishlist highlighting + the "Take a copy" action only apply here.
-  const isGroupCollection = Boolean(currentCollection?.groupId);
+  // (`isGroupCollection` is defined above, near the owned-filter wiring.)
   const canTake = isGroupCollection && Boolean(inboxId);
   const wish = useWishEntries(isGroupCollection);
 

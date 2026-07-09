@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-07-09
+
+### Other
+
+- fix(Groups): **Bulk box playset filter** — filtering a group bulk box by copies owned now counts your personal collection, so "cards I don't have a playset of yet" shows what you're missing rather than what the box is low on.
+
 ## 2026-07-08
 
 ### Highlights

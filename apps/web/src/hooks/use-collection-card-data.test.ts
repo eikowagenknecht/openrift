@@ -201,6 +201,47 @@ describe("useCollectionCardData", () => {
     expect(extraResult.result.current.sortedCards.map((p) => p.id)).toEqual([extra.id]);
   });
 
+  it("scopes the owned filter to ownedCountOverride (group bulk box personal shortfall)", () => {
+    // Regression: browsing a group-owned "bulk box" via collection-grid, the
+    // Owned/Copies filter was scoped to the box's own copy counts, so a card the
+    // box holds 2 of bucketed as "partial" even when the viewer personally owns a
+    // full-plus playset. The override feeds the viewer's PERSONAL counts instead.
+    const charm = stubPrinting({ card: { slug: "charm" } }); // unit/no-keywords → playset 3
+    mockStacks.mockReturnValue({
+      // The box holds 2 copies — collection-scoped, that buckets as "partial".
+      stacks: [{ printingId: charm.id, printing: charm, copyIds: ["box-1", "box-2"] }],
+      totalCopies: 2,
+      isReady: true,
+    });
+
+    // Viewer personally owns 5 → "extra". "Partial Playset" must NOT keep Charm.
+    const partial = renderHook(() =>
+      useCollectionCardData({
+        ...baseParams(),
+        ownedFilter: ["partial"],
+        ownedCountOverride: { [charm.id]: 5 },
+      }),
+    );
+    expect(partial.result.current.sortedCards).toHaveLength(0);
+
+    // "Extra" must keep it, and the slider bound follows the override too.
+    const extra = renderHook(() =>
+      useCollectionCardData({
+        ...baseParams(),
+        ownedFilter: ["extra"],
+        ownedCountOverride: { [charm.id]: 5 },
+      }),
+    );
+    expect(extra.result.current.sortedCards.map((p) => p.id)).toEqual([charm.id]);
+    expect(extra.result.current.ownedCountMax).toBe(5);
+
+    // Without the override, the box's 2 copies still bucket as "partial".
+    const scoped = renderHook(() =>
+      useCollectionCardData({ ...baseParams(), ownedFilter: ["partial"] }),
+    );
+    expect(scoped.result.current.sortedCards.map((p) => p.id)).toEqual([charm.id]);
+  });
+
   it("leaves results untouched when ownedFilter is empty", () => {
     const a = stubPrinting();
     const b = stubPrinting();

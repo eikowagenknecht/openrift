@@ -53,6 +53,16 @@ interface UseCollectionCardDataParams {
    */
   ownedCountMin?: number | null;
   ownedCountMax?: number | null;
+  /**
+   * When set, the Owned bucket and Copies-range filters (and the slider bound)
+   * are computed from THIS per-printing count map instead of the collection's
+   * own copy counts. Used for group-owned "bulk box" collections, where the
+   * viewer wants "cards here I personally lack a playset of" — their personal
+   * owned counts (group copies excluded) — rather than "a full playset inside
+   * this box". Undefined keeps the default collection-scoped behavior, which is
+   * what a viewer's own personal collection wants.
+   */
+  ownedCountOverride?: Record<string, number>;
 }
 
 /**
@@ -77,6 +87,7 @@ export function useCollectionCardData({
   ownedFilter,
   ownedCountMin,
   ownedCountMax,
+  ownedCountOverride,
 }: UseCollectionCardDataParams) {
   "use memo";
   const { stacks, totalCopies, isReady } = useStackedCopies(collectionId);
@@ -131,19 +142,22 @@ export function useCollectionCardData({
   for (const stack of stacks) {
     countByPrintingId[stack.printingId] = stack.copyIds.length;
   }
-  // Slider track upper bound — the most copies owned of any one card in this
-  // collection. Card-aggregated to match the Owned bucket dropdown's scoping
-  // on this surface (which also aggregates per card).
-  const ownedCountUpperBound = maxOwnedCount(collectionPrintings, countByPrintingId);
+  // `ownedCountOverride` (personal counts on a group "bulk box") wins; otherwise
+  // the Owned/Copies filters read this collection's own copy counts.
+  const ownedFilterCounts = ownedCountOverride ?? countByPrintingId;
+  // Slider track upper bound — the most copies owned of any one card, measured
+  // with the same map the filters use. Card-aggregated to match the Owned
+  // bucket dropdown's scoping on this surface (which also aggregates per card).
+  const ownedCountUpperBound = maxOwnedCount(collectionPrintings, ownedFilterCounts);
   if (ownedFilter && ownedFilter.length > 0) {
-    filteredCards = applyOwnedBucketFilter(filteredCards, ownedFilter, countByPrintingId);
+    filteredCards = applyOwnedBucketFilter(filteredCards, ownedFilter, ownedFilterCounts);
   }
   if ((ownedCountMin ?? null) !== null || (ownedCountMax ?? null) !== null) {
     filteredCards = applyOwnedCountFilter(
       filteredCards,
       ownedCountMin ?? null,
       ownedCountMax ?? null,
-      countByPrintingId,
+      ownedFilterCounts,
     );
   }
 
