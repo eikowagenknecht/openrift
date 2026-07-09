@@ -1247,4 +1247,78 @@ describe("ingestCandidates", () => {
     expect((repos.ingest as any).deleteCandidateCards).not.toHaveBeenCalled();
     expect((repos.ingest as any).deleteCandidatePrintings).not.toHaveBeenCalled();
   });
+
+  // ── Duplicate incoming keys (deterministic guard) ───────────────────────
+
+  it("dedupes duplicate incoming printing external_ids: first wins, drop surfaced", async () => {
+    const repos = createMockRepos();
+    const transact = mockTransact(repos);
+    const card = makeCard({
+      printings: [
+        makePrinting({ external_id: "dup", artist: "First" }),
+        makePrinting({ external_id: "dup", artist: "Second" }),
+      ],
+    });
+    const result = await ingestCandidates(transact, "gallery", [card]);
+
+    // Only the first printing is inserted; the duplicate is dropped, not upserted
+    // over the top of it (which would be the non-deterministic flip).
+    expect(result.newPrintings).toBe(1);
+    expect((repos.ingest as any).insertCandidatePrinting).toHaveBeenCalledTimes(1);
+    const insertCall = (repos.ingest as any).insertCandidatePrinting.mock.calls[0][0];
+    expect(insertCall.artist).toBe("First");
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]).toContain("Duplicate printing external_id");
+    expect(result.errors[0]).toContain("dup");
+  });
+
+  it("dedupes duplicate incoming card external_ids: first wins, drop surfaced", async () => {
+    const repos = createMockRepos();
+    const transact = mockTransact(repos);
+    const cards = [
+      makeCard({ external_id: "dup-card", name: "First" }),
+      makeCard({ external_id: "dup-card", name: "Second" }),
+    ];
+    const result = await ingestCandidates(transact, "gallery", cards);
+
+    expect(result.newCards).toBe(1);
+    expect((repos.ingest as any).insertCandidateCard).toHaveBeenCalledTimes(1);
+    const insertCall = (repos.ingest as any).insertCandidateCard.mock.calls[0][0];
+    expect(insertCall.name).toBe("First");
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]).toContain("Duplicate card external_id");
+    expect(result.errors[0]).toContain("dup-card");
+  });
+
+  it("two same-key printings yield a stable result independent of which value is 'last'", async () => {
+    // Same payload, but with the two colliding printings' distinguishing field
+    // swapped. A last-write-wins upsert would let the trailing value decide the
+    // stored row; the guard makes the *first* occurrence win in both orders, so
+    // the outcome is deterministic rather than order-dependent.
+    const ingest = async (firstArtist: string, secondArtist: string) => {
+      const repos = createMockRepos();
+      const card = makeCard({
+        printings: [
+          makePrinting({ external_id: "dup", artist: firstArtist }),
+          makePrinting({ external_id: "dup", artist: secondArtist }),
+        ],
+      });
+      await ingestCandidates(mockTransact(repos), "gallery", [card]);
+      const inserts = (repos.ingest as any).insertCandidatePrinting.mock.calls;
+      const updates = (repos.ingest as any).updateCandidatePrinting.mock.calls;
+      return { inserts, updates };
+    };
+
+    const a = await ingest("Alpha", "Beta");
+    const b = await ingest("Beta", "Alpha");
+
+    // Exactly one write per run, always the first-listed printing, never an
+    // update layered on top of the insert.
+    expect(a.inserts).toHaveLength(1);
+    expect(b.inserts).toHaveLength(1);
+    expect(a.updates).toHaveLength(0);
+    expect(b.updates).toHaveLength(0);
+    expect(a.inserts[0][0].artist).toBe("Alpha");
+    expect(b.inserts[0][0].artist).toBe("Beta");
+  });
 });

@@ -207,6 +207,39 @@ export async function ingestCandidates(
   const removedPrintingDetails: ItemDetail[] = [];
   const updatedPrintings: UpdatedCardDetail[] = [];
 
+  // ── Deterministic de-duplication of incoming keys ──────────────────────────
+  // Defense-in-depth: a provider payload must never carry two cards or two
+  // printings that share an external_id. If it does, the per-external_id upsert
+  // below resolves the same DB row twice and the stored values depend on which
+  // duplicate happened to be processed — or fetched — last: a silent,
+  // order-dependent flip on every re-upload. Drop later duplicates
+  // deterministically (first occurrence wins) and surface each dropped id.
+  const seenCardExternalIds = new Set<string>();
+  const seenPrintingExternalIds = new Set<string>();
+  const dedupedCards: IngestCard[] = [];
+  for (const card of cards) {
+    if (seenCardExternalIds.has(card.external_id)) {
+      errors.push(
+        `Duplicate card external_id "${card.external_id}" (card "${card.name}") — dropped duplicate, keeping first occurrence`,
+      );
+      continue;
+    }
+    seenCardExternalIds.add(card.external_id);
+
+    const printings: IngestCard["printings"] = [];
+    for (const p of card.printings) {
+      if (seenPrintingExternalIds.has(p.external_id)) {
+        errors.push(
+          `Duplicate printing external_id "${p.external_id}" (card "${card.name}") — dropped duplicate, keeping first occurrence`,
+        );
+        continue;
+      }
+      seenPrintingExternalIds.add(p.external_id);
+      printings.push(p);
+    }
+    dedupedCards.push({ ...card, printings });
+  }
+
   await transact(async (trxRepos) => {
     const repo = trxRepos.ingest;
 
@@ -289,7 +322,7 @@ export async function ingestCandidates(
     const seenCCIds = new Set<string>();
     const seenCPIds = new Set<string>();
 
-    for (const card of cards) {
+    for (const card of dedupedCards) {
       // Validate card data against DB CHECK constraints (using normalized values)
       const cardValidation = candidateCardValidator.safeParse({
         name: card.name,
