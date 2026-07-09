@@ -931,7 +931,12 @@ export function CandidateSpreadsheet({
                       )}
                       onClick={
                         isClickable && onCellClick
-                          ? () => onCellClick(field.key, candidateValue, row.id)
+                          ? // Copy the normalized (typography-fixed) value shown in the
+                            // cell, not the raw candidate — otherwise a draft-only Active
+                            // column (new-printing groups, new cards) keeps the unfixed
+                            // value while the cell displays the fixed one. Falls back to
+                            // the raw value when no normalizer is passed.
+                            () => onCellClick(field.key, normalizedCandidate, row.id)
                           : undefined
                       }
                     >

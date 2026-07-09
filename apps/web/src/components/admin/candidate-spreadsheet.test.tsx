@@ -1,4 +1,5 @@
-import type { EnumOrders } from "@openrift/shared";
+import type { CandidatePrintingResponse, EnumOrders } from "@openrift/shared";
+import { fixTypography } from "@openrift/shared";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -92,6 +93,56 @@ describe("CandidateSpreadsheet multi-select", () => {
 
     expect(onActiveChange).toHaveBeenCalledTimes(1);
     expect(onActiveChange).toHaveBeenCalledWith("markerSlugs", null);
+  });
+});
+
+describe("CandidateSpreadsheet candidate click", () => {
+  // Regression: clicking a candidate cell must copy the normalized (typography-
+  // fixed) value shown in the cell, not the raw candidate. Otherwise a draft-only
+  // Active column (new-printing groups, new cards) keeps the unfixed value while
+  // the cell displays the fixed one — e.g. a scraped "[Empower] :rb_energy_2:"
+  // stays ejected in the draft even though the cell shows "[Empower :rb_energy_2:]".
+  it("copies the normalized value, not the raw candidate", async () => {
+    const user = userEvent.setup();
+    const onCellClick = vi.fn();
+    // Not flagged richText: the active cell would render CardText (needs a
+    // QueryClient). printedRulesText is still a diff field, so the candidate
+    // renders via DiffText — enough to exercise the click path.
+    const rulesField: FieldDef = {
+      key: "printedRulesText",
+      label: "Printed Rules",
+      multiline: true,
+    };
+    // Provider scraped the ejected form; the normalizer merges the glyph back in.
+    const raw = "[Empower] :rb_energy_2:";
+    const fixed = "[Empower :rb_energy_2:]";
+
+    render(
+      <CandidateSpreadsheet
+        fields={[rulesField]}
+        activeRow={{ printedRulesText: "placeholder" }}
+        candidateRows={[
+          {
+            id: "cand-1",
+            provider: "gallery",
+            checkedAt: null,
+            printedRulesText: raw,
+          } as unknown as CandidatePrintingResponse,
+        ]}
+        normalizeCandidate={(key, value) =>
+          key === "printedRulesText" && typeof value === "string"
+            ? fixTypography(value, { costKeywords: ["Empower"] })
+            : value
+        }
+        onCellClick={onCellClick}
+      />,
+    );
+
+    // Cells in the single field row: [field label, active, candidate].
+    const cells = screen.getAllByRole("cell");
+    await user.click(cells.at(-1) as HTMLElement);
+
+    expect(onCellClick).toHaveBeenCalledWith("printedRulesText", fixed, "cand-1");
   });
 });
 
