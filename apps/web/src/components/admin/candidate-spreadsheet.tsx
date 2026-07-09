@@ -618,7 +618,10 @@ export function CandidateSpreadsheet({
                       <div className="min-w-0 flex-1 break-words whitespace-normal">
                         {hasValue(activeValue) ? (
                           field.richTextVariant === "flavor" ? (
-                            <span className="text-muted-foreground/80 italic">
+                            // whitespace-pre-line keeps the flavor line breaks (e.g. the
+                            // attribution on its own line); the container is whitespace-normal
+                            // and, unlike rules/effect, flavor is a plain span not CardText.
+                            <span className="text-muted-foreground/80 whitespace-pre-line italic">
                               {String(activeValue)}
                             </span>
                           ) : (

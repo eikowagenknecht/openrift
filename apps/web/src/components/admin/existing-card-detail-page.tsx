@@ -75,6 +75,7 @@ import {
   useNextUncheckedCard,
 } from "@/hooks/use-admin-card-queries";
 import { useKeywordStyles } from "@/hooks/use-keyword-styles";
+import { useSets } from "@/hooks/use-sets";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 import {
@@ -249,6 +250,7 @@ export function ExistingCardDetailPage({
   const deletePrintingMutation = useDeletePrinting(invalidateScope);
   const deleteCardMutation = useDeleteCard();
   const { data: allCards } = useAllCards();
+  const { data: setsData } = useSets();
   const keywordStyles = useKeywordStyles();
 
   // --- State ---
@@ -456,6 +458,14 @@ export function ExistingCardDetailPage({
   const printings = existingData.printings;
   const printingImages = existingData.printingImages;
   const setTotals = existingData.setTotals ?? {};
+  // Map set slug -> release year, so a new printing pre-fills Printed Year from
+  // the set's release date when no source supplies one.
+  const setReleaseYears: Record<string, number> = {};
+  for (const set of setsData.sets) {
+    if (set.releasedAt) {
+      setReleaseYears[set.slug] = Number(set.releasedAt.slice(0, 4));
+    }
+  }
   const costKeywords = Object.entries(keywordStyles)
     .filter(([, entry]) => entry.costKeyword)
     .map(([name]) => name);
@@ -1108,6 +1118,7 @@ export function ExistingCardDetailPage({
               providerNames={sourceNames}
               providerSettings={providerSettings}
               setTotals={setTotals}
+              setReleaseYears={setReleaseYears}
               isExpanded={!collapsedPrintings.has(group.groupKey)}
               onToggle={() => togglePrinting(group.groupKey)}
               onAccept={(printingFields, candidatePrintingIds) => {

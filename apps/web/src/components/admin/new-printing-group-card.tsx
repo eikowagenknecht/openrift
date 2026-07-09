@@ -12,13 +12,20 @@ import {
   ChevronRightIcon,
   PlusIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { FieldDef, PrintingGroup } from "@/components/admin/candidate-spreadsheet";
 import { CandidateSpreadsheet } from "@/components/admin/candidate-spreadsheet";
-import { buildPrintingNormalizer, useCardDetailData } from "@/components/admin/card-detail-shared";
+import {
+  buildPreseededActivePrinting,
+  buildPrintingNormalizer,
+  deduplicateSourceImages,
+  sortByProviderOrder,
+  useCardDetailData,
+} from "@/components/admin/card-detail-shared";
 import { GroupImagePreview } from "@/components/admin/image-preview";
 import { PrintingSourceActions } from "@/components/admin/printing-source-actions";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 const REQUIRED_PRINTING_KEYS = [
@@ -102,6 +109,7 @@ export function NewPrintingGroupCard({
   providerNames,
   providerSettings,
   setTotals,
+  setReleaseYears,
   isExpanded,
   onToggle,
   onAccept,
@@ -122,6 +130,8 @@ export function NewPrintingGroupCard({
   providerNames: Record<string, string>;
   providerSettings: ProviderSettingResponse[];
   setTotals: Record<string, number>;
+  /** Map from set slug to the year of its release date, for pre-filling Printed Year. */
+  setReleaseYears: Record<string, number>;
   isExpanded: boolean;
   onToggle: () => void;
   onAccept: (printingFields: Record<string, unknown>, candidatePrintingIds: string[]) => void;
@@ -140,6 +150,9 @@ export function NewPrintingGroupCard({
   const { checkPrintingSource, uncheckPrintingSource, checkAllCandidatePrintings } =
     useCardDetailData(invalidates);
   const [activePrinting, setActivePrinting] = useState<Record<string, unknown>>({});
+  // Once the admin edits the Active column the pre-seed stops re-applying and the
+  // "Pre-filled" marker clears. From then on the selection is their explicit choice.
+  const [touched, setTouched] = useState(false);
 
   /**
    * Append `/{printedTotal}` to a public code via the shared `appendSetTotal`,
@@ -157,6 +170,51 @@ export function NewPrintingGroupCard({
     const withTotal = appendSetTotal(code, setTotals[setSlug]);
     return withTotal === code ? record : { ...record, publicCode: withTotal };
   }
+
+  // Mirrors the transforms the accept endpoint applies (typography fixes on
+  // rules/effect/flavor, set-total on publicCode), so values copied from a
+  // provider land in their final saved form instead of needing a manual "Fix".
+  const normalizePrinting = buildPrintingNormalizer(
+    setTotals,
+    group.candidates[0]?.setId,
+    costKeywords,
+  );
+  function normalizeRecord(record: Record<string, unknown>): Record<string, unknown> {
+    return Object.fromEntries(
+      Object.entries(record).map(([key, value]) => [key, normalizePrinting(key, value)]),
+    );
+  }
+
+  // Pre-seed the Active column from the highest-priority source so the admin
+  // reviews a filled-in candidate instead of an empty grid. Re-runs while
+  // untouched so it converges once the enum/provider lists finish loading.
+  useEffect(() => {
+    if (touched) {
+      return;
+    }
+    const seed = normalizeRecord(
+      buildPreseededActivePrinting(
+        group.candidates,
+        printingFields,
+        providerSettings,
+        providerLabels,
+        setReleaseYears,
+      ),
+    );
+    // Bail out when the seed is unchanged so an unstable dep reference can't spin
+    // the effect into a render loop (React skips the update when we return `prev`).
+    setActivePrinting((prev) => (JSON.stringify(prev) === JSON.stringify(seed) ? prev : seed));
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- normalizeRecord is a render-local closure; its inputs (setTotals, costKeywords, candidates) are in deps
+  }, [
+    touched,
+    group.candidates,
+    printingFields,
+    providerSettings,
+    providerLabels,
+    setReleaseYears,
+    setTotals,
+    costKeywords,
+  ]);
 
   const hasRequired = REQUIRED_PRINTING_KEYS.every((k) => {
     const v = activePrinting[k];
@@ -176,6 +234,16 @@ export function NewPrintingGroupCard({
     : "";
 
   const guessedId = group.expectedPrintingId;
+
+  // Active values came from the pre-seed and the admin hasn't touched them yet.
+  const isPreseeded = !touched && Object.keys(activePrinting).length > 0;
+
+  // The first-provider source image, matching what GroupImagePreview shows by
+  // default, so the richText editor's side preview stays consistent with the list.
+  const previewImageUrl =
+    deduplicateSourceImages(group.candidates, providerLabels).toSorted((a, b) =>
+      sortByProviderOrder(providerSettings)(a.source, b.source),
+    )[0]?.url ?? null;
 
   // custom: find existing printing whose expectedPrintingId matches the guessed ID so we can offer a quick "assign all" action
   const matchingExisting = existingPrintings.find((p) => p.expectedPrintingId === guessedId);
@@ -271,15 +339,21 @@ export function NewPrintingGroupCard({
                 providerNames={providerNames}
                 providerSettings={providerSettings}
                 costKeywords={costKeywords}
-                normalizeCandidate={buildPrintingNormalizer(
-                  setTotals,
-                  group.candidates[0]?.setId,
-                  costKeywords,
-                )}
+                activeImageUrl={previewImageUrl}
+                activeColumnBadge={
+                  isPreseeded ? (
+                    <Badge variant="warning" className="font-normal">
+                      Pre-filled
+                    </Badge>
+                  ) : null
+                }
+                normalizeCandidate={normalizePrinting}
                 onCellClick={(field, value) => {
+                  setTouched(true);
                   setActivePrinting((prev) => withSetTotal({ ...prev, [field]: value }));
                 }}
                 onActiveChange={(field, value) => {
+                  setTouched(true);
                   setActivePrinting((prev) =>
                     value === null || value === undefined
                       ? Object.fromEntries(Object.entries(prev).filter(([k]) => k !== field))
@@ -294,9 +368,12 @@ export function NewPrintingGroupCard({
                     printingFields={printingFields}
                     onLink={onLink}
                     onCopy={onCopy}
-                    onAcceptAllForRow={(_rowId, values) =>
-                      setActivePrinting((prev) => withSetTotal({ ...prev, ...values }))
-                    }
+                    onAcceptAllForRow={(_rowId, values) => {
+                      setTouched(true);
+                      setActivePrinting((prev) =>
+                        withSetTotal({ ...prev, ...normalizeRecord(values) }),
+                      );
+                    }}
                     onIgnore={onIgnore}
                     onDelete={onDelete}
                     isAdmin={isAdmin}

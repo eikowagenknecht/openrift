@@ -283,6 +283,89 @@ export function buildPreseededActiveCard(
 }
 
 /**
+ * Build the initial Active-column selection for a new printing group, mirroring
+ * {@link buildPreseededActiveCard}: for each writable printing field, take the
+ * value from the highest-priority source (provider sort order, then name) that
+ * has a usable, option-valid value.
+ *
+ * Two prefills go beyond a plain source copy:
+ * - `imageUrl` is taken from the first favorited-provider source that has one, so
+ *   accepting the printing carries that image and the accept endpoint inserts it
+ *   as the main image. Without a favorited source no image is pre-filled, so the
+ *   auto-main behaviour only triggers when a favorite provider is present.
+ * - `printedYear` falls back to the year of the set's release date when no source
+ *   supplies one (a provider value always wins). It stays editable in the grid.
+ *
+ * The result is a suggestion the admin reviews before accepting, not a commit.
+ *
+ * @returns A partial printing-fields record; empty when no source has usable values.
+ */
+export function buildPreseededActivePrinting(
+  candidates: readonly CandidatePrintingResponse[],
+  fields: readonly FieldDef[],
+  providerSettings: readonly ProviderSettingResponse[],
+  providerLabels: Record<string, string>,
+  setReleaseYears: Record<string, number>,
+): Record<string, unknown> {
+  const settingsMap = new Map(providerSettings.map((s) => [s.provider, s]));
+  const providerOf = (candidate: CandidatePrintingResponse): string =>
+    providerLabels[candidate.candidateCardId] ?? "";
+  const sorted = candidates.toSorted((a, b) => {
+    const providerA = providerOf(a);
+    const providerB = providerOf(b);
+    const aOrder = settingsMap.get(providerA)?.sortOrder ?? 0;
+    const bOrder = settingsMap.get(providerB)?.sortOrder ?? 0;
+    if (aOrder !== bOrder) {
+      return aOrder - bOrder;
+    }
+    return providerA.localeCompare(providerB);
+  });
+
+  const seed: Record<string, unknown> = {};
+  for (const field of fields) {
+    if (field.readOnly) {
+      continue;
+    }
+    for (const source of sorted) {
+      const value = (source as unknown as Record<string, unknown>)[field.key];
+      if (!candidateHasValue(value)) {
+        continue;
+      }
+      if (hasDropdownOptions(field) && !isValidFieldOption(field, value)) {
+        continue;
+      }
+      seed[field.key] = value;
+      break;
+    }
+  }
+
+  // Image: only from a favorited provider, so accepting sets a favorite image as
+  // the main image (and never a non-favorite one).
+  const favoriteProviders = new Set(
+    providerSettings.filter((s) => s.isFavorite).map((s) => s.provider),
+  );
+  for (const source of sorted) {
+    if (!favoriteProviders.has(providerOf(source))) {
+      continue;
+    }
+    if (candidateHasValue(source.imageUrl)) {
+      seed.imageUrl = source.imageUrl;
+      break;
+    }
+  }
+
+  // Printed year: fall back to the set's release year when no source supplied one.
+  if (!candidateHasValue(seed.printedYear) && typeof seed.setId === "string") {
+    const year = setReleaseYears[seed.setId];
+    if (year !== undefined) {
+      seed.printedYear = year;
+    }
+  }
+
+  return seed;
+}
+
+/**
  * Determine if a printing's accepted values match its favorited candidate sources.
  * Mirrors the "yellow cell" logic in CandidateSpreadsheet: a mismatch exists when a
  * favorited-provider candidate has a valid value for a writable field that differs

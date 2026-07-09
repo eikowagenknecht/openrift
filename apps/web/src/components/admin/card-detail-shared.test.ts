@@ -1,9 +1,13 @@
-import type { CandidateCardResponse, ProviderSettingResponse } from "@openrift/shared";
+import type {
+  CandidateCardResponse,
+  CandidatePrintingResponse,
+  ProviderSettingResponse,
+} from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
 import type { FieldDef } from "@/components/admin/candidate-spreadsheet";
 
-import { buildPreseededActiveCard } from "./card-detail-shared";
+import { buildPreseededActiveCard, buildPreseededActivePrinting } from "./card-detail-shared";
 
 // Minimal field set mirroring buildCandidateCardFields: a plain string field, two
 // dropdown array fields, a numeric field, a read-only field, and a rich-text field
@@ -140,5 +144,133 @@ describe("buildPreseededActiveCard", () => {
   it("returns an empty object when no source has a usable value", () => {
     const sources = [source("official", { externalId: "EXT-1", rulesText: "ignored" })];
     expect(buildPreseededActiveCard(sources, fields, settings([]))).toEqual({});
+  });
+});
+
+// Printing fields mirror buildCandidatePrintingFields: writable fields, a dropdown,
+// a numeric printedYear, plus the read-only imageUrl the image switcher owns.
+const printingFields: FieldDef[] = [
+  { key: "externalId", label: "External ID", readOnly: true },
+  { key: "setId", label: "Set" },
+  { key: "publicCode", label: "Public Code" },
+  {
+    key: "rarity",
+    label: "Rarity",
+    labeledOptions: [
+      { value: "common", label: "Common" },
+      { value: "rare", label: "Rare" },
+    ],
+  },
+  { key: "printedYear", label: "Printed Year", type: "number" },
+  { key: "imageUrl", label: "Image", readOnly: true, collapsible: true },
+];
+
+// A candidate printing; `candidateCardId` is how the provider is looked up.
+function printing(
+  candidateCardId: string,
+  values: Record<string, unknown>,
+): CandidatePrintingResponse {
+  return { candidateCardId, ...values } as unknown as CandidatePrintingResponse;
+}
+
+function printingSettings(
+  entries: { provider: string; sortOrder: number; isFavorite?: boolean }[],
+): ProviderSettingResponse[] {
+  return entries.map((e) => ({ isFavorite: false, ...e })) as unknown as ProviderSettingResponse[];
+}
+
+describe("buildPreseededActivePrinting", () => {
+  const labels = { "cc-official": "official", "cc-gallery": "gallery" };
+  const providerSettings = printingSettings([
+    { provider: "official", sortOrder: 0, isFavorite: true },
+    { provider: "gallery", sortOrder: 1 },
+  ]);
+
+  it("seeds writable fields from the highest-priority source (lowest sort order)", () => {
+    const candidates = [
+      printing("cc-gallery", { setId: "ogn", publicCode: "OGN-002", rarity: "rare" }),
+      printing("cc-official", { setId: "ogn", publicCode: "OGN-001", rarity: "common" }),
+    ];
+    const seed = buildPreseededActivePrinting(
+      candidates,
+      printingFields,
+      providerSettings,
+      labels,
+      {},
+    );
+    expect(seed.setId).toBe("ogn");
+    expect(seed.publicCode).toBe("OGN-001");
+    expect(seed.rarity).toBe("common");
+  });
+
+  it("pre-fills imageUrl only from a favorited provider", () => {
+    // gallery (non-favorite) sorts first but must not supply the image; official
+    // (favorite) does, so accepting sets the favorite's image as the main image.
+    const favoriteFirst = printingSettings([
+      { provider: "gallery", sortOrder: 0 },
+      { provider: "official", sortOrder: 1, isFavorite: true },
+    ]);
+    const candidates = [
+      printing("cc-gallery", { setId: "ogn", imageUrl: "https://img/gallery.png" }),
+      printing("cc-official", { setId: "ogn", imageUrl: "https://img/official.png" }),
+    ];
+    const seed = buildPreseededActivePrinting(
+      candidates,
+      printingFields,
+      favoriteFirst,
+      labels,
+      {},
+    );
+    expect(seed.imageUrl).toBe("https://img/official.png");
+  });
+
+  it("leaves imageUrl unset when no favorited provider has an image", () => {
+    const noFavorites = printingSettings([
+      { provider: "official", sortOrder: 0 },
+      { provider: "gallery", sortOrder: 1 },
+    ]);
+    const candidates = [printing("cc-official", { setId: "ogn", imageUrl: "https://img/x.png" })];
+    const seed = buildPreseededActivePrinting(candidates, printingFields, noFavorites, labels, {});
+    expect(seed.imageUrl).toBeUndefined();
+  });
+
+  it("falls back to the set's release year when no source supplies printedYear", () => {
+    const candidates = [printing("cc-official", { setId: "ogn" })];
+    const seed = buildPreseededActivePrinting(
+      candidates,
+      printingFields,
+      providerSettings,
+      labels,
+      {
+        ogn: 2025,
+      },
+    );
+    expect(seed.printedYear).toBe(2025);
+  });
+
+  it("keeps a source-supplied printedYear over the set's release year", () => {
+    const candidates = [printing("cc-official", { setId: "ogn", printedYear: 2024 })];
+    const seed = buildPreseededActivePrinting(
+      candidates,
+      printingFields,
+      providerSettings,
+      labels,
+      {
+        ogn: 2025,
+      },
+    );
+    expect(seed.printedYear).toBe(2024);
+  });
+
+  it("leaves printedYear unset when the set has no known release year", () => {
+    const candidates = [printing("cc-official", { setId: "ogn" })];
+    const seed = buildPreseededActivePrinting(
+      candidates,
+      printingFields,
+      providerSettings,
+      labels,
+      {},
+    );
+    expect(seed.printedYear).toBeUndefined();
   });
 });

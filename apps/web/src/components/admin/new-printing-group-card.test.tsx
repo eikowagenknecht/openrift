@@ -56,6 +56,7 @@ describe("NewPrintingGroupCard", () => {
         providerNames={{}}
         providerSettings={[]}
         setTotals={{}}
+        setReleaseYears={{}}
         isExpanded
         onToggle={noop}
         onAccept={noop}
