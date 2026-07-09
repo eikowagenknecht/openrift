@@ -101,7 +101,7 @@ function mappedResolver(
 }
 
 describe("encodeDeck piltover degradation", () => {
-  // The installed Piltover library knows OGN/OGS/ARC/SFD/UNL and throws for
+  // The installed Piltover library knows OGN/OGS/ARC/SFD/UNL/VEN and throws for
   // anything else (Founders, tokens, future sets). These tests pin down that
   // one unsupported printing degrades to a warning instead of a 500.
 
@@ -134,17 +134,17 @@ describe("encodeDeck piltover degradation", () => {
   it("skips a card whose only printing can't be encoded, keeping the rest", async () => {
     const rows = [
       row({ cardId: "legend", zone: "legend", cardName: "The Legend" }),
-      row({ cardId: "vendetta", zone: "main", cardName: "New Set Card" }),
+      row({ cardId: "founders", zone: "main", cardName: "Founders Card" }),
     ];
     const resolver = mappedResolver({
       legend: { fallback: "OGN-001" },
-      vendetta: { fallback: "VEN-001" },
+      founders: { fallback: "FND-001" },
     });
 
     const result = await encodeDeck(resolver, rows, "piltover");
 
     expect(result.warnings).toEqual([
-      `Skipped "New Set Card": deck codes don't support VEN-001 yet`,
+      `Skipped "Founders Card": deck codes don't support FND-001 yet`,
     ]);
     const decoded = getDeckFromCode(result.code);
     expect(decoded.mainDeck.map((card) => card.cardCode)).toEqual(["OGN-001"]);
