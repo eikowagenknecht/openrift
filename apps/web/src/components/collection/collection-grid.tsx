@@ -305,11 +305,24 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   // A group-owned "bulk box" has no personal owner; every copy belongs to the
   // group. There the Owned/Copies filter should measure the viewer's PERSONAL
   // shortfall ("cards here I don't own a playset of yet"), not the box's own
-  // stock — so feed the personal owned map (group copies already excluded by
-  // useOwnedCount) into the collection data hook. A viewer's own personal
-  // collection keeps the default collection-scoped counts.
+  // stock. A full playset is a card-level notion, so we feed the collection
+  // hook the viewer's personal total per card summed across EVERY variant they
+  // own — a box that stocks only the normal printing must still count the
+  // viewer's foil copies, or a card they already have a full playset of would
+  // bucket as "partial". `ownedCountByPrinting` already excludes group copies;
+  // `allPrintings` supplies each card's full sibling set. A viewer's own
+  // personal collection keeps the default collection-scoped counts.
   const currentCollection = collectionId ? collectionsMap.get(collectionId) : undefined;
   const isGroupCollection = Boolean(currentCollection?.groupId);
+  const personalCardTotals: Record<string, number> = {};
+  if (isGroupCollection && ownedFilterActive && ownedCountByPrinting) {
+    for (const printing of allPrintings) {
+      const owned = ownedCountByPrinting[printing.id];
+      if (owned) {
+        personalCardTotals[printing.cardId] = (personalCardTotals[printing.cardId] ?? 0) + owned;
+      }
+    }
+  }
 
   // The tile axis for per-card aggregation (counts, copy selection, siblings).
   // Only the collection's own cards-view grid splits a card into per-set /
@@ -349,7 +362,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     ownedCountMin: filters.ownedCountMin,
     ownedCountMax: filters.ownedCountMax,
     // Group bulk box → filter by the viewer's personal shortfall, not box stock.
-    ownedCountOverride: isGroupCollection && ownedFilterActive ? ownedCountByPrinting : undefined,
+    ownedCardTotalOverride: isGroupCollection && ownedFilterActive ? personalCardTotals : undefined,
   });
 
   // ── Catalog data (drives "show library" view + the quick-add palette in

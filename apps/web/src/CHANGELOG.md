@@ -4,7 +4,7 @@
 
 ### Other
 
-- fix(Groups): **Bulk box playset filter** — filtering a group bulk box by copies owned now counts your personal collection, so "cards I don't have a playset of yet" shows what you're missing rather than what the box is low on.
+- fix(Groups): **Bulk box playset filter** — filtering a group bulk box by copies owned now counts your full personal playset across every variant (foil and normal together), so a card you already own enough of no longer shows under "cards I'm missing".
 
 ## 2026-07-08
 

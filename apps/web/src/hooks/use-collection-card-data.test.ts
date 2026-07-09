@@ -201,45 +201,61 @@ describe("useCollectionCardData", () => {
     expect(extraResult.result.current.sortedCards.map((p) => p.id)).toEqual([extra.id]);
   });
 
-  it("scopes the owned filter to ownedCountOverride (group bulk box personal shortfall)", () => {
-    // Regression: browsing a group-owned "bulk box" via collection-grid, the
-    // Owned/Copies filter was scoped to the box's own copy counts, so a card the
-    // box holds 2 of bucketed as "partial" even when the viewer personally owns a
-    // full-plus playset. The override feeds the viewer's PERSONAL counts instead.
-    const charm = stubPrinting({ card: { slug: "charm" } }); // unit/no-keywords → playset 3
+  it("buckets the owned filter by ownedCardTotalOverride (group bulk box personal playset)", () => {
+    // Regression: browsing a group-owned "bulk box", the Owned/Copies filter
+    // aggregated the viewer's personal counts only over the printings the box
+    // stocks. A box holding just the normal printing of a card the viewer owns a
+    // full playset of split across variants (2 normal + 1 foil) undercounted to
+    // the box variant's 2 copies and bucketed it as "partial". The card-keyed
+    // override now carries the viewer's PER-CARD total across every variant, so
+    // a full playset correctly buckets as "full".
+    const cardId = "card-ballista";
+    const normal = stubPrinting({ cardId, card: { slug: "ballista" } }); // unit → playset 3
     mockStacks.mockReturnValue({
-      // The box holds 2 copies — collection-scoped, that buckets as "partial".
-      stacks: [{ printingId: charm.id, printing: charm, copyIds: ["box-1", "box-2"] }],
-      totalCopies: 2,
+      // The box stocks only the normal printing (3 copies). The foil the viewer
+      // owns lives in their personal collection, so it's absent from the box.
+      stacks: [{ printingId: normal.id, printing: normal, copyIds: ["box-1", "box-2", "box-3"] }],
+      totalCopies: 3,
       isReady: true,
     });
 
-    // Viewer personally owns 5 → "extra". "Partial Playset" must NOT keep Charm.
+    // Viewer's personal playset across variants = 3 (2 normal + 1 foil) → "full".
+    // "Partial Playset" must NOT keep it, even though the box only stocks normal.
     const partial = renderHook(() =>
       useCollectionCardData({
         ...baseParams(),
         ownedFilter: ["partial"],
-        ownedCountOverride: { [charm.id]: 5 },
+        ownedCardTotalOverride: { [cardId]: 3 },
       }),
     );
     expect(partial.result.current.sortedCards).toHaveLength(0);
 
-    // "Extra" must keep it, and the slider bound follows the override too.
-    const extra = renderHook(() =>
+    // "Full" keeps it, and the slider bound follows the per-card override too.
+    const full = renderHook(() =>
       useCollectionCardData({
         ...baseParams(),
-        ownedFilter: ["extra"],
-        ownedCountOverride: { [charm.id]: 5 },
+        ownedFilter: ["full"],
+        ownedCardTotalOverride: { [cardId]: 3 },
       }),
     );
-    expect(extra.result.current.sortedCards.map((p) => p.id)).toEqual([charm.id]);
-    expect(extra.result.current.ownedCountMax).toBe(5);
+    expect(full.result.current.sortedCards.map((p) => p.id)).toEqual([normal.id]);
+    expect(full.result.current.ownedCountMax).toBe(3);
 
-    // Without the override, the box's 2 copies still bucket as "partial".
-    const scoped = renderHook(() =>
-      useCollectionCardData({ ...baseParams(), ownedFilter: ["partial"] }),
+    // A genuine personal shortfall (only 1 owned across variants) stays "partial".
+    const shortfall = renderHook(() =>
+      useCollectionCardData({
+        ...baseParams(),
+        ownedFilter: ["partial"],
+        ownedCardTotalOverride: { [cardId]: 1 },
+      }),
     );
-    expect(scoped.result.current.sortedCards.map((p) => p.id)).toEqual([charm.id]);
+    expect(shortfall.result.current.sortedCards.map((p) => p.id)).toEqual([normal.id]);
+
+    // Without the override, the box's own 3 copies bucket as "full".
+    const scoped = renderHook(() =>
+      useCollectionCardData({ ...baseParams(), ownedFilter: ["full"] }),
+    );
+    expect(scoped.result.current.sortedCards.map((p) => p.id)).toEqual([normal.id]);
   });
 
   it("leaves results untouched when ownedFilter is empty", () => {
