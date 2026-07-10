@@ -18,7 +18,8 @@ interface DiscordEmbed {
   fields?: { name: string; value: string; inline?: boolean }[];
   thumbnail?: { url: string };
   image?: { url: string };
-  author?: { name: string };
+  author?: { name: string; url?: string };
+  footer?: { text: string };
   timestamp?: string;
 }
 
@@ -103,38 +104,39 @@ export function buildNewPrintingPayloads(
     return buildNewPrintingSummary(events, appBaseUrl);
   }
 
+  // Derive the site host from the base URL so the author line adapts to
+  // preview/dev domains instead of hardcoding openrift.app.
+  const siteName = appBaseUrl.replace(/^https?:\/\//u, "");
+
   const embeds: DiscordEmbed[] = events.map((event) => {
-    const headerParts: string[] = [];
+    // Set name + shortcode + info render as a footer, which Discord places below
+    // the image, so the card art leads and the metadata reads as a compact row.
+    const infoParts: string[] = [];
+    if (event.setName) {
+      infoParts.push(event.setName);
+    }
     if (event.shortCode) {
-      headerParts.push(`**${event.shortCode}**`);
+      infoParts.push(event.shortCode);
     }
     if (event.rarity) {
-      headerParts.push(event.rarityLabel ?? event.rarity);
+      infoParts.push(event.rarityLabel ?? event.rarity);
     }
     if (event.finish && event.finish !== WellKnown.finish.NORMAL) {
-      headerParts.push(event.finishLabel ?? event.finish);
+      infoParts.push(event.finishLabel ?? event.finish);
     }
     if (event.language && event.language !== "EN") {
-      headerParts.push(event.languageName ?? event.language);
-    }
-
-    const lines: string[] = [];
-    if (headerParts.length > 0) {
-      lines.push(headerParts.join(" · "));
-    }
-    if (event.artist) {
-      lines.push(`Artist: ${event.artist}`);
+      infoParts.push(event.languageName ?? event.language);
     }
 
     const image = absoluteImageUrl(appBaseUrl, event.frontImageId);
 
     return {
-      ...(event.setName ? { author: { name: event.setName } } : {}),
+      author: { name: siteName, url: appBaseUrl },
       title: `New: ${event.cardName ?? "Unknown Card"}`,
       url: cardUrl(appBaseUrl, event.cardSlug),
       color: COLOR_NEW,
-      ...(lines.length > 0 ? { description: lines.join("\n") } : {}),
       ...(image ? { image: { url: image } } : {}),
+      ...(infoParts.length > 0 ? { footer: { text: infoParts.join(" · ") } } : {}),
       timestamp: event.createdAt.toISOString(),
     };
   });

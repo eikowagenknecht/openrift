@@ -46,20 +46,37 @@ describe("buildNewPrintingPayloads", () => {
     expect(payloads[0].embeds[0].url).toBe("https://openrift.app/cards/OGN-001");
   });
 
-  it("uses set name as the embed author block", () => {
+  it("uses the site host as the embed author block", () => {
     const events = [makeEvent({ setName: "Origins" })];
 
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
 
-    expect(payloads[0].embeds[0].author?.name).toBe("Origins");
+    expect(payloads[0].embeds[0].author?.name).toBe("openrift.app");
+    expect(payloads[0].embeds[0].author?.url).toBe(APP_BASE_URL);
   });
 
-  it("omits author when set name is missing", () => {
+  it("derives the author host from the app base URL", () => {
+    const events = [makeEvent()];
+
+    const payloads = buildNewPrintingPayloads(events, "https://preview.openrift.app");
+
+    expect(payloads[0].embeds[0].author?.name).toBe("preview.openrift.app");
+  });
+
+  it("keeps the author even when set name is missing", () => {
     const events = [makeEvent({ setName: null })];
 
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
 
-    expect(payloads[0].embeds[0].author).toBeUndefined();
+    expect(payloads[0].embeds[0].author?.name).toBe("openrift.app");
+  });
+
+  it("includes the set name in the info footer", () => {
+    const events = [makeEvent({ setName: "Origins" })];
+
+    const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
+
+    expect(payloads[0].embeds[0].footer?.text).toContain("Origins");
   });
 
   it("builds the absolute 400w image URL from the image id", () => {
@@ -81,7 +98,7 @@ describe("buildNewPrintingPayloads", () => {
     expect(payloads[0].embeds[0].thumbnail).toBeUndefined();
   });
 
-  it("builds a markdown description with code, rarity label, and finish", () => {
+  it("builds the info footer with code, rarity label, and finish", () => {
     const events = [
       makeEvent({
         shortCode: "OGN-001",
@@ -94,10 +111,10 @@ describe("buildNewPrintingPayloads", () => {
 
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
 
-    expect(payloads[0].embeds[0].description).toContain("**OGN-001**");
-    expect(payloads[0].embeds[0].description).toContain("Rare");
-    expect(payloads[0].embeds[0].description).not.toMatch(/\brare\b/u);
-    expect(payloads[0].embeds[0].description).toContain("Metal");
+    expect(payloads[0].embeds[0].footer?.text).toContain("OGN-001");
+    expect(payloads[0].embeds[0].footer?.text).toContain("Rare");
+    expect(payloads[0].embeds[0].footer?.text).not.toMatch(/\brare\b/u);
+    expect(payloads[0].embeds[0].footer?.text).toContain("Metal");
   });
 
   it("falls back to rarity slug when label is missing", () => {
@@ -105,15 +122,15 @@ describe("buildNewPrintingPayloads", () => {
 
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
 
-    expect(payloads[0].embeds[0].description).toContain("uncommon");
+    expect(payloads[0].embeds[0].footer?.text).toContain("uncommon");
   });
 
-  it("omits finish from description when it is 'normal'", () => {
+  it("omits finish from the footer when it is 'normal'", () => {
     const events = [makeEvent({ finish: "normal", finishLabel: "Normal" })];
 
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
 
-    expect(payloads[0].embeds[0].description).not.toContain("Normal");
+    expect(payloads[0].embeds[0].footer?.text).not.toContain("Normal");
   });
 
   it("falls back to finish slug when label is missing", () => {
@@ -121,36 +138,50 @@ describe("buildNewPrintingPayloads", () => {
 
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
 
-    expect(payloads[0].embeds[0].description).toContain("foil");
+    expect(payloads[0].embeds[0].footer?.text).toContain("foil");
   });
 
-  it("includes language name in description when not English", () => {
+  it("includes language name in the footer when not English", () => {
     const events = [makeEvent({ language: "FR", languageName: "French" })];
 
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
 
-    expect(payloads[0].embeds[0].description).toContain("French");
+    expect(payloads[0].embeds[0].footer?.text).toContain("French");
   });
 
-  it("omits language from description when English", () => {
+  it("omits language from the footer when English", () => {
     const events = [makeEvent({ language: "EN", languageName: "English" })];
 
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
 
-    expect(payloads[0].embeds[0].description).not.toContain("English");
+    expect(payloads[0].embeds[0].footer?.text).not.toContain("English");
   });
 
-  it("includes artist on its own line when present", () => {
+  it("never includes the artist in the embed", () => {
     const events = [makeEvent({ artist: "Jane Doe" })];
 
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
 
-    expect(payloads[0].embeds[0].description).toContain("Artist: Jane Doe");
+    expect(payloads[0].embeds[0].footer?.text).not.toContain("Jane Doe");
+    expect(payloads[0].embeds[0].description).toBeUndefined();
   });
 
-  it("omits description entirely when no metadata is present", () => {
+  it("renders the image above the info footer", () => {
+    const events = [makeEvent()];
+
+    const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
+
+    const embed = payloads[0].embeds[0];
+    expect(embed.image?.url).toBeDefined();
+    expect(embed.footer?.text).toBeDefined();
+    // No description — the info lives in the footer so it renders below the image.
+    expect(embed.description).toBeUndefined();
+  });
+
+  it("omits the footer entirely when no metadata is present", () => {
     const events = [
       makeEvent({
+        setName: null,
         shortCode: null,
         rarity: null,
         finish: "normal",
@@ -161,7 +192,7 @@ describe("buildNewPrintingPayloads", () => {
 
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
 
-    expect(payloads[0].embeds[0].description).toBeUndefined();
+    expect(payloads[0].embeds[0].footer).toBeUndefined();
   });
 
   it("chunks into multiple payloads when more than 10 embeds", () => {
