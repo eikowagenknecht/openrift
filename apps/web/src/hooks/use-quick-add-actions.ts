@@ -206,9 +206,15 @@ export function useQuickAddActions(addTarget?: string, viewCollectionId?: string
     }
   };
 
-  // Track the card whose popover was just closed so the click-through from the
-  // mousedown close-outside handler doesn't immediately reopen it.
-  const justClosedRef = useRef<string | null>(null);
+  // Track the card whose popover was just closed, and when. Clicking a pill to
+  // close it fires two things in one gesture: the press closes the popover (via
+  // BaseUI, whatever the reason — outside-press, or a focus-out as focus leaves
+  // the list), then the click re-fires handleOpenVariants. Without this guard
+  // that click-through immediately reopens. We can't key on the close reason
+  // (it varies) or the anchor node, so we suppress a reopen of the same card
+  // within a short window of its close.
+  const justClosedRef = useRef<{ cardId: string; at: number } | null>(null);
+  const REOPEN_SUPPRESS_MS = 350;
 
   const handleOpenVariants = addTarget
     ? (
@@ -218,14 +224,19 @@ export function useQuickAddActions(addTarget?: string, viewCollectionId?: string
         scopeToSet = false,
         scopeToPrinting = false,
       ) => {
-        if (justClosedRef.current === printing.cardId) {
+        const jc = justClosedRef.current;
+        const recentlyClosed =
+          jc?.cardId === printing.cardId && performance.now() - jc.at < REOPEN_SUPPRESS_MS;
+        if (recentlyClosed) {
+          // Click-through from closing this same pill — stay closed.
           justClosedRef.current = null;
           return;
         }
         const current = useAddModeStore.getState().variantPopover;
         if (current?.cardId === printing.cardId) {
+          // Popover was still open at click time — toggle it closed.
+          justClosedRef.current = { cardId: printing.cardId, at: performance.now() };
           useAddModeStore.getState().closeVariants();
-          justClosedRef.current = printing.cardId;
           return;
         }
         useAddModeStore
@@ -248,11 +259,13 @@ export function useQuickAddActions(addTarget?: string, viewCollectionId?: string
    */
   const adjustedCount = (_printingId: string, baseCount: number) => baseCount;
 
-  // The same press that closes the popover (mousedown outside the popup) is followed by a click on the anchor that would re-fire handleOpenVariants. Suppress that one click only when the press landed on the popover's own anchor — otherwise reopens after Esc / clicking elsewhere need an extra click.
-  const closeVariants = (pressTarget?: EventTarget | null) => {
+  // Record the close so a click-through on the same pill (see handleOpenVariants)
+  // doesn't immediately reopen it. `pressTarget` is unused now but kept so the
+  // popover host can pass BaseUI's close details without caring how we suppress.
+  const closeVariants = (_pressTarget?: EventTarget | null) => {
     const current = useAddModeStore.getState().variantPopover;
-    if (current && pressTarget instanceof Node && current.anchorEl.contains(pressTarget)) {
-      justClosedRef.current = current.cardId;
+    if (current) {
+      justClosedRef.current = { cardId: current.cardId, at: performance.now() };
     }
     useAddModeStore.getState().closeVariants();
   };

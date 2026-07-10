@@ -37,7 +37,7 @@ import { CollectionIntroBanner } from "@/components/collection/collection-intro-
 import { CollectionValueSummary } from "@/components/collection/collection-value-summary";
 import { FloatingActionBar } from "@/components/collection/floating-action-bar";
 import { buildOnDecrement } from "@/components/collection/route-decrement";
-import { VariantLocationsPopover } from "@/components/collection/variant-locations-popover";
+import { VariantLocationsPopoverHost } from "@/components/collection/variant-locations-popover-host";
 import { EmptyState } from "@/components/empty-state";
 import {
   PageTopBar,
@@ -58,7 +58,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Popover, PopoverContent } from "@/components/ui/popover";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useCardData } from "@/hooks/use-card-data";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
@@ -580,10 +579,11 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const canTake = isGroupCollection && Boolean(inboxId);
   const wish = useWishEntries(isGroupCollection);
 
-  // ── Variant×collection popover state (used by the count-pill, the tile
-  //    minus, and keyboard +/- on table rows) ───────────────────────────
-  const variantPopover = useAddModeStore((s) => s.variantPopover);
-  const selectedCardId = useSelectionStore((s) => s.selectedCard?.id);
+  // ── Variant×collection popover handlers (used by the count-pill, the tile
+  //    minus, and keyboard +/- on table rows). The popover's own open/close
+  //    state lives in VariantLocationsPopoverHost, NOT here: subscribing this
+  //    component to `variantPopover` would re-render the whole virtualized grid
+  //    on every open/close and reset the window scroll position. ─────────────
   const {
     handleQuickAdd,
     handleAddToCollection,
@@ -596,14 +596,6 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     cancelAnnotatedDispose,
     disposeIsPending,
   } = useQuickAddActions(addTarget, collectionId);
-  const [addCollectionTarget, setAddCollectionTarget] = useState<Printing | null>(null);
-  // Clear the in-popover "add to another collection" page whenever the popover
-  // closes or switches to a different card — otherwise the next time it opens,
-  // it would still be showing the stale collection picker sub-page.
-  useEffect(() => {
-    setAddCollectionTarget(null);
-  }, [variantPopover?.cardId]);
-
   const toggleShowLibrary = () => {
     setShowLibrary((prev) => {
       const next = !prev;
@@ -1226,18 +1218,6 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     />
   );
 
-  // Printings/copies view scopes to the single printing the tile stands for;
-  // cards view shows every variant (filtered to the tile's set when it was split
-  // by set) so the popover matches the tile the user opened it from.
-  const variantPrintings = variantPopover
-    ? catalogPrintingsByCardId.get(variantPopover.cardId)?.filter((printing) => {
-        if (variantPopover.printingId) {
-          return printing.id === variantPopover.printingId;
-        }
-        return !variantPopover.setId || printing.setId === variantPopover.setId;
-      })
-    : undefined;
-
   // Mounted once at a stable position so React preserves these instances
   // across the empty↔populated transition. Otherwise an open QuickAddPalette
   // would reset its internal state (input, expanded card) on the first add
@@ -1522,45 +1502,16 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           ) : null}
         </BrowserCardViewer>
 
-        {/* Variant×collection popover (browse add mode only) */}
-        {variantPopover && variantPrintings && handleQuickAdd && (
-          <Popover
-            open
-            onOpenChange={(open, details) => {
-              if (open) {
-                return;
-              }
-              // ESC inside the "add to another collection" sub-page goes back to
-              // the main page, mirroring how cmdk "pages" work. The popover stays
-              // mounted because `open` is hard-coded true; clearing
-              // addCollectionTarget swaps the content back.
-              if (details.reason === "escape-key" && addCollectionTarget) {
-                setAddCollectionTarget(null);
-                return;
-              }
-              setAddCollectionTarget(null);
-              closeVariants(details.reason === "outside-press" ? details.event.target : undefined);
-            }}
-          >
-            <PopoverContent
-              anchor={variantPopover.anchor}
-              side="bottom"
-              align="center"
-              className="max-h-72 w-max max-w-[min(90vw,24rem)] min-w-56 gap-0 overflow-y-auto p-0"
-            >
-              <VariantLocationsPopover
-                printings={variantPrintings}
-                initialHighlightId={selectedCardId}
-                intent={variantPopover.intent}
-                onQuickAdd={handleQuickAdd}
-                onAddToCollection={handleAddToCollection}
-                onRemoveFromCollection={handleDisposeFromCollection}
-                addCollectionTarget={addCollectionTarget}
-                setAddCollectionTarget={setAddCollectionTarget}
-              />
-            </PopoverContent>
-          </Popover>
-        )}
+        {/* Variant×collection popover (browse add mode only). Self-subscribes to
+            the add-mode store so opening it never re-renders this grid. */}
+        <VariantLocationsPopoverHost
+          catalogPrintingsByCardId={catalogPrintingsByCardId}
+          languageScopedPrintingsByCardId={detailPanePrintingsByCardId}
+          onQuickAdd={handleQuickAdd}
+          onAddToCollection={handleAddToCollection}
+          onRemoveFromCollection={handleDisposeFromCollection}
+          closeVariants={closeVariants}
+        />
       </CardBrowserFilterProvider>
       {collectionOverlays}
     </>
