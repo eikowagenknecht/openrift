@@ -1,5 +1,5 @@
 import type { TournamentDetailResponse } from "@openrift/shared";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { QRCodeSVG } from "qrcode.react";
 import { Suspense, useState } from "react";
 import { toast } from "sonner";
@@ -466,6 +466,23 @@ export function TournamentSettingsTab({ detail }: { detail: TournamentDetailResp
                     When off, a submitted deck is final and only a judge can unlock it. Riot&apos;s
                     official rules require this. When on, players can keep editing until the
                     submission deadline above.
+                  </span>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <Label>Pushing decklists from another tool</Label>
+                  <span className="text-muted-foreground text-sm">
+                    To send entrant lists in from a registration site or other tool, the API guide
+                    and this tournament&apos;s ID (<code className="break-all">{id}</code>) live on
+                    the{" "}
+                    <Link
+                      to="/tournaments/$id/decks"
+                      params={{ id }}
+                      className="text-foreground font-medium underline"
+                    >
+                      Deck check tab
+                    </Link>
+                    .
                   </span>
                 </div>
               </>

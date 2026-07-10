@@ -4,6 +4,7 @@
 
 ### Other
 
+- feat(Tournaments): **Deck-check API hint in settings** — tournament settings now show the tournament ID and link to the Deck check tab, so pushing decklists in from another tool is easier to find.
 - fix(Collection): **Add popup on scrolled cards** — clicking a card's count pill after scrolling down a collection jumped the grid to the top instead of opening the variants and add popup. The grid now stays put, the popup opens where you clicked, and clicking the same pill again closes it.
 
 ## 2026-07-09
