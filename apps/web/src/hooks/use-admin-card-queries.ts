@@ -89,11 +89,38 @@ const fetchAdminCardDetail = createServerFn({ method: "GET" })
     return result as AdminCardDetailResponse;
   });
 
+/** Cadence for re-fetching the detail while a just-accepted image is still
+ * being rehosted in the background. Rehosting one image is quick, so a tight
+ * poll makes the view swap from the external URL to the self-hosted webp within
+ * a few seconds without the admin reloading. */
+const REHOST_POLL_INTERVAL_MS = 3000;
+
+/**
+ * Whether any printing image in the detail response has a source URL but no
+ * rehosted URL yet. Accepting a printing kicks off rehosting as a fire-and-
+ * forget background job, so the accept response lands with `rehostedUrl` still
+ * null; polling until it fills in lets the view upgrade to the self-hosted
+ * image on its own. Images without an `originalUrl` can never be rehosted, so
+ * they are ignored to avoid polling forever.
+ * @returns true when at least one image is still awaiting rehosting
+ */
+export function hasPendingRehost(data?: {
+  printingImages?: readonly { originalUrl: string | null; rehostedUrl: string | null }[];
+}): boolean {
+  return (
+    data?.printingImages?.some(
+      (image) => image.originalUrl !== null && image.rehostedUrl === null,
+    ) ?? false
+  );
+}
+
 export function adminCardDetailQueryOptions(cardSlug: string) {
   return queryOptions({
     queryKey: queryKeys.admin.cards.detail(cardSlug),
     queryFn: () => fetchAdminCardDetail({ data: cardSlug }),
     staleTime: 5 * 60 * 1000,
+    refetchInterval: (query) =>
+      hasPendingRehost(query.state.data) ? REHOST_POLL_INTERVAL_MS : false,
   });
 }
 
