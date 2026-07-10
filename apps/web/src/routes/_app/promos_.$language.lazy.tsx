@@ -475,7 +475,7 @@ function PromosPage() {
           </PageTopBarActions>
         </PageTopBar>
       </div>
-      <div className={PAGE_PADDING_NO_TOP}>
+      <div className={`${PAGE_PADDING_NO_TOP} pt-3`}>
         <div className="mb-6">
           <p className="text-muted-foreground text-sm">
             Promos are all the cards you can&apos;t get by just opening booster packs. Two things

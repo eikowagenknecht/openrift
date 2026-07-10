@@ -91,7 +91,7 @@ export function PackOpenerPage() {
     return (
       <>
         <PackOpenerTopBar />
-        <div className={PAGE_PADDING_NO_TOP}>
+        <div className={`${PAGE_PADDING_NO_TOP} pt-3`}>
           <EmptyState
             className="py-12"
             icon={PackagePlusIcon}
@@ -108,7 +108,7 @@ export function PackOpenerPage() {
         <ToggleField label="Foil shimmer" checked={shimmer} onChange={setShimmer} />
         <ToggleField label="Auto-reveal" checked={autoReveal} onChange={setAutoReveal} />
       </PackOpenerTopBar>
-      <div className={PAGE_PADDING_NO_TOP}>
+      <div className={`${PAGE_PADDING_NO_TOP} pt-3`}>
         <PageDescription className="mb-6">
           Open virtual Riftbound booster packs. Pull rates match the real booster as published by
           Riot (7 Common, 3 Uncommon, 2 Rare-or-better, 1 Foil, 1 Rune). No cards are added to your

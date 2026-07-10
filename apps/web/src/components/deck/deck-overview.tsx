@@ -180,7 +180,7 @@ export function DeckOverview({
     requiredTotal > 0 ? Math.min(100, Math.round((requiredProgress / requiredTotal) * 100)) : 0;
 
   return (
-    <div className="@container flex flex-col gap-6 px-1 pt-2 pb-4">
+    <div className="@container flex flex-col gap-6 px-1 pt-3 pb-4">
       <FormatConfigCard
         deckId={deck.id}
         format={deck.format}

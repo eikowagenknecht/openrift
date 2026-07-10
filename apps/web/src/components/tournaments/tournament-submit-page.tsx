@@ -44,7 +44,7 @@ export function TournamentSubmitPage({ token }: { token: string }) {
           <PageTopBarTitle>Join tournament</PageTopBarTitle>
         </PageTopBar>
       </PageTopBarSticky>
-      <div className={cn("mx-auto flex w-full flex-col gap-6", maxWidth, PAGE_PADDING_NO_TOP)}>
+      <div className={cn("mx-auto flex w-full flex-col gap-6 pt-3", maxWidth, PAGE_PADDING_NO_TOP)}>
         <Card>
           <CardHeader>
             <CardTitle>{data.name}</CardTitle>

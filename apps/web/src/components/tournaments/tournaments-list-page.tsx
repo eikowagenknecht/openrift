@@ -91,7 +91,7 @@ export function TournamentsListPage() {
           </PageTopBarActions>
         </PageTopBar>
       </PageTopBarSticky>
-      <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6", PAGE_PADDING_NO_TOP)}>
+      <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6 pt-3", PAGE_PADDING_NO_TOP)}>
         <PageDescription>Tournaments you host, judge, or joined.</PageDescription>
 
         {items.length === 0 ? (

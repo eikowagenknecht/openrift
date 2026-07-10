@@ -72,7 +72,7 @@ export function TournamentReportFrame({
           </Badge>
         </PageTopBar>
       </PageTopBarSticky>
-      <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6", PAGE_PADDING_NO_TOP)}>
+      <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6 pt-3", PAGE_PADDING_NO_TOP)}>
         <nav className="flex gap-1 border-b">
           <ReportTabLink
             to="/tournaments/report/$token"

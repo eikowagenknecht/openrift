@@ -135,7 +135,7 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
           <PageTopBarTitle>New tournament</PageTopBarTitle>
         </PageTopBar>
       </PageTopBarSticky>
-      <div className={cn("mx-auto flex w-full max-w-4xl flex-col gap-6", PAGE_PADDING_NO_TOP)}>
+      <div className={cn("mx-auto flex w-full max-w-4xl flex-col gap-6 pt-3", PAGE_PADDING_NO_TOP)}>
         <SettingsGroup id="general" title="General">
           <Card>
             <CardHeader>

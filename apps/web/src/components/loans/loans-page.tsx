@@ -311,7 +311,7 @@ export function LoansPage() {
         </PageTopBar>
       </PageTopBarSticky>
 
-      <div className="mx-auto w-full max-w-4xl space-y-6 px-4 pb-12">
+      <div className="mx-auto w-full max-w-4xl space-y-6 px-4 pt-3 pb-12">
         <PageDescription>
           Cards you&apos;ve lent to friends and cards you&apos;re borrowing. Lent copies stay in
           your collection but stop counting for deck building and trades until they&apos;re back.

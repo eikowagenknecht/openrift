@@ -100,7 +100,7 @@ export function TournamentOverviewFrame({
           ) : null}
         </PageTopBar>
       </PageTopBarSticky>
-      <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-8", PAGE_PADDING_NO_TOP)}>
+      <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-8 pt-3", PAGE_PADDING_NO_TOP)}>
         {render(data)}
       </div>
     </>
@@ -149,7 +149,7 @@ export function TournamentSectionFrame({
         </PageTopBar>
       </PageTopBarSticky>
       <div
-        className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6", PAGE_PADDING_NO_TOP)}
+        className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6 pt-3", PAGE_PADDING_NO_TOP)}
         style={
           { "--sticky-top": `calc(var(--header-height) + ${barHeight}px + 1rem)` } as CSSProperties
         }

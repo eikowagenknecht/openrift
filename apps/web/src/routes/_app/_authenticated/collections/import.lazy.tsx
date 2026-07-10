@@ -79,7 +79,7 @@ function ImportExportPage() {
 
   if (flow.step === "input") {
     return (
-      <div className="space-y-10">
+      <div className="space-y-10 pt-3">
         {topBarPortal}
         <InputStep
           rawText={flow.rawText}
@@ -213,7 +213,7 @@ function ExportSection() {
   const copyCount = copies?.length ?? 0;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 pt-3">
+    <div className="mx-auto max-w-2xl space-y-6">
       <div>
         <Heading level={2}>Export Collection</Heading>
         <p className="text-muted-foreground text-sm">
@@ -520,7 +520,7 @@ function PreviewStep({
   );
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
+    <div className="mx-auto max-w-3xl space-y-4 pt-3">
       <SectionHeader>
         <SectionHeaderGroup>
           <SectionHeaderTitle>Import Preview</SectionHeaderTitle>

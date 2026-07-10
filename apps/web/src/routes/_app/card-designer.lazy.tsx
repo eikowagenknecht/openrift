@@ -21,7 +21,7 @@ function CardDesignerRoute() {
           <PageTopBarTitle>Card Designer</PageTopBarTitle>
         </PageTopBar>
       </PageTopBarSticky>
-      <div className={`${PAGE_PADDING_NO_TOP} mx-auto flex max-w-6xl flex-col gap-6`}>
+      <div className={`${PAGE_PADDING_NO_TOP} mx-auto flex max-w-6xl flex-col gap-6 pt-3`}>
         <PageDescription>
           Make your own Riftbound-style card: pick a background image, fill in the details, then
           download it or copy it to share. Everything stays in your browser.

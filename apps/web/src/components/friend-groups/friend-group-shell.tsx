@@ -76,7 +76,7 @@ export function FriendGroupPageFrame({
           </PageTopBarActions>
         </PageTopBar>
       </PageTopBarSticky>
-      <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6", PAGE_PADDING_NO_TOP)}>
+      <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6 pt-3", PAGE_PADDING_NO_TOP)}>
         {data.group.description ? (
           <header>
             <PageDescription>{data.group.description}</PageDescription>
@@ -128,7 +128,7 @@ export function FriendGroupSectionFrame({
           {actions ? <PageTopBarActions>{actions}</PageTopBarActions> : null}
         </PageTopBar>
       </PageTopBarSticky>
-      <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6", PAGE_PADDING_NO_TOP)}>
+      <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6 pt-3", PAGE_PADDING_NO_TOP)}>
         {render(data)}
       </div>
     </>

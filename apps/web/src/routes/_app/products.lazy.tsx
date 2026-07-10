@@ -23,7 +23,7 @@ function ProductsIndexPage() {
           <PageTopBarTitle>Products</PageTopBarTitle>
         </PageTopBar>
       </PageTopBarSticky>
-      <div className="px-safe mx-auto w-full max-w-4xl pb-6">
+      <div className="px-safe mx-auto w-full max-w-4xl pt-3 pb-6">
         <PageDescription className="pb-4">
           Full card lists for the official Riftbound products catalogued so far.
         </PageDescription>

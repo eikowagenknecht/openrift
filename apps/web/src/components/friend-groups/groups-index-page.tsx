@@ -193,7 +193,7 @@ export function GroupsIndexPage() {
           </PageTopBarActions>
         </PageTopBar>
       </PageTopBarSticky>
-      <div className={cn("mx-auto flex w-full max-w-4xl flex-col gap-6", PAGE_PADDING_NO_TOP)}>
+      <div className={cn("mx-auto flex w-full max-w-4xl flex-col gap-6 pt-3", PAGE_PADDING_NO_TOP)}>
         {data.pendingInvites.length > 0 && (
           <section className="flex flex-col gap-3">
             <h2 className={SECTION_HEADING}>Pending invites</h2>

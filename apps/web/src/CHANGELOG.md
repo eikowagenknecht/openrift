@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-07-11
+
+### Other
+
+- fix(App): **Content flush under the title bar** — cards and content no longer sit tight against the sticky page header, so their top edge stops fading into it.
+
 ## 2026-07-10
 
 ### Other

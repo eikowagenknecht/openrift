@@ -479,7 +479,7 @@ function ActivityPage() {
 
   if (allEvents.length === 0 && !hasNextPage) {
     return (
-      <div className="mx-auto w-full max-w-2xl">
+      <div className="mx-auto w-full max-w-2xl pt-3">
         {topBarPortal}
         <ActivityEmptyState />
       </div>

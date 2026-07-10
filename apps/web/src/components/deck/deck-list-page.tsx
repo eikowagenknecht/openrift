@@ -440,7 +440,7 @@ export function DeckListPage() {
               </EmptyHeader>
             </Empty>
           ) : (
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2 pt-3">
               {groups.map((group) => (
                 <div key={group.key}>
                   <GroupHeader label={group.label} count={group.items.length} />

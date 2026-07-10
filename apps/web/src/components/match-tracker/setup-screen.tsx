@@ -100,7 +100,7 @@ export function SetupScreen() {
           <PageTopBarTitle>Match tracker</PageTopBarTitle>
         </PageTopBar>
       </PageTopBarSticky>
-      <div className="mx-auto w-full max-w-md space-y-6 px-3 pb-6">
+      <div className="mx-auto w-full max-w-md space-y-6 px-3 pt-3 pb-6">
         <PageDescription>
           Keep score and XP for everyone at the table on one device.
         </PageDescription>

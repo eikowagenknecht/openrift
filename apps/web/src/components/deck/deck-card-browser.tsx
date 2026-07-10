@@ -188,7 +188,13 @@ export function DeckCardBrowser({
   // Tag-locked decks without picked tags intercept everything else — there's
   // no useful overview or browser to render until the user picks.
   if (needsFormatTagPick(deckDetail.deck)) {
-    return <FormatTagPickBanner deck={deckDetail.deck} />;
+    // pt-3 clears the sticky bar's blurred band, matching the overview path
+    // (deck-overview's root) so the banner isn't flush against the bar.
+    return (
+      <div className="pt-3">
+        <FormatTagPickBanner deck={deckDetail.deck} />
+      </div>
+    );
   }
 
   if (!activeZone) {

@@ -1439,7 +1439,7 @@ function RulesEmpty({ kind }: { kind: RuleKind }) {
           <PageTopBarTitle>{KIND_TITLES[kind]}</PageTopBarTitle>
         </PageTopBar>
       </PageTopBarSticky>
-      <div className={`mx-auto w-full max-w-4xl ${PAGE_PADDING_NO_TOP}`}>
+      <div className={`mx-auto w-full max-w-4xl pt-3 ${PAGE_PADDING_NO_TOP}`}>
         <div className="mb-4">
           <KindTabs kind={kind} />
         </div>
@@ -1591,7 +1591,7 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
           </PageTopBarActions>
         </PageTopBar>
       </PageTopBarSticky>
-      <div className={`mx-auto w-full max-w-4xl ${PAGE_PADDING_NO_TOP}`}>
+      <div className={`mx-auto w-full max-w-4xl pt-3 ${PAGE_PADDING_NO_TOP}`}>
         <div className="mb-4">
           <KindTabs kind={kind} />
         </div>
