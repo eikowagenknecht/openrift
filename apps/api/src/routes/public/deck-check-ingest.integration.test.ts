@@ -108,12 +108,17 @@ describe.skipIf(!ownerCtx)("deck-check ingest push (integration, ADR-033)", () =
     // The deck-check tournament is hosted by the group owner; the judge gets the
     // per-tournament `judge` staff role so the tournament-scoped judge API admits
     // them (ADR-033).
-    const event = await repos.deckCheck.createEvent({
+    // A deck-check tournament is created through the umbrella tournament CRUD and
+    // sits in `setup` until round 1 is generated. When OpenRift is used only for
+    // deck check (no pairings) it stays in `setup`, and pushes must still land.
+    const event = await repos.tournaments.create({
+      hostType: "user",
+      hostUserId: OWNER_ID,
       groupId,
       name: "Ingest Cup",
-      eventDate: "2026-06-20",
-      format: null,
-      allowedSets: null,
+      startsAt: new Date("2026-06-20"),
+      pairingStyle: "none",
+      deckSubmission: "optional",
     });
     eventId = event.id;
     await repos.tournaments.addStaff(eventId, JUDGE_ID, "judge");
@@ -361,17 +366,25 @@ describe.skipIf(!ownerCtx)("deck-check ingest push (integration, ADR-033)", () =
     expect(entry?.allowRiotIdSharing).toBe(false);
   });
 
-  it("rejects pushes to an archived tournament with 409", async () => {
-    // A non-running tournament status maps to the deck-check `archived` state,
-    // which the ingest pipeline refuses (ADR-033).
-    const archived = await repos.deckCheck.updateEvent(groupId, eventId, { status: "archived" });
-    expect(archived?.status).toBe("archived");
-
+  it("accepts pushes while the tournament is still in setup (pre-start submission)", async () => {
+    // Decks are handed in before the event starts, so a `setup` tournament (the
+    // default a wizard-created deck-check tournament sits in) is a valid push
+    // window. Regression: `setup` used to map to `archived` and 409.
+    await repos.tournaments.updateSettings(eventId, { status: "setup" });
     const res = await push([]);
-    expect(res.status).toBe(409);
+    expect(res.status).toBe(200);
+  });
 
-    const restored = await repos.deckCheck.updateEvent(groupId, eventId, { status: "active" });
-    expect(restored?.status).toBe("active");
+  it("rejects pushes to a completed or cancelled tournament with 409", async () => {
+    // Only a finished/called-off tournament maps to the deck-check `archived`
+    // state, which the ingest pipeline refuses (ADR-033).
+    for (const status of ["completed", "cancelled"] as const) {
+      await repos.tournaments.updateSettings(eventId, { status });
+      const res = await push([]);
+      expect(res.status).toBe(409);
+    }
+    // Restore the shared fixture to its pushable state for later tests.
+    await repos.tournaments.updateSettings(eventId, { status: "setup" });
   });
 
   it("re-resolves unmatched lines once the card exists in the catalog", async () => {
@@ -421,8 +434,8 @@ describe.skipIf(!ownerCtx)("deck-check ingest push (integration, ADR-033)", () =
     // Give the tournament a format so the deck-rules run; the small list is
     // nowhere near a legal constructed deck, and its only card is from OGS while
     // only OGN is allowed, so an out-of-allowed-sets finding fires.
-    await repos.deckCheck.updateEvent(groupId, eventId, {
-      format: "constructed",
+    await repos.tournaments.updateSettings(eventId, {
+      deckFormat: "constructed",
       allowedSets: ["OGN"],
     });
     const entry = await repos.deckCheck.getEntryByExternalId(eventId, "entry-1");
@@ -446,7 +459,7 @@ describe.skipIf(!ownerCtx)("deck-check ingest push (integration, ADR-033)", () =
     );
     expect(detail.typeCounts.some((count) => count.cardType === "unit")).toBe(true);
 
-    await repos.deckCheck.updateEvent(groupId, eventId, { format: null, allowedSets: null });
+    await repos.tournaments.updateSettings(eventId, { deckFormat: null, allowedSets: null });
   });
 
   it("removes a key only after it is revoked, and only its own host", async () => {

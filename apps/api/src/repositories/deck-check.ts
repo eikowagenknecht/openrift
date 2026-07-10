@@ -88,23 +88,6 @@ export interface DeckCheckEntrySummary extends DeckCheckEntry {
   unmatchedLineCount: number;
 }
 
-export interface NewDeckCheckEvent {
-  groupId: string;
-  name: string;
-  eventDate: string | null;
-  format: string | null;
-  allowedSets: string[] | null;
-}
-
-export interface DeckCheckEventPatch {
-  name?: string;
-  eventDate?: string | null;
-  format?: string | null;
-  allowedSets?: string[] | null;
-  status?: "active" | "archived";
-  listLockMode?: DeckCheckListLockMode;
-}
-
 export interface NewDeckCheckEntry {
   tournamentId: string;
   /**
@@ -214,7 +197,7 @@ function tournamentToEvent(row: Selectable<TournamentsTable>): DeckCheckEvent {
     eventDate: row.startsAt,
     format: row.deckFormat,
     allowedSets: parseJsonb<string[]>(row.allowedSets as string[] | string | null),
-    status: row.status === "running" ? "active" : "archived",
+    status: eventStatusForTournamentStatus(row.status),
     listLockMode: row.listLockMode,
     allowSelfSubmission: row.selfRegistration,
     submissionToken: row.submissionToken,
@@ -225,11 +208,16 @@ function tournamentToEvent(row: Selectable<TournamentsTable>): DeckCheckEvent {
 }
 
 /**
- * The DB status a deck-check event maps to.
- * @returns The tournament status.
+ * Deck-check treats an event as active for its whole pre-tournament and running
+ * life. Decks are handed in *before* the tournament starts, so `setup` (the
+ * state a wizard-created tournament sits in until round 1 is generated, which
+ * never happens when OpenRift is used only for deck check) is a valid push
+ * window. Only a finished (`completed`) or called-off (`cancelled`) event is
+ * archived and refuses pushes.
+ * @returns The deck-check event status for a tournament's DB status.
  */
-function eventStatusToTournament(status: "active" | "archived"): "running" | "completed" {
-  return status === "active" ? "running" : "completed";
+export function eventStatusForTournamentStatus(status: string): "active" | "archived" {
+  return status === "completed" || status === "cancelled" ? "archived" : "active";
 }
 
 /**
@@ -328,73 +316,13 @@ export function deckCheckRepo(db: Kysely<Database>) {
     return row?.participantId;
   }
 
-  /**
-   * Resolves a friend group's owner — the host of its deck-check tournaments and
-   * integration keys (ADR-033).
-   * @returns The owner's user id.
-   */
-  async function groupOwnerId(groupId: string): Promise<string> {
-    const row = await db
-      .selectFrom("friendGroupMembers")
-      .select("userId")
-      .where("groupId", "=", groupId)
-      .where("role", "=", "owner")
-      .executeTakeFirst();
-    if (!row) {
-      throw new Error(`Group ${groupId} has no owner`);
-    }
-    return row.userId;
-  }
-
   return {
     // ── Events (deck-check tournaments) ───────────────────────────────────────
-
-    async createEvent(input: NewDeckCheckEvent): Promise<DeckCheckEvent> {
-      const ownerId = await groupOwnerId(input.groupId);
-      const row = await db
-        .insertInto("tournaments")
-        .values({
-          hostType: "user",
-          hostUserId: ownerId,
-          groupId: input.groupId,
-          name: input.name,
-          status: "running",
-          // starts_at is NOT NULL; omit when no date so the DB default (now()) applies.
-          startsAt: input.eventDate ? new Date(input.eventDate) : undefined,
-          pairingStyle: "none",
-          deckSubmission: "optional",
-          deckFormat: input.format ?? null,
-          allowedSets: input.allowedSets ? JSON.stringify(input.allowedSets) : null,
-        })
-        .returningAll()
-        .executeTakeFirstOrThrow();
-      return tournamentToEvent(row);
-    },
-
-    async updateEvent(
-      groupId: string,
-      tournamentId: string,
-      patch: DeckCheckEventPatch,
-    ): Promise<DeckCheckEvent | undefined> {
-      const row = await db
-        .updateTable("tournaments")
-        .set({
-          ...(patch.name === undefined ? {} : { name: patch.name }),
-          ...(patch.eventDate ? { startsAt: new Date(patch.eventDate) } : {}),
-          ...(patch.format === undefined ? {} : { deckFormat: patch.format }),
-          ...(patch.allowedSets === undefined
-            ? {}
-            : { allowedSets: patch.allowedSets ? JSON.stringify(patch.allowedSets) : null }),
-          ...(patch.status === undefined ? {} : { status: eventStatusToTournament(patch.status) }),
-          ...(patch.listLockMode === undefined ? {} : { listLockMode: patch.listLockMode }),
-        })
-        .where("id", "=", tournamentId)
-        .where("groupId", "=", groupId)
-        .where("deckSubmission", "!=", "none")
-        .returningAll()
-        .executeTakeFirst();
-      return row ? tournamentToEvent(row) : undefined;
-    },
+    //
+    // A deck-check event is just a tournament with `deckSubmission != 'none'`.
+    // It is created and its lifecycle (setup, running, completed/cancelled) is
+    // driven through the umbrella tournament CRUD (`repos.tournaments`), so there
+    // are no create/update-event methods here. The event view is read-only.
 
     /**
      * Loads a deck-check tournament scoped to its host (the ingest path; the key
@@ -854,7 +782,7 @@ export function deckCheckRepo(db: Kysely<Database>) {
         ...materializeEntry(row),
         eventName: row.eventName,
         eventDate: row.eventDate,
-        eventStatus: row.eventStatusRaw === "running" ? "active" : "archived",
+        eventStatus: eventStatusForTournamentStatus(row.eventStatusRaw),
         submissionsCloseAt: row.submissionsCloseAt,
         groupName: row.groupName,
         groupSlug: row.groupSlug,
@@ -904,7 +832,7 @@ export function deckCheckRepo(db: Kysely<Database>) {
         ...materializeEntry(row),
         eventName: row.eventName,
         eventDate: row.eventDate,
-        eventStatus: row.eventStatusRaw === "running" ? "active" : "archived",
+        eventStatus: eventStatusForTournamentStatus(row.eventStatusRaw),
         submissionsCloseAt: row.submissionsCloseAt,
         groupName: row.groupName,
         groupSlug: row.groupSlug,

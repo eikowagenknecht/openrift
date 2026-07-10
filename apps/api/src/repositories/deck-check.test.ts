@@ -1,6 +1,25 @@
 import { describe, expect, it } from "vitest";
 
-import { cardResolutionKey, legendComboResolutions } from "./deck-check.js";
+import {
+  cardResolutionKey,
+  eventStatusForTournamentStatus,
+  legendComboResolutions,
+} from "./deck-check.js";
+
+describe("eventStatusForTournamentStatus", () => {
+  it("treats setup and running as active (submissions are handed in before start)", () => {
+    // Regression: a wizard-created deck-check tournament sits in `setup` until
+    // round 1 is generated, which never happens when OpenRift is used only for
+    // deck check. That must not archive the event or the provider push 409s.
+    expect(eventStatusForTournamentStatus("setup")).toBe("active");
+    expect(eventStatusForTournamentStatus("running")).toBe("active");
+  });
+
+  it("archives only a completed or cancelled tournament", () => {
+    expect(eventStatusForTournamentStatus("completed")).toBe("archived");
+    expect(eventStatusForTournamentStatus("cancelled")).toBe("archived");
+  });
+});
 
 describe("legendComboResolutions", () => {
   const azir = { id: "card-azir", normName: "emperorofthesands", tags: ["Azir"] };

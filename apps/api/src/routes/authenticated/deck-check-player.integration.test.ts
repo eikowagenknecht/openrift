@@ -100,18 +100,20 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
     await repos.friendGroups.addMember(groupId, JUDGE_ID, "member");
     await repos.friendGroups.addMember(groupId, MEMBER_ID, "member");
 
-    const event = await repos.deckCheck.createEvent({
+    const event = await repos.tournaments.create({
+      hostType: "user",
+      hostUserId: OWNER_ID,
       groupId,
       name: "Self-Service Cup",
-      eventDate: "2026-07-01",
-      format: null,
-      allowedSets: null,
+      startsAt: new Date("2026-07-01"),
+      pairingStyle: "none",
+      deckSubmission: "optional",
+      // Most of this suite exercises the lenient lock mode (self-service
+      // corrections until the deadline); the strict default gets its own block.
+      listLockMode: "at_deadline",
     });
     eventId = event.id;
     await repos.tournaments.addStaff(eventId, JUDGE_ID, "judge");
-    // Most of this suite exercises the lenient lock mode (self-service
-    // corrections until the deadline); the strict default gets its own block.
-    await repos.deckCheck.updateEvent(groupId, eventId, { listLockMode: "at_deadline" });
 
     // Host-scoped push key (ADR-033): the tournament is hosted by the group
     // owner, so the owner mints the personal integration key the ingest uses.
