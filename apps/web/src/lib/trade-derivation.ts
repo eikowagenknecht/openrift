@@ -49,6 +49,35 @@ export function withoutLiveTradeMatches<
   );
 }
 
+/** One counterparty's trades split into the member-detail page's lifecycle buckets. */
+export interface MemberTradeBuckets {
+  active: CardTradeResponse[];
+  actionNeeded: CardTradeResponse[];
+  history: CardTradeResponse[];
+}
+
+/**
+ * Filters trades to a single counterparty and buckets them by lifecycle, for the
+ * member-detail page's trades block. Unlike the match-suggestion overlay — which
+ * only surfaces an in-progress trade while a matching suggestion row exists —
+ * this keeps every trade with the member, including reserved ones whose copies
+ * no longer appear as a match (ADR-019).
+ * @param trades The viewer's trades in the group.
+ * @param counterpartyUserId The member whose trades to keep.
+ * @returns The member's trades split into active / action-needed / history.
+ */
+export function bucketMemberTrades(
+  trades: readonly CardTradeResponse[],
+  counterpartyUserId: string,
+): MemberTradeBuckets {
+  const mine = trades.filter((trade) => trade.counterparty.userId === counterpartyUserId);
+  return {
+    active: mine.filter((trade) => tradeSection(trade) === "active"),
+    actionNeeded: mine.filter((trade) => tradeSection(trade) === "action-needed"),
+    history: mine.filter((trade) => tradeSection(trade) === "history"),
+  };
+}
+
 /** Whether the card flows to the viewer (`incoming`) or away (`outgoing`). */
 export type MatchDirection = "incoming" | "outgoing";
 

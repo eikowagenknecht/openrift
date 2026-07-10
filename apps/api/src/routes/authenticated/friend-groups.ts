@@ -33,6 +33,7 @@ import { hasRole, loadGroupForMember, requireRole } from "../../lib/group-access
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import type { Group, MemberWithUser } from "../../repositories/friend-groups.js";
+import { expandRuleListCounts } from "../../utils/list-counts.js";
 import { toCopy, toListEntryDetail } from "../../utils/mappers.js";
 import { getFavoriteMarketplace } from "../../utils/preferences.js";
 import { generateShareToken } from "../../utils/share-token.js";
@@ -305,15 +306,7 @@ export const friendGroupsRouter = {
     // The materialized `entryCount` counts only manual rows, so rule-based lists
     // report 0. Expand just those lists (manual lists are already exact) to show
     // their real size — the same expansion the list detail page uses (ADR-034).
-    const expandedCounts = new Map<string, number>();
-    await Promise.all(
-      shares
-        .filter((row) => row.hasRule)
-        .map(async (row) => {
-          const entries = await lists.entriesWithDetailsAnon(row.listId, row.listKind as ListKind);
-          expandedCounts.set(row.listId, entries.length);
-        }),
-    );
+    const expandedCounts = await expandRuleListCounts(lists, shares);
 
     return {
       group: toGroup(group, canSeeCode(membership.role)),
@@ -647,11 +640,14 @@ export const friendGroupsRouter = {
   shareableLists: os.shareableLists.handler(
     async ({ input, context }): Promise<FriendGroupShareableListsResponse> => {
       const viewerId = context.userId;
-      const { friendGroups } = context.repos;
+      const { friendGroups, lists } = context.repos;
 
       const ctx = await loadGroupForMember(context.repos, input.slug, viewerId);
 
       const rows = await friendGroups.listShareableForUserInGroup(ctx.group.id, viewerId);
+      // Rule-based lists materialize 0 rows; expand their real counts so the
+      // share picker doesn't show "0 cards" for a smart list (ADR-034).
+      const expandedCounts = await expandRuleListCounts(lists, rows);
       return {
         items: rows.map((row) => ({
           listId: row.listId,
@@ -659,7 +655,7 @@ export const friendGroupsRouter = {
           listIntent:
             row.listIntent as FriendGroupShareableListsResponse["items"][number]["listIntent"],
           listKind: row.listKind as FriendGroupShareableListsResponse["items"][number]["listKind"],
-          entryCount: row.entryCount,
+          entryCount: expandedCounts.get(row.listId) ?? row.entryCount,
           sharedAt: row.sharedAt ? row.sharedAt.toISOString() : null,
           tradeDefaults: {
             pricePref:
@@ -765,7 +761,7 @@ export const friendGroupsRouter = {
   getMemberDetail: os.getMemberDetail.handler(
     async ({ input, context }): Promise<FriendGroupMemberDetailResponse> => {
       const viewerId = context.userId;
-      const { friendGroups, friendGroupMatches } = context.repos;
+      const { friendGroups, friendGroupMatches, lists } = context.repos;
       const counterpartyUserId = input.userId;
 
       const ctx = await loadGroupForMember(context.repos, input.slug, viewerId);
@@ -788,6 +784,11 @@ export const friendGroupsRouter = {
         (share) => share.userId === counterpartyUserId,
       );
 
+      // Rule-based lists materialize 0 rows, so expand their real counts here too
+      // — the trades page (`get`) does the same. Without this the member page
+      // showed 0 cards for every smart wishlist/tradelist (ADR-034).
+      const expandedCounts = await expandRuleListCounts(lists, memberShares);
+
       const [matches, reverseMatches] = await Promise.all([
         friendGroupMatches.othersHaveYourWants({
           groupId: ctx.group.id,
@@ -803,7 +804,9 @@ export const friendGroupsRouter = {
 
       return {
         member: toMember(counterparty, contactsByUser.get(counterpartyUserId) ?? []),
-        shares: memberShares.map((row) => toShare(row)),
+        shares: memberShares.map((row) =>
+          toShare({ ...row, entryCount: expandedCounts.get(row.listId) ?? row.entryCount }),
+        ),
         collectionShares: memberCollectionShares.map((row) => toCollectionShare(row)),
         matches,
         reverseMatches,

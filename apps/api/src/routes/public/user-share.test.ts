@@ -124,6 +124,37 @@ describe("GET /api/v1/users/share/:token", () => {
     expect(mockFriendGroupsRepo.collectionsBundleForViewer).not.toHaveBeenCalled();
   });
 
+  it("expands rule-based lists so their entryCount is the real size", async () => {
+    const ruledList = {
+      ...dbList,
+      id: "a0000000-0001-4000-a000-000000000011",
+      name: "Smart Trades",
+      // A dynamic list keeps its contents in `rules`, so it materializes 0 rows
+      // — the bug this covers. Only `.filter` is read on normalize, so a minimal
+      // rule is enough to flag it as rule-based.
+      rules: [{ kind: "trade", filter: {} }],
+    };
+    mockUserSharesRepo.findOwnerByShareToken.mockResolvedValue(dbOwner);
+    mockUserSharesRepo.listsForOwner.mockResolvedValue([
+      { list: dbList, entryCount: 3, viaGroups: [] },
+      { list: ruledList, entryCount: 0, viaGroups: [] },
+    ]);
+    mockListsRepo.entriesWithDetailsAnon.mockResolvedValue([dbEntry, dbEntry, dbEntry, dbEntry]);
+
+    const res = await app.request("/api/v1/users/share/tok-abc");
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    const byId = new Map(
+      (json.lists as { id: string; entryCount: number }[]).map((l) => [l.id, l.entryCount]),
+    );
+    // Manual list keeps its cheap materialized count and is never expanded.
+    expect(byId.get(dbList.id)).toBe(3);
+    // Rule-based list reports the expanded size, not the materialized 0.
+    expect(byId.get(ruledList.id)).toBe(4);
+    expect(mockListsRepo.entriesWithDetailsAnon).toHaveBeenCalledTimes(1);
+    expect(mockListsRepo.entriesWithDetailsAnon).toHaveBeenCalledWith(ruledList.id, "card");
+  });
+
   it("includes group-shared collections for an authenticated viewer", async () => {
     currentUser = { id: "v0000000-0001-4000-a000-000000000099" };
     mockUserSharesRepo.findOwnerByShareToken.mockResolvedValue(dbOwner);

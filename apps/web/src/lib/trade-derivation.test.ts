@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import type { MatchSuggestionFields } from "./trade-derivation";
 import {
+  bucketMemberTrades,
   countTradeSuggestions,
   describeViewerSource,
   groupTradesByCounterparty,
@@ -245,6 +246,58 @@ describe("withoutLiveTradeMatches", () => {
       }),
     ];
     expect(withoutLiveTradeMatches(matches, trades)).toEqual([match("user-3", "printing-2")]);
+  });
+});
+
+describe("bucketMemberTrades", () => {
+  const forMember = (userId: string, overrides: Partial<CardTradeResponse> = {}) =>
+    stubTrade({
+      ...overrides,
+      counterparty: { userId, name: userId, image: null, gravatarHash: "h", contactMethods: [] },
+    });
+
+  it("keeps only the given member's trades", () => {
+    const buckets = bucketMemberTrades(
+      [
+        forMember("alice", { id: "a1", status: "reserved", actionNeeded: "complete" }),
+        forMember("bob", { id: "b1", status: "reserved", actionNeeded: "complete" }),
+      ],
+      "alice",
+    );
+    expect(buckets.active.map((t) => t.id)).toEqual(["a1"]);
+  });
+
+  it("surfaces a reserved trade in the active bucket — the case the match overlay dropped", () => {
+    // A reserved trade no longer appears as a match (its copies are reserved),
+    // so before this it vanished from the member page. It must land in `active`.
+    const buckets = bucketMemberTrades(
+      [forMember("alice", { id: "r1", status: "reserved", actionNeeded: "complete" })],
+      "alice",
+    );
+    expect(buckets.active.map((t) => t.id)).toEqual(["r1"]);
+    expect(buckets.actionNeeded).toHaveLength(0);
+    expect(buckets.history).toHaveLength(0);
+  });
+
+  it("splits a member's trades across active / action-needed / history", () => {
+    const buckets = bucketMemberTrades(
+      [
+        forMember("alice", { id: "act", status: "pending", actionNeeded: "cancel" }),
+        forMember("alice", { id: "need", status: "pending", actionNeeded: "accept-or-decline" }),
+        forMember("alice", { id: "done", status: "completed", actionNeeded: null }),
+      ],
+      "alice",
+    );
+    expect(buckets.active.map((t) => t.id)).toEqual(["act"]);
+    expect(buckets.actionNeeded.map((t) => t.id)).toEqual(["need"]);
+    expect(buckets.history.map((t) => t.id)).toEqual(["done"]);
+  });
+
+  it("returns empty buckets when the member has no trades", () => {
+    const buckets = bucketMemberTrades([forMember("bob", { id: "b1" })], "alice");
+    expect(buckets.active).toHaveLength(0);
+    expect(buckets.actionNeeded).toHaveLength(0);
+    expect(buckets.history).toHaveLength(0);
   });
 });
 

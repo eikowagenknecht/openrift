@@ -20,7 +20,12 @@ import { useCards } from "@/hooks/use-cards";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { usePrices } from "@/hooks/use-prices";
 import type { TradeCounterpartyGroup } from "@/lib/trade-derivation";
-import { groupTradesByCounterparty, sumTradeValues, tradeSection } from "@/lib/trade-derivation";
+import {
+  bucketMemberTrades,
+  groupTradesByCounterparty,
+  sumTradeValues,
+  tradeSection,
+} from "@/lib/trade-derivation";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 import { useTradeActionStore } from "@/stores/trade-action-store";
@@ -390,6 +395,45 @@ function CompletedBucket({ trades }: { trades: CardTradeResponse[] }) {
         </div>
       </CollapsibleContent>
     </Collapsible>
+  );
+}
+
+/**
+ * The viewer's trades with a single member, bucketed into In progress / Action
+ * needed / Completed. Used on the member-detail page, which is already scoped to
+ * one counterparty. Unlike the match-suggestion overlay — which only shows an
+ * in-progress trade while a matching suggestion row still exists — this lists
+ * every trade, including ones whose copies are fully reserved and so no longer
+ * surface as a match (ADR-019). Renders nothing when there are no trades.
+ * @returns The member's trade buckets, or null when there are none.
+ */
+export function MemberTradesSection({
+  groupId,
+  counterpartyUserId,
+}: {
+  groupId: string;
+  counterpartyUserId: string;
+}) {
+  const { data } = useGroupTrades(groupId);
+  const { active, actionNeeded, history } = bucketMemberTrades(
+    data?.items ?? [],
+    counterpartyUserId,
+  );
+
+  if (active.length + actionNeeded.length + history.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="flex flex-col gap-8">
+      <CounterpartyGroupedBucket heading="In progress" trades={active} bulk="cancel" />
+      <CounterpartyGroupedBucket
+        heading="Action needed"
+        trades={actionNeeded}
+        bulk="accept-decline"
+      />
+      <CompletedBucket trades={history} />
+    </div>
   );
 }
 

@@ -5,7 +5,9 @@ import { Heading } from "@/components/heading";
 import { TopBarBreadcrumbBar } from "@/components/layout/top-bar-breadcrumb";
 import { Badge } from "@/components/ui/badge";
 import { UserAvatar } from "@/components/user-avatar";
+import { useGroupTrades } from "@/hooks/use-card-trades";
 import { useFriendGroupDetail, useFriendGroupMemberDetail } from "@/hooks/use-friend-groups";
+import { withoutLiveTradeMatches } from "@/lib/trade-derivation";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 
 import { ContactMethodChips } from "./contact-method-chips";
@@ -13,6 +15,7 @@ import { ROLE_LABEL, SECTION_HEADING } from "./friend-group-shell";
 import { MatchTradeList } from "./match-row-card";
 import { SharedCollectionRow } from "./shared-collection-row";
 import { SharedListRow } from "./shared-list-row";
+import { MemberTradesSection } from "./trades-section";
 
 interface MemberDetailPageProps {
   slug: string;
@@ -27,7 +30,17 @@ const LIST_SECTIONS: { intent: Extract<ListIntent, "wish" | "trade">; heading: s
 export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
   const { data } = useFriendGroupMemberDetail(slug, userId);
   const { data: groupDetail } = useFriendGroupDetail(slug);
+  const { data: tradesData } = useGroupTrades(groupDetail.group.id);
   const { member } = data;
+
+  // Drop match suggestions that already have a live trade with this member for
+  // the same card, so a suggestion and its in-progress trade don't both show —
+  // the in-progress trade renders in MemberTradesSection instead. Mirrors the
+  // Trades page's SuggestedSection.
+  const trades = tradesData?.items ?? [];
+  const incomingMatches = withoutLiveTradeMatches(data.matches, trades);
+  const outgoingMatches = withoutLiveTradeMatches(data.reverseMatches, trades);
+  const hasMatches = incomingMatches.length > 0 || outgoingMatches.length > 0;
 
   const sortedShares = data.shares.toSorted((a, b) => a.listName.localeCompare(b.listName));
   const hasShares = sortedShares.length > 0;
@@ -63,12 +76,14 @@ export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
           </div>
         </header>
 
-        {data.matches.length > 0 || data.reverseMatches.length > 0 ? (
+        <MemberTradesSection groupId={groupDetail.group.id} counterpartyUserId={userId} />
+
+        {hasMatches ? (
           <section className="flex flex-col gap-3">
             <h2 className={SECTION_HEADING}>Possible trades</h2>
             <MatchTradeList
-              incoming={data.matches}
-              outgoing={data.reverseMatches}
+              incoming={incomingMatches}
+              outgoing={outgoingMatches}
               groupSlug={slug}
               showCounterparty={false}
             />

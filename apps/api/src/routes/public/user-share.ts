@@ -5,6 +5,7 @@ import { implement } from "@orpc/server";
 import { gravatarHashForEmail } from "../../lib/gravatar.js";
 import { requireUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
+import { expandRuleListCounts } from "../../utils/list-counts.js";
 import { parseListRules, toListEntryDetail, toPublicList } from "../../utils/mappers.js";
 
 const os = implement(publicUserShareContract).$context<ApiContext>().use(requireUser);
@@ -17,7 +18,7 @@ const os = implement(publicUserShareContract).$context<ApiContext>().use(require
 export const publicUserShareRouter = {
   bundle: os.bundle.handler(
     async ({ input, context, errors }): Promise<PublicUserBundleResponse> => {
-      const { userShares, friendGroups } = context.repos;
+      const { userShares, friendGroups, lists: listsRepo } = context.repos;
       const viewerUserId = context.user?.id ?? null;
 
       const owner = await userShares.findOwnerByShareToken(input.token);
@@ -34,6 +35,17 @@ export const publicUserShareRouter = {
           : Promise.resolve([]),
       ]);
 
+      // Rule-based lists materialize 0 rows; expand their real counts so a smart
+      // wishlist/tradelist doesn't read as "0 cards" on the public bundle (ADR-034).
+      const expandedCounts = await expandRuleListCounts(
+        listsRepo,
+        lists.map(({ list }) => ({
+          listId: list.id,
+          listKind: list.kind,
+          hasRule: parseListRules(list.rules).length > 0,
+        })),
+      );
+
       return {
         owner: {
           displayName: owner.displayName ?? "Anonymous",
@@ -44,7 +56,7 @@ export const publicUserShareRouter = {
           name: list.name,
           intent: list.intent,
           kind: list.kind,
-          entryCount,
+          entryCount: expandedCounts.get(list.id) ?? entryCount,
           isPublic: list.shareToken !== null,
           viaGroups,
           createdAt: list.createdAt.toISOString(),
