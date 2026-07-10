@@ -27,6 +27,7 @@ interface MarketplaceOffer {
   currency: string;
   priceLow: number;
   priceHigh: number;
+  offerCount: number;
 }
 
 interface CardDetailLoaderData {
@@ -98,7 +99,9 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
     // Schema.org Product/Offer JSON-LD. Prices are no longer inlined on the card
     // response; the loader precomputes the per-marketplace offers from
     // the /prices resource so they're available synchronously at SSR time for
-    // crawlers that don't execute JS.
+    // crawlers that don't execute JS. productJsonLd returns null for a card
+    // with no marketplace prices (a Product without offers is invalid to
+    // Google), so the script is dropped entirely in that case.
     return {
       ...head,
       scripts: [
@@ -114,7 +117,7 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
           { name: "Cards", path: "/cards" },
           { name: data.card.name, path: cardPath },
         ]),
-      ],
+      ].filter((script) => script !== null),
     };
   },
   loader: async ({ context, params }): Promise<CardDetailLoaderData> => {
@@ -159,7 +162,15 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
       if (prices.length === 0) {
         return [];
       }
-      return [{ seller, currency, priceLow: Math.min(...prices), priceHigh: Math.max(...prices) }];
+      return [
+        {
+          seller,
+          currency,
+          priceLow: Math.min(...prices),
+          priceHigh: Math.max(...prices),
+          offerCount: prices.length,
+        },
+      ];
     });
 
     return {

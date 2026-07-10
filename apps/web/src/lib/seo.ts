@@ -197,6 +197,8 @@ interface MarketplaceOffer {
   priceLow: number;
   /** Highest market price across all printings on this marketplace. */
   priceHigh: number;
+  /** Number of distinct priced printings behind an aggregated price range. */
+  offerCount?: number;
 }
 
 interface ProductJsonLdOptions {
@@ -216,7 +218,13 @@ interface ProductJsonLdOptions {
  * point of sale). Availability is intentionally omitted — we don't verify
  * real-time inventory on the affiliate target.
  *
- * @returns A script descriptor for TanStack Start's `head.scripts`.
+ * Google requires a Product to carry at least one of `offers`, `review`, or
+ * `aggregateRating`; we have no reviews or ratings, so a card without any
+ * marketplace prices must emit no Product markup at all — a bare Product is
+ * flagged as invalid in Search Console.
+ *
+ * @returns A script descriptor for TanStack Start's `head.scripts`, or null
+ *   when there are no offers and the markup must be skipped.
  */
 export function productJsonLd(options: ProductJsonLdOptions) {
   const offers = (options.marketplaceOffers ?? []).map((entry) => {
@@ -233,9 +241,14 @@ export function productJsonLd(options: ProductJsonLdOptions) {
           priceCurrency: entry.currency,
           lowPrice: entry.priceLow,
           highPrice: entry.priceHigh,
+          ...(entry.offerCount === undefined ? {} : { offerCount: entry.offerCount }),
           seller: sellerNode,
         };
   });
+
+  if (offers.length === 0) {
+    return null;
+  }
 
   return {
     type: "application/ld+json",
@@ -247,7 +260,7 @@ export function productJsonLd(options: ProductJsonLdOptions) {
       image: options.image,
       url: `${options.siteUrl}${options.url}`,
       brand: { "@type": "Brand", name: "Riftbound" },
-      ...(offers.length > 0 ? { offers } : {}),
+      offers,
     }),
   };
 }

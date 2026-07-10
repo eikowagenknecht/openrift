@@ -60,22 +60,35 @@ interface HeadMeta {
   title?: string;
 }
 
+interface MarketplaceOffer {
+  seller: string;
+  currency: string;
+  priceLow: number;
+  priceHigh: number;
+  offerCount: number;
+}
+
 type HeadFn = (ctx: { loaderData: unknown; match: { search: { printingId?: string } } }) => {
   meta: HeadMeta[];
+  scripts?: { type: string; children: string }[];
 };
 
-function runHead(printingId?: string): HeadMeta[] {
+function runHeadFull(printingId?: string, marketplaceOffers: MarketplaceOffer[] = []) {
   const loaderData = {
     data: { card, printings: [en, ja], sets: [] } satisfies CardDetailResponse,
     languageOrder: ["EN", "DE", "JA"] as const,
     domainLabels: { fury: "Fury" },
     cardTypeLabels: { unit: "Unit" },
-    marketplaceOffers: [],
+    marketplaceOffers,
   };
-  // The head() signature is heavily generic; we only exercise the two fields it
+  // The head() signature is heavily generic; we only exercise the fields it
   // reads. Cast to a minimal shape rather than reconstruct the full match.
   const head = Route.options.head as unknown as HeadFn;
-  return head({ loaderData, match: { search: { printingId } } }).meta;
+  return head({ loaderData, match: { search: { printingId } } });
+}
+
+function runHead(printingId?: string): HeadMeta[] {
+  return runHeadFull(printingId).meta;
 }
 
 function ogImage(meta: HeadMeta[]): string | undefined {
@@ -105,5 +118,26 @@ describe("/cards/$cardSlug SSR head", () => {
 
   it("falls back to the EN-preferred printing when ?printingId= matches no printing", () => {
     expect(ogImage(runHead("does-not-exist"))).toContain("/media/cards/en/front-en-full.webp");
+  });
+
+  // Regression: cards with no marketplace prices used to emit a bare Product
+  // JSON-LD (no offers/review/aggregateRating), which Search Console flags as
+  // invalid. Without prices the Product script must be dropped entirely.
+  it("emits no Product JSON-LD when the card has no marketplace prices", () => {
+    const scripts = runHeadFull(undefined, []).scripts ?? [];
+    expect(scripts.some((script) => script.children.includes('"@type":"Product"'))).toBe(false);
+    // The breadcrumb script is unaffected.
+    expect(scripts.some((script) => script.children.includes('"@type":"BreadcrumbList"'))).toBe(
+      true,
+    );
+  });
+
+  it("emits Product JSON-LD with offerCount when marketplace prices exist", () => {
+    const scripts = runHeadFull(undefined, [
+      { seller: "Cardmarket", currency: "EUR", priceLow: 1.2, priceHigh: 3.4, offerCount: 2 },
+    ]).scripts;
+    const product = scripts?.find((script) => script.children.includes('"@type":"Product"'));
+    expect(product).toBeDefined();
+    expect(product?.children).toContain('"offerCount":2');
   });
 });

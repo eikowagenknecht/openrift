@@ -15,6 +15,7 @@ interface ProductOffer {
   price?: number;
   lowPrice?: number;
   highPrice?: number;
+  offerCount?: number;
   availability?: string;
   seller?: { "@type": string; name: string };
 }
@@ -28,7 +29,10 @@ interface ProductPayload {
   offers?: ProductOffer[];
 }
 
-function parseProduct(script: { type: string; children: string }): ProductPayload {
+function parseProduct(script: { type: string; children: string } | null): ProductPayload {
+  if (script === null) {
+    throw new Error("expected a Product script, got null");
+  }
   return JSON.parse(script.children) as ProductPayload;
 }
 
@@ -41,9 +45,9 @@ describe("productJsonLd", () => {
     url: "/cards/test-card",
   };
 
-  it("omits offers entirely when no marketplace prices are provided", () => {
-    const payload = parseProduct(productJsonLd({ ...baseOptions }));
-    expect(payload.offers).toBeUndefined();
+  it("returns null when no marketplace prices are provided — a Product without offers is invalid to Google", () => {
+    expect(productJsonLd({ ...baseOptions })).toBeNull();
+    expect(productJsonLd({ ...baseOptions, marketplaceOffers: [] })).toBeNull();
   });
 
   it("emits a single Offer per marketplace when low equals high", () => {
@@ -70,7 +74,7 @@ describe("productJsonLd", () => {
       productJsonLd({
         ...baseOptions,
         marketplaceOffers: [
-          { seller: "Cardmarket", currency: "EUR", priceLow: 1.2, priceHigh: 3.4 },
+          { seller: "Cardmarket", currency: "EUR", priceLow: 1.2, priceHigh: 3.4, offerCount: 3 },
         ],
       }),
     );
@@ -79,7 +83,23 @@ describe("productJsonLd", () => {
     expect(offer?.["@type"]).toBe("AggregateOffer");
     expect(offer?.lowPrice).toBe(1.2);
     expect(offer?.highPrice).toBe(3.4);
+    expect(offer?.offerCount).toBe(3);
     expect(offer?.price).toBeUndefined();
+  });
+
+  it("omits offerCount on single Offers and on AggregateOffers without a count", () => {
+    const payload = parseProduct(
+      productJsonLd({
+        ...baseOptions,
+        marketplaceOffers: [
+          { seller: "TCGplayer", currency: "USD", priceLow: 4.5, priceHigh: 4.5, offerCount: 1 },
+          { seller: "Cardmarket", currency: "EUR", priceLow: 1.2, priceHigh: 3.4 },
+        ],
+      }),
+    );
+
+    expect(payload.offers?.[0]?.offerCount).toBeUndefined();
+    expect(payload.offers?.[1]?.offerCount).toBeUndefined();
   });
 
   it("attributes each offer to its third-party seller and never to OpenRift", () => {
@@ -120,7 +140,14 @@ describe("productJsonLd", () => {
   });
 
   it("includes brand and absolute url", () => {
-    const payload = parseProduct(productJsonLd({ ...baseOptions }));
+    const payload = parseProduct(
+      productJsonLd({
+        ...baseOptions,
+        marketplaceOffers: [
+          { seller: "TCGplayer", currency: "USD", priceLow: 4.5, priceHigh: 4.5 },
+        ],
+      }),
+    );
     expect(payload.brand).toEqual({ "@type": "Brand", name: "Riftbound" });
     expect(payload.url).toBe("https://openrift.app/cards/test-card");
   });
