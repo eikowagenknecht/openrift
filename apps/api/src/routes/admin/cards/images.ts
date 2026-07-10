@@ -189,6 +189,10 @@ export const adminCardImagesRouter = {
     const rehostedUrl = imageRehostedUrl(image.imageFileId);
     const outputDir = join(CARD_MEDIA_DIR, image.imageFileId.slice(-2));
 
+    // A manual re-host is an explicit regenerate: overwrite any existing files.
+    // Since accepting a printing now auto-rehosts in the background, the files
+    // usually already exist by the time an admin clicks Rehost, and defaulting
+    // allowOverwrite to false would throw "Rehost files already exist".
     await processAndSave(
       context.io,
       buffer,
@@ -197,6 +201,7 @@ export const adminCardImagesRouter = {
       image.imageFileId,
       image.rotation,
       image.needsTrim,
+      true,
     );
 
     await printingImages.updateRehostedUrl(image.imageFileId, rehostedUrl);

@@ -441,11 +441,38 @@ describe("POST /printing-images/:imageId/rehost", () => {
       "00594247-a18a-4efd-8998-105449a4c1ab",
       0,
       false,
+      // allowOverwrite: a manual re-host is an explicit regenerate. The
+      // background auto-rehost already wrote these files on accept, so without
+      // this processAndSave would throw "Rehost files already exist".
+      true,
     );
     expect(mockPrintingImages.updateRehostedUrl).toHaveBeenCalledWith(
       "00594247-a18a-4efd-8998-105449a4c1ab",
       "/media/cards/ab/00594247-a18a-4efd-8998-105449a4c1ab",
     );
+  });
+
+  it("passes allowOverwrite=true so re-hosting already-rehosted images succeeds", async () => {
+    mockPrintingImages.getForRehost.mockResolvedValue({
+      originalUrl: "https://example.com/img.png",
+      imageFileId: "00594247-a18a-4efd-8998-105449a4c1ab",
+      rotation: 0,
+      needsTrim: false,
+    });
+    mockDownloadImage.mockResolvedValue({ buffer: Buffer.from("image"), ext: ".png" });
+    mockProcessAndSave.mockResolvedValue(undefined);
+    mockImageRehostedUrl.mockReturnValue("/media/cards/ab/00594247-a18a-4efd-8998-105449a4c1ab");
+    mockPrintingImages.updateRehostedUrl.mockResolvedValue(undefined);
+
+    const res = await app.request(`/api/admin/v1/cards/printing-images/${IMAGE_ID}/rehost`, {
+      method: "POST",
+    });
+    expect(res.status).toBe(200);
+    // The last positional arg to processAndSave is allowOverwrite; it must be
+    // true here or an admin re-hosting a freshly-accepted (already-rehosted)
+    // printing hits "Rehost files already exist".
+    const allowOverwrite = mockProcessAndSave.mock.calls[0]?.at(-1);
+    expect(allowOverwrite).toBe(true);
   });
 
   it("returns 404 when image not found", async () => {
