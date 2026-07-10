@@ -813,6 +813,7 @@ export const adminCardMutationsRouter = {
       cardId,
       printingFields,
       candidatePrintingIds,
+      context.io,
     );
 
     const card = await candidateMutations.getCardById(cardId);
@@ -867,6 +868,7 @@ export const adminCardMutationsRouter = {
       cardId,
       printingFields,
       [],
+      context.io,
     );
 
     const card = await candidateMutations.getCardById(cardId);

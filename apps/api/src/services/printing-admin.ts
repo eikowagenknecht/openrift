@@ -10,7 +10,7 @@ import type { markersRepo } from "../repositories/markers.js";
 import type { printingEventsRepo } from "../repositories/printing-events.js";
 import type { printingImagesRepo } from "../repositories/printing-images.js";
 import { assertFound } from "../utils/assertions.js";
-import { deleteRehostFiles } from "./image-rehost.js";
+import { deleteRehostFiles, rehostSingleImage } from "./image-rehost.js";
 import { recordNewPrintingEvent } from "./record-printing-event.js";
 
 type CandidateMutationsRepo = ReturnType<typeof candidateMutationsRepo>;
@@ -203,6 +203,7 @@ export async function acceptPrinting(
   cardId: string,
   printingFields: AcceptPrintingFields,
   candidatePrintingIds: string[],
+  io: Io,
 ): Promise<string> {
   if (!printingFields.setId) {
     throw new AppError(400, ERROR_CODES.BAD_REQUEST, "printingFields.setId is required");
@@ -258,6 +259,7 @@ export async function acceptPrinting(
   }
 
   let insertedId = "";
+  let insertedImageId: string | null = null;
 
   await transact(async (trxRepos) => {
     if (printingFields.setId) {
@@ -330,7 +332,10 @@ export async function acceptPrinting(
     await trxRepos.candidateMutations.recomputeKeywordsForPrintingCard(insertedId);
 
     if (printingFields.imageUrl) {
-      await trxRepos.printingImages.insertImage(insertedId, printingFields.imageUrl);
+      insertedImageId = await trxRepos.printingImages.insertImage(
+        insertedId,
+        printingFields.imageUrl,
+      );
     }
 
     if (candidatePrintingIds.length > 0) {
@@ -343,6 +348,21 @@ export async function acceptPrinting(
 
   if (repos.printingEvents) {
     await recordNewPrintingEvent(repos.printingEvents, insertedId);
+  }
+
+  // Rehost the image we just inserted so it is self-hosted right away instead
+  // of falling back to its external URL until some later rehost run picks it up.
+  // Targets the exact inserted image (not a blind batch sweep) and is fire-and-
+  // forget to avoid blocking the response on a slow external download. Every
+  // accept path funnels through here, so this is the single place that rehosts
+  // on accept, including the card-review (partial-admin) per-printing accept,
+  // which previously left its image un-rehosted.
+  if (insertedImageId) {
+    // oxlint-disable-next-line promise/prefer-await-to-then -- intentionally fire-and-forget to avoid blocking the response
+    rehostSingleImage(io, repos.printingImages, insertedImageId).catch(() => {
+      // Non-fatal; an un-rehosted image falls back to its external URL and is
+      // picked up by the next rehost batch.
+    });
   }
 
   return insertedId;

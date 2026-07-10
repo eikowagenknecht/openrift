@@ -9,7 +9,6 @@ import type { distributionChannelsRepo } from "../repositories/distribution-chan
 import type { markersRepo } from "../repositories/markers.js";
 import type { printingEventsRepo } from "../repositories/printing-events.js";
 import type { printingImagesRepo } from "../repositories/printing-images.js";
-import { rehostImages } from "./image-rehost.js";
 import { acceptPrinting } from "./printing-admin.js";
 
 type CandidateCardsRepo = ReturnType<typeof candidateCardsRepo>;
@@ -92,7 +91,6 @@ export async function acceptFavoritePrintingsForCard(
 
   // 6. Process each group
   let printingsCreated = 0;
-  let imagesInserted = 0;
   const skipped: SkippedGroup[] = [];
 
   for (const [, group] of groupMap) {
@@ -158,11 +156,9 @@ export async function acceptFavoritePrintingsForCard(
           printedName: first.printedName,
         },
         group.map((cp) => cp.id),
+        io,
       );
       printingsCreated++;
-      if (first.imageUrl) {
-        imagesInserted++;
-      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       skipped.push({ shortCode: label, reason: message });
@@ -174,15 +170,7 @@ export async function acceptFavoritePrintingsForCard(
     await mut.checkCandidateCard(cc.id);
   }
 
-  // 8. Rehost newly inserted images (fire-and-forget to avoid blocking the response
-  //    with slow external image downloads)
-  if (imagesInserted > 0) {
-    // oxlint-disable-next-line promise/prefer-await-to-then -- intentionally fire-and-forget to avoid blocking the response
-    rehostImages(io, repos.printingImages, imagesInserted + 5).catch(() => {
-      // Non-fatal; unrehosted images fall back to the external URL and will be
-      // picked up by the next rehost batch.
-    });
-  }
-
+  // Each acceptPrinting above fire-and-forget rehosts the image it inserted, so
+  // there is no separate batch rehost step here.
   return { printingsCreated, skipped };
 }

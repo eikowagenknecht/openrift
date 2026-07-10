@@ -1092,6 +1092,7 @@ describe("POST /cards/:cardId/accept-printing", () => {
       CARD_ID2,
       expect.objectContaining({ shortCode: "FD" }),
       ["cp-1", "cp-2"],
+      mockIo,
     );
   });
 });
@@ -1188,6 +1189,7 @@ describe("POST /cards/:cardId/printings", () => {
       CARD_ID2,
       expect.objectContaining({ shortCode: "FD", setId: "origin" }),
       [],
+      mockIo,
     );
   });
 });

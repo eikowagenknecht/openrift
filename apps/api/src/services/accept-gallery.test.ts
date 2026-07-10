@@ -10,15 +10,13 @@ import type { Io } from "../io.js";
 import { acceptFavoriteNewCard } from "./accept-gallery.js";
 
 // ── Mock the imported services so they don't pull in real deps ──────────
-vi.mock("./image-rehost.js", () => ({
-  rehostImages: vi.fn(async () => ({ rehosted: 0, total: 0, skipped: 0, failed: 0, errors: [] })),
-}));
-
+// acceptPrinting owns the per-image rehost now, so this suite mocks it and
+// verifies io is threaded through rather than observing rehost directly (that
+// behavior is covered in printing-admin.test.ts).
 vi.mock("./printing-admin.js", () => ({
   acceptPrinting: vi.fn(async () => "printing-slug"),
 }));
 
-import { rehostImages } from "./image-rehost.js";
 import { acceptPrinting } from "./printing-admin.js";
 
 // ── Helpers ─────────────────────────────────────────────────────────────
@@ -108,13 +106,6 @@ describe("acceptFavoriteNewCard", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(acceptPrinting).mockResolvedValue("printing-slug");
-    vi.mocked(rehostImages).mockResolvedValue({
-      rehosted: 0,
-      total: 0,
-      skipped: 0,
-      failed: 0,
-      errors: [],
-    });
   });
 
   it("throws when no favorite candidates exist", async () => {
@@ -280,43 +271,15 @@ describe("acceptFavoriteNewCard", () => {
     expect(candidateMutations.checkCandidateCard).toHaveBeenCalledWith("cand-2");
   });
 
-  it("fires rehost without awaiting when printings with imageUrl are created", async () => {
+  it("passes io through to acceptPrinting so it can rehost the inserted image", async () => {
     const { repos } = createMockRepos();
+    const io = {} as Io;
     const transact = mockTransact(repos);
 
-    const result = await acceptFavoriteNewCard(
-      transact,
-      {} as Io,
-      repos,
-      "flame-striker",
-      FAVORITE_PROVIDERS,
-    );
+    await acceptFavoriteNewCard(transact, io, repos, "flame-striker", FAVORITE_PROVIDERS);
 
-    expect(rehostImages).toHaveBeenCalled();
-    // imagesRehosted is no longer in the return value (fire-and-forget)
-    expect(result).not.toHaveProperty("imagesRehosted");
-  });
-
-  it("does not rehost when no images were inserted", async () => {
-    const { repos } = createMockRepos({
-      candidatePrintings: [makeCandidatePrinting({ imageUrl: null })],
-    });
-    const transact = mockTransact(repos);
-
-    await acceptFavoriteNewCard(transact, {} as Io, repos, "flame-striker", FAVORITE_PROVIDERS);
-
-    expect(rehostImages).not.toHaveBeenCalled();
-  });
-
-  it("does not reject when rehost fails (fire-and-forget)", async () => {
-    const { repos } = createMockRepos();
-    vi.mocked(rehostImages).mockRejectedValue(new Error("rehost failed"));
-    const transact = mockTransact(repos);
-
-    // Should not throw — rehost is fire-and-forget
-    await expect(
-      acceptFavoriteNewCard(transact, {} as Io, repos, "flame-striker", FAVORITE_PROVIDERS),
-    ).resolves.toBeDefined();
+    // io is the 6th arg to acceptPrinting, which owns the per-image rehost.
+    expect(vi.mocked(acceptPrinting).mock.calls[0][5]).toBe(io);
   });
 
   it("groups candidate printings by shortCode + finish + markerSlugs", async () => {

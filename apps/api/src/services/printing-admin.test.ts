@@ -11,9 +11,10 @@ import { acceptPrinting, deletePrinting, updatePrintingMarkers } from "./printin
 
 vi.mock("./image-rehost.js", () => ({
   deleteRehostFiles: vi.fn(async () => {}),
+  rehostSingleImage: vi.fn(async () => {}),
 }));
 
-import { deleteRehostFiles } from "./image-rehost.js";
+import { deleteRehostFiles, rehostSingleImage } from "./image-rehost.js";
 
 function mockTransact(trxRepos: unknown): Transact {
   return (fn) => fn(trxRepos as any) as any;
@@ -176,6 +177,8 @@ describe("deletePrinting", () => {
 // ── acceptPrinting ──────────────────────────────────────────────────────
 
 describe("acceptPrinting", () => {
+  const io = {} as Io;
+
   beforeEach(() => {
     vi.resetAllMocks();
   });
@@ -188,7 +191,7 @@ describe("acceptPrinting", () => {
         upsertPrinting: vi.fn(async () => "p-uuid"),
         linkAndCheckCandidatePrintings: vi.fn(async () => {}),
       },
-      printingImages: { insertImage: vi.fn(async () => {}) },
+      printingImages: { insertImage: vi.fn(async () => "pi-1") },
       markers: {
         listBySlugs: vi.fn(async () => []),
         setForPrinting: vi.fn(async () => {}),
@@ -239,6 +242,7 @@ describe("acceptPrinting", () => {
         "card-uuid",
         { shortCode: "OGN-001", artist: "A", publicCode: "001" },
         ["cp-1"],
+        io,
       ),
     ).rejects.toThrow("printingFields.setId is required");
   });
@@ -265,6 +269,7 @@ describe("acceptPrinting", () => {
           markerSlugs: ["bogus"],
         },
         ["cp-1"],
+        io,
       ),
     ).rejects.toThrow("Unknown marker slug(s): bogus");
   });
@@ -285,6 +290,7 @@ describe("acceptPrinting", () => {
         "card-uuid",
         { shortCode: "OGN-001", setId: "ogn", artist: "A", publicCode: "001" },
         ["cp-1"],
+        io,
       ),
     ).rejects.toThrow("already belongs to a different card");
   });
@@ -319,6 +325,7 @@ describe("acceptPrinting", () => {
         distributionChannelSlugs: ["worlds-2025"],
       },
       ["cp-1"],
+      io,
     );
 
     expect(result).toBe("p-uuid");
@@ -397,6 +404,7 @@ describe("acceptPrinting", () => {
         publicCode: "001",
       },
       [],
+      io,
     );
 
     expect(result).toBe("p-uuid");
@@ -421,6 +429,7 @@ describe("acceptPrinting", () => {
           publicCode: "001",
         },
         ["cp-1"],
+        io,
       ),
     ).rejects.toThrow("Invalid rarity");
   });
@@ -447,8 +456,34 @@ describe("acceptPrinting", () => {
         publicCode: "001",
       },
       ["cp-1"],
+      io,
     );
 
     expect(repos.printingImages.insertImage).not.toHaveBeenCalled();
+    expect(rehostSingleImage).not.toHaveBeenCalled();
+  });
+
+  it("rehosts the image it just inserted after accepting", async () => {
+    const repos = baseRepos();
+    const transact = mockTransact(withTrxExtras(repos));
+
+    await acceptPrinting(
+      transact,
+      repos as any,
+      "card-slug",
+      {
+        shortCode: "OGN-001",
+        setId: "ogn",
+        artist: "A",
+        publicCode: "001",
+        imageUrl: "https://example.com/img.png",
+      },
+      ["cp-1"],
+      io,
+    );
+
+    // Targets the exact inserted image id returned by insertImage, not a blind
+    // batch sweep — this is the single accept path that partial admins reach.
+    expect(rehostSingleImage).toHaveBeenCalledWith(io, repos.printingImages, "pi-1");
   });
 });
