@@ -222,10 +222,10 @@ test.describe("card detail route — essentials", () => {
 });
 
 test.describe("card detail route — head / SEO / JSON-LD", () => {
-  test("title follows the '<name> — Riftbound Card' template", async ({ page }) => {
+  test("title follows the '<name> - Riftbound Card' template", async ({ page }) => {
     await page.goto(`/cards/${SEED_CARD_SLUG}`);
 
-    await expect(page).toHaveTitle(`${SEED_CARD_NAME} — Riftbound Card — OpenRift`);
+    await expect(page).toHaveTitle(`${SEED_CARD_NAME} - Riftbound Card - OpenRift`);
   });
 
   test("meta description matches buildCardMetaDescription output", async ({ page }) => {

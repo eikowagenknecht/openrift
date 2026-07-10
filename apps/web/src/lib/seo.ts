@@ -67,7 +67,10 @@ export function seoHead(options: SeoOptions) {
   const { siteUrl, title, path, ogType = "website", noIndex, unlisted } = options;
   const ogImage = options.ogImage ?? `${siteUrl}/og-image.png`;
   const description = options.description ?? DEFAULT_DESCRIPTION;
-  const siteSuffix = ` — ${SITE_NAME}`;
+  // Plain hyphen, not an em dash: Google rewrites the brand suffix to its own
+  // "- Site" separator anyway, so serving the same form keeps titles verbatim
+  // in search results instead of showing mixed dashes.
+  const siteSuffix = ` - ${SITE_NAME}`;
   const alreadyBranded =
     title === SITE_NAME || title.startsWith(`${SITE_NAME} `) || title.endsWith(siteSuffix);
   const fullTitle = alreadyBranded ? title : `${title}${siteSuffix}`;

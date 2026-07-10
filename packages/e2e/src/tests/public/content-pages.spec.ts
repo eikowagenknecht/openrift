@@ -35,7 +35,7 @@ test.describe("/legal-notice", () => {
 
   test("sets document title and description meta", async ({ page }) => {
     await page.goto("/legal-notice");
-    await expect(page).toHaveTitle("Legal Notice — OpenRift");
+    await expect(page).toHaveTitle("Legal Notice - OpenRift");
     const description = page.locator('meta[name="description"]');
     await expect(description).toHaveAttribute("content", "Legal notice and imprint for OpenRift.");
   });
@@ -55,7 +55,7 @@ test.describe("/privacy-policy", () => {
 
   test("sets document title and description meta", async ({ page }) => {
     await page.goto("/privacy-policy");
-    await expect(page).toHaveTitle("Privacy Policy — OpenRift");
+    await expect(page).toHaveTitle("Privacy Policy - OpenRift");
     const description = page.locator('meta[name="description"]');
     await expect(description).toHaveAttribute(
       "content",
@@ -84,7 +84,7 @@ test.describe("/support", () => {
 
   test("sets document title and description meta", async ({ page }) => {
     await page.goto("/support");
-    await expect(page).toHaveTitle("Support — OpenRift");
+    await expect(page).toHaveTitle("Support - OpenRift");
     const description = page.locator('meta[name="description"]');
     await expect(description).toHaveAttribute(
       "content",
@@ -127,7 +127,7 @@ test.describe("/rules", () => {
 
   test("sets document title and description meta", async ({ page }) => {
     await page.goto("/rules");
-    await expect(page).toHaveTitle("Core Rules — OpenRift");
+    await expect(page).toHaveTitle("Core Rules - OpenRift");
     const description = page.locator('meta[name="description"]');
     await expect(description).toHaveAttribute(
       "content",
@@ -144,7 +144,7 @@ test.describe("/roadmap", () => {
 
   test("sets document title and description meta", async ({ page }) => {
     await page.goto("/roadmap");
-    await expect(page).toHaveTitle("Roadmap — OpenRift");
+    await expect(page).toHaveTitle("Roadmap - OpenRift");
     const description = page.locator('meta[name="description"]');
     await expect(description).toHaveAttribute(
       "content",
@@ -179,7 +179,7 @@ test.describe("/changelog", () => {
 
   test("sets document title and description meta", async ({ page }) => {
     await page.goto("/changelog");
-    await expect(page).toHaveTitle("Changelog — OpenRift");
+    await expect(page).toHaveTitle("Changelog - OpenRift");
     const description = page.locator('meta[name="description"]');
     await expect(description).toHaveAttribute(
       "content",

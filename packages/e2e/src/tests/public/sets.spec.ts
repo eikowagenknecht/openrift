@@ -145,7 +145,7 @@ test.describe("sets", () => {
 
       await page.goto(`/sets/${knownSet.slug}`);
 
-      await expect(page).toHaveTitle(`${knownSet.name} — Riftbound Card Set — OpenRift`);
+      await expect(page).toHaveTitle(`${knownSet.name} - Riftbound Card Set - OpenRift`);
       await expect(page.locator('meta[name="description"]')).toHaveAttribute(
         "content",
         new RegExp(`${uniqueCardCount} unique cards and ${printingCount} printings`, "u"),

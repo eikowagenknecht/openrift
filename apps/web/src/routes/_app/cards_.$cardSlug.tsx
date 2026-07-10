@@ -89,7 +89,7 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
     const cardPath = `/cards/${data.card.slug}`;
     const head = seoHead({
       siteUrl,
-      title: `${data.card.name} — Riftbound Card`,
+      title: `${data.card.name} - Riftbound Card`,
       description,
       path: cardPath,
       ogImage: imageUrl,

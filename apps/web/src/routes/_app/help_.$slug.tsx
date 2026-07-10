@@ -16,7 +16,7 @@ export const Route = createFileRoute("/_app/help_/$slug")({
     const article = helpArticles.get(params.slug);
     const head = seoHead({
       siteUrl,
-      title: article ? `${article.title} — Help` : `${slugToTitle(params.slug)} — Help`,
+      title: article ? `${article.title} - Help` : `${slugToTitle(params.slug)} - Help`,
       description: article?.description ?? `Help article: ${slugToTitle(params.slug)}.`,
       path: `/help/${params.slug}`,
     });

@@ -9,7 +9,7 @@ export const Route = createFileRoute("/")({
     return {
       ...seoHead({
         siteUrl,
-        title: "OpenRift — Riftbound Card Collection Browser",
+        title: "OpenRift - Riftbound Card Collection Browser",
         description:
           "Browse, collect, and build decks for the Riftbound trading card game. Search cards, track your collection, compare prices, and share decks.",
         path: "/",

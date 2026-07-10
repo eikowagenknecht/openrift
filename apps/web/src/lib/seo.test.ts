@@ -170,7 +170,7 @@ describe("seoHead", () => {
       href: `${siteUrl}/api/v1/oembed?url=${encodeURIComponent(
         `${siteUrl}/decks/share/tok-deck`,
       )}&format=json`,
-      title: "Best of Diana — OpenRift",
+      title: "Best of Diana - OpenRift",
     });
   });
 

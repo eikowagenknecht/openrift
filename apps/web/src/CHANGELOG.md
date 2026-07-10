@@ -4,6 +4,7 @@
 
 ### Other
 
+- fix(App): **Consistent page-title dashes** — Google rewrote our title suffix with its own dash style, so search results mixed two kinds of dashes; titles now use the plain hyphen everywhere.
 - fix(App): **Content flush under the title bar** — cards and content no longer sit tight against the sticky page header, so their top edge stops fading into it.
 
 ## 2026-07-10

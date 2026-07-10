@@ -107,7 +107,7 @@ export const Route = createRootRouteWithContext<{
     const isPreview = getIsPreview();
     return {
       meta: [
-        { title: "OpenRift — Riftbound Card Collection Browser" },
+        { title: "OpenRift - Riftbound Card Collection Browser" },
         { charSet: "utf-8" },
         // viewport-fit=cover lets the app draw into the iOS safe areas (behind
         // the Dynamic Island / notch and rounded corners) so the header's blur

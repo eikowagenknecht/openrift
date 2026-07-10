@@ -19,7 +19,7 @@ export const Route = createFileRoute("/_app/sets_/$setSlug")({
     const description = `${data.set.name} contains ${cardCount} unique cards and ${data.printings.length} printings. Browse the complete set on OpenRift.`;
     const head = seoHead({
       siteUrl,
-      title: `${data.set.name} — Riftbound Card Set`,
+      title: `${data.set.name} - Riftbound Card Set`,
       description,
       path: setPath,
     });
@@ -45,7 +45,7 @@ export const Route = createFileRoute("/_app/sets_/$setSlug")({
       scripts: [
         collectionPageJsonLd({
           siteUrl,
-          name: `${data.set.name} — Riftbound Card Set`,
+          name: `${data.set.name} - Riftbound Card Set`,
           description,
           path: setPath,
           items,

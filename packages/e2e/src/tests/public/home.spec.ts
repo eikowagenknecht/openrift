@@ -134,7 +134,7 @@ test.describe("landing page", () => {
   test("sets document title, description, and WebSite JSON-LD", async ({ page }) => {
     await page.goto("/");
 
-    await expect(page).toHaveTitle("OpenRift — Riftbound Card Collection Browser");
+    await expect(page).toHaveTitle("OpenRift - Riftbound Card Collection Browser");
 
     const description = page.locator('meta[name="description"]');
     await expect(description).toHaveAttribute("content", /Riftbound/iu);

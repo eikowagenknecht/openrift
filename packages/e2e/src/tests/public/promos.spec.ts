@@ -8,7 +8,7 @@ import { API_BASE_URL, WEB_BASE_URL } from "../../helpers/constants.js";
 // grouped channel sections, a grid/table view toggle, and a click-to-open
 // detail pane. There is no per-language <h2> and clicking a card opens the
 // selection pane rather than navigating to /cards/<slug>.
-const PROMOS_TITLE = "Promo Cards — OpenRift";
+const PROMOS_TITLE = "Promo Cards - OpenRift";
 const PROMOS_DESCRIPTION =
   "Browse all promotional card printings for the Riftbound trading card game, grouped by promo type.";
 

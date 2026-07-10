@@ -79,7 +79,7 @@ test.describe("help", () => {
       await page.goto("/help");
 
       await expect(page.getByRole("heading", { level: 1, name: "Help Center" })).toBeVisible();
-      await expect(page).toHaveTitle("Help — OpenRift");
+      await expect(page).toHaveTitle("Help - OpenRift");
       await expect(page.locator('meta[name="description"]')).toHaveAttribute(
         "content",
         INDEX_DESCRIPTION,
@@ -147,7 +147,7 @@ test.describe("help", () => {
         await page.goto(`/help/${article.slug}`);
 
         await expect(page.getByRole("heading", { level: 1, name: article.title })).toBeVisible();
-        await expect(page).toHaveTitle(`${article.title} — Help — OpenRift`);
+        await expect(page).toHaveTitle(`${article.title} - Help - OpenRift`);
         await expect(page.locator('meta[name="description"]')).toHaveAttribute(
           "content",
           article.description,

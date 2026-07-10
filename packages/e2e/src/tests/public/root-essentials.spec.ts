@@ -83,7 +83,7 @@ test.describe("root essentials", () => {
   test.describe("default document title", () => {
     test("root sets the default title", async ({ page }) => {
       await page.goto("/");
-      await expect(page).toHaveTitle("OpenRift — Riftbound Card Collection Browser");
+      await expect(page).toHaveTitle("OpenRift - Riftbound Card Collection Browser");
     });
   });
 
