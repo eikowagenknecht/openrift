@@ -9,6 +9,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { DialogForm } from "@/components/ui/dialog-form";
 import { Input } from "@/components/ui/input";
 import { disposeConfirmState } from "@/lib/dispose-confirm";
 
@@ -68,78 +69,80 @@ export function DisposeDialog({
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
-        <AlertDialogTitle>Remove cards from collection</AlertDialogTitle>
-        <AlertDialogDescription>
-          This permanently removes {count} {cardNoun} from your collection. It can&apos;t be undone,
-          but the removal is recorded in your activity history.
-        </AlertDialogDescription>
+        <DialogForm onSubmit={onConfirm}>
+          <AlertDialogTitle>Remove cards from collection</AlertDialogTitle>
+          <AlertDialogDescription>
+            This permanently removes {count} {cardNoun} from your collection. It can&apos;t be
+            undone, but the removal is recorded in your activity history.
+          </AlertDialogDescription>
 
-        {showListWarning && (
-          <div className="border-destructive/40 bg-destructive/10 text-destructive flex gap-3 rounded-lg border p-3 text-sm">
-            <TriangleAlertIcon className="mt-0.5 size-5 shrink-0" />
-            <div className="space-y-1.5">
-              <p className="font-medium">
-                {copiesOnAnyList} of these {onListNoun} {copiesOnAnyList === 1 ? "is" : "are"} on
-                your lists
-              </p>
-              <p>
-                Removing {count === 1 ? "it" : "them"} here deletes the {cardNoun} for good, so{" "}
-                {copiesOnAnyList === 1 ? "it" : "they"} will also drop off:
-              </p>
-              <ul className="list-disc space-y-0.5 pl-4">
-                {memberships?.lists.map((list) => (
-                  <li key={list.id}>
-                    <span className="font-medium">{list.name}</span> ({list.copyCount})
-                  </li>
-                ))}
-              </ul>
+          {showListWarning && (
+            <div className="border-destructive/40 bg-destructive/10 text-destructive flex gap-3 rounded-lg border p-3 text-sm">
+              <TriangleAlertIcon className="mt-0.5 size-5 shrink-0" />
+              <div className="space-y-1.5">
+                <p className="font-medium">
+                  {copiesOnAnyList} of these {onListNoun} {copiesOnAnyList === 1 ? "is" : "are"} on
+                  your lists
+                </p>
+                <p>
+                  Removing {count === 1 ? "it" : "them"} here deletes the {cardNoun} for good, so{" "}
+                  {copiesOnAnyList === 1 ? "it" : "they"} will also drop off:
+                </p>
+                <ul className="list-disc space-y-0.5 pl-4">
+                  {memberships?.lists.map((list) => (
+                    <li key={list.id}>
+                      <span className="font-medium">{list.name}</span> ({list.copyCount})
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
+          )}
+
+          {annotatedCount > 0 && (
+            <div className="border-destructive/40 bg-destructive/10 text-destructive flex gap-3 rounded-lg border p-3 text-sm">
+              <TriangleAlertIcon className="mt-0.5 size-5 shrink-0" />
+              <p>
+                <span className="font-medium">
+                  {annotatedCount} of these {annotatedCount === 1 ? "card has" : "cards have"}{" "}
+                  details recorded
+                </span>{" "}
+                (condition, grading, notes, or photo links). Removing{" "}
+                {annotatedCount === 1 ? "it" : "them"} permanently deletes those details too.
+              </p>
+            </div>
+          )}
+
+          {membershipsLoading && (
+            <p className="text-muted-foreground text-sm">Checking your lists…</p>
+          )}
+
+          {needsTypeConfirm && (
+            <div className="space-y-1.5">
+              <label htmlFor="dispose-confirm" className="text-sm font-medium">
+                Type <span className="font-mono">{count}</span> to confirm
+              </label>
+              <Input
+                id="dispose-confirm"
+                value={confirmText}
+                onChange={(event) => setConfirmText(event.target.value)}
+                inputMode="numeric"
+                autoComplete="off"
+                placeholder={String(count)}
+                disabled={isPending}
+              />
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={isPending}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="destructive" disabled={confirmDisabled}>
+              {isPending ? "Removing…" : `Remove ${count} ${cardNoun}`}
+            </Button>
           </div>
-        )}
-
-        {annotatedCount > 0 && (
-          <div className="border-destructive/40 bg-destructive/10 text-destructive flex gap-3 rounded-lg border p-3 text-sm">
-            <TriangleAlertIcon className="mt-0.5 size-5 shrink-0" />
-            <p>
-              <span className="font-medium">
-                {annotatedCount} of these {annotatedCount === 1 ? "card has" : "cards have"} details
-                recorded
-              </span>{" "}
-              (condition, grading, notes, or photo links). Removing{" "}
-              {annotatedCount === 1 ? "it" : "them"} permanently deletes those details too.
-            </p>
-          </div>
-        )}
-
-        {membershipsLoading && (
-          <p className="text-muted-foreground text-sm">Checking your lists…</p>
-        )}
-
-        {needsTypeConfirm && (
-          <div className="space-y-1.5">
-            <label htmlFor="dispose-confirm" className="text-sm font-medium">
-              Type <span className="font-mono">{count}</span> to confirm
-            </label>
-            <Input
-              id="dispose-confirm"
-              value={confirmText}
-              onChange={(event) => setConfirmText(event.target.value)}
-              inputMode="numeric"
-              autoComplete="off"
-              placeholder={String(count)}
-              disabled={isPending}
-            />
-          </div>
-        )}
-
-        <div className="flex justify-end gap-2 pt-2">
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={isPending}>
-            Cancel
-          </Button>
-          <Button variant="destructive" onClick={onConfirm} disabled={confirmDisabled}>
-            {isPending ? "Removing…" : `Remove ${count} ${cardNoun}`}
-          </Button>
-        </div>
+        </DialogForm>
       </AlertDialogContent>
     </AlertDialog>
   );

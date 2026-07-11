@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DialogForm } from "@/components/ui/dialog-form";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -86,28 +87,28 @@ export function PublicSharingSection() {
                   }
                 />
                 <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Reset your share link?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      The current link will stop working immediately. Anyone you previously shared
-                      it with will need the new link to view your lists.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <Button
-                      variant="destructive"
-                      disabled={rotateShare.isPending}
-                      onClick={() => {
-                        rotateShare.mutate(undefined, {
-                          onSuccess: () => setResetOpen(false),
-                        });
-                      }}
-                    >
-                      <RefreshCwIcon />
-                      Reset link
-                    </Button>
-                  </AlertDialogFooter>
+                  <DialogForm
+                    onSubmit={() => {
+                      rotateShare.mutate(undefined, {
+                        onSuccess: () => setResetOpen(false),
+                      });
+                    }}
+                  >
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Reset your share link?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        The current link will stop working immediately. Anyone you previously shared
+                        it with will need the new link to view your lists.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <Button type="submit" variant="destructive" disabled={rotateShare.isPending}>
+                        <RefreshCwIcon />
+                        Reset link
+                      </Button>
+                    </AlertDialogFooter>
+                  </DialogForm>
                 </AlertDialogContent>
               </AlertDialog>
               <Button

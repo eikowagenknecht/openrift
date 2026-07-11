@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DialogForm } from "@/components/ui/dialog-form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PickerList, PickerRow } from "@/components/ui/picker-list";
@@ -249,7 +250,7 @@ function CopyEditor({
   };
 
   return (
-    <>
+    <DialogForm onSubmit={handleSave}>
       <DialogHeader>
         <DialogTitle className="flex items-center gap-2">
           {showBack && (
@@ -435,10 +436,10 @@ function CopyEditor({
         >
           Cancel
         </Button>
-        <Button onClick={handleSave} disabled={!canSave || updateCopies.isPending}>
+        <Button type="submit" disabled={!canSave || updateCopies.isPending}>
           {updateCopies.isPending ? "Saving…" : "Save"}
         </Button>
       </DialogFooter>
-    </>
+    </DialogForm>
   );
 }

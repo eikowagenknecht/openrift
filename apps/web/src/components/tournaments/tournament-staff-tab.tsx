@@ -17,6 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DialogForm } from "@/components/ui/dialog-form";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -286,86 +287,87 @@ function AddStaffDialog({
       }}
     >
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Add staff</DialogTitle>
-          <DialogDescription>
-            Pick someone from the linked group or the roster, then choose a role. To add someone who
-            isn&apos;t listed, share a staff invite link instead.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1.5">
-            <Label>Role</Label>
-            <Select
-              items={ROLE_ITEMS}
-              value={role}
-              onValueChange={(value) => value && setRole(value as TournamentStaffRole)}
-            >
-              <SelectTrigger aria-label="Role">
-                <SelectValue placeholder="Choose a role" />
-              </SelectTrigger>
-              <SelectContent>
-                {ROLE_ITEMS.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-muted-foreground text-sm">
-              Organizers manage the event. Judges run deck check.
-            </p>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>Person</Label>
-            {isLoading ? (
-              <p className="text-muted-foreground text-sm">Loading…</p>
-            ) : items.length === 0 ? (
-              <p className="text-muted-foreground text-sm">
-                No one to add yet. Group members and account-linked participants show up here, or
-                share a staff invite link below.
-              </p>
-            ) : (
+        <DialogForm
+          onSubmit={async () => {
+            if (!userId) {
+              return;
+            }
+            try {
+              await addStaff.mutateAsync({ id: tournamentId, userId, role });
+              onOpenChange(false);
+            } catch (error) {
+              toast.error(error instanceof Error ? error.message : "Something went wrong");
+            }
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>Add staff</DialogTitle>
+            <DialogDescription>
+              Pick someone from the linked group or the roster, then choose a role. To add someone
+              who isn&apos;t listed, share a staff invite link instead.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label>Role</Label>
               <Select
-                items={items}
-                value={userId}
-                onValueChange={(value) => value && setUserId(value)}
+                items={ROLE_ITEMS}
+                value={role}
+                onValueChange={(value) => value && setRole(value as TournamentStaffRole)}
               >
-                <SelectTrigger aria-label="Person">
-                  <SelectValue placeholder="Choose a person" />
+                <SelectTrigger aria-label="Role">
+                  <SelectValue placeholder="Choose a role" />
                 </SelectTrigger>
                 <SelectContent>
-                  {items.map((item) => (
+                  {ROLE_ITEMS.map((item) => (
                     <SelectItem key={item.value} value={item.value}>
                       {item.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            )}
+              <p className="text-muted-foreground text-sm">
+                Organizers manage the event. Judges run deck check.
+              </p>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Person</Label>
+              {isLoading ? (
+                <p className="text-muted-foreground text-sm">Loading…</p>
+              ) : items.length === 0 ? (
+                <p className="text-muted-foreground text-sm">
+                  No one to add yet. Group members and account-linked participants show up here, or
+                  share a staff invite link below.
+                </p>
+              ) : (
+                <Select
+                  items={items}
+                  value={userId}
+                  onValueChange={(value) => value && setUserId(value)}
+                >
+                  <SelectTrigger aria-label="Person">
+                    <SelectValue placeholder="Choose a person" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {items.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
           </div>
-        </div>
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button
-            disabled={!userId || addStaff.isPending}
-            onClick={async () => {
-              if (!userId) {
-                return;
-              }
-              try {
-                await addStaff.mutateAsync({ id: tournamentId, userId, role });
-                onOpenChange(false);
-              } catch (error) {
-                toast.error(error instanceof Error ? error.message : "Something went wrong");
-              }
-            }}
-          >
-            Add
-          </Button>
-        </DialogFooter>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={!userId || addStaff.isPending}>
+              Add
+            </Button>
+          </DialogFooter>
+        </DialogForm>
       </DialogContent>
     </Dialog>
   );

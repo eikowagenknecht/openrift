@@ -9,6 +9,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { DialogForm } from "@/components/ui/dialog-form";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { disposeConfirmState } from "@/lib/dispose-confirm";
@@ -92,118 +93,120 @@ export function TakeOffTradelistDialog({
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
-        <AlertDialogTitle>
-          Take {count} {cardNoun} off your tradelist
-        </AlertDialogTitle>
-        <AlertDialogDescription>What happened to {pronoun}?</AlertDialogDescription>
+        <DialogForm onSubmit={() => (sold ? onSold() : onKeep())}>
+          <AlertDialogTitle>
+            Take {count} {cardNoun} off your tradelist
+          </AlertDialogTitle>
+          <AlertDialogDescription>What happened to {pronoun}?</AlertDialogDescription>
 
-        <RadioGroup value={outcome} onValueChange={(value) => setOutcome(value as Outcome)}>
-          <label
-            htmlFor="take-off-keep"
-            className="hover:bg-muted/50 flex cursor-pointer items-start gap-3 rounded-lg border p-3"
-          >
-            <RadioGroupItem id="take-off-keep" value="keep" className="mt-0.5" />
-            <span className="space-y-0.5">
-              <span className="block font-medium">I&apos;m keeping {pronoun}</span>
-              <span className="text-muted-foreground block text-sm">
-                Just takes {pronoun} off this tradelist. {count === 1 ? "It stays" : "They stay"} in
-                your collection.
-              </span>
-            </span>
-          </label>
-          <label
-            htmlFor="take-off-sold"
-            className={
-              soldBlocked
-                ? "flex items-start gap-3 rounded-lg border p-3 opacity-60"
-                : "hover:bg-muted/50 flex cursor-pointer items-start gap-3 rounded-lg border p-3"
-            }
-          >
-            <RadioGroupItem
-              id="take-off-sold"
-              value="sold"
-              disabled={soldBlocked}
-              className="mt-0.5"
-            />
-            <span className="space-y-0.5">
-              <span className="block font-medium">I traded or sold {pronoun}</span>
-              <span className="text-muted-foreground block text-sm">
-                Also removes {pronoun} from your collection for good. This can&apos;t be undone, but
-                it&apos;s recorded in your activity history.
-              </span>
-              {soldBlocked && (
-                <span className="text-destructive block text-sm">
-                  {reservedCount === count
-                    ? `${count === 1 ? "This card is" : "These cards are"} in a live trade. Complete or cancel it first.`
-                    : `${reservedCount} of these are in a live trade and can't be sold here. Take those off separately.`}
+          <RadioGroup value={outcome} onValueChange={(value) => setOutcome(value as Outcome)}>
+            <label
+              htmlFor="take-off-keep"
+              className="hover:bg-muted/50 flex cursor-pointer items-start gap-3 rounded-lg border p-3"
+            >
+              <RadioGroupItem id="take-off-keep" value="keep" className="mt-0.5" />
+              <span className="space-y-0.5">
+                <span className="block font-medium">I&apos;m keeping {pronoun}</span>
+                <span className="text-muted-foreground block text-sm">
+                  Just takes {pronoun} off this tradelist. {count === 1 ? "It stays" : "They stay"}{" "}
+                  in your collection.
                 </span>
-              )}
-            </span>
-          </label>
-        </RadioGroup>
-
-        {sold && showListWarning && (
-          <div className="border-destructive/40 bg-destructive/10 text-destructive flex gap-3 rounded-lg border p-3 text-sm">
-            <TriangleAlertIcon className="mt-0.5 size-5 shrink-0" />
-            <div className="space-y-1.5">
-              <p className="font-medium">
-                {copiesOnAnyList} of these {copiesOnAnyList === 1 ? "is" : "are"} also on your other
-                lists
-              </p>
-              <p>
-                Removing {pronoun} from your collection drops{" "}
-                {copiesOnAnyList === 1 ? "it" : "them"} off:
-              </p>
-              <ul className="list-disc space-y-0.5 pl-4">
-                {memberships?.lists.map((list) => (
-                  <li key={list.id}>
-                    <span className="font-medium">{list.name}</span> ({list.copyCount})
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        )}
-
-        {sold && membershipsLoading && (
-          <p className="text-muted-foreground text-sm">Checking your other lists…</p>
-        )}
-
-        {sold && needsTypeConfirm && (
-          <div className="space-y-1.5">
-            <label htmlFor="take-off-confirm" className="text-sm font-medium">
-              Type <span className="font-mono">{count}</span> to confirm
+              </span>
             </label>
-            <Input
-              id="take-off-confirm"
-              value={confirmText}
-              onChange={(event) => setConfirmText(event.target.value)}
-              inputMode="numeric"
-              autoComplete="off"
-              placeholder={String(count)}
-              disabled={isPending}
-            />
-          </div>
-        )}
+            <label
+              htmlFor="take-off-sold"
+              className={
+                soldBlocked
+                  ? "flex items-start gap-3 rounded-lg border p-3 opacity-60"
+                  : "hover:bg-muted/50 flex cursor-pointer items-start gap-3 rounded-lg border p-3"
+              }
+            >
+              <RadioGroupItem
+                id="take-off-sold"
+                value="sold"
+                disabled={soldBlocked}
+                className="mt-0.5"
+              />
+              <span className="space-y-0.5">
+                <span className="block font-medium">I traded or sold {pronoun}</span>
+                <span className="text-muted-foreground block text-sm">
+                  Also removes {pronoun} from your collection for good. This can&apos;t be undone,
+                  but it&apos;s recorded in your activity history.
+                </span>
+                {soldBlocked && (
+                  <span className="text-destructive block text-sm">
+                    {reservedCount === count
+                      ? `${count === 1 ? "This card is" : "These cards are"} in a live trade. Complete or cancel it first.`
+                      : `${reservedCount} of these are in a live trade and can't be sold here. Take those off separately.`}
+                  </span>
+                )}
+              </span>
+            </label>
+          </RadioGroup>
 
-        <div className="flex justify-end gap-2 pt-2">
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={isPending}>
-            Cancel
-          </Button>
-          <Button
-            variant={sold ? "destructive" : "default"}
-            onClick={() => (sold ? onSold() : onKeep())}
-            disabled={confirmDisabled}
-          >
-            {isPending
-              ? sold
-                ? "Removing…"
-                : "Taking off…"
-              : sold
-                ? `Remove ${count} ${cardNoun}`
-                : "Take off list"}
-          </Button>
-        </div>
+          {sold && showListWarning && (
+            <div className="border-destructive/40 bg-destructive/10 text-destructive flex gap-3 rounded-lg border p-3 text-sm">
+              <TriangleAlertIcon className="mt-0.5 size-5 shrink-0" />
+              <div className="space-y-1.5">
+                <p className="font-medium">
+                  {copiesOnAnyList} of these {copiesOnAnyList === 1 ? "is" : "are"} also on your
+                  other lists
+                </p>
+                <p>
+                  Removing {pronoun} from your collection drops{" "}
+                  {copiesOnAnyList === 1 ? "it" : "them"} off:
+                </p>
+                <ul className="list-disc space-y-0.5 pl-4">
+                  {memberships?.lists.map((list) => (
+                    <li key={list.id}>
+                      <span className="font-medium">{list.name}</span> ({list.copyCount})
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {sold && membershipsLoading && (
+            <p className="text-muted-foreground text-sm">Checking your other lists…</p>
+          )}
+
+          {sold && needsTypeConfirm && (
+            <div className="space-y-1.5">
+              <label htmlFor="take-off-confirm" className="text-sm font-medium">
+                Type <span className="font-mono">{count}</span> to confirm
+              </label>
+              <Input
+                id="take-off-confirm"
+                value={confirmText}
+                onChange={(event) => setConfirmText(event.target.value)}
+                inputMode="numeric"
+                autoComplete="off"
+                placeholder={String(count)}
+                disabled={isPending}
+              />
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={isPending}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant={sold ? "destructive" : "default"}
+              disabled={confirmDisabled}
+            >
+              {isPending
+                ? sold
+                  ? "Removing…"
+                  : "Taking off…"
+                : sold
+                  ? `Remove ${count} ${cardNoun}`
+                  : "Take off list"}
+            </Button>
+          </div>
+        </DialogForm>
       </AlertDialogContent>
     </AlertDialog>
   );

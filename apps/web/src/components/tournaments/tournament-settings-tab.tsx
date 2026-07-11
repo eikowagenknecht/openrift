@@ -18,6 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DialogForm } from "@/components/ui/dialog-form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -668,136 +669,137 @@ export function TournamentSettingsTab({ detail }: { detail: TournamentDetailResp
 
       <Dialog open={confirmRotate} onOpenChange={setConfirmRotate}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Rotate the link?</DialogTitle>
-            <DialogDescription>
-              This makes a new link and immediately stops the old one working. Anyone you already
-              shared it with will need the new link.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setConfirmRotate(false)}>
-              Keep current link
-            </Button>
-            <Button
-              disabled={locked || setSubmissionToken.isPending}
-              onClick={async () => {
-                await run(() => setSubmissionToken.mutateAsync({ id, enabled: true }));
-                setConfirmRotate(false);
-              }}
-            >
-              Rotate link
-            </Button>
-          </DialogFooter>
+          <DialogForm
+            onSubmit={async () => {
+              await run(() => setSubmissionToken.mutateAsync({ id, enabled: true }));
+              setConfirmRotate(false);
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>Rotate the link?</DialogTitle>
+              <DialogDescription>
+                This makes a new link and immediately stops the old one working. Anyone you already
+                shared it with will need the new link.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setConfirmRotate(false)}>
+                Keep current link
+              </Button>
+              <Button type="submit" disabled={locked || setSubmissionToken.isPending}>
+                Rotate link
+              </Button>
+            </DialogFooter>
+          </DialogForm>
         </DialogContent>
       </Dialog>
 
       <Dialog open={confirmDisableReport} onOpenChange={setConfirmDisableReport}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Disable the result reporting link?</DialogTitle>
-            <DialogDescription>
-              The link stops working for everyone. You can enable a new one later, but it will be a
-              different link.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setConfirmDisableReport(false)}>
-              Keep it
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={setReportToken.isPending}
-              onClick={async () => {
-                await run(() => setReportToken.mutateAsync({ id, enabled: false }));
-                setConfirmDisableReport(false);
-              }}
-            >
-              Disable link
-            </Button>
-          </DialogFooter>
+          <DialogForm
+            onSubmit={async () => {
+              await run(() => setReportToken.mutateAsync({ id, enabled: false }));
+              setConfirmDisableReport(false);
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>Disable the result reporting link?</DialogTitle>
+              <DialogDescription>
+                The link stops working for everyone. You can enable a new one later, but it will be
+                a different link.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setConfirmDisableReport(false)}>
+                Keep it
+              </Button>
+              <Button type="submit" variant="destructive" disabled={setReportToken.isPending}>
+                Disable link
+              </Button>
+            </DialogFooter>
+          </DialogForm>
         </DialogContent>
       </Dialog>
 
       <Dialog open={confirmDisableFollow} onOpenChange={setConfirmDisableFollow}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Disable the follow-only link?</DialogTitle>
-            <DialogDescription>
-              The link stops working for everyone. You can enable a new one later, but it will be a
-              different link.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setConfirmDisableFollow(false)}>
-              Keep it
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={setFollowToken.isPending}
-              onClick={async () => {
-                await run(() => setFollowToken.mutateAsync({ id, enabled: false }));
-                setConfirmDisableFollow(false);
-              }}
-            >
-              Disable link
-            </Button>
-          </DialogFooter>
+          <DialogForm
+            onSubmit={async () => {
+              await run(() => setFollowToken.mutateAsync({ id, enabled: false }));
+              setConfirmDisableFollow(false);
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>Disable the follow-only link?</DialogTitle>
+              <DialogDescription>
+                The link stops working for everyone. You can enable a new one later, but it will be
+                a different link.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setConfirmDisableFollow(false)}>
+                Keep it
+              </Button>
+              <Button type="submit" variant="destructive" disabled={setFollowToken.isPending}>
+                Disable link
+              </Button>
+            </DialogFooter>
+          </DialogForm>
         </DialogContent>
       </Dialog>
 
       <Dialog open={confirmCancel} onOpenChange={setConfirmCancel}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Cancel {detail.name}?</DialogTitle>
-            <DialogDescription>
-              The tournament becomes read-only for everyone. Its data is kept.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setConfirmCancel(false)}>
-              Keep it
-            </Button>
-            <Button
-              variant="secondary"
-              disabled={cancelTournament.isPending}
-              onClick={async () => {
-                await run(() => cancelTournament.mutateAsync({ id }));
-                setConfirmCancel(false);
-              }}
-            >
-              Cancel tournament
-            </Button>
-          </DialogFooter>
+          <DialogForm
+            onSubmit={async () => {
+              await run(() => cancelTournament.mutateAsync({ id }));
+              setConfirmCancel(false);
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>Cancel {detail.name}?</DialogTitle>
+              <DialogDescription>
+                The tournament becomes read-only for everyone. Its data is kept.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setConfirmCancel(false)}>
+                Keep it
+              </Button>
+              <Button type="submit" variant="secondary" disabled={cancelTournament.isPending}>
+                Cancel tournament
+              </Button>
+            </DialogFooter>
+          </DialogForm>
         </DialogContent>
       </Dialog>
 
       <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete {detail.name}?</DialogTitle>
-            <DialogDescription>
-              This permanently removes the tournament, its participants, rounds, and results. This
-              cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setConfirmDelete(false)}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={deleteTournament.isPending}
-              onClick={async () => {
-                await run(async () => {
-                  await deleteTournament.mutateAsync(id);
-                  await navigate({ to: "/tournaments" });
-                });
-              }}
-            >
-              Delete
-            </Button>
-          </DialogFooter>
+          <DialogForm
+            onSubmit={async () => {
+              await run(async () => {
+                await deleteTournament.mutateAsync(id);
+                await navigate({ to: "/tournaments" });
+              });
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>Delete {detail.name}?</DialogTitle>
+              <DialogDescription>
+                This permanently removes the tournament, its participants, rounds, and results. This
+                cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setConfirmDelete(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" variant="destructive" disabled={deleteTournament.isPending}>
+                Delete
+              </Button>
+            </DialogFooter>
+          </DialogForm>
         </DialogContent>
       </Dialog>
     </SettingsLayout>

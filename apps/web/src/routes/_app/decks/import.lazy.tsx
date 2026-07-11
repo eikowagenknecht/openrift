@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DialogForm } from "@/components/ui/dialog-form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -392,26 +393,27 @@ function DeckImportPage() {
       />
       <AlertDialog open={confirmReplaceOpen} onOpenChange={setConfirmReplaceOpen}>
         <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Replace deck contents?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will remove all existing cards in &ldquo;{replaceDeckName ?? "this deck"}&rdquo;
-              and replace them with the {totalCards} imported {totalCards === 1 ? "card" : "cards"}.
-              The deck&apos;s name and format are kept.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={() => {
-                setConfirmReplaceOpen(false);
-                executeReplace();
-              }}
-            >
-              Replace
-            </AlertDialogAction>
-          </AlertDialogFooter>
+          <DialogForm
+            onSubmit={() => {
+              setConfirmReplaceOpen(false);
+              executeReplace();
+            }}
+          >
+            <AlertDialogHeader>
+              <AlertDialogTitle>Replace deck contents?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will remove all existing cards in &ldquo;{replaceDeckName ?? "this deck"}
+                &rdquo; and replace them with the {totalCards} imported{" "}
+                {totalCards === 1 ? "card" : "cards"}. The deck&apos;s name and format are kept.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction type="submit" variant="destructive">
+                Replace
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </DialogForm>
         </AlertDialogContent>
       </AlertDialog>
     </>

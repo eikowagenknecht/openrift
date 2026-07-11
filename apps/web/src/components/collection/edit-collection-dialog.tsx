@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DialogForm } from "@/components/ui/dialog-form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useUpdateCollection } from "@/hooks/use-collections";
@@ -60,46 +61,43 @@ export function EditCollectionDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Edit collection</DialogTitle>
-          <DialogDescription>Rename this collection.</DialogDescription>
-        </DialogHeader>
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="collection-name">Name</Label>
-            <Input
-              id="collection-name"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  handleSubmit();
-                }
-              }}
-              maxLength={200}
-              disabled={isInbox}
-              // oxlint-disable-next-line jsx-a11y/no-autofocus -- intentional: dialog input should grab focus
-              autoFocus
-            />
-            {isInbox && (
-              <p className="text-muted-foreground text-xs">
-                The Inbox collection can&apos;t be renamed.
-              </p>
-            )}
+        <DialogForm onSubmit={handleSubmit}>
+          <DialogHeader>
+            <DialogTitle>Edit collection</DialogTitle>
+            <DialogDescription>Rename this collection.</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="collection-name">Name</Label>
+              <Input
+                id="collection-name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                maxLength={200}
+                disabled={isInbox}
+                // oxlint-disable-next-line jsx-a11y/no-autofocus -- intentional: dialog input should grab focus
+                autoFocus
+              />
+              {isInbox && (
+                <p className="text-muted-foreground text-xs">
+                  The Inbox collection can&apos;t be renamed.
+                </p>
+              )}
+            </div>
           </div>
-        </div>
-        <DialogFooter>
-          <Button
-            variant="ghost"
-            onClick={() => onOpenChange(false)}
-            disabled={updateCollection.isPending}
-          >
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit} disabled={!name.trim() || updateCollection.isPending}>
-            {updateCollection.isPending ? "Saving..." : "Save"}
-          </Button>
-        </DialogFooter>
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => onOpenChange(false)}
+              disabled={updateCollection.isPending}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={!name.trim() || updateCollection.isPending}>
+              {updateCollection.isPending ? "Saving..." : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogForm>
       </DialogContent>
     </Dialog>
   );

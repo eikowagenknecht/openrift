@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DialogForm } from "@/components/ui/dialog-form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -238,62 +239,64 @@ function CreateProductDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Create product from list</DialogTitle>
-        </DialogHeader>
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="product-name">Name</Label>
-            <Input
-              id="product-name"
-              value={draft.name}
-              onChange={(e) => setDraft((prev) => ({ ...prev, name: e.target.value }))}
-              placeholder="Origins Starter Set"
-            />
+        <DialogForm onSubmit={handleSubmit}>
+          <DialogHeader>
+            <DialogTitle>Create product from list</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="product-name">Name</Label>
+              <Input
+                id="product-name"
+                value={draft.name}
+                onChange={(e) => setDraft((prev) => ({ ...prev, name: e.target.value }))}
+                placeholder="Origins Starter Set"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="product-slug">Slug</Label>
+              <Input
+                id="product-slug"
+                value={draft.slug}
+                onChange={(e) =>
+                  setDraft((prev) => ({ ...prev, slug: e.target.value.toLowerCase() }))
+                }
+                placeholder="origins-starter-set"
+                className="font-mono"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="product-description">Description</Label>
+              <Textarea
+                id="product-description"
+                value={draft.description}
+                onChange={(e) => setDraft((prev) => ({ ...prev, description: e.target.value }))}
+                placeholder="Optional markdown blurb shown on the product page."
+                rows={3}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label>Source list</Label>
+              <ListPicker
+                value={draft.listId}
+                onChange={(listId) => setDraft((prev) => ({ ...prev, listId }))}
+              />
+              <p className="text-muted-foreground text-xs">
+                The list&apos;s cards and quantities become the product&apos;s contents. The product
+                is a snapshot: later list edits don&apos;t apply until you re-sync.
+              </p>
+            </div>
+            {error && <p className="text-destructive text-sm">{error}</p>}
           </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="product-slug">Slug</Label>
-            <Input
-              id="product-slug"
-              value={draft.slug}
-              onChange={(e) =>
-                setDraft((prev) => ({ ...prev, slug: e.target.value.toLowerCase() }))
-              }
-              placeholder="origins-starter-set"
-              className="font-mono"
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="product-description">Description</Label>
-            <Textarea
-              id="product-description"
-              value={draft.description}
-              onChange={(e) => setDraft((prev) => ({ ...prev, description: e.target.value }))}
-              placeholder="Optional markdown blurb shown on the product page."
-              rows={3}
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label>Source list</Label>
-            <ListPicker
-              value={draft.listId}
-              onChange={(listId) => setDraft((prev) => ({ ...prev, listId }))}
-            />
-            <p className="text-muted-foreground text-xs">
-              The list&apos;s cards and quantities become the product&apos;s contents. The product
-              is a snapshot: later list edits don&apos;t apply until you re-sync.
-            </p>
-          </div>
-          {error && <p className="text-destructive text-sm">{error}</p>}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => handleOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit} disabled={createProduct.isPending}>
-            Create product
-          </Button>
-        </DialogFooter>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => handleOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={createProduct.isPending}>
+              Create product
+            </Button>
+          </DialogFooter>
+        </DialogForm>
       </DialogContent>
     </Dialog>
   );
@@ -344,24 +347,26 @@ function ResyncDialog({
   return (
     <Dialog open={product !== null} onOpenChange={handleOpenChange}>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Re-sync contents{product ? `: ${product.name}` : ""}</DialogTitle>
-        </DialogHeader>
-        <div className="flex flex-col gap-3">
-          <p className="text-muted-foreground text-sm">
-            Replaces the product&apos;s entire contents with a fresh snapshot of the picked list.
-          </p>
-          <ListPicker value={listId} onChange={setListId} />
-          {error && <p className="text-destructive text-sm">{error}</p>}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => handleOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit} disabled={resyncProduct.isPending}>
-            Replace contents
-          </Button>
-        </DialogFooter>
+        <DialogForm onSubmit={handleSubmit}>
+          <DialogHeader>
+            <DialogTitle>Re-sync contents{product ? `: ${product.name}` : ""}</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <p className="text-muted-foreground text-sm">
+              Replaces the product&apos;s entire contents with a fresh snapshot of the picked list.
+            </p>
+            <ListPicker value={listId} onChange={setListId} />
+            {error && <p className="text-destructive text-sm">{error}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => handleOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={resyncProduct.isPending}>
+              Replace contents
+            </Button>
+          </DialogFooter>
+        </DialogForm>
       </DialogContent>
     </Dialog>
   );

@@ -103,6 +103,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DialogForm } from "@/components/ui/dialog-form";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import {
   DropdownMenu,
@@ -1164,31 +1165,35 @@ function OverlaysSection() {
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Rename deck</DialogTitle>
-            <DialogDescription>Pick something your group will recognize.</DialogDescription>
-          </DialogHeader>
-          <Input placeholder="Jinx Aggro" />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={() => setDialogOpen(false)}>Save</Button>
-          </DialogFooter>
+          <DialogForm onSubmit={() => setDialogOpen(false)}>
+            <DialogHeader>
+              <DialogTitle>Rename deck</DialogTitle>
+              <DialogDescription>Pick something your group will recognize.</DialogDescription>
+            </DialogHeader>
+            <Input placeholder="Jinx Aggro" />
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">Save</Button>
+            </DialogFooter>
+          </DialogForm>
         </DialogContent>
       </Dialog>
       <AlertDialog open={alertOpen} onOpenChange={setAlertOpen}>
         <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this deck?</AlertDialogTitle>
-            <AlertDialogDescription>
-              The deck and its plans are removed. Cards in your collection stay untouched.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => setAlertOpen(false)}>Delete</AlertDialogAction>
-          </AlertDialogFooter>
+          <DialogForm onSubmit={() => setAlertOpen(false)}>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this deck?</AlertDialogTitle>
+              <AlertDialogDescription>
+                The deck and its plans are removed. Cards in your collection stay untouched.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction type="submit">Delete</AlertDialogAction>
+            </AlertDialogFooter>
+          </DialogForm>
         </AlertDialogContent>
       </AlertDialog>
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>

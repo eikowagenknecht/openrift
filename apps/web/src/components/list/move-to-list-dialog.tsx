@@ -9,6 +9,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { DialogForm } from "@/components/ui/dialog-form";
 import { PickerList, PickerRow } from "@/components/ui/picker-list";
 import { cn } from "@/lib/utils";
 
@@ -40,46 +41,45 @@ export function MoveToListDialog({
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
-        <AlertDialogTitle>Move to list</AlertDialogTitle>
-        <AlertDialogDescription>
-          Choose a list to move the selected cards to.
-        </AlertDialogDescription>
-        <div className="max-h-60 overflow-y-auto">
-          {lists.length === 0 ? (
-            <p className="text-muted-foreground py-4 text-center text-sm">
-              No other matching lists available.
-            </p>
-          ) : (
-            <PickerList highlightedId={highlightedId} onHighlightChange={setHighlightedId}>
-              {lists.map((list) => (
-                <PickerRow
-                  key={list.id}
-                  value={list.id}
-                  onSelect={() => setSelectedId(list.id)}
-                  className={cn(
-                    "px-3 py-2",
-                    selectedId === list.id &&
-                      "bg-primary/10 text-primary data-selected:bg-primary/10 data-selected:text-primary data-selected:**:text-primary",
-                  )}
-                >
-                  <ListIcon className="size-4 shrink-0" />
-                  <span className="truncate">{list.name}</span>
-                </PickerRow>
-              ))}
-            </PickerList>
-          )}
-        </div>
-        <div className="flex justify-end gap-2 pt-2">
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={isPending}>
-            Cancel
-          </Button>
-          <Button
-            onClick={() => selectedId && onMove(selectedId)}
-            disabled={!selectedId || isPending}
-          >
-            {isPending ? "Moving…" : "Move"}
-          </Button>
-        </div>
+        <DialogForm onSubmit={() => selectedId && onMove(selectedId)}>
+          <AlertDialogTitle>Move to list</AlertDialogTitle>
+          <AlertDialogDescription>
+            Choose a list to move the selected cards to.
+          </AlertDialogDescription>
+          <div className="max-h-60 overflow-y-auto">
+            {lists.length === 0 ? (
+              <p className="text-muted-foreground py-4 text-center text-sm">
+                No other matching lists available.
+              </p>
+            ) : (
+              <PickerList highlightedId={highlightedId} onHighlightChange={setHighlightedId}>
+                {lists.map((list) => (
+                  <PickerRow
+                    key={list.id}
+                    value={list.id}
+                    onSelect={() => setSelectedId(list.id)}
+                    className={cn(
+                      "px-3 py-2",
+                      selectedId === list.id &&
+                        "bg-primary/10 text-primary data-selected:bg-primary/10 data-selected:text-primary data-selected:**:text-primary",
+                    )}
+                  >
+                    <ListIcon className="size-4 shrink-0" />
+                    <span className="truncate">{list.name}</span>
+                  </PickerRow>
+                ))}
+              </PickerList>
+            )}
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={isPending}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={!selectedId || isPending}>
+              {isPending ? "Moving…" : "Move"}
+            </Button>
+          </div>
+        </DialogForm>
       </AlertDialogContent>
     </AlertDialog>
   );

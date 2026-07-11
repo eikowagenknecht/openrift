@@ -25,6 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DialogForm } from "@/components/ui/dialog-form";
 import { Empty, EmptyDescription, EmptyHeader } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -108,57 +109,59 @@ function CreateDeckDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>New deck</DialogTitle>
-        </DialogHeader>
-        <div className="flex flex-col gap-4 py-2">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="deck-name">Name</Label>
-            <Input
-              id="deck-name"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              // oxlint-disable-next-line jsx-a11y/no-autofocus -- dialog input should auto-focus for quick interaction
-              autoFocus
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="deck-format">Format</Label>
-            <Select
-              value={format}
-              onValueChange={(value) => {
-                if (value !== null) {
-                  setFormat(value);
-                }
-              }}
+        <DialogForm onSubmit={handleCreate}>
+          <DialogHeader>
+            <DialogTitle>New deck</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 py-2">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="deck-name">Name</Label>
+              <Input
+                id="deck-name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                // oxlint-disable-next-line jsx-a11y/no-autofocus -- dialog input should auto-focus for quick interaction
+                autoFocus
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="deck-format">Format</Label>
+              <Select
+                value={format}
+                onValueChange={(value) => {
+                  if (value !== null) {
+                    setFormat(value);
+                  }
+                }}
+              >
+                <SelectTrigger id="deck-format">
+                  <SelectValue>{(value: string) => formatLabels[value] ?? value}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {formats.map((entry) => (
+                    <SelectItem key={entry.slug} value={entry.slug}>
+                      {entry.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Link
+              to="/help/$slug"
+              params={{ slug: "deck-building" }}
+              className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5"
             >
-              <SelectTrigger id="deck-format">
-                <SelectValue>{(value: string) => formatLabels[value] ?? value}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {formats.map((entry) => (
-                  <SelectItem key={entry.slug} value={entry.slug}>
-                    {entry.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <CircleHelpIcon className="size-3.5" />
+              New to deck building? See how it works →
+            </Link>
+            {!userId && <LocalDeckSaveNote />}
           </div>
-          <Link
-            to="/help/$slug"
-            params={{ slug: "deck-building" }}
-            className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5"
-          >
-            <CircleHelpIcon className="size-3.5" />
-            New to deck building? See how it works →
-          </Link>
-          {!userId && <LocalDeckSaveNote />}
-        </div>
-        <DialogFooter>
-          <Button onClick={handleCreate} disabled={!name.trim() || createDeck.isPending}>
-            Create
-          </Button>
-        </DialogFooter>
+          <DialogFooter>
+            <Button type="submit" disabled={!name.trim() || createDeck.isPending}>
+              Create
+            </Button>
+          </DialogFooter>
+        </DialogForm>
       </DialogContent>
     </Dialog>
   );

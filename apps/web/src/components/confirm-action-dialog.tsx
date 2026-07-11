@@ -7,6 +7,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { DialogForm } from "@/components/ui/dialog-form";
 
 interface ConfirmActionDialogProps {
   open: boolean;
@@ -47,20 +48,22 @@ export function ConfirmActionDialog({
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
-        <AlertDialogTitle>{title}</AlertDialogTitle>
-        <AlertDialogDescription>{description}</AlertDialogDescription>
-        <div className="flex justify-end gap-2 pt-2">
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={isPending}>
-            {cancelLabel}
-          </Button>
-          <Button
-            variant={destructive ? "destructive" : "default"}
-            onClick={onConfirm}
-            disabled={isPending}
-          >
-            {isPending && pendingLabel !== undefined ? pendingLabel : confirmLabel}
-          </Button>
-        </div>
+        <DialogForm onSubmit={onConfirm}>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogDescription>{description}</AlertDialogDescription>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={isPending}>
+              {cancelLabel}
+            </Button>
+            <Button
+              type="submit"
+              variant={destructive ? "destructive" : "default"}
+              disabled={isPending}
+            >
+              {isPending && pendingLabel !== undefined ? pendingLabel : confirmLabel}
+            </Button>
+          </div>
+        </DialogForm>
       </AlertDialogContent>
     </AlertDialog>
   );

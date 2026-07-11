@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DialogForm } from "@/components/ui/dialog-form";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useCreateTrade } from "@/hooks/use-card-trades";
@@ -237,7 +238,7 @@ function RequestBody({
   // Already a shared match → one-tap confirm, no list picking or sharing.
   if (existingMatch) {
     return (
-      <>
+      <DialogForm onSubmit={sendRequest}>
         <DialogHeader>
           <DialogTitle>Request this card</DialogTitle>
           <DialogDescription>
@@ -248,18 +249,18 @@ function RequestBody({
         {stepper}
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
-          <Button type="button" disabled={pending} onClick={sendRequest}>
+          <Button type="submit" disabled={pending}>
             Send request
           </Button>
         </DialogFooter>
-      </>
+      </DialogForm>
     );
   }
 
   // Share confirmation step (only reached when the chosen list isn't shared yet).
   if (phase === "confirm-share") {
     return (
-      <>
+      <DialogForm onSubmit={sendRequest}>
         <DialogHeader>
           <DialogTitle>
             Share {chosenName} with {groupName}?
@@ -271,24 +272,19 @@ function RequestBody({
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={pending}
-            onClick={() => setPhase("pick")}
-          >
+          <Button variant="outline" disabled={pending} onClick={() => setPhase("pick")}>
             Back
           </Button>
-          <Button type="button" disabled={pending} onClick={sendRequest}>
+          <Button type="submit" disabled={pending}>
             Share and send request
           </Button>
         </DialogFooter>
-      </>
+      </DialogForm>
     );
   }
 
   return (
-    <>
+    <DialogForm onSubmit={needsShare ? () => setPhase("confirm-share") : sendRequest}>
       <DialogHeader>
         <DialogTitle>Request this card</DialogTitle>
         <DialogDescription>
@@ -351,18 +347,17 @@ function RequestBody({
         <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
         {needsShare ? (
           <Button
-            type="button"
+            type="submit"
             disabled={pending || (selectedId === NEW_LIST && newName.trim().length === 0)}
-            onClick={() => setPhase("confirm-share")}
           >
             Continue
           </Button>
         ) : (
-          <Button type="button" disabled={pending} onClick={sendRequest}>
+          <Button type="submit" disabled={pending}>
             Send request
           </Button>
         )}
       </DialogFooter>
-    </>
+    </DialogForm>
   );
 }

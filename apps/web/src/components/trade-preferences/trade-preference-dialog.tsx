@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DialogForm } from "@/components/ui/dialog-form";
 import { useDisplayStore } from "@/stores/display-store";
 
 import { TradePreferenceEditor } from "./trade-preference-editor";
@@ -80,61 +81,61 @@ export function TradePreferenceDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Trade preference</DialogTitle>
-          <DialogDescription>
-            Override for {cardName}. Leave fields at the list default to inherit.
-          </DialogDescription>
-        </DialogHeader>
+        <DialogForm
+          onSubmit={() => {
+            onSave(draft, listCurrencyToSet);
+            onOpenChange(false);
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>Trade preference</DialogTitle>
+            <DialogDescription>
+              Override for {cardName}. Leave fields at the list default to inherit.
+            </DialogDescription>
+          </DialogHeader>
 
-        <TradePreferenceEditor
-          value={draft}
-          onChange={setDraft}
-          currency={draftCurrency}
-          // Currency is a list-level setting — only ask here as a fallback
-          // for legacy lists that don't have one yet. Users change it
-          // afterwards from Edit list.
-          showCurrency={listMissingCurrency && draft.pricePref === "absolute"}
-          onCurrencyChange={setDraftCurrency}
-          idPrefix="entry-dialog"
-          listDefault={listDefault}
-        />
+          <TradePreferenceEditor
+            value={draft}
+            onChange={setDraft}
+            currency={draftCurrency}
+            // Currency is a list-level setting — only ask here as a fallback
+            // for legacy lists that don't have one yet. Users change it
+            // afterwards from Edit list.
+            showCurrency={listMissingCurrency && draft.pricePref === "absolute"}
+            onCurrencyChange={setDraftCurrency}
+            idPrefix="entry-dialog"
+            listDefault={listDefault}
+          />
 
-        <DialogFooter className="flex items-center justify-between gap-2 sm:justify-between">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            disabled={!isOverridden && draft.pricePref === null && draft.tradeType === null}
-            onClick={() => {
-              const reset: TradePreference = {
-                pricePref: null,
-                priceAbsoluteCents: null,
-                tradeType: null,
-              };
-              setDraft(reset);
-              onSave(reset);
-              onOpenChange(false);
-            }}
-          >
-            Reset to list default
-          </Button>
-          <div className="flex items-center gap-2">
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
+          <DialogFooter className="flex items-center justify-between gap-2 sm:justify-between">
             <Button
               type="button"
-              disabled={absoluteNeedsAmount}
+              variant="ghost"
+              size="sm"
+              disabled={!isOverridden && draft.pricePref === null && draft.tradeType === null}
               onClick={() => {
-                onSave(draft, listCurrencyToSet);
+                const reset: TradePreference = {
+                  pricePref: null,
+                  priceAbsoluteCents: null,
+                  tradeType: null,
+                };
+                setDraft(reset);
+                onSave(reset);
                 onOpenChange(false);
               }}
             >
-              Save
+              Reset to list default
             </Button>
-          </div>
-        </DialogFooter>
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={absoluteNeedsAmount}>
+                Save
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogForm>
       </DialogContent>
     </Dialog>
   );

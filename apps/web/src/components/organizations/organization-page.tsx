@@ -20,6 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DialogForm } from "@/components/ui/dialog-form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -180,58 +181,59 @@ export function OrganizationPage({ id }: { id: string }) {
 
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add member</DialogTitle>
-            <DialogDescription>
-              Add an account by its email address. Owners can grant any role.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="org-member">Email</Label>
-              <Input
-                id="org-member"
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="member@example.com"
-              />
+          <DialogForm
+            onSubmit={async () => {
+              await run(() => addMember.mutateAsync({ id, email: email.trim(), role }));
+              setAddOpen(false);
+              setEmail("");
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>Add member</DialogTitle>
+              <DialogDescription>
+                Add an account by its email address. Owners can grant any role.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="org-member">Email</Label>
+                <Input
+                  id="org-member"
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="member@example.com"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label>Role</Label>
+                <Select
+                  items={roleItems}
+                  value={role}
+                  onValueChange={(value) => value && setRole(value as OrganizationRole)}
+                >
+                  <SelectTrigger aria-label="Role">
+                    <SelectValue placeholder="Choose a role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {roleItems.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Role</Label>
-              <Select
-                items={roleItems}
-                value={role}
-                onValueChange={(value) => value && setRole(value as OrganizationRole)}
-              >
-                <SelectTrigger aria-label="Role">
-                  <SelectValue placeholder="Choose a role" />
-                </SelectTrigger>
-                <SelectContent>
-                  {roleItems.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setAddOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              disabled={!email.trim() || addMember.isPending}
-              onClick={async () => {
-                await run(() => addMember.mutateAsync({ id, email: email.trim(), role }));
-                setAddOpen(false);
-                setEmail("");
-              }}
-            >
-              Add
-            </Button>
-          </DialogFooter>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setAddOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={!email.trim() || addMember.isPending}>
+                Add
+              </Button>
+            </DialogFooter>
+          </DialogForm>
         </DialogContent>
       </Dialog>
 

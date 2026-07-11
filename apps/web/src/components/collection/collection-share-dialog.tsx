@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DialogForm } from "@/components/ui/dialog-form";
 import { Input } from "@/components/ui/input";
 import { useCollectionGroupShares } from "@/hooks/use-collection-group-shares";
 import { useShareCollection, useUnshareCollection } from "@/hooks/use-collections";
@@ -43,6 +44,16 @@ export function CollectionShareDialog({
   const shareUrl = shareToken ? `${getSiteUrl()}/collections/share/${shareToken}` : null;
   const sharing = isPublic && shareToken !== null;
 
+  // Enter creates the link when none exists yet. Once a link is present the
+  // footer shows Stop sharing (destructive) and Copy, with no single default,
+  // so implicit submission must not re-trigger a share.
+  const handleSubmit = () => {
+    if (sharing || shareCollection.isPending) {
+      return;
+    }
+    shareCollection.mutate(collectionId);
+  };
+
   const handleCopy = async () => {
     if (!shareUrl) {
       return;
@@ -59,49 +70,48 @@ export function CollectionShareDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Share collection</DialogTitle>
-          <DialogDescription>
-            {sharing
-              ? "Anyone with this link can view this collection, including the card list and its total value."
-              : "Create a link to share this collection. Anyone with the link will be able to view it without signing in."}
-          </DialogDescription>
-        </DialogHeader>
+        <DialogForm onSubmit={handleSubmit}>
+          <DialogHeader>
+            <DialogTitle>Share collection</DialogTitle>
+            <DialogDescription>
+              {sharing
+                ? "Anyone with this link can view this collection, including the card list and its total value."
+                : "Create a link to share this collection. Anyone with the link will be able to view it without signing in."}
+            </DialogDescription>
+          </DialogHeader>
 
-        {sharing && shareUrl ? (
-          <div className="flex items-center gap-2">
-            <Input value={shareUrl} readOnly onFocus={(event) => event.currentTarget.select()} />
-            <Button variant="outline" onClick={handleCopy}>
-              {justCopied ? <CheckIcon /> : <CopyIcon />}
-              {justCopied ? "Copied" : "Copy"}
-            </Button>
-          </div>
-        ) : null}
+          {sharing && shareUrl ? (
+            <div className="flex items-center gap-2">
+              <Input value={shareUrl} readOnly onFocus={(event) => event.currentTarget.select()} />
+              <Button variant="outline" onClick={handleCopy}>
+                {justCopied ? <CheckIcon /> : <CopyIcon />}
+                {justCopied ? "Copied" : "Copy"}
+              </Button>
+            </div>
+          ) : null}
 
-        <Suspense fallback={null}>
-          <CollectionGroupShareSection collectionId={collectionId} />
-        </Suspense>
+          <Suspense fallback={null}>
+            <CollectionGroupShareSection collectionId={collectionId} />
+          </Suspense>
 
-        <DialogFooter>
-          {sharing ? (
-            <Button
-              variant="destructive"
-              onClick={() => unshareCollection.mutate(collectionId)}
-              disabled={unshareCollection.isPending}
-            >
-              <Trash2Icon />
-              Stop sharing
-            </Button>
-          ) : (
-            <Button
-              onClick={() => shareCollection.mutate(collectionId)}
-              disabled={shareCollection.isPending}
-            >
-              <LinkIcon />
-              Create link
-            </Button>
-          )}
-        </DialogFooter>
+          <DialogFooter>
+            {sharing ? (
+              <Button
+                variant="destructive"
+                onClick={() => unshareCollection.mutate(collectionId)}
+                disabled={unshareCollection.isPending}
+              >
+                <Trash2Icon />
+                Stop sharing
+              </Button>
+            ) : (
+              <Button type="submit" disabled={shareCollection.isPending}>
+                <LinkIcon />
+                Create link
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogForm>
       </DialogContent>
     </Dialog>
   );

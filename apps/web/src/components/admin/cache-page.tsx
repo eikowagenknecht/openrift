@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DialogForm } from "@/components/ui/dialog-form";
 import { useCacheStatus, usePurgeCache } from "@/hooks/use-cache-purge";
 import { useRefreshMatviews } from "@/hooks/use-refresh-matviews";
 import { useClearSsrCache } from "@/hooks/use-status";
@@ -124,22 +125,23 @@ export function CachePage() {
                 Purge Cloudflare cache
               </AlertDialogTrigger>
               <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Purge all Cloudflare cache?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Every cached URL for this zone will be evicted. The next visitor to each page
-                    will briefly see a slower response while the cache warms up again.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogPrimitive.Close
-                    render={<Button variant="destructive" />}
-                    onClick={handlePurge}
-                  >
-                    Purge
-                  </AlertDialogPrimitive.Close>
-                </AlertDialogFooter>
+                <DialogForm onSubmit={handlePurge}>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Purge all Cloudflare cache?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Every cached URL for this zone will be evicted. The next visitor to each page
+                      will briefly see a slower response while the cache warms up again.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogPrimitive.Close
+                      render={<Button type="submit" variant="destructive" />}
+                    >
+                      Purge
+                    </AlertDialogPrimitive.Close>
+                  </AlertDialogFooter>
+                </DialogForm>
               </AlertDialogContent>
             </AlertDialog>
           ) : (

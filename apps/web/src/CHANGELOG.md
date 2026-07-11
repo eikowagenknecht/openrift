@@ -2,6 +2,10 @@
 
 ## 2026-07-11
 
+### Highlights
+
+- fix(App): **Enter confirms dialogs** — pressing Enter in confirmation and edit dialogs now triggers the main button (save, create, remove) instead of doing nothing.
+
 ### Other
 
 - fix(App): **Consistent page-title dashes** — Google rewrote our title suffix with its own dash style, so search results mixed two kinds of dashes; titles now use the plain hyphen everywhere.

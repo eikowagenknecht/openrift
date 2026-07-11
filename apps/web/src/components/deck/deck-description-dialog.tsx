@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DialogForm } from "@/components/ui/dialog-form";
 import { Textarea } from "@/components/ui/textarea";
 import { useUpdateDeckMeta } from "@/hooks/use-decks";
 
@@ -48,25 +49,27 @@ export function DeckDescriptionDialog({
       }}
     >
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Edit description</DialogTitle>
-          <DialogDescription>
-            Add notes, strategy, or mulligan tips. Markdown supported (links, lists, bold, italics,
-            inline code).
-          </DialogDescription>
-        </DialogHeader>
-        <Textarea
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          maxLength={2000}
-          rows={8}
-          placeholder="A few words about your deck…"
-          // oxlint-disable-next-line jsx-a11y/no-autofocus -- intentional: dialog input should grab focus
-          autoFocus
-        />
-        <DialogFooter>
-          <Button onClick={handleSubmit}>Save</Button>
-        </DialogFooter>
+        <DialogForm onSubmit={handleSubmit}>
+          <DialogHeader>
+            <DialogTitle>Edit description</DialogTitle>
+            <DialogDescription>
+              Add notes, strategy, or mulligan tips. Markdown supported (links, lists, bold,
+              italics, inline code).
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            maxLength={2000}
+            rows={8}
+            placeholder="A few words about your deck…"
+            // oxlint-disable-next-line jsx-a11y/no-autofocus -- intentional: dialog input should grab focus
+            autoFocus
+          />
+          <DialogFooter>
+            <Button type="submit">Save</Button>
+          </DialogFooter>
+        </DialogForm>
       </DialogContent>
     </Dialog>
   );

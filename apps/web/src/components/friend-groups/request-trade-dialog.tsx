@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DialogForm } from "@/components/ui/dialog-form";
 import { Input } from "@/components/ui/input";
 import { maxTradeQuantity } from "@/lib/trade-derivation";
 
@@ -56,66 +57,64 @@ export function RequestTradeDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>
-            {mode === "request"
-              ? `Ask for ${cardName}. They'll get a notification, and accepting reserves it for you.`
-              : `Offer ${cardName}. They'll get a notification, and accepting reserves your copies.`}
-          </DialogDescription>
-        </DialogHeader>
+        <DialogForm onSubmit={() => onConfirm(quantity)}>
+          <DialogHeader>
+            <DialogTitle>{title}</DialogTitle>
+            <DialogDescription>
+              {mode === "request"
+                ? `Ask for ${cardName}. They'll get a notification, and accepting reserves it for you.`
+                : `Offer ${cardName}. They'll get a notification, and accepting reserves your copies.`}
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="flex items-center justify-between gap-4 py-2">
-          <span>How many?</span>
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="icon-sm"
-              aria-label="Decrease quantity"
-              disabled={quantity <= 1}
-              onClick={() => setQuantity((current) => clamp(current - 1))}
-            >
-              <MinusIcon />
-            </Button>
-            <Input
-              type="number"
-              min={1}
-              max={maxQuantity}
-              value={quantity}
-              aria-label="Quantity"
-              // Hide the native number spinners — the +/- buttons drive the value.
-              className="w-16 [appearance:textfield] text-center [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-              onChange={(event) => setQuantity(clamp(Number(event.target.value)))}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="icon-sm"
-              aria-label="Increase quantity"
-              disabled={quantity >= maxQuantity}
-              onClick={() => setQuantity((current) => clamp(current + 1))}
-            >
-              <PlusIcon />
-            </Button>
+          <div className="flex items-center justify-between gap-4 py-2">
+            <span>How many?</span>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                aria-label="Decrease quantity"
+                disabled={quantity <= 1}
+                onClick={() => setQuantity((current) => clamp(current - 1))}
+              >
+                <MinusIcon />
+              </Button>
+              <Input
+                type="number"
+                min={1}
+                max={maxQuantity}
+                value={quantity}
+                aria-label="Quantity"
+                // Hide the native number spinners — the +/- buttons drive the value.
+                className="w-16 [appearance:textfield] text-center [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                onChange={(event) => setQuantity(clamp(Number(event.target.value)))}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                aria-label="Increase quantity"
+                disabled={quantity >= maxQuantity}
+                onClick={() => setQuantity((current) => clamp(current + 1))}
+              >
+                <PlusIcon />
+              </Button>
+            </div>
           </div>
-        </div>
-        <p className="text-muted-foreground text-sm">
-          {mode === "offer"
-            ? `They want ${demandQuantity}, you have ${availableCount}`
-            : `You want ${demandQuantity} · ${availableCount} available`}
-        </p>
+          <p className="text-muted-foreground text-sm">
+            {mode === "offer"
+              ? `They want ${demandQuantity}, you have ${availableCount}`
+              : `You want ${demandQuantity} · ${availableCount} available`}
+          </p>
 
-        <DialogFooter>
-          <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
-          <Button
-            type="button"
-            disabled={pending || maxQuantity <= 0}
-            onClick={() => onConfirm(quantity)}
-          >
-            {verb}
-          </Button>
-        </DialogFooter>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+            <Button type="submit" disabled={pending || maxQuantity <= 0}>
+              {verb}
+            </Button>
+          </DialogFooter>
+        </DialogForm>
       </DialogContent>
     </Dialog>
   );

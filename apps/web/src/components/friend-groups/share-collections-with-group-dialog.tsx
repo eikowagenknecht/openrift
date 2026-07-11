@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DialogForm } from "@/components/ui/dialog-form";
 import {
   useFriendGroupShareableCollections,
   useShareCollectionWithFriendGroup,
@@ -124,7 +125,7 @@ function ShareCollectionsBody({
   };
 
   return (
-    <>
+    <DialogForm onSubmit={handleShare}>
       <ul className="flex flex-col gap-2">
         {candidates.map((item) => {
           const checkboxId = `share-collection-${item.collectionId}`;
@@ -162,10 +163,10 @@ function ShareCollectionsBody({
         <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={share.isPending}>
           {cancelLabel}
         </Button>
-        <Button onClick={handleShare} disabled={share.isPending || selectedIds.size === 0}>
+        <Button type="submit" disabled={share.isPending || selectedIds.size === 0}>
           {selectedIds.size === 1 ? "Share 1 collection" : `Share ${selectedIds.size} collections`}
         </Button>
       </DialogFooter>
-    </>
+    </DialogForm>
   );
 }

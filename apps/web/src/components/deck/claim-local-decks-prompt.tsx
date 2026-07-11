@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DialogForm } from "@/components/ui/dialog-form";
 import { useCreateDeck, useSaveDeckCards, useUpdateDeck } from "@/hooks/use-decks";
 import { useDeckFormatList } from "@/hooks/use-enums";
 import { useHydrated } from "@/hooks/use-hydrated";
@@ -93,42 +94,44 @@ export function ClaimLocalDecksPrompt() {
   return (
     <Dialog open onOpenChange={(next) => !next && setDismissed(true)}>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Keep your local decks?</DialogTitle>
-          <DialogDescription>
-            You built {list.length === 1 ? "a deck" : "these decks"} on this device while signed
-            out. Pick which to save to your account. Unpicked decks stay on this device.
-          </DialogDescription>
-        </DialogHeader>
+        <DialogForm onSubmit={() => void handleImport()}>
+          <DialogHeader>
+            <DialogTitle>Keep your local decks?</DialogTitle>
+            <DialogDescription>
+              You built {list.length === 1 ? "a deck" : "these decks"} on this device while signed
+              out. Pick which to save to your account. Unpicked decks stay on this device.
+            </DialogDescription>
+          </DialogHeader>
 
-        <ul className="flex max-h-72 flex-col gap-1 overflow-y-auto">
-          {list.map((deck) => (
-            <li key={deck.id}>
-              <label className="hover:bg-muted/50 flex cursor-pointer items-center gap-3 rounded-md p-2">
-                <Checkbox
-                  checked={isSelected(deck.id)}
-                  onCheckedChange={(checked) =>
-                    setDeselected((prev) => ({ ...prev, [deck.id]: !checked }))
-                  }
-                />
-                <span className="min-w-0 flex-1 truncate font-medium">{deck.name}</span>
-                <Badge variant="secondary">{formatLabels[deck.format] ?? deck.format}</Badge>
-                <span className="text-muted-foreground tabular-nums">
-                  {deck.cards.reduce((sum, card) => sum + card.quantity, 0)} cards
-                </span>
-              </label>
-            </li>
-          ))}
-        </ul>
+          <ul className="flex max-h-72 flex-col gap-1 overflow-y-auto">
+            {list.map((deck) => (
+              <li key={deck.id}>
+                <label className="hover:bg-muted/50 flex cursor-pointer items-center gap-3 rounded-md p-2">
+                  <Checkbox
+                    checked={isSelected(deck.id)}
+                    onCheckedChange={(checked) =>
+                      setDeselected((prev) => ({ ...prev, [deck.id]: !checked }))
+                    }
+                  />
+                  <span className="min-w-0 flex-1 truncate font-medium">{deck.name}</span>
+                  <Badge variant="secondary">{formatLabels[deck.format] ?? deck.format}</Badge>
+                  <span className="text-muted-foreground tabular-nums">
+                    {deck.cards.reduce((sum, card) => sum + card.quantity, 0)} cards
+                  </span>
+                </label>
+              </li>
+            ))}
+          </ul>
 
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => setDismissed(true)} disabled={importing}>
-            Not now
-          </Button>
-          <Button onClick={handleImport} disabled={importing || selectedDecks.length === 0}>
-            {importing ? "Importing…" : `Import ${selectedDecks.length} to account`}
-          </Button>
-        </DialogFooter>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDismissed(true)} disabled={importing}>
+              Not now
+            </Button>
+            <Button type="submit" disabled={importing || selectedDecks.length === 0}>
+              {importing ? "Importing…" : `Import ${selectedDecks.length} to account`}
+            </Button>
+          </DialogFooter>
+        </DialogForm>
       </DialogContent>
     </Dialog>
   );

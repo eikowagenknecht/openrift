@@ -28,6 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DialogForm } from "@/components/ui/dialog-form";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -301,71 +302,75 @@ export function TournamentParticipantsTab({
 
       <Dialog open={renameTarget !== null} onOpenChange={(open) => !open && setRenameTarget(null)}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Rename participant</DialogTitle>
-          </DialogHeader>
-          <Input
-            value={renameTarget?.name ?? ""}
-            maxLength={120}
-            onChange={(event) =>
-              setRenameTarget((prev) => (prev ? { ...prev, name: event.target.value } : prev))
-            }
-            aria-label="New name"
-          />
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setRenameTarget(null)}>
-              Cancel
-            </Button>
-            <Button
-              disabled={!renameTarget?.name.trim() || updateParticipant.isPending}
-              onClick={async () => {
-                if (!renameTarget?.name.trim()) {
-                  return;
-                }
-                await run(() =>
-                  updateParticipant.mutateAsync({
-                    id,
-                    participantId: renameTarget.participantId,
-                    displayName: renameTarget.name.trim(),
-                  }),
-                );
-                setRenameTarget(null);
-              }}
-            >
-              Save
-            </Button>
-          </DialogFooter>
+          <DialogForm
+            onSubmit={async () => {
+              if (!renameTarget?.name.trim()) {
+                return;
+              }
+              await run(() =>
+                updateParticipant.mutateAsync({
+                  id,
+                  participantId: renameTarget.participantId,
+                  displayName: renameTarget.name.trim(),
+                }),
+              );
+              setRenameTarget(null);
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>Rename participant</DialogTitle>
+            </DialogHeader>
+            <Input
+              value={renameTarget?.name ?? ""}
+              maxLength={120}
+              onChange={(event) =>
+                setRenameTarget((prev) => (prev ? { ...prev, name: event.target.value } : prev))
+              }
+              aria-label="New name"
+            />
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setRenameTarget(null)}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={!renameTarget?.name.trim() || updateParticipant.isPending}
+              >
+                Save
+              </Button>
+            </DialogFooter>
+          </DialogForm>
         </DialogContent>
       </Dialog>
 
       <Dialog open={removeTarget !== null} onOpenChange={(open) => !open && setRemoveTarget(null)}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Remove {removeTarget?.name}?</DialogTitle>
-            <DialogDescription>
-              This permanently removes them from the tournament, including any decklist they
-              submitted, and cannot be undone. If they have already been paired into a round,
-              removal is blocked, so drop them instead, which keeps their results but sits them out
-              of later rounds.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setRemoveTarget(null)}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={participantAction.isPending}
-              onClick={() => {
-                if (removeTarget) {
-                  fireAction(removeTarget.participantId, "remove");
-                  setRemoveTarget(null);
-                }
-              }}
-            >
-              Remove
-            </Button>
-          </DialogFooter>
+          <DialogForm
+            onSubmit={() => {
+              if (removeTarget) {
+                fireAction(removeTarget.participantId, "remove");
+                setRemoveTarget(null);
+              }
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>Remove {removeTarget?.name}?</DialogTitle>
+              <DialogDescription>
+                This permanently removes them from the tournament, including any decklist they
+                submitted, and cannot be undone. If they have already been paired into a round,
+                removal is blocked, so drop them instead, which keeps their results but sits them
+                out of later rounds.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setRemoveTarget(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" variant="destructive" disabled={participantAction.isPending}>
+                Remove
+              </Button>
+            </DialogFooter>
+          </DialogForm>
         </DialogContent>
       </Dialog>
     </div>

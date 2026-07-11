@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DialogForm } from "@/components/ui/dialog-form";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth-client";
 import { sessionQueryOptions } from "@/lib/auth-session";
@@ -72,30 +73,32 @@ export function DangerZoneSection() {
         >
           <AlertDialogTrigger render={<Button variant="destructive">Delete account</Button>} />
           <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete your account?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will permanently delete your account and all your data. Enter your password to
-                confirm.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <div className="grid gap-2">
-              <Input
-                type="password"
-                autoComplete="current-password"
-                placeholder="Your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                aria-invalid={Boolean(error)}
-              />
-              {error && <p className="text-destructive text-sm">{error}</p>}
-            </div>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <Button variant="destructive" disabled={loading} onClick={handleDelete}>
-                {loading ? "Deleting..." : "Delete account"}
-              </Button>
-            </AlertDialogFooter>
+            <DialogForm onSubmit={handleDelete}>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete your account?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will permanently delete your account and all your data. Enter your password
+                  to confirm.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <div className="grid gap-2">
+                <Input
+                  type="password"
+                  autoComplete="current-password"
+                  placeholder="Your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  aria-invalid={Boolean(error)}
+                />
+                {error && <p className="text-destructive text-sm">{error}</p>}
+              </div>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <Button type="submit" variant="destructive" disabled={loading}>
+                  {loading ? "Deleting..." : "Delete account"}
+                </Button>
+              </AlertDialogFooter>
+            </DialogForm>
           </AlertDialogContent>
         </AlertDialog>
       </CardContent>

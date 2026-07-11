@@ -29,6 +29,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { DialogForm } from "@/components/ui/dialog-form";
 import {
   Table,
   TableBody,
@@ -673,27 +674,28 @@ function DeleteButton<TData>({
           <Trash2Icon className="h-4 w-4" />
         </AlertDialogTrigger>
         <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{title}</AlertDialogTitle>
-            <AlertDialogDescription>{description}</AlertDialogDescription>
-          </AlertDialogHeader>
-          {deleteError && <p className="text-destructive text-sm">{deleteError}</p>}
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDeleteError("")}>Cancel</AlertDialogCancel>
-            <AlertDialogPrimitive.Close
-              render={<Button variant="destructive" />}
-              onClick={async () => {
-                setDeleteError("");
-                try {
-                  await config.onDelete(row);
-                } catch (error) {
-                  setDeleteError(error instanceof Error ? error.message : "Delete failed");
-                }
-              }}
-            >
-              Delete
-            </AlertDialogPrimitive.Close>
-          </AlertDialogFooter>
+          <DialogForm
+            onSubmit={async () => {
+              setDeleteError("");
+              try {
+                await config.onDelete(row);
+              } catch (error) {
+                setDeleteError(error instanceof Error ? error.message : "Delete failed");
+              }
+            }}
+          >
+            <AlertDialogHeader>
+              <AlertDialogTitle>{title}</AlertDialogTitle>
+              <AlertDialogDescription>{description}</AlertDialogDescription>
+            </AlertDialogHeader>
+            {deleteError && <p className="text-destructive text-sm">{deleteError}</p>}
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setDeleteError("")}>Cancel</AlertDialogCancel>
+              <AlertDialogPrimitive.Close render={<Button type="submit" variant="destructive" />}>
+                Delete
+              </AlertDialogPrimitive.Close>
+            </AlertDialogFooter>
+          </DialogForm>
         </AlertDialogContent>
       </AlertDialog>
     );

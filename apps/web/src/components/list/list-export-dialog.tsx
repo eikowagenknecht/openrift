@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DialogForm } from "@/components/ui/dialog-form";
 import { Textarea } from "@/components/ui/textarea";
 import { formatCardListAsDeckText } from "@/lib/list-export";
 
@@ -39,28 +40,30 @@ export function ListExportDialog({ entries, open, onOpenChange }: ListExportDial
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Export list</DialogTitle>
-          <DialogDescription>
-            A plain-text list with one card per line, ready to paste into deck-building tools.
-          </DialogDescription>
-        </DialogHeader>
+        <DialogForm onSubmit={handleCopy}>
+          <DialogHeader>
+            <DialogTitle>Export list</DialogTitle>
+            <DialogDescription>
+              A plain-text list with one card per line, ready to paste into deck-building tools.
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="flex min-w-0 flex-col gap-3">
-          <Textarea
-            readOnly
-            value={code}
-            className="field-sizing-fixed font-mono text-xs"
-            rows={12}
-            onClick={(event) => (event.target as HTMLTextAreaElement).select()}
-          />
-          <div className="flex justify-end">
-            <Button onClick={handleCopy} disabled={code.length === 0}>
-              {copied ? <CheckIcon className="size-4" /> : <CopyIcon className="size-4" />}
-              {copied ? "Copied" : "Copy"}
-            </Button>
+          <div className="flex min-w-0 flex-col gap-3">
+            <Textarea
+              readOnly
+              value={code}
+              className="field-sizing-fixed font-mono text-xs"
+              rows={12}
+              onClick={(event) => (event.target as HTMLTextAreaElement).select()}
+            />
+            <div className="flex justify-end">
+              <Button type="submit" disabled={code.length === 0}>
+                {copied ? <CheckIcon className="size-4" /> : <CopyIcon className="size-4" />}
+                {copied ? "Copied" : "Copy"}
+              </Button>
+            </div>
           </div>
-        </div>
+        </DialogForm>
       </DialogContent>
     </Dialog>
   );

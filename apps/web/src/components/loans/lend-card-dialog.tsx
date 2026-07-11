@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DialogForm } from "@/components/ui/dialog-form";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { UserAvatar } from "@/components/user-avatar";
@@ -94,111 +95,113 @@ export function LendCardDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Lend to a friend</DialogTitle>
-          <DialogDescription>
-            Note down who has {cardName}. It stays in your collection, marked as on loan, and stops
-            counting for deck building and trades until it&apos;s back.
-          </DialogDescription>
-        </DialogHeader>
+        <DialogForm onSubmit={confirm}>
+          <DialogHeader>
+            <DialogTitle>Lend to a friend</DialogTitle>
+            <DialogDescription>
+              Note down who has {cardName}. It stays in your collection, marked as on loan, and
+              stops counting for deck building and trades until it&apos;s back.
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="flex items-center gap-2">
-          <span className="truncate text-sm font-medium">{cardName}</span>
-          <CardMetaLine
-            shortCode={printing.shortCode}
-            rarity={printing.rarity}
-            rarityLabel={labels.rarities[printing.rarity]}
-            finish={printing.finish}
-            finishLabel={labels.finishes[printing.finish]}
-          />
-        </div>
-
-        <RadioGroup value={borrower} onValueChange={setBorrower} className="gap-2 py-1">
-          {members.map((member) => (
-            <label
-              key={member.userId}
-              className="hover:bg-muted/60 flex cursor-pointer items-center gap-3 rounded-md border p-2.5"
-            >
-              <RadioGroupItem value={member.userId} />
-              <UserAvatar
-                image={member.image}
-                name={member.name}
-                gravatarHash={member.gravatarHash}
-                size="sm"
-              />
-              <span className="min-w-0 flex-1 truncate text-sm">{member.name ?? "Member"}</span>
-            </label>
-          ))}
-          <label className="hover:bg-muted/60 flex cursor-pointer items-start gap-3 rounded-md border p-2.5">
-            <RadioGroupItem value={FREE_TEXT} className="mt-2" />
-            <span className="flex min-w-0 flex-1 flex-col gap-1.5">
-              <Input
-                placeholder={members.length > 0 ? "Someone else, by name" : "Who has it?"}
-                value={name}
-                aria-label="Borrower name"
-                onFocus={() => setBorrower(FREE_TEXT)}
-                onChange={(event) => setName(event.target.value)}
-              />
-              {recentNames.length > 0 && freeText ? (
-                <span className="flex flex-wrap gap-1">
-                  {recentNames.map((recent) => (
-                    <Badge
-                      key={recent}
-                      variant="secondary"
-                      className="cursor-pointer"
-                      onClick={() => setName(recent)}
-                    >
-                      {recent}
-                    </Badge>
-                  ))}
-                </span>
-              ) : null}
-            </span>
-          </label>
-        </RadioGroup>
-
-        <div className="flex items-center justify-between gap-4">
-          <span>How many?</span>
           <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="icon-sm"
-              aria-label="Decrease quantity"
-              disabled={quantity <= 1}
-              onClick={() => setQuantity((current) => clamp(current - 1))}
-            >
-              <MinusIcon />
-            </Button>
-            <Input
-              type="number"
-              min={1}
-              max={maxQuantity}
-              value={quantity}
-              aria-label="Quantity"
-              // Hide the native number spinners — the +/- buttons drive the value.
-              className="w-16 [appearance:textfield] text-center [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-              onChange={(event) => setQuantity(clamp(Number(event.target.value)))}
+            <span className="truncate text-sm font-medium">{cardName}</span>
+            <CardMetaLine
+              shortCode={printing.shortCode}
+              rarity={printing.rarity}
+              rarityLabel={labels.rarities[printing.rarity]}
+              finish={printing.finish}
+              finishLabel={labels.finishes[printing.finish]}
             />
-            <Button
-              type="button"
-              variant="outline"
-              size="icon-sm"
-              aria-label="Increase quantity"
-              disabled={quantity >= maxQuantity}
-              onClick={() => setQuantity((current) => clamp(current + 1))}
-            >
-              <PlusIcon />
-            </Button>
           </div>
-        </div>
 
-        <DialogFooter>
-          <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
-          <Button type="button" disabled={createLoan.isPending || !canConfirm} onClick={confirm}>
-            Lend it out
-          </Button>
-        </DialogFooter>
+          <RadioGroup value={borrower} onValueChange={setBorrower} className="gap-2 py-1">
+            {members.map((member) => (
+              <label
+                key={member.userId}
+                className="hover:bg-muted/60 flex cursor-pointer items-center gap-3 rounded-md border p-2.5"
+              >
+                <RadioGroupItem value={member.userId} />
+                <UserAvatar
+                  image={member.image}
+                  name={member.name}
+                  gravatarHash={member.gravatarHash}
+                  size="sm"
+                />
+                <span className="min-w-0 flex-1 truncate text-sm">{member.name ?? "Member"}</span>
+              </label>
+            ))}
+            <label className="hover:bg-muted/60 flex cursor-pointer items-start gap-3 rounded-md border p-2.5">
+              <RadioGroupItem value={FREE_TEXT} className="mt-2" />
+              <span className="flex min-w-0 flex-1 flex-col gap-1.5">
+                <Input
+                  placeholder={members.length > 0 ? "Someone else, by name" : "Who has it?"}
+                  value={name}
+                  aria-label="Borrower name"
+                  onFocus={() => setBorrower(FREE_TEXT)}
+                  onChange={(event) => setName(event.target.value)}
+                />
+                {recentNames.length > 0 && freeText ? (
+                  <span className="flex flex-wrap gap-1">
+                    {recentNames.map((recent) => (
+                      <Badge
+                        key={recent}
+                        variant="secondary"
+                        className="cursor-pointer"
+                        onClick={() => setName(recent)}
+                      >
+                        {recent}
+                      </Badge>
+                    ))}
+                  </span>
+                ) : null}
+              </span>
+            </label>
+          </RadioGroup>
+
+          <div className="flex items-center justify-between gap-4">
+            <span>How many?</span>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                aria-label="Decrease quantity"
+                disabled={quantity <= 1}
+                onClick={() => setQuantity((current) => clamp(current - 1))}
+              >
+                <MinusIcon />
+              </Button>
+              <Input
+                type="number"
+                min={1}
+                max={maxQuantity}
+                value={quantity}
+                aria-label="Quantity"
+                // Hide the native number spinners — the +/- buttons drive the value.
+                className="w-16 [appearance:textfield] text-center [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                onChange={(event) => setQuantity(clamp(Number(event.target.value)))}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                aria-label="Increase quantity"
+                disabled={quantity >= maxQuantity}
+                onClick={() => setQuantity((current) => clamp(current + 1))}
+              >
+                <PlusIcon />
+              </Button>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+            <Button type="submit" disabled={createLoan.isPending || !canConfirm}>
+              Lend it out
+            </Button>
+          </DialogFooter>
+        </DialogForm>
       </DialogContent>
     </Dialog>
   );

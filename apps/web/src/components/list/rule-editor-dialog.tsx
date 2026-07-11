@@ -34,6 +34,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DialogForm } from "@/components/ui/dialog-form";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -137,32 +138,34 @@ export function RuleEditorDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Dynamic rules</DialogTitle>
-          <DialogDescription>
-            {isTrade
-              ? "Automatically offer copies in your collection that match these filters. Add more than one rule to combine them."
-              : "Automatically want every card that matches these filters. Add more than one rule to combine them."}
-          </DialogDescription>
-        </DialogHeader>
+        <DialogForm onSubmit={handleSave}>
+          <DialogHeader>
+            <DialogTitle>Dynamic rules</DialogTitle>
+            <DialogDescription>
+              {isTrade
+                ? "Automatically offer copies in your collection that match these filters. Add more than one rule to combine them."
+                : "Automatically want every card that matches these filters. Add more than one rule to combine them."}
+            </DialogDescription>
+          </DialogHeader>
 
-        <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
-          {isTrade ? <TradeRuleEditor kind={kind} /> : <WishRuleEditor kind={kind} />}
-        </Suspense>
+          <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
+            {isTrade ? <TradeRuleEditor kind={kind} /> : <WishRuleEditor kind={kind} />}
+          </Suspense>
 
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => onOpenChange(false)}
-            disabled={updateList.isPending}
-          >
-            Cancel
-          </Button>
-          <Button type="button" onClick={handleSave} disabled={updateList.isPending}>
-            Save
-          </Button>
-        </DialogFooter>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => onOpenChange(false)}
+              disabled={updateList.isPending}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={updateList.isPending}>
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogForm>
       </DialogContent>
     </Dialog>
   );

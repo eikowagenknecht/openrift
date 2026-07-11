@@ -70,6 +70,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DialogForm } from "@/components/ui/dialog-form";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -1077,89 +1078,78 @@ function FixCardDialog({
       }}
     >
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{zoneOnly ? "Move card" : "Fix card"}</DialogTitle>
-          <DialogDescription>
-            {zoneOnly
-              ? "Move the card to the right zone. Its name can't be changed once the list is approved, but ticks stay."
-              : "Correct the submitted name or move the card to the right zone. The name is matched against the catalog again, but ticks stay."}
-          </DialogDescription>
-        </DialogHeader>
-        <div className="flex flex-col gap-4">
-          {zoneOnly ? (
-            <div className="flex flex-col gap-1.5">
-              <Label>Card name</Label>
-              <p className="text-muted-foreground text-sm">{card.rawName}</p>
-            </div>
-          ) : (
-            // oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- keydown only relays Enter from the combobox input to the dialog's submit
-            <div
-              className="flex flex-col gap-1.5"
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.defaultPrevented) {
-                  void handleSave();
-                }
-              }}
-            >
-              <Label>Card name</Label>
-              <CardNameSearchField
-                key={String(open)}
-                initialName={card.rawName}
-                onNameChange={setName}
-              />
-            </div>
-          )}
-          <div className="flex gap-3">
-            <div className="flex flex-1 flex-col gap-1.5">
-              <Label>Zone</Label>
-              <Select value={section} onValueChange={(value) => setSection(value ?? card.zone)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue>
-                    {(value: string) => zoneLabels[value as never] ?? value}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {zoneOrder.map((zone) => (
-                    <SelectItem key={zone} value={zone}>
-                      {zoneLabels[zone]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {splittable ? (
-              <div className="flex w-28 flex-col gap-1.5">
-                <Label htmlFor="deck-check-fix-copies">Copies to move</Label>
-                <Input
-                  id="deck-check-fix-copies"
-                  inputMode="numeric"
-                  value={copies}
-                  onChange={(event) => setCopies(event.target.value.replaceAll(/[^0-9]/gu, ""))}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      void handleSave();
-                    }
-                  }}
+        <DialogForm onSubmit={() => void handleSave()}>
+          <DialogHeader>
+            <DialogTitle>{zoneOnly ? "Move card" : "Fix card"}</DialogTitle>
+            <DialogDescription>
+              {zoneOnly
+                ? "Move the card to the right zone. Its name can't be changed once the list is approved, but ticks stay."
+                : "Correct the submitted name or move the card to the right zone. The name is matched against the catalog again, but ticks stay."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            {zoneOnly ? (
+              <div className="flex flex-col gap-1.5">
+                <Label>Card name</Label>
+                <p className="text-muted-foreground text-sm">{card.rawName}</p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                <Label>Card name</Label>
+                <CardNameSearchField
+                  key={String(open)}
+                  initialName={card.rawName}
+                  onNameChange={setName}
                 />
               </div>
+            )}
+            <div className="flex gap-3">
+              <div className="flex flex-1 flex-col gap-1.5">
+                <Label>Zone</Label>
+                <Select value={section} onValueChange={(value) => setSection(value ?? card.zone)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue>
+                      {(value: string) => zoneLabels[value as never] ?? value}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {zoneOrder.map((zone) => (
+                      <SelectItem key={zone} value={zone}>
+                        {zoneLabels[zone]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {splittable ? (
+                <div className="flex w-28 flex-col gap-1.5">
+                  <Label htmlFor="deck-check-fix-copies">Copies to move</Label>
+                  <Input
+                    id="deck-check-fix-copies"
+                    inputMode="numeric"
+                    value={copies}
+                    onChange={(event) => setCopies(event.target.value.replaceAll(/[^0-9]/gu, ""))}
+                  />
+                </div>
+              ) : null}
+            </div>
+            {splittable ? (
+              <p className="text-muted-foreground text-sm">
+                {parsedCopies >= card.quantity
+                  ? `Moves all ${card.quantity} copies to ${zoneLabels[section as never] ?? section}.`
+                  : `Moves ${copiesValid ? parsedCopies : "?"} of ${card.quantity} copies. The rest stay in ${zoneLabels[card.zone]}.`}
+              </p>
             ) : null}
           </div>
-          {splittable ? (
-            <p className="text-muted-foreground text-sm">
-              {parsedCopies >= card.quantity
-                ? `Moves all ${card.quantity} copies to ${zoneLabels[section as never] ?? section}.`
-                : `Moves ${copiesValid ? parsedCopies : "?"} of ${card.quantity} copies. The rest stay in ${zoneLabels[card.zone]}.`}
-            </p>
-          ) : null}
-        </div>
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave} disabled={fixCard.isPending || !name.trim() || !copiesValid}>
-            {fixCard.isPending ? "Saving..." : "Save"}
-          </Button>
-        </DialogFooter>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={fixCard.isPending || !name.trim() || !copiesValid}>
+              {fixCard.isPending ? "Saving..." : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogForm>
       </DialogContent>
     </Dialog>
   );
@@ -1208,67 +1198,56 @@ function AddCardDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Add card</DialogTitle>
-        </DialogHeader>
-        <div className="flex flex-col gap-4">
-          {/* oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- keydown only relays Enter from the combobox input to the dialog's submit */}
-          <div
-            className="flex flex-col gap-1.5"
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.defaultPrevented) {
-                void handleAdd();
-              }
-            }}
-          >
-            <Label>Card name</Label>
-            <CardNameSearchField key={String(open)} onNameChange={setName} />
-          </div>
-          <div className="flex gap-3">
-            <div className="flex flex-1 flex-col gap-1.5">
-              <Label htmlFor="deck-check-card-quantity">Copies</Label>
-              <Input
-                id="deck-check-card-quantity"
-                inputMode="numeric"
-                value={quantity}
-                onChange={(event) => setQuantity(event.target.value.replaceAll(/[^0-9]/gu, ""))}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    void handleAdd();
-                  }
-                }}
-              />
+        <DialogForm onSubmit={() => void handleAdd()}>
+          <DialogHeader>
+            <DialogTitle>Add card</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Label>Card name</Label>
+              <CardNameSearchField key={String(open)} onNameChange={setName} />
             </div>
-            <div className="flex flex-1 flex-col gap-1.5">
-              <Label>Zone</Label>
-              <Select
-                value={section}
-                onValueChange={(value) => setSection(value ?? WellKnown.deckZone.MAIN)}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue>
-                    {(value: string) => zoneLabels[value as never] ?? value}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {zoneOrder.map((zone) => (
-                    <SelectItem key={zone} value={zone}>
-                      {zoneLabels[zone]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="flex gap-3">
+              <div className="flex flex-1 flex-col gap-1.5">
+                <Label htmlFor="deck-check-card-quantity">Copies</Label>
+                <Input
+                  id="deck-check-card-quantity"
+                  inputMode="numeric"
+                  value={quantity}
+                  onChange={(event) => setQuantity(event.target.value.replaceAll(/[^0-9]/gu, ""))}
+                />
+              </div>
+              <div className="flex flex-1 flex-col gap-1.5">
+                <Label>Zone</Label>
+                <Select
+                  value={section}
+                  onValueChange={(value) => setSection(value ?? WellKnown.deckZone.MAIN)}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue>
+                      {(value: string) => zoneLabels[value as never] ?? value}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {zoneOrder.map((zone) => (
+                      <SelectItem key={zone} value={zone}>
+                        {zoneLabels[zone]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
-        </div>
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleAdd} disabled={addCard.isPending || !name.trim()}>
-            {addCard.isPending ? "Adding..." : "Add"}
-          </Button>
-        </DialogFooter>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={addCard.isPending || !name.trim()}>
+              {addCard.isPending ? "Adding..." : "Add"}
+            </Button>
+          </DialogFooter>
+        </DialogForm>
       </DialogContent>
     </Dialog>
   );
@@ -1430,49 +1409,51 @@ function FixZonesDialog({
       }}
     >
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Fix card zones</DialogTitle>
-          <DialogDescription>
-            Based on their type, these cards belong in a different zone than the import put them in.
-            Untick any that are intentional, then apply the rest.
-          </DialogDescription>
-        </DialogHeader>
-        <ul className="flex flex-col gap-2">
-          {suggestions.map((suggestion) => (
-            <li key={suggestion.cardId}>
-              <Label className="hover:bg-muted/40 flex items-center gap-3 rounded-md p-2">
-                <Checkbox
-                  checked={selected.has(suggestion.cardId)}
-                  onCheckedChange={(checked: boolean) =>
-                    setSelected((prev) => {
-                      const next = new Set(prev);
-                      if (checked) {
-                        next.add(suggestion.cardId);
-                      } else {
-                        next.delete(suggestion.cardId);
-                      }
-                      return next;
-                    })
-                  }
-                />
-                <span className="min-w-0 flex-1 truncate font-normal">
-                  {displayNameFor(suggestion)}
-                </span>
-                <span className="text-muted-foreground shrink-0 text-sm">
-                  {zoneLabels[suggestion.currentZone]} → {zoneLabels[suggestion.suggestedZone]}
-                </span>
-              </Label>
-            </li>
-          ))}
-        </ul>
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleApply} disabled={applyZoneFixes.isPending || selected.size === 0}>
-            {applyZoneFixes.isPending ? "Applying..." : `Move ${selected.size}`}
-          </Button>
-        </DialogFooter>
+        <DialogForm onSubmit={() => void handleApply()}>
+          <DialogHeader>
+            <DialogTitle>Fix card zones</DialogTitle>
+            <DialogDescription>
+              Based on their type, these cards belong in a different zone than the import put them
+              in. Untick any that are intentional, then apply the rest.
+            </DialogDescription>
+          </DialogHeader>
+          <ul className="flex flex-col gap-2">
+            {suggestions.map((suggestion) => (
+              <li key={suggestion.cardId}>
+                <Label className="hover:bg-muted/40 flex items-center gap-3 rounded-md p-2">
+                  <Checkbox
+                    checked={selected.has(suggestion.cardId)}
+                    onCheckedChange={(checked: boolean) =>
+                      setSelected((prev) => {
+                        const next = new Set(prev);
+                        if (checked) {
+                          next.add(suggestion.cardId);
+                        } else {
+                          next.delete(suggestion.cardId);
+                        }
+                        return next;
+                      })
+                    }
+                  />
+                  <span className="min-w-0 flex-1 truncate font-normal">
+                    {displayNameFor(suggestion)}
+                  </span>
+                  <span className="text-muted-foreground shrink-0 text-sm">
+                    {zoneLabels[suggestion.currentZone]} → {zoneLabels[suggestion.suggestedZone]}
+                  </span>
+                </Label>
+              </li>
+            ))}
+          </ul>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={applyZoneFixes.isPending || selected.size === 0}>
+              {applyZoneFixes.isPending ? "Applying..." : `Move ${selected.size}`}
+            </Button>
+          </DialogFooter>
+        </DialogForm>
       </DialogContent>
     </Dialog>
   );

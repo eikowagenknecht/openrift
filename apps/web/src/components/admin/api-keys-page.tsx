@@ -24,6 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DialogForm } from "@/components/ui/dialog-form";
 import {
   Empty,
   EmptyDescription,
@@ -116,21 +117,20 @@ function DeleteKeyButton({ apiKey }: { apiKey: ApiKeySummary }) {
         <TrashIcon className="size-4" />
       </AlertDialogTrigger>
       <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Revoke &ldquo;{apiKey.name ?? apiKey.start}&rdquo;?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Scripts using this key stop working immediately. This cannot be undone.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogPrimitive.Close
-            render={<Button variant="destructive" />}
-            onClick={handleDelete}
-          >
-            Revoke
-          </AlertDialogPrimitive.Close>
-        </AlertDialogFooter>
+        <DialogForm onSubmit={handleDelete}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Revoke &ldquo;{apiKey.name ?? apiKey.start}&rdquo;?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Scripts using this key stop working immediately. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogPrimitive.Close render={<Button type="submit" variant="destructive" />}>
+              Revoke
+            </AlertDialogPrimitive.Close>
+          </AlertDialogFooter>
+        </DialogForm>
       </AlertDialogContent>
     </AlertDialog>
   );

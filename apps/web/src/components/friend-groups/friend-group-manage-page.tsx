@@ -36,6 +36,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { DialogForm } from "@/components/ui/dialog-form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -307,28 +308,28 @@ function AdminSettings({ data, slug }: { data: FriendGroupDetailResponse; slug: 
                   Rotate
                 </DialogTrigger>
                 <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Rotate the join code?</DialogTitle>
-                    <DialogDescription>
-                      The current code stops working immediately. Anyone holding an old invite link
-                      will need a new one.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <DialogFooter>
-                    <Button variant="ghost" onClick={() => setRotateConfirmOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      onClick={async () => {
-                        await rotateCode.mutateAsync(slug);
-                        setRotateConfirmOpen(false);
-                      }}
-                      disabled={rotateCode.isPending}
-                    >
-                      Rotate
-                    </Button>
-                  </DialogFooter>
+                  <DialogForm
+                    onSubmit={async () => {
+                      await rotateCode.mutateAsync(slug);
+                      setRotateConfirmOpen(false);
+                    }}
+                  >
+                    <DialogHeader>
+                      <DialogTitle>Rotate the join code?</DialogTitle>
+                      <DialogDescription>
+                        The current code stops working immediately. Anyone holding an old invite
+                        link will need a new one.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                      <Button variant="ghost" onClick={() => setRotateConfirmOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button type="submit" variant="destructive" disabled={rotateCode.isPending}>
+                        Rotate
+                      </Button>
+                    </DialogFooter>
+                  </DialogForm>
                 </DialogContent>
               </Dialog>
               <Dialog open={disableConfirmOpen} onOpenChange={setDisableConfirmOpen}>
@@ -336,28 +337,28 @@ function AdminSettings({ data, slug }: { data: FriendGroupDetailResponse; slug: 
                   Disable
                 </DialogTrigger>
                 <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Disable code-based joining?</DialogTitle>
-                    <DialogDescription>
-                      The code stops working immediately. New members will only be able to join via
-                      direct email invites until you re-enable code-based joining.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <DialogFooter>
-                    <Button variant="ghost" onClick={() => setDisableConfirmOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      onClick={async () => {
-                        await disableCode.mutateAsync(slug);
-                        setDisableConfirmOpen(false);
-                      }}
-                      disabled={disableCode.isPending}
-                    >
-                      Disable
-                    </Button>
-                  </DialogFooter>
+                  <DialogForm
+                    onSubmit={async () => {
+                      await disableCode.mutateAsync(slug);
+                      setDisableConfirmOpen(false);
+                    }}
+                  >
+                    <DialogHeader>
+                      <DialogTitle>Disable code-based joining?</DialogTitle>
+                      <DialogDescription>
+                        The code stops working immediately. New members will only be able to join
+                        via direct email invites until you re-enable code-based joining.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                      <Button variant="ghost" onClick={() => setDisableConfirmOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button type="submit" variant="destructive" disabled={disableCode.isPending}>
+                        Disable
+                      </Button>
+                    </DialogFooter>
+                  </DialogForm>
                 </DialogContent>
               </Dialog>
             </div>
@@ -567,28 +568,28 @@ function LeaveOrDeletePanel({ data, slug }: { data: FriendGroupDetailResponse; s
                 Delete group
               </DialogTrigger>
               <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Delete this group?</DialogTitle>
-                  <DialogDescription>
-                    The group, its members, invites, and list-shares will be permanently removed.
-                    Lists themselves stay; only their share with this group goes.
-                  </DialogDescription>
-                </DialogHeader>
-                <DialogFooter>
-                  <Button variant="ghost" onClick={() => setConfirmOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    onClick={async () => {
-                      await remove.mutateAsync(slug);
-                      void navigate({ to: "/groups" });
-                    }}
-                    disabled={remove.isPending}
-                  >
-                    Delete
-                  </Button>
-                </DialogFooter>
+                <DialogForm
+                  onSubmit={async () => {
+                    await remove.mutateAsync(slug);
+                    void navigate({ to: "/groups" });
+                  }}
+                >
+                  <DialogHeader>
+                    <DialogTitle>Delete this group?</DialogTitle>
+                    <DialogDescription>
+                      The group, its members, invites, and list-shares will be permanently removed.
+                      Lists themselves stay; only their share with this group goes.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <DialogFooter>
+                    <Button variant="ghost" onClick={() => setConfirmOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" variant="destructive" disabled={remove.isPending}>
+                      Delete
+                    </Button>
+                  </DialogFooter>
+                </DialogForm>
               </DialogContent>
             </Dialog>
           </>

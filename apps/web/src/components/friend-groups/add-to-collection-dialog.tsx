@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DialogForm } from "@/components/ui/dialog-form";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useApplyTradeSync } from "@/hooks/use-card-trades";
@@ -115,7 +116,7 @@ function AddToCollectionBody({
   };
 
   return (
-    <>
+    <DialogForm onSubmit={confirm}>
       <DialogHeader>
         <DialogTitle>Add to my collection</DialogTitle>
         <DialogDescription>
@@ -173,13 +174,12 @@ function AddToCollectionBody({
       <DialogFooter>
         <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
         <Button
-          type="button"
+          type="submit"
           disabled={pending || (selectedId === NEW_COLLECTION && newName.trim().length === 0)}
-          onClick={confirm}
         >
           Add to collection
         </Button>
       </DialogFooter>
-    </>
+    </DialogForm>
   );
 }

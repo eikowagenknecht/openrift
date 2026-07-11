@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DialogForm } from "@/components/ui/dialog-form";
 import { Input } from "@/components/ui/input";
 
 interface ReturnLoanDialogProps {
@@ -44,59 +45,61 @@ export function ReturnLoanDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Mark returned</DialogTitle>
-          <DialogDescription>
-            How many copies of {cardName} did you get back? The loan closes once everything is
-            returned.
-          </DialogDescription>
-        </DialogHeader>
+        <DialogForm onSubmit={() => onConfirm(quantity)}>
+          <DialogHeader>
+            <DialogTitle>Mark returned</DialogTitle>
+            <DialogDescription>
+              How many copies of {cardName} did you get back? The loan closes once everything is
+              returned.
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="flex items-center justify-between gap-4 py-2">
-          <span>Copies returned</span>
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="icon-sm"
-              aria-label="Decrease quantity"
-              disabled={quantity <= 1}
-              onClick={() => setQuantity((current) => clamp(current - 1))}
-            >
-              <MinusIcon />
-            </Button>
-            <Input
-              type="number"
-              min={1}
-              max={outstanding}
-              value={quantity}
-              aria-label="Quantity"
-              // Hide the native number spinners — the +/- buttons drive the value.
-              className="w-16 [appearance:textfield] text-center [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-              onChange={(event) => setQuantity(clamp(Number(event.target.value)))}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="icon-sm"
-              aria-label="Increase quantity"
-              disabled={quantity >= outstanding}
-              onClick={() => setQuantity((current) => clamp(current + 1))}
-            >
-              <PlusIcon />
-            </Button>
+          <div className="flex items-center justify-between gap-4 py-2">
+            <span>Copies returned</span>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                aria-label="Decrease quantity"
+                disabled={quantity <= 1}
+                onClick={() => setQuantity((current) => clamp(current - 1))}
+              >
+                <MinusIcon />
+              </Button>
+              <Input
+                type="number"
+                min={1}
+                max={outstanding}
+                value={quantity}
+                aria-label="Quantity"
+                // Hide the native number spinners — the +/- buttons drive the value.
+                className="w-16 [appearance:textfield] text-center [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                onChange={(event) => setQuantity(clamp(Number(event.target.value)))}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                aria-label="Increase quantity"
+                disabled={quantity >= outstanding}
+                onClick={() => setQuantity((current) => clamp(current + 1))}
+              >
+                <PlusIcon />
+              </Button>
+            </div>
           </div>
-        </div>
-        <p className="text-muted-foreground text-sm">
-          {outstanding} {outstanding === 1 ? "copy is" : "copies are"} still out
-        </p>
+          <p className="text-muted-foreground text-sm">
+            {outstanding} {outstanding === 1 ? "copy is" : "copies are"} still out
+          </p>
 
-        <DialogFooter>
-          <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
-          <Button type="button" disabled={pending} onClick={() => onConfirm(quantity)}>
-            Mark returned
-          </Button>
-        </DialogFooter>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+            <Button type="submit" disabled={pending}>
+              Mark returned
+            </Button>
+          </DialogFooter>
+        </DialogForm>
       </DialogContent>
     </Dialog>
   );

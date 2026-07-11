@@ -23,6 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DialogForm } from "@/components/ui/dialog-form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -84,69 +85,71 @@ function CreateGroupDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Create group</DialogTitle>
-          <DialogDescription>
-            Closed by default. Members opt in their own lists per group.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="fg-name">Name</Label>
-            <Input
-              id="fg-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              maxLength={60}
-              placeholder="Tuesday Night Crew"
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="fg-slug">URL slug</Label>
-            <Input
-              id="fg-slug"
-              value={slug}
-              onChange={(e) => setSlug(e.target.value.toLowerCase())}
-              maxLength={30}
-              placeholder="tuesday-crew"
-            />
-            {slugError ? (
-              <span className="text-destructive text-xs">{slugError}</span>
-            ) : (
-              <span className="text-muted-foreground text-xs">
-                Used in the URL: /groups/{slug || "your-slug"}
-              </span>
-            )}
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="fg-desc">Description (optional)</Label>
-            <Textarea
-              id="fg-desc"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              maxLength={500}
-              rows={3}
-            />
-          </div>
-          <div className="flex items-center justify-between rounded-md border p-3">
-            <div className="flex flex-col gap-0.5">
-              <Label htmlFor="fg-code">Join code</Label>
-              <span className="text-muted-foreground text-xs">
-                Generate a code so admins can share an invite link. You can rotate or disable it
-                later.
-              </span>
+        <DialogForm onSubmit={handleCreate}>
+          <DialogHeader>
+            <DialogTitle>Create group</DialogTitle>
+            <DialogDescription>
+              Closed by default. Members opt in their own lists per group.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="fg-name">Name</Label>
+              <Input
+                id="fg-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                maxLength={60}
+                placeholder="Tuesday Night Crew"
+              />
             </div>
-            <Switch id="fg-code" checked={generateCode} onCheckedChange={setGenerateCode} />
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="fg-slug">URL slug</Label>
+              <Input
+                id="fg-slug"
+                value={slug}
+                onChange={(e) => setSlug(e.target.value.toLowerCase())}
+                maxLength={30}
+                placeholder="tuesday-crew"
+              />
+              {slugError ? (
+                <span className="text-destructive text-xs">{slugError}</span>
+              ) : (
+                <span className="text-muted-foreground text-xs">
+                  Used in the URL: /groups/{slug || "your-slug"}
+                </span>
+              )}
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="fg-desc">Description (optional)</Label>
+              <Textarea
+                id="fg-desc"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                maxLength={500}
+                rows={3}
+              />
+            </div>
+            <div className="flex items-center justify-between rounded-md border p-3">
+              <div className="flex flex-col gap-0.5">
+                <Label htmlFor="fg-code">Join code</Label>
+                <span className="text-muted-foreground text-xs">
+                  Generate a code so admins can share an invite link. You can rotate or disable it
+                  later.
+                </span>
+              </div>
+              <Switch id="fg-code" checked={generateCode} onCheckedChange={setGenerateCode} />
+            </div>
           </div>
-        </div>
-        <DialogFooter>
-          <Button
-            onClick={handleCreate}
-            disabled={!name.trim() || !slug.trim() || Boolean(slugError) || createGroup.isPending}
-          >
-            Create
-          </Button>
-        </DialogFooter>
+          <DialogFooter>
+            <Button
+              type="submit"
+              disabled={!name.trim() || !slug.trim() || Boolean(slugError) || createGroup.isPending}
+            >
+              Create
+            </Button>
+          </DialogFooter>
+        </DialogForm>
       </DialogContent>
     </Dialog>
   );

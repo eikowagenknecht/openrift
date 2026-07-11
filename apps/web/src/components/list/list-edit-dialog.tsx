@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DialogForm } from "@/components/ui/dialog-form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useUpdateList } from "@/hooks/use-lists";
@@ -83,65 +84,61 @@ export function ListEditDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Edit list</DialogTitle>
-        </DialogHeader>
+        <DialogForm onSubmit={handleSubmit}>
+          <DialogHeader>
+            <DialogTitle>Edit list</DialogTitle>
+          </DialogHeader>
 
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="list-edit-name">Name</Label>
-            <Input
-              id="list-edit-name"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  handleSubmit();
-                }
-              }}
-              maxLength={200}
-              // oxlint-disable-next-line jsx-a11y/no-autofocus -- intentional: dialog input should grab focus
-              autoFocus
-            />
-          </div>
-
-          {supportsPrefs && (
-            <div className="flex flex-col gap-2">
-              <div className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-                Trade preferences
-              </div>
-              <div className="text-muted-foreground text-xs">
-                Defaults applied to every entry. You can override per card on each row.
-              </div>
-              <TradePreferenceEditor
-                value={tradeDefaults}
-                onChange={setTradeDefaults}
-                currency={currency}
-                showCurrency
-                onCurrencyChange={setCurrency}
-                idPrefix="list-edit"
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="list-edit-name">Name</Label>
+              <Input
+                id="list-edit-name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                maxLength={200}
+                // oxlint-disable-next-line jsx-a11y/no-autofocus -- intentional: dialog input should grab focus
+                autoFocus
               />
             </div>
-          )}
-        </div>
 
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => onOpenChange(false)}
-            disabled={updateList.isPending}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            onClick={handleSubmit}
-            disabled={!name.trim() || absoluteNeedsAmount || updateList.isPending}
-          >
-            Save
-          </Button>
-        </DialogFooter>
+            {supportsPrefs && (
+              <div className="flex flex-col gap-2">
+                <div className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+                  Trade preferences
+                </div>
+                <div className="text-muted-foreground text-xs">
+                  Defaults applied to every entry. You can override per card on each row.
+                </div>
+                <TradePreferenceEditor
+                  value={tradeDefaults}
+                  onChange={setTradeDefaults}
+                  currency={currency}
+                  showCurrency
+                  onCurrencyChange={setCurrency}
+                  idPrefix="list-edit"
+                />
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => onOpenChange(false)}
+              disabled={updateList.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={!name.trim() || absoluteNeedsAmount || updateList.isPending}
+            >
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogForm>
       </DialogContent>
     </Dialog>
   );

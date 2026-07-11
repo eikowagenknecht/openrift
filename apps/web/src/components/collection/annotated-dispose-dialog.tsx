@@ -8,6 +8,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { DialogForm } from "@/components/ui/dialog-form";
 import type { EnumLabels } from "@/hooks/use-enums";
 import { useEnumOrders } from "@/hooks/use-enums";
 import type { PendingAnnotatedDispose } from "@/hooks/use-quick-add-actions";
@@ -70,22 +71,24 @@ export function AnnotatedDisposeDialog({
       }}
     >
       <AlertDialogContent>
-        <AlertDialogTitle>Remove this copy?</AlertDialogTitle>
-        <AlertDialogDescription>
-          {pending
-            ? `This copy of ${legendDisplayName(pending.printing.card)} has details recorded` +
-              `${details.length > 0 ? ` (${details.join(", ")})` : ""}. ` +
-              "Removing the copy permanently deletes these details too."
-            : ""}
-        </AlertDialogDescription>
-        <div className="flex justify-end gap-2 pt-2">
-          <Button variant="ghost" onClick={onCancel} disabled={isPending}>
-            Cancel
-          </Button>
-          <Button variant="destructive" onClick={onConfirm} disabled={isPending}>
-            {isPending ? "Removing…" : "Remove copy"}
-          </Button>
-        </div>
+        <DialogForm onSubmit={onConfirm}>
+          <AlertDialogTitle>Remove this copy?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {pending
+              ? `This copy of ${legendDisplayName(pending.printing.card)} has details recorded` +
+                `${details.length > 0 ? ` (${details.join(", ")})` : ""}. ` +
+                "Removing the copy permanently deletes these details too."
+              : ""}
+          </AlertDialogDescription>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="ghost" onClick={onCancel} disabled={isPending}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="destructive" disabled={isPending}>
+              {isPending ? "Removing…" : "Remove copy"}
+            </Button>
+          </div>
+        </DialogForm>
       </AlertDialogContent>
     </AlertDialog>
   );

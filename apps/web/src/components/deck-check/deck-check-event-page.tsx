@@ -26,6 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DialogForm } from "@/components/ui/dialog-form";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -450,81 +451,84 @@ function AddDeckDialog({
       }}
     >
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Add a deck</DialogTitle>
-          <DialogDescription>
-            Attach a decklist to someone on the roster. Add people on the Participants tab first.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <Label>Participant</Label>
-            {rosterItems.length === 0 ? (
+        <DialogForm onSubmit={() => void handleSubmit()}>
+          <DialogHeader>
+            <DialogTitle>Add a deck</DialogTitle>
+            <DialogDescription>
+              Attach a decklist to someone on the roster. Add people on the Participants tab first.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Label>Participant</Label>
+              {rosterItems.length === 0 ? (
+                <p className="text-muted-foreground text-sm">
+                  No participants without a deck. Add them on the Participants tab, then attach a
+                  deck here.
+                </p>
+              ) : (
+                <Select
+                  items={rosterItems}
+                  value={participantId}
+                  onValueChange={(value) => value && setParticipantId(value)}
+                >
+                  <SelectTrigger aria-label="Participant">
+                    <SelectValue placeholder="Choose a participant" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {rosterItems.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="manual-entry-decklist">Decklist</Label>
+              <Textarea
+                id="manual-entry-decklist"
+                value={decklist}
+                onChange={(event) => setDecklist(event.target.value)}
+                rows={10}
+                className="font-mono"
+                placeholder={
+                  "Champion:\n1 Some Champion\nMain:\n3 Some Card\nSideboard:\n2 Tech Card"
+                }
+              />
               <p className="text-muted-foreground text-sm">
-                No participants without a deck. Add them on the Participants tab, then attach a deck
-                here.
+                One card per line as <code>2 Card Name</code>, with optional zone headers
+                (Champion:, Main:, Sideboard:, …). Lines without a header go to the main deck. Card
+                matches are checked after you save.
               </p>
-            ) : (
-              <Select
-                items={rosterItems}
-                value={participantId}
-                onValueChange={(value) => value && setParticipantId(value)}
-              >
-                <SelectTrigger aria-label="Participant">
-                  <SelectValue placeholder="Choose a participant" />
-                </SelectTrigger>
-                <SelectContent>
-                  {rosterItems.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
+              {parsed.cards.length > 0 ? (
+                <p className="text-muted-foreground text-sm">
+                  {parsed.totalCopies} {parsed.totalCopies === 1 ? "copy" : "copies"} ·{" "}
+                  {perZone
+                    .map(
+                      ({ section, copies }) =>
+                        `${zoneLabels[section as never] ?? section} ${copies}`,
+                    )
+                    .join(" · ")}
+                </p>
+              ) : null}
+              {parsed.warnings.map((warning) => (
+                <p key={warning} className="text-destructive text-sm">
+                  {warning}
+                </p>
+              ))}
+            </div>
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="manual-entry-decklist">Decklist</Label>
-            <Textarea
-              id="manual-entry-decklist"
-              value={decklist}
-              onChange={(event) => setDecklist(event.target.value)}
-              rows={10}
-              className="font-mono"
-              placeholder={
-                "Champion:\n1 Some Champion\nMain:\n3 Some Card\nSideboard:\n2 Tech Card"
-              }
-            />
-            <p className="text-muted-foreground text-sm">
-              One card per line as <code>2 Card Name</code>, with optional zone headers (Champion:,
-              Main:, Sideboard:, …). Lines without a header go to the main deck. Card matches are
-              checked after you save.
-            </p>
-            {parsed.cards.length > 0 ? (
-              <p className="text-muted-foreground text-sm">
-                {parsed.totalCopies} {parsed.totalCopies === 1 ? "copy" : "copies"} ·{" "}
-                {perZone
-                  .map(
-                    ({ section, copies }) => `${zoneLabels[section as never] ?? section} ${copies}`,
-                  )
-                  .join(" · ")}
-              </p>
-            ) : null}
-            {parsed.warnings.map((warning) => (
-              <p key={warning} className="text-destructive text-sm">
-                {warning}
-              </p>
-            ))}
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit} disabled={createEntry.isPending || !participantId}>
-            {createEntry.isPending ? "Adding..." : "Add deck"}
-          </Button>
-        </DialogFooter>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={createEntry.isPending || !participantId}>
+              {createEntry.isPending ? "Adding..." : "Add deck"}
+            </Button>
+          </DialogFooter>
+        </DialogForm>
       </DialogContent>
     </Dialog>
   );

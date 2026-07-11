@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DialogForm } from "@/components/ui/dialog-form";
 import { useRemoveListEntry, useUpdateListEntry } from "@/hooks/use-lists";
 import type { WishEntryFlat } from "@/hooks/use-wish-entries";
 
@@ -81,47 +82,49 @@ export function TakeWishlistFollowUpDialog({
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
-        <AlertDialogTitle>Remove from your wishlist?</AlertDialogTitle>
-        <AlertDialogDescription>
-          {single ? (
-            <>
-              You took {cardName}, which is on your wishlist &ldquo;{entries[0]?.listName}&rdquo;.
-            </>
-          ) : (
-            <>You took {cardName}, which is on several of your wishlists.</>
+        <DialogForm onSubmit={applyRemoval}>
+          <AlertDialogTitle>Remove from your wishlist?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {single ? (
+              <>
+                You took {cardName}, which is on your wishlist &ldquo;{entries[0]?.listName}&rdquo;.
+              </>
+            ) : (
+              <>You took {cardName}, which is on several of your wishlists.</>
+            )}
+          </AlertDialogDescription>
+          {!single && (
+            <div className="flex flex-col gap-2 py-1">
+              {entries.map((entry) => (
+                <label key={entry.entryId} className="flex items-center gap-2">
+                  <Checkbox
+                    checked={selectedIds.has(entry.entryId)}
+                    onCheckedChange={(checked) =>
+                      setSelectedIds((prev) => {
+                        const next = new Set(prev);
+                        if (checked) {
+                          next.add(entry.entryId);
+                        } else {
+                          next.delete(entry.entryId);
+                        }
+                        return next;
+                      })
+                    }
+                  />
+                  <span className="truncate">{entry.listName}</span>
+                </label>
+              ))}
+            </div>
           )}
-        </AlertDialogDescription>
-        {!single && (
-          <div className="flex flex-col gap-2 py-1">
-            {entries.map((entry) => (
-              <label key={entry.entryId} className="flex items-center gap-2">
-                <Checkbox
-                  checked={selectedIds.has(entry.entryId)}
-                  onCheckedChange={(checked) =>
-                    setSelectedIds((prev) => {
-                      const next = new Set(prev);
-                      if (checked) {
-                        next.add(entry.entryId);
-                      } else {
-                        next.delete(entry.entryId);
-                      }
-                      return next;
-                    })
-                  }
-                />
-                <span className="truncate">{entry.listName}</span>
-              </label>
-            ))}
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={isPending}>
+              Keep{single ? "" : " all"}
+            </Button>
+            <Button type="submit" disabled={isPending || selectedIds.size === 0}>
+              {single ? `Remove from ${entries[0]?.listName}` : "Remove selected"}
+            </Button>
           </div>
-        )}
-        <div className="flex justify-end gap-2 pt-2">
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={isPending}>
-            Keep{single ? "" : " all"}
-          </Button>
-          <Button onClick={applyRemoval} disabled={isPending || selectedIds.size === 0}>
-            {single ? `Remove from ${entries[0]?.listName}` : "Remove selected"}
-          </Button>
-        </div>
+        </DialogForm>
       </AlertDialogContent>
     </AlertDialog>
   );

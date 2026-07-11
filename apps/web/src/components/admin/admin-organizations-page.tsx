@@ -17,6 +17,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { DialogForm } from "@/components/ui/dialog-form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -73,50 +74,49 @@ function EditOrgDialog({ org }: { org: OrganizationSummaryResponse }) {
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger render={<Button size="sm" variant="ghost" />}>Edit</DialogTrigger>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Edit organization</DialogTitle>
-          <DialogDescription>
-            Owner {org.ownerName ?? org.ownerUserId}. The owner can only be changed by transferring
-            membership.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor={`edit-org-slug-${org.id}`}>Slug</Label>
-            <Input
-              id={`edit-org-slug-${org.id}`}
-              value={slug}
-              onChange={(event) => setSlug(event.target.value.toLowerCase())}
-              className="font-mono"
-            />
+        <DialogForm onSubmit={handleSave}>
+          <DialogHeader>
+            <DialogTitle>Edit organization</DialogTitle>
+            <DialogDescription>
+              Owner {org.ownerName ?? org.ownerUserId}. The owner can only be changed by
+              transferring membership.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor={`edit-org-slug-${org.id}`}>Slug</Label>
+              <Input
+                id={`edit-org-slug-${org.id}`}
+                value={slug}
+                onChange={(event) => setSlug(event.target.value.toLowerCase())}
+                className="font-mono"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor={`edit-org-name-${org.id}`}>Name</Label>
+              <Input
+                id={`edit-org-name-${org.id}`}
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5 sm:col-span-2">
+              <Label htmlFor={`edit-org-desc-${org.id}`}>Description</Label>
+              <Input
+                id={`edit-org-desc-${org.id}`}
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+                placeholder="Optional"
+              />
+            </div>
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor={`edit-org-name-${org.id}`}>Name</Label>
-            <Input
-              id={`edit-org-name-${org.id}`}
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5 sm:col-span-2">
-            <Label htmlFor={`edit-org-desc-${org.id}`}>Description</Label>
-            <Input
-              id={`edit-org-desc-${org.id}`}
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              placeholder="Optional"
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
-          <Button
-            disabled={!slug.trim() || !name.trim() || updateOrg.isPending}
-            onClick={handleSave}
-          >
-            Save
-          </Button>
-        </DialogFooter>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+            <Button type="submit" disabled={!slug.trim() || !name.trim() || updateOrg.isPending}>
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogForm>
       </DialogContent>
     </Dialog>
   );

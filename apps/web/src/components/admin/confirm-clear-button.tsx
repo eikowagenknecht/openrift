@@ -12,6 +12,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { DialogForm } from "@/components/ui/dialog-form";
 
 export function ConfirmClearButton({
   title,
@@ -34,16 +35,18 @@ export function ConfirmClearButton({
         {isPending ? <LoaderIcon className="size-4 animate-spin" /> : label}
       </AlertDialogTrigger>
       <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>{title}</AlertDialogTitle>
-          <AlertDialogDescription>{description}</AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogPrimitive.Close render={<Button variant="destructive" />} onClick={onConfirm}>
-            {label}
-          </AlertDialogPrimitive.Close>
-        </AlertDialogFooter>
+        <DialogForm onSubmit={onConfirm}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{title}</AlertDialogTitle>
+            <AlertDialogDescription>{description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogPrimitive.Close render={<Button type="submit" variant="destructive" />}>
+              {label}
+            </AlertDialogPrimitive.Close>
+          </AlertDialogFooter>
+        </DialogForm>
       </AlertDialogContent>
     </AlertDialog>
   );

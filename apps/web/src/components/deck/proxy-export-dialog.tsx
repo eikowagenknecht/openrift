@@ -16,6 +16,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { DialogForm } from "@/components/ui/dialog-form";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -367,79 +368,84 @@ export function ProxyExportDialog({
         </DialogTrigger>
       )}
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Export as proxies</DialogTitle>
-          <DialogDescription>
-            Generate a printable PDF of proxy cards from this deck.
-          </DialogDescription>
-        </DialogHeader>
+        <DialogForm onSubmit={handleGenerate}>
+          <DialogHeader>
+            <DialogTitle>Export as proxies</DialogTitle>
+            <DialogDescription>
+              Generate a printable PDF of proxy cards from this deck.
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="proxy-render-mode">Render mode</Label>
-            <Select
-              value={renderMode}
-              onValueChange={(value) => setRenderMode(value as ProxyRenderMode)}
-            >
-              <SelectTrigger id="proxy-render-mode">
-                <SelectValue>
-                  {(value: string) => RENDER_MODE_LABELS[value as ProxyRenderMode] ?? value}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="image">Card images</SelectItem>
-                <SelectItem value="text">Text placeholders</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="proxy-render-mode">Render mode</Label>
+              <Select
+                value={renderMode}
+                onValueChange={(value) => setRenderMode(value as ProxyRenderMode)}
+              >
+                <SelectTrigger id="proxy-render-mode">
+                  <SelectValue>
+                    {(value: string) => RENDER_MODE_LABELS[value as ProxyRenderMode] ?? value}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="image">Card images</SelectItem>
+                  <SelectItem value="text">Text placeholders</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="proxy-page-size">Page size</Label>
+              <Select
+                value={pageSize}
+                onValueChange={(value) => setPageSize(value as ProxyPageSize)}
+              >
+                <SelectTrigger id="proxy-page-size">
+                  <SelectValue>
+                    {(value: string) => PAGE_SIZE_LABELS[value as ProxyPageSize] ?? value}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="a4">A4</SelectItem>
+                  <SelectItem value="letter">US Letter</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <Label htmlFor="proxy-cut-lines">Cut lines</Label>
+              <Switch id="proxy-cut-lines" checked={cutLines} onCheckedChange={setCutLines} />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <Label htmlFor="proxy-watermark">Proxy watermark</Label>
+              <Switch id="proxy-watermark" checked={watermark} onCheckedChange={setWatermark} />
+            </div>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="proxy-page-size">Page size</Label>
-            <Select value={pageSize} onValueChange={(value) => setPageSize(value as ProxyPageSize)}>
-              <SelectTrigger id="proxy-page-size">
-                <SelectValue>
-                  {(value: string) => PAGE_SIZE_LABELS[value as ProxyPageSize] ?? value}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="a4">A4</SelectItem>
-                <SelectItem value="letter">US Letter</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Captured card thumbnail preview */}
+          {previewUrl && (
+            <div className="flex justify-center">
+              <img src={previewUrl} alt="Last captured card" className="aspect-card w-48 rounded" />
+            </div>
+          )}
 
-          <div className="flex items-center justify-between">
-            <Label htmlFor="proxy-cut-lines">Cut lines</Label>
-            <Switch id="proxy-cut-lines" checked={cutLines} onCheckedChange={setCutLines} />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <Label htmlFor="proxy-watermark">Proxy watermark</Label>
-            <Switch id="proxy-watermark" checked={watermark} onCheckedChange={setWatermark} />
-          </div>
-        </div>
-
-        {/* Captured card thumbnail preview */}
-        {previewUrl && (
-          <div className="flex justify-center">
-            <img src={previewUrl} alt="Last captured card" className="aspect-card w-48 rounded" />
-          </div>
-        )}
-
-        <DialogFooter>
-          <Button onClick={handleGenerate} disabled={generating}>
-            {generating ? (
-              <>
-                <Loader2Icon className="size-4 animate-spin" />
-                {progress.total > 0
-                  ? `Rendering ${progress.current}/${progress.total}…`
-                  : "Generating…"}
-              </>
-            ) : (
-              "Generate PDF"
-            )}
-          </Button>
-        </DialogFooter>
+          <DialogFooter>
+            <Button type="submit" disabled={generating}>
+              {generating ? (
+                <>
+                  <Loader2Icon className="size-4 animate-spin" />
+                  {progress.total > 0
+                    ? `Rendering ${progress.current}/${progress.total}…`
+                    : "Generating…"}
+                </>
+              ) : (
+                "Generate PDF"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogForm>
       </DialogContent>
 
       {/* Off-screen render container — in the React tree for provider access, but not in the dialog layout */}

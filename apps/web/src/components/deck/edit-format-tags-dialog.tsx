@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DialogForm } from "@/components/ui/dialog-form";
 import { Label } from "@/components/ui/label";
 import { useFilterActions } from "@/hooks/use-card-filters";
 import { useUpdateDeck } from "@/hooks/use-decks";
@@ -77,29 +78,31 @@ export function EditFormatTagsDialog({ deckId, format, currentSlugs, open, onOpe
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Change {config.nounPlural}</DialogTitle>
-        </DialogHeader>
-        <p className="text-muted-foreground text-sm">
-          Cards that don&apos;t carry one of the chosen {config.nounPlural} stay in the deck but get
-          flagged as invalid until you remove them or pick a wider {config.noun} set.
-        </p>
-        <div className="space-y-2">
-          <Label htmlFor="edit-format-tag-picker">{capitalize(config.nounPlural)}</Label>
-          <TagMultiSelect
-            triggerId="edit-format-tag-picker"
-            category={config.category}
-            nounPlural={config.nounPlural}
-            selected={selected}
-            onChange={setSelected}
-            triggerClassName="w-full"
-          />
-        </div>
-        <DialogFooter>
-          <Button onClick={handleSave} disabled={selected.length === 0 || updateDeck.isPending}>
-            {updateDeck.isPending ? "Saving…" : "Save"}
-          </Button>
-        </DialogFooter>
+        <DialogForm onSubmit={handleSave}>
+          <DialogHeader>
+            <DialogTitle>Change {config.nounPlural}</DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground text-sm">
+            Cards that don&apos;t carry one of the chosen {config.nounPlural} stay in the deck but
+            get flagged as invalid until you remove them or pick a wider {config.noun} set.
+          </p>
+          <div className="space-y-2">
+            <Label htmlFor="edit-format-tag-picker">{capitalize(config.nounPlural)}</Label>
+            <TagMultiSelect
+              triggerId="edit-format-tag-picker"
+              category={config.category}
+              nounPlural={config.nounPlural}
+              selected={selected}
+              onChange={setSelected}
+              triggerClassName="w-full"
+            />
+          </div>
+          <DialogFooter>
+            <Button type="submit" disabled={selected.length === 0 || updateDeck.isPending}>
+              {updateDeck.isPending ? "Saving…" : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogForm>
       </DialogContent>
     </Dialog>
   );

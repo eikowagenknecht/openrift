@@ -10,6 +10,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { DialogForm } from "@/components/ui/dialog-form";
 
 interface TakeConfirmDialogProps {
   /** The card to take, or null when the dialog is closed. */
@@ -54,45 +55,47 @@ export function TakeConfirmDialog({
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
-        <AlertDialogTitle>Take from the group collection</AlertDialogTitle>
-        <AlertDialogDescription>
-          {quantity === 1 ? "Move one copy" : `Move ${quantity} copies`} of {cardName} from the
-          group collection into your {inboxName}.
-        </AlertDialogDescription>
-        {canStep && (
-          <div className="flex flex-col items-center gap-1 py-1">
-            <div className="flex items-center gap-3">
-              <Button
-                variant="outline"
-                size="icon"
-                disabled={quantity <= 1 || isPending}
-                onClick={() => setQuantity((current) => Math.max(1, current - 1))}
-                aria-label="One fewer"
-              >
-                <MinusIcon className="size-4" />
-              </Button>
-              <span className="w-8 text-center text-lg font-medium tabular-nums">{quantity}</span>
-              <Button
-                variant="outline"
-                size="icon"
-                disabled={quantity >= maxQuantity || isPending}
-                onClick={() => setQuantity((current) => Math.min(maxQuantity, current + 1))}
-                aria-label="One more"
-              >
-                <PlusIcon className="size-4" />
-              </Button>
+        <DialogForm onSubmit={() => onConfirm(quantity)}>
+          <AlertDialogTitle>Take from the group collection</AlertDialogTitle>
+          <AlertDialogDescription>
+            {quantity === 1 ? "Move one copy" : `Move ${quantity} copies`} of {cardName} from the
+            group collection into your {inboxName}.
+          </AlertDialogDescription>
+          {canStep && (
+            <div className="flex flex-col items-center gap-1 py-1">
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  disabled={quantity <= 1 || isPending}
+                  onClick={() => setQuantity((current) => Math.max(1, current - 1))}
+                  aria-label="One fewer"
+                >
+                  <MinusIcon className="size-4" />
+                </Button>
+                <span className="w-8 text-center text-lg font-medium tabular-nums">{quantity}</span>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  disabled={quantity >= maxQuantity || isPending}
+                  onClick={() => setQuantity((current) => Math.min(maxQuantity, current + 1))}
+                  aria-label="One more"
+                >
+                  <PlusIcon className="size-4" />
+                </Button>
+              </div>
+              <p className="text-muted-foreground text-xs">{maxQuantity} in the box</p>
             </div>
-            <p className="text-muted-foreground text-xs">{maxQuantity} in the box</p>
+          )}
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={isPending}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isPending}>
+              {isPending ? "Taking…" : quantity === 1 ? "Take a copy" : `Take ${quantity} copies`}
+            </Button>
           </div>
-        )}
-        <div className="flex justify-end gap-2 pt-2">
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={isPending}>
-            Cancel
-          </Button>
-          <Button onClick={() => onConfirm(quantity)} disabled={isPending}>
-            {isPending ? "Taking…" : quantity === 1 ? "Take a copy" : `Take ${quantity} copies`}
-          </Button>
-        </div>
+        </DialogForm>
       </AlertDialogContent>
     </AlertDialog>
   );

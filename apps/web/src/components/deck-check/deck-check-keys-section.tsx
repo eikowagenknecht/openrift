@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DialogForm } from "@/components/ui/dialog-form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -212,36 +213,33 @@ function CreateKeyDialog({
       }}
     >
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Create API key</DialogTitle>
-          <DialogDescription>
-            Give the key a name that tells you where it is used, so you can later recognize which
-            one to revoke.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="deck-check-key-label">Name</Label>
-          <Input
-            id="deck-check-key-label"
-            value={label}
-            onChange={(event) => setLabel(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                void handleCreate();
-              }
-            }}
-            placeholder="Registration website"
-            maxLength={120}
-          />
-        </div>
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleCreate} disabled={mintPending || !label.trim()}>
-            {mintPending ? "Creating..." : "Create"}
-          </Button>
-        </DialogFooter>
+        <DialogForm onSubmit={() => void handleCreate()}>
+          <DialogHeader>
+            <DialogTitle>Create API key</DialogTitle>
+            <DialogDescription>
+              Give the key a name that tells you where it is used, so you can later recognize which
+              one to revoke.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="deck-check-key-label">Name</Label>
+            <Input
+              id="deck-check-key-label"
+              value={label}
+              onChange={(event) => setLabel(event.target.value)}
+              placeholder="Registration website"
+              maxLength={120}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={mintPending || !label.trim()}>
+              {mintPending ? "Creating..." : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogForm>
       </DialogContent>
     </Dialog>
   );
@@ -373,27 +371,20 @@ function RenameKeyDialog({
       }}
     >
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Rename key</DialogTitle>
-        </DialogHeader>
-        <Input
-          value={label}
-          onChange={(event) => setLabel(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              void handleRename();
-            }
-          }}
-          maxLength={120}
-        />
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleRename} disabled={pending || !label.trim()}>
-            {pending ? "Saving..." : "Save"}
-          </Button>
-        </DialogFooter>
+        <DialogForm onSubmit={() => void handleRename()}>
+          <DialogHeader>
+            <DialogTitle>Rename key</DialogTitle>
+          </DialogHeader>
+          <Input value={label} onChange={(event) => setLabel(event.target.value)} maxLength={120} />
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={pending || !label.trim()}>
+              {pending ? "Saving..." : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogForm>
       </DialogContent>
     </Dialog>
   );
@@ -413,26 +404,28 @@ function MintedKeyDialog({ token, onClose }: { token: string | null; onClose: ()
       }}
     >
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>API key created</DialogTitle>
-          <DialogDescription>
-            Copy it now and store it where it will be used. For security, it is never shown again.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="bg-muted rounded-md p-3 font-mono text-sm break-all">{token}</div>
-        <DialogFooter>
-          <Button
-            onClick={async () => {
-              if (token) {
-                await navigator.clipboard.writeText(token);
-                setCopied(true);
-              }
-            }}
-          >
-            {copied ? <CheckIcon className="size-4" /> : <CopyIcon className="size-4" />}
-            {copied ? "Copied" : "Copy key"}
-          </Button>
-        </DialogFooter>
+        <DialogForm
+          onSubmit={async () => {
+            if (token) {
+              await navigator.clipboard.writeText(token);
+              setCopied(true);
+            }
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>API key created</DialogTitle>
+            <DialogDescription>
+              Copy it now and store it where it will be used. For security, it is never shown again.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="bg-muted rounded-md p-3 font-mono text-sm break-all">{token}</div>
+          <DialogFooter>
+            <Button type="submit">
+              {copied ? <CheckIcon className="size-4" /> : <CopyIcon className="size-4" />}
+              {copied ? "Copied" : "Copy key"}
+            </Button>
+          </DialogFooter>
+        </DialogForm>
       </DialogContent>
     </Dialog>
   );

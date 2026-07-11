@@ -36,6 +36,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DialogForm } from "@/components/ui/dialog-form";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -267,18 +268,20 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete deck</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete &ldquo;{deck.name}&rdquo;? This cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} disabled={deleteDeck.isPending}>
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
+          <DialogForm onSubmit={handleDelete}>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete deck</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete &ldquo;{deck.name}&rdquo;? This cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction type="submit" disabled={deleteDeck.isPending}>
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </DialogForm>
         </AlertDialogContent>
       </AlertDialog>
 
