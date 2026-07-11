@@ -1,6 +1,6 @@
 ---
-status: proposed
-date: 2026-07-07
+status: accepted
+date: 2026-07-08
 ---
 
 # ADR-039: Card Lending Ledger
