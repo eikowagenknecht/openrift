@@ -194,6 +194,7 @@ describe("GET /api/admin/v1/cards (candidate list)", () => {
         normalizedName: "fireball",
         shortCodes: ["OGN-001"],
         stagingShortCodes: [],
+        setSlugs: ["ogn"],
         candidateCount: 1,
         uncheckedCardCount: 0,
         uncheckedPrintingCount: 0,

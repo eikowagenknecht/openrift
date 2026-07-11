@@ -60,45 +60,45 @@ describe("round-trip", () => {
 
 describe("filterCardsBySet", () => {
   const rows = [
-    { cardSlug: "jinx" },
-    { cardSlug: "viktor" },
-    { cardSlug: "annie" },
-    { cardSlug: null },
+    { id: "jinx", setSlugs: ["ogn", "unleashed"] },
+    { id: "viktor", setSlugs: ["ogn"] },
+    { id: "annie", setSlugs: ["unleashed"] },
+    { id: "no-set", setSlugs: [] },
   ];
-  const setSlugsByCardSlug = new Map([
-    ["jinx", ["ogn", "unleashed"]],
-    ["viktor", ["ogn"]],
-    ["annie", ["unleashed"]],
-  ]);
 
   it("returns the input unchanged when no set filter is active", () => {
-    expect(filterCardsBySet(rows, undefined, setSlugsByCardSlug)).toEqual(rows);
+    expect(filterCardsBySet(rows, undefined)).toEqual(rows);
   });
 
-  it("keeps only cards whose setSlugs include the active set", () => {
+  it("keeps only rows whose setSlugs include the active set", () => {
     // Regression: /admin/cards?set=unleashed must actually narrow the list.
-    const filtered = filterCardsBySet(rows, "unleashed", setSlugsByCardSlug);
-    expect(filtered.map((r) => r.cardSlug)).toEqual(["jinx", "annie"]);
+    const filtered = filterCardsBySet(rows, "unleashed");
+    expect(filtered.map((r) => r.id)).toEqual(["jinx", "annie"]);
   });
 
-  it("keeps reprint cards that appear in multiple sets", () => {
+  it("keeps reprint rows that appear in multiple sets", () => {
     // Jinx is in both OGN and Unleashed; filtering by OGN must still find her.
-    const filtered = filterCardsBySet(rows, "ogn", setSlugsByCardSlug);
-    expect(filtered.map((r) => r.cardSlug)).toEqual(["jinx", "viktor"]);
+    const filtered = filterCardsBySet(rows, "ogn");
+    expect(filtered.map((r) => r.id)).toEqual(["jinx", "viktor"]);
   });
 
-  it("excludes rows without a cardSlug (candidates)", () => {
-    const filtered = filterCardsBySet(rows, "unleashed", setSlugsByCardSlug);
-    expect(filtered.some((r) => r.cardSlug === null)).toBe(false);
+  it("narrows candidates by their pending set slugs", () => {
+    // Regression: a new-set candidate (no accepted printing, cardSlug null) still
+    // carries setSlugs from its candidate printings and must survive the filter.
+    const candidates = [
+      { cardSlug: null, setSlugs: ["ven"] },
+      { cardSlug: null, setSlugs: ["ogn"] },
+    ];
+    const filtered = filterCardsBySet(candidates, "ven");
+    expect(filtered).toEqual([{ cardSlug: null, setSlugs: ["ven"] }]);
   });
 
-  it("returns an empty array when no card belongs to the set", () => {
-    expect(filterCardsBySet(rows, "mystery-set", setSlugsByCardSlug)).toEqual([]);
+  it("drops rows with no set slugs when a filter is active", () => {
+    const filtered = filterCardsBySet(rows, "unleashed");
+    expect(filtered.some((r) => r.id === "no-set")).toBe(false);
   });
 
-  it("returns an empty array for a card whose slug is missing from the map", () => {
-    const sparseMap = new Map([["jinx", ["unleashed"]]]);
-    const filtered = filterCardsBySet(rows, "unleashed", sparseMap);
-    expect(filtered.map((r) => r.cardSlug)).toEqual(["jinx"]);
+  it("returns an empty array when no row belongs to the set", () => {
+    expect(filterCardsBySet(rows, "mystery-set")).toEqual([]);
   });
 });

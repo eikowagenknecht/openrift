@@ -36,6 +36,11 @@ export const candidateCardSummarySchema = z.object({
   normalizedName: z.string(),
   shortCodes: z.array(z.string()),
   stagingShortCodes: z.array(z.string()),
+  // Distinct set slugs across the row's printings — accepted printings and
+  // pending candidate printings alike — so the admin set filter narrows both
+  // the Cards and Candidates tabs (a new-set candidate has no accepted printing
+  // yet, so accepted-only setSlugs would hide it).
+  setSlugs: z.array(z.string()),
   candidateCount: z.number(),
   uncheckedCardCount: z.number(),
   uncheckedPrintingCount: z.number(),

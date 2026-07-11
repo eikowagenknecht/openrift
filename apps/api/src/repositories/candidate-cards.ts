@@ -172,13 +172,16 @@ export function candidateCardsRepo(db: Kysely<Database>) {
 
     /** @returns All printings with fields needed for the card source list, sorted deterministically. */
     listPrintingsForSourceList(): Promise<
-      Pick<Selectable<PrintingsTable>, "cardId" | "shortCode" | "language">[]
+      (Pick<Selectable<PrintingsTable>, "cardId" | "shortCode" | "language"> & {
+        setSlug: string | null;
+      })[]
     > {
       return db
         .selectFrom("printings as p")
         .innerJoin("finishes as f", "f.slug", "p.finish")
         .innerJoin("languages as l", "l.code", "p.language")
-        .select(["p.cardId", "p.shortCode", "p.language"])
+        .leftJoin("sets as s", "s.id", "p.setId")
+        .select(["p.cardId", "p.shortCode", "p.language", "s.slug as setSlug"])
         .orderBy("p.shortCode")
         .orderBy("f.sortOrder")
         .orderBy(sql`cardinality(p.marker_slugs)`)
@@ -214,7 +217,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
     listCandidatePrintingsForSourceList(): Promise<
       Pick<
         Selectable<CandidatePrintingsTable>,
-        "candidateCardId" | "shortCode" | "checkedAt" | "printingId" | "language"
+        "candidateCardId" | "shortCode" | "checkedAt" | "printingId" | "language" | "setId"
       >[]
     > {
       return db
@@ -228,6 +231,9 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           "ps.checkedAt",
           "ps.printingId",
           "ps.language",
+          // For candidate printings this column stores the set *slug* directly
+          // (not a UUID like accepted printings) — see setPrintedTotalBySlugs.
+          "ps.setId",
         ])
         .where(notIgnoredPrinting("ps", "cs"))
         .where(notHiddenSource("cs"))

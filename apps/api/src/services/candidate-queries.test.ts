@@ -439,6 +439,106 @@ describe("buildCandidateCardList", () => {
     expect(result[0].stagingShortCodes).toEqual(["OGN-001", "OGN-002"]);
     expect(result[0].favoriteStagingShortCodes).toEqual(["OGN-001"]);
   });
+
+  it("derives setSlugs from a matched card's accepted printings", async () => {
+    const repo = createMockRepo({
+      listCardsForSourceList: vi
+        .fn()
+        .mockResolvedValue([{ id: "card-1", slug: "bolt", name: "Bolt", normName: "bolt" }]),
+      listPrintingsForSourceList: vi.fn().mockResolvedValue([
+        { cardId: "card-1", shortCode: "OGN-001", language: "EN", setSlug: "ogn" },
+        { cardId: "card-1", shortCode: "VEN-050", language: "EN", setSlug: "ven" },
+      ]),
+    });
+
+    const result = await buildCandidateCardList(repo, new Set(["gallery"]));
+
+    expect(result[0].setSlugs).toEqual(["ogn", "ven"]);
+  });
+
+  it("includes pending candidate-printing sets in an unmatched row's setSlugs", async () => {
+    // Regression: a new-set candidate has no accepted printing, so setSlugs must
+    // come from its candidate printings — otherwise ?set=VEN hides it.
+    const repo = createMockRepo({
+      listCandidateCardsForSourceList: vi.fn().mockResolvedValue([
+        {
+          id: "cc-1",
+          normName: "newcard",
+          name: "New Card",
+          provider: "gallery",
+          checkedAt: null,
+        },
+      ]),
+      listCandidatePrintingsForSourceList: vi.fn().mockResolvedValue([
+        {
+          candidateCardId: "cc-1",
+          shortCode: "VEN-101",
+          checkedAt: null,
+          printingId: null,
+          setId: "ven",
+        },
+      ]),
+    });
+
+    const result = await buildCandidateCardList(repo, new Set(["gallery"]));
+    const unmatched = result.find((r) => r.cardSlug === null);
+    expect(unmatched?.setSlugs).toEqual(["ven"]);
+  });
+
+  it("unions accepted and pending candidate sets on a matched card, deduped and sorted", async () => {
+    const repo = createMockRepo({
+      listCardsForSourceList: vi
+        .fn()
+        .mockResolvedValue([{ id: "card-1", slug: "bolt", name: "Bolt", normName: "bolt" }]),
+      listCandidateCardsForSourceList: vi
+        .fn()
+        .mockResolvedValue([
+          { id: "cc-1", normName: "bolt", name: "Bolt", provider: "gallery", checkedAt: null },
+        ]),
+      listPrintingsForSourceList: vi
+        .fn()
+        .mockResolvedValue([
+          { cardId: "card-1", shortCode: "OGN-001", language: "EN", setSlug: "ogn" },
+        ]),
+      listCandidatePrintingsForSourceList: vi.fn().mockResolvedValue([
+        // A new VEN reprint candidate plus a duplicate OGN candidate.
+        {
+          candidateCardId: "cc-1",
+          shortCode: "VEN-050",
+          checkedAt: null,
+          printingId: null,
+          setId: "ven",
+        },
+        {
+          candidateCardId: "cc-1",
+          shortCode: "OGN-001",
+          checkedAt: null,
+          printingId: null,
+          setId: "ogn",
+        },
+      ]),
+    });
+
+    const result = await buildCandidateCardList(repo, new Set(["gallery"]));
+
+    expect(result[0].setSlugs).toEqual(["ogn", "ven"]);
+  });
+
+  it("leaves setSlugs empty when no printing carries a set", async () => {
+    const repo = createMockRepo({
+      listCardsForSourceList: vi
+        .fn()
+        .mockResolvedValue([{ id: "card-1", slug: "bolt", name: "Bolt", normName: "bolt" }]),
+      listPrintingsForSourceList: vi
+        .fn()
+        .mockResolvedValue([
+          { cardId: "card-1", shortCode: "OGN-001", language: "EN", setSlug: null },
+        ]),
+    });
+
+    const result = await buildCandidateCardList(repo, new Set(["gallery"]));
+    expect(result[0].setSlugs).toEqual([]);
+  });
 });
 
 // ---------------------------------------------------------------------------

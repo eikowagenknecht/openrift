@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAdminAccess } from "@/hooks/use-admin";
-import { useAdminCardList, useAllCards } from "@/hooks/use-admin-card-queries";
+import { useAdminCardList } from "@/hooks/use-admin-card-queries";
 import { useSets } from "@/hooks/use-sets";
 import { useUnifiedMappingsWhen } from "@/hooks/use-unified-mappings";
 import { filterCardsBySet } from "@/lib/admin-cards-search";
@@ -32,7 +32,6 @@ export function AdminCardListPage() {
   // unmatched-products tab) is admin-only and hidden for them.
   const isAdmin = access?.isAdmin === true;
   const { data: unified } = useUnifiedMappingsWhen(isAdmin);
-  const { data: allCards } = useAllCards();
   const { data: setsData } = useSets();
   const { tab: rawTab, setSlug } = Route.useSearch({
     select: (s) => ({ tab: s.tab ?? "cards", setSlug: s.set }),
@@ -50,16 +49,17 @@ export function AdminCardListPage() {
     setOptions.push({ value: setSlug, label: setSlug });
   }
 
-  // Cards can span multiple sets (reprints); a card passes the filter if any
-  // of its accepted printings belong to `setSlug`. Candidate rows don't carry
-  // setSlugs yet, so the filter only narrows the Cards tab.
-  const setSlugsByCardSlug = new Map(allCards.map((c) => [c.slug, c.setSlugs]));
+  // Each row carries the set slugs of its printings (accepted + pending
+  // candidates), so the set filter narrows both tabs — including cards whose
+  // only VEN printings are still unaccepted candidates.
   const cards = filterCardsBySet(
     data.filter((r) => r.cardSlug),
     setSlug,
-    setSlugsByCardSlug,
   );
-  const candidates = data.filter((r) => !r.cardSlug);
+  const candidates = filterCardsBySet(
+    data.filter((r) => !r.cardSlug),
+    setSlug,
+  );
   const unmatchedCount = unified
     ? unified.unmatchedProducts.tcgplayer.length +
       unified.unmatchedProducts.cardmarket.length +

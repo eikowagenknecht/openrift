@@ -144,6 +144,9 @@ export async function buildCandidateCardList(
   // Accepted printings live on cards — e.g. { cardUUID → ["OGN-001a", "OGN-001b"] }
   // Non-EN printings get a " [FR]" suffix so the list page can distinguish languages
   const shortCodesByCardId = new Map<string, string[]>();
+  // Set slugs of a card's accepted printings — { cardUUID → {"OGN", "VEN"} }.
+  // Used to build the row's `setSlugs` so the admin set filter can scope the list.
+  const setSlugsByCardId = new Map<string, Set<string>>();
   for (const p of printings) {
     let arr = shortCodesByCardId.get(p.cardId);
     if (!arr) {
@@ -152,6 +155,14 @@ export async function buildCandidateCardList(
     }
     const label = p.language === "EN" ? p.shortCode : `${p.shortCode} [${p.language}]`;
     arr.push(label);
+    if (p.setSlug) {
+      let slugs = setSlugsByCardId.get(p.cardId);
+      if (!slugs) {
+        slugs = new Set();
+        setSlugsByCardId.set(p.cardId, slugs);
+      }
+      slugs.add(p.setSlug);
+    }
   }
 
   // Candidate cards from different imports share a normName —
@@ -198,6 +209,22 @@ export async function buildCandidateCardList(
       }
     }
     return ids;
+  }
+
+  // Distinct set slugs across a group's candidate printings. For candidate
+  // printings `setId` holds the slug directly (unlike accepted printings, which
+  // store a UUID), so no resolution is needed. Includes every candidate printing
+  // so a not-yet-accepted new-set reprint still surfaces under that set's filter.
+  function candidateSetSlugsForGroup(group: typeof candidateCards): string[] {
+    const slugs = new Set<string>();
+    for (const cc of group) {
+      for (const cp of cpByCandidateCardId.get(cc.id) ?? []) {
+        if (cp.setId) {
+          slugs.add(cp.setId);
+        }
+      }
+    }
+    return [...slugs];
   }
 
   // Count candidate printings without checkedAt across a normName group,
@@ -257,6 +284,12 @@ export async function buildCandidateCardList(
       normalizedName: card.normName,
       shortCodes: shortCodesByCardId.get(card.id) ?? [],
       stagingShortCodes: group ? stagingIdsForGroup(group) : [],
+      setSlugs: [
+        ...new Set([
+          ...(setSlugsByCardId.get(card.id) ?? []),
+          ...(group ? candidateSetSlugsForGroup(group) : []),
+        ]),
+      ].toSorted(),
       candidateCount: group?.length ?? 0,
       uncheckedCardCount:
         group?.filter((cc) => !cc.checkedAt && favoriteProviders.has(cc.provider)).length ?? 0,
@@ -290,6 +323,7 @@ export async function buildCandidateCardList(
       normalizedName: normName,
       shortCodes: [],
       stagingShortCodes: stagingIdsForGroup(group),
+      setSlugs: candidateSetSlugsForGroup(group).toSorted(),
       candidateCount: group.length,
       uncheckedCardCount: group.filter((cc) => !cc.checkedAt && favoriteProviders.has(cc.provider))
         .length,
