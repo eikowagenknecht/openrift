@@ -262,6 +262,8 @@ export const queryKeys = {
     markers: ["admin", "markers"] as const,
     customTags: ["admin", "custom-tags"] as const,
     customTagCategories: ["admin", "custom-tag-categories"] as const,
+    cardTags: ["admin", "card-tags"] as const,
+    tagCategories: ["admin", "tag-categories"] as const,
     cardCustomTags: Object.assign(
       (cardId: string) => ["admin", "card-custom-tags", cardId] as const,
       { prefix: ["admin", "card-custom-tags"] as const },

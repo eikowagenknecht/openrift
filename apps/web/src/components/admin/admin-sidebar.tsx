@@ -32,6 +32,7 @@ import {
   SpellCheckIcon,
   SwatchBookIcon,
   TagIcon,
+  TagsIcon,
   UsersIcon,
 } from "lucide-react";
 
@@ -60,6 +61,7 @@ const catalogPages = [
 
 const taxonomyPages = [
   { to: "/admin/markers" as const, icon: TagIcon, title: "Markers" },
+  { to: "/admin/card-tags" as const, icon: TagsIcon, title: "Card Tags" },
   { to: "/admin/custom-tags" as const, icon: TagIcon, title: "Custom Tags" },
   { to: "/admin/distribution-channels" as const, icon: MapIcon, title: "Distribution Channels" },
   { to: "/admin/domains" as const, icon: PaletteIcon, title: "Domains" },

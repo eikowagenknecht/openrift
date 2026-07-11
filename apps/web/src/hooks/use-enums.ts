@@ -178,6 +178,28 @@ export function useCustomTagList(): { byCategory: Map<string, CustomTag[]>; all:
 }
 
 /**
+ * Returns the printed-tag classification from /init: the admin-managed tag
+ * categories (region, champion, species, …) in display order, plus the tag →
+ * category-slug map. Used by the filter chrome to group the tags facet into
+ * per-category sections; tags absent from the map are unclassified.
+ *
+ * @returns Ordered categories and the tag → category-slug lookup.
+ */
+export function useTagCategories(): {
+  categories: { slug: string; label: string; sortOrder: number }[];
+  categoryByTag: ReadonlyMap<string, string>;
+} {
+  const { data } = useSuspenseQuery(initQueryOptions);
+  // `?? []` / `?? {}` guard deploy skew: a freshly-shipped web bundle can be
+  // served an /init payload cached before the API learned these keys.
+  const categories = (data.tagCategories ?? []).toSorted(
+    (a, b) => a.sortOrder - b.sortOrder || a.label.localeCompare(b.label),
+  );
+  const categoryByTag = new Map(Object.entries(data.tagCategoryMap ?? {}));
+  return { categories, categoryByTag };
+}
+
+/**
  * Returns DB-derived sort orders and display labels for all game-data enums.
  * Use this instead of hardcoded *_ORDER arrays and *_LABELS maps.
  *

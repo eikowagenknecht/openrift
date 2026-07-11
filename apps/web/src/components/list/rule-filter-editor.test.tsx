@@ -15,6 +15,7 @@ const AVAILABLE = {
   superTypes: [],
   domains: [],
   keywords: [],
+  tags: [],
   hasBanned: false,
   sets: [],
   rarities: [],

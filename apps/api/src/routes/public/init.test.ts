@@ -51,6 +51,14 @@ const mockCatalogRepo = {
   championIdentifierTags: vi.fn(() => Promise.resolve([] as string[])),
 };
 
+const mockTagCategoriesRepo = {
+  listAll: vi.fn(() => Promise.resolve([] as { slug: string; label: string; sortOrder: number }[])),
+};
+
+const mockTagDefinitionsRepo = {
+  listAll: vi.fn(() => Promise.resolve([] as { tag: string; category: string }[])),
+};
+
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("repos", {
@@ -59,6 +67,8 @@ app.use("*", async (c, next) => {
     distributionChannels: mockDistributionChannelsRepo,
     customTags: mockCustomTagsRepo,
     catalog: mockCatalogRepo,
+    tagCategories: mockTagCategoriesRepo,
+    tagDefinitions: mockTagDefinitionsRepo,
     // oxlint-disable-next-line no-explicit-any -- test mock doesn't match full Repos type
   } as any);
   await next();
@@ -79,6 +89,10 @@ describe("GET /api/v1/init", () => {
     mockDistributionChannelsRepo.listAll.mockResolvedValue([]);
     mockCustomTagsRepo.listAll.mockResolvedValue([]);
     mockCatalogRepo.championIdentifierTags.mockResolvedValue([]);
+    mockTagCategoriesRepo.listAll.mockReset();
+    mockTagDefinitionsRepo.listAll.mockReset();
+    mockTagCategoriesRepo.listAll.mockResolvedValue([]);
+    mockTagDefinitionsRepo.listAll.mockResolvedValue([]);
   });
 
   it("returns 200 with enums and keywords", async () => {
@@ -153,5 +167,23 @@ describe("GET /api/v1/init", () => {
     const res = await app.request("/api/v1/init");
     const json = await res.json();
     expect(json.keywords).toEqual({});
+  });
+
+  it("returns tag categories and the tag → category map", async () => {
+    mockTagCategoriesRepo.listAll.mockResolvedValue([
+      { slug: "region", label: "Region", sortOrder: 0 },
+      { slug: "species", label: "Species", sortOrder: 2 },
+    ]);
+    mockTagDefinitionsRepo.listAll.mockResolvedValue([
+      { tag: "Ionia", category: "region" },
+      { tag: "Poro", category: "species" },
+    ]);
+    const res = await app.request("/api/v1/init");
+    const json = await res.json();
+    expect(json.tagCategories).toEqual([
+      { slug: "region", label: "Region", sortOrder: 0 },
+      { slug: "species", label: "Species", sortOrder: 2 },
+    ]);
+    expect(json.tagCategoryMap).toEqual({ Ionia: "region", Poro: "species" });
   });
 });

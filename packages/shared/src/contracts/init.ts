@@ -61,6 +61,14 @@ export const initResponseSchema = z
     distributionChannels: z.array(distributionChannelSchema).openapi({ example: [] }),
     customTags: z.array(customTagSchema).openapi({ example: [] }),
     championIdentifierTags: z.array(z.string()).openapi({ example: ["Garen", "Karma", "Yasuo"] }),
+    /** Categories for the printed card tags, in display order. */
+    tagCategories: z.array(enumRowSchema).openapi({
+      example: [{ slug: "region", label: "Region", sortOrder: 0 }],
+    }),
+    /** Printed tag → category slug. Tags without an entry are unclassified. */
+    tagCategoryMap: z.record(z.string(), z.string()).openapi({
+      example: { Ionia: "region", Poro: "species" },
+    }),
   })
   .openapi("InitResponse");
 

@@ -48,6 +48,7 @@ export const filterSearchSchema = z.object({
   channels: stringArray(),
   customTags: stringArray(),
   keywords: stringArray(),
+  tags: stringArray(),
   // Negation companions (ADR-034): exclude params per multi-select facet.
   setsEx: stringArray(),
   languagesEx: stringArray(),
@@ -61,6 +62,7 @@ export const filterSearchSchema = z.object({
   channelsEx: stringArray(),
   customTagsEx: stringArray(),
   keywordsEx: stringArray(),
+  tagsEx: stringArray(),
   // Tri-state "standard printing" constraint (ADR-034).
   standard: boolFlag(),
   energyMin: numberField(),
@@ -82,6 +84,7 @@ export const filterSearchSchema = z.object({
   customTagsPresence: presenceField(),
   channelsPresence: presenceField(),
   keywordsPresence: presenceField(),
+  tagsPresence: presenceField(),
   banned: boolFlag(),
   errata: boolFlag(),
   sort: z.enum(SORT_OPTIONS).optional().catch(undefined),

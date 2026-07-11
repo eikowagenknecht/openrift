@@ -426,6 +426,53 @@ describe("useCardFilters", () => {
     expect(result.current.hasActiveFilters).toBe(true);
   });
 
+  // Printed-tags dimension: URL params `tags` / `tagsEx` / `tagsPresence` map
+  // onto the shared `tags` / `tagsExclude` / `presence.tags` filter fields.
+  it("maps tags params into the shared filter shape", () => {
+    mockSearch = { tags: ["Mount Targon"], tagsEx: ["Poro"], tagsPresence: "any" };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+
+    expect(result.current.filters.tags).toEqual(["Mount Targon"]);
+    expect(result.current.filters.tagsExclude).toEqual(["Poro"]);
+    expect(result.current.filters.presence.tags).toBe("any");
+    expect(result.current.hasActiveFilters).toBe(true);
+  });
+
+  it("detects active filters for each tags param on its own", () => {
+    for (const search of [
+      { tags: ["Ionia"] },
+      { tagsEx: ["Ionia"] },
+      { tagsPresence: "none" as const },
+    ]) {
+      mockSearch = search;
+      const { result } = renderHook(() => useCardFilters(), { wrapper });
+      expect(result.current.hasActiveFilters).toBe(true);
+    }
+  });
+
+  it("clearAllFilters removes the tags keys from search", () => {
+    mockSearch = { tags: ["Ionia"], tagsEx: ["Poro"], tagsPresence: "any" };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+
+    act(() => result.current.clearAllFilters());
+
+    const search = lastNavigateSearch();
+    expect(search).not.toHaveProperty("tags");
+    expect(search).not.toHaveProperty("tagsEx");
+    expect(search).not.toHaveProperty("tagsPresence");
+  });
+
+  it("cycling a tag clears a lingering 'none' tags presence", () => {
+    mockSearch = { tagsPresence: "none" };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+
+    act(() => result.current.cycleArrayFilter("tags", "tagsEx", "Kha’Zix"));
+
+    const search = lastNavigateSearch();
+    expect(search).toMatchObject({ tags: ["Kha’Zix"] });
+    expect(search).not.toHaveProperty("tagsPresence");
+  });
+
   it("setSortBy strips key for default sort ('id')", () => {
     const { result } = renderHook(() => useCardFilters(), { wrapper });
 

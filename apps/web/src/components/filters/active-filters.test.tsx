@@ -25,6 +25,7 @@ vi.mock("@/hooks/use-card-filters", () => ({
 vi.mock("@/hooks/use-enums", () => ({
   useEnumOrders: mockUseEnumOrders,
   useCustomTagList: mockUseCustomTagList,
+  useTagCategories: () => ({ categories: [], categoryByTag: new Map() }),
 }));
 
 vi.mock("@/stores/display-store", () => ({
@@ -56,6 +57,7 @@ const EMPTY_FILTER_STATE = {
   channels: [],
   customTags: [],
   keywords: [],
+  tags: [],
   owned: [],
   ownedCountMin: null,
   ownedCountMax: null,
@@ -65,6 +67,7 @@ const EMPTY_FILTER_STATE = {
   customTagsPresence: null,
   channelsPresence: null,
   keywordsPresence: null,
+  tagsPresence: null,
   banned: null,
   errata: null,
   standard: null,
@@ -81,6 +84,7 @@ const EMPTY_FILTER_STATE = {
   channelsEx: [],
   customTagsEx: [],
   keywordsEx: [],
+  tagsEx: [],
 };
 
 function makeAvailable(overrides: Partial<AvailableFilters> = {}): AvailableFilters {
@@ -96,6 +100,7 @@ function makeAvailable(overrides: Partial<AvailableFilters> = {}): AvailableFilt
     cardSizes: [],
     hasSigned: false,
     keywords: [],
+    tags: [],
     hasNonStandard: false,
     hasBanned: false,
     hasErrata: false,

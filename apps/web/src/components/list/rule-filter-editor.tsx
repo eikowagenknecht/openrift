@@ -402,6 +402,15 @@ export function RuleFilterEditor({
       "customTags",
     ),
     dimension(
+      "tags",
+      "Tags",
+      "card",
+      "tags",
+      "tagsExclude",
+      available.tags.map((tag) => ({ value: tag, label: tag })),
+      "tags",
+    ),
+    dimension(
       "keywords",
       "Keywords",
       "card",

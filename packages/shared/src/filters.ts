@@ -239,6 +239,7 @@ function presenceValues(
     customTags: customTagSlugs,
     distributionChannels: channelSlugs,
     keywords: printing.card.keywords,
+    tags: printing.card.tags,
   };
 }
 
@@ -404,12 +405,14 @@ export function filterCards(
       noneExcluded(filters.distributionChannelSlugsExclude, channelSlugs) &&
       noneExcluded(filters.customTagSlugsExclude, customTagSlugs) &&
       noneExcluded(filters.keywordsExclude, card.keywords) &&
+      noneExcluded(filters.tagsExclude, card.tags) &&
       matchesFlag(filters.isStandard, isStandardPrinting(printing)) &&
       matchesFlag(filters.isSigned, printing.isSigned) &&
       matchesMarkers(filters.markerSlugs, markerSlugs) &&
       matchesDistributionChannels(filters.distributionChannelSlugs, channelSlugs) &&
       matchesCustomTags(filters.customTagSlugs, customTagSlugs) &&
       overlaps(filters.keywords, card.keywords) &&
+      overlaps(filters.tags, card.tags) &&
       matchesPresence(filters.presence, presenceVals) &&
       matchesRange(card.energy, filters.energy) &&
       matchesRange(card.might, filters.might) &&
@@ -452,6 +455,8 @@ export interface AvailableFilters {
   distributionChannels: DistributionChannel[];
   /** Distinct keyword names across the printings' cards, sorted alphabetically. */
   keywords: string[];
+  /** Distinct printed tags across the printings' cards, sorted alphabetically. */
+  tags: string[];
   energy: { min: number; max: number };
   might: { min: number; max: number };
   power: { min: number; max: number };
@@ -581,6 +586,7 @@ export function getAvailableFilters(
       ]
     ).toSorted((a, b) => a.slug.localeCompare(b.slug)),
     keywords: unique(printings.flatMap((p) => p.card.keywords)).sort((a, b) => a.localeCompare(b)),
+    tags: unique(printings.flatMap((p) => p.card.tags)).sort((a, b) => a.localeCompare(b)),
     energy: boundsOf(energies),
     might: boundsOf(mights),
     power: boundsOf(powers),
@@ -601,6 +607,7 @@ export interface FilterCounts {
   markers: Map<string, number>;
   channels: Map<string, number>;
   keywords: Map<string, number>;
+  tags: Map<string, number>;
   /**
    * Counts for the single-chip "More"-section flags. Each value reflects the
    * count *if the chip's currently-displayed state were applied*, combined
@@ -718,6 +725,12 @@ const COUNTABLE_DIMENSIONS: readonly CountableDimension[] = [
     excludeField: "keywordsExclude",
     values: (p) => p.card.keywords,
   },
+  {
+    key: "tags",
+    filterField: "tags",
+    excludeField: "tagsExclude",
+    values: (p) => p.card.tags,
+  },
 ];
 
 interface FlagDimension {
@@ -749,6 +762,7 @@ const PRESENCE_VALUE_FIELDS: Record<
     exclude: "distributionChannelSlugsExclude",
   },
   keywords: {},
+  tags: { include: "tags", exclude: "tagsExclude" },
 };
 
 function countMatches(matched: Printing[], countBy: "printing" | "card"): number {
@@ -792,6 +806,7 @@ export function computeFilterCounts(
       customTags: { any: 0, none: 0 },
       distributionChannels: { any: 0, none: 0 },
       keywords: { any: 0, none: 0 },
+      tags: { any: 0, none: 0 },
     },
     ranges: {
       energy: { min: 0, max: 0, hasNullStat: false },

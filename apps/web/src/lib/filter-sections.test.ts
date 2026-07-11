@@ -26,6 +26,7 @@ function makeAvailable(overrides: Partial<AvailableFilters> = {}): AvailableFilt
     hasBanned: false,
     hasErrata: false,
     keywords: [],
+    tags: [],
     hasNullEnergy: false,
     hasNullMight: false,
     hasNullPower: false,

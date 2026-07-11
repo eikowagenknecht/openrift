@@ -33,7 +33,8 @@ export function presenceFlagCount(
 export const PRESENCE_LABELS: Record<PresenceDimension, string> = {
   markers: "Has any marker",
   superTypes: "Has any supertype",
-  customTags: "Has any tag",
+  customTags: "Has any custom tag",
   distributionChannels: "Has any distribution channel",
   keywords: "Has any keyword",
+  tags: "Has any tag",
 };

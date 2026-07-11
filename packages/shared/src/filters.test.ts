@@ -1321,6 +1321,81 @@ describe("filterCards", () => {
     });
   });
 
+  describe("tags filter", () => {
+    const ioniaCard = makePrinting({ cardId: "ionia", card: { tags: ["Ionia", "Poro"] } });
+    const noxusCard = makePrinting({ cardId: "noxus", card: { tags: ["Noxus"] } });
+    const untaggedCard = makePrinting({ cardId: "untagged", card: { tags: [] } });
+    const cards = [ioniaCard, noxusCard, untaggedCard];
+
+    it("passes everything when no tag is selected", () => {
+      expect(filterCards(cards, emptyFilters({ tags: [] }))).toHaveLength(3);
+    });
+
+    it("keeps cards carrying any of the selected tags", () => {
+      expect(filterCards(cards, emptyFilters({ tags: ["Ionia"] })).map((p) => p.cardId)).toEqual([
+        "ionia",
+      ]);
+      expect(
+        filterCards(cards, emptyFilters({ tags: ["Poro", "Noxus"] })).map((p) => p.cardId),
+      ).toEqual(["ionia", "noxus"]);
+    });
+
+    it("matches multi-word tags as exact values", () => {
+      const targon = makePrinting({ cardId: "targon", card: { tags: ["Mount Targon"] } });
+      expect(
+        filterCards([targon, noxusCard], emptyFilters({ tags: ["Mount Targon"] })).map(
+          (p) => p.cardId,
+        ),
+      ).toEqual(["targon"]);
+    });
+
+    it("excludes cards carrying an excluded tag", () => {
+      expect(
+        filterCards(cards, emptyFilters({ tagsExclude: ["Poro"] })).map((p) => p.cardId),
+      ).toEqual(["noxus", "untagged"]);
+    });
+
+    it("combines include and exclude", () => {
+      expect(
+        filterCards(cards, emptyFilters({ tags: ["Ionia", "Noxus"], tagsExclude: ["Poro"] })).map(
+          (p) => p.cardId,
+        ),
+      ).toEqual(["noxus"]);
+    });
+
+    it("lists distinct tags in getAvailableFilters, sorted", () => {
+      expect(getAvailableFilters(cards).tags).toEqual(["Ionia", "Noxus", "Poro"]);
+    });
+
+    it("faceted counts reflect tag usage", () => {
+      const counts = computeFilterCounts(cards, emptyFilters(), { countBy: "card" });
+      expect(counts.tags.get("Ionia")).toBe(1);
+      expect(counts.tags.get("Poro")).toBe(1);
+      expect(counts.tags.get("Noxus")).toBe(1);
+    });
+
+    it("tag counts widen: selecting a tag keeps sibling counts", () => {
+      const counts = computeFilterCounts(cards, emptyFilters({ tags: ["Ionia"] }), {
+        countBy: "card",
+      });
+      expect(counts.tags.get("Noxus")).toBe(1);
+    });
+
+    it("presence any/none partitions by printed tags", () => {
+      const anyMatched = filterCards(cards, emptyFilters({ presence: { tags: "any" } }));
+      expect(anyMatched.map((p) => p.cardId)).toEqual(["ionia", "noxus"]);
+      const noneMatched = filterCards(cards, emptyFilters({ presence: { tags: "none" } }));
+      expect(noneMatched.map((p) => p.cardId)).toEqual(["untagged"]);
+    });
+
+    it("presence counts clear the tags value selection", () => {
+      const counts = computeFilterCounts(cards, emptyFilters({ tags: ["Ionia"] }), {
+        countBy: "card",
+      });
+      expect(counts.presence.tags).toEqual({ any: 2, none: 1 });
+    });
+  });
+
   // -- customTagSlugs filter --
 
   it("customTagSlugs filter passes all when empty", () => {

@@ -82,6 +82,7 @@ export const PRESENCE_DIMENSIONS = [
   "customTags",
   "distributionChannels",
   "keywords",
+  "tags",
 ] as const;
 
 export type PresenceDimension = (typeof PRESENCE_DIMENSIONS)[number];
@@ -153,6 +154,10 @@ export const cardFiltersSchema = z.object({
   customTagSlugs: stringArray(),
   // Filter to cards that carry at least one of these keyword names.
   keywords: stringArray(),
+  // Filter to cards that carry at least one of these printed tags. Values are
+  // the exact tag strings from card data ("Mount Targon"), not slugs — same
+  // convention as the `t:` search field.
+  tags: stringArray(),
   isBanned: z.boolean().nullable().default(null),
   hasErrata: z.boolean().nullable().default(null),
   // ── Negation companions (ADR-034) ─────────────────────────────────────────
@@ -173,6 +178,7 @@ export const cardFiltersSchema = z.object({
   distributionChannelSlugsExclude: stringArray(),
   customTagSlugsExclude: stringArray(),
   keywordsExclude: stringArray(),
+  tagsExclude: stringArray(),
   // Derived tri-state "standard printing" constraint (ADR-034).
   // null = no constraint; true = standard only; false = non-standard only.
   isStandard: z.boolean().nullable().default(null),
@@ -207,6 +213,7 @@ export const EMPTY_CARD_FILTERS: CardFilters = {
   distributionChannelSlugs: [],
   customTagSlugs: [],
   keywords: [],
+  tags: [],
   isBanned: null,
   hasErrata: null,
   setsExclude: [],
@@ -221,5 +228,6 @@ export const EMPTY_CARD_FILTERS: CardFilters = {
   distributionChannelSlugsExclude: [],
   customTagSlugsExclude: [],
   keywordsExclude: [],
+  tagsExclude: [],
   isStandard: null,
 };

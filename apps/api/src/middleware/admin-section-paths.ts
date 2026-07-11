@@ -77,6 +77,8 @@ const SECTION_PATH_MATCHERS: Record<AdminSectionSlug, (method: string, path: str
     }
     return false;
   },
+  "card-tags": (_method, path) =>
+    underPrefix(path, `${BASE}/card-tags`) || underPrefix(path, `${BASE}/tag-categories`),
   "custom-tags": (_method, path) =>
     underPrefix(path, `${BASE}/custom-tags`) ||
     underPrefix(path, `${BASE}/custom-tag-categories`) ||

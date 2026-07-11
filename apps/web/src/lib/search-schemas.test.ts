@@ -42,6 +42,17 @@ describe("filterSearchSchema enum params", () => {
     expect(parsed.groupBy).toBeUndefined();
     expect(parsed.sort).toBeUndefined();
   });
+
+  it("keeps the printed-tags params, values verbatim", () => {
+    const parsed = filterSearchSchema.parse({
+      tags: ["Mount Targon", "Kha’Zix"],
+      tagsEx: ["Poro"],
+      tagsPresence: "none",
+    });
+    expect(parsed.tags).toEqual(["Mount Targon", "Kha’Zix"]);
+    expect(parsed.tagsEx).toEqual(["Poro"]);
+    expect(parsed.tagsPresence).toBe("none");
+  });
 });
 
 describe("cleanedSearchForRedirect", () => {

@@ -502,6 +502,11 @@ export function CompactFilterBar({
         filterState.keywordsEx.length +
         Number(filterState.keywordsPresence !== null)
       : 0) +
+    (inMore("tags")
+      ? filterState.tags.length +
+        filterState.tagsEx.length +
+        Number(filterState.tagsPresence !== null)
+      : 0) +
     (inMore("cardSizes") ? filterState.cardSizes.length : 0) +
     (inMore("owned")
       ? filterState.owned.length +

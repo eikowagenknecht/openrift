@@ -1376,6 +1376,43 @@ interface CardCustomTagsTable {
   customTagId: string;
 }
 
+// ─── Printed-tag classification (migration 202) ──────────────────────────────
+
+/**
+ * Admin-managed categories for the printed card tags (`cards.tags`):
+ * region, champion, species, … Groups tag options into sections in the
+ * card-browser filter panel. Distinct from {@link CustomTagCategoriesTable},
+ * which namespaces the admin-curated per-card custom tags.
+ */
+interface TagCategoriesTable {
+  id: Generated<string>;
+  /** CHECK: <> '' — e.g. "region" */
+  slug: string;
+  /** CHECK: <> '' */
+  label: string;
+  /** CHECK: <> '' */
+  description: string | null;
+  sortOrder: Generated<number>;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
+/**
+ * Classification of one printed tag into a category. `tag` is the exact
+ * string as it appears in `cards.tags` (display casing, apostrophes,
+ * spaces). A tag with no row here is unclassified and shows under
+ * "Other tags" in the filter UI.
+ */
+interface TagDefinitionsTable {
+  id: Generated<string>;
+  /** UNIQUE, CHECK: <> '' AND tag = btrim(tag) */
+  tag: string;
+  /** FK → tag_categories.id, ON DELETE RESTRICT */
+  categoryId: string;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
 // ─── Preconstructed products (migration 198, ADR-015) ────────────────────────
 
 /**
@@ -1780,6 +1817,10 @@ export interface Database {
   customTagCategories: CustomTagCategoriesTable;
   customTags: CustomTagsTable;
   cardCustomTags: CardCustomTagsTable;
+
+  // Printed-tag classification (migration 202)
+  tagCategories: TagCategoriesTable;
+  tagDefinitions: TagDefinitionsTable;
 
   // Preconstructed products (migration 198, ADR-015)
   products: ProductsTable;

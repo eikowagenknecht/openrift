@@ -9,6 +9,7 @@ const {
   mockUseEnumOrders,
   mockUseLanguageLabels,
   mockUseCustomTagList,
+  mockUseTagCategories,
 } = vi.hoisted(() => ({
   mockUseFilterValues: vi.fn(),
   mockUseFilterActions: vi.fn(),
@@ -16,6 +17,10 @@ const {
   mockUseEnumOrders: vi.fn(),
   mockUseLanguageLabels: vi.fn(),
   mockUseCustomTagList: vi.fn(),
+  mockUseTagCategories: vi.fn(() => ({
+    categories: [] as { slug: string; label: string; sortOrder: number }[],
+    categoryByTag: new Map<string, string>(),
+  })),
 }));
 
 vi.mock("@/hooks/use-card-filters", () => ({
@@ -31,6 +36,7 @@ vi.mock("@/hooks/use-enums", () => ({
   useEnumOrders: mockUseEnumOrders,
   useLanguageLabels: mockUseLanguageLabels,
   useCustomTagList: mockUseCustomTagList,
+  useTagCategories: mockUseTagCategories,
 }));
 
 // oxlint-disable-next-line import/first -- must import after vi.mock
@@ -63,6 +69,7 @@ function makeAvailable(overrides: Partial<AvailableFilters> = {}): AvailableFilt
     hasBanned: false,
     hasErrata: false,
     keywords: [],
+    tags: [],
     hasNullEnergy: false,
     hasNullMight: false,
     hasNullPower: false,
@@ -93,6 +100,7 @@ function makeFilterCounts(
     markers: dimensionOverrides.markers ?? new Map(),
     channels: dimensionOverrides.channels ?? new Map(),
     keywords: new Map(),
+    tags: new Map(),
     flags: { signed: 0, banned: 0, errata: 0, standard: 0 },
     presence: {
       markers: { any: 0, none: 0 },
@@ -100,6 +108,7 @@ function makeFilterCounts(
       customTags: { any: 0, none: 0 },
       distributionChannels: { any: 0, none: 0 },
       keywords: { any: 0, none: 0 },
+      tags: { any: 0, none: 0 },
     },
     ranges: {
       energy: { min: 1, max: 7, hasNullStat: false },
@@ -211,6 +220,9 @@ interface BadgeFilterState {
   markers: string[];
   channels: string[];
   customTags: string[];
+  tags: string[];
+  tagsEx: string[];
+  tagsPresence: "any" | "none" | null;
   owned: string[];
   promo: boolean | null;
   signed: boolean | null;
@@ -234,6 +246,9 @@ function setupBadgeHooks(filterStateOverrides: Partial<BadgeFilterState> = {}) {
       markers: [],
       channels: [],
       customTags: [],
+      tags: [],
+      tagsEx: [],
+      tagsPresence: null,
       owned: [],
       promo: null,
       signed: null,
@@ -274,6 +289,7 @@ describe("FilterBadgeSections — hiddenSections gating", () => {
     mockUseEnumOrders.mockReset();
     mockUseLanguageLabels.mockReset();
     mockUseCustomTagList.mockReset();
+    mockUseTagCategories.mockReset();
   });
 
   it("renders the Finish section when finishes has options and isn't hidden", () => {
@@ -359,5 +375,38 @@ describe("FilterBadgeSections — hiddenSections gating", () => {
     // Signed rides the variant unit, which isn't requested here.
     expect(queryByText("Signed")).toBeNull();
     expect(queryByText("Owned")).not.toBeNull();
+  });
+
+  it("renders one tags dropdown per category, plus Other for unclassified", () => {
+    setupBadgeHooks({ tags: [], tagsEx: [], tagsPresence: null });
+    mockUseTagCategories.mockReturnValue({
+      categories: [{ slug: "region", label: "Region", sortOrder: 0 }],
+      categoryByTag: new Map([["Ionia", "region"]]),
+    });
+    const { queryByText } = render(
+      <FilterChipSections
+        availableFilters={makeAvailable({ tags: ["Ionia", "Mech"] })}
+        hiddenSections={new Set(["owned"])}
+      />,
+    );
+    expect(queryByText("Region")).not.toBeNull();
+    expect(queryByText("Other tags")).not.toBeNull();
+    expect(queryByText("Has any tag")).not.toBeNull();
+  });
+
+  it("hides the tags section when it is in hiddenSections", () => {
+    setupBadgeHooks({ tags: [], tagsEx: [], tagsPresence: null });
+    mockUseTagCategories.mockReturnValue({
+      categories: [{ slug: "region", label: "Region", sortOrder: 0 }],
+      categoryByTag: new Map([["Ionia", "region"]]),
+    });
+    const { queryByText } = render(
+      <FilterChipSections
+        availableFilters={makeAvailable({ tags: ["Ionia"], hasSigned: true })}
+        hiddenSections={new Set(["owned", "tags"])}
+      />,
+    );
+    expect(queryByText("Region")).toBeNull();
+    expect(queryByText("Signed")).not.toBeNull();
   });
 });

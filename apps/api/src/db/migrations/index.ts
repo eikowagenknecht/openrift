@@ -147,6 +147,7 @@ import * as m198 from "./198-products.js";
 import * as m199 from "./199-helper-reviewable-providers.js";
 import * as m200 from "./200-api-keys.js";
 import * as m201 from "./201-admin-events.js";
+import * as m202 from "./202-card-tag-classification.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -353,4 +354,5 @@ export const migrations: Record<string, Migration> = {
   "199-helper-reviewable-providers": m199,
   "200-api-keys": m200,
   "201-admin-events": m201,
+  "202-card-tag-classification": m202,
 };

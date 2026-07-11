@@ -14,7 +14,15 @@ const os = implement(initContract).$context<ApiContext>().use(requireUser);
  */
 export const initRouter = {
   get: os.get.handler(async ({ context }): Promise<InitResponse> => {
-    const { enums, keywords, distributionChannels, customTags, catalog } = context.repos;
+    const {
+      enums,
+      keywords,
+      distributionChannels,
+      customTags,
+      catalog,
+      tagCategories,
+      tagDefinitions,
+    } = context.repos;
     const [
       enumData,
       keywordRows,
@@ -22,6 +30,8 @@ export const initRouter = {
       channelRows,
       customTagRows,
       championIdentifierTags,
+      tagCategoryRows,
+      tagDefinitionRows,
     ] = await Promise.all([
       enums.all(),
       keywords.listAll(),
@@ -29,6 +39,8 @@ export const initRouter = {
       distributionChannels.listAll(),
       customTags.listAll(),
       catalog.championIdentifierTags(),
+      tagCategories.listAll(),
+      tagDefinitions.listAll(),
     ]);
 
     const keywordsMap: Record<string, KeywordEntry> = {};
@@ -87,6 +99,12 @@ export const initRouter = {
       distributionChannels: channelsResponse,
       customTags: customTagsResponse,
       championIdentifierTags,
+      tagCategories: tagCategoryRows.map((row) => ({
+        slug: row.slug,
+        label: row.label,
+        sortOrder: row.sortOrder,
+      })),
+      tagCategoryMap: Object.fromEntries(tagDefinitionRows.map((row) => [row.tag, row.category])),
     };
   }),
 };

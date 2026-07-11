@@ -6,13 +6,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
-import { useCustomTagList, useEnumOrders } from "@/hooks/use-enums";
+import { useCustomTagList, useEnumOrders, useTagCategories } from "@/hooks/use-enums";
 import { buildChannelBreadcrumbsBySlug } from "@/lib/channel-breadcrumbs";
 import { formatDomainFilterLabel } from "@/lib/domain";
 import { compactFormatterForMarketplace } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
 import { PRESENCE_LABELS } from "@/lib/presence-filter";
 import { rangeBadgeLabel } from "@/lib/range-label";
+import { groupTagsByCategory } from "@/lib/tag-category-groups";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
@@ -65,6 +66,7 @@ export function ActiveFilters({
     ["customTags", filterState.customTagsPresence ?? null],
     ["distributionChannels", filterState.channelsPresence ?? null],
     ["keywords", filterState.keywordsPresence ?? null],
+    ["tags", filterState.tagsPresence ?? null],
   ];
   const ownedBucketLabels: Record<string, string> = {
     none: "None",
@@ -236,6 +238,14 @@ export function ActiveFilters({
   }
 
   const customTagsHidden = hiddenSections?.has("customTags") ?? false;
+
+  // Printed tags, grouped by their admin-managed category (matching the
+  // per-category dropdowns in the filter panel). The values ARE the labels.
+  const { categories: tagCategories, categoryByTag } = useTagCategories();
+  const tagsHidden = hiddenSections?.has("tags") ?? false;
+  const tagGroups = groupTagsByCategory(filterState.tags, tagCategories, categoryByTag);
+  const tagExcludeGroups = groupTagsByCategory(filterState.tagsEx, tagCategories, categoryByTag);
+
   const copiesRangeActive =
     !hiddenSections?.has("owned") &&
     (filterState.ownedCountMin !== null || filterState.ownedCountMax !== null);
@@ -329,6 +339,8 @@ export function ActiveFilters({
     excludeGroups.length > 0 ||
     (!customTagsHidden && customTagGroups.length > 0) ||
     (!customTagsHidden && customTagExcludeGroups.length > 0) ||
+    (!tagsHidden && tagGroups.length > 0) ||
+    (!tagsHidden && tagExcludeGroups.length > 0) ||
     rangeBadgeSections.some(({ key }) => ranges[key].min !== null || ranges[key].max !== null) ||
     copiesRangeActive ||
     filterState.signed !== null ||
@@ -402,6 +414,21 @@ export function ActiveFilters({
               })}
             </div>
           ))}
+        {!tagsHidden &&
+          tagGroups.map(({ slug: groupSlug, label: groupLabel, tags }) => (
+            <div key={`tags-${groupSlug}`} className="flex min-w-0 flex-wrap items-center gap-1">
+              <span className="text-muted-foreground hidden text-xs sm:inline">{groupLabel}:</span>
+              {tags.map((tag) => (
+                <Badge key={`tags-${tag}`} variant="secondary" className="gap-1">
+                  {tag}
+                  <ChipRemoveButton
+                    aria-label={`Remove tag ${tag}`}
+                    onClick={() => toggleArrayFilter("tags", tag)}
+                  />
+                </Badge>
+              ))}
+            </div>
+          ))}
         {excludeGroups.map(({ key, section, label, values, displayLabel: groupDisplayLabel }) => (
           <div key={key} className="flex min-w-0 flex-wrap items-center gap-1">
             <span className="text-muted-foreground hidden text-xs sm:inline">{label}:</span>
@@ -457,6 +484,26 @@ export function ActiveFilters({
                   </Badge>
                 );
               })}
+            </div>
+          ))}
+        {!tagsHidden &&
+          tagExcludeGroups.map(({ slug: groupSlug, label: groupLabel, tags }) => (
+            <div key={`tagsEx-${groupSlug}`} className="flex min-w-0 flex-wrap items-center gap-1">
+              <span className="text-muted-foreground hidden text-xs sm:inline">{groupLabel}:</span>
+              {tags.map((tag) => (
+                <Badge
+                  key={`tagsEx-${tag}`}
+                  variant="outline"
+                  className="border-destructive/40 text-destructive gap-1"
+                >
+                  <MinusIcon className="size-3 shrink-0" />
+                  <span className="line-through">{tag}</span>
+                  <ChipRemoveButton
+                    aria-label={`Remove excluded tag ${tag}`}
+                    onClick={() => toggleArrayFilter("tagsEx", tag)}
+                  />
+                </Badge>
+              ))}
             </div>
           ))}
         {rangeBadgeSections.map(({ key, label, formatValue }) => {

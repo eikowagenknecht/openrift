@@ -22,13 +22,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
-import { useCustomTagList, useEnumOrders, useLanguageLabels } from "@/hooks/use-enums";
+import {
+  useCustomTagList,
+  useEnumOrders,
+  useLanguageLabels,
+  useTagCategories,
+} from "@/hooks/use-enums";
 import { buildChannelBreadcrumbs } from "@/lib/channel-breadcrumbs";
 import { formatDomainFilterLabel } from "@/lib/domain";
 import { getFilterIconPath } from "@/lib/icons";
 import { nextOversize, oversizeCount, oversizeState } from "@/lib/oversize-filter";
 import type { PresenceParamValue } from "@/lib/presence-filter";
 import { PRESENCE_LABELS, presenceFlagCount, presenceToFlagState } from "@/lib/presence-filter";
+import { groupTagsByCategory } from "@/lib/tag-category-groups";
 import { cn } from "@/lib/utils";
 
 interface FilterMoreMenuProps {
@@ -333,6 +339,9 @@ export function FilterMoreMenu({
   const visibleCategories = [...customTagsByCategory.entries()].filter(([category]) =>
     visibleCustomTagCategories === undefined ? true : visibleCustomTagCategories.has(category),
   );
+  // Printed tags: values from AvailableFilters, category grouping from /init.
+  const { categories: tagCategories, categoryByTag } = useTagCategories();
+  const tagGroups = groupTagsByCategory(availableFilters.tags, tagCategories, categoryByTag);
 
   const isMore = (unit: string) => !topLevelUnits.has(unit);
 
@@ -389,6 +398,7 @@ export function FilterMoreMenu({
     availableFilters.distributionChannels.length > 0;
   const showCustomTags =
     isMore("customTags") && !hiddenSections?.has("customTags") && visibleCategories.length > 0;
+  const showTags = isMore("tags") && !hiddenSections?.has("tags") && tagGroups.length > 0;
   const showKeywords =
     isMore("keywords") && !hiddenSections?.has("keywords") && availableFilters.keywords.length > 0;
   const showCardSizes =
@@ -429,6 +439,9 @@ export function FilterMoreMenu({
     filterState.customTagsPresence,
     showCustomTags,
   );
+  // Printed tags mirror custom tags: several per-category pickers, so their
+  // any/none presence rides as its own row.
+  const tagsPresenceNode = presenceRow("tags", filterState.tagsPresence, showTags);
 
   // ── Core dimension rows ────────────────────────────────────────────────────
   const languagesNode = showLanguages ? (
@@ -737,6 +750,32 @@ export function FilterMoreMenu({
         );
       })
     : [];
+  const tagNodes = showTags
+    ? tagGroups.map((group) => {
+        // All categories write to the one `tags` / `tagsEx` key; slice this
+        // category's values for the dropdown's display (values are the exact
+        // printed strings, so they label themselves).
+        const groupValues = new Set(group.tags);
+        const selectedInGroup = filterState.tags.filter((tag) => groupValues.has(tag));
+        const excludedInGroup = filterState.tagsEx.filter((tag) => groupValues.has(tag));
+        return (
+          <MoreDimension
+            key={`tags-${group.slug}`}
+            label={group.label}
+            options={group.tags.map((tag) => ({
+              value: tag,
+              label: tag,
+              count: filterCounts?.tags.get(tag),
+            }))}
+            included={selectedInGroup}
+            excluded={excludedInGroup}
+            onCycle={(value) => cycleArrayFilter("tags", "tagsEx", value)}
+            searchPlaceholder={`Search ${group.label.toLowerCase()}…`}
+            emptyText={`No ${group.label.toLowerCase()} match.`}
+          />
+        );
+      })
+    : [];
   const ownedNode = showOwned ? (
     <MoreDimension
       key="owned"
@@ -802,6 +841,8 @@ export function FilterMoreMenu({
         channelsNode,
         ...customTagNodes,
         customTagsPresenceNode,
+        ...tagNodes,
+        tagsPresenceNode,
         keywordsNode,
       ],
     },
@@ -919,6 +960,7 @@ export function FilterMoreMenu({
       ["customTags", filterState.customTagsPresence, isMore("customTags")],
       ["distributionChannels", filterState.channelsPresence, isMore("channels")],
       ["keywords", filterState.keywordsPresence, isMore("keywords")],
+      ["tags", filterState.tagsPresence, isMore("tags")],
     ];
     for (const [dimension, value, shown] of presenceEntries) {
       if (shown && value !== null) {
@@ -961,6 +1003,8 @@ export function FilterMoreMenu({
       filterState.keywordsEx,
       (keyword) => keyword,
     );
+    // Printed-tag values are the exact card strings, so they label themselves.
+    pushValues(isMore("tags"), filterState.tags, filterState.tagsEx, (tag) => tag);
     pushValues(
       isMore("customTags"),
       filterState.customTags,

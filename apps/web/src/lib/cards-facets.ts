@@ -148,6 +148,9 @@ function presenceFromSearch(
   if (search.keywordsPresence) {
     presence.keywords = search.keywordsPresence;
   }
+  if (search.tagsPresence) {
+    presence.tags = search.tagsPresence;
+  }
   return presence;
 }
 
@@ -170,6 +173,7 @@ export function searchToFilters(search: FilterSearch) {
     markerSlugs: search.markers ?? [],
     distributionChannelSlugs: search.channels ?? [],
     keywords: search.keywords ?? [],
+    tags: search.tags ?? [],
     // The public SSR catalog carries no per-user custom-tag assignments, so
     // neither the include nor the `customTagsEx` exclude can match here — both
     // stay inert until `useCardData` recomputes after hydration (ADR-034).
@@ -189,6 +193,7 @@ export function searchToFilters(search: FilterSearch) {
     distributionChannelSlugsExclude: search.channelsEx ?? [],
     customTagSlugsExclude: search.customTagsEx ?? [],
     keywordsExclude: search.keywordsEx ?? [],
+    tagsExclude: search.tagsEx ?? [],
     isStandard: search.standard ?? null,
     energy: { min: search.energyMin ?? null, max: search.energyMax ?? null },
     might: { min: search.mightMin ?? null, max: search.mightMax ?? null },
@@ -268,6 +273,7 @@ export interface FilterCountsWire {
   markers: CountMapWire;
   channels: CountMapWire;
   keywords: CountMapWire;
+  tags: CountMapWire;
   flags: {
     signed: number;
     banned: number;
@@ -296,6 +302,7 @@ function toWireFilterCounts(counts: FilterCounts): FilterCountsWire {
     markers: Object.fromEntries(counts.markers),
     channels: Object.fromEntries(counts.channels),
     keywords: Object.fromEntries(counts.keywords),
+    tags: Object.fromEntries(counts.tags),
     flags: {
       signed: counts.flags.signed,
       banned: counts.flags.banned,
@@ -321,6 +328,7 @@ export function fromWireFilterCounts(wire: FilterCountsWire): FilterCounts {
     markers: new Map(Object.entries(wire.markers)),
     channels: new Map(Object.entries(wire.channels)),
     keywords: new Map(Object.entries(wire.keywords)),
+    tags: new Map(Object.entries(wire.tags)),
     flags: { ...wire.flags },
     presence: wire.presence,
     ranges: wire.ranges,

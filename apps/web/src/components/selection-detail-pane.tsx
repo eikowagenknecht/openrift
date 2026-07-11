@@ -4,6 +4,7 @@ import { Suspense, lazy } from "react";
 import type { CardViewerItem } from "@/components/card-viewer-types";
 import { Pane } from "@/components/layout/panes";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useApplyTagFilter } from "@/hooks/use-apply-tag-filter";
 import { useSelectionStore } from "@/stores/selection-store";
 
 const cardDetailImport = import("@/components/cards/card-detail");
@@ -36,10 +37,22 @@ export function SelectionDetailPane({
   const setSelectedCard = useSelectionStore((s) => s.setSelectedCard);
   const closeDetail = useSelectionStore((s) => s.closeDetail);
   const navigateToIndex = useSelectionStore((s) => s.navigateToIndex);
+  const applyTagFilter = useApplyTagFilter();
 
   if (!selectedCard || !detailOpen) {
     return null;
   }
+
+  // Tags apply the structured filter (exact match) where the surface has one;
+  // the quoted `t:"…"` search fallback keeps multi-word tags a single term.
+  const handleTagClick = (tag: string) => {
+    if (applyTagFilter) {
+      applyTagFilter(tag);
+      closeDetail();
+    } else {
+      onSearchAndClose(`t:"${tag}"`);
+    }
+  };
 
   const siblingPrintings = printingsByCardId.get(selectedCard.cardId) ?? [];
 
@@ -75,7 +88,7 @@ export function SelectionDetailPane({
           showImages={showImages}
           onPrevCard={handlePrevCard}
           onNextCard={handleNextCard}
-          onTagClick={(tag) => onSearchAndClose(`t:${tag}`)}
+          onTagClick={handleTagClick}
           onKeywordClick={(keyword) => onSearchAndClose(`k:${keyword}`)}
           printings={siblingPrintings}
           onSelectPrinting={handleSelectPrinting}

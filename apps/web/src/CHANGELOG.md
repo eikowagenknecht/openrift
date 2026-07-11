@@ -4,6 +4,7 @@
 
 ### Highlights
 
+- feat(Cards): **Filter by card tags** — a new Tags filter groups the tags printed on cards by region, champion, and species; tag chips on card pages now apply it directly.
 - fix(App): **Enter confirms dialogs** — pressing Enter in confirmation and edit dialogs now triggers the main button (save, create, remove) instead of doing nothing.
 
 ### Other

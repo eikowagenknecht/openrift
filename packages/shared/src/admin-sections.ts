@@ -10,12 +10,13 @@
  * route (`ADMIN_SECTION_ROUTES` in `apps/web/src/lib/admin-sections.ts`).
  * Both sides fail closed for unmapped slugs.
  */
-export const ADMIN_SECTION_SLUGS = ["card-review", "custom-tags", "products"] as const;
+export const ADMIN_SECTION_SLUGS = ["card-review", "card-tags", "custom-tags", "products"] as const;
 
 export type AdminSectionSlug = (typeof ADMIN_SECTION_SLUGS)[number];
 
 export const ADMIN_SECTION_LABELS: Record<AdminSectionSlug, string> = {
   "card-review": "Card Review",
+  "card-tags": "Card Tags",
   "custom-tags": "Custom Tags",
   products: "Products",
 };

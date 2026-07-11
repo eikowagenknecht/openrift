@@ -33,6 +33,7 @@ vi.mock("@/hooks/use-enums", () => ({
   useEnumOrders: mockUseEnumOrders,
   useLanguageLabels: mockUseLanguageLabels,
   useCustomTagList: mockUseCustomTagList,
+  useTagCategories: () => ({ categories: [], categoryByTag: new Map() }),
 }));
 
 // oxlint-disable-next-line import/first -- must import after vi.mock
@@ -62,6 +63,7 @@ function makeAvailable(overrides: Partial<AvailableFilters> = {}): AvailableFilt
     hasBanned: false,
     hasErrata: false,
     keywords: [],
+    tags: [],
     hasNullEnergy: false,
     hasNullMight: false,
     hasNullPower: false,
@@ -93,6 +95,7 @@ function makeFilterCounts(
     markers: dimensionOverrides.markers ?? new Map(),
     channels: dimensionOverrides.channels ?? new Map(),
     keywords: new Map(),
+    tags: new Map(),
     flags: { signed: 0, banned: 0, errata: 0, standard: 0 },
     presence: {
       markers: { any: 3, none: 0 },
@@ -100,6 +103,7 @@ function makeFilterCounts(
       customTags: { any: 0, none: 0 },
       distributionChannels: { any: 0, none: 0 },
       keywords: { any: 0, none: 0 },
+      tags: { any: 0, none: 0 },
     },
     ranges: {
       energy: { min: 1, max: 7, hasNullStat: false },
@@ -115,17 +119,20 @@ interface MoreFilterState {
   channels: string[];
   customTags: string[];
   keywords: string[];
+  tags: string[];
   cardSizes: string[];
   owned: string[];
   markersEx: string[];
   channelsEx: string[];
   customTagsEx: string[];
   keywordsEx: string[];
+  tagsEx: string[];
   markersPresence: "any" | "none" | null;
   superTypesPresence: "any" | "none" | null;
   customTagsPresence: "any" | "none" | null;
   channelsPresence: "any" | "none" | null;
   keywordsPresence: "any" | "none" | null;
+  tagsPresence: "any" | "none" | null;
   signed: boolean | null;
   banned: boolean | null;
   errata: boolean | null;
@@ -178,17 +185,20 @@ function setupHooks(filterStateOverrides: Partial<MoreFilterState> = {}) {
       channels: [],
       customTags: [],
       keywords: [],
+      tags: [],
       cardSizes: [],
       owned: [],
       markersEx: [],
       channelsEx: [],
       customTagsEx: [],
       keywordsEx: [],
+      tagsEx: [],
       markersPresence: null,
       superTypesPresence: null,
       customTagsPresence: null,
       channelsPresence: null,
       keywordsPresence: null,
+      tagsPresence: null,
       signed: null,
       banned: null,
       errata: null,

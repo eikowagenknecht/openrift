@@ -164,6 +164,7 @@ const EMPTY_FILTER_COUNTS: FilterCounts = {
   markers: new Map<string, number>(),
   channels: new Map<string, number>(),
   keywords: new Map<string, number>(),
+  tags: new Map<string, number>(),
   flags: { signed: 0, banned: 0, errata: 0, standard: 0 },
   presence: {
     markers: { any: 0, none: 0 },
@@ -171,6 +172,7 @@ const EMPTY_FILTER_COUNTS: FilterCounts = {
     customTags: { any: 0, none: 0 },
     distributionChannels: { any: 0, none: 0 },
     keywords: { any: 0, none: 0 },
+    tags: { any: 0, none: 0 },
   },
   ranges: {
     energy: { min: 0, max: 0, hasNullStat: false },

@@ -8,6 +8,7 @@ export * from "./admin/card-bans.js";
 export * from "./admin/card-images.js";
 export * from "./admin/card-mutations.js";
 export * from "./admin/card-queries.js";
+export * from "./admin/card-tags.js";
 export * from "./admin/card-types.js";
 export * from "./admin/catalog.js";
 export * from "./admin/changelog.js";

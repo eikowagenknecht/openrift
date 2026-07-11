@@ -17,6 +17,12 @@ import type {
   candidateCardSummarySchema,
   providerStatsItemSchema,
 } from "../../contracts/admin/card-queries.js";
+import type {
+  adminCardTagListResponseSchema,
+  adminTagCategoryListResponseSchema,
+  classifiedCardTagSchema,
+  tagCategoryResponseSchema,
+} from "../../contracts/admin/card-tags.js";
 import type { adminSetSchema } from "../../contracts/admin/catalog.js";
 import type {
   adminCustomTagAssignmentsResponseSchema,
@@ -129,6 +135,14 @@ export type AdminCustomTagCategoryListResponse = z.infer<
 export type AdminCustomTagAssignmentsResponse = z.infer<
   typeof adminCustomTagAssignmentsResponseSchema
 >;
+
+export type TagCategoryResponse = z.infer<typeof tagCategoryResponseSchema>;
+
+export type AdminTagCategoryListResponse = z.infer<typeof adminTagCategoryListResponseSchema>;
+
+export type ClassifiedCardTag = z.infer<typeof classifiedCardTagSchema>;
+
+export type AdminCardTagListResponse = z.infer<typeof adminCardTagListResponseSchema>;
 
 export type DistributionChannelResponse = z.infer<typeof channelSchema>;
 

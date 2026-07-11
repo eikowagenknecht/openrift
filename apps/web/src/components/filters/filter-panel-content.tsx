@@ -14,7 +14,12 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Slider } from "@/components/ui/slider";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
-import { useCustomTagList, useEnumOrders, useLanguageLabels } from "@/hooks/use-enums";
+import {
+  useCustomTagList,
+  useEnumOrders,
+  useLanguageLabels,
+  useTagCategories,
+} from "@/hooks/use-enums";
 import { buildChannelBreadcrumbs } from "@/lib/channel-breadcrumbs";
 import { formatDomainFilterLabel } from "@/lib/domain";
 import { DEFAULT_TOP_LEVEL_UNITS, getApplicablePlacementUnits } from "@/lib/filter-sections";
@@ -23,6 +28,7 @@ import { getFilterIconPath } from "@/lib/icons";
 import { nextOversize, oversizeCount, oversizeState } from "@/lib/oversize-filter";
 import { PRESENCE_LABELS, presenceFlagCount, presenceToFlagState } from "@/lib/presence-filter";
 import type { OwnedBucket } from "@/lib/search-schemas";
+import { groupTagsByCategory } from "@/lib/tag-category-groups";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
@@ -445,6 +451,10 @@ export function FilterChipSections({
   const visibleCategories = [...customTagsByCategory.entries()].filter(([category]) =>
     visibleCustomTagCategories === undefined ? true : visibleCustomTagCategories.has(category),
   );
+  // Printed tags come from the printing set (AvailableFilters, like keywords);
+  // only their grouping into category sections comes from /init.
+  const { categories: tagCategories, categoryByTag } = useTagCategories();
+  const tagGroups = groupTagsByCategory(availableFilters.tags, tagCategories, categoryByTag);
   // Use overrides when URL state is empty (zone presets that aren't in the URL).
   const selected = (key: keyof typeof filterState) => {
     const urlValue = filterState[key];
@@ -466,6 +476,7 @@ export function FilterChipSections({
     availableFilters.distributionChannels.length > 0;
   const showCustomTags =
     showUnit("customTags") && !hiddenSections?.has("customTags") && visibleCategories.length > 0;
+  const showTags = showUnit("tags") && !hiddenSections?.has("tags") && tagGroups.length > 0;
   const showKeywords =
     showUnit("keywords") &&
     !hiddenSections?.has("keywords") &&
@@ -497,6 +508,7 @@ export function FilterChipSections({
     !showOversize &&
     !showChannels &&
     !showCustomTags &&
+    !showTags &&
     !showKeywords &&
     !showOwned &&
     !showFlags
@@ -663,6 +675,51 @@ export function FilterChipSections({
               presenceToFlagState(filterState.customTagsPresence),
             )}
             onClick={() => cyclePresence("customTags")}
+            triggerStyle={triggerStyle}
+          />
+        </>
+      ),
+    });
+  }
+  if (showTags) {
+    entries.push({
+      key: "tags",
+      label: "Tags",
+      node: (
+        <>
+          {tagGroups.map((group) => {
+            // Same pattern as custom tags: one dropdown per category, all
+            // writing to the shared `tags`/`tagsEx` URL keys, each showing
+            // only its own values. Values are the exact printed strings.
+            const groupValues = new Set(group.tags);
+            const selectedInGroup = selected("tags").filter((tag) => groupValues.has(tag));
+            const excludedInGroup = filterState.tagsEx.filter((tag) => groupValues.has(tag));
+            const tagOptions = group.tags.map((tag) => ({ value: tag, label: tag }));
+            return (
+              <MultiSelectCombobox
+                key={group.slug}
+                label={group.label}
+                searchPlaceholder={`Search ${group.label.toLowerCase()}…`}
+                emptyText={`No ${group.label.toLowerCase()} match.`}
+                options={tagOptions}
+                selected={selectedInGroup}
+                excluded={excludedInGroup}
+                onCycle={(value) => cycleArrayFilter("tags", "tagsEx", value)}
+                counts={filterCounts?.tags}
+                triggerStyle={triggerStyle}
+              />
+            );
+          })}
+          {/* Like custom tags, the per-category dropdowns can't host a single
+              card-level any/none picker — it rides as a standalone chip. */}
+          <FlagBadge
+            label={PRESENCE_LABELS.tags}
+            state={presenceToFlagState(filterState.tagsPresence)}
+            count={presenceFlagCount(
+              filterCounts?.presence.tags,
+              presenceToFlagState(filterState.tagsPresence),
+            )}
+            onClick={() => cyclePresence("tags")}
             triggerStyle={triggerStyle}
           />
         </>

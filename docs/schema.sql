@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict EazXPA7p7FBNv1ykJS3MciW9js3K1QJQglYaaAcs9hc4eabH8Eef5pB1Ih3TgGx
+\restrict ZOLSSwflJSVvKfPELRzXRt7QsUdajOVmV88PixVzCo15va5ISmtWHL61trxH97R
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -2178,6 +2178,38 @@ CREATE TABLE public.super_types (
 
 
 --
+-- Name: tag_categories; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.tag_categories (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    slug text NOT NULL,
+    label text NOT NULL,
+    description text,
+    sort_order integer DEFAULT 0 NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT tag_categories_description_check CHECK ((description <> ''::text)),
+    CONSTRAINT tag_categories_label_check CHECK ((label <> ''::text)),
+    CONSTRAINT tag_categories_slug_check CHECK ((slug <> ''::text))
+);
+
+
+--
+-- Name: tag_definitions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.tag_definitions (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    tag text NOT NULL,
+    category_id uuid NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT tag_definitions_tag_check CHECK (((tag <> ''::text) AND (tag = btrim(tag))))
+);
+
+
+--
 -- Name: tournament_participants; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -3213,6 +3245,38 @@ ALTER TABLE ONLY public.super_types
 
 
 --
+-- Name: tag_categories tag_categories_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tag_categories
+    ADD CONSTRAINT tag_categories_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: tag_categories tag_categories_slug_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tag_categories
+    ADD CONSTRAINT tag_categories_slug_key UNIQUE (slug);
+
+
+--
+-- Name: tag_definitions tag_definitions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tag_definitions
+    ADD CONSTRAINT tag_definitions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: tag_definitions tag_definitions_tag_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tag_definitions
+    ADD CONSTRAINT tag_definitions_tag_key UNIQUE (tag);
+
+
+--
 -- Name: tournament_participants tournament_participants_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4028,6 +4092,13 @@ CREATE INDEX idx_sessions_user_id ON public.sessions USING btree (user_id);
 
 
 --
+-- Name: idx_tag_definitions_category_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_tag_definitions_category_id ON public.tag_definitions USING btree (category_id);
+
+
+--
 -- Name: idx_tournament_participants_tournament; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4641,6 +4712,20 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.sessions FOR EACH ROW 
 --
 
 CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.sets FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: tag_categories trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.tag_categories FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: tag_definitions trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.tag_definitions FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 
 --
@@ -5724,6 +5809,14 @@ ALTER TABLE ONLY public.sessions
 
 
 --
+-- Name: tag_definitions tag_definitions_category_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tag_definitions
+    ADD CONSTRAINT tag_definitions_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.tag_categories(id) ON DELETE RESTRICT;
+
+
+--
 -- Name: tournament_participants tournament_participants_tournament_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5823,5 +5916,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict EazXPA7p7FBNv1ykJS3MciW9js3K1QJQglYaaAcs9hc4eabH8Eef5pB1Ih3TgGx
+\unrestrict ZOLSSwflJSVvKfPELRzXRt7QsUdajOVmV88PixVzCo15va5ISmtWHL61trxH97R
 

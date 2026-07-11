@@ -39,6 +39,7 @@ type ArrayKey =
   | "channels"
   | "customTags"
   | "keywords"
+  | "tags"
   | "owned"
   // Negation companions (ADR-034). No exclude axis for `cardSizes` / `owned`.
   | "setsEx"
@@ -52,7 +53,8 @@ type ArrayKey =
   | "markersEx"
   | "channelsEx"
   | "customTagsEx"
-  | "keywordsEx";
+  | "keywordsEx"
+  | "tagsEx";
 
 /** URL search-param name that stores each presence dimension's any/none state. */
 type PresenceParam =
@@ -60,7 +62,8 @@ type PresenceParam =
   | "superTypesPresence"
   | "customTagsPresence"
   | "channelsPresence"
-  | "keywordsPresence";
+  | "keywordsPresence"
+  | "tagsPresence";
 
 /** Maps each presence dimension to its URL param (channels → distributionChannels). */
 const PRESENCE_PARAMS: Record<PresenceDimension, PresenceParam> = {
@@ -69,6 +72,7 @@ const PRESENCE_PARAMS: Record<PresenceDimension, PresenceParam> = {
   customTags: "customTagsPresence",
   distributionChannels: "channelsPresence",
   keywords: "keywordsPresence",
+  tags: "tagsPresence",
 };
 
 /**
@@ -84,6 +88,7 @@ const PRESENCE_VALUE_PARAMS: Record<PresenceDimension, { include?: ArrayKey; exc
     customTags: { include: "customTags", exclude: "customTagsEx" },
     distributionChannels: { include: "channels", exclude: "channelsEx" },
     keywords: { include: "keywords", exclude: "keywordsEx" },
+    tags: { include: "tags", exclude: "tagsEx" },
   };
 
 /** Reverse of PRESENCE_VALUE_PARAMS include side: value array key → presence param. */
@@ -93,6 +98,7 @@ const ARRAY_KEY_PRESENCE_PARAM: Partial<Record<ArrayKey, PresenceParam>> = {
   customTags: "customTagsPresence",
   channels: "channelsPresence",
   keywords: "keywordsPresence",
+  tags: "tagsPresence",
 };
 
 /**
@@ -117,6 +123,7 @@ function toFilterState(raw: FilterSearch, defaultView: DefaultCardView) {
     channels: raw.channels ?? [],
     customTags: raw.customTags ?? [],
     keywords: raw.keywords ?? [],
+    tags: raw.tags ?? [],
     // Negation companions + standard (ADR-034).
     setsEx: raw.setsEx ?? [],
     languagesEx: raw.languagesEx ?? [],
@@ -130,6 +137,7 @@ function toFilterState(raw: FilterSearch, defaultView: DefaultCardView) {
     channelsEx: raw.channelsEx ?? [],
     customTagsEx: raw.customTagsEx ?? [],
     keywordsEx: raw.keywordsEx ?? [],
+    tagsEx: raw.tagsEx ?? [],
     standard: raw.standard ?? null,
     energyMin: raw.energyMin ?? null,
     energyMax: raw.energyMax ?? null,
@@ -148,6 +156,7 @@ function toFilterState(raw: FilterSearch, defaultView: DefaultCardView) {
     customTagsPresence: raw.customTagsPresence ?? null,
     channelsPresence: raw.channelsPresence ?? null,
     keywordsPresence: raw.keywordsPresence ?? null,
+    tagsPresence: raw.tagsPresence ?? null,
     banned: raw.banned ?? null,
     errata: raw.errata ?? null,
     sort: raw.sort ?? "id",
@@ -193,6 +202,9 @@ export function useFilterValues() {
   if (filterState.keywordsPresence) {
     presence.keywords = filterState.keywordsPresence;
   }
+  if (filterState.tagsPresence) {
+    presence.tags = filterState.tagsPresence;
+  }
 
   const filters = {
     search: filterState.search,
@@ -219,6 +231,7 @@ export function useFilterValues() {
     distributionChannelSlugs: filterState.channels,
     customTagSlugs: filterState.customTags,
     keywords: filterState.keywords,
+    tags: filterState.tags,
     isBanned: filterState.banned ?? null,
     hasErrata: filterState.errata ?? null,
     // Negation companions + standard (ADR-034).
@@ -234,6 +247,7 @@ export function useFilterValues() {
     distributionChannelSlugsExclude: filterState.channelsEx,
     customTagSlugsExclude: filterState.customTagsEx,
     keywordsExclude: filterState.keywordsEx,
+    tagsExclude: filterState.tagsEx,
     isStandard: filterState.standard ?? null,
     energy: { min: filterState.energyMin, max: filterState.energyMax },
     might: { min: filterState.mightMin, max: filterState.mightMax },
@@ -269,6 +283,7 @@ export function useFilterValues() {
     filterState.channels.length > 0 ||
     filterState.customTags.length > 0 ||
     filterState.keywords.length > 0 ||
+    filterState.tags.length > 0 ||
     filterState.energyMin !== null ||
     filterState.energyMax !== null ||
     filterState.mightMin !== null ||
@@ -286,6 +301,7 @@ export function useFilterValues() {
     filterState.customTagsPresence !== null ||
     filterState.channelsPresence !== null ||
     filterState.keywordsPresence !== null ||
+    filterState.tagsPresence !== null ||
     filterState.banned !== null ||
     filterState.errata !== null ||
     // Standard-printing flag + every negation array (ADR-034). Without these,
@@ -303,7 +319,8 @@ export function useFilterValues() {
     filterState.markersEx.length > 0 ||
     filterState.channelsEx.length > 0 ||
     filterState.customTagsEx.length > 0 ||
-    filterState.keywordsEx.length > 0;
+    filterState.keywordsEx.length > 0 ||
+    filterState.tagsEx.length > 0;
 
   return {
     filters,
@@ -363,6 +380,7 @@ export function useFilterActions() {
       channels: undefined,
       customTags: undefined,
       keywords: undefined,
+      tags: undefined,
       energyMin: undefined,
       energyMax: undefined,
       mightMin: undefined,
@@ -380,6 +398,7 @@ export function useFilterActions() {
       customTagsPresence: undefined,
       channelsPresence: undefined,
       keywordsPresence: undefined,
+      tagsPresence: undefined,
       banned: undefined,
       errata: undefined,
       standard: undefined,
@@ -396,6 +415,7 @@ export function useFilterActions() {
       channelsEx: undefined,
       customTagsEx: undefined,
       keywordsEx: undefined,
+      tagsEx: undefined,
       sort: undefined,
       sortDir: undefined,
     });

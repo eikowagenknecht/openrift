@@ -10,6 +10,7 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useApplyTagFilter } from "@/hooks/use-apply-tag-filter";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { getDomainTintStyle } from "@/lib/domain";
@@ -49,6 +50,7 @@ export function SelectionMobileOverlay({
   const navigateToIndex = useSelectionStore((s) => s.navigateToIndex);
   const isMobile = useIsMobile();
   const domainColors = useDomainColors();
+  const applyTagFilter = useApplyTagFilter();
 
   useEffect(() => {
     if (!detailOpen || !isMobile) {
@@ -92,6 +94,17 @@ export function SelectionMobileOverlay({
     }
   };
 
+  // Tags apply the structured filter (exact match) where the surface has one;
+  // the quoted `t:"…"` search fallback keeps multi-word tags a single term.
+  const handleTagClick = (tag: string) => {
+    if (applyTagFilter) {
+      applyTagFilter(tag);
+      handleClose();
+    } else {
+      onSearchAndClose(`t:"${tag}"`);
+    }
+  };
+
   return (
     <Drawer
       open={detailOpen}
@@ -119,7 +132,7 @@ export function SelectionMobileOverlay({
               showImages={showImages}
               onPrevCard={handlePrevCard}
               onNextCard={handleNextCard}
-              onTagClick={(tag) => onSearchAndClose(`t:${tag}`)}
+              onTagClick={handleTagClick}
               onKeywordClick={(keyword) => onSearchAndClose(`k:${keyword}`)}
               printings={siblingPrintings}
               onSelectPrinting={handleSelectPrinting}
