@@ -1,6 +1,6 @@
 import { WellKnown } from "@openrift/shared";
 
-type FilterCategory =
+export type FilterCategory =
   | "sets"
   | "rarities"
   | "types"

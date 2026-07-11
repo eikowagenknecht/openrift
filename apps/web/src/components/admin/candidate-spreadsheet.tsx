@@ -6,6 +6,7 @@ import type {
 } from "@openrift/shared";
 import { fixTypography } from "@openrift/shared";
 import {
+  ArrowRightLeftIcon,
   CheckIcon,
   ChevronDownIcon,
   ChevronRightIcon,
@@ -13,11 +14,12 @@ import {
   TriangleAlertIcon,
   XIcon,
 } from "lucide-react";
-import { Fragment, cloneElement, useRef, useState } from "react";
+import { Fragment, cloneElement, useEffect, useRef, useState } from "react";
 
 import { CardTextExpandDialog } from "@/components/admin/card-text-expand-dialog";
 import { CardText } from "@/components/cards/card-text";
 import type { CardTextVariant } from "@/components/contribute/card-text-input";
+import { ChipInput } from "@/components/contribute/form-fields";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -42,6 +44,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { EnumLabels } from "@/hooks/use-enums";
+import { getFilterIconPath } from "@/lib/icons";
+import type { FilterCategory } from "@/lib/icons";
 import type { DiffSegment } from "@/lib/text-diff";
 import { textDiff } from "@/lib/text-diff";
 import { cn } from "@/lib/utils";
@@ -79,6 +83,8 @@ export interface FieldDef {
   array?: boolean;
   /** Free-text suggestions shown as a filterable combobox (user can still type a custom value). */
   suggestions?: readonly string[];
+  /** Facet-icon category rendered before the value label (e.g. "rarities" shows the rarity badge). */
+  iconCategory?: FilterCategory;
 }
 
 /** Build candidate card fields with enum options populated from the database.
@@ -137,6 +143,7 @@ export function buildCandidatePrintingFields(
       key: "rarity",
       label: "Rarity",
       labeledOptions: toLabeledOptions(orders.rarities, labels.rarities),
+      iconCategory: "rarities",
     },
     {
       key: "finish",
@@ -313,6 +320,29 @@ function resolveLabel(field: FieldDef, value: unknown): string {
   return String(value);
 }
 
+/** Render a labeled value, prefixing a facet icon (e.g. the rarity badge) when
+ * the field declares an `iconCategory`. Falls back to the plain label otherwise.
+ * @returns The label text, or an icon + label node for icon-backed fields. */
+function renderLabeledValue(field: FieldDef, value: unknown): React.ReactNode {
+  const label = resolveLabel(field, value);
+  const iconCategory = field.iconCategory;
+  if (!iconCategory || !hasValue(value)) {
+    return label;
+  }
+  const values = Array.isArray(value) ? value.map(String) : [String(value)];
+  return (
+    <span className="inline-flex items-center gap-1">
+      {values.map((v) => {
+        const icon = getFilterIconPath(iconCategory, v);
+        return icon ? (
+          <img key={v} src={icon} alt="" width={28} height={28} className="size-4 shrink-0" />
+        ) : null;
+      })}
+      {label}
+    </span>
+  );
+}
+
 function isValidOption(field: FieldDef, value: unknown): boolean {
   if (field.labeledOptions) {
     return Array.isArray(value)
@@ -413,6 +443,41 @@ function SuggestionCombobox({
         ))}
       </CommandList>
     </Command>
+  );
+}
+
+/** Inline editor for free-text array fields (e.g. Tags) in the active cell.
+ * Reuses the shared contribute/designer `ChipInput` (type + Enter/comma to add,
+ * × to remove), autofocuses on open, and leaves edit mode when focus moves
+ * outside the chips widget.
+ * @returns The chip-input editor wrapped for the spreadsheet cell. */
+function TagChipCell({
+  value,
+  placeholder,
+  onChange,
+  onDone,
+}: {
+  value: string[];
+  placeholder: string;
+  onChange: (next: string[]) => void;
+  onDone: () => void;
+}) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    // Match the other inline editors, which grab focus immediately.
+    wrapRef.current?.querySelector("input")?.focus();
+  }, []);
+  return (
+    <div
+      ref={wrapRef}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          onDone();
+        }
+      }}
+    >
+      <ChipInput value={value} onChange={onChange} placeholder={placeholder} />
+    </div>
   );
 }
 
@@ -562,6 +627,10 @@ export function CandidateSpreadsheet({
             const activeValue = activeRow ? (activeRow[field.key] as unknown) : null;
             const isRequired = requiredKeys?.includes(field.key);
             const isMissing = isRequired && !hasValue(activeValue);
+            // Array order matters for some fields (e.g. tags), so offer a
+            // one-click reverse when there are at least two values to swap.
+            const canReverseActive =
+              field.array === true && Array.isArray(activeValue) && activeValue.length > 1;
 
             const isFirstCollapsible =
               hasCollapsible && !field.collapsible && fields[fieldIndex + 1]?.collapsible;
@@ -800,6 +869,15 @@ export function CandidateSpreadsheet({
                       }}
                       onClick={(e) => e.stopPropagation()}
                     />
+                  ) : editingField === field.key && field.array && !hasDropdown(field) ? (
+                    <TagChipCell
+                      value={Array.isArray(activeValue) ? (activeValue as string[]) : []}
+                      placeholder={`Add ${field.label.toLowerCase()}`}
+                      onChange={(next) =>
+                        onActiveChange?.(field.key, next.length > 0 ? next : null)
+                      }
+                      onDone={() => setEditingField(null)}
+                    />
                   ) : editingField === field.key ? (
                     <input
                       ref={inputRef}
@@ -860,7 +938,7 @@ export function CandidateSpreadsheet({
                     >
                       {activeRow
                         ? field.labeledOptions
-                          ? resolveLabel(field, activeValue)
+                          ? renderLabeledValue(field, activeValue)
                           : formatValue(
                               activeValue,
                               field.suffixKey ? activeRow[field.suffixKey] : undefined,
@@ -873,22 +951,42 @@ export function CandidateSpreadsheet({
                   {onActiveChange &&
                     !field.readOnly &&
                     !field.richText &&
-                    !isRequired &&
-                    hasValue(activeValue) &&
-                    editingField !== field.key && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-xs"
-                        // Shown on touch (no hover); hover-revealed only at md+.
-                        className="text-muted-foreground absolute top-1 right-1 md:hidden md:group-hover/active:inline-flex"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onActiveChange(field.key, null);
-                        }}
-                      >
-                        <XIcon className="size-3" />
-                      </Button>
+                    editingField !== field.key &&
+                    (canReverseActive || (!isRequired && hasValue(activeValue))) && (
+                      // Shown on touch (no hover); hover-revealed only at md+.
+                      <div className="absolute top-1 right-1 flex gap-0.5 md:hidden md:group-hover/active:flex">
+                        {canReverseActive && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-xs"
+                            aria-label={`Reverse ${field.label} order`}
+                            title="Reverse order"
+                            className="text-muted-foreground"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onActiveChange(field.key, (activeValue as unknown[]).toReversed());
+                            }}
+                          >
+                            <ArrowRightLeftIcon className="size-3" />
+                          </Button>
+                        )}
+                        {!isRequired && hasValue(activeValue) && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-xs"
+                            aria-label={`Clear ${field.label}`}
+                            className="text-muted-foreground"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onActiveChange(field.key, null);
+                            }}
+                          >
+                            <XIcon className="size-3" />
+                          </Button>
+                        )}
+                      </div>
                     )}
                 </td>
                 {sortedRows.map((row) => {
@@ -977,7 +1075,7 @@ export function CandidateSpreadsheet({
                         typeof activeValue === "string" ? (
                         <DiffText segments={textDiff(activeValue, normalizedCandidate)} />
                       ) : field.labeledOptions ? (
-                        resolveLabel(field, candidateValue)
+                        renderLabeledValue(field, candidateValue)
                       ) : (
                         formatValue(
                           candidateValue,

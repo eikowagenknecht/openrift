@@ -1,6 +1,6 @@
 import type { CandidatePrintingResponse, EnumOrders } from "@openrift/shared";
 import { fixTypography } from "@openrift/shared";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -143,6 +143,140 @@ describe("CandidateSpreadsheet candidate click", () => {
     await user.click(cells.at(-1) as HTMLElement);
 
     expect(onCellClick).toHaveBeenCalledWith("printedRulesText", fixed, "cand-1");
+  });
+});
+
+describe("CandidateSpreadsheet reverse array order", () => {
+  const tagsField: FieldDef = { key: "tags", label: "Tags", array: true };
+
+  it("reverses the active array value when the reverse button is clicked", async () => {
+    const user = userEvent.setup();
+    const onActiveChange = vi.fn();
+
+    render(
+      <CandidateSpreadsheet
+        fields={[tagsField]}
+        activeRow={{ tags: ["alpha", "beta"] }}
+        candidateRows={[]}
+        onActiveChange={onActiveChange}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Reverse Tags order" }));
+
+    expect(onActiveChange).toHaveBeenCalledTimes(1);
+    expect(onActiveChange).toHaveBeenCalledWith("tags", ["beta", "alpha"]);
+  });
+
+  it("does not offer a reverse button for a single-value array", () => {
+    render(
+      <CandidateSpreadsheet
+        fields={[tagsField]}
+        activeRow={{ tags: ["alpha"] }}
+        candidateRows={[]}
+        onActiveChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Reverse Tags order" })).toBeNull();
+  });
+
+  it("does not offer a reverse button when editing is disabled", () => {
+    render(
+      <CandidateSpreadsheet
+        fields={[tagsField]}
+        activeRow={{ tags: ["alpha", "beta"] }}
+        candidateRows={[]}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Reverse Tags order" })).toBeNull();
+  });
+});
+
+describe("CandidateSpreadsheet free-text array (tags) editing", () => {
+  const tagsField: FieldDef = { key: "tags", label: "Tags", array: true };
+
+  it("swaps the active cell to the chip input on click", async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <CandidateSpreadsheet
+        fields={[tagsField]}
+        activeRow={{ tags: ["poro"] }}
+        candidateRows={[]}
+        onActiveChange={vi.fn()}
+      />,
+    );
+
+    // Display mode shows the joined value, not a chip input.
+    expect(container.querySelector('[data-slot="combobox-chip-input"]')).toBeNull();
+
+    await user.click(screen.getByText("poro"));
+
+    // Edit mode renders the shared ChipInput.
+    expect(container.querySelector('[data-slot="combobox-chip-input"]')).not.toBeNull();
+  });
+
+  it("commits an added tag through onActiveChange", async () => {
+    const user = userEvent.setup();
+    const onActiveChange = vi.fn();
+    const { container } = render(
+      <CandidateSpreadsheet
+        fields={[tagsField]}
+        activeRow={{ tags: ["poro"] }}
+        candidateRows={[]}
+        onActiveChange={onActiveChange}
+      />,
+    );
+
+    await user.click(screen.getByText("poro"));
+    const input = container.querySelector('[data-slot="combobox-chip-input"]') as HTMLInputElement;
+    await user.type(input, "yordle{Enter}");
+
+    expect(onActiveChange).toHaveBeenLastCalledWith("tags", ["poro", "yordle"]);
+  });
+
+  it("does not use the chip input for option-backed array fields", async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <CandidateSpreadsheet
+        fields={[markerField]}
+        activeRow={{ markerSlugs: ["champion"] }}
+        candidateRows={[]}
+        onActiveChange={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByText("champion"));
+
+    // markerSlugs has labeledOptions, so it opens the multi-select dropdown,
+    // never the free-text chip input.
+    expect(container.querySelector('[data-slot="combobox-chip-input"]')).toBeNull();
+  });
+});
+
+describe("CandidateSpreadsheet rarity icon", () => {
+  const rarityField: FieldDef = {
+    key: "rarity",
+    label: "Rarity",
+    labeledOptions: [{ value: "epic", label: "Epic" }],
+    iconCategory: "rarities",
+  };
+
+  it("renders the rarity badge icon before the label in the active cell", () => {
+    render(
+      <CandidateSpreadsheet
+        fields={[rarityField]}
+        activeRow={{ rarity: "epic" }}
+        candidateRows={[]}
+      />,
+    );
+
+    // Cells in the single field row: [field label, active].
+    const activeCell = screen.getAllByRole("cell").at(1) as HTMLElement;
+    const icon = activeCell.querySelector("img");
+    expect(icon?.getAttribute("src")).toBe("/images/rarities/epic-28x28.webp");
+    expect(within(activeCell).getByText("Epic")).toBeDefined();
   });
 });
 
