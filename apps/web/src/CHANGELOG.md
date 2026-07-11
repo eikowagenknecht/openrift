@@ -8,6 +8,7 @@
 
 ### Other
 
+- fix(Cards): **Rune symbols match the cards** — rune icons in card text now show the domain's colored emblem instead of a filled disc, matching how they look on the printed cards.
 - fix(Collection): **On-loan count in the card strip** — the loan marker moved from the card image into the strip above it, so it no longer covers the art and stays visible while hovering a card with several printings.
 - feat(App): **Cleaner card-grid controls** — the strip above cards now looks the same on every page: counts and info chips lose their grey boxes and the "×" prefix, and the deck editor gets remove on the left, add on the right.
 - feat(Collection): **Prices in quick add** — the quick-add palette now shows each printing's market price next to it, so you can see value while adding.
