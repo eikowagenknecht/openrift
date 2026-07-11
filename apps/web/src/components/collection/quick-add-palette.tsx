@@ -18,13 +18,20 @@ import { Pressable } from "@/components/ui/pressable";
 import { useBatchedAddCopies, useDisposeCopies } from "@/hooks/use-copies";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useIsMobile } from "@/hooks/use-is-mobile";
+import { usePrices } from "@/hooks/use-prices";
 import { searchCards } from "@/hooks/use-quick-add-search";
-import { formatCardId, formatPrintingLabel } from "@/lib/format";
+import {
+  compactFormatterForMarketplace,
+  formatCardId,
+  formatPrintingLabel,
+  priceColorClass,
+} from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
 import { LANDSCAPE_ROTATION_STYLE, needsCssRotation } from "@/lib/images";
 import { summarizeBatchAdd } from "@/lib/summarize-batch-add";
 import { cn } from "@/lib/utils";
 import { useAddModeStore } from "@/stores/add-mode-store";
+import { useDisplayStore } from "@/stores/display-store";
 
 interface QuickAddPaletteProps {
   open: boolean;
@@ -143,6 +150,10 @@ function PaletteInner({
   const disposeCopies = useDisposeCopies();
   const addedItems = useAddModeStore((s) => s.addedItems);
   const { labels } = useEnumOrders();
+  const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
+  const prices = usePrices();
+  const favoriteMarketplace = marketplaceOrder[0] ?? "cardtrader";
+  const compactFmt = compactFormatterForMarketplace(favoriteMarketplace);
 
   const results = searchCards(query, printingsByCardId, {
     ownedCountByPrinting,
@@ -483,6 +494,7 @@ function PaletteInner({
                     const sessionAdded =
                       (addedEntry?.quantity ?? 0) + (addedEntry?.pendingCount ?? 0);
                     const rarityIcon = getFilterIconPath("rarities", printing.rarity);
+                    const price = prices.get(printing.id, favoriteMarketplace);
                     return (
                       <div
                         key={printing.id}
@@ -511,6 +523,18 @@ function PaletteInner({
                             {formatPrintingLabel(printing, card.printings, labels)}
                           </span>
                         </div>
+                        {price !== undefined && (
+                          <span
+                            className={cn(
+                              "text-2xs shrink-0 tabular-nums",
+                              isPrintingSelected
+                                ? "text-accent-foreground/80"
+                                : priceColorClass(price),
+                            )}
+                          >
+                            {compactFmt(price)}
+                          </span>
+                        )}
                         <div className="mr-1.5 ml-1 flex shrink-0 items-center gap-0.5">
                           <Button
                             type="button"

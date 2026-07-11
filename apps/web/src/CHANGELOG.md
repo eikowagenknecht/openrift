@@ -8,6 +8,8 @@
 
 ### Other
 
+- feat(Collection): **Prices in quick add** — the quick-add palette now shows each printing's market price next to it, so you can see value while adding.
+- fix(Collection): **Quick add search reset on first card** — adding the first card to an empty collection no longer clears the quick-add search box mid-session.
 - fix(App): **Consistent page-title dashes** — Google rewrote our title suffix with its own dash style, so search results mixed two kinds of dashes; titles now use the plain hyphen everywhere.
 - fix(App): **Content flush under the title bar** — cards and content no longer sit tight against the sticky page header, so their top edge stops fading into it.
 
