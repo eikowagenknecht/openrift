@@ -610,7 +610,6 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
           },
         }}
         dragId={`browser-card-${item.printing.id}`}
-        stripSlot="topSlot"
         strip={
           <DeckAddStrip
             printing={item.printing}

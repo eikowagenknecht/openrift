@@ -2,6 +2,7 @@ import type { CopyResponse } from "@openrift/shared";
 import { FileTextIcon, LinkIcon, PaintbrushIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { CardStrip } from "@/components/cards/card-strip";
 import { CountPillButton } from "@/components/ui/count-pill";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { conditionShortCode } from "@/lib/condition-codes";
@@ -29,7 +30,8 @@ function MetadataPillButton({
   return (
     <CountPillButton
       tabIndex={-1}
-      variant={variant}
+      variant="ghost"
+      className={variant === "primary" ? "text-primary" : undefined}
       title={title}
       aria-label={`${title}. Edit copy details.`}
       onClick={(event) => {
@@ -52,12 +54,7 @@ function MetadataPillButton({
  * @returns The strip row.
  */
 export function CopyMetadataStrip({ copy }: { copy: CopyResponse | undefined }) {
-  return (
-    // ⚠ h-5 + mb-1 = 24px mirrors ADD_STRIP_HEIGHT in card-grid-constants
-    <div className="relative z-30 mb-1 flex h-5 items-center justify-center gap-1">
-      {copy && <CopyMetadataPills copy={copy} />}
-    </div>
-  );
+  return <CardStrip center={copy && <CopyMetadataPills copy={copy} />} />;
 }
 
 function CopyMetadataPills({ copy }: { copy: CopyResponse }) {

@@ -21,6 +21,10 @@ const countPillVariants = cva(
         muted: "bg-muted text-muted-foreground",
         primary: "bg-primary/10 text-primary",
         success: "bg-green-500/10 text-green-700 dark:bg-green-500/20 dark:text-green-400",
+        // Background-less pill for informational chips in the card strips —
+        // the interactive form regains a muted ground on hover (see
+        // countPillHover) so tappability still reads on pointer devices.
+        ghost: "text-muted-foreground bg-transparent px-1",
       },
     },
     defaultVariants: {
@@ -35,6 +39,7 @@ const countPillHover: Record<NonNullable<CountPillVariant>, string> = {
   muted: "hover:bg-muted/80",
   primary: "hover:bg-primary/20",
   success: "hover:bg-green-500/20 dark:hover:bg-green-500/30",
+  ghost: "hover:bg-muted/80",
 };
 
 // For call sites that put the pill classes on another primitive's trigger

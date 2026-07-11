@@ -6,6 +6,8 @@ import {
   EllipsisVerticalIcon,
   HeartIcon,
   InfoIcon,
+  LayersIcon,
+  MinusIcon,
   PackageIcon,
   PlusIcon,
   SearchIcon,
@@ -20,6 +22,7 @@ import { toast } from "sonner";
 
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { CardCountStrip } from "@/components/cards/card-count-strip";
+import { CardStrip, StripActionButton, StripIconButton } from "@/components/cards/card-strip";
 import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 import { MultiSelectCombobox } from "@/components/filters/multi-select-combobox";
 import { SearchInput } from "@/components/filters/search-input";
@@ -797,7 +800,13 @@ function BadgesChipsSection() {
         <Swatch label="default" colors>
           <CountPill>
             <PackageIcon className="size-3" />
-            <span>×4</span>
+            <span>4</span>
+          </CountPill>
+        </Swatch>
+        <Swatch label="ghost" colors>
+          <CountPill variant="ghost">
+            <PackageIcon className="size-3" />
+            <span>4</span>
           </CountPill>
         </Swatch>
         <Swatch label="primary" colors>
@@ -1465,8 +1474,71 @@ function CompositesSection() {
           />
         </Demo>
         <Demo
+          name="CardStrip"
+          hint="Layout shell for the 24px above-card row: left / center / right zones with StripIconButton and StripActionButton. The flex-1 side zones keep the center pills dead-centered."
+        >
+          <div className="w-56">
+            <CardStrip
+              left={
+                <StripIconButton
+                  className="text-muted-foreground"
+                  aria-label="Remove from deck"
+                  onClick={() => toast.success("Removed")}
+                >
+                  <MinusIcon />
+                </StripIconButton>
+              }
+              center={
+                <>
+                  <CountPill variant="ghost" title="3 owned">
+                    <PackageIcon className="size-3" />
+                    <span>3</span>
+                  </CountPill>
+                  <CountPill variant="primary" title="2 in deck">
+                    <LayersIcon className="size-3" />
+                    <span>2</span>
+                  </CountPill>
+                </>
+              }
+              right={
+                <StripIconButton
+                  className="text-muted-foreground"
+                  aria-label="Add to deck"
+                  onClick={() => toast.success("Added")}
+                >
+                  <PlusIcon />
+                </StripIconButton>
+              }
+            />
+          </div>
+          <div className="w-56">
+            <CardStrip
+              center={
+                <CountPill variant="ghost" className="opacity-50">
+                  <PackageIcon className="size-3" />
+                  <span>0</span>
+                </CountPill>
+              }
+              right={
+                <StripActionButton onClick={() => toast.success("Chosen")}>
+                  Choose
+                </StripActionButton>
+              }
+            />
+          </div>
+          <div className="w-56">
+            <CardStrip
+              right={
+                <StripActionButton variant="destructive" onClick={() => toast.success("Removed")}>
+                  Remove
+                </StripActionButton>
+              }
+            />
+          </div>
+        </Demo>
+        <Demo
           name="CardCountStrip"
-          hint="Count strip above card thumbnails; CountPill's real habitat. Read-only shows ×N (M)."
+          hint="Count preset over CardStrip; CountPill's real habitat. Read-only shows N (M)."
         >
           <div className="w-40">
             <CardCountStrip

@@ -8,6 +8,7 @@
 
 ### Other
 
+- feat(App): **Cleaner card-grid controls** — the strip above cards now looks the same on every page: counts and info chips lose their grey boxes and the "×" prefix, and the deck editor gets remove on the left, add on the right.
 - feat(Collection): **Prices in quick add** — the quick-add palette now shows each printing's market price next to it, so you can see value while adding.
 - fix(Decks): **Search bar focus ring** — the ring around the deck search box was cut off at the top by the sticky title bar and now shows fully.
 - fix(Trades): **Clearer trade value wording** — "You'd get ≈X" on trade headers read like cash coming to you; it now says "cards worth ≈X" to make clear it's the value of the cards.

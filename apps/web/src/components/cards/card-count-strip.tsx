@@ -1,7 +1,7 @@
 import { MinusIcon, PackageIcon, PlusIcon } from "lucide-react";
 import type { ComponentType, MouseEvent, ReactNode, SVGProps } from "react";
 
-import { Button } from "@/components/ui/button";
+import { CardStrip, StripIconButton } from "@/components/cards/card-strip";
 import { CountPill, CountPillButton } from "@/components/ui/count-pill";
 import { cn } from "@/lib/utils";
 
@@ -19,7 +19,7 @@ interface CardCountStripProps {
   count: number;
   /** Icon inside the default pill. */
   icon?: IconComponent;
-  /** Wider-scope total. When set and ≠ count, renders "×N (M)". */
+  /** Wider-scope total. When set and ≠ count, renders "N (M)". */
   totalCount?: number;
   /** Force the pill's dimmed state. Defaults to true when count is 0 and no total diverges. */
   dim?: boolean;
@@ -38,13 +38,13 @@ interface CardCountStripProps {
 }
 
 /**
- * Per-cell count strip rendered above the card image. Unified layout used by
- * the catalog (owned count + popover), collection add mode, list add mode,
- * list-entry editor, and public-share read-only view. Fixed h-5 + mb-1 = 24px
- * so the virtualizer row-height estimate stays consistent across surfaces.
+ * Count preset over the CardStrip shell: the icon + count pill (bare number,
+ * no "×" prefix — the icon carries the meaning) with optional ± steppers.
+ * Used by the catalog (owned count + popover), collection add mode, list add
+ * mode, list-entry editor, and public-share read-only view.
  *
- * The deck editor uses `DeckAddStrip` instead — its "N owned / M in deck"
- * text layout and shift-click bulk semantics don't fit this shape.
+ * The deck editor uses `DeckAddStrip` instead — its owned / in-deck pill pair
+ * and shift-click bulk semantics don't fit this shape.
  *
  * @returns The card-count strip.
  */
@@ -62,12 +62,11 @@ export function CardCountStrip({
 }: CardCountStripProps) {
   const showTotal = totalCount !== undefined && totalCount !== count;
   const isDim = dim ?? (count === 0 && !showTotal);
-  const hasButtons = Boolean(decrement || increment);
 
   const pillInner = (
     <>
       <Icon className="size-3" />
-      <span>×{count}</span>
+      <span>{count}</span>
       {showTotal && <span className="opacity-60"> ({totalCount})</span>}
     </>
   );
@@ -76,6 +75,7 @@ export function CardCountStrip({
     pillOverride ??
     (onPillClick ? (
       <CountPillButton
+        variant="ghost"
         tabIndex={-1}
         onClick={(event) => {
           event.stopPropagation();
@@ -87,61 +87,41 @@ export function CardCountStrip({
         {pillInner}
       </CountPillButton>
     ) : (
-      <CountPill className={cn(isDim && "opacity-50")}>{pillInner}</CountPill>
+      <CountPill variant="ghost" className={cn(isDim && "opacity-50")}>
+        {pillInner}
+      </CountPill>
     ));
 
   return (
-    // ⚠ h-5 + mb-1 = 24px is mirrored as ADD_STRIP_HEIGHT in card-grid-constants — update both together
-    <div
-      className={cn(
-        "relative z-30 mb-1 flex h-5 items-center",
-        hasButtons ? "justify-between" : "justify-center",
-      )}
-    >
-      {hasButtons &&
-        (decrement ? (
-          <StripIconButton {...decrement} icon={<MinusIcon />} />
-        ) : (
-          <span className="size-5" />
-        ))}
-      {extras ? (
-        <div className="flex items-center gap-1">
+    <CardStrip
+      left={
+        decrement && (
+          <StripIconButton
+            onClick={(event) => decrement.onClick(event)}
+            disabled={decrement.disabled}
+            aria-label={decrement.ariaLabel}
+          >
+            <MinusIcon />
+          </StripIconButton>
+        )
+      }
+      center={
+        <>
           {pill}
           {extras}
-        </div>
-      ) : (
-        pill
-      )}
-      {hasButtons &&
-        (increment ? (
-          <StripIconButton {...increment} icon={<PlusIcon />} />
-        ) : (
-          <span className="size-5" />
-        ))}
-    </div>
-  );
-}
-
-function StripIconButton({
-  onClick,
-  disabled,
-  ariaLabel,
-  icon,
-}: StripButtonSlot & { icon: ReactNode }) {
-  return (
-    <Button
-      type="button"
-      tabIndex={-1}
-      size="icon-xs"
-      variant="ghost"
-      onClick={(event) => {
-        event.stopPropagation();
-        onClick(event);
-      }}
-      disabled={disabled}
-      aria-label={ariaLabel}
-    >
-      {icon}
-    </Button>
+        </>
+      }
+      right={
+        increment && (
+          <StripIconButton
+            onClick={(event) => increment.onClick(event)}
+            disabled={increment.disabled}
+            aria-label={increment.ariaLabel}
+          >
+            <PlusIcon />
+          </StripIconButton>
+        )
+      }
+    />
   );
 }

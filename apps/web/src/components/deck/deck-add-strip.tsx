@@ -1,7 +1,8 @@
 import type { Printing } from "@openrift/shared";
-import { MinusIcon, PlusIcon } from "lucide-react";
+import { LayersIcon, MinusIcon, PackageIcon, PlusIcon } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { CardStrip, StripActionButton, StripIconButton } from "@/components/cards/card-strip";
+import { CountPill } from "@/components/ui/count-pill";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
@@ -19,8 +20,13 @@ interface DeckAddStripProps {
 }
 
 /**
- * Top strip for cards in the deck editor grid.
- * Shows: [owned count] [in-deck count] [-] [+ or Choose]
+ * Strip for cards in the deck editor grid, on the CardStrip shell:
+ * remove on the left, owned / in-deck pills in the center, add on the right.
+ * The owned pill uses the package icon (same symbol as the catalog and
+ * collection strips); the in-deck pill is primary-tinted with a layers icon.
+ * Shift-click swaps the ± icons for labeled bulk ±N buttons in place, and a
+ * single-card zone with a labeled remove shows only that destructive button.
+ *
  * @returns The deck add strip.
  */
 export function DeckAddStrip({
@@ -38,112 +44,109 @@ export function DeckAddStrip({
   // Single-card zone with a labeled remove: show only a destructive button
   if (removeLabel && deckQuantity > 0 && onRemove) {
     return (
-      <div className="relative z-10 mb-1 flex h-5 items-center justify-end">
-        <Button
-          type="button"
-          variant="destructive"
-          tabIndex={-1}
-          onClick={(event) => {
-            event.stopPropagation();
-            onRemove(printing, event);
-          }}
-          className="h-auto rounded px-2 py-0.5 text-xs font-semibold"
-        >
-          {removeLabel}
-        </Button>
-      </div>
+      <CardStrip
+        right={
+          <StripActionButton variant="destructive" onClick={(event) => onRemove(printing, event)}>
+            {removeLabel}
+          </StripActionButton>
+        }
+      />
     );
   }
 
   const showBulkAdd = shiftHeld && !addLabel && remainingCount !== undefined && remainingCount > 1;
   const showBulkRemove = shiftHeld && deckQuantity > 1;
-  return (
-    // ⚠ h-5 + mb-1 = 24px mirrors ADD_STRIP_HEIGHT in card-grid-constants
-    <div className="relative z-10 mb-1 flex h-5 items-center">
-      <div className="flex flex-1 justify-start">
-        <span
-          className={cn(
-            "text-xs",
-            ownedCount > 0 ? "text-muted-foreground" : "text-muted-foreground/40",
-          )}
-        >
-          {ownedCount} owned
-        </span>
-      </div>
 
-      {deckQuantity > 0 && (
-        <span className="text-primary text-xs font-semibold">{deckQuantity} in deck</span>
-      )}
+  const ownedPill = (
+    <CountPill
+      variant="ghost"
+      title={`${ownedCount} owned`}
+      className={cn(ownedCount === 0 && "opacity-50")}
+    >
+      <PackageIcon className="size-3" aria-hidden />
+      <span>{ownedCount}</span>
+      <span className="sr-only">owned</span>
+    </CountPill>
+  );
 
-      <div className="flex flex-1 items-center justify-end gap-0.5">
-        {deckQuantity > 0 && onRemove && (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  type="button"
-                  variant={showBulkRemove ? "destructive" : "ghost"}
-                  tabIndex={-1}
-                  aria-label="Remove from deck"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onRemove(printing, event);
-                  }}
-                  className={cn(
-                    "rounded p-0",
-                    showBulkRemove
-                      ? "h-5 min-w-5 px-1 text-xs font-semibold"
-                      : "text-muted-foreground size-5",
-                  )}
-                />
-              }
-            >
-              {showBulkRemove ? `-${deckQuantity}` : <MinusIcon className="size-3.5" />}
-            </TooltipTrigger>
-            <TooltipContent>Shift+click to remove all</TooltipContent>
-          </Tooltip>
+  const deckPill = deckQuantity > 0 && (
+    <CountPill variant="primary" title={`${deckQuantity} in deck`}>
+      <LayersIcon className="size-3" aria-hidden />
+      <span>{deckQuantity}</span>
+      <span className="sr-only">in deck</span>
+    </CountPill>
+  );
+
+  const removeButton = deckQuantity > 0 && onRemove && (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          showBulkRemove ? (
+            <StripActionButton
+              variant="destructive"
+              aria-label="Remove from deck"
+              onClick={(event) => onRemove(printing, event)}
+            />
+          ) : (
+            <StripIconButton
+              className="text-muted-foreground"
+              aria-label="Remove from deck"
+              onClick={(event) => onRemove(printing, event)}
+            />
+          )
+        }
+      >
+        {showBulkRemove ? `-${deckQuantity}` : <MinusIcon />}
+      </TooltipTrigger>
+      <TooltipContent>Shift+click to remove all</TooltipContent>
+    </Tooltip>
+  );
+
+  const addButton = (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          !maxReached && (addLabel || showBulkAdd) ? (
+            <StripActionButton
+              aria-label={addLabel ? `${addLabel} card` : "Add to deck"}
+              onClick={(event) => onQuickAdd(printing, event)}
+            />
+          ) : (
+            <StripIconButton
+              className={maxReached ? "text-muted-foreground/30" : "text-muted-foreground"}
+              disabled={maxReached}
+              aria-label={addLabel ? `${addLabel} card` : "Add to deck"}
+              onClick={(event) => onQuickAdd(printing, event)}
+            />
+          )
+        }
+      >
+        {!maxReached && addLabel ? (
+          addLabel
+        ) : showBulkAdd && !maxReached ? (
+          `+${remainingCount}`
+        ) : (
+          <PlusIcon />
         )}
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                type="button"
-                variant={!maxReached && (addLabel || showBulkAdd) ? "default" : "ghost"}
-                tabIndex={-1}
-                disabled={maxReached}
-                aria-label={addLabel ? `${addLabel} card` : "Add to deck"}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onQuickAdd(printing, event);
-                }}
-                className={cn(
-                  "rounded p-0",
-                  maxReached
-                    ? "text-muted-foreground/30 size-5"
-                    : addLabel
-                      ? "hover:bg-primary/90 h-auto px-2 py-0.5 text-xs font-semibold"
-                      : showBulkAdd
-                        ? "hover:bg-primary/90 h-5 min-w-5 px-1 text-xs font-semibold"
-                        : "text-muted-foreground size-5",
-                )}
-              />
-            }
-          >
-            {!maxReached && addLabel ? (
-              addLabel
-            ) : showBulkAdd && !maxReached ? (
-              `+${remainingCount}`
-            ) : (
-              <PlusIcon className="size-3.5" />
-            )}
-          </TooltipTrigger>
-          {!maxReached && (
-            <TooltipContent>
-              {addLabel ? `Click to ${addLabel.toLowerCase()}` : "Shift+click to add max"}
-            </TooltipContent>
-          )}
-        </Tooltip>
-      </div>
-    </div>
+      </TooltipTrigger>
+      {!maxReached && (
+        <TooltipContent>
+          {addLabel ? `Click to ${addLabel.toLowerCase()}` : "Shift+click to add max"}
+        </TooltipContent>
+      )}
+    </Tooltip>
+  );
+
+  return (
+    <CardStrip
+      left={removeButton}
+      center={
+        <>
+          {ownedPill}
+          {deckPill}
+        </>
+      }
+      right={addButton}
+    />
   );
 }

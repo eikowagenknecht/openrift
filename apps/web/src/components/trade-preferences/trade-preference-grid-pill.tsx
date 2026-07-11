@@ -46,6 +46,7 @@ export function TradePreferenceGridPill({
 
   return (
     <CountPillButton
+      variant="ghost"
       tabIndex={-1}
       aria-label={tooltip ?? "Set trade preference"}
       title={tooltip ?? "Set trade preference"}

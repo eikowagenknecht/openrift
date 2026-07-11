@@ -32,6 +32,7 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { CardCell } from "@/components/cards/card-cell";
+import { CardStrip, StripIconButton } from "@/components/cards/card-strip";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 import { EntryStateBadge } from "@/components/deck-check/deck-check-event-page";
@@ -2096,38 +2097,30 @@ function ChecklistCell({
   const actionStrip =
     fixLocked && locked ? null : (
       <>
-        <div className="relative z-10 mb-1 flex h-5 items-center justify-end gap-0.5">
-          {fixLocked ? null : (
-            <Button
-              type="button"
-              variant="ghost"
-              tabIndex={-1}
-              aria-label={fixZoneOnly ? `Move ${card.rawName}` : `Fix ${card.rawName}`}
-              onClick={(event) => {
-                event.stopPropagation();
-                setFixOpen(true);
-              }}
-              className="text-muted-foreground hover:text-foreground size-5 rounded p-0"
-            >
-              <PencilIcon className="size-3.5" />
-            </Button>
-          )}
-          {locked ? null : (
-            <Button
-              type="button"
-              variant="ghost"
-              tabIndex={-1}
-              aria-label={`Remove this copy of ${card.rawName}`}
-              onClick={(event) => {
-                event.stopPropagation();
-                setRemoveOpen(true);
-              }}
-              className="text-muted-foreground hover:text-destructive size-5 rounded p-0"
-            >
-              <XIcon className="size-3.5" />
-            </Button>
-          )}
-        </div>
+        <CardStrip
+          right={
+            <>
+              {fixLocked ? null : (
+                <StripIconButton
+                  className="text-muted-foreground hover:text-foreground"
+                  aria-label={fixZoneOnly ? `Move ${card.rawName}` : `Fix ${card.rawName}`}
+                  onClick={() => setFixOpen(true)}
+                >
+                  <PencilIcon />
+                </StripIconButton>
+              )}
+              {locked ? null : (
+                <StripIconButton
+                  className="text-muted-foreground hover:text-destructive"
+                  aria-label={`Remove this copy of ${card.rawName}`}
+                  onClick={() => setRemoveOpen(true)}
+                >
+                  <XIcon />
+                </StripIconButton>
+              )}
+            </>
+          }
+        />
         {fixLocked ? null : (
           <FixCardDialog
             tournamentId={tournamentId}
@@ -2195,7 +2188,6 @@ function ChecklistCell({
       showImages
       onClick={() => void toggle()}
       strip={actionStrip}
-      stripSlot="aboveCard"
       leftOverlay={foundOverlay}
       dimmed={found}
     />

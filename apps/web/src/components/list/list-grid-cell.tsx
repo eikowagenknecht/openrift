@@ -7,6 +7,7 @@ import { memo } from "react";
 import type { CardRenderContext } from "@/components/card-viewer-types";
 import { CardCell } from "@/components/cards/card-cell";
 import { CardCountStrip } from "@/components/cards/card-count-strip";
+import { CardStrip, StripIconButton } from "@/components/cards/card-strip";
 import type { CardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import type { ListEntryDragData } from "@/components/collection/dnd-types";
 import { SelectionCheckbox } from "@/components/collection/selection-checkbox";
@@ -15,7 +16,6 @@ import { ListEntryContextMenu } from "@/components/list/list-entry-context-menu"
 import { isRuleSourced, RuleSourceBadge } from "@/components/list/rule-source-badge";
 import { TradePreferenceGridPill } from "@/components/trade-preferences/trade-preference-grid-pill";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { entryToExcludeTarget } from "@/lib/rule-exclude";
 import {
   dispatchEntryQuantityChange,
@@ -239,7 +239,6 @@ export const ListGridCell = memo(function ListGridCell({
       siblings={inCardsView ? siblings : undefined}
       priceRange={priceRange}
       dimmed={showLibrary && (entry?.quantity ?? 0) === 0}
-      stripSlot={showLibrary ? "topSlot" : undefined}
       strip={strip}
       leftOverlay={leftOverlay}
       contextMenu={contextMenu}
@@ -324,15 +323,19 @@ function buildStrip({
     const reserved = entry.kind === "copy" && entry.reserved;
     const onLoan = entry.kind === "copy" && entry.onLoan;
     return (
-      <div className="relative z-30 mb-1 flex h-5 items-center justify-center gap-1">
-        <RuleSourceBadge
-          quantity={kind === "copy" ? undefined : entry.ruleQuantity}
-          onExclude={() => dispatchExcludeFromRule(entryToExcludeTarget(entry))}
-          excludeLabel={`Don't include ${entry.cardName}`}
-        />
-        {reserved && <Badge variant="success">Reserved</Badge>}
-        {onLoan && <Badge variant="secondary">On loan</Badge>}
-      </div>
+      <CardStrip
+        center={
+          <>
+            <RuleSourceBadge
+              quantity={kind === "copy" ? undefined : entry.ruleQuantity}
+              onExclude={() => dispatchExcludeFromRule(entryToExcludeTarget(entry))}
+              excludeLabel={`Don't include ${entry.cardName}`}
+            />
+            {reserved && <Badge variant="success">Reserved</Badge>}
+            {onLoan && <Badge variant="secondary">On loan</Badge>}
+          </>
+        }
+      />
     );
   }
 
@@ -357,43 +360,38 @@ function buildStrip({
     // Copy-kind (tradelists): no count, no stepper. Surface a take-off button
     // so it isn't hidden behind the context menu. It opens the keep-vs-sold
     // chooser rather than removing outright, since taking a copy off a tradelist
-    // has two outcomes (kept vs sold). The trade pill stays dead-centered while
-    // the "Reserved" badge (when the copy is pinned to a live trade) and the
-    // take-off button float to the edges, so an uneven-width badge can't shove
-    // the pill off-center. `entry` is guaranteed non-null here.
+    // has two outcomes (kept vs sold). The "Reserved" badge (when the copy is
+    // pinned to a live trade) and the take-off button sit in the shell's edge
+    // zones, whose equal flex widths keep the trade pill dead-centered even
+    // against an uneven-width badge. `entry` is guaranteed non-null here.
     const reserved = entry.kind === "copy" && entry.reserved;
     // A copy can't be both reserved and lent (the claims exclude each other),
     // so at most one of the two edge badges renders.
     const onLoan = entry.kind === "copy" && entry.onLoan;
     return (
-      <div className="relative z-30 mb-1 flex h-5 items-center justify-center gap-1">
-        {reserved && (
-          <Badge variant="success" className="absolute top-1/2 left-0 -translate-y-1/2">
-            Reserved
-          </Badge>
-        )}
-        {onLoan && (
-          <Badge variant="secondary" className="absolute top-1/2 left-0 -translate-y-1/2">
-            On loan
-          </Badge>
-        )}
-        {isRuleSourced(entry.source) && <RuleSourceBadge />}
-        {tradePill}
-        <Button
-          type="button"
-          tabIndex={-1}
-          size="icon-xs"
-          variant="ghost"
-          className="text-muted-foreground hover:text-destructive absolute top-1/2 right-0 -translate-y-1/2"
-          onClick={(event) => {
-            event.stopPropagation();
-            dispatchListBulkAction(entryId, "takeOff");
-          }}
-          aria-label={`Take ${entry.cardName} off list`}
-        >
-          <XIcon />
-        </Button>
-      </div>
+      <CardStrip
+        left={
+          <>
+            {reserved && <Badge variant="success">Reserved</Badge>}
+            {onLoan && <Badge variant="secondary">On loan</Badge>}
+          </>
+        }
+        center={
+          <>
+            {isRuleSourced(entry.source) && <RuleSourceBadge />}
+            {tradePill}
+          </>
+        }
+        right={
+          <StripIconButton
+            className="text-muted-foreground hover:text-destructive"
+            onClick={() => dispatchListBulkAction(entryId, "takeOff")}
+            aria-label={`Take ${entry.cardName} off list`}
+          >
+            <XIcon />
+          </StripIconButton>
+        }
+      />
     );
   }
 

@@ -8,13 +8,13 @@ import { CardCountStrip } from "./card-count-strip";
 describe("CardCountStrip", () => {
   it("renders a read-only pill with the count when no controls are set", () => {
     render(<CardCountStrip count={3} />);
-    expect(screen.getByText("×3")).toBeDefined();
+    expect(screen.getByText("3")).toBeDefined();
     expect(screen.queryByRole("button")).toBeNull();
   });
 
   it("appends the wider-scope total when totalCount differs from count", () => {
     render(<CardCountStrip count={2} totalCount={5} />);
-    expect(screen.getByText("×2")).toBeDefined();
+    expect(screen.getByText("2")).toBeDefined();
     expect(screen.getByText("(5)")).toBeDefined();
   });
 
@@ -68,13 +68,13 @@ describe("CardCountStrip", () => {
       <CardCountStrip count={0} pillOverride={<span data-testid="custom-pill">custom</span>} />,
     );
     expect(screen.getByTestId("custom-pill")).toBeDefined();
-    expect(screen.queryByText("×0")).toBeNull();
+    expect(screen.queryByText("0")).toBeNull();
   });
 
   it("uses a custom icon when supplied", () => {
     render(<CardCountStrip count={1} icon={ListIcon} />);
     // ListIcon is from lucide; verify count text — the icon presence is a smoke check via no-crash.
-    expect(screen.getByText("×1")).toBeDefined();
+    expect(screen.getByText("1")).toBeDefined();
   });
 
   it("dims the pill when count is 0 and no diverging totalCount", () => {

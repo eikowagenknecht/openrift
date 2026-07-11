@@ -21,7 +21,7 @@ export function isRuleSourced(source: EntrySource): boolean {
  * visible "Rule" label so a card corner reads as clearly as the table view. When
  * {@link quantity} is set, the chip reports the rule's contribution (the additive
  * model shows the rule part here and the editable manual part beside it) as
- * `✨ ×N`; the "Rule" label form is used when no count is meaningful (copies).
+ * `✨ N`; the "Rule" label form is used when no count is meaningful (copies).
  *
  * When {@link onExclude} is set, the badge carries a trailing exclude marker — a
  * "ban" button that drops the entry from the rule. Hanging it inside the badge
@@ -36,7 +36,7 @@ export function RuleSourceBadge({
   onExclude,
   excludeLabel = "Don't include this",
 }: {
-  /** When set, the chip shows the rule's contributed count (`✨ ×N`). */
+  /** When set, the chip shows the rule's contributed count (`✨ N`). */
   quantity?: number;
   className?: string;
   onExclude?: () => void;
@@ -45,15 +45,15 @@ export function RuleSourceBadge({
   return (
     <Badge
       variant="subtle"
-      // Match the neutral count pill exactly — same opaque muted background,
-      // rounded-rect, no border — so the rule chip reads as its sibling; the
-      // primary-colored sparkle + count (text-primary from the subtle variant)
-      // are what set it apart. See countPillVariants in ui/count-pill.tsx.
-      className={cn("bg-muted rounded-md border-0", onExclude && "pr-0.5", className)}
+      // Match the ghost count pill exactly — no background, rounded-rect, no
+      // border — so the rule chip reads as its sibling; the primary-colored
+      // sparkle + count (text-primary from the subtle variant) are what set
+      // it apart. See countPillVariants in ui/count-pill.tsx.
+      className={cn("rounded-md border-0 bg-transparent", onExclude && "pr-0.5", className)}
       title={quantity === undefined ? RULE_LABEL : `${quantity} added by a list rule`}
     >
       <SparklesIcon aria-hidden />
-      {quantity === undefined ? "Rule" : <span className="tabular-nums">×{quantity}</span>}
+      {quantity === undefined ? "Rule" : <span className="tabular-nums">{quantity}</span>}
       {onExclude ? (
         <ChipRemoveButton
           tabIndex={-1}

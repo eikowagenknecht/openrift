@@ -26,7 +26,7 @@ interface OwnedCollectionsPopoverProps {
   count?: number;
   /** All sibling variants of the same card (cards view). When provided with >1 entries, the breakdown groups by variant. */
   siblings?: readonly OwnedBreakdownVariant[];
-  /** Wider-scope total (e.g. global across collections). When set and different from `count`, the trigger renders `×N (M)`. */
+  /** Wider-scope total (e.g. global across collections). When set and different from `count`, the trigger renders `N (M)`. */
   totalCount?: number;
   /** Horizontal alignment of the popover relative to the trigger. */
   align?: PopoverPrimitive.Positioner.Props["align"];
@@ -73,10 +73,10 @@ export function OwnedCollectionsPopover({
     <Popover>
       <PopoverTrigger
         onClick={(event) => event.stopPropagation()}
-        className={cn(countPillVariants(), COUNT_PILL_INTERACTIVE)}
+        className={cn(countPillVariants({ variant: "ghost" }), COUNT_PILL_INTERACTIVE)}
       >
         <PackageIcon className="size-3" />
-        <span>&times;{totalOwned}</span>
+        <span>{totalOwned}</span>
         {showTotal && <span className="opacity-60"> ({totalCount})</span>}
       </PopoverTrigger>
       <PopoverContent side="bottom" align={align} className="w-60 p-0">

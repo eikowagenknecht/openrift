@@ -19,16 +19,9 @@ export interface CardCellProps {
 
   /**
    * Per-card strip (owned count, add controls, deck add controls, …).
-   * Mounted as either `aboveCard` (default) or `topSlot` on the underlying
-   * CardThumbnail.
-   *
-   * Choose `topSlot` when the strip needs to sit in the sticky region above
-   * the scroll boundary (e.g. deck builder's add controls so they stay
-   * tappable as a card scrolls off-screen); choose `aboveCard` (default) for
-   * decorative strips that should scroll with the image.
+   * Mounted as `aboveCard` on the underlying CardThumbnail.
    */
   strip?: ReactNode;
-  stripSlot?: "aboveCard" | "topSlot";
 
   /** Variant chevron + per-card price aggregate (cards view). */
   siblings?: Printing[];
@@ -87,7 +80,6 @@ export function CardCell({
   onClick,
   onSiblingClick,
   strip,
-  stripSlot = "aboveCard",
   siblings,
   priceRange,
   belowLabel,
@@ -124,8 +116,7 @@ export function CardCell({
       imageOverlay={imageOverlay}
       dragData={dragData}
       dragId={dragId}
-      aboveCard={stripSlot === "aboveCard" ? strip : undefined}
-      topSlot={stripSlot === "topSlot" ? strip : undefined}
+      aboveCard={strip}
     />
   );
 

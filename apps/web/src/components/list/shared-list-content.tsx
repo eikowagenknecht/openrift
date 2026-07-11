@@ -20,6 +20,7 @@ import { CardCell } from "@/components/cards/card-cell";
 import { CardCountStrip } from "@/components/cards/card-count-strip";
 import { OwnedCollectionsPopover } from "@/components/cards/card-detail/owned-collections-popover";
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
+import { CardStrip } from "@/components/cards/card-strip";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { StaticCountTableActions } from "@/components/cards/static-count-table-actions";
 import { WishlistHeart } from "@/components/cards/wishlist-heart";
@@ -660,19 +661,20 @@ function RequestStrip({
   onRelease: () => void;
 }) {
   return (
-    // h-5 + mb-1 = 24px, matching ADD_STRIP_HEIGHT so the virtualizer estimate holds.
-    <div className="relative z-30 mb-1 flex h-5 items-center">
-      {ownedSlot || wishSlot ? (
-        <span className="absolute inset-y-0 left-0 flex items-center gap-1">
-          {ownedSlot}
-          {wishSlot}
-        </span>
-      ) : null}
-      <span className="ml-auto flex items-center">
-        {/* All three states share the count-pill shape so they read as one
-            control across cards; color carries the state (neutral = actionable,
-            primary tint = requested by you, green = reserved/locked). */}
-        {state === "reserved" ? (
+    <CardStrip
+      left={
+        (ownedSlot || wishSlot) && (
+          <>
+            {ownedSlot}
+            {wishSlot}
+          </>
+        )
+      }
+      right={
+        /* All three states share the count-pill shape so they read as one
+           control across cards; color carries the state (neutral = actionable,
+           primary tint = requested by you, green = reserved/locked). */
+        state === "reserved" ? (
           <CountPill variant="success">Reserved</CountPill>
         ) : state === "requested" ? (
           <CountPillButton
@@ -706,9 +708,9 @@ function RequestStrip({
             <HeartIcon className="size-3" />
             <span>Request</span>
           </CountPillButton>
-        )}
-      </span>
-    </div>
+        )
+      }
+    />
   );
 }
 
@@ -717,24 +719,25 @@ function RequestStrip({
 // you have.
 function OfferStrip({ disabled, onClick }: { disabled: boolean; onClick: () => void }) {
   return (
-    // h-5 + mb-1 = 24px, matching ADD_STRIP_HEIGHT so the virtualizer estimate holds.
-    <div className="relative z-30 mb-1 flex h-5 items-center justify-center">
-      <CountPillButton
-        tabIndex={-1}
-        aria-label={disabled ? "You don't own this card" : "Offer this card"}
-        title={disabled ? "You don't own this card" : undefined}
-        disabled={disabled}
-        onClick={(event) => {
-          event.stopPropagation();
-          if (!disabled) {
-            onClick();
-          }
-        }}
-      >
-        <HandshakeIcon className="size-3" />
-        <span>Offer</span>
-      </CountPillButton>
-    </div>
+    <CardStrip
+      center={
+        <CountPillButton
+          tabIndex={-1}
+          aria-label={disabled ? "You don't own this card" : "Offer this card"}
+          title={disabled ? "You don't own this card" : undefined}
+          disabled={disabled}
+          onClick={(event) => {
+            event.stopPropagation();
+            if (!disabled) {
+              onClick();
+            }
+          }}
+        >
+          <HandshakeIcon className="size-3" />
+          <span>Offer</span>
+        </CountPillButton>
+      }
+    />
   );
 }
 

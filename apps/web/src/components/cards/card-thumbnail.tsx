@@ -328,12 +328,10 @@ interface CardThumbnailProps {
    * for the rationale.
    */
   display: CardThumbnailDisplay;
-  /** Content rendered above the card image (e.g. CardCountStrip). */
+  /** Content rendered above the card image (count strip, add strip, …). */
   aboveCard?: ReactNode;
   /** Dims the card image (used in add mode for unowned cards). */
   dimmed?: boolean;
-  /** Custom top slot (add strip) rendered above the card image. */
-  topSlot?: ReactNode;
   /** Applies domain gradient background (used for "in deck" highlight). */
   highlighted?: boolean; // custom: deckbuilder highlights cards already in the deck
   /** When provided, makes the card draggable with this data (used by deckbuilder). */
@@ -349,7 +347,7 @@ interface CardThumbnailProps {
   /**
    * Content overlaid on the card image area. Positioned as a sibling of the
    * image button so it aligns with the placeholder/image rectangle even when
-   * `aboveCard` / `topSlot` are present.
+   * `aboveCard` is present.
    */
   imageOverlay?: ReactNode;
 }
@@ -357,7 +355,7 @@ interface CardThumbnailProps {
 // Wrapper that owns the dnd-kit useDraggable subscription. Only mounted when a
 // caller passes dragData (deckbuilder), so the cards browser and collection grid
 // pay zero @dnd-kit cost on mount.
-function DraggableTopSlotWrapper({
+function DraggableTileWrapper({
   dragId,
   dragData,
   className,
@@ -417,7 +415,6 @@ export const CardThumbnail = memo(function CardThumbnail({
   display,
   aboveCard,
   dimmed,
-  topSlot,
   highlighted,
   dragData,
   dragId,
@@ -691,78 +688,19 @@ export const CardThumbnail = memo(function CardThumbnail({
         }
       : undefined;
 
-  /* ── Top-slot mode: outer <div> is inert, only the image area is a <button> ── */
-  if (topSlot) {
-    const wrapperClassName = cn(
-      // ⚠ p-1.5 is mirrored as BUTTON_PAD in card-grid.tsx — update both together
-      "group relative z-0 w-full rounded-lg p-1.5 text-left transition-all hover:z-10",
-      otherPrintings.length > 0 && "hover:[--fan:1]",
-    );
-    const wrapperStyle =
-      isSelected || highlighted
-        ? getDomainGradientStyle(card.domains, "38", domainColors)
-        : undefined;
-    const wrapperContent = (
-      <>
-        {flashOverlay}
-        {topSlot}
-        <div className="relative">
-          <Pressable className="block w-full" onClick={(e) => onClick(printing, e)}>
-            {imageSection}
-          </Pressable>
-          {imageOverlay}
-        </div>
-        {labelSection}
-        {belowLabel}
-      </>
-    );
-
-    if (dragData) {
-      return (
-        <DraggableTopSlotWrapper
-          dragId={dragId ?? `card-${printing.id}`}
-          dragData={dragData}
-          className={wrapperClassName}
-          style={wrapperStyle}
-          onMouseEnter={fanMouseEnter}
-          onMouseLeave={fanMouseLeave}
-          printingId={printing.id}
-        >
-          {wrapperContent}
-        </DraggableTopSlotWrapper>
-      );
-    }
-
-    return (
-      <div
-        data-printing-id={printing.id}
-        className={wrapperClassName}
-        style={wrapperStyle}
-        onMouseEnter={fanMouseEnter}
-        onMouseLeave={fanMouseLeave}
-      >
-        {wrapperContent}
-      </div>
-    );
-  }
-
-  /* ── Normal mode: only the image area is clickable ── */
-  return (
-    <div
-      data-printing-id={printing.id}
-      className={cn(
-        // ⚠ p-1.5 is mirrored as BUTTON_PAD in card-grid.tsx — update both together
-        "group relative z-0 w-full rounded-lg p-1.5 text-left transition-all hover:z-10",
-        otherPrintings.length > 0 && "hover:[--fan:1]",
-      )}
-      onMouseEnter={fanMouseEnter}
-      onMouseLeave={fanMouseLeave}
-      style={
-        isSelected || highlighted
-          ? getDomainGradientStyle(card.domains, "38", domainColors)
-          : undefined
-      }
-    >
+  // The outer wrapper is inert — only the image area is clickable, so
+  // interactive `aboveCard` strips never nest inside a button.
+  const wrapperClassName = cn(
+    // ⚠ p-1.5 is mirrored as BUTTON_PAD in card-grid.tsx — update both together
+    "group relative z-0 w-full rounded-lg p-1.5 text-left transition-all hover:z-10",
+    otherPrintings.length > 0 && "hover:[--fan:1]",
+  );
+  const wrapperStyle =
+    isSelected || highlighted
+      ? getDomainGradientStyle(card.domains, "38", domainColors)
+      : undefined;
+  const wrapperContent = (
+    <>
       {flashOverlay}
       {aboveCard}
       <div className="relative">
@@ -773,6 +711,34 @@ export const CardThumbnail = memo(function CardThumbnail({
       </div>
       {labelSection}
       {belowLabel}
+    </>
+  );
+
+  if (dragData) {
+    return (
+      <DraggableTileWrapper
+        dragId={dragId ?? `card-${printing.id}`}
+        dragData={dragData}
+        className={wrapperClassName}
+        style={wrapperStyle}
+        onMouseEnter={fanMouseEnter}
+        onMouseLeave={fanMouseLeave}
+        printingId={printing.id}
+      >
+        {wrapperContent}
+      </DraggableTileWrapper>
+    );
+  }
+
+  return (
+    <div
+      data-printing-id={printing.id}
+      className={wrapperClassName}
+      style={wrapperStyle}
+      onMouseEnter={fanMouseEnter}
+      onMouseLeave={fanMouseLeave}
+    >
+      {wrapperContent}
     </div>
   );
 });

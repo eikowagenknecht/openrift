@@ -83,7 +83,7 @@ describe("OwnedCollectionsPopover", () => {
     const { getByText } = render(
       <FilterSearchProvider value={{}}>{renderPopover()}</FilterSearchProvider>,
     );
-    expect(getByText("×2")).toBeTruthy();
+    expect(getByText("2")).toBeTruthy();
   });
 
   it("renders nothing for anonymous viewers under an empty filter context", () => {

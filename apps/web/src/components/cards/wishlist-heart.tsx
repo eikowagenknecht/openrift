@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 /**
  * Wishlist marker shown in a card's count strip — on a group "bulk box" tile and
  * on a member's tradelist. Styled like the count pill (same muted background +
- * hover) with a red heart, and shows the total wished quantity (×N) when the
+ * hover) with a red heart, and shows the total wished quantity (N) when the
  * viewer wants more than one. Clicking opens a popover listing every wish list
  * the card sits on (mirroring the owned-count popover), each linking to its list.
  * @returns The wishlist heart popover, or null when the card is on no wish list.
@@ -34,13 +34,13 @@ export function WishlistHeart({
       <PopoverTrigger
         onClick={(event) => event.stopPropagation()}
         tabIndex={-1}
-        className={cn(countPillVariants(), COUNT_PILL_INTERACTIVE, "gap-0.5 px-1.5")}
+        className={cn(countPillVariants({ variant: "ghost" }), COUNT_PILL_INTERACTIVE, "gap-0.5")}
         title={
-          totalQuantity > 1 ? `On your ${listLabel} (×${totalQuantity})` : `On your ${listLabel}`
+          totalQuantity > 1 ? `On your ${listLabel} (${totalQuantity})` : `On your ${listLabel}`
         }
       >
         <HeartIcon className="size-3 fill-current text-rose-500" />
-        {totalQuantity > 1 && <span>×{totalQuantity}</span>}
+        {totalQuantity > 1 && <span>{totalQuantity}</span>}
         <span className="sr-only">
           On your {listLabel}
           {totalQuantity > 1 ? `, ${totalQuantity} wanted` : ""}
