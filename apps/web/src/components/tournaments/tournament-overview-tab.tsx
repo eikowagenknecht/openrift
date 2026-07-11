@@ -4,7 +4,6 @@ import { Link } from "@tanstack/react-router";
 import {
   Building2Icon,
   CalendarIcon,
-  ChevronRightIcon,
   ClipboardCheckIcon,
   DoorOpenIcon,
   InboxIcon,
@@ -20,6 +19,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { StatTile } from "@/components/ui/stat-tile";
 import { useTournamentDeckCheckEntries } from "@/hooks/use-tournament-deck-check";
 import {
   tournamentRunStateQueryOptions,
@@ -33,7 +33,6 @@ import {
   DECK_SUBMISSION_LABEL,
   formatTournamentDate,
 } from "@/lib/tournament-display";
-import { cn } from "@/lib/utils";
 
 type TournamentTileTarget =
   | "/tournaments/$id/participants"
@@ -43,20 +42,14 @@ type TournamentTileTarget =
   | "/tournaments/$id/staff";
 
 /**
- * A dashboard tile linking to one of the tournament sections: a tinted icon
- * chip, a label, the stat value, an optional hint, and a chevron that slides in
- * on hover. `accent` gives the gold treatment to the tile that needs attention.
+ * A tournament-page StatTile: binds the shared dashboard-tile primitive to the
+ * tournament's typed navigation targets.
  * @returns The tile.
  */
 function StatCard({
   to,
   id,
-  icon: Icon,
-  label,
-  value,
-  valueClassName,
-  accent = false,
-  hint,
+  ...props
 }: {
   to: TournamentTileTarget;
   id: string;
@@ -67,40 +60,7 @@ function StatCard({
   accent?: boolean;
   hint?: ReactNode;
 }): ReactNode {
-  return (
-    <Link
-      to={to}
-      params={{ id }}
-      className={cn(
-        "group relative flex flex-col gap-4 rounded-xl border p-5 transition-all hover:shadow-md sm:min-h-28",
-        accent
-          ? "border-primary/30 bg-primary/5 hover:border-primary/50"
-          : "bg-card hover:border-primary/30 hover:bg-muted/40",
-      )}
-    >
-      <div className="flex items-center gap-3">
-        <span
-          className={cn(
-            "flex size-10 shrink-0 items-center justify-center rounded-lg",
-            accent ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground",
-          )}
-        >
-          <Icon className="size-5" />
-        </span>
-        <span className="text-muted-foreground shrink-0 text-sm font-medium">{label}</span>
-        <span
-          className={cn(
-            "font-heading ml-auto min-w-0 text-3xl font-semibold tabular-nums",
-            valueClassName,
-          )}
-        >
-          {value}
-        </span>
-        <ChevronRightIcon className="text-muted-foreground/40 group-hover:text-muted-foreground size-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
-      </div>
-      {hint ? <span className="text-muted-foreground mt-auto text-xs">{hint}</span> : null}
-    </Link>
-  );
+  return <StatTile render={<Link to={to} params={{ id }} />} {...props} />;
 }
 
 /**

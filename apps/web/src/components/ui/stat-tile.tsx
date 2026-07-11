@@ -25,6 +25,7 @@ function StatTile({
   icon: Icon,
   label,
   value,
+  valueClassName,
   accent = false,
   hint,
   className,
@@ -35,6 +36,8 @@ function StatTile({
   icon: ComponentType<SVGProps<SVGSVGElement>>;
   label: string;
   value: ReactNode;
+  /** Extra classes on the value span, e.g. `"truncate text-lg"` for long text values. */
+  valueClassName?: string;
   accent?: boolean;
   hint?: ReactNode;
 }) {
@@ -43,11 +46,14 @@ function StatTile({
     render,
     props: mergeProps<"a">(
       {
+        // The Card edge style (ring-1, not border) so CardLink and StatTile
+        // share one resting edge; hover mirrors cardLinkVariants' tint. Accent
+        // keeps the shared bg-card and is carried by ring + icon chip alone.
         className: cn(
-          "group/stat-tile focus-visible:ring-ring/50 relative flex flex-col gap-4 rounded-xl border p-5 no-underline transition-all outline-none hover:shadow-md focus-visible:ring-2 sm:min-h-28",
+          "group/stat-tile focus-visible:ring-ring/50 bg-card hover:bg-muted/40 relative flex flex-col gap-4 rounded-lg p-5 no-underline ring-1 transition-all outline-none hover:shadow-md focus-visible:ring-2 sm:min-h-28",
           accent
-            ? "border-primary/30 bg-primary/5 hover:border-primary/50"
-            : "bg-card hover:border-primary/30 hover:bg-muted/40",
+            ? "ring-primary/40 hover:ring-primary/50"
+            : "ring-foreground/10 hover:ring-primary/30",
           className,
         ),
         children: (
@@ -62,7 +68,12 @@ function StatTile({
                 <Icon className="size-5" />
               </span>
               <span className="text-muted-foreground text-sm font-medium">{label}</span>
-              <span className="font-heading ml-auto text-3xl font-semibold tabular-nums">
+              <span
+                className={cn(
+                  "font-heading ml-auto min-w-0 text-3xl font-semibold tabular-nums",
+                  valueClassName,
+                )}
+              >
                 {value}
               </span>
               <ChevronRightIcon className="text-muted-foreground/40 group-hover/stat-tile:text-muted-foreground size-4 shrink-0 transition-transform group-hover/stat-tile:translate-x-0.5" />

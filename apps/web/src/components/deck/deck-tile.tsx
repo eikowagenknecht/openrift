@@ -4,6 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { ArchiveIcon, CheckIcon, CircleAlertIcon, PinIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { cardLinkVariants } from "@/components/ui/card-link";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useCustomTagList, useDeckFormatList } from "@/hooks/use-enums";
@@ -257,7 +258,12 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
     <Link
       to="/decks/$deckId"
       params={{ deckId: deck.id }}
-      className="hover:ring-ring/40 group flex flex-col overflow-hidden rounded-xl border transition-shadow hover:ring-2 data-[archived=true]:opacity-60"
+      className={cn(
+        cardLinkVariants(),
+        // No hover wash here: the domain gradient is an inline style that overrides
+        // the wash on legend decks, so drop it everywhere to keep tiles consistent.
+        "ring-foreground/10 focus-visible:ring-ring/50 group flex flex-col overflow-hidden rounded-lg ring-1 outline-none hover:bg-transparent focus-visible:ring-2 data-[archived=true]:opacity-60",
+      )}
       data-archived={deck.archivedAt !== null}
       style={gradientStyle}
     >

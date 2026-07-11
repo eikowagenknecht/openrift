@@ -4,6 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { ArchiveIcon, CheckIcon, CircleAlertIcon, PinIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { cardLinkVariants } from "@/components/ui/card-link";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useCustomTagList, useDeckFormatList } from "@/hooks/use-enums";
@@ -12,6 +13,7 @@ import { getDomainGradientStyle } from "@/lib/domain";
 import { formatterForMarketplace } from "@/lib/format";
 import { resolveFormatTagSummary } from "@/lib/format-tag-config";
 import { getFilterIconPath } from "@/lib/icons";
+import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 import { isLocalDeckId } from "@/stores/local-decks-store";
 
@@ -66,7 +68,12 @@ export function DeckListRow({ item }: { item: DeckListItemResponse }) {
     <Link
       to="/decks/$deckId"
       params={{ deckId: deck.id }}
-      className="hover:ring-ring/40 hover:bg-muted/30 group flex items-center gap-3 rounded-lg border px-3 py-2 transition-shadow hover:ring-2 data-[archived=true]:opacity-60"
+      className={cn(
+        cardLinkVariants(),
+        // No hover wash here: the domain gradient is an inline style that overrides
+        // the wash on legend decks, so drop it everywhere to keep rows consistent.
+        "ring-foreground/10 focus-visible:ring-ring/50 group flex items-center gap-3 rounded-lg px-3 py-2 ring-1 outline-none hover:bg-transparent focus-visible:ring-2 data-[archived=true]:opacity-60",
+      )}
       data-archived={deck.archivedAt !== null}
       style={gradientStyle}
     >

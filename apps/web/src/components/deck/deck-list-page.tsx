@@ -398,7 +398,7 @@ export function DeckListPage() {
               <span className="text-muted-foreground mb-2 block text-center text-sm">
                 or explore the builder with a ready-made deck:
               </span>
-              <Card className={cn(cardLinkVariants({ variant: "ring" }), "gap-0 py-0")}>
+              <Card className={cn(cardLinkVariants(), "gap-0 py-0")}>
                 <FannedPreview
                   legendImage={sampleLegendImage}
                   championImage={sampleChampionImage}
@@ -426,7 +426,7 @@ export function DeckListPage() {
             // gives the sticky band a clean bottom — unlike card-browser
             // surfaces, the filters live inside this toolbar, not a separate
             // aboveGrid strip, so the band must pad its own bottom.
-            className="bg-background/80 mx-safe-neg px-safe sticky z-20 pb-3 backdrop-blur-lg sm:rounded-b-xl"
+            className="bg-background/80 mx-safe-neg px-safe sticky z-20 pb-3 backdrop-blur-lg sm:rounded-b-lg"
             style={{ top: toolbarOffset }}
           >
             <DeckListToolbar
