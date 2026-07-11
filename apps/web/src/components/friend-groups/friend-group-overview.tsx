@@ -21,7 +21,7 @@ import {
 } from "@/lib/trade-derivation";
 
 import { FriendGroupActivityFeed } from "./friend-group-activity-feed";
-import { canManageGroupTournaments, SECTION_HEADING } from "./friend-group-shell";
+import { SECTION_HEADING } from "./friend-group-shell";
 import { TradeDirectionIcon, TradeExpiry, TradeStatusBadge } from "./trade-row-parts";
 
 /**
@@ -46,12 +46,10 @@ function ActionCards({ slug, data }: { slug: string; data: FriendGroupDetailResp
   const { data: actionCounts } = useTradeActionCounts();
   const { data: tradesData } = useGroupTrades(data.group.id);
   const { data: collections } = useCollections();
-  // A plain member still reaches the Events tile when they entered one of this
-  // group's events; the tile then counts only their own entries (ADR-026).
+  // The viewer's own deck-check entries in this group feed the tile's hint
+  // (ADR-026 links entries to accounts, not group roles).
   const { data: ownDecks } = useMyTournamentDecks();
   const ownEntries = (ownDecks?.items ?? []).filter((entry) => entry.groupSlug === data.group.slug);
-  const canManageTournaments = canManageGroupTournaments(data.viewerRole);
-  const showChecks = canManageTournaments || ownEntries.length > 0;
 
   const tradesActionCount =
     actionCounts?.byGroup.find((entry) => entry.groupId === data.group.id)?.count ?? 0;
@@ -132,20 +130,7 @@ function ActionCards({ slug, data }: { slug: string; data: FriendGroupDetailResp
           memberCount={memberCount}
           pendingRequestCount={pendingRequestCount}
         />
-        {showChecks ? (
-          canManageTournaments ? (
-            <GroupTournamentsTile slug={slug} ownEntries={ownEntries.length} />
-          ) : (
-            <StatCard
-              to="/groups/$slug/events"
-              slug={slug}
-              icon={TrophyIcon}
-              label="Tournaments"
-              value={ownEntries.length}
-              hint="your entries"
-            />
-          )
-        ) : null}
+        <GroupTournamentsTile slug={slug} ownEntries={ownEntries.length} />
       </div>
     </div>
   );
@@ -283,9 +268,10 @@ function InProgressTradeRow({ trade }: { trade: CardTradeResponse }) {
 }
 
 /**
- * The Tournaments tile for group admins/owners: the count of the group's
- * tournaments, with the viewer's own entries as the supporting hint. Split out
- * so the group-tournaments query only runs for roles that load this surface.
+ * The Tournaments tile, shown to every group member: the count of the group's
+ * open tournaments, with the viewer's own entries as the supporting hint. The
+ * group-tournaments list is member-scoped server-side, so the query is safe
+ * for any role that reaches the overview.
  * @returns The Tournaments tile.
  */
 function GroupTournamentsTile({ slug, ownEntries }: { slug: string; ownEntries: number }) {

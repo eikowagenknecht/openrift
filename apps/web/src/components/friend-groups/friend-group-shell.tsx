@@ -34,17 +34,6 @@ export function isAdmin(role: FriendGroupRole | null): role is "admin" | "owner"
 }
 
 /**
- * Group-level access to the group's tournaments surface. ADR-033 retired the
- * `judge` group role and moved judging to tournament_staff; the group owner/admin
- * still reach the group's tournaments, and per-action authority is enforced
- * server-side against the tournament host/staff.
- * @returns True for owner and admin.
- */
-export function canManageGroupTournaments(role: FriendGroupRole | null): role is "admin" | "owner" {
-  return role === "admin" || role === "owner";
-}
-
-/**
  * The group overview frame: loads the group, shows the pending-approval stub
  * for would-be members, and otherwise renders the group header (name + Manage)
  * and description above `render(data)`. Only the overview mounts through this;

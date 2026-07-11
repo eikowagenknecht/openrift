@@ -8,6 +8,7 @@
 
 ### Other
 
+- fix(Groups): **Tournaments reachable for all members** — the group overview now shows the Tournaments tile to every member, so group tournaments are no longer hidden from players without an admin role or a submitted deck.
 - fix(Cards): **Rune symbols match the cards** — rune icons in card text now show the domain's colored emblem instead of a filled disc, matching how they look on the printed cards.
 - fix(Collection): **On-loan count in the card strip** — the loan marker moved from the card image into the strip above it, so it no longer covers the art and stays visible while hovering a card with several printings.
 - feat(App): **Cleaner card-grid controls** — the strip above cards now looks the same on every page: counts and info chips lose their grey boxes and the "×" prefix, and the deck editor gets remove on the left, add on the right.
