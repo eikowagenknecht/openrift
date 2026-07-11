@@ -22,7 +22,7 @@ import {
   useMeasuredHeight,
 } from "@/components/layout/page-top-bar";
 import { TopBarBreadcrumbSeparator } from "@/components/layout/top-bar-breadcrumb";
-import { OnLoanBadge } from "@/components/loans/on-loan-badge";
+import { OnLoanChip } from "@/components/loans/on-loan-chip";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { useCardData } from "@/hooks/use-card-data";
@@ -269,6 +269,7 @@ function SharedCollectionGrid({ data }: { data: PublicCollectionDetailResponse }
 
   const renderCard = (item: CardViewerItem, ctx: CardRenderContext) => {
     const cardId = item.printing.cardId;
+    const onLoan = onLoanByPrintingId[item.printing.id] ?? 0;
     return (
       <CardCell
         printing={item.printing}
@@ -279,8 +280,12 @@ function SharedCollectionGrid({ data }: { data: PublicCollectionDetailResponse }
         onClick={handleCardClick}
         siblings={view === "cards" ? printingsByCardId.get(cardId) : undefined}
         priceRange={priceRangeByCardId?.get(cardId)}
-        strip={<CardCountStrip count={countByPrintingId[item.printing.id] ?? 0} />}
-        imageOverlay={<OnLoanBadge count={onLoanByPrintingId[item.printing.id] ?? 0} />}
+        strip={
+          <CardCountStrip
+            count={countByPrintingId[item.printing.id] ?? 0}
+            extras={onLoan > 0 ? <OnLoanChip count={onLoan} /> : undefined}
+          />
+        }
       />
     );
   };

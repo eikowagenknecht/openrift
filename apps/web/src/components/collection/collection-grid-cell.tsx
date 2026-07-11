@@ -14,7 +14,7 @@ import { CollectionCardContextMenu } from "@/components/collection/collection-ca
 import { CopyMetadataStrip, StackMetadataChip } from "@/components/collection/copy-metadata-badges";
 import { DraggableCard } from "@/components/collection/draggable-card";
 import { SelectionCheckbox } from "@/components/collection/selection-checkbox";
-import { OnLoanBadge } from "@/components/loans/on-loan-badge";
+import { OnLoanChip } from "@/components/loans/on-loan-chip";
 import { Button } from "@/components/ui/button";
 import { useCopyRowsForPrintings, useOwnedCountsForPrintings } from "@/hooks/use-owned-count";
 import type { WishEntryFlat } from "@/hooks/use-wish-entries";
@@ -157,20 +157,18 @@ export const CollectionGridCell = memo(function CollectionGridCell({
   const { data: cardCopies } = useCopyRowsForPrintings(siblingIds, true, collectionId);
   const cardCopyIds = cardCopies?.map((copy) => copy.id);
 
-  // "On loan" badge (ADR-039): a copies-view tile flags only its own physical
-  // copy; stacked tiles count the displayed printing, and in cards view also
-  // the whole tile across sibling printings — the badge then reads "n (m) on
-  // loan", mirroring the count pill's "×n (m)". Derived from the copy rows
-  // already subscribed above — no extra live query.
-  const onLoanCopies = cardCopies?.filter((copy) => copy.onLoan) ?? [];
-  const onLoanTotal = stacked
-    ? onLoanCopies.length
-    : onLoanCopies.some((copy) => copy.id === itemId)
-      ? 1
-      : 0;
-  const onLoanCount = stacked
-    ? onLoanCopies.filter((copy) => copy.printingId === displayPrinting.id).length
-    : onLoanTotal;
+  // "On loan" chip (ADR-039) for the count strip's extras slot: stacked tiles
+  // count the displayed printing, and in cards view also the whole tile across
+  // sibling printings — the chip then reads "n (m)", mirroring the count
+  // pill's "n (m)". Copies-view tiles carry their icon-only marker inside
+  // CopyMetadataStrip instead. Derived from the copy rows already subscribed
+  // above — no extra live query.
+  const onLoanCopies = stacked ? (cardCopies?.filter((copy) => copy.onLoan) ?? []) : [];
+  const onLoanCount = onLoanCopies.filter((copy) => copy.printingId === displayPrinting.id).length;
+  const onLoanChip =
+    onLoanCopies.length > 0 ? (
+      <OnLoanChip count={onLoanCount} totalCount={inCardsView ? onLoanCopies.length : undefined} />
+    ) : undefined;
 
   const ownedCount = counts?.totals[displayPrinting.id] ?? 0;
   const totalInCollection =
@@ -204,8 +202,8 @@ export const CollectionGridCell = memo(function CollectionGridCell({
   // always 1 and the per-printing controls don't apply.
   //
   // Strip variants:
-  //  - copies view: metadata chips (condition/grade, altered, notes, links);
-  //    an empty row for bare copies so tiles in a row stay aligned
+  //  - copies view: on-loan marker + metadata chips (condition/grade, altered,
+  //    notes, links); an empty row for bare copies so tiles in a row stay aligned
   //  - stacked browse: full +/-, count pill opens the variant×collection popover
   //  - stacked select + owned: read-only count, OwnedCollectionsPopover
   //  - stacked select + unowned: no strip (nothing to display)
@@ -282,8 +280,9 @@ export const CollectionGridCell = memo(function CollectionGridCell({
             : undefined
         }
         extras={
-          metadataChip || boxExtras ? (
+          onLoanChip || metadataChip || boxExtras ? (
             <>
+              {onLoanChip}
               {metadataChip}
               {boxExtras}
             </>
@@ -306,7 +305,14 @@ export const CollectionGridCell = memo(function CollectionGridCell({
             siblings={inCardsView ? siblings : undefined}
           />
         }
-        extras={metadataChip}
+        extras={
+          onLoanChip || metadataChip ? (
+            <>
+              {onLoanChip}
+              {metadataChip}
+            </>
+          ) : undefined
+        }
       />
     );
   }
@@ -378,11 +384,6 @@ export const CollectionGridCell = memo(function CollectionGridCell({
       dimmed={cardTotalInCollection === 0}
       strip={strip}
       leftOverlay={leftOverlay}
-      imageOverlay={
-        onLoanTotal > 0 ? (
-          <OnLoanBadge count={onLoanCount} totalCount={inCardsView ? onLoanTotal : undefined} />
-        ) : undefined
-      }
       contextMenu={
         // Right-click copy details / move / add-to-list / dispose (+ "Take a
         // copy" on a group box). Only owned cards have copies to act on, so

@@ -3,6 +3,7 @@ import { FileTextIcon, LinkIcon, PaintbrushIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { CardStrip } from "@/components/cards/card-strip";
+import { OnLoanChip } from "@/components/loans/on-loan-chip";
 import { CountPillButton } from "@/components/ui/count-pill";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { conditionShortCode } from "@/lib/condition-codes";
@@ -48,8 +49,9 @@ function MetadataPillButton({
  * Per-copy metadata strip for copies-view tiles (ADR-038): a condition or
  * grade pill plus altered/notes/links markers, in the same fixed above-card
  * row the stacked views use for their count strips. Every pill opens the
- * copy-details editor. Renders the empty row for a bare (or still loading)
- * copy so tiles in a row stay aligned.
+ * copy-details editor. A copy that is out on a loan additionally leads with
+ * the static on-loan marker (ADR-039). Renders the empty row for a bare (or
+ * still loading) copy so tiles in a row stay aligned.
  *
  * @returns The strip row.
  */
@@ -62,6 +64,7 @@ function CopyMetadataPills({ copy }: { copy: CopyResponse }) {
   const hasNotes = copy.notesPublic !== null || copy.notesPrivate !== null;
   return (
     <>
+      {copy.onLoan && <OnLoanChip iconOnly count={1} />}
       {copy.grader !== null && copy.grade !== null && (
         <MetadataPillButton
           itemId={copy.id}
