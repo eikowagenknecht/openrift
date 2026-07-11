@@ -426,7 +426,10 @@ export function DeckListPage() {
             // gives the sticky band a clean bottom — unlike card-browser
             // surfaces, the filters live inside this toolbar, not a separate
             // aboveGrid strip, so the band must pad its own bottom.
-            className="bg-background/80 mx-safe-neg px-safe sticky z-20 pb-3 backdrop-blur-lg sm:rounded-b-lg"
+            // z-30 keeps it co-planar with the title bar (later DOM order wins)
+            // so the search input's 2px focus ring isn't clipped by the bar's
+            // frosted pb band — same rule as CardBrowserLayout's toolbar.
+            className="bg-background/80 mx-safe-neg px-safe sticky z-30 pb-3 backdrop-blur-lg sm:rounded-b-lg"
             style={{ top: toolbarOffset }}
           >
             <DeckListToolbar
