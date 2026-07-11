@@ -11,6 +11,8 @@
 - fix(Collection): **On-loan count in the card strip** — the loan marker moved from the card image into the strip above it, so it no longer covers the art and stays visible while hovering a card with several printings.
 - feat(App): **Cleaner card-grid controls** — the strip above cards now looks the same on every page: counts and info chips lose their grey boxes and the "×" prefix, and the deck editor gets remove on the left, add on the right.
 - feat(Collection): **Prices in quick add** — the quick-add palette now shows each printing's market price next to it, so you can see value while adding.
+- fix(App): **Destructive button hover in dark mode** — red buttons like Delete gave no visual feedback under the cursor in dark mode and now lighten on hover.
+- fix(App): **Search clear button spacing** — the × that clears a search box sat nearly flush against the right edge and now keeps a small gap.
 - fix(Decks): **Search bar focus ring** — the ring around the deck search box was cut off at the top by the sticky title bar and now shows fully.
 - fix(Trades): **Clearer trade value wording** — "You'd get ≈X" on trade headers read like cash coming to you; it now says "cards worth ≈X" to make clear it's the value of the cards.
 - fix(App): **Consistent tile highlighting** — clickable tiles (groups, sets, tournaments, help, stats, decks) now share one hover style and show a focus ring when navigating by keyboard.

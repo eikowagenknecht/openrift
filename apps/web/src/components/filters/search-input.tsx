@@ -77,7 +77,9 @@ export function SearchInput({
         onKeyDown={onKeyDown}
       />
       {(trailing !== undefined || value) && (
-        <InputGroupAddon align="inline-end">
+        // has-[>button]:mr-0 cancels the addon's negative pull (meant for padded ghost
+        // InputGroupButtons) — the bare chip X otherwise sits almost flush against the group border
+        <InputGroupAddon align="inline-end" className="has-[>button]:mr-0">
           {trailing !== undefined && (
             <span className="pointer-events-none text-xs font-normal">{trailing}</span>
           )}

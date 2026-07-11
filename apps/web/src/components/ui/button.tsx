@@ -21,8 +21,9 @@ const buttonVariants = cva(
         ghost:
           "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
         // custom: solid destructive fill with the corner-cut signature — destructive commits share the family shape (docs/design-language.md)
+        // custom: dark:hover:bg-destructive/70 — scaffold's dark:bg-destructive/60 wins over hover:bg-destructive/90 in the cascade, leaving dark mode with no hover feedback
         destructive:
-          "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40 btn-corner-cut rounded-none focus-visible:ring-inset",
+          "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:hover:bg-destructive/70 dark:focus-visible:ring-destructive/40 btn-corner-cut rounded-none focus-visible:ring-inset",
         link: "text-primary underline-offset-4 hover:underline",
         // custom: muted inline text-link for secondary actions (text-muted-foreground + persistent underline); distinct from `link` which is text-primary, offset-4, hover-only underline
         "link-muted":

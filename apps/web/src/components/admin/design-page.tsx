@@ -834,6 +834,7 @@ function BadgesChipsSection() {
 
 function PressableSection() {
   const [expanded, setExpanded] = useState(true);
+  const [iconOnlyExpanded, setIconOnlyExpanded] = useState(false);
   return (
     <DemoSection
       id="pressable"
@@ -854,7 +855,7 @@ function PressableSection() {
           </div>
         </Pressable>
       </DemoRow>
-      <DemoRow label="ExpandToggle">
+      <DemoRow label="ExpandToggle (labeled)">
         <div className="w-full max-w-sm space-y-2">
           <ExpandToggle expanded={expanded} onClick={() => setExpanded((v) => !v)}>
             <span className="font-medium">Sideboard plan</span>
@@ -865,13 +866,15 @@ function PressableSection() {
               Against control, bring in the burn package.
             </p>
           )}
-          <ExpandToggle
-            expanded={expanded}
-            onClick={() => setExpanded((v) => !v)}
-            aria-label={expanded ? "Collapse" : "Expand"}
-            className="text-muted-foreground hover:text-foreground"
-          />
         </div>
+      </DemoRow>
+      <DemoRow label="ExpandToggle (icon-only)">
+        <ExpandToggle
+          expanded={iconOnlyExpanded}
+          onClick={() => setIconOnlyExpanded((v) => !v)}
+          aria-label={iconOnlyExpanded ? "Collapse" : "Expand"}
+          className="text-muted-foreground hover:text-foreground"
+        />
       </DemoRow>
     </DemoSection>
   );
