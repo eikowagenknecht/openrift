@@ -496,6 +496,17 @@ export const adminCardMutationsRouter = {
       throw error;
     }
 
+    // A name change updates cards.norm_name (via the cards_set_norm_name
+    // trigger) but not card_name_aliases — reconcile the self-alias so the
+    // rename leaves no stale old-name row and the new name is matchable.
+    if (field === "name" && typeof finalValue === "string" && cardBefore) {
+      await mut.syncSelfAliasOnRename(
+        cardId,
+        normalizeNameForMatching(cardBefore.name),
+        normalizeNameForMatching(finalValue),
+      );
+    }
+
     await auditEvent();
   }),
 

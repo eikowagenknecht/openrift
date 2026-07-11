@@ -355,4 +355,30 @@ describe("candidateMutationsRepo", () => {
       candidateMutationsRepo(db).createNameAliases("annie", "c-1"),
     ).resolves.toBeUndefined();
   });
+
+  it("syncSelfAliasOnRename is a no-op when the normalized name is unchanged", async () => {
+    // Guard the early return: an unchanged normName must not touch the db at all.
+    const throwingDb = new Proxy(
+      {},
+      {
+        get() {
+          throw new Error("db must not be touched when the normalized name is unchanged");
+        },
+      },
+    ) as never;
+    await expect(
+      candidateMutationsRepo(throwingDb).syncSelfAliasOnRename("c-1", "annie", "annie"),
+    ).resolves.toBeUndefined();
+  });
+
+  it("syncSelfAliasOnRename inserts the new alias and drops the old one on rename", async () => {
+    const db = createMockDb([]);
+    await expect(
+      candidateMutationsRepo(db).syncSelfAliasOnRename(
+        "c-1",
+        "akalirogueassassin",
+        "rogueassassin",
+      ),
+    ).resolves.toBeUndefined();
+  });
 });

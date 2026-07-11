@@ -603,7 +603,18 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
   // ── Accept card field ───────────────────────────────────────────────────
 
   describe("POST /:cardId/accept-field", () => {
-    it("updates card name", async () => {
+    it("updates card name and reconciles the self-alias, keeping alt-spelling aliases", async () => {
+      // Seed the current-name self-alias plus a hand-added alt-spelling alias,
+      // mirroring the real invariant that every card has a self-alias.
+      await db
+        .insertInto("cardNameAliases")
+        .values([
+          { normName: "csmtestcard", cardId },
+          { normName: "csmtestcardaltspelling", cardId },
+        ])
+        .onConflict((oc) => oc.column("normName").doNothing())
+        .execute();
+
       const res = await app.fetch(
         adminReq("POST", `${P}/${cardId}/accept-field`, {
           field: "name",
@@ -619,6 +630,19 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .where("slug", "=", cardSlug)
         .executeTakeFirstOrThrow();
       expect(row.name).toBe("CSM Test Card Updated");
+
+      // The rename must move the self-alias to the new normalized name, drop the
+      // stale old-name row, and leave the alt-spelling alias untouched — without
+      // this the card-detail view stops matching candidates under the new name.
+      const aliasRows = await db
+        .selectFrom("cardNameAliases")
+        .select("normName")
+        .where("cardId", "=", cardId)
+        .execute();
+      const aliases = aliasRows.map((a) => a.normName);
+      expect(aliases).toContain("csmtestcardupdated");
+      expect(aliases).not.toContain("csmtestcard");
+      expect(aliases).toContain("csmtestcardaltspelling");
     });
 
     it("restore original name for subsequent tests", async () => {

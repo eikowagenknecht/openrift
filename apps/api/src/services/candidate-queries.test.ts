@@ -899,6 +899,43 @@ describe("buildCardDetail", () => {
     expect(result.displayName).toBe("Fireball");
   });
 
+  it("matches candidates by the card's own normName even when the self-alias is missing", async () => {
+    // Regression: a rename left the old-name alias ("akalirogueassassin")
+    // behind and never created the new-name self-alias ("rogueassassin"). The
+    // detail view must still match candidates under the current normName —
+    // otherwise it desyncs from the list view, which matches by cards.norm_name.
+    const candidateCardsForDetail = vi.fn().mockResolvedValue([]);
+    const repo = createMockRepo({
+      cardForDetailBySlug: vi.fn().mockResolvedValue({
+        id: "card-1",
+        slug: "rogue-assassin",
+        name: "Rogue Assassin",
+        normName: "rogueassassin",
+        type: "unit",
+        types: ["unit"],
+        superTypes: [],
+        domains: [],
+        might: null,
+        energy: null,
+        power: null,
+        mightBonus: null,
+        keywords: [],
+        tags: [],
+        comment: null,
+      }),
+      cardNameAliases: vi.fn().mockResolvedValue([{ normName: "akalirogueassassin" }]),
+      candidateCardsForDetail,
+      printingsForDetail: vi.fn().mockResolvedValue([]),
+      printingImagesForDetail: vi.fn().mockResolvedValue([]),
+    });
+
+    await buildCardDetail(repo, mpRepo(), "rogue-assassin");
+
+    const normNames = candidateCardsForDetail.mock.calls[0][0] as string[];
+    expect(normNames).toContain("rogueassassin");
+    expect(normNames).toContain("akalirogueassassin");
+  });
+
   it("returns null card for unmatched identifier", async () => {
     const repo = createMockRepo({
       cardForDetailBySlug: vi.fn().mockResolvedValue(undefined),

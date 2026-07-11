@@ -889,6 +889,37 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
         .execute();
     },
 
+    /**
+     * Keep a card's self-alias in sync after a display-name change. The
+     * `cards_set_norm_name` trigger rewrites `cards.norm_name` on every name
+     * update, but nothing else maintains `card_name_aliases` — so without this a
+     * rename strands the old-name self-alias and never creates the new one,
+     * desyncing the card-detail view (matches by aliases) from the list view
+     * (matches by `cards.norm_name`). Adds the new normalized name as an alias
+     * and drops the previous self-alias, leaving no stale old-name row behind.
+     * Hand-added alt-spelling aliases are untouched (only the old self-alias is
+     * removed). No-ops when the normalized name is unchanged.
+     */
+    async syncSelfAliasOnRename(
+      cardId: string,
+      oldNormName: string,
+      newNormName: string,
+    ): Promise<void> {
+      if (oldNormName === newNormName) {
+        return;
+      }
+      await db
+        .insertInto("cardNameAliases")
+        .values({ normName: newNormName, cardId })
+        .onConflict((oc) => oc.column("normName").doUpdateSet({ cardId }))
+        .execute();
+      await db
+        .deleteFrom("cardNameAliases")
+        .where("cardId", "=", cardId)
+        .where("normName", "=", oldNormName)
+        .execute();
+    },
+
     // ── Card errata ──────────────────────────────────────────────────────────
 
     /**
