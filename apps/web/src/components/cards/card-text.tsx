@@ -155,7 +155,7 @@ function renderTokens(
               key={`${i}-${token.name}`}
               aria-label={`energy ${energyMatch[1]}`}
               className={cn(
-                "inline-flex size-[1.45em] items-center justify-center rounded-full align-text-bottom text-[0.7em] font-bold not-italic",
+                "inline-flex size-[1.45em] items-center justify-center rounded-full align-[-0.125em] text-[0.7em] font-bold not-italic",
                 onDark ? "bg-white text-black" : "bg-foreground text-background",
               )}
             >
@@ -170,7 +170,7 @@ function renderTokens(
             src={`/images/glyphs/${token.name.replaceAll("_", "-")}.svg`}
             alt={token.name.replaceAll("_", " ")}
             className={cn(
-              "inline-block size-[1em] align-text-bottom",
+              "inline-block size-[1em] align-[-0.125em]",
               monoWhite && (onDark ? "brightness-0 invert" : "brightness-0 dark:invert"),
             )}
           />
