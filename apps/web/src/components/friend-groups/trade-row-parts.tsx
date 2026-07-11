@@ -149,9 +149,12 @@ export function TradeEstimatedPrice({
 
 /**
  * The per-person estimated value shown on a counterparty group header, split by
- * direction: "You get ≈X · give ≈Y" when cards flow both ways, or a single side
- * when they don't. `conditional` switches to the "You'd get/give" wording used
- * for suggestions (a value you'd realise *if* you traded), versus the plain
+ * direction: "You get cards worth ≈X · give cards worth ≈Y" when cards flow both
+ * ways, or a single side when they don't. "cards worth" is load-bearing: the
+ * number is the market value of the cards changing hands, and without it "You'd
+ * get ≈X" reads as cash coming to you (exactly backwards when the viewer is
+ * buying those cards). `conditional` switches to the "You'd get/give" wording
+ * used for suggestions (a value you'd realise *if* you traded), versus the plain
  * "You get/give" of trades already agreed. Renders nothing when neither side has
  * a priced item. The "≈" flags it as an estimate over what's priced.
  * @returns The value-summary element, or null when nothing is priced.
@@ -176,11 +179,11 @@ export function TradeValueSummary({
   const giveVerb = conditional ? "You'd give" : "You give";
   let text: string;
   if (split.hasGet && split.hasGive) {
-    text = `${getVerb} ≈${fmt(split.get)} · give ≈${fmt(split.give)}`;
+    text = `${getVerb} cards worth ≈${fmt(split.get)} · give cards worth ≈${fmt(split.give)}`;
   } else if (split.hasGet) {
-    text = `${getVerb} ≈${fmt(split.get)}`;
+    text = `${getVerb} cards worth ≈${fmt(split.get)}`;
   } else {
-    text = `${giveVerb} ≈${fmt(split.give)}`;
+    text = `${giveVerb} cards worth ≈${fmt(split.give)}`;
   }
   return (
     <span

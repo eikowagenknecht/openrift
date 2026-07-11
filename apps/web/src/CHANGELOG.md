@@ -9,6 +9,7 @@
 ### Other
 
 - feat(Collection): **Prices in quick add** — the quick-add palette now shows each printing's market price next to it, so you can see value while adding.
+- fix(Trades): **Clearer trade value wording** — "You'd get ≈X" on trade headers read like cash coming to you; it now says "cards worth ≈X" to make clear it's the value of the cards.
 - fix(App): **Consistent tile highlighting** — clickable tiles (groups, sets, tournaments, help, stats) now share one hover style and show a focus ring when navigating by keyboard.
 - fix(Collection): **Quick add search reset on first card** — adding the first card to an empty collection no longer clears the quick-add search box mid-session.
 - fix(App): **Consistent page-title dashes** — Google rewrote our title suffix with its own dash style, so search results mixed two kinds of dashes; titles now use the plain hyphen everywhere.
