@@ -112,7 +112,7 @@ export function PlayerPanel({
       className={cn(
         // min-w-0 lets two panels share a narrow row without forcing overflow;
         // overflow-hidden keeps the tap-zone highlight inside the rounded corners.
-        "bg-card relative min-h-0 min-w-0 flex-1 touch-manipulation overflow-hidden rounded-xl border transition-all duration-150 select-none",
+        "bg-card relative min-h-0 min-w-0 flex-1 touch-manipulation overflow-hidden rounded-lg border transition-all duration-150 select-none",
         // Team color stays on the border so the ring can layer winner / spotlight on top.
         teamsActive && cn("border-2", TEAM_PANEL_BORDER[player.team]),
         isWinner && "ring-primary/40 ring-2",

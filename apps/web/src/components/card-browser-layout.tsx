@@ -134,7 +134,7 @@ export function CardBrowserLayout({
             // on the first scroll before sticking. With a page top bar above,
             // the bar's own -mt-px already shifted this tier's flow position.
             pageTopBarHeight === 0 && "-mt-px pt-3",
-            aboveGridHeight === 0 && "sm:rounded-b-xl",
+            aboveGridHeight === 0 && "sm:rounded-b-lg",
           )}
           style={{ top: headerOffset }}
         >
@@ -148,7 +148,7 @@ export function CardBrowserLayout({
           <div className="flex min-w-0 flex-1 flex-col">
             <div
               ref={aboveGridRef}
-              className="bg-background/80 mx-safe-neg px-safe sticky z-15 backdrop-blur-lg sm:rounded-b-xl"
+              className="bg-background/80 mx-safe-neg px-safe sticky z-15 backdrop-blur-lg sm:rounded-b-lg"
               style={{ top: toolbarOffset }}
             >
               {aboveGrid}

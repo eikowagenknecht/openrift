@@ -103,7 +103,7 @@ function SetsPending() {
       <Skeleton className="mb-4 h-8 w-32" />
       <div className="grid gap-4 min-[1920px]:grid-cols-4 sm:grid-cols-2 xl:grid-cols-3">
         {Array.from({ length: 8 }, (_, i) => (
-          <Skeleton key={i} className="h-36 rounded-xl" />
+          <Skeleton key={i} className="h-36 rounded-lg" />
         ))}
       </div>
     </div>

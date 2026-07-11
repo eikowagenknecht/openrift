@@ -19,7 +19,8 @@ function Command({ className, ...props }: React.ComponentProps<typeof CommandPri
     <CommandPrimitive
       data-slot="command"
       className={cn(
-        "bg-popover text-popover-foreground flex size-full flex-col overflow-hidden rounded-xl! p-1",
+        // custom: rounded-lg (scaffold ships rounded-xl) — app-wide surface radius matches form controls
+        "bg-popover text-popover-foreground flex size-full flex-col overflow-hidden rounded-lg! p-1",
         className,
       )}
       {...props}
@@ -48,7 +49,8 @@ function CommandDialog({
         <DialogDescription>{description}</DialogDescription>
       </DialogHeader>
       <DialogContent
-        className={cn("top-1/3 translate-y-0 overflow-hidden rounded-xl! p-0", className)}
+        // custom: rounded-lg (scaffold ships rounded-xl) — app-wide surface radius matches form controls
+        className={cn("top-1/3 translate-y-0 overflow-hidden rounded-lg! p-0", className)}
         showCloseButton={showCloseButton}
       >
         {children}

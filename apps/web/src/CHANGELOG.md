@@ -10,7 +10,9 @@
 
 - feat(Collection): **Prices in quick add** — the quick-add palette now shows each printing's market price next to it, so you can see value while adding.
 - fix(Trades): **Clearer trade value wording** — "You'd get ≈X" on trade headers read like cash coming to you; it now says "cards worth ≈X" to make clear it's the value of the cards.
-- fix(App): **Consistent tile highlighting** — clickable tiles (groups, sets, tournaments, help, stats) now share one hover style and show a focus ring when navigating by keyboard.
+- fix(App): **Consistent tile highlighting** — clickable tiles (groups, sets, tournaments, help, stats, decks) now share one hover style and show a focus ring when navigating by keyboard.
+- fix(App): **Subtler focus rings** — inputs, buttons, and toggles now mark keyboard focus with a thinner 2px ring instead of the thick 3px halo, matching the rest of the app.
+- fix(App): **One corner radius everywhere** — cards, tiles, dialogs, drawers, and pickers now share the form controls' corner radius, fixing mismatched corners in popover pickers.
 - fix(Collection): **Quick add search reset on first card** — adding the first card to an empty collection no longer clears the quick-add search box mid-session.
 - fix(App): **Consistent page-title dashes** — Google rewrote our title suffix with its own dash style, so search results mixed two kinds of dashes; titles now use the plain hyphen everywhere.
 - fix(App): **Content flush under the title bar** — cards and content no longer sit tight against the sticky page header, so their top edge stops fading into it.

@@ -149,7 +149,7 @@ function WinnerBanner() {
 
   return (
     <div className="bg-background/80 absolute inset-0 z-10 flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-card w-full max-w-sm space-y-4 rounded-xl border p-6 text-center shadow-lg">
+      <div className="bg-card w-full max-w-sm space-y-4 rounded-lg border p-6 text-center shadow-lg">
         <TrophyIcon className="text-primary mx-auto size-10" />
         <Heading level={2}>
           {winner.name} {winner.isTeam ? "win" : "wins"}!

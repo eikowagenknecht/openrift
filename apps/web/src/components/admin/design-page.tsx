@@ -873,9 +873,9 @@ function TilesSection() {
     <DemoSection
       id="tiles"
       title="Tiles"
-      note="CardLink is the whole-Card click target for list tiles: tint hover by default, ring for image-dominated tiles where a tint would barely show. Cards that keep secondary actions inside apply cardLinkVariants() directly. StatTile is the dashboard stat with the stronger hover; accent is reserved for the one tile needing attention."
+      note="CardLink is the whole-Card click target for list tiles; every tile hovers the same way (shadow lift, muted wash, 1px primary edge). Cards that keep secondary actions inside, and non-Card link tiles like the deck grid, apply cardLinkVariants() directly. StatTile is the dashboard stat; accent is reserved for the one tile needing attention."
     >
-      <DemoRow label="CardLink (tint)">
+      <DemoRow label="CardLink">
         <CardLink
           render={<Link to="/admin/design" hash="tiles" />}
           className="w-full max-w-sm flex-row items-center gap-3 p-3"
@@ -888,13 +888,12 @@ function TilesSection() {
           <Badge variant="secondary">Shared</Badge>
         </CardLink>
       </DemoRow>
-      <DemoRow label="CardLink (ring, for image-dominated tiles)">
+      <DemoRow label="CardLink (image-dominated)">
         <CardLink
           render={<Link to="/admin/design" hash="tiles" />}
-          variant="ring"
           className="w-full max-w-sm gap-0 py-0"
         >
-          <div className="bg-muted flex h-24 items-center justify-center rounded-t-xl">
+          <div className="bg-muted flex h-24 items-center justify-center rounded-t-lg">
             <PackageIcon className="text-muted-foreground size-8" />
           </div>
           <div className="flex flex-col p-3">
@@ -1097,8 +1096,14 @@ function PickersSection() {
             value={champions}
             onValueChange={setChampions}
           >
-            <ComboboxTrigger className="border-input bg-background hover:bg-accent/40 flex h-8 w-56 items-center justify-between rounded-md border px-3 text-sm">
-              <span className={champions.length === 0 ? "text-muted-foreground" : ""}>
+            <ComboboxTrigger
+              render={<Button variant="outline" />}
+              className={cn(
+                "w-56 justify-between font-normal",
+                champions.length === 0 && "text-muted-foreground",
+              )}
+            >
+              <span className="truncate">
                 {champions.length === 0 ? "Pick legends…" : champions.join(" + ")}
               </span>
             </ComboboxTrigger>

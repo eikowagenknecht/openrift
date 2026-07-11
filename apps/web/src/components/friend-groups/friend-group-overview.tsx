@@ -181,7 +181,7 @@ function TradesActionBanner({
     <Link
       to="/groups/$slug/trades"
       params={{ slug }}
-      className="bg-primary text-primary-foreground group flex items-start gap-3 rounded-xl p-5 shadow-sm transition-shadow hover:shadow-md"
+      className="bg-primary text-primary-foreground group flex items-start gap-3 rounded-lg p-5 shadow-sm transition-shadow hover:shadow-md"
     >
       <span className="bg-primary-foreground/15 flex size-10 shrink-0 items-center justify-center rounded-lg">
         <ZapIcon className="size-5" />

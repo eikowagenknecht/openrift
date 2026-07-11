@@ -231,7 +231,7 @@ export function TournamentDeckCheckEntry({
             <Skeleton className="h-4 w-64" />
           </div>
           <div className="flex flex-col gap-4 md:flex-row">
-            <Skeleton className="aspect-[4/3] w-full shrink-0 rounded-xl md:w-72" />
+            <Skeleton className="aspect-[4/3] w-full shrink-0 rounded-lg md:w-72" />
             <div className="flex min-w-0 flex-1 flex-col gap-3">
               <Skeleton className="h-4 w-40" />
               <Skeleton className="h-20 w-full" />
@@ -526,7 +526,7 @@ function EntryPreview({ cards }: { cards: DeckCheckEntryCardResponse[] }) {
       : undefined;
 
   return (
-    <div className="w-full shrink-0 self-start overflow-hidden rounded-xl border md:w-72">
+    <div className="w-full shrink-0 self-start overflow-hidden rounded-lg border md:w-72">
       <FannedPreview
         legendImage={legendCardId ? (getPreferredFrontImage(legendCardId) ?? null) : null}
         championImage={championCardId ? (getPreferredFrontImage(championCardId) ?? null) : null}
