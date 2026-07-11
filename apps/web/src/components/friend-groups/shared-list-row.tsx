@@ -9,7 +9,9 @@ import { FolderIcon, HandshakeIcon, HeartIcon } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 
 import { Card } from "@/components/ui/card";
+import { cardLinkVariants } from "@/components/ui/card-link";
 import { UserAvatar } from "@/components/user-avatar";
+import { cn } from "@/lib/utils";
 
 const LIST_INTENT_ICON: Record<ListIntent, ComponentType<SVGProps<SVGSVGElement>>> = {
   wish: HeartIcon,
@@ -53,7 +55,7 @@ export function SharedListRow({
       ? LIST_KIND_NOUN[share.listKind].singular
       : LIST_KIND_NOUN[share.listKind].plural;
   return (
-    <Card className="hover:bg-muted relative flex-row items-center gap-3 p-2 transition-colors">
+    <Card className={cn(cardLinkVariants(), "relative flex-row items-center gap-3 p-2")}>
       <IntentIcon className="text-muted-foreground size-5 shrink-0" />
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <Link

@@ -5,7 +5,7 @@ import { MailIcon } from "lucide-react";
 import { DeckCheckListSkeleton } from "@/components/deck-check/deck-check-skeletons";
 import { PAGE_TOP_BAR_STICKY, PageTopBar, PageTopBarTitle } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
+import { CardLink } from "@/components/ui/card-link";
 import { useMyTournamentDecks } from "@/hooks/use-deck-check-player";
 import { formatAbsoluteDate } from "@/lib/format-date";
 import { PAGE_PADDING } from "@/lib/utils";
@@ -56,26 +56,27 @@ function PlayerDeckRow({ entry }: { entry: PlayerDeckCheckEntrySummaryResponse }
     : null;
   const withdrawn = entry.state === "withdrawn";
   return (
-    <Link to="/tournaments/my-decks/$entryId" params={{ entryId: entry.id }} className="block">
-      <Card className="hover:bg-muted hover:text-foreground flex-row items-center gap-3 p-3 transition-colors">
-        <div className="flex min-w-0 flex-1 flex-col">
-          <span className={`truncate font-medium ${withdrawn ? "line-through" : ""}`}>
-            {entry.eventName}
-          </span>
-          <span className="text-muted-foreground truncate text-sm">
-            {[entry.groupName, eventDate].filter(Boolean).join(" · ")}
-          </span>
-        </div>
-        {entry.playerMessage ? (
-          <MailIcon className="text-muted-foreground size-4" aria-label="Message from a judge" />
-        ) : null}
-        {entry.reviewOutcome === "issue" && entry.state !== "checked" ? (
-          <Badge variant="destructive">Changes requested</Badge>
-        ) : null}
-        {entry.unlockRequested ? <Badge variant="outline">Unlock requested</Badge> : null}
-        <PlayerStateBadge state={entry.state} reviewOutcome={entry.reviewOutcome} />
-      </Card>
-    </Link>
+    <CardLink
+      render={<Link to="/tournaments/my-decks/$entryId" params={{ entryId: entry.id }} />}
+      className="flex-row items-center gap-3 p-3"
+    >
+      <div className="flex min-w-0 flex-1 flex-col">
+        <span className={`truncate font-medium ${withdrawn ? "line-through" : ""}`}>
+          {entry.eventName}
+        </span>
+        <span className="text-muted-foreground truncate text-sm">
+          {[entry.groupName, eventDate].filter(Boolean).join(" · ")}
+        </span>
+      </div>
+      {entry.playerMessage ? (
+        <MailIcon className="text-muted-foreground size-4" aria-label="Message from a judge" />
+      ) : null}
+      {entry.reviewOutcome === "issue" && entry.state !== "checked" ? (
+        <Badge variant="destructive">Changes requested</Badge>
+      ) : null}
+      {entry.unlockRequested ? <Badge variant="outline">Unlock requested</Badge> : null}
+      <PlayerStateBadge state={entry.state} reviewOutcome={entry.reviewOutcome} />
+    </CardLink>
   );
 }
 

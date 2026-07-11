@@ -30,6 +30,7 @@ import { MarketplaceLink } from "@/components/marketplace-link";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardLink } from "@/components/ui/card-link";
 import type { ChartConfig } from "@/components/ui/chart";
 import { ChartContainer } from "@/components/ui/chart";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
@@ -115,40 +116,41 @@ function StatsHeroStats({ stats }: { stats: CollectionStats }) {
           </p>
         </CardContent>
       </Card>
-      <MarketplaceLink
-        marketplace={stats.marketplace}
-        href={MARKETPLACE_META[stats.marketplace].searchUrl("riftbound")}
-        className="no-underline"
+      <CardLink
+        render={
+          <MarketplaceLink
+            marketplace={stats.marketplace}
+            href={MARKETPLACE_META[stats.marketplace].searchUrl("riftbound")}
+          />
+        }
       >
-        <Card className="hover:bg-muted/50 h-full transition-colors">
-          <CardHeader>
-            <CardTitle className="text-muted-foreground flex items-center gap-1.5">
-              <CoinsIcon className="size-4" />
-              Estimated Value
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="font-heading text-2xl font-semibold tabular-nums">
-              {stats.formatPrice(stats.estimatedValue)}
+        <CardHeader>
+          <CardTitle className="text-muted-foreground flex items-center gap-1.5">
+            <CoinsIcon className="size-4" />
+            Estimated Value
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="font-heading text-2xl font-semibold tabular-nums">
+            {stats.formatPrice(stats.estimatedValue)}
+          </p>
+          <div className="text-muted-foreground text-xs">
+            <p className="flex items-center gap-1">
+              <img
+                src={MARKETPLACE_META[stats.marketplace].icon}
+                alt=""
+                className="h-3 invert dark:invert-0"
+              />
+              {MARKETPLACE_META[stats.marketplace].label}
             </p>
-            <div className="text-muted-foreground text-xs">
-              <p className="flex items-center gap-1">
-                <img
-                  src={MARKETPLACE_META[stats.marketplace].icon}
-                  alt=""
-                  className="h-3 invert dark:invert-0"
-                />
-                {MARKETPLACE_META[stats.marketplace].label}
+            {stats.unpricedCount > 0 && (
+              <p>
+                {stats.unpricedCount} {stats.unpricedCount === 1 ? "copy" : "copies"} unpriced
               </p>
-              {stats.unpricedCount > 0 && (
-                <p>
-                  {stats.unpricedCount} {stats.unpricedCount === 1 ? "copy" : "copies"} unpriced
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </MarketplaceLink>
+            )}
+          </div>
+        </CardContent>
+      </CardLink>
     </div>
   );
 }
@@ -584,76 +586,66 @@ function PriceExtremes({
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       {cheapest && (
-        <Link
-          to="/cards/$cardSlug"
-          params={{ cardSlug: cheapest.cardSlug }}
-          className="block no-underline"
-        >
-          <Card className="hover:bg-muted/50 transition-colors">
-            <CardHeader>
-              <CardTitle className="text-muted-foreground flex items-center gap-1.5">
-                <ArrowDownIcon className="size-4" />
-                Cheapest Printing
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex items-center gap-3">
-              {cheapest.thumbnail && (
-                <HoverCard>
-                  <HoverCardTrigger render={<span />}>
-                    <CardArtThumb src={cheapest.thumbnail} className="h-32" />
-                  </HoverCardTrigger>
-                  {cheapest.fullImage && (
-                    <HoverCardContent side="right" className="w-auto p-1">
-                      <img src={cheapest.fullImage} alt="" className="h-80 w-auto rounded" />
-                    </HoverCardContent>
-                  )}
-                </HoverCard>
-              )}
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium">{cheapest.name}</p>
-                <p className="text-muted-foreground text-xs tabular-nums">
-                  {formatPrice(cheapest.price)}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
+        <CardLink render={<Link to="/cards/$cardSlug" params={{ cardSlug: cheapest.cardSlug }} />}>
+          <CardHeader>
+            <CardTitle className="text-muted-foreground flex items-center gap-1.5">
+              <ArrowDownIcon className="size-4" />
+              Cheapest Printing
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-center gap-3">
+            {cheapest.thumbnail && (
+              <HoverCard>
+                <HoverCardTrigger render={<span />}>
+                  <CardArtThumb src={cheapest.thumbnail} className="h-32" />
+                </HoverCardTrigger>
+                {cheapest.fullImage && (
+                  <HoverCardContent side="right" className="w-auto p-1">
+                    <img src={cheapest.fullImage} alt="" className="h-80 w-auto rounded" />
+                  </HoverCardContent>
+                )}
+              </HoverCard>
+            )}
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium">{cheapest.name}</p>
+              <p className="text-muted-foreground text-xs tabular-nums">
+                {formatPrice(cheapest.price)}
+              </p>
+            </div>
+          </CardContent>
+        </CardLink>
       )}
       {mostExpensive && (
-        <Link
-          to="/cards/$cardSlug"
-          params={{ cardSlug: mostExpensive.cardSlug }}
-          className="block no-underline"
+        <CardLink
+          render={<Link to="/cards/$cardSlug" params={{ cardSlug: mostExpensive.cardSlug }} />}
         >
-          <Card className="hover:bg-muted/50 transition-colors">
-            <CardHeader>
-              <CardTitle className="text-muted-foreground flex items-center gap-1.5">
-                <ArrowUpIcon className="size-4" />
-                Most Expensive Printing
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex items-center gap-3">
-              {mostExpensive.thumbnail && (
-                <HoverCard>
-                  <HoverCardTrigger render={<span />}>
-                    <CardArtThumb src={mostExpensive.thumbnail} className="h-32" />
-                  </HoverCardTrigger>
-                  {mostExpensive.fullImage && (
-                    <HoverCardContent side="left" className="w-auto p-1">
-                      <img src={mostExpensive.fullImage} alt="" className="h-80 w-auto rounded" />
-                    </HoverCardContent>
-                  )}
-                </HoverCard>
-              )}
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium">{mostExpensive.name}</p>
-                <p className="text-muted-foreground text-xs tabular-nums">
-                  {formatPrice(mostExpensive.price)}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
+          <CardHeader>
+            <CardTitle className="text-muted-foreground flex items-center gap-1.5">
+              <ArrowUpIcon className="size-4" />
+              Most Expensive Printing
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-center gap-3">
+            {mostExpensive.thumbnail && (
+              <HoverCard>
+                <HoverCardTrigger render={<span />}>
+                  <CardArtThumb src={mostExpensive.thumbnail} className="h-32" />
+                </HoverCardTrigger>
+                {mostExpensive.fullImage && (
+                  <HoverCardContent side="left" className="w-auto p-1">
+                    <img src={mostExpensive.fullImage} alt="" className="h-80 w-auto rounded" />
+                  </HoverCardContent>
+                )}
+              </HoverCard>
+            )}
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium">{mostExpensive.name}</p>
+              <p className="text-muted-foreground text-xs tabular-nums">
+                {formatPrice(mostExpensive.price)}
+              </p>
+            </div>
+          </CardContent>
+        </CardLink>
       )}
     </div>
   );

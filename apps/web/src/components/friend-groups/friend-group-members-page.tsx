@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { cardLinkVariants } from "@/components/ui/card-link";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,6 +36,7 @@ import {
 } from "@/hooks/use-friend-groups";
 import { useRequiredUserId } from "@/lib/auth-session";
 import { getSiteUrl } from "@/lib/site-config";
+import { cn } from "@/lib/utils";
 
 import { ContactMethodChips } from "./contact-method-chips";
 import { isAdmin, ROLE_LABEL } from "./friend-group-shell";
@@ -220,7 +222,7 @@ function MemberRow({
   const canTransfer = viewerRole === "owner" && !isSelf && member.role !== "owner";
 
   return (
-    <Card className="hover:bg-muted hover:text-foreground flex-row items-center gap-3 p-3 transition-colors">
+    <Card className={cn(cardLinkVariants(), "flex-row items-center gap-3 p-3")}>
       <UserAvatar
         image={member.userImage}
         name={member.userName}

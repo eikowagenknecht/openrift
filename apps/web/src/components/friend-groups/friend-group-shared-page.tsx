@@ -10,7 +10,7 @@ import { Suspense, useState } from "react";
 import { CreateCollectionDialog } from "@/components/collection/create-collection-dialog";
 import { PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { CardLink } from "@/components/ui/card-link";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { UserAvatar } from "@/components/user-avatar";
 import { useCollections } from "@/hooks/use-collections";
@@ -92,19 +92,21 @@ function GroupCollectionsSection({ data }: { data: FriendGroupDetailResponse }) 
         <ul className="flex flex-col gap-2">
           {groupCollections.map((col) => (
             <li key={col.id}>
-              <Link
-                to="/collections/$collectionId"
-                params={{ collectionId: col.id }}
-                search={(prev) => prev}
-                className="block"
-              >
-                <Card className={COLLECTION_ROW_CLASS}>
-                  <CollectionRowContent
-                    name={col.name}
-                    subtitle={`Group collection · ${col.copyCount} ${col.copyCount === 1 ? "Copy" : "Copies"}`}
+              <CardLink
+                render={
+                  <Link
+                    to="/collections/$collectionId"
+                    params={{ collectionId: col.id }}
+                    search={(prev) => prev}
                   />
-                </Card>
-              </Link>
+                }
+                className={COLLECTION_ROW_CLASS}
+              >
+                <CollectionRowContent
+                  name={col.name}
+                  subtitle={`Group collection · ${col.copyCount} ${col.copyCount === 1 ? "Copy" : "Copies"}`}
+                />
+              </CardLink>
             </li>
           ))}
         </ul>

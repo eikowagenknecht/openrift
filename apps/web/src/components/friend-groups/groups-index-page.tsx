@@ -15,6 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { CardLink } from "@/components/ui/card-link";
 import {
   Dialog,
   DialogContent,
@@ -306,42 +307,44 @@ export function GroupsIndexPage() {
               const badge = ROLE_BADGE[row.viewerRole];
               const actionCount = actionCountByGroup.get(row.id) ?? 0;
               return (
-                <Link key={row.id} to="/groups/$slug" params={{ slug: row.slug }} className="block">
-                  <Card className="hover:bg-muted flex-row items-start gap-4 p-4 transition-colors sm:items-center">
-                    <div className="bg-muted text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded-md">
-                      <UsersIcon className="size-5" />
-                    </div>
-                    <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
-                      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-medium break-words sm:truncate">{row.name}</span>
-                          <Badge className={cn("shrink-0", badge.className)}>{badge.label}</Badge>
-                        </div>
-                        {row.description ? (
-                          <span className="text-muted-foreground line-clamp-1 text-sm">
-                            {row.description}
-                          </span>
-                        ) : null}
+                <CardLink
+                  key={row.id}
+                  render={<Link to="/groups/$slug" params={{ slug: row.slug }} />}
+                  className="flex-row items-start gap-4 p-4 sm:items-center"
+                >
+                  <div className="bg-muted text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded-md">
+                    <UsersIcon className="size-5" />
+                  </div>
+                  <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium break-words sm:truncate">{row.name}</span>
+                        <Badge className={cn("shrink-0", badge.className)}>{badge.label}</Badge>
                       </div>
-                      <div className="text-muted-foreground flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-                        <span className="whitespace-nowrap">
-                          {row.memberCount} {row.memberCount === 1 ? "member" : "members"}
+                      {row.description ? (
+                        <span className="text-muted-foreground line-clamp-1 text-sm">
+                          {row.description}
                         </span>
-                        {actionCount > 0 ? (
-                          <Badge className="bg-primary text-primary-foreground whitespace-nowrap">
-                            {actionCount} action{actionCount === 1 ? "" : "s"} needed
-                          </Badge>
-                        ) : null}
-                        {row.pendingRequestCount > 0 ? (
-                          <Badge variant="secondary" className="whitespace-nowrap">
-                            {row.pendingRequestCount} pending
-                          </Badge>
-                        ) : null}
-                        <ChevronRightIcon className="size-4 shrink-0" />
-                      </div>
+                      ) : null}
                     </div>
-                  </Card>
-                </Link>
+                    <div className="text-muted-foreground flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                      <span className="whitespace-nowrap">
+                        {row.memberCount} {row.memberCount === 1 ? "member" : "members"}
+                      </span>
+                      {actionCount > 0 ? (
+                        <Badge className="bg-primary text-primary-foreground whitespace-nowrap">
+                          {actionCount} action{actionCount === 1 ? "" : "s"} needed
+                        </Badge>
+                      ) : null}
+                      {row.pendingRequestCount > 0 ? (
+                        <Badge variant="secondary" className="whitespace-nowrap">
+                          {row.pendingRequestCount} pending
+                        </Badge>
+                      ) : null}
+                      <ChevronRightIcon className="size-4 shrink-0" />
+                    </div>
+                  </div>
+                </CardLink>
               );
             })}
           </div>

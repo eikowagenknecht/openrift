@@ -2,7 +2,8 @@ import { Link } from "@tanstack/react-router";
 import { siDiscord } from "simple-icons";
 
 import { Heading } from "@/components/heading";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardLink } from "@/components/ui/card-link";
 import { SOCIAL_LINKS } from "@/lib/social-links";
 import { PAGE_PADDING } from "@/lib/utils";
 
@@ -19,17 +20,19 @@ export function HelpIndexPage() {
 
       <div className="grid gap-3 sm:grid-cols-2">
         {articles.map((article) => (
-          <Link key={article.slug} to="/help/$slug" params={{ slug: article.slug }}>
-            <Card className="hover:bg-muted/50 h-full transition-colors" size="sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <article.icon className="text-muted-foreground size-4" />
-                  {article.title}
-                </CardTitle>
-                <CardDescription>{article.description}</CardDescription>
-              </CardHeader>
-            </Card>
-          </Link>
+          <CardLink
+            key={article.slug}
+            render={<Link to="/help/$slug" params={{ slug: article.slug }} />}
+            size="sm"
+          >
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <article.icon className="text-muted-foreground size-4" />
+                {article.title}
+              </CardTitle>
+              <CardDescription>{article.description}</CardDescription>
+            </CardHeader>
+          </CardLink>
         ))}
       </div>
 

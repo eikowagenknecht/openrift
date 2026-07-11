@@ -18,6 +18,7 @@ import {
 } from "@/components/layout/page-top-bar";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { cardLinkVariants } from "@/components/ui/card-link";
 import {
   Dialog,
   DialogContent,
@@ -397,7 +398,7 @@ export function DeckListPage() {
               <span className="text-muted-foreground mb-2 block text-center text-sm">
                 or explore the builder with a ready-made deck:
               </span>
-              <Card className="hover:ring-ring/40 gap-0 py-0 transition-shadow hover:ring-2">
+              <Card className={cn(cardLinkVariants({ variant: "ring" }), "gap-0 py-0")}>
                 <FannedPreview
                   legendImage={sampleLegendImage}
                   championImage={sampleChampionImage}

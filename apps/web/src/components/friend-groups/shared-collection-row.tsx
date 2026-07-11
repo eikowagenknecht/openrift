@@ -3,19 +3,18 @@ import { Link } from "@tanstack/react-router";
 import { BookOpenIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { Card } from "@/components/ui/card";
+import { CardLink } from "@/components/ui/card-link";
 
 /**
- * Shared styling for a collection card row. Apply to the row's `<Card>` (nested
- * inside a `<Link className="block">`) so every collection row (member shares
- * and the group's own pool) looks identical.
+ * Shared layout classes for a collection card row. Apply to the row's
+ * `<CardLink>` so every collection row (member shares and the group's own
+ * pool) looks identical.
  */
-export const COLLECTION_ROW_CLASS =
-  "hover:bg-muted flex-row items-center gap-3 p-2 transition-colors";
+export const COLLECTION_ROW_CLASS = "flex-row items-center gap-3 p-2";
 
 /**
  * The inner content of a collection card row: book icon, name, and a muted
- * subtitle. Wrap it in a `<Link className="block"><Card className={COLLECTION_ROW_CLASS}>`
+ * subtitle. Wrap it in a `<CardLink className={COLLECTION_ROW_CLASS}>`
  * pointing at whichever collection view the caller needs.
  * @returns The row's icon + text content.
  */
@@ -47,18 +46,20 @@ export function SharedCollectionRow({
 }) {
   const noun = share.copyCount === 1 ? "Copy" : "Copies";
   return (
-    <Link
-      to="/groups/$slug/collections/$collectionId"
-      params={{ slug, collectionId: share.collectionId }}
-      search={(prev) => prev}
-      className="block"
-    >
-      <Card className={COLLECTION_ROW_CLASS}>
-        <CollectionRowContent
-          name={share.collectionName}
-          subtitle={`Collection · ${share.copyCount} ${noun}`}
+    <CardLink
+      render={
+        <Link
+          to="/groups/$slug/collections/$collectionId"
+          params={{ slug, collectionId: share.collectionId }}
+          search={(prev) => prev}
         />
-      </Card>
-    </Link>
+      }
+      className={COLLECTION_ROW_CLASS}
+    >
+      <CollectionRowContent
+        name={share.collectionName}
+        subtitle={`Collection · ${share.copyCount} ${noun}`}
+      />
+    </CardLink>
   );
 }

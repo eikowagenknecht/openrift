@@ -4,6 +4,7 @@ import { ChevronRightIcon, FolderIcon, TrophyIcon, UsersIcon, ZapIcon } from "lu
 import type { ComponentType, ReactNode, SVGProps } from "react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
+import { StatTile } from "@/components/ui/stat-tile";
 import { UserAvatar } from "@/components/user-avatar";
 import { useGroupTrades, useTradeActionCounts } from "@/hooks/use-card-trades";
 import { useCards } from "@/hooks/use-cards";
@@ -18,7 +19,6 @@ import {
   tradeSection,
   withoutLiveTradeMatches,
 } from "@/lib/trade-derivation";
-import { cn } from "@/lib/utils";
 
 import { FriendGroupActivityFeed } from "./friend-group-activity-feed";
 import { canManageGroupTournaments, SECTION_HEADING } from "./friend-group-shell";
@@ -316,21 +316,14 @@ type StatCardTarget =
   | "/groups/$slug/events";
 
 /**
- * A dashboard tile linking to one of the group pages: a tinted icon chip, a
- * label, the stat value, an optional hint pinned to the bottom, and a chevron
- * that slides in on hover. `accent` gives the tile the gold treatment reserved
- * for the one thing that needs the viewer's attention.
+ * A group-page StatTile: binds the shared dashboard-tile primitive to the
+ * group's typed navigation targets.
  * @returns The tile.
  */
 function StatCard({
   to,
   slug,
-  icon: Icon,
-  label,
-  value,
-  accent = false,
-  hint,
-  children,
+  ...props
 }: {
   to: StatCardTarget;
   slug: string;
@@ -341,34 +334,7 @@ function StatCard({
   hint?: ReactNode;
   children?: ReactNode;
 }): ReactNode {
-  return (
-    <Link
-      to={to}
-      params={{ slug }}
-      className={cn(
-        "group relative flex flex-col gap-4 rounded-xl border p-5 transition-all hover:shadow-md sm:min-h-28",
-        accent
-          ? "border-primary/30 bg-primary/5 hover:border-primary/50"
-          : "bg-card hover:border-primary/30 hover:bg-muted/40",
-      )}
-    >
-      <div className="flex items-center gap-3">
-        <span
-          className={cn(
-            "flex size-10 shrink-0 items-center justify-center rounded-lg",
-            accent ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground",
-          )}
-        >
-          <Icon className="size-5" />
-        </span>
-        <span className="text-muted-foreground text-sm font-medium">{label}</span>
-        <span className="font-heading ml-auto text-3xl font-semibold tabular-nums">{value}</span>
-        <ChevronRightIcon className="text-muted-foreground/40 group-hover:text-muted-foreground size-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
-      </div>
-      {children}
-      {hint ? <span className="text-muted-foreground mt-auto text-xs">{hint}</span> : null}
-    </Link>
-  );
+  return <StatTile render={<Link to={to} params={{ slug }} />} {...props} />;
 }
 
 function MembersCard({

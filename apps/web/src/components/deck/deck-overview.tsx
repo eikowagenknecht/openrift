@@ -34,6 +34,7 @@ import { TypeBreakdown } from "@/components/deck/stats/type-breakdown";
 import { MarkdownText } from "@/components/markdown-text";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { CardLink } from "@/components/ui/card-link";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ProgressIndicator, ProgressTrack } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -532,21 +533,22 @@ function ValueKpi({
 
 function SignInKpi({ href }: { href: string }) {
   return (
-    // The label lives inside the nested Card, which the lint rule can't see through.
-    // oxlint-disable-next-line jsx-a11y/control-has-associated-label -- text label is inside the Card child
-    <a href={href} className="block">
-      <Card className="hover:bg-muted/40 h-full gap-1.5 border border-dashed p-3 ring-0 transition-colors">
-        <span className="text-muted-foreground text-xs leading-4">Ownership</span>
-        <div className="text-foreground inline-flex items-center gap-1.5 text-lg leading-7 font-semibold">
-          <LogInIcon className="size-5" />
-          <span>Sign in</span>
-        </div>
-        <div className="flex h-2" />
-        <div className="text-muted-foreground flex min-h-7 items-center text-xs">
-          Compare with your collection
-        </div>
-      </Card>
-    </a>
+    <CardLink
+      // The label lives inside the tile's Card, which the lint rules can't see through.
+      // oxlint-disable-next-line jsx-a11y/control-has-associated-label, jsx-a11y/anchor-has-content -- text label is inside the CardLink children
+      render={<a href={href} />}
+      className="gap-1.5 border border-dashed p-3 ring-0"
+    >
+      <span className="text-muted-foreground text-xs leading-4">Ownership</span>
+      <div className="text-foreground inline-flex items-center gap-1.5 text-lg leading-7 font-semibold">
+        <LogInIcon className="size-5" />
+        <span>Sign in</span>
+      </div>
+      <div className="flex h-2" />
+      <div className="text-muted-foreground flex min-h-7 items-center text-xs">
+        Compare with your collection
+      </div>
+    </CardLink>
   );
 }
 

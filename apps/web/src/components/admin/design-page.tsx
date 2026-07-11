@@ -65,6 +65,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { CardLink } from "@/components/ui/card-link";
 import { ChartContainer } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -149,6 +150,7 @@ import {
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Slider } from "@/components/ui/slider";
+import { StatTile } from "@/components/ui/stat-tile";
 import { Switch } from "@/components/ui/switch";
 import {
   Table,
@@ -256,6 +258,7 @@ export function DesignPage() {
       <TogglesSection />
       <BadgesChipsSection />
       <PressableSection />
+      <TilesSection />
       <FormControlsSection />
       <PickersSection />
       <OverlaysSection />
@@ -858,6 +861,64 @@ function PressableSection() {
             onClick={() => setExpanded((v) => !v)}
             aria-label={expanded ? "Collapse" : "Expand"}
             className="text-muted-foreground hover:text-foreground"
+          />
+        </div>
+      </DemoRow>
+    </DemoSection>
+  );
+}
+
+function TilesSection() {
+  return (
+    <DemoSection
+      id="tiles"
+      title="Tiles"
+      note="CardLink is the whole-Card click target for list tiles: tint hover by default, ring for image-dominated tiles where a tint would barely show. Cards that keep secondary actions inside apply cardLinkVariants() directly. StatTile is the dashboard stat with the stronger hover; accent is reserved for the one tile needing attention."
+    >
+      <DemoRow label="CardLink (tint)">
+        <CardLink
+          render={<Link to="/admin/design" hash="tiles" />}
+          className="w-full max-w-sm flex-row items-center gap-3 p-3"
+        >
+          <PackageIcon className="text-muted-foreground size-5 shrink-0" />
+          <div className="flex min-w-0 flex-1 flex-col">
+            <span className="truncate font-medium">Jinx&apos;s Arsenal</span>
+            <span className="text-muted-foreground text-xs">Tradelist · 24 Cards</span>
+          </div>
+          <Badge variant="secondary">Shared</Badge>
+        </CardLink>
+      </DemoRow>
+      <DemoRow label="CardLink (ring, for image-dominated tiles)">
+        <CardLink
+          render={<Link to="/admin/design" hash="tiles" />}
+          variant="ring"
+          className="w-full max-w-sm gap-0 py-0"
+        >
+          <div className="bg-muted flex h-24 items-center justify-center rounded-t-xl">
+            <PackageIcon className="text-muted-foreground size-8" />
+          </div>
+          <div className="flex flex-col p-3">
+            <span className="font-medium">Piltover Starter</span>
+            <span className="text-muted-foreground text-xs">Ready to play</span>
+          </div>
+        </CardLink>
+      </DemoRow>
+      <DemoRow label="StatTile">
+        <div className="grid w-full max-w-2xl gap-3 sm:grid-cols-2">
+          <StatTile
+            render={<Link to="/admin/design" hash="tiles" />}
+            icon={HeartIcon}
+            label="Wishlists"
+            value={4}
+            hint="2 shared with your group"
+          />
+          <StatTile
+            render={<Link to="/admin/design" hash="tiles" />}
+            icon={BellIcon}
+            label="Requests"
+            value={3}
+            accent
+            hint="3 requests to review"
           />
         </div>
       </DemoRow>

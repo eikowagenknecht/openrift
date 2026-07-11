@@ -1,0 +1,83 @@
+import { mergeProps } from "@base-ui/react/merge-props";
+import { useRender } from "@base-ui/react/use-render";
+import { ChevronRightIcon } from "lucide-react";
+import type { ComponentType, ReactNode, SVGProps } from "react";
+
+import { cn } from "@/lib/utils";
+
+// Hand-authored primitive (not shadcn-scaffolded).
+//
+// StatTile is the dashboard tile: a linked stat with a tinted icon chip, a
+// label, the value, an optional hint pinned to the bottom, and a chevron that
+// slides in on hover. Its hover is deliberately stronger than CardLink's list
+// tiles (shadow lift + border shift) — overview pages use it as a primary
+// navigation surface. `accent` is the gold treatment reserved for the one
+// tile that needs the viewer's attention.
+
+/**
+ * Dashboard stat tile that links to a page. Pass the navigation target via
+ * `render={<Link ... />}`; extra content (avatar stacks, previews) renders
+ * between the stat row and the hint.
+ *
+ * @returns The tile element.
+ */
+function StatTile({
+  icon: Icon,
+  label,
+  value,
+  accent = false,
+  hint,
+  className,
+  children,
+  render,
+  ...props
+}: useRender.ComponentProps<"a"> & {
+  icon: ComponentType<SVGProps<SVGSVGElement>>;
+  label: string;
+  value: ReactNode;
+  accent?: boolean;
+  hint?: ReactNode;
+}) {
+  return useRender({
+    defaultTagName: "a",
+    render,
+    props: mergeProps<"a">(
+      {
+        className: cn(
+          "group/stat-tile focus-visible:ring-ring/50 relative flex flex-col gap-4 rounded-xl border p-5 no-underline transition-all outline-none hover:shadow-md focus-visible:ring-2 sm:min-h-28",
+          accent
+            ? "border-primary/30 bg-primary/5 hover:border-primary/50"
+            : "bg-card hover:border-primary/30 hover:bg-muted/40",
+          className,
+        ),
+        children: (
+          <>
+            <div className="flex items-center gap-3">
+              <span
+                className={cn(
+                  "flex size-10 shrink-0 items-center justify-center rounded-lg",
+                  accent ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground",
+                )}
+              >
+                <Icon className="size-5" />
+              </span>
+              <span className="text-muted-foreground text-sm font-medium">{label}</span>
+              <span className="font-heading ml-auto text-3xl font-semibold tabular-nums">
+                {value}
+              </span>
+              <ChevronRightIcon className="text-muted-foreground/40 group-hover/stat-tile:text-muted-foreground size-4 shrink-0 transition-transform group-hover/stat-tile:translate-x-0.5" />
+            </div>
+            {children}
+            {hint ? <span className="text-muted-foreground mt-auto text-xs">{hint}</span> : null}
+          </>
+        ),
+      },
+      props,
+    ),
+    state: {
+      slot: "stat-tile",
+    },
+  });
+}
+
+export { StatTile };

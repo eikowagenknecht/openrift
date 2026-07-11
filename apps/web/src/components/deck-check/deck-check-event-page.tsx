@@ -18,6 +18,7 @@ import { PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { cardLinkVariants } from "@/components/ui/card-link";
 import {
   Dialog,
   DialogContent,
@@ -54,6 +55,7 @@ import {
 import { useTournamentParticipants } from "@/hooks/use-tournaments";
 import { parseManualDecklist } from "@/lib/deck-check-manual-entry";
 import { compareParticipantsForList, PARTICIPANT_STATUS_LABEL } from "@/lib/tournament-display";
+import { cn } from "@/lib/utils";
 
 /** Actionable entries first: submissions to review, then drafts, then done. */
 const STATE_ORDER: Record<DeckCheckEntrySummaryResponse["state"], number> = {
@@ -215,7 +217,7 @@ function EntryRow({
   const participantInactive =
     entry.participantStatus === "dropped" || entry.participantStatus === "no_show";
   return (
-    <Card className="hover:bg-muted hover:text-foreground flex-row items-center gap-3 p-3 transition-colors">
+    <Card className={cn(cardLinkVariants(), "flex-row items-center gap-3 p-3")}>
       <Link
         to="/tournaments/$id/decks/$entryId"
         params={{ id: tournamentId, entryId: entry.id }}
