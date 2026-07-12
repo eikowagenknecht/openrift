@@ -1,17 +1,10 @@
 import type { CopyLink, CopyMetadataPatch, CopyResponse, Printing } from "@openrift/shared";
 import type { LucideIcon } from "lucide-react";
-import {
-  ArrowLeftIcon,
-  FileTextIcon,
-  HandHeartIcon,
-  LinkIcon,
-  LockIcon,
-  PaintbrushIcon,
-  PlusIcon,
-  XIcon,
-} from "lucide-react";
+import { ArrowLeftIcon, HandHeartIcon, PlusIcon, XIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { copyHasRecordedDetails, copyMarkers } from "@/components/collection/copy-indicators";
+import { OnLoanChip } from "@/components/loans/on-loan-chip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -239,30 +232,10 @@ function ConditionBadge({ copy, labels }: { copy: CopyResponse; labels: EnumLabe
 }
 
 /**
- * Whether a copy has anything worth summarizing: it is out on loan, has a
- * condition or grade, the altered flag, either notes field, or at least one
- * link. Drives the "No details yet" fallback, so it must cover every field the
- * summary surfaces — otherwise a copy with only a loan or an altered flag reads
- * as blank.
- * @returns `true` when the copy has any state worth showing.
- */
-export function copyHasRecordedDetails(copy: CopyResponse): boolean {
-  return (
-    copy.onLoan ||
-    (copy.grader !== null && copy.grade !== null) ||
-    copy.condition !== null ||
-    copy.isAltered ||
-    copy.notesPublic !== null ||
-    copy.notesPrivate !== null ||
-    copy.links.length > 0
-  );
-}
-
-/**
- * Summary of what a copy actually records — a condition/grade badge plus an icon
- * per extra detail (altered, notes, links). "No details yet" shows only when the
- * copy is genuinely blank, so an altered-but-unrecorded copy is no longer
- * mislabeled as having nothing.
+ * Summary of what a copy actually records — a condition/grade badge, the loan
+ * marker, plus an icon per marker (altered, notes, links). "No details yet"
+ * shows only when the copy is genuinely blank, so an altered-but-unrecorded copy
+ * is no longer mislabeled as having nothing.
  * @returns The indicator row, or a "No details yet" hint.
  */
 function CopySummary({ copy }: { copy: CopyResponse }) {
@@ -272,35 +245,19 @@ function CopySummary({ copy }: { copy: CopyResponse }) {
     return <span className="text-muted-foreground text-sm">No details yet</span>;
   }
 
-  const icons = [
-    copy.onLoan && <SummaryIcon key="loan" icon={HandHeartIcon} label="On loan" />,
-    copy.isAltered && <SummaryIcon key="altered" icon={PaintbrushIcon} label="Altered" />,
-    copy.notesPublic && (
-      <SummaryIcon key="note" icon={FileTextIcon} label="Public note" content={copy.notesPublic} />
-    ),
-    copy.notesPrivate && (
-      <SummaryIcon
-        key="private-note"
-        icon={LockIcon}
-        label="Private note"
-        content={copy.notesPrivate}
-      />
-    ),
-    copy.links.length > 0 && (
-      <SummaryIcon
-        key="links"
-        icon={LinkIcon}
-        label={`${copy.links.length} ${copy.links.length === 1 ? "link" : "links"}`}
-        content={copy.links.map((link) => link.label ?? link.url).join("\n")}
-        count={copy.links.length}
-      />
-    ),
-  ].filter(Boolean);
-
   return (
     <span className="flex shrink-0 items-center gap-1.5">
       <ConditionBadge copy={copy} labels={labels} />
-      {icons}
+      {copy.onLoan && <SummaryIcon icon={HandHeartIcon} label="On loan" />}
+      {copyMarkers(copy).map((marker) => (
+        <SummaryIcon
+          key={marker.key}
+          icon={marker.icon}
+          label={marker.label}
+          content={marker.content}
+          count={marker.count}
+        />
+      ))}
     </span>
   );
 }
@@ -421,6 +378,7 @@ function CopyEditor({
             </Button>
           )}
           Copy details
+          {copy.onLoan && <OnLoanChip count={1} iconOnly />}
         </DialogTitle>
         <DialogDescription>
           {cardName}

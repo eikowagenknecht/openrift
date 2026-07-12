@@ -1,8 +1,9 @@
 import type { CopyResponse } from "@openrift/shared";
-import { FileTextIcon, LinkIcon, PaintbrushIcon } from "lucide-react";
+import { FileTextIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { CardStrip } from "@/components/cards/card-strip";
+import { copyMarkers } from "@/components/collection/copy-indicators";
 import { OnLoanChip } from "@/components/loans/on-loan-chip";
 import { CountPillButton } from "@/components/ui/count-pill";
 import { useEnumOrders } from "@/hooks/use-enums";
@@ -61,7 +62,6 @@ export function CopyMetadataStrip({ copy }: { copy: CopyResponse | undefined }) 
 
 function CopyMetadataPills({ copy }: { copy: CopyResponse }) {
   const { labels } = useEnumOrders();
-  const hasNotes = copy.notesPublic !== null || copy.notesPrivate !== null;
   return (
     <>
       {copy.onLoan && <OnLoanChip iconOnly count={1} />}
@@ -79,29 +79,12 @@ function CopyMetadataPills({ copy }: { copy: CopyResponse }) {
           {conditionShortCode(copy.condition)}
         </MetadataPillButton>
       )}
-      {copy.isAltered && (
-        <MetadataPillButton itemId={copy.id} title="Altered">
-          <PaintbrushIcon className="size-3" aria-hidden />
+      {copyMarkers(copy).map(({ key, icon: Icon, label, count }) => (
+        <MetadataPillButton key={key} itemId={copy.id} title={label}>
+          <Icon className="size-3" aria-hidden />
+          {count}
         </MetadataPillButton>
-      )}
-      {hasNotes && (
-        <MetadataPillButton itemId={copy.id} title="Has notes">
-          <FileTextIcon className="size-3" aria-hidden />
-        </MetadataPillButton>
-      )}
-      {copy.links.length > 0 && (
-        <MetadataPillButton
-          itemId={copy.id}
-          title={
-            copy.links.length === 1
-              ? "1 photo/video link"
-              : `${copy.links.length} photo/video links`
-          }
-        >
-          <LinkIcon className="size-3" aria-hidden />
-          {copy.links.length}
-        </MetadataPillButton>
-      )}
+      ))}
     </>
   );
 }
