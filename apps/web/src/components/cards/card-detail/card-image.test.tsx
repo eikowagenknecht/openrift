@@ -1,6 +1,6 @@
 import { imageUrl } from "@openrift/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render } from "@testing-library/react";
+import { fireEvent, render } from "@testing-library/react";
 import type { PropsWithChildren } from "react";
 import { describe, expect, it } from "vitest";
 
@@ -136,6 +136,29 @@ describe("CardImage hero (responsive image)", () => {
     const img = getByAltText("Landscape Card") as HTMLImageElement;
     expect(img.getAttribute("width")).toBe("558");
     expect(img.getAttribute("height")).toBe("400");
+  });
+
+  it("swaps to placeholder art when the hero image fails to load", () => {
+    const printing = stubPrinting({
+      images: [stubFrontImage],
+      card: { name: "Broken Card" },
+    });
+    const { container, getByAltText, queryByAltText } = render(
+      <CardImage
+        innerRef={noopRef}
+        printing={printing}
+        orientation="portrait"
+        showImages
+        showFoil={false}
+        showShimmer={false}
+      />,
+      { wrapper: makeWrapper() },
+    );
+    expect(container.querySelector('[role="img"]')).toBeNull();
+
+    fireEvent.error(getByAltText("Broken Card"));
+    expect(container.querySelector('[role="img"]')).not.toBeNull();
+    expect(queryByAltText("Broken Card")).toBeNull();
   });
 
   it("marks the hero image as high fetch priority", () => {

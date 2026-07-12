@@ -2,6 +2,7 @@ import type { DeckPlanResponse } from "@openrift/shared";
 import { imageUrl } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronDownIcon, PencilIcon } from "lucide-react";
+import { useState } from "react";
 
 import type { CardMetaLookup } from "@/components/deck/deck-plan-view";
 import { Button } from "@/components/ui/button";
@@ -369,7 +370,10 @@ function PlanThumb({
   onHoverCard?: HoverHandler;
   onCardClick?: ClickHandler;
 }) {
-  if (imageId === null) {
+  // A failed image gets the same "Unknown" box as a card with no image.
+  // Keyed by id so a changed image on a reused instance retries fresh.
+  const [failedImageId, setFailedImageId] = useState<string | null>(null);
+  if (imageId === null || imageId === failedImageId) {
     return (
       <div
         className={cn(
@@ -393,6 +397,7 @@ function PlanThumb({
         src={imageUrl(imageId, "400w")}
         alt={cardName}
         className={cn("rounded-md object-cover shadow-sm", className)}
+        onError={() => setFailedImageId(imageId)}
       />
     </Pressable>
   );

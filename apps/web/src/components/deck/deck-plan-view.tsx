@@ -5,6 +5,8 @@ import type {
 } from "@openrift/shared";
 import { getOrientation, imageUrl } from "@openrift/shared";
 
+import { ImgWithFallback } from "@/components/ui/img-with-fallback";
+
 // Read-only render of a deck's plan (ADR-029) for the public share page. Purely
 // presentational: it takes the plan plus a denormalized card-meta lookup so it
 // works for anonymous viewers without catalog access.
@@ -25,12 +27,13 @@ function CardLine({
   return (
     <span className="inline-flex items-center gap-2">
       {meta?.imageId ? (
-        <img
+        <ImgWithFallback
           src={imageUrl(meta.imageId, "400w")}
           alt=""
           className={
             landscape ? "h-6 w-9 rounded-xs object-cover" : "h-8 w-6 rounded-xs object-cover"
           }
+          fallback={null}
         />
       ) : null}
       <span className="truncate">

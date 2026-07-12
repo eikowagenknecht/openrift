@@ -1,6 +1,7 @@
 import type { CatalogPrintingResponse, PackPull } from "@openrift/shared";
 import { WellKnown, getOrientation, imageUrl, legendDisplayName } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
+import { useState } from "react";
 
 import { FoilOverlay } from "@/components/cards/foil-overlay";
 import { useEnumOrders } from "@/hooks/use-enums";
@@ -54,6 +55,11 @@ export function PullCard({ pull, image, className, shimmer = true }: PullCardPro
     types: printing.cardTypes,
     tags: printing.tags,
   });
+  // A failed image gets the same named placeholder as a missing one. Lifted
+  // above the rotation wrapper so the fallback never renders rotated. Keyed
+  // by id so a changed image on a reused instance retries fresh.
+  const [failedImageId, setFailedImageId] = useState<string | null>(null);
+  const shownImage = image && image.imageId !== failedImageId ? image : undefined;
 
   return (
     <Link
@@ -70,29 +76,31 @@ export function PullCard({ pull, image, className, shimmer = true }: PullCardPro
           "transition-transform group-hover:-translate-y-0.5",
         )}
       >
-        {image ? (
+        {shownImage ? (
           rotated ? (
             <div
               className="absolute top-1/2 left-1/2 overflow-hidden"
               style={LANDSCAPE_ROTATION_STYLE}
             >
               <img
-                src={imageUrl(image.imageId, "240w")}
-                srcSet={`${imageUrl(image.imageId, "240w")} 240w, ${imageUrl(image.imageId, "400w")} 400w`}
+                src={imageUrl(shownImage.imageId, "240w")}
+                srcSet={`${imageUrl(shownImage.imageId, "240w")} 240w, ${imageUrl(shownImage.imageId, "400w")} 400w`}
                 sizes="(max-width: 640px) 40vw, 160px"
                 alt={displayName}
                 loading="lazy"
                 className="size-full object-cover"
+                onError={() => setFailedImageId(shownImage.imageId)}
               />
             </div>
           ) : (
             <img
-              src={imageUrl(image.imageId, "240w")}
-              srcSet={`${imageUrl(image.imageId, "240w")} 240w, ${imageUrl(image.imageId, "400w")} 400w`}
+              src={imageUrl(shownImage.imageId, "240w")}
+              srcSet={`${imageUrl(shownImage.imageId, "240w")} 240w, ${imageUrl(shownImage.imageId, "400w")} 400w`}
               sizes="(max-width: 640px) 40vw, 160px"
               alt={displayName}
               loading="lazy"
               className="absolute inset-0 size-full object-cover"
+              onError={() => setFailedImageId(shownImage.imageId)}
             />
           )
         ) : (

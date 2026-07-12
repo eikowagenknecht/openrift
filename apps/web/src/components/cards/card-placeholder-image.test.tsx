@@ -116,6 +116,34 @@ describe("CardPlaceholderImage", () => {
     expect(diamond).not.toBeNull();
   });
 
+  it("renders the promo label only when one is passed", () => {
+    const props = {
+      name: "Stamped Scout",
+      domain: ["fury"],
+      energy: 1,
+      might: null,
+      power: null,
+      types: ["spell"],
+      superTypes: [],
+      tags: [],
+      rulesText: null,
+      effectText: null,
+      mightBonus: null,
+      flavorText: null,
+      rarity: "common",
+      publicCode: "OGN-001",
+    };
+    const withLabel = render(<CardPlaceholderImage {...props} promoLabel="Promo" />, {
+      wrapper: makeWrapper(),
+    });
+    expect(withLabel.container.textContent).toContain("Promo");
+
+    const withoutLabel = render(<CardPlaceholderImage {...props} name="Plain Scout" />, {
+      wrapper: makeWrapper(),
+    });
+    expect(withoutLabel.container.textContent).not.toContain("Promo");
+  });
+
   it("omits the rarity glyph when no rarity is set", () => {
     // Regression: the contribute-form preview used to fall back to a "common"
     // glyph when rarity was unset, making it look like the user had picked

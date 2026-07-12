@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import { ExpandToggle } from "@/components/ui/expand-toggle";
+import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -108,10 +109,11 @@ function CardChip({
       onMouseLeave={() => onHoverCard?.(null)}
     >
       {frontImage ? (
-        <img
+        <ImgWithFallback
           src={imageUrl(frontImage.imageId, "400w")}
           alt=""
           className={cn("shrink-0 rounded-xs object-cover", landscape ? "h-5 w-8" : "h-7 w-5")}
+          fallback={null}
         />
       ) : null}
       <span className="truncate">

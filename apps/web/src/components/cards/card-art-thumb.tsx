@@ -4,6 +4,7 @@ import { ImageOffIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
+import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { getDomainColor } from "@/lib/domain";
 import { getFilterIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
@@ -116,6 +117,7 @@ export function CardArtThumb({
   fallback,
 }: CardArtThumbProps) {
   const resolved = src ?? (imageId ? imageUrl(imageId, variant) : null);
+  const emptyFrame = fallback ?? <ThumbPlaceholder rarity={rarity} domains={domains} />;
   return (
     <span
       className={cn(
@@ -125,9 +127,15 @@ export function CardArtThumb({
       style={{ borderRadius: CARD_BORDER_RADIUS }}
     >
       {resolved ? (
-        <img src={resolved} alt={alt} loading={loading} className="size-full object-cover" />
+        <ImgWithFallback
+          src={resolved}
+          alt={alt}
+          loading={loading}
+          className="size-full object-cover"
+          fallback={emptyFrame}
+        />
       ) : (
-        (fallback ?? <ThumbPlaceholder rarity={rarity} domains={domains} />)
+        emptyFrame
       )}
     </span>
   );

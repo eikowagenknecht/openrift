@@ -36,6 +36,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Card as CardPanel } from "@/components/ui/card";
+import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { Pressable } from "@/components/ui/pressable";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
@@ -114,6 +115,28 @@ function CardDetailPage() {
   const isLandscape = getOrientation(card.types) === "landscape";
   const heroWidth = isLandscape ? 558 : 400;
   const heroHeight = isLandscape ? 400 : 558;
+  // Rendered when the printing has no image, and as the fallback when the
+  // hero image fails to load — both cases look identical.
+  const heroPlaceholder = (
+    <CardPlaceholderImage
+      name={card.name}
+      domain={card.domains}
+      energy={card.energy}
+      might={card.might}
+      power={card.power}
+      types={card.types}
+      superTypes={card.superTypes}
+      tags={card.tags}
+      rulesText={selectedPrinting.printedRulesText}
+      effectText={selectedPrinting.printedEffectText}
+      mightBonus={card.mightBonus}
+      flavorText={selectedPrinting.flavorText}
+      rarity={selectedPrinting.rarity}
+      publicCode={selectedPrinting.publicCode}
+      artist={selectedPrinting.artist}
+      className="w-full rounded-xl"
+    />
+  );
 
   // Info table rows: printing-specific on the left, card-level on the right.
   // The right column sits beside the left on desktop and stacks below on mobile.
@@ -253,7 +276,7 @@ function CardDetailPage() {
         {/* Left column: card image */}
         <div className="shrink-0 md:w-80">
           {frontImage ? (
-            <img
+            <ImgWithFallback
               src={imageUrl(frontImage.imageId, "400w")}
               srcSet={`${imageUrl(frontImage.imageId, "400w")} 400w, ${imageUrl(frontImage.imageId, "full")} 800w`}
               sizes="(min-width: 768px) 320px, 100vw"
@@ -262,26 +285,10 @@ function CardDetailPage() {
               fetchPriority="high"
               alt={legendDisplayName(card)}
               className="w-full rounded-xl"
+              fallback={heroPlaceholder}
             />
           ) : (
-            <CardPlaceholderImage
-              name={card.name}
-              domain={card.domains}
-              energy={card.energy}
-              might={card.might}
-              power={card.power}
-              types={card.types}
-              superTypes={card.superTypes}
-              tags={card.tags}
-              rulesText={selectedPrinting.printedRulesText}
-              effectText={selectedPrinting.printedEffectText}
-              mightBonus={card.mightBonus}
-              flavorText={selectedPrinting.flavorText}
-              rarity={selectedPrinting.rarity}
-              publicCode={selectedPrinting.publicCode}
-              artist={selectedPrinting.artist}
-              className="w-full rounded-xl"
-            />
+            heroPlaceholder
           )}
         </div>
 

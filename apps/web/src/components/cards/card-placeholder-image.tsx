@@ -87,6 +87,12 @@ interface CardPlaceholderImageProps {
   publicCode?: string;
   artist?: string;
   /**
+   * Label of the printing's promo marker, rendered as a small line below the
+   * rarity icon. Callers pass only the promo marker's label — other markers
+   * (judge, prerelease, …) are never surfaced on the placeholder.
+   */
+  promoLabel?: string;
+  /**
    * Optional full-bleed background image (a data URL in the card designer).
    * When set, the placeholder's logo watermark and noise texture are hidden and
    * a legibility scrim is drawn behind the lower text region. See ADR-023.
@@ -122,6 +128,7 @@ export function CardPlaceholderImage({
   rarity,
   publicCode,
   artist,
+  promoLabel,
   backgroundImageUrl,
   backgroundImageStyle,
   tintIcons,
@@ -389,6 +396,11 @@ export function CardPlaceholderImage({
             alt={rarity}
             className="size-[3cqw]"
           />
+        )}
+        {promoLabel && (
+          <span className="font-condensed text-[2.5cqw] font-semibold tracking-wider text-white/70 uppercase">
+            {promoLabel}
+          </span>
         )}
         {/* Always rendered with a fixed height so the rarity icon above keeps
             its position even when code, artist, and domains are all empty. */}

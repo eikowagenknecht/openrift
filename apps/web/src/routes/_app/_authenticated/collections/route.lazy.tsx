@@ -28,6 +28,7 @@ import {
   useMeasuredHeight,
 } from "@/components/layout/page-top-bar";
 import type { SidebarListDropData } from "@/components/list/droppable-sidebar-list";
+import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { useMoveCopies } from "@/hooks/use-copies";
 import { useBulkAddCopiesToList, useMoveListEntries } from "@/hooks/use-lists";
@@ -312,12 +313,15 @@ function ListEntryDragPreview({ drag }: { drag: ListEntryDragData }) {
   const thumbnail = firstImageId ? imageUrl(firstImageId, "240w") : undefined;
   return (
     <div className="relative h-48 w-28">
-      <img
-        src={thumbnail ?? ""}
-        alt=""
-        className="absolute top-0 left-0 w-28 rounded-lg shadow-lg"
-        draggable={false}
-      />
+      {thumbnail && (
+        <ImgWithFallback
+          src={thumbnail}
+          alt=""
+          className="absolute top-0 left-0 w-28 rounded-lg shadow-lg"
+          draggable={false}
+          fallback={null}
+        />
+      )}
       <div className="bg-background/80 absolute right-0 bottom-0 left-0 rounded-b-lg px-1.5 py-1 backdrop-blur-sm">
         <p className="truncate text-center text-xs font-medium">
           {legendDisplayName(drag.printing.card)}
@@ -367,10 +371,13 @@ function DragPreview({ drag, modifier }: { drag: CardDragData; modifier: "all" |
         const offset = FAN_OFFSETS[index];
         const firstImageId = printing.images[0]?.imageId;
         const thumbnail = firstImageId ? imageUrl(firstImageId, "240w") : undefined;
+        if (!thumbnail) {
+          return null;
+        }
         return (
-          <img
+          <ImgWithFallback
             key={printing.id}
-            src={thumbnail ?? ""}
+            src={thumbnail}
             alt=""
             className="absolute top-0 left-0 w-28 rounded-lg shadow-lg"
             style={{
@@ -378,6 +385,7 @@ function DragPreview({ drag, modifier }: { drag: CardDragData; modifier: "all" |
               zIndex: index,
             }}
             draggable={false}
+            fallback={null}
           />
         );
       })}

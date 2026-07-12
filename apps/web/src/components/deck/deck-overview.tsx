@@ -19,6 +19,7 @@ import {
   PlusIcon,
   XIcon,
 } from "lucide-react";
+import { useState } from "react";
 
 import { DeckCardPrintingMenu } from "@/components/deck/deck-card-printing-menu";
 import type {
@@ -897,6 +898,11 @@ function ZoneThumb({
     disabled: !enableDrag,
   });
 
+  // A failed thumbnail collapses the thumb entirely — the same behavior as a
+  // card with no image (the zone list skips those before rendering ZoneThumb).
+  // Keyed by URL so a changed printing pick retries fresh.
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+
   // When onCardClick is provided, the thumb becomes a button: spread role +
   // tabIndex + click/key handlers together so the static analyzer sees a
   // consistent interactive element (no jsx-a11y/no-static-element-interactions
@@ -940,6 +946,7 @@ function ZoneThumb({
           hasCustomPrinting && "outline-primary outline outline-2 -outline-offset-2",
         )}
         draggable={false}
+        onError={() => setFailedUrl(thumbnail)}
       />
       {card.quantity > 1 && (
         <span className="bg-background/90 text-foreground text-2xs absolute right-0.5 bottom-0.5 rounded px-1 leading-tight font-medium tabular-nums">
@@ -948,6 +955,10 @@ function ZoneThumb({
       )}
     </div>
   );
+
+  if (thumbnail === failedUrl) {
+    return null;
+  }
 
   if (readOnly) {
     return thumbBody;

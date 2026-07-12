@@ -7,6 +7,7 @@ import { CalendarIcon, LayersIcon } from "lucide-react";
 import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { Heading } from "@/components/heading";
 import { CardLink } from "@/components/ui/card-link";
+import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { Skeleton } from "@/components/ui/skeleton";
 import { publicSetListQueryOptions } from "@/hooks/use-public-sets";
 import { formatAbsoluteDate } from "@/lib/format-date";
@@ -31,7 +32,8 @@ function HeroSetCard({ set }: { set: SetListEntry }) {
         {set.coverImageId ? (
           <>
             <div className="aspect-card bg-muted/40" />
-            <img
+            {/* fallback null: the spacer above already matches the no-cover tile. */}
+            <ImgWithFallback
               src={imageUrl(set.coverImageId, "400w")}
               srcSet={`${imageUrl(set.coverImageId, "400w")} 400w, ${imageUrl(set.coverImageId, "full")} 800w`}
               sizes="144px"
@@ -39,6 +41,7 @@ function HeroSetCard({ set }: { set: SetListEntry }) {
               loading="lazy"
               className="absolute inset-0 size-full object-cover"
               style={{ borderRadius: `${CARD_BORDER_RADIUS} 0 0 ${CARD_BORDER_RADIUS}` }}
+              fallback={null}
             />
           </>
         ) : (

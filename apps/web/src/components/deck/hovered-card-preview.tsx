@@ -27,6 +27,10 @@ interface HoveredCardPreviewProps {
 export function HoveredCardPreview({ hoveredCard, origin, containerRef }: HoveredCardPreviewProps) {
   const { active } = useDndContext();
   const [fullLoaded, setFullLoaded] = useState(false);
+  // A failed thumbnail hides the preview entirely — the same behavior as a
+  // card with no image (the host passes hoveredCard: null for those). Keyed
+  // by URL so another card's hover retries fresh.
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const previewRef = useRef<HTMLDivElement>(null);
   const cursorRef = useRef({ x: 0, y: 0 });
   const fullUrl = hoveredCard?.fullUrl ?? null;
@@ -117,7 +121,7 @@ export function HoveredCardPreview({ hoveredCard, origin, containerRef }: Hovere
     return () => globalThis.removeEventListener("mousemove", handler);
   }, []);
 
-  if (!hoveredCard || active) {
+  if (!hoveredCard || active || hoveredCard.thumbnailUrl === failedUrl) {
     return null;
   }
   return (
@@ -129,7 +133,12 @@ export function HoveredCardPreview({ hoveredCard, origin, containerRef }: Hovere
       )}
     >
       <div className="relative">
-        <img src={hoveredCard.thumbnailUrl} alt="" className="w-full rounded-lg shadow-lg" />
+        <img
+          src={hoveredCard.thumbnailUrl}
+          alt=""
+          className="w-full rounded-lg shadow-lg"
+          onError={() => setFailedUrl(hoveredCard.thumbnailUrl)}
+        />
         <img
           src={hoveredCard.fullUrl}
           alt=""

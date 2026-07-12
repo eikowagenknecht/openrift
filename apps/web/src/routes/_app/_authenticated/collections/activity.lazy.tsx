@@ -19,6 +19,7 @@ import { PageTopBar, PageTopBarTitle } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia } from "@/components/ui/empty";
+import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import {
   Select,
   SelectContent,
@@ -259,10 +260,15 @@ function EventCard({
       </div>
 
       {event.imageId ? (
-        <img
+        <ImgWithFallback
           src={imageUrl(event.imageId, "120w")}
           alt={displayName}
           className="h-12 w-[2.15rem] shrink-0 rounded-sm object-cover"
+          fallback={
+            <div className="bg-muted flex h-12 w-[2.15rem] shrink-0 items-center justify-center rounded-sm">
+              <PackageIcon className="text-muted-foreground size-3.5" />
+            </div>
+          }
         />
       ) : (
         <div className="bg-muted flex h-12 w-[2.15rem] shrink-0 items-center justify-center rounded-sm">

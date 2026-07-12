@@ -5,6 +5,7 @@ import { ArchiveIcon, CheckIcon, CircleAlertIcon, PinIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { cardLinkVariants } from "@/components/ui/card-link";
+import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useCustomTagList, useDeckFormatList } from "@/hooks/use-enums";
@@ -47,15 +48,18 @@ function CardPreviewImage({
   sizes,
   className,
   style,
+  fallback,
 }: {
   image: PrintingImage;
   alt: string;
   sizes: string;
   className: string;
   style?: React.CSSProperties;
+  /** Rendered instead when the image fails to load — the slot's dashed placeholder. */
+  fallback: React.ReactNode;
 }) {
   return (
-    <img
+    <ImgWithFallback
       src={imageUrl(image.imageId, "240w")}
       srcSet={`${imageUrl(image.imageId, "120w")} 120w, ${imageUrl(image.imageId, "240w")} 240w, ${imageUrl(image.imageId, "400w")} 400w, ${imageUrl(image.imageId, "full")} 800w`}
       sizes={sizes}
@@ -63,6 +67,7 @@ function CardPreviewImage({
       loading="lazy"
       className={className}
       style={{ aspectRatio: "var(--aspect-card)", ...style }}
+      fallback={fallback}
     />
   );
 }
@@ -115,6 +120,22 @@ export function FannedPreview({
   gradientStyle?: React.CSSProperties;
 }) {
   const isEmpty = !legendImage && !championImage;
+  const legendPlaceholder = (
+    <PlaceholderPreviewCard
+      iconSrc="/images/types/legend.svg"
+      label="Legend"
+      className="left-[12%]"
+      style={{ transform: "rotate(-6deg)" }}
+    />
+  );
+  const championPlaceholder = (
+    <PlaceholderPreviewCard
+      iconSrc="/images/supertypes/champion.svg"
+      label="Champion"
+      className="right-[12%]"
+      style={{ transform: "rotate(6deg)" }}
+    />
+  );
   return (
     // One layout for every fill state: each slot shows its card image, or a
     // dashed placeholder in the same fan position, so a half-built deck
@@ -139,14 +160,10 @@ export function FannedPreview({
           sizes="160px"
           className="absolute h-[85%] rounded-lg object-cover shadow-md"
           style={{ left: "12%", transform: "rotate(-6deg)" }}
+          fallback={legendPlaceholder}
         />
       ) : (
-        <PlaceholderPreviewCard
-          iconSrc="/images/types/legend.svg"
-          label="Legend"
-          className="left-[12%]"
-          style={{ transform: "rotate(-6deg)" }}
-        />
+        legendPlaceholder
       )}
       {championImage ? (
         <CardPreviewImage
@@ -155,14 +172,10 @@ export function FannedPreview({
           sizes="160px"
           className="absolute h-[85%] rounded-lg object-cover shadow-md"
           style={{ right: "12%", transform: "rotate(6deg)" }}
+          fallback={championPlaceholder}
         />
       ) : (
-        <PlaceholderPreviewCard
-          iconSrc="/images/supertypes/champion.svg"
-          label="Champion"
-          className="right-[12%]"
-          style={{ transform: "rotate(6deg)" }}
-        />
+        championPlaceholder
       )}
     </div>
   );

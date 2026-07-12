@@ -13,6 +13,8 @@
 - fix(Cards): **Full-size rune symbols** — the rune icons in card text carried an invisible margin inside the image and rendered smaller than intended; they now fill their full space.
 - fix(Collection): **Clearer wait in remove dialogs** — while the remove and take-off-tradelist dialogs check your lists, the confirm button now shows a spinner with "Checking your lists" instead of staying greyed out with no hint.
 - fix(Cards): **Energy circles on the text line** — the numbered energy-cost circle in card text hung noticeably lower than the rune symbols next to it and now lines up with them.
+- fix(Cards): **Placeholder art in the printing fan** — printings without a photo now fan out as proper placeholder cards (with a small Promo stamp where it applies) instead of blank gray boxes.
+- fix(App): **Broken images look like missing ones** — a card image that fails to load (missing on the server, network hiccup) now shows the same fallback as a card that has no image, everywhere images appear: placeholder art in the browser and on card pages, icon tiles in lists and deck previews, or simply no thumbnail. No more empty boxes or browser broken-image icons.
 
 ## 2026-07-11
 

@@ -24,8 +24,25 @@ export function CardImage({
 }) {
   const { card } = printing;
   const frontImage = printing.images[0] ?? null;
-  const hasImage = Boolean(showImages && frontImage);
   const [imgLoaded, setImgLoaded] = useState(false);
+  // A failed load (missing on the server, network error) falls back to the
+  // placeholder below. Keyed by URL so a different printing's image on a
+  // reused instance gets a fresh attempt.
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const src = showImages && frontImage ? imageUrl(frontImage.imageId, "400w") : null;
+  const artSrc = src === failedUrl ? null : src;
+  // The pane is SSR'd, so the browser can finish the fetch before hydration
+  // attaches the load/error listeners. Cover both outcomes via ref: a broken
+  // image reports `complete` with naturalWidth 0.
+  const coverCachedResult = (node: HTMLImageElement | null) => {
+    if (node?.complete) {
+      if (node.naturalWidth > 0) {
+        setImgLoaded(true);
+      } else {
+        setFailedUrl(artSrc);
+      }
+    }
+  };
   return (
     // overflow-hidden must live BELOW the tilt (not above), or the tilt rotates
     // outside an invisible clip box. It also can't share the tilt element with
@@ -46,7 +63,7 @@ export function CardImage({
         }}
       >
         <div className="relative overflow-hidden" style={{ borderRadius: "inherit" }}>
-          {hasImage && frontImage ? (
+          {artSrc && frontImage ? (
             <>
               <div className="aspect-card" />
               {needsCssRotation(orientation) ? (
@@ -58,7 +75,8 @@ export function CardImage({
                   style={LANDSCAPE_ROTATION_STYLE}
                 >
                   <img
-                    src={imageUrl(frontImage.imageId, "400w")}
+                    ref={coverCachedResult}
+                    src={artSrc}
                     srcSet={`${imageUrl(frontImage.imageId, "400w")} 400w, ${imageUrl(frontImage.imageId, "full")} 800w`}
                     sizes="(min-width: 768px) 376px, 100vw"
                     width={558}
@@ -67,11 +85,13 @@ export function CardImage({
                     alt={legendDisplayName(card)}
                     className="size-full object-cover"
                     onLoad={() => setImgLoaded(true)}
+                    onError={() => setFailedUrl(artSrc)}
                   />
                 </div>
               ) : (
                 <img
-                  src={imageUrl(frontImage.imageId, "400w")}
+                  ref={coverCachedResult}
+                  src={artSrc}
                   srcSet={`${imageUrl(frontImage.imageId, "400w")} 400w, ${imageUrl(frontImage.imageId, "full")} 800w`}
                   sizes="(min-width: 768px) 376px, 100vw"
                   width={400}
@@ -83,6 +103,7 @@ export function CardImage({
                     imgLoaded ? "opacity-100" : "opacity-0",
                   )}
                   onLoad={() => setImgLoaded(true)}
+                  onError={() => setFailedUrl(artSrc)}
                 />
               )}
             </>

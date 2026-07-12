@@ -28,6 +28,9 @@ export function PrintingHoverPreview({
   const fullUrl = front ? imageUrl(front.imageId, "full") : null;
   const landscape = getOrientation(printing.card.types) === "landscape";
   const [fullLoaded, setFullLoaded] = useState(false);
+  // A failed thumbnail hides the preview entirely — the same behavior as a
+  // printing with no image. Keyed by URL so another printing retries fresh.
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const previewRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -69,7 +72,7 @@ export function PrintingHoverPreview({
     };
   }, [anchorRef, landscape]);
 
-  if (!thumbnail) {
+  if (!thumbnail || thumbnail === failedUrl) {
     return null;
   }
 
@@ -79,7 +82,12 @@ export function PrintingHoverPreview({
       className={cn("pointer-events-none fixed z-[100]", landscape ? "w-[560px]" : "w-[400px]")}
     >
       <div className="relative">
-        <img src={thumbnail} alt="" className="w-full rounded-lg shadow-lg" />
+        <img
+          src={thumbnail}
+          alt=""
+          className="w-full rounded-lg shadow-lg"
+          onError={() => setFailedUrl(thumbnail)}
+        />
         {fullUrl && (
           <img
             src={fullUrl}

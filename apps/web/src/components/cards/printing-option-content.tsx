@@ -1,6 +1,7 @@
 import type { Printing } from "@openrift/shared";
 import { getOrientation, imageUrl } from "@openrift/shared";
 
+import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { formatCardId, formatPrintingLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -24,15 +25,19 @@ export function PrintingThumbnail({
   const landscape = getOrientation(printing.card.types) === "landscape";
   const thumbnailSize = landscape ? "h-10 w-14" : "h-14 w-10";
 
+  const placeholderBox = (
+    <div className={cn(thumbnailSize, "bg-muted shrink-0 rounded", className)} />
+  );
   return thumbnail ? (
-    <img
+    <ImgWithFallback
       src={thumbnail}
       alt=""
       className={cn(thumbnailSize, "shrink-0 rounded object-cover", className)}
       draggable={false}
+      fallback={placeholderBox}
     />
   ) : (
-    <div className={cn(thumbnailSize, "bg-muted shrink-0 rounded", className)} />
+    placeholderBox
   );
 }
 

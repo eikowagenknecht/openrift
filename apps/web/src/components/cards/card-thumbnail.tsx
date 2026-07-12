@@ -90,6 +90,20 @@ export function useCardThumbnailDisplay(): CardThumbnailDisplay {
 const CARD_WIDTH = 630;
 const CARD_HEIGHT = 880;
 
+/**
+ * DB slug of the "Promo" marker (`markers.slug`). Placeholder art surfaces
+ * only this marker's label — stamps like judge or prerelease stay off it.
+ */
+const PROMO_MARKER_SLUG = "promo";
+
+/**
+ * Picks the marker label placeholder art may show for a printing.
+ * @returns The promo marker's label, or undefined when the printing isn't a promo.
+ */
+function promoMarkerLabel(printing: Printing): string | undefined {
+  return printing.markers.find((m) => m.slug === PROMO_MARKER_SLUG)?.label;
+}
+
 const TILT_STYLE = {
   transform:
     "perspective(800px) rotateX(var(--foil-rotate-x, 0deg)) rotateY(var(--foil-rotate-y, 0deg))",
@@ -152,6 +166,7 @@ function CardArtImage({
   loading,
   fetchPriority,
   onLoad,
+  onError,
   loaded,
   spacerClassName,
 }: {
@@ -164,20 +179,28 @@ function CardArtImage({
   fetchPriority?: "high";
   /** When provided, fades the image in on load and covers cached/instant loads. */
   onLoad?: () => void;
+  /** Invoked when the image fails to load (missing on the server, network error). */
+  onError?: () => void;
   /** Current loaded state driving the fade-in; only meaningful alongside onLoad. */
   loaded?: boolean;
   /** Tint for the spacer behind the art (e.g. `bg-muted/40` front, `bg-muted` behind). */
   spacerClassName?: string;
 }) {
-  // Cover cached/instant-load images where the browser fires load before React
-  // attaches the onLoad listener.
-  const coverCachedLoad = onLoad
-    ? (node: HTMLImageElement | null) => {
-        if (node?.complete && node.naturalWidth > 0) {
-          onLoad();
+  // Cover cached/instant results where the browser fires load or error before
+  // React attaches the listeners. A broken image has `complete` set with
+  // naturalWidth 0.
+  const coverCachedResult =
+    onLoad || onError
+      ? (node: HTMLImageElement | null) => {
+          if (node?.complete) {
+            if (node.naturalWidth > 0) {
+              onLoad?.();
+            } else {
+              onError?.();
+            }
+          }
         }
-      }
-    : undefined;
+      : undefined;
   const fadeClass = onLoad
     ? cn("transition-opacity duration-300", loaded ? "opacity-100" : "opacity-0")
     : undefined;
@@ -190,7 +213,7 @@ function CardArtImage({
           style={LANDSCAPE_ROTATION_STYLE}
         >
           <img
-            ref={coverCachedLoad}
+            ref={coverCachedResult}
             src={thumbnailUrl}
             srcSet={srcSet}
             sizes={sizes}
@@ -201,11 +224,12 @@ function CardArtImage({
             fetchPriority={fetchPriority}
             className="size-full object-cover"
             onLoad={onLoad}
+            onError={onError}
           />
         </div>
       ) : (
         <img
-          ref={coverCachedLoad}
+          ref={coverCachedResult}
           src={thumbnailUrl}
           srcSet={srcSet}
           sizes={sizes}
@@ -216,6 +240,7 @@ function CardArtImage({
           fetchPriority={fetchPriority}
           className={cn("absolute inset-0 w-full object-cover", fadeClass)}
           onLoad={onLoad}
+          onError={onError}
         />
       )}
     </>
@@ -234,6 +259,7 @@ function CardImageContent({
   rarity,
   publicCode,
   artist,
+  promoLabel,
   card,
   showFoil,
 }: {
@@ -248,6 +274,7 @@ function CardImageContent({
   rarity: Rarity;
   publicCode: string;
   artist: string;
+  promoLabel: string | undefined;
   card: {
     name: string;
     domains: Domain[];
@@ -264,11 +291,16 @@ function CardImageContent({
   };
   showFoil: boolean;
 }) {
+  // A failed load (missing on the server, network error) falls back to the
+  // placeholder below. Keyed by URL so a changed image on a reused instance
+  // gets a fresh attempt.
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const artUrl = thumbnailUrl === failedUrl ? null : thumbnailUrl;
   return (
     <>
-      {thumbnailUrl ? (
+      {artUrl ? (
         <CardArtImage
-          thumbnailUrl={thumbnailUrl}
+          thumbnailUrl={artUrl}
           srcSet={srcSet}
           sizes={sizes}
           alt={alt}
@@ -276,6 +308,7 @@ function CardImageContent({
           loading={priority ? "eager" : "lazy"}
           fetchPriority={priority ? "high" : undefined}
           onLoad={onImgLoad}
+          onError={() => setFailedUrl(artUrl)}
           loaded={imgLoaded}
           spacerClassName="bg-muted/40"
         />
@@ -296,10 +329,46 @@ function CardImageContent({
           rarity={rarity}
           publicCode={publicCode}
           artist={artist}
+          promoLabel={promoLabel}
         />
       )}
       {showFoil && <FoilOverlay active />}
     </>
+  );
+}
+
+// Renders a fanned sibling's art, swapping to the given placeholder when the
+// image fails to load (missing on the server, network error). Owns the failure
+// state so one broken sibling doesn't re-render the whole thumbnail.
+function SiblingArt({
+  src,
+  srcSet,
+  sizes,
+  rotated,
+  fallback,
+}: {
+  src: string;
+  srcSet: string | undefined;
+  sizes: string | undefined;
+  rotated: boolean;
+  fallback: ReactNode;
+}) {
+  // Keyed by URL so a changed image on a reused instance gets a fresh attempt.
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  if (src === failedSrc) {
+    return fallback;
+  }
+  return (
+    <CardArtImage
+      thumbnailUrl={src}
+      srcSet={srcSet}
+      sizes={sizes}
+      alt=""
+      rotated={rotated}
+      loading="lazy"
+      spacerClassName="bg-black"
+      onError={() => setFailedSrc(src)}
+    />
   );
 }
 
@@ -487,6 +556,10 @@ export const CardThumbnail = memo(function CardThumbnail({
   const fanStep = cardWidth === undefined ? 2 : Math.max(1, cardWidth * 0.01);
   const fanAngle = fancyFan ? 8 : 1.5;
   const [fanReady, setFanReady] = useState(false);
+  // Latches on first hover and never resets: sibling faces (image downloads
+  // and placeholder DOM) mount lazily on hover and stay mounted, so leaving
+  // and re-entering doesn't re-fetch or rebuild them.
+  const [fanHovered, setFanHovered] = useState(false);
   const fanTimer = useRef<ReturnType<typeof setTimeout>>(null);
 
   // custom: dim the whole card in the deckbuilder so banned cards read as unavailable
@@ -532,16 +605,47 @@ export const CardThumbnail = memo(function CardThumbnail({
     >
       {otherPrintings.map((sibling, i) => {
         const depth = otherPrintings.length - i;
-        const siblingImageId = sibling.images[0]?.imageId ?? null;
-        // Coarse-pointer devices never trigger the hover fan-out, so the
-        // sibling images sit hidden behind the front card forever. Skip
-        // the download and let the bg-muted/border decorative stack stand in.
-        const showSibling = fancyFan && showImages && !coarsePointer && siblingImageId !== null;
-        const siblingSrc = showSibling ? imageUrl(siblingImageId, "400w") : null;
-        const siblingSrcSet = showSibling
-          ? `${imageUrl(siblingImageId, "120w")} 120w, ${imageUrl(siblingImageId, "240w")} 240w, ${imageUrl(siblingImageId, "400w")} 400w, ${imageUrl(siblingImageId, "full")} 800w`
-          : undefined;
+        // Sibling faces are invisible until the hover fan-out — closed, only
+        // the stacked edges peek out behind the front card. Defer the image
+        // download and the placeholder DOM until the first hover, and skip
+        // them entirely on coarse-pointer devices, where the fan never opens.
+        // Until then a black stand-in card renders the edges.
+        const showSiblingFaces = fancyFan && !coarsePointer && fanHovered;
+        const siblingImageId =
+          showSiblingFaces && showImages ? (sibling.images[0]?.imageId ?? null) : null;
+        const siblingSrc = siblingImageId === null ? null : imageUrl(siblingImageId, "400w");
+        const siblingSrcSet =
+          siblingImageId === null
+            ? undefined
+            : `${imageUrl(siblingImageId, "120w")} 120w, ${imageUrl(siblingImageId, "240w")} 240w, ${imageUrl(siblingImageId, "400w")} 400w, ${imageUrl(siblingImageId, "full")} 800w`;
         const siblingSizes = cardWidth ? `${Math.round(cardWidth - 12)}px` : sizesOverride;
+        // Imageless (and failed-image) printings get the same placeholder art
+        // the front card uses, so the fan doesn't open onto bare gray
+        // rectangles. aria-hidden: the stack sits inside the front card's
+        // button, and the placeholder's role="img" label would pollute the
+        // button's accessible name.
+        const siblingPlaceholder = showSiblingFaces ? (
+          <div aria-hidden="true">
+            <CardPlaceholderImage
+              name={sibling.printedName ?? sibling.card.name}
+              domain={sibling.card.domains}
+              energy={sibling.card.energy}
+              might={sibling.card.might}
+              power={sibling.card.power}
+              types={sibling.card.types}
+              superTypes={sibling.card.superTypes}
+              tags={sibling.card.tags}
+              rulesText={sibling.printedRulesText}
+              effectText={sibling.printedEffectText}
+              mightBonus={sibling.card.mightBonus}
+              flavorText={sibling.flavorText}
+              rarity={sibling.rarity}
+              publicCode={sibling.publicCode}
+              artist={sibling.artist}
+              promoLabel={promoMarkerLabel(sibling)}
+            />
+          </div>
+        ) : null;
         return (
           // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- decorative layer inside a parent <button>; keyboard nav handled by parent
           <div
@@ -573,17 +677,30 @@ export const CardThumbnail = memo(function CardThumbnail({
             >
               <div className="relative overflow-hidden" style={{ borderRadius: "inherit" }}>
                 {siblingSrc ? (
-                  <CardArtImage
-                    thumbnailUrl={siblingSrc}
+                  <SiblingArt
+                    src={siblingSrc}
                     srcSet={siblingSrcSet}
                     sizes={siblingSizes}
-                    alt=""
                     rotated={rotated}
-                    loading="lazy"
-                    spacerClassName="bg-muted"
+                    fallback={siblingPlaceholder}
                   />
                 ) : (
-                  <div className="aspect-card bg-muted" />
+                  (siblingPlaceholder ?? <div className="aspect-card bg-black" />)
+                )}
+                {showSiblingFaces && (
+                  // With the fan closed, re-cover the mounted face in black so
+                  // a once-hovered stack looks identical to a never-hovered
+                  // one. z-[1] keeps it above the face but below the ::after
+                  // border (z-10) and the finish icon (z-20), which show on
+                  // the closed stack either way.
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0 z-[1] bg-black"
+                    style={{
+                      opacity: "calc(1 - var(--fan, 0))",
+                      transition: "opacity 200ms ease-out",
+                    }}
+                  />
                 )}
                 {sibling.finish === WellKnown.finish.FOIL && gridFoil && <FoilOverlay active dim />}
                 <FinishIcon
@@ -610,6 +727,7 @@ export const CardThumbnail = memo(function CardThumbnail({
             rarity={printing.rarity}
             publicCode={printing.publicCode}
             artist={printing.artist}
+            promoLabel={promoMarkerLabel(printing)}
             card={card}
             showFoil={isFoilCard && gridFoil}
           />
@@ -674,6 +792,10 @@ export const CardThumbnail = memo(function CardThumbnail({
   const fanMouseEnter =
     otherPrintings.length > 0
       ? () => {
+          // Mount the sibling faces immediately — the fan-open transition runs
+          // 200ms, so placeholders are painted (and images requested) before
+          // anything behind the front card becomes visible.
+          setFanHovered(true);
           fanTimer.current = setTimeout(() => setFanReady(true), 200);
         }
       : undefined;

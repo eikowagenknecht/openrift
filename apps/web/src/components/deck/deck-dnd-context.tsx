@@ -14,6 +14,7 @@ import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 
 import { DndScrollWatcher } from "@/components/dnd-scroll-watcher";
+import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { useDeckBuilderActions, useDeckCards } from "@/hooks/use-deck-builder";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
@@ -335,11 +336,18 @@ export function DeckDndContext({ deckId, children }: { deckId: string; children:
         {dragInfo && (
           <div className="relative h-48 w-28">
             {dragImageUrl ? (
-              <img
+              <ImgWithFallback
                 src={dragImageUrl}
                 alt=""
                 className="absolute top-0 left-0 w-28 rounded-lg shadow-lg"
                 draggable={false}
+                fallback={
+                  <div className="bg-muted absolute top-0 left-0 flex h-40 w-28 items-center justify-center rounded-lg shadow-lg">
+                    <span className="text-muted-foreground px-1 text-center text-xs">
+                      {dragInfo.cardName}
+                    </span>
+                  </div>
+                }
               />
             ) : (
               <div className="bg-muted absolute top-0 left-0 flex h-40 w-28 items-center justify-center rounded-lg shadow-lg">

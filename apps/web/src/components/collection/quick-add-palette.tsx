@@ -164,11 +164,17 @@ function PaletteInner({
   const previewPrinting = expandedCardId
     ? (results.find((r) => r.cardId === expandedCardId)?.printings[expandedIndex] ?? null)
     : null;
-  const previewImageId = previewPrinting?.images[0]?.imageId ?? null;
+  // A failed preview image hides the preview panel entirely — the same
+  // behavior as a printing with no image. Keyed by image id so expanding
+  // another printing retries fresh.
+  const [failedImageId, setFailedImageId] = useState<string | null>(null);
+  const rawPreviewImageId = previewPrinting?.images[0]?.imageId ?? null;
+  const previewImageId = rawPreviewImageId === failedImageId ? null : rawPreviewImageId;
   const previewThumbnail = previewImageId ? imageUrl(previewImageId, "full") : null;
   // The mobile preview renders at a smaller, fixed width, so a lighter variant
   // is plenty (400w covers ~160px CSS at DPR 2).
   const previewThumbnailMobile = previewImageId ? imageUrl(previewImageId, "400w") : null;
+  const markPreviewFailed = () => setFailedImageId(rawPreviewImageId);
   const previewRotated = previewPrinting
     ? needsCssRotation(getOrientation(previewPrinting.card.types))
     : false;
@@ -351,6 +357,7 @@ function PaletteInner({
                   src={previewThumbnailMobile}
                   alt={legendDisplayName(previewPrinting.card)}
                   className="size-full object-cover"
+                  onError={markPreviewFailed}
                 />
               </div>
             ) : (
@@ -358,6 +365,7 @@ function PaletteInner({
                 src={previewThumbnailMobile}
                 alt={legendDisplayName(previewPrinting.card)}
                 className="absolute inset-0 w-full object-cover"
+                onError={markPreviewFailed}
               />
             )}
           </div>
@@ -380,6 +388,7 @@ function PaletteInner({
                   src={previewThumbnail}
                   alt={legendDisplayName(previewPrinting.card)}
                   className="size-full object-cover"
+                  onError={markPreviewFailed}
                 />
               </div>
             ) : (
@@ -387,6 +396,7 @@ function PaletteInner({
                 src={previewThumbnail}
                 alt={legendDisplayName(previewPrinting.card)}
                 className="absolute inset-0 w-full object-cover"
+                onError={markPreviewFailed}
               />
             )}
           </div>
