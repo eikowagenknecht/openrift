@@ -36,6 +36,7 @@ const PARALLEL_FILES = [
   "src/db/card-type-triggers.integration.test.ts",
   // Authenticated routes
   "src/routes/authenticated/collections.integration.test.ts",
+  "src/routes/authenticated/collections-reset.integration.test.ts",
   "src/routes/authenticated/copies.integration.test.ts",
   "src/routes/authenticated/collection-events.integration.test.ts",
   "src/routes/authenticated/lists.integration.test.ts",
