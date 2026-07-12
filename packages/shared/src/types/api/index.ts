@@ -59,6 +59,7 @@ export type {
 } from "./collection-value-history.js";
 
 export type {
+  ClearCollectionResponse,
   CollectionListResponse,
   CollectionResponse,
   CollectionShareResponse,

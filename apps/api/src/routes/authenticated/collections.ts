@@ -1,5 +1,6 @@
 import { ERROR_CODES } from "@openrift/shared";
 import type {
+  ClearCollectionResponse,
   CollectionGroupSharesResponse,
   CollectionListResponse,
   CollectionResponse,
@@ -179,6 +180,26 @@ export const collectionsRouter = {
       targetName: "Inbox",
       userId,
     });
+  }),
+
+  // ── POST /collections/:id/clear ─────────────────────────────────────────────
+  // Removes every copy from the collection but keeps the collection itself.
+  // Built for the inbox (which can never be deleted, so "clear" is its
+  // delete-equivalent), but allowed for any collection the viewer administers.
+  // Copies pinned by a live trade or loan stay put and are reported back.
+  clear: os.clear.handler(async ({ input, context }): Promise<ClearCollectionResponse> => {
+    const repos = context.repos;
+    const transact = context.transact;
+    const { clearCollection: clearCollectionService } = context.services;
+    const userId = context.userId;
+
+    const access = await repos.collections.getAccessForUser(input.id, userId);
+    assertFound(access, "Not found");
+    if (!access.viewerCanAdmin) {
+      throw new AppError(403, ERROR_CODES.FORBIDDEN, "Only admins can clear this collection");
+    }
+
+    return clearCollectionService(transact, { collectionId: input.id, userId });
   }),
 
   // ── GET /collections/:id/copies ─────────────────────────────────────────────

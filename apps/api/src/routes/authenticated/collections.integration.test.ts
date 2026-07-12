@@ -380,6 +380,80 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
     });
   });
 
+  // ── POST /collections/:id/clear ───────────────────────────────────────────
+
+  describe("POST /collections/:id/clear", () => {
+    it("removes every copy but keeps the collection", async () => {
+      // The inbox can never be deleted; clear is its delete-equivalent. Seed
+      // two copies straight into the inbox and clear it.
+      const addRes = await app.fetch(
+        req("POST", "/copies", {
+          copies: [
+            { printingId: PRINTING_1.id, collectionId: inboxId },
+            { printingId: PRINTING_2.id, collectionId: inboxId },
+          ],
+        }),
+      );
+      expect(addRes.status).toBe(201);
+
+      const res = await app.fetch(req("POST", `/collections/${inboxId}/clear`));
+      expect(res.status).toBe(200);
+      const json = (await res.json()) as { removedCount: number; keptCopyIds: string[] };
+      expect(json.removedCount).toBeGreaterThanOrEqual(2);
+      expect(json.keptCopyIds).toEqual([]);
+
+      // The inbox itself survives, empty.
+      const getRes = await app.fetch(req("GET", `/collections/${inboxId}`));
+      expect(getRes.status).toBe(200);
+      const inbox = (await getRes.json()) as CollectionResponse;
+      expect(inbox.isInbox).toBe(true);
+
+      const copiesRes = await app.fetch(req("GET", `/collections/${inboxId}/copies`));
+      const copies = (await copiesRes.json()) as { items: unknown[] };
+      expect(copies.items).toEqual([]);
+    });
+
+    it("is a no-op on an already-empty collection", async () => {
+      const res = await app.fetch(req("POST", `/collections/${inboxId}/clear`));
+      expect(res.status).toBe(200);
+      const json = (await res.json()) as { removedCount: number; keptCopyIds: string[] };
+      expect(json.removedCount).toBe(0);
+      expect(json.keptCopyIds).toEqual([]);
+    });
+
+    it("logs 'removed' events for the cleared copies", async () => {
+      // Disposal nulls copy_id on the event via FK, so events can't be matched
+      // by copy id — count the inbox's 'removed' events before and after.
+      const removedEvents = () =>
+        db
+          .selectFrom("collectionEvents")
+          .select("id")
+          .where("fromCollectionId", "=", inboxId)
+          .where("action", "=", "removed")
+          .execute();
+      const eventsBefore = await removedEvents();
+
+      const addRes = await app.fetch(
+        req("POST", "/copies", {
+          copies: [{ printingId: PRINTING_1.id, collectionId: inboxId }],
+        }),
+      );
+      expect(addRes.status).toBe(201);
+
+      const res = await app.fetch(req("POST", `/collections/${inboxId}/clear`));
+      expect(res.status).toBe(200);
+
+      const eventsAfter = await removedEvents();
+      expect(eventsAfter.length).toBe(eventsBefore.length + 1);
+    });
+
+    it("returns 404 for a non-existent collection", async () => {
+      const fakeId = "00000000-0000-4000-a000-000000000000";
+      const res = await app.fetch(req("POST", `/collections/${fakeId}/clear`));
+      expect(res.status).toBe(404);
+    });
+  });
+
   // ── Share endpoints (GET / POST / POST rotate / DELETE) ───────────────────
 
   describe("collection sharing", () => {

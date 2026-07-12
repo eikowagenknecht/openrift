@@ -65,6 +65,7 @@ import { useCardSelection } from "@/hooks/use-card-selection";
 import { useCards } from "@/hooks/use-cards";
 import { useCollectionCardData } from "@/hooks/use-collection-card-data";
 import {
+  useClearCollection,
   useCollections,
   useCollectionsMap,
   useDeleteCollection,
@@ -100,6 +101,7 @@ import { useOnboardingStore } from "@/stores/onboarding-store";
 import { useSelectionStore } from "@/stores/selection-store";
 import { useSiblingOverrideStore } from "@/stores/sibling-override-store";
 
+import { ClearInboxDialog } from "./clear-inbox-dialog";
 import { computeDragSelectionSummary, dragSelectionNoun } from "./collection-drag";
 import { CollectionShareDialog } from "./collection-share-dialog";
 import type { CopyDetailsTarget } from "./copy-details-dialog";
@@ -513,6 +515,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const [copyDetailsTarget, setCopyDetailsTarget] = useState<CopyDetailsTarget | null>(null);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [clearInboxOpen, setClearInboxOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   // Group "bulk box" take confirmation: set when the viewer asks to take, holds
@@ -538,6 +541,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   // checked while the dispose dialog is open so the warning can name them.
   const disposeListMemberships = useCopyListMemberships(actionCopyIds, disposeOpen);
   const deleteCollection = useDeleteCollection();
+  const clearCollection = useClearCollection();
   const setDeckbuilding = useSetCollectionDeckbuilding();
   const navigate = useNavigate();
 
@@ -726,13 +730,38 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     });
   };
 
+  const handleClearInbox = () => {
+    if (!currentCollection) {
+      return;
+    }
+    clearCollection.mutate(currentCollection.id, {
+      onSuccess: ({ removedCount, keptCopyIds }) => {
+        setClearInboxOpen(false);
+        const keptCount = keptCopyIds.length;
+        if (removedCount === 0 && keptCount === 0) {
+          toast.info("Your Inbox is already empty");
+        } else if (keptCount > 0) {
+          toast.success(
+            `Removed ${removedCount} card${removedCount === 1 ? "" : "s"}. ${keptCount} stayed because they're reserved in a trade or lent out.`,
+          );
+        } else {
+          toast.success(
+            `Removed ${removedCount} card${removedCount === 1 ? "" : "s"} from your Inbox`,
+          );
+        }
+      },
+    });
+  };
+
   // Shared collections live in a friend group; rename/delete/share is gated on
   // group owner/admin (or always allowed for personal collections, where viewerCanAdmin
-  // is true). The inbox is special-cased — it can never be deleted.
+  // is true). The inbox is special-cased — it can never be deleted, so it gets
+  // a "clear inbox" action instead.
   const canAdminCollection = Boolean(currentCollection?.viewerCanAdmin);
   const canDeleteCollection = Boolean(
     currentCollection && !currentCollection.isInbox && canAdminCollection,
   );
+  const canClearInbox = Boolean(currentCollection?.isInbox && canAdminCollection);
 
   // ── Build items list ────────────────────────────────────────────────
   let items: CardViewerItem[];
@@ -1145,6 +1174,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       view={view}
       canEdit={Boolean(currentCollection) && canAdminCollection}
       canDelete={canDeleteCollection}
+      canClearInbox={canClearInbox}
       canShare={Boolean(currentCollection) && canAdminCollection}
       // Per-viewer preference: every member with access can toggle whether a
       // collection feeds *their own* deck inventory, not just group admins.
@@ -1152,6 +1182,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       deckbuildingAvailable={currentCollection?.availableForDeckbuilding ?? false}
       onEdit={() => setEditOpen(true)}
       onDelete={() => setDeleteOpen(true)}
+      onClearInbox={() => setClearInboxOpen(true)}
       onShare={() => setShareOpen(true)}
       onToggleDeckbuilding={() => {
         if (currentCollection) {
@@ -1244,6 +1275,15 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           copyCount={currentCollection.copyCount}
           onConfirm={handleDeleteCollection}
           isPending={deleteCollection.isPending}
+        />
+      )}
+      {currentCollection?.isInbox && (
+        <ClearInboxDialog
+          open={clearInboxOpen}
+          onOpenChange={setClearInboxOpen}
+          copyCount={currentCollection.copyCount}
+          onConfirm={handleClearInbox}
+          isPending={clearCollection.isPending}
         />
       )}
       {currentCollection && (
@@ -1534,11 +1574,13 @@ interface CollectionTopBarProps {
   view: string;
   canEdit: boolean;
   canDelete: boolean;
+  canClearInbox: boolean;
   canShare: boolean;
   canToggleDeckbuilding: boolean;
   deckbuildingAvailable: boolean;
   onEdit: () => void;
   onDelete: () => void;
+  onClearInbox: () => void;
   onShare: () => void;
   onToggleDeckbuilding: () => void;
 }
@@ -1560,11 +1602,13 @@ function CollectionTopBar({
   view,
   canEdit,
   canDelete,
+  canClearInbox,
   canShare,
   canToggleDeckbuilding,
   deckbuildingAvailable,
   onEdit,
   onDelete,
+  onClearInbox,
   onShare,
   onToggleDeckbuilding,
 }: CollectionTopBarProps) {
@@ -1634,7 +1678,7 @@ function CollectionTopBar({
               </>
             )
           )}
-          {(canEdit || canDelete || canShare || canToggleDeckbuilding) && (
+          {(canEdit || canDelete || canClearInbox || canShare || canToggleDeckbuilding) && (
             <DropdownMenu>
               <DropdownMenuTrigger render={<PageTopBarIconButton />}>
                 <EllipsisVerticalIcon className="size-4" />
@@ -1668,6 +1712,15 @@ function CollectionTopBar({
                   >
                     <Trash2Icon className="size-4" />
                     Delete collection
+                  </DropdownMenuItem>
+                )}
+                {canClearInbox && (
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={onClearInbox}
+                  >
+                    <Trash2Icon className="size-4" />
+                    Clear inbox
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>

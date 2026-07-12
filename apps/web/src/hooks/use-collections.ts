@@ -1,4 +1,5 @@
 import type {
+  ClearCollectionResponse,
   CollectionResponse,
   CollectionShareResponse,
   PublicCollectionDetailResponse,
@@ -199,6 +200,14 @@ const deleteCollectionFn = createServerFn({ method: "POST" })
     await apiOrpcClient(collectionsContract, context.cookie).remove({ id: data.id });
   });
 
+const clearCollectionFn = createServerFn({ method: "POST" })
+  .validator((input: { id: string }) => input)
+  .middleware([withCookies])
+  .handler(
+    ({ context, data }): Promise<ClearCollectionResponse> =>
+      apiOrpcClient(collectionsContract, context.cookie).clear({ id: data.id }),
+  );
+
 // ── Collection sharing ──────────────────────────────────────────────────────
 
 const shareCollectionFn = createServerFn({ method: "POST" })
@@ -324,6 +333,46 @@ export function useDeleteCollection() {
           copiesCollection.utils.writeUpdate(
             affected.map((copy) => ({ id: copy.id, collectionId: inboxId })),
           );
+        }
+      }
+      void queryClient.invalidateQueries({ queryKey: queryKeys.collections.all(userId) });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.copies.all(userId),
+        refetchType: "none",
+      });
+    },
+  });
+}
+
+/**
+ * Clears a collection's contents server-side (used for the inbox, which can
+ * be emptied but never deleted). Copies pinned by a live trade or loan stay
+ * put; the server reports them back as `keptCopyIds`.
+ *
+ * @returns A mutation taking the collection id and resolving to the clear
+ *   result (`removedCount`, `keptCopyIds`).
+ */
+export function useClearCollection() {
+  const userId = useRequiredUserId();
+  const queryClient = useQueryClient();
+  const copiesCollection = useCopiesCollection();
+
+  return useMutation({
+    mutationFn: async (id: string): Promise<ClearCollectionResponse & { id: string }> => {
+      const result = await clearCollectionFn({ data: { id } });
+      return { id, ...result };
+    },
+    onSuccess: ({ id, keptCopyIds }) => {
+      // Mirror the server-side clear in the synced copies collection so live
+      // queries (sidebar counts, owned-count, grids) reflect it immediately —
+      // same reasoning as useDeleteCollection above.
+      if (copiesCollection) {
+        const kept = new Set(keptCopyIds);
+        const removedIds = copiesCollection.toArray
+          .filter((copy) => copy.collectionId === id && !kept.has(copy.id))
+          .map((copy) => copy.id);
+        if (removedIds.length > 0) {
+          copiesCollection.utils.writeDelete(removedIds);
         }
       }
       void queryClient.invalidateQueries({ queryKey: queryKeys.collections.all(userId) });

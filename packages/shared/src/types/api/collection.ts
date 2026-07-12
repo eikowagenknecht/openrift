@@ -1,4 +1,5 @@
 import type {
+  clearCollectionResponseSchema,
   collectionListResponseSchema,
   collectionResponseSchema,
   collectionShareResponseSchema,
@@ -33,6 +34,12 @@ export type PublicCollectionDetailResponse = z.infer<typeof publicCollectionDeta
 export type PublicCopyResponse = z.infer<typeof publicCopyResponseSchema>;
 
 export type CollectionShareResponse = z.infer<typeof collectionShareResponseSchema>;
+
+/**
+ * Result of clearing a collection's contents: how many copies were removed,
+ * plus the ids of copies that stayed because a live trade or loan pins them.
+ */
+export type ClearCollectionResponse = z.infer<typeof clearCollectionResponseSchema>;
 
 export type CopyListResponse = z.infer<typeof copyListResponseSchema>;
 

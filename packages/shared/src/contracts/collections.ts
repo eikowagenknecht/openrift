@@ -95,6 +95,19 @@ export const collectionGroupSharesResponseSchema = z
   })
   .openapi("CollectionGroupSharesResponse");
 
+/**
+ * Result of clearing a collection's contents. Copies reserved by a live trade
+ * or out on a loan are physically pinned and stay put; they come back in
+ * `keptCopyIds` so the client can report them and keep them in its synced
+ * store.
+ */
+export const clearCollectionResponseSchema = z
+  .object({
+    removedCount: z.number().int(),
+    keptCopyIds: z.array(z.string()),
+  })
+  .openapi("ClearCollectionResponse");
+
 const TAG = "Collections";
 
 /**
@@ -103,9 +116,9 @@ const TAG = "Collections";
  * `requireAuth`), so they share the `authedRoute` base (UNAUTHORIZED +
  * FORBIDDEN). Domain codes per route: `create` → NOT_FOUND (unknown group
  * slug); `get`, `update`, `copies`, `share`, `shareState`, `rotateShare`,
- * `unshare`, `groupShares`, `setDeckbuilding` → NOT_FOUND (inaccessible
- * collection); `remove` → NOT_FOUND + CONFLICT (inbox guard, non-empty
- * shared collection).
+ * `unshare`, `groupShares`, `setDeckbuilding`, `clear` → NOT_FOUND
+ * (inaccessible collection); `remove` → NOT_FOUND + CONFLICT (inbox guard,
+ * non-empty shared collection).
  */
 export const collectionsContract = {
   list: authedRoute
@@ -136,6 +149,11 @@ export const collectionsContract = {
       CONFLICT: { message: "Collection cannot be deleted" },
     })
     .input(idParamSchema),
+  clear: authedRoute
+    .route({ method: "POST", path: "/api/v1/collections/{id}/clear", tags: [TAG] })
+    .input(idParamSchema)
+    .errors({ NOT_FOUND: { message: "Collection not found" } })
+    .output(clearCollectionResponseSchema),
   copies: authedRoute
     .route({ method: "GET", path: "/api/v1/collections/{id}/copies", tags: [TAG] })
     .input(withParams(idParamSchema, copiesQuerySchema))

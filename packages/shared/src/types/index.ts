@@ -202,6 +202,7 @@ export type {
 } from "./api/index.js";
 
 export type {
+  ClearCollectionResponse,
   CollectionEventListResponse,
   CollectionEventResponse,
   CollectionValueHistoryPoint,

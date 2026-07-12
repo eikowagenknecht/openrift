@@ -2,6 +2,10 @@
 
 ## 2026-07-12
 
+### Highlights
+
+- feat(Collection): **Clear your Inbox** — the Inbox can't be deleted, but its menu now has a clear action that removes every card in one go.
+
 ### Other
 
 - fix(Cards): **Full-size rune symbols** — the rune icons in card text carried an invisible margin inside the image and rendered smaller than intended; they now fill their full space.

@@ -75,7 +75,7 @@ import {
   skipTradeSync,
 } from "./services/card-trades.js";
 import { assembleRuleCatalog, createCatalogPrintingsCache } from "./services/catalog-assembly.js";
-import { deleteCollection } from "./services/collections.js";
+import { clearCollection, deleteCollection } from "./services/collections.js";
 import { addCopies, disposeCopies, moveCopies, updateCopies } from "./services/copies.js";
 import { logEvents } from "./services/event-logger.js";
 import { importErrata } from "./services/import-errata.js";
@@ -162,6 +162,7 @@ export interface Repos {
 export interface Services {
   ensureInbox: typeof ensureInbox;
   logEvents: typeof logEvents;
+  clearCollection: typeof clearCollection;
   deleteCollection: typeof deleteCollection;
   addCopies: typeof addCopies;
   moveCopies: typeof moveCopies;
@@ -299,6 +300,7 @@ export function createTransact(db: Kysely<Database>): Transact {
 export const services: Services = {
   ensureInbox,
   logEvents,
+  clearCollection,
   deleteCollection,
   addCopies,
   moveCopies,

@@ -54,6 +54,9 @@ const mockMarketplaceRepo = {
 
 const mockEnsureInbox = vi.fn(() => Promise.resolve("inbox-id"));
 const mockDeleteCollection = vi.fn(() => Promise.resolve());
+const mockClearCollection = vi.fn(() =>
+  Promise.resolve({ removedCount: 0, keptCopyIds: [] as string[] }),
+);
 
 // ---------------------------------------------------------------------------
 // Test app
@@ -75,6 +78,7 @@ app.use("*", async (c, next) => {
   c.set("services", {
     ensureInbox: mockEnsureInbox,
     deleteCollection: mockDeleteCollection,
+    clearCollection: mockClearCollection,
   } as never);
   await next();
 });
@@ -403,6 +407,48 @@ describe("DELETE /api/v1/collections/:id", () => {
       method: "DELETE",
     });
     expect(res.status).toBe(409);
+  });
+});
+
+describe("POST /api/v1/collections/:id/clear", () => {
+  beforeEach(() => {
+    mockCollectionsRepo.getAccessForUser.mockReset();
+    mockClearCollection.mockReset();
+    mockClearCollection.mockResolvedValue({ removedCount: 0, keptCopyIds: [] });
+  });
+
+  it("clears the inbox and returns the result", async () => {
+    mockCollectionsRepo.getAccessForUser.mockResolvedValue(access(dbInbox));
+    mockClearCollection.mockResolvedValue({ removedCount: 3, keptCopyIds: ["copy-9"] });
+    const res = await app.request(`/api/v1/collections/${dbInbox.id}/clear`, {
+      method: "POST",
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.removedCount).toBe(3);
+    expect(json.keptCopyIds).toEqual(["copy-9"]);
+    expect(mockClearCollection).toHaveBeenCalledWith(expect.anything(), {
+      collectionId: dbInbox.id,
+      userId: USER_ID,
+    });
+  });
+
+  it("returns 403 when viewer is not an admin of the collection", async () => {
+    mockCollectionsRepo.getAccessForUser.mockResolvedValue(access(dbSharedCollection, false));
+    const res = await app.request(`/api/v1/collections/${dbSharedCollection.id}/clear`, {
+      method: "POST",
+    });
+    expect(res.status).toBe(403);
+    expect(mockClearCollection).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 when not accessible", async () => {
+    mockCollectionsRepo.getAccessForUser.mockResolvedValue(undefined);
+    const res = await app.request(`/api/v1/collections/${dbCollection.id}/clear`, {
+      method: "POST",
+    });
+    expect(res.status).toBe(404);
+    expect(mockClearCollection).not.toHaveBeenCalled();
   });
 });
 
