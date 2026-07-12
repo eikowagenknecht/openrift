@@ -84,6 +84,7 @@ import type { WishEntryFlat } from "@/hooks/use-wish-entries";
 import { useSession } from "@/lib/auth-session";
 import { cardsViewTileKey, splitsCardIntoTiles, tileSiblings } from "@/lib/card-tiles";
 import { collectionTableActionsColumn } from "@/lib/collection-table";
+import { aggregatePersonalCollectionValue } from "@/lib/collection-value";
 import { useCopiesCollection } from "@/lib/copies-collection";
 import { filterPrintingsByLanguages } from "@/lib/filter-printings-by-languages";
 import { formatterForMarketplace } from "@/lib/format";
@@ -1143,12 +1144,15 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
 
   // ── Toolbar ─────────────────────────────────────────────────────────
   const formatValue = formatterForMarketplace(favoriteMarketplace as Marketplace);
-  const valueCents = currentCollection
-    ? currentCollection.totalValueCents
-    : collections.reduce((sum, col) => sum + (col.totalValueCents ?? 0), 0);
+  // The "All Cards" aggregate (no collection selected) excludes shared group
+  // collections — their copies are communal, not the viewer's own, so they must
+  // not inflate the headline worth. A selected group collection still shows its
+  // own value via `currentCollection`.
+  const aggregate = aggregatePersonalCollectionValue(collections);
+  const valueCents = currentCollection ? currentCollection.totalValueCents : aggregate.valueCents;
   const unpricedCount = currentCollection
     ? currentCollection.unpricedCopyCount
-    : collections.reduce((sum, col) => sum + (col.unpricedCopyCount ?? 0), 0);
+    : aggregate.unpricedCount;
 
   // Count of selectable copies in the filtered grid, mirroring the temp-id
   // filtering `toggleSelectAll` applies, so "all selected" lines up with what a
