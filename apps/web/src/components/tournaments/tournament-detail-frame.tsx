@@ -25,7 +25,7 @@ import {
 } from "@/lib/tournament-display";
 import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 
-export type TournamentTab =
+type TournamentTab =
   | "overview"
   | "participants"
   | "pairings"
@@ -33,16 +33,6 @@ export type TournamentTab =
   | "decks"
   | "staff"
   | "settings";
-
-export const TOURNAMENT_TABS: readonly TournamentTab[] = [
-  "overview",
-  "participants",
-  "pairings",
-  "standings",
-  "decks",
-  "staff",
-  "settings",
-];
 
 /** A tournament section page (every tab except the overview/dashboard landing). */
 export type TournamentSection = Exclude<TournamentTab, "overview">;
