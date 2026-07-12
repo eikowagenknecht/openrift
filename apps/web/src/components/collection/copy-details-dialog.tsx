@@ -1,5 +1,15 @@
 import type { CopyLink, CopyMetadataPatch, CopyResponse, Printing } from "@openrift/shared";
-import { ArrowLeftIcon, PlusIcon, XIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import {
+  ArrowLeftIcon,
+  FileTextIcon,
+  HandHeartIcon,
+  LinkIcon,
+  LockIcon,
+  PaintbrushIcon,
+  PlusIcon,
+  XIcon,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -25,7 +35,9 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCopies, useUpdateCopies } from "@/hooks/use-copies";
+import type { EnumLabels } from "@/hooks/use-enums";
 import { useConditionList, useEnumOrders, useGraderList } from "@/hooks/use-enums";
 import { formatCardId, formatPrintingLabel } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
@@ -155,7 +167,7 @@ function PrintingDescriptor({ printing, siblings }: { printing: Printing; siblin
   const rarityIcon = getFilterIconPath("rarities", printing.rarity);
   return (
     <>
-      <span className="font-mono text-xs">{formatCardId(printing)}</span>{" "}
+      <span className="text-muted-foreground font-mono text-xs">{formatCardId(printing)}</span>{" "}
       {formatPrintingLabel(printing, siblings, labels)}
       {hasMixedRarities && rarityIcon && (
         <img
@@ -172,11 +184,47 @@ function PrintingDescriptor({ printing, siblings }: { printing: Printing; siblin
 }
 
 /**
- * One-line condition/grade summary for a picker row.
- * @returns The summary badge, or a "No details yet" hint.
+ * One indicator icon in a copy's summary row: an icon (with an optional count)
+ * whose tooltip carries the detail (the note text, "Altered", the link list).
+ * @returns The tooltip-wrapped icon.
  */
-function CopySummary({ copy }: { copy: CopyResponse }) {
-  const { labels } = useEnumOrders();
+function SummaryIcon({
+  icon: Icon,
+  label,
+  content,
+  count,
+}: {
+  icon: LucideIcon;
+  /** Accessible name and default tooltip text. */
+  label: string;
+  /** Tooltip body when it differs from the label (e.g. a note's text). */
+  content?: string;
+  /** Rendered next to the icon (e.g. a link count). */
+  count?: number;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        // Not a tab stop: the picker row owns keyboard focus, and clicking an
+        // icon just selects the row (opening the editor with the full detail).
+        tabIndex={-1}
+        className="text-muted-foreground inline-flex cursor-default items-center gap-0.5 text-sm"
+        aria-label={label}
+      >
+        <Icon className="size-3.5" />
+        {count === undefined ? null : count}
+      </TooltipTrigger>
+      <TooltipContent className="whitespace-pre-wrap">{content ?? label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+/**
+ * The condition/grade chip for a copy: the grader + grade when slabbed,
+ * otherwise the raw condition, or nothing when neither is recorded.
+ * @returns The badge, or `null`.
+ */
+function ConditionBadge({ copy, labels }: { copy: CopyResponse; labels: EnumLabels }) {
   if (copy.grader !== null && copy.grade !== null) {
     return (
       <Badge variant="subtle">
@@ -187,7 +235,74 @@ function CopySummary({ copy }: { copy: CopyResponse }) {
   if (copy.condition !== null) {
     return <Badge variant="secondary">{labels.conditions[copy.condition]}</Badge>;
   }
-  return <span className="text-muted-foreground text-sm">No details yet</span>;
+  return null;
+}
+
+/**
+ * Whether a copy has anything worth summarizing: it is out on loan, has a
+ * condition or grade, the altered flag, either notes field, or at least one
+ * link. Drives the "No details yet" fallback, so it must cover every field the
+ * summary surfaces — otherwise a copy with only a loan or an altered flag reads
+ * as blank.
+ * @returns `true` when the copy has any state worth showing.
+ */
+export function copyHasRecordedDetails(copy: CopyResponse): boolean {
+  return (
+    copy.onLoan ||
+    (copy.grader !== null && copy.grade !== null) ||
+    copy.condition !== null ||
+    copy.isAltered ||
+    copy.notesPublic !== null ||
+    copy.notesPrivate !== null ||
+    copy.links.length > 0
+  );
+}
+
+/**
+ * Summary of what a copy actually records — a condition/grade badge plus an icon
+ * per extra detail (altered, notes, links). "No details yet" shows only when the
+ * copy is genuinely blank, so an altered-but-unrecorded copy is no longer
+ * mislabeled as having nothing.
+ * @returns The indicator row, or a "No details yet" hint.
+ */
+function CopySummary({ copy }: { copy: CopyResponse }) {
+  const { labels } = useEnumOrders();
+
+  if (!copyHasRecordedDetails(copy)) {
+    return <span className="text-muted-foreground text-sm">No details yet</span>;
+  }
+
+  const icons = [
+    copy.onLoan && <SummaryIcon key="loan" icon={HandHeartIcon} label="On loan" />,
+    copy.isAltered && <SummaryIcon key="altered" icon={PaintbrushIcon} label="Altered" />,
+    copy.notesPublic && (
+      <SummaryIcon key="note" icon={FileTextIcon} label="Public note" content={copy.notesPublic} />
+    ),
+    copy.notesPrivate && (
+      <SummaryIcon
+        key="private-note"
+        icon={LockIcon}
+        label="Private note"
+        content={copy.notesPrivate}
+      />
+    ),
+    copy.links.length > 0 && (
+      <SummaryIcon
+        key="links"
+        icon={LinkIcon}
+        label={`${copy.links.length} ${copy.links.length === 1 ? "link" : "links"}`}
+        content={copy.links.map((link) => link.label ?? link.url).join("\n")}
+        count={copy.links.length}
+      />
+    ),
+  ].filter(Boolean);
+
+  return (
+    <span className="flex shrink-0 items-center gap-1.5">
+      <ConditionBadge copy={copy} labels={labels} />
+      {icons}
+    </span>
+  );
 }
 
 function CopyPickerList({
@@ -213,22 +328,17 @@ function CopyPickerList({
       </DialogHeader>
       <div className="max-h-72 overflow-y-auto">
         <PickerList highlightedId={highlightedId} onHighlightChange={setHighlightedId}>
-          {copies.map((copy, index) => {
+          {copies.map((copy) => {
             const printing = target.printingByCopyId.get(copy.id);
             return (
               <PickerRow
                 key={copy.id}
                 value={copy.id}
                 onSelect={() => onPick(copy.id)}
-                className="justify-between px-3 py-2"
+                className="justify-between gap-3 px-3 py-2"
               >
-                <span className="truncate">
-                  Copy {index + 1}
-                  {printing && (
-                    <span className="text-muted-foreground ml-2 text-sm">
-                      <PrintingDescriptor printing={printing} siblings={siblings} />
-                    </span>
-                  )}
+                <span className="min-w-0 truncate">
+                  {printing && <PrintingDescriptor printing={printing} siblings={siblings} />}
                 </span>
                 <CopySummary copy={copy} />
               </PickerRow>
