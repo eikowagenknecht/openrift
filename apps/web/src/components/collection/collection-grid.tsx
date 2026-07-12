@@ -1550,6 +1550,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
             catalogPrintingsByCardId={catalogPrintingsByCardId}
             languageScopedPrintingsByCardId={detailPanePrintingsByCardId}
             onQuickAdd={handleQuickAdd}
+            defaultTargetCollectionId={addTarget}
             onAddToCollection={handleAddToCollection}
             onRemoveFromCollection={handleDisposeFromCollection}
             closeVariants={closeVariants}

@@ -1,7 +1,7 @@
 import type { CollectionResponse, Printing } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
-import { buildVariantGroups } from "./variant-locations-popover";
+import { buildVariantGroups, ownedCountInCollection } from "./variant-locations-popover";
 
 const printing = (id: string) => ({ id, cardId: "c1" }) as Printing;
 
@@ -87,5 +87,40 @@ describe("buildVariantGroups", () => {
     expect(groups.map((group) => group.printing.id)).toEqual(["p1", "p2"]);
     expect(groups[0].total).toBe(0);
     expect(groups[1].total).toBe(1);
+  });
+});
+
+describe("ownedCountInCollection", () => {
+  const groupWith = (
+    collections: { collectionId: string; collectionName: string; count: number }[],
+  ) =>
+    buildVariantGroups(
+      [printing("p1")],
+      [{ printingId: "p1", collections }],
+      personalCollections,
+    )[0];
+
+  it("returns the copy count held in the given collection", () => {
+    const group = groupWith([
+      { collectionId: "inbox", collectionName: "Inbox", count: 2 },
+      { collectionId: "binder-a", collectionName: "Binder A", count: 1 },
+    ]);
+
+    expect(ownedCountInCollection(group, "inbox")).toBe(2);
+    expect(ownedCountInCollection(group, "binder-a")).toBe(1);
+  });
+
+  it("returns 0 when the variant is not held in that collection (header `-` disabled)", () => {
+    // Copies live only in Binder A, so the default target (inbox) has none —
+    // the header quick-remove must read 0 and render disabled.
+    const group = groupWith([{ collectionId: "binder-a", collectionName: "Binder A", count: 3 }]);
+
+    expect(ownedCountInCollection(group, "inbox")).toBe(0);
+  });
+
+  it("returns 0 for an unowned variant with no locations", () => {
+    const group = buildVariantGroups([printing("p1")], [], personalCollections)[0];
+
+    expect(ownedCountInCollection(group, "inbox")).toBe(0);
   });
 });

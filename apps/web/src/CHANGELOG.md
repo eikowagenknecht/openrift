@@ -8,6 +8,7 @@
 
 ### Other
 
+- feat(Collection): **Remove a copy without expanding** — each variant in the card's box popover now has a minus next to its plus, removing from the same collection the plus adds to.
 - feat(Collection): **Clearer copies list** — the "Copies of…" list now names each copy by its printing (variant details and rarity) and summarizes what it actually records: condition, altered, notes, links, and loan status, instead of a bare set code.
 - feat(Collection): **Reset collections in one step** — a new profile danger-zone action removes every card, keeps only your Inbox, and cleans up lists that end up empty.
 - fix(Collection): **Worth counts only your cards** — the "worth" total counted shared group collections too, so it stayed non-zero after you cleared your own cards, and now counts only yours.

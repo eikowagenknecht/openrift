@@ -35,6 +35,13 @@ interface VariantLocationsPopoverProps {
   intent: VariantPopoverIntent;
   /** Quick-add a variant to the default target (current collection, or inbox on All Cards). */
   onQuickAdd: (printing: Printing) => void;
+  /**
+   * The default target's collection id (current collection, or inbox on All
+   * Cards) — the same target `onQuickAdd` writes to. Present it and the variant
+   * header gains a quick-remove `-` that mirrors its `+`, disabled when the
+   * target holds no copies of that variant. Undefined suppresses the header `-`.
+   */
+  defaultTargetCollectionId?: string;
   /** Add a copy of a variant to a specific collection. */
   onAddToCollection: (printing: Printing, collectionId: string) => void;
   /** Remove the newest copy of a variant from a specific collection. */
@@ -111,11 +118,22 @@ export function buildVariantGroups(
 }
 
 /**
+ * Owned copies of a variant in one specific collection, or 0 when it holds
+ * none. Drives the header quick-remove's disabled state: the `-` is dead when
+ * the default target has nothing of this variant to remove.
+ * @returns The count in `collectionId`, or 0 if the variant isn't held there.
+ */
+export function ownedCountInCollection(group: VariantGroup, collectionId: string): number {
+  return group.locations.find((location) => location.collectionId === collectionId)?.count ?? 0;
+}
+
+/**
  * Unified variant×collection popover for collection browse mode. Each variant
- * is a section: a header with its owned total and a quick-add `+` (to the
- * default target), per-collection rows with `-`/`+`, and an "add to another
- * collection" row that swaps to a collection picker sub-page. Replaces the
- * former separate variant-add, owned-locations, and dispose pickers.
+ * is a section: a header with its owned total, a quick-remove `-` and quick-add
+ * `+` (both on the default target), per-collection rows with `-`/`+`, and an
+ * "add to another collection" row that swaps to a collection picker sub-page.
+ * Replaces the former separate variant-add, owned-locations, and dispose
+ * pickers.
  * @returns A keyboard-navigable PickerList for the popover body.
  */
 export function VariantLocationsPopover({
@@ -123,6 +141,7 @@ export function VariantLocationsPopover({
   initialHighlightId,
   intent,
   onQuickAdd,
+  defaultTargetCollectionId,
   onAddToCollection,
   onRemoveFromCollection,
   addCollectionTarget,
@@ -276,6 +295,14 @@ export function VariantLocationsPopover({
         }
         // `=` is a no-shift alias for `+` (US layouts need Shift+=).
         if (action.kind === "variant") {
+          // `-` on a header quick-removes from the default target, mirroring the
+          // header `+`/`=`. Wired only when a default target exists (i.e. the
+          // header shows the `-` button).
+          if (!isRemoveIntent && defaultTargetCollectionId !== undefined && event.key === "-") {
+            event.preventDefault();
+            onRemoveFromCollection(action.printing, defaultTargetCollectionId);
+            return;
+          }
           // +/= always quick-adds. Enter quick-adds too, except in a collapsible
           // menu where Enter toggles the section via the row's onSelect.
           const enterQuickAdds = !collapsible && !isRemoveIntent && event.key === "Enter";
@@ -345,9 +372,33 @@ export function VariantLocationsPopover({
                 </span>
               </div>
               <div className="flex shrink-0 items-center gap-0.5">
-                {/* Spacer reserves the child rows' minus-button column so the total and the +
-                    button land in the same grid as every child row's [- count +] cluster. */}
-                <span aria-hidden className="size-6 shrink-0" />
+                {/* Header quick-remove: mirrors the header `+`, but removes from the default
+                    target (current collection, or inbox on All Cards) so the resting row is
+                    symmetric (no need to expand a variant just to drop a copy). Disabled when
+                    the default target holds none of this variant (removal is per-collection, so
+                    copies living only in another collection are removed by expanding the row). */}
+                {!isRemoveIntent && defaultTargetCollectionId !== undefined ? (
+                  <Button
+                    type="button"
+                    tabIndex={-1}
+                    size="icon-xs"
+                    variant="ghost"
+                    className="transition-none"
+                    disabled={ownedCountInCollection(group, defaultTargetCollectionId) === 0}
+                    onClick={(event) => {
+                      // Don't let the click bubble to the row and toggle the accordion.
+                      event.stopPropagation();
+                      onRemoveFromCollection(group.printing, defaultTargetCollectionId);
+                    }}
+                    aria-label={`Remove ${legendDisplayName(group.printing.card)}`}
+                  >
+                    <MinusIcon />
+                  </Button>
+                ) : (
+                  // Spacer reserves the child rows' minus-button column so the total and the +
+                  // button land in the same grid as every child row's [- count +] cluster.
+                  <span aria-hidden className="size-6 shrink-0" />
+                )}
                 <span className="text-muted-foreground w-5 text-center font-medium tabular-nums">
                   {group.total}
                 </span>

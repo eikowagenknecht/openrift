@@ -14,6 +14,8 @@ interface VariantLocationsPopoverHostProps {
   languageScopedPrintingsByCardId: ReadonlyMap<string, Printing[]>;
   /** Quick-add a variant to the default target; undefined when there's no add target. */
   onQuickAdd?: (printing: Printing) => void;
+  /** The default target's collection id — enables the variant header's quick-remove `-`. */
+  defaultTargetCollectionId?: string;
   onAddToCollection: (printing: Printing, collectionId: string) => void;
   onRemoveFromCollection: (printing: Printing, collectionId: string) => void;
   closeVariants: (pressTarget?: EventTarget | null) => void;
@@ -33,6 +35,7 @@ export function VariantLocationsPopoverHost({
   catalogPrintingsByCardId,
   languageScopedPrintingsByCardId,
   onQuickAdd,
+  defaultTargetCollectionId,
   onAddToCollection,
   onRemoveFromCollection,
   closeVariants,
@@ -88,6 +91,7 @@ export function VariantLocationsPopoverHost({
           initialHighlightId={selectedCardId}
           intent={variantPopover.intent}
           onQuickAdd={onQuickAdd}
+          defaultTargetCollectionId={defaultTargetCollectionId}
           onAddToCollection={onAddToCollection}
           onRemoveFromCollection={onRemoveFromCollection}
           addCollectionTarget={addCollectionTarget}
