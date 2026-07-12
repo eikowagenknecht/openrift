@@ -271,8 +271,8 @@ export function useUnshareCollection() {
 const fetchPublicCollectionFn = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .handler(async ({ data: token }): Promise<PublicCollectionDetailResponse> => {
-    // Migrated to oRPC: contract-typed client. 404 (unknown/expired token) is a
-    // typed NOT_FOUND error mapped to the sentinel the route boundary expects.
+    // 404 (unknown/expired token) is a typed NOT_FOUND error mapped to the
+    // sentinel the route boundary expects.
     const client = apiOrpcClient(publicCollectionsContract);
     const { error, data: firstPage } = await safe(client.share({ token }));
     if (error) {

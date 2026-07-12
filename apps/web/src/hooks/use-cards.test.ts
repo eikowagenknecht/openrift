@@ -180,9 +180,9 @@ describe("useCards", () => {
   });
 
   it("throws an Error when catalog fetch fails", async () => {
-    // The catalog reader now goes through the typed hc client; a non-2xx
-    // surfaces an ApiError carrying the server's message, or the "Couldn't load
-    // catalog" fallback when the body has no { error } field.
+    // The catalog reader fetches the catalog URL directly; a non-2xx surfaces
+    // an ApiError carrying the server's message, or the "Couldn't load catalog"
+    // fallback when the body has no { error } field.
     (fetch as ReturnType<typeof vi.fn>).mockImplementation(() =>
       Promise.resolve(Response.json({}, { status: 500 })),
     );

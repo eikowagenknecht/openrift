@@ -55,7 +55,6 @@ function readPricesFromServerCache(): Promise<PricesResponse> {
 function readInitFromServerCache(): Promise<InitResponse> {
   return serverCache.fetchQuery({
     queryKey: ["server-cache", "init"],
-    // Migrated to oRPC: contract-typed client instead of the hc client.
     queryFn: () => apiOrpcClient(initContract).get(),
   });
 }

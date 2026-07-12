@@ -516,8 +516,8 @@ export function useUnshareList() {
   });
 }
 
-// Migrated to oRPC: contract-typed client. 404 (unknown/non-public token) is a
-// typed NOT_FOUND error mapped to the sentinel the caller expects.
+// 404 (unknown/non-public token) is a typed NOT_FOUND error mapped to the
+// sentinel the caller expects.
 const fetchPublicListFn = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .handler(async ({ data: token }): Promise<PublicListDetailResponse> => {

@@ -9,8 +9,6 @@ import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
-// Migrated to oRPC: contract-typed client instead of the hc client.
-
 // ── Server functions: queries ───────────────────────────────────────────────
 
 const fetchUserTrades = createServerFn({ method: "GET" })

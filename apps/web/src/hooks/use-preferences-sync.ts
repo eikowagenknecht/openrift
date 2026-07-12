@@ -21,7 +21,6 @@ type PreferencesUpdateInput = Parameters<
   ContractRouterClient<typeof preferencesContract>["update"]
 >[0];
 
-// Migrated to oRPC: contract-typed client instead of the hc client.
 const fetchPreferencesFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
@@ -65,8 +64,8 @@ function getPrefsSnapshot(): UserPreferencesResponse & {
     defaultCurrency: overrides.defaultCurrency,
     topLevelFilters: overrides.topLevelFilters,
     // Retired preferences: always send null so the legacy keys are cleared
-    // from the stored prefs (hidden sections migrated to topLevelFilters; the
-    // compact view is simply how the filter chrome works now).
+    // from the stored prefs (hidden sections are part of topLevelFilters now;
+    // the compact view is simply how the filter chrome works).
     hiddenFilterSections: null,
     compactFilterView: null,
     theme: themePreference,

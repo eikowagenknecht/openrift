@@ -159,7 +159,7 @@ function CollectionLayout() {
     modifier: "all" | number | null,
   ) {
     if (dropData.type === "collection") {
-      // Same-collection drop is a no-op; the route used to bail on this.
+      // Same-collection drop is a no-op.
       if (dragData.sourceCollectionId === dropData.collectionId) {
         return;
       }

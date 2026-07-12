@@ -15,7 +15,6 @@ const fetchSiteSettings = createServerFn({ method: "GET" }).handler(() =>
   serverCache.fetchQuery({
     queryKey: ["server-cache", "site-settings"],
     queryFn: async () => {
-      // Migrated to oRPC: contract-typed client instead of the hc client.
       const data = await apiOrpcClient(siteSettingsContract).get();
       return data.settings;
     },

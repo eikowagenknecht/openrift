@@ -18,10 +18,8 @@ function hasSessionCookie(cookie: string): boolean {
 }
 
 async function fetchFlagsFromApi(cookie?: string): Promise<FeatureFlags> {
-  // Migrated to oRPC: feature-flags left the Hono AppType graph, so the caller
-  // uses the contract-typed oRPC client instead of the hc client. The oRPC
-  // client throws an ORPCError on a non-2xx response (the toast wrapper from
-  // callApiJson no longer applies here); SSR's error boundary surfaces it.
+  // The oRPC client throws an ORPCError on a non-2xx response; SSR's error
+  // boundary surfaces it.
   const data = await apiOrpcClient(featureFlagsContract, cookie).get();
   return data.flags;
 }

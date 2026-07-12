@@ -446,7 +446,7 @@ export function createApp(deps: AppDeps) {
   // routes still match and the app's JSON-404 notFound handler owns the miss.
   // Cache-Control for the few cacheable public reads is applied here from the
   // directive the cache-control client interceptor resolved off the matched
-  // procedure's meta (the per-route mounts that used to set it are gone).
+  // procedure's meta.
   app.all("/api/*", async (c, next) => {
     const apiContext = buildApiContext(c);
     const { matched, response } = await apiHandler.handle(c.req.raw, { context: apiContext });

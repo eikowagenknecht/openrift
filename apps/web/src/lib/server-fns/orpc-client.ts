@@ -53,8 +53,7 @@ export function apiOrpcClient<TContract extends AnyContractRouter>(
  * Browser-side counterpart to {@link apiOrpcClient} for calling the API DIRECTLY
  * from the browser (not from a server function): same-origin, so the session
  * cookie is sent automatically and no header forwarding / trace injection is
- * needed. The base is `window.location.origin` (absolute, same-origin) so the
- * request URL matches the old browser hc client byte-for-byte.
+ * needed. The base is `window.location.origin` (absolute, same-origin).
  *
  * Importing this module on the server is safe (`globalThis.location` is read
  * lazily); only CALL this from a browser-only path.

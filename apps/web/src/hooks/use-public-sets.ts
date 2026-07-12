@@ -12,7 +12,6 @@ const fetchSetList = createServerFn({ method: "GET" }).handler(
   (): Promise<SetListResponse> =>
     serverCache.fetchQuery({
       queryKey: ["server-cache", "sets"],
-      // Migrated to oRPC: contract-typed client instead of the hc client.
       queryFn: () => apiOrpcClient(setsContract).list(),
     }),
 );

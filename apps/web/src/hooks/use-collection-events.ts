@@ -8,7 +8,6 @@ import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
-// Migrated to oRPC: contract-typed client instead of the hc client.
 const fetchCollectionEventsFn = createServerFn({ method: "GET" })
   .validator((input: { cursor?: string }) => input)
   .middleware([withCookies])

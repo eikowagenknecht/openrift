@@ -19,11 +19,11 @@ interface ListEntriesState {
 /**
  * Per-cell entry lookup for the /lists grid.
  *
- * The parent's `renderCard` closure used to read `entryByItemId` / `entryByKey`
- * directly, which meant every entry mutation re-derived the maps and forced
- * every visible cell to re-render. With this store, cells select their own
- * entry via a per-key selector — when only THIS card's entry changed, Object.is
- * equality on the selector return value lets other cells skip rendering.
+ * Reading `entryByItemId` / `entryByKey` directly in the parent's `renderCard`
+ * closure would make every entry mutation re-derive the maps and force every
+ * visible cell to re-render. With this store, cells select their own entry via
+ * a per-key selector: when only THIS card's entry changed, Object.is equality
+ * on the selector return value lets other cells skip rendering.
  */
 export const useListEntriesStore = create<ListEntriesState>()((set) => ({
   entryByItemId: new Map(),

@@ -11,7 +11,6 @@ const fetchInit = createServerFn({ method: "GET" }).handler(
   (): Promise<InitResponse> =>
     serverCache.fetchQuery({
       queryKey: ["server-cache", "init"],
-      // Migrated to oRPC: contract-typed client instead of the hc client.
       queryFn: () => apiOrpcClient(initContract).get(),
     }),
 );

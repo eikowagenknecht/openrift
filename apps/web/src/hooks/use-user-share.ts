@@ -20,7 +20,6 @@ import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 // ── Authenticated: read + manage your own bundle token ──────────────────────
-// Migrated to oRPC, as are the public /users/share/:token reads below.
 
 const fetchUserShareStateFn = createServerFn({ method: "GET" })
   .middleware([withCookies])

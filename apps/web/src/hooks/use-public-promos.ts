@@ -14,7 +14,6 @@ const fetchPromoList = createServerFn({ method: "GET" })
     ({ context }): Promise<PromosListResponse> =>
       serverCache.fetchQuery({
         queryKey: ["server-cache", "promos"],
-        // Migrated to oRPC: contract-typed client instead of the hc client.
         queryFn: () => apiOrpcClient(promosContract, context.cookie).list(),
       }),
   );

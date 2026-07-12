@@ -61,8 +61,8 @@ export interface CardCellProps {
 /**
  * Renders a CardThumbnail with the standard slot configuration used across
  * every card-browser surface (catalog, collections, deck builder, shared
- * collection). Centralizes the thumbnail-wiring boilerplate that each
- * surface's `renderCard` used to re-derive — strip placement, click + sibling
+ * collection). Centralizes the thumbnail-wiring boilerplate each surface's
+ * `renderCard` would otherwise re-derive: strip placement, click + sibling
  * wiring, selection overlay, DnD wrap, context-menu wrap.
  *
  * Each surface still owns the *product logic* that produces the strip and

@@ -550,8 +550,8 @@ export function useUnshareDeck() {
 const fetchPublicDeckFn = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .handler(async ({ data: token }): Promise<PublicDeckDetailResponse> => {
-    // Migrated to oRPC: contract-typed client. 404 (unknown/expired token) is a
-    // typed NOT_FOUND error mapped to the sentinel the route boundary expects.
+    // 404 (unknown/expired token) is a typed NOT_FOUND error mapped to the
+    // sentinel the route boundary expects.
     const { error, data } = await safe(apiOrpcClient(publicDecksContract).share({ token }));
     if (error) {
       if (isDefinedError(error) && error.code === "NOT_FOUND") {

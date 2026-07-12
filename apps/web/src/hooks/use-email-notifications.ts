@@ -19,7 +19,6 @@ import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
-// Migrated to oRPC: contract-typed client instead of the hc client.
 const fetchPreferencesFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(

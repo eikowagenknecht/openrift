@@ -11,8 +11,6 @@ const fetchLandingSummary = createServerFn({ method: "GET" }).handler(
   (): Promise<LandingSummaryResponse> =>
     serverCache.fetchQuery({
       queryKey: ["server-cache", "landing-summary"],
-      // Migrated to oRPC: contract-typed client instead of the hc client. The
-      // request URL is unchanged, so the SSR origin call is identical.
       queryFn: () => apiOrpcClient(landingSummaryContract).get(),
     }),
 );

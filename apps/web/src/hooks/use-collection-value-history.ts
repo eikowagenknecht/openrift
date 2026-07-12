@@ -73,7 +73,6 @@ const fetchCollectionValueHistory = createServerFn({ method: "GET" })
       query.errata = String(scope.errata);
     }
 
-    // Migrated to oRPC: contract-typed client instead of the hc client.
     return apiOrpcClient(collectionValueHistoryContract, context.cookie).get(
       query as ValueHistoryQuery,
     );

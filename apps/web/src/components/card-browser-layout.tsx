@@ -50,8 +50,8 @@ interface CardBrowserLayoutProps {
  * Shared outer shell for the card browser surfaces (live `<CardBrowser>` and
  * the SSR `<FirstRowPreview>`). Owns the `@container` wrapper, the sticky
  * toolbar row, and the three-column flex layout (leftPane / center / rightPane)
- * so both paths render through a single structural source — preventing the
- * SSR-shell vs hydrated-shell layout drift the page used to suffer from.
+ * so both paths render through a single structural source, preventing
+ * SSR-shell vs hydrated-shell layout drift.
  *
  * Sticky offsets for grouped headers are derived here via ResizeObservers and
  * exposed through {@link useCardBrowserLayoutOffsets}.

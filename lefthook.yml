@@ -39,8 +39,6 @@ pre-push:
   commands:
     typescript-check:
       # Runs everywhere, including constrained remote/CI runners.
-      # The old OOM that forced a remote skip came from the Hono `AppType` graph
-      # (tsgo peaked ~11.9 GB); the oRPC migration collapsed it to ~2.2 GB.
       # Goes through turbo so all packages (shared, api, web) are covered and
       # a /done that already typechecked is a cache hit here.
       glob: "*.{ts,tsx}"

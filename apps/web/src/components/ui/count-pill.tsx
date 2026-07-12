@@ -7,9 +7,8 @@ import { cn } from "@/lib/utils";
 //
 // CountPill is the compact h-5 pill used above card thumbnails and in list
 // strips: owned counts, "Request"/"Requested" actions, trade-preference
-// summaries. It grew out of the COUNT_PILL_BASE class constant (formerly
-// components/cards/count-pill.ts). Static pills render CountPill (a span);
-// clickable ones render CountPillButton, which adds hover/disabled affordances.
+// summaries. Static pills render CountPill (a span); clickable ones render
+// CountPillButton, which adds hover/disabled affordances.
 // Grid-coupled surfaces that need the raw classes (card-count-strip sizes
 // against grid constants) can use countPillVariants directly.
 

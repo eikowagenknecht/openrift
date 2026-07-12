@@ -102,7 +102,6 @@ const fetchClaimLanding = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .middleware([withCookies])
   .handler(
-    // Migrated to oRPC: contract-typed client instead of the hc client.
     ({ context, data: token }): Promise<DeckCheckClaimLandingResponse> =>
       apiOrpcClient(deckCheckClaimContract, context.cookie).landing({ token }),
   );

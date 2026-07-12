@@ -20,7 +20,7 @@ export interface CardSearchResult {
  * filtering — `autoComplete="none"` makes it render exactly the `results` it is
  * handed. Open/close, keyboard nav, and filling the input with the picked
  * label on selection are all handled by the BaseUI Combobox primitive, which
- * also supplies the ARIA combobox/listbox semantics this used to hand-roll.
+ * also supplies the ARIA combobox/listbox semantics.
  *
  * @returns A BaseUI Combobox wired for external/async filtering.
  */
