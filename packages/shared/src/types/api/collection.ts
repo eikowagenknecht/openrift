@@ -3,6 +3,7 @@ import type {
   collectionListResponseSchema,
   collectionResponseSchema,
   collectionShareResponseSchema,
+  resetCollectionsResponseSchema,
 } from "@openrift/shared/contracts/collections";
 import type {
   copyAddResponseSchema,
@@ -40,6 +41,9 @@ export type CollectionShareResponse = z.infer<typeof collectionShareResponseSche
  * plus the ids of copies that stayed because a live trade or loan pins them.
  */
 export type ClearCollectionResponse = z.infer<typeof clearCollectionResponseSchema>;
+
+/** Summary of a danger-zone collection reset: what was deleted. */
+export type ResetCollectionsResponse = z.infer<typeof resetCollectionsResponseSchema>;
 
 export type CopyListResponse = z.infer<typeof copyListResponseSchema>;
 

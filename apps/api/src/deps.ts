@@ -75,7 +75,7 @@ import {
   skipTradeSync,
 } from "./services/card-trades.js";
 import { assembleRuleCatalog, createCatalogPrintingsCache } from "./services/catalog-assembly.js";
-import { clearCollection, deleteCollection } from "./services/collections.js";
+import { clearCollection, deleteCollection, resetCollections } from "./services/collections.js";
 import { addCopies, disposeCopies, moveCopies, updateCopies } from "./services/copies.js";
 import { logEvents } from "./services/event-logger.js";
 import { importErrata } from "./services/import-errata.js";
@@ -164,6 +164,7 @@ export interface Services {
   logEvents: typeof logEvents;
   clearCollection: typeof clearCollection;
   deleteCollection: typeof deleteCollection;
+  resetCollections: typeof resetCollections;
   addCopies: typeof addCopies;
   moveCopies: typeof moveCopies;
   updateCopies: typeof updateCopies;
@@ -302,6 +303,7 @@ export const services: Services = {
   logEvents,
   clearCollection,
   deleteCollection,
+  resetCollections,
   addCopies,
   moveCopies,
   updateCopies,

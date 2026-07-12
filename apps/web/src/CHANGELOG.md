@@ -8,6 +8,7 @@
 
 ### Other
 
+- feat(Collection): **Reset collections in one step** — a new profile danger-zone action removes every card, keeps only your Inbox, and cleans up lists that end up empty.
 - fix(Cards): **Full-size rune symbols** — the rune icons in card text carried an invisible margin inside the image and rendered smaller than intended; they now fill their full space.
 - fix(Collection): **Clearer wait in remove dialogs** — while the remove and take-off-tradelist dialogs check your lists, the confirm button now shows a spinner with "Checking your lists" instead of staying greyed out with no hint.
 - fix(Cards): **Energy circles on the text line** — the numbered energy-cost circle in card text hung noticeably lower than the rune symbols next to it and now lines up with them.

@@ -3,6 +3,7 @@ import type {
   CollectionResponse,
   CollectionShareResponse,
   PublicCollectionDetailResponse,
+  ResetCollectionsResponse,
 } from "@openrift/shared";
 import { collectionsContract, publicCollectionsContract } from "@openrift/shared/contracts";
 import { isDefinedError, safe } from "@orpc/client";
@@ -380,6 +381,55 @@ export function useClearCollection() {
         queryKey: queryKeys.copies.all(userId),
         refetchType: "none",
       });
+    },
+  });
+}
+
+// Exported for tests only — call through useResetCollections in app code.
+export const resetCollectionsFn = createServerFn({ method: "POST" })
+  .middleware([withCookies])
+  .handler(async ({ context }): Promise<ResetCollectionsResponse> => {
+    const { error, data } = await safe(
+      apiOrpcClient(collectionsContract, context.cookie).resetAll(),
+    );
+    if (error) {
+      // The 409 guard (copies reserved in trades / out on loans) carries a
+      // user-readable message — rethrow it plain so the dialog can show it.
+      if (isDefinedError(error) && error.code === "CONFLICT") {
+        throw new Error(error.message);
+      }
+      throw error;
+    }
+    return data;
+  });
+
+/**
+ * Danger-zone reset: the server wipes every copy from the user's personal
+ * collections, deletes all personal collections except the inbox, and prunes
+ * lists the wipe emptied. Group collections are untouched.
+ * @returns Mutation resolving to the reset summary counts.
+ */
+export function useResetCollections() {
+  const queryClient = useQueryClient();
+  const copiesCollection = useCopiesCollection();
+
+  return useMutation({
+    mutationFn: () => resetCollectionsFn(),
+    onSuccess: () => {
+      // Drop the personal copies from the synced store immediately so live
+      // queries (sidebar counts, owned-count, grids) empty without waiting on
+      // a refetch. Group-owned copies survive the reset and stay.
+      if (copiesCollection) {
+        const personal = copiesCollection.toArray.filter((copy) => copy.groupId === null);
+        if (personal.length > 0) {
+          copiesCollection.utils.writeDelete(personal.map((copy) => copy.id));
+        }
+      }
+      // The wipe touches nearly every user-scoped surface (collections,
+      // copies + the ["copies-collection", userId] store query, lists, trade
+      // matches, deck availability, events, value history), so invalidate the
+      // whole cache instead of chasing an ever-growing key list.
+      void queryClient.invalidateQueries();
     },
   });
 }

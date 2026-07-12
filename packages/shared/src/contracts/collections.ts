@@ -108,6 +108,14 @@ export const clearCollectionResponseSchema = z
   })
   .openapi("ClearCollectionResponse");
 
+export const resetCollectionsResponseSchema = z
+  .object({
+    removedCopies: z.number().int(),
+    removedCollections: z.number().int(),
+    removedLists: z.number().int(),
+  })
+  .openapi("ResetCollectionsResponse");
+
 const TAG = "Collections";
 
 /**
@@ -118,7 +126,8 @@ const TAG = "Collections";
  * slug); `get`, `update`, `copies`, `share`, `shareState`, `rotateShare`,
  * `unshare`, `groupShares`, `setDeckbuilding`, `clear` → NOT_FOUND
  * (inaccessible collection); `remove` → NOT_FOUND + CONFLICT (inbox guard,
- * non-empty shared collection).
+ * non-empty shared collection); `resetAll` → CONFLICT (copies reserved in
+ * trades or lent out).
  */
 export const collectionsContract = {
   list: authedRoute
@@ -132,6 +141,10 @@ export const collectionsContract = {
   reorder: authedRoute
     .route({ method: "POST", path: "/api/v1/collections/reorder", tags: [TAG], successStatus: 204 })
     .input(reorderCollectionsSchema),
+  resetAll: authedRoute
+    .route({ method: "POST", path: "/api/v1/collections/reset", tags: [TAG] })
+    .errors({ CONFLICT: { message: "Collections cannot be reset" } })
+    .output(resetCollectionsResponseSchema),
   get: authedRoute
     .route({ method: "GET", path: "/api/v1/collections/{id}", tags: [TAG] })
     .input(idParamSchema)

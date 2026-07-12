@@ -342,6 +342,41 @@ export function copiesRepo(db: Kysely<Database>) {
     },
 
     /**
+     * Every copy in the user's personal collections (group collections
+     * excluded), with collection context for event logging. Feeds the
+     * danger-zone collection reset.
+     * @returns Matching copies with their current collection name.
+     */
+    listInPersonalCollections(userId: string): Promise<
+      (Pick<Selectable<CopiesTable>, "id" | "printingId" | "collectionId"> & {
+        collectionName: string;
+      })[]
+    > {
+      return db
+        .selectFrom("copies as cp")
+        .innerJoin("collections as col", "col.id", "cp.collectionId")
+        .select(["cp.id", "cp.printingId", "cp.collectionId", "col.name as collectionName"])
+        .where("col.userId", "=", userId)
+        .execute();
+    },
+
+    /**
+     * Hard-deletes every copy in the user's personal collections in one
+     * statement (no ID list, so it can't hit parameter limits). Group
+     * collections are untouched.
+     * @returns The number of deleted copies.
+     */
+    async deleteAllInPersonalCollections(userId: string): Promise<number> {
+      const result = await db
+        .deleteFrom("copies")
+        .where("collectionId", "in", (eb) =>
+          eb.selectFrom("collections").select("id").where("userId", "=", userId),
+        )
+        .executeTakeFirst();
+      return Number(result.numDeletedRows);
+    },
+
+    /**
      * Owned count per card+printing from collections that feed the viewer's
      * deck inventory. A collection counts when it's accessible to the viewer
      * AND deck-building-available for them: `COALESCE(pref.available,

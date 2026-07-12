@@ -6,6 +6,7 @@ import type {
   CollectionResponse,
   CollectionShareResponse,
   CopyListResponse,
+  ResetCollectionsResponse,
 } from "@openrift/shared";
 import { collectionsContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
@@ -333,6 +334,17 @@ export const collectionsRouter = {
       return { items };
     },
   ),
+
+  // ── POST /collections/reset ───────────────────────────────────────────────
+  // Danger-zone reset: wipes every copy from the user's personal collections,
+  // deletes every personal collection except the inbox (created if missing),
+  // and prunes lists the wipe emptied (no entries left, no dynamic rules).
+  // Group collections are untouched. 409s while copies are reserved in active
+  // trades or out on loans.
+  resetAll: os.resetAll.handler(async ({ context }): Promise<ResetCollectionsResponse> => {
+    const { resetCollections } = context.services;
+    return await resetCollections(context.transact, context.userId);
+  }),
 
   // ── POST /collections/reorder ─────────────────────────────────────────────
   // Bulk reorder for the user's personal collections. Group-owned rows are

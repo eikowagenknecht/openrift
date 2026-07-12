@@ -356,6 +356,21 @@ export function collectionsRepo(db: Kysely<Database>) {
     },
 
     /**
+     * Deletes every personal collection of the user except the inbox. The
+     * collections must already be empty — a DB trigger rejects deleting a
+     * collection that still has copies.
+     * @returns The number of deleted collections.
+     */
+    async deleteAllPersonalExceptInbox(userId: string): Promise<number> {
+      const result = await db
+        .deleteFrom("collections")
+        .where("userId", "=", userId)
+        .where("isInbox", "=", false)
+        .executeTakeFirst();
+      return Number(result.numDeletedRows);
+    },
+
+    /**
      * Sets (or nulls) the share_token and is_public on a collection, scoped to the owning user.
      * @returns The updated collection row, or `undefined` if not owned by the user.
      */

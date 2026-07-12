@@ -323,6 +323,55 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
     },
 
     /**
+     * @returns IDs of the user's lists that currently have at least one entry.
+     *   Snapshot for the danger-zone collection reset: only lists that had
+     *   entries before the wipe are prune candidates afterwards.
+     */
+    async listIdsWithEntries(userId: string): Promise<string[]> {
+      const rows = await db
+        .selectFrom("lists")
+        .select("id")
+        .where("userId", "=", userId)
+        .where(({ exists, selectFrom }) =>
+          exists(
+            selectFrom("listEntries")
+              .select("listEntries.id")
+              .whereRef("listEntries.listId", "=", "lists.id"),
+          ),
+        )
+        .execute();
+      return rows.map((row) => row.id);
+    },
+
+    /**
+     * Deletes the given lists if they are now empty and have no dynamic rules
+     * (a rule-driven list is never "empty" — its rules repopulate it). Scoped
+     * to the user; non-matching IDs are silently skipped.
+     * @returns The number of deleted lists.
+     */
+    async deleteEmptyWithoutRules(userId: string, ids: readonly string[]): Promise<number> {
+      if (ids.length === 0) {
+        return 0;
+      }
+      const result = await db
+        .deleteFrom("lists")
+        .where("id", "in", ids as string[])
+        .where("userId", "=", userId)
+        .where(sql<boolean>`jsonb_array_length(rules) = 0`)
+        .where(({ not, exists, selectFrom }) =>
+          not(
+            exists(
+              selectFrom("listEntries")
+                .select("listEntries.id")
+                .whereRef("listEntries.listId", "=", "lists.id"),
+            ),
+          ),
+        )
+        .executeTakeFirst();
+      return Number(result.numDeletedRows);
+    },
+
+    /**
      * Lists owned by `userId` that reference any of `copyIds`, with a per-list
      * copy count and the distinct number of those copies on at least one list.
      * Only copy-kind entries carry a non-null `copy_id`, so the `copyId in`

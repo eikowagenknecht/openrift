@@ -1,4 +1,8 @@
+import { ERROR_CODES } from "@openrift/shared";
+import type { ResetCollectionsResponse } from "@openrift/shared";
+
 import type { Transact } from "../deps.js";
+import { AppError } from "../errors.js";
 import { disposeCopiesInTransaction } from "./copies.js";
 import { logEvents } from "./event-logger.js";
 
@@ -95,5 +99,92 @@ export function clearCollection(
     }
 
     return { removedCount: disposable.length, keptCopyIds: [...kept] };
+  });
+}
+
+// Keeps guard IN-lists and event batch inserts well under postgres.js's
+// ~65k bind-parameter limit even for very large collections.
+const RESET_BATCH_SIZE = 1000;
+
+/**
+ * @returns The input split into consecutive slices of at most `size` items.
+ */
+function chunk<T>(items: readonly T[], size: number): T[][] {
+  const batches: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    batches.push(items.slice(i, i + size));
+  }
+  return batches;
+}
+
+/**
+ * Danger-zone reset: deletes every copy in the user's personal collections,
+ * deletes every personal collection except the inbox, and prunes lists the
+ * wipe emptied (no remaining entries, no dynamic rules). Group collections
+ * and their copies are untouched. Refuses (409) while any of the user's
+ * copies are reserved in an active trade or out on a loan.
+ * @returns Counts of the deleted copies, collections, and lists.
+ */
+export function resetCollections(
+  transact: Transact,
+  userId: string,
+): Promise<ResetCollectionsResponse> {
+  return transact(async (trxRepos) => {
+    const copies = await trxRepos.copies.listInPersonalCollections(userId);
+    const copyIdBatches = chunk(
+      copies.map((copy) => copy.id),
+      RESET_BATCH_SIZE,
+    );
+
+    // Same guards as disposeCopies: a reserved copy is physically promised to
+    // a trade, a loaned copy is out of the house — refuse to destroy either.
+    for (const batch of copyIdBatches) {
+      const reserved = await trxRepos.cardTrades.filterReservedCopyIds(batch);
+      if (reserved.length > 0) {
+        throw new AppError(
+          409,
+          ERROR_CODES.CONFLICT,
+          "Some of your cards are reserved in active trades — cancel those trades first.",
+        );
+      }
+      const loaned = await trxRepos.loans.filterLoanedCopyIds(batch);
+      if (loaned.length > 0) {
+        throw new AppError(
+          409,
+          ERROR_CODES.CONFLICT,
+          "Some of your cards are lent out — mark those loans returned or written off first.",
+        );
+      }
+    }
+
+    // Snapshot before the wipe: only lists that had entries going in are
+    // prune candidates, so a list the user emptied earlier stays around.
+    const pruneCandidateIds = await trxRepos.lists.listIdsWithEntries(userId);
+
+    // Log disposal events while the copy FKs still resolve (same shape as
+    // disposeCopies; collection_events.copy_id goes SET NULL on delete).
+    for (const batch of chunk(copies, RESET_BATCH_SIZE)) {
+      await logEvents(
+        trxRepos,
+        batch.map((copy) => ({
+          userId,
+          action: "removed" as const,
+          printingId: copy.printingId,
+          copyId: copy.id,
+          fromCollectionId: copy.collectionId,
+          fromCollectionName: copy.collectionName,
+        })),
+      );
+    }
+
+    // Copies first — a DB trigger blocks deleting a non-empty collection.
+    // Deleting copies also cascades away the copy-kind list entries, which is
+    // what turns lists into prune candidates below.
+    const removedCopies = await trxRepos.copies.deleteAllInPersonalCollections(userId);
+    const removedCollections = await trxRepos.collections.deleteAllPersonalExceptInbox(userId);
+    await trxRepos.collections.ensureInbox(userId);
+    const removedLists = await trxRepos.lists.deleteEmptyWithoutRules(userId, pruneCandidateIds);
+
+    return { removedCopies, removedCollections, removedLists };
   });
 }
