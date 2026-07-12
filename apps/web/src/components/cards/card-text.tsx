@@ -155,7 +155,8 @@ function renderTokens(
               key={`${i}-${token.name}`}
               aria-label={`energy ${energyMatch[1]}`}
               className={cn(
-                "inline-flex size-[1.45em] items-center justify-center rounded-full align-[-0.125em] text-[0.7em] font-bold not-italic",
+                // align resolves against this element's own 0.7em font-size, so -0.179em ≈ the glyph images' -0.125em of card text
+                "inline-flex size-[1.45em] items-center justify-center rounded-full align-[-0.179em] text-[0.7em] font-bold not-italic",
                 onDark ? "bg-white text-black" : "bg-foreground text-background",
               )}
             >
