@@ -155,8 +155,10 @@ function renderTokens(
               key={`${i}-${token.name}`}
               aria-label={`energy ${energyMatch[1]}`}
               className={cn(
-                // align resolves against this element's own 0.7em font-size, so -0.179em ≈ the glyph images' -0.125em of card text
-                "inline-flex size-[1.45em] items-center justify-center rounded-full align-[-0.179em] text-[0.7em] font-bold not-italic",
+                // inline-block + overflow-hidden anchors align at the box bottom (an inline-flex baseline
+                // is the digit's, hanging the circle ~4px low); leading-[1.45em] = the box height centers
+                // the digit, and -0.179em of the own 0.7em font-size = the glyph images' -0.125em offset
+                "inline-block size-[1.45em] overflow-hidden rounded-full text-center align-[-0.179em] text-[0.7em] leading-[1.45em] font-bold not-italic",
                 onDark ? "bg-white text-black" : "bg-foreground text-background",
               )}
             >

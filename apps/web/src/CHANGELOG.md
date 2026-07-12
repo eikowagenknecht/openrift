@@ -4,7 +4,7 @@
 
 ### Other
 
-- fix(Cards): **Energy circles on the text line** — the numbered energy-cost circle in card text sat slightly higher than the rune symbols next to it and now lines up with them.
+- fix(Cards): **Energy circles on the text line** — the numbered energy-cost circle in card text hung noticeably lower than the rune symbols next to it and now lines up with them.
 
 ## 2026-07-11
 
