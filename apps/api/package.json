@@ -11,7 +11,8 @@
     "dev": "bun --env-file=../../.env --watch src/index.ts",
     "start": "bun --env-file=../../.env src/index.ts",
     "build": "tsgo",
-    "build:tsc": "NODE_OPTIONS='--max-old-space-size=4096' tsc"
+    "build:tsc": "NODE_OPTIONS='--max-old-space-size=4096' tsc",
+    "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
     "@better-auth/api-key": "1.6.23",

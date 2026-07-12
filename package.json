@@ -8,6 +8,7 @@
   "type": "module",
   "scripts": {
     "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
     "dev": "bun scripts/dev.ts",
     "dev:web": "turbo run dev --filter=web",
     "analyze": "bun run --cwd apps/web analyze",
