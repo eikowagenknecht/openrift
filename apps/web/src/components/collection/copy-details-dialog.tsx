@@ -27,6 +27,8 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useCopies, useUpdateCopies } from "@/hooks/use-copies";
 import { useConditionList, useEnumOrders, useGraderList } from "@/hooks/use-enums";
+import { formatCardId, formatPrintingLabel } from "@/lib/format";
+import { getFilterIconPath } from "@/lib/icons";
 
 /** What the grid resolved from the right-clicked tile. */
 export interface CopyDetailsTarget {
@@ -112,6 +114,7 @@ export function CopyDetailsDialog({
             copy={editingCopy}
             cardName={target.cardName}
             printing={target.printingByCopyId.get(editingCopy.id)}
+            siblings={distinctPrintings(target.printingByCopyId)}
             showBack={target.copyIds.length > 1}
             onBack={() => setEditingCopyId(null)}
             onDone={() =>
@@ -121,6 +124,50 @@ export function CopyDetailsDialog({
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * The distinct printings among a tile's copies, deduped by printing id, used as
+ * the `siblings` list for `formatPrintingLabel`. Deduping to the printings
+ * actually on screen means the label only calls out attributes that differ
+ * across these copies — a tile whose copies all share one printing stays
+ * "Standard" rather than spelling out attributes no sibling contradicts.
+ * @returns The unique printings, one per id.
+ */
+function distinctPrintings(printingByCopyId: Map<string, Printing>): Printing[] {
+  const byId = new Map<string, Printing>();
+  for (const printing of printingByCopyId.values()) {
+    byId.set(printing.id, printing);
+  }
+  return [...byId.values()];
+}
+
+/**
+ * The shortcode, distinguishing variant label, and (on mixed-rarity tiles) a
+ * rarity icon for one printing — mirrors the card detail pane's printing rows
+ * so copies that span printings are told apart the same descriptive way.
+ * @returns The inline printing descriptor.
+ */
+function PrintingDescriptor({ printing, siblings }: { printing: Printing; siblings: Printing[] }) {
+  const { labels } = useEnumOrders();
+  const hasMixedRarities = new Set(siblings.map((p) => p.rarity)).size > 1;
+  const rarityIcon = getFilterIconPath("rarities", printing.rarity);
+  return (
+    <>
+      <span className="font-mono text-xs">{formatCardId(printing)}</span>{" "}
+      {formatPrintingLabel(printing, siblings, labels)}
+      {hasMixedRarities && rarityIcon && (
+        <img
+          src={rarityIcon}
+          alt={printing.rarity}
+          title={printing.rarity}
+          width={28}
+          height={28}
+          className="ml-1 inline size-3.5 align-text-bottom"
+        />
+      )}
+    </>
   );
 }
 
@@ -155,6 +202,7 @@ function CopyPickerList({
   onClose: () => void;
 }) {
   const [highlightedId, setHighlightedId] = useState("");
+  const siblings = distinctPrintings(target.printingByCopyId);
   return (
     <>
       <DialogHeader>
@@ -177,7 +225,9 @@ function CopyPickerList({
                 <span className="truncate">
                   Copy {index + 1}
                   {printing && (
-                    <span className="text-muted-foreground ml-2 text-sm">{printing.shortCode}</span>
+                    <span className="text-muted-foreground ml-2 text-sm">
+                      <PrintingDescriptor printing={printing} siblings={siblings} />
+                    </span>
                   )}
                 </span>
                 <CopySummary copy={copy} />
@@ -199,6 +249,7 @@ function CopyEditor({
   copy,
   cardName,
   printing,
+  siblings,
   showBack,
   onBack,
   onDone,
@@ -206,6 +257,7 @@ function CopyEditor({
   copy: CopyResponse;
   cardName: string;
   printing: Printing | undefined;
+  siblings: Printing[];
   showBack: boolean;
   onBack: () => void;
   onDone: () => void;
@@ -262,7 +314,12 @@ function CopyEditor({
         </DialogTitle>
         <DialogDescription>
           {cardName}
-          {printing ? ` · ${printing.shortCode}` : ""}
+          {printing && (
+            <>
+              {" · "}
+              <PrintingDescriptor printing={printing} siblings={siblings} />
+            </>
+          )}
         </DialogDescription>
       </DialogHeader>
 

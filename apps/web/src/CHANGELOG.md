@@ -8,6 +8,7 @@
 
 ### Other
 
+- feat(Collection): **Tell copies' printings apart** — the "Copies of…" list now labels each copy with its printing's variant details (foil, alt art, language) and rarity, not just the set code.
 - feat(Collection): **Reset collections in one step** — a new profile danger-zone action removes every card, keeps only your Inbox, and cleans up lists that end up empty.
 - fix(Collection): **Worth counts only your cards** — the "worth" total counted shared group collections too, so it stayed non-zero after you cleared your own cards, and now counts only yours.
 - fix(Cards): **Full-size rune symbols** — the rune icons in card text carried an invisible margin inside the image and rendered smaller than intended; they now fill their full space.
