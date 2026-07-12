@@ -427,7 +427,7 @@ function AddDeckDialog({
     if (!participantId) {
       return;
     }
-    const detail = await createEntry.mutateAsync({
+    await createEntry.mutateAsync({
       tournamentId,
       participantId,
       cards: parsed.cards,
@@ -436,9 +436,8 @@ function AddDeckDialog({
     reset();
     onOpenChange(false);
     void navigate({
-      to: "/tournaments/$id",
+      to: "/tournaments/$id/decks",
       params: { id: tournamentId },
-      search: { tab: "decks", entry: detail.entry.id },
     });
   };
 
