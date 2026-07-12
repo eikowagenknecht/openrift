@@ -1,5 +1,5 @@
 import type { CopyListMembershipsResponse } from "@openrift/shared";
-import { TriangleAlertIcon } from "lucide-react";
+import { LoaderIcon, TriangleAlertIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import {
@@ -167,10 +167,6 @@ export function TakeOffTradelistDialog({
             </div>
           )}
 
-          {sold && membershipsLoading && (
-            <p className="text-muted-foreground text-sm">Checking your other lists…</p>
-          )}
-
           {sold && needsTypeConfirm && (
             <div className="space-y-1.5">
               <label htmlFor="take-off-confirm" className="text-sm font-medium">
@@ -197,13 +193,22 @@ export function TakeOffTradelistDialog({
               variant={sold ? "destructive" : "default"}
               disabled={confirmDisabled}
             >
-              {isPending
-                ? sold
-                  ? "Removing…"
-                  : "Taking off…"
-                : sold
-                  ? `Remove ${count} ${cardNoun}`
-                  : "Take off list"}
+              {sold && membershipsLoading ? (
+                <>
+                  <LoaderIcon className="animate-spin" />
+                  Checking your other lists…
+                </>
+              ) : isPending ? (
+                sold ? (
+                  "Removing…"
+                ) : (
+                  "Taking off…"
+                )
+              ) : sold ? (
+                `Remove ${count} ${cardNoun}`
+              ) : (
+                "Take off list"
+              )}
             </Button>
           </div>
         </DialogForm>
