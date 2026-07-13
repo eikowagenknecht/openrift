@@ -17,3 +17,17 @@ export function isUniqueViolation(error: unknown): boolean {
     (error as { code?: unknown }).code === "23505"
   );
 }
+
+/**
+ * @returns `true` if the error is a unique-constraint violation raised by the
+ * named constraint specifically. Use this over {@link isUniqueViolation} when a
+ * block can raise 23505 from more than one index and only one of them maps to a
+ * graceful response — a violation from any other constraint should propagate.
+ * The driver (postgres.js) exposes the constraint on `error.constraint_name`.
+ */
+export function isUniqueViolationOn(error: unknown, constraintName: string): boolean {
+  return (
+    isUniqueViolation(error) &&
+    (error as { constraint_name?: unknown }).constraint_name === constraintName
+  );
+}

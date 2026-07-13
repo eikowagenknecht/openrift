@@ -11,7 +11,7 @@ import type { Repos } from "../deps.js";
 import { AppError } from "../errors.js";
 import type { PodRound, PodTournament } from "../repositories/pod-tournaments.js";
 import { assertFound } from "../utils/assertions.js";
-import { isUniqueViolation } from "../utils/pg-errors.js";
+import { isUniqueViolationOn } from "../utils/pg-errors.js";
 
 /**
  * The 409 raised when a second pairing collides with an already-open round.
@@ -105,8 +105,10 @@ export async function pairNextRound(
     // organizer double-click) can insert the same round number between the
     // check and this insert. uq_pod_rounds_number rejects the loser — turn that
     // into the same 409 rather than a raw 500. The redundant pairing run is
-    // wasted work, but no duplicate round is created.
-    if (isUniqueViolation(error)) {
+    // wasted work, but no duplicate round is created. Scope the catch to that
+    // one constraint so a 23505 from anywhere else inside createRound (e.g. a
+    // future pod/member insert bug) still surfaces as a real error.
+    if (isUniqueViolationOn(error, "uq_pod_rounds_number")) {
       throw roundAlreadyOpen();
     }
     throw error;

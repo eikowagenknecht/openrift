@@ -32,11 +32,27 @@ function reposFor(createRound: () => Promise<unknown>): Repos {
 describe("pairNextRound round-number race", () => {
   it("maps a unique violation on createRound to a 409, not a raw 500", async () => {
     const repos = reposFor(async () => {
-      throw Object.assign(new Error("duplicate key"), { code: "23505" });
+      throw Object.assign(new Error("duplicate key"), {
+        code: "23505",
+        constraint_name: "uq_pod_rounds_number",
+      });
     });
     const result = await pairNextRound(repos, TOURNAMENT).catch((error: unknown) => error);
     expect(result).toBeInstanceOf(AppError);
     expect((result as AppError).status).toBe(409);
+  });
+
+  it("re-throws a unique violation from a different constraint (not the round race)", async () => {
+    // A 23505 from some other index inside createRound is a real bug, not a
+    // pairing collision, so it must not be masked as "round already open".
+    const boom = Object.assign(new Error("duplicate key"), {
+      code: "23505",
+      constraint_name: "some_other_unique",
+    });
+    const repos = reposFor(async () => {
+      throw boom;
+    });
+    await expect(pairNextRound(repos, TOURNAMENT)).rejects.toBe(boom);
   });
 
   it("re-throws a non-unique createRound error", async () => {
