@@ -371,17 +371,14 @@ export function setTradeQuantity(
     // Keep the receiver's wish entry ≥ the request: claiming a copy is an explicit
     // "I want this one too", and trade-sync decrements the wish by the trade
     // quantity, so a smaller wish would go negative. Receiver-initiated requests
-    // always carry the entry; the guard keeps the giver-offer path safe.
+    // always carry the entry; the guard keeps the giver-offer path safe. Done as
+    // an atomic GREATEST so a concurrent wishlist edit isn't clobbered (audit #3).
     if (trade.receiverWishEntryId !== null) {
-      const wishEntry = await trxRepos.lists.getEntryByIdForUser(
+      await trxRepos.lists.raiseEntryQuantityTo(
         trade.receiverWishEntryId,
         trade.receiverUserId,
+        quantity,
       );
-      if (wishEntry !== undefined && wishEntry.quantity < quantity) {
-        await trxRepos.lists.updateEntry(wishEntry.id, wishEntry.listId, trade.receiverUserId, {
-          quantity,
-        });
-      }
     }
 
     const updated = await trxRepos.cardTrades.setPendingQuantity(tradeId, byUserId, quantity);

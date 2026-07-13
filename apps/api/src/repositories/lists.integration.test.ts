@@ -1053,4 +1053,53 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     const untouched = await repo.getEntryByIdForUser(entry.id, userId);
     expect(untouched?.quantity).toBe(3);
   });
+
+  it("raiseEntryQuantityTo lifts to the floor but never lowers", async () => {
+    const list = await repo.create({
+      userId,
+      name: "Raise",
+      intent: "wish",
+      kind: "card",
+    });
+    createdListIds.push(list.id);
+    const entry = await repo.createEntry({
+      listId: list.id,
+      userId,
+      kind: "card",
+      cardId: CARD_FURY_UNIT.id,
+      printingId: null,
+      copyId: null,
+      quantity: 2,
+    });
+
+    // Below the floor → raised; at/above → unchanged (GREATEST, not an assign).
+    await repo.raiseEntryQuantityTo(entry.id, userId, 4);
+    const raised = await repo.getEntryByIdForUser(entry.id, userId);
+    expect(raised?.quantity).toBe(4);
+    await repo.raiseEntryQuantityTo(entry.id, userId, 3);
+    const held = await repo.getEntryByIdForUser(entry.id, userId);
+    expect(held?.quantity).toBe(4);
+  });
+
+  it("raiseEntryQuantityTo is a no-op for a foreign owner", async () => {
+    const list = await repo.create({
+      userId,
+      name: "Raise foreign",
+      intent: "wish",
+      kind: "card",
+    });
+    createdListIds.push(list.id);
+    const entry = await repo.createEntry({
+      listId: list.id,
+      userId,
+      kind: "card",
+      cardId: CARD_FURY_UNIT.id,
+      printingId: null,
+      copyId: null,
+      quantity: 1,
+    });
+    await repo.raiseEntryQuantityTo(entry.id, "a0000000-9999-4000-a000-000000000099", 9);
+    const unchanged = await repo.getEntryByIdForUser(entry.id, userId);
+    expect(unchanged?.quantity).toBe(1);
+  });
 });

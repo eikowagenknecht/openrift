@@ -777,6 +777,22 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
       return undefined;
     },
 
+    /**
+     * Atomically raises an entry's quantity to at least `min`, leaving it
+     * untouched when it is already higher (`GREATEST` in one UPDATE). Removes
+     * the read-then-absolute-set race where a concurrent edit is clobbered. A
+     * missing or non-owned entry matches no row and is a silent no-op.
+     * @returns Nothing.
+     */
+    async raiseEntryQuantityTo(entryId: string, userId: string, min: number): Promise<void> {
+      await db
+        .updateTable("listEntries")
+        .set({ quantity: sql<number>`greatest(quantity, ${min})` })
+        .where("id", "=", entryId)
+        .where("userId", "=", userId)
+        .execute();
+    },
+
     /** @returns Delete result — check `numDeletedRows` to verify the entry existed. */
     deleteEntry(entryId: string, listId: string, userId: string): Promise<DeleteResult> {
       return db
