@@ -11,6 +11,19 @@ import type { Repos } from "../deps.js";
 import { AppError } from "../errors.js";
 import type { PodRound, PodTournament } from "../repositories/pod-tournaments.js";
 import { assertFound } from "../utils/assertions.js";
+import { isUniqueViolation } from "../utils/pg-errors.js";
+
+/**
+ * The 409 raised when a second pairing collides with an already-open round.
+ * @returns The conflict AppError.
+ */
+function roundAlreadyOpen(): AppError {
+  return new AppError(
+    409,
+    ERROR_CODES.CONFLICT,
+    "A round is already open. Finalize or re-roll it before pairing the next one.",
+  );
+}
 
 /** An empty round (every active player took a bye): zero pods, zero penalty. */
 const EMPTY_PAIRING: PairingResult = { pods: [], totalPenalty: 0, perPod: [], strategy: "random" };
@@ -75,20 +88,29 @@ export async function pairNextRound(
 ): Promise<PodRound> {
   const open = await repos.podTournaments.findOpenRound(tournament.id);
   if (open) {
-    throw new AppError(
-      409,
-      ERROR_CODES.CONFLICT,
-      "A round is already open. Finalize or re-roll it before pairing the next one.",
-    );
+    throw roundAlreadyOpen();
   }
   const roundNumber = tournament.currentRound + 1;
   const pairing = await runPairing(repos, tournament, roundNumber, byePlayerIds);
-  const round = await repos.podTournaments.createRound(
-    tournament.id,
-    roundNumber,
-    pairing,
-    byePlayerIds,
-  );
+  let round: PodRound;
+  try {
+    round = await repos.podTournaments.createRound(
+      tournament.id,
+      roundNumber,
+      pairing,
+      byePlayerIds,
+    );
+  } catch (error) {
+    // The findOpenRound guard above is a check-then-act: a concurrent pair (an
+    // organizer double-click) can insert the same round number between the
+    // check and this insert. uq_pod_rounds_number rejects the loser — turn that
+    // into the same 409 rather than a raw 500. The redundant pairing run is
+    // wasted work, but no duplicate round is created.
+    if (isUniqueViolation(error)) {
+      throw roundAlreadyOpen();
+    }
+    throw error;
+  }
   if (tournament.status === "setup") {
     await repos.podTournaments.update(tournament.id, { status: "running" });
   }
