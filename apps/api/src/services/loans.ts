@@ -94,6 +94,15 @@ export function createLoan(transact: Transact, input: CreateLoanInput): Promise<
       throw tooFewAvailable(unclaimed.length);
     }
 
+    // Lock the candidate copies before pinning so a concurrent dispose of one of
+    // them serializes against this loan (audit #7); the survivors are the ids
+    // that still exist under the lock.
+    const surviving = new Set(await trxRepos.copies.lockByIds(unclaimed));
+    const lockedCopyIds = unclaimed.filter((id) => surviving.has(id));
+    if (lockedCopyIds.length < quantity) {
+      throw tooFewAvailable(lockedCopyIds.length);
+    }
+
     const loan = await trxRepos.loans.create({
       lenderUserId,
       borrowerUserId: borrowerUserId ?? null,
@@ -103,7 +112,7 @@ export function createLoan(transact: Transact, input: CreateLoanInput): Promise<
       quantity,
     });
     try {
-      await trxRepos.loans.pinCopies(loan.id, unclaimed.slice(0, quantity));
+      await trxRepos.loans.pinCopies(loan.id, lockedCopyIds.slice(0, quantity));
     } catch (error) {
       // A concurrent loan or trade-accept pinned one of these copies between our
       // unclaimed read and this insert (UNIQUE(copy_id) on loan_copies / the
@@ -111,7 +120,7 @@ export function createLoan(transact: Transact, input: CreateLoanInput): Promise<
       // acceptTrade returns — instead of a raw 500. At least one of the picked
       // copies was lost, so report one fewer than we thought we had.
       if (isUniqueViolation(error)) {
-        throw tooFewAvailable(Math.max(0, unclaimed.length - 1));
+        throw tooFewAvailable(Math.max(0, lockedCopyIds.length - 1));
       }
       throw error;
     }

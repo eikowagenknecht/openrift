@@ -154,6 +154,7 @@ function createClearMockRepos(
           .filter((copy) => ids.includes(copy.id))
           .map((copy) => ({ ...copy, collectionId: "col-1", collectionName: "Inbox" })),
       ),
+      lockByIds: vi.fn(async (ids: string[]) => ids),
       deleteBatchById,
     },
     cardTrades: {

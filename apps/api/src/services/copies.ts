@@ -241,6 +241,12 @@ export async function disposeCopiesInTransaction(
   copyIds: string[],
   options?: { skipReservationGuard?: boolean },
 ): Promise<void> {
+  // Lock the copy rows first so a concurrent trade-accept or loan reserving one
+  // of them serializes against this dispose (audit #7). Without the lock the
+  // reservation guard below could pass, the reserve pin lands in the gap, and
+  // the delete would cascade the just-created reservation away.
+  await trxRepos.copies.lockByIds(copyIds);
+
   const copies = await trxRepos.copies.listWithCollectionContext(copyIds);
 
   if (copies.length !== copyIds.length) {

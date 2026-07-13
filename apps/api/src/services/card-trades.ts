@@ -230,12 +230,21 @@ export function acceptTrade(
       return reloadDto(trxRepos, tradeId, byUserId);
     }
 
+    // Lock the candidate copies before pinning so a concurrent dispose of one of
+    // them serializes against this accept (audit #7); the survivors are the ids
+    // that still exist under the lock. If a dispose deleted one in the gap we
+    // now have too few — 409 rather than an FK violation on a vanished copy.
+    const surviving = new Set(await trxRepos.copies.lockByIds(copyIds));
+    const lockedCopyIds = copyIds.filter((id) => surviving.has(id));
+    if (lockedCopyIds.length < trade.quantity) {
+      throw tooFewAvailable(lockedCopyIds.length);
+    }
     try {
-      await trxRepos.cardTrades.pinCopies(tradeId, copyIds.slice(0, trade.quantity));
+      await trxRepos.cardTrades.pinCopies(tradeId, lockedCopyIds.slice(0, trade.quantity));
     } catch (error) {
       // A concurrent accept claimed one of these copies first (UNIQUE(copy_id)).
       if (isUniqueViolation(error)) {
-        throw tooFewAvailable(Math.max(0, copyIds.length - 1));
+        throw tooFewAvailable(Math.max(0, lockedCopyIds.length - 1));
       }
       throw error;
     }

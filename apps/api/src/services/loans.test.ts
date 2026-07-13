@@ -14,6 +14,9 @@ function mockTransact(trxRepos: Repos): Transact {
  */
 function reposWithPinError(error: unknown): Repos {
   return {
+    copies: {
+      lockByIds: vi.fn(async (ids: string[]) => ids),
+    },
     loans: {
       printingCardId: vi.fn(async () => "card-1"),
       listUnclaimedCopyIds: vi.fn(async () => ["copy-1", "copy-2"]),

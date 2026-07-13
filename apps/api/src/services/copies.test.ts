@@ -61,6 +61,7 @@ function createMockRepos(overrides: {
     copies: {
       insertBatch: () => Promise.resolve(overrides.insertedCopies ?? []),
       listWithCollectionContext: () => Promise.resolve(overrides.fetchedCopies ?? []),
+      lockByIds: (copyIds: string[]) => Promise.resolve(copyIds),
       moveBatchById: () => Promise.resolve(),
       deleteBatchById: () => Promise.resolve(),
     },

@@ -195,6 +195,26 @@ describe.skipIf(!ctx)("copiesRepo (integration)", () => {
     const result = await copies.existsForViewer(toDelete.id, userId);
     expect(result).toBeUndefined();
   });
+
+  it("lockByIds returns only the surviving ids (dispose/reserve serialization)", async () => {
+    const inserted = await copies.insertBatch([
+      { printingId: printingId1, collectionId },
+      { printingId: printingId2, collectionId },
+    ]);
+    for (const copy of inserted) {
+      insertedCopyIds.push(copy.id);
+    }
+    const [alive, gone] = inserted;
+    await copies.deleteBatchById([gone.id]);
+
+    // The live copy is locked and returned; the deleted one drops out, which is
+    // how the reserve side detects a copy a concurrent dispose removed.
+    const locked = await copies.lockByIds([alive.id, gone.id]);
+    expect(locked).toEqual([alive.id]);
+
+    // Empty input never touches the DB.
+    expect(await copies.lockByIds([])).toEqual([]);
+  });
 });
 
 // ---------------------------------------------------------------------------

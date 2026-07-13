@@ -321,6 +321,27 @@ export function copiesRepo(db: Kysely<Database>) {
         .execute();
     },
 
+    /**
+     * Takes a `FOR UPDATE` row lock on the given copies (within the caller's
+     * transaction) and returns the ids that still exist. Reserve/dispose paths
+     * lock the same rows before acting so they serialize on a shared resource:
+     * a dispose can't delete a copy a concurrent trade-accept is reserving, and
+     * a reserve sees a copy already gone. Callers must pin/delete only survivors.
+     * @returns The subset of `copyIds` that currently exist, now locked.
+     */
+    async lockByIds(copyIds: string[]): Promise<string[]> {
+      if (copyIds.length === 0) {
+        return [];
+      }
+      const rows = await db
+        .selectFrom("copies")
+        .select("id")
+        .where("id", "in", copyIds)
+        .forUpdate()
+        .execute();
+      return rows.map((row) => row.id);
+    },
+
     /** Moves copies to a target collection; caller verified write access. */
     async moveBatchById(copyIds: string[], toCollectionId: string): Promise<void> {
       if (copyIds.length === 0) {
