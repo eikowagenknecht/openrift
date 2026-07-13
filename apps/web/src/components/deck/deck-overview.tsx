@@ -284,6 +284,7 @@ export function DeckOverview({
               deckValueCents={ownershipData.deckValueCents}
               ownedValueCents={ownershipData.ownedValueCents}
               missingValueCents={ownershipData.missingValueCents}
+              missingCount={ownershipData.missingCount}
               hasMissingCards={ownershipData.missingCards.length > 0}
               fmtPrice={fmtPrice}
               onViewMissing={onViewMissing}
@@ -459,6 +460,7 @@ function ValueKpi({
   deckValueCents,
   ownedValueCents,
   missingValueCents,
+  missingCount,
   hasMissingCards,
   fmtPrice,
   onViewMissing,
@@ -467,6 +469,7 @@ function ValueKpi({
   deckValueCents: number;
   ownedValueCents: number | undefined;
   missingValueCents: number | undefined;
+  missingCount: number;
   hasMissingCards: boolean;
   fmtPrice: (cents: number) => string;
   onViewMissing?: () => void;
@@ -476,6 +479,12 @@ function ValueKpi({
   const ownedPct =
     deckValueCents > 0 ? Math.min(100, Math.round((owned / deckValueCents) * 100)) : 0;
   const hasMissingValue = missingValueCents !== undefined && missingValueCents > 0;
+  const missingLabel =
+    missingCount > 0
+      ? `${missingCount} ${missingCount === 1 ? "card" : "cards"} missing${
+          hasMissingValue ? ` (${fmtPrice(missingValueCents)})` : ""
+        }`
+      : "Fully owned";
 
   if (anonymous) {
     return (
@@ -517,9 +526,7 @@ function ValueKpi({
       }
       caption={
         <>
-          <span className="truncate">
-            {hasMissingValue ? `${fmtPrice(missingValueCents)} missing` : "Fully owned"}
-          </span>
+          <span className="truncate">{missingLabel}</span>
           {hasMissingCards && onViewMissing && (
             <Button variant="outline" size="sm" className="ml-auto" onClick={onViewMissing}>
               <PackageSearchIcon />

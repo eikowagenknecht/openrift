@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-07-13
+
+### Other
+
+- feat(Decks): **Missing card count in value tile** — the deck value card now shows how many cards you still need alongside the estimated cost to buy them.
+
 ## 2026-07-12
 
 ### Highlights
