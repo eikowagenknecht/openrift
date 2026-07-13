@@ -914,7 +914,7 @@ export function deckCheckRepo(db: Kysely<Database>) {
      * moved (or newly merged-in) copies reset to unfound.
      * @returns False when the source row no longer exists.
      */
-    async moveCardCopies(
+    moveCardCopies(
       entryId: string,
       cardId: string,
       params: {
@@ -925,84 +925,114 @@ export function deckCheckRepo(db: Kysely<Database>) {
         copies?: number;
       },
     ): Promise<boolean> {
-      const source = await db
-        .selectFrom("deckCheckEntryCards")
-        .select(["quantity", "foundCopies", "zone"])
-        .where("id", "=", cardId)
-        .where("entryId", "=", entryId)
-        .executeTakeFirst();
-      if (!source) {
-        return false;
-      }
-
-      const { name, resolution, section, zone } = params;
-      const resolutionColumns = {
-        rawName: name,
-        resolvedCardId: resolution.resolvedCardId,
-        resolvedPrintingId: resolution.resolvedPrintingId,
-        matchStatus: resolution.matchStatus,
-      };
-
-      // Re-zoning to the same zone is just a rename — never split into self.
-      if (zone === source.zone) {
-        await db
-          .updateTable("deckCheckEntryCards")
-          .set({ ...resolutionColumns, section })
+      // Wrapped in a transaction with a FOR UPDATE lock on the source line so a
+      // concurrent split of the same line (two judges, or a double-click)
+      // serializes instead of both reading the same quantity and issuing
+      // conflicting shrink writes (audit #1). Every read/write below uses trx.
+      return db.transaction().execute(async (trx) => {
+        const source = await trx
+          .selectFrom("deckCheckEntryCards")
+          .select(["quantity", "foundCopies", "zone"])
           .where("id", "=", cardId)
           .where("entryId", "=", entryId)
-          .execute();
-        return true;
-      }
+          .forUpdate()
+          .executeTakeFirst();
+        if (!source) {
+          return false;
+        }
 
-      const moveCount = Math.min(Math.max(params.copies ?? source.quantity, 1), source.quantity);
-      const fullMove = moveCount >= source.quantity;
-      // Dense, exact-length found arrays: the driver can't store the sparse,
-      // non-1-based arrays raw subscript assignment would produce.
-      const denseFound = (found: (boolean | null)[], length: number): boolean[] =>
-        Array.from({ length }, (_copy, index) => Boolean(found[index]));
-      // Bind the boolean[] as a typed array literal. Passing the raw JS array as
-      // a Kysely value makes postgres.js bind it as a scalar boolean, so the
-      // assignment fails with "column is of type boolean[] but expression is of
-      // type boolean" (42804).
-      const foundArray = (values: boolean[]) =>
-        sql<boolean[]>`${`{${values.map((value) => (value ? "t" : "f")).join(",")}}`}::bool[]`;
+        const { name, resolution, section, zone } = params;
+        const resolutionColumns = {
+          rawName: name,
+          resolvedCardId: resolution.resolvedCardId,
+          resolvedPrintingId: resolution.resolvedPrintingId,
+          matchStatus: resolution.matchStatus,
+        };
 
-      // A line already holding the same resolved card in the target zone absorbs
-      // the move (matches the name+zone identity the content hash uses).
-      const mergeTarget =
-        resolution.matchStatus === "matched" && resolution.resolvedCardId
-          ? await db
-              .selectFrom("deckCheckEntryCards")
-              .select(["id", "quantity", "foundCopies"])
-              .where("entryId", "=", entryId)
-              .where("zone", "=", zone)
-              .where("resolvedCardId", "=", resolution.resolvedCardId)
-              .where("id", "!=", cardId)
-              .executeTakeFirst()
-          : undefined;
-
-      if (mergeTarget) {
-        await db
-          .updateTable("deckCheckEntryCards")
-          .set({
-            quantity: mergeTarget.quantity + moveCount,
-            foundCopies: foundArray([
-              ...denseFound(mergeTarget.foundCopies, mergeTarget.quantity),
-              ...denseFound([], moveCount),
-            ]),
-          })
-          .where("id", "=", mergeTarget.id)
-          .execute();
-        // The source line is emptied by a full move, otherwise just shrunk.
-        if (fullMove) {
-          await db
-            .deleteFrom("deckCheckEntryCards")
+        // Re-zoning to the same zone is just a rename — never split into self.
+        if (zone === source.zone) {
+          await trx
+            .updateTable("deckCheckEntryCards")
+            .set({ ...resolutionColumns, section })
             .where("id", "=", cardId)
             .where("entryId", "=", entryId)
             .execute();
           return true;
         }
-        await db
+
+        const moveCount = Math.min(Math.max(params.copies ?? source.quantity, 1), source.quantity);
+        const fullMove = moveCount >= source.quantity;
+        // Dense, exact-length found arrays: the driver can't store the sparse,
+        // non-1-based arrays raw subscript assignment would produce.
+        const denseFound = (found: (boolean | null)[], length: number): boolean[] =>
+          Array.from({ length }, (_copy, index) => Boolean(found[index]));
+        // Bind the boolean[] as a typed array literal. Passing the raw JS array as
+        // a Kysely value makes postgres.js bind it as a scalar boolean, so the
+        // assignment fails with "column is of type boolean[] but expression is of
+        // type boolean" (42804).
+        const foundArray = (values: boolean[]) =>
+          sql<boolean[]>`${`{${values.map((value) => (value ? "t" : "f")).join(",")}}`}::bool[]`;
+
+        // A line already holding the same resolved card in the target zone absorbs
+        // the move (matches the name+zone identity the content hash uses).
+        const mergeTarget =
+          resolution.matchStatus === "matched" && resolution.resolvedCardId
+            ? await trx
+                .selectFrom("deckCheckEntryCards")
+                .select(["id", "quantity", "foundCopies"])
+                .where("entryId", "=", entryId)
+                .where("zone", "=", zone)
+                .where("resolvedCardId", "=", resolution.resolvedCardId)
+                .where("id", "!=", cardId)
+                .executeTakeFirst()
+            : undefined;
+
+        if (mergeTarget) {
+          await trx
+            .updateTable("deckCheckEntryCards")
+            .set({
+              quantity: mergeTarget.quantity + moveCount,
+              foundCopies: foundArray([
+                ...denseFound(mergeTarget.foundCopies, mergeTarget.quantity),
+                ...denseFound([], moveCount),
+              ]),
+            })
+            .where("id", "=", mergeTarget.id)
+            .execute();
+          // The source line is emptied by a full move, otherwise just shrunk.
+          if (fullMove) {
+            await trx
+              .deleteFrom("deckCheckEntryCards")
+              .where("id", "=", cardId)
+              .where("entryId", "=", entryId)
+              .execute();
+            return true;
+          }
+          await trx
+            .updateTable("deckCheckEntryCards")
+            .set({
+              ...resolutionColumns,
+              quantity: source.quantity - moveCount,
+              foundCopies: foundArray(denseFound(source.foundCopies, source.quantity - moveCount)),
+            })
+            .where("id", "=", cardId)
+            .where("entryId", "=", entryId)
+            .execute();
+          return true;
+        }
+
+        if (fullMove) {
+          await trx
+            .updateTable("deckCheckEntryCards")
+            .set({ ...resolutionColumns, section, zone })
+            .where("id", "=", cardId)
+            .where("entryId", "=", entryId)
+            .execute();
+          return true;
+        }
+
+        // Partial move into a fresh line in the target zone.
+        await trx
           .updateTable("deckCheckEntryCards")
           .set({
             ...resolutionColumns,
@@ -1012,52 +1042,29 @@ export function deckCheckRepo(db: Kysely<Database>) {
           .where("id", "=", cardId)
           .where("entryId", "=", entryId)
           .execute();
-        return true;
-      }
-
-      if (fullMove) {
-        await db
-          .updateTable("deckCheckEntryCards")
-          .set({ ...resolutionColumns, section, zone })
-          .where("id", "=", cardId)
+        const last = await trx
+          .selectFrom("deckCheckEntryCards")
+          .select("sortOrder")
           .where("entryId", "=", entryId)
+          .orderBy("sortOrder", "desc")
+          .limit(1)
+          .executeTakeFirst();
+        await trx
+          .insertInto("deckCheckEntryCards")
+          .values({
+            entryId,
+            sortOrder: (last?.sortOrder ?? -1) + 1,
+            rawName: name,
+            section,
+            zone,
+            quantity: moveCount,
+            resolvedCardId: resolution.resolvedCardId,
+            resolvedPrintingId: resolution.resolvedPrintingId,
+            matchStatus: resolution.matchStatus,
+          })
           .execute();
         return true;
-      }
-
-      // Partial move into a fresh line in the target zone.
-      await db
-        .updateTable("deckCheckEntryCards")
-        .set({
-          ...resolutionColumns,
-          quantity: source.quantity - moveCount,
-          foundCopies: foundArray(denseFound(source.foundCopies, source.quantity - moveCount)),
-        })
-        .where("id", "=", cardId)
-        .where("entryId", "=", entryId)
-        .execute();
-      const last = await db
-        .selectFrom("deckCheckEntryCards")
-        .select("sortOrder")
-        .where("entryId", "=", entryId)
-        .orderBy("sortOrder", "desc")
-        .limit(1)
-        .executeTakeFirst();
-      await db
-        .insertInto("deckCheckEntryCards")
-        .values({
-          entryId,
-          sortOrder: (last?.sortOrder ?? -1) + 1,
-          rawName: name,
-          section,
-          zone,
-          quantity: moveCount,
-          resolvedCardId: resolution.resolvedCardId,
-          resolvedPrintingId: resolution.resolvedPrintingId,
-          matchStatus: resolution.matchStatus,
-        })
-        .execute();
-      return true;
+      });
     },
 
     /**
