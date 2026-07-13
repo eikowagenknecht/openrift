@@ -3,6 +3,7 @@ import type { LoanResponse } from "@openrift/shared/types";
 
 import type { Repos, Transact } from "../deps.js";
 import { AppError } from "../errors.js";
+import { isUniqueViolation } from "../utils/pg-errors.js";
 import { disposeCopiesInTransaction } from "./copies.js";
 
 export interface CreateLoanInput {
@@ -101,7 +102,19 @@ export function createLoan(transact: Transact, input: CreateLoanInput): Promise<
       cardId,
       quantity,
     });
-    await trxRepos.loans.pinCopies(loan.id, unclaimed.slice(0, quantity));
+    try {
+      await trxRepos.loans.pinCopies(loan.id, unclaimed.slice(0, quantity));
+    } catch (error) {
+      // A concurrent loan or trade-accept pinned one of these copies between our
+      // unclaimed read and this insert (UNIQUE(copy_id) on loan_copies / the
+      // shared reservation). Surface it as "too few available" — the same 409
+      // acceptTrade returns — instead of a raw 500. At least one of the picked
+      // copies was lost, so report one fewer than we thought we had.
+      if (isUniqueViolation(error)) {
+        throw tooFewAvailable(Math.max(0, unclaimed.length - 1));
+      }
+      throw error;
+    }
 
     return reloadDto(trxRepos, loan.id, lenderUserId);
   });
