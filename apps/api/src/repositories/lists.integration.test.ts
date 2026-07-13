@@ -995,4 +995,62 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
       .executeTakeFirst();
     expect(surviving).toBeUndefined();
   });
+
+  // ── Atomic quantity decrement (trade-sync, audit #2) ────────────────────────
+
+  it("decrementEntryQuantity subtracts in-SQL and deletes on exhaustion", async () => {
+    const list = await repo.create({
+      userId,
+      name: "Decrement",
+      intent: "wish",
+      kind: "card",
+    });
+    createdListIds.push(list.id);
+    const entry = await repo.createEntry({
+      listId: list.id,
+      userId,
+      kind: "card",
+      cardId: CARD_FURY_UNIT.id,
+      printingId: null,
+      copyId: null,
+      quantity: 5,
+    });
+
+    // Each call decrements atomically, returning the new quantity.
+    expect(await repo.decrementEntryQuantity(entry.id, userId, 2)).toBe(3);
+    expect(await repo.decrementEntryQuantity(entry.id, userId, 2)).toBe(1);
+
+    // Exhausting (1 - 2 <= 0) deletes the entry rather than writing a
+    // constraint-violating non-positive quantity; the caller gets undefined.
+    expect(await repo.decrementEntryQuantity(entry.id, userId, 2)).toBeUndefined();
+    const gone = await repo.getEntryByIdForUser(entry.id, userId);
+    expect(gone).toBeUndefined();
+  });
+
+  it("decrementEntryQuantity is undefined and inert for a missing or foreign entry", async () => {
+    const list = await repo.create({
+      userId,
+      name: "Decrement miss",
+      intent: "wish",
+      kind: "card",
+    });
+    createdListIds.push(list.id);
+    const entry = await repo.createEntry({
+      listId: list.id,
+      userId,
+      kind: "card",
+      cardId: CARD_FURY_UNIT.id,
+      printingId: null,
+      copyId: null,
+      quantity: 3,
+    });
+
+    // Unknown id and foreign owner both match nothing; the real entry is intact.
+    expect(await repo.decrementEntryQuantity(crypto.randomUUID(), userId, 1)).toBeUndefined();
+    expect(
+      await repo.decrementEntryQuantity(entry.id, "a0000000-9999-4000-a000-000000000099", 1),
+    ).toBeUndefined();
+    const untouched = await repo.getEntryByIdForUser(entry.id, userId);
+    expect(untouched?.quantity).toBe(3);
+  });
 });

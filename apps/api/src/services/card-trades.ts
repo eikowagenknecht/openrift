@@ -472,20 +472,16 @@ async function applyReceiverSync(
     })),
   );
 
-  // Decrement the snapshotted wish entry; if it was deleted (FK SET NULL), skip.
+  // Decrement the snapshotted wish entry atomically so a concurrent wishlist
+  // edit isn't clobbered (audit #2); the repo deletes it when it hits zero. A
+  // deleted entry (FK SET NULL leaves receiverWishEntryId, or the row is gone)
+  // matches nothing and is a no-op.
   if (trade.receiverWishEntryId !== null) {
-    const entry = await trxRepos.lists.getEntryByIdForUser(
+    await trxRepos.lists.decrementEntryQuantity(
       trade.receiverWishEntryId,
       trade.receiverUserId,
+      trade.quantity,
     );
-    if (entry !== undefined) {
-      const remaining = entry.quantity - trade.quantity;
-      await (remaining <= 0
-        ? trxRepos.lists.deleteEntry(entry.id, entry.listId, trade.receiverUserId)
-        : trxRepos.lists.updateEntry(entry.id, entry.listId, trade.receiverUserId, {
-            quantity: remaining,
-          }));
-    }
   }
 }
 

@@ -738,6 +738,45 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
         .executeTakeFirst();
     },
 
+    /**
+     * Atomically reduces an entry's quantity by `by`, deleting it when the
+     * result would reach zero or below (entries are constrained to quantity > 0,
+     * so a wish that trade-sync empties is removed, never written non-positive).
+     * The guarded UPDATE fires only while the result stays positive, so it can't
+     * violate the check constraint, and its row write-lock serializes concurrent
+     * decrements — replacing the old read-into-JS-then-absolute-set that lost a
+     * concurrent writer's change. The conditional DELETE handles exhaustion.
+     * Owner-scoped; a missing or non-owned entry is a silent no-op.
+     * @returns The new quantity, or `undefined` when the entry was deleted or absent.
+     */
+    async decrementEntryQuantity(
+      entryId: string,
+      userId: string,
+      by: number,
+    ): Promise<number | undefined> {
+      const updated = await db
+        .updateTable("listEntries")
+        .set({ quantity: sql<number>`quantity - ${by}` })
+        .where("id", "=", entryId)
+        .where("userId", "=", userId)
+        .where("quantity", ">", by)
+        .returning("quantity")
+        .executeTakeFirst();
+      if (updated) {
+        return updated.quantity;
+      }
+      // Either the entry is gone, or its quantity is <= by: it's exhausted, so
+      // remove it. The quantity guard makes this a no-op if a concurrent edit
+      // raised the entry back above `by` in the meantime.
+      await db
+        .deleteFrom("listEntries")
+        .where("id", "=", entryId)
+        .where("userId", "=", userId)
+        .where("quantity", "<=", by)
+        .execute();
+      return undefined;
+    },
+
     /** @returns Delete result — check `numDeletedRows` to verify the entry existed. */
     deleteEntry(entryId: string, listId: string, userId: string): Promise<DeleteResult> {
       return db
