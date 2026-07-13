@@ -12,6 +12,7 @@ import type { Repos } from "../../deps.js";
 import { requireUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import type { Tournament } from "../../repositories/tournaments.js";
+import { isUniqueViolation } from "../../utils/pg-errors.js";
 
 /**
  * Resolves the host's public display name (user name or org name).
@@ -44,6 +45,57 @@ export function participantDisplayName(name: string | null | undefined, email: s
   }
   const localPart = email.split("@")[0].trim();
   return localPart || "Player";
+}
+
+/**
+ * Attaches the caller to a tournament roster as a `requested` participant, or
+ * returns the existing spot. Idempotent under a concurrent double-submit: the
+ * one-participant-per-account partial index rejects the second insert, which we
+ * catch and resolve to the winning row instead of surfacing a raw 500.
+ * @returns The join response (`alreadyJoined` true when a spot already existed).
+ */
+export async function resolveSelfJoin(
+  repos: Repos,
+  tournamentId: string,
+  user: { id: string; name: string | null; email: string },
+): Promise<PublicTournamentJoinResponse> {
+  const existing = await repos.tournaments.findParticipantByUser(tournamentId, user.id);
+  if (existing) {
+    return {
+      participantId: existing.id,
+      status: existing.status as TournamentParticipantStatus,
+      alreadyJoined: true,
+    };
+  }
+  try {
+    const created = await repos.tournaments.createParticipant({
+      tournamentId,
+      userId: user.id,
+      displayName: participantDisplayName(user.name, user.email),
+      status: "requested",
+      claimSource: "self_submit",
+      claimedAt: new Date(),
+    });
+    return {
+      participantId: created.id,
+      status: created.status as TournamentParticipantStatus,
+      alreadyJoined: false,
+    };
+  } catch (error) {
+    // A concurrent double-submit inserted the participant between the existence
+    // check and this insert; uq_tournament_participants_user rejects the second.
+    if (isUniqueViolation(error)) {
+      const raced = await repos.tournaments.findParticipantByUser(tournamentId, user.id);
+      if (raced) {
+        return {
+          participantId: raced.id,
+          status: raced.status as TournamentParticipantStatus,
+          alreadyJoined: true,
+        };
+      }
+    }
+    throw error;
+  }
 }
 
 const os = implement(publicTournamentsContract).$context<ApiContext>().use(requireUser);
@@ -103,28 +155,9 @@ export const publicTournamentsRouter = {
       if (!tournament.selfRegistration) {
         throw errors.FORBIDDEN({ message: "Self-registration is not open" });
       }
-      // Respect the one-participant-per-account index: return the existing one.
-      const existing = await repos.tournaments.findParticipantByUser(tournament.id, user.id);
-      if (existing) {
-        return {
-          participantId: existing.id,
-          status: existing.status as TournamentParticipantStatus,
-          alreadyJoined: true,
-        };
-      }
-      const created = await repos.tournaments.createParticipant({
-        tournamentId: tournament.id,
-        userId: user.id,
-        displayName: participantDisplayName(user.name, user.email),
-        status: "requested",
-        claimSource: "self_submit",
-        claimedAt: new Date(),
-      });
-      return {
-        participantId: created.id,
-        status: created.status as TournamentParticipantStatus,
-        alreadyJoined: false,
-      };
+      // Respect the one-participant-per-account index: return the existing one,
+      // and stay idempotent if a concurrent submit wins the insert race.
+      return resolveSelfJoin(repos, tournament.id, user);
     },
   ),
 
