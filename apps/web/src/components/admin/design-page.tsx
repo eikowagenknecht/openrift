@@ -21,6 +21,7 @@ import { Area, AreaChart } from "recharts";
 import { toast } from "sonner";
 
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
+import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { CardCountStrip } from "@/components/cards/card-count-strip";
 import { CardStrip, StripActionButton, StripIconButton } from "@/components/cards/card-strip";
 import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
@@ -214,6 +215,7 @@ const SECTIONS = [
   { id: "toggles", title: "Toggles" },
   { id: "badges-chips", title: "Badges & chips" },
   { id: "pressable", title: "Pressable & disclosure" },
+  { id: "card-thumbnails", title: "Card thumbnails" },
   { id: "form-controls", title: "Form controls" },
   { id: "pickers", title: "Pickers & commands" },
   { id: "overlays", title: "Overlays" },
@@ -262,6 +264,7 @@ export function DesignPage() {
       <BadgesChipsSection />
       <PressableSection />
       <TilesSection />
+      <CardThumbnailsSection />
       <FormControlsSection />
       <PickersSection />
       <OverlaysSection />
@@ -932,6 +935,69 @@ function TilesSection() {
             hint="3 requests to review"
           />
         </div>
+      </DemoRow>
+    </DemoSection>
+  );
+}
+
+// Self-contained sample art so the design page stays static (no catalog
+// fetch). Portrait fills the frame directly; the landscape sample stands in for
+// a Battlefield — upright landscape content that the `landscape` prop rotates
+// into the portrait frame.
+const PORTRAIT_SAMPLE_ART = `data:image/svg+xml,${encodeURIComponent(
+  "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 63 88'><defs><linearGradient id='p' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#6366f1'/><stop offset='1' stop-color='#0ea5e9'/></linearGradient></defs><rect width='63' height='88' fill='url(#p)'/><circle cx='31.5' cy='26' r='10' fill='#fde047'/><text x='31.5' y='58' font-family='sans-serif' font-size='8' font-weight='bold' fill='white' text-anchor='middle'>UNIT</text></svg>",
+)}`;
+
+const LANDSCAPE_SAMPLE_ART = `data:image/svg+xml,${encodeURIComponent(
+  "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 88 63'><defs><linearGradient id='l' x1='0' y1='0' x2='1' y2='0'><stop offset='0' stop-color='#059669'/><stop offset='1' stop-color='#84cc16'/></linearGradient></defs><rect width='88' height='63' fill='url(#l)'/><text x='44' y='37' font-family='sans-serif' font-size='9' font-weight='bold' fill='white' text-anchor='middle'>BATTLEFIELD</text></svg>",
+)}`;
+
+function CardThumbnailsSection() {
+  return (
+    <DemoSection
+      id="card-thumbnails"
+      title="Card thumbnails"
+      note="CardArtThumb is the lightweight, image-only card frame for lists, tooltips, and stats. The frame is locked to the card aspect ratio and the art is object-cover, so a narrow cell can't distort it. Size it with a width or height utility; the other axis follows. The full grid tile (foil, pricing, sibling fan-out) is CardThumbnail."
+      docs="components/cards/card-art-thumb.tsx"
+    >
+      <DemoRow label="Sizes" hint="Height- or width-driven; the card aspect ratio stays fixed.">
+        <Swatch label="h-8">
+          <CardArtThumb src={PORTRAIT_SAMPLE_ART} className="h-8" />
+        </Swatch>
+        <Swatch label="h-10">
+          <CardArtThumb src={PORTRAIT_SAMPLE_ART} className="h-10" />
+        </Swatch>
+        <Swatch label="h-14">
+          <CardArtThumb src={PORTRAIT_SAMPLE_ART} className="h-14" />
+        </Swatch>
+        <Swatch label="w-16">
+          <CardArtThumb src={PORTRAIT_SAMPLE_ART} className="w-16" />
+        </Swatch>
+      </DemoRow>
+      <DemoRow
+        label="Battlefield (landscape)"
+        hint="Same source image. Without the prop, object-cover crops the landscape art to a center strip; the landscape prop rotates it -90° to fill the frame."
+      >
+        <Swatch label="no prop → cropped">
+          <CardArtThumb src={LANDSCAPE_SAMPLE_ART} className="h-14" />
+        </Swatch>
+        <Swatch label="landscape → rotated">
+          <CardArtThumb src={LANDSCAPE_SAMPLE_ART} landscape className="h-14" />
+        </Swatch>
+      </DemoRow>
+      <DemoRow
+        label="Empty states"
+        hint="Shown when no image resolves, or the image fails to load."
+      >
+        <Swatch label="generic">
+          <CardArtThumb imageId={null} className="h-14" />
+        </Swatch>
+        <Swatch label="rarity watermark">
+          <CardArtThumb imageId={null} rarity="showcase" className="h-14" />
+        </Swatch>
+        <Swatch label="domain tint">
+          <CardArtThumb imageId={null} rarity="showcase" domains={["chaos"]} className="h-14" />
+        </Swatch>
       </DemoRow>
     </DemoSection>
   );

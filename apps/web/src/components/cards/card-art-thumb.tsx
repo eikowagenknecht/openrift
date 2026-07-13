@@ -7,6 +7,7 @@ import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { getDomainColor } from "@/lib/domain";
 import { getFilterIconPath } from "@/lib/icons";
+import { LANDSCAPE_ROTATION_STYLE } from "@/lib/images";
 import { cn } from "@/lib/utils";
 
 interface CardArtThumbProps {
@@ -44,6 +45,12 @@ interface CardArtThumbProps {
   domains?: string[];
   /** Rendered inside the frame when there is no image. Overrides the default placeholder. */
   fallback?: ReactNode;
+  /**
+   * Landscape cards (Battlefields) are stored as landscape images; set this so
+   * the art is rotated -90° to fill the portrait frame instead of being cropped
+   * to a center strip. Derive it from `getOrientation(card.types) === "landscape"`.
+   */
+  landscape?: boolean;
 }
 
 /**
@@ -99,9 +106,10 @@ function ThumbPlaceholder({ rarity, domains }: { rarity?: string | null; domains
  * follows the ratio. `inline-block` keeps the aspect-driven axis content-sized
  * in both flex and block contexts.
  *
- * For the full grid thumbnail (foil, pricing, sibling fan-out, landscape
- * rotation) use `CardThumbnail` instead — this is the lightweight, image-only
- * frame for lists, tooltips, and stats.
+ * For the full grid thumbnail (foil, pricing, sibling fan-out) use
+ * `CardThumbnail` instead — this is the lightweight, image-only frame for
+ * lists, tooltips, and stats. Battlefield (landscape) art is handled here too
+ * via the `landscape` prop.
  *
  * @returns The framed card thumbnail element.
  */
@@ -115,9 +123,19 @@ export function CardArtThumb({
   rarity,
   domains,
   fallback,
+  landscape = false,
 }: CardArtThumbProps) {
   const resolved = src ?? (imageId ? imageUrl(imageId, variant) : null);
   const emptyFrame = fallback ?? <ThumbPlaceholder rarity={rarity} domains={domains} />;
+  const image = resolved && (
+    <ImgWithFallback
+      src={resolved}
+      alt={alt}
+      loading={loading}
+      className="size-full object-cover"
+      fallback={emptyFrame}
+    />
+  );
   return (
     <span
       className={cn(
@@ -126,14 +144,19 @@ export function CardArtThumb({
       )}
       style={{ borderRadius: CARD_BORDER_RADIUS }}
     >
-      {resolved ? (
-        <ImgWithFallback
-          src={resolved}
-          alt={alt}
-          loading={loading}
-          className="size-full object-cover"
-          fallback={emptyFrame}
-        />
+      {image ? (
+        landscape ? (
+          // Landscape art is rotated to fill the portrait frame — mirrors the
+          // rotated branch of CardThumbnail's CardArtImage.
+          <span
+            className="absolute top-1/2 left-1/2 overflow-hidden"
+            style={LANDSCAPE_ROTATION_STYLE}
+          >
+            {image}
+          </span>
+        ) : (
+          image
+        )
       ) : (
         emptyFrame
       )}

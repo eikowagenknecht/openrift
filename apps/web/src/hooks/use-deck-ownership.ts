@@ -1,5 +1,5 @@
 import type { Marketplace, PriceLookup, Printing, Rarity } from "@openrift/shared";
-import { legendDisplayName, preferredPrinting } from "@openrift/shared";
+import { getOrientation, legendDisplayName, preferredPrinting } from "@openrift/shared";
 
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 
@@ -10,6 +10,11 @@ export interface CardOwnership {
   cardId: string;
   /** Canonical catalog name — used for marketplace search URLs and the copy/paste buy-list. */
   cardName: string;
+  /**
+   * Card slug for linking to the in-app card detail page. Resolved from the
+   * display printing; `undefined` when the card has no printings in the catalog.
+   */
+  cardSlug: string | undefined;
   /** Colloquial Legend name ("Azir, Emperor of the Sands") for on-screen display only. */
   displayName: string;
   zone: string;
@@ -39,7 +44,17 @@ export interface CardOwnership {
    * The printing whose price backed `displayPrice` — used to deep-link to the
    * matching marketplace product. `undefined` when the card has no printings.
    */
-  displayPrinting: { id: string; language: string; shortCode: string; rarity: Rarity } | undefined;
+  displayPrinting:
+    | {
+        id: string;
+        language: string;
+        shortCode: string;
+        rarity: Rarity;
+        imageId: string | undefined;
+        /** True for Battlefields — their art is stored landscape and rotated for display. */
+        landscape: boolean;
+      }
+    | undefined;
 }
 
 export interface DeckOwnershipData {
@@ -194,12 +209,15 @@ export function computeDeckOwnership(
           language: resolvedPrinting.language,
           shortCode: resolvedPrinting.shortCode,
           rarity: resolvedPrinting.rarity,
+          imageId: resolvedPrinting.images[0]?.imageId,
+          landscape: getOrientation(resolvedPrinting.card.types) === "landscape",
         }
       : undefined;
 
     const entry: CardOwnership = {
       cardId: card.cardId,
       cardName: card.cardName,
+      cardSlug: resolvedPrinting?.card.slug,
       displayName: legendDisplayName({
         name: card.cardName,
         types: card.cardTypes,

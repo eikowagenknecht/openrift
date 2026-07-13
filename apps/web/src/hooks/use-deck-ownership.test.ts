@@ -107,6 +107,65 @@ describe("computeDeckOwnership", () => {
     expect(result.missingCards[0].displayName).toBe("Azir, Emperor of the Sands");
   });
 
+  it("exposes the resolved printing's card slug and front image for in-app linking", () => {
+    const cardId = "card-1";
+    const deckCards = [stubDeckBuilderCard({ cardId, quantity: 2, zone: "main" })];
+    const printings = [
+      stubPrinting({
+        id: "p1",
+        cardId,
+        card: { slug: "azir-emperor" },
+        images: [{ face: "front", imageId: "img-1" }],
+      }),
+    ];
+
+    const result = computeDeckOwnership(
+      deckCards,
+      printings,
+      {},
+      "tcgplayer",
+      EMPTY_PRICE_LOOKUP,
+      EN_FIRST,
+    );
+
+    expect(result.missingCards[0].cardSlug).toBe("azir-emperor");
+    expect(result.missingCards[0].displayPrinting?.imageId).toBe("img-1");
+    expect(result.missingCards[0].displayPrinting?.landscape).toBe(false);
+  });
+
+  it("flags Battlefields as landscape so their art is rotated for display", () => {
+    const cardId = "field-1";
+    const deckCards = [stubDeckBuilderCard({ cardId, quantity: 1, zone: "battlefield" })];
+    const printings = [stubPrinting({ id: "p1", cardId, card: { types: ["battlefield"] } })];
+
+    const result = computeDeckOwnership(
+      deckCards,
+      printings,
+      {},
+      "tcgplayer",
+      EMPTY_PRICE_LOOKUP,
+      EN_FIRST,
+    );
+
+    expect(result.missingCards[0].displayPrinting?.landscape).toBe(true);
+  });
+
+  it("leaves cardSlug undefined when the card has no printings", () => {
+    const cardId = "card-1";
+    const deckCards = [stubDeckBuilderCard({ cardId, quantity: 1, zone: "main" })];
+
+    const result = computeDeckOwnership(
+      deckCards,
+      [],
+      {},
+      "tcgplayer",
+      EMPTY_PRICE_LOOKUP,
+      EN_FIRST,
+    );
+
+    expect(result.missingCards[0].cardSlug).toBeUndefined();
+  });
+
   it("marks an unowned card as fully missing", () => {
     const cardId = "card-1";
 
@@ -227,6 +286,8 @@ describe("computeDeckOwnership", () => {
       language: "EN",
       shortCode: "OGN-001-EN",
       rarity: "common",
+      imageId: undefined,
+      landscape: false,
     });
     expect(entry?.displayPrice).toBe(500);
     expect(result.deckValueCents).toBe(500);
@@ -252,6 +313,8 @@ describe("computeDeckOwnership", () => {
       language: "EN",
       shortCode: "OGN-001",
       rarity: "common",
+      imageId: undefined,
+      landscape: false,
     });
     expect(entry?.displayPrice).toBe(5);
   });

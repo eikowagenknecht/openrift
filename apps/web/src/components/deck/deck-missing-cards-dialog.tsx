@@ -1,9 +1,10 @@
 import type { ListKind, Marketplace } from "@openrift/shared";
 import { straightenApostrophes } from "@openrift/shared";
-import { useNavigate } from "@tanstack/react-router";
-import { CheckIcon, CopyIcon, HeartIcon, LockIcon } from "lucide-react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { CheckIcon, CopyIcon, HeartIcon, LockIcon, ShoppingCartIcon } from "lucide-react";
 import { useState } from "react";
 
+import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import type { InitialEntry } from "@/components/list/create-list-dialog";
 import { CreateListDialog } from "@/components/list/create-list-dialog";
 import { MarketplaceLink } from "@/components/marketplace-link";
@@ -42,6 +43,53 @@ interface DeckMissingCardsDialogProps {
    * wishlist-creation dialog seeded with these missing cards.
    */
   deckName?: string;
+}
+
+/**
+ * Card rarity icon, short code, and display name. Links to the in-app card
+ * detail page when a slug is known; falls back to plain text otherwise (a card
+ * with no catalog printings has no slug to link to).
+ * @returns The card identification content.
+ */
+function CardIdentity({
+  card,
+  rarityLabel,
+}: {
+  card: CardOwnership;
+  rarityLabel: string | undefined;
+}) {
+  const content = (
+    <>
+      {card.displayPrinting && (
+        <img
+          src={getFilterIconPath("rarities", card.displayPrinting.rarity)}
+          alt={rarityLabel}
+          title={rarityLabel}
+          width={28}
+          height={28}
+          className="size-3.5 shrink-0"
+        />
+      )}
+      <span className="text-muted-foreground font-mono">
+        {card.displayPrinting?.shortCode ?? "--"}
+      </span>
+      <span>{card.displayName}</span>
+    </>
+  );
+
+  if (card.cardSlug === undefined) {
+    return <span className="inline-flex items-center gap-1.5">{content}</span>;
+  }
+
+  return (
+    <Link
+      to="/cards/$cardSlug"
+      params={{ cardSlug: card.cardSlug }}
+      className="hover:text-foreground inline-flex items-center gap-1.5 underline-offset-2 hover:underline"
+    >
+      {content}
+    </Link>
+  );
 }
 
 export function DeckMissingCardsDialog({
@@ -122,7 +170,7 @@ export function DeckMissingCardsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>
             {mode === "prices"
@@ -135,54 +183,43 @@ export function DeckMissingCardsDialog({
           </div>
         </DialogHeader>
 
-        <div className="max-h-80 overflow-y-auto">
-          <table className="w-full text-sm">
-            <thead className="text-muted-foreground bg-background sticky top-0 text-left">
-              <tr>
-                <th className="pb-2 font-medium">Printing</th>
-                <th className="pb-2 text-right font-medium">Qty</th>
-                <th className="pb-2 text-right font-medium">Cost</th>
-                <th className="pb-2 text-right font-medium">Total</th>
-              </tr>
-            </thead>
-            {groupedByZone.map(([zone, cards]) => (
-              <tbody key={zone}>
-                <tr>
-                  <th
-                    colSpan={4}
-                    className="text-muted-foreground bg-muted/40 border-t px-2 py-1 text-left font-medium"
-                  >
-                    {zoneLabel(zone)}
-                  </th>
-                </tr>
-                {cards.map((card) => (
-                  <tr key={`${card.cardId}:${card.zone}`} className="border-t">
-                    <td className="py-1.5">
-                      <MarketplaceLink
-                        marketplace={marketplace}
-                        href={linkFor(card)}
-                        className="hover:text-foreground inline-flex items-center gap-1.5 underline decoration-dotted underline-offset-2"
-                      >
-                        {card.displayPrinting && (
-                          <img
-                            src={getFilterIconPath("rarities", card.displayPrinting.rarity)}
-                            alt={enumLabels.rarities[card.displayPrinting.rarity]}
-                            title={enumLabels.rarities[card.displayPrinting.rarity]}
-                            width={28}
-                            height={28}
-                            className="size-3.5 shrink-0"
-                          />
-                        )}
-                        <span className="text-muted-foreground font-mono">
-                          {card.displayPrinting?.shortCode ?? "--"}
-                        </span>
-                        <span>{card.displayName}</span>
-                      </MarketplaceLink>
+        {/* scrollbar-gutter keeps a classic scrollbar out of the row; the row's
+            pr-3 keeps the cart clear of an overlay scrollbar. */}
+        <div className="max-h-80 [scrollbar-gutter:stable] overflow-y-auto text-sm">
+          {groupedByZone.map(([zone, cards]) => (
+            <div key={zone} className="pt-3 first:pt-0">
+              <div className="text-muted-foreground px-2 pb-1 text-xs font-medium tracking-wide uppercase">
+                {zoneLabel(zone)}
+              </div>
+              {cards.map((card) => (
+                <div
+                  key={`${card.cardId}:${card.zone}`}
+                  className="hover:bg-muted/40 flex items-center gap-2 rounded-md py-1.5 pr-3 pl-2 sm:gap-3"
+                >
+                  {/* Small card thumbnail alongside the two stacked rows on mobile;
+                      hidden on desktop where the row is a single line. */}
+                  <CardArtThumb
+                    imageId={card.displayPrinting?.imageId}
+                    landscape={card.displayPrinting?.landscape}
+                    rarity={card.displayPrinting?.rarity}
+                    loading="lazy"
+                    className="h-10 sm:hidden"
+                  />
+                  <div className="flex min-w-0 flex-1 flex-col gap-1 sm:contents">
+                    <div className="flex min-w-0 items-center gap-1.5 sm:flex-1">
+                      <CardIdentity
+                        card={card}
+                        rarityLabel={
+                          card.displayPrinting
+                            ? enumLabels.rarities[card.displayPrinting.rarity]
+                            : undefined
+                        }
+                      />
                       {card.locked > 0 && (
                         <Tooltip>
                           <TooltipTrigger
                             render={
-                              <span className="text-muted-foreground ml-1.5 inline-flex items-center align-middle" />
+                              <span className="text-muted-foreground inline-flex items-center" />
                             }
                           >
                             <LockIcon className="size-3" />
@@ -193,25 +230,45 @@ export function DeckMissingCardsDialog({
                           </TooltipContent>
                         </Tooltip>
                       )}
-                    </td>
-                    <td className="py-1.5 text-right">{card.shortfall}</td>
-                    <td className="text-muted-foreground py-1.5 text-right">
-                      {card.displayPrice === undefined ? "--" : fmt(card.displayPrice)}
-                    </td>
-                    <td className="py-1.5 text-right">
-                      {card.displayPrice === undefined
-                        ? "--"
-                        : fmt(card.displayPrice * card.shortfall)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            ))}
-          </table>
+                    </div>
+                    {/* On mobile this pair is its own row (copies left, buy right); on
+                      desktop `contents` dissolves the wrapper so both align inline. */}
+                    <div className="flex items-center justify-between gap-3 sm:contents">
+                      <div className="whitespace-nowrap sm:text-right">
+                        {card.displayPrice === undefined ? (
+                          <span className="text-muted-foreground">{card.shortfall} × --</span>
+                        ) : card.shortfall === 1 ? (
+                          <span className="font-medium">{fmt(card.displayPrice)}</span>
+                        ) : (
+                          <>
+                            <span className="text-muted-foreground">
+                              {card.shortfall} × {fmt(card.displayPrice)} ={" "}
+                            </span>
+                            <span className="font-medium">
+                              {fmt(card.displayPrice * card.shortfall)}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                      <MarketplaceLink
+                        marketplace={marketplace}
+                        href={linkFor(card)}
+                        title={`Buy on ${meta.label}`}
+                        aria-label={`Buy ${card.displayName} on ${meta.label}`}
+                        className="text-muted-foreground hover:text-foreground hover:bg-muted inline-flex size-7 shrink-0 items-center justify-center rounded-md"
+                      >
+                        <ShoppingCartIcon className="size-4" />
+                      </MarketplaceLink>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
         </div>
 
         {totalMissingValue !== undefined && (
-          <div className="text-muted-foreground flex items-center justify-between border-t pt-2 text-sm">
+          <div className="text-muted-foreground flex items-center justify-between border-t px-2 pt-2 text-sm">
             <span>Total</span>
             <span className="text-foreground font-medium">{fmt(totalMissingValue)}</span>
           </div>

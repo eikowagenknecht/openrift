@@ -2,9 +2,14 @@
 
 ## 2026-07-13
 
+### Highlights
+
+- feat(Decks): **Missing cards, ready to buy** — each missing card now shows its cost inline (copies × price), links its name to the card page, and has a button to buy it on your marketplace.
+
 ### Other
 
 - feat(Decks): **Missing card count in value tile** — the deck value card now shows how many cards you still need alongside the estimated cost to buy them.
+- fix(Cards): **Battlefield thumbnails no longer cropped** — landscape Battlefield art was cropped to a center strip in card lists, tables, and stats, and now rotates to fill the frame.
 
 ## 2026-07-12
 

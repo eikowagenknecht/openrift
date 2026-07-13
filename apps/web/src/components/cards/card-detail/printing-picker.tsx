@@ -59,6 +59,16 @@ export function PrintingPicker({
               )}
             >
               <span className="min-w-0 flex-1 truncate">
+                {hasMixedRarities && rarityIcon && (
+                  <img
+                    src={rarityIcon}
+                    alt={p.rarity}
+                    title={p.rarity}
+                    width={28}
+                    height={28}
+                    className="mr-1 inline size-3.5 align-text-bottom"
+                  />
+                )}
                 <Link
                   to="/sets/$setSlug"
                   params={{ setSlug: p.setSlug }}
@@ -68,16 +78,6 @@ export function PrintingPicker({
                   {formatCardId(p)}
                 </Link>
                 {label}
-                {hasMixedRarities && rarityIcon && (
-                  <img
-                    src={rarityIcon}
-                    alt={p.rarity}
-                    title={p.rarity}
-                    width={28}
-                    height={28}
-                    className="ml-1 inline size-3.5 align-text-bottom"
-                  />
-                )}
               </span>
               <OwnedCollectionsPopover
                 printingId={p.id}

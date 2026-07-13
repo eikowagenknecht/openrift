@@ -80,6 +80,22 @@ describe("CardArtThumb", () => {
     expect(placeholder?.style.backgroundImage).toBe("");
   });
 
+  it("rotates landscape (Battlefield) art so it fills the portrait frame", () => {
+    const { container } = render(<CardArtThumb src="/bf-120w.webp" landscape alt="" />);
+
+    const img = container.querySelector("img");
+    expect(img?.getAttribute("src")).toBe("/bf-120w.webp");
+    // The image sits inside a rotation wrapper, not directly in the frame.
+    expect(img?.parentElement?.style.transform).toContain("rotate(-90deg)");
+  });
+
+  it("leaves portrait art unrotated", () => {
+    const { container } = render(<CardArtThumb src="/x-120w.webp" alt="" />);
+
+    const img = container.querySelector("img");
+    expect(img?.parentElement?.style.transform ?? "").not.toContain("rotate");
+  });
+
   it("merges sizing utilities from className onto the frame", () => {
     const { container } = render(<CardArtThumb src="/x.webp" className="h-32 self-start" />);
 
