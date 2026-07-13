@@ -1,3 +1,5 @@
+import { isUniqueViolation } from "./pg-errors.js";
+
 const SHARE_TOKEN_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 const SHARE_TOKEN_LENGTH = 12;
 
@@ -23,16 +25,6 @@ export function generateShareToken(): string {
     }
   }
   return out.join("");
-}
-
-/** @returns `true` if the error is a Postgres unique-constraint violation (23505). */
-function isUniqueViolation(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    (error as { code?: unknown }).code === "23505"
-  );
 }
 
 /**
