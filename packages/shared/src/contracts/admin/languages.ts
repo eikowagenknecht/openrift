@@ -10,12 +10,18 @@ const LANG = "/api/admin/v1/languages";
 export const languageSchema = z.object({
   code: z.string(),
   name: z.string(),
+  color: z.string().nullable(),
   sortOrder: z.number(),
   createdAt: isoDateTime,
   updatedAt: isoDateTime,
 });
 
 const codeParamSchema = z.object({ code: z.string().min(1) });
+
+const hexColorSchema = z
+  .string()
+  .regex(/^#[0-9a-fA-F]{6}$/u)
+  .nullable();
 
 /**
  * oRPC contract for the admin languages taxonomy CRUD (mounted at
@@ -40,6 +46,7 @@ export const adminLanguagesContract = {
       z.object({
         code: z.string().min(1).max(5),
         name: z.string().min(1),
+        color: hexColorSchema.optional(),
         sortOrder: z.number().int().optional(),
       }),
     )
@@ -50,6 +57,7 @@ export const adminLanguagesContract = {
     .input(
       withParams(codeParamSchema, {
         name: z.string().min(1).optional(),
+        color: hexColorSchema.optional(),
         sortOrder: z.number().int().optional(),
       }),
     ),

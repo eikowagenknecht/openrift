@@ -1,9 +1,9 @@
 import type { Printing } from "@openrift/shared";
 import { getOrientation, imageUrl } from "@openrift/shared";
 
+import { PrintingVariantLabel } from "@/components/cards/printing-label";
 import { ImgWithFallback } from "@/components/ui/img-with-fallback";
-import { useEnumOrders } from "@/hooks/use-enums";
-import { formatCardId, formatPrintingLabel } from "@/lib/format";
+import { formatCardId } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /**
@@ -54,15 +54,14 @@ export function PrintingOptionContent({
   printing: Printing;
   siblings?: Printing[];
 }) {
-  const { labels } = useEnumOrders();
-  const label = formatPrintingLabel(printing, siblings, labels);
-
   return (
     <div className="flex min-w-0 flex-1 items-center gap-2">
       <PrintingThumbnail printing={printing} />
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="text-muted-foreground font-mono text-xs">{formatCardId(printing)}</span>
-        <span className="truncate text-xs">{label}</span>
+        <span className="min-w-0 text-xs">
+          <PrintingVariantLabel printing={printing} siblings={siblings} />
+        </span>
       </span>
     </div>
   );

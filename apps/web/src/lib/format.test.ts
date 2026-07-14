@@ -6,10 +6,12 @@ import type { EnumLabels } from "@/hooks/use-enums";
 import {
   formatCardId,
   formatImportPrintingLabel,
+  formatImportPrintingLabelParts,
   formatPrice,
   formatPriceCompact,
   formatPriceEur,
   formatPrintingLabel,
+  formatPrintingLabelParts,
   formatPublicCode,
   priceColorClass,
 } from "./format";
@@ -308,6 +310,80 @@ describe("formatPrintingLabel", () => {
     const p = stub({ artVariant: "altart" });
     const siblings = [p, stub({ artVariant: "altart", isSigned: true })];
     expect(formatPrintingLabel(p, siblings, TEST_LABELS)).toBe("Alt Art");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// formatPrintingLabelParts
+// ---------------------------------------------------------------------------
+
+describe("formatPrintingLabelParts", () => {
+  it("returns no language and no rest for a standard printing without siblings", () => {
+    expect(formatPrintingLabelParts(stub(), undefined, TEST_LABELS)).toEqual({
+      language: null,
+      rest: [],
+    });
+  });
+
+  it("surfaces the language code (not a [XX] tag) when siblings differ", () => {
+    const en = stub({ language: "EN" });
+    const zh = stub({ language: "ZH" });
+    const siblings = [en, zh];
+    expect(formatPrintingLabelParts(zh, siblings, TEST_LABELS)).toEqual({
+      language: "ZH",
+      rest: [],
+    });
+    expect(formatPrintingLabelParts(en, siblings, TEST_LABELS)).toEqual({
+      language: "EN",
+      rest: [],
+    });
+  });
+
+  it("keeps the language separate from the non-language attribute labels", () => {
+    const p = stub({ language: "ZH", artVariant: "altart", isSigned: true });
+    const siblings = [p, stub({ language: "EN" })];
+    expect(formatPrintingLabelParts(p, siblings, TEST_LABELS)).toEqual({
+      language: "ZH",
+      rest: ["Alt Art", "Signed"],
+    });
+  });
+
+  it("omits the language when every sibling shares it", () => {
+    const p = stub({ language: "EN", artVariant: "altart" });
+    const siblings = [p, stub({ language: "EN" })];
+    expect(formatPrintingLabelParts(p, siblings, TEST_LABELS)).toEqual({
+      language: null,
+      rest: ["Alt Art"],
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// formatImportPrintingLabelParts
+// ---------------------------------------------------------------------------
+
+describe("formatImportPrintingLabelParts", () => {
+  it("returns the code with no language for a standard English printing", () => {
+    expect(formatImportPrintingLabelParts(stub({ shortCode: "OGS-021" }), TEST_LABELS)).toEqual({
+      code: "OGS-021",
+      language: null,
+      rest: [],
+    });
+  });
+
+  it("surfaces the language code for a non-English printing", () => {
+    expect(
+      formatImportPrintingLabelParts(stub({ shortCode: "OGS-021", language: "ZH" }), TEST_LABELS),
+    ).toEqual({ code: "OGS-021", language: "ZH", rest: [] });
+  });
+
+  it("carries the variant labels in rest, language kept separate", () => {
+    expect(
+      formatImportPrintingLabelParts(
+        stub({ shortCode: "OGS-021", language: "ZH", finish: "foil" }),
+        TEST_LABELS,
+      ),
+    ).toEqual({ code: "OGS-021", language: "ZH", rest: ["Foil"] });
   });
 });
 

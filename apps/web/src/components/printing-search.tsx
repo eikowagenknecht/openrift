@@ -2,10 +2,9 @@ import type { Printing } from "@openrift/shared";
 import { legendDisplayName } from "@openrift/shared";
 
 import { PrintingHoverPreview } from "@/components/cards/printing-hover-preview";
+import { ImportPrintingLabel } from "@/components/cards/printing-label";
 import { PrintingThumbnail } from "@/components/cards/printing-option-content";
 import { ImportCatalogSearch } from "@/components/import/import-catalog-search";
-import { useEnumOrders } from "@/hooks/use-enums";
-import { formatImportPrintingLabel } from "@/lib/format";
 import { matchesAllTokens, searchTokens } from "@/lib/search-match";
 
 const MAX_RESULTS = 20;
@@ -24,8 +23,6 @@ export function PrintingSearch({
   allPrintings: Printing[];
   onSelect: (printing: Printing) => void;
 }) {
-  const { labels } = useEnumOrders();
-
   return (
     <ImportCatalogSearch<Printing>
       ariaLabel="Search catalog"
@@ -47,8 +44,8 @@ export function PrintingSearch({
           <PrintingThumbnail printing={printing} />
           <span className="flex min-w-0 flex-1 flex-col">
             <span className="truncate font-medium">{legendDisplayName(printing.card)}</span>
-            <span className="text-muted-foreground truncate font-mono text-xs">
-              {formatImportPrintingLabel(printing, labels)}
+            <span className="text-muted-foreground min-w-0 text-xs">
+              <ImportPrintingLabel printing={printing} />
             </span>
           </span>
         </div>

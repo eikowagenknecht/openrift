@@ -89,10 +89,12 @@ export function enumsRepo(db: Kysely<Database>) {
         db.selectFrom("markers").selectAll().orderBy("sortOrder").orderBy("label").execute(),
       ]);
 
-      // Map languages (code/name) to the standard enum shape (slug/label)
-      const languages: EnumRow[] = languageRows.map((row) => ({
+      // Map languages (code/name/color) to the standard enum shape (slug/label),
+      // carrying `color` through so the client can render language chips.
+      const languages = languageRows.map((row) => ({
         slug: row.code,
         label: row.name,
+        color: row.color,
         sortOrder: row.sortOrder,
         isWellKnown: false,
       }));

@@ -54,7 +54,7 @@ export const initResponseSchema = z
       deckZones: z.array(enumRowSchema),
       conditions: z.array(enumRowSchema),
       graders: z.array(enumRowSchema),
-      languages: z.array(enumRowSchema),
+      languages: z.array(coloredEnumRowSchema),
       markers: z.array(describedEnumRowSchema),
     }),
     keywords: z.record(z.string(), keywordEntrySchema),

@@ -30,6 +30,7 @@ const now = new Date("2026-03-17T00:00:00.000Z");
 const enRow = {
   code: "en",
   name: "English",
+  color: "#2f6fed",
   sortOrder: 0,
   createdAt: now,
   updatedAt: now,
@@ -37,6 +38,7 @@ const enRow = {
 const deRow = {
   code: "de",
   name: "German",
+  color: null,
   sortOrder: 1,
   createdAt: now,
   updatedAt: now,
@@ -56,6 +58,7 @@ describe("GET /languages", () => {
     expect(json.languages[0]).toEqual({
       code: "en",
       name: "English",
+      color: "#2f6fed",
       sortOrder: 0,
       createdAt: now.toISOString(),
       updatedAt: now.toISOString(),
@@ -131,22 +134,28 @@ describe("POST /languages", () => {
 
   it("returns 201 and creates the language", async () => {
     mockRepo.getByCode.mockResolvedValue(undefined);
-    mockRepo.create.mockResolvedValue({ ...deRow });
+    mockRepo.create.mockResolvedValue({ ...deRow, color: "#123456" });
     const res = await app.request("/api/admin/v1/languages", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code: "de", name: "German", sortOrder: 1 }),
+      body: JSON.stringify({ code: "de", name: "German", color: "#123456", sortOrder: 1 }),
     });
     expect(res.status).toBe(201);
     const json = await res.json();
     expect(json.language).toEqual({
       code: "de",
       name: "German",
+      color: "#123456",
       sortOrder: 1,
       createdAt: now.toISOString(),
       updatedAt: now.toISOString(),
     });
-    expect(mockRepo.create).toHaveBeenCalledWith({ code: "de", name: "German", sortOrder: 1 });
+    expect(mockRepo.create).toHaveBeenCalledWith({
+      code: "de",
+      name: "German",
+      color: "#123456",
+      sortOrder: 1,
+    });
   });
 
   it("returns 409 when the code already exists", async () => {
@@ -174,10 +183,14 @@ describe("PATCH /languages/:code", () => {
     const res = await app.request("/api/admin/v1/languages/en", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "Inglés", sortOrder: 5 }),
+      body: JSON.stringify({ name: "Inglés", color: "#abcdef", sortOrder: 5 }),
     });
     expect(res.status).toBe(204);
-    expect(mockRepo.update).toHaveBeenCalledWith("en", { name: "Inglés", sortOrder: 5 });
+    expect(mockRepo.update).toHaveBeenCalledWith("en", {
+      name: "Inglés",
+      color: "#abcdef",
+      sortOrder: 5,
+    });
   });
 
   it("returns 404 when the language does not exist", async () => {

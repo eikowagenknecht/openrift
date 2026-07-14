@@ -71,13 +71,35 @@ export function useLanguageLabels(): Record<string, string> {
 
 /**
  * Returns ordered language rows from the /init endpoint, shaped as
- * `{ code, name }` for UI components that need both the identifier and label.
+ * `{ code, name, color }` for UI components that need the identifier, label, and
+ * chip color.
  *
- * @returns An ordered array of `{ code, name }` language entries.
+ * @returns An ordered array of `{ code, name, color }` language entries.
  */
-export function useLanguageList(): { code: string; name: string }[] {
+export function useLanguageList(): { code: string; name: string; color: string | null }[] {
   const { data } = useSuspenseQuery(initQueryOptions);
-  return sorted(data.enums.languages ?? []).map((row) => ({ code: row.slug, name: row.label }));
+  const rows = (data.enums.languages ?? []) as ColoredEnumRow[];
+  return sorted(rows).map((row) => ({
+    code: row.slug,
+    name: row.label,
+    color: (row as ColoredEnumRow).color ?? null,
+  }));
+}
+
+/**
+ * Returns a language-code → hex-color lookup from the /init endpoint. Codes with
+ * no color set are omitted (callers fall back to a neutral chip color).
+ *
+ * @returns A Record mapping language codes (e.g. "EN") to hex colors (e.g. "#2F6FED").
+ */
+export function useLanguageColors(): Record<string, string> {
+  const { data } = useSuspenseQuery(initQueryOptions);
+  const rows = (data.enums.languages ?? []) as ColoredEnumRow[];
+  return Object.fromEntries(
+    rows
+      .filter((row) => row.color !== null && row.color !== undefined)
+      .map((row) => [row.slug, row.color as string]),
+  );
 }
 
 /**

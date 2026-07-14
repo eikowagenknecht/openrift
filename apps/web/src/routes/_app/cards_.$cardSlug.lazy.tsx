@@ -31,6 +31,7 @@ import { CardText } from "@/components/cards/card-text";
 import { FinishIcon, hasFinishIcon } from "@/components/cards/finish-icon";
 import { TIME_RANGES } from "@/components/cards/price-history-chart-constants";
 import { Heading } from "@/components/heading";
+import { LanguageChip } from "@/components/language-chip";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -160,7 +161,10 @@ function CardDetailPage() {
   }
   leftRows.push([
     "Language",
-    languageLabels[selectedPrinting.language] ?? selectedPrinting.language,
+    <span key="language" className="inline-flex items-center gap-1.5">
+      <LanguageChip code={selectedPrinting.language} />
+      {languageLabels[selectedPrinting.language] ?? selectedPrinting.language}
+    </span>,
   ]);
   const rarityIcon = getFilterIconPath("rarities", selectedPrinting.rarity);
   leftRows.push(
@@ -440,7 +444,8 @@ function CardDetailPage() {
       {printings.length > 0 &&
         [...Map.groupBy(printings, (p) => p.language)].map(([lang, group]) => (
           <div key={lang}>
-            <h2 className="text-muted-foreground mb-2 text-xs font-medium">
+            <h2 className="text-muted-foreground mb-2 flex items-center gap-2 text-xs font-medium">
+              <LanguageChip code={lang} />
               {languageLabels[lang] ?? lang}
             </h2>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -814,7 +819,12 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
           {printing.finish !== WellKnown.finish.NORMAL &&
             ` ${labels.finishes[printing.finish] ?? printing.finish}`}
           {printing.markers.length > 0 && ` (${printing.markers.map((m) => m.label).join(", ")})`}
-          {printing.language !== "EN" && ` [${printing.language}]`}
+          {printing.language !== "EN" && (
+            <>
+              {" "}
+              <LanguageChip code={printing.language} />
+            </>
+          )}
         </Heading>
         <PricingSection printing={printing} range={effectiveRange} />
       </div>

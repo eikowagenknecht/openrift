@@ -2,15 +2,10 @@ import type { Printing } from "@openrift/shared";
 import { snapshotHeadline } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 
-import { useEnumOrders } from "@/hooks/use-enums";
+import { PrintingVariantLabel } from "@/components/cards/printing-label";
 import { usePriceHistory } from "@/hooks/use-price-history";
 import { usePrices } from "@/hooks/use-prices";
-import {
-  formatCardId,
-  formatterForMarketplace,
-  formatPrintingLabel,
-  priceColorClass,
-} from "@/lib/format";
+import { formatCardId, formatterForMarketplace, priceColorClass } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
@@ -27,7 +22,6 @@ export function PrintingPicker({
   onSelect: (printing: Printing) => void;
 }) {
   const hasMixedRarities = new Set(printings.map((p) => p.rarity)).size > 1;
-  const { labels } = useEnumOrders();
 
   return (
     <div className="space-y-2">
@@ -37,7 +31,6 @@ export function PrintingPicker({
       <div className="space-y-1">
         {printings.map((p) => {
           const isActive = p.id === current.id;
-          const label = formatPrintingLabel(p, printings, labels);
           const rarityIcon = getFilterIconPath("rarities", p.rarity);
           return (
             <div
@@ -59,25 +52,32 @@ export function PrintingPicker({
               )}
             >
               <span className="min-w-0 flex-1 truncate">
-                {hasMixedRarities && rarityIcon && (
-                  <img
-                    src={rarityIcon}
-                    alt={p.rarity}
-                    title={p.rarity}
-                    width={28}
-                    height={28}
-                    className="mr-1 inline size-3.5 align-text-bottom"
-                  />
-                )}
-                <Link
-                  to="/sets/$setSlug"
-                  params={{ setSlug: p.setSlug }}
-                  className="text-muted-foreground hover:text-foreground mr-1.5 font-mono text-xs"
-                  onClick={(event) => event.stopPropagation()}
-                >
-                  {formatCardId(p)}
-                </Link>
-                {label}
+                <PrintingVariantLabel
+                  printing={p}
+                  siblings={printings}
+                  code={
+                    <>
+                      {hasMixedRarities && rarityIcon && (
+                        <img
+                          src={rarityIcon}
+                          alt={p.rarity}
+                          title={p.rarity}
+                          width={28}
+                          height={28}
+                          className="mr-1 inline size-3.5 align-text-bottom"
+                        />
+                      )}
+                      <Link
+                        to="/sets/$setSlug"
+                        params={{ setSlug: p.setSlug }}
+                        className="text-muted-foreground hover:text-foreground font-mono text-xs"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        {formatCardId(p)}
+                      </Link>
+                    </>
+                  }
+                />
               </span>
               <OwnedCollectionsPopover
                 printingId={p.id}

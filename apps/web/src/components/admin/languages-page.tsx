@@ -6,7 +6,9 @@ import type {
   AdminColumnDef,
   AdminDraftSlotProps,
 } from "@/components/admin/admin-table";
+import { languageChipStyle } from "@/components/language-chip";
 import { PageDescription } from "@/components/layout/page-top-bar";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
   useCreateLanguage,
@@ -19,6 +21,7 @@ import {
 interface LanguageDraft {
   code: string;
   name: string;
+  color: string;
 }
 
 function CodeCell({ row }: AdminCellSlotProps<LanguageResponse>) {
@@ -33,6 +36,48 @@ function NameCell({ row }: AdminCellSlotProps<LanguageResponse>) {
     return null;
   }
   return <span className="text-sm">{row.name}</span>;
+}
+
+function ColorCell({ row }: AdminCellSlotProps<LanguageResponse>) {
+  if (!row) {
+    return null;
+  }
+  if (!row.color) {
+    return <span className="text-muted-foreground">-</span>;
+  }
+  return (
+    <div className="flex items-center gap-2">
+      <span className="inline-block size-4 rounded border" style={{ backgroundColor: row.color }} />
+      <span className="font-mono text-sm">{row.color}</span>
+    </div>
+  );
+}
+
+function PreviewCell({ row }: AdminCellSlotProps<LanguageResponse>) {
+  if (!row) {
+    return null;
+  }
+  // Previews the admin-entered color directly (not the /init-derived chip) so a
+  // freshly-saved color shows immediately, before /init refetches.
+  return (
+    <Badge className="font-mono" style={languageChipStyle(row.color)}>
+      {row.code}
+    </Badge>
+  );
+}
+
+function ColorInput({ draft, setDraft }: AdminDraftSlotProps<LanguageDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.color}
+      onChange={(event) => setDraft((prev) => ({ ...prev, color: event.target.value }))}
+      placeholder="#1D4ED8"
+      className="h-8 w-28 font-mono"
+    />
+  );
 }
 
 function CodeAddInput({ draft, setDraft }: AdminDraftSlotProps<LanguageDraft>) {
@@ -92,6 +137,18 @@ const columns: AdminColumnDef<LanguageResponse, LanguageDraft>[] = [
     editCell: <NameInput />,
     addCell: <NameAddInput />,
   },
+  {
+    header: "Color",
+    width: "w-36",
+    cell: <ColorCell />,
+    editCell: <ColorInput />,
+    addCell: <ColorInput />,
+  },
+  {
+    header: "Preview",
+    width: "w-24",
+    cell: <PreviewCell />,
+  },
 ];
 
 export function LanguagesPage() {
@@ -121,15 +178,17 @@ export function LanguagesPage() {
       title="Languages"
       toolbar={
         <PageDescription>
-          Languages classify the printing language of each card (e.g. English, Japanese).
+          Languages classify the printing language of each card (e.g. English, Japanese). The color
+          appears on the language chip shown for each printing.
         </PageDescription>
       }
       add={{
-        emptyDraft: { code: "", name: "" },
+        emptyDraft: { code: "", name: "", color: "#1D4ED8" },
         onSave: (draft) =>
           createMutation.mutateAsync({
             code: draft.code.trim(),
             name: draft.name.trim(),
+            color: draft.color.trim() || null,
           }),
         validate: (draft) => {
           const code = draft.code.trim();
@@ -140,6 +199,10 @@ export function LanguagesPage() {
           if (code.length > 5) {
             return "Code must be 5 characters or fewer";
           }
+          const color = draft.color.trim();
+          if (color && !/^#[0-9a-fA-F]{6}$/u.test(color)) {
+            return "Color must be a hex code (e.g. #1D4ED8)";
+          }
           return null;
         },
         label: "Add Language",
@@ -148,11 +211,13 @@ export function LanguagesPage() {
         toDraft: (lang) => ({
           code: lang.code,
           name: lang.name,
+          color: lang.color ?? "",
         }),
         onSave: (draft) =>
           updateMutation.mutateAsync({
             code: draft.code,
             name: draft.name.trim() || undefined,
+            color: draft.color.trim() || null,
           }),
       }}
       reorder={{

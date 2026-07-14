@@ -43,6 +43,7 @@ import { PrintingImageSwitcher } from "@/components/admin/printing-image-switche
 import { PrintingMarketplaceBadges } from "@/components/admin/printing-marketplace-cells";
 import { PrintingSourceActions } from "@/components/admin/printing-source-actions";
 import { Heading } from "@/components/heading";
+import { LanguageChip } from "@/components/language-chip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -820,7 +821,7 @@ export function ExistingCardDetailPage({
                   variant={printingLanguageFilter === lang ? "default" : "outline"}
                   onClick={() => setPrintingLanguageFilter(lang)}
                 >
-                  {lang.toUpperCase()}
+                  <LanguageChip code={lang} />
                 </Button>
               ))}
             </div>

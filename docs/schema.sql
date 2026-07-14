@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict ZOLSSwflJSVvKfPELRzXRt7QsUdajOVmV88PixVzCo15va5ISmtWHL61trxH97R
+\restrict pLP3u2u4HIxtUNLIdXAwafCGsIBtl83zu947IYcIUp6CY6TDAPRZ174hew8L50z
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1501,6 +1501,8 @@ CREATE TABLE public.languages (
     sort_order integer DEFAULT 0 NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    color text,
+    CONSTRAINT chk_languages_color CHECK ((color ~ '^#[0-9a-fA-F]{6}$'::text)),
     CONSTRAINT languages_code_not_empty CHECK ((code <> ''::text)),
     CONSTRAINT languages_name_not_empty CHECK ((name <> ''::text))
 );
@@ -5916,5 +5918,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict ZOLSSwflJSVvKfPELRzXRt7QsUdajOVmV88PixVzCo15va5ISmtWHL61trxH97R
+\unrestrict pLP3u2u4HIxtUNLIdXAwafCGsIBtl83zu947IYcIUp6CY6TDAPRZ174hew8L50z
 

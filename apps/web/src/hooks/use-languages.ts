@@ -26,7 +26,9 @@ export function useLanguages() {
 }
 
 const createLanguageFn = createServerFn({ method: "POST" })
-  .validator((input: { code: string; name: string; sortOrder?: number }) => input)
+  .validator(
+    (input: { code: string; name: string; color?: string | null; sortOrder?: number }) => input,
+  )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await apiOrpcClient(adminLanguagesContract, context.cookie).create(data);
@@ -34,14 +36,16 @@ const createLanguageFn = createServerFn({ method: "POST" })
 
 export function useCreateLanguage() {
   return useMutationWithInvalidation({
-    mutationFn: (vars: { code: string; name: string; sortOrder?: number }) =>
+    mutationFn: (vars: { code: string; name: string; color?: string | null; sortOrder?: number }) =>
       createLanguageFn({ data: vars }),
     invalidates: [queryKeys.admin.languages, queryKeys.init.all],
   });
 }
 
 const updateLanguageFn = createServerFn({ method: "POST" })
-  .validator((input: { code: string; name?: string; sortOrder?: number }) => input)
+  .validator(
+    (input: { code: string; name?: string; color?: string | null; sortOrder?: number }) => input,
+  )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await apiOrpcClient(adminLanguagesContract, context.cookie).update(data);
@@ -49,8 +53,12 @@ const updateLanguageFn = createServerFn({ method: "POST" })
 
 export function useUpdateLanguage() {
   return useMutationWithInvalidation({
-    mutationFn: (vars: { code: string; name?: string; sortOrder?: number }) =>
-      updateLanguageFn({ data: vars }),
+    mutationFn: (vars: {
+      code: string;
+      name?: string;
+      color?: string | null;
+      sortOrder?: number;
+    }) => updateLanguageFn({ data: vars }),
     invalidates: [queryKeys.admin.languages, queryKeys.init.all],
   });
 }

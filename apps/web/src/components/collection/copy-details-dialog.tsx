@@ -3,6 +3,7 @@ import type { LucideIcon } from "lucide-react";
 import { ArrowLeftIcon, HandHeartIcon, PlusIcon, XIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { PrintingVariantLabel } from "@/components/cards/printing-label";
 import { copyHasRecordedDetails, copyMarkers } from "@/components/collection/copy-indicators";
 import { OnLoanChip } from "@/components/loans/on-loan-chip";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +33,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useCopies, useUpdateCopies } from "@/hooks/use-copies";
 import type { EnumLabels } from "@/hooks/use-enums";
 import { useConditionList, useEnumOrders, useGraderList } from "@/hooks/use-enums";
-import { formatCardId, formatPrintingLabel } from "@/lib/format";
+import { formatCardId } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
 
 /** What the grid resolved from the right-clicked tile. */
@@ -155,13 +156,17 @@ function distinctPrintings(printingByCopyId: Map<string, Printing>): Printing[] 
  * @returns The inline printing descriptor.
  */
 function PrintingDescriptor({ printing, siblings }: { printing: Printing; siblings: Printing[] }) {
-  const { labels } = useEnumOrders();
   const hasMixedRarities = new Set(siblings.map((p) => p.rarity)).size > 1;
   const rarityIcon = getFilterIconPath("rarities", printing.rarity);
   return (
     <>
-      <span className="text-muted-foreground font-mono text-xs">{formatCardId(printing)}</span>{" "}
-      {formatPrintingLabel(printing, siblings, labels)}
+      <PrintingVariantLabel
+        printing={printing}
+        siblings={siblings}
+        code={
+          <span className="text-muted-foreground font-mono text-xs">{formatCardId(printing)}</span>
+        }
+      />
       {hasMixedRarities && rarityIcon && (
         <img
           src={rarityIcon}

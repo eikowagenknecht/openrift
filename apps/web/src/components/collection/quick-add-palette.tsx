@@ -4,6 +4,7 @@ import { ChevronRightIcon, MinusIcon, PlusIcon, SearchIcon, XIcon } from "lucide
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { PrintingVariantLabel } from "@/components/cards/printing-label";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
@@ -16,16 +17,10 @@ import {
 import { Kbd } from "@/components/ui/kbd";
 import { Pressable } from "@/components/ui/pressable";
 import { useBatchedAddCopies, useDisposeCopies } from "@/hooks/use-copies";
-import { useEnumOrders } from "@/hooks/use-enums";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { usePrices } from "@/hooks/use-prices";
 import { searchCards } from "@/hooks/use-quick-add-search";
-import {
-  compactFormatterForMarketplace,
-  formatCardId,
-  formatPrintingLabel,
-  priceColorClass,
-} from "@/lib/format";
+import { compactFormatterForMarketplace, formatCardId, priceColorClass } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
 import { LANDSCAPE_ROTATION_STYLE, needsCssRotation } from "@/lib/images";
 import { summarizeBatchAdd } from "@/lib/summarize-batch-add";
@@ -149,7 +144,6 @@ function PaletteInner({
   });
   const disposeCopies = useDisposeCopies();
   const addedItems = useAddModeStore((s) => s.addedItems);
-  const { labels } = useEnumOrders();
   const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
   const prices = usePrices();
   const favoriteMarketplace = marketplaceOrder[0] ?? "cardtrader";
@@ -530,7 +524,7 @@ function PaletteInner({
                             {formatCardId(printing)}
                           </span>
                           <span className="min-w-0 flex-1 truncate">
-                            {formatPrintingLabel(printing, card.printings, labels)}
+                            <PrintingVariantLabel printing={printing} siblings={card.printings} />
                           </span>
                         </div>
                         {price !== undefined && (

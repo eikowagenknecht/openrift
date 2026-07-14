@@ -13,19 +13,23 @@ export function languagesRepo(db: Kysely<Database>) {
       return db.selectFrom("languages").selectAll().where("code", "=", code).executeTakeFirst();
     },
 
-    create(values: { code: string; name: string; sortOrder?: number }) {
+    create(values: { code: string; name: string; color?: string | null; sortOrder?: number }) {
       return db
         .insertInto("languages")
         .values({
           code: values.code,
           name: values.name,
+          color: values.color ?? null,
           sortOrder: values.sortOrder ?? 0,
         })
         .returningAll()
         .executeTakeFirstOrThrow();
     },
 
-    update(code: string, updates: { name?: string; sortOrder?: number; updatedAt?: Date }) {
+    update(
+      code: string,
+      updates: { name?: string; color?: string | null; sortOrder?: number; updatedAt?: Date },
+    ) {
       return db
         .updateTable("languages")
         .set(updates)

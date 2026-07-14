@@ -1297,6 +1297,8 @@ export interface CardNameAliasesTable {
 interface LanguagesTable {
   code: string;
   name: string;
+  /** Hex color for the language chip (CHECK: ^#[0-9a-fA-F]{6}$). Migration 203. */
+  color: string | null;
   sortOrder: number;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;

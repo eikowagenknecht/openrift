@@ -24,6 +24,7 @@ export const adminLanguagesRouter = {
         (r): LanguageResponse => ({
           code: r.code,
           name: r.name,
+          color: r.color,
           sortOrder: r.sortOrder,
           createdAt: r.createdAt.toISOString(),
           updatedAt: r.updatedAt.toISOString(),
@@ -46,15 +47,16 @@ export const adminLanguagesRouter = {
 
   create: os.create.handler(async ({ input, context }) => {
     const { languages: repo } = context.repos;
-    const { code, name, sortOrder } = input;
+    const { code, name, color, sortOrder } = input;
 
     const existing = await repo.getByCode(code);
     assertSlugAvailable(existing, code, "Language");
 
-    const created = await repo.create({ code, name, sortOrder });
+    const created = await repo.create({ code, name, color, sortOrder });
     const language: LanguageResponse = {
       code: created.code,
       name: created.name,
+      color: created.color,
       sortOrder: created.sortOrder,
       createdAt: created.createdAt.toISOString(),
       updatedAt: created.updatedAt.toISOString(),
@@ -64,12 +66,14 @@ export const adminLanguagesRouter = {
 
   update: os.update.handler(async ({ input, context }): Promise<void> => {
     const { languages: repo } = context.repos;
-    const { code, name, sortOrder } = input;
+    const { code, name, color, sortOrder } = input;
 
     const existing = await repo.getByCode(code);
     assertFound(existing, `Language not found`);
 
-    await repo.update(code, { name, sortOrder });
+    // `color: null` clears the chip color; `undefined` (omitted) leaves it
+    // untouched — Kysely skips undefined values in the SET clause.
+    await repo.update(code, { name, color, sortOrder });
   }),
 
   remove: os.remove.handler(async ({ input, context }): Promise<void> => {

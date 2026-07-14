@@ -28,6 +28,7 @@ import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 import { MultiSelectCombobox } from "@/components/filters/multi-select-combobox";
 import { SearchInput } from "@/components/filters/search-input";
 import { Heading } from "@/components/heading";
+import { LanguageChip } from "@/components/language-chip";
 import {
   PageDescription,
   PageTopBar,
@@ -177,6 +178,7 @@ import {
   parsePx,
   useElementSpec,
 } from "@/hooks/use-element-spec";
+import { useLanguageList } from "@/hooks/use-enums";
 import { cn } from "@/lib/utils";
 
 const BUTTON_VARIANTS = [
@@ -766,6 +768,7 @@ function TogglesSection() {
 
 function BadgesChipsSection() {
   const [tags, setTags] = useState(["Aggro", "Budget", "Favorite"]);
+  const languages = useLanguageList();
   return (
     <DemoSection
       id="badges-chips"
@@ -779,6 +782,14 @@ function BadgesChipsSection() {
           </Swatch>
         ))}
       </SwatchRow>
+      <DemoRow
+        label="Language chips (LanguageChip)"
+        hint="Colored code chip for a printing's language. Colors are admin-managed in the languages taxonomy; unset languages fall back to neutral gray. Foreground is WCAG-contrast."
+      >
+        {languages.map((lang) => (
+          <LanguageChip key={lang.code} code={lang.code} />
+        ))}
+      </DemoRow>
       <DemoRow label="Removable chips (ChipRemoveButton)">
         {tags.map((tag) => (
           <Badge key={tag} variant="secondary" className="gap-1">

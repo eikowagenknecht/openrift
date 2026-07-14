@@ -11,13 +11,13 @@ import {
 } from "lucide-react";
 import { Fragment, useEffect, useState } from "react";
 
+import { PrintingVariantLabel } from "@/components/cards/printing-label";
 import { Button } from "@/components/ui/button";
 import { PickerList, PickerRow } from "@/components/ui/picker-list";
 import { collectionsQueryOptions } from "@/hooks/use-collections";
-import { useEnumOrders } from "@/hooks/use-enums";
 import { useOwnedCollectionsByVariants } from "@/hooks/use-owned-count";
 import { useRequiredUserId } from "@/lib/auth-session";
-import { formatCardId, formatPrintingLabel } from "@/lib/format";
+import { formatCardId } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import type { VariantPopoverIntent } from "@/stores/add-mode-store";
@@ -147,7 +147,6 @@ export function VariantLocationsPopover({
   addCollectionTarget,
   setAddCollectionTarget,
 }: VariantLocationsPopoverProps) {
-  const { labels } = useEnumOrders();
   const userId = useRequiredUserId();
   const { data: collections } = useQuery(collectionsQueryOptions(userId));
   const { data: breakdown } = useOwnedCollectionsByVariants(printings, true);
@@ -354,21 +353,26 @@ export function VariantLocationsPopover({
                   ) : (
                     <ChevronRightIcon className="text-muted-foreground size-3.5 shrink-0" />
                   ))}
-                {hasMixedRarities && rarityIcon && (
-                  <img
-                    src={rarityIcon}
-                    alt={group.printing.rarity}
-                    title={group.printing.rarity}
-                    width={28}
-                    height={28}
-                    className="size-3.5 shrink-0"
-                  />
-                )}
-                <span className="text-muted-foreground text-2xs shrink-0">
-                  {formatCardId(group.printing)}
-                </span>
                 <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
-                  {formatPrintingLabel(group.printing, printings, labels) || group.printing.setSlug}
+                  <PrintingVariantLabel
+                    printing={group.printing}
+                    siblings={printings}
+                    code={
+                      <>
+                        {hasMixedRarities && rarityIcon && (
+                          <img
+                            src={rarityIcon}
+                            alt={group.printing.rarity}
+                            title={group.printing.rarity}
+                            width={28}
+                            height={28}
+                            className="mr-1 inline size-3.5 align-text-bottom"
+                          />
+                        )}
+                        {formatCardId(group.printing)}
+                      </>
+                    }
+                  />
                 </span>
               </div>
               <div className="flex shrink-0 items-center gap-0.5">
