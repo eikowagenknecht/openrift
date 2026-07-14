@@ -317,7 +317,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const currentCollection = collectionId ? collectionsMap.get(collectionId) : undefined;
   const isGroupCollection = Boolean(currentCollection?.groupId);
   const personalCardTotals: Record<string, number> = {};
-  if (isGroupCollection && ownedFilterActive && ownedCountByPrinting) {
+  if (isGroupCollection && ownedCountByPrinting) {
     for (const printing of allPrintings) {
       const owned = ownedCountByPrinting[printing.id];
       if (owned) {
@@ -337,6 +337,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const {
     availableFilters: collectionAvailableFilters,
     availableLanguages: collectionAvailableLanguages,
+    filterCounts: collectionFilterCounts,
     sortedCards: collectionSortedCards,
     selectableCopyIds,
     printingsByCardId: collectionPrintingsByCardId,
@@ -363,8 +364,12 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     ownedFilter: filters.ownedFilter,
     ownedCountMin: filters.ownedCountMin,
     ownedCountMax: filters.ownedCountMax,
-    // Group bulk box → filter by the viewer's personal shortfall, not box stock.
-    ownedCardTotalOverride: isGroupCollection && ownedFilterActive ? personalCardTotals : undefined,
+    // Group bulk box → measure the viewer's personal shortfall, not box stock.
+    // Applied whenever this is a group box (not only once an owned filter is
+    // active) so the Copies basis stays personal-copies consistently — without
+    // this the slider's max silently flipped from box stock to personal on the
+    // first owned-filter interaction.
+    ownedCardTotalOverride: isGroupCollection ? personalCardTotals : undefined,
   });
 
   // ── Catalog data (drives "show library" view + the quick-add palette in
@@ -374,6 +379,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const {
     availableFilters: catalogAvailableFilters,
     availableLanguages: catalogAvailableLanguages,
+    filterCounts: catalogFilterCounts,
     sortedCards: catalogSortedCards,
     printingsByCardId: catalogPrintingsByCardId,
     priceRangeByCardId: catalogPriceRangeByCardId,
@@ -410,6 +416,9 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   // ── Pick active data set based on whether the library is shown ──────
   const availableFilters = showLibrary ? catalogAvailableFilters : collectionAvailableFilters;
   const availableLanguages = showLibrary ? catalogAvailableLanguages : collectionAvailableLanguages;
+  // Faceted counts so every filter chip (and the price/stat sliders) narrows to
+  // the subset matching the other active filters — including the Copies range.
+  const filterCounts = showLibrary ? catalogFilterCounts : collectionFilterCounts;
   const sortedCards = showLibrary ? catalogSortedCards : collectionSortedCards;
   const printingsByCardId = showLibrary ? catalogPrintingsByCardId : collectionPrintingsByCardId;
   // The detail-pane picker lists every printing of the clicked card, not just
@@ -1403,6 +1412,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
         <CardBrowserFilterProvider
           availableFilters={availableFilters}
           availableLanguages={availableLanguages}
+          filterCounts={filterCounts}
           setDisplayLabel={setDisplayLabel}
           hiddenSections={COLLECTION_GRID_HIDDEN_FILTER_SECTIONS}
           ownedCountMax={ownedCountBound}

@@ -382,4 +382,89 @@ describe("useCollectionCardData", () => {
     const { result } = renderHook(() => useCollectionCardData(baseParams()));
     expect(result.current.ownedCountMax).toBe(5);
   });
+
+  it("facets the copies-owned slider bound against the active owned bucket", () => {
+    // Regression: the Copies slider max was measured over the whole collection,
+    // so picking "Partial Playset" left the bound at the collection's full max
+    // (the 4-copy "extra" card) instead of narrowing to the largest surviving
+    // partial total.
+    const partialLow = stubPrinting({ card: { slug: "partial-low" } }); // 1 copy → partial
+    const partialHigh = stubPrinting({ card: { slug: "partial-high" } }); // 2 copies → partial
+    const extra = stubPrinting({ card: { slug: "extra-card" } }); // 4 copies → extra
+    mockStacks.mockReturnValue({
+      stacks: [
+        { printingId: partialLow.id, printing: partialLow, copyIds: ["c-pl1"] },
+        { printingId: partialHigh.id, printing: partialHigh, copyIds: ["c-ph1", "c-ph2"] },
+        { printingId: extra.id, printing: extra, copyIds: ["c-e1", "c-e2", "c-e3", "c-e4"] },
+      ],
+      totalCopies: 7,
+      isReady: true,
+    });
+
+    // No owned bucket → bound spans the whole collection (the 4-copy card).
+    const unfiltered = renderHook(() => useCollectionCardData(baseParams()));
+    expect(unfiltered.result.current.ownedCountMax).toBe(4);
+
+    // Partial Playset → bound narrows to the largest surviving partial total (2).
+    const partial = renderHook(() =>
+      useCollectionCardData({ ...baseParams(), ownedFilter: ["partial"] }),
+    );
+    expect(partial.result.current.ownedCountMax).toBe(2);
+  });
+
+  it("keeps the slider bound on the personal override with no owned filter active", () => {
+    // Regression: on a group "bulk box" the Copies bound measured the box's own
+    // stock until the first owned-filter interaction, then flipped to the
+    // viewer's personal totals. Given the per-card personal override, the bound
+    // must read personal from the start (no owned filter needed), so the basis
+    // never changes under the user.
+    const cardId = "card-ballista";
+    const normal = stubPrinting({ cardId, card: { slug: "ballista" } });
+    mockStacks.mockReturnValue({
+      // The box stocks 5 copies, but the viewer personally owns only 2.
+      stacks: [
+        {
+          printingId: normal.id,
+          printing: normal,
+          copyIds: ["box-1", "box-2", "box-3", "box-4", "box-5"],
+        },
+      ],
+      totalCopies: 5,
+      isReady: true,
+    });
+
+    const { result } = renderHook(() =>
+      useCollectionCardData({ ...baseParams(), ownedCardTotalOverride: { [cardId]: 2 } }),
+    );
+    // Personal basis (2), not the box's 5.
+    expect(result.current.ownedCountMax).toBe(2);
+  });
+
+  it("narrows filterCounts for other dimensions by the copies-owned range", () => {
+    // Regression: the collection grid passed no filterCounts, so the
+    // copies-owned range narrowed the grid but left every other filter chip
+    // showing its full count. computeFilterCounts must reflect the active range.
+    const common = stubPrinting({ rarity: "common", card: { slug: "common-card" } });
+    const rare = stubPrinting({ rarity: "rare", card: { slug: "rare-card" } });
+    mockStacks.mockReturnValue({
+      stacks: [
+        { printingId: common.id, printing: common, copyIds: ["c-1"] },
+        { printingId: rare.id, printing: rare, copyIds: ["c-5a", "c-5b", "c-5c", "c-5d", "c-5e"] },
+      ],
+      totalCopies: 6,
+      isReady: true,
+    });
+
+    // Unfiltered: both rarities are represented in the facet counts.
+    const unfiltered = renderHook(() => useCollectionCardData(baseParams()));
+    expect(unfiltered.result.current.filterCounts.rarities.get("common")).toBe(1);
+    expect(unfiltered.result.current.filterCounts.rarities.get("rare")).toBe(1);
+
+    // Copies >= 5 keeps only the rare card, so common drops out of the counts.
+    const highCopies = renderHook(() =>
+      useCollectionCardData({ ...baseParams(), ownedCountMin: 5, ownedCountMax: null }),
+    );
+    expect(highCopies.result.current.filterCounts.rarities.get("rare")).toBe(1);
+    expect(highCopies.result.current.filterCounts.rarities.get("common")).toBeUndefined();
+  });
 });

@@ -10,6 +10,7 @@ import type {
 } from "@openrift/shared";
 import {
   WellKnown,
+  computeFilterCounts,
   filterCards,
   getAvailableFilters,
   sortByLanguageAndCanonicalRank,
@@ -169,14 +170,9 @@ export function useCollectionCardData({
     ownedFilterCounts = countByPrintingId;
     ownedFilterBucketBy = "card";
   }
-  // Slider track upper bound — the most copies owned of any one card, measured
-  // with the same map the filters use. Card-aggregated to match the Owned
-  // bucket dropdown's scoping on this surface (which also aggregates per card).
-  const ownedCountUpperBound = maxOwnedCount(
-    collectionPrintings,
-    ownedFilterCounts,
-    ownedFilterBucketBy,
-  );
+  // Apply the owned-bucket narrowing first so the Copies slider bound can be
+  // faceted against every OTHER active filter (search, sets, the owned bucket)
+  // but never against its own range.
   if (ownedFilter && ownedFilter.length > 0) {
     filteredCards = applyOwnedBucketFilter(
       filteredCards,
@@ -185,6 +181,12 @@ export function useCollectionCardData({
       ownedFilterBucketBy,
     );
   }
+  // Slider track upper bound — the most copies owned of any one card among the
+  // cards surviving every other filter, measured with the same map the filters
+  // use. Computed post-bucket / pre-copies-range so that e.g. "Partial Playset"
+  // narrows the track (to the largest partial total) instead of leaving the
+  // collection's full max, matching how the price/stat sliders facet.
+  const ownedCountUpperBound = maxOwnedCount(filteredCards, ownedFilterCounts, ownedFilterBucketBy);
   if ((ownedCountMin ?? null) !== null || (ownedCountMax ?? null) !== null) {
     filteredCards = applyOwnedCountFilter(
       filteredCards,
@@ -194,6 +196,36 @@ export function useCollectionCardData({
       ownedFilterBucketBy,
     );
   }
+
+  // Faceted counts for the OTHER filter dimensions (sets, rarities, colors, …).
+  // Narrow the counting universe by the owned filters — the coarse bucket and
+  // the copies-owned range — before handing it to computeFilterCounts, which
+  // then does leave-one-out over the remaining dimensions. Mirrors
+  // useCatalogFilterMeta so the collection grid's chips narrow as the user
+  // filters. Custom tags are hidden on this surface, so none are threaded.
+  let universeForCounts = collectionPrintings;
+  if (ownedFilter && ownedFilter.length > 0) {
+    universeForCounts = applyOwnedBucketFilter(
+      universeForCounts,
+      ownedFilter,
+      ownedFilterCounts,
+      ownedFilterBucketBy,
+    );
+  }
+  if ((ownedCountMin ?? null) !== null || (ownedCountMax ?? null) !== null) {
+    universeForCounts = applyOwnedCountFilter(
+      universeForCounts,
+      ownedCountMin ?? null,
+      ownedCountMax ?? null,
+      ownedFilterCounts,
+      ownedFilterBucketBy,
+    );
+  }
+  const filterCounts = computeFilterCounts(universeForCounts, filters, {
+    countBy: view === "cards" ? "card" : "printing",
+    keywordReverseMap,
+    getPrice,
+  });
 
   // In "cards" view, collapse to one tile per card — or per (cardId, set) /
   // (cardId, rarity) when grouped by set/rarity, so a card owned in N sets shows
@@ -249,6 +281,7 @@ export function useCollectionCardData({
   return {
     availableFilters,
     availableLanguages,
+    filterCounts,
     sortedCards,
     selectableCopyIds,
     printingsByCardId,
