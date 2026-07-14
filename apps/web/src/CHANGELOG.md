@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-07-14
+
+### Highlights
+
+- feat(Trades): **Cardmarket export for trades** — each trade partner now has an export that copies your agreed cards as a plain list, ready to paste into Cardmarket's shopping wizard for pricing.
+
+### Other
+
+- fix(Collection): **List text pastes into Cardmarket** — the copied list text now writes "2x" instead of "2×", so Cardmarket's import recognizes the lines.
+- fix(Collection): **Share menu renamed** — the list menu entry is now "Share" instead of "Share link", since it also covers the text and image options.
+
 ## 2026-07-13
 
 ### Highlights

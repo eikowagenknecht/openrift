@@ -3,7 +3,11 @@ import { describe, expect, it } from "vitest";
 
 import { EMPTY_TRADE_PREFERENCE } from "@/test/factories";
 
-import { formatCardListAsDeckText, formatListShareText } from "./list-export";
+import {
+  formatCardListAsDeckText,
+  formatCardmarketWants,
+  formatListShareText,
+} from "./list-export";
 
 function cardEntry(
   id: string,
@@ -64,6 +68,43 @@ describe("formatCardListAsDeckText", () => {
       },
     ];
     expect(formatCardListAsDeckText(mixed)).toBe("1 Teemo, Scout");
+  });
+});
+
+describe("formatCardmarketWants", () => {
+  it("formats wants as `<qty>x <name>` lines, sorted by name", () => {
+    const output = formatCardmarketWants([
+      { name: "Viktor, Herald of the Arcane", quantity: 1 },
+      { name: "Cleave", quantity: 2 },
+    ]);
+    expect(output).toBe("2x Cleave\n1x Viktor, Herald of the Arcane");
+  });
+
+  it("merges wants of the same card, summing quantities", () => {
+    const output = formatCardmarketWants([
+      { name: "Cleave", quantity: 2 },
+      { name: "Jinx, Rebel", quantity: 1 },
+      { name: "Cleave", quantity: 1 },
+    ]);
+    expect(output).toBe("3x Cleave\n1x Jinx, Rebel");
+  });
+
+  it("straightens curly apostrophes so Cardmarket matches the name", () => {
+    expect(formatCardmarketWants([{ name: "Kai’Sa, Survivor", quantity: 1 }])).toBe(
+      "1x Kai'Sa, Survivor",
+    );
+  });
+
+  it("merges names that only differ in apostrophe style", () => {
+    const output = formatCardmarketWants([
+      { name: "Kai’Sa, Survivor", quantity: 1 },
+      { name: "Kai'Sa, Survivor", quantity: 2 },
+    ]);
+    expect(output).toBe("3x Kai'Sa, Survivor");
+  });
+
+  it("returns an empty string when there are no wants", () => {
+    expect(formatCardmarketWants([])).toBe("");
   });
 });
 
@@ -130,7 +171,7 @@ describe("formatListShareText", () => {
       SHARE_URL,
     );
     expect(output).toBe(
-      `Holiday Targets (2 cards)\n${SHARE_URL}\n\n1× Teemo, Scout\n2× Jinx, Rebel`,
+      `Holiday Targets (2 cards)\n${SHARE_URL}\n\n1x Teemo, Scout\n2x Jinx, Rebel`,
     );
   });
 
@@ -146,7 +187,7 @@ describe("formatListShareText", () => {
       SHARE_URL,
     );
     expect(output).toBe(
-      `My Printings (3 printings)\n${SHARE_URL}\n\n2× Cleave · OGN-004\n1× Cleave · OGN-004 · Foil\n1× Disintegrate · OGN-050 · ZH`,
+      `My Printings (3 printings)\n${SHARE_URL}\n\n2x Cleave · OGN-004\n1x Cleave · OGN-004 · Foil\n1x Disintegrate · OGN-050 · ZH`,
     );
   });
 
@@ -180,7 +221,7 @@ describe("formatListShareText", () => {
       [cardEntry("e1", "c1", "Kai’Sa, Survivor", 3)],
       SHARE_URL,
     );
-    expect(output).toContain("3× Kai'Sa, Survivor");
+    expect(output).toContain("3x Kai'Sa, Survivor");
   });
 
   it("omits the link line when the list isn't shared (shareUrl null)", () => {
@@ -197,7 +238,7 @@ describe("formatListShareText", () => {
       ],
       SHARE_URL,
     );
-    expect(withCounterpart).toContain("1× Cleave · OGN-004 · Foil");
+    expect(withCounterpart).toContain("1x Cleave · OGN-004 · Foil");
 
     const foilOnly = formatListShareText(
       "Shinies",
@@ -223,8 +264,8 @@ describe("formatListShareText", () => {
       ],
       SHARE_URL,
     );
-    expect(output).toContain("3× Cleave · OGN-004");
-    expect(output).toContain("1× Disintegrate · OGN-050");
+    expect(output).toContain("3x Cleave · OGN-004");
+    expect(output).toContain("1x Disintegrate · OGN-050");
     expect(output).toContain("Binder (2 printings)");
   });
 
@@ -248,9 +289,9 @@ describe("formatListShareText", () => {
       currency: "USD",
       ctPriceFor: (printingId) => (printingId === "p-e2" ? 4.5 : undefined),
     });
-    expect(output).toContain("1× Teemo, Scout · OGN-001 — $2.50");
-    expect(output).toContain("1× Jinx, Rebel · OGN-002 — $4.50");
-    expect(output).toContain("1× Cleave · OGN-003");
+    expect(output).toContain("1x Teemo, Scout · OGN-001 — $2.50");
+    expect(output).toContain("1x Jinx, Rebel · OGN-002 — $4.50");
+    expect(output).toContain("1x Cleave · OGN-003");
     expect(output).not.toContain("OGN-003 —");
   });
 });

@@ -130,7 +130,7 @@ export function ListShareDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Share link</DialogTitle>
+          <DialogTitle>Share list</DialogTitle>
           <DialogDescription>
             {sharing
               ? "Anyone with this link can view the cards on this list."

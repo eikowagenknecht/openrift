@@ -83,8 +83,8 @@ export function formatCardListAsDeckText(entries: readonly ListEntryDetailRespon
 
 /**
  * Collapses copy-kind entries (one per physical copy) into one entry per
- * printing, summing quantities, so a trade binder reads "3× Cleave" instead of
- * three "1× Cleave" lines.
+ * printing, summing quantities, so a trade binder reads "3x Cleave" instead of
+ * three "1x Cleave" lines.
  * @returns One entry per distinct printing.
  */
 function mergeCopiesByPrinting(
@@ -102,6 +102,33 @@ function mergeCopiesByPrinting(
     );
   }
   return [...byPrinting.values()];
+}
+
+/** One want for the Cardmarket export: a card name and how many of it. */
+export interface CardmarketWant {
+  name: string;
+  quantity: number;
+}
+
+/**
+ * Formats wants as a paste-clean block for Cardmarket's shopping wizard
+ * ("add multiple wants" import): pure `<quantity>x <name>` lines and nothing
+ * else — no header, no short codes, no finish markers — because Cardmarket
+ * matches lines by card name and any extra text breaks the match. Wants of the
+ * same card (e.g. different printings) are merged into one line, and the lines
+ * are sorted by name so the pasted list is easy to eyeball.
+ * @returns The import text (lines joined by "\n"), or "" when empty.
+ */
+export function formatCardmarketWants(wants: readonly CardmarketWant[]): string {
+  const byName = new Map<string, number>();
+  for (const want of wants) {
+    const name = straightenApostrophes(want.name);
+    byName.set(name, (byName.get(name) ?? 0) + want.quantity);
+  }
+  return [...byName.entries()]
+    .toSorted(([a], [b]) => a.localeCompare(b))
+    .map(([name, quantity]) => `${quantity}x ${name}`)
+    .join("\n");
 }
 
 /** Per-entry trade pricing for the share text (only CardTrader / fixed prices show). */
@@ -142,7 +169,7 @@ function tradePriceText(entry: ListEntryDetailResponse, pricing: SharePricing): 
 
 /**
  * Formats a list as a messenger-friendly block (ADR-024): a header line with
- * the list name and card count, the share link, then one `<quantity>× <name>`
+ * the list name and card count, the share link, then one `<quantity>x <name>`
  * line per entry. Unlike {@link formatCardListAsDeckText} this keeps every
  * kind — a shared trade/wish list is read by a human in a chat, not
  * round-tripped through a deckbuilder, so quantities and names of all entries
@@ -161,7 +188,7 @@ export function formatListShareText(
   pricing?: SharePricing,
 ): string {
   // Trade (copy) lists carry one entry per physical copy; merge copies of the
-  // same printing into a single "n× Card" line.
+  // same printing into a single "nx Card" line.
   const display = kind === "copy" ? mergeCopiesByPrinting(entries) : entries;
   const count = display.length;
   const noun = count === 1 ? KIND_NOUN[kind].one : KIND_NOUN[kind].many;
@@ -172,7 +199,9 @@ export function formatListShareText(
   const lines = display.map((entry) => {
     const siblings = byCard.get(entry.cardName) ?? [entry];
     const price = pricing ? tradePriceText(entry, pricing) : "";
-    return `${entry.quantity}× ${straightenApostrophes(entry.cardName)}${variantSuffix(entry, siblings)}${price}`;
+    // A plain ASCII "x" multiplier, not "×" — the text gets pasted into
+    // Cardmarket's wants import, which only parses "2x Name" lines.
+    return `${entry.quantity}x ${straightenApostrophes(entry.cardName)}${variantSuffix(entry, siblings)}${price}`;
   });
   const head = shareUrl ? [header, shareUrl, ""] : [header, ""];
   return [...head, ...lines].join("\n");

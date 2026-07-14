@@ -6,6 +6,7 @@ import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { UserAvatar } from "@/components/user-avatar";
 import {
   useAcceptTrade,
@@ -19,6 +20,7 @@ import {
 import { useCards } from "@/hooks/use-cards";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { usePrices } from "@/hooks/use-prices";
+import { MARKETPLACE_META } from "@/lib/marketplace-meta";
 import type { TradeCounterpartyGroup } from "@/lib/trade-derivation";
 import {
   bucketMemberTrades,
@@ -32,6 +34,7 @@ import { useTradeActionStore } from "@/stores/trade-action-store";
 
 import { AddToCollectionDialog } from "./add-to-collection-dialog";
 import { SECTION_HEADING } from "./friend-group-shell";
+import { TradeCardmarketExportDialog } from "./trade-cardmarket-export-dialog";
 import {
   CardMetaLine,
   CounterpartyChip,
@@ -285,6 +288,60 @@ function BulkTradeActions({ trades, mode }: { trades: CardTradeResponse[]; mode:
 }
 
 /**
+ * Icon button on a counterparty group header that opens the Cardmarket export
+ * for the group's reserved trades. Rendered only when there is at least one
+ * reserved trade, so it never offers an empty export.
+ * @returns The export button with its dialog, or null when nothing is reserved.
+ */
+function CardmarketExportButton({
+  counterpartyName,
+  trades,
+}: {
+  counterpartyName: string | null;
+  trades: CardTradeResponse[];
+}) {
+  const [open, setOpen] = useState(false);
+
+  const reserved = trades.filter((trade) => trade.status === "reserved");
+  if (reserved.length === 0) {
+    return null;
+  }
+
+  return (
+    <>
+      <TooltipProvider delay={200}>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                size="icon-sm"
+                variant="outline"
+                className="shrink-0"
+                aria-label="Export for Cardmarket"
+                onClick={() => setOpen(true)}
+              />
+            }
+          >
+            <img
+              src={MARKETPLACE_META.cardmarket.icon}
+              alt=""
+              className="h-3.5 invert dark:invert-0"
+            />
+          </TooltipTrigger>
+          <TooltipContent>Export for Cardmarket</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      <TradeCardmarketExportDialog
+        counterpartyName={counterpartyName}
+        trades={reserved}
+        open={open}
+        onOpenChange={setOpen}
+      />
+    </>
+  );
+}
+
+/**
  * One counterparty's trades under a collapsible header: avatar, name, count, and
  * the estimated get/give value, with the bulk action for the bucket next to it.
  * Default-open so the rows are visible, but collapsible so a big pile from one
@@ -318,6 +375,7 @@ function CounterpartyTradeGroup({
           <TradeValueSummary split={split} marketplace={marketplace} className="ml-auto" />
           <ChevronRightIcon className="text-muted-foreground size-4 shrink-0 transition-transform group-data-[panel-open]:rotate-90" />
         </CollapsibleTrigger>
+        <CardmarketExportButton counterpartyName={counterparty.name} trades={trades} />
         <BulkTradeActions trades={trades} mode={bulk} />
       </div>
       <CollapsibleContent>

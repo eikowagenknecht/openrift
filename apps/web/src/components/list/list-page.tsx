@@ -260,7 +260,7 @@ export function ListPage({ listId }: ListPageProps) {
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setShareOpen(true)}>
                 <Share2Icon className="size-4" />
-                Share link
+                Share
               </DropdownMenuItem>
               {(data.list.kind === "card" || data.list.kind === "printing") && (
                 <DropdownMenuItem onClick={() => setImportOpen(true)}>
