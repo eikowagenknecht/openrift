@@ -8,6 +8,7 @@ import { createPortal } from "react-dom";
 import { DeckMissingCardsDialog } from "@/components/deck/deck-missing-cards-dialog";
 import { DeckOverview } from "@/components/deck/deck-overview";
 import { DeckPlanView } from "@/components/deck/deck-plan-view";
+import type { HoverOrigin } from "@/components/deck/hovered-card-preview";
 import { HoveredCardPreview } from "@/components/deck/hovered-card-preview";
 import { SharedDeckOwnershipBridge } from "@/components/deck/shared-deck-ownership-bridge";
 import {
@@ -140,6 +141,7 @@ function SharedDeckContent({
   const [hovered, setHovered] = useState<{
     id: string;
     preferredPrintingId: string | null;
+    origin: HoverOrigin;
   } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [missingOpen, setMissingOpen] = useState(false);
@@ -148,7 +150,14 @@ function SharedDeckContent({
   const [pendingClick, setPendingClick] = useState<DeckBuilderCard | null>(null);
 
   const onHoverCard = (id: string | null, preferredPrintingId?: string | null) =>
-    setHovered(id ? { id, preferredPrintingId: preferredPrintingId ?? null } : null);
+    setHovered(
+      id ? { id, preferredPrintingId: preferredPrintingId ?? null, origin: "main" } : null,
+    );
+  // List rows anchor their preview to the right of the centered list.
+  const onHoverListCard = (id: string | null, preferredPrintingId?: string | null) =>
+    setHovered(
+      id ? { id, preferredPrintingId: preferredPrintingId ?? null, origin: "main-right" } : null,
+    );
 
   // Suppress the floating hover preview while the detail pane is open — the
   // pane already shows the card, having both up at once is noisy.
@@ -206,7 +215,11 @@ function SharedDeckContent({
           topBarSlot,
         )}
 
-      <HoveredCardPreview hoveredCard={hoveredCard} origin="main" containerRef={containerRef} />
+      <HoveredCardPreview
+        hoveredCard={hoveredCard}
+        origin={hovered?.origin ?? "main"}
+        containerRef={containerRef}
+      />
 
       <div
         className="@container flex items-stretch gap-6"
@@ -230,6 +243,7 @@ function SharedDeckContent({
               thumbByKey.get(thumbKey(cardId, preferredPrintingId))
             }
             onHoverCard={onHoverCard}
+            onHoverListCard={onHoverListCard}
             onViewMissing={() => setMissingOpen(true)}
             readOnly
             signInHref={

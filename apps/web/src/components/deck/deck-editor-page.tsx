@@ -458,11 +458,18 @@ function DeckEditorContent({
     setHovered(
       id ? { id, origin: "main", preferredPrintingId: preferredPrintingId ?? null } : null,
     );
+  // The overview list pins its preview to the right of the centered list
+  // (sidebar-style anchor) rather than chasing the cursor like the thumbnails.
+  const setHoveredList = (id: string | null, preferredPrintingId?: string | null) =>
+    setHovered(
+      id ? { id, origin: "main-right", preferredPrintingId: preferredPrintingId ?? null } : null,
+    );
 
   // While the detail pane is open, the floating hover preview from the main
-  // (overview) thumbnails would compete with the pane. Suppress it. Sidebar
-  // hover stays — it's the primary way to peek at a card without committing.
-  const suppressHoverPreview = detailOpen && hovered?.origin === "main";
+  // (overview) thumbnails or list would compete with the pane. Suppress it.
+  // Sidebar hover stays — it's the primary way to peek at a card without committing.
+  const suppressHoverPreview =
+    detailOpen && (hovered?.origin === "main" || hovered?.origin === "main-right");
   const hoveredPrinting =
     hovered && !isMobile && !suppressHoverPreview
       ? (getPreferredPrinting(hovered.id, hovered.preferredPrintingId) ?? null)
@@ -756,6 +763,7 @@ function DeckEditorContent({
                     onZoneClick={handleZoneClick}
                     onViewMissing={() => setMissingOpen(true)}
                     onHoverCard={setHoveredMain}
+                    onHoverListCard={setHoveredList}
                     onOverviewCardClick={handleOverviewCardClick}
                   />
                 )}

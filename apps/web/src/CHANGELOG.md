@@ -15,6 +15,7 @@
 
 ### Highlights
 
+- feat(Decks): **List view for decks** — a new list toggle on the deck overview shows every card in dense rows (count, energy, ownership, price, set code) that you can sort by name, energy, price, rarity, or how many you still own.
 - feat(Decks): **Missing cards, ready to buy** — each missing card now shows its cost inline (copies × price), links its name to the card page, and has a button to buy it on your marketplace.
 
 ### Other

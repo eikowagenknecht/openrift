@@ -36,7 +36,7 @@ interface DeckCardRowProps {
   onContextMenu?: (event: React.MouseEvent) => void;
 }
 
-function PowerDomainIcon({
+export function PowerDomainIcon({
   domains,
   colors,
 }: {
@@ -61,7 +61,7 @@ function PowerDomainIcon({
   );
 }
 
-function EnergyGlyph({ value }: { value: number }) {
+export function EnergyGlyph({ value }: { value: number }) {
   return (
     <span className="text-2xs flex size-4 shrink-0 items-center justify-center rounded-full bg-white leading-none font-bold text-[#013951]">
       {value}

@@ -13,6 +13,8 @@ import {
   AlertTriangleIcon,
   CheckCircle2Icon,
   InfoIcon,
+  LayoutGridIcon,
+  ListIcon,
   LogInIcon,
   PackageSearchIcon,
   PencilIcon,
@@ -27,22 +29,26 @@ import type {
   DeckCardDragData,
   DeckDropData,
 } from "@/components/deck/deck-dnd-context";
+import { DeckOverviewList, DECK_OVERVIEW_SORT_OPTIONS } from "@/components/deck/deck-overview-list";
 import { OwnershipBar, ownershipPercent } from "@/components/deck/deck-ownership-panel";
 import { DomainBar } from "@/components/deck/deck-stats-panel";
 import { FormatConfigCard } from "@/components/deck/format-config-card";
 import { EnergyChart, PowerChart } from "@/components/deck/stats/energy-power-chart";
 import { TypeBreakdown } from "@/components/deck/stats/type-breakdown";
+import { SortGroupControls } from "@/components/filters/sort-group-controls";
 import { MarkdownText } from "@/components/markdown-text";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CardLink } from "@/components/ui/card-link";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ProgressIndicator, ProgressTrack } from "@/components/ui/progress";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { useDeckStats } from "@/hooks/use-deck-stats";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useChampionIdentifierTags, useEnumOrders } from "@/hooks/use-enums";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import {
@@ -56,6 +62,7 @@ import { ZONE_LABELS, zoneEmptyHint, zoneExpected } from "@/lib/deck-zone-labels
 import { formatterForMarketplace } from "@/lib/format";
 import { getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
+import { useDeckOverviewViewStore } from "@/stores/deck-overview-view-store";
 import { useOnboardingStore } from "@/stores/onboarding-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
@@ -108,6 +115,9 @@ interface DeckOverviewProps {
   onZoneClick?: (zone: DeckZone) => void;
   onViewMissing?: () => void;
   onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
+  /** Hover handler for list-mode rows; falls back to `onHoverCard`. Lets the
+   * host anchor the list's preview to the right instead of tracking the cursor. */
+  onHoverListCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
   /** Disables DnD wiring, printing-menu popovers, and edit buttons. */
   readOnly?: boolean;
   /**
@@ -140,6 +150,7 @@ export function DeckOverview({
   onZoneClick,
   onViewMissing,
   onHoverCard,
+  onHoverListCard,
   readOnly,
   signInHref,
   description,
@@ -180,6 +191,19 @@ export function DeckOverview({
   const isComplete = requiredProgress === requiredTotal && !hasAnyViolation;
   const cardsPct =
     requiredTotal > 0 ? Math.min(100, Math.round((requiredProgress / requiredTotal) * 100)) : 0;
+
+  // View mode (thumbnail grid vs dense list) is a persisted device-local pref.
+  // Gate it behind hydration so SSR and the first client render both show the
+  // default grid — otherwise a stored "list" pref would flip the tree after
+  // hydration and trip a mismatch on the SSR'd public share page.
+  const hydrated = useHydrated();
+  const storedDisplayMode = useDeckOverviewViewStore((state) => state.displayMode);
+  const listSortBy = useDeckOverviewViewStore((state) => state.sortBy);
+  const listSortDir = useDeckOverviewViewStore((state) => state.sortDir);
+  const setDisplayMode = useDeckOverviewViewStore((state) => state.setDisplayMode);
+  const setSortBy = useDeckOverviewViewStore((state) => state.setSortBy);
+  const setSortDir = useDeckOverviewViewStore((state) => state.setSortDir);
+  const displayMode = hydrated ? storedDisplayMode : "grid";
 
   return (
     <div className="@container flex flex-col gap-6 px-1 pt-3 pb-4">
@@ -294,95 +318,148 @@ export function DeckOverview({
         </div>
       )}
 
-      <div className="flex flex-col gap-3">
-        <div className="grid grid-cols-1 gap-3 @lg:grid-cols-3 @5xl:grid-cols-5">
-          {SMALL_ZONES.map((zone) => (
+      {totalCards > 0 && (
+        <div className="flex items-center justify-end gap-2">
+          {displayMode === "list" && (
+            <SortGroupControls
+              sortOptions={DECK_OVERVIEW_SORT_OPTIONS}
+              sortBy={listSortBy}
+              sortDir={listSortDir}
+              onSortByChange={setSortBy}
+              onSortDirChange={setSortDir}
+            />
+          )}
+          <ToggleGroup
+            variant="outline"
+            spacing={0}
+            value={[displayMode]}
+            onValueChange={([next]) => {
+              if (next === "grid" || next === "list") {
+                setDisplayMode(next);
+              }
+            }}
+            aria-label="Deck view"
+          >
+            <Tooltip>
+              <TooltipTrigger render={<ToggleGroupItem value="grid" aria-label="Grid view" />}>
+                <LayoutGridIcon className="size-4" />
+              </TooltipTrigger>
+              <TooltipContent>Grid view</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger render={<ToggleGroupItem value="list" aria-label="List view" />}>
+                <ListIcon className="size-4" />
+              </TooltipTrigger>
+              <TooltipContent>List view</TooltipContent>
+            </Tooltip>
+          </ToggleGroup>
+        </div>
+      )}
+
+      {totalCards > 0 && displayMode === "list" ? (
+        <DeckOverviewList
+          cards={cards}
+          format={deck.format}
+          violations={violations}
+          ownership={ownershipData}
+          showOwnership={ownershipData !== undefined && !signInHref}
+          marketplace={marketplace}
+          sortBy={listSortBy}
+          sortDir={listSortDir}
+          onHoverCard={onHoverListCard ?? onHoverCard}
+          onCardClick={onCardClick}
+        />
+      ) : (
+        <div className="flex flex-col gap-3">
+          <div className="grid grid-cols-1 gap-3 @lg:grid-cols-3 @5xl:grid-cols-5">
+            {SMALL_ZONES.map((zone) => (
+              <ZoneTile
+                key={zone}
+                deckId={deck.id}
+                zone={zone}
+                label={ZONE_LABELS[zone]}
+                cards={cards.filter((card) => card.zone === zone)}
+                allCards={cards}
+                expected={zoneExpected(zone, deck.format)}
+                emptyHint={zoneEmptyHint(zone, deck.format)}
+                format={deck.format}
+                zoneViolations={violations.filter(
+                  (violation) => violation.zone === zone && !violation.cardId,
+                )}
+                className={SMALL_ZONE_SPAN[zone]}
+                onClick={onZoneClick ? () => onZoneClick(zone) : undefined}
+                onHoverCard={onHoverCard}
+                getThumbnail={getThumbnail}
+                readOnly={readOnly}
+                onCardClick={onCardClick}
+              />
+            ))}
+          </div>
+          <ZoneTile
+            deckId={deck.id}
+            zone={WellKnown.deckZone.MAIN}
+            label={ZONE_LABELS.main}
+            cards={cards.filter((card) => card.zone === WellKnown.deckZone.MAIN)}
+            allCards={cards}
+            expected={zoneExpected(WellKnown.deckZone.MAIN, deck.format)}
+            emptyHint={zoneEmptyHint(WellKnown.deckZone.MAIN, deck.format)}
+            format={deck.format}
+            zoneViolations={violations.filter(
+              (violation) => violation.zone === WellKnown.deckZone.MAIN && !violation.cardId,
+            )}
+            onClick={onZoneClick ? () => onZoneClick(WellKnown.deckZone.MAIN) : undefined}
+            onHoverCard={onHoverCard}
+            getThumbnail={getThumbnail}
+            readOnly={readOnly}
+            onCardClick={onCardClick}
+          />
+          {/* Formats without a sideboard hide the tile once it's empty; a
+            non-empty sideboard (format switch, imported list) stays visible
+            with its violation so the cards can be moved out. The /8 target
+            only applies where the zone is part of the format. */}
+          {(formatHasSideboard(deck.format) ||
+            cards.some((card) => card.zone === WellKnown.deckZone.SIDEBOARD)) && (
             <ZoneTile
-              key={zone}
               deckId={deck.id}
-              zone={zone}
-              label={ZONE_LABELS[zone]}
-              cards={cards.filter((card) => card.zone === zone)}
+              zone={WellKnown.deckZone.SIDEBOARD}
+              label={ZONE_LABELS.sideboard}
+              cards={cards.filter((card) => card.zone === WellKnown.deckZone.SIDEBOARD)}
               allCards={cards}
-              expected={zoneExpected(zone, deck.format)}
-              emptyHint={zoneEmptyHint(zone, deck.format)}
+              expected={zoneExpected(WellKnown.deckZone.SIDEBOARD, deck.format)}
+              emptyHint={zoneEmptyHint(WellKnown.deckZone.SIDEBOARD, deck.format)}
               format={deck.format}
               zoneViolations={violations.filter(
-                (violation) => violation.zone === zone && !violation.cardId,
+                (violation) => violation.zone === WellKnown.deckZone.SIDEBOARD && !violation.cardId,
               )}
-              className={SMALL_ZONE_SPAN[zone]}
-              onClick={onZoneClick ? () => onZoneClick(zone) : undefined}
+              onClick={onZoneClick ? () => onZoneClick(WellKnown.deckZone.SIDEBOARD) : undefined}
               onHoverCard={onHoverCard}
               getThumbnail={getThumbnail}
               readOnly={readOnly}
               onCardClick={onCardClick}
             />
-          ))}
-        </div>
-        <ZoneTile
-          deckId={deck.id}
-          zone={WellKnown.deckZone.MAIN}
-          label={ZONE_LABELS.main}
-          cards={cards.filter((card) => card.zone === WellKnown.deckZone.MAIN)}
-          allCards={cards}
-          expected={zoneExpected(WellKnown.deckZone.MAIN, deck.format)}
-          emptyHint={zoneEmptyHint(WellKnown.deckZone.MAIN, deck.format)}
-          format={deck.format}
-          zoneViolations={violations.filter(
-            (violation) => violation.zone === WellKnown.deckZone.MAIN && !violation.cardId,
           )}
-          onClick={onZoneClick ? () => onZoneClick(WellKnown.deckZone.MAIN) : undefined}
-          onHoverCard={onHoverCard}
-          getThumbnail={getThumbnail}
-          readOnly={readOnly}
-          onCardClick={onCardClick}
-        />
-        {/* Formats without a sideboard hide the tile once it's empty; a
-            non-empty sideboard (format switch, imported list) stays visible
-            with its violation so the cards can be moved out. The /8 target
-            only applies where the zone is part of the format. */}
-        {(formatHasSideboard(deck.format) ||
-          cards.some((card) => card.zone === WellKnown.deckZone.SIDEBOARD)) && (
-          <ZoneTile
-            deckId={deck.id}
-            zone={WellKnown.deckZone.SIDEBOARD}
-            label={ZONE_LABELS.sideboard}
-            cards={cards.filter((card) => card.zone === WellKnown.deckZone.SIDEBOARD)}
-            allCards={cards}
-            expected={zoneExpected(WellKnown.deckZone.SIDEBOARD, deck.format)}
-            emptyHint={zoneEmptyHint(WellKnown.deckZone.SIDEBOARD, deck.format)}
-            format={deck.format}
-            zoneViolations={violations.filter(
-              (violation) => violation.zone === WellKnown.deckZone.SIDEBOARD && !violation.cardId,
-            )}
-            onClick={onZoneClick ? () => onZoneClick(WellKnown.deckZone.SIDEBOARD) : undefined}
-            onHoverCard={onHoverCard}
-            getThumbnail={getThumbnail}
-            readOnly={readOnly}
-            onCardClick={onCardClick}
-          />
-        )}
-        {cards.some((card) => card.zone === WellKnown.deckZone.OVERFLOW) && (
-          <ZoneTile
-            deckId={deck.id}
-            zone={WellKnown.deckZone.OVERFLOW}
-            label={ZONE_LABELS.overflow}
-            cards={cards.filter((card) => card.zone === WellKnown.deckZone.OVERFLOW)}
-            allCards={cards}
-            expected={zoneExpected(WellKnown.deckZone.OVERFLOW, deck.format)}
-            emptyHint={zoneEmptyHint(WellKnown.deckZone.OVERFLOW, deck.format)}
-            format={deck.format}
-            zoneViolations={violations.filter(
-              (violation) => violation.zone === WellKnown.deckZone.OVERFLOW && !violation.cardId,
-            )}
-            onClick={onZoneClick ? () => onZoneClick(WellKnown.deckZone.OVERFLOW) : undefined}
-            onHoverCard={onHoverCard}
-            getThumbnail={getThumbnail}
-            readOnly={readOnly}
-            onCardClick={onCardClick}
-          />
-        )}
-      </div>
+          {cards.some((card) => card.zone === WellKnown.deckZone.OVERFLOW) && (
+            <ZoneTile
+              deckId={deck.id}
+              zone={WellKnown.deckZone.OVERFLOW}
+              label={ZONE_LABELS.overflow}
+              cards={cards.filter((card) => card.zone === WellKnown.deckZone.OVERFLOW)}
+              allCards={cards}
+              expected={zoneExpected(WellKnown.deckZone.OVERFLOW, deck.format)}
+              emptyHint={zoneEmptyHint(WellKnown.deckZone.OVERFLOW, deck.format)}
+              format={deck.format}
+              zoneViolations={violations.filter(
+                (violation) => violation.zone === WellKnown.deckZone.OVERFLOW && !violation.cardId,
+              )}
+              onClick={onZoneClick ? () => onZoneClick(WellKnown.deckZone.OVERFLOW) : undefined}
+              onHoverCard={onHoverCard}
+              getThumbnail={getThumbnail}
+              readOnly={readOnly}
+              onCardClick={onCardClick}
+            />
+          )}
+        </div>
+      )}
 
       {(stats.energyCurve.length > 0 ||
         stats.powerCurve.length > 0 ||

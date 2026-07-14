@@ -154,6 +154,9 @@ interface DeckCardBrowserProps {
   onZoneClick: (zone: DeckZone) => void;
   onViewMissing: () => void;
   onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
+  /** Hover handler for the overview list rows — lets the host anchor its
+   * preview differently (to the right of the list) than the thumbnail hover. */
+  onHoverListCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
   /** Overview-only — opens the editor's detail pane for the clicked card. The
    * editor builds the handler because it owns the deck-items list used for the
    * pane's prev/next navigation. */
@@ -173,6 +176,7 @@ export function DeckCardBrowser({
   onZoneClick,
   onViewMissing,
   onHoverCard,
+  onHoverListCard,
   onOverviewCardClick,
 }: DeckCardBrowserProps) {
   const { data: deckDetail } = useDeckDetail(deckId);
@@ -206,6 +210,7 @@ export function DeckCardBrowser({
         onZoneClick={onZoneClick}
         onViewMissing={onViewMissing}
         onHoverCard={onHoverCard}
+        onHoverListCard={onHoverListCard}
         onCardClick={onOverviewCardClick}
       />
     );
@@ -223,6 +228,7 @@ function DeckOverviewForEditor({
   onZoneClick,
   onViewMissing,
   onHoverCard,
+  onHoverListCard,
   onCardClick,
 }: Omit<DeckCardBrowserProps, "deckId" | "onOverviewCardClick"> & {
   deck: DeckResponse;
@@ -276,6 +282,7 @@ function DeckOverviewForEditor({
         onZoneClick={onZoneClick}
         onViewMissing={onViewMissing}
         onHoverCard={onHoverCard}
+        onHoverListCard={onHoverListCard}
         onCardClick={onCardClick}
         description={deck.description ?? undefined}
       />

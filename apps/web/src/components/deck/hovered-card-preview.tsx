@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { CARD_ASPECT_INVERSE } from "@/components/cards/card-grid-constants";
 import { cn } from "@/lib/utils";
 
-export type HoverOrigin = "sidebar" | "main";
+export type HoverOrigin = "sidebar" | "main" | "main-right";
 
 const SIDEBAR_PREVIEW_LEFT_PX = 312; // 19.5rem
 const CURSOR_OFFSET_PX = 24;
@@ -93,6 +93,14 @@ export function HoveredCardPreview({ hoveredCard, origin, containerRef }: Hovere
         const rightEdge = cursorX + CURSOR_OFFSET_PX + previewWidth;
         const leftFlip = cursorX - CURSOR_OFFSET_PX - previewWidth;
         desiredLeft = rightEdge <= rect.width ? cursorX + CURSOR_OFFSET_PX : leftFlip;
+      } else if (origin === "main-right") {
+        // Anchor just past the right edge of the list itself (not the whole
+        // container, which is far wider than the centered list), so the preview
+        // sits directly beside the rows and stays put while the cursor moves.
+        const listEl = container.querySelector<HTMLElement>("[data-deck-list-root]");
+        desiredLeft = listEl
+          ? listEl.getBoundingClientRect().right - rect.left + CURSOR_OFFSET_PX
+          : rect.width - previewWidth - VIEWPORT_MARGIN_PX;
       } else {
         desiredLeft = SIDEBAR_PREVIEW_LEFT_PX;
       }
