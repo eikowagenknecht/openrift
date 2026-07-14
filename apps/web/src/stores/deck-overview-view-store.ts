@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 /** How the deck overview renders its zones: the thumbnail dashboard or a dense list. */
-export type DeckOverviewDisplayMode = "grid" | "list";
+type DeckOverviewDisplayMode = "grid" | "list";
 
 /**
  * Card ordering inside each zone (and each type group of a grouped zone) when
