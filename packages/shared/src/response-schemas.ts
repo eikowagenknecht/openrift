@@ -253,6 +253,11 @@ export const copyResponseSchema = z
     notesPrivate: z.string().nullable(),
     /** True when the copy is out on a live loan (ADR-039): still owned, physically absent. */
     onLoan: z.boolean(),
+    /**
+     * True when the copy is pinned to a live outgoing trade (ADR-034): still
+     * owned, but reserved — the deck builder excludes it from buildable stock.
+     */
+    reserved: z.boolean(),
   })
   .openapi("CopyResponse");
 

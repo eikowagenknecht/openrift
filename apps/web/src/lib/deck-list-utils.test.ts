@@ -23,6 +23,7 @@ interface DeckOverrides {
   isValid?: boolean;
   totalCards?: number;
   totalValueCents?: number | null;
+  missingCount?: number | null;
   domains?: { domain: Domain; count: number }[];
   legendName?: string | null;
   championName?: string | null;
@@ -48,6 +49,7 @@ function makeItem(overrides: DeckOverrides = {}): DeckListItemWithNames {
     domainDistribution: overrides.domains ?? [],
     isValid: overrides.isValid ?? true,
     totalValueCents: overrides.totalValueCents ?? null,
+    missingCount: overrides.missingCount ?? null,
   };
   return enrichItem(base, {
     legendName: overrides.legendName ?? null,

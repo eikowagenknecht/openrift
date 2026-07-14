@@ -242,6 +242,7 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
     domainDistribution,
     isValid,
     totalValueCents,
+    missingCount,
   } = item;
   const isLocal = isLocalDeckId(deck.id);
   const { getPreferredPrinting, getPreferredFrontImage } = usePreferredPrinting();
@@ -349,6 +350,12 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
                   totalValueCents / 100,
                 )}
               </span>
+            </>
+          )}
+          {missingCount !== null && missingCount > 0 && (
+            <>
+              <span>·</span>
+              <span className="text-amber-600 dark:text-amber-500">{missingCount} missing</span>
             </>
           )}
           <span className="flex-1" />

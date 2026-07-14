@@ -262,6 +262,13 @@ export function aggregateDeckBuildingCounts(
       locked[copy.printingId] = (locked[copy.printingId] ?? 0) + 1;
       continue;
     }
+    // A copy reserved for a live outgoing trade (ADR-034) is committed away:
+    // owned but not buildable, so it's locked, not available. Reservations only
+    // pin personal copies, so no group check here either.
+    if (copy.reserved) {
+      locked[copy.printingId] = (locked[copy.printingId] ?? 0) + 1;
+      continue;
+    }
     // Default to available when the collection is unknown (race during create
     // or stale collections cache) — better to count an in-flight copy than to
     // mis-flag it as locked. `availableForDeckbuilding` is viewer-effective:

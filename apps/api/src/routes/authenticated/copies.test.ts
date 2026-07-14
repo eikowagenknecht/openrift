@@ -61,6 +61,7 @@ const dbCopy = {
   collectionId: "a0000000-0001-4000-a000-000000000010",
   groupId: null,
   onLoan: false,
+  reserved: false,
   createdAt: now,
   condition: null,
   grader: null,
@@ -159,6 +160,7 @@ describe("POST /api/v1/copies", () => {
         isAltered: false,
         links: [],
         onLoan: false,
+        reserved: false,
       },
     ];
     mockAddCopies.mockResolvedValue(created);

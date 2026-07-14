@@ -594,6 +594,7 @@ describe("toCopy", () => {
       groupId: null,
       ...COPY_METADATA,
       onLoan: false,
+      reserved: false,
     });
     expect(result).toEqual({
       id: "copy-1",
@@ -602,6 +603,7 @@ describe("toCopy", () => {
       groupId: null,
       ...COPY_METADATA,
       onLoan: false,
+      reserved: false,
     });
   });
 });

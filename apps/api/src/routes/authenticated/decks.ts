@@ -195,18 +195,24 @@ const os = implement(decksContract).$context<ApiContext>().use(requireAuthedUser
 export const decksRouter = {
   // ── LIST ────────────────────────────────────────────────────────────────────
   list: os.list.handler(async ({ input, context }): Promise<DeckListResponse> => {
-    const { decks, marketplace, userPreferences, enums } = context.repos;
+    const { decks, marketplace, userPreferences, enums, copies, loans } = context.repos;
     const userId = context.userId;
 
-    const [deckRows, allCards, prefs, enumRows] = await Promise.all([
-      decks.listForUser(userId, {
-        wantedOnly: input.wanted === "true",
-        includeArchived: input.includeArchived === "true",
-      }),
-      decks.allCardsForUser(userId),
-      userPreferences.getByUserId(userId),
-      enums.all(),
-    ]);
+    const [deckRows, allCards, prefs, enumRows, buildableByCard, borrowedByCard] =
+      await Promise.all([
+        decks.listForUser(userId, {
+          wantedOnly: input.wanted === "true",
+          includeArchived: input.includeArchived === "true",
+        }),
+        decks.allCardsForUser(userId),
+        userPreferences.getByUserId(userId),
+        enums.all(),
+        // Buildable + borrowed-in stock, keyed by card, for the per-deck missing
+        // count. These mirror the deck editor's `available` + borrowed inputs so
+        // both surfaces report the same number.
+        copies.buildableCountByCard(userId),
+        loans.borrowedCountByCard(userId),
+      ]);
 
     const favMarketplace =
       prefs?.data?.marketplaceOrder?.[0] ?? PREFERENCE_DEFAULTS.marketplaceOrder[0];
@@ -233,6 +239,21 @@ export const decksRouter = {
       const totalCards = cards
         .filter((card) => card.zone !== WellKnown.deckZone.OVERFLOW)
         .reduce((sum, card) => sum + card.quantity, 0);
+
+      // Missing count: needed minus buildable minus borrowed-in, per card.
+      // Sums over every zone the deck editor's ownership panel counts (all of
+      // them — see `computeDeckOwnership`), so the two numbers agree. Buildable
+      // and borrowed pools are shared across decks: each deck is measured
+      // independently against the full inventory, matching the editor.
+      const neededByCard = new Map<string, number>();
+      for (const card of cards) {
+        neededByCard.set(card.cardId, (neededByCard.get(card.cardId) ?? 0) + card.quantity);
+      }
+      let missingCount = 0;
+      for (const [cardId, needed] of neededByCard) {
+        const have = (buildableByCard.get(cardId) ?? 0) + (borrowedByCard.get(cardId) ?? 0);
+        missingCount += Math.max(0, needed - have);
+      }
 
       // Type counts (Unit/Spell/Gear from main+champion zones). Fan out over the
       // full type set (ADR-037) like the domain distribution below, so a
@@ -307,6 +328,7 @@ export const decksRouter = {
         domainDistribution,
         isValid,
         totalValueCents: deckValueMap.get(row.id) ?? null,
+        missingCount,
       };
     });
 

@@ -923,6 +923,7 @@ describe("friend-groups route", () => {
       collectionId: COLLECTION_ID,
       groupId: null,
       onLoan: false,
+      reserved: false,
       createdAt: now,
       condition: "near-mint",
       grader: null,

@@ -35,6 +35,14 @@ const mockMarketplace = {
   deckValues: vi.fn(() => Promise.resolve(new Map<string, number>())),
 };
 
+const mockCopies = {
+  buildableCountByCard: vi.fn(() => Promise.resolve(new Map<string, number>())),
+};
+
+const mockLoans = {
+  borrowedCountByCard: vi.fn(() => Promise.resolve(new Map<string, number>())),
+};
+
 const mockUserPreferences = {
   getByUserId: vi.fn(() => Promise.resolve(undefined)),
 };
@@ -101,6 +109,8 @@ app.use("*", async (c, next) => {
     enums: mockEnums,
     deckFormats: mockDeckFormats,
     customTags: mockCustomTags,
+    copies: mockCopies,
+    loans: mockLoans,
   } as never);
   await next();
 });
@@ -171,6 +181,10 @@ const dbDeckCardFull = {
 describe("GET /api/v1/decks", () => {
   beforeEach(() => {
     mockRepo.listForUser.mockReset();
+    mockCopies.buildableCountByCard.mockReset();
+    mockCopies.buildableCountByCard.mockResolvedValue(new Map<string, number>());
+    mockLoans.borrowedCountByCard.mockReset();
+    mockLoans.borrowedCountByCard.mockResolvedValue(new Map<string, number>());
   });
 
   it("returns 200 with list of decks", async () => {
@@ -184,6 +198,43 @@ describe("GET /api/v1/decks", () => {
     expect(json.items[0].totalCards).toBe(4);
     expect(json.items[0].typeCounts).toEqual([{ cardType: "unit", count: 4 }]);
     expect(json.items[0].isValid).toBe(false);
+  });
+
+  // The deck needs 4 of one card. With no buildable/borrowed stock, the whole
+  // playset is missing.
+  it("reports the full playset missing when nothing is owned", async () => {
+    mockRepo.listForUser.mockResolvedValue([dbDeck]);
+    mockRepo.allCardsForUser.mockResolvedValue([dbDeckCardFull]);
+    const res = await app.request("/api/v1/decks");
+    const json = await res.json();
+    expect(json.items[0].missingCount).toBe(4);
+  });
+
+  // Buildable + borrowed-in stock both count toward the shortfall, and the
+  // shortfall floors at 0 (surplus copies never make missing go negative).
+  it("subtracts buildable and borrowed-in stock, flooring at zero", async () => {
+    const cardId = dbDeckCardFull.cardId;
+    mockRepo.listForUser.mockResolvedValue([dbDeck]);
+    // main needs 4, sideboard needs 1 (5 total across zones).
+    mockRepo.allCardsForUser.mockResolvedValue([
+      dbDeckCardFull,
+      { ...dbDeckCardFull, id: "side", zone: "sideboard", quantity: 1 },
+    ]);
+    mockCopies.buildableCountByCard.mockResolvedValue(new Map([[cardId, 2]]));
+    mockLoans.borrowedCountByCard.mockResolvedValue(new Map([[cardId, 1]]));
+    const res = await app.request("/api/v1/decks");
+    const json = await res.json();
+    // needed 5 − buildable 2 − borrowed 1 = 2 missing.
+    expect(json.items[0].missingCount).toBe(2);
+  });
+
+  it("reports zero missing when owned stock covers the deck", async () => {
+    mockRepo.listForUser.mockResolvedValue([dbDeck]);
+    mockRepo.allCardsForUser.mockResolvedValue([dbDeckCardFull]);
+    mockCopies.buildableCountByCard.mockResolvedValue(new Map([[dbDeckCardFull.cardId, 10]]));
+    const res = await app.request("/api/v1/decks");
+    const json = await res.json();
+    expect(json.items[0].missingCount).toBe(0);
   });
 
   // ADR-037: type counts fan out over the full type set, so a multi-type card

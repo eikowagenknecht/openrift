@@ -50,6 +50,7 @@ export function stubCopy(overrides: Partial<CopyResponse> = {}): CopyResponse {
     collectionId: nextId(),
     groupId: null,
     onLoan: false,
+    reserved: false,
     condition: null,
     grader: null,
     grade: null,

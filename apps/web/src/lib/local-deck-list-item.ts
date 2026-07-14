@@ -101,5 +101,7 @@ export function localDeckToListItem(
     domainDistribution,
     isValid,
     totalValueCents: null,
+    // Browser-local decks (ADR-035) have no server inventory to diff against.
+    missingCount: null,
   };
 }

@@ -457,6 +457,12 @@ describe.skipIf(!ctx)("loansRepo (integration)", () => {
     }
     await groupsRepo.share(group.id, tradeList.id, LENDER_ID);
 
+    // Both copies are buildable stock right now — deck-available collection,
+    // neither lent out nor reserved. We assert the count drops by exactly two
+    // once one is loaned and the other reserved below.
+    const buildableCountsBefore = await repos.copies.buildableCountByCard(LENDER_ID);
+    const buildableBefore = buildableCountsBefore.get(CARD_FURY_UNIT.id) ?? 0;
+
     const loan = await createLoan(transact, {
       lenderUserId: LENDER_ID,
       printingId: PRINTING_1.id,
@@ -493,5 +499,41 @@ describe.skipIf(!ctx)("loansRepo (integration)", () => {
     const reserved = await repos.cardTrades.listReservedCopyIds(trade.id);
     expect(reserved).toHaveLength(1);
     expect(reserved[0]).not.toBe(loanedCopyId);
+
+    // Deck-building inventory excludes both the loaned and the reserved copy,
+    // so the buildable count fell by exactly the two copies committed away.
+    const buildableCountsAfter = await repos.copies.buildableCountByCard(LENDER_ID);
+    const buildableAfter = buildableCountsAfter.get(CARD_FURY_UNIT.id) ?? 0;
+    expect(buildableAfter).toBe(buildableBefore - 2);
+  });
+
+  // ADR-039: a borrowed-in copy is in hand and buildable, so it reduces the
+  // borrower's deck shortfall — but only once the loan is acknowledged.
+  it("counts acknowledged borrower loans in borrowedCountByCard, not pending ones", async () => {
+    await groupWithBorrower();
+    const collectionId = await freshCollection(LENDER_ID);
+    await addCopies(collectionId, 1);
+
+    const borrowedFury = async (): Promise<number> => {
+      const counts = await repos.loans.borrowedCountByCard(BORROWER_ID);
+      return counts.get(CARD_FURY_UNIT.id) ?? 0;
+    };
+
+    const before = await borrowedFury();
+
+    const loan = await createLoan(transact, {
+      lenderUserId: LENDER_ID,
+      printingId: PRINTING_1.id,
+      quantity: 1,
+      borrowerUserId: BORROWER_ID,
+      contextCollectionId: collectionId,
+    });
+
+    // Unacknowledged: not yet counted as borrowed-in.
+    expect(await borrowedFury()).toBe(before);
+
+    await acknowledgeLoan(transact, loan.id, BORROWER_ID);
+
+    expect(await borrowedFury()).toBe(before + 1);
   });
 });

@@ -150,6 +150,7 @@ const dbCopy = {
   collectionId: dbCollection.id,
   groupId: null,
   onLoan: false,
+  reserved: false,
   createdAt: now,
   condition: null,
   grader: null,

@@ -38,6 +38,8 @@ interface AddCopyResult {
   links: CopyLink[];
   /** Always false for a copy that was just created (ADR-039). */
   onLoan: boolean;
+  /** Always false for a copy that was just created (ADR-034): not yet reserved. */
+  reserved: boolean;
 }
 
 /**

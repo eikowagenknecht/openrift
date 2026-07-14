@@ -165,6 +165,13 @@ export const deckListItemResponseSchema = z
     domainDistribution: z.array(z.object({ domain: domainSchema, count: z.number() })),
     isValid: z.boolean(),
     totalValueCents: z.number().int().nullable(),
+    /**
+     * Number of cards the viewer is missing to build this deck, matching the
+     * deck editor's ownership panel: needed minus buildable (deck-available,
+     * not lent out, not reserved) minus borrowed-in, summed across cards.
+     * `null` for browser-local decks (ADR-035), which have no server inventory.
+     */
+    missingCount: z.number().int().nullable(),
   })
   .openapi("DeckListItemResponse");
 

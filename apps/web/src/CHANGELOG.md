@@ -8,7 +8,9 @@
 
 ### Other
 
+- feat(Decks): **Missing count on the deck list** — every deck in the overview now shows how many cards you still need to build it, the same number as the deck's ownership panel.
 - feat(Decks): **Missing card count in value tile** — the deck value card now shows how many cards you still need alongside the estimated cost to buy them.
+- fix(Decks): **Reserved cards no longer count as owned** — cards you have reserved for an outgoing trade are left out of a deck's buildable stock, so the missing count reflects what you can actually build.
 - fix(Cards): **Battlefield thumbnails no longer cropped** — landscape Battlefield art was cropped to a center strip in card lists, tables, and stats, and now rotates to fill the frame.
 
 ## 2026-07-12

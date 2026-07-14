@@ -488,6 +488,7 @@ export function toCopy(
     collectionId: string;
     groupId: string | null;
     onLoan: boolean;
+    reserved: boolean;
   } & CopyMetadataFields,
 ): CopyResponse {
   return {
@@ -496,6 +497,7 @@ export function toCopy(
     collectionId: row.collectionId,
     groupId: row.groupId,
     onLoan: row.onLoan,
+    reserved: row.reserved,
     condition: row.condition,
     grader: row.grader,
     grade: row.grade,

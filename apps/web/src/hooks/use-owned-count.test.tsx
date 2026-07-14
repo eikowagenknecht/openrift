@@ -214,6 +214,22 @@ describe("aggregateDeckBuildingCounts", () => {
     });
   });
 
+  // ADR-034: a copy reserved for a live outgoing trade is committed away — never
+  // available, even in an available collection. Still owned, so it buckets as
+  // locked. This keeps the deck editor's missing count in step with the server
+  // `/decks` overview, which excludes reserved copies from buildable stock.
+  it("buckets reserved copies as locked even in available collections", () => {
+    const copies = [
+      copy("p1", "c-playset"),
+      stubCopy({ printingId: "p1", collectionId: "c-playset", reserved: true }),
+    ];
+    const availability = new Map([["c-playset", true]]);
+    expect(aggregateDeckBuildingCounts(copies, availability)).toEqual({
+      available: { p1: 1 },
+      locked: { p1: 1 },
+    });
+  });
+
   // Regression: the deck card browser used the raw owned total, so cards sitting
   // in a collection marked "exclude from deck building" still showed as owned
   // (and passed the owned-only filter). They must bucket as locked, never

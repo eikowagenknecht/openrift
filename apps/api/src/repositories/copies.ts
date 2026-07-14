@@ -28,6 +28,8 @@ type CopyRow = Pick<
   groupId: string | null;
   /** True when the copy is out on a live loan (ADR-039). */
   onLoan: boolean;
+  /** True when the copy is pinned to a live outgoing trade (ADR-034): still owned, but reserved. */
+  reserved: boolean;
 };
 
 /** The per-copy metadata columns (ADR-038), aliased for `cp`-joined queries. */
@@ -124,6 +126,9 @@ export function copiesRepo(db: Kysely<Database>) {
         // A copy is pinned by at most one live loan (UNIQUE copy_id), so this
         // join can't multiply rows (ADR-039).
         .leftJoin("loanCopies as lc", "lc.copyId", "cp.id")
+        // Likewise pinned by at most one live trade (UNIQUE copy_id) — its
+        // presence means the copy is reserved for an outgoing trade (ADR-034).
+        .leftJoin("cardTradeCopies as ctc", "ctc.copyId", "cp.id")
         .select([
           "cp.id",
           "cp.printingId",
@@ -132,6 +137,7 @@ export function copiesRepo(db: Kysely<Database>) {
           "col.groupId as groupId",
           ...COPY_METADATA_COLUMNS,
           sql<boolean>`(lc.copy_id is not null)`.as("onLoan"),
+          sql<boolean>`(ctc.copy_id is not null)`.as("reserved"),
         ])
         .where((eb) => eb.or([eb("col.userId", "=", userId), eb("gm.userId", "=", userId)]))
         .orderBy("cp.createdAt", "desc")
@@ -219,6 +225,7 @@ export function copiesRepo(db: Kysely<Database>) {
         .selectFrom("copies as cp")
         .innerJoin("collections as col", "col.id", "cp.collectionId")
         .leftJoin("loanCopies as lc", "lc.copyId", "cp.id")
+        .leftJoin("cardTradeCopies as ctc", "ctc.copyId", "cp.id")
         .select([
           "cp.id",
           "cp.printingId",
@@ -227,6 +234,7 @@ export function copiesRepo(db: Kysely<Database>) {
           "col.groupId as groupId",
           ...COPY_METADATA_COLUMNS,
           sql<boolean>`(lc.copy_id is not null)`.as("onLoan"),
+          sql<boolean>`(ctc.copy_id is not null)`.as("reserved"),
         ])
         .where("cp.collectionId", "=", collectionId)
         .orderBy("cp.createdAt", "desc")
@@ -267,7 +275,7 @@ export function copiesRepo(db: Kysely<Database>) {
         ])
         .execute();
       // A freshly inserted copy is never out on a loan (ADR-039).
-      return rows.map((row) => ({ ...withParsedLinks(row), onLoan: false }));
+      return rows.map((row) => ({ ...withParsedLinks(row), onLoan: false, reserved: false }));
     },
 
     /**
@@ -440,6 +448,59 @@ export function copiesRepo(db: Kysely<Database>) {
           .groupBy(["p.cardId", "cp.printingId"])
           .execute()
       );
+    },
+
+    /**
+     * Buildable copy count per card for the viewer's deck inventory — the
+     * server-side mirror of the deck editor's `available` bucket, so the
+     * `/decks` overview's missing count matches the editor exactly. A copy
+     * counts when its collection is deck-building-available for the viewer
+     * (`COALESCE(pref.available, group_id IS NULL)`) AND it is neither out on a
+     * live loan (ADR-039, physically absent) nor reserved for a live outgoing
+     * trade (ADR-034). Borrowed-in copies are added separately (they aren't
+     * copy rows — see `loansRepo.borrowedCountByCard`).
+     * @returns Map from card id to buildable copy count.
+     */
+    async buildableCountByCard(userId: string): Promise<Map<string, number>> {
+      const rows = await db
+        .selectFrom("copies as cp")
+        .innerJoin("collections as col", "col.id", "cp.collectionId")
+        .innerJoin("printings as p", "p.id", "cp.printingId")
+        .leftJoin("friendGroupMembers as gm", (join) =>
+          join.onRef("gm.groupId", "=", "col.groupId").on("gm.userId", "=", userId),
+        )
+        .leftJoin("collectionDeckbuildingPrefs as pref", (join) =>
+          join.onRef("pref.collectionId", "=", "col.id").on("pref.userId", "=", userId),
+        )
+        .select((eb) => [
+          "p.cardId" as const,
+          eb.cast<number>(eb.fn.countAll(), "integer").as("count"),
+        ])
+        .where((eb) => eb.or([eb("col.userId", "=", userId), eb("gm.userId", "=", userId)]))
+        .where(sql`coalesce(pref.available, col.group_id is null)`, "=", true)
+        // A copy out on a live loan is physically absent (ADR-039).
+        .where(({ not, exists, selectFrom }) =>
+          not(
+            exists(
+              selectFrom("loanCopies as lc")
+                .select("lc.copyId")
+                .whereRef("lc.copyId", "=", "cp.id"),
+            ),
+          ),
+        )
+        // A copy reserved for a live outgoing trade is committed elsewhere (ADR-034).
+        .where(({ not, exists, selectFrom }) =>
+          not(
+            exists(
+              selectFrom("cardTradeCopies as ctc")
+                .select("ctc.copyId")
+                .whereRef("ctc.copyId", "=", "cp.id"),
+            ),
+          ),
+        )
+        .groupBy("p.cardId")
+        .execute();
+      return new Map(rows.map((row) => [row.cardId, row.count]));
     },
 
     /**

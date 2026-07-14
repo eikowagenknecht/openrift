@@ -41,7 +41,8 @@ function DomainDot({ domain }: { domain: string }) {
  * @returns A deck list row.
  */
 export function DeckListRow({ item }: { item: DeckListItemResponse }) {
-  const { deck, legendCardId, championCardId, totalCards, isValid, totalValueCents } = item;
+  const { deck, legendCardId, championCardId, totalCards, isValid, totalValueCents, missingCount } =
+    item;
   const isLocal = isLocalDeckId(deck.id);
   const { getPreferredPrinting } = usePreferredPrinting();
   const { labels: formatLabels } = useDeckFormatList();
@@ -105,6 +106,11 @@ export function DeckListRow({ item }: { item: DeckListItemResponse }) {
         {totalValueCents !== null && totalValueCents > 0 && (
           <span className="tabular-nums">
             {formatterForMarketplace(marketplaceOrder[0] ?? "cardtrader")(totalValueCents / 100)}
+          </span>
+        )}
+        {missingCount !== null && missingCount > 0 && (
+          <span className="text-amber-600 tabular-nums dark:text-amber-500">
+            {missingCount} missing
           </span>
         )}
         <span className="tabular-nums">{updatedDate}</span>

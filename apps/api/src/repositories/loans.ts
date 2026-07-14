@@ -184,6 +184,32 @@ export function loansRepo(db: Kysely<Database>) {
       return Number(row?.count ?? 0);
     },
 
+    /**
+     * Borrowed-in copy count per card (ADR-039) for the viewer's deck
+     * inventory: active, acknowledged loans where the viewer is the borrower,
+     * counting the outstanding quantity (`quantity - returned_quantity`).
+     * Borrowed copies are physically in hand and buildable, so they reduce the
+     * deck's missing count — mirrors the client's `aggregateBorrowedCounts`.
+     * @returns Map from card id to outstanding borrowed quantity (only positive entries).
+     */
+    async borrowedCountByCard(userId: string): Promise<Map<string, number>> {
+      const rows = await db
+        .selectFrom("loans")
+        .select((eb) => [
+          "cardId",
+          eb
+            .cast<number>(eb.fn.sum(sql`quantity - returned_quantity`), "integer")
+            .as("outstanding"),
+        ])
+        .where("borrowerUserId", "=", userId)
+        .where("status", "=", "active")
+        .where("acknowledgedAt", "is not", null)
+        .groupBy("cardId")
+        .having(sql`sum(quantity - returned_quantity)`, ">", 0)
+        .execute();
+      return new Map(rows.map((row) => [row.cardId, row.outstanding]));
+    },
+
     /** @returns The card id of a printing, or `undefined` if the printing does not exist. */
     async printingCardId(printingId: string): Promise<string | undefined> {
       const row = await db

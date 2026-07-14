@@ -479,7 +479,15 @@ export function useBatchedAddCopies(callbacks?: BatchedAddCallbacks) {
       if (copiesCollection) {
         const groupId = userId ? groupIdForCollection(queryClient, userId, collectionId) : null;
         copiesCollection.utils.writeInsert([
-          { id: tempId, printingId, collectionId, groupId, ...EMPTY_COPY_METADATA, onLoan: false },
+          {
+            id: tempId,
+            printingId,
+            collectionId,
+            groupId,
+            ...EMPTY_COPY_METADATA,
+            onLoan: false,
+            reserved: false,
+          },
         ]);
       }
       // oxlint-disable-next-line promise/avoid-new -- deferred pattern needed to batch individual calls into one POST
