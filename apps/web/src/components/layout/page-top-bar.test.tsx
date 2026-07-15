@@ -76,6 +76,19 @@ describe("PageTopBarTitle", () => {
     expect(onToggleSidebar).toHaveBeenCalledTimes(1);
   });
 
+  it("centers the desktop toggle inside baseline-aligned title rows", () => {
+    // Regression: collection/list headers wrap the title in an items-baseline
+    // flex row (to baseline-align the value text with the title). An icon-only
+    // button has no text baseline, so the browser synthesized one from the
+    // icon's bottom edge and the toggle sat visibly above center.
+    const { getByRole } = render(
+      <PageTopBarTitle onToggleSidebar={vi.fn()}>Cards</PageTopBarTitle>,
+    );
+
+    const toggle = getByRole("button", { name: "Toggle sidebar" });
+    expect(toggle.className).toContain("self-center");
+  });
+
   it("still wraps the title in a toggle button on mobile", () => {
     const onToggleSidebar = vi.fn();
     const { getByRole } = render(

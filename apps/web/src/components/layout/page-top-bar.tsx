@@ -188,10 +188,13 @@ export function PageTopBarTitle({ onToggleSidebar, children }: PageTopBarTitlePr
             <ChevronDownIcon className="text-muted-foreground size-4" />
           </Button>
         </h1>
+        {/* self-center: an icon-only button has no text baseline, so a parent
+            items-baseline row (collection/list headers) would synthesize one
+            from the icon's bottom edge and shift the button up out of center. */}
         <Button
           variant="ghost"
           size="icon"
-          className="mr-1 -ml-2 hidden md:inline-flex"
+          className="mr-1 -ml-2 hidden self-center md:inline-flex"
           onClick={onToggleSidebar}
         >
           <PanelLeftIcon />

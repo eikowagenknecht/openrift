@@ -8,7 +8,7 @@
 
 ### Other
 
-- fix(App): **Sidebar fold button on landscape phones** — the sidebar can be collapsed again on wider phone screens, and top bar content lines up with the page on notched iPhones.
+- fix(App): **Sidebar fold button on landscape phones** — the sidebar can be collapsed again on wider phone screens, the fold button lines up with page titles, and top bar content clears the notch on iPhones.
 - fix(Tournaments): **Fairer three-player pod rotation** — the pairing engine kept seating the same low-scoring players in three-player pods; it now rotates that duty across the whole field.
 - fix(Cards): **Price filter on non-English promos** — the promo price filter was hidden on every language except English, even for cards that had prices, and now appears whenever there are prices to filter on.
 
