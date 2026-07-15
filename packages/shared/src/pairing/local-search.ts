@@ -53,12 +53,20 @@ function constructOrder(players: PairingPlayer[], rng: Random): PairingPlayer[] 
   return ordered;
 }
 
-// Fill the determined pod sizes (fours first, then threes) top to bottom.
-function chunkIntoPods(ordered: PairingPlayer[], sizes: PodSizes): Pod[] {
-  const sequence: (3 | 4)[] = [
-    ...Array.from<unknown, 3 | 4>({ length: sizes.fours }, () => 4),
-    ...Array.from<unknown, 3 | 4>({ length: sizes.threes }, () => 3),
-  ];
+// Fill the determined pod sizes top to bottom, shuffling which positions in the
+// score order become the 3-pods. A fixed fours-then-threes order would anchor
+// every restart's 3-pods to the bottom of the standings, and best-improvement
+// search cannot relocate a whole 3-pod across a penalty barrier one swap at a
+// time — so without this shuffle the same low-scoring players get 3-pod duty
+// round after round.
+function chunkIntoPods(ordered: PairingPlayer[], sizes: PodSizes, rng: Random): Pod[] {
+  const sequence: (3 | 4)[] = shuffle(
+    [
+      ...Array.from<unknown, 3 | 4>({ length: sizes.fours }, () => 4),
+      ...Array.from<unknown, 3 | 4>({ length: sizes.threes }, () => 3),
+    ],
+    rng,
+  );
   const pods: Pod[] = [];
   let index = 0;
   for (const size of sequence) {
@@ -181,7 +189,7 @@ function searchOnce(
   budget: LocalSearchBudget,
   playersById: ReadonlyMap<string, PairingPlayer>,
 ): { pods: Pod[]; total: number } {
-  const pods = chunkIntoPods(constructOrder(players, rng), sizes);
+  const pods = chunkIntoPods(constructOrder(players, rng), sizes, rng);
   const totals = pods.map((pod) => evaluatePod(pod, playersById, config).total);
   let total = totals.reduce((sum, value) => sum + value, 0);
 
@@ -201,8 +209,8 @@ function searchOnce(
 
 /**
  * The v1 engine: bounded local search. Construct from a score-sorted (shuffled
- * within bands) seed, improve with whole-round 2-swaps and 3-cycles, restart a
- * few dozen times, and keep the lowest-penalty result. Among equal-penalty
+ * within bands, 3-pod positions shuffled) seed, improve with whole-round 2-swaps
+ * and 3-cycles, restart a few dozen times, and keep the lowest-penalty result. Among equal-penalty
  * results the injected rng breaks the tie ("pick randomly among equal pairings").
  *
  * @param budget Restart and step caps; defaults to {@link DEFAULT_LOCAL_SEARCH_BUDGET}.
@@ -244,7 +252,7 @@ function randomPairing(
   rng: Random,
 ): PairingResult {
   const playersById = new Map(players.map((player) => [player.id, player]));
-  const pods = chunkIntoPods(shuffle(players, rng), sizes);
+  const pods = chunkIntoPods(shuffle(players, rng), sizes, rng);
   const perPod = pods.map((pod) => evaluatePod(pod, playersById, config));
   return {
     pods,

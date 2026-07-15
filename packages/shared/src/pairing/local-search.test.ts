@@ -79,6 +79,31 @@ describe("generatePairing - priority ordering", () => {
   });
 });
 
+describe("generatePairing - three-pod duty rotation", () => {
+  it("moves the 3-pod off the bottom band when its players already had one", () => {
+    // Four fresh leaders on 6 points, three bottom players on 0 who were all in
+    // a 3-pod before. Seating the bottom three together again costs 3 * 120;
+    // the optimum (penalty 155) puts three leaders in the 3-pod and floats the
+    // fourth down. No single 2-swap improves on the bottom-anchored seating
+    // (each intermediate is worse) and with only two pods there are no
+    // 3-cycles, so only a restart that seeds the 3-pod at the top finds it —
+    // this pins both the penalty weights and the seed-order shuffle.
+    const players = [
+      player("t1", { score: 6 }),
+      player("t2", { score: 6 }),
+      player("t3", { score: 6 }),
+      player("t4", { score: 6 }),
+      player("b1", { score: 0, pods3: 1 }),
+      player("b2", { score: 0, pods3: 1 }),
+      player("b3", { score: 0, pods3: 1 }),
+    ];
+    const result = generatePairing(players, 2, undefined, mulberry32(17));
+    const threePod = result.pods.find((pod) => pod.size === 3);
+    expect(threePod?.playerIds.every((id) => id.startsWith("t"))).toBe(true);
+    expect(result.totalPenalty).toBe(155);
+  });
+});
+
 describe("generatePairing - reaches the known optimum", () => {
   it("finds the unique rematch-free split on a hand-checked field", () => {
     // K(3,3) "has met" graph: every {a,b,c} has met every {d,e,f}, none within a

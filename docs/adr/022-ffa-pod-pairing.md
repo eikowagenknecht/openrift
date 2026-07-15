@@ -186,7 +186,7 @@ const DEFAULT_PAIRING_CONFIG: PairingConfig = {
   spreadSurcharge6: 50,
   spreadSurcharge9: 150,
   floatWeight: 5,
-  threePodRepeatPenalties: [0, 25, 100, 300],
+  threePodRepeatPenalties: [0, 120, 600, 2400],
   pairwiseScoreWeight: 0,
 };
 ```
@@ -221,7 +221,7 @@ interface LocalSearchBudget {
 
 The algorithm:
 
-1. **Construct** a starting pairing: order players by score (with a small `rng` shuffle within equal-score bands so restarts differ), then fill the determined pod sizes top to bottom. O(n).
+1. **Construct** a starting pairing: order players by score (with a small `rng` shuffle within equal-score bands so restarts differ), then fill the determined pod sizes top to bottom, with the pod-size order itself shuffled per restart. A fixed fours-then-threes order would anchor every restart's three-player pods to the bottom of the standings, and the improvement step cannot relocate a whole pod across a penalty barrier one swap at a time, so the same low-scoring players would draw three-pod duty round after round. O(n).
 2. **Improve** by local moves: repeatedly try a 2-swap (exchange two players in different pods) or a 3-cycle (rotate three across three pods); compute the penalty _delta_ incrementally from only the touched pods (O(pod size), no full re-score), and keep the move only if the whole-round penalty drops. Stop at a local minimum or `maxSwapsPerRestart`.
 3. **Restart** from several randomized constructions and keep the lowest-penalty result. Restarts are what escape local minima; because rematches dominate the penalty, the landscape is easy and a few dozen restarts reliably reach the optimum (or something indistinguishable).
 

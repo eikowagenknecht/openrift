@@ -97,13 +97,13 @@ describe("evaluatePod - float", () => {
 });
 
 describe("evaluatePod - three-pod repeat", () => {
-  it("charges 0 / 25 / 100 / 300 per 3-pod player by prior 3-pod count", () => {
+  it("charges 0 / 120 / 600 / 2400 per 3-pod player by prior 3-pod count", () => {
     for (const [pods3, expected] of [
       [0, 0],
-      [1, 25],
-      [2, 100],
-      [3, 300],
-      [4, 300], // 3+ saturates
+      [1, 120],
+      [2, 600],
+      [3, 2400],
+      [4, 2400], // 3+ saturates
     ] as const) {
       const players = mapOf([player("a", { pods3 }), player("b"), player("c")]);
       expect(evaluatePod(POD3, players, undefined).threePodRepeat).toBe(expected);

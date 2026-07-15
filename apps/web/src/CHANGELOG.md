@@ -8,6 +8,7 @@
 
 ### Other
 
+- fix(Tournaments): **Fairer three-player pod rotation** — the pairing engine kept seating the same low-scoring players in three-player pods; it now rotates that duty across the whole field.
 - fix(Cards): **Price filter on non-English promos** — the promo price filter was hidden on every language except English, even for cards that had prices, and now appears whenever there are prices to filter on.
 
 ## 2026-07-14

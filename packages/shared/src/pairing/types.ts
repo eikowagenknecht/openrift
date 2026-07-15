@@ -74,7 +74,12 @@ export interface PairingConfig {
   spreadSurcharge9: number;
   /** Multiplier on each player's |score - podAverage|. */
   floatWeight: number;
-  /** Penalty per player in a 3-pod by their prior 3-pod count: [0, 1, 2, 3+]. */
+  /**
+   * Penalty per player in a 3-pod by their prior 3-pod count: [0, 1, 2, 3+].
+   * A repeat must cost more than the spread/float noise of relocating 3-pod
+   * duty to another score band (and slightly more than a first rematch), or
+   * the engine parks the same bottom-band players in the 3-pod every round.
+   */
   threePodRepeatPenalties: [number, number, number, number];
   /** Optional finer pairwise score term; default 0 (off). Reserved for a future weight. */
   pairwiseScoreWeight: number;
@@ -86,7 +91,7 @@ export const DEFAULT_PAIRING_CONFIG: PairingConfig = {
   spreadSurcharge6: 50,
   spreadSurcharge9: 150,
   floatWeight: 5,
-  threePodRepeatPenalties: [0, 25, 100, 300],
+  threePodRepeatPenalties: [0, 120, 600, 2400],
   pairwiseScoreWeight: 0,
 };
 
