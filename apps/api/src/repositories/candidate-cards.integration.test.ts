@@ -24,6 +24,8 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
   const CP_ID_2 = "c0000034-0002-4000-a000-000000000001";
   const CP_ID_3 = "c0000034-0003-4000-a000-000000000001"; // unlinked (no printingId)
   const CP_ID_4 = "c0000034-0004-4000-a000-000000000001"; // for CC_ID_3
+  const CP_ID_5 = "c0000034-0005-4000-a000-000000000001"; // for CC_ID_3, SC language
+  const CP_ID_6 = "c0000034-0006-4000-a000-000000000001"; // for CC_ID_3, EN language
 
   const PROVIDER = "test-cc-34";
 
@@ -37,7 +39,7 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
     // Clean up in reverse FK order
     await db
       .deleteFrom("candidatePrintings")
-      .where("id", "in", [CP_ID_1, CP_ID_2, CP_ID_3, CP_ID_4])
+      .where("id", "in", [CP_ID_1, CP_ID_2, CP_ID_3, CP_ID_4, CP_ID_5, CP_ID_6])
       .execute();
     await db.deleteFrom("candidateCards").where("id", "in", [CC_ID_1, CC_ID_2, CC_ID_3]).execute();
   });
@@ -191,6 +193,51 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
         printedEffectText: null,
       })
       .execute();
+
+    // Two more unmatched printings that tie on every pre-language ordering
+    // key (same shortCode, null set/finish/isSigned). SC is inserted BEFORE
+    // EN so that heap order alone would surface SC first — the ordering
+    // regression test below relies on this.
+    await db
+      .insertInto("candidatePrintings")
+      .values({
+        id: CP_ID_5,
+        candidateCardId: CC_ID_3,
+        printingId: null,
+        shortCode: "ZZZ-002",
+        setId: null,
+        setName: null,
+        rarity: null,
+        artVariant: null,
+        isSigned: null,
+        finish: null,
+        artist: null,
+        language: "SC",
+        externalId: "ext-cp-34-005",
+        flavorText: null,
+        printedEffectText: null,
+      })
+      .execute();
+    await db
+      .insertInto("candidatePrintings")
+      .values({
+        id: CP_ID_6,
+        candidateCardId: CC_ID_3,
+        printingId: null,
+        shortCode: "ZZZ-002",
+        setId: null,
+        setName: null,
+        rarity: null,
+        artVariant: null,
+        isSigned: null,
+        finish: null,
+        artist: null,
+        language: "EN",
+        externalId: "ext-cp-34-006",
+        flavorText: null,
+        printedEffectText: null,
+      })
+      .execute();
   });
 
   // ── listCardsWithMissingImages (lines 151-169) ────────────────────────────
@@ -284,6 +331,21 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
   it("candidatePrintingsForDetail returns [] for empty input", async () => {
     const result = await repo.candidatePrintingsForDetail([]);
     expect(result).toEqual([]);
+  });
+
+  // Regression: the query used to order only by (setId, finish, isSigned,
+  // shortCode), so an SC and an EN candidate for the same printing tied on
+  // every key and came back in physical row order — the ZH→SC backfill
+  // (migration 204) rewrote the Chinese rows and SC groups started appearing
+  // before EN on the admin card detail page. The order now mirrors the
+  // printings_ordered view: languages.sort_order first, unknowns last.
+  it("candidatePrintingsForDetail orders by language sort order like accepted printings", async () => {
+    const result = await repo.candidatePrintingsForDetail([CC_ID_3]);
+    expect(result.map((r) => [r.shortCode, r.language])).toEqual([
+      ["ZZZ-002", "EN"], // EN (sort_order 1) before SC (sort_order 3)...
+      ["ZZZ-002", "SC"], // ...despite the SC row being inserted first
+      ["ZZZ-001", null], // unknown language sorts last
+    ]);
   });
 
   // ── markerSlugsByIds ──────────────────────────────────────────────────────

@@ -443,6 +443,14 @@ export function candidateCardsRepo(db: Kysely<Database>) {
       const rows = await db
         .selectFrom("candidatePrintings as ps")
         .innerJoin("candidateCards as cs_parent", "cs_parent.id", "ps.candidateCardId")
+        // Candidate data is dirty (provider-supplied), so all reference joins
+        // are LEFT: unknown languages/sets/finishes/sizes sort last (ASC puts
+        // NULL sort orders after known ones). `ps.setId` holds the set *slug*
+        // directly, unlike accepted printings (see setPrintedTotalBySlugs).
+        .leftJoin("languages as l", "l.code", "ps.language")
+        .leftJoin("sets as s", "s.slug", "ps.setId")
+        .leftJoin("finishes as f", "f.slug", "ps.finish")
+        .leftJoin("cardSizes as sz", "sz.slug", "ps.size")
         .select([
           "ps.id",
           "ps.candidateCardId",
@@ -472,10 +480,26 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .where("ps.candidateCardId", "in", candidateCardIds)
         .where(notIgnoredPrinting("ps", "cs_parent"))
         .where(notHiddenSource("cs_parent"))
+        // Mirrors the printings_ordered view's canonical_rank keys so the
+        // candidate groups on the admin card detail page interleave in the
+        // same order as accepted printings (language before set, markerless
+        // before markered). Raw-column tiebreakers after each joined
+        // sort_order keep rows the joins couldn't resolve deterministic, and
+        // the trailing id makes the full order stable.
+        .orderBy("l.sortOrder")
+        .orderBy("ps.language")
+        .orderBy("s.sortOrder")
         .orderBy("ps.setId")
-        .orderBy("ps.finish")
-        .orderBy("ps.isSigned")
         .orderBy("ps.shortCode")
+        .orderBy(sql`(array_length(ps.marker_slugs, 1) is not null)`)
+        .orderBy(
+          sql`coalesce((select min(m.sort_order) from markers m where m.slug = any(ps.marker_slugs)), 0)`,
+        )
+        .orderBy("f.sortOrder")
+        .orderBy("ps.finish")
+        .orderBy("sz.sortOrder")
+        .orderBy("ps.isSigned")
+        .orderBy("ps.id")
         .execute();
       return rows.map((row) => ({ ...row, extraData: parseJsonb(row.extraData) }));
     },
