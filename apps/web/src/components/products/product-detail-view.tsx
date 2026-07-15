@@ -12,7 +12,6 @@ import {
 import { CardCell } from "@/components/cards/card-cell";
 import { CardCountStrip } from "@/components/cards/card-count-strip";
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
-import type { CardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { StaticCountTableActions } from "@/components/cards/static-count-table-actions";
 import {
@@ -33,7 +32,7 @@ import { useChannelRegistry } from "@/hooks/use-enums";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
-import { useOwnedCount, useOwnedCountsForPrintings } from "@/hooks/use-owned-count";
+import { useOwnedCount } from "@/hooks/use-owned-count";
 import { usePrices } from "@/hooks/use-prices";
 import { useSession } from "@/lib/auth-session";
 import { filterPrintingsByLanguages } from "@/lib/filter-printings-by-languages";
@@ -56,48 +55,6 @@ function ProductQuantityCell({
     return null;
   }
   return <StaticCountTableActions count={quantityByPrintingId[printing.id] ?? 0} />;
-}
-
-/**
- * Per-cell wrapper: the pill shows the kit quantity (what the product ships),
- * and for logged-in viewers the cell dims when they own no copy of the
- * printing — the ADR-015 "see at a glance which kit cards you already own"
- * signal. Self-subscribes to the owned count so the parent's `renderCard`
- * closure stays free of live data.
- *
- * @returns The composed card cell.
- */
-function ProductCardCell({
-  printing,
-  quantity,
-  ctx,
-  display,
-  showImages,
-  showOwnedDim,
-  onClick,
-}: {
-  printing: Printing;
-  quantity: number;
-  ctx: CardRenderContext;
-  display: CardThumbnailDisplay;
-  showImages: boolean;
-  showOwnedDim: boolean;
-  onClick: (printing: Printing) => void;
-}) {
-  const { data: counts } = useOwnedCountsForPrintings([printing.id], showOwnedDim);
-  const ownedCount = counts?.totals[printing.id] ?? 0;
-  return (
-    <CardCell
-      printing={printing}
-      ctx={ctx}
-      display={display}
-      showImages={showImages}
-      view="printings"
-      onClick={onClick}
-      dimmed={showOwnedDim && ownedCount === 0}
-      strip={<CardCountStrip count={quantity} />}
-    />
-  );
 }
 
 // Products are curated snapshots: distribution/marker/tag filters add noise on
@@ -304,15 +261,18 @@ function ProductDetailGrid({ data }: { data: ProductDetailResponse }) {
     }
   };
 
+  // The pill shows the kit quantity (what the product ships). The grid stays
+  // ownership-neutral — no owned dimming; the viewer's collection shows up
+  // only in the detail pane and through the Owned filter section.
   const renderCard = (item: CardViewerItem, ctx: CardRenderContext) => (
-    <ProductCardCell
+    <CardCell
       printing={item.printing}
-      quantity={quantityByPrintingId[item.printing.id] ?? 0}
       ctx={ctx}
       display={display}
       showImages={showImages}
-      showOwnedDim={isLoggedIn}
+      view="printings"
       onClick={handleCardClick}
+      strip={<CardCountStrip count={quantityByPrintingId[item.printing.id] ?? 0} />}
     />
   );
 

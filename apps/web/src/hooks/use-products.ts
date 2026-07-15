@@ -70,12 +70,25 @@ interface CreateProductInput {
   listId: string;
 }
 
+/**
+ * The public products list is served through the shared `serverCache`, which
+ * mutations must bust explicitly — otherwise the client-side invalidation
+ * refetches through the still-fresh server cache and pins the stale list for
+ * another `staleTime` round (empty admin table right after a create).
+ * @returns A promise that resolves once the cache entry is invalidated.
+ */
+function invalidateProductsServerCache(): Promise<void> {
+  return serverCache.invalidateQueries({ queryKey: ["server-cache", "products"] });
+}
+
 const createProductFn = createServerFn({ method: "POST" })
   .validator((input: CreateProductInput) => input)
   .middleware([withCookies])
-  .handler(({ context, data }) =>
-    apiOrpcClient(adminProductsContract, context.cookie).create(data),
-  );
+  .handler(async ({ context, data }) => {
+    const result = await apiOrpcClient(adminProductsContract, context.cookie).create(data);
+    await invalidateProductsServerCache();
+    return result;
+  });
 
 export function useCreateProduct() {
   return useMutationWithInvalidation({
@@ -89,6 +102,7 @@ const resyncProductFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await apiOrpcClient(adminProductsContract, context.cookie).resyncContents(data);
+    await invalidateProductsServerCache();
   });
 
 export function useResyncProduct() {
@@ -110,6 +124,7 @@ const updateProductFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await apiOrpcClient(adminProductsContract, context.cookie).update(data);
+    await invalidateProductsServerCache();
   });
 
 export function useUpdateProduct() {
@@ -124,6 +139,7 @@ const deleteProductFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await apiOrpcClient(adminProductsContract, context.cookie).remove(data);
+    await invalidateProductsServerCache();
   });
 
 export function useDeleteProduct() {

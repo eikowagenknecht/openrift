@@ -1,3 +1,4 @@
+import { slugifyName } from "@openrift/shared";
 import type { ProductSummary } from "@openrift/shared/contracts";
 import { productSlugRegex, RESERVED_PRODUCT_SLUGS } from "@openrift/shared/contracts";
 import { Link } from "@tanstack/react-router";
@@ -152,7 +153,13 @@ const productColumns: AdminColumnDef<ProductSummary, ProductDraft>[] = [
 
 // ── List picker (shared by create + re-sync dialogs) ─────────────────────────
 
-function ListPicker({ value, onChange }: { value: string; onChange: (listId: string) => void }) {
+function ListPicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (listId: string, listName: string) => void;
+}) {
   const { data: lists } = useLists();
   const printingLists = lists.filter((list) => list.kind === "printing");
   const items = printingLists.map((list) => ({
@@ -169,7 +176,14 @@ function ListPicker({ value, onChange }: { value: string; onChange: (listId: str
     );
   }
   return (
-    <Select items={items} value={value} onValueChange={(next) => onChange(next ?? "")}>
+    <Select
+      items={items}
+      value={value}
+      onValueChange={(next) => {
+        const picked = printingLists.find((list) => list.id === next);
+        onChange(next ?? "", picked?.name ?? "");
+      }}
+    >
       <SelectTrigger aria-label="Source list" className="w-full">
         <SelectValue placeholder="Pick one of your printing lists" />
       </SelectTrigger>
@@ -245,6 +259,26 @@ function CreateProductDialog({
           </DialogHeader>
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
+              <Label>Source list</Label>
+              <ListPicker
+                value={draft.listId}
+                onChange={(listId, listName) =>
+                  // Picking a list pre-fills name and slug from the list name;
+                  // both stay editable afterwards.
+                  setDraft((prev) => ({
+                    ...prev,
+                    listId,
+                    name: listName || prev.name,
+                    slug: listName ? slugifyName(listName) : prev.slug,
+                  }))
+                }
+              />
+              <p className="text-muted-foreground text-xs">
+                The list&apos;s cards and quantities become the product&apos;s contents. The product
+                is a snapshot: later list edits don&apos;t apply until you re-sync.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2">
               <Label htmlFor="product-name">Name</Label>
               <Input
                 id="product-name"
@@ -274,17 +308,6 @@ function CreateProductDialog({
                 placeholder="Optional markdown blurb shown on the product page."
                 rows={3}
               />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label>Source list</Label>
-              <ListPicker
-                value={draft.listId}
-                onChange={(listId) => setDraft((prev) => ({ ...prev, listId }))}
-              />
-              <p className="text-muted-foreground text-xs">
-                The list&apos;s cards and quantities become the product&apos;s contents. The product
-                is a snapshot: later list edits don&apos;t apply until you re-sync.
-              </p>
             </div>
             {error && <p className="text-destructive text-sm">{error}</p>}
           </div>

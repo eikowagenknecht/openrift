@@ -11,6 +11,7 @@
 - fix(App): **Sidebar fold button on landscape phones** — the sidebar can be collapsed again on wider phone screens, the fold button lines up with page titles, and top bar content clears the notch on iPhones.
 - fix(Tournaments): **Fairer three-player pod rotation** — the pairing engine kept seating the same low-scoring players in three-player pods; it now rotates that duty across the whole field.
 - fix(Cards): **Price filter on non-English promos** — the promo price filter was hidden on every language except English, even for cards that had prices, and now appears whenever there are prices to filter on.
+- fix(Products): **No more dimming for unowned cards** — product pages no longer gray out cards you don't own, your collection now shows only in the card detail pane and the owned filters.
 
 ## 2026-07-14
 
@@ -103,7 +104,7 @@
 ### Highlights
 
 - feat(Trades): **Trades grouped by person** — the Trades page now stacks your trades and possible trades under each member with a running value estimate, plus bulk Accept all, Decline all, Cancel all, and Request all buttons.
-- feat(Cards): **Product catalog** — the new Products page lists official products with every card inside, and cards you don't own yet show dimmed so gaps stand out.
+- feat(Products): **Product catalog** — the new Products page lists official products with every card inside.
 - feat(Collection): **Card lending** — right-click a card in your collection to lend it to a friend: it stays owned but stops counting for decks and trades until it's back, and the new Lending page tracks who has what, including cards you're borrowing.
 - fix(Trades): **Wishlist rule filters now limit matches** — a dynamic card want no longer matches printings its filters exclude (like overnumbered variants), and "only what I'm missing" no longer counts such copies as owned.
 
