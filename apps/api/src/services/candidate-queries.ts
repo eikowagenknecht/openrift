@@ -601,6 +601,7 @@ async function buildDetailResponse(
               }
             : null,
           tags: card.tags,
+          maxCopiesOverride: card.maxCopiesOverride,
           comment: card.comment,
         }
       : null,

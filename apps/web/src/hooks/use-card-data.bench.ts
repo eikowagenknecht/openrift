@@ -75,6 +75,7 @@ function buildFixture() {
       keywords: r() > 0.5 ? [pick(KEYWORDS_POOL, r)] : [],
       tags: [],
       mightBonus: null,
+      maxCopiesOverride: null,
       errata: null,
       bans: [],
     };

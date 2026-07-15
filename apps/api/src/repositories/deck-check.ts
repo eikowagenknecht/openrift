@@ -1377,6 +1377,7 @@ export function deckCheckRepo(db: Kysely<Database>) {
           domains: string[];
           tags: string[];
           keywords: string[];
+          maxCopiesOverride: number | null;
         }
       >
     > {
@@ -1395,6 +1396,7 @@ export function deckCheckRepo(db: Kysely<Database>) {
           "mca.domains",
           "c.tags",
           "c.keywords",
+          "c.maxCopiesOverride",
         ])
         .where("c.id", "in", cardIds)
         .execute();
@@ -1410,6 +1412,7 @@ export function deckCheckRepo(db: Kysely<Database>) {
             domains: row.domains ?? [],
             tags: row.tags ?? [],
             keywords: row.keywords ?? [],
+            maxCopiesOverride: row.maxCopiesOverride,
           },
         ]),
       );

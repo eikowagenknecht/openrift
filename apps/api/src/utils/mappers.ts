@@ -566,6 +566,7 @@ export function toPublicDeckCard(
     domains: Domain[];
     tags: string[];
     keywords: string[];
+    maxCopiesOverride: number | null;
     energy: number | null;
     might: number | null;
     power: number | null;
@@ -589,6 +590,7 @@ export function toPublicDeckCard(
     domains: cardMeta.domains,
     tags: cardMeta.tags,
     keywords: cardMeta.keywords,
+    maxCopiesOverride: cardMeta.maxCopiesOverride,
     energy: cardMeta.energy,
     might: cardMeta.might,
     power: cardMeta.power,

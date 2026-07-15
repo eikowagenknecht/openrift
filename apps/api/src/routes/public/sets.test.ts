@@ -65,6 +65,7 @@ const dbCard = {
   keywords: [],
   tags: [],
   mightBonus: null,
+  maxCopiesOverride: null,
 };
 
 const dbPrinting = {

@@ -1,5 +1,5 @@
 import type { DeckResponse, DeckZone, Marketplace, Printing } from "@openrift/shared";
-import { imageUrl, WellKnown } from "@openrift/shared";
+import { copyLimitFor, imageUrl, WellKnown } from "@openrift/shared";
 import { useDeferredValue, useEffect, useState } from "react";
 
 import { BrowserCardViewer } from "@/components/browser-card-viewer";
@@ -51,6 +51,21 @@ import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { isLocalDeckId } from "@/stores/local-decks-store";
 import { useSelectionStore } from "@/stores/selection-store";
+
+/**
+ * Bulk-add count for the shift-held "+N" pill: copies left until the card's
+ * per-name limit. Unlimited-override cards have no finite remainder, so they
+ * get no bulk pill (undefined) and quick-add stays one copy per click.
+ *
+ * @returns Remaining copies, or undefined when the card has no finite limit.
+ */
+function copyRemainderFor(
+  card: { maxCopiesOverride: number | null },
+  total: number,
+): number | undefined {
+  const limit = copyLimitFor(card);
+  return Number.isFinite(limit) ? limit - total : undefined;
+}
 
 interface DeckActionsCellProps {
   printing?: Printing;
@@ -114,7 +129,7 @@ function DeckActionsCell({
       remainingCount={
         activeZone === WellKnown.deckZone.RUNES
           ? Math.max(0, RUNE_TARGET - runeTotal)
-          : 3 - (copyLimitTotalByCard.get(cardId) ?? 0)
+          : copyRemainderFor(printing.card, copyLimitTotalByCard.get(cardId) ?? 0)
       }
       onQuickAdd={handleQuickAdd}
       onRemove={handleRemove}
@@ -575,7 +590,7 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
       // Free parking zone — never capped.
       return false;
     }
-    return (copyLimitTotalByCard.get(cardId) ?? 0) >= 3;
+    return (copyLimitTotalByCard.get(cardId) ?? 0) >= copyLimitFor(item.printing.card);
   };
 
   const renderCard = (item: CardViewerItem, ctx: CardRenderContext) => {
@@ -637,7 +652,7 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
                 ? undefined
                 : activeZone === WellKnown.deckZone.RUNES
                   ? Math.max(0, RUNE_TARGET - runeTotal)
-                  : 3 - (copyLimitTotalByCard.get(cardId) ?? 0)
+                  : copyRemainderFor(item.printing.card, copyLimitTotalByCard.get(cardId) ?? 0)
             }
             onQuickAdd={handleQuickAdd}
             onRemove={handleRemove}

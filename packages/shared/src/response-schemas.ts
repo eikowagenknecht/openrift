@@ -152,6 +152,7 @@ export const catalogCardResponseSchema = z.object({
   keywords: z.array(z.string()).openapi({ example: [] }),
   tags: z.array(z.string()).openapi({ example: [] }),
   mightBonus: z.number().nullable().openapi({ example: null }),
+  maxCopiesOverride: z.number().nullable().openapi({ example: null }),
   errata: z
     .object({
       correctedRulesText: z.string().nullable(),

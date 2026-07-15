@@ -315,6 +315,7 @@ export const decksRouter = {
                 tags: card.tags,
                 customTagSlugs: [],
                 keywords: card.keywords,
+                maxCopiesOverride: card.maxCopiesOverride,
               })),
             }).length === 0
           : true;

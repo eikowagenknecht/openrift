@@ -22,6 +22,12 @@ export interface DeckCard {
    */
   customTagSlugs: readonly string[];
   keywords: string[];
+  /**
+   * Per-card deck copy-limit override from `Card.maxCopiesOverride`. `null`
+   * = normal rules (3 copies), `0` = unlimited ({@link UNLIMITED_COPIES}),
+   * positive = cap at that value.
+   */
+  maxCopiesOverride: number | null;
 }
 
 export interface DeckState {
@@ -61,6 +67,24 @@ function cardsInZone(cards: DeckCard[], zone: DeckZone): DeckCard[] {
 
 function totalQuantity(cards: DeckCard[]): number {
   return cards.reduce((sum, card) => sum + card.quantity, 0);
+}
+
+/** `maxCopiesOverride` sentinel meaning "any number of copies". */
+export const UNLIMITED_COPIES = 0;
+
+/**
+ * Resolves the per-name deck copy limit for a card: the card's
+ * `maxCopiesOverride` when set (`UNLIMITED_COPIES` maps to `Infinity`),
+ * otherwise the standard 3.
+ *
+ * @returns The maximum number of copies a deck may run of this card.
+ */
+export function copyLimitFor(card: { maxCopiesOverride?: number | null }): number {
+  const override = card.maxCopiesOverride;
+  if (override === null || override === undefined) {
+    return 3;
+  }
+  return override === UNLIMITED_COPIES ? Number.POSITIVE_INFINITY : override;
 }
 
 // Callers feed one row per printing (deck builder) or per deck-list line
@@ -294,16 +318,17 @@ export const mainDeckExactly: DeckRule = (state) => {
   return [];
 };
 
-// Max 3 copies of any card in the main deck.
+// Max 3 copies of any card in the main deck (per-card override may lift this).
 export const mainDeckCopyLimit: DeckRule = (state) => {
   const violations: DeckViolation[] = [];
 
   for (const card of cardsInZone(state.cards, WellKnown.deckZone.MAIN)) {
-    if (card.quantity > 3) {
+    const limit = copyLimitFor(card);
+    if (card.quantity > limit) {
       violations.push({
         zone: WellKnown.deckZone.MAIN,
         code: "MAIN_COPY_LIMIT",
-        message: `${card.cardName} exceeds the 3-copy limit (${card.quantity})`,
+        message: `${card.cardName} exceeds the ${limit}-copy limit (${card.quantity})`,
         cardId: card.cardId,
       });
     }
@@ -352,12 +377,13 @@ export const championCopyLimitAcrossZones: DeckRule = (state) => {
     (card) => card.cardId === championCardId,
   );
 
-  if (mainCopies && mainCopies.quantity > 2) {
+  // The chosen copy counts toward the card's total limit, so main holds one less.
+  if (mainCopies && mainCopies.quantity > copyLimitFor(mainCopies) - 1) {
     return [
       {
         zone: WellKnown.deckZone.MAIN,
         code: "CHAMPION_COPY_LIMIT",
-        message: `${mainCopies.cardName} can have at most 2 copies in the main deck (1 is the Chosen Champion)`,
+        message: `${mainCopies.cardName} can have at most ${copyLimitFor(mainCopies) - 1} copies in the main deck (1 is the Chosen Champion)`,
         cardId: mainCopies.cardId,
       },
     ];
@@ -424,16 +450,17 @@ export const sideboardNotAllowed: DeckRule = (state) => {
   return [];
 };
 
-// Max 3 copies of any card in the sideboard.
+// Max 3 copies of any card in the sideboard (per-card override may lift this).
 export const sideboardCopyLimit: DeckRule = (state) => {
   const violations: DeckViolation[] = [];
 
   for (const card of cardsInZone(state.cards, WellKnown.deckZone.SIDEBOARD)) {
-    if (card.quantity > 3) {
+    const limit = copyLimitFor(card);
+    if (card.quantity > limit) {
       violations.push({
         zone: WellKnown.deckZone.SIDEBOARD,
         code: "SIDEBOARD_COPY_LIMIT",
-        message: `${card.cardName} exceeds the 3-copy limit (${card.quantity})`,
+        message: `${card.cardName} exceeds the ${limit}-copy limit (${card.quantity})`,
         cardId: card.cardId,
       });
     }

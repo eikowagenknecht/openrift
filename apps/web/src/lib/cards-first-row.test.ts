@@ -33,6 +33,7 @@ function makeCard(overrides: Partial<CatalogResponseCardValue> = {}): CatalogRes
     keywords: [],
     tags: [],
     mightBonus: null,
+    maxCopiesOverride: null,
     errata: null,
     bans: [],
     ...overrides,

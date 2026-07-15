@@ -8,7 +8,7 @@ import type {
   Domain,
   SuperType,
 } from "@openrift/shared";
-import { WellKnown, formatHasSideboard } from "@openrift/shared";
+import { WellKnown, copyLimitFor, formatHasSideboard } from "@openrift/shared";
 
 const EMPTY_ARRAY: string[] = [];
 
@@ -39,6 +39,8 @@ export interface DeckBuilderCard {
   domains: Domain[];
   tags: string[];
   keywords: string[];
+  /** Per-card deck copy-limit override (`Card.maxCopiesOverride`); null = normal 3-copy rule. */
+  maxCopiesOverride: number | null;
   energy: number | null;
   might: number | null;
   power: number | null;
@@ -76,6 +78,7 @@ export function toRuleEngineCard(
     tags: card.tags,
     customTagSlugs: customTagAssignments[card.cardId] ?? [],
     keywords: card.keywords,
+    maxCopiesOverride: card.maxCopiesOverride,
   };
 }
 
@@ -181,13 +184,14 @@ export function isCardAllowedInZone(
  */
 export function isDeckZoneFullForDrag(args: {
   zone: DeckZone;
-  draggedCardId: string;
+  draggedCard: { cardId: string; maxCopiesOverride: number | null };
   /** Source zone of the dragged card, or null when the drag started in the card browser. */
   fromZone: DeckZone | null;
   allCards: readonly { cardId: string; zone: DeckZone; quantity: number }[];
   format: DeckFormat;
 }): boolean {
-  const { zone, draggedCardId, fromZone, allCards, format } = args;
+  const { zone, draggedCard, fromZone, allCards, format } = args;
+  const draggedCardId = draggedCard.cardId;
   if (format === WellKnown.deckFormat.FREEFORM) {
     return false;
   }
@@ -204,7 +208,7 @@ export function isDeckZoneFullForDrag(args: {
     const total = allCards
       .filter((entry) => entry.cardId === draggedCardId && COPY_LIMIT_ZONES.has(entry.zone))
       .reduce((sum, entry) => sum + entry.quantity, 0);
-    if (total >= 3) {
+    if (total >= copyLimitFor(draggedCard)) {
       return true;
     }
   }
@@ -289,6 +293,7 @@ export function catalogCardToDeckBuilderCard(cardId: string, card: Card): DeckBu
     domains: card.domains,
     tags: card.tags,
     keywords: card.keywords,
+    maxCopiesOverride: card.maxCopiesOverride,
     energy: card.energy,
     might: card.might,
     power: card.power,
@@ -320,6 +325,7 @@ export function toDeckBuilderCard(
     domains: card.domains,
     tags: card.tags ?? EMPTY_ARRAY,
     keywords: card.keywords ?? EMPTY_ARRAY,
+    maxCopiesOverride: card.maxCopiesOverride ?? null,
     energy: card.energy,
     might: card.might,
     power: card.power,

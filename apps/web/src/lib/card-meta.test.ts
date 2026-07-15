@@ -20,6 +20,7 @@ const baseCard: CardDetailResponse["card"] = {
   might: 4,
   power: 0,
   mightBonus: null,
+  maxCopiesOverride: null,
   keywords: [],
   tags: [],
   errata: null,

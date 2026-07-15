@@ -90,6 +90,7 @@ const cardMeta = {
   energy: null,
   power: null,
   mightBonus: null,
+  maxCopiesOverride: null,
   keywords: [],
   tags: [],
   domains: ["fury"],

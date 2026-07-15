@@ -118,6 +118,8 @@ export function buildCandidateCardFields(orders: EnumOrders, labels: EnumLabels)
     { key: "effectText", label: "Effect Text", multiline: true, richText: true },
     { key: "mightBonus", label: "Might Bonus", type: "number" },
     { key: "tags", label: "Tags", array: true },
+    // Card-only field (no candidate data): deck copy-limit override, 0 = unlimited.
+    { key: "maxCopiesOverride", label: "Max Copies Override", type: "number" },
     { key: "comment", label: "Comment" },
     { key: "extraData", label: "Extra Data", readOnly: true, collapsible: true },
   ];

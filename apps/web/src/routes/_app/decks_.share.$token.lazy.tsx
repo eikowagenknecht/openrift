@@ -78,6 +78,7 @@ function toBuilderCardFromPublic(card: PublicDeckCardResponse): DeckBuilderCard 
     domains: card.domains,
     tags: card.tags,
     keywords: card.keywords,
+    maxCopiesOverride: card.maxCopiesOverride,
     energy: card.energy,
     might: card.might,
     power: card.power,

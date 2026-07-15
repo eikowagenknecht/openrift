@@ -90,6 +90,7 @@ function makePrinting(
       keywords: ["Shield"],
       tags: ["Warrior"],
       mightBonus: 0,
+      maxCopiesOverride: null,
       errata: null,
       bans: [],
       ...cardOverrides,

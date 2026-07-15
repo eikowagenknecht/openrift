@@ -710,7 +710,7 @@ function ZoneTile({
     isDragging && draggedCard
       ? isDeckZoneFullForDrag({
           zone,
-          draggedCardId: draggedCard.cardId,
+          draggedCard,
           fromZone: dragData?.type === "deck-card" ? dragData.fromZone : null,
           allCards,
           format,

@@ -316,6 +316,7 @@ function card(overrides: Partial<Card> & { slug: string; name: string }): Card {
     keywords: [],
     tags: [],
     mightBonus: null,
+    maxCopiesOverride: null,
     errata: null,
     bans: [],
     ...overrides,

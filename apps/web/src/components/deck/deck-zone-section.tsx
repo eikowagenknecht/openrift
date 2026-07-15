@@ -1,6 +1,6 @@
 import { useDndContext, useDroppable } from "@dnd-kit/core";
 import type { DeckViolation, DeckZone } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import { WellKnown, copyLimitFor } from "@openrift/shared";
 import { AlertTriangleIcon, BanIcon, ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 import { useState } from "react";
 
@@ -112,7 +112,7 @@ export function DeckZoneSection({
     isDragging && draggedCard
       ? isDeckZoneFullForDrag({
           zone,
-          draggedCardId: draggedCard.cardId,
+          draggedCard,
           fromZone: dragData?.type === "deck-card" ? dragData.fromZone : null,
           allCards,
           format,
@@ -190,7 +190,7 @@ export function DeckZoneSection({
         shiftHeld={zone === WellKnown.deckZone.RUNES ? undefined : shiftHeld}
         onIncrement={
           !isFreeform &&
-          ((copyLimitZones.has(zone) && crossZoneTotal(card.cardId) >= 3) ||
+          ((copyLimitZones.has(zone) && crossZoneTotal(card.cardId) >= copyLimitFor(card)) ||
             (zone === WellKnown.deckZone.RUNES && !canAddRune(card, allCards)))
             ? undefined
             : (event) => addCard(card, zone, event.shiftKey ? 3 : undefined)

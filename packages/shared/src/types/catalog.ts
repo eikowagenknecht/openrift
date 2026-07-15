@@ -106,6 +106,12 @@ export interface Card {
   keywords: string[];
   tags: string[];
   mightBonus: number | null;
+  /**
+   * Deck copy-limit override for cards whose rules text changes it ("Your
+   * deck can have any number of cards named ..."). `null` = normal rules,
+   * `0` = unlimited (see `UNLIMITED_COPIES`), positive = cap at that value.
+   */
+  maxCopiesOverride: number | null;
   errata: CardErrata | null;
   bans: CardBan[];
 }

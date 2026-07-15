@@ -187,6 +187,7 @@ export async function buildEntryAdvisories(
           tags: detail.tags,
           customTagSlugs: [],
           keywords: detail.keywords,
+          maxCopiesOverride: detail.maxCopiesOverride,
         },
       ];
     });

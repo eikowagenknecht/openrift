@@ -70,6 +70,7 @@ const dbCard = {
   energy: 5,
   power: 6,
   mightBonus: 1,
+  maxCopiesOverride: null,
   keywords: ["Shield"],
   tags: ["Dragon"],
 };
@@ -186,6 +187,7 @@ describe("GET /api/v1/catalog", () => {
           energy: null,
           power: null,
           mightBonus: null,
+          maxCopiesOverride: null,
           superTypes: [],
           keywords: [],
           tags: [],

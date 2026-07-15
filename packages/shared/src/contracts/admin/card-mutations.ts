@@ -75,6 +75,7 @@ const acceptCardFieldBodySchema = z.object({
     "power",
     "mightBonus",
     "tags",
+    "maxCopiesOverride",
     "comment",
   ]),
   value: z.unknown(),

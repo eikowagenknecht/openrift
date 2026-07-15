@@ -50,6 +50,7 @@ const stubCardValue: CatalogResponseCardValue = {
   keywords: [],
   tags: [],
   mightBonus: 0,
+  maxCopiesOverride: null,
   errata: null,
   bans: [],
 };

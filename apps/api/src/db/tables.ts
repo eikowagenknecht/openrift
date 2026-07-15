@@ -92,6 +92,8 @@ export interface CardsTable {
   mightBonus: number | null;
   keywords: string[];
   tags: string[];
+  /** CHECK: >= 0. Deck copy-limit override; 0 = unlimited (UNLIMITED_COPIES). */
+  maxCopiesOverride: number | null;
   /** CHECK: <> '' */
   comment: string | null;
   createdAt: CreatedAt;

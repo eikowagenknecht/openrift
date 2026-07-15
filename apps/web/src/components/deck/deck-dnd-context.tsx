@@ -8,7 +8,7 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { snapCenterToCursor } from "@dnd-kit/modifiers";
-import { imageUrl, legendDisplayName, WellKnown } from "@openrift/shared";
+import { copyLimitFor, imageUrl, legendDisplayName, WellKnown } from "@openrift/shared";
 import type { DeckZone } from "@openrift/shared";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -90,6 +90,8 @@ export function DeckDndContext({ deckId, children }: { deckId: string; children:
     cardName: string;
     quantity: number;
     fromBrowser: boolean;
+    /** Copy-limit override of the dragged card; only read for browser drags. */
+    maxCopiesOverride: number | null;
   } | null>(null);
   const [shiftHeld, setShiftHeld] = useState(false);
   const activeNodeRef = useRef<HTMLElement | null>(null);
@@ -204,6 +206,7 @@ export function DeckDndContext({ deckId, children }: { deckId: string; children:
         cardName: data.cardName,
         quantity: data.quantity,
         fromBrowser: false,
+        maxCopiesOverride: null,
       });
       setShiftHeld(false);
     } else if (data?.type === "browser-card") {
@@ -216,6 +219,7 @@ export function DeckDndContext({ deckId, children }: { deckId: string; children:
         }),
         quantity: 1,
         fromBrowser: true,
+        maxCopiesOverride: data.card.maxCopiesOverride,
       });
     }
   };
@@ -265,7 +269,11 @@ export function DeckDndContext({ deckId, children }: { deckId: string; children:
             .reduce((sum, card) => sum + card.quantity, 0);
           actions.addCard(activeData.card, overData.zone, Math.max(0, 12 - runeTotal));
         } else {
-          actions.addCard(activeData.card, overData.zone, 3);
+          // "Fill to the copy cap"; unlimited-override cards have no cap, so a
+          // shift-drop adds a chunk of 3 (matching shift-click). addCardAction
+          // clamps to the real remainder for finite limits.
+          const limit = copyLimitFor(activeData.card);
+          actions.addCard(activeData.card, overData.zone, Number.isFinite(limit) ? limit : 3);
         }
       } else {
         actions.addCard(activeData.card, overData.zone);
@@ -296,16 +304,21 @@ export function DeckDndContext({ deckId, children }: { deckId: string; children:
   };
 
   // Overflow is excluded — it is a free parking zone, so copies parked there
-  // neither count toward the 3-copy cap nor reduce how many a shift-drag adds.
+  // neither count toward the copy cap nor reduce how many a shift-drag adds.
+  // Unlimited-override cards have no finite remainder; shift-drag adds a
+  // chunk of 3 for them (matching shift-click).
+  const browserLimit = dragInfo?.fromBrowser ? copyLimitFor(dragInfo) : 3;
   const browserRemaining = dragInfo?.fromBrowser
-    ? 3 -
-      deckCards
-        .filter(
-          (card) =>
-            card.cardId === dragInfo.cardId &&
-            (card.zone === WellKnown.deckZone.MAIN || card.zone === WellKnown.deckZone.SIDEBOARD),
-        )
-        .reduce((sum, card) => sum + card.quantity, 0)
+    ? Number.isFinite(browserLimit)
+      ? browserLimit -
+        deckCards
+          .filter(
+            (card) =>
+              card.cardId === dragInfo.cardId &&
+              (card.zone === WellKnown.deckZone.MAIN || card.zone === WellKnown.deckZone.SIDEBOARD),
+          )
+          .reduce((sum, card) => sum + card.quantity, 0)
+      : 3
     : 0;
 
   const moveAll =

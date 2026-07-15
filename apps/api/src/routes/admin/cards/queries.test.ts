@@ -274,6 +274,7 @@ describe("GET /api/admin/v1/cards/:cardSlug", () => {
         energy: null,
         power: null,
         mightBonus: null,
+        maxCopiesOverride: null,
         keywords: [],
         errata: null,
         tags: [],

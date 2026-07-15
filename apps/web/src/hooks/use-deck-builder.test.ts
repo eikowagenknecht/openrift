@@ -97,6 +97,34 @@ describe("addCardAction", () => {
     expect(total).toBe(3);
   });
 
+  it("skips the copy cap for cards with the unlimited override", () => {
+    const card = stubDeckBuilderCard({
+      cardId: "card-1",
+      cardType: "unit",
+      zone: "main",
+      quantity: 3,
+      maxCopiesOverride: 0,
+    });
+    collection = createDraftCollection([card]);
+    addCardAction(collection, { ...card }, "main", 10, EMPTY_RUNES, "constructed");
+    const total = cardsOf(collection).reduce((sum, entry) => sum + entry.quantity, 0);
+    expect(total).toBe(13);
+  });
+
+  it("clamps against a positive per-card override", () => {
+    const card = stubDeckBuilderCard({
+      cardId: "card-1",
+      cardType: "unit",
+      zone: "main",
+      quantity: 3,
+      maxCopiesOverride: 7,
+    });
+    collection = createDraftCollection([card]);
+    addCardAction(collection, { ...card }, "main", 10, EMPTY_RUNES, "constructed");
+    const total = cardsOf(collection).reduce((sum, entry) => sum + entry.quantity, 0);
+    expect(total).toBe(7);
+  });
+
   it("does not cap copies added to overflow — it is an unlimited parking zone", () => {
     const card = stubDeckBuilderCard({
       cardId: "card-1",

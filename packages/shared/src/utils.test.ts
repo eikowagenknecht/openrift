@@ -58,6 +58,7 @@ function makePrinting(overrides: Partial<Printing> & { language: string }): Prin
       keywords: [],
       tags: [],
       mightBonus: null,
+      maxCopiesOverride: null,
       errata: null,
       bans: [],
     },

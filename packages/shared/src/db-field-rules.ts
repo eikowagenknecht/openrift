@@ -43,6 +43,7 @@ export const cardFieldRules = {
   power: z.number().int().min(0).nullable(),
   mightBonus: z.number().int().min(0).nullable(),
   tags: z.array(z.string().min(1)),
+  maxCopiesOverride: z.number().int().min(0).nullable(),
   comment: z.string().min(1).nullable(),
 } satisfies Record<string, z.ZodType>;
 

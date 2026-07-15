@@ -76,6 +76,7 @@ function buildFixture(): Printing[] {
       keywords: [],
       tags: [],
       mightBonus: null,
+      maxCopiesOverride: null,
       errata: null,
       bans: [],
     });

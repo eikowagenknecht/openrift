@@ -58,6 +58,7 @@ export const publicDeckCardResponseSchema = z
     domains: z.array(domainSchema),
     tags: z.array(z.string()),
     keywords: z.array(z.string()),
+    maxCopiesOverride: z.number().nullable(),
     energy: z.number().nullable(),
     might: z.number().nullable(),
     power: z.number().nullable(),

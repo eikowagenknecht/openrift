@@ -5,7 +5,7 @@ import type {
   DeckZone,
   Domain,
 } from "@openrift/shared";
-import { WellKnown, validateDeck } from "@openrift/shared";
+import { WellKnown, copyLimitFor, validateDeck } from "@openrift/shared";
 import { useLiveQuery } from "@tanstack/react-db";
 import type { Collection } from "@tanstack/react-db";
 
@@ -289,15 +289,17 @@ export function addCardAction(
     return;
   }
 
-  // Main / sideboard / overflow. The 3-copy cap applies to main and sideboard;
-  // overflow is a free parking zone (not in COPY_LIMIT_ZONES) so it skips it.
+  // Main / sideboard / overflow. The per-name copy cap applies to main and
+  // sideboard; overflow is a free parking zone (not in COPY_LIMIT_ZONES) so it
+  // skips it. copyLimitFor resolves the card's override (unlimited = Infinity).
   let addQty = count ?? 1;
   if (!freeform && COPY_LIMIT_ZONES.has(zone)) {
+    const limit = copyLimitFor(card);
     const total = crossZoneTotal(allCards(collection), card.cardId);
-    if (total >= 3) {
+    if (total >= limit) {
       return;
     }
-    addQty = Math.min(addQty, 3 - total);
+    addQty = Math.min(addQty, limit - total);
   }
   incrementOrInsert(collection, card, zone, preferredPrintingId, addQty);
 }

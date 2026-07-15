@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict ZQv4iXbb0AyiYdAZrVwQV98t2lzoLW5MPhvgIia7fWQ9zHWogiSAgMfOQoIOCbv
+\restrict 5ohQEbKSltVkVlhsy0hH0m7f8JMSUcdDjWlk5mmA7eFOzrQ7rYg5BhJ4mCtBedL
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -889,6 +889,8 @@ CREATE TABLE public.cards (
     id uuid DEFAULT uuidv7() NOT NULL,
     norm_name text NOT NULL,
     comment text,
+    max_copies_override smallint,
+    CONSTRAINT cards_max_copies_override_check CHECK ((max_copies_override >= 0)),
     CONSTRAINT chk_cards_energy_non_negative CHECK ((energy >= 0)),
     CONSTRAINT chk_cards_might_bonus_non_negative CHECK ((might_bonus >= 0)),
     CONSTRAINT chk_cards_might_non_negative CHECK ((might >= 0)),
@@ -5950,5 +5952,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict ZQv4iXbb0AyiYdAZrVwQV98t2lzoLW5MPhvgIia7fWQ9zHWogiSAgMfOQoIOCbv
+\unrestrict 5ohQEbKSltVkVlhsy0hH0m7f8JMSUcdDjWlk5mmA7eFOzrQ7rYg5BhJ4mCtBedL
 

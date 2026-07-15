@@ -8,6 +8,7 @@ import {
   championCopyLimitAcrossZones,
   championExactlyOne,
   championSharesTagWithLegend,
+  copyLimitFor,
   formatHasSideboard,
   legendExactlyOne,
   mainDeckCopyLimit,
@@ -18,6 +19,7 @@ import {
   sideboardCopyLimit,
   sideboardMaximum,
   sideboardNotAllowed,
+  UNLIMITED_COPIES,
   uniqueCopyLimit,
   validateDeck,
 } from "./deck-rules";
@@ -36,6 +38,7 @@ function makeCard(overrides: Partial<DeckCard> = {}): DeckCard {
     tags: [],
     customTagSlugs: [],
     keywords: [],
+    maxCopiesOverride: null,
     ...overrides,
   };
 }
@@ -305,6 +308,24 @@ describe("mainDeckExactly", () => {
   });
 });
 
+// ── copyLimitFor ────────────────────────────────────────────────────────────
+
+describe("copyLimitFor", () => {
+  it("defaults to 3 without an override", () => {
+    expect(copyLimitFor(makeCard())).toBe(3);
+  });
+
+  it("maps the unlimited sentinel to Infinity", () => {
+    expect(copyLimitFor(makeCard({ maxCopiesOverride: UNLIMITED_COPIES }))).toBe(
+      Number.POSITIVE_INFINITY,
+    );
+  });
+
+  it("returns a positive override as-is", () => {
+    expect(copyLimitFor(makeCard({ maxCopiesOverride: 7 }))).toBe(7);
+  });
+});
+
 // ── mainDeckCopyLimit ───────────────────────────────────────────────────────
 
 describe("mainDeckCopyLimit", () => {
@@ -317,6 +338,24 @@ describe("mainDeckCopyLimit", () => {
     expect(violations).toHaveLength(1);
     expect(violations[0].code).toBe("MAIN_COPY_LIMIT");
     expect(violations[0].cardId).toBe("over");
+  });
+
+  it("allows any quantity with the unlimited override", () => {
+    expect(
+      mainDeckCopyLimit(makeState([makeCard({ quantity: 38, maxCopiesOverride: 0 })])),
+    ).toEqual([]);
+  });
+
+  it("uses a positive override as the limit", () => {
+    expect(mainDeckCopyLimit(makeState([makeCard({ quantity: 7, maxCopiesOverride: 7 })]))).toEqual(
+      [],
+    );
+    const violations = mainDeckCopyLimit(
+      makeState([makeCard({ quantity: 8, maxCopiesOverride: 7, cardId: "over" })]),
+    );
+    expect(violations).toHaveLength(1);
+    expect(violations[0].code).toBe("MAIN_COPY_LIMIT");
+    expect(violations[0].message).toContain("7-copy limit");
   });
 });
 
@@ -341,6 +380,16 @@ describe("championCopyLimitAcrossZones", () => {
   it("allows 3 copies in main when card is not the champion", () => {
     const violations = championCopyLimitAcrossZones(
       makeState([makeChampion(), makeCard({ cardId: "other-card", zone: "main", quantity: 3 })]),
+    );
+    expect(violations).toEqual([]);
+  });
+
+  it("allows any main quantity when the champion has the unlimited override", () => {
+    const violations = championCopyLimitAcrossZones(
+      makeState([
+        makeChampion(),
+        makeCard({ cardId: "champion-1", zone: "main", quantity: 39, maxCopiesOverride: 0 }),
+      ]),
     );
     expect(violations).toEqual([]);
   });
@@ -443,6 +492,14 @@ describe("sideboardCopyLimit", () => {
     );
     expect(violations).toHaveLength(1);
     expect(violations[0].code).toBe("SIDEBOARD_COPY_LIMIT");
+  });
+
+  it("allows any quantity with the unlimited override", () => {
+    expect(
+      sideboardCopyLimit(
+        makeState([makeCard({ zone: "sideboard", quantity: 8, maxCopiesOverride: 0 })]),
+      ),
+    ).toEqual([]);
   });
 });
 

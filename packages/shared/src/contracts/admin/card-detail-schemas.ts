@@ -36,6 +36,8 @@ export const adminCardResponseSchema = z
     keywords: z.array(z.string()),
     errata: cardErrataSchema.nullable(),
     tags: z.array(z.string()),
+    /** Deck copy-limit override: null = normal rules, 0 = unlimited, positive = cap. */
+    maxCopiesOverride: z.number().nullable(),
     comment: z.string().nullable(),
   })
   .openapi("AdminCardResponse");

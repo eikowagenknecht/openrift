@@ -42,6 +42,7 @@ function makePrinting(overrides: Partial<Printing> = {}): Printing {
       keywords: [],
       tags: [],
       mightBonus: 0,
+      maxCopiesOverride: null,
       errata: null,
       bans: [],
     },
