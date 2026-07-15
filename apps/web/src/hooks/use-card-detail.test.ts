@@ -66,3 +66,90 @@ describe("cardDetailQueryOptions", () => {
     expect(result).toEqual(payload);
   });
 });
+
+describe("cardDetailQueryOptions select (enrichCardDetail)", () => {
+  const card = { id: "card-1", slug: "ezreal" };
+  const printing = (id: string, setId: string) => ({ id, setId, cardId: "card-1" });
+  const product = (printingId: string, slug: string, name: string, quantity: number) => ({
+    printingId,
+    slug,
+    name,
+    quantity,
+  });
+
+  const runSelect = (response: unknown) => {
+    const { select } = cardDetailQueryOptions("ezreal");
+    expect(select).toBeDefined();
+    return (select as (r: unknown) => ReturnType<typeof Object>)(response) as {
+      printings: { id: string; setSlug: string; setReleased: boolean }[];
+      productsByPrinting: ReadonlyMap<string, { slug: string; quantity: number }[]>;
+    };
+  };
+
+  it("groups products by printing id", () => {
+    const result = runSelect({
+      card,
+      printings: [printing("p1", "s1"), printing("p2", "s1")],
+      sets: [{ id: "s1", slug: "ogn", released: true }],
+      products: [
+        product("p1", "prerift-ezreal", "Pre-Rift Kit", 2),
+        product("p2", "prerift-ezreal", "Pre-Rift Kit", 1),
+        product("p1", "arcane-box", "Arcane Box Set", 1),
+      ],
+    });
+
+    expect(result.productsByPrinting.get("p1")).toEqual([
+      product("p1", "prerift-ezreal", "Pre-Rift Kit", 2),
+      product("p1", "arcane-box", "Arcane Box Set", 1),
+    ]);
+    expect(result.productsByPrinting.get("p2")).toEqual([
+      product("p2", "prerift-ezreal", "Pre-Rift Kit", 1),
+    ]);
+  });
+
+  it("omits printings that are in no product", () => {
+    const result = runSelect({
+      card,
+      printings: [printing("p1", "s1")],
+      sets: [{ id: "s1", slug: "ogn", released: true }],
+      products: [],
+    });
+
+    // The page falls back to `?? []`, so an absent key is the empty case.
+    expect(result.productsByPrinting.get("p1")).toBeUndefined();
+    expect(result.productsByPrinting.size).toBe(0);
+  });
+
+  it("preserves the API's product order within a printing", () => {
+    // The API orders by product name; grouping must not reshuffle.
+    const result = runSelect({
+      card,
+      printings: [printing("p1", "s1")],
+      sets: [{ id: "s1", slug: "ogn", released: true }],
+      products: [
+        product("p1", "arcane-box", "Arcane Box Set", 1),
+        product("p1", "prerift-ezreal", "Pre-Rift Kit", 2),
+        product("p1", "worlds-2025", "Worlds 2025 Bundle", 1),
+      ],
+    });
+
+    expect(result.productsByPrinting.get("p1")?.map((p) => p.slug)).toEqual([
+      "arcane-box",
+      "prerift-ezreal",
+      "worlds-2025",
+    ]);
+  });
+
+  it("still denormalizes set data onto printings", () => {
+    const result = runSelect({
+      card,
+      printings: [printing("p1", "s1"), printing("p2", "missing-set")],
+      sets: [{ id: "s1", slug: "ogn", released: false }],
+      products: [],
+    });
+
+    expect(result.printings[0]).toMatchObject({ setSlug: "ogn", setReleased: false });
+    // An unknown set falls back rather than throwing.
+    expect(result.printings[1]).toMatchObject({ setSlug: "", setReleased: true });
+  });
+});

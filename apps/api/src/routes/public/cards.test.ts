@@ -22,11 +22,16 @@ const mockDistributionChannelsRepo = {
   listAll: vi.fn(() => Promise.resolve([] as Record<string, unknown>[])),
 };
 
+const mockProductsRepo = {
+  productsForCard: vi.fn(() => Promise.resolve([] as Record<string, unknown>[])),
+};
+
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("repos", {
     catalog: mockCatalogRepo,
     distributionChannels: mockDistributionChannelsRepo,
+    products: mockProductsRepo,
     // oxlint-disable-next-line no-explicit-any -- test mock doesn't match full Repos type
   } as any);
   await next();
@@ -103,6 +108,7 @@ describe("GET /api/v1/cards/:cardSlug", () => {
     mockCatalogRepo.markersList.mockResolvedValue([]);
     mockDistributionChannelsRepo.listForPrintingIds.mockResolvedValue([]);
     mockDistributionChannelsRepo.listAll.mockResolvedValue([]);
+    mockProductsRepo.productsForCard.mockResolvedValue([]);
   });
 
   it("returns 200 with the card, its printings, and sets", async () => {
@@ -165,6 +171,36 @@ describe("GET /api/v1/cards/:cardSlug", () => {
     });
   });
 
+  it("maps product back-references onto the response", async () => {
+    mockCatalogRepo.cardBySlug.mockResolvedValue(dbCard);
+    mockCatalogRepo.printingsByCardId.mockResolvedValue([dbPrinting]);
+    mockCatalogRepo.setsByIds.mockResolvedValue([dbSet]);
+    mockProductsRepo.productsForCard.mockResolvedValue([
+      { printingId: PRINTING_ID, slug: "prerift-jinx", name: "Pre-Rift Kit - Jinx", quantity: 2 },
+    ]);
+
+    const res = await app.request("/api/v1/cards/jinx-rebel");
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    // Flat on the response, not nested under the printing: the printing schema
+    // is shared with the synced catalog, which must not carry product data.
+    expect(json.products).toEqual([
+      { printingId: PRINTING_ID, slug: "prerift-jinx", name: "Pre-Rift Kit - Jinx", quantity: 2 },
+    ]);
+    expect(json.printings[0]).not.toHaveProperty("products");
+    expect(mockProductsRepo.productsForCard).toHaveBeenCalledWith(CARD_ID);
+  });
+
+  it("returns an empty products array for a card in no product", async () => {
+    mockCatalogRepo.cardBySlug.mockResolvedValue(dbCard);
+    mockCatalogRepo.printingsByCardId.mockResolvedValue([dbPrinting]);
+    mockCatalogRepo.setsByIds.mockResolvedValue([dbSet]);
+
+    const res = await app.request("/api/v1/cards/jinx-rebel");
+    const json = await res.json();
+    expect(json.products).toEqual([]);
+  });
+
   it("returns NOT_FOUND for an unknown slug", async () => {
     mockCatalogRepo.cardBySlug.mockResolvedValue(undefined);
 
@@ -183,6 +219,7 @@ describe("cards route registration", () => {
       c.set("repos", {
         catalog: mockCatalogRepo,
         distributionChannels: mockDistributionChannelsRepo,
+        products: mockProductsRepo,
         // oxlint-disable-next-line no-explicit-any -- test mock doesn't match full Repos type
       } as any);
       await next();

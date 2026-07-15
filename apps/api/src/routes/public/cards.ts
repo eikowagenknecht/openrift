@@ -26,11 +26,12 @@ export const cardsRouter = {
       throw errors.NOT_FOUND({ message: `Card not found: ${input.cardSlug}` });
     }
 
-    const [printingRows, imageRows, banRows, errataRow] = await Promise.all([
+    const [printingRows, imageRows, banRows, errataRow, products] = await Promise.all([
       catalog.printingsByCardId(card.id),
       catalog.printingImagesByCardId(card.id),
       catalog.cardBansByCardId(card.id),
       catalog.cardErrataByCardId(card.id),
+      repos.products.productsForCard(card.id),
     ]);
 
     const setIds = [...new Set(printingRows.map((p) => p.setId))];
@@ -74,6 +75,6 @@ export const cardsRouter = {
       })),
     }));
 
-    return { card: cardResponse, printings, sets };
+    return { card: cardResponse, printings, sets, products };
   }),
 };

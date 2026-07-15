@@ -15,6 +15,14 @@ export interface ProductContentRow {
   quantity: number;
 }
 
+/** A product back-reference for one printing of a card. */
+export interface ProductForPrintingRow {
+  printingId: string;
+  slug: string;
+  name: string;
+  quantity: number;
+}
+
 export function productsRepo(db: Kysely<Database>) {
   const withCounts = () =>
     db
@@ -93,6 +101,24 @@ export function productsRepo(db: Kysely<Database>) {
         .selectFrom("productPrintings")
         .select(["printingId", "quantity"])
         .where("productId", "=", productId)
+        .execute();
+    },
+
+    /**
+     * Reverse lookup for the card-detail page: every product containing any
+     * printing of this card, one row per (printing, product). Rides the
+     * `idx_product_printings_printing` index.
+     *
+     * @returns Back-reference rows, ordered by product name.
+     */
+    productsForCard(cardId: string): Promise<ProductForPrintingRow[]> {
+      return db
+        .selectFrom("productPrintings as pp")
+        .innerJoin("printings as pr", "pr.id", "pp.printingId")
+        .innerJoin("products as p", "p.id", "pp.productId")
+        .select(["pp.printingId", "p.slug", "p.name", "pp.quantity"])
+        .where("pr.cardId", "=", cardId)
+        .orderBy("p.name")
         .execute();
     },
 

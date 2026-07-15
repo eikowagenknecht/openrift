@@ -4,6 +4,7 @@
 
 ### Highlights
 
+- feat(Cards): **See which products contain a card** — every card page now has a "Found in" list showing the sealed products and promo channels the selected printing comes in, with how many copies.
 - feat(Cards): **Chinese cards now use the printed code** — Simplified Chinese printings show as SC, matching what Riot prints on the card, and saved links and language filters carry over on their own.
 
 ### Other

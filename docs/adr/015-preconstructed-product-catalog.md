@@ -106,12 +106,22 @@ The `printings` reference is intentionally _not_ `ON DELETE CASCADE`. A printing
 - **Row-by-row content editing.** Contents change only by re-snapshotting a list.
 - **Cross-language sibling links and slug redirects.**
 
+### Card-detail back-reference (added 2026-07-15)
+
+`/cards/$cardSlug` shows, for the selected printing, every product that contains it. This reverses the original "the /products page is the only discovery surface" deferral: a reader looking at a card wants to know what they can buy to get it, and `idx_product_printings_printing` was already in place to answer it cheaply.
+
+The data rides on `CardDetailResponse` as a flat `products` array (one row per printing plus product), not as a field on `catalogPrintingResponseSchema`. That schema also backs the synced catalog, /promos, and /sets; product membership is not catalog data, and putting it there would both bloat the sync payload and couple a product re-snapshot to catalog invalidation.
+
+The page renders products and product-kind `distribution_channels` merged into one "Found in" row rather than two lists. The two are genuinely different records: a product is a full manifest with quantities and its own page, while a product-kind channel is only a tag on the printing (this ADR rejected hanging content rows off channels for that reason). But the split is a catalog concern, not a reader's, so the UI merges them and lets the link target carry the difference. Unifying the two models is a separate question this does not settle.
+
+The scope stays narrow: the back-reference is read-only, printing-scoped, and card-detail only. No filter, no badge on /cards or /collections.
+
 ## Deferred / Out of Scope
 
 - **Booster modelling.** Phase 1 only stores the deterministic kit. Booster pool definitions, draw odds, and slot rules belong to phase 2 (the simulator) or its own catalog ADR.
 - **Pre-rift simulator and a `prerift` deck format.** Phase 2: draft a pool from a product plus N boosters, build in an ephemeral sandbox, optionally save as a real deck.
 - **Release date, linked set, cover image** on the product row. Add when a real workflow needs them.
-- **Cross-surface product filter.** /cards, /collections, and /decks do not gain an "in this product" filter or badge. The /products page is the only discovery surface.
+- **Cross-surface product filter.** /cards, /collections, and /decks do not gain an "in this product" filter. Superseded in part on 2026-07-15 for the card-detail page only: see _Card-detail back-reference_ below. Filtering and badges on the browse surfaces stay out of scope.
 - **Import history / audit log / soft delete.** Snapshots replace contents without retaining prior state; products are hard-deleted and the cascade clears `product_printings`.
 
 ## Confirmation
@@ -122,6 +132,7 @@ Integration tests cover:
 - Re-snapshot replaces contents atomically: a failed validation rolls back the entire operation, leaving the prior contents intact.
 - Deleting a `products` row cascades its `product_printings` rows; a printing referenced by a product cannot be deleted directly.
 - Deleting the source list after a snapshot leaves the product untouched.
+- `productsForCard` returns one row per printing plus product for every printing of the card (foil and non-foil separately), ordered by product name, empty for a card in no product, and never leaking another card's products.
 - Slug rename takes effect immediately and the old slug 404s; slug uniqueness is global; reserved slugs are rejected.
 - The owned-count strip on `/products/$slug` reflects the viewer's collection but does not write to it. No `collection_events` are produced by browsing or by any product action.
 - A `products` section grant (ADR-040) reaches the /admin/products APIs and nothing else; non-admins without the grant are denied.

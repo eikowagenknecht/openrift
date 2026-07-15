@@ -373,44 +373,25 @@ function CardDetailPage() {
                   <p className="text-muted-foreground/70 italic">{selectedPrinting.flavorText}</p>
                 </InfoRow>
               )}
-              {(selectedPrinting.markers.length > 0 ||
-                selectedPrinting.distributionChannels.length > 0) && (
+              {selectedPrinting.markers.length > 0 && (
                 <InfoRow label="Promo">
-                  <div className="border-border/50 bg-muted/30 rounded border px-2.5 py-1.5">
-                    {selectedPrinting.markers.length > 0 && (
-                      <div className="float-right mb-1 ml-2 flex flex-wrap justify-end gap-1">
-                        {selectedPrinting.markers.map((marker) => (
-                          <Badge
-                            key={marker.id}
-                            variant="secondary"
-                            title={marker.description ?? undefined}
-                          >
-                            {marker.label}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                    {selectedPrinting.distributionChannels.length === 1 && (
-                      <ChannelLink
-                        link={selectedPrinting.distributionChannels[0]}
-                        language={selectedPrinting.language}
-                      />
-                    )}
-                    {selectedPrinting.distributionChannels.length > 1 && (
-                      <ul className="space-y-1">
-                        {selectedPrinting.distributionChannels.map((link, index) => (
-                          <li key={`${link.channel.id}-${index}`} className="flex gap-2">
-                            <span aria-hidden className="text-muted-foreground/60 select-none">
-                              &bull;
-                            </span>
-                            <ChannelLink link={link} language={selectedPrinting.language} />
-                          </li>
-                        ))}
-                      </ul>
-                    )}
+                  <div className="border-border/50 bg-muted/30 flex flex-wrap gap-1 rounded border px-2.5 py-1.5">
+                    {selectedPrinting.markers.map((marker) => (
+                      <Badge
+                        key={marker.id}
+                        variant="secondary"
+                        title={marker.description ?? undefined}
+                      >
+                        {marker.label}
+                      </Badge>
+                    ))}
                   </div>
                 </InfoRow>
               )}
+              <FoundInRow
+                printing={selectedPrinting}
+                products={data.productsByPrinting.get(selectedPrinting.id) ?? []}
+              />
               {selectedPrinting.comment && (
                 <InfoRow label="Note">
                   <div className="border-border/50 bg-muted/30 rounded border px-2.5 py-1.5">
@@ -597,6 +578,76 @@ function PowerValue({ power, domains }: { power: number; domains: string[] }) {
         <img key={index} src={iconPath} alt="" className="size-4" />
       ))}
     </span>
+  );
+}
+
+/**
+ * "Found in": every sealed thing this printing came in, as one list.
+ *
+ * Deliberately renders two models side by side. A product (ADR-015) is a full
+ * content manifest with quantities and its own page; a product-kind
+ * distribution channel is only a tag on the printing. The distinction matters
+ * to the catalog, not to a reader asking "what can I buy to get this card", so
+ * the row merges them and lets the link target carry the difference. Products
+ * sort first as the higher-fidelity record.
+ *
+ * @returns The row, or null when the printing is in nothing.
+ */
+function FoundInRow({
+  printing,
+  products,
+}: {
+  printing: Printing;
+  products: { slug: string; name: string; quantity: number }[];
+}) {
+  const entries = [
+    ...products.map((product) => ({
+      key: `product-${product.slug}`,
+      node: <ProductLink product={product} />,
+    })),
+    ...printing.distributionChannels.map((link, index) => ({
+      key: `channel-${link.channel.id}-${index}`,
+      node: <ChannelLink link={link} language={printing.language} />,
+    })),
+  ];
+  if (entries.length === 0) {
+    return null;
+  }
+  return (
+    <InfoRow label="Found in">
+      <div className="border-border/50 bg-muted/30 rounded border px-2.5 py-1.5">
+        {/* A lone entry needs no bullet to disambiguate it from its neighbours. */}
+        {entries.length === 1 ? (
+          entries[0].node
+        ) : (
+          <ul className="space-y-1">
+            {entries.map((entry) => (
+              <li key={entry.key} className="flex gap-2">
+                <span aria-hidden className="text-muted-foreground/60 select-none">
+                  &bull;
+                </span>
+                {entry.node}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </InfoRow>
+  );
+}
+
+function ProductLink({ product }: { product: { slug: string; name: string; quantity: number } }) {
+  return (
+    <Link
+      to="/products/$slug"
+      params={{ slug: product.slug }}
+      className="hover:text-foreground block min-w-0 flex-1"
+    >
+      <span className="text-muted-foreground">{product.quantity}&times; </span>
+      <span className="font-semibold underline decoration-dotted underline-offset-2">
+        {product.name}
+      </span>
+    </Link>
   );
 }
 

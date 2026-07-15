@@ -9,11 +9,30 @@ import { z } from "zod";
 
 extendZodWithOpenApi(z);
 
+/**
+ * One product containing one printing of this card (ADR-015). Kept as a
+ * card-detail-only field rather than a member of
+ * `catalogPrintingResponseSchema`: that schema also backs the synced catalog,
+ * /promos, and /sets, and product membership is neither catalog data nor
+ * wanted on those surfaces.
+ */
+export const cardDetailProductSchema = z
+  .object({
+    printingId: z.string().openapi({ example: "019cfc3b-03d3-7dac-86c9-27900cd43727" }),
+    slug: z.string().openapi({ example: "sfd-prerift-ezreal" }),
+    name: z.string().openapi({ example: "SFD Pre-Rift Kit - Ezreal" }),
+    quantity: z.number().int().positive().openapi({ example: 2 }),
+  })
+  .openapi("CardDetailProduct");
+
 export const cardDetailResponseSchema = z
   .object({
     card: catalogCardResponseSchema,
     printings: z.array(catalogPrintingResponseSchema),
     sets: z.array(catalogSetResponseSchema),
+    // Product membership per printing, flat (one row per printing+product).
+    // The web groups by `printingId` for the selected printing's "Found in" row.
+    products: z.array(cardDetailProductSchema).openapi({ example: [] }),
     // prices are NOT inlined — read them from the /prices resource.
   })
   .openapi("CardDetailResponse");

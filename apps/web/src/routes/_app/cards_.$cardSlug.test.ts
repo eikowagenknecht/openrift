@@ -75,7 +75,7 @@ type HeadFn = (ctx: { loaderData: unknown; match: { search: { printingId?: strin
 
 function runHeadFull(printingId?: string, marketplaceOffers: MarketplaceOffer[] = []) {
   const loaderData = {
-    data: { card, printings: [en, ja], sets: [] } satisfies CardDetailResponse,
+    data: { card, printings: [en, ja], sets: [], products: [] } satisfies CardDetailResponse,
     languageOrder: ["EN", "DE", "JA"] as const,
     domainLabels: { fury: "Fury" },
     cardTypeLabels: { unit: "Unit" },
