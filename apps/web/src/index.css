@@ -533,3 +533,11 @@ html.hide-scrollbar::-webkit-scrollbar {
   margin-left: calc(-1 * max(0.75rem, env(safe-area-inset-left, 0px)));
   margin-right: calc(-1 * max(0.75rem, env(safe-area-inset-right, 0px)));
 }
+
+/* Right-side-only variant of mx-safe-neg, for a bar inside a sidebar content
+   column: the column's left edge is an interior gap (the sidebar already
+   clears the safe area via ml-safe), so only the right margin must cancel a
+   pr-safe parent gutter. Pair with pr-safe to re-inset the content. */
+@utility mr-safe-neg {
+  margin-right: calc(-1 * max(0.75rem, env(safe-area-inset-right, 0px)));
+}

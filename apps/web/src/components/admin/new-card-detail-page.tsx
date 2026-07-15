@@ -438,7 +438,7 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
                   </DropdownMenu>
                 )}
               </div>
-              <div className="flex gap-3 border-t p-3">
+              <div className="flex flex-col gap-3 border-t p-3 lg:flex-row">
                 <GroupImagePreview
                   sources={group.candidates}
                   providerLabels={sourceLabels}

@@ -1,5 +1,5 @@
 import { createLink } from "@tanstack/react-router";
-import { ArrowLeftIcon, ChevronDownIcon } from "lucide-react";
+import { ArrowLeftIcon, ChevronDownIcon, PanelLeftIcon } from "lucide-react";
 import type { AnchorHTMLAttributes, ComponentProps } from "react";
 import { createContext, forwardRef, useLayoutEffect, useState } from "react";
 
@@ -63,7 +63,12 @@ export function useMeasuredHeight(el: HTMLElement | null) {
 // phones to optically match the tighter rhythm of the controls below. Desktop
 // keeps the 12px gap (`sm:pb-3`); the top stays 12px since the header's border
 // anchors it (no optical inflation there).
-const PAGE_TOP_BAR_STICKY_BASE =
+// Exported for sidebar-column layouts (admin, collections): their content
+// column already clears the iOS safe areas (ml-safe sidebar on the left,
+// pr-safe on the right), so the bar must NOT re-apply px-safe — on notched
+// phones in landscape that double-insets the bar's content by the safe-area
+// width. Those layouts compose the base with column-relative padding instead.
+export const PAGE_TOP_BAR_STICKY_BASE =
   "bg-background/80 sticky top-[calc(var(--header-height)_-_1px)] z-30 -mt-px pt-3 pb-2 backdrop-blur-lg sm:pb-3";
 
 export const PAGE_TOP_BAR_STICKY = `${PAGE_TOP_BAR_STICKY_BASE} px-safe`;
@@ -166,8 +171,9 @@ interface PageTopBarTitleProps {
 
 /**
  * Page title. On mobile, renders as a heading wrapping a button with a chevron
- * that toggles the sidebar. On desktop, renders as a static heading (sidebar
- * is always visible).
+ * that toggles the sidebar. On desktop, renders a sidebar toggle icon button
+ * next to a static heading — the persistent sidebar can eat most of the
+ * viewport on landscape phones (≥ md), so it must stay collapsible there too.
  * @returns The title element.
  */
 export function PageTopBarTitle({ onToggleSidebar, children }: PageTopBarTitleProps) {
@@ -182,6 +188,15 @@ export function PageTopBarTitle({ onToggleSidebar, children }: PageTopBarTitlePr
             <ChevronDownIcon className="text-muted-foreground size-4" />
           </Button>
         </h1>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="mr-1 -ml-2 hidden md:inline-flex"
+          onClick={onToggleSidebar}
+        >
+          <PanelLeftIcon />
+          <span className="sr-only">Toggle sidebar</span>
+        </Button>
         <h1 className="font-heading mr-2 hidden min-w-0 truncate text-lg font-semibold md:block">
           {children}
         </h1>

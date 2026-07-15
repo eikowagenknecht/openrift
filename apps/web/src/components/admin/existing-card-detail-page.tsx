@@ -1002,7 +1002,7 @@ export function ExistingCardDetailPage({
                   )}
                 </div>
                 {isExpanded && (
-                  <div className="flex gap-3 border-t p-3">
+                  <div className="flex flex-col gap-3 border-t p-3 lg:flex-row">
                     <PrintingImageSwitcher
                       printingId={printingId}
                       printingLabel={printingLabel}

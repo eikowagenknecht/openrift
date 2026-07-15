@@ -104,7 +104,7 @@ export function PrintingImageSwitcher({
     : (effectiveSource?.url ?? null);
 
   return (
-    <div className="w-96 shrink-0 space-y-2">
+    <div className="w-full max-w-96 shrink-0 space-y-2">
       {/* Preview */}
       <ImagePreview
         url={effectiveUrl}

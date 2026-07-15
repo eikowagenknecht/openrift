@@ -1,7 +1,7 @@
 import { render } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { PageTopBarSticky } from "./page-top-bar";
+import { PageTopBarSticky, PageTopBarTitle } from "./page-top-bar";
 
 describe("PageTopBarSticky", () => {
   it("tucks 1px under the header instead of sitting flush", () => {
@@ -55,5 +55,43 @@ describe("PageTopBarSticky", () => {
     // Across the whole subtree the gutter appears on a single element.
     const withGutter = container.querySelectorAll('[class*="px-safe"]');
     expect(withGutter).toHaveLength(1);
+  });
+});
+
+describe("PageTopBarTitle", () => {
+  it("keeps a sidebar toggle available at desktop widths", () => {
+    // Regression: the only toggle affordance was the mobile title-button
+    // (md:hidden), so on landscape phones (≥ 768px, still "desktop" for the
+    // sidebar) the persistent sidebar could never be collapsed.
+    const onToggleSidebar = vi.fn();
+    const { getByRole } = render(
+      <PageTopBarTitle onToggleSidebar={onToggleSidebar}>Cards</PageTopBarTitle>,
+    );
+
+    const toggle = getByRole("button", { name: "Toggle sidebar" });
+    // Hidden below md (the mobile title-button covers that range), visible at md+.
+    expect(toggle.className).toContain("md:inline-flex");
+
+    toggle.click();
+    expect(onToggleSidebar).toHaveBeenCalledTimes(1);
+  });
+
+  it("still wraps the title in a toggle button on mobile", () => {
+    const onToggleSidebar = vi.fn();
+    const { getByRole } = render(
+      <PageTopBarTitle onToggleSidebar={onToggleSidebar}>Cards</PageTopBarTitle>,
+    );
+
+    const titleButton = getByRole("button", { name: "Cards" });
+    expect(titleButton.closest("h1")?.className).toContain("md:hidden");
+
+    titleButton.click();
+    expect(onToggleSidebar).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders a plain heading without a toggle handler", () => {
+    const { container, queryByRole } = render(<PageTopBarTitle>Cards</PageTopBarTitle>);
+    expect(queryByRole("button")).toBeNull();
+    expect(container.querySelector("h1")?.textContent).toBe("Cards");
   });
 });

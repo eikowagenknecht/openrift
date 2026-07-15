@@ -338,7 +338,10 @@ export function DeckListPage() {
 
   return (
     <div className={`${CONTAINER_WIDTH} ${PAGE_PADDING_NO_TOP}`}>
-      <div ref={setTitleSlot} className={cn(PAGE_TOP_BAR_STICKY, "-mx-3")}>
+      {/* mx-safe-neg (not -mx-3): the container's gutter is px-safe, so the
+          full-bleed margin must cancel the same amount or the bar's px-safe
+          content lands double-inset on notched phones in landscape. */}
+      <div ref={setTitleSlot} className={cn(PAGE_TOP_BAR_STICKY, "mx-safe-neg")}>
         <PageTopBar>
           <PageTopBarTitle>Decks</PageTopBarTitle>
           <PageTopBarActions>

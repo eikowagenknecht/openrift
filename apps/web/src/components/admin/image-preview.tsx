@@ -94,7 +94,7 @@ export function GroupImagePreview({
     sourceImages.find((si) => si.candidatePrintingId === selectedId) ?? sourceImages[0];
 
   return (
-    <div className="w-96 shrink-0 space-y-2">
+    <div className="w-full max-w-96 shrink-0 space-y-2">
       {/* Source image tabs */}
       <Tabs
         value={selected.candidatePrintingId}
