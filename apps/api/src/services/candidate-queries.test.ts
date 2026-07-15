@@ -223,6 +223,41 @@ describe("buildCandidateCardList", () => {
     expect(result[0].stagingShortCodes).toEqual(["SFD-100", "SFD-101"]);
   });
 
+  // Regression: staging codes used to be concatenated one candidate card at a
+  // time, so with several providers the merged list came out in provider
+  // blocks instead of the repo's canonical printing order.
+  it("keeps staging short codes in repo order when merged across providers", async () => {
+    const repo = createMockRepo({
+      listCardsForSourceList: vi
+        .fn()
+        .mockResolvedValue([{ id: "card-1", slug: "bolt", name: "Bolt", normName: "bolt" }]),
+      listCandidateCardsForSourceList: vi.fn().mockResolvedValue([
+        { id: "cc-1", normName: "bolt", name: "Bolt", provider: "ocr", checkedAt: null },
+        { id: "cc-2", normName: "bolt", name: "Bolt", provider: "gallery", checkedAt: null },
+      ]),
+      listPrintingsForSourceList: vi.fn().mockResolvedValue([]),
+      // Repo rows arrive in canonical printing order, interleaved across the
+      // two candidate cards.
+      listCandidatePrintingsForSourceList: vi.fn().mockResolvedValue([
+        { candidateCardId: "cc-2", shortCode: "OGN-001", checkedAt: null, printingId: null },
+        { candidateCardId: "cc-1", shortCode: "OGN-002", checkedAt: null, printingId: null },
+        { candidateCardId: "cc-2", shortCode: "SFD-100", checkedAt: null, printingId: null },
+        {
+          candidateCardId: "cc-1",
+          shortCode: "OGN-001",
+          checkedAt: null,
+          printingId: null,
+          language: "SC",
+        },
+      ]),
+      listAliasesForSourceList: vi.fn().mockResolvedValue([]),
+    });
+
+    const result = await buildCandidateCardList(repo, new Set(["gallery"]));
+
+    expect(result[0].stagingShortCodes).toEqual(["OGN-001", "OGN-002", "SFD-100", "OGN-001 [SC]"]);
+  });
+
   it("merges multiple candidate groups from aliases and direct match", async () => {
     const repo = createMockRepo({
       listCardsForSourceList: vi

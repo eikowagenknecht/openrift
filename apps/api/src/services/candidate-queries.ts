@@ -180,21 +180,28 @@ export async function buildCandidateCardList(
   }
 
   // Candidate printings not yet accepted — e.g. { candidateCardUUID → [{shortCode: "OGN-001a*", checkedAt: null}, ...] }
-  const cpByCandidateCardId = new Map<string, typeof candidatePrintings>();
-  for (const cp of candidatePrintings) {
+  // orderIndex is the row's position in the repo result (canonical printing
+  // order), so codes merged across a group's candidate cards can be re-sorted
+  // globally instead of coming out grouped by provider.
+  const cpByCandidateCardId = new Map<
+    string,
+    ((typeof candidatePrintings)[number] & { orderIndex: number })[]
+  >();
+  for (const [orderIndex, cp] of candidatePrintings.entries()) {
     let arr = cpByCandidateCardId.get(cp.candidateCardId);
     if (!arr) {
       arr = [];
       cpByCandidateCardId.set(cp.candidateCardId, arr);
     }
-    arr.push(cp);
+    arr.push({ ...cp, orderIndex });
   }
 
-  // Collects all staging short codes across a normName group —
-  // duplicates are kept so the frontend can show counts (e.g. "OGN-001a* ×2")
+  // Collects all staging short codes across a normName group in canonical
+  // printing order — duplicates are kept so the frontend can show counts
+  // (e.g. "OGN-001a* ×2").
   // Skip linked candidate printings — they're already resolved to an accepted printing
   function stagingIdsForGroup(group: typeof candidateCards, onlyFavorites?: boolean): string[] {
-    const ids: string[] = [];
+    const entries: { label: string; orderIndex: number }[] = [];
     for (const cc of group) {
       if (onlyFavorites && !favoriteProviders.has(cc.provider)) {
         continue;
@@ -205,11 +212,11 @@ export async function buildCandidateCardList(
             !cp.language || cp.language === WellKnown.language.EN
               ? cp.shortCode
               : `${cp.shortCode} [${cp.language}]`;
-          ids.push(label);
+          entries.push({ label, orderIndex: cp.orderIndex });
         }
       }
     }
-    return ids;
+    return entries.toSorted((a, b) => a.orderIndex - b.orderIndex).map((e) => e.label);
   }
 
   // Distinct set slugs across a group's candidate printings. For candidate

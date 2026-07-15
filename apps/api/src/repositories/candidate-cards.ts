@@ -13,6 +13,34 @@ import type {
 } from "../db/index.js";
 
 /**
+ * Canonical ORDER BY keys for candidate-printing queries, mirroring the
+ * printings_ordered view's canonical_rank (language, set, short code,
+ * markerless before markered, marker sort order, finish, size) so candidate
+ * printings sort the same everywhere accepted printings do. The query must
+ * alias candidate_printings as `ps` and LEFT-join languages as `l`, sets as
+ * `s` (on slug — candidate set_id holds the slug directly), finishes as `f`,
+ * and card_sizes as `sz`; candidate data is provider-supplied, so unknown
+ * reference values sort last (ASC puts NULL sort orders after known ones),
+ * the raw column after each joined sort_order tiebreaks them, and the
+ * trailing id makes the full order stable. Apply with
+ * `CANONICAL_CANDIDATE_PRINTING_ORDER.reduce((q, key) => q.orderBy(key), qb)`.
+ */
+const CANONICAL_CANDIDATE_PRINTING_ORDER = [
+  sql`l.sort_order`,
+  sql`ps.language`,
+  sql`s.sort_order`,
+  sql`ps.set_id`,
+  sql`ps.short_code`,
+  sql`(array_length(ps.marker_slugs, 1) is not null)`,
+  sql`coalesce((select min(m.sort_order) from markers m where m.slug = any(ps.marker_slugs)), 0)`,
+  sql`f.sort_order`,
+  sql`ps.finish`,
+  sql`sz.sort_order`,
+  sql`ps.is_signed`,
+  sql`ps.id`,
+];
+
+/**
  * Reusable WHERE filter: exclude candidate_cards that appear in ignored_candidate_cards.
  * @param alias — the candidate_cards table alias used in the query (e.g. "cs", "candidateCards")
  * @returns Expression builder callback for NOT EXISTS subquery
@@ -177,16 +205,10 @@ export function candidateCardsRepo(db: Kysely<Database>) {
       })[]
     > {
       return db
-        .selectFrom("printings as p")
-        .innerJoin("finishes as f", "f.slug", "p.finish")
-        .innerJoin("languages as l", "l.code", "p.language")
+        .selectFrom("printingsOrdered as p")
         .leftJoin("sets as s", "s.id", "p.setId")
         .select(["p.cardId", "p.shortCode", "p.language", "s.slug as setSlug"])
-        .orderBy("p.shortCode")
-        .orderBy("f.sortOrder")
-        .orderBy(sql`cardinality(p.marker_slugs)`)
-        .orderBy(sql`array_to_string(p.marker_slugs, ',')`)
-        .orderBy("l.sortOrder")
+        .orderBy("p.canonicalRank")
         .execute();
     },
 
@@ -220,11 +242,13 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         "candidateCardId" | "shortCode" | "checkedAt" | "printingId" | "language" | "setId"
       >[]
     > {
-      return db
+      const query = db
         .selectFrom("candidatePrintings as ps")
         .innerJoin("candidateCards as cs", "cs.id", "ps.candidateCardId")
-        .leftJoin("finishes as f", "f.slug", "ps.finish")
         .leftJoin("languages as l", "l.code", "ps.language")
+        .leftJoin("sets as s", "s.slug", "ps.setId")
+        .leftJoin("finishes as f", "f.slug", "ps.finish")
+        .leftJoin("cardSizes as sz", "sz.slug", "ps.size")
         .select([
           "ps.candidateCardId",
           "ps.shortCode",
@@ -236,13 +260,8 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           "ps.setId",
         ])
         .where(notIgnoredPrinting("ps", "cs"))
-        .where(notHiddenSource("cs"))
-        .orderBy("ps.shortCode")
-        .orderBy("f.sortOrder")
-        .orderBy(sql`cardinality(ps.marker_slugs)`)
-        .orderBy(sql`array_to_string(ps.marker_slugs, ',')`)
-        .orderBy("l.sortOrder")
-        .execute();
+        .where(notHiddenSource("cs"));
+      return CANONICAL_CANDIDATE_PRINTING_ORDER.reduce((q, key) => q.orderBy(key), query).execute();
     },
 
     /** @returns Distinct artist names from published printings, ordered alphabetically. */
@@ -442,13 +461,9 @@ export function candidateCardsRepo(db: Kysely<Database>) {
       if (candidateCardIds.length === 0) {
         return [];
       }
-      const rows = await db
+      const query = db
         .selectFrom("candidatePrintings as ps")
         .innerJoin("candidateCards as cs_parent", "cs_parent.id", "ps.candidateCardId")
-        // Candidate data is dirty (provider-supplied), so all reference joins
-        // are LEFT: unknown languages/sets/finishes/sizes sort last (ASC puts
-        // NULL sort orders after known ones). `ps.setId` holds the set *slug*
-        // directly, unlike accepted printings (see setPrintedTotalBySlugs).
         .leftJoin("languages as l", "l.code", "ps.language")
         .leftJoin("sets as s", "s.slug", "ps.setId")
         .leftJoin("finishes as f", "f.slug", "ps.finish")
@@ -481,28 +496,11 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         ])
         .where("ps.candidateCardId", "in", candidateCardIds)
         .where(notIgnoredPrinting("ps", "cs_parent"))
-        .where(notHiddenSource("cs_parent"))
-        // Mirrors the printings_ordered view's canonical_rank keys so the
-        // candidate groups on the admin card detail page interleave in the
-        // same order as accepted printings (language before set, markerless
-        // before markered). Raw-column tiebreakers after each joined
-        // sort_order keep rows the joins couldn't resolve deterministic, and
-        // the trailing id makes the full order stable.
-        .orderBy("l.sortOrder")
-        .orderBy("ps.language")
-        .orderBy("s.sortOrder")
-        .orderBy("ps.setId")
-        .orderBy("ps.shortCode")
-        .orderBy(sql`(array_length(ps.marker_slugs, 1) is not null)`)
-        .orderBy(
-          sql`coalesce((select min(m.sort_order) from markers m where m.slug = any(ps.marker_slugs)), 0)`,
-        )
-        .orderBy("f.sortOrder")
-        .orderBy("ps.finish")
-        .orderBy("sz.sortOrder")
-        .orderBy("ps.isSigned")
-        .orderBy("ps.id")
-        .execute();
+        .where(notHiddenSource("cs_parent"));
+      const rows = await CANONICAL_CANDIDATE_PRINTING_ORDER.reduce(
+        (q, key) => q.orderBy(key),
+        query,
+      ).execute();
       return rows.map((row) => ({ ...row, extraData: parseJsonb(row.extraData) }));
     },
 
@@ -769,29 +767,31 @@ export function candidateCardsRepo(db: Kysely<Database>) {
 
     /** @returns All printings with set slug/name and active front image URLs. */
     exportPrintings(): Promise<ExportPrintingRow[]> {
-      return db
-        .selectFrom("printings")
-        .innerJoin("sets", "sets.id", "printings.setId")
-        .leftJoin("printingImages", (jb) =>
-          jb
-            .onRef("printingImages.printingId", "=", "printings.id")
-            .on("printingImages.face", "=", "front")
-            .on("printingImages.isActive", "=", true),
-        )
-        .leftJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
-        .selectAll("printings")
-        .select([
-          "sets.slug as setSlug",
-          "sets.name as setName",
-          "printingImages.id as imageId",
-          "ci.rehostedUrl",
-          "ci.originalUrl",
-        ])
-        .orderBy("printings.setId")
-        .orderBy("printings.shortCode")
-        .orderBy("printings.artVariant")
-        .orderBy("printings.finish")
-        .execute() as Promise<ExportPrintingRow[]>;
+      return (
+        db
+          .selectFrom("printings")
+          .innerJoin("sets", "sets.id", "printings.setId")
+          .leftJoin("printingImages", (jb) =>
+            jb
+              .onRef("printingImages.printingId", "=", "printings.id")
+              .on("printingImages.face", "=", "front")
+              .on("printingImages.isActive", "=", true),
+          )
+          .leftJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
+          .selectAll("printings")
+          .select([
+            "sets.slug as setSlug",
+            "sets.name as setName",
+            "printingImages.id as imageId",
+            "ci.rehostedUrl",
+            "ci.originalUrl",
+          ])
+          // Same canonical order as every other printing list (the old keys
+          // led with the set UUID, which is an arbitrary order).
+          .innerJoin("printingsOrdered as po", "po.id", "printings.id")
+          .orderBy("po.canonicalRank")
+          .execute() as Promise<ExportPrintingRow[]>
+      );
     },
   };
 }

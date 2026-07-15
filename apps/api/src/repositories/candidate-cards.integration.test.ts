@@ -284,6 +284,19 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
     expect(ours[0]).toHaveProperty("printingId");
   });
 
+  // Regression: like candidatePrintingsForDetail below, this query used to
+  // ignore language, so same-code candidates in different languages came back
+  // in physical row order. It now shares the canonical printing order.
+  it("listCandidatePrintingsForSourceList orders by language sort order", async () => {
+    const result = await repo.listCandidatePrintingsForSourceList();
+    const ours = result.filter((row) => row.candidateCardId === CC_ID_3);
+    expect(ours.map((r) => [r.shortCode, r.language])).toEqual([
+      ["ZZZ-002", "EN"], // EN (sort_order 1) before SC (sort_order 3)...
+      ["ZZZ-002", "SC"], // ...despite the SC row being inserted first
+      ["ZZZ-001", null], // unknown language sorts last
+    ]);
+  });
+
   // ── distinctArtists (lines 190-198 proxy — actually 190-198 covered, but
   //    the return rows.map line 197 needs coverage) ──────────────────────────
 
