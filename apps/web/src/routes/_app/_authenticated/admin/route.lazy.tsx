@@ -49,7 +49,7 @@ function AdminContent({ setTopBarSlot }: { setTopBarSlot: (el: HTMLDivElement | 
         ref={setTopBarSlot}
         className={cn(PAGE_TOP_BAR_STICKY_BASE, "mr-safe-neg pr-safe -ml-3 pl-3")}
       />
-      <div className="flex flex-1 flex-col pb-6">
+      <div className="flex flex-1 flex-col pt-3 pb-6">
         <Outlet />
       </div>
       <Footer />
