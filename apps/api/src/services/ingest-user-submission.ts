@@ -66,7 +66,7 @@ export function buildUserSubmissionCard(
   const printings: IngestPrinting[] = input.printings.map((printing, index) => {
     const shortCode = printing.public_code.split("/", 1)[0] || printing.public_code;
     const finishForId = printing.finish ?? WellKnown.finish.NORMAL;
-    const languageForId = (printing.language ?? "EN").toLowerCase();
+    const languageForId = (printing.language ?? WellKnown.language.EN).toLowerCase();
     const disambiguator = shortCode || index.toString();
     const externalId = `${slug}:${disambiguator}--${dateStamp}--${userId}:${finishForId}:${languageForId}`;
     return {
@@ -257,7 +257,7 @@ export function ingestUserSubmission(
       const sortedSlugs = [...(printing.marker_slugs ?? [])].toSorted();
       const printingKey =
         effectiveCardId && printing.rarity && printing.finish
-          ? `${printing.short_code}:${printing.finish}:${sortedSlugs.join(",")}:${printing.language ?? "EN"}`
+          ? `${printing.short_code}:${printing.finish}:${sortedSlugs.join(",")}:${printing.language ?? WellKnown.language.EN}`
           : null;
       const overrideId = linkOverrides.get(`${printing.external_id}:${printing.finish ?? ""}`);
       const resolvedPrintingId =

@@ -307,8 +307,6 @@ function PromosPage() {
 
   const viewMode: ViewMode = useDisplayStore((s) => s.displayMode);
 
-  const priceFilterEnabled = activeLanguage === "EN";
-
   const { data: catalog } = useSuspenseQuery(catalogQueryOptions);
   const setIdToSlug = new Map(catalog.sets.map((s) => [s.id, s.slug] as const));
   const setSlugToName = new Map(catalog.sets.map((s) => [s.slug, s.name] as const));
@@ -319,6 +317,15 @@ function PromosPage() {
     setSlug: setIdToSlug.get(p.setId) ?? "",
   }));
   const activePrintings = printingsWithSlug.filter((p) => p.language === activeLanguage);
+
+  // Show the price filter only where there are prices to filter on, rather than
+  // assuming English. Cardmarket and TCGplayer feeds carry no language and are
+  // bound to EN printings, but CardTrader stages real per-language variants, so
+  // a non-EN promo can be priced. Keying off the data also hides the filter for
+  // an EN promo that simply has no mapping yet.
+  const priceFilterEnabled = activePrintings.some(
+    (p) => display.prices.get(p.id, display.favoriteMarketplace) !== undefined,
+  );
 
   const availableFilters = getAvailableFilters(activePrintings, {
     orders: enumOrders,

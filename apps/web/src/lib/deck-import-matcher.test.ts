@@ -89,10 +89,10 @@ describe("matchDeckEntries", () => {
       language: "EN",
       card: { name: "Test Card", type: "unit" },
     });
-    const zhPrinting = stubPrinting({
-      id: "printing-zh",
+    const scPrinting = stubPrinting({
+      id: "printing-sc",
       shortCode: "OGN-001",
-      language: "ZH",
+      language: "SC",
       // Same cardId so they're treated as the same card.
       cardId: enPrinting.cardId,
       card: { ...enPrinting.card, name: "Test Card" },
@@ -102,16 +102,16 @@ describe("matchDeckEntries", () => {
       const entries: DeckImportEntry[] = [
         { shortCode: "OGN-001", quantity: 1, sourceSlot: "mainDeck", rawFields: {} },
       ];
-      const result = matchDeckEntries(entries, [enPrinting, zhPrinting]);
+      const result = matchDeckEntries(entries, [enPrinting, scPrinting]);
       expect(result[0].status).toBe("exact");
       expect(result[0].resolvedCard?.preferredPrintingId).toBeNull();
     });
 
-    it("does not pin a printingId for shortCode lookups (ZH-first ordering)", () => {
+    it("does not pin a printingId for shortCode lookups (SC-first ordering)", () => {
       const entries: DeckImportEntry[] = [
         { shortCode: "OGN-001", quantity: 1, sourceSlot: "mainDeck", rawFields: {} },
       ];
-      const result = matchDeckEntries(entries, [zhPrinting, enPrinting]);
+      const result = matchDeckEntries(entries, [scPrinting, enPrinting]);
       expect(result[0].status).toBe("exact");
       expect(result[0].resolvedCard?.preferredPrintingId).toBeNull();
     });

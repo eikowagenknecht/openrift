@@ -1,3 +1,4 @@
+import { WellKnown } from "@openrift/shared";
 import { extractKeywords } from "@openrift/shared/keywords";
 import type {
   ArtVariant,
@@ -400,7 +401,7 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
         .selectFrom("printings")
         .select(["printings.printedRulesText", "printings.printedEffectText"])
         .where("printings.cardId", "=", cardId)
-        .where("printings.language", "=", "EN")
+        .where("printings.language", "=", WellKnown.language.EN)
         .execute();
     },
 
@@ -608,7 +609,7 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
         .selectFrom("printings")
         .select(["printedRulesText", "printedEffectText"])
         .where("cardId", "=", row.cardId)
-        .where("language", "=", "EN")
+        .where("language", "=", WellKnown.language.EN)
         .execute();
 
       const keywords = [
@@ -641,7 +642,7 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
       const printings = await db
         .selectFrom("printings")
         .select(["cardId", "printedRulesText", "printedEffectText"])
-        .where("language", "=", "EN")
+        .where("language", "=", WellKnown.language.EN)
         .execute();
 
       const printingsByCard = Map.groupBy(printings, (row) => row.cardId);
@@ -1030,7 +1031,7 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
         .selectFrom("printings")
         .select(["cardId", "printedRulesText", "printedEffectText"])
         .where("cardId", "in", cardIds)
-        .where("language", "=", "EN")
+        .where("language", "=", WellKnown.language.EN)
         .execute();
     },
   };

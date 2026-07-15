@@ -45,7 +45,7 @@ const sampleExport = [
         external_id: "22222222-2222-4222-8222-222222222222",
         extra_data: { image_id: "33333333-3333-4333-8333-333333333333" },
         // The fields a prior export silently dropped — they must round-trip.
-        language: "ZH",
+        language: "SC",
         printed_name: "遗弃",
         // marker_slugs / distribution_channel_slugs are admin-curated and
         // deliberately absent from the export (optional in the document schema).

@@ -243,7 +243,7 @@ export async function acceptPrinting(
 
   const finish = (printingFields.finish ?? WellKnown.finish.NORMAL) as Finish;
   const size = (printingFields.size ?? WellKnown.cardSize.STANDARD) as CardSize;
-  const language = printingFields.language ?? "EN";
+  const language = printingFields.language ?? WellKnown.language.EN;
   const existing = await mut.getPrintingCardIdByComposite(
     printingFields.shortCode,
     finish,

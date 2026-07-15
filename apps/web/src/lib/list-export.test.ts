@@ -182,12 +182,12 @@ describe("formatListShareText", () => {
       [
         printingEntry("e1", "Cleave", 2, { shortCode: "OGN-004" }),
         printingEntry("e2", "Cleave", 1, { shortCode: "OGN-004", finish: "foil" }),
-        printingEntry("e3", "Disintegrate", 1, { shortCode: "OGN-050", language: "ZH" }),
+        printingEntry("e3", "Disintegrate", 1, { shortCode: "OGN-050", language: "SC" }),
       ],
       SHARE_URL,
     );
     expect(output).toBe(
-      `My Printings (3 printings)\n${SHARE_URL}\n\n2x Cleave · OGN-004\n1x Cleave · OGN-004 · Foil\n1x Disintegrate · OGN-050 · ZH`,
+      `My Printings (3 printings)\n${SHARE_URL}\n\n2x Cleave · OGN-004\n1x Cleave · OGN-004 · Foil\n1x Disintegrate · OGN-050 · SC`,
     );
   });
 

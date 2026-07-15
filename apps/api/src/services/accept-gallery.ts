@@ -92,7 +92,7 @@ export async function acceptFavoriteNewCard(
   const groupMap = new Map<string, typeof candidatePrintings>();
   for (const cp of candidatePrintings) {
     const slugKey = [...(cp.markerSlugs ?? [])].sort().join(",");
-    const key = `${cp.shortCode}|${cp.finish ?? ""}|${slugKey}|${cp.language ?? "EN"}`;
+    const key = `${cp.shortCode}|${cp.finish ?? ""}|${slugKey}|${cp.language ?? WellKnown.language.EN}`;
     let arr = groupMap.get(key);
     if (!arr) {
       arr = [];
@@ -132,7 +132,7 @@ export async function acceptFavoriteNewCard(
           printedEffectText: first.printedEffectText,
           flavorText: first.flavorText,
           imageUrl: first.imageUrl,
-          language: first.language ?? "EN",
+          language: first.language ?? WellKnown.language.EN,
           printedName: first.printedName,
         },
         group.map((cp) => cp.id),

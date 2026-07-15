@@ -5,7 +5,8 @@ import type { wellKnownRepo } from "../repositories/well-known.js";
 
 /**
  * Reference table info for each WellKnown category.
- * `pk` is the primary-key column; most reference tables use `slug`, but `keywords` uses `name`.
+ * `pk` is the primary-key column; most reference tables use `slug`, but
+ * `keywords` uses `name` and `languages` uses `code`.
  */
 const TABLE_MAP: Record<string, { table: keyof Database; pk: string }> = {
   cardType: { table: "cardTypes", pk: "slug" },
@@ -18,6 +19,7 @@ const TABLE_MAP: Record<string, { table: keyof Database; pk: string }> = {
   deckFormat: { table: "deckFormats", pk: "slug" },
   deckZone: { table: "deckZones", pk: "slug" },
   keyword: { table: "keywords", pk: "name" },
+  language: { table: "languages", pk: "code" },
 };
 
 /**

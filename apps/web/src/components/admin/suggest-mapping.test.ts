@@ -174,7 +174,7 @@ describe("computeProductSuggestions", () => {
   });
 
   it("does not suggest a CardTrader product across a language mismatch", () => {
-    // Regression: a ZH CT product should never be proposed for an EN printing,
+    // Regression: a SC CT product should never be proposed for an EN printing,
     // even when the EN printing is the only unmapped printing with matching
     // finish — the server rejects such mappings with a "variant mismatch".
     const enPrinting = printing({ printingId: "p-en", language: "EN", finish: "foil" });
@@ -182,7 +182,7 @@ describe("computeProductSuggestions", () => {
       group([enPrinting], {
         cardtrader: {
           staged: [
-            staged({ externalId: 379_529, productName: "Ahri", finish: "foil", language: "ZH" }),
+            staged({ externalId: 379_529, productName: "Ahri", finish: "foil", language: "SC" }),
           ],
           assignments: [],
         },
@@ -192,29 +192,29 @@ describe("computeProductSuggestions", () => {
   });
 
   it("still suggests CardTrader products whose language matches the printing", () => {
-    const zhPrinting = printing({ printingId: "p-zh", language: "ZH", finish: "foil" });
+    const scPrinting = printing({ printingId: "p-sc", language: "SC", finish: "foil" });
     const result = computeProductSuggestions(
-      group([zhPrinting], {
+      group([scPrinting], {
         cardtrader: {
           staged: [
-            staged({ externalId: 379_529, productName: "Ahri", finish: "foil", language: "ZH" }),
+            staged({ externalId: 379_529, productName: "Ahri", finish: "foil", language: "SC" }),
           ],
           assignments: [],
         },
       }),
     );
     expect(
-      result.get(productSuggestionKey("cardtrader", 379_529, "foil", "ZH"))?.[0]?.printingId,
-    ).toBe("p-zh");
+      result.get(productSuggestionKey("cardtrader", 379_529, "foil", "SC"))?.[0]?.printingId,
+    ).toBe("p-sc");
   });
 
   it("still suggests TCG/CM products across languages (those staging pools are EN-only)", () => {
     // TCG/CM staging uses placeholder EN regardless of the physical printing
     // language; the language gate is CT-only. Gating TCG/CM would suppress
-    // every legitimate non-EN-printing suggestion, since staging is never ZH.
-    const zhPrinting = printing({ printingId: "p-zh", language: "ZH", finish: "foil" });
+    // every legitimate non-EN-printing suggestion, since staging is never SC.
+    const scPrinting = printing({ printingId: "p-sc", language: "SC", finish: "foil" });
     const result = computeProductSuggestions(
-      group([zhPrinting], {
+      group([scPrinting], {
         tcgplayer: {
           staged: [
             staged({ externalId: 888, productName: "Ahri", finish: "foil", language: "EN" }),
@@ -224,7 +224,7 @@ describe("computeProductSuggestions", () => {
       }),
     );
     expect(result.get(productSuggestionKey("tcgplayer", 888, "foil", "EN"))?.[0]?.printingId).toBe(
-      "p-zh",
+      "p-sc",
     );
   });
 
@@ -299,15 +299,15 @@ describe("computeProductSuggestions", () => {
 
   it("skips when multiple printings tie for the same Cardmarket product (mutual-best-match)", () => {
     // Regression: CM 872479 used to suggest one of three tied printings
-    // (SFD-R02 EN, SFD-R02 ZH, OGN-042 ZH) based on iteration order — which
+    // (SFD-R02 EN, SFD-R02 SC, OGN-042 SC) based on iteration order — which
     // was non-deterministic since the unified printings query didn't tie-break
     // on language. With mutual-best-match, three printings competing for one
     // product means the product has no unique top → no suggestion at all.
     const enSfd = printing({ printingId: "p-sfd-en", language: "EN" });
-    const zhSfd = printing({ printingId: "p-sfd-zh", language: "ZH" });
-    const zhOgn = printing({ printingId: "p-ogn-zh", language: "ZH", shortCode: "OGN-042" });
+    const scSfd = printing({ printingId: "p-sfd-sc", language: "SC" });
+    const scOgn = printing({ printingId: "p-ogn-sc", language: "SC", shortCode: "OGN-042" });
     const result = computeProductSuggestions(
-      group([enSfd, zhSfd, zhOgn], {
+      group([enSfd, scSfd, scOgn], {
         cardmarket: {
           staged: [staged({ externalId: 872_479, productName: "Calm Rune", finish: "normal" })],
           assignments: [],
@@ -337,14 +337,14 @@ describe("computeProductSuggestions", () => {
   });
 
   it("suggests every sibling printing for a language-aggregate CM product", () => {
-    // Two printings identical except for language: one EN, one ZH. Cardmarket
+    // Two printings identical except for language: one EN, one SC. Cardmarket
     // (language-aggregate, stored with language=null) has a single SKU for
     // them. The suggester emits both as independent chips — admin clicks each
     // to materialise the mapping.
     const en = printing({ printingId: "p-en", language: "EN" });
-    const zh = printing({ printingId: "p-zh", language: "ZH" });
+    const sc = printing({ printingId: "p-sc", language: "SC" });
     const result = computeProductSuggestions(
-      group([en, zh], {
+      group([en, sc], {
         cardmarket: {
           staged: [
             staged({
@@ -362,18 +362,18 @@ describe("computeProductSuggestions", () => {
       .get(productSuggestionKey("cardmarket", 847_346, "normal", null))
       ?.map((s) => s.printingId)
       .toSorted();
-    expect(suggested).toEqual(["p-en", "p-zh"]);
+    expect(suggested).toEqual(["p-en", "p-sc"]);
   });
 
-  it("breaks a CardTrader ZH tie using the short_code already bound to the EN SKU", () => {
+  it("breaks a CardTrader SC tie using the short_code already bound to the EN SKU", () => {
     // Regression: CT 345503 ("Darius - Hand of Noxus", foil) has the EN SKU
-    // bound to OGN-302* (signed). The ZH SKU used to have no suggestion
-    // because three ZH foil printings exist (OGN-253 normal, OGN-302
+    // bound to OGN-302* (signed). The SC SKU used to have no suggestion
+    // because three SC foil printings exist (OGN-253 normal, OGN-302
     // overnumbered, OGN-302* normal+signed), the product name "Darius - Hand
     // of Noxus" carries no disambiguator, and OGN-253 + OGN-302* tied at the
     // same base score while differing on short_code (so the sibling fallback
     // didn't apply either). Cross-language transfer resolves it: the EN
-    // assignment to OGN-302* is strong evidence that ZH should map the same.
+    // assignment to OGN-302* is strong evidence that SC should map the same.
     const ognOverEn = printing({
       printingId: "p-302-en",
       shortCode: "OGN-302*",
@@ -383,24 +383,24 @@ describe("computeProductSuggestions", () => {
       isSigned: true,
     });
     const ogn253Zh = printing({
-      printingId: "p-253-zh",
+      printingId: "p-253-sc",
       shortCode: "OGN-253",
       finish: "foil",
-      language: "ZH",
+      language: "SC",
       artVariant: "normal",
     });
     const ogn302Zh = printing({
-      printingId: "p-302-zh-plain",
+      printingId: "p-302-sc-plain",
       shortCode: "OGN-302",
       finish: "foil",
-      language: "ZH",
+      language: "SC",
       artVariant: "overnumbered",
     });
     const ognOverZh = printing({
-      printingId: "p-302-zh-signed",
+      printingId: "p-302-sc-signed",
       shortCode: "OGN-302*",
       finish: "foil",
-      language: "ZH",
+      language: "SC",
       artVariant: "normal",
       isSigned: true,
     });
@@ -414,7 +414,7 @@ describe("computeProductSuggestions", () => {
                 externalId: 345_503,
                 productName: "Darius - Hand of Noxus",
                 finish: "foil",
-                language: "ZH",
+                language: "SC",
                 marketCents: null,
                 lowCents: 45_064,
               }),
@@ -433,8 +433,8 @@ describe("computeProductSuggestions", () => {
       ),
     );
     expect(
-      result.get(productSuggestionKey("cardtrader", 345_503, "foil", "ZH"))?.[0]?.printingId,
-    ).toBe("p-302-zh-signed");
+      result.get(productSuggestionKey("cardtrader", 345_503, "foil", "SC"))?.[0]?.printingId,
+    ).toBe("p-302-sc-signed");
   });
 
   it("uses price alone to prefer the signed printing over an otherwise tied unsigned sibling", () => {
@@ -445,7 +445,7 @@ describe("computeProductSuggestions", () => {
       printingId: "p-normal-unsigned",
       shortCode: "OGN-100",
       finish: "foil",
-      language: "ZH",
+      language: "SC",
       artVariant: "normal",
       isSigned: false,
     });
@@ -453,7 +453,7 @@ describe("computeProductSuggestions", () => {
       printingId: "p-normal-signed",
       shortCode: "OGN-100*",
       finish: "foil",
-      language: "ZH",
+      language: "SC",
       artVariant: "normal",
       isSigned: true,
     });
@@ -465,7 +465,7 @@ describe("computeProductSuggestions", () => {
               externalId: 111,
               productName: "Ahri",
               finish: "foil",
-              language: "ZH",
+              language: "SC",
               marketCents: null,
               lowCents: 45_000,
             }),
@@ -474,7 +474,7 @@ describe("computeProductSuggestions", () => {
         },
       }),
     );
-    expect(result.get(productSuggestionKey("cardtrader", 111, "foil", "ZH"))?.[0]?.printingId).toBe(
+    expect(result.get(productSuggestionKey("cardtrader", 111, "foil", "SC"))?.[0]?.printingId).toBe(
       "p-normal-signed",
     );
   });
@@ -485,14 +485,14 @@ describe("computeProductSuggestions", () => {
       printingId: "p-unsigned",
       shortCode: "OGN-100",
       finish: "foil",
-      language: "ZH",
+      language: "SC",
       isSigned: false,
     });
     const signed = printing({
       printingId: "p-signed",
       shortCode: "OGN-100*",
       finish: "foil",
-      language: "ZH",
+      language: "SC",
       isSigned: true,
     });
     const result = computeProductSuggestions(
@@ -503,7 +503,7 @@ describe("computeProductSuggestions", () => {
               externalId: 222,
               productName: "Ahri",
               finish: "foil",
-              language: "ZH",
+              language: "SC",
               marketCents: null,
               lowCents: 500,
             }),
@@ -512,7 +512,7 @@ describe("computeProductSuggestions", () => {
         },
       }),
     );
-    expect(result.get(productSuggestionKey("cardtrader", 222, "foil", "ZH"))).toBeUndefined();
+    expect(result.get(productSuggestionKey("cardtrader", 222, "foil", "SC"))).toBeUndefined();
   });
 
   it("does not propagate cross-language evidence across marketplaces", () => {
@@ -586,7 +586,7 @@ describe("computeProductSuggestions", () => {
   it("resolves CT normal vs altart per language using price-rank (Miss Fortune scenario)", () => {
     // Real scenario from Miss Fortune, Buccaneer: CardTrader has two products
     // ("Miss Fortune - Buccaneer") per language, one cheap (normal) and one
-    // expensive (altart). Language is part of the SKU so EN and ZH are
+    // expensive (altart). Language is part of the SKU so EN and SC are
     // separate products. Price-rank must bucket independently per language.
     const normalEn = printing({ printingId: "p-n-en", language: "EN", finish: "foil" });
     const altEn = printing({
@@ -596,10 +596,10 @@ describe("computeProductSuggestions", () => {
       shortCode: "OGN-001a",
       artVariant: "altart",
     });
-    const normalZh = printing({ printingId: "p-n-zh", language: "ZH", finish: "foil" });
+    const normalZh = printing({ printingId: "p-n-sc", language: "SC", finish: "foil" });
     const altZh = printing({
-      printingId: "p-a-zh",
-      language: "ZH",
+      printingId: "p-a-sc",
+      language: "SC",
       finish: "foil",
       shortCode: "OGN-001a",
       artVariant: "altart",
@@ -620,7 +620,7 @@ describe("computeProductSuggestions", () => {
               externalId: 345_385,
               productName: "Miss Fortune - Buccaneer",
               finish: "foil",
-              language: "ZH",
+              language: "SC",
               lowCents: 23,
               groupKind: "basic",
             }),
@@ -636,7 +636,7 @@ describe("computeProductSuggestions", () => {
               externalId: 345_386,
               productName: "Miss Fortune - Buccaneer",
               finish: "foil",
-              language: "ZH",
+              language: "SC",
               lowCents: 259,
               groupKind: "basic",
             }),
@@ -649,14 +649,14 @@ describe("computeProductSuggestions", () => {
       result.get(productSuggestionKey("cardtrader", 345_385, "foil", "EN"))?.[0]?.printingId,
     ).toBe("p-n-en");
     expect(
-      result.get(productSuggestionKey("cardtrader", 345_385, "foil", "ZH"))?.[0]?.printingId,
-    ).toBe("p-n-zh");
+      result.get(productSuggestionKey("cardtrader", 345_385, "foil", "SC"))?.[0]?.printingId,
+    ).toBe("p-n-sc");
     expect(
       result.get(productSuggestionKey("cardtrader", 345_386, "foil", "EN"))?.[0]?.printingId,
     ).toBe("p-a-en");
     expect(
-      result.get(productSuggestionKey("cardtrader", 345_386, "foil", "ZH"))?.[0]?.printingId,
-    ).toBe("p-a-zh");
+      result.get(productSuggestionKey("cardtrader", 345_386, "foil", "SC"))?.[0]?.printingId,
+    ).toBe("p-a-sc");
   });
 
   it("preserves price-rank after one product in the pair has been assigned", () => {
@@ -667,28 +667,28 @@ describe("computeProductSuggestions", () => {
     // stripped by the mutual-best gate. Effectively: clicking one chip would
     // vaporise every other suggestion in the card.
     // Four printings: the normal-EN was consumed by the cheap product, and
-    // the remaining three (normal-ZH + altart EN/ZH siblings) all score the
+    // the remaining three (normal-SC + altart EN/SC siblings) all score the
     // same without the price-rank boost — so the mutual-best gate relies on
     // the boost to pick altart for the remaining pricey product.
     const normalEn = printing({ printingId: "p-normal", artVariant: "normal" });
-    const normalZh = printing({ printingId: "p-normal-zh", artVariant: "normal", language: "ZH" });
+    const normalZh = printing({ printingId: "p-normal-sc", artVariant: "normal", language: "SC" });
     const altEn = printing({
       printingId: "p-alt-en",
       shortCode: "OGN-001a",
       artVariant: "altart",
     });
     const altZh = printing({
-      printingId: "p-alt-zh",
+      printingId: "p-alt-sc",
       shortCode: "OGN-001a",
       artVariant: "altart",
-      language: "ZH",
+      language: "SC",
     });
     const result = computeProductSuggestions(
       group([normalEn, normalZh, altEn, altZh], {
         tcgplayer: {
           // The "cheap" product (1300) has been accepted on p-normal and now
           // lives in assignedProducts — the "pricey" product (1301) still
-          // needs to be resolved to the altart fan-out (EN + ZH siblings).
+          // needs to be resolved to the altart fan-out (EN + SC siblings).
           staged: [
             staged({
               externalId: 1301,
@@ -722,7 +722,7 @@ describe("computeProductSuggestions", () => {
       .get(productSuggestionKey("tcgplayer", 1301, "normal", null))
       ?.map((s) => s.printingId)
       .toSorted();
-    expect(suggested).toEqual(["p-alt-en", "p-alt-zh"]);
+    expect(suggested).toEqual(["p-alt-en", "p-alt-sc"]);
   });
 
   it("uses price to pair a normal/altart product split across two same-name products", () => {
@@ -840,10 +840,10 @@ describe("computeProductSuggestions", () => {
     // legitimate sibling group — fall back to the old "skip on ambiguity"
     // behaviour rather than proposing all three.
     const enSfd = printing({ printingId: "p-sfd-en", shortCode: "SFD-001", language: "EN" });
-    const zhSfd = printing({ printingId: "p-sfd-zh", shortCode: "SFD-001", language: "ZH" });
-    const zhOgn = printing({ printingId: "p-ogn-zh", shortCode: "OGN-042", language: "ZH" });
+    const scSfd = printing({ printingId: "p-sfd-sc", shortCode: "SFD-001", language: "SC" });
+    const scOgn = printing({ printingId: "p-ogn-sc", shortCode: "OGN-042", language: "SC" });
     const result = computeProductSuggestions(
-      group([enSfd, zhSfd, zhOgn], {
+      group([enSfd, scSfd, scOgn], {
         cardmarket: {
           staged: [
             staged({ externalId: 123, productName: "Ahri", finish: "normal", language: null }),
@@ -910,18 +910,18 @@ describe("computeProductSuggestions", () => {
   });
 
   it("mirrors every sibling printing when one externalId fans out to multiple printings", () => {
-    // Cardmarket's language-aggregate SKUs can map to both EN and ZH foils
+    // Cardmarket's language-aggregate SKUs can map to both EN and SC foils
     // under one externalId. The bogus normal SKU should mirror all of them so
     // the resulting state matches the legit sibling's coverage.
     const enFoil = printing({ printingId: "p-en-foil", finish: "foil", language: "EN" });
-    const zhFoil = printing({
-      printingId: "p-zh-foil",
+    const scFoil = printing({
+      printingId: "p-sc-foil",
       finish: "foil",
-      language: "ZH",
+      language: "SC",
       shortCode: "OGN-001",
     });
     const result = computeProductSuggestions(
-      group([enFoil, zhFoil], {
+      group([enFoil, scFoil], {
         cardmarket: {
           staged: [
             staged({ externalId: 558, productName: "Ahri", finish: "normal", language: null }),
@@ -931,13 +931,13 @@ describe("computeProductSuggestions", () => {
           ],
           assignments: [
             { externalId: 558, printingId: "p-en-foil", finish: "foil", language: null },
-            { externalId: 558, printingId: "p-zh-foil", finish: "foil", language: null },
+            { externalId: 558, printingId: "p-sc-foil", finish: "foil", language: null },
           ],
         },
       }),
     );
     const weak = result.get(productSuggestionKey("cardmarket", 558, "normal", null));
-    expect(weak?.map((s) => s.printingId).toSorted()).toEqual(["p-en-foil", "p-zh-foil"]);
+    expect(weak?.map((s) => s.printingId).toSorted()).toEqual(["p-en-foil", "p-sc-foil"]);
     expect(weak?.every((s) => s.isWeak === true)).toBe(true);
   });
 

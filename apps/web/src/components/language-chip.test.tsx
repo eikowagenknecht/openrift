@@ -19,7 +19,7 @@ function makeWrapper() {
       deckZones: [],
       languages: [
         { slug: "EN", label: "English", color: "#1d4ed8", sortOrder: 0, isWellKnown: false },
-        { slug: "ZH", label: "Chinese", color: null, sortOrder: 1, isWellKnown: false },
+        { slug: "SC", label: "Chinese", color: null, sortOrder: 1, isWellKnown: false },
       ],
     },
     keywords: {},
@@ -59,9 +59,9 @@ describe("LanguageChip", () => {
   });
 
   it("uses the neutral fallback fill for a language with no color set", () => {
-    const { container } = render(<LanguageChip code="ZH" />, { wrapper: makeWrapper() });
+    const { container } = render(<LanguageChip code="SC" />, { wrapper: makeWrapper() });
     const chip = container.querySelector("span[title]");
-    expect(chip?.textContent).toBe("ZH");
+    expect(chip?.textContent).toBe("SC");
     // #6a6a6a → rgb(106, 106, 106).
     expect((chip as HTMLElement).style.backgroundColor).toBe("rgb(106, 106, 106)");
   });

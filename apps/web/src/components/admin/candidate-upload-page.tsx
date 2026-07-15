@@ -366,7 +366,7 @@ const EXAMPLE_CANDIDATES_JSON = `[
         "rarity": "rare",
         "finish": "foil",
         "artist": "Jane Doe",
-        "language": "en",
+        "language": "EN",
         "image_url": "https://example.com/cards/jinx-rebel.jpg"
       }
     ]

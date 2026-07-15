@@ -122,7 +122,7 @@ describe("extractFirstRow", () => {
   it("prefers EN over non-EN for the same (cardId, setId) via language-rank dedup", () => {
     const cards = { "card-1": makeCard() };
     const printings = {
-      "p-zh": makePrinting({ shortCode: "OGN-001", language: "ZH", canonicalRank: 1 }),
+      "p-sc": makePrinting({ shortCode: "OGN-001", language: "SC", canonicalRank: 1 }),
       "p-en": makePrinting({ shortCode: "OGN-005", language: "EN", canonicalRank: 5 }),
     };
     const result = extractFirstRow(makeCatalog(cards, printings), NO_FILTERS, 10);

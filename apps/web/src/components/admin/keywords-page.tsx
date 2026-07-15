@@ -1,3 +1,4 @@
+import { WellKnown } from "@openrift/shared";
 import { LoaderIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 
@@ -599,7 +600,7 @@ function TranslationsTable({
                   </SelectTrigger>
                   <SelectContent>
                     {Object.entries(languageLabels)
-                      .filter(([code]) => code !== "EN")
+                      .filter(([code]) => code !== WellKnown.language.EN)
                       .map(([code, name]) => (
                         <SelectItem key={code} value={code}>
                           {code} — {name}

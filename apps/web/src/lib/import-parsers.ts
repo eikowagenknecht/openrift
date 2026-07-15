@@ -38,7 +38,7 @@ export interface ImportEntry {
   promoSlug?: string;
   /** True when the source indicates a promo card but doesn't specify which type (e.g. RiftMana's `-p` suffix). */
   isPromo?: boolean;
-  /** Two-letter language code from the source CSV (e.g. "EN", "ZH"), used to prefer the correct language printing. */
+  /** Two-letter language code from the source CSV (e.g. "EN", "SC"), used to prefer the correct language printing. */
   language?: string;
   /** Per-copy metadata to persist on every imported copy (ADR-038). */
   metadata?: ImportCopyMetadata;
@@ -65,6 +65,10 @@ function buildRawFields(fields: Record<string, string | undefined>): Record<stri
 /**
  * Maps a human-readable language name (as used in CSV exports) to the
  * two-letter code used internally (e.g. "English" → "EN").
+ *
+ * Traditional Chinese has no code in the catalog, so it stays unrecognized
+ * rather than folding into `SC` — a traditional card imported as Simplified
+ * would be silently mislabelled.
  * @returns The two-letter code, or undefined if unrecognized.
  */
 function normalizeLanguage(language: string | undefined): string | undefined {
@@ -75,18 +79,19 @@ function normalizeLanguage(language: string | undefined): string | undefined {
   switch (trimmed) {
     case "en":
     case "english": {
-      return "EN";
+      return WellKnown.language.EN;
     }
     case "fr":
     case "french":
     case "français": {
       return "FR";
     }
+    // "zh" covers CSVs exported before the SC rename.
     case "zh":
+    case "sc":
     case "chinese":
-    case "chinese (simplified)":
-    case "chinese (traditional)": {
-      return "ZH";
+    case "chinese (simplified)": {
+      return WellKnown.language.SC;
     }
     default: {
       return undefined;
@@ -266,7 +271,7 @@ function parsePiltoverArchive(text: string): ParseResult {
 
     // Aggregate duplicates. Include the raw promo suffix so rows with
     // different promo variants (e.g. "-Nexus" vs "-Launch") stay separate,
-    // the language so EN and ZH printings of the same variant aren't merged,
+    // the language so EN and SC printings of the same variant aren't merged,
     // and the condition so each condition imports as its own entry (ADR-038).
     const promoKey = parsed?.promoSuffix?.toLowerCase() ?? "";
     const languageKey = entry.language ?? "";

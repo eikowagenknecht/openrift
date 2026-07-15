@@ -1,3 +1,4 @@
+import { WellKnown } from "@openrift/shared";
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
@@ -177,8 +178,8 @@ export function keywordsRepo(db: Kysely<Database>) {
           other.printed_rules_text AS "otherRulesText",
           other.printed_effect_text AS "otherEffectText"
         FROM printings en
-        JOIN printings other ON en.card_id = other.card_id AND other.language <> 'EN'
-        WHERE en.language = 'EN'
+        JOIN printings other ON en.card_id = other.card_id AND other.language <> ${WellKnown.language.EN}
+        WHERE en.language = ${WellKnown.language.EN}
           AND (en.printed_rules_text IS NOT NULL OR en.printed_effect_text IS NOT NULL)
           AND (other.printed_rules_text IS NOT NULL OR other.printed_effect_text IS NOT NULL)
       `.execute(db);

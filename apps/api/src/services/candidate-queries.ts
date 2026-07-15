@@ -153,7 +153,8 @@ export async function buildCandidateCardList(
       arr = [];
       shortCodesByCardId.set(p.cardId, arr);
     }
-    const label = p.language === "EN" ? p.shortCode : `${p.shortCode} [${p.language}]`;
+    const label =
+      p.language === WellKnown.language.EN ? p.shortCode : `${p.shortCode} [${p.language}]`;
     arr.push(label);
     if (p.setSlug) {
       let slugs = setSlugsByCardId.get(p.cardId);
@@ -201,7 +202,7 @@ export async function buildCandidateCardList(
       for (const cp of cpByCandidateCardId.get(cc.id) ?? []) {
         if (!cp.checkedAt && !cp.printingId) {
           const label =
-            !cp.language || cp.language === "EN"
+            !cp.language || cp.language === WellKnown.language.EN
               ? cp.shortCode
               : `${cp.shortCode} [${cp.language}]`;
           ids.push(label);

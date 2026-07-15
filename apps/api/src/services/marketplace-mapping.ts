@@ -320,7 +320,7 @@ export function buildResponseGroups(
     // `(externalId, finish, language)` with language NULL for CM/TCG — since
     // those marketplaces only have one row per (externalId, finish), once it's
     // bound it's gone from staged regardless of which printing language took
-    // it. Per-language marketplaces (CT) still see both foil/EN and foil/ZH
+    // it. Per-language marketplaces (CT) still see both foil/EN and foil/SC
     // as independent SKUs.
     const skuKey = (externalId: number, finish: string, language: string | null): string =>
       `${externalId}::${finish}::${language ?? ""}`;
@@ -565,7 +565,7 @@ export async function getMappingOverview(
  * Caller-supplied SKU tuple. The UI passes the (externalId, finish, language)
  * from the product row the admin clicked on — we no longer guess it from the
  * printing. Metal printings mapped to foil marketplace SKUs, CM's
- * language-aggregate SKU assigned to a ZH printing: both are legal with this
+ * language-aggregate SKU assigned to a SC printing: both are legal with this
  * signature. The service just verifies the SKU exists (in staging or as an
  * already-upserted product) before binding it.
  */

@@ -131,11 +131,11 @@ describe("GET /api/v1/init", () => {
       { name: "Shield", color: "#4488ff", darkText: false, costKeyword: false },
     ]);
     mockKeywordsRepo.listAllTranslations.mockResolvedValue([
-      { keywordName: "Shield", language: "ZH", label: "护盾" },
+      { keywordName: "Shield", language: "SC", label: "护盾" },
     ]);
     const res = await app.request("/api/v1/init");
     const json = await res.json();
-    expect(json.keywords.Shield.translations).toEqual({ ZH: "护盾" });
+    expect(json.keywords.Shield.translations).toEqual({ SC: "护盾" });
   });
 
   it("omits translations key when keyword has none", async () => {

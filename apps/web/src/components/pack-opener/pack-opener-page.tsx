@@ -75,7 +75,7 @@ export function PackOpenerPage() {
   );
 
   const [setSlug, setSetSlug] = useState<string>(() => mainSets[0]?.slug ?? "");
-  const [language, setLanguage] = useState<string>("EN");
+  const [language, setLanguage] = useState<string>(WellKnown.language.EN);
   const [countChoice, setCountChoice] = useState<string>("1");
   const [customCount, setCustomCount] = useState<number>(5);
   const [packs, setPacks] = useState<PackResult[]>([]);
@@ -238,7 +238,9 @@ function LanguageField({
 }) {
   const { data } = useSuspenseQuery(publicSetDetailQueryOptions(setSlug));
   const languages = useMemo(() => languagesWithEnoughPrintings(data.printings), [data.printings]);
-  const effectiveValue = languages.includes(value) ? value : (languages[0] ?? "EN");
+  const effectiveValue = languages.includes(value)
+    ? value
+    : (languages[0] ?? WellKnown.language.EN);
   return (
     <div className="space-y-1">
       <Label>Language</Label>

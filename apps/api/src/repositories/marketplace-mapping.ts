@@ -215,7 +215,7 @@ export function marketplaceMappingRepo(db: Db) {
           .orderBy("c.name")
           .orderBy("p.shortCode")
           .orderBy("p.finish", "desc")
-          // Tiebreak on language then id so EN consistently lands before ZH
+          // Tiebreak on language then id so EN consistently lands before SC
           // (and printings stay in a stable order across refetches). Without
           // this the suggestion algorithm picked an arbitrary language when
           // two printings tied on score.
@@ -302,7 +302,7 @@ export function marketplaceMappingRepo(db: Db) {
           .orderBy("p.shortCode")
           .orderBy("p.finish", "desc")
           // Same tiebreakers as `allCardsWithPrintings` — keep printings in a
-          // stable EN-before-ZH order so suggestion ranking is deterministic.
+          // stable EN-before-SC order so suggestion ranking is deterministic.
           .orderBy("p.language")
           .orderBy("p.id")
           .execute()

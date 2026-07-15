@@ -1,16 +1,10 @@
 /**
- * Zod schema for a single `data/cards/*.json` contribution file in the
- * openrift-data repo. Snake-case keys mirror the JSON written to disk; the
- * shape matches `openrift-data/schemas/card.schema.json` byte-for-byte.
+ * Zod schema for a card contribution. Snake-case keys mirror the shape the
+ * `/contribute` form builds; the web app validates against this before handing
+ * the payload to the in-app submission endpoint (ADR-036).
  *
- * Used by:
- *   - the web app's contribute form for client-side validation before
- *     opening the prefilled GitHub URL,
- *   - a dev script that runs `zod-to-json-schema` against this schema and
- *     emits `card.schema.json`, which is then copied into openrift-data.
- *
- * Keep the openrift-data JSON Schema and this module in lockstep — anything
- * declared as required here MUST be required there, and vice versa.
+ * The card/printing rules here are deliberately the same ones the catalog
+ * enforces, sourced from `db-field-rules.js` so the two can't drift.
  */
 import { z } from "zod";
 
@@ -20,8 +14,6 @@ import { cardFieldRules, printingFieldRules } from "./db-field-rules.js";
 export const COMMUNITY_ID_PATTERN = /^community:[A-Za-z0-9][A-Za-z0-9:_-]*$/u;
 /** Pattern for printing `image_url` (allow https only). */
 export const HTTPS_URL_PATTERN = /^https:\/\//u;
-/** Pattern for printing `language` codes (ISO 2-letter uppercase). */
-export const LANGUAGE_CODE_PATTERN = /^[A-Z]{2}$/u;
 
 const communityId = z.string().regex(COMMUNITY_ID_PATTERN, {
   message: "Must start with 'community:' to namespace from official providers.",
@@ -32,13 +24,7 @@ const imageUrl = z
   .regex(HTTPS_URL_PATTERN, { message: "Image URL must start with https://." })
   .nullable();
 
-const languageCode = z
-  .string()
-  .max(2)
-  .regex(LANGUAGE_CODE_PATTERN, {
-    message: "Language must be a 2-letter uppercase code (e.g. EN, ZH).",
-  })
-  .nullable();
+const languageCode = printingFieldRules.language.nullable();
 
 // ---------------------------------------------------------------------------
 // Card
@@ -53,8 +39,8 @@ export const contributionCardSchema = z
     // Ordered card types (ADR-037); wins over `type` when both are present.
     types: cardFieldRules.types.optional(),
     super_types: cardFieldRules.superTypes.optional(),
-    // Looser than DB: openrift-data accepts an empty domains array (the
-    // maintainer fills in the right ones if the contributor isn't sure).
+    // Looser than DB: an empty domains array is accepted (the maintainer
+    // fills in the right ones if the contributor isn't sure).
     domains: z.array(z.string().min(1)).optional(),
     might: cardFieldRules.might.optional(),
     energy: cardFieldRules.energy.optional(),
@@ -98,11 +84,6 @@ export const contributionPrintingSchema = z
 
 export const contributionFileSchema = z
   .object({
-    $schema: z.string().optional(),
-    // Human-facing walkthrough the web form injects so first-time contributors
-    // staring at the GitHub editor know what to click. The openrift-data
-    // consolidation Action strips this on PR open so merged files stay clean.
-    _instructions: z.string().optional(),
     card: contributionCardSchema,
     printings: z.array(contributionPrintingSchema).min(1),
   })

@@ -124,7 +124,7 @@ export function buildNewPrintingPayloads(
     if (event.finish && event.finish !== WellKnown.finish.NORMAL) {
       infoParts.push(event.finishLabel ?? event.finish);
     }
-    if (event.language && event.language !== "EN") {
+    if (event.language && event.language !== WellKnown.language.EN) {
       infoParts.push(event.languageName ?? event.language);
     }
 

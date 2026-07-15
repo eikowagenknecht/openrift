@@ -939,15 +939,15 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
 
     it("removes only the (finish, language) variant the admin clicked", async () => {
       const enProductId = await seedCtSibling("EN");
-      const zhProductId = await seedCtSibling("ZH");
+      const scProductId = await seedCtSibling("SC");
 
       // Bind both CT variants to the same printing (the user's reported flow:
-      // EN+normal and ZH+normal both attached to EN:ENL-T08::normal).
+      // EN+normal and SC+normal both attached to EN:ENL-T08::normal).
       await app.fetch(
         adminReq("POST", "/marketplace-mappings?marketplace=cardtrader", {
           mappings: [
             { printingId, externalId: ctBlueprintId, finish: "normal", language: "EN" },
-            { printingId, externalId: ctBlueprintId, finish: "normal", language: "ZH" },
+            { printingId, externalId: ctBlueprintId, finish: "normal", language: "SC" },
           ],
         }),
       );
@@ -956,17 +956,17 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
         .selectFrom("marketplaceProductVariants")
         .select(["marketplaceProductId"])
         .where("printingId", "=", printingId)
-        .where("marketplaceProductId", "in", [enProductId, zhProductId])
+        .where("marketplaceProductId", "in", [enProductId, scProductId])
         .execute();
       expect(beforeUnmap.map((v) => v.marketplaceProductId).sort()).toEqual(
-        [enProductId, zhProductId].sort(),
+        [enProductId, scProductId].sort(),
       );
 
-      // Unmap the ZH sibling. The EN one must survive.
+      // Unmap the SC sibling. The EN one must survive.
       const res = await app.fetch(
         adminReq(
           "DELETE",
-          `/marketplace-mappings?marketplace=cardtrader&printingId=${printingId}&externalId=${ctBlueprintId}&finish=normal&language=ZH`,
+          `/marketplace-mappings?marketplace=cardtrader&printingId=${printingId}&externalId=${ctBlueprintId}&finish=normal&language=SC`,
         ),
       );
       expect(res.status).toBe(204);
@@ -975,7 +975,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
         .selectFrom("marketplaceProductVariants")
         .select(["marketplaceProductId"])
         .where("printingId", "=", printingId)
-        .where("marketplaceProductId", "in", [enProductId, zhProductId])
+        .where("marketplaceProductId", "in", [enProductId, scProductId])
         .execute();
       expect(afterUnmap.map((v) => v.marketplaceProductId)).toEqual([enProductId]);
 

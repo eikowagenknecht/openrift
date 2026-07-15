@@ -147,7 +147,7 @@ describe("formatPrintingLabel", () => {
   });
 
   it("prepends language prefix with marker", () => {
-    expect(formatPrintingLabel("OGN-001", ["promo"], "foil", "ZH")).toBe("ZH:OGN-001:promo:foil");
+    expect(formatPrintingLabel("OGN-001", ["promo"], "foil", "SC")).toBe("SC:OGN-001:promo:foil");
   });
 
   it("appends a non-standard size segment", () => {
@@ -278,8 +278,8 @@ describe("sortByLanguageAndCanonicalRank", () => {
 
   it("sends unlisted-language rows to the bottom", () => {
     const en = makePrinting({ id: "en", language: "EN", canonicalRank: 10 });
-    const zh = makePrinting({ id: "zh", language: "ZH", canonicalRank: 1 });
-    expect(sortByLanguageAndCanonicalRank([zh, en], ["EN"]).map((p) => p.id)).toEqual(["en", "zh"]);
+    const sc = makePrinting({ id: "sc", language: "SC", canonicalRank: 1 });
+    expect(sortByLanguageAndCanonicalRank([sc, en], ["EN"]).map((p) => p.id)).toEqual(["en", "sc"]);
   });
 });
 
@@ -432,20 +432,20 @@ describe("mostCommonValue", () => {
 
 describe("compareWithLanguagePreference", () => {
   const enPrinting = makePrinting({ id: "en", language: "EN" });
-  const zhPrinting = makePrinting({ id: "zh", language: "ZH" });
+  const scPrinting = makePrinting({ id: "sc", language: "SC" });
 
-  it("prefers EN over ZH with single-language preference ['EN']", () => {
-    expect(compareWithLanguagePreference(enPrinting, zhPrinting, ["EN"])).toBeLessThan(0);
-    expect(compareWithLanguagePreference(zhPrinting, enPrinting, ["EN"])).toBeGreaterThan(0);
+  it("prefers EN over SC with single-language preference ['EN']", () => {
+    expect(compareWithLanguagePreference(enPrinting, scPrinting, ["EN"])).toBeLessThan(0);
+    expect(compareWithLanguagePreference(scPrinting, enPrinting, ["EN"])).toBeGreaterThan(0);
   });
 
-  it("prefers ZH over EN with single-language preference ['ZH']", () => {
-    expect(compareWithLanguagePreference(zhPrinting, enPrinting, ["ZH"])).toBeLessThan(0);
-    expect(compareWithLanguagePreference(enPrinting, zhPrinting, ["ZH"])).toBeGreaterThan(0);
+  it("prefers SC over EN with single-language preference ['SC']", () => {
+    expect(compareWithLanguagePreference(scPrinting, enPrinting, ["SC"])).toBeLessThan(0);
+    expect(compareWithLanguagePreference(enPrinting, scPrinting, ["SC"])).toBeGreaterThan(0);
   });
 
-  it("prefers EN over ZH with multi-language preference ['EN', 'ZH']", () => {
-    expect(compareWithLanguagePreference(enPrinting, zhPrinting, ["EN", "ZH"])).toBeLessThan(0);
+  it("prefers EN over SC with multi-language preference ['EN', 'SC']", () => {
+    expect(compareWithLanguagePreference(enPrinting, scPrinting, ["EN", "SC"])).toBeLessThan(0);
   });
 
   it("returns 0 for same language with equal canonicalRank", () => {
@@ -471,27 +471,27 @@ describe("compareWithLanguagePreference", () => {
 describe("deduplicateByCard", () => {
   it("picks EN printing when language preference is ['EN']", () => {
     const enPrinting = makePrinting({ id: "en", language: "EN" });
-    const zhPrinting = makePrinting({ id: "zh", language: "ZH" });
-    // ZH first in array to prove deduplication respects preference, not insertion order
-    const result = deduplicateByCard([zhPrinting, enPrinting], ["EN"]);
+    const scPrinting = makePrinting({ id: "sc", language: "SC" });
+    // SC first in array to prove deduplication respects preference, not insertion order
+    const result = deduplicateByCard([scPrinting, enPrinting], ["EN"]);
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("en");
   });
 
-  it("picks ZH printing when language preference is ['ZH']", () => {
+  it("picks SC printing when language preference is ['SC']", () => {
     const enPrinting = makePrinting({ id: "en", language: "EN" });
-    const zhPrinting = makePrinting({ id: "zh", language: "ZH" });
-    const result = deduplicateByCard([enPrinting, zhPrinting], ["ZH"]);
+    const scPrinting = makePrinting({ id: "sc", language: "SC" });
+    const result = deduplicateByCard([enPrinting, scPrinting], ["SC"]);
     expect(result).toHaveLength(1);
-    expect(result[0].id).toBe("zh");
+    expect(result[0].id).toBe("sc");
   });
 });
 
 describe("preferredPrinting", () => {
   it("returns EN printing with single-language preference ['EN']", () => {
     const enPrinting = makePrinting({ id: "en", language: "EN" });
-    const zhPrinting = makePrinting({ id: "zh", language: "ZH" });
-    const result = preferredPrinting([zhPrinting, enPrinting], ["EN"]);
+    const scPrinting = makePrinting({ id: "sc", language: "SC" });
+    const result = preferredPrinting([scPrinting, enPrinting], ["EN"]);
     expect(result?.id).toBe("en");
   });
 

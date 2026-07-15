@@ -53,7 +53,7 @@ function variantSuffix(
   if (entry.finish !== WellKnown.finish.NORMAL && finishVaries) {
     parts.push(titleCaseSlug(entry.finish));
   }
-  if (entry.language !== "EN") {
+  if (entry.language !== WellKnown.language.EN) {
     parts.push(entry.language);
   }
   return ` · ${parts.join(" · ")}`;

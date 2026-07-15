@@ -44,7 +44,7 @@ export const adminLanguagesContract = {
     .errors({ CONFLICT: { message: "A language with that code already exists" } })
     .input(
       z.object({
-        code: z.string().min(1).max(5),
+        code: z.string().min(1).max(2),
         name: z.string().min(1),
         color: hexColorSchema.optional(),
         sortOrder: z.number().int().optional(),

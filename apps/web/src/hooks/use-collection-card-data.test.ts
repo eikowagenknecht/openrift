@@ -15,7 +15,7 @@ const TEST_ORDERS = {
   superTypes: [] as string[],
   artVariants: ["normal", "altart"],
   distributionChannels: [] as string[],
-  languages: ["EN", "ZH"],
+  languages: ["EN", "SC"],
 };
 
 const mockStacks = vi.fn<() => { stacks: StackedEntry[]; totalCopies: number; isReady: boolean }>();
@@ -29,7 +29,7 @@ vi.mock("@/hooks/use-enums", () => ({
 }));
 
 vi.mock("@/hooks/use-effective-language-order", () => ({
-  useEffectiveLanguageOrder: () => ["EN", "ZH"],
+  useEffectiveLanguageOrder: () => ["EN", "SC"],
 }));
 
 const { useCollectionCardData } = await import("./use-collection-card-data");
@@ -116,16 +116,16 @@ describe("useCollectionCardData", () => {
 
   it("exposes availableLanguages derived from owned printings", () => {
     const en = stubPrinting({ language: "EN" });
-    const zh = stubPrinting({ language: "ZH" });
+    const sc = stubPrinting({ language: "SC" });
     mockStacks.mockReturnValue({
-      stacks: [makeStack(en), makeStack(zh)],
+      stacks: [makeStack(en), makeStack(sc)],
       totalCopies: 2,
       isReady: true,
     });
 
     const { result } = renderHook(() => useCollectionCardData(baseParams()));
 
-    expect([...result.current.availableLanguages].toSorted()).toEqual(["EN", "ZH"]);
+    expect([...result.current.availableLanguages].toSorted()).toEqual(["EN", "SC"]);
   });
 
   it("returns printings in all owned languages when filters.languages is empty", () => {
@@ -133,9 +133,9 @@ describe("useCollectionCardData", () => {
     // filter from the user's display-store preference, which silently hid
     // owned cards in non-preferred languages.
     const en = stubPrinting({ language: "EN" });
-    const zh = stubPrinting({ language: "ZH" });
+    const sc = stubPrinting({ language: "SC" });
     mockStacks.mockReturnValue({
-      stacks: [makeStack(en), makeStack(zh)],
+      stacks: [makeStack(en), makeStack(sc)],
       totalCopies: 2,
       isReady: true,
     });
@@ -143,14 +143,14 @@ describe("useCollectionCardData", () => {
     const { result } = renderHook(() => useCollectionCardData(baseParams()));
 
     const languages = result.current.sortedCards.map((printing) => printing.language);
-    expect(languages.toSorted()).toEqual(["EN", "ZH"]);
+    expect(languages.toSorted()).toEqual(["EN", "SC"]);
   });
 
   it("narrows results when filters.languages is set explicitly", () => {
     const en = stubPrinting({ language: "EN" });
-    const zh = stubPrinting({ language: "ZH" });
+    const sc = stubPrinting({ language: "SC" });
     mockStacks.mockReturnValue({
-      stacks: [makeStack(en), makeStack(zh)],
+      stacks: [makeStack(en), makeStack(sc)],
       totalCopies: 2,
       isReady: true,
     });
@@ -303,11 +303,11 @@ describe("useCollectionCardData", () => {
     // selected cards the active filters had hidden. selectableCopyIds must
     // contain copies of the *filtered* printings only.
     const en = stubPrinting({ language: "EN" });
-    const zh = stubPrinting({ language: "ZH" });
+    const sc = stubPrinting({ language: "SC" });
     mockStacks.mockReturnValue({
       stacks: [
         { printingId: en.id, printing: en, copyIds: ["c-en-1", "c-en-2"] },
-        { printingId: zh.id, printing: zh, copyIds: ["c-zh-1"] },
+        { printingId: sc.id, printing: sc, copyIds: ["c-sc-1"] },
       ],
       totalCopies: 3,
       isReady: true,
@@ -323,11 +323,11 @@ describe("useCollectionCardData", () => {
 
   it("includes every owned copy in selectableCopyIds when no filter is active", () => {
     const en = stubPrinting({ language: "EN" });
-    const zh = stubPrinting({ language: "ZH" });
+    const sc = stubPrinting({ language: "SC" });
     mockStacks.mockReturnValue({
       stacks: [
         { printingId: en.id, printing: en, copyIds: ["c-en-1", "c-en-2"] },
-        { printingId: zh.id, printing: zh, copyIds: ["c-zh-1"] },
+        { printingId: sc.id, printing: sc, copyIds: ["c-sc-1"] },
       ],
       totalCopies: 3,
       isReady: true,
@@ -335,7 +335,7 @@ describe("useCollectionCardData", () => {
 
     const { result } = renderHook(() => useCollectionCardData(baseParams()));
 
-    expect(result.current.selectableCopyIds.toSorted()).toEqual(["c-en-1", "c-en-2", "c-zh-1"]);
+    expect(result.current.selectableCopyIds.toSorted()).toEqual(["c-en-1", "c-en-2", "c-sc-1"]);
   });
 
   it("includes every printing's copies in selectableCopyIds for a stacked tile in cards view", () => {
@@ -347,11 +347,11 @@ describe("useCollectionCardData", () => {
     // printing's copies for the tile, matching a manual single-tile selection.
     const cardId = "card-multi-printing";
     const en = stubPrinting({ cardId, language: "EN" });
-    const zh = stubPrinting({ cardId, language: "ZH" });
+    const sc = stubPrinting({ cardId, language: "SC" });
     mockStacks.mockReturnValue({
       stacks: [
         { printingId: en.id, printing: en, copyIds: ["c-en-1", "c-en-2"] },
-        { printingId: zh.id, printing: zh, copyIds: ["c-zh-1"] },
+        { printingId: sc.id, printing: sc, copyIds: ["c-sc-1"] },
       ],
       totalCopies: 3,
       isReady: true,
@@ -364,7 +364,7 @@ describe("useCollectionCardData", () => {
     // The two printings collapse to a single tile...
     expect(result.current.sortedCards).toHaveLength(1);
     // ...but select-all must still cover every copy under it.
-    expect(result.current.selectableCopyIds.toSorted()).toEqual(["c-en-1", "c-en-2", "c-zh-1"]);
+    expect(result.current.selectableCopyIds.toSorted()).toEqual(["c-en-1", "c-en-2", "c-sc-1"]);
   });
 
   it("reports ownedCountMax as the largest per-collection owned count", () => {

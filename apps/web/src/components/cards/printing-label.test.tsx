@@ -27,7 +27,7 @@ function makeWrapper() {
       graders: [],
       languages: [
         { slug: "EN", label: "English", color: "#1d4ed8", sortOrder: 0, isWellKnown: false },
-        { slug: "ZH", label: "Chinese", color: "#dc2626", sortOrder: 1, isWellKnown: false },
+        { slug: "SC", label: "Chinese", color: "#dc2626", sortOrder: 1, isWellKnown: false },
       ],
     },
     keywords: {},
@@ -41,15 +41,15 @@ function makeWrapper() {
 describe("PrintingVariantLabel", () => {
   it("leads with the language chip, before the code slot", () => {
     const en = stubPrinting({ shortCode: "OGN-001", language: "EN" });
-    const zh = stubPrinting({ shortCode: "OGN-001", language: "ZH" });
+    const sc = stubPrinting({ shortCode: "OGN-001", language: "SC" });
     const { container } = render(
-      <PrintingVariantLabel printing={zh} siblings={[en, zh]} code={<span>OGN-001</span>} />,
+      <PrintingVariantLabel printing={sc} siblings={[en, sc]} code={<span>OGN-001</span>} />,
       { wrapper: makeWrapper() },
     );
     const text = container.textContent ?? "";
-    // The chip (title "Chinese", text "ZH") comes before the code.
-    expect(container.querySelector('[title="Chinese"]')?.textContent).toBe("ZH");
-    expect(text.indexOf("ZH")).toBeLessThan(text.indexOf("OGN-001"));
+    // The chip (title "Chinese", text "SC") comes before the code.
+    expect(container.querySelector('[title="Chinese"]')?.textContent).toBe("SC");
+    expect(text.indexOf("SC")).toBeLessThan(text.indexOf("OGN-001"));
   });
 
   it("appends the fallback after the code for a plain printing", () => {
@@ -76,12 +76,12 @@ describe("PrintingVariantLabel", () => {
 describe("ImportPrintingLabel", () => {
   it("leads with the language chip, before the card id", () => {
     const { container } = render(
-      <ImportPrintingLabel printing={stubPrinting({ shortCode: "OGN-021", language: "ZH" })} />,
+      <ImportPrintingLabel printing={stubPrinting({ shortCode: "OGN-021", language: "SC" })} />,
       { wrapper: makeWrapper() },
     );
     const text = container.textContent ?? "";
-    expect(container.querySelector('[title="Chinese"]')?.textContent).toBe("ZH");
-    expect(text.indexOf("ZH")).toBeLessThan(text.indexOf("OGN-021"));
+    expect(container.querySelector('[title="Chinese"]')?.textContent).toBe("SC");
+    expect(text.indexOf("SC")).toBeLessThan(text.indexOf("OGN-021"));
   });
 
   it("shows just the card id for a standard English printing", () => {

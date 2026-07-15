@@ -128,9 +128,9 @@ describe("parseImportData — OpenRift format", () => {
   it("parses language column when present", () => {
     const headerWithLang =
       "Card ID,Card Name,Rarity,Type,Domain,Finish,Art Variant,Promo,Language,Quantity";
-    const csv = `${headerWithLang}\nOGN-001,Test Card,Common,Unit,Arcane,normal,normal,,ZH,1`;
+    const csv = `${headerWithLang}\nOGN-001,Test Card,Common,Unit,Arcane,normal,normal,,SC,1`;
     const result = parseImportData(csv);
-    expect(result.entries[0].language).toBe("ZH");
+    expect(result.entries[0].language).toBe("SC");
   });
 
   it("returns undefined language for older exports without Language column", () => {
@@ -244,7 +244,7 @@ describe("parseImportData — RiftMana format", () => {
   it("normalizes language from full name", () => {
     const csv = `${header}\n2,0,Buff,OGN-XXX,Origins,,Common,0.00,0.00,NM:2,,,Chinese`;
     const result = parseImportData(csv);
-    expect(result.entries[0].language).toBe("ZH");
+    expect(result.entries[0].language).toBe("SC");
   });
 
   it("skips rows with both quantities at zero", () => {
@@ -332,10 +332,10 @@ describe("parseImportData — Piltover Archive language", () => {
     expect(result.entries[0].language).toBe("FR");
   });
 
-  it("normalizes Chinese to ZH", () => {
+  it("normalizes Chinese to SC", () => {
     const csv = `${header}\nOGN-001,Test,Origins,OGN,Common,Standard,,1,Chinese,NM`;
     const result = parseImportData(csv);
-    expect(result.entries[0].language).toBe("ZH");
+    expect(result.entries[0].language).toBe("SC");
   });
 
   it("handles two-letter code directly", () => {
@@ -360,7 +360,7 @@ describe("parseImportData — Piltover Archive language", () => {
     expect(result.entries).toHaveLength(2);
     const byLanguage = new Map(result.entries.map((e) => [e.language, e.quantity]));
     expect(byLanguage.get("EN")).toBe(1);
-    expect(byLanguage.get("ZH")).toBe(2);
+    expect(byLanguage.get("SC")).toBe(2);
   });
 
   it("keeps same-language rows with different conditions separate (ADR-038)", () => {

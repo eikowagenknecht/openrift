@@ -1187,13 +1187,13 @@ describe("saveMappings", () => {
 
   it("accepts cross-language assignments on language-aggregate marketplaces", async () => {
     // Regression: Cardmarket stores staging with language=null since the
-    // scraper can't observe per-language pricing. A non-EN printing (e.g. ZH)
+    // scraper can't observe per-language pricing. A non-EN printing (e.g. SC)
     // assigned via the suggest UI must still resolve to that null-language
     // staged row when the caller passes language=null — the service no longer
     // guesses from the printing, it trusts the caller's SKU tuple.
     const upsertSpy = vi.fn().mockResolvedValue([
       {
-        printingId: "p-zh",
+        printingId: "p-sc",
         externalId: 872_479,
         finish: "normal",
         language: null,
@@ -1217,7 +1217,7 @@ describe("saveMappings", () => {
     const config = createMockConfig({ marketplace: "cardmarket" });
 
     const result = await saveMappings(transact, config, [
-      { printingId: "p-zh", externalId: 872_479, finish: "normal", language: null },
+      { printingId: "p-sc", externalId: 872_479, finish: "normal", language: null },
     ]);
 
     expect(result.skipped).toHaveLength(0);
@@ -1227,7 +1227,7 @@ describe("saveMappings", () => {
     expect(upsertSpy).toHaveBeenCalledWith([
       expect.objectContaining({
         externalId: 872_479,
-        printingId: "p-zh",
+        printingId: "p-sc",
         groupId: 7,
         productName: "Calm Rune",
         finish: "normal",
@@ -1402,7 +1402,7 @@ describe("saveMappings", () => {
         printingId: "p-1",
         externalId: 12_345,
         finish: "normal",
-        language: "ZH",
+        language: "SC",
         variantId: "var-1",
       },
     ]);
@@ -1411,7 +1411,7 @@ describe("saveMappings", () => {
         {
           externalId: 12_345,
           finish: "normal",
-          language: "ZH",
+          language: "SC",
           groupId: 1,
           productName: "X",
           recordedAt: new Date("2026-01-01"),
@@ -1432,11 +1432,11 @@ describe("saveMappings", () => {
     const config = createMockConfig({ marketplace: "cardtrader" });
 
     await saveMappings(transact, config, [
-      { printingId: "p-1", externalId: 12_345, finish: "normal", language: "ZH" },
+      { printingId: "p-1", externalId: 12_345, finish: "normal", language: "SC" },
     ]);
 
     const upsertValues = upsertMock.mock.calls[0][0] as { language: string | null }[];
-    expect(upsertValues[0].language).toBe("ZH");
+    expect(upsertValues[0].language).toBe("SC");
   });
 });
 
@@ -1497,10 +1497,10 @@ describe("unmapPrinting", () => {
   it("scopes the variant lookup by finish and language so CT siblings don't collide", async () => {
     const mappingRepo = createMockMappingRepo({
       getVariantForPrinting: vi.fn().mockResolvedValue({
-        variantId: "var-zh",
-        marketplaceProductId: "mp-zh",
+        variantId: "var-sc",
+        marketplaceProductId: "mp-sc",
         finish: "normal",
-        language: "ZH",
+        language: "SC",
         externalId: 12_345,
         groupId: 1,
         productName: "Test Product",
@@ -1511,16 +1511,16 @@ describe("unmapPrinting", () => {
     const transact = mockTransact(repos);
     const config = createMockConfig({ marketplace: "cardtrader" });
 
-    await unmapPrinting(transact, config, "p-1", 12_345, "normal", "ZH");
+    await unmapPrinting(transact, config, "p-1", 12_345, "normal", "SC");
 
     expect(mappingRepo.getVariantForPrinting).toHaveBeenCalledWith(
       "cardtrader",
       "p-1",
       12_345,
       "normal",
-      "ZH",
+      "SC",
     );
-    expect(mappingRepo.deleteVariantById).toHaveBeenCalledWith("var-zh");
+    expect(mappingRepo.deleteVariantById).toHaveBeenCalledWith("var-sc");
   });
 });
 

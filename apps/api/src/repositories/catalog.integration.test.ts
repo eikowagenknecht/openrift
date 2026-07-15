@@ -157,7 +157,7 @@ describe.skipIf(!ctx)("catalogRepo (integration)", () => {
 
   it("printingsByCardId orders English printings before other languages", async () => {
     // Find a card that has both an EN printing and at least one non-EN printing
-    // (e.g. a localized ZH version) so the sort key is exercised. SSR meta tags
+    // (e.g. a localized SC version) so the sort key is exercised. SSR meta tags
     // and the UI's default selected printing both rely on `printings[0]` being EN.
     const allPrintings = await repo.printings();
     const cardLanguages = new Map<string, Set<string>>();

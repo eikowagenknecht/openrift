@@ -59,7 +59,7 @@ export const updatePreferencesSchema = z.object({
     .nullable()
     .optional(),
   languages: z
-    .array(z.string().min(1).max(5))
+    .array(z.string().min(1).max(2))
     .refine((arr) => new Set(arr).size === arr.length, { message: "Duplicate languages" })
     .nullable()
     .optional(),

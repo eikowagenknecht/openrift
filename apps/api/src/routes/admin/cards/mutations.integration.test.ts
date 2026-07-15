@@ -908,7 +908,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .values({ printingId: enRow.id, markerId: promoMarker.id })
         .execute();
 
-      const [zhRow] = await db
+      const [scRow] = await db
         .insertInto("printings")
         .values({
           cardId,
@@ -920,13 +920,13 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           finish: "normal",
           artist: "Artist A",
           publicCode: "CSM",
-          language: "ZH",
+          language: "SC",
         })
         .returning("id")
         .execute();
 
       const res = await app.fetch(
-        adminReq("POST", `${P}/printing/${zhRow.id}/accept-field`, {
+        adminReq("POST", `${P}/printing/${scRow.id}/accept-field`, {
           field: "markerSlugs",
           value: [PROMO_MARKER_SLUG],
         }),
@@ -936,12 +936,12 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       const updated = await db
         .selectFrom("printings")
         .select("markerSlugs")
-        .where("id", "=", zhRow.id)
+        .where("id", "=", scRow.id)
         .executeTakeFirstOrThrow();
       expect(updated.markerSlugs).toEqual([PROMO_MARKER_SLUG]);
 
       // Cleanup
-      await db.deleteFrom("printings").where("id", "in", [enRow.id, zhRow.id]).execute();
+      await db.deleteFrom("printings").where("id", "in", [enRow.id, scRow.id]).execute();
     });
   });
 

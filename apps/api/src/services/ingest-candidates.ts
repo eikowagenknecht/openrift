@@ -1,3 +1,4 @@
+import { WellKnown } from "@openrift/shared";
 import type { DiffValue } from "@openrift/shared/response-schemas";
 import { emptyToNull, normalizeNameForMatching } from "@openrift/shared/utils";
 import type { Insertable } from "kysely";
@@ -460,7 +461,7 @@ export async function ingestCandidates(
         const slugKey = sortedSlugs.join(",");
         const printingKey =
           effectiveCardId && p.rarity && p.finish
-            ? `${p.short_code}:${p.finish}:${slugKey}:${p.language ?? "EN"}`
+            ? `${p.short_code}:${p.finish}:${slugKey}:${p.language ?? WellKnown.language.EN}`
             : null;
 
         // Check for a manual link override (survives delete + re-upload)

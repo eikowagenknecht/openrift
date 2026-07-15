@@ -60,43 +60,43 @@ describe("resolveProxyCards", () => {
       images: [{ face: "front", imageId: "en-image-id-aa" }],
       card,
     });
-    const zhPrinting = stubPrinting({
+    const scPrinting = stubPrinting({
       cardId: "card-1",
       setId: "set-1",
       shortCode: "RB1-001",
-      language: "zh-Hans",
-      images: [{ face: "front", imageId: "zh-image-id-bb" }],
+      language: "SC",
+      images: [{ face: "front", imageId: "sc-image-id-bb" }],
       card,
     });
-    const catalog = buildCatalog([stubSet({ id: "set-1" })], [enPrinting, zhPrinting]);
+    const catalog = buildCatalog([stubSet({ id: "set-1" })], [enPrinting, scPrinting]);
     const deckCards = [
-      stubDeckBuilderCard({ cardId: "card-1", preferredPrintingId: zhPrinting.id }),
+      stubDeckBuilderCard({ cardId: "card-1", preferredPrintingId: scPrinting.id }),
     ];
 
     const proxies = resolveProxyCards(deckCards, catalog, ["EN"]);
 
     expect(proxies).toHaveLength(1);
-    expect(proxies[0].printingId).toBe(zhPrinting.id);
-    expect(proxies[0].imageFullUrl).toBe("/media/cards/bb/zh-image-id-bb-full.webp");
+    expect(proxies[0].printingId).toBe(scPrinting.id);
+    expect(proxies[0].imageFullUrl).toBe("/media/cards/bb/sc-image-id-bb-full.webp");
   });
 
   it("respects the user language preference when no printing is pinned", () => {
     const card = stubCard({ slug: "RB1-002", name: "Lang Sensitive" });
     // Insert non-EN printings first to defeat any DB-order fallback.
-    const zhPrinting = stubPrinting({
+    const scPrinting = stubPrinting({
       cardId: "card-2",
       setId: "set-2",
       shortCode: "RB1-002",
-      language: "zh-Hans",
-      images: [{ face: "front", imageId: "zh-image-id-bb" }],
+      language: "SC",
+      images: [{ face: "front", imageId: "sc-image-id-bb" }],
       card,
     });
-    const jaPrinting = stubPrinting({
+    const frPrinting = stubPrinting({
       cardId: "card-2",
       setId: "set-2",
       shortCode: "RB1-002",
-      language: "ja",
-      images: [{ face: "front", imageId: "ja-image-id-cc" }],
+      language: "FR",
+      images: [{ face: "front", imageId: "fr-image-id-cc" }],
       card,
     });
     const enPrinting = stubPrinting({
@@ -107,7 +107,7 @@ describe("resolveProxyCards", () => {
       images: [{ face: "front", imageId: "en-image-id-aa" }],
       card,
     });
-    const catalog = buildCatalog([stubSet({ id: "set-2" })], [zhPrinting, jaPrinting, enPrinting]);
+    const catalog = buildCatalog([stubSet({ id: "set-2" })], [scPrinting, frPrinting, enPrinting]);
     const deckCards = [stubDeckBuilderCard({ cardId: "card-2", preferredPrintingId: null })];
 
     const proxies = resolveProxyCards(deckCards, catalog, ["EN"]);
@@ -126,15 +126,15 @@ describe("resolveProxyCards", () => {
       images: [{ face: "front", imageId: "en-image-id-aa" }],
       card,
     });
-    const zhPrinting = stubPrinting({
+    const scPrinting = stubPrinting({
       cardId: "card-3",
       setId: "set-3",
       shortCode: "RB1-003",
-      language: "zh-Hans",
-      images: [{ face: "front", imageId: "zh-image-id-bb" }],
+      language: "SC",
+      images: [{ face: "front", imageId: "sc-image-id-bb" }],
       card,
     });
-    const catalog = buildCatalog([stubSet({ id: "set-3" })], [enPrinting, zhPrinting]);
+    const catalog = buildCatalog([stubSet({ id: "set-3" })], [enPrinting, scPrinting]);
     const deckCards = [
       stubDeckBuilderCard({
         cardId: "card-3",
@@ -146,7 +146,7 @@ describe("resolveProxyCards", () => {
         cardId: "card-3",
         zone: "sideboard",
         quantity: 1,
-        preferredPrintingId: zhPrinting.id,
+        preferredPrintingId: scPrinting.id,
       }),
     ];
 
@@ -158,8 +158,8 @@ describe("resolveProxyCards", () => {
       "/media/cards/aa/en-image-id-aa-full.webp",
       "/media/cards/aa/en-image-id-aa-full.webp",
     ]);
-    expect(proxies[2].printingId).toBe(zhPrinting.id);
-    expect(proxies[2].imageFullUrl).toBe("/media/cards/bb/zh-image-id-bb-full.webp");
+    expect(proxies[2].printingId).toBe(scPrinting.id);
+    expect(proxies[2].imageFullUrl).toBe("/media/cards/bb/sc-image-id-bb-full.webp");
   });
 
   it("composes with sortCardsLikeSidebar to print cards in sidebar order", () => {

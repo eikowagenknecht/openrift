@@ -13,7 +13,11 @@ describe("cardmarketLangParam", () => {
     expect(cardmarketLangParam("EN")).toBe("&language=1");
   });
 
-  it("maps ZH (our stored code) to simplified Chinese (6)", () => {
+  it("maps SC (our stored code) to simplified Chinese (6)", () => {
+    expect(cardmarketLangParam("SC")).toBe("&language=6");
+  });
+
+  it("still maps the retired ZH code, for links shared before the SC rename", () => {
     expect(cardmarketLangParam("ZH")).toBe("&language=6");
   });
 
@@ -27,7 +31,7 @@ describe("cardmarketLangParam", () => {
 
   it("is case-insensitive", () => {
     expect(cardmarketLangParam("en")).toBe("&language=1");
-    expect(cardmarketLangParam("zh")).toBe("&language=6");
+    expect(cardmarketLangParam("sc")).toBe("&language=6");
   });
 
   it("returns empty string for unknown languages rather than passing through", () => {

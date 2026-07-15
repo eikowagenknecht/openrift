@@ -44,6 +44,21 @@ export const WellKnown = {
     /** Pack opener: routes the card to the token slot, not the regular common/uncommon slot. */
     TOKEN: "token",
   },
+  /**
+   * Riot's printed language codes, not ISO 639-1 — `SC` is what the physical
+   * cards carry for Simplified Chinese (ISO would be `zh`). Keyed by `code`
+   * rather than `slug` in the `languages` table.
+   */
+  language: {
+    /**
+     * The catalog's default language. Printings default to it, canonical
+     * printing selection ranks it first, and the Cardmarket / TCGplayer price
+     * feeds are assumed to be it (neither exposes a language).
+     */
+    EN: "EN",
+    /** Simplified Chinese. CardTrader's `zh-CN` and Cardmarket's id 6 map here. */
+    SC: "SC",
+  },
   finish: {
     /** Default finish when unspecified. */
     NORMAL: "normal",
@@ -136,6 +151,23 @@ export const WellKnown = {
     ULTIMATE: "ultimate",
   },
 } as const;
+
+/**
+ * Language codes retired by a rename, mapped to their replacement.
+ *
+ * A rename of `languages.code` cascades through the FKs, and migration 204
+ * backfills the tables that lack one. Everything outside the database keeps the
+ * old code: localStorage-persisted filters, saved `/promos/<code>` links, CSVs
+ * exported before the rename. Each of those fails silently (an empty grid, a
+ * dropped marketplace filter, an unmatched import row), so the boundaries remap
+ * on read instead of rejecting.
+ *
+ * Entries are safe to drop once the stale copies have aged out.
+ */
+export const RENAMED_LANGUAGES: Record<string, string> = {
+  /** Riot prints `SC` for Simplified Chinese; `ZH` spanned both scripts. */
+  ZH: WellKnown.language.SC,
+};
 
 /**
  * Rarities that are always printed with a foil finish — used by import parsers

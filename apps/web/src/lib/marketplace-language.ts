@@ -11,6 +11,10 @@
 /**
  * Cardmarket's numeric language ids for the subset of languages our catalog
  * actually uses. Values taken from Cardmarket's public documentation.
+ *
+ * Keys are Cardmarket's own codes plus the printing codes we map onto them.
+ * Nothing in the catalog distinguishes traditional Chinese today, so `ZH-TW`
+ * is here only to keep the id table faithful to Cardmarket's list.
  */
 const CARDMARKET_LANGUAGE_CODES: Record<string, number> = {
   EN: 1,
@@ -19,7 +23,8 @@ const CARDMARKET_LANGUAGE_CODES: Record<string, number> = {
   ES: 4,
   IT: 5,
   "ZH-CN": 6,
-  ZH: 6, // printings.language stores "ZH" — alias to CM's simplified Chinese
+  SC: 6, // printings.language stores Riot's "SC" for CM's simplified Chinese
+  ZH: 6, // legacy: pre-SC preferences and bookmarked URLs still carry "ZH"
   JA: 7,
   PT: 8,
   RU: 9,

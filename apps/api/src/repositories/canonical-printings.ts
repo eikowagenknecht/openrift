@@ -59,7 +59,7 @@ export function canonicalPrintingsRepo(db: Kysely<Database>) {
   function appendCanonicalOrder<T extends ReturnType<typeof baseQuery>>(query: T): T {
     return (
       query
-        .orderBy(sql`(p.language = 'EN') DESC`)
+        .orderBy(sql`(p.language = ${WellKnown.language.EN}) DESC`)
         .orderBy("s.sortOrder", "asc")
         .orderBy("p.shortCode", "asc")
         // Empty marker_slugs (unmarked) sorts before marked printings.

@@ -103,7 +103,7 @@ export function formatImportPrintingLabelParts(
   const { rest } = formatPrintingLabelParts(printing, undefined, labels);
   return {
     code: formatCardId(printing),
-    language: printing.language === "EN" ? null : printing.language,
+    language: printing.language === WellKnown.language.EN ? null : printing.language,
     rest,
   };
 }
@@ -116,7 +116,7 @@ export function formatImportPrintingLabelParts(
  *
  * String form for value/search/aria uses; for display prefer the
  * `ImportPrintingLabel` component, which renders the language as a chip.
- * @returns A string like "OGS-021", "OGS-021 · [ZH]", or "OGS-021 · Foil · Promo".
+ * @returns A string like "OGS-021", "OGS-021 · [SC]", or "OGS-021 · Foil · Promo".
  */
 export function formatImportPrintingLabel(printing: Printing, labels: EnumLabels): string {
   const { code, language, rest } = formatImportPrintingLabelParts(printing, labels);

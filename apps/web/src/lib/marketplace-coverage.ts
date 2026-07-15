@@ -1,4 +1,5 @@
 import type { UnifiedMappingGroupResponse } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared";
 
 /** Coverage status for one direction (printings-side or entries-side) on one marketplace. */
 type MarketplaceCoverageStatus = "full" | "partial" | "none" | "na";
@@ -144,7 +145,7 @@ export interface PriceAssignBucket {
 
 // The language a staged product would be assigned against (CM/TCG default to EN).
 function targetLanguage(language: string | null): string {
-  return language ?? "EN";
+  return language ?? WellKnown.language.EN;
 }
 
 /**

@@ -96,7 +96,9 @@ export function CreatePrintingPage({
   );
   const [artist, setArtist] = useState(source?.artist ?? "");
   const [publicCode, setPublicCode] = useState(source?.publicCode ?? "");
-  const [language, setLanguage] = useState<string>(source?.language ?? languages[0]?.code ?? "EN");
+  const [language, setLanguage] = useState<string>(
+    source?.language ?? languages[0]?.code ?? WellKnown.language.EN,
+  );
   const [printedName, setPrintedName] = useState(source?.printedName ?? "");
   const [printedYear, setPrintedYear] = useState<string>(
     source?.printedYear !== undefined && source.printedYear !== null

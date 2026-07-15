@@ -819,7 +819,7 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
           {printing.finish !== WellKnown.finish.NORMAL &&
             ` ${labels.finishes[printing.finish] ?? printing.finish}`}
           {printing.markers.length > 0 && ` (${printing.markers.map((m) => m.label).join(", ")})`}
-          {printing.language !== "EN" && (
+          {printing.language !== WellKnown.language.EN && (
             <>
               {" "}
               <LanguageChip code={printing.language} />

@@ -65,7 +65,13 @@ export { RIOT_ID_FORMAT_MESSAGE, validateRiotId } from "./riot-id.js";
 export type { SourceSlot } from "./zone-inference.js";
 export { inferZone } from "./zone-inference.js";
 
-export { isAlwaysFoilRarity, LOW_RARITIES, marketplaceFinish, WellKnown } from "./well-known.js";
+export {
+  isAlwaysFoilRarity,
+  LOW_RARITIES,
+  marketplaceFinish,
+  RENAMED_LANGUAGES,
+  WellKnown,
+} from "./well-known.js";
 
 export type { PackPool, PackPrinting, PackPull, PackResult } from "./pack-opener/index.js";
 export type { Random as PackRandom } from "./pack-opener/index.js";

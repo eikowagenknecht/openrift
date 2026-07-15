@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-07-15
+
+### Highlights
+
+- feat(Cards): **Chinese cards now use the printed code** — Simplified Chinese printings show as SC, matching what Riot prints on the card, and saved links and language filters carry over on their own.
+
+### Other
+
+- fix(Cards): **Price filter on non-English promos** — the promo price filter was hidden on every language except English, even for cards that had prices, and now appears whenever there are prices to filter on.
+
 ## 2026-07-14
 
 ### Highlights

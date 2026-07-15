@@ -5,7 +5,7 @@ import type {
   Palette,
   Theme,
 } from "@openrift/shared";
-import { ALL_MARKETPLACES, CURRENCIES, PALETTES } from "@openrift/shared";
+import { ALL_MARKETPLACES, CURRENCIES, PALETTES, RENAMED_LANGUAGES } from "@openrift/shared";
 
 import type { DisplayOverrides } from "@/stores/display-store";
 
@@ -14,6 +14,28 @@ const VALID_THEMES = new Set<string>(["light", "dark", "auto"]);
 const VALID_PALETTES = new Set<string>(PALETTES);
 const VALID_DEFAULT_CARD_VIEWS = new Set<string>(["cards", "printings"]);
 const VALID_CURRENCIES = new Set<string>(CURRENCIES);
+
+/**
+ * Filters a persisted language array to non-empty strings and rewrites codes
+ * retired by a rename. Migration 204 handles the server-side copy of this
+ * array; localStorage is out of its reach, so the remap happens on read.
+ * Deduped because the contract rejects repeats, and a user holding both the old
+ * and new code would otherwise end up with two of the same.
+ *
+ * Languages are DB rows rather than a compile-time enum, so this only rewrites
+ * known-dead codes and deliberately doesn't validate the rest.
+ * @param value Raw persisted value, any shape.
+ * @returns The cleaned code list, or null when the input isn't an array.
+ */
+function sanitizeLanguageList(value: unknown): string[] | null {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+  const cleaned = value
+    .filter((lang): lang is string => typeof lang === "string" && lang.length > 0)
+    .map((lang) => RENAMED_LANGUAGES[lang] ?? lang);
+  return [...new Set(cleaned)];
+}
 
 interface SanitizedOverrides {
   overrides: DisplayOverrides;
@@ -91,11 +113,7 @@ export function sanitizeServerResponse(data: unknown): Partial<DisplayOverrides>
       : null;
   }
   if ("languages" in record) {
-    result.languages = Array.isArray(record.languages)
-      ? record.languages.filter(
-          (lang): lang is string => typeof lang === "string" && lang.length > 0,
-        )
-      : null;
+    result.languages = sanitizeLanguageList(record.languages);
   }
   if ("completionScope" in record) {
     result.completionScope = sanitizeCompletionScope(record.completionScope);
@@ -216,9 +234,7 @@ function sanitizeOverrideFields(record: Record<string, unknown>): DisplayOverrid
       )
     : null;
 
-  const safeLanguages = Array.isArray(record.languages)
-    ? record.languages.filter((lang): lang is string => typeof lang === "string" && lang.length > 0)
-    : null;
+  const safeLanguages = sanitizeLanguageList(record.languages);
 
   const safeCompletionScope = sanitizeCompletionScope(record.completionScope);
 
@@ -248,11 +264,9 @@ function sanitizeCompletionScope(value: unknown): CompletionScopePreference | nu
   }
   const record = value as Record<string, unknown>;
   const result: CompletionScopePreference = {};
-  if (Array.isArray(record.languages)) {
-    const safe = record.languages.filter((lang): lang is string => typeof lang === "string");
-    if (safe.length > 0) {
-      result.languages = safe;
-    }
+  const safeLanguages = sanitizeLanguageList(record.languages);
+  if (safeLanguages && safeLanguages.length > 0) {
+    result.languages = safeLanguages;
   }
   if (Array.isArray(record.finishes)) {
     const safe = record.finishes.filter((finish): finish is string => typeof finish === "string");

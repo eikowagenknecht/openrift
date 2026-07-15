@@ -183,14 +183,14 @@ describe("computeCardCoverage", () => {
     expect(result.cardtrader.entries).toEqual({ status: "na", mapped: 0, total: 0 });
   });
 
-  it("counts per printing — EN-only mapping on a EN+ZH card is partial on every marketplace", () => {
+  it("counts per printing — EN-only mapping on a EN+SC card is partial on every marketplace", () => {
     // Post per-SKU refactor: every printing has its own explicit variant (or
-    // not), so a ZH printing that isn't mapped shows as a gap regardless of
+    // not), so a SC printing that isn't mapped shows as a gap regardless of
     // the EN sibling's mapping.
     const result = computeCardCoverage(
       group([
         printing({ printingId: "p-en", language: "EN", tcgExternalId: 100 }),
-        printing({ printingId: "p-zh", language: "ZH" }),
+        printing({ printingId: "p-sc", language: "SC" }),
       ]),
     );
     expect(result.tcgplayer.printings).toEqual({ status: "partial", mapped: 1, total: 2 });
@@ -199,9 +199,9 @@ describe("computeCardCoverage", () => {
     expect(result.cardtrader.printings).toEqual({ status: "none", mapped: 0, total: 2 });
   });
 
-  it("ZH-only card shows full on the marketplace that maps it and none elsewhere", () => {
+  it("SC-only card shows full on the marketplace that maps it and none elsewhere", () => {
     const result = computeCardCoverage(
-      group([printing({ printingId: "p-zh", language: "ZH", cmExternalId: 200 })]),
+      group([printing({ printingId: "p-sc", language: "SC", cmExternalId: 200 })]),
     );
     expect(result.tcgplayer.printings).toEqual({ status: "none", mapped: 0, total: 1 });
     expect(result.cardmarket.printings).toEqual({ status: "full", mapped: 1, total: 1 });
@@ -227,7 +227,7 @@ describe("computeCardCoverage", () => {
     const result = computeCardCoverage(
       group([
         printing({ printingId: "p-en", language: "EN", ctExternalId: 300 }),
-        printing({ printingId: "p-zh", language: "ZH" }),
+        printing({ printingId: "p-sc", language: "SC" }),
       ]),
     );
     expect(result.cardtrader.printings).toEqual({ status: "partial", mapped: 1, total: 2 });
@@ -297,7 +297,7 @@ describe("buildCoverageMapBySlug", () => {
   it("indexes coverage by card slug", () => {
     const map = buildCoverageMapBySlug([
       group([printing({ tcgExternalId: 100 })], { cardSlug: "fireball" }),
-      group([printing({ printingId: "p-2", language: "ZH" })], {
+      group([printing({ printingId: "p-2", language: "SC" })], {
         cardSlug: "blizzard",
         cardId: "card-2",
       }),
@@ -328,7 +328,7 @@ describe("computePriceAssignBuckets", () => {
 
   it("CM/TCG buckets are un-assignable when the card has no EN printing", () => {
     const buckets = computePriceAssignBuckets(
-      group([printing({ language: "ZH" })], { tcgStaged: [stagedProduct()] }),
+      group([printing({ language: "SC" })], { tcgStaged: [stagedProduct()] }),
     );
     expect(buckets).toEqual([
       { marketplace: "tcgplayer", language: null, unbound: 1, assignable: false },

@@ -266,7 +266,7 @@ describe("upsertPriceData", () => {
     const { repo, upsertedPrices } = makeMockRepo({});
     const staging = [
       { ...makeStagingRow(54_321, "normal"), language: "EN" },
-      { ...makeStagingRow(54_321, "normal"), language: "ZH" },
+      { ...makeStagingRow(54_321, "normal"), language: "SC" },
     ];
 
     const counts = await upsertPriceData(repo, noopLogger, ctConfig, staging);

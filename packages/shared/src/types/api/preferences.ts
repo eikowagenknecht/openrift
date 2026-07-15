@@ -5,6 +5,7 @@ import type {
 } from "@openrift/shared/contracts/preferences";
 import type { z } from "zod";
 
+import { WellKnown } from "../../well-known.js";
 import { ALL_MARKETPLACES } from "../pricing.js";
 import type { Marketplace } from "../pricing.js";
 import type { Currency } from "./trade-preferences.js";
@@ -139,7 +140,7 @@ export const PREFERENCE_DEFAULTS: ResolvedPreferences = {
   theme: "auto",
   palette: "default",
   marketplaceOrder: [...ALL_MARKETPLACES],
-  languages: ["EN"],
+  languages: [WellKnown.language.EN],
   completionScope: {},
   defaultCardView: "cards",
   defaultCurrency: "EUR",

@@ -120,7 +120,7 @@ function scorePrintingProduct(
 
   // Cross-language sibling evidence: on CardTrader, a single external_id maps
   // to one physical card with a per-language SKU, so an EN assignment to
-  // `OGN-302*` is strong evidence that the ZH SKU should also resolve to
+  // `OGN-302*` is strong evidence that the SC SKU should also resolve to
   // `OGN-302*`. Big boost, since this is a much more reliable signal than the
   // name-suffix inference — the product name alone often can't distinguish
   // signed/non-signed or overnumbered/normal variants of the same card.
@@ -206,7 +206,7 @@ function scorePrintingProduct(
  * Compute suggested product assignments for unmapped printings using
  * mutual-best-match: a (printing, product) pair is suggested only when each
  * is uniquely the other's top-scoring partner. Skips cases where multiple
- * printings tie for the same product (e.g. EN/ZH printings of the same card
+ * printings tie for the same product (e.g. EN/SC printings of the same card
  * both scoring 100 against a single Cardmarket product) — surfacing nothing
  * is more honest than picking arbitrarily by iteration order.
  * @returns A map from printingId to the suggested product and score.
@@ -230,7 +230,7 @@ function computeSuggestions(
     score: number;
   }
   // Key must include language — on CardTrader, two products can share an
-  // `(externalId, finish)` pair but differ in language (EN vs ZH SKUs). A
+  // `(externalId, finish)` pair but differ in language (EN vs SC SKUs). A
   // 2-tuple key collapses them and the mutual-best gate spuriously treats
   // cross-language candidates as a within-product tie.
   const productKey = (product: StagedProduct): string =>
@@ -518,7 +518,7 @@ function computeWeakProductSuggestions(
 /**
  * Collect per-marketplace assignments into `(externalId, finish) → short_codes`.
  * On CardTrader this powers cross-language transfer: if the EN SKU of product
- * 345503 is bound to `OGN-302*`, scoring its ZH SKU gets evidence that the
+ * 345503 is bound to `OGN-302*`, scoring its SC SKU gets evidence that the
  * same short_code is the right target. Keys match the scorer's internal
  * product key so lookups don't need to reconstruct the string.
  * @returns Map keyed by `${externalId}|${finish}`, or empty if no assignments.

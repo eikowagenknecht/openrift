@@ -83,19 +83,24 @@ interface CtPrice {
 }
 
 /**
- * Normalize CardTrader's language codes to the shorter form stored on
- * `printings.language`. CardTrader uses `zh-CN` for Chinese; our printings
- * use `ZH`. Everything else is upper-cased.
+ * Normalize CardTrader's language codes to the form stored on
+ * `printings.language`. CardTrader uses `zh-CN` for Simplified Chinese; our
+ * printings use Riot's printed code, `SC`. Everything else is upper-cased.
+ *
+ * `marketplace_products.language` has no FK to `languages`, so an un-normalized
+ * code inserts cleanly and then joins to nothing — the prices just disappear
+ * from the UI while the refresh reports success. Keep this in step with the
+ * `languages` table.
  *
  * @returns The normalized language code.
  */
 function normalizeCtLanguage(raw: string | undefined): string {
   if (!raw) {
-    return "EN";
+    return WellKnown.language.EN;
   }
   const upper = raw.toUpperCase();
   if (upper === "ZH-CN" || upper === "ZH_CN") {
-    return "ZH";
+    return WellKnown.language.SC;
   }
   return upper;
 }
@@ -199,8 +204,8 @@ async function fetchCardtraderData(
       }
 
       // Group listings by (language, finish) to produce per-language prices.
-      // Normalize CardTrader's language codes (e.g. "zh-CN") to the shorter
-      // form we use on printings ("ZH") so downstream matching lines up.
+      // Normalize CardTrader's language codes (e.g. "zh-CN") to the form we use
+      // on printings ("SC") so downstream matching lines up.
       const byLangFinish = new Map<string, CtMarketplaceProduct[]>();
       for (const listing of eligible) {
         const lang = normalizeCtLanguage(listing.properties_hash?.riftbound_language);
@@ -365,7 +370,7 @@ async function autoMatchBlueprints(
   ]);
 
   // Load all printings once and build a sibling lookup so we can walk from
-  // an English printing to its ZH (or any other language) counterpart.
+  // an English printing to its SC (or any other language) counterpart.
   const allPrintings = await repos.priceRefresh.allPrintingsForPriceMatch();
   const siblingByIdentity = buildSiblingLookup(allPrintings);
   const identityByPrintingId = new Map<string, string>();
@@ -403,7 +408,7 @@ async function autoMatchBlueprints(
 
   // Build a per-variant skip set from existing cardtrader variants. Skipping at
   // the (externalId, finish, language) level is what lets a new language (e.g.
-  // ZH) land on a blueprint whose EN variant already exists — gating on the
+  // SC) land on a blueprint whose EN variant already exists — gating on the
   // blueprint alone would leave the new-language row permanently orphaned.
   const existingCtSources = await repos.priceRefresh.existingSourcesByMarketplaces(["cardtrader"]);
   const existingCtVariantKeys = new Set(
@@ -532,7 +537,7 @@ export async function refreshCardtraderPrices(
 
   // Phase 3: Auto-match (before transform so new products get snapshots).
   // Pass `prices` so the matcher can read what (finish, language) combos each
-  // blueprint actually sells in and resolve Chinese listings to ZH printings.
+  // blueprint actually sells in and resolve Chinese listings to SC printings.
   await autoMatchBlueprints(repos, blueprints, prices, log);
 
   // Phase 4: Transform

@@ -68,8 +68,8 @@ function makeEntry(overrides: Partial<ImportEntry>): ImportEntry {
 
 describe("matchEntries — language narrowing", () => {
   const enPrinting = makePrinting({ id: "en-1", shortCode: "OGN-001", language: "EN" });
-  const zhPrinting = makePrinting({ id: "zh-1", shortCode: "OGN-001", language: "ZH" });
-  const allPrintings = [enPrinting, zhPrinting];
+  const scPrinting = makePrinting({ id: "sc-1", shortCode: "OGN-001", language: "SC" });
+  const allPrintings = [enPrinting, scPrinting];
 
   it("resolves to exact match when entry language matches one printing", () => {
     const entries = [makeEntry({ language: "EN" })];
@@ -78,17 +78,17 @@ describe("matchEntries — language narrowing", () => {
     expect(results[0].resolvedPrinting?.id).toBe("en-1");
   });
 
-  it("resolves to the ZH printing when entry language is ZH", () => {
-    const entries = [makeEntry({ language: "ZH" })];
+  it("resolves to the SC printing when entry language is SC", () => {
+    const entries = [makeEntry({ language: "SC" })];
     const results = matchEntries(entries, allPrintings);
     expect(results[0].status).toBe("exact");
-    expect(results[0].resolvedPrinting?.id).toBe("zh-1");
+    expect(results[0].resolvedPrinting?.id).toBe("sc-1");
   });
 
   it("falls back to all candidates when entry has no language", () => {
     const entries = [makeEntry({ language: undefined })];
     const results = matchEntries(entries, allPrintings);
-    // Without language, both EN and ZH match code + finish, so needs-review
+    // Without language, both EN and SC match code + finish, so needs-review
     expect(results[0].status).toBe("needs-review");
     expect(results[0].candidates).toHaveLength(2);
   });
@@ -122,19 +122,19 @@ describe("matchEntries — language + finish combination", () => {
     language: "EN",
     finish: "foil",
   });
-  const zhNormal = makePrinting({
-    id: "zh-normal",
+  const scNormal = makePrinting({
+    id: "sc-normal",
     shortCode: "OGN-001",
-    language: "ZH",
+    language: "SC",
     finish: "normal",
   });
-  const zhFoil = makePrinting({
-    id: "zh-foil",
+  const scFoil = makePrinting({
+    id: "sc-foil",
     shortCode: "OGN-001",
-    language: "ZH",
+    language: "SC",
     finish: "foil",
   });
-  const allPrintings = [enNormal, enFoil, zhNormal, zhFoil];
+  const allPrintings = [enNormal, enFoil, scNormal, scFoil];
 
   it("narrows by language then finish for exact match", () => {
     const entries = [makeEntry({ language: "EN", finish: "foil" })];
@@ -143,18 +143,18 @@ describe("matchEntries — language + finish combination", () => {
     expect(results[0].resolvedPrinting?.id).toBe("en-foil");
   });
 
-  it("narrows by language then finish for ZH foil", () => {
-    const entries = [makeEntry({ language: "ZH", finish: "foil" })];
+  it("narrows by language then finish for SC foil", () => {
+    const entries = [makeEntry({ language: "SC", finish: "foil" })];
     const results = matchEntries(entries, allPrintings);
     expect(results[0].status).toBe("exact");
-    expect(results[0].resolvedPrinting?.id).toBe("zh-foil");
+    expect(results[0].resolvedPrinting?.id).toBe("sc-foil");
   });
 });
 
 describe("matchEntries — fallbackLanguage", () => {
   const enPrinting = makePrinting({ id: "en-1", shortCode: "OGN-001", language: "EN" });
-  const zhPrinting = makePrinting({ id: "zh-1", shortCode: "OGN-001", language: "ZH" });
-  const allPrintings = [enPrinting, zhPrinting];
+  const scPrinting = makePrinting({ id: "sc-1", shortCode: "OGN-001", language: "SC" });
+  const allPrintings = [enPrinting, scPrinting];
 
   it("uses fallbackLanguage when entry has no language", () => {
     const entries = [makeEntry({ language: undefined })];
@@ -164,10 +164,10 @@ describe("matchEntries — fallbackLanguage", () => {
   });
 
   it("entry language takes precedence over fallbackLanguage", () => {
-    const entries = [makeEntry({ language: "ZH" })];
+    const entries = [makeEntry({ language: "SC" })];
     const results = matchEntries(entries, allPrintings, "EN");
     expect(results[0].status).toBe("exact");
-    expect(results[0].resolvedPrinting?.id).toBe("zh-1");
+    expect(results[0].resolvedPrinting?.id).toBe("sc-1");
   });
 
   it("falls back to all candidates when fallbackLanguage matches nothing", () => {

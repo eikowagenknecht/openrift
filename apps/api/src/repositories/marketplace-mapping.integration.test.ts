@@ -14,7 +14,7 @@ describe.skipIf(!ctx)("marketplaceMappingRepo (integration)", () => {
   const groupId = 90_001;
 
   const enPrintingId = PRINTINGS["SFD-R01:common:normal::EN"].id;
-  const zhPrintingId = PRINTINGS["SFD-R01:common:normal::ZH"].id;
+  const scPrintingId = PRINTINGS["SFD-R01:common:normal::SC"].id;
 
   afterAll(async () => {
     await db
@@ -50,14 +50,14 @@ describe.skipIf(!ctx)("marketplaceMappingRepo (integration)", () => {
     expect(first).toHaveLength(1);
     expect(first[0].printingId).toBe(enPrintingId);
 
-    // Second assignment: same product → ZH printing, same finish/language.
+    // Second assignment: same product → SC printing, same finish/language.
     // Before migration 102 this would replace the EN row via the unique
     // conflict on (product_id, finish, language). With the new index
     // including printing_id, both rows coexist.
     const second = await repo.upsertProductVariants([
       {
         marketplace,
-        printingId: zhPrintingId,
+        printingId: scPrintingId,
         externalId,
         groupId,
         productName: "Test Product",
@@ -66,7 +66,7 @@ describe.skipIf(!ctx)("marketplaceMappingRepo (integration)", () => {
       },
     ]);
     expect(second).toHaveLength(1);
-    expect(second[0].printingId).toBe(zhPrintingId);
+    expect(second[0].printingId).toBe(scPrintingId);
 
     const rows = await db
       .selectFrom("marketplaceProductVariants as mpv")
@@ -77,7 +77,7 @@ describe.skipIf(!ctx)("marketplaceMappingRepo (integration)", () => {
       .execute();
 
     const printingIds = rows.map((r) => r.printingId).toSorted();
-    expect(printingIds).toEqual([enPrintingId, zhPrintingId].toSorted());
+    expect(printingIds).toEqual([enPrintingId, scPrintingId].toSorted());
   });
 
   it("upsertProductVariants accepts one batch with multiple sibling-printing variants for the same SKU", async () => {
@@ -104,7 +104,7 @@ describe.skipIf(!ctx)("marketplaceMappingRepo (integration)", () => {
       },
       {
         marketplace,
-        printingId: zhPrintingId,
+        printingId: scPrintingId,
         externalId: batchExternalId,
         groupId,
         productName: "Batch Sibling Product",
@@ -114,7 +114,7 @@ describe.skipIf(!ctx)("marketplaceMappingRepo (integration)", () => {
     ]);
     expect(result).toHaveLength(2);
     expect(result.map((r) => r.printingId).toSorted()).toEqual(
-      [enPrintingId, zhPrintingId].toSorted(),
+      [enPrintingId, scPrintingId].toSorted(),
     );
     expect(new Set(result.map((r) => r.variantId)).size).toBe(2);
   });

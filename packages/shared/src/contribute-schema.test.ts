@@ -6,7 +6,6 @@ const STAMP = "20260501-1200";
 
 function validFile() {
   return {
-    $schema: "../../schemas/card.schema.json",
     card: {
       name: "Ahri, Alluring",
       external_id: `community:ahri-alluring--${STAMP}`,
@@ -174,13 +173,6 @@ describe("contributionFileSchema", () => {
   it("accepts an empty domains array (looser than the DB)", () => {
     const file = validFile();
     file.card.domains = [];
-    const result = contributionFileSchema.safeParse(file);
-    expect(result.success).toBe(true);
-  });
-
-  it("accepts an _instructions string at the root", () => {
-    const file = validFile();
-    (file as Record<string, unknown>)._instructions = "stripped on PR open";
     const result = contributionFileSchema.safeParse(file);
     expect(result.success).toBe(true);
   });

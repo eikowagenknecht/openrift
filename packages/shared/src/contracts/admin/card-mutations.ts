@@ -147,7 +147,7 @@ const createPrintingFieldsSchema = z.object({
   printedEffectText: printingFieldRules.printedEffectText.optional(),
   flavorText: printingFieldRules.flavorText.optional(),
   imageUrl: candidatePrintingFieldRules.imageUrl.optional(),
-  language: z.string().min(1).max(5).optional(),
+  language: printingFieldRules.language.optional(),
   printedName: z.string().min(1).optional().nullable(),
   printedYear: printingFieldRules.printedYear.optional(),
 });

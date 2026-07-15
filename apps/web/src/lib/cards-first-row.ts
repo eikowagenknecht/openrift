@@ -3,6 +3,7 @@ import {
   filterCards,
   getOrientation,
   legendDisplayName,
+  PREFERENCE_DEFAULTS,
   sortByLanguageAndCanonicalRank,
   sortCards,
 } from "@openrift/shared";
@@ -36,8 +37,11 @@ const FIRST_ROW_LIMIT = 16;
 // SSR can't read the user's `defaultCardView` / `languages` preferences (those
 // live in localStorage). Assume the new defaults from PREFERENCE_DEFAULTS so
 // the dominant cold-nav case matches the hydrated grid; users who flipped
-// their preference see a brief mismatch on first paint.
-const SSR_USER_LANGUAGES: readonly string[] = ["EN"];
+// their preference see a brief mismatch on first paint. Read straight from
+// PREFERENCE_DEFAULTS rather than restating it — a hand-copied default drifts
+// the moment the real one changes, and the mismatch would only show up as a
+// first-paint flicker nobody traces back to here.
+const SSR_USER_LANGUAGES: readonly string[] = PREFERENCE_DEFAULTS.languages;
 const SSR_DEFAULT_VIEW: "cards" | "printings" = "cards";
 const SSR_DEFAULT_GROUP_BY: GroupByField = "set";
 const SSR_DEFAULT_SORT: SortOption = "id";

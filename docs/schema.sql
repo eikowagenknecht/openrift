@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict pLP3u2u4HIxtUNLIdXAwafCGsIBtl83zu947IYcIUp6CY6TDAPRZ174hew8L50z
+\restrict ZQv4iXbb0AyiYdAZrVwQV98t2lzoLW5MPhvgIia7fWQ9zHWogiSAgMfOQoIOCbv
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -199,6 +199,30 @@ CREATE FUNCTION public.protect_well_known_keyword() RETURNS trigger
         END IF;
         IF OLD.is_well_known AND NOT NEW.is_well_known THEN
           RAISE EXCEPTION 'Cannot unmark well-known keyword "%"', OLD.name;
+        END IF;
+      END IF;
+      RETURN COALESCE(NEW, OLD);
+    END;
+    $$;
+
+
+--
+-- Name: protect_well_known_language(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.protect_well_known_language() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+    BEGIN
+      IF TG_OP = 'DELETE' AND OLD.is_well_known THEN
+        RAISE EXCEPTION 'Cannot delete well-known language "%"', OLD.code;
+      END IF;
+      IF TG_OP = 'UPDATE' THEN
+        IF OLD.is_well_known AND NEW.code != OLD.code THEN
+          RAISE EXCEPTION 'Cannot rename well-known language "%"', OLD.code;
+        END IF;
+        IF OLD.is_well_known AND NOT NEW.is_well_known THEN
+          RAISE EXCEPTION 'Cannot unmark well-known language "%"', OLD.code;
         END IF;
       END IF;
       RETURN COALESCE(NEW, OLD);
@@ -1502,6 +1526,7 @@ CREATE TABLE public.languages (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     color text,
+    is_well_known boolean DEFAULT false NOT NULL,
     CONSTRAINT chk_languages_color CHECK ((color ~ '^#[0-9a-fA-F]{6}$'::text)),
     CONSTRAINT languages_code_not_empty CHECK ((code <> ''::text)),
     CONSTRAINT languages_name_not_empty CHECK ((name <> ''::text))
@@ -4437,6 +4462,13 @@ CREATE TRIGGER trg_keywords_protect_well_known BEFORE DELETE OR UPDATE ON public
 
 
 --
+-- Name: languages trg_languages_protect_well_known; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_languages_protect_well_known BEFORE DELETE OR UPDATE ON public.languages FOR EACH ROW EXECUTE FUNCTION public.protect_well_known_language();
+
+
+--
 -- Name: marketplace_products trg_marketplace_products_set_norm_name; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -5767,7 +5799,7 @@ ALTER TABLE ONLY public.printings
 --
 
 ALTER TABLE ONLY public.printings
-    ADD CONSTRAINT printings_language_fk FOREIGN KEY (language) REFERENCES public.languages(code);
+    ADD CONSTRAINT printings_language_fk FOREIGN KEY (language) REFERENCES public.languages(code) ON UPDATE CASCADE;
 
 
 --
@@ -5918,5 +5950,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict pLP3u2u4HIxtUNLIdXAwafCGsIBtl83zu947IYcIUp6CY6TDAPRZ174hew8L50z
+\unrestrict ZQv4iXbb0AyiYdAZrVwQV98t2lzoLW5MPhvgIia7fWQ9zHWogiSAgMfOQoIOCbv
 

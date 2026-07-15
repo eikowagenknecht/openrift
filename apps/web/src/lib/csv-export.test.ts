@@ -257,7 +257,7 @@ describe("generatePiltoverArchiveCSV", () => {
       makeStack({
         shortCode: "OGN-010",
         name: "Promo",
-        language: "ZH",
+        language: "SC",
         markers: [{ id: "m1", slug: "nexus", label: "Nexus", description: null }],
       }),
     ];
@@ -278,6 +278,6 @@ describe("generatePiltoverArchiveCSV", () => {
     expect(byCode.get("OGN-025")).toMatchObject({ finish: "foil" });
     expect(byCode.get("OGN-079a")).toMatchObject({ artVariant: "altart" });
     expect(byCode.get("OGN-123*")).toMatchObject({ artVariant: "overnumbered" });
-    expect(byCode.get("OGN-010")).toMatchObject({ isPromo: true, language: "ZH" });
+    expect(byCode.get("OGN-010")).toMatchObject({ isPromo: true, language: "SC" });
   });
 });

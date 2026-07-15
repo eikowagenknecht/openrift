@@ -13,18 +13,7 @@ import type { CardSubmissionInput } from "@openrift/shared/contracts";
 import { contributionFileSchema } from "@openrift/shared/contribute-schema";
 import type { ZodIssue } from "zod";
 
-const SCHEMA_REF = "../../schemas/card.schema.json";
 const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]*$/u;
-
-/**
- * Walkthrough text injected as `_instructions` on every contribution. Sits at
- * the top of the JSON file so first-time contributors see it as soon as
- * GitHub's "new file" editor opens, before they're tempted to scroll/edit.
- * Stripped by openrift-data's consolidation Action so the merged file stays
- * clean.
- */
-const SUBMIT_INSTRUCTIONS =
-  "You don't need to edit the JSON below, it's all filled in. To submit: scroll down and click the green \"Commit changes...\" button, then follow GitHub's prompts to open the pull request. I'll review and merge it before it goes live.";
 
 /**
  * Snake-case JSON keys that map back to a different camelCase form-state key.
@@ -173,9 +162,8 @@ export function nameToSlug(name: string): string {
 }
 
 /**
- * UTC date stamp used in filenames and external IDs: `YYYYMMDD-HHmm`. UTC
- * keeps the suffix consistent regardless of the contributor's timezone, which
- * matters when the consolidation Action diffs against the file in main.
+ * UTC date stamp used to namespace generated external IDs: `YYYYMMDD-HHmm`.
+ * UTC keeps the suffix consistent regardless of the contributor's timezone.
  * @param date Date to format.
  * @returns A `YYYYMMDD-HHmm` string in UTC.
  */
@@ -190,11 +178,10 @@ export function formatDateStamp(date: Date): string {
 
 /**
  * Validates the form state by building the contribution JSON and running it
- * through the shared `contributionFileSchema` (the same schema used to generate
- * openrift-data's `card.schema.json`). The slug isn't part of the JSON file —
- * it's the filename — so it gets a separate check up front; if it fails, we
- * skip the schema run since the JSON's `external_id` would derive from a bad
- * slug and surface a misleading error.
+ * through the shared `contributionFileSchema`. The slug isn't part of that
+ * schema, so it gets a separate check up front; if it fails, we skip the schema
+ * run since the JSON's `external_id` would derive from a bad slug and surface a
+ * misleading error.
  * @param state Current form state.
  * @returns Validation result with form-state error paths (camelCase, `[n]`).
  */
@@ -247,8 +234,6 @@ type SnakeCardJson = Record<string, unknown>;
 type SnakePrintingJson = Record<string, unknown>;
 
 interface ContributionJson {
-  $schema: string;
-  _instructions: string;
   card: SnakeCardJson;
   printings: SnakePrintingJson[];
 }
@@ -332,12 +317,13 @@ function buildPrintingJson(
 }
 
 /**
- * Builds the contribution JSON. The `--<dateStamp>` suffix on every external_id
- * is stripped by openrift-data's consolidation Action when the PR opens, so the
- * merged file has clean IDs like `community:<slug>`.
+ * Shapes form state into the schema's snake_case form so it can be validated.
+ * Only {@link validateContribution} consumes this — the server mints its own
+ * `external_id`s, so the ones built here exist purely to satisfy the schema's
+ * pattern and are dropped by {@link buildSubmissionPayload}.
  * @param state Current form state.
  * @param dateStamp UTC date stamp from {@link formatDateStamp}.
- * @returns The contribution JSON object ready for serialization.
+ * @returns The contribution JSON object.
  */
 export function buildContributionJson(
   state: ContributeFormState,
@@ -354,15 +340,14 @@ export function buildContributionJson(
     const printingExternalId = `community:${state.slug}:${disambiguator}--${dateStamp}:${finish}:${language}`;
     return buildPrintingJson(printing, printingExternalId, cardName);
   });
-  return { $schema: SCHEMA_REF, _instructions: SUBMIT_INSTRUCTIONS, card, printings };
+  return { card, printings };
 }
 
 /**
  * Builds the payload for the in-app submission endpoint (ADR-036). Same
  * snake_case card/printing fields as the contribution JSON, but without the
- * generated `external_id`s (the server mints per-submission ones) and without
- * the GitHub-only `$schema` / `_instructions` wrapper. The contributor's note
- * rides alongside.
+ * generated `external_id`s — the server mints per-submission ones. The
+ * contributor's note rides alongside.
  * @param state Current form state.
  * @param submissionNote Optional contributor note; trimmed, blank becomes null.
  * @returns The request body for `cardSubmissionsContract.submit`.

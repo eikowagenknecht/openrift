@@ -26,8 +26,7 @@
     "dev": "tsgo --watch",
     "db:migrate": "bun --env-file=../../.env ../../scripts/run-migrations.ts",
     "db:rollback": "bun --env-file=../../.env ../../scripts/run-migrations.ts down",
-    "make-admin": "bun --env-file=../../.env ../../scripts/make-admin.ts",
-    "gen:card-schema": "bun scripts/generate-card-schema.ts"
+    "make-admin": "bun --env-file=../../.env ../../scripts/make-admin.ts"
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "8.5.0",

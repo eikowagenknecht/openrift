@@ -15,7 +15,7 @@ import {
 
 import { computeDeckOwnership } from "./use-deck-ownership";
 
-const EN_FIRST: readonly string[] = ["EN", "DE", "ZH"];
+const EN_FIRST: readonly string[] = ["EN", "DE", "SC"];
 
 beforeEach(() => {
   resetIdCounter();
@@ -262,8 +262,8 @@ describe("computeDeckOwnership", () => {
 
   it("uses preferredPrintingId when set, even when another language is cheaper", () => {
     // Regression: deck has EN Master Yi pinned; missing-cards dialog must show
-    // EN price/short code, not the cheaper ZH variant. (See bug report
-    // 2026-04-25: EN deck row was showing ZH prices because the hook picked
+    // EN price/short code, not the cheaper SC variant. (See bug report
+    // 2026-04-25: EN deck row was showing SC prices because the hook picked
     // the global cheapest printing instead of the deck row's chosen one.)
     const cardId = "master-yi";
 
@@ -272,11 +272,11 @@ describe("computeDeckOwnership", () => {
     ];
     const printings = [
       stubPrinting({ id: "p-en", cardId, language: "EN", shortCode: "OGN-001-EN" }),
-      stubPrinting({ id: "p-zh", cardId, language: "ZH", shortCode: "OGN-001-ZH" }),
+      stubPrinting({ id: "p-sc", cardId, language: "SC", shortCode: "OGN-001-SC" }),
     ];
     const prices = stubPriceLookup({
       "p-en": { cardtrader: 500 },
-      "p-zh": { cardtrader: 100 },
+      "p-sc": { cardtrader: 100 },
     });
 
     const result = computeDeckOwnership(deckCards, printings, {}, "cardtrader", prices, EN_FIRST);
@@ -326,9 +326,9 @@ describe("computeDeckOwnership", () => {
     const deckCards = [stubDeckBuilderCard({ cardId, quantity: 1, zone: "main" })];
     const printings = [
       stubPrinting({ id: "p1", cardId, language: "EN", shortCode: "OGN-001" }),
-      stubPrinting({ id: "p2", cardId, language: "ZH", shortCode: "OGN-001-ZH" }),
+      stubPrinting({ id: "p2", cardId, language: "SC", shortCode: "OGN-001-SC" }),
     ];
-    // Only the ZH printing has a price; canonical EN resolves but has none.
+    // Only the SC printing has a price; canonical EN resolves but has none.
     const prices = stubPriceLookup({ p2: { tcgplayer: 3 } });
 
     const result = computeDeckOwnership(deckCards, printings, {}, "tcgplayer", prices, EN_FIRST);

@@ -80,7 +80,7 @@ export async function acceptFavoritePrintingsForCard(
   const groupMap = new Map<string, typeof unlinkedPrintings>();
   for (const cp of unlinkedPrintings) {
     const slugKey = [...(cp.markerSlugs ?? [])].sort().join(",");
-    const key = `${cp.shortCode}|${cp.finish ?? ""}|${slugKey}|${cp.language ?? "EN"}`;
+    const key = `${cp.shortCode}|${cp.finish ?? ""}|${slugKey}|${cp.language ?? WellKnown.language.EN}`;
     let arr = groupMap.get(key);
     if (!arr) {
       arr = [];
@@ -123,7 +123,7 @@ export async function acceptFavoritePrintingsForCard(
       shortCode,
       finish,
       first.markerSlugs ?? [],
-      first.language ?? "EN",
+      first.language ?? WellKnown.language.EN,
     );
     if (existing) {
       skipped.push({ shortCode: label, reason: "printing already exists" });
@@ -152,7 +152,7 @@ export async function acceptFavoritePrintingsForCard(
           printedEffectText: first.printedEffectText,
           flavorText: first.flavorText,
           imageUrl: first.imageUrl,
-          language: first.language ?? "EN",
+          language: first.language ?? WellKnown.language.EN,
           printedName: first.printedName,
         },
         group.map((cp) => cp.id),

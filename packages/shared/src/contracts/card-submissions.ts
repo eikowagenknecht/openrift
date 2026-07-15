@@ -9,8 +9,8 @@ extendZodWithOpenApi(z);
 const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]*$/u;
 
 /**
- * A user submission carries the same card/printing fields as an openrift-data
- * contribution, minus `external_id` — the server generates a per-submission
+ * A user submission carries the same card/printing fields as the contribution
+ * schema, minus `external_id` — the server generates a per-submission
  * external_id (`<slug>--<dateStamp>--<userId>`, ADR-036) so it never trusts the
  * client for the natural key.
  */

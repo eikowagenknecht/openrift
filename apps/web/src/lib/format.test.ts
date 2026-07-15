@@ -279,16 +279,16 @@ describe("formatPrintingLabel", () => {
 
   it("tags every row with [XX] when language varies, including English", () => {
     const en = stub({ language: "EN" });
-    const zh = stub({ language: "ZH" });
-    const siblings = [en, zh];
+    const sc = stub({ language: "SC" });
+    const siblings = [en, sc];
     expect(formatPrintingLabel(en, siblings, TEST_LABELS)).toBe("[EN]");
-    expect(formatPrintingLabel(zh, siblings, TEST_LABELS)).toBe("[ZH]");
+    expect(formatPrintingLabel(sc, siblings, TEST_LABELS)).toBe("[SC]");
   });
 
   it("puts the language tag before other distinguishing attributes", () => {
-    const p = stub({ language: "ZH", artVariant: "altart", isSigned: true });
+    const p = stub({ language: "SC", artVariant: "altart", isSigned: true });
     const siblings = [p, stub({ language: "EN" })];
-    expect(formatPrintingLabel(p, siblings, TEST_LABELS)).toBe("[ZH] · Alt Art · Signed");
+    expect(formatPrintingLabel(p, siblings, TEST_LABELS)).toBe("[SC] · Alt Art · Signed");
   });
 
   it("omits the language tag when every sibling shares the language", () => {
@@ -298,7 +298,7 @@ describe("formatPrintingLabel", () => {
   });
 
   it("omits the language tag when no siblings are provided", () => {
-    expect(formatPrintingLabel(stub({ language: "ZH" }), undefined, TEST_LABELS)).toBe("Standard");
+    expect(formatPrintingLabel(stub({ language: "SC" }), undefined, TEST_LABELS)).toBe("Standard");
   });
 
   it("labels a non-normal art variant even when it is the only sibling", () => {
@@ -327,10 +327,10 @@ describe("formatPrintingLabelParts", () => {
 
   it("surfaces the language code (not a [XX] tag) when siblings differ", () => {
     const en = stub({ language: "EN" });
-    const zh = stub({ language: "ZH" });
-    const siblings = [en, zh];
-    expect(formatPrintingLabelParts(zh, siblings, TEST_LABELS)).toEqual({
-      language: "ZH",
+    const sc = stub({ language: "SC" });
+    const siblings = [en, sc];
+    expect(formatPrintingLabelParts(sc, siblings, TEST_LABELS)).toEqual({
+      language: "SC",
       rest: [],
     });
     expect(formatPrintingLabelParts(en, siblings, TEST_LABELS)).toEqual({
@@ -340,10 +340,10 @@ describe("formatPrintingLabelParts", () => {
   });
 
   it("keeps the language separate from the non-language attribute labels", () => {
-    const p = stub({ language: "ZH", artVariant: "altart", isSigned: true });
+    const p = stub({ language: "SC", artVariant: "altart", isSigned: true });
     const siblings = [p, stub({ language: "EN" })];
     expect(formatPrintingLabelParts(p, siblings, TEST_LABELS)).toEqual({
-      language: "ZH",
+      language: "SC",
       rest: ["Alt Art", "Signed"],
     });
   });
@@ -373,17 +373,17 @@ describe("formatImportPrintingLabelParts", () => {
 
   it("surfaces the language code for a non-English printing", () => {
     expect(
-      formatImportPrintingLabelParts(stub({ shortCode: "OGS-021", language: "ZH" }), TEST_LABELS),
-    ).toEqual({ code: "OGS-021", language: "ZH", rest: [] });
+      formatImportPrintingLabelParts(stub({ shortCode: "OGS-021", language: "SC" }), TEST_LABELS),
+    ).toEqual({ code: "OGS-021", language: "SC", rest: [] });
   });
 
   it("carries the variant labels in rest, language kept separate", () => {
     expect(
       formatImportPrintingLabelParts(
-        stub({ shortCode: "OGS-021", language: "ZH", finish: "foil" }),
+        stub({ shortCode: "OGS-021", language: "SC", finish: "foil" }),
         TEST_LABELS,
       ),
-    ).toEqual({ code: "OGS-021", language: "ZH", rest: ["Foil"] });
+    ).toEqual({ code: "OGS-021", language: "SC", rest: ["Foil"] });
   });
 });
 
@@ -398,8 +398,8 @@ describe("formatImportPrintingLabel", () => {
 
   it("tags a non-English standard printing with its language", () => {
     expect(
-      formatImportPrintingLabel(stub({ shortCode: "OGS-021", language: "ZH" }), TEST_LABELS),
-    ).toBe("OGS-021 · [ZH]");
+      formatImportPrintingLabel(stub({ shortCode: "OGS-021", language: "SC" }), TEST_LABELS),
+    ).toBe("OGS-021 · [SC]");
   });
 
   it("distinguishes English and Chinese printings that share a code", () => {
@@ -407,20 +407,20 @@ describe("formatImportPrintingLabel", () => {
       stub({ shortCode: "OGS-021", language: "EN" }),
       TEST_LABELS,
     );
-    const zh = formatImportPrintingLabel(
-      stub({ shortCode: "OGS-021", language: "ZH" }),
+    const sc = formatImportPrintingLabel(
+      stub({ shortCode: "OGS-021", language: "SC" }),
       TEST_LABELS,
     );
-    expect(en).not.toBe(zh);
+    expect(en).not.toBe(sc);
   });
 
   it("appends the variant label after the language tag", () => {
     expect(
       formatImportPrintingLabel(
-        stub({ shortCode: "OGS-021", language: "ZH", finish: "foil" }),
+        stub({ shortCode: "OGS-021", language: "SC", finish: "foil" }),
         TEST_LABELS,
       ),
-    ).toBe("OGS-021 · [ZH] · Foil");
+    ).toBe("OGS-021 · [SC] · Foil");
   });
 
   it("appends the variant label for an English printing without a language tag", () => {

@@ -139,38 +139,38 @@ describe("collectEntries", () => {
   });
 
   it("does not cross-contaminate assigned printings across language variants for per-language marketplaces", () => {
-    // CT product EN and ZH both have the same externalId in staging. Only the
-    // ZH variant is assigned to a printing. The EN row must not show the ZH
+    // CT product EN and SC both have the same externalId in staging. Only the
+    // SC variant is assigned to a printing. The EN row must not show the SC
     // printing under "Assigned printings".
     const enPrint = printing({ printingId: "p-en", language: "EN" });
-    const zhPrint = printing({ printingId: "p-zh", language: "ZH" });
+    const scPrint = printing({ printingId: "p-sc", language: "SC" });
     const entries = collectEntries(
-      group([enPrint, zhPrint], {
+      group([enPrint, scPrint], {
         cardtrader: {
           staged: [staged({ externalId: 42, language: "EN" })],
-          assigned: [staged({ externalId: 42, language: "ZH" })],
-          assignments: [{ externalId: 42, printingId: "p-zh", finish: "normal", language: "ZH" }],
+          assigned: [staged({ externalId: 42, language: "SC" })],
+          assignments: [{ externalId: 42, printingId: "p-sc", finish: "normal", language: "SC" }],
         },
       }),
     );
     const enEntry = entries.find((e) => e.product.language === "EN");
-    const zhEntry = entries.find((e) => e.product.language === "ZH");
+    const scEntry = entries.find((e) => e.product.language === "SC");
     expect(enEntry?.isAssigned).toBe(false);
     expect(enEntry?.assignedPrintings).toEqual([]);
-    expect(zhEntry?.isAssigned).toBe(true);
-    expect(zhEntry?.assignedPrintings.map((p) => p.printingId)).toEqual(["p-zh"]);
+    expect(scEntry?.isAssigned).toBe(true);
+    expect(scEntry?.assignedPrintings.map((p) => p.printingId)).toEqual(["p-sc"]);
   });
 
   it("treats a null assignment language as matching every row language (Cardmarket aggregate)", () => {
     const enPrint = printing({ printingId: "p-en", language: "EN" });
-    const zhPrint = printing({ printingId: "p-zh", language: "ZH" });
+    const scPrint = printing({ printingId: "p-sc", language: "SC" });
     const entries = collectEntries(
-      group([enPrint, zhPrint], {
+      group([enPrint, scPrint], {
         cardmarket: {
           staged: [],
           assigned: [
             staged({ externalId: 99, language: "EN" }),
-            staged({ externalId: 99, language: "ZH" }),
+            staged({ externalId: 99, language: "SC" }),
           ],
           assignments: [
             // One Cardmarket assignment fans out across languages via null.
@@ -181,9 +181,9 @@ describe("collectEntries", () => {
     );
     // Both language variants see the same printing (language fan-out).
     const enEntry = entries.find((e) => e.product.language === "EN");
-    const zhEntry = entries.find((e) => e.product.language === "ZH");
+    const scEntry = entries.find((e) => e.product.language === "SC");
     expect(enEntry?.assignedPrintings.map((p) => p.printingId)).toEqual(["p-en"]);
-    expect(zhEntry?.assignedPrintings.map((p) => p.printingId)).toEqual(["p-en"]);
+    expect(scEntry?.assignedPrintings.map((p) => p.printingId)).toEqual(["p-en"]);
   });
 
   it("lists every printing a multi-variant assignment covers", () => {
@@ -238,9 +238,9 @@ describe("collectEntries", () => {
             staged({ externalId: 12, language: "EN", groupName: "Alpha", finish: "normal" }),
             // Different set within the same language sorts after "Alpha".
             staged({ externalId: 13, language: "EN", groupName: "Beta", finish: "normal" }),
-            // ZH outranks EN at the language tier, so this row sorts last
+            // SC outranks EN at the language tier, so this row sorts last
             // despite having the earliest set name.
-            staged({ externalId: 14, language: "ZH", groupName: "Alpha", finish: "normal" }),
+            staged({ externalId: 14, language: "SC", groupName: "Alpha", finish: "normal" }),
           ],
           assigned: [],
           assignments: [],
@@ -263,21 +263,21 @@ describe("collectEntries", () => {
       "tcgplayer:EN:Alpha:normal:12",
       "tcgplayer:EN:Alpha:foil:10",
       "tcgplayer:EN:Beta:normal:13",
-      "tcgplayer:ZH:Alpha:normal:14",
+      "tcgplayer:SC:Alpha:normal:14",
     ]);
   });
 
   it("hides the Cardmarket placeholder language so non-EN products don't falsely render as EN", () => {
-    // Regression: CM 873230 is a ZH-only product on Cardmarket, but our
+    // Regression: CM 873230 is a SC-only product on Cardmarket, but our
     // staging layer stamps every CM row as "EN" (CM's price guide is
     // language-aggregate — it doesn't expose per-product language). The UI
-    // must not surface that placeholder, otherwise ZH cards appear as EN.
+    // must not surface that placeholder, otherwise SC cards appear as EN.
     expect(displayedProductLanguage("cardmarket", "EN")).toBeNull();
-    expect(displayedProductLanguage("cardmarket", "ZH")).toBeNull();
+    expect(displayedProductLanguage("cardmarket", "SC")).toBeNull();
     // TCG/CT keep their stored language — CT is per-language, TCG is
     // effectively English-only for Riftbound so "EN" is meaningful there.
     expect(displayedProductLanguage("tcgplayer", "EN")).toBe("EN");
-    expect(displayedProductLanguage("cardtrader", "ZH")).toBe("ZH");
+    expect(displayedProductLanguage("cardtrader", "SC")).toBe("SC");
     expect(displayedProductLanguage("cardtrader", "")).toBeNull();
   });
 
@@ -378,12 +378,12 @@ describe("collectStrongMappings", () => {
 
   it("emits every sibling printing for one language-aggregate product", () => {
     // Cardmarket's price guide is language-aggregate, so a single CM product
-    // can legitimately suggest multiple sibling printings (EN and ZH). Batch
+    // can legitimately suggest multiple sibling printings (EN and SC). Batch
     // accept must fire one mapping per sibling — not just the top scorer —
     // otherwise the aggregate price only attaches to one language variant.
     const en = printing({ printingId: "p-en", language: "EN" });
-    const zh = printing({ printingId: "p-zh", language: "ZH" });
-    const g = group([en, zh], {
+    const sc = printing({ printingId: "p-sc", language: "SC" });
+    const g = group([en, sc], {
       cardmarket: {
         staged: [staged({ externalId: 99, language: null })],
         assigned: [],
@@ -395,13 +395,13 @@ describe("collectStrongMappings", () => {
         productSuggestionKey("cardmarket", 99, "normal", null),
         [
           { printingId: "p-en", score: 150 },
-          { printingId: "p-zh", score: 150 },
+          { printingId: "p-sc", score: 150 },
         ],
       ],
     ]);
     const result = collectStrongMappings(g, suggestions);
     expect(result.cardmarket).toHaveLength(2);
-    expect(result.cardmarket.map((m) => m.printingId).toSorted()).toEqual(["p-en", "p-zh"]);
+    expect(result.cardmarket.map((m) => m.printingId).toSorted()).toEqual(["p-en", "p-sc"]);
     expect(result.cardmarket.every((m) => m.language === null)).toBe(true);
   });
 

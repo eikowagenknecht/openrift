@@ -200,13 +200,13 @@ export const PRINTINGS = {
     rarity: "common",
     finish: "normal",
   },
-  "OGN-007:common:normal::ZH": {
+  "OGN-007:common:normal::SC": {
     id: "019d69a5-28fa-70a2-92ea-73d8f2a27d3f",
     cardId: "019cfc3b-0387-7b61-be7a-edfadddd1879",
     rarity: "common",
     finish: "normal",
   },
-  "OGN-007a:showcase:foil::ZH": {
+  "OGN-007a:showcase:foil::SC": {
     id: "019d69a4-8117-73d6-9aec-69530d59d8da",
     cardId: "019cfc3b-0387-7b61-be7a-edfadddd1879",
     rarity: "showcase",
@@ -218,7 +218,7 @@ export const PRINTINGS = {
     rarity: "showcase",
     finish: "foil",
   },
-  "OGN-007b:showcase:foil:promo:ZH": {
+  "OGN-007b:showcase:foil:promo:SC": {
     id: "019d69a4-f7b9-7222-bb93-cb745d47be9f",
     cardId: "019cfc3b-0387-7b61-be7a-edfadddd1879",
     rarity: "showcase",
@@ -230,7 +230,7 @@ export const PRINTINGS = {
     rarity: "showcase",
     finish: "foil",
   },
-  "OGS-001:epic:normal::ZH": {
+  "OGS-001:epic:normal::SC": {
     id: "019d6d05-930d-7af7-9eb5-1bbefadba3a4",
     cardId: "019cfc3b-038a-7c0c-a76c-e0a5e2f46b18",
     rarity: "epic",
@@ -254,13 +254,13 @@ export const PRINTINGS = {
     rarity: "uncommon",
     finish: "normal",
   },
-  "OGS-002:uncommon:normal::ZH": {
+  "OGS-002:uncommon:normal::SC": {
     id: "019d6d05-9935-76e8-a805-ea6541cb99dd",
     cardId: "019cfc3b-038a-7e00-b828-03d838e5edab",
     rarity: "uncommon",
     finish: "normal",
   },
-  "OGS-003:common:normal::ZH": {
+  "OGS-003:common:normal::SC": {
     id: "019d6d05-9a7a-7234-aa16-3d519c8131c9",
     cardId: "019cfc3b-0389-7de9-8860-226f4c8947d8",
     rarity: "common",
@@ -284,13 +284,13 @@ export const PRINTINGS = {
     rarity: "rare",
     finish: "foil",
   },
-  "OGS-004:rare:normal::ZH": {
+  "OGS-004:rare:normal::SC": {
     id: "019d6d05-a758-7fce-aadd-aafcc11baebe",
     cardId: "019cfc3b-038a-7c1e-a8eb-57c9b27608ca",
     rarity: "rare",
     finish: "normal",
   },
-  "OGS-005:uncommon:normal::ZH": {
+  "OGS-005:uncommon:normal::SC": {
     id: "019d6d05-aa97-77be-8913-cae20a56f25f",
     cardId: "019cfc3b-038a-7e10-b8d4-6e8b9646a975",
     rarity: "uncommon",
@@ -302,7 +302,7 @@ export const PRINTINGS = {
     rarity: "uncommon",
     finish: "normal",
   },
-  "OGS-006:rare:normal::ZH": {
+  "OGS-006:rare:normal::SC": {
     id: "019d6d05-b0ac-79e3-8edc-0d6d436d148b",
     cardId: "019cfc3b-038a-7aab-b290-3ac99454fe0e",
     rarity: "rare",
@@ -320,7 +320,7 @@ export const PRINTINGS = {
     rarity: "rare",
     finish: "normal",
   },
-  "OGS-007:rare:normal::ZH": {
+  "OGS-007:rare:normal::SC": {
     id: "019d6d05-b656-79e4-b3df-2c0c6414f64b",
     cardId: "019cfc3b-038a-7c30-8616-613222ef6b01",
     rarity: "rare",
@@ -338,7 +338,7 @@ export const PRINTINGS = {
     rarity: "rare",
     finish: "foil",
   },
-  "OGS-008:common:normal::ZH": {
+  "OGS-008:common:normal::SC": {
     id: "019d6d05-b99e-7e0e-96dd-e1c9da4bdae3",
     cardId: "019cfc3b-038a-7e20-b240-25edfa53cbca",
     rarity: "common",
@@ -350,7 +350,7 @@ export const PRINTINGS = {
     rarity: "common",
     finish: "normal",
   },
-  "OGS-009:epic:normal::ZH": {
+  "OGS-009:epic:normal::SC": {
     id: "019d6d05-c13a-799a-bda0-efd70a6a1b75",
     cardId: "019cfc3b-038a-7abc-b43e-79b55463b059",
     rarity: "epic",
@@ -368,7 +368,7 @@ export const PRINTINGS = {
     rarity: "epic",
     finish: "foil",
   },
-  "OGS-010:rare:normal::ZH": {
+  "OGS-010:rare:normal::SC": {
     id: "019d6d05-c823-7069-95b6-1cdf23f82a9a",
     cardId: "019cfc3b-038a-7c41-b170-c9f989adc4a8",
     rarity: "rare",
@@ -398,7 +398,7 @@ export const PRINTINGS = {
     rarity: "common",
     finish: "normal",
   },
-  "OGS-011:common:normal::ZH": {
+  "OGS-011:common:normal::SC": {
     id: "019d6d05-d8e2-7e53-8fe6-54fd10424a8b",
     cardId: "019cfc3b-038a-7e2f-a482-917692bfd498",
     rarity: "common",
@@ -410,13 +410,13 @@ export const PRINTINGS = {
     rarity: "common",
     finish: "normal",
   },
-  "OGS-012:common:normal::ZH": {
+  "OGS-012:common:normal::SC": {
     id: "019d6d05-d9e8-75ca-9545-64d46c8fb6cb",
     cardId: "019cfc3b-038a-7acd-8d1e-ff0cd42a7878",
     rarity: "common",
     finish: "normal",
   },
-  "OGS-013:epic:normal::ZH": {
+  "OGS-013:epic:normal::SC": {
     id: "019d6d05-e5d5-7c5b-8b55-90aeb47adb3e",
     cardId: "019cfc3b-038a-7c52-b7f5-683161fa2c98",
     rarity: "epic",
@@ -440,7 +440,7 @@ export const PRINTINGS = {
     rarity: "epic",
     finish: "foil",
   },
-  "OGS-014:epic:normal::ZH": {
+  "OGS-014:epic:normal::SC": {
     id: "019d6d05-f9be-789f-b21f-bfe68b1572d8",
     cardId: "019cfc3b-038a-7e42-8b17-0f904fc6a78c",
     rarity: "epic",
@@ -458,7 +458,7 @@ export const PRINTINGS = {
     rarity: "uncommon",
     finish: "normal",
   },
-  "OGS-015:uncommon:normal::ZH": {
+  "OGS-015:uncommon:normal::SC": {
     id: "019d6d05-fee6-7d60-b8f2-ea216d891c59",
     cardId: "019cfc3b-038a-7add-b48d-e16b7614dfda",
     rarity: "uncommon",
@@ -470,7 +470,7 @@ export const PRINTINGS = {
     rarity: "common",
     finish: "normal",
   },
-  "OGS-016:common:normal::ZH": {
+  "OGS-016:common:normal::SC": {
     id: "019d6d06-0398-7088-8098-0484a6aa2fea",
     cardId: "019cfc3b-038a-7c63-a32a-d4ca63b2bee9",
     rarity: "common",
@@ -500,7 +500,7 @@ export const PRINTINGS = {
     rarity: "rare",
     finish: "metal",
   },
-  "OGS-017:rare:normal::ZH": {
+  "OGS-017:rare:normal::SC": {
     id: "019d6d06-108e-726f-809e-13b31796be1c",
     cardId: "019cfc3b-038a-7e54-90c3-34a262a17bea",
     rarity: "rare",
@@ -518,13 +518,13 @@ export const PRINTINGS = {
     rarity: "epic",
     finish: "normal",
   },
-  "OGS-018:epic:normal::ZH": {
+  "OGS-018:epic:normal::SC": {
     id: "019d6d06-1dd2-7649-938a-01851a1098ae",
     cardId: "019cfc3b-038a-7aef-b46a-dc08a7a17008",
     rarity: "epic",
     finish: "normal",
   },
-  "OGS-019:rare:normal::ZH": {
+  "OGS-019:rare:normal::SC": {
     id: "019d6d06-2149-7ed5-a52b-64215640186a",
     cardId: "019cfc3b-038a-7c85-87b3-452bea9999fb",
     rarity: "rare",
@@ -554,7 +554,7 @@ export const PRINTINGS = {
     rarity: "rare",
     finish: "metal-deluxe",
   },
-  "OGS-020:epic:normal::ZH": {
+  "OGS-020:epic:normal::SC": {
     id: "019d6d06-2210-7187-b6ea-5d10e2e048ab",
     cardId: "019cfc3b-038a-7e66-ae6d-5c57a250af7e",
     rarity: "epic",
@@ -596,7 +596,7 @@ export const PRINTINGS = {
     rarity: "rare",
     finish: "metal-deluxe",
   },
-  "OGS-021:rare:normal::ZH": {
+  "OGS-021:rare:normal::SC": {
     id: "019d6d06-3071-78cb-871f-945422034de3",
     cardId: "019cfc3b-038a-7aff-9f64-d915ada7e046",
     rarity: "rare",
@@ -608,7 +608,7 @@ export const PRINTINGS = {
     rarity: "epic",
     finish: "foil",
   },
-  "OGS-022:epic:normal::ZH": {
+  "OGS-022:epic:normal::SC": {
     id: "019d6d06-31c7-75c2-ba60-479deb454553",
     cardId: "019cfc3b-038a-7c96-a595-49eecd42e4bf",
     rarity: "epic",
@@ -644,7 +644,7 @@ export const PRINTINGS = {
     rarity: "rare",
     finish: "foil",
   },
-  "OGS-023:rare:normal::ZH": {
+  "OGS-023:rare:normal::SC": {
     id: "019d6d06-3485-71cd-bcef-9c7db6924832",
     cardId: "019cfc3b-038a-7e76-9ea8-f1feb5c9d837",
     rarity: "rare",
@@ -656,7 +656,7 @@ export const PRINTINGS = {
     rarity: "epic",
     finish: "foil",
   },
-  "OGS-024:epic:normal::ZH": {
+  "OGS-024:epic:normal::SC": {
     id: "019d6d06-37a3-7312-bb34-9c497b8b9d64",
     cardId: "019cfc3b-038b-7140-a819-397e9b1eb94e",
     rarity: "epic",
@@ -668,7 +668,7 @@ export const PRINTINGS = {
     rarity: "epic",
     finish: "normal",
   },
-  "SFD-R01:common:normal::ZH": {
+  "SFD-R01:common:normal::SC": {
     id: "019d69a5-bdd0-7753-98b2-253827e5d3b5",
     cardId: "019cfc3b-0387-7b61-be7a-edfadddd1879",
     rarity: "common",
@@ -686,13 +686,13 @@ export const PRINTINGS = {
     rarity: "showcase",
     finish: "foil",
   },
-  "SFD-R01a:showcase:foil::ZH": {
+  "SFD-R01a:showcase:foil::SC": {
     id: "019d69a5-8576-7b4d-9c18-7aa1f4451540",
     cardId: "019cfc3b-0387-7b61-be7a-edfadddd1879",
     rarity: "showcase",
     finish: "foil",
   },
-  "SFD-R01b:showcase:foil:promo:ZH": {
+  "SFD-R01b:showcase:foil:promo:SC": {
     id: "019d69a5-e53a-7e57-886d-a4524d3da4f8",
     cardId: "019cfc3b-0387-7b61-be7a-edfadddd1879",
     rarity: "showcase",
@@ -704,7 +704,7 @@ export const PRINTINGS = {
     rarity: "showcase",
     finish: "foil",
   },
-  "UNL-R01:common:normal::ZH": {
+  "UNL-R01:common:normal::SC": {
     id: "019db508-6bb4-7979-8ed4-1dd06439966e",
     cardId: "019cfc3b-0387-7b61-be7a-edfadddd1879",
     rarity: "common",
@@ -722,7 +722,7 @@ export const PRINTINGS = {
     rarity: "showcase",
     finish: "foil",
   },
-  "UNL-R01a:showcase:foil::ZH": {
+  "UNL-R01a:showcase:foil::SC": {
     id: "019db4fd-02f0-7141-9b06-26c8a1c9ff53",
     cardId: "019cfc3b-0387-7b61-be7a-edfadddd1879",
     rarity: "showcase",

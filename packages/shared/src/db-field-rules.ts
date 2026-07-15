@@ -1,14 +1,21 @@
 /**
  * Field-level Zod rules that mirror the database CHECK / FK constraints. Single
  * source of truth — anything that builds a Zod object schema for cards or
- * printings (admin endpoints, candidate ingest, contribute form, generated
- * JSON Schema for openrift-data) reuses these.
+ * printings (admin endpoints, candidate ingest, contribute form) reuses these.
  *
  * Lives in `@openrift/shared` so both `apps/api` and `apps/web` can import.
  * Set rules stay in `apps/api/src/db/schemas.ts` since only the API touches
  * that table.
  */
 import { z } from "zod";
+
+/**
+ * Printing `language` codes: 2-letter uppercase, matching the codes Riot prints
+ * on the cards rather than ISO 639-1. The two mostly agree, but not always —
+ * Simplified Chinese is `SC` here and `zh` in ISO. This only constrains the
+ * shape; the `languages` table is the source of truth for which codes exist.
+ */
+const LANGUAGE_CODE_PATTERN = /^[A-Z]{2}$/u;
 
 /** DB rejects '{}' and 'null'::jsonb but allows SQL NULL. */
 const noEmptyJsonb = z
@@ -55,6 +62,15 @@ export const printingFieldRules = {
   flavorText: z.string().min(1).nullable(),
   comment: z.string().min(1).nullable(),
   printedYear: z.number().int().min(1900).max(2999).nullable(),
+  /**
+   * FK → `languages.code`. The regex already pins the length, so callers add
+   * only `.nullable()` / `.optional()`. An un-normalized code (`"en"`) would
+   * otherwise pass a bare length check and fail later as an opaque FK violation
+   * at insert.
+   */
+  language: z.string().regex(LANGUAGE_CODE_PATTERN, {
+    message: "Language must be a 2-letter uppercase code (e.g. EN, SC).",
+  }),
 } satisfies Record<string, z.ZodType>;
 
 /** Mirrors DB constraints on the `card_errata` table. */

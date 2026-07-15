@@ -236,7 +236,7 @@ describe("DELETE /api/admin/v1/marketplace-mappings", () => {
     mockUnmapPrinting.mockResolvedValue(undefined);
 
     const res = await app.request(
-      "/api/admin/v1/marketplace-mappings?marketplace=cardtrader&printingId=00000000-0000-4000-a000-000000000003&externalId=300&finish=normal&language=ZH",
+      "/api/admin/v1/marketplace-mappings?marketplace=cardtrader&printingId=00000000-0000-4000-a000-000000000003&externalId=300&finish=normal&language=SC",
       { method: "DELETE" },
     );
 
@@ -247,7 +247,7 @@ describe("DELETE /api/admin/v1/marketplace-mappings", () => {
       "00000000-0000-4000-a000-000000000003",
       300,
       "normal",
-      "ZH",
+      "SC",
     );
   });
 

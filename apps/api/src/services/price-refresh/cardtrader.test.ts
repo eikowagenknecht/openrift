@@ -586,7 +586,7 @@ describe("refreshCardtraderPrices", () => {
     it("emits a new-language variant even when another-language variant already exists", async () => {
       // Regression: the auto-matcher used to skip a blueprint entirely once
       // any variant existed, which permanently orphaned later-appearing
-      // languages (e.g. ZH stock showing up months after the EN variant was
+      // languages (e.g. SC stock showing up months after the EN variant was
       // already wired up). The skip must be per (blueprint, finish, language),
       // not per blueprint.
       const enPrinting: MockPrinting = {
@@ -597,13 +597,13 @@ describe("refreshCardtraderPrices", () => {
         finish: "normal",
         language: "EN",
       };
-      const zhPrinting: MockPrinting = {
-        id: "p-zh",
+      const scPrinting: MockPrinting = {
+        id: "p-sc",
         cardId: "card-flame",
         setId: "set-origins",
         shortCode: "OGS-001",
         finish: "normal",
-        language: "ZH",
+        language: "SC",
       };
       const { repos } = createMockRepos({
         existingSources: [
@@ -615,7 +615,7 @@ describe("refreshCardtraderPrices", () => {
             productName: "Flame Striker",
           },
           // Pre-existing CT EN variant — pre-fix this blocked any further
-          // auto-match on blueprint 5001, including the ZH listing below.
+          // auto-match on blueprint 5001, including the SC listing below.
           {
             marketplace: "cardtrader",
             externalId: 5001,
@@ -624,7 +624,7 @@ describe("refreshCardtraderPrices", () => {
             productName: "Flame Striker",
           },
         ],
-        printings: [enPrinting, zhPrinting],
+        printings: [enPrinting, scPrinting],
       });
       const { log } = makeMockLogger();
       setupMockFetch(fetchSpy, {
@@ -660,12 +660,12 @@ describe("refreshCardtraderPrices", () => {
       const insertCall = (
         repos.priceRefresh.batchInsertProductVariants as unknown as ReturnType<typeof vi.fn>
       ).mock.calls[0][0] as { printingId: string; finish: string; language: string }[];
-      // Only the ZH variant is new; the EN one is already in existingSources.
+      // Only the SC variant is new; the EN one is already in existingSources.
       expect(insertCall).toHaveLength(1);
       expect(insertCall[0]).toMatchObject({
-        printingId: "p-zh",
+        printingId: "p-sc",
         finish: "normal",
-        language: "ZH",
+        language: "SC",
       });
     });
 
@@ -683,11 +683,11 @@ describe("refreshCardtraderPrices", () => {
       expect(repos.priceRefresh.batchInsertProductVariants).not.toHaveBeenCalled();
     });
 
-    it("resolves ZH-CN listings to the ZH sibling printing", async () => {
-      // The EN printing and its ZH sibling share the same identity tuple
+    it("resolves zh-CN listings to the SC sibling printing", async () => {
+      // The EN printing and its SC sibling share the same identity tuple
       // (card, set, short_code, finish, art_variant, is_signed, marker_slugs)
       // but differ on language. The TCG cross-reference lands on the EN
-      // printing; the matcher walks across the sibling lookup to the ZH one.
+      // printing; the matcher walks across the sibling lookup to the SC one.
       const enPrinting: MockPrinting = {
         id: "p-en",
         cardId: "card-flame",
@@ -696,13 +696,13 @@ describe("refreshCardtraderPrices", () => {
         finish: "normal",
         language: "EN",
       };
-      const zhPrinting: MockPrinting = {
-        id: "p-zh",
+      const scPrinting: MockPrinting = {
+        id: "p-sc",
         cardId: "card-flame",
         setId: "set-origins",
         shortCode: "OGS-001",
         finish: "normal",
-        language: "ZH",
+        language: "SC",
       };
       const { repos } = createMockRepos({
         existingSources: [
@@ -714,7 +714,7 @@ describe("refreshCardtraderPrices", () => {
             productName: "Flame Striker",
           },
         ],
-        printings: [enPrinting, zhPrinting],
+        printings: [enPrinting, scPrinting],
       });
       const { log } = makeMockLogger();
       setupMockFetch(fetchSpy, {
@@ -730,7 +730,7 @@ describe("refreshCardtraderPrices", () => {
                   name_en: "Flame Striker",
                   price_cents: 200,
                   price_currency: "EUR",
-                  // CardTrader emits `zh-CN`; the matcher should normalize to `ZH`.
+                  // CardTrader emits `zh-CN`; the matcher should normalize to `SC`.
                   properties_hash: { riftbound_foil: false, riftbound_language: "zh-CN" },
                 },
               ],
@@ -747,13 +747,13 @@ describe("refreshCardtraderPrices", () => {
       ).mock.calls[0][0] as { printingId: string; finish: string; language: string }[];
       expect(insertCall).toHaveLength(1);
       expect(insertCall[0]).toMatchObject({
-        printingId: "p-zh",
+        printingId: "p-sc",
         finish: "normal",
-        language: "ZH",
+        language: "SC",
       });
     });
 
-    it("emits both EN and ZH variants when a blueprint sells in both languages", async () => {
+    it("emits both EN and SC variants when a blueprint sells in both languages", async () => {
       const enPrinting: MockPrinting = {
         id: "p-en",
         cardId: "card-flame",
@@ -762,13 +762,13 @@ describe("refreshCardtraderPrices", () => {
         finish: "normal",
         language: "EN",
       };
-      const zhPrinting: MockPrinting = {
-        id: "p-zh",
+      const scPrinting: MockPrinting = {
+        id: "p-sc",
         cardId: "card-flame",
         setId: "set-origins",
         shortCode: "OGS-001",
         finish: "normal",
-        language: "ZH",
+        language: "SC",
       };
       const { repos } = createMockRepos({
         existingSources: [
@@ -780,7 +780,7 @@ describe("refreshCardtraderPrices", () => {
             productName: "Flame Striker",
           },
         ],
-        printings: [enPrinting, zhPrinting],
+        printings: [enPrinting, scPrinting],
       });
       const { log } = makeMockLogger();
       setupMockFetch(fetchSpy, {
@@ -820,13 +820,13 @@ describe("refreshCardtraderPrices", () => {
       expect(insertCall).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ printingId: "p-en", finish: "normal", language: "EN" }),
-          expect.objectContaining({ printingId: "p-zh", finish: "normal", language: "ZH" }),
+          expect.objectContaining({ printingId: "p-sc", finish: "normal", language: "SC" }),
         ]),
       );
     });
 
-    it("skips ZH listings when no ZH sibling printing exists", async () => {
-      // Only an EN printing exists in the catalog — the ZH listing from
+    it("skips SC listings when no SC sibling printing exists", async () => {
+      // Only an EN printing exists in the catalog — the SC listing from
       // cardtrader should be silently dropped from auto-match.
       const enPrinting: MockPrinting = {
         id: "p-en",

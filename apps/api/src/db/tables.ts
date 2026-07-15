@@ -1300,6 +1300,12 @@ interface LanguagesTable {
   /** Hex color for the language chip (CHECK: ^#[0-9a-fA-F]{6}$). Migration 203. */
   color: string | null;
   sortOrder: number;
+  /**
+   * Listed in `WellKnown.language`; a trigger blocks rename/delete. Migration 205.
+   * `Generated` because admin-created languages are never well-known and the
+   * repo's insert omits it, leaning on the column's `DEFAULT false`.
+   */
+  isWellKnown: Generated<boolean>;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
