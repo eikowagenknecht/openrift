@@ -36,7 +36,7 @@ function seatHint(row: PodStandingRow, rival: PodStandingRow | undefined, swiss:
  * @param swiss Whether the tournament pairs Swiss rather than pods.
  * @returns At most three seats, in standings order.
  */
-export function podiumSeats(standings: readonly PodStandingRow[], swiss: boolean): PodiumSeat[] {
+function podiumSeats(standings: readonly PodStandingRow[], swiss: boolean): PodiumSeat[] {
   const leader = standings[0];
   if (leader === undefined || leader.roundsPlayed === 0) {
     return [];

@@ -12,7 +12,7 @@ import { pairingPluralNoun } from "@/lib/tournament-display";
  * 1v1 matches (Swiss) so the copy can say "matches" instead of "pods".
  * @returns The counts and the noun for a pod on this round.
  */
-export function roundReportProgress(round: PodRoundResponse) {
+function roundReportProgress(round: PodRoundResponse) {
   const total = round.pods.length;
   const reported = round.pods.filter((pod) => pod.resultStatus === "reported").length;
   return { total, reported, noun: pairingPluralNoun(round.pods.map((pod) => pod.size)) };
