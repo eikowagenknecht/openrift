@@ -705,6 +705,11 @@ describe.skipIf(!ctx)("podTournamentsRepo (integration)", () => {
     const standings = await tournamentsRepo.computeStandings(tournament.id, scoring);
     expect(standings.find((row) => row.playerId === players[1]!.id)!.region).toBe("noxus");
 
+    // Pairing rejects a seated player without a region, so give the other two
+    // theirs before generating.
+    await repos.tournaments.updateParticipant(players[2]!.id, { region: "demacia" });
+    await repos.tournaments.updateParticipant(players[3]!.id, { region: "demacia" });
+
     // The engine avoids the noxus mirror: 4 players, two of them noxus, so a
     // region-clean perfect matching exists and must be found.
     const reloaded = await tournamentsRepo.findById(tournament.id);
