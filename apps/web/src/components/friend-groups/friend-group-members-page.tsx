@@ -7,6 +7,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import {
   CheckIcon,
   EllipsisVerticalIcon,
+  FolderIcon,
   ShieldIcon,
   Trash2Icon,
   UserPlusIcon,
@@ -15,9 +16,12 @@ import {
 import { toast } from "sonner";
 
 import { PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
+import { ActionBand } from "@/components/ui/action-band";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { cardLinkVariants } from "@/components/ui/card-link";
+import { CountPill } from "@/components/ui/count-pill";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,6 +29,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { SectionHeading } from "@/components/ui/section-heading";
 import { UserAvatar } from "@/components/user-avatar";
 import {
   useAcceptFriendGroupInvite,
@@ -35,15 +40,19 @@ import {
   useUpdateFriendGroupRole,
 } from "@/hooks/use-friend-groups";
 import { useRequiredUserId } from "@/lib/auth-session";
+import { formatAbsoluteDate } from "@/lib/format-date";
+import { formatRelativeTime } from "@/lib/format-relative-time";
 import { getSiteUrl } from "@/lib/site-config";
 import { cn } from "@/lib/utils";
 
 import { ContactMethodChips } from "./contact-method-chips";
 import { isAdmin, ROLE_LABEL } from "./friend-group-shell";
+import { LIST_INTENT_ICON, LIST_INTENT_NOUN } from "./list-intent-meta";
 
 /**
- * The Members page: pending join requests (admins only) above the roster, each
- * member with self-nickname editing and admin role actions.
+ * The Members page: pending join requests (admins only) as the page's action
+ * band above the roster, each member row with a role chip, join date, share
+ * pills, contact chips, and the admin role actions.
  * @returns The members-page content.
  */
 export function MembersPageContent({
@@ -55,8 +64,6 @@ export function MembersPageContent({
 }) {
   const viewerId = useRequiredUserId();
   const viewerRole = data.viewerRole ?? "member";
-  const acceptInvite = useAcceptFriendGroupInvite();
-  const declineInvite = useDeclineFriendGroupInvite();
   // Per-member counts of what each shares with the group, shown neutrally on
   // their row. Organize lists don't count toward trading, so only wish/trade
   // lists and collections are tallied.
@@ -74,67 +81,109 @@ export function MembersPageContent({
     collectionCountByUser.set(share.userId, (collectionCountByUser.get(share.userId) ?? 0) + 1);
   }
 
+  const ownerCount = data.members.filter((member) => member.role === "owner").length;
+  const adminCount = data.members.filter((member) => member.role === "admin").length;
+  const roleTally = [
+    `${ownerCount} ${ownerCount === 1 ? "owner" : "owners"}`,
+    ...(adminCount > 0 ? [`${adminCount} ${adminCount === 1 ? "admin" : "admins"}`] : []),
+  ].join(" · ");
+
   return (
-    <section className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
       {isAdmin(viewerRole) && data.pendingRequests.length > 0 ? (
-        <div className="flex flex-col gap-2 rounded-md border border-dashed p-3">
-          <h3 className="font-medium">Pending requests</h3>
-          <div className="flex flex-col gap-2">
-            {data.pendingRequests.map((req) => (
-              <div key={req.id} className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <UserAvatar
-                    image={req.userImage}
-                    name={req.userName}
-                    gravatarHash={req.gravatarHash}
-                    size="sm"
-                    className="size-7"
-                  />
-                  <span className="font-medium">{req.userName ?? "Unknown user"}</span>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => acceptInvite.mutate({ slug, userId: req.userId })}
-                    disabled={acceptInvite.isPending}
-                  >
-                    <CheckIcon className="size-4" />
-                    Approve
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => declineInvite.mutate({ slug, userId: req.userId })}
-                    disabled={declineInvite.isPending}
-                  >
-                    <XIcon className="size-4" />
-                    Deny
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <PendingRequestsBand slug={slug} requests={data.pendingRequests} />
       ) : null}
 
+      <section className="flex flex-col gap-3">
+        <div className="flex items-baseline gap-2.5">
+          <SectionHeading count={data.members.length}>Members</SectionHeading>
+          <span className="text-muted-foreground/60 text-xs">{roleTally}</span>
+        </div>
+        <div className="flex flex-col gap-2">
+          {data.members.map((member) => (
+            <MemberRow
+              key={member.userId}
+              slug={slug}
+              member={member}
+              viewerId={viewerId}
+              viewerRole={viewerRole}
+              shareCounts={{
+                wishlists: wishlistCountByUser.get(member.userId) ?? 0,
+                tradelists: tradelistCountByUser.get(member.userId) ?? 0,
+                collections: collectionCountByUser.get(member.userId) ?? 0,
+              }}
+            />
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+/**
+ * The pending join requests as the page's accented action band (the overview's
+ * trades-hub treatment): a headline count, then one row per request with
+ * inline approve / deny. Only rendered for admins with requests waiting.
+ * @returns The requests band.
+ */
+function PendingRequestsBand({
+  slug,
+  requests,
+}: {
+  slug: string;
+  requests: FriendGroupDetailResponse["pendingRequests"];
+}) {
+  const acceptInvite = useAcceptFriendGroupInvite();
+  const declineInvite = useDeclineFriendGroupInvite();
+  return (
+    <ActionBand
+      icon={UserPlusIcon}
+      accent
+      label="Requests"
+      value={requests.length}
+      sub={`${requests.length === 1 ? "person" : "people"} waiting to join`}
+    >
       <div className="flex flex-col gap-2">
-        {data.members.map((member) => (
-          <MemberRow
-            key={member.userId}
-            slug={slug}
-            member={member}
-            viewerId={viewerId}
-            viewerRole={viewerRole}
-            shareCounts={{
-              wishlists: wishlistCountByUser.get(member.userId) ?? 0,
-              tradelists: tradelistCountByUser.get(member.userId) ?? 0,
-              collections: collectionCountByUser.get(member.userId) ?? 0,
-            }}
-          />
+        {requests.map((req) => (
+          <div
+            key={req.id}
+            className="bg-muted/40 flex items-center gap-2.5 rounded-lg px-2.5 py-2"
+          >
+            <UserAvatar
+              image={req.userImage}
+              name={req.userName}
+              gravatarHash={req.gravatarHash}
+              size="sm"
+              className="size-7"
+            />
+            <span className="min-w-0 flex-1 truncate text-sm">
+              <span className="font-medium">{req.userName ?? "Unknown user"}</span>
+              <span className="text-muted-foreground">
+                {" "}
+                · requested {formatRelativeTime(req.createdAt)}
+              </span>
+            </span>
+            <Button
+              size="sm"
+              onClick={() => acceptInvite.mutate({ slug, userId: req.userId })}
+              disabled={acceptInvite.isPending}
+            >
+              <CheckIcon className="size-4" />
+              Approve
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => declineInvite.mutate({ slug, userId: req.userId })}
+              disabled={declineInvite.isPending}
+            >
+              <XIcon className="size-4" />
+              Deny
+            </Button>
+          </div>
         ))}
       </div>
-    </section>
+    </ActionBand>
   );
 }
 
@@ -178,6 +227,10 @@ export function MembersInviteAction({ slug }: { slug: string }) {
   );
 }
 
+/** Role chips reuse the app's tone ramp: gold for the owner, violet for
+ * admins. Plain members carry no chip, so a chip always means something. */
+const ROLE_BADGE_VARIANT = { owner: "warning", admin: "violet" } as const;
+
 function MemberRow({
   slug,
   member,
@@ -192,21 +245,23 @@ function MemberRow({
   shareCounts: { wishlists: number; tradelists: number; collections: number };
 }) {
   const isSelf = member.userId === viewerId;
-  // Show only the non-zero shares, neutrally — "2 wishlists · 1 tradelist".
-  // Nothing extra renders when a member shares nothing.
-  const shareSummary = [
-    shareCounts.wishlists > 0
-      ? `${shareCounts.wishlists} ${shareCounts.wishlists === 1 ? "wishlist" : "wishlists"}`
-      : null,
-    shareCounts.tradelists > 0
-      ? `${shareCounts.tradelists} ${shareCounts.tradelists === 1 ? "tradelist" : "tradelists"}`
-      : null,
-    shareCounts.collections > 0
-      ? `${shareCounts.collections} ${shareCounts.collections === 1 ? "collection" : "collections"}`
-      : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  // Only the non-zero shares render, as icon pills reusing the app's
+  // list-intent icons. Nothing extra renders when a member shares nothing.
+  const sharePills = [
+    {
+      key: "wish",
+      icon: LIST_INTENT_ICON.wish,
+      count: shareCounts.wishlists,
+      noun: LIST_INTENT_NOUN.wish,
+    },
+    {
+      key: "trade",
+      icon: LIST_INTENT_ICON.trade,
+      count: shareCounts.tradelists,
+      noun: LIST_INTENT_NOUN.trade,
+    },
+    { key: "collection", icon: FolderIcon, count: shareCounts.collections, noun: "collection" },
+  ].filter((pill) => pill.count > 0);
   const updateRole = useUpdateFriendGroupRole();
   const kickMember = useKickFriendGroupMember();
   const transferOwnership = useTransferFriendGroupOwnership();
@@ -227,25 +282,38 @@ function MemberRow({
         image={member.userImage}
         name={member.userName}
         gravatarHash={member.gravatarHash}
-        className="size-9"
+        className="size-11"
       />
       <Link
         to="/groups/$slug/members/$userId"
         params={{ slug, userId: member.userId }}
-        className="flex min-w-0 flex-1 flex-col"
+        className="flex min-w-0 flex-1 flex-col gap-0.5"
       >
-        <span className="truncate font-medium">{member.userName ?? "Unknown user"}</span>
-        <span className="text-muted-foreground text-xs">
-          {ROLE_LABEL[member.role]}
-          {shareSummary ? ` · ${shareSummary}` : null}
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="truncate font-medium">{member.userName ?? "Unknown user"}</span>
+          {member.role === "member" ? null : (
+            <Badge variant={ROLE_BADGE_VARIANT[member.role]}>{ROLE_LABEL[member.role]}</Badge>
+          )}
+          {isSelf ? <Badge variant="muted">You</Badge> : null}
+        </span>
+        <span className="text-muted-foreground flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs">
+          <span>
+            Joined {formatAbsoluteDate(member.joinedAt, { month: "short", year: "numeric" })}
+          </span>
+          {sharePills.map((pill) => (
+            <CountPill key={pill.key} variant="ghost" className="px-0">
+              <pill.icon className="size-3" />
+              {pill.count} {pill.count === 1 ? pill.noun : `${pill.noun}s`}
+            </CountPill>
+          ))}
         </span>
       </Link>
       <ContactMethodChips methods={member.contactMethods} className="justify-end" />
 
-      {(canKick || canPromote || canDemote || canTransfer) && (
+      {canKick || canPromote || canDemote || canTransfer ? (
         <DropdownMenu>
           <DropdownMenuTrigger
-            render={<Button size="sm" variant="ghost" aria-label="Member actions" />}
+            render={<Button size="icon-sm" variant="ghost" aria-label="Member actions" />}
           >
             <EllipsisVerticalIcon className="size-4" />
           </DropdownMenuTrigger>
@@ -286,6 +354,10 @@ function MemberRow({
             )}
           </DropdownMenuContent>
         </DropdownMenu>
+      ) : (
+        // Rows without a menu (your own row, members a plain admin can't
+        // touch) keep the contact chips column aligned with the rows above.
+        <span aria-hidden="true" className="size-7 shrink-0" />
       )}
     </Card>
   );

@@ -4,6 +4,7 @@ import { ChevronRightIcon, FolderIcon, TrophyIcon, UsersIcon, ZapIcon } from "lu
 import type { ComponentType, ReactNode, SVGProps } from "react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
+import { ActionBand } from "@/components/ui/action-band";
 import { buttonVariants } from "@/components/ui/button";
 import { IconChip } from "@/components/ui/icon-chip";
 import { SectionHeading } from "@/components/ui/section-heading";
@@ -32,13 +33,6 @@ import { FriendGroupActivityFeed } from "./friend-group-activity-feed";
 import { isAdmin } from "./friend-group-shell";
 import { LIST_INTENT_ICON, LIST_INTENT_NOUN } from "./list-intent-meta";
 import { TradeDirectionIcon, TradeExpiry, TradeStatusBadge } from "./trade-row-parts";
-
-// The hub's gold wash: the warm accent token mixed toward the card surface,
-// fading out by 55% along the band. Token-based (like the hero wash and the
-// fan glow) so it stays visible on the dark theme — a low-alpha amber overlay
-// all but disappears against the dark card.
-const HUB_WASH =
-  "linear-gradient(135deg, color-mix(in oklab, var(--border-accent) 14%, transparent), transparent 55%)";
 
 /**
  * The group overview / dashboard: the trades hub (count, action state, and
@@ -101,38 +95,30 @@ function TradesHub({ slug, data }: { slug: string; data: FriendGroupDetailRespon
   // in-progress rows inside are plain divs — they all lead to the Trades page
   // anyway, and nested anchors are invalid HTML.
   return (
-    <Link
-      to="/groups/$slug/trades"
-      params={{ slug }}
-      className={cn(
-        "group/trades-hub bg-card flex flex-col gap-3 rounded-lg p-4 ring-1 transition-all hover:shadow-md",
-        needsAction
-          ? "ring-primary/40 hover:ring-primary/50"
-          : "ring-foreground/10 hover:ring-primary/30",
-      )}
-      style={{ backgroundImage: HUB_WASH }}
-    >
-      <div className="flex min-w-0 items-center gap-3">
-        <IconChip icon={ZapIcon} tone="gold" />
-        <span className="text-muted-foreground text-sm font-medium">Trades</span>
-        <span className="font-heading text-3xl font-semibold tabular-nums">{headline}</span>
-        <span className="text-muted-foreground min-w-0 truncate text-xs">{sub}</span>
-        {/* A span with Button's classes, not a Button: the whole band is the
-            anchor, and a nested interactive element would be invalid HTML. The
-            group-hover overrides re-key the hover styles to the band. */}
+    <ActionBand
+      render={<Link to="/groups/$slug/trades" params={{ slug }} />}
+      icon={ZapIcon}
+      accent={needsAction}
+      label="Trades"
+      value={headline}
+      sub={sub}
+      action={
+        // A span with Button's classes, not a Button: the whole band is the
+        // anchor, and a nested interactive element would be invalid HTML. The
+        // group-hover overrides re-key the hover styles to the band.
         <span
           className={cn(
             buttonVariants({ variant: needsAction ? "default" : "ghost" }),
-            "ml-auto shrink-0",
             needsAction
-              ? "group-hover/trades-hub:bg-primary/90"
-              : "group-hover/trades-hub:bg-muted",
+              ? "group-hover/action-band:bg-primary/90"
+              : "group-hover/action-band:bg-muted",
           )}
         >
           View trades
-          <ChevronRightIcon className="size-4 transition-transform group-hover/trades-hub:translate-x-0.5" />
+          <ChevronRightIcon className="size-4 transition-transform group-hover/action-band:translate-x-0.5" />
         </span>
-      </div>
+      }
+    >
       {active.length > 0 ? (
         <ul className="grid gap-2 sm:grid-cols-2">
           {active.map((trade) => (
@@ -142,7 +128,7 @@ function TradesHub({ slug, data }: { slug: string; data: FriendGroupDetailRespon
           ))}
         </ul>
       ) : null}
-    </Link>
+    </ActionBand>
   );
 }
 

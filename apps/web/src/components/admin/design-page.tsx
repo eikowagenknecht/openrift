@@ -1,7 +1,9 @@
 import { Link } from "@tanstack/react-router";
 import {
   BellIcon,
+  CheckIcon,
   ChevronDownIcon,
+  ChevronRightIcon,
   CopyIcon,
   EllipsisVerticalIcon,
   FolderIcon,
@@ -16,7 +18,9 @@ import {
   Trash2Icon,
   TriangleAlertIcon,
   TrophyIcon,
+  UserPlusIcon,
   UsersIcon,
+  XIcon,
   ZapIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
@@ -53,6 +57,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { ActionBand } from "@/components/ui/action-band";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -66,7 +71,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { ButtonGroup, ButtonGroupSeparator } from "@/components/ui/button-group";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -216,6 +221,7 @@ const BADGE_VARIANTS = [
   "link",
   "success",
   "warning",
+  "violet",
   "muted",
   "subtle",
   "count",
@@ -996,7 +1002,7 @@ function TilesSection() {
     <DemoSection
       id="tiles"
       title="Tiles"
-      note="CardLink is the whole-Card click target for list tiles; every tile hovers the same way (shadow lift, muted wash, 1px primary edge). Cards that keep secondary actions inside, and non-Card link tiles like the deck grid, apply cardLinkVariants() directly. StatTile is the dashboard stat; accent is reserved for the one tile needing attention. CoverBand is the warm-glow strip at the top of showcase tiles (product fans, group avatar stacks); UserAvatarStack is the overlapping who's-here row with a +N overflow."
+      note="CardLink is the whole-Card click target for list tiles; every tile hovers the same way (shadow lift, muted wash, 1px primary edge). Cards that keep secondary actions inside, and non-Card link tiles like the deck grid, apply cardLinkVariants() directly. StatTile is the dashboard stat; accent is reserved for the one tile needing attention. ActionBand is the full-width 'needs you' band (the overview's trades hub, the members page's join requests). CoverBand is the warm-glow strip at the top of showcase tiles (product fans, group avatar stacks); UserAvatarStack is the overlapping who's-here row with a +N overflow."
     >
       <DemoRow label="CardLink">
         <CardLink
@@ -1081,6 +1087,49 @@ function TilesSection() {
             tone="violet"
             hint="tone=violet"
           />
+        </div>
+      </DemoRow>
+      <DemoRow
+        label="ActionBand"
+        hint="Header row (IconChip, label, headline value, sub, trailing action) with free-form rows below. accent marks the band waiting on the viewer; a band given render is the click target and hovers like StatTile, a static one carries inline actions in its rows."
+      >
+        <div className="flex w-full max-w-2xl flex-col gap-3">
+          <ActionBand
+            render={<Link to="/admin/design" hash="tiles" />}
+            icon={ZapIcon}
+            accent
+            label="Trades"
+            value={3}
+            sub="trades need your action"
+            action={
+              <span className={cn(buttonVariants(), "group-hover/action-band:bg-primary/90")}>
+                View trades
+                <ChevronRightIcon className="size-4 transition-transform group-hover/action-band:translate-x-0.5" />
+              </span>
+            }
+          />
+          <ActionBand
+            icon={UserPlusIcon}
+            accent
+            label="Requests"
+            value={1}
+            sub="person waiting to join"
+          >
+            <div className="bg-muted/40 flex items-center gap-2.5 rounded-lg px-2.5 py-2">
+              <span className="min-w-0 flex-1 truncate text-sm">
+                <span className="font-medium">Powder Undercity</span>
+                <span className="text-muted-foreground"> · requested 2h ago</span>
+              </span>
+              <Button size="sm">
+                <CheckIcon className="size-4" />
+                Approve
+              </Button>
+              <Button size="sm" variant="ghost">
+                <XIcon className="size-4" />
+                Deny
+              </Button>
+            </div>
+          </ActionBand>
         </div>
       </DemoRow>
       <DemoRow label="UserAvatarStack">

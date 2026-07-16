@@ -14,6 +14,7 @@
 
 ### Other
 
+- feat(Groups): **Redesigned members page** — join requests stand out in a highlighted approval band, and each member row now shows their role, join date, and what they share with the group.
 - feat(Groups): **Tournaments first on the group overview** — the tile row now leads with tournaments, so the next event is the first thing you see.
 - feat(Tournaments): **Warning before overwriting results** — the pod result form now says when someone else saved scores while you were editing, with a button to load the latest values.
 - fix(Tournaments): **Regions required before pairing** — on region-aware events, rounds can no longer be generated while active players lack a region; the participants page now flags those players and offers a one-click Set region button.
