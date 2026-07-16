@@ -23,6 +23,8 @@
 - feat(Groups): **Ownership transfer in group settings** — handing the group to another member now happens on the Manage page with a member picker and confirmation, instead of hiding in a member menu.
 - feat(Groups): **Tournaments first on the group overview** — the tile row now leads with tournaments, so the next event is the first thing you see.
 - feat(Tournaments): **Warning before overwriting results** — the pod result form now says when someone else saved scores while you were editing, with a button to load the latest values.
+- fix(Designer): **Card designer fits on phones** — the editor and live preview now stack within the screen instead of running off the right edge.
+- fix(App): **Phone layout cleanup** — the sets list, card pages, group join-code controls, tournament status banners, and deck value stats no longer clip or crush their text on narrow screens.
 - fix(Tournaments): **Regions required before pairing** — on region-aware events, rounds can no longer be generated while active players lack a region; the participants page now flags those players and offers a one-click Set region button.
 - fix(Tournaments): **Staff invite links fit on phones** — the invite link no longer gets squeezed to a sliver beside the Copy button on a narrow screen.
 - fix(Products): **Card art stays inside its band** — the fanned cover art on product tiles is now cropped at the band edge, so card corners no longer overlap the product name below.

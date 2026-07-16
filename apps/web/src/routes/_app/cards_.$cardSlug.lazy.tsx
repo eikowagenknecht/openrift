@@ -429,7 +429,10 @@ function CardDetailPage() {
               <LanguageChip code={lang} />
               {languageLabels[lang] ?? lang}
             </h2>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {/* grid-cols-1 matters: without it the implicit column sizes to the
+                widest printing card and pushes the whole page past a phone
+                viewport (long treatment paths get clipped off-screen). */}
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {group.map((printing) => (
                 <PrintingCard
                   key={printing.id}
@@ -930,7 +933,11 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
           </Suspense>
         </CardPanel>
         {tableRows.length > 0 && (
-          <div className="min-w-0 xl:flex-1 xl:basis-0">
+          // contain-inline-size: the scroll box below still reports the table's
+          // intrinsic width up the flex column, widening the whole page past a
+          // phone viewport; containment zeroes that contribution so the table
+          // scrolls inside instead.
+          <div className="min-w-0 contain-inline-size xl:flex-1 xl:basis-0">
             <div className="border-border max-h-[400px] overflow-auto rounded-lg border">
               <table className="w-full text-sm">
                 <thead className="sticky top-0">
@@ -956,7 +963,9 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
                       onMouseEnter={() => setHoveredDate(row.date)}
                       onMouseLeave={() => setHoveredDate(null)}
                     >
-                      <td className="text-muted-foreground px-3 py-1.5">{row.date}</td>
+                      <td className="text-muted-foreground px-3 py-1.5 whitespace-nowrap">
+                        {row.date}
+                      </td>
                       {availableMarketplaces.map((mp) => {
                         const value = row[mp];
                         const fmt = formatterForMarketplace(mp);

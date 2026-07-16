@@ -74,10 +74,13 @@ export function CardDesignerForm() {
         </div>
 
         <FieldRow label="Domains">
+          {/* Spaced chips instead of a joined segment: the seven domains don't
+              fit one phone-width line, and a joined group can't wrap. */}
           <ToggleGroup
             multiple
             variant="outline"
-            spacing={0}
+            spacing={1}
+            className="flex-wrap"
             value={card.domains}
             onValueChange={(next) => setCardField("domains", next as Domain[])}
           >
@@ -103,10 +106,12 @@ export function CardDesignerForm() {
         </FieldRow>
 
         <FieldRow label="Supertypes">
+          {/* Same wrapping treatment as the Domains row above. */}
           <ToggleGroup
             multiple
             variant="outline"
-            spacing={0}
+            spacing={1}
+            className="flex-wrap"
             value={card.superTypes}
             onValueChange={(next) => setCardField("superTypes", next)}
           >

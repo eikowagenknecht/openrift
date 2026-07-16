@@ -753,15 +753,23 @@ export const CardThumbnail = memo(function CardThumbnail({
     favoritePrice === undefined ? undefined : view === "cards" &&
       priceRange &&
       priceRange.min !== priceRange.max ? (
-      <span className="flex shrink-0 items-center gap-0.5">
-        <span className={priceColorClass(priceRange.min)}>
-          {display.compactFmt(priceRange.min)}
+      <>
+        {/* On cells narrower than 12rem (phone 2-column grid) the full range
+            leaves the name ~10 characters, so show just the "from" price. The
+            container is the CardMetaLabel root. */}
+        <span className={cn("shrink-0 @[12rem]:hidden", priceColorClass(priceRange.min))}>
+          {display.compactFmt(priceRange.min)}+
         </span>
-        <span className="text-muted-foreground/60">&ndash;</span>
-        <span className={priceColorClass(priceRange.max)}>
-          {display.compactFmt(priceRange.max)}
+        <span className="hidden shrink-0 items-center gap-0.5 @[12rem]:flex">
+          <span className={priceColorClass(priceRange.min)}>
+            {display.compactFmt(priceRange.min)}
+          </span>
+          <span className="text-muted-foreground/60">&ndash;</span>
+          <span className={priceColorClass(priceRange.max)}>
+            {display.compactFmt(priceRange.max)}
+          </span>
         </span>
-      </span>
+      </>
     ) : (
       <span className={cn("shrink-0", priceColorClass(favoritePrice))}>
         {display.compactFmt(favoritePrice)}

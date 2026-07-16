@@ -68,7 +68,9 @@ function HeroSetCard({ set }: { set: SetListEntry }) {
   );
 }
 
-const SET_GRID = "grid gap-4 min-[1920px]:grid-cols-4 sm:grid-cols-2 xl:grid-cols-3";
+// grid-cols-1 matters: without it the implicit column is content-sized and
+// wider than a phone viewport, clipping the row's date and title.
+const SET_GRID = "grid grid-cols-1 gap-4 min-[1920px]:grid-cols-4 sm:grid-cols-2 xl:grid-cols-3";
 
 function SetsPage() {
   const { data } = useSuspenseQuery(publicSetListQueryOptions);
@@ -104,7 +106,7 @@ function SetsPending() {
   return (
     <div className={PAGE_PADDING}>
       <Skeleton className="mb-4 h-8 w-32" />
-      <div className="grid gap-4 min-[1920px]:grid-cols-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className={SET_GRID}>
         {Array.from({ length: 8 }, (_, i) => (
           <Skeleton key={i} className="h-36 rounded-lg" />
         ))}

@@ -36,7 +36,11 @@ export function UserAvatarStack({
 }) {
   const extra = Math.max(0, (totalCount ?? members.length) - members.length);
   return (
-    <span className={cn("flex items-center -space-x-2", className)}>
+    // sm avatars overlap 4px instead of 8px: at size-6 the deeper overlap eats
+    // the second letter of initials-only members.
+    <span
+      className={cn("flex items-center", size === "sm" ? "-space-x-1" : "-space-x-2", className)}
+    >
       {members.map((member) => (
         <UserAvatar
           key={member.userId}

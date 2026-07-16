@@ -603,7 +603,9 @@ function ValueKpi({
       }
       caption={
         <>
-          <span className="truncate">{missingLabel}</span>
+          {/* Wraps instead of truncating: on a phone-width tile the ellipsis
+              used to land mid-parenthesis ("34 cards missing (…"). */}
+          <span className="min-w-0">{missingLabel}</span>
           {hasMissingCards && onViewMissing && (
             <Button variant="outline" size="sm" className="ml-auto" onClick={onViewMissing}>
               <PackageSearchIcon />

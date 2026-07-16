@@ -60,7 +60,9 @@ export function CardMetaLabel({
 
   return (
     // ⚠ space-y-0.5 and py-0.5 are mirrored as META_LINE_GAP / META_LABEL_PY in card-grid-constants.ts — update both together
-    <div className={cn("bg-background space-y-0.5 rounded-md px-1.5 py-0.5", className)}>
+    // @container lets the price node collapse a min–max range to its "from"
+    // price on narrow cells (see priceNode in card-thumbnail.tsx).
+    <div className={cn("bg-background @container space-y-0.5 rounded-md px-1.5 py-0.5", className)}>
       {/* ⚠ text-xs is mirrored as META_LINE_HEIGHT in card-grid-constants.ts — update both together */}
       {/* min-h-4: WebKit computes block height from font metrics instead of line-height */}
       {/* when overflow:hidden is set (via truncate), causing 1px shorter elements on iOS Safari. */}

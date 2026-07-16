@@ -107,7 +107,9 @@ export function CardDesignerPage() {
 
   return (
     <>
-      <div className="grid gap-8 lg:grid-cols-[1fr_22rem] lg:items-start">
+      {/* grid-cols-1 matters: without it the implicit column sizes to the
+          form's widest row and the whole page clips past a phone viewport. */}
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_22rem] lg:items-start">
         <div className="order-2 flex flex-col gap-6 lg:order-1">
           <CardDesignerForm />
         </div>

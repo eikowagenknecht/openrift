@@ -167,7 +167,11 @@ function PackOpenerTopBar({ children }: { children?: ReactNode }) {
     <PageTopBarSticky>
       <PageTopBar>
         <PackagePlusIcon className="mr-2 size-5 shrink-0" />
-        <PageTopBarTitle>Pack opener simulator</PageTopBarTitle>
+        {/* "simulator" drops on phones: next to the two toggles the full title
+            would ellipsize mid-word. */}
+        <PageTopBarTitle>
+          Pack opener<span className="max-sm:hidden"> simulator</span>
+        </PageTopBarTitle>
         {children ? <PageTopBarActions>{children}</PageTopBarActions> : null}
       </PageTopBar>
     </PageTopBarSticky>

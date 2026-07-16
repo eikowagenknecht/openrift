@@ -277,8 +277,10 @@ function AdminSettings({ data, slug }: { data: FriendGroupDetailResponse; slug: 
             Join code
           </Label>
           {data.group.code ? (
-            <div className="flex items-center gap-2">
-              <code className="bg-muted flex-1 rounded px-2 py-1 font-mono text-sm">
+            // flex-wrap matters: on phones the five items don't fit one line,
+            // and without it Rotate/Disable get clipped off-screen.
+            <div className="flex flex-wrap items-center gap-2">
+              <code className="bg-muted min-w-36 flex-1 rounded px-2 py-1 font-mono text-sm">
                 {data.group.code}
               </code>
               <Button

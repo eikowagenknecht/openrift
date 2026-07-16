@@ -74,12 +74,19 @@ function ActionBand({
         style: { backgroundImage: BAND_WASH },
         children: (
           <>
-            <div className="flex min-w-0 items-center gap-3">
+            {/* On phones the header wraps and the supporting text takes its own
+                line; inline it would truncate to a couple of characters next to
+                the action. From sm up the row is single-line and sub truncates. */}
+            <div className="flex min-w-0 items-center gap-x-3 gap-y-2 max-sm:flex-wrap">
               <IconChip icon={icon} tone={tone} />
-              <span className="text-muted-foreground text-sm font-medium">{label}</span>
+              <span className="text-muted-foreground text-sm font-medium whitespace-nowrap">
+                {label}
+              </span>
               <span className="font-heading text-3xl font-semibold tabular-nums">{value}</span>
               {sub ? (
-                <span className="text-muted-foreground min-w-0 truncate text-xs">{sub}</span>
+                <span className="text-muted-foreground min-w-0 text-xs max-sm:order-last max-sm:basis-full sm:truncate">
+                  {sub}
+                </span>
               ) : null}
               {action ? <span className="ml-auto flex shrink-0 items-center">{action}</span> : null}
             </div>
