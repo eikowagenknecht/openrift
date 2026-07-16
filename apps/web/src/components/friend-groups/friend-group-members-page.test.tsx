@@ -86,6 +86,7 @@ function makeDetail(overrides: Partial<FriendGroupDetailResponse> = {}): FriendG
     collectionShares: [],
     pendingRequests: [],
     cardsTradedCount: 0,
+    cardsTradedByMember: {},
     ...overrides,
   };
 }
@@ -198,6 +199,48 @@ describe("MembersPageContent roster", () => {
     expect(screen.getByText(/1 tradelist/u)).toBeInTheDocument();
     expect(screen.queryByText(/collection/u)).not.toBeInTheDocument();
     expect(screen.queryByText(/organize/u)).not.toBeInTheDocument();
+  });
+
+  it("shows a traded-count pill only for members with completed trades", () => {
+    render(
+      <MembersPageContent
+        slug="bothfeld"
+        data={makeDetail({
+          members: [makeMember("viewer-1", "owner"), makeMember("u2", "member")],
+          cardsTradedByMember: { u2: 12 },
+        })}
+      />,
+    );
+    expect(screen.getByText("12 traded")).toBeInTheDocument();
+    // The zero-count member (viewer-1) carries no pill at all.
+    expect(screen.getAllByText(/traded/u)).toHaveLength(1);
+  });
+
+  it("marks members who joined within the last month as New", () => {
+    const recent = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString();
+    render(
+      <MembersPageContent
+        slug="bothfeld"
+        data={makeDetail({
+          members: [
+            // Fixture default joinedAt (2026-02-10) is far outside the window.
+            makeMember("viewer-1", "owner"),
+            makeMember("u2", "member", { joinedAt: recent }),
+          ],
+        })}
+      />,
+    );
+    expect(screen.getAllByText("New")).toHaveLength(1);
+  });
+
+  it("labels members sharing nothing instead of leaving the card bare", () => {
+    render(
+      <MembersPageContent
+        slug="bothfeld"
+        data={makeDetail({ members: [makeMember("viewer-1", "owner")] })}
+      />,
+    );
+    expect(screen.getByText("Nothing shared yet")).toBeInTheDocument();
   });
 
   it("tallies owners and admins next to the section heading", () => {

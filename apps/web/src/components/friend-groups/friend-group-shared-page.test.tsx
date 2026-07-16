@@ -142,6 +142,7 @@ function makeDetail(overrides: Partial<FriendGroupDetailResponse> = {}): FriendG
     collectionShares: [],
     pendingRequests: [],
     cardsTradedCount: 0,
+    cardsTradedByMember: {},
     ...overrides,
   };
 }

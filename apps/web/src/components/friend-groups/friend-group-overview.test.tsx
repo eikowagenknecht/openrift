@@ -88,6 +88,7 @@ function makeDetail(
     collectionShares: [],
     pendingRequests: [],
     cardsTradedCount: 0,
+    cardsTradedByMember: {},
   };
 }
 

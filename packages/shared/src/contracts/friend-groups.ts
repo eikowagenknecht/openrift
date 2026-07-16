@@ -238,6 +238,12 @@ export const friendGroupDetailResponseSchema = z
     pendingRequests: z.array(friendGroupRequestResponseSchema),
     /** Lifetime sum of quantities over the group's completed trades. */
     cardsTradedCount: z.number().int().nonnegative().default(0),
+    /**
+     * Lifetime cards traded per member (userId → summed quantity over their
+     * completed trades in this group, as giver or receiver). Members with no
+     * completed trades are absent.
+     */
+    cardsTradedByMember: z.record(z.string(), z.number().int().nonnegative()).default({}),
   })
   .openapi("FriendGroupDetailResponse");
 

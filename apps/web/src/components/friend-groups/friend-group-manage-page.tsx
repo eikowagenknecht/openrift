@@ -9,6 +9,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import {
   BookOpenIcon,
   CopyIcon,
+  CrownIcon,
   FolderIcon,
   HandshakeIcon,
   HeartIcon,
@@ -39,6 +40,13 @@ import {
 import { DialogForm } from "@/components/ui/dialog-form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { useContactMethods } from "@/hooks/use-contact-methods";
@@ -53,6 +61,7 @@ import {
   useRotateFriendGroupCode,
   useShareCollectionWithFriendGroup,
   useShareListWithFriendGroup,
+  useTransferFriendGroupOwnership,
   useUnshareCollectionFromFriendGroup,
   useUnshareListFromFriendGroup,
   useUpdateFriendGroup,
@@ -544,6 +553,96 @@ function ShareableCollectionsPanel({ slug }: { slug: string }) {
   );
 }
 
+/**
+ * Owner-only ownership hand-off: pick another member, confirm, and the group
+ * is theirs — the outgoing owner stays on as an admin. Hidden while the owner
+ * is the only member (there is no one to hand the group to).
+ * @returns The transfer control, or null.
+ */
+function TransferOwnershipControl({
+  data,
+  slug,
+}: {
+  data: FriendGroupDetailResponse;
+  slug: string;
+}) {
+  const viewerId = useRequiredUserId();
+  const transfer = useTransferFriendGroupOwnership();
+  const [targetId, setTargetId] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const candidates = data.members.filter((member) => member.userId !== viewerId);
+  if (candidates.length === 0) {
+    return null;
+  }
+  const items = candidates.map((member) => ({
+    value: member.userId,
+    label: member.userName ?? "Unknown user",
+  }));
+  const target = candidates.find((member) => member.userId === targetId);
+
+  return (
+    <>
+      <div className="flex flex-col gap-2">
+        <Label className="flex items-center gap-2">
+          <CrownIcon className="size-4" />
+          Transfer ownership
+        </Label>
+        <p className="text-muted-foreground text-sm">
+          Hand the group to another member. You stay in the group as an admin.
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Select items={items} value={targetId} onValueChange={(value) => setTargetId(value)}>
+            <SelectTrigger className="w-56" aria-label="New owner">
+              <SelectValue placeholder="Choose a member" />
+            </SelectTrigger>
+            <SelectContent>
+              {items.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+            <DialogTrigger render={<Button variant="outline" disabled={target === undefined} />}>
+              Transfer ownership
+            </DialogTrigger>
+            <DialogContent>
+              <DialogForm
+                onSubmit={async () => {
+                  if (!target) {
+                    return;
+                  }
+                  await transfer.mutateAsync({ slug, userId: target.userId });
+                  setConfirmOpen(false);
+                }}
+              >
+                <DialogHeader>
+                  <DialogTitle>Make {target?.userName ?? "this member"} the owner?</DialogTitle>
+                  <DialogDescription>
+                    They take over the group immediately, including these settings. You become an
+                    admin and can&apos;t undo this yourself.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button variant="ghost" onClick={() => setConfirmOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" variant="destructive" disabled={transfer.isPending}>
+                    Transfer
+                  </Button>
+                </DialogFooter>
+              </DialogForm>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+      <Separator />
+    </>
+  );
+}
+
 function LeaveOrDeletePanel({ data, slug }: { data: FriendGroupDetailResponse; slug: string }) {
   const navigate = useNavigate();
   const leave = useLeaveFriendGroup();
@@ -559,8 +658,10 @@ function LeaveOrDeletePanel({ data, slug }: { data: FriendGroupDetailResponse; s
       <CardContent className="flex flex-col gap-3">
         {isOwner ? (
           <>
+            <TransferOwnershipControl data={data} slug={slug} />
             <p className="text-muted-foreground text-sm">
-              You&apos;re the owner. Transfer ownership to another member before leaving.
+              As the owner you can&apos;t leave the group yourself, transfer ownership first.
+              Deleting it removes the group for everyone.
             </p>
             <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
               <DialogTrigger render={<Button variant="destructive" />}>

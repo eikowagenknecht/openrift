@@ -12,6 +12,7 @@ import {
   Trash2Icon,
   UserPlusIcon,
   XIcon,
+  ZapIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -36,7 +37,6 @@ import {
   useDeclineFriendGroupInvite,
   useFriendGroupDetail,
   useKickFriendGroupMember,
-  useTransferFriendGroupOwnership,
   useUpdateFriendGroupRole,
 } from "@/hooks/use-friend-groups";
 import { useRequiredUserId } from "@/lib/auth-session";
@@ -51,8 +51,10 @@ import { LIST_INTENT_ICON, LIST_INTENT_NOUN } from "./list-intent-meta";
 
 /**
  * The Members page: pending join requests (admins only) as the page's action
- * band above the roster, each member row with a role chip, join date, share
- * pills, contact chips, and the admin role actions.
+ * band above the roster, then the members as a card grid (the "team wall") —
+ * each card with a role-ringed avatar, role/You/New chips, join date, the
+ * member's lifetime traded count, share pills, contact chips, and the admin
+ * role actions.
  * @returns The members-page content.
  */
 export function MembersPageContent({
@@ -99,22 +101,24 @@ export function MembersPageContent({
           <SectionHeading count={data.members.length}>Members</SectionHeading>
           <span className="text-muted-foreground/60 text-xs">{roleTally}</span>
         </div>
-        <div className="flex flex-col gap-2">
+        <ul className="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-2.5">
           {data.members.map((member) => (
-            <MemberRow
-              key={member.userId}
-              slug={slug}
-              member={member}
-              viewerId={viewerId}
-              viewerRole={viewerRole}
-              shareCounts={{
-                wishlists: wishlistCountByUser.get(member.userId) ?? 0,
-                tradelists: tradelistCountByUser.get(member.userId) ?? 0,
-                collections: collectionCountByUser.get(member.userId) ?? 0,
-              }}
-            />
+            <li key={member.userId}>
+              <MemberCard
+                slug={slug}
+                member={member}
+                viewerId={viewerId}
+                viewerRole={viewerRole}
+                shareCounts={{
+                  wishlists: wishlistCountByUser.get(member.userId) ?? 0,
+                  tradelists: tradelistCountByUser.get(member.userId) ?? 0,
+                  collections: collectionCountByUser.get(member.userId) ?? 0,
+                }}
+                cardsTraded={data.cardsTradedByMember[member.userId] ?? 0}
+              />
+            </li>
           ))}
-        </div>
+        </ul>
       </section>
     </div>
   );
@@ -231,18 +235,35 @@ export function MembersInviteAction({ slug }: { slug: string }) {
  * admins. Plain members carry no chip, so a chip always means something. */
 const ROLE_BADGE_VARIANT = { owner: "warning", admin: "violet" } as const;
 
-function MemberRow({
+/** Avatar rings echo the role chips, so leadership reads at wall distance. */
+const ROLE_AVATAR_RING = {
+  owner: "ring-2 ring-amber-500/70 ring-offset-2 ring-offset-card",
+  admin: "ring-2 ring-violet-500/60 ring-offset-2 ring-offset-card",
+  member: "",
+} as const;
+
+/** How recently a member must have joined to carry the green "New" chip. */
+const NEW_MEMBER_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** @returns Whether the join date is inside the "New" chip window. */
+function isNewMember(joinedAt: string): boolean {
+  return Date.now() - Date.parse(joinedAt) < NEW_MEMBER_WINDOW_MS;
+}
+
+function MemberCard({
   slug,
   member,
   viewerId,
   viewerRole,
   shareCounts,
+  cardsTraded,
 }: {
   slug: string;
   member: FriendGroupMemberResponse;
   viewerId: string;
   viewerRole: FriendGroupRole;
   shareCounts: { wishlists: number; tradelists: number; collections: number };
+  cardsTraded: number;
 }) {
   const isSelf = member.userId === viewerId;
   // Only the non-zero shares render, as icon pills reusing the app's
@@ -264,56 +285,30 @@ function MemberRow({
   ].filter((pill) => pill.count > 0);
   const updateRole = useUpdateFriendGroupRole();
   const kickMember = useKickFriendGroupMember();
-  const transferOwnership = useTransferFriendGroupOwnership();
 
   const canKick =
     isAdmin(viewerRole) &&
     !isSelf &&
     member.role !== "owner" &&
     (member.role !== "admin" || viewerRole === "owner");
-  // Only the owner promotes to / demotes from admin.
+  // Only the owner promotes to / demotes from admin. Ownership transfer lives
+  // on the Manage page, not in this menu.
   const canPromote = viewerRole === "owner" && !isSelf && member.role !== "admin";
   const canDemote = viewerRole === "owner" && !isSelf && member.role === "admin";
-  const canTransfer = viewerRole === "owner" && !isSelf && member.role !== "owner";
 
   return (
-    <Card className={cn(cardLinkVariants(), "flex-row items-center gap-3 p-3")}>
-      <UserAvatar
-        image={member.userImage}
-        name={member.userName}
-        gravatarHash={member.gravatarHash}
-        className="size-11"
-      />
-      <Link
-        to="/groups/$slug/members/$userId"
-        params={{ slug, userId: member.userId }}
-        className="flex min-w-0 flex-1 flex-col gap-0.5"
-      >
-        <span className="flex min-w-0 items-center gap-2">
-          <span className="truncate font-medium">{member.userName ?? "Unknown user"}</span>
-          {member.role === "member" ? null : (
-            <Badge variant={ROLE_BADGE_VARIANT[member.role]}>{ROLE_LABEL[member.role]}</Badge>
-          )}
-          {isSelf ? <Badge variant="muted">You</Badge> : null}
-        </span>
-        <span className="text-muted-foreground flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs">
-          <span>
-            Joined {formatAbsoluteDate(member.joinedAt, { month: "short", year: "numeric" })}
-          </span>
-          {sharePills.map((pill) => (
-            <CountPill key={pill.key} variant="ghost" className="px-0">
-              <pill.icon className="size-3" />
-              {pill.count} {pill.count === 1 ? pill.noun : `${pill.noun}s`}
-            </CountPill>
-          ))}
-        </span>
-      </Link>
-      <ContactMethodChips methods={member.contactMethods} className="justify-end" />
-
-      {canKick || canPromote || canDemote || canTransfer ? (
+    <Card className={cn(cardLinkVariants(), "relative h-full gap-3 p-4")}>
+      {canKick || canPromote || canDemote ? (
         <DropdownMenu>
           <DropdownMenuTrigger
-            render={<Button size="icon-sm" variant="ghost" aria-label="Member actions" />}
+            render={
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                aria-label="Member actions"
+                className="absolute top-2.5 right-2.5"
+              />
+            }
           >
             <EllipsisVerticalIcon className="size-4" />
           </DropdownMenuTrigger>
@@ -333,13 +328,6 @@ function MemberRow({
                 Demote to member
               </DropdownMenuItem>
             )}
-            {canTransfer && (
-              <DropdownMenuItem
-                onClick={() => transferOwnership.mutate({ slug, userId: member.userId })}
-              >
-                Transfer ownership
-              </DropdownMenuItem>
-            )}
             {canKick && (
               <>
                 <DropdownMenuSeparator />
@@ -354,11 +342,53 @@ function MemberRow({
             )}
           </DropdownMenuContent>
         </DropdownMenu>
-      ) : (
-        // Rows without a menu (your own row, members a plain admin can't
-        // touch) keep the contact chips column aligned with the rows above.
-        <span aria-hidden="true" className="size-7 shrink-0" />
-      )}
+      ) : null}
+      <Link
+        to="/groups/$slug/members/$userId"
+        params={{ slug, userId: member.userId }}
+        className="flex min-w-0 items-center gap-3 pr-8"
+      >
+        <UserAvatar
+          image={member.userImage}
+          name={member.userName}
+          gravatarHash={member.gravatarHash}
+          className={cn("size-13 shrink-0", ROLE_AVATAR_RING[member.role])}
+        />
+        <span className="flex min-w-0 flex-col gap-1">
+          <span className="font-medium break-words">{member.userName ?? "Unknown user"}</span>
+          <span className="flex flex-wrap items-center gap-1">
+            {member.role === "member" ? null : (
+              <Badge variant={ROLE_BADGE_VARIANT[member.role]}>{ROLE_LABEL[member.role]}</Badge>
+            )}
+            {isSelf ? <Badge variant="muted">You</Badge> : null}
+            {isNewMember(member.joinedAt) ? <Badge variant="success">New</Badge> : null}
+          </span>
+        </span>
+      </Link>
+      <div className="text-muted-foreground flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs">
+        <span>
+          Joined {formatAbsoluteDate(member.joinedAt, { month: "short", year: "numeric" })}
+        </span>
+        {cardsTraded > 0 ? (
+          <span className="flex items-center gap-1 font-medium text-amber-600 dark:text-amber-400">
+            <ZapIcon className="size-3" />
+            {cardsTraded} traded
+          </span>
+        ) : null}
+      </div>
+      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
+        {sharePills.length > 0 ? (
+          sharePills.map((pill) => (
+            <CountPill key={pill.key} variant="ghost" className="px-0">
+              <pill.icon className="size-3" />
+              {pill.count} {pill.count === 1 ? pill.noun : `${pill.noun}s`}
+            </CountPill>
+          ))
+        ) : (
+          <span className="text-muted-foreground/60 text-xs">Nothing shared yet</span>
+        )}
+      </div>
+      <ContactMethodChips methods={member.contactMethods} className="mt-auto" />
     </Card>
   );
 }

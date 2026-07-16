@@ -381,6 +381,36 @@ export function cardTradesRepo(db: Kysely<Database>) {
       return row?.total ?? 0;
     },
 
+    /**
+     * Lifetime cards traded per member of a group: for each user, the sum of
+     * `quantity` over the group's completed trades they took part in, as giver
+     * or receiver. Feeds the members page's per-member traded counts. Members
+     * with no completed trades are absent from the map.
+     * @returns userId → summed quantity.
+     */
+    async countCompletedCardsByMemberInGroup(groupId: string): Promise<Map<string, number>> {
+      const sideTotals = (side: "giverUserId" | "receiverUserId") =>
+        db
+          .selectFrom("cardTrades")
+          .select((eb) => [
+            eb.ref(side).as("userId"),
+            eb.cast<number>(eb.fn.sum(eb.ref("quantity")), "integer").as("total"),
+          ])
+          .where("groupId", "=", groupId)
+          .where("status", "=", "completed")
+          .groupBy(side)
+          .execute();
+      const [given, received] = await Promise.all([
+        sideTotals("giverUserId"),
+        sideTotals("receiverUserId"),
+      ]);
+      const totals = new Map<string, number>();
+      for (const row of [...given, ...received]) {
+        totals.set(row.userId, (totals.get(row.userId) ?? 0) + row.total);
+      }
+      return totals;
+    },
+
     async recentCompletedInGroup(groupId: string, limit: number): Promise<CompletedTradeFeedRow[]> {
       const rows = await db
         .selectFrom("cardTrades as t")

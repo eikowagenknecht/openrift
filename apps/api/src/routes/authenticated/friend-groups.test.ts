@@ -127,6 +127,7 @@ function makeApp(overrides: {
   };
   const cardTrades = {
     countCompletedCardsInGroup: vi.fn(() => Promise.resolve(0)),
+    countCompletedCardsByMemberInGroup: vi.fn(() => Promise.resolve(new Map())),
     ...overrides.cardTrades,
   };
 
@@ -468,7 +469,7 @@ describe("friend-groups route", () => {
     expect(body.pendingRequests).toHaveLength(1);
   });
 
-  it("GET /{slug} carries the group's lifetime cards-traded count", async () => {
+  it("GET /{slug} carries the group and per-member lifetime cards-traded counts", async () => {
     const { app } = makeApp({
       friendGroups: {
         getBySlug: vi.fn(() => Promise.resolve(group)),
@@ -478,12 +479,17 @@ describe("friend-groups route", () => {
       },
       cardTrades: {
         countCompletedCardsInGroup: vi.fn(() => Promise.resolve(128)),
+        countCompletedCardsByMemberInGroup: vi.fn(() => Promise.resolve(new Map([[USER_ID, 90]]))),
       },
     });
     const res = await app.request("/api/v1/friend-groups/playgroup");
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { cardsTradedCount: number };
+    const body = (await res.json()) as {
+      cardsTradedCount: number;
+      cardsTradedByMember: Record<string, number>;
+    };
     expect(body.cardsTradedCount).toBe(128);
+    expect(body.cardsTradedByMember).toEqual({ [USER_ID]: 90 });
   });
 
   it("GET /{slug} attaches batched cover printings to collection shares", async () => {

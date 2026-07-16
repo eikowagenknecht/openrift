@@ -560,6 +560,22 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     expect(await repos.cardTrades.countCompletedCardsInGroup(group.id)).toBe(2);
   });
 
+  it("countCompletedCardsByMemberInGroup credits both parties, completed only", async () => {
+    const { group } = await setupMatch(3);
+    expect(await repos.cardTrades.countCompletedCardsByMemberInGroup(group.id)).toEqual(new Map());
+    const trade = await request(group, 2);
+    await acceptTrade(transact, trade.id, GIVER_ID);
+    // Reserved trades don't count — same rule as the group-wide stat.
+    expect(await repos.cardTrades.countCompletedCardsByMemberInGroup(group.id)).toEqual(new Map());
+    await completeTrade(transact, trade.id, RECEIVER_ID);
+    expect(await repos.cardTrades.countCompletedCardsByMemberInGroup(group.id)).toEqual(
+      new Map([
+        [GIVER_ID, 2],
+        [RECEIVER_ID, 2],
+      ]),
+    );
+  });
+
   it("complete → giver Apply disposes copies (removed event + tradelist entry gone)", async () => {
     const { group, tradeListId, copyIds } = await setupMatch(1);
     const trade = await request(group, 1);
