@@ -10,6 +10,7 @@
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "dev": "bun scripts/dev.ts",
+    "dev:screenshot": "VITE_DISABLE_DEVTOOLS=1 bun scripts/dev.ts",
     "dev:web": "turbo run dev --filter=web",
     "analyze": "bun run --cwd apps/web analyze",
     "format": "oxfmt",
