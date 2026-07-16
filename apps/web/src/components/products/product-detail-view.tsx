@@ -5,7 +5,6 @@ import { Suspense, useState } from "react";
 import { CardViewer } from "@/components/card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import {
-  BrowserActiveFilters,
   BrowserToolbar,
   CardBrowserFilterProvider,
 } from "@/components/cards/card-browser-filter-scaffold";
@@ -284,7 +283,6 @@ function ProductDetailGrid({ data }: { data: ProductDetailResponse }) {
       hideViewToggle
     />
   );
-  const aboveGrid = <BrowserActiveFilters />;
   const rightPane = isMobile ? undefined : (
     <SelectionDetailPane
       items={items}
@@ -312,7 +310,6 @@ function ProductDetailGrid({ data }: { data: ProductDetailResponse }) {
         totalItems={productPrintings.length}
         renderCard={renderCard}
         toolbar={toolbar}
-        aboveGrid={aboveGrid}
         rightPane={rightPane}
         addStripHeight={ADD_STRIP_HEIGHT}
         table={{

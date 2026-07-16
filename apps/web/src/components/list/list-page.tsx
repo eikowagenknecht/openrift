@@ -28,7 +28,6 @@ import { toast } from "sonner";
 import { CardViewer } from "@/components/card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import {
-  BrowserActiveFilters,
   BrowserToolbar,
   CardBrowserFilterProvider,
 } from "@/components/cards/card-browser-filter-scaffold";
@@ -1190,7 +1189,6 @@ function ListEntryBrowser({
   const moveTargetLists = allLists.filter(
     (list) => list.id !== listId && list.kind === kind && list.intent === intent,
   );
-  const aboveGrid = <BrowserActiveFilters />;
 
   // The detail-pane picker lists every printing of the clicked card from the
   // global catalog, scoped to the user's language prefs — not just the
@@ -1231,7 +1229,6 @@ function ListEntryBrowser({
           siblingPrintings={selectedCard ? siblingsSource.get(selectedCard.cardId) : undefined}
           renderCard={renderCard}
           toolbar={toolbar}
-          aboveGrid={aboveGrid}
           rightPane={rightPane}
           addStripHeight={ADD_STRIP_HEIGHT}
           table={{

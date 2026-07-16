@@ -132,8 +132,9 @@ function BrowserMobileFilters() {
 }
 
 /**
- * Active-filter chip strip rendered above the grid. Reads meta from
- * {@link CardBrowserFilterProvider}.
+ * Active-filter chip strip. Rendered inside {@link BrowserToolbar}'s sticky
+ * tier (right below the search row) so search + chips pin as one block on
+ * mobile. Reads meta from {@link CardBrowserFilterProvider}.
  *
  * @returns The active filters strip.
  */
@@ -206,11 +207,12 @@ export function BrowserToolbar({
   groupByOptions,
   groupByValue,
 }: BrowserToolbarProps) {
-  // On mobile, when the active-filters strip renders below (its own sticky tier),
-  // tighten the gap so the search row and its filter chips read as one grouped
-  // block instead of three evenly-spaced bands. That strip is sm:hidden, so from
-  // sm up (where the compact filter bar replaces it) the gap stays a constant
-  // mb-3 to avoid a state-dependent shift with nothing below to group with.
+  // On mobile the active-filters strip renders right below the search row, in
+  // this same sticky tier (see BrowserActiveFilters below). Tighten the gap so
+  // the search row and its chips read as one grouped block instead of two
+  // evenly-spaced bands. That strip is sm:hidden, so from sm up (where the
+  // compact filter bar replaces it) the gap stays a constant mb-3 to avoid a
+  // state-dependent shift with nothing below to group with.
   const { hasActiveFilters } = useFilterValues();
   return (
     <>
@@ -235,6 +237,10 @@ export function BrowserToolbar({
         </MobileOptionsDrawer>
       </div>
       <BrowserCompactFilters />
+      {/* Mobile-only chip strip, kept in this sticky tier so search + chips pin
+          as one block. On sm+ it collapses to display:none (the compact bar
+          above surfaces the same filters inline). */}
+      <BrowserActiveFilters />
     </>
   );
 }

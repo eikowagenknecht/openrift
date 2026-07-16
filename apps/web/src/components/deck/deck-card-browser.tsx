@@ -5,7 +5,6 @@ import { useDeferredValue, useEffect, useState } from "react";
 import { BrowserCardViewer } from "@/components/browser-card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import {
-  BrowserActiveFilters,
   BrowserToolbar,
   CardBrowserFilterProvider,
 } from "@/components/cards/card-browser-filter-scaffold";
@@ -700,7 +699,6 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
         groupDir={groupDir}
         stale={isGridStale}
         toolbar={toolbar}
-        aboveGrid={<BrowserActiveFilters />}
         rightPane={rightPane}
         addStripHeight={ADD_STRIP_HEIGHT}
         table={{

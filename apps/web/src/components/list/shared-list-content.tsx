@@ -12,7 +12,6 @@ import { toast } from "sonner";
 import { CardViewer } from "@/components/card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import {
-  BrowserActiveFilters,
   BrowserToolbar,
   CardBrowserFilterProvider,
 } from "@/components/cards/card-browser-filter-scaffold";
@@ -496,7 +495,6 @@ function SharedListGrid({
       hideViewToggle
     />
   );
-  const aboveGrid = <BrowserActiveFilters />;
 
   // The detail-pane picker lists every printing of the clicked card from the
   // global catalog, scoped to the user's preferred languages — not just the
@@ -545,7 +543,6 @@ function SharedListGrid({
           totalItems={view === "copies" ? entries.length : listPrintings.length}
           renderCard={renderCard}
           toolbar={toolbar}
-          aboveGrid={aboveGrid}
           rightPane={rightPane}
           addStripHeight={ADD_STRIP_HEIGHT}
           table={

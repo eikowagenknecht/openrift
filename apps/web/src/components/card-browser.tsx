@@ -8,7 +8,6 @@ import { BrowserCardViewer } from "@/components/browser-card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import { BrowserCardCell } from "@/components/cards/browser-card-cell";
 import {
-  BrowserActiveFilters,
   BrowserToolbar,
   CardBrowserFilterProvider,
 } from "@/components/cards/card-browser-filter-scaffold";
@@ -358,7 +357,6 @@ export function CardBrowser() {
           view={view}
           stale={isGridStale}
           toolbar={toolbar}
-          aboveGrid={<BrowserActiveFilters />}
           rightPane={rightPane}
           addStripHeight={showStrip ? ADD_STRIP_HEIGHT : undefined}
           table={{

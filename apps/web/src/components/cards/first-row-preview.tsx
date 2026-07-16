@@ -116,14 +116,13 @@ export function FirstRowPreview() {
             filterCounts={filterCountsHydrated}
             topLevelUnits={DEFAULT_TOP_LEVEL_UNITS}
           />
+          {/* Mirrors BrowserActiveFilters: the strip lives in the same sticky
+              tier as the search row and only shows below sm, where the compact
+              bar gives way to the mobile drawer. */}
+          <div className="contents sm:hidden">
+            <ActiveFilters availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
+          </div>
         </>
-      }
-      aboveGrid={
-        // Mirrors BrowserActiveFilters: the strip only shows below sm, where
-        // the compact bar gives way to the mobile drawer.
-        <div className="contents sm:hidden">
-          <ActiveFilters availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
-        </div>
       }
       gridSlot={
         firstRow.length === 0 ? null : (

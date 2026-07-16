@@ -24,7 +24,6 @@ import { toast } from "sonner";
 import { BrowserCardViewer } from "@/components/browser-card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import {
-  BrowserActiveFilters,
   BrowserToolbar,
   CardBrowserFilterProvider,
 } from "@/components/cards/card-browser-filter-scaffold";
@@ -1430,7 +1429,6 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
             view={dataView}
             stale={isGridStale}
             toolbar={toolbar}
-            aboveGrid={<BrowserActiveFilters />}
             banner={
               showIntroBanner ? (
                 <CollectionIntroBanner showLibrary={showLibrary} onDismiss={dismissIntro} />

@@ -5,7 +5,6 @@ import { Suspense, useState } from "react";
 import { CardViewer } from "@/components/card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import {
-  BrowserActiveFilters,
   BrowserToolbar,
   CardBrowserFilterProvider,
 } from "@/components/cards/card-browser-filter-scaffold";
@@ -301,7 +300,6 @@ function SharedCollectionGrid({ data }: { data: PublicCollectionDetailResponse }
       }
     />
   );
-  const aboveGrid = <BrowserActiveFilters />;
   const rightPane = isMobile ? undefined : (
     <SelectionDetailPane
       items={items}
@@ -329,7 +327,6 @@ function SharedCollectionGrid({ data }: { data: PublicCollectionDetailResponse }
         totalItems={collectionPrintings.length}
         renderCard={renderCard}
         toolbar={toolbar}
-        aboveGrid={aboveGrid}
         rightPane={rightPane}
         addStripHeight={ADD_STRIP_HEIGHT}
         table={{

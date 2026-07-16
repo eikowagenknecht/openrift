@@ -72,6 +72,18 @@ describe("BrowserToolbar", () => {
     expect(screen.getByText("compact-filter-bar-stub")).toBeInTheDocument();
     expect(screen.getByText("mobile-filter-content-stub")).toBeInTheDocument();
   });
+
+  it("renders the active-filters strip in its own sticky tier so it pins with the search row", () => {
+    // The strip must live inside the toolbar, not in a separate sticky slot —
+    // two independent sticky tiers race their measured offsets on mobile and
+    // open a gap between the search row and the chips. Keeping them in one
+    // tier is the fix, so assert co-location here.
+    setDisplayState();
+    mockUseFilterValues.mockReturnValue({ hasActiveFilters: true });
+    renderInProvider(<BrowserToolbar totalCards={10} filteredCount={10} />);
+    const strip = screen.getByText("active-filters-stub").parentElement;
+    expect(strip).toHaveClass("contents", "sm:hidden");
+  });
 });
 
 describe("BrowserActiveFilters", () => {
