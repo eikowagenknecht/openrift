@@ -397,8 +397,8 @@ export async function buildUnifiedMappingsResponse(
   groups.sort((a, b) => a.primaryShortCode.localeCompare(b.primaryShortCode));
 
   // allCards only needs to be sent once (same card pool for all)
-  const allCards = [tcgResult.allCards, cmResult.allCards, ctResult.allCards].reduce((best, curr) =>
-    curr.length >= best.length ? curr : best,
+  const allCards = [tcgResult.allCards, cmResult.allCards, ctResult.allCards].reduce(
+    (best, curr) => (curr.length >= best.length ? curr : best),
   );
 
   return {

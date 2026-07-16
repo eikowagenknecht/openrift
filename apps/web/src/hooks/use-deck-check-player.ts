@@ -228,7 +228,9 @@ export function useClaimTournamentDeck() {
  */
 export function usePreviewTournamentDeck() {
   return useMutation({
-    mutationFn: (vars: ({ token: string } | { entryId: string }) & TournamentDeckSubmissionInput) =>
+    mutationFn: (
+      vars: ({ token: string } | { entryId: string }) & TournamentDeckSubmissionInput,
+    ) =>
       "token" in vars
         ? submitTournamentDeckFn({ data: { ...vars, dryRun: true } })
         : editMyTournamentDeckFn({ data: { ...vars, dryRun: true } }),
