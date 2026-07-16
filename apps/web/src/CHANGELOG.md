@@ -14,6 +14,7 @@
 
 ### Other
 
+- feat(Groups): **Tournaments first on the group overview** — the tile row now leads with tournaments, so the next event is the first thing you see.
 - feat(Tournaments): **Warning before overwriting results** — the pod result form now says when someone else saved scores while you were editing, with a button to load the latest values.
 - feat(Cards): **Clearer narrowed-search indicator** — when search is limited to certain fields, the "in:" chip now stays visible even with an empty search box and has its own remove button to search all fields again.
 - fix(Cards): **Filter chips no longer detach on mobile** — the active-filter chips now stay attached to the search bar instead of sometimes floating below a gap with uneven spacing.

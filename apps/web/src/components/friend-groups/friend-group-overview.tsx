@@ -23,7 +23,7 @@ import {
   tradeSection,
   withoutLiveTradeMatches,
 } from "@/lib/trade-derivation";
-import { cn } from "@/lib/utils";
+import { capitalize, cn } from "@/lib/utils";
 
 import { FriendGroupActivityFeed } from "./friend-group-activity-feed";
 import { SECTION_HEADING, isAdmin } from "./friend-group-shell";
@@ -198,6 +198,7 @@ function ActionTiles({ slug, data }: { slug: string; data: FriendGroupDetailResp
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <GroupTournamentsTile slug={slug} data={data} />
       <StatCard
         to="/groups/$slug/shared"
         slug={slug}
@@ -210,7 +211,6 @@ function ActionTiles({ slug, data }: { slug: string; data: FriendGroupDetailResp
         }
       />
       <MembersCard slug={slug} data={data} />
-      <GroupTournamentsTile slug={slug} data={data} />
     </div>
   );
 }
@@ -373,7 +373,7 @@ function NewestShared({ slug, data }: { slug: string; data: FriendGroupDetailRes
         sharedAt: share.sharedAt,
         icon: LIST_INTENT_ICON[share.listIntent],
         name: share.listName,
-        sub: `${LIST_INTENT_NOUN[share.listIntent]} · ${share.userName ?? "a member"}`,
+        sub: `${capitalize(LIST_INTENT_NOUN[share.listIntent])} · ${share.userName ?? "a member"}`,
         target: "list",
         listId: share.listId,
       }),
@@ -384,7 +384,7 @@ function NewestShared({ slug, data }: { slug: string; data: FriendGroupDetailRes
         sharedAt: share.sharedAt,
         icon: FolderIcon,
         name: share.collectionName,
-        sub: `collection · ${share.userName ?? "a member"}`,
+        sub: `Collection · ${share.userName ?? "a member"}`,
         target: "collection",
         collectionId: share.collectionId,
       }),
