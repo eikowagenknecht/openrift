@@ -366,6 +366,7 @@ export type {
   TournamentHostType,
   TournamentListLockMode,
   TournamentListResponse,
+  TournamentMatchFormat,
   TournamentModuleFlags,
   TournamentPairingStyle,
   TournamentParticipantListResponse,

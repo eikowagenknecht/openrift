@@ -29,6 +29,21 @@ export function determinePodSizes(playerCount: number): PodSizes | null {
 }
 
 /**
+ * Decompose an active-player count into 1v1 Swiss matches (2-player pods). Only
+ * even counts >= 2 are representable; the caller guarantees evenness by handing
+ * an odd field a bye before pairing.
+ *
+ * @param playerCount The number of active players to seat.
+ * @returns The pod-size split (all twos), or null for odd or non-positive counts.
+ */
+export function determineSwissPodSizes(playerCount: number): PodSizes | null {
+  if (!Number.isInteger(playerCount) || playerCount < 2 || playerCount % 2 !== 0) {
+    return null;
+  }
+  return { fours: 0, threes: 0, twos: playerCount / 2 };
+}
+
+/**
  * The Swiss convention for how many rounds to run a field of `playerCount`:
  * `ceil(log2(playerCount))`, enough to separate a clear winner. This is a
  * suggestion only; the organizer decides when to end the tournament.

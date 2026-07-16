@@ -8,6 +8,7 @@ import type {
   TournamentHostType,
   TournamentListLockMode,
   TournamentParticipantStatus,
+  TournamentMatchFormat,
   TournamentPairingStyle,
   TournamentStaffRole,
   TournamentStatus,
@@ -68,6 +69,10 @@ export interface NewTournament {
   pairingStyle: TournamentPairingStyle;
   scoringScheme?: PodScoringScheme;
   byePoints?: number;
+  matchFormat?: TournamentMatchFormat;
+  winPoints?: number;
+  drawPoints?: number;
+  regionsEnabled?: boolean;
   deckSubmission: TournamentDeckSubmission;
   deckPhase?: TournamentDeckPhase;
   submissionsCloseAt?: Date | null;
@@ -92,6 +97,11 @@ export interface TournamentPatch {
   groupId?: string | null;
   scoringScheme?: PodScoringScheme;
   byePoints?: number;
+  /** The Swiss result-entry format. The route guards that it only changes before any round. */
+  matchFormat?: TournamentMatchFormat;
+  winPoints?: number;
+  drawPoints?: number;
+  regionsEnabled?: boolean;
   deckSubmission?: TournamentDeckSubmission;
   deckPhase?: TournamentDeckPhase;
   submissionsCloseAt?: Date | null;
@@ -123,6 +133,8 @@ export interface TournamentParticipantWithUser extends TournamentParticipant {
 export interface NewTournamentParticipant {
   tournamentId: string;
   displayName: string;
+  /** Region tag slug (custom-tag category `region`); validated by the route. */
+  region?: string | null;
   riotId?: string | null;
   userId?: string | null;
   claimSource?: TournamentClaimSource | null;
@@ -133,6 +145,7 @@ export interface NewTournamentParticipant {
 
 export interface TournamentParticipantPatch {
   displayName?: string;
+  region?: string | null;
   riotId?: string | null;
   userId?: string | null;
   claimSource?: TournamentClaimSource | null;

@@ -45,7 +45,10 @@ import {
   DECK_PHASE_LABEL,
   DECK_SUBMISSION_ITEMS,
   effectiveTournamentState,
+  hasPairing,
   localTimeZoneLabel,
+  MATCH_FORMAT_ITEMS,
+  MATCH_FORMAT_LABEL,
   PAIRING_STYLE_ITEMS,
   PAIRING_STYLE_LABEL,
   parseScheduleInput,
@@ -57,7 +60,13 @@ import {
  * entries when those cards aren't rendered for this tournament/role.
  * @returns The ordered list of TOC items.
  */
-function buildTocItems({ isHost, isPod }: { isHost: boolean; isPod: boolean }): PageTocItem[] {
+function buildTocItems({
+  isHost,
+  runsRounds,
+}: {
+  isHost: boolean;
+  runsRounds: boolean;
+}): PageTocItem[] {
   return [
     { id: "general", label: "General" },
     { id: "name", label: "Name", level: 1 },
@@ -70,10 +79,16 @@ function buildTocItems({ isHost, isPod }: { isHost: boolean; isPod: boolean }): 
     { id: "schedule", label: "Schedule", level: 1 },
     { id: "pairings-decks", label: "Pairings & decks" },
     { id: "pairings", label: "Pairings", level: 1 },
+    ...(runsRounds
+      ? [
+          { id: "points", label: "Points", level: 1 },
+          { id: "regions", label: "Regions", level: 1 },
+        ]
+      : []),
     { id: "decks", label: "Decks", level: 1 },
     { id: "sharing", label: "Sharing" },
     { id: "signup-links", label: "Sign-up links", level: 1 },
-    ...(isPod ? [{ id: "follow-along", label: "Follow-along", level: 1 }] : []),
+    ...(runsRounds ? [{ id: "follow-along", label: "Follow-along", level: 1 }] : []),
     { id: "danger-zone", label: "Danger zone" },
   ];
 }
@@ -106,7 +121,8 @@ export function TournamentSettingsTab({ detail }: { detail: TournamentDetailResp
   const [confirmDisableFollow, setConfirmDisableFollow] = useState(false);
 
   const id = detail.id;
-  const isPod = detail.pairingStyle === "pod";
+  const runsRounds = hasPairing(detail.pairingStyle);
+  const isSwiss = detail.pairingStyle === "swiss";
   const isHost = detail.myRoles.includes("host");
   const tzLabel = localTimeZoneLabel();
   const effectiveState = effectiveTournamentState(detail.startsAt, detail.endsAt, detail.status);
@@ -175,7 +191,7 @@ export function TournamentSettingsTab({ detail }: { detail: TournamentDetailResp
   }
 
   return (
-    <SettingsLayout toc={buildTocItems({ isHost, isPod })}>
+    <SettingsLayout toc={buildTocItems({ isHost, runsRounds })}>
       <SettingsGroup id="general" title="General">
         <Card id="name" className="scroll-mt-16">
           <CardHeader>
@@ -340,7 +356,7 @@ export function TournamentSettingsTab({ detail }: { detail: TournamentDetailResp
                 value={detail.pairingStyle}
                 disabled={locked || updateTournament.isPending}
                 onValueChange={(value) => {
-                  if (value === "pod" || value === "none") {
+                  if (value === "pod" || value === "none" || value === "swiss") {
                     void run(() => updateTournament.mutateAsync({ id, pairingStyle: value }));
                   }
                 }}
@@ -356,9 +372,68 @@ export function TournamentSettingsTab({ detail }: { detail: TournamentDetailResp
                   ))}
                 </SelectContent>
               </Select>
+              {isSwiss ? (
+                <div className="flex flex-col gap-1.5">
+                  <Label>Match format</Label>
+                  <Select
+                    items={MATCH_FORMAT_ITEMS}
+                    value={detail.matchFormat}
+                    disabled={locked || updateTournament.isPending}
+                    onValueChange={(value) => {
+                      if (value === "bo1" || value === "bo3") {
+                        void run(() => updateTournament.mutateAsync({ id, matchFormat: value }));
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="max-w-sm" aria-label="Match format">
+                      <SelectValue placeholder="Match format" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MATCH_FORMAT_ITEMS.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : null}
             </CardContent>
           )}
+          {detail.hasRounds && isSwiss ? (
+            <CardContent className="text-muted-foreground text-sm">
+              {MATCH_FORMAT_LABEL[detail.matchFormat]}. The match format is fixed once a round has
+              been generated.
+            </CardContent>
+          ) : null}
         </Card>
+
+        {runsRounds ? <PointsCard detail={detail} locked={locked} /> : null}
+
+        {runsRounds ? (
+          <Card id="regions" className="scroll-mt-16">
+            <CardHeader>
+              <CardTitle>Regions</CardTitle>
+              <CardDescription>
+                Track a region per player. Pairings avoid same-region matchups, and standings add a
+                per-region leaderboard. Judges assign regions on the Participants tab.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-3">
+                <Switch
+                  id="t-regions"
+                  checked={detail.regionsEnabled}
+                  disabled={locked || updateTournament.isPending}
+                  onCheckedChange={(checked) =>
+                    void run(() => updateTournament.mutateAsync({ id, regionsEnabled: checked }))
+                  }
+                />
+                <Label htmlFor="t-regions">Track player regions</Label>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
 
         <Card id="decks" className="scroll-mt-16">
           <CardHeader>
@@ -550,7 +625,7 @@ export function TournamentSettingsTab({ detail }: { detail: TournamentDetailResp
           </CardContent>
         </Card>
 
-        {isPod ? (
+        {runsRounds ? (
           <Card id="follow-along" className="scroll-mt-16">
             <CardHeader>
               <CardTitle>Participant follow-along</CardTitle>
@@ -803,6 +878,121 @@ export function TournamentSettingsTab({ detail }: { detail: TournamentDetailResp
         </DialogContent>
       </Dialog>
     </SettingsLayout>
+  );
+}
+
+/**
+ * Win/draw/bye point configuration. Points are derived on read, so edits
+ * recalculate the standings of already-finalized rounds too.
+ * @returns The points card.
+ */
+function PointsCard({ detail, locked }: { detail: TournamentDetailResponse; locked: boolean }) {
+  const updateTournament = useUpdateTournament();
+  const isSwiss = detail.pairingStyle === "swiss";
+  const [winText, setWinText] = useState(String(detail.winPoints));
+  const [drawText, setDrawText] = useState(String(detail.drawPoints));
+  const [byeText, setByeText] = useState(String(detail.byePoints));
+
+  const parsePoints = (text: string): number | null => {
+    if (!/^\d{1,2}$/u.test(text.trim())) {
+      return null;
+    }
+    return Number(text.trim());
+  };
+  const win = parsePoints(winText);
+  const draw = parsePoints(drawText);
+  const bye = parsePoints(byeText);
+  const invalid = bye === null || (isSwiss && (win === null || draw === null));
+  const changed =
+    bye !== detail.byePoints ||
+    (isSwiss && (win !== detail.winPoints || draw !== detail.drawPoints));
+
+  async function save() {
+    if (invalid) {
+      return;
+    }
+    // Built before the try block: the React Compiler cannot lower conditional
+    // value blocks inside try/catch and would bail out of this component.
+    const patch = {
+      id: detail.id,
+      byePoints: bye ?? undefined,
+      winPoints: isSwiss ? (win ?? undefined) : undefined,
+      drawPoints: isSwiss ? (draw ?? undefined) : undefined,
+    };
+    try {
+      await updateTournament.mutateAsync(patch);
+      toast.success("Points updated");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Something went wrong");
+    }
+  }
+
+  return (
+    <Card id="points" className="scroll-mt-16">
+      <CardHeader>
+        <CardTitle>Points</CardTitle>
+        <CardDescription>
+          {isSwiss
+            ? "Points a match win, a draw, and a bye are worth. Changing these recalculates the standings of played rounds too."
+            : "Points a bye (sitting a round out) is worth. Changing this recalculates the standings of played rounds too."}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-wrap items-end gap-3">
+          {isSwiss ? (
+            <>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="t-win-points">Win</Label>
+                <Input
+                  id="t-win-points"
+                  value={winText}
+                  disabled={locked}
+                  inputMode="numeric"
+                  className="w-20 tabular-nums"
+                  aria-label="Points for a match win"
+                  onChange={(event) => setWinText(event.target.value)}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="t-draw-points">Draw</Label>
+                <Input
+                  id="t-draw-points"
+                  value={drawText}
+                  disabled={locked}
+                  inputMode="numeric"
+                  className="w-20 tabular-nums"
+                  aria-label="Points for a draw"
+                  onChange={(event) => setDrawText(event.target.value)}
+                />
+              </div>
+            </>
+          ) : null}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="t-bye-points">Bye</Label>
+            <Input
+              id="t-bye-points"
+              value={byeText}
+              disabled={locked}
+              inputMode="numeric"
+              className="w-20 tabular-nums"
+              aria-label="Points for a bye"
+              onChange={(event) => setByeText(event.target.value)}
+            />
+          </div>
+          <Button
+            disabled={locked || invalid || !changed || updateTournament.isPending}
+            onClick={() => void save()}
+          >
+            Save
+          </Button>
+        </div>
+        {invalid ? (
+          <span className="text-destructive mt-2 block text-sm">
+            Points must be whole numbers between 0 and 99.
+          </span>
+        ) : null}
+      </CardContent>
+    </Card>
   );
 }
 

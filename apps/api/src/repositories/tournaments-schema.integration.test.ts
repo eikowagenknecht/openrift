@@ -119,10 +119,28 @@ describe.skipIf(!ctx)("tournaments schema invariants (integration)", () => {
           hostUserId: HOST_ID,
           name: "Bad pairing",
           // @ts-expect-error — exercising the DB CHECK with an out-of-enum value.
-          pairingStyle: "swiss",
+          pairingStyle: "bracket",
         })
         .execute(),
     ).rejects.toThrow();
+  });
+
+  it("accepts a swiss tournament with the swiss defaults", async () => {
+    const row = await db
+      .insertInto("tournaments")
+      .values({
+        hostType: "user",
+        hostUserId: HOST_ID,
+        name: "Swiss night",
+        pairingStyle: "swiss",
+      })
+      .returningAll()
+      .executeTakeFirstOrThrow();
+    expect(row.pairingStyle).toBe("swiss");
+    expect(row.matchFormat).toBe("bo1");
+    expect(row.winPoints).toBe(3);
+    expect(row.drawPoints).toBe(1);
+    expect(row.regionsEnabled).toBe(false);
   });
 
   it("accepts an empty tournament with no pairings and no decks", async () => {

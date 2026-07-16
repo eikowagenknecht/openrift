@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { placementsFromGamePoints, pointsForPlacements } from "./points";
+import { placementsFromGamePoints, pointsForPlacements, swissPointsForPlacements } from "./points";
 
 describe("pointsForPlacements", () => {
   it("scores a clean 4-pod 1/2/3/4 as 3/2/1/0", () => {
@@ -46,6 +46,33 @@ describe("pointsForPlacements", () => {
 
   it("leaves 4-pods unchanged under the reduced scheme", () => {
     expect(pointsForPlacements([1, 2, 3, 4], 4, "three_pod_reduced")).toEqual([3, 2, 1, 0]);
+  });
+});
+
+describe("swissPointsForPlacements", () => {
+  it("gives the winner the win points and the loser zero", () => {
+    expect(swissPointsForPlacements([1, 2], 3, 1)).toEqual([3, 0]);
+    expect(swissPointsForPlacements([2, 1], 3, 1)).toEqual([0, 3]);
+  });
+
+  it("gives both players the draw points on a tie", () => {
+    expect(swissPointsForPlacements([1, 1], 3, 1)).toEqual([1, 1]);
+  });
+
+  it("honors custom win and draw values", () => {
+    expect(swissPointsForPlacements([1, 2], 5, 2)).toEqual([5, 0]);
+    expect(swissPointsForPlacements([1, 1], 5, 2)).toEqual([2, 2]);
+  });
+
+  it("throws on a non-match placement count", () => {
+    expect(() => swissPointsForPlacements([1, 2, 3], 3, 1)).toThrow();
+    expect(() => swissPointsForPlacements([1], 3, 1)).toThrow();
+  });
+
+  it("composes with placementsFromGamePoints for Bo3 game scores", () => {
+    expect(swissPointsForPlacements(placementsFromGamePoints([2, 1]), 3, 1)).toEqual([3, 0]);
+    expect(swissPointsForPlacements(placementsFromGamePoints([1, 1]), 3, 1)).toEqual([1, 1]);
+    expect(swissPointsForPlacements(placementsFromGamePoints([0, 2]), 3, 1)).toEqual([0, 3]);
   });
 });
 

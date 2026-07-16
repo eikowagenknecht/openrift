@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import {
   CopyIcon,
   EllipsisVerticalIcon,
+  GlobeIcon,
   LayersIcon,
   Link2Icon,
   PencilIcon,
@@ -37,7 +38,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { UserAvatar } from "@/components/user-avatar";
+import { useCustomTagList } from "@/hooks/use-enums";
+import { useRegionLabel } from "@/hooks/use-region-label";
 import { useTournamentDeckCheckEntries } from "@/hooks/use-tournament-deck-check";
 import {
   useAddParticipant,
@@ -47,6 +57,7 @@ import {
 } from "@/hooks/use-tournaments";
 import { getSiteUrl } from "@/lib/site-config";
 import {
+  canCheckDecks,
   canManageTournament,
   compareParticipantsForList,
   PARTICIPANT_STATUS_LABEL,
@@ -79,6 +90,9 @@ export function TournamentParticipantsTab({
   detail: TournamentDetailResponse;
 }) {
   const manage = canManageTournament(detail.myRoles);
+  // Judges assign regions (part of deck check) even without manage rights.
+  const canAssignRegion = detail.regionsEnabled && canCheckDecks(detail.myRoles);
+  const regionLabel = useRegionLabel();
   const { data } = useTournamentParticipants(id);
   const participants = data.items.toSorted(compareParticipantsForList);
   const updateParticipant = useUpdateParticipant();
@@ -97,6 +111,11 @@ export function TournamentParticipantsTab({
   const [renameTarget, setRenameTarget] = useState<{ participantId: string; name: string } | null>(
     null,
   );
+  const [regionTarget, setRegionTarget] = useState<{
+    participantId: string;
+    name: string;
+    region: string;
+  } | null>(null);
   const [removeTarget, setRemoveTarget] = useState<{ participantId: string; name: string } | null>(
     null,
   );
@@ -159,6 +178,9 @@ export function TournamentParticipantsTab({
                     <Badge variant={statusBadgeVariant(participant.status)}>
                       {PARTICIPANT_STATUS_LABEL[participant.status]}
                     </Badge>
+                    {detail.regionsEnabled && participant.region ? (
+                      <Badge variant="outline">{regionLabel(participant.region)}</Badge>
+                    ) : null}
                     {participant.userId ? (
                       <Badge
                         variant="subtle"
@@ -229,6 +251,20 @@ export function TournamentParticipantsTab({
                             <PencilIcon className="size-4" />
                             Rename
                           </DropdownMenuItem>
+                          {canAssignRegion ? (
+                            <DropdownMenuItem
+                              onClick={() =>
+                                setRegionTarget({
+                                  participantId: participant.id,
+                                  name: participant.displayName,
+                                  region: participant.region ?? "none",
+                                })
+                              }
+                            >
+                              <GlobeIcon className="size-4" />
+                              Set region
+                            </DropdownMenuItem>
+                          ) : null}
                           {participant.status === "active" ? (
                             <DropdownMenuItem
                               disabled={participantAction.isPending}
@@ -292,6 +328,23 @@ export function TournamentParticipantsTab({
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </span>
+                  ) : canAssignRegion ? (
+                    <span className="flex shrink-0 items-center gap-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() =>
+                          setRegionTarget({
+                            participantId: participant.id,
+                            name: participant.displayName,
+                            region: participant.region ?? "none",
+                          })
+                        }
+                      >
+                        <GlobeIcon className="size-4" />
+                        Set region
+                      </Button>
+                    </span>
                   ) : null}
                 </Card>
               </li>
@@ -343,6 +396,47 @@ export function TournamentParticipantsTab({
         </DialogContent>
       </Dialog>
 
+      <Dialog open={regionTarget !== null} onOpenChange={(open) => !open && setRegionTarget(null)}>
+        <DialogContent>
+          <DialogForm
+            onSubmit={async () => {
+              if (!regionTarget) {
+                return;
+              }
+              await run(() =>
+                updateParticipant.mutateAsync({
+                  id,
+                  participantId: regionTarget.participantId,
+                  region: regionTarget.region === "none" ? null : regionTarget.region,
+                }),
+              );
+              setRegionTarget(null);
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>Set region for {regionTarget?.name}</DialogTitle>
+              <DialogDescription>
+                The region this player represents. Pairings avoid same-region matchups.
+              </DialogDescription>
+            </DialogHeader>
+            <RegionSelect
+              value={regionTarget?.region ?? "none"}
+              onChange={(value) =>
+                setRegionTarget((prev) => (prev ? { ...prev, region: value } : prev))
+              }
+            />
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setRegionTarget(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={updateParticipant.isPending}>
+                Save
+              </Button>
+            </DialogFooter>
+          </DialogForm>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={removeTarget !== null} onOpenChange={(open) => !open && setRemoveTarget(null)}>
         <DialogContent>
           <DialogForm
@@ -374,6 +468,33 @@ export function TournamentParticipantsTab({
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+/**
+ * Region picker for the set-region dialog: the `region` custom-tag vocabulary
+ * (the same one Custom - Region decks use) plus a "No region" option.
+ * @returns The region select.
+ */
+function RegionSelect({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const { byCategory } = useCustomTagList();
+  const items = [
+    { value: "none", label: "No region" },
+    ...(byCategory.get("region") ?? []).map((tag) => ({ value: tag.slug, label: tag.label })),
+  ];
+  return (
+    <Select items={items} value={value} onValueChange={(next) => next && onChange(next)}>
+      <SelectTrigger aria-label="Region">
+        <SelectValue placeholder="Region" />
+      </SelectTrigger>
+      <SelectContent>
+        {items.map((item) => (
+          <SelectItem key={item.value} value={item.value}>
+            {item.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 

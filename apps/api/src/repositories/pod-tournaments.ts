@@ -1,4 +1,8 @@
-import { placementsFromGamePoints, pointsForPlacements } from "@openrift/shared";
+import {
+  placementsFromGamePoints,
+  pointsForPlacements,
+  swissPointsForPlacements,
+} from "@openrift/shared";
 import type {
   PairingPlayer,
   PairingResult,
@@ -9,7 +13,6 @@ import type {
   PodSnapshotPlayer,
   PodStandingRow,
   PodTournamentStatus,
-  ScoringScheme,
 } from "@openrift/shared";
 import type { Kysely, Selectable } from "kysely";
 
@@ -45,6 +48,47 @@ export interface PodForResult {
   memberPlayerIds: string[];
 }
 
+/**
+ * The per-tournament scoring knobs the derive-on-read model needs: the FFA
+ * placement scheme for 3/4-pods, win/draw points for Swiss matches (2-pods),
+ * and the bye points shared by both.
+ */
+export interface PodScoring {
+  scheme: PodScoringScheme;
+  byePoints: number;
+  winPoints: number;
+  drawPoints: number;
+}
+
+/**
+ * Pluck the scoring knobs off a tournament row.
+ *
+ * @param tournament The tournament row.
+ * @returns The scoring context for the derived reads.
+ */
+export function scoringOf(tournament: PodTournament): PodScoring {
+  return {
+    scheme: tournament.scoringScheme,
+    byePoints: tournament.byePoints,
+    winPoints: tournament.winPoints,
+    drawPoints: tournament.drawPoints,
+  };
+}
+
+// Narrow a stored pod size to the literal union (the CHECK guarantees 2/3/4).
+function podSizeOf(value: number): 2 | 3 | 4 {
+  return value === 2 ? 2 : value === 3 ? 3 : 4;
+}
+
+// Points per member for one pod: Swiss win/draw points for a match (size 2),
+// the placement tables for a 3/4 FFA pod.
+function pointsForPod(placements: number[], size: 2 | 3 | 4, scoring: PodScoring): number[] {
+  if (size === 2) {
+    return swissPointsForPlacements(placements, scoring.winPoints, scoring.drawPoints);
+  }
+  return pointsForPlacements(placements, size, scoring.scheme);
+}
+
 /** Per-player aggregate, derived from the finalized rounds (the lean model's source of truth). */
 interface PlayerAggregate {
   score: number;
@@ -56,6 +100,10 @@ interface PlayerAggregate {
   byes: number;
   /** Pods won outright (sole 1st place; a tied 1st does not count). */
   podWins: number;
+  /** Swiss match record, counted for 2-pods only; stays 0 for pod-style play. */
+  wins: number;
+  draws: number;
+  losses: number;
   roundsPlayed: number;
   opponents: Map<string, number>;
 }
@@ -92,6 +140,9 @@ function emptyAggregate(): PlayerAggregate {
     pods4: 0,
     byes: 0,
     podWins: 0,
+    wins: 0,
+    draws: 0,
+    losses: 0,
     roundsPlayed: 0,
     opponents: new Map(),
   };
@@ -106,15 +157,13 @@ function emptyAggregate(): PlayerAggregate {
  *
  * @param rows The finalized pod-member rows.
  * @param byePlayerIds One entry per finalized bye (a player id, repeated per bye).
- * @param scheme The active scoring scheme.
- * @param byePoints Score points a sat-out (bye) game is worth for this tournament.
+ * @param scoring The tournament's scoring knobs.
  * @returns A map from player id to their derived aggregate.
  */
 function foldFinalized(
   rows: FinalizedMemberRow[],
   byePlayerIds: string[],
-  scheme: ScoringScheme,
-  byePoints: number,
+  scoring: PodScoring,
 ): Map<string, PlayerAggregate> {
   const aggregates = new Map<string, PlayerAggregate>();
   const ensure = (id: string): PlayerAggregate => {
@@ -128,11 +177,11 @@ function foldFinalized(
   };
 
   for (const [, members] of Map.groupBy(rows, (row) => row.podId)) {
-    const size = members[0]?.size === 3 ? 3 : 4;
-    const points = pointsForPlacements(
+    const size = podSizeOf(members[0]?.size ?? 4);
+    const points = pointsForPod(
       members.map((member) => member.placement ?? 0),
       size,
-      scheme,
+      scoring,
     );
     members.forEach((member, index) => {
       const aggregate = ensure(member.playerId);
@@ -141,7 +190,7 @@ function foldFinalized(
       aggregate.roundsPlayed += 1;
       if (size === 3) {
         aggregate.pods3 += 1;
-      } else {
+      } else if (size === 4) {
         aggregate.pods4 += 1;
       }
     });
@@ -154,6 +203,21 @@ function foldFinalized(
       const leaders = members.filter((member) => member.placement === best);
       if (leaders.length === 1) {
         ensure(leaders[0].playerId).podWins += 1;
+      }
+      // The Swiss match record: a 2-pod is a win/draw/loss per member.
+      if (size === 2) {
+        for (const member of members) {
+          const aggregate = ensure(member.playerId);
+          if (leaders.length === 1) {
+            if (member.placement === best) {
+              aggregate.wins += 1;
+            } else {
+              aggregate.losses += 1;
+            }
+          } else {
+            aggregate.draws += 1;
+          }
+        }
       }
     }
     for (let i = 0; i < members.length; i++) {
@@ -170,7 +234,7 @@ function foldFinalized(
 
   for (const playerId of byePlayerIds) {
     const aggregate = ensure(playerId);
-    aggregate.score += byePoints;
+    aggregate.score += scoring.byePoints;
     aggregate.roundsPlayed += 1;
     aggregate.byes += 1;
   }
@@ -186,15 +250,15 @@ interface PodMemberRow {
   gamePoints: number | null;
 }
 
-function toPodResponse(pod: Pod, memberRows: PodMemberRow[], scheme: ScoringScheme): PodResponse {
-  const size = pod.size === 3 ? 3 : 4;
+function toPodResponse(pod: Pod, memberRows: PodMemberRow[], scoring: PodScoring): PodResponse {
+  const size = podSizeOf(pod.size);
   const reported =
     pod.resultStatus === "reported" && memberRows.every((member) => member.placement !== null);
   const points = reported
-    ? pointsForPlacements(
+    ? pointsForPod(
         memberRows.map((member) => member.placement ?? 0),
         size,
-        scheme,
+        scoring,
       )
     : null;
   const breakdown = parseBreakdown(pod.penaltyBreakdown);
@@ -218,6 +282,8 @@ function toPodResponse(pod: Pod, memberRows: PodMemberRow[], scheme: ScoringSche
       imbalance: breakdown.imbalance,
       float: breakdown.float,
       threePodRepeat: breakdown.threePodRepeat,
+      // Breakdowns stored before the region feature lack this key.
+      sameRegion: breakdown.sameRegion ?? 0,
     },
   };
 }
@@ -233,7 +299,7 @@ function toRoundResponse(
   podRows: Pod[],
   membersByPod: Map<string, PodMemberRow[]>,
   byeRows: PodByeRow[],
-  scheme: ScoringScheme,
+  scoring: PodScoring,
 ): PodRoundResponse {
   return {
     id: round.id,
@@ -243,7 +309,7 @@ function toRoundResponse(
     penaltyTotal: round.penaltyTotal,
     createdAt: round.createdAt.toISOString(),
     finalizedAt: round.finalizedAt ? round.finalizedAt.toISOString() : null,
-    pods: podRows.map((pod) => toPodResponse(pod, membersByPod.get(pod.id) ?? [], scheme)),
+    pods: podRows.map((pod) => toPodResponse(pod, membersByPod.get(pod.id) ?? [], scoring)),
     byes: byeRows.map((bye) => ({ playerId: bye.playerId, displayName: bye.displayName })),
   };
 }
@@ -741,15 +807,11 @@ export function podTournamentsRepo(db: Kysely<Database>) {
 
     // ── Derived reads (the lean model) ───────────────────────────────────────
     /** @returns Active players as engine snapshots, aggregates derived from finalized rounds. */
-    async loadPairingSnapshot(
-      tournamentId: string,
-      scheme: PodScoringScheme,
-      byePoints: number,
-    ): Promise<PairingPlayer[]> {
+    async loadPairingSnapshot(tournamentId: string, scoring: PodScoring): Promise<PairingPlayer[]> {
       const [activePlayers, finalizedRows, finalizedByes] = await Promise.all([
         db
           .selectFrom("tournamentParticipants")
-          .select(["id"])
+          .select(["id", "region"])
           .where("tournamentId", "=", tournamentId)
           .where("status", "=", "active")
           .orderBy("createdAt", "asc")
@@ -757,7 +819,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
         loadFinalizedRows(tournamentId),
         loadFinalizedByePlayerIds(tournamentId),
       ]);
-      const aggregates = foldFinalized(finalizedRows, finalizedByes, scheme, byePoints);
+      const aggregates = foldFinalized(finalizedRows, finalizedByes, scoring);
       return activePlayers.map((player) => {
         const aggregate = aggregates.get(player.id);
         return {
@@ -767,6 +829,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
           pods4: aggregate?.pods4 ?? 0,
           byes: aggregate?.byes ?? 0,
           opponents: aggregate?.opponents ?? new Map(),
+          region: player.region,
         };
       });
     },
@@ -780,20 +843,19 @@ export function podTournamentsRepo(db: Kysely<Database>) {
      */
     async loadOpenRoundSnapshot(
       tournamentId: string,
-      scheme: PodScoringScheme,
-      byePoints: number,
+      scoring: PodScoring,
     ): Promise<PodSnapshotPlayer[]> {
       const [players, finalizedRows, finalizedByes] = await Promise.all([
         db
           .selectFrom("tournamentParticipants")
-          .select(["id"])
+          .select(["id", "region"])
           .where("tournamentId", "=", tournamentId)
           .orderBy("createdAt", "asc")
           .execute(),
         loadFinalizedRows(tournamentId),
         loadFinalizedByePlayerIds(tournamentId),
       ]);
-      const aggregates = foldFinalized(finalizedRows, finalizedByes, scheme, byePoints);
+      const aggregates = foldFinalized(finalizedRows, finalizedByes, scoring);
       return players.map((player) => {
         const aggregate = aggregates.get(player.id);
         return {
@@ -803,6 +865,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
           pods4: aggregate?.pods4 ?? 0,
           byes: aggregate?.byes ?? 0,
           opponents: aggregate ? Object.fromEntries(aggregate.opponents) : {},
+          region: player.region,
         };
       });
     },
@@ -812,11 +875,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
      *   tournament score → pod wins → average opponent score → game points →
      *   average opponent game points → random (a stable per-player draw).
      */
-    async computeStandings(
-      tournamentId: string,
-      scheme: PodScoringScheme,
-      byePoints: number,
-    ): Promise<PodStandingRow[]> {
+    async computeStandings(tournamentId: string, scoring: PodScoring): Promise<PodStandingRow[]> {
       const [players, finalizedRows, finalizedByes] = await Promise.all([
         db
           .selectFrom("tournamentParticipants")
@@ -827,7 +886,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
         loadFinalizedRows(tournamentId),
         loadFinalizedByePlayerIds(tournamentId),
       ]);
-      const aggregates = foldFinalized(finalizedRows, finalizedByes, scheme, byePoints);
+      const aggregates = foldFinalized(finalizedRows, finalizedByes, scoring);
       const scoreOf = (id: string): number => aggregates.get(id)?.score ?? 0;
       const gamePointsOf = (id: string): number => aggregates.get(id)?.gamePoints ?? 0;
       const meanOver = (ids: string[], valueOf: (id: string) => number): number =>
@@ -847,6 +906,10 @@ export function podTournamentsRepo(db: Kysely<Database>) {
           pods4Count: aggregate?.pods4 ?? 0,
           byeCount: aggregate?.byes ?? 0,
           podWins: aggregate?.podWins ?? 0,
+          wins: aggregate?.wins ?? 0,
+          draws: aggregate?.draws ?? 0,
+          losses: aggregate?.losses ?? 0,
+          region: player.region,
           avgOpponentScore: meanOver(opponents, scoreOf),
           avgOpponentGamePoints: meanOver(opponents, gamePointsOf),
         };
@@ -866,7 +929,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
     },
 
     /** @returns Every round with its pods and members (placements + derived points + penalty). */
-    async loadRounds(tournamentId: string, scheme: PodScoringScheme): Promise<PodRoundResponse[]> {
+    async loadRounds(tournamentId: string, scoring: PodScoring): Promise<PodRoundResponse[]> {
       const rounds = await db
         .selectFrom("podRounds")
         .selectAll()
@@ -909,7 +972,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
           podsByRound.get(round.id) ?? [],
           membersByPod,
           byesByRound.get(round.id) ?? [],
-          scheme,
+          scoring,
         ),
       );
     },

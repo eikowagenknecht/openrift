@@ -26,18 +26,18 @@ import {
   toPayload,
   validatePartition,
 } from "@/lib/pod-pairing-editor";
-import type { EditorState, MoveTarget } from "@/lib/pod-pairing-editor";
+import type { EditorMode, EditorState, MoveTarget } from "@/lib/pod-pairing-editor";
 import { cn } from "@/lib/utils";
 
 import { snapshotToPlayers, WarningList } from "./pairing-warnings";
 
 // Build the non-empty pods as engine pods. Size is the live member count; the
-// engine reads it only for the `=== 3` checks, so a transient 2/5 is runtime-safe
-// even though the type is narrowed to 3 | 4.
+// engine reads it only for the `=== 3` checks, so a transient 5 is runtime-safe
+// even though the type is narrowed to 2 | 3 | 4.
 function toEnginePods(state: EditorState): Pod[] {
   return state.pods
     .filter((pod) => pod.playerIds.length > 0)
-    .map((pod) => ({ size: pod.playerIds.length as 3 | 4, playerIds: pod.playerIds }));
+    .map((pod) => ({ size: pod.playerIds.length as 2 | 3 | 4, playerIds: pod.playerIds }));
 }
 
 /**
@@ -48,6 +48,8 @@ function toEnginePods(state: EditorState): Pod[] {
  * @param id The tournament id.
  * @param round The open (reporting) round being edited.
  * @param snapshot Per-player pre-round aggregates (for penalty + warnings).
+ * @param mode Which sizes are valid: FFA pods (3/4) or Swiss matches (2).
+ * @param regionLabel Region slug -> display label for the region warnings.
  * @param onClose Called after a successful save or a cancel.
  * @returns The editor.
  */
@@ -55,11 +57,15 @@ export function PodPairingEditor({
   id,
   round,
   snapshot,
+  mode = "pod",
+  regionLabel,
   onClose,
 }: {
   id: string;
   round: PodRoundResponse;
   snapshot: PodSnapshotPlayer[];
+  mode?: EditorMode;
+  regionLabel?: (slug: string) => string;
   onClose: () => void;
 }) {
   const [state, setState] = useState<EditorState>(() => seedFromRound(round));
@@ -79,7 +85,7 @@ export function PodPairingEditor({
   const playersById = new Map(players.map((player) => [player.id, player]));
 
   const expected = participantIds(seedFromRound(round));
-  const validation = validatePartition(state, expected);
+  const validation = validatePartition(state, expected, mode);
   const enginePods = toEnginePods(state);
   const warnings = computePairingWarnings(enginePods, players, state.byes);
   const totalPenalty = enginePods.reduce(
@@ -92,7 +98,8 @@ export function PodPairingEditor({
     if (
       warning.kind === "rematch" ||
       warning.kind === "largeSpread" ||
-      warning.kind === "repeatedThreePod"
+      warning.kind === "repeatedThreePod" ||
+      warning.kind === "sameRegion"
     ) {
       // enginePods drops empties, so its indices match only non-empty pods; map back
       // to the editor pod index for display by counting non-empty pods.
@@ -145,8 +152,9 @@ export function PodPairingEditor({
           </span>
         </div>
         <p className="text-muted-foreground text-sm">
-          Drag players between pods or into Byes. Every pod must have 3 or 4 players to save.
-          Warnings are advisory.
+          {mode === "swiss"
+            ? "Drag players between matches or into Byes. Every match must have exactly 2 players to save. Warnings are advisory."
+            : "Drag players between pods or into Byes. Every pod must have 3 or 4 players to save. Warnings are advisory."}
         </p>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {state.pods.map((pod, index) => (
@@ -157,6 +165,8 @@ export function PodPairingEditor({
               valid={validation.podValid[index] ?? true}
               warnings={podWarnings.get(index) ?? []}
               nameById={nameById}
+              mode={mode}
+              regionLabel={regionLabel}
             >
               {pod.playerIds.map((playerId) => (
                 <PlayerChip
@@ -260,6 +270,8 @@ function PodDropZone({
   valid,
   warnings,
   nameById,
+  mode,
+  regionLabel,
   children,
 }: {
   index: number;
@@ -267,6 +279,8 @@ function PodDropZone({
   valid: boolean;
   warnings: PairingWarning[];
   nameById: Map<string, string>;
+  mode: EditorMode;
+  regionLabel?: (slug: string) => string;
   children: React.ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({
@@ -280,12 +294,12 @@ function PodDropZone({
     >
       <CardHeader className="gap-1">
         <CardTitle className="flex items-center justify-between gap-2">
-          <span>Pod {index + 1}</span>
+          <span>{mode === "swiss" ? `Match ${index + 1}` : `Pod ${index + 1}`}</span>
           <span className={cn("font-normal", valid ? "text-muted-foreground" : "text-destructive")}>
             {count} player{count === 1 ? "" : "s"}
           </span>
         </CardTitle>
-        <WarningList warnings={warnings} nameById={nameById} />
+        <WarningList warnings={warnings} nameById={nameById} regionLabel={regionLabel} />
       </CardHeader>
       <CardContent className="flex min-h-12 flex-col gap-1.5">{children}</CardContent>
     </Card>

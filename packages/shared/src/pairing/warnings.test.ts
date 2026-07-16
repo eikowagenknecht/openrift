@@ -82,6 +82,25 @@ describe("computePairingWarnings", () => {
     ).toEqual([]);
   });
 
+  it("flags each in-pod pair sharing a region, with the region slug", () => {
+    const players = [
+      player("a", { region: "noxus" }),
+      player("b", { region: "noxus" }),
+      player("c", { region: "demacia" }),
+      player("d", { region: null }),
+    ];
+    const warnings = computePairingWarnings([fourPod("a", "b", "c", "d")], players);
+    expect(warnings).toEqual([
+      { kind: "sameRegion", podIndex: 0, playerIds: ["a", "b"], region: "noxus" },
+    ]);
+  });
+
+  it("raises no region warning for players without a region", () => {
+    const players = [player("a", { region: null }), player("b")];
+    const warnings = computePairingWarnings([{ size: 2, playerIds: ["a", "b"] }], players);
+    expect(warnings).toEqual([]);
+  });
+
   it("flags a repeat bye only for players who have byed before", () => {
     const players = [player("x", { byes: 1 }), player("y", { byes: 0 })];
     const warnings = computePairingWarnings([], players, ["x", "y"]);

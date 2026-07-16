@@ -73,6 +73,7 @@ export function toParticipant(row: TournamentParticipantWithUser): TournamentPar
     riotId: row.riotId,
     status: row.status as TournamentParticipantStatus,
     seed: row.seed,
+    region: row.region,
     droppedAfterRound: row.droppedAfterRound,
     // Only an unclaimed, unblocked spot has a live claim link. An already-linked
     // participant (userId set) or a blocked spot's token is dead (the claim flow

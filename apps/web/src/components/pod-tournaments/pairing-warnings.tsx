@@ -4,6 +4,9 @@ import { TriangleAlertIcon } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
+// Default region label: the raw slug (named so the React Compiler can reorder it).
+const rawRegionSlug = (slug: string): string => slug;
+
 /**
  * Rebuild the engine's `PairingPlayer[]` (Map opponents) from the wire snapshot.
  * @returns The players in the engine's snapshot shape.
@@ -16,6 +19,7 @@ export function snapshotToPlayers(snapshot: PodSnapshotPlayer[]): PairingPlayer[
     pods4: player.pods4,
     byes: player.byes,
     opponents: new Map(Object.entries(player.opponents)),
+    region: player.region,
   }));
 }
 
@@ -23,7 +27,11 @@ export function snapshotToPlayers(snapshot: PodSnapshotPlayer[]): PairingPlayer[
  * A human-readable, organizer-facing description of one warning.
  * @returns The warning sentence.
  */
-function describeWarning(warning: PairingWarning, nameById: Map<string, string>): string {
+function describeWarning(
+  warning: PairingWarning,
+  nameById: Map<string, string>,
+  regionLabel: (slug: string) => string,
+): string {
   const name = (id: string) => nameById.get(id) ?? "A player";
   switch (warning.kind) {
     case "rematch": {
@@ -44,6 +52,11 @@ function describeWarning(warning: PairingWarning, nameById: Map<string, string>)
         warning.priorByes === 1 ? "" : "s"
       }`;
     }
+    case "sameRegion": {
+      return `${name(warning.playerIds[0])} & ${name(warning.playerIds[1])} both play ${regionLabel(
+        warning.region,
+      )}`;
+    }
   }
 }
 
@@ -55,10 +68,12 @@ function describeWarning(warning: PairingWarning, nameById: Map<string, string>)
 export function WarningList({
   warnings,
   nameById,
+  regionLabel = rawRegionSlug,
   className,
 }: {
   warnings: PairingWarning[];
   nameById: Map<string, string>;
+  regionLabel?: (slug: string) => string;
   className?: string;
 }) {
   if (warnings.length === 0) {
@@ -71,7 +86,7 @@ export function WarningList({
       {warnings.map((warning, index) => (
         <li key={index} className="flex items-start gap-1.5">
           <TriangleAlertIcon className="mt-0.5 size-3.5 shrink-0" />
-          <span>{describeWarning(warning, nameById)}</span>
+          <span>{describeWarning(warning, nameById, regionLabel)}</span>
         </li>
       ))}
     </ul>
@@ -86,9 +101,11 @@ export function WarningList({
 export function WarningBadge({
   warnings,
   nameById,
+  regionLabel = rawRegionSlug,
 }: {
   warnings: PairingWarning[];
   nameById: Map<string, string>;
+  regionLabel?: (slug: string) => string;
 }) {
   if (warnings.length === 0) {
     return null;
@@ -106,7 +123,7 @@ export function WarningBadge({
       <TooltipContent>
         <ul className="flex flex-col gap-0.5">
           {warnings.map((warning, index) => (
-            <li key={index}>{describeWarning(warning, nameById)}</li>
+            <li key={index}>{describeWarning(warning, nameById, regionLabel)}</li>
           ))}
         </ul>
       </TooltipContent>

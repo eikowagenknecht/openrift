@@ -5,6 +5,7 @@ import { implement } from "@orpc/server";
 import type { Repos } from "../../deps.js";
 import { requireUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
+import { scoringOf } from "../../repositories/pod-tournaments.js";
 import type { PodTournament } from "../../repositories/pod-tournaments.js";
 import { submitPodPlayerResult, submitPodResult } from "../../services/pod-pairing.js";
 
@@ -18,20 +19,22 @@ async function buildReport(
   tournament: PodTournament,
   canSubmit: boolean,
 ): Promise<PodReportResponse> {
+  const scoring = scoringOf(tournament);
   const [standings, rounds] = await Promise.all([
-    repos.podTournaments.computeStandings(
-      tournament.id,
-      tournament.scoringScheme,
-      tournament.byePoints,
-    ),
-    repos.podTournaments.loadRounds(tournament.id, tournament.scoringScheme),
+    repos.podTournaments.computeStandings(tournament.id, scoring),
+    repos.podTournaments.loadRounds(tournament.id, scoring),
   ]);
   return {
     tournamentName: tournament.name,
     status: tournament.status,
     currentRound: tournament.currentRound,
+    pairingStyle: tournament.pairingStyle,
     scoringScheme: tournament.scoringScheme,
     byePoints: tournament.byePoints,
+    matchFormat: tournament.matchFormat,
+    winPoints: tournament.winPoints,
+    drawPoints: tournament.drawPoints,
+    regionsEnabled: tournament.regionsEnabled,
     standings,
     rounds: rounds.map((round) => ({
       ...round,
@@ -54,10 +57,10 @@ export const publicPodTournamentsRouter = {
   report: os.report.handler(async ({ input, context, errors }): Promise<PodReportResponse> => {
     const repos = context.repos;
     const tournament = await repos.podTournaments.findByShareToken(input.token);
-    // The follow-along report is a pod-engine surface. A non-pod tournament has no
-    // pairings or standings to show, so even with a live token it is treated as
-    // not found rather than rendering an empty pod shell.
-    if (!tournament || tournament.pairingStyle !== "pod") {
+    // The follow-along report is a pairing-engine surface (pods or Swiss). A
+    // no-pairing tournament has no pairings or standings to show, so even with a
+    // live token it is treated as not found rather than rendering an empty shell.
+    if (!tournament || tournament.pairingStyle === "none") {
       throw errors.NOT_FOUND({ message: "Not found" });
     }
     // Only the report token grants result entry; the follow token is read-only.
@@ -69,7 +72,7 @@ export const publicPodTournamentsRouter = {
     async ({ input, context, errors }): Promise<PodReportResponse> => {
       const repos = context.repos;
       const tournament = await repos.podTournaments.findByShareToken(input.token);
-      if (!tournament || tournament.pairingStyle !== "pod") {
+      if (!tournament || tournament.pairingStyle === "none") {
         throw errors.NOT_FOUND({ message: "Not found" });
       }
       // The read-only follow token resolves the report but cannot enter results.

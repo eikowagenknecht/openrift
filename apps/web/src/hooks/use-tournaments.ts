@@ -7,6 +7,7 @@ import type {
   TournamentDetailResponse,
   TournamentListLockMode,
   TournamentListResponse,
+  TournamentMatchFormat,
   TournamentPairingStyle,
   TournamentParticipantListResponse,
   TournamentStaffCandidateListResponse,
@@ -38,6 +39,11 @@ interface CreateTournamentInput {
   name: string;
   host: { type: "user" } | { type: "organization"; orgId: string };
   pairingStyle: TournamentPairingStyle;
+  matchFormat?: TournamentMatchFormat;
+  winPoints?: number;
+  drawPoints?: number;
+  byePoints?: number;
+  regionsEnabled?: boolean;
   deckSubmission: TournamentDeckSubmission;
   selfRegistration?: boolean;
   submissionsCloseAt?: string | null;
@@ -59,6 +65,10 @@ interface UpdateTournamentInput {
   endsAt?: string | null;
   scoringScheme?: "standard" | "three_pod_reduced";
   byePoints?: number;
+  matchFormat?: TournamentMatchFormat;
+  winPoints?: number;
+  drawPoints?: number;
+  regionsEnabled?: boolean;
   deckSubmission?: TournamentDeckSubmission;
   submissionsCloseAt?: string | null;
   listLockMode?: TournamentListLockMode;
@@ -315,7 +325,7 @@ const removeStaffFn = createServerFn({ method: "POST" })
 // Participants
 
 const addParticipantFn = createServerFn({ method: "POST" })
-  .validator((input: { id: string; displayName: string }) => input)
+  .validator((input: { id: string; displayName: string; region?: string | null }) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<TournamentParticipantListResponse> =>
@@ -324,8 +334,13 @@ const addParticipantFn = createServerFn({ method: "POST" })
 
 const updateParticipantFn = createServerFn({ method: "POST" })
   .validator(
-    (input: { id: string; participantId: string; displayName?: string; seed?: number | null }) =>
-      input,
+    (input: {
+      id: string;
+      participantId: string;
+      displayName?: string;
+      seed?: number | null;
+      region?: string | null;
+    }) => input,
   )
   .middleware([withCookies])
   .handler(
@@ -468,8 +483,8 @@ export function useRemoveTournamentStaff() {
 }
 
 export function useAddParticipant() {
-  return useParticipantMutation<{ id: string; displayName: string }>((data) =>
-    addParticipantFn({ data }),
+  return useParticipantMutation<{ id: string; displayName: string; region?: string | null }>(
+    (data) => addParticipantFn({ data }),
   );
 }
 
@@ -479,6 +494,7 @@ export function useUpdateParticipant() {
     participantId: string;
     displayName?: string;
     seed?: number | null;
+    region?: string | null;
   }>((data) => updateParticipantFn({ data }));
 }
 
@@ -522,7 +538,7 @@ interface PodResultEntry {
 }
 
 interface PairingPodInput {
-  size: 3 | 4;
+  size: 2 | 3 | 4;
   playerIds: string[];
 }
 

@@ -16,9 +16,12 @@ export type MoveTarget = { kind: "pod"; index: number } | { kind: "bye" };
 
 /** The payload sent to the replace-pairing endpoint, with empty pods dropped. */
 export interface PairingPayload {
-  pods: { size: 3 | 4; playerIds: string[] }[];
+  pods: { size: 2 | 3 | 4; playerIds: string[] }[];
   byes: string[];
 }
+
+/** Which sizes a pod may have in the editor: FFA pods (3/4) or Swiss matches (2). */
+export type EditorMode = "pod" | "swiss";
 
 export interface PartitionValidation {
   /** True when the partition can be saved. */
@@ -71,27 +74,36 @@ export function movePlayer(state: EditorState, playerId: string, target: MoveTar
 }
 
 /**
- * Validate the partition for saving: every non-empty pod must be size 3 or 4, and
- * the pods plus byes must cover exactly the round's players, each once. Empty pods
- * are ignored here (they are dropped on save).
+ * Validate the partition for saving: every non-empty pod must have a size the
+ * mode allows (3/4 for FFA pods, exactly 2 for Swiss matches), and the pods plus
+ * byes must cover exactly the round's players, each once. Empty pods are ignored
+ * here (they are dropped on save).
  *
  * @param state The current partition.
  * @param expectedPlayerIds The players the round must still contain.
+ * @param mode The pairing style being edited; defaults to FFA pods.
  * @returns The validation result with per-pod validity and human-readable errors.
  */
 export function validatePartition(
   state: EditorState,
   expectedPlayerIds: readonly string[],
+  mode: EditorMode = "pod",
 ): PartitionValidation {
   const errors: string[] = [];
+  const sizeOk = (size: number): boolean =>
+    mode === "swiss" ? size === 2 : size === 3 || size === 4;
   const podValid = state.pods.map((pod) => {
     const size = pod.playerIds.length;
-    return size === 0 || size === 3 || size === 4;
+    return size === 0 || sizeOk(size);
   });
   state.pods.forEach((pod, index) => {
     const size = pod.playerIds.length;
-    if (size !== 0 && size !== 3 && size !== 4) {
-      errors.push(`Pod ${index + 1} has ${size} players. Pods must have 3 or 4.`);
+    if (size !== 0 && !sizeOk(size)) {
+      errors.push(
+        mode === "swiss"
+          ? `Match ${index + 1} has ${size} players. Matches must have exactly 2.`
+          : `Pod ${index + 1} has ${size} players. Pods must have 3 or 4.`,
+      );
     }
   });
 
@@ -110,8 +122,8 @@ export function validatePartition(
 
 /**
  * Build the save payload, dropping empty pods. Assumes the state is valid (call
- * {@link validatePartition} first); a non-3/4 pod is coerced by length and the
- * server re-validates anyway.
+ * {@link validatePartition} first); an out-of-range pod is coerced by length and
+ * the server re-validates anyway.
  *
  * @param state The current partition.
  * @returns The pods (empties removed) and byes for the replace-pairing call.
@@ -120,7 +132,7 @@ export function toPayload(state: EditorState): PairingPayload {
   return {
     pods: state.pods
       .filter((pod) => pod.playerIds.length > 0)
-      .map((pod) => ({ size: pod.playerIds.length as 3 | 4, playerIds: pod.playerIds })),
+      .map((pod) => ({ size: pod.playerIds.length as 2 | 3 | 4, playerIds: pod.playerIds })),
     byes: state.byes,
   };
 }

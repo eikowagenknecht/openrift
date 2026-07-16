@@ -34,6 +34,7 @@ import type {
   TournamentDeckSubmission,
   TournamentHostType,
   TournamentListLockMode,
+  TournamentMatchFormat,
   TournamentPairingStyle,
   TournamentStaffRole,
   UserPreferencesResponse,
@@ -820,12 +821,20 @@ export interface TournamentsTable {
   /** Optional end instant: a set value pins a multi-day close or an early finish. */
   endsAt: Date | null;
 
-  // The pairing engine. 'none' = no rounds; 'pod' = pod rounds.
+  // The pairing engine. 'none' = no rounds; 'pod' = pod rounds; 'swiss' = 1v1 matches.
   pairingStyle: Generated<TournamentPairingStyle>;
   currentRound: Generated<number>;
   scoringScheme: Generated<PodScoringScheme>;
   /** Score points a sat-out (bye) game is worth; CHECK >= 0. Defaults to 3. */
   byePoints: Generated<number>;
+  /** Swiss result entry (Bo1/Bo3); CHECK chk_tournaments_match_format. Defaults to 'bo1'. */
+  matchFormat: Generated<TournamentMatchFormat>;
+  /** Swiss match-win points; CHECK >= 0. Defaults to 3. Derived on read, so editable anytime. */
+  winPoints: Generated<number>;
+  /** Swiss draw points per player; CHECK >= 0. Defaults to 1. */
+  drawPoints: Generated<number>;
+  /** Region layer: participant regions, region-aware pairing, region standings. */
+  regionsEnabled: Generated<boolean>;
 
   // Deck-submission module (submission always produces a full deck-check entry).
   deckSubmission: Generated<TournamentDeckSubmission>;
@@ -886,6 +895,8 @@ export interface TournamentParticipantsTable {
   /** Round number after which the player was dropped; NULL while active. */
   droppedAfterRound: number | null;
   seed: number | null;
+  /** Region tag slug (custom-tag category 'region'); CHECK: NULL or length 1..50. */
+  region: string | null;
   /** Claim machinery, lifted from deck_check_entries. */
   claimSource: TournamentClaimSource | null;
   /** UNIQUE where not null; resolves a claim link to one participant. */
@@ -916,7 +927,7 @@ export interface PodsTable {
   roundId: string;
   /** CHECK: > 0; UNIQUE per (roundId, podNumber) */
   podNumber: number;
-  /** CHECK: 3 or 4 */
+  /** CHECK: 2, 3 or 4 (2 = a Swiss 1v1 match) */
   size: number;
   /** Engine's write-once penalty breakdown; written pre-stringified, read parsed. */
   penaltyBreakdown: ColumnType<PodPenaltyBreakdown, string, string>;

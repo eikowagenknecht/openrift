@@ -1,3 +1,4 @@
+import type { PairingPlayer } from "@openrift/shared";
 import { describe, expect, it, vi } from "vitest";
 
 import type { Repos } from "../deps.js";
@@ -7,11 +8,22 @@ import { pairNextRound } from "./pod-pairing.js";
 
 const TOURNAMENT = {
   id: "pod-1",
+  pairingStyle: "pod",
   scoringScheme: "standard",
   byePoints: 3,
+  winPoints: 3,
+  drawPoints: 1,
+  matchFormat: "bo1",
+  regionsEnabled: false,
   currentRound: 0,
   status: "setup",
 } as unknown as PodTournament;
+
+const SWISS_TOURNAMENT = { ...TOURNAMENT, pairingStyle: "swiss" } as PodTournament;
+
+function player(id: string, overrides: Partial<PairingPlayer> = {}): PairingPlayer {
+  return { id, score: 0, pods3: 0, pods4: 0, byes: 0, opponents: new Map(), ...overrides };
+}
 
 /**
  * Builds a repos stub for `pairNextRound` with an all-bye (empty) snapshot so
@@ -27,6 +39,24 @@ function reposFor(createRound: () => Promise<unknown>): Repos {
       update: vi.fn(async () => undefined),
     },
   } as unknown as Repos;
+}
+
+/**
+ * Builds a repos stub whose snapshot returns the given players and whose
+ * createRound records its arguments for assertions.
+ * @returns The repos stub plus the createRound mock.
+ */
+function reposWithSnapshot(players: PairingPlayer[]) {
+  const createRound = vi.fn(async () => ({ id: "round-1", roundNumber: 1 }));
+  const repos = {
+    podTournaments: {
+      findOpenRound: vi.fn(async () => undefined),
+      loadPairingSnapshot: vi.fn(async () => players),
+      createRound,
+      update: vi.fn(async () => undefined),
+    },
+  } as unknown as Repos;
+  return { repos, createRound };
 }
 
 describe("pairNextRound round-number race", () => {
@@ -67,5 +97,65 @@ describe("pairNextRound round-number race", () => {
     const round = { id: "round-1", roundNumber: 1 };
     const repos = reposFor(async () => round);
     await expect(pairNextRound(repos, TOURNAMENT)).resolves.toBe(round);
+  });
+});
+
+describe("pairNextRound swiss auto-bye", () => {
+  it("auto-byes the player with fewest byes, then lowest score, on an odd field", async () => {
+    const players = [
+      player("a", { score: 9 }),
+      player("b", { score: 0, byes: 1 }),
+      player("c", { score: 3 }),
+      player("d", { score: 6 }),
+      player("e", { score: 3 }),
+    ];
+    const { repos, createRound } = reposWithSnapshot(players);
+    await pairNextRound(repos, SWISS_TOURNAMENT);
+    expect(createRound).toHaveBeenCalledTimes(1);
+    const call = createRound.mock.calls[0]!;
+    const [pairing, byes] = [call[2], call[3]];
+    // "c" has 0 byes and the lowest score among the bye-less (c/e tie at 3; id breaks it).
+    expect(byes).toEqual(["c"]);
+    expect(pairing.pods).toHaveLength(2);
+    expect(pairing.pods.every((pod: { size: number }) => pod.size === 2)).toBe(true);
+  });
+
+  it("does not auto-bye when organizer byes make the field even", async () => {
+    const players = [player("a"), player("b"), player("c"), player("d"), player("e")];
+    const { repos, createRound } = reposWithSnapshot(players);
+    await pairNextRound(repos, SWISS_TOURNAMENT, ["e"]);
+    const call = createRound.mock.calls[0]!;
+    const [pairing, byes] = [call[2], call[3]];
+    expect(byes).toEqual(["e"]);
+    expect(pairing.pods).toHaveLength(2);
+  });
+
+  it("auto-byes on top of organizer byes when the remainder is odd", async () => {
+    const players = [player("a"), player("b"), player("c"), player("d")];
+    const { repos, createRound } = reposWithSnapshot(players);
+    await pairNextRound(repos, SWISS_TOURNAMENT, ["d"]);
+    const call = createRound.mock.calls[0]!;
+    const [pairing, byes] = [call[2], call[3]];
+    expect(byes).toHaveLength(2);
+    expect(byes[0]).toBe("d");
+    expect(pairing.pods).toHaveLength(1);
+  });
+
+  it("turns a single seated player into a bye-only round", async () => {
+    const players = [player("only")];
+    const { repos, createRound } = reposWithSnapshot(players);
+    await pairNextRound(repos, SWISS_TOURNAMENT);
+    const call = createRound.mock.calls[0]!;
+    const [pairing, byes] = [call[2], call[3]];
+    expect(byes).toEqual(["only"]);
+    expect(pairing.pods).toHaveLength(0);
+  });
+
+  it("never auto-byes a pod-style tournament", async () => {
+    const players = [player("a"), player("b"), player("c"), player("d"), player("e")];
+    const { repos } = reposWithSnapshot(players);
+    // 5 players are unrepresentable in pods; without organizer byes this must
+    // stay a 400, not silently sit someone out.
+    await expect(pairNextRound(repos, TOURNAMENT)).rejects.toMatchObject({ status: 400 });
   });
 });

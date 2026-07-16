@@ -1,4 +1,8 @@
-import type { TournamentDeckSubmission, TournamentPairingStyle } from "@openrift/shared";
+import type {
+  TournamentDeckSubmission,
+  TournamentMatchFormat,
+  TournamentPairingStyle,
+} from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -28,7 +32,9 @@ import { useCreateTournament } from "@/hooks/use-tournaments";
 import {
   combineLocalDateTimeToUtc,
   DECK_SUBMISSION_ITEMS,
+  hasPairing,
   localTimeZoneLabel,
+  MATCH_FORMAT_ITEMS,
   PAIRING_STYLE_ITEMS,
   parseScheduleInput,
   splitUtcToLocalDateTime,
@@ -55,6 +61,11 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
   const [name, setName] = useState("");
   const [hostValue, setHostValue] = useState("user");
   const [pairingStyle, setPairingStyle] = useState<TournamentPairingStyle>("pod");
+  const [matchFormat, setMatchFormat] = useState<TournamentMatchFormat>("bo1");
+  const [winPointsText, setWinPointsText] = useState("3");
+  const [drawPointsText, setDrawPointsText] = useState("1");
+  const [byePointsText, setByePointsText] = useState("3");
+  const [regionsEnabled, setRegionsEnabled] = useState(false);
   const [deckSubmission, setDeckSubmission] = useState<TournamentDeckSubmission>(
     hasInitialGroup ? "required" : "none",
   );
@@ -87,6 +98,20 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
 
   const tzLabel = localTimeZoneLabel();
   const wantsDeck = deckSubmission !== "none";
+  const runsRounds = hasPairing(pairingStyle);
+  const isSwiss = pairingStyle === "swiss";
+  // Points inputs: an integer 0-99, kept as text for controlled editing.
+  const parsePoints = (text: string): number | null => {
+    if (!/^\d{1,2}$/u.test(text.trim())) {
+      return null;
+    }
+    return Number(text.trim());
+  };
+  const winPoints = parsePoints(winPointsText);
+  const drawPoints = parsePoints(drawPointsText);
+  const byePoints = parsePoints(byePointsText);
+  const pointsInvalid =
+    runsRounds && (byePoints === null || (isSwiss && (winPoints === null || drawPoints === null)));
   const submissionsCloseAt = wantsDeck ? combineLocalDateTimeToUtc(closeDate, closeTime) : null;
   const closeTimeInvalid =
     wantsDeck && (closeDate !== "" || closeTime !== "") && submissionsCloseAt === null;
@@ -96,7 +121,7 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
     parseScheduleInput(startDate, startTime, endDate, endTime);
 
   async function handleCreate() {
-    if (!name.trim() || !startsAt || closeTimeInvalid || scheduleInvalid) {
+    if (!name.trim() || !startsAt || closeTimeInvalid || scheduleInvalid || pointsInvalid) {
       return;
     }
     const host =
@@ -105,19 +130,27 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
         : ({ type: "organization", orgId: hostValue } as const);
     const linkedGroupId = groupId === "none" ? null : groupId;
     const listLockMode = wantsDeck ? lockMode : undefined;
+    // Built before the try block: the React Compiler cannot lower conditional
+    // value blocks inside try/catch and would bail out of this component.
+    const payload = {
+      name: name.trim(),
+      host,
+      pairingStyle,
+      matchFormat: isSwiss ? matchFormat : undefined,
+      winPoints: isSwiss ? (winPoints ?? undefined) : undefined,
+      drawPoints: isSwiss ? (drawPoints ?? undefined) : undefined,
+      byePoints: runsRounds ? (byePoints ?? undefined) : undefined,
+      regionsEnabled: runsRounds ? regionsEnabled : undefined,
+      startsAt,
+      endsAt,
+      deckSubmission,
+      selfRegistration,
+      groupId: linkedGroupId,
+      submissionsCloseAt,
+      listLockMode,
+    };
     try {
-      const created = await createTournament.mutateAsync({
-        name: name.trim(),
-        host,
-        pairingStyle,
-        startsAt,
-        endsAt,
-        deckSubmission,
-        selfRegistration,
-        groupId: linkedGroupId,
-        submissionsCloseAt,
-        listLockMode,
-      });
+      const created = await createTournament.mutateAsync(payload);
       void navigate({ to: "/tournaments/$id", params: { id: created.id } });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't create tournament");
@@ -282,7 +315,7 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
                 somewhere else.
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex flex-col gap-3">
               <Select
                 items={PAIRING_STYLE_ITEMS}
                 value={pairingStyle}
@@ -299,8 +332,112 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
                   ))}
                 </SelectContent>
               </Select>
+              {isSwiss ? (
+                <div className="flex flex-col gap-1.5">
+                  <Label>Match format</Label>
+                  <Select
+                    items={MATCH_FORMAT_ITEMS}
+                    value={matchFormat}
+                    onValueChange={(value) =>
+                      value && setMatchFormat(value as TournamentMatchFormat)
+                    }
+                  >
+                    <SelectTrigger className="max-w-sm" aria-label="Match format">
+                      <SelectValue placeholder="Match format" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MATCH_FORMAT_ITEMS.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : null}
             </CardContent>
           </Card>
+
+          {runsRounds ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Points</CardTitle>
+                <CardDescription>
+                  {isSwiss
+                    ? "Points a match win, a draw, and a bye are worth. Standings recalculate if you change these later."
+                    : "Points a bye (sitting a round out) is worth. Standings recalculate if you change this later."}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-3">
+                  {isSwiss ? (
+                    <>
+                      <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="t-win-points">Win</Label>
+                        <Input
+                          id="t-win-points"
+                          value={winPointsText}
+                          onChange={(event) => setWinPointsText(event.target.value)}
+                          inputMode="numeric"
+                          className="w-20 tabular-nums"
+                          aria-label="Points for a match win"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="t-draw-points">Draw</Label>
+                        <Input
+                          id="t-draw-points"
+                          value={drawPointsText}
+                          onChange={(event) => setDrawPointsText(event.target.value)}
+                          inputMode="numeric"
+                          className="w-20 tabular-nums"
+                          aria-label="Points for a draw"
+                        />
+                      </div>
+                    </>
+                  ) : null}
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="t-bye-points">Bye</Label>
+                    <Input
+                      id="t-bye-points"
+                      value={byePointsText}
+                      onChange={(event) => setByePointsText(event.target.value)}
+                      inputMode="numeric"
+                      className="w-20 tabular-nums"
+                      aria-label="Points for a bye"
+                    />
+                  </div>
+                </div>
+                {pointsInvalid ? (
+                  <span className="text-destructive mt-2 block text-sm">
+                    Points must be whole numbers between 0 and 99.
+                  </span>
+                ) : null}
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {runsRounds ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Regions</CardTitle>
+                <CardDescription>
+                  Track a region per player. Pairings avoid same-region matchups, and standings add
+                  a per-region leaderboard.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-3">
+                  <Switch
+                    id="t-regions"
+                    checked={regionsEnabled}
+                    onCheckedChange={setRegionsEnabled}
+                  />
+                  <Label htmlFor="t-regions">Track player regions</Label>
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
 
           <Card>
             <CardHeader>
@@ -410,7 +547,11 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
           <Button
             onClick={handleCreate}
             disabled={
-              !name.trim() || closeTimeInvalid || scheduleInvalid || createTournament.isPending
+              !name.trim() ||
+              closeTimeInvalid ||
+              scheduleInvalid ||
+              pointsInvalid ||
+              createTournament.isPending
             }
           >
             Create tournament

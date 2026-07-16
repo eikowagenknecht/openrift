@@ -26,6 +26,8 @@ Today every one of those is an either/or baked into which product you picked: th
 
 This ADR was scoped in a question-driven design session with the product owner (2026-06-27). The decisions it records are the result of that session; the "Resolved design decisions" section below is the authoritative list. Headline scope: all four migration phases will be built. Organizations are first-class but admin-provisioned. The pairing engine stays pods-only (Swiss / cut / 1v1 are designed-for, not built here). Existing data must be preserved losslessly by every migration.
 
+> **Amended 2026-07-16 ([ADR-041](041-swiss-pairing-and-regions.md)).** The pairing engine now also runs Swiss 1v1: `pairing_style` gained `swiss` and matches are pods of size 2 on the same machinery, exactly through the seam this ADR left open.
+
 ## Decision Drivers
 
 - **One tournament, optional capabilities.** Format, pairing, deck submission, deck check, judges, and group linkage must be composable toggles on a single entity, not a fork in the product. A casual pod night and a judged store Swiss-with-cut are the same row with different modules on.

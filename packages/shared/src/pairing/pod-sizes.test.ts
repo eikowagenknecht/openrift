@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { determinePodSizes, suggestedRoundCount } from "./pod-sizes";
+import { determinePodSizes, determineSwissPodSizes, suggestedRoundCount } from "./pod-sizes";
 
 describe("determinePodSizes", () => {
   it("matches every worked example from the spec", () => {
@@ -50,6 +50,26 @@ describe("determinePodSizes", () => {
       // so the chosen `threes` is in 0..3 except where forced higher is impossible.
       expect(threes).toBeLessThanOrEqual(3);
     }
+  });
+});
+
+describe("determineSwissPodSizes", () => {
+  it("splits even counts into all twos", () => {
+    expect(determineSwissPodSizes(2)).toEqual({ fours: 0, threes: 0, twos: 1 });
+    expect(determineSwissPodSizes(8)).toEqual({ fours: 0, threes: 0, twos: 4 });
+    expect(determineSwissPodSizes(20)).toEqual({ fours: 0, threes: 0, twos: 10 });
+  });
+
+  it("returns null for odd counts", () => {
+    expect(determineSwissPodSizes(1)).toBeNull();
+    expect(determineSwissPodSizes(7)).toBeNull();
+    expect(determineSwissPodSizes(21)).toBeNull();
+  });
+
+  it("returns null for non-positive or non-integer counts", () => {
+    expect(determineSwissPodSizes(0)).toBeNull();
+    expect(determineSwissPodSizes(-2)).toBeNull();
+    expect(determineSwissPodSizes(4.5)).toBeNull();
   });
 });
 

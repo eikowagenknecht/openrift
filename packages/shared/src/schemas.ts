@@ -195,7 +195,7 @@ export const podResultSchema = z.object({
         gamePoints: z.number().int().min(0).max(99),
       }),
     )
-    .min(3)
+    .min(2)
     .max(4),
 });
 

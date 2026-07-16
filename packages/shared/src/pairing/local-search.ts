@@ -1,11 +1,13 @@
 import { mathRandom } from "../pack-opener/rng.js";
 import type { Random } from "../pack-opener/rng.js";
 import { evaluatePod } from "./evaluate.js";
-import { determinePodSizes } from "./pod-sizes.js";
+import { determinePodSizes, determineSwissPodSizes } from "./pod-sizes.js";
 import { DEFAULT_LOCAL_SEARCH_BUDGET, DEFAULT_PAIRING_CONFIG } from "./types.js";
 import type {
+  GeneratePairingOptions,
   LocalSearchBudget,
   PairingConfig,
+  PairingMode,
   PairingPlayer,
   PairingResult,
   PairingStrategy,
@@ -13,12 +15,18 @@ import type {
   PodSizes,
 } from "./types.js";
 
-/** Thrown when an active-player count cannot be split into pods of 3 and 4 (1, 2, 5). */
+/**
+ * Thrown when an active-player count cannot be decomposed for the mode: pods of
+ * 3 and 4 cannot seat 1, 2, or 5; Swiss matches cannot seat an odd count (the
+ * service normally prevents this by assigning a bye first).
+ */
 export class InvalidPlayerCountError extends Error {
   readonly playerCount: number;
-  constructor(playerCount: number) {
+  constructor(playerCount: number, mode: PairingMode = "pod") {
     super(
-      `Cannot split ${playerCount} active player(s) into pods of 3 and 4. A round needs at least 3 active players, and 5 cannot be split; add or drop a player.`,
+      mode === "swiss"
+        ? `Cannot pair ${playerCount} active player(s) into 1v1 matches. Swiss needs an even number of seated players; give one player a bye.`
+        : `Cannot split ${playerCount} active player(s) into pods of 3 and 4. A round needs at least 3 active players, and 5 cannot be split; add or drop a player.`,
     );
     this.name = "InvalidPlayerCountError";
     this.playerCount = playerCount;
@@ -60,10 +68,11 @@ function constructOrder(players: PairingPlayer[], rng: Random): PairingPlayer[] 
 // time — so without this shuffle the same low-scoring players get 3-pod duty
 // round after round.
 function chunkIntoPods(ordered: PairingPlayer[], sizes: PodSizes, rng: Random): Pod[] {
-  const sequence: (3 | 4)[] = shuffle(
+  const sequence: (2 | 3 | 4)[] = shuffle(
     [
-      ...Array.from<unknown, 3 | 4>({ length: sizes.fours }, () => 4),
-      ...Array.from<unknown, 3 | 4>({ length: sizes.threes }, () => 3),
+      ...Array.from<unknown, 2 | 3 | 4>({ length: sizes.fours }, () => 4),
+      ...Array.from<unknown, 2 | 3 | 4>({ length: sizes.threes }, () => 3),
+      ...Array.from<unknown, 2 | 3 | 4>({ length: sizes.twos ?? 0 }, () => 2),
     ],
     rng,
   );
@@ -78,7 +87,7 @@ function chunkIntoPods(ordered: PairingPlayer[], sizes: PodSizes, rng: Random): 
 
 function podTotal(
   playerIds: string[],
-  size: 3 | 4,
+  size: 2 | 3 | 4,
   playersById: ReadonlyMap<string, PairingPlayer>,
   config: PairingConfig,
 ): number {
@@ -263,30 +272,34 @@ function randomPairing(
 }
 
 /**
- * Orchestrate a round's pairing: round 1 is a random valid partition (no scores
- * or history yet); round 2+ runs bounded local search. The pod sizes are derived
- * from the field; an unrepresentable count (1, 2, 5) throws
- * {@link InvalidPlayerCountError}.
+ * Orchestrate a round's pairing. Pod mode: round 1 is a random valid partition
+ * (no scores or history yet); round 2+ runs bounded local search. Swiss mode
+ * always runs local search so the region term is honored from round 1 (with no
+ * penalties active it degenerates to a random partition anyway). The pod sizes
+ * are derived from the field per mode; an unrepresentable count (1, 2, 5 for
+ * pods; odd for Swiss) throws {@link InvalidPlayerCountError}.
  *
  * @param players The active players' flat snapshots.
- * @param roundNumber 1-based round number (round 1 is random).
- * @param config Penalty weights; defaults to {@link DEFAULT_PAIRING_CONFIG}.
- * @param rng Uniform [0,1) source; defaults to `mathRandom`. Inject a seeded rng for determinism.
- * @param budget Local-search budget; defaults to {@link DEFAULT_LOCAL_SEARCH_BUDGET}.
+ * @param roundNumber 1-based round number.
+ * @param options Mode (default `pod`), penalty config, rng (inject a seeded one
+ *   for determinism), and local-search budget.
  * @returns The scored pairing for the round.
  */
 export function generatePairing(
   players: PairingPlayer[],
   roundNumber: number,
-  config: PairingConfig = DEFAULT_PAIRING_CONFIG,
-  rng: Random = mathRandom,
-  budget: LocalSearchBudget = DEFAULT_LOCAL_SEARCH_BUDGET,
+  options: GeneratePairingOptions = {},
 ): PairingResult {
-  const sizes = determinePodSizes(players.length);
+  const mode = options.mode ?? "pod";
+  const config = options.config ?? DEFAULT_PAIRING_CONFIG;
+  const rng = options.rng ?? mathRandom;
+  const budget = options.budget ?? DEFAULT_LOCAL_SEARCH_BUDGET;
+  const sizes =
+    mode === "swiss" ? determineSwissPodSizes(players.length) : determinePodSizes(players.length);
   if (sizes === null) {
-    throw new InvalidPlayerCountError(players.length);
+    throw new InvalidPlayerCountError(players.length, mode);
   }
-  if (roundNumber <= 1) {
+  if (mode === "pod" && roundNumber <= 1) {
     return randomPairing(players, sizes, config, rng);
   }
   return makeLocalSearchStrategy(budget).pair(players, sizes, config, rng);

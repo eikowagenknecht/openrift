@@ -39,10 +39,13 @@ export type TournamentStatus = "setup" | "running" | "completed" | "cancelled";
 
 /**
  * The pairing engine. `none` = no rounds or pairings (a roster/schedule-only or
- * deck-only event); `pod` = 3/4-player pod rounds. The single pairing axis; only
- * these ship now, extensible to swiss/cut later.
+ * deck-only event); `pod` = 3/4-player pod rounds; `swiss` = 1v1 Swiss matches.
+ * The single pairing axis, extensible to cut later.
  */
-export type TournamentPairingStyle = "none" | "pod";
+export type TournamentPairingStyle = "none" | "pod" | "swiss";
+
+/** Swiss result entry: best of 1 or best of 3. Only meaningful for `swiss`. */
+export type TournamentMatchFormat = "bo1" | "bo3";
 
 /**
  * Whether a decklist is expected. Every submission produces a deck-check entry, so

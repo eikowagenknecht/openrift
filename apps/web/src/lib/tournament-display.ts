@@ -5,6 +5,7 @@
 import type {
   TournamentDeckPhase,
   TournamentDeckSubmission,
+  TournamentMatchFormat,
   TournamentPairingStyle,
   TournamentParticipantResponse,
   TournamentParticipantStatus,
@@ -29,6 +30,7 @@ export const DECK_PHASE_LABEL: Record<TournamentDeckPhase, string> = {
 // Short form for inline prose ("Pod rounds. The engine is fixed once…").
 export const PAIRING_STYLE_LABEL: Record<TournamentPairingStyle, string> = {
   pod: "Pod rounds",
+  swiss: "Swiss rounds",
   none: "None",
 };
 
@@ -38,7 +40,29 @@ export const PAIRING_STYLE_LABEL: Record<TournamentPairingStyle, string> = {
 export const PAIRING_STYLE_ITEMS: { value: TournamentPairingStyle; label: string }[] = [
   { value: "none", label: "None (I'm not running rounds here)" },
   { value: "pod", label: "Pod rounds (3 or 4-player free-for-alls)" },
+  { value: "swiss", label: "Swiss rounds (1v1 matches)" },
 ];
+
+export const MATCH_FORMAT_LABEL: Record<TournamentMatchFormat, string> = {
+  bo1: "Best of 1",
+  bo3: "Best of 3",
+};
+
+export const MATCH_FORMAT_ITEMS: { value: TournamentMatchFormat; label: string }[] = [
+  { value: "bo1", label: MATCH_FORMAT_LABEL.bo1 },
+  { value: "bo3", label: MATCH_FORMAT_LABEL.bo3 },
+];
+
+/**
+ * Whether a pairing style runs rounds at all (pods or Swiss). The single gate
+ * for the pairings/standings surfaces, so pod-only checks can't linger.
+ *
+ * @param style The tournament's pairing style.
+ * @returns True for pod and swiss, false for none.
+ */
+export function hasPairing(style: TournamentPairingStyle): boolean {
+  return style !== "none";
+}
 
 export const DECK_SUBMISSION_ITEMS: { value: TournamentDeckSubmission; label: string }[] = [
   { value: "none", label: DECK_SUBMISSION_LABEL.none },

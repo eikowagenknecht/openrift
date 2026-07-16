@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 5ohQEbKSltVkVlhsy0hH0m7f8JMSUcdDjWlk5mmA7eFOzrQ7rYg5BhJ4mCtBedL
+\restrict 43VSnQYFYxSdJsEuhs0rEpdeMz8qo9PJeLZi84tYJzpMrumFbBo7ZaefqdmHgYO
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1904,7 +1904,7 @@ CREATE TABLE public.pods (
     result_status text DEFAULT 'pending'::text NOT NULL,
     CONSTRAINT chk_pods_number CHECK ((pod_number > 0)),
     CONSTRAINT chk_pods_result_status CHECK ((result_status = ANY (ARRAY['pending'::text, 'reported'::text]))),
-    CONSTRAINT chk_pods_size CHECK ((size = ANY (ARRAY[3, 4])))
+    CONSTRAINT chk_pods_size CHECK ((size = ANY (ARRAY[2, 3, 4])))
 );
 
 
@@ -2257,8 +2257,10 @@ CREATE TABLE public.tournament_participants (
     claim_token text,
     claimed_at timestamp with time zone,
     claim_blocked_at timestamp with time zone,
+    region text,
     CONSTRAINT chk_tournament_participants_claim_source CHECK (((claim_source IS NULL) OR (claim_source = ANY (ARRAY['judge_manual'::text, 'self_submit'::text, 'claim_link'::text])))),
     CONSTRAINT chk_tournament_participants_name CHECK (((length(display_name) >= 1) AND (length(display_name) <= 120))),
+    CONSTRAINT chk_tournament_participants_region CHECK (((region IS NULL) OR ((char_length(region) >= 1) AND (char_length(region) <= 50)))),
     CONSTRAINT chk_tournament_participants_riot_id CHECK (((riot_id IS NULL) OR (length(riot_id) <= 120))),
     CONSTRAINT chk_tournament_participants_status CHECK ((status = ANY (ARRAY['requested'::text, 'invited'::text, 'active'::text, 'dropped'::text, 'no_show'::text])))
 );
@@ -2309,15 +2311,22 @@ CREATE TABLE public.tournaments (
     organizer_invite_token text,
     judge_invite_token text,
     follow_token text,
+    match_format text DEFAULT 'bo1'::text NOT NULL,
+    win_points integer DEFAULT 3 NOT NULL,
+    draw_points integer DEFAULT 1 NOT NULL,
+    regions_enabled boolean DEFAULT false NOT NULL,
     CONSTRAINT chk_tournaments_bye_points CHECK ((bye_points >= 0)),
     CONSTRAINT chk_tournaments_deck_phase CHECK ((deck_phase = ANY (ARRAY['open'::text, 'closed'::text, 'locked'::text]))),
     CONSTRAINT chk_tournaments_deck_submission CHECK ((deck_submission = ANY (ARRAY['none'::text, 'optional'::text, 'required'::text]))),
+    CONSTRAINT chk_tournaments_draw_points CHECK ((draw_points >= 0)),
     CONSTRAINT chk_tournaments_host CHECK ((((host_type = 'user'::text) AND (host_org_id IS NULL)) OR ((host_type = 'organization'::text) AND (host_user_id IS NULL)))),
     CONSTRAINT chk_tournaments_list_lock_mode CHECK ((list_lock_mode = ANY (ARRAY['on_submit'::text, 'at_deadline'::text]))),
+    CONSTRAINT chk_tournaments_match_format CHECK ((match_format = ANY (ARRAY['bo1'::text, 'bo3'::text]))),
     CONSTRAINT chk_tournaments_name CHECK (((length(name) >= 1) AND (length(name) <= 120))),
-    CONSTRAINT chk_tournaments_pairing_style CHECK ((pairing_style = ANY (ARRAY['none'::text, 'pod'::text]))),
+    CONSTRAINT chk_tournaments_pairing_style CHECK ((pairing_style = ANY (ARRAY['none'::text, 'pod'::text, 'swiss'::text]))),
     CONSTRAINT chk_tournaments_scheme CHECK ((scoring_scheme = ANY (ARRAY['standard'::text, 'three_pod_reduced'::text]))),
-    CONSTRAINT chk_tournaments_status CHECK ((status = ANY (ARRAY['setup'::text, 'running'::text, 'completed'::text, 'cancelled'::text])))
+    CONSTRAINT chk_tournaments_status CHECK ((status = ANY (ARRAY['setup'::text, 'running'::text, 'completed'::text, 'cancelled'::text]))),
+    CONSTRAINT chk_tournaments_win_points CHECK ((win_points >= 0))
 );
 
 
@@ -5952,5 +5961,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 5ohQEbKSltVkVlhsy0hH0m7f8JMSUcdDjWlk5mmA7eFOzrQ7rYg5BhJ4mCtBedL
+\unrestrict 43VSnQYFYxSdJsEuhs0rEpdeMz8qo9PJeLZi84tYJzpMrumFbBo7ZaefqdmHgYO
 

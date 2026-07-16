@@ -33,6 +33,13 @@ export type PairingWarning =
       playerId: string;
       /** How many byes this player has already taken (>= 1). */
       priorByes: number;
+    }
+  | {
+      kind: "sameRegion";
+      podIndex: number;
+      playerIds: [string, string];
+      /** The region tag slug both players share. */
+      region: string;
     };
 
 /**
@@ -50,6 +57,7 @@ export const SPREAD_WARNING_THRESHOLD = 6;
  * - `largeSpread`: a pod whose score spread reaches {@link SPREAD_WARNING_THRESHOLD}.
  * - `repeatedThreePod`: each player seated in a 3-pod who has already been in one.
  * - `repeatBye`: each byed player who has already taken a bye.
+ * - `sameRegion`: each in-pod pair sharing a region (region-aware events only).
  *
  * @param pods The pods making up the round.
  * @param players The player snapshots referenced by the pods and byes.
@@ -78,6 +86,15 @@ export function computePairingWarnings(
             podIndex,
             playerIds: [members[i].id, members[j].id],
             meetings,
+          });
+        }
+        const region = members[i].region ?? null;
+        if (region !== null && region === members[j].region) {
+          warnings.push({
+            kind: "sameRegion",
+            podIndex,
+            playerIds: [members[i].id, members[j].id],
+            region,
           });
         }
       }

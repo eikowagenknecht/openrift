@@ -5,6 +5,7 @@ import type {
   PodRoundResponse,
   PodScoringScheme,
   PodSnapshotPlayer,
+  TournamentMatchFormat,
 } from "@openrift/shared";
 import { computePairingWarnings } from "@openrift/shared";
 import { CheckIcon, PencilIcon, XIcon } from "lucide-react";
@@ -21,11 +22,15 @@ import { cn } from "@/lib/utils";
 import { snapshotToPlayers, WarningBadge, WarningList } from "./pairing-warnings";
 import { parsePoints, PodResultForm } from "./pod-result-form";
 import { formatScore } from "./standings-table";
+import { SwissResultForm } from "./swiss-result-form";
 
 interface PodResultEntry {
   playerId: string;
   gamePoints: number;
 }
+
+// Default region label: the raw slug (named so the React Compiler can reorder it).
+const rawRegionSlug = (slug: string): string => slug;
 
 interface PairingsViewProps {
   rounds: PodRoundResponse[];
@@ -35,6 +40,15 @@ interface PairingsViewProps {
   scheme: PodScoringScheme;
   /** Score points a sat-out (bye) game is worth, shown on the byes card. */
   byePoints: number;
+  /** Swiss result entry: which scoreline presets a match offers. */
+  matchFormat: TournamentMatchFormat;
+  /** Swiss match points, for the result form's preview. */
+  winPoints: number;
+  drawPoints: number;
+  /** Region per player (when the region layer is on), rendered as chips. */
+  regionByPlayer?: Map<string, string | null>;
+  /** Region slug -> display label; defaults to the raw slug. */
+  regionLabel?: (slug: string) => string;
   /** Organizer view: show the fairness internals (penalty, rematches, spread, warnings). */
   showPenalty: boolean;
   /**
@@ -71,6 +85,11 @@ export function PairingsView({
   scoresByPlayer,
   scheme,
   byePoints,
+  matchFormat,
+  winPoints,
+  drawPoints,
+  regionByPlayer,
+  regionLabel = rawRegionSlug,
   showPenalty,
   snapshot,
   warningsExpanded = true,
@@ -138,6 +157,11 @@ export function PairingsView({
                   key={pod.id}
                   pod={pod}
                   scheme={scheme}
+                  matchFormat={matchFormat}
+                  winPoints={winPoints}
+                  drawPoints={drawPoints}
+                  regionByPlayer={regionByPlayer}
+                  regionLabel={regionLabel}
                   scoresByPlayer={scoresByPlayer}
                   showPenalty={showPenalty}
                   warnings={podWarnings.get(podIndex) ?? []}
@@ -172,13 +196,28 @@ function RoundPenaltySummary({ round }: { round: PodRoundResponse }) {
     .filter((pod) => pod.size === 3)
     .reduce((sum, pod) => sum + pod.size, 0);
   const largestSpread = round.pods.reduce((max, pod) => Math.max(max, pod.penalty?.spread ?? 0), 0);
+  const sameRegionPods = round.pods.filter((pod) => (pod.penalty?.sameRegion ?? 0) > 0).length;
+  // An all-matches (Swiss) round has no 3-pod duty to report.
+  const allMatches = round.pods.length > 0 && round.pods.every((pod) => pod.size === 2);
   return (
     <p className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
       <span>Penalty {Math.round(round.penaltyTotal ?? 0)}</span>
       <span>
         {rematches} rematch{rematches === 1 ? "" : "es"}
       </span>
-      <span>{inThreePods} in 3-pods</span>
+      {allMatches ? null : <span>{inThreePods} in 3-pods</span>}
+      {sameRegionPods > 0 ? (
+        <span>
+          {sameRegionPods} same-region{" "}
+          {allMatches
+            ? sameRegionPods === 1
+              ? "match"
+              : "matches"
+            : sameRegionPods === 1
+              ? "pod"
+              : "pods"}
+        </span>
+      ) : null}
       <span>Largest spread {largestSpread}</span>
     </p>
   );
@@ -231,6 +270,11 @@ function ByesCard({
 function PodCard({
   pod,
   scheme,
+  matchFormat,
+  winPoints,
+  drawPoints,
+  regionByPlayer,
+  regionLabel,
   scoresByPlayer,
   showPenalty,
   warnings,
@@ -242,6 +286,11 @@ function PodCard({
 }: {
   pod: PodResponse;
   scheme: PodScoringScheme;
+  matchFormat: TournamentMatchFormat;
+  winPoints: number;
+  drawPoints: number;
+  regionByPlayer?: Map<string, string | null>;
+  regionLabel: (slug: string) => string;
   scoresByPlayer: Map<string, number>;
   showPenalty: boolean;
   warnings: PairingWarning[];
@@ -251,6 +300,7 @@ function PodCard({
   onSubmit: (podId: string, results: PodResultEntry[]) => Promise<void>;
   onSubmitPlayerResult?: (podId: string, playerId: string, gamePoints: number) => Promise<void>;
 }) {
+  const isMatch = pod.size === 2;
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   // Per-player self-entry: which member row is open for input, and its draft value.
@@ -300,16 +350,18 @@ function PodCard({
     <Card className="gap-3">
       <CardHeader className="gap-1">
         <CardTitle className="flex items-center justify-between gap-2">
-          <span>Pod {pod.podNumber}</span>
+          <span>{isMatch ? `Match ${pod.podNumber}` : `Pod ${pod.podNumber}`}</span>
           <span className="flex items-center gap-2">
             {showPenalty && !warningsExpanded ? (
-              <WarningBadge warnings={warnings} nameById={nameById} />
+              <WarningBadge warnings={warnings} nameById={nameById} regionLabel={regionLabel} />
             ) : null}
-            <span className="text-muted-foreground font-normal">
-              {!reported && enteredCount > 0
-                ? `${enteredCount} of ${pod.size} scores in`
-                : `${pod.size} players`}
-            </span>
+            {!reported && enteredCount > 0 ? (
+              <span className="text-muted-foreground font-normal">
+                {enteredCount} of {pod.size} scores in
+              </span>
+            ) : isMatch ? null : (
+              <span className="text-muted-foreground font-normal">{pod.size} players</span>
+            )}
           </span>
         </CardTitle>
         {showPenalty && pod.penalty ? (
@@ -319,18 +371,30 @@ function PodCard({
           </p>
         ) : null}
         {showPenalty && warningsExpanded ? (
-          <WarningList warnings={warnings} nameById={nameById} />
+          <WarningList warnings={warnings} nameById={nameById} regionLabel={regionLabel} />
         ) : null}
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {editing ? (
-          <PodResultForm
-            pod={pod}
-            scheme={scheme}
-            onSubmit={handleSubmit}
-            submitting={saving}
-            onCancel={() => setEditing(false)}
-          />
+          isMatch ? (
+            <SwissResultForm
+              pod={pod}
+              matchFormat={matchFormat}
+              winPoints={winPoints}
+              drawPoints={drawPoints}
+              onSubmit={handleSubmit}
+              submitting={saving}
+              onCancel={() => setEditing(false)}
+            />
+          ) : (
+            <PodResultForm
+              pod={pod}
+              scheme={scheme}
+              onSubmit={handleSubmit}
+              submitting={saving}
+              onCancel={() => setEditing(false)}
+            />
+          )
         ) : (
           <>
             <ul className="flex flex-col gap-1.5">
@@ -343,6 +407,11 @@ function PodCard({
                       </Badge>
                     )}
                     <span className="font-medium">{member.displayName}</span>
+                    {regionByPlayer?.get(member.playerId) ? (
+                      <Badge variant="outline">
+                        {regionLabel(regionByPlayer.get(member.playerId) ?? "")}
+                      </Badge>
+                    ) : null}
                     {showPenalty ? (
                       <span className="text-muted-foreground tabular-nums">
                         {formatScore(scoresByPlayer.get(member.playerId) ?? 0)} pts

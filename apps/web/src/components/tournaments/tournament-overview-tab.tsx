@@ -32,6 +32,7 @@ import {
   canManageTournament,
   DECK_SUBMISSION_LABEL,
   formatTournamentDate,
+  hasPairing,
 } from "@/lib/tournament-display";
 
 type TournamentTileTarget =
@@ -118,7 +119,7 @@ function DashboardTiles({
   pendingCount: number;
 }) {
   const manage = canManageTournament(detail.myRoles);
-  const isPod = detail.pairingStyle === "pod";
+  const runsRounds = hasPairing(detail.pairingStyle);
   const showDecks = detail.deckSubmission !== "none" && canCheckDecks(detail.myRoles);
 
   return (
@@ -136,7 +137,7 @@ function DashboardTiles({
             : undefined
         }
       />
-      {isPod ? (
+      {runsRounds ? (
         <StatCard
           to="/tournaments/$id/pairings"
           id={id}
@@ -146,7 +147,7 @@ function DashboardTiles({
           hint={detail.currentRound > 0 ? "current round" : "not started yet"}
         />
       ) : null}
-      {isPod ? <StandingsTile id={id} /> : null}
+      {runsRounds ? <StandingsTile id={id} /> : null}
       {showDecks ? <DecksTile id={id} /> : null}
       {manage ? (
         <StatCard

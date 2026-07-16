@@ -82,7 +82,10 @@ export function PodResultForm({ pod, scheme, onSubmit, submitting, onCancel }: P
   }
   const allSet = parsed.every((value) => value !== null);
   const placements = allSet ? placementsFromGamePoints(parsed as number[]) : null;
-  const previewPoints = placements ? pointsForPlacements(placements, pod.size, scheme) : null;
+  // Swiss matches (size 2) use SwissResultForm instead; the placement tables
+  // only exist for 3/4-pods, so guard the preview accordingly.
+  const previewPoints =
+    placements && pod.size !== 2 ? pointsForPlacements(placements, pod.size, scheme) : null;
 
   async function handleSubmit() {
     if (!allSet) {

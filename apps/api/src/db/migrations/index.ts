@@ -152,6 +152,7 @@ import * as m203 from "./203-language-color.js";
 import * as m204 from "./204-language-zh-to-sc.js";
 import * as m205 from "./205-language-well-known.js";
 import * as m206 from "./206-max-copies-override.js";
+import * as m207 from "./207-swiss-regions.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -363,4 +364,5 @@ export const migrations: Record<string, Migration> = {
   "204-language-zh-to-sc": m204,
   "205-language-well-known": m205,
   "206-max-copies-override": m206,
+  "207-swiss-regions": m207,
 };

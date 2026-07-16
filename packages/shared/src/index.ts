@@ -110,8 +110,10 @@ export {
 export { hostSlugFromUrl } from "./host-slug.js";
 
 export type {
+  GeneratePairingOptions,
   LocalSearchBudget,
   PairingConfig,
+  PairingMode,
   PairingPlayer,
   PairingResult,
   PairingStrategy,
@@ -127,13 +129,16 @@ export {
   DEFAULT_LOCAL_SEARCH_BUDGET,
   DEFAULT_PAIRING_CONFIG,
   determinePodSizes,
+  determineSwissPodSizes,
   evaluatePairing,
   evaluatePod,
   generatePairing,
   InvalidPlayerCountError,
   makeLocalSearchStrategy,
+  pickAutoBye,
   placementsFromGamePoints,
   pointsForPlacements,
   SPREAD_WARNING_THRESHOLD,
   suggestedRoundCount,
+  swissPointsForPlacements,
 } from "./pairing/index.js";

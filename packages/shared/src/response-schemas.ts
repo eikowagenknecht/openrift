@@ -459,6 +459,8 @@ export const podTournamentStatusSchema = z
   .openapi("PodTournamentStatus");
 export const podScoringSchemeSchema = z.enum(["standard", "three_pod_reduced"]);
 export const podPlayerStatusSchema = z.enum(["active", "dropped"]);
+export const podPairingStyleSchema = z.enum(["none", "pod", "swiss"]);
+export const podMatchFormatSchema = z.enum(["bo1", "bo3"]);
 
 export const podStandingRowSchema = z
   .object({
@@ -473,6 +475,11 @@ export const podStandingRowSchema = z
     pods4Count: z.number().int().nonnegative(),
     byeCount: z.number().int().nonnegative(),
     podWins: z.number().int().nonnegative(),
+    // Swiss match record; all zero for pod-style tournaments.
+    wins: z.number().int().nonnegative(),
+    draws: z.number().int().nonnegative(),
+    losses: z.number().int().nonnegative(),
+    region: z.string().nullable(),
     avgOpponentScore: z.number(),
     avgOpponentGamePoints: z.number(),
   })
@@ -494,12 +501,13 @@ export const podPenaltyViewSchema = z.object({
   imbalance: z.number(),
   float: z.number(),
   threePodRepeat: z.number(),
+  sameRegion: z.number(),
 });
 
 export const podResponseSchema = z.object({
   id: z.string(),
   podNumber: z.number().int().positive(),
-  size: z.union([z.literal(3), z.literal(4)]),
+  size: z.union([z.literal(2), z.literal(3), z.literal(4)]),
   resultStatus: z.enum(["pending", "reported"]),
   members: z.array(podMemberResponseSchema),
   penalty: podPenaltyViewSchema.nullable(),
@@ -537,8 +545,13 @@ export const podTournamentResponseSchema = z
     name: z.string(),
     status: podTournamentStatusSchema,
     currentRound: z.number().int().nonnegative(),
+    pairingStyle: podPairingStyleSchema,
     scoringScheme: podScoringSchemeSchema,
     byePoints: z.number().int().nonnegative(),
+    matchFormat: podMatchFormatSchema,
+    winPoints: z.number().int().nonnegative(),
+    drawPoints: z.number().int().nonnegative(),
+    regionsEnabled: z.boolean(),
     reportToken: z.string().nullable(),
     createdAt: z.string(),
     updatedAt: z.string(),
@@ -562,6 +575,7 @@ export const podSnapshotPlayerSchema = z.object({
   pods4: z.number().int().nonnegative(),
   byes: z.number().int().nonnegative(),
   opponents: z.record(z.string(), z.number().int().nonnegative()),
+  region: z.string().nullable(),
 });
 
 export const podTournamentDetailResponseSchema = z

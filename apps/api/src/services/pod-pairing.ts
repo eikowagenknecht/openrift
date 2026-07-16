@@ -3,12 +3,20 @@ import {
   evaluatePairing,
   generatePairing,
   InvalidPlayerCountError,
+  pickAutoBye,
   placementsFromGamePoints,
 } from "@openrift/shared";
-import type { PairingPlayer, PairingResult, Pod, PodSnapshotPlayer } from "@openrift/shared";
+import type {
+  PairingMode,
+  PairingPlayer,
+  PairingResult,
+  Pod,
+  PodSnapshotPlayer,
+} from "@openrift/shared";
 
 import type { Repos } from "../deps.js";
 import { AppError } from "../errors.js";
+import { scoringOf } from "../repositories/pod-tournaments.js";
 import type { PodRound, PodTournament } from "../repositories/pod-tournaments.js";
 import { assertFound } from "../utils/assertions.js";
 import { isUniqueViolationOn } from "../utils/pg-errors.js";
@@ -28,27 +36,36 @@ function roundAlreadyOpen(): AppError {
 /** An empty round (every active player took a bye): zero pods, zero penalty. */
 const EMPTY_PAIRING: PairingResult = { pods: [], totalPenalty: 0, perPod: [], strategy: "random" };
 
+// The engine mode for a tournament's pairing style ('none' never reaches pairing).
+function pairingModeOf(tournament: PodTournament): PairingMode {
+  return tournament.pairingStyle === "swiss" ? "swiss" : "pod";
+}
+
 /**
  * Run the engine over the active snapshot minus the byed players, translating the
  * bad-count error to a 400. An all-bye round (no seated players) yields an empty
  * pairing rather than erroring, so the runner can always produce a valid round.
  *
+ * A Swiss round with an odd seated count auto-byes one player (fewest byes, then
+ * lowest score) on top of any organizer byes; the returned `byePlayerIds` are the
+ * effective byes the caller must persist, so a re-roll (which re-reads the stored
+ * byes) keeps the count even without a second auto-bye.
+ *
  * @param repos The request repos.
  * @param tournament The owning tournament row.
  * @param roundNumber The 1-based round number.
  * @param byePlayerIds Active players the organizer is sitting out this round.
- * @returns The scored pairing for the seated players.
+ * @returns The scored pairing plus the effective byes to persist.
  */
 async function runPairing(
   repos: Repos,
   tournament: PodTournament,
   roundNumber: number,
   byePlayerIds: string[],
-): Promise<PairingResult> {
+): Promise<{ pairing: PairingResult; byePlayerIds: string[] }> {
   const snapshot = await repos.podTournaments.loadPairingSnapshot(
     tournament.id,
-    tournament.scoringScheme,
-    tournament.byePoints,
+    scoringOf(tournament),
   );
   const activeIds = new Set(snapshot.map((player) => player.id));
   for (const byeId of byePlayerIds) {
@@ -57,12 +74,21 @@ async function runPairing(
     }
   }
   const byeSet = new Set(byePlayerIds);
-  const seated = snapshot.filter((player) => !byeSet.has(player.id));
+  let seated = snapshot.filter((player) => !byeSet.has(player.id));
+  let effectiveByes = byePlayerIds;
+  if (pairingModeOf(tournament) === "swiss" && seated.length % 2 === 1) {
+    const autoBye = pickAutoBye(seated);
+    effectiveByes = [...byePlayerIds, autoBye];
+    seated = seated.filter((player) => player.id !== autoBye);
+  }
   if (seated.length === 0) {
-    return EMPTY_PAIRING;
+    return { pairing: EMPTY_PAIRING, byePlayerIds: effectiveByes };
   }
   try {
-    return generatePairing(seated, roundNumber);
+    return {
+      pairing: generatePairing(seated, roundNumber, { mode: pairingModeOf(tournament) }),
+      byePlayerIds: effectiveByes,
+    };
   } catch (error) {
     if (error instanceof InvalidPlayerCountError) {
       throw new AppError(400, ERROR_CODES.BAD_REQUEST, error.message);
@@ -91,14 +117,14 @@ export async function pairNextRound(
     throw roundAlreadyOpen();
   }
   const roundNumber = tournament.currentRound + 1;
-  const pairing = await runPairing(repos, tournament, roundNumber, byePlayerIds);
+  const run = await runPairing(repos, tournament, roundNumber, byePlayerIds);
   let round: PodRound;
   try {
     round = await repos.podTournaments.createRound(
       tournament.id,
       roundNumber,
-      pairing,
-      byePlayerIds,
+      run.pairing,
+      run.byePlayerIds,
     );
   } catch (error) {
     // The findOpenRound guard above is a check-then-act: a concurrent pair (an
@@ -148,15 +174,21 @@ export async function rerollRound(
   }
   const byePlayerIds = await repos.podTournaments.listRoundByePlayerIds(round.id);
   await repos.podTournaments.deleteRound(round.id);
-  const pairing = await runPairing(repos, tournament, roundNumber, byePlayerIds);
-  return repos.podTournaments.createRound(tournament.id, roundNumber, pairing, byePlayerIds);
+  const run = await runPairing(repos, tournament, roundNumber, byePlayerIds);
+  return repos.podTournaments.createRound(
+    tournament.id,
+    roundNumber,
+    run.pairing,
+    run.byePlayerIds,
+  );
 }
 
 /**
- * Apply a manual whole-round pairing edit on the open round: validate that the
- * new partition keeps every pod at size 3 or 4 and covers exactly the round's
- * current participants (no one added or dropped), then recompute the penalty and
- * persist. Only allowed while the round is open and no result has been entered.
+ * Apply a manual whole-round pairing edit on the open round: validate that every
+ * pod has a size valid for the pairing style (3/4 for pods, exactly 2 for Swiss
+ * matches) and covers exactly the round's current participants (no one added or
+ * dropped), then recompute the penalty and persist. Only allowed while the round
+ * is open and no result has been entered.
  *
  * @param repos The request repos.
  * @param tournament The owning tournament row.
@@ -169,7 +201,7 @@ export async function replaceRoundPairing(
   repos: Repos,
   tournament: PodTournament,
   roundNumber: number,
-  pods: { size: 3 | 4; playerIds: string[] }[],
+  pods: { size: 2 | 3 | 4; playerIds: string[] }[],
   byePlayerIds: string[],
 ): Promise<void> {
   const round = await repos.podTournaments.findRoundByNumber(tournament.id, roundNumber);
@@ -185,7 +217,8 @@ export async function replaceRoundPairing(
     );
   }
 
-  // Every pod must be a valid FFA size and match its member count.
+  // Every pod must match its member count and have a size the style allows.
+  const swiss = pairingModeOf(tournament) === "swiss";
   for (const pod of pods) {
     if (pod.size !== pod.playerIds.length) {
       throw new AppError(
@@ -193,6 +226,16 @@ export async function replaceRoundPairing(
         ERROR_CODES.BAD_REQUEST,
         `A pod declares size ${pod.size} but has ${pod.playerIds.length} players.`,
       );
+    }
+    if (swiss && pod.size !== 2) {
+      throw new AppError(
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Swiss matches must have exactly 2 players.",
+      );
+    }
+    if (!swiss && pod.size === 2) {
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Pods must have 3 or 4 players.");
     }
   }
 
@@ -224,8 +267,7 @@ export async function replaceRoundPairing(
   // stays truthful after a hand edit.
   const snapshot = await repos.podTournaments.loadOpenRoundSnapshot(
     tournament.id,
-    tournament.scoringScheme,
-    tournament.byePoints,
+    scoringOf(tournament),
   );
   const players = snapshot.map((entry) => toPairingPlayer(entry));
   const enginePods: Pod[] = pods.map((pod) => ({ size: pod.size, playerIds: pod.playerIds }));
@@ -242,6 +284,7 @@ function toPairingPlayer(snapshot: PodSnapshotPlayer): PairingPlayer {
     pods4: snapshot.pods4,
     byes: snapshot.byes,
     opponents: new Map(Object.entries(snapshot.opponents)),
+    region: snapshot.region,
   };
 }
 

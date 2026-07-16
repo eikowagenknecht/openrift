@@ -19,9 +19,12 @@ import { PodPairingEditor } from "./pod-pairing-editor";
 export function PodPairingsSection({
   id,
   data,
+  regionLabel,
 }: {
   id: string;
   data: PodTournamentDetailResponse;
+  /** Region slug -> display label, from the custom-tag vocabulary. */
+  regionLabel?: (slug: string) => string;
 }) {
   const rerollRound = useRerollTournamentRound();
   const finalizeRound = useFinalizeTournamentRound();
@@ -30,6 +33,10 @@ export function PodPairingsSection({
   const [warningsExpanded, setWarningsExpanded] = useState(true);
 
   const scoresByPlayer = new Map(data.standings.map((row) => [row.playerId, row.score]));
+  const isSwiss = data.tournament.pairingStyle === "swiss";
+  const regionByPlayer = data.tournament.regionsEnabled
+    ? new Map(data.standings.map((row) => [row.playerId, row.region]))
+    : undefined;
   const openRound = data.rounds.find((round) => round.status === "reporting");
   const completed = data.tournament.status === "completed";
   const finalizedCount = data.rounds.filter((round) => round.status === "finalized").length;
@@ -71,6 +78,7 @@ export function PodPairingsSection({
           isFirstRound={data.rounds.length === 0}
           reachedSuggestion={reachedSuggestion}
           suggested={suggested}
+          swissAutoBye={isSwiss && activeCount % 2 === 1}
         />
       ) : null}
       {finalizedCount > 1 ? (
@@ -84,6 +92,8 @@ export function PodPairingsSection({
           id={id}
           round={openRound}
           snapshot={data.openRoundSnapshot}
+          mode={isSwiss ? "swiss" : "pod"}
+          regionLabel={regionLabel}
           onClose={() => setEditingRound(null)}
         />
       ) : null}
@@ -92,6 +102,11 @@ export function PodPairingsSection({
         scoresByPlayer={scoresByPlayer}
         scheme={data.tournament.scoringScheme}
         byePoints={data.tournament.byePoints}
+        matchFormat={data.tournament.matchFormat}
+        winPoints={data.tournament.winPoints}
+        drawPoints={data.tournament.drawPoints}
+        regionByPlayer={regionByPlayer}
+        regionLabel={regionLabel}
         showPenalty
         snapshot={data.openRoundSnapshot}
         warningsExpanded={warningsExpanded}

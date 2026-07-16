@@ -1,5 +1,7 @@
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
+  podMatchFormatSchema,
+  podPairingStyleSchema,
   podRoundResponseSchema,
   podScoringSchemeSchema,
   podStandingRowSchema,
@@ -16,8 +18,13 @@ export const podReportResponseSchema = z
     tournamentName: z.string(),
     status: podTournamentStatusSchema,
     currentRound: z.number().int().nonnegative(),
+    pairingStyle: podPairingStyleSchema,
     scoringScheme: podScoringSchemeSchema,
     byePoints: z.number().int().nonnegative(),
+    matchFormat: podMatchFormatSchema,
+    winPoints: z.number().int().nonnegative(),
+    drawPoints: z.number().int().nonnegative(),
+    regionsEnabled: z.boolean(),
     standings: z.array(podStandingRowSchema),
     rounds: z.array(podRoundResponseSchema),
     /** Whether this link may submit results (report token) or is follow-only. */

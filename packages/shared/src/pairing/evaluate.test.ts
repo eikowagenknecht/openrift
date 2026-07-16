@@ -121,6 +121,55 @@ describe("evaluatePod - three-pod repeat", () => {
   });
 });
 
+describe("evaluatePod - same region", () => {
+  const MATCH: Pod = { size: 2, playerIds: ["a", "b"] };
+
+  it("charges 70 for a 1v1 match between same-region players", () => {
+    const players = mapOf([player("a", { region: "noxus" }), player("b", { region: "noxus" })]);
+    expect(evaluatePod(MATCH, players, undefined).sameRegion).toBe(70);
+  });
+
+  it("charges nothing for different regions", () => {
+    const players = mapOf([player("a", { region: "noxus" }), player("b", { region: "demacia" })]);
+    expect(evaluatePod(MATCH, players, undefined).sameRegion).toBe(0);
+  });
+
+  it("never matches players without a region, even against each other", () => {
+    const players = mapOf([
+      player("a", { region: null }),
+      player("b", { region: null }),
+      player("c"),
+      player("d", { region: "noxus" }),
+    ]);
+    expect(evaluatePod(POD4, players, undefined).sameRegion).toBe(0);
+  });
+
+  it("charges per same-region pair inside a larger pod", () => {
+    const players = mapOf([
+      player("a", { region: "noxus" }),
+      player("b", { region: "noxus" }),
+      player("c", { region: "noxus" }),
+      player("d", { region: "ionia" }),
+    ]);
+    // Three same-region pairs among a/b/c.
+    expect(evaluatePod(POD4, players, undefined).sameRegion).toBe(210);
+  });
+
+  it("loses to a first rematch under the default weights", () => {
+    const players = mapOf([
+      player("a", { region: "noxus", opponents: new Map([["b", 1]]) }),
+      player("b", { region: "demacia", opponents: new Map([["a", 1]]) }),
+    ]);
+    const rematchBreakdown = evaluatePod(MATCH, players, undefined);
+    const mirrorPlayers = mapOf([
+      player("a", { region: "noxus" }),
+      player("b", { region: "noxus" }),
+    ]);
+    const mirrorBreakdown = evaluatePod(MATCH, mirrorPlayers, undefined);
+    expect(mirrorBreakdown.total).toBeLessThan(rematchBreakdown.total);
+  });
+});
+
 describe("evaluatePairing", () => {
   it("sums per-pod totals into the round penalty", () => {
     const players = [
@@ -142,8 +191,8 @@ describe("evaluatePairing", () => {
 
   it("named penalty terms sum to the pod total under the default config", () => {
     const players = mapOf([
-      player("a", { score: 9, pods3: 2, opponents: new Map([["b", 2]]) }),
-      player("b", { score: 1, opponents: new Map([["a", 2]]) }),
+      player("a", { score: 9, pods3: 2, opponents: new Map([["b", 2]]), region: "noxus" }),
+      player("b", { score: 1, opponents: new Map([["a", 2]]), region: "noxus" }),
       player("c", { score: 0 }),
     ]);
     const breakdown = evaluatePod(POD3, players, undefined);
@@ -152,7 +201,8 @@ describe("evaluatePairing", () => {
       breakdown.scoreSpread +
       breakdown.imbalance +
       breakdown.float +
-      breakdown.threePodRepeat;
+      breakdown.threePodRepeat +
+      breakdown.sameRegion;
     expect(sum).toBeCloseTo(breakdown.total);
   });
 });

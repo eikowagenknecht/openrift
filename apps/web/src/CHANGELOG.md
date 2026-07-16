@@ -4,6 +4,8 @@
 
 ### Highlights
 
+- feat(Tournaments): **Swiss 1v1 rounds** — tournaments can now pair head-to-head Swiss rounds (best of 1 or 3) with configurable win, draw, and bye points, automatic byes, and strong rematch avoidance.
+- feat(Tournaments): **Player regions** — assign each player a region: pairings avoid same-region matchups and the standings add a per-region leaderboard.
 - feat(Groups): **A friendlier groups overview** — groups now show as tiles with member photos, shared-list counts, and a clear marker on any group that needs your attention.
 - feat(Tournaments): **Enter just your own score** — players on the result link can now save their own game points next to their name; the pod completes once everyone has entered theirs.
 - feat(Tournaments): **Live round updates** — while a round is open, the results page refreshes itself, so scores saved by anyone appear for everyone without reloading.

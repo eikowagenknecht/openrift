@@ -1,6 +1,8 @@
 export type {
+  GeneratePairingOptions,
   LocalSearchBudget,
   PairingConfig,
+  PairingMode,
   PairingPlayer,
   PairingResult,
   PairingStrategy,
@@ -10,9 +12,13 @@ export type {
   PodSizes,
 } from "./types.js";
 export { DEFAULT_LOCAL_SEARCH_BUDGET, DEFAULT_PAIRING_CONFIG } from "./types.js";
-export { determinePodSizes, suggestedRoundCount } from "./pod-sizes.js";
+export { determinePodSizes, determineSwissPodSizes, suggestedRoundCount } from "./pod-sizes.js";
 export type { ScoringScheme } from "./points.js";
-export { placementsFromGamePoints, pointsForPlacements } from "./points.js";
+export {
+  placementsFromGamePoints,
+  pointsForPlacements,
+  swissPointsForPlacements,
+} from "./points.js";
 export { evaluatePairing, evaluatePod } from "./evaluate.js";
 export {
   generatePairing,
@@ -21,3 +27,4 @@ export {
 } from "./local-search.js";
 export type { PairingWarning } from "./warnings.js";
 export { computePairingWarnings, SPREAD_WARNING_THRESHOLD } from "./warnings.js";
+export { pickAutoBye } from "./auto-bye.js";

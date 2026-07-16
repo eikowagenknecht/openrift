@@ -9,6 +9,8 @@ import type { PairingConfig, PairingPlayer, Pod, PodPenaltyBreakdown } from "./t
  *   at spread >= 6 and a further `spreadSurcharge9` once at spread >= 9.
  * - Float: per player, `abs(score - podAverage) * floatWeight`.
  * - Three-pod repeat: per player in a 3-pod, `threePodRepeatPenalties[min(pods3, 3)]`.
+ * - Same region: every unordered in-pod pair whose members share a region adds
+ *   `sameRegionWeight`; players without a region never match.
  * - Optional pairwise score term, off by default (`pairwiseScoreWeight = 0`).
  *
  * @param pod The pod to score.
@@ -31,6 +33,7 @@ export function evaluatePod(
 
   let rematch = 0;
   let rematchPairs = 0;
+  let sameRegion = 0;
   let pairwise = 0;
   for (let i = 0; i < members.length; i++) {
     for (let j = i + 1; j < members.length; j++) {
@@ -38,6 +41,10 @@ export function evaluatePod(
       rematch += config.rematchPenalties[Math.min(meetings, 3)] ?? 0;
       if (meetings > 0) {
         rematchPairs++;
+      }
+      const regionA = members[i].region ?? null;
+      if (regionA !== null && regionA === members[j].region) {
+        sameRegion += config.sameRegionWeight;
       }
       if (config.pairwiseScoreWeight > 0) {
         pairwise += Math.abs(members[i].score - members[j].score) * config.pairwiseScoreWeight;
@@ -69,8 +76,18 @@ export function evaluatePod(
     }
   }
 
-  const total = rematch + scoreSpread + imbalance + float + threePodRepeat + pairwise;
-  return { rematch, scoreSpread, imbalance, float, threePodRepeat, total, rematchPairs, spread };
+  const total = rematch + scoreSpread + imbalance + float + threePodRepeat + sameRegion + pairwise;
+  return {
+    rematch,
+    scoreSpread,
+    imbalance,
+    float,
+    threePodRepeat,
+    sameRegion,
+    total,
+    rematchPairs,
+    spread,
+  };
 }
 
 /**

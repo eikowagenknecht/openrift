@@ -136,6 +136,49 @@ describe("validatePartition", () => {
   });
 });
 
+describe("validatePartition (swiss)", () => {
+  const expected = ["a", "b", "c", "d"];
+
+  it("accepts an all-matches split", () => {
+    const state: EditorState = {
+      pods: [{ playerIds: ["a", "b"] }, { playerIds: ["c", "d"] }],
+      byes: [],
+    };
+    const result = validatePartition(state, expected, "swiss");
+    expect(result.ok).toBe(true);
+    expect(result.podValid).toEqual([true, true]);
+  });
+
+  it("rejects a 3-player match with swiss copy", () => {
+    const state: EditorState = {
+      pods: [{ playerIds: ["a", "b", "c"] }, { playerIds: ["d"] }],
+      byes: [],
+    };
+    const result = validatePartition(state, expected, "swiss");
+    expect(result.ok).toBe(false);
+    expect(result.podValid).toEqual([false, false]);
+    expect(result.errors.some((message) => message.includes("exactly 2"))).toBe(true);
+  });
+
+  it("accepts a match plus byes and an emptied match", () => {
+    const state: EditorState = {
+      pods: [{ playerIds: ["a", "b"] }, { playerIds: [] }],
+      byes: ["c", "d"],
+    };
+    const result = validatePartition(state, expected, "swiss");
+    expect(result.ok).toBe(true);
+  });
+
+  it("still rejects a 2-pod in the default pod mode", () => {
+    const state: EditorState = {
+      pods: [{ playerIds: ["a", "b"] }],
+      byes: ["c", "d"],
+    };
+    const result = validatePartition(state, expected);
+    expect(result.ok).toBe(false);
+  });
+});
+
 describe("toPayload", () => {
   it("drops empty pods and derives sizes", () => {
     let state: EditorState = seedFromRound(round());

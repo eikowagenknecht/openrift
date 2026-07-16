@@ -27,6 +27,7 @@ import {
 } from "../../lib/tournament-presenters.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
+import { scoringOf } from "../../repositories/pod-tournaments.js";
 import type { PodPlayer, PodTournament } from "../../repositories/pod-tournaments.js";
 import type {
   Tournament,
@@ -156,6 +157,22 @@ function assertParticipantsOpen(tournament: Tournament): void {
       ERROR_CODES.CONFLICT,
       "Participants cannot be added to a completed or cancelled tournament",
     );
+  }
+}
+
+/**
+ * Validates a participant region: `null`/`undefined` pass (unset/clear);
+ * otherwise the value must be an existing custom-tag slug in the `region`
+ * category — the same vocabulary the Custom - Region deck format uses.
+ * Throws 400 on an unknown slug or a tag from another category.
+ */
+async function assertValidRegion(repos: Repos, region: string | null | undefined): Promise<void> {
+  if (region === null || region === undefined) {
+    return;
+  }
+  const [tag] = await repos.customTags.listBySlugs([region]);
+  if (!tag || tag.category !== "region") {
+    throw new AppError(400, ERROR_CODES.BAD_REQUEST, `Unknown region "${region}"`);
   }
 }
 
@@ -294,6 +311,10 @@ async function buildDetail(
     currentRound: tournament.currentRound,
     scoringScheme: tournament.scoringScheme,
     byePoints: tournament.byePoints,
+    matchFormat: tournament.matchFormat,
+    winPoints: tournament.winPoints,
+    drawPoints: tournament.drawPoints,
+    regionsEnabled: tournament.regionsEnabled,
     deckPhase: tournament.deckPhase,
     submissionsCloseAt: tournament.submissionsCloseAt
       ? tournament.submissionsCloseAt.toISOString()
@@ -337,8 +358,13 @@ function toPodTournament(row: PodTournament): PodTournamentResponse {
     name: row.name,
     status: row.status,
     currentRound: row.currentRound,
+    pairingStyle: row.pairingStyle,
     scoringScheme: row.scoringScheme,
     byePoints: row.byePoints,
+    matchFormat: row.matchFormat,
+    winPoints: row.winPoints,
+    drawPoints: row.drawPoints,
+    regionsEnabled: row.regionsEnabled,
     reportToken: row.reportToken,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -366,22 +392,15 @@ async function buildPodRunDetail(
   repos: Repos,
   tournament: PodTournament,
 ): Promise<PodTournamentDetailResponse> {
+  const scoring = scoringOf(tournament);
   const [players, standings, rounds, openRound] = await Promise.all([
     repos.podTournaments.listPlayers(tournament.id),
-    repos.podTournaments.computeStandings(
-      tournament.id,
-      tournament.scoringScheme,
-      tournament.byePoints,
-    ),
-    repos.podTournaments.loadRounds(tournament.id, tournament.scoringScheme),
+    repos.podTournaments.computeStandings(tournament.id, scoring),
+    repos.podTournaments.loadRounds(tournament.id, scoring),
     repos.podTournaments.findOpenRound(tournament.id),
   ]);
   const openRoundSnapshot = openRound
-    ? await repos.podTournaments.loadOpenRoundSnapshot(
-        tournament.id,
-        tournament.scoringScheme,
-        tournament.byePoints,
-      )
+    ? await repos.podTournaments.loadOpenRoundSnapshot(tournament.id, scoring)
     : null;
   return {
     tournament: toPodTournament(tournament),
@@ -657,6 +676,10 @@ export const tournamentsRouter = {
           pairingStyle: input.pairingStyle,
           scoringScheme: input.scoringScheme,
           byePoints: input.byePoints,
+          matchFormat: input.matchFormat,
+          winPoints: input.winPoints,
+          drawPoints: input.drawPoints,
+          regionsEnabled: input.regionsEnabled,
           deckSubmission: input.deckSubmission,
           submissionsCloseAt: input.submissionsCloseAt ? new Date(input.submissionsCloseAt) : null,
           listLockMode: input.listLockMode,
@@ -717,7 +740,11 @@ export const tournamentsRouter = {
       // depend on it).
       const pairingChanging =
         patch.pairingStyle !== undefined && patch.pairingStyle !== tournament.pairingStyle;
-      if (pairingChanging && (await repos.tournaments.hasRounds(id))) {
+      // The match format shapes result entry, so it is frozen alongside the
+      // pairing engine once rounds exist.
+      const matchFormatChanging =
+        patch.matchFormat !== undefined && patch.matchFormat !== tournament.matchFormat;
+      if ((pairingChanging || matchFormatChanging) && (await repos.tournaments.hasRounds(id))) {
         throw new AppError(
           409,
           ERROR_CODES.CONFLICT,
@@ -780,6 +807,10 @@ export const tournamentsRouter = {
         groupId: patch.groupId,
         scoringScheme: patch.scoringScheme,
         byePoints: patch.byePoints,
+        matchFormat: matchFormatChanging ? patch.matchFormat : undefined,
+        winPoints: patch.winPoints,
+        drawPoints: patch.drawPoints,
+        regionsEnabled: patch.regionsEnabled,
         deckSubmission: patch.deckSubmission,
         submissionsCloseAt:
           patch.submissionsCloseAt === undefined
@@ -796,7 +827,7 @@ export const tournamentsRouter = {
       // revokes its share token so the now-meaningless report link stops resolving
       // (the public report also gates on pairingStyle, but clearing the token keeps
       // the manage UI and any cached link honest).
-      if (pairingChanging && patch.pairingStyle !== "pod") {
+      if (pairingChanging && patch.pairingStyle !== "pod" && patch.pairingStyle !== "swiss") {
         if (tournament.reportToken) {
           await repos.podTournaments.setReportToken(id, null);
         }
@@ -950,9 +981,11 @@ export const tournamentsRouter = {
       const tournament = await loadTournament(repos, input.id);
       await requireStaff(repos, tournament, userId);
       assertParticipantsOpen(tournament);
+      await assertValidRegion(repos, input.region);
       await repos.tournaments.createParticipant({
         tournamentId: input.id,
         displayName: input.displayName,
+        region: input.region ?? null,
         status: "active",
       });
       return buildParticipantList(repos, input.id);
@@ -964,11 +997,19 @@ export const tournamentsRouter = {
       const repos = context.repos;
       const userId = context.userId;
       const tournament = await loadTournament(repos, input.id);
-      await requireManage(repos, tournament, userId);
+      // Region assignment is judge work (checking decks against the entered
+      // region is part of deck check), so a region-only patch needs staff, not
+      // manage. Name/seed edits stay organizer/host-only.
+      const touchesManagedFields = input.displayName !== undefined || input.seed !== undefined;
+      await (touchesManagedFields
+        ? requireManage(repos, tournament, userId)
+        : requireStaff(repos, tournament, userId));
       await loadParticipant(repos, input.id, input.participantId);
+      await assertValidRegion(repos, input.region);
       await repos.tournaments.updateParticipant(input.participantId, {
         displayName: input.displayName,
         seed: input.seed,
+        region: input.region,
       });
       return buildParticipantList(repos, input.id);
     },

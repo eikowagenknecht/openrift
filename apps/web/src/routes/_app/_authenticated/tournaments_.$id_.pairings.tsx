@@ -14,7 +14,7 @@ export const Route = createFileRoute("/_app/_authenticated/tournaments_/$id_/pai
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Pairings", noIndex: true }),
   loader: async ({ context, params }) => {
     const detail = await loadTournamentDetail(context.queryClient, context.userId, params.id);
-    if (detail.pairingStyle !== "pod") {
+    if (detail.pairingStyle === "none") {
       redirectToTournamentOverview(params.id);
     }
     await loadTournamentRunState(context.queryClient, context.userId, params.id);

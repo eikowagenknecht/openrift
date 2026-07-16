@@ -15,7 +15,8 @@ extendZodWithOpenApi(z);
 // ─── Enums ─────────────────────────────────────────────────────────────────
 
 const tournamentStatusSchema = z.enum(["setup", "running", "completed", "cancelled"]);
-const tournamentPairingStyleSchema = z.enum(["none", "pod"]);
+const tournamentPairingStyleSchema = z.enum(["none", "pod", "swiss"]);
+const tournamentMatchFormatSchema = z.enum(["bo1", "bo3"]);
 const tournamentDeckSubmissionSchema = z.enum(["none", "optional", "required"]);
 const tournamentDeckPhaseSchema = z.enum(["open", "closed", "locked"]);
 const tournamentListLockModeSchema = z.enum(["on_submit", "at_deadline"]);
@@ -91,6 +92,12 @@ export const tournamentDetailResponseSchema = tournamentSummaryResponseSchema
     currentRound: z.number().int().nonnegative(),
     scoringScheme: scoringSchemeSchema,
     byePoints: z.number().int().nonnegative(),
+    /** Swiss result entry: best of 1 or best of 3. Ignored by the pod engine. */
+    matchFormat: tournamentMatchFormatSchema,
+    winPoints: z.number().int().nonnegative(),
+    drawPoints: z.number().int().nonnegative(),
+    /** Region layer: per-participant regions, region-aware pairing, region standings. */
+    regionsEnabled: z.boolean(),
     deckPhase: tournamentDeckPhaseSchema,
     submissionsCloseAt: z.string().nullable(),
     listLockMode: tournamentListLockModeSchema,
@@ -128,6 +135,8 @@ export const tournamentParticipantResponseSchema = z
     riotId: z.string().nullable(),
     status: tournamentParticipantStatusSchema,
     seed: z.number().int().nullable(),
+    /** Region tag slug (custom-tag category `region`); null when unassigned. */
+    region: z.string().nullable(),
     droppedAfterRound: z.number().int().nullable(),
     claimToken: z.string().nullable(),
     /** A judge unlinked a wrong account; the spot is blocked until a re-issue. */
@@ -158,6 +167,10 @@ export const createTournamentSchema = z.object({
   pairingStyle: tournamentPairingStyleSchema,
   scoringScheme: scoringSchemeSchema.optional(),
   byePoints: z.number().int().min(0).max(99).optional(),
+  matchFormat: tournamentMatchFormatSchema.optional(),
+  winPoints: z.number().int().min(0).max(99).optional(),
+  drawPoints: z.number().int().min(0).max(99).optional(),
+  regionsEnabled: z.boolean().optional(),
   deckSubmission: tournamentDeckSubmissionSchema,
   submissionsCloseAt: isoDateTime.nullable().optional(),
   listLockMode: tournamentListLockModeSchema.optional(),
@@ -182,6 +195,14 @@ export const updateTournamentSchema = z.object({
   endsAt: isoDateTime.nullable().optional(),
   scoringScheme: scoringSchemeSchema.optional(),
   byePoints: z.number().int().min(0).max(99).optional(),
+  // Swiss result entry (Bo1/Bo3). Like pairingStyle, only honored while the
+  // tournament has no rounds yet (the handler 409s otherwise).
+  matchFormat: tournamentMatchFormatSchema.optional(),
+  // Win/draw points and the region layer recompute on read, so they stay
+  // editable at any time.
+  winPoints: z.number().int().min(0).max(99).optional(),
+  drawPoints: z.number().int().min(0).max(99).optional(),
+  regionsEnabled: z.boolean().optional(),
   deckSubmission: tournamentDeckSubmissionSchema.optional(),
   submissionsCloseAt: isoDateTime.nullable().optional(),
   listLockMode: tournamentListLockModeSchema.optional(),
@@ -219,14 +240,15 @@ const generateRoundSchema = z.object({ byes: z.array(z.uuid()).default([]) });
 
 /**
  * A manual whole-round pairing edit: the new pods plus the players sitting out.
- * The server validates pod sizes (3 or 4), full coverage of the round's players,
- * and that byes are active, then recomputes the penalty.
+ * The server validates pod sizes per pairing style (3/4 for pods, 2 for Swiss
+ * matches), full coverage of the round's players, and that byes are active,
+ * then recomputes the penalty.
  */
 const replacePairingSchema = z.object({
   pods: z
     .array(
       z.object({
-        size: z.union([z.literal(3), z.literal(4)]),
+        size: z.union([z.literal(2), z.literal(3), z.literal(4)]),
         playerIds: z.array(z.uuid()),
       }),
     )
@@ -344,7 +366,12 @@ export const tournamentsContract = {
   addParticipant: authedRoute
     .route({ method: "POST", path: `${BASE}/{id}/participants`, tags: [TAG] })
     .errors({ NOT_FOUND: { message: "Tournament not found" } })
-    .input(withParams(idParamSchema, { displayName: z.string().min(1).max(120) }))
+    .input(
+      withParams(idParamSchema, {
+        displayName: z.string().min(1).max(120),
+        region: z.string().min(1).max(50).nullable().optional(),
+      }),
+    )
     .output(tournamentParticipantListResponseSchema),
   updateParticipant: authedRoute
     .route({ method: "PATCH", path: `${BASE}/{id}/participants/{participantId}`, tags: [TAG] })
@@ -353,6 +380,9 @@ export const tournamentsContract = {
       withParams(participantParamSchema, {
         displayName: z.string().min(1).max(120).optional(),
         seed: z.number().int().nullable().optional(),
+        // A region tag slug, or null to clear. Judges may patch region alone;
+        // the other fields stay organizer/host-only.
+        region: z.string().min(1).max(50).nullable().optional(),
       }),
     )
     .output(tournamentParticipantListResponseSchema),

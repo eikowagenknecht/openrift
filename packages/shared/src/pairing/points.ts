@@ -56,6 +56,31 @@ export function pointsForPlacements(
 }
 
 /**
+ * Derive match points for a Swiss 1v1 match (a 2-player pod) from its entered
+ * placements. Unlike the FFA placement tables, Swiss points are win/draw
+ * configured per tournament: the sole first place earns `winPoints`, a tie
+ * earns both players `drawPoints`, and the loser earns 0.
+ *
+ * @param placements The entered placement value per player, in player order (length 2).
+ * @param winPoints Points for winning the match.
+ * @param drawPoints Points each player earns on a draw.
+ * @returns Points per player, in the same order as `placements`.
+ */
+export function swissPointsForPlacements(
+  placements: number[],
+  winPoints: number,
+  drawPoints: number,
+): number[] {
+  if (placements.length !== 2) {
+    throw new Error(`swissPointsForPlacements: expected 2 placements, got ${placements.length}`);
+  }
+  if (placements[0] === placements[1]) {
+    return [drawPoints, drawPoints];
+  }
+  return placements[0] < placements[1] ? [winPoints, 0] : [0, winPoints];
+}
+
+/**
  * Derive each player's placement from the raw game points they ended a pod on.
  *
  * Higher points finish ahead, so the standard competition ranking applies: a

@@ -18,6 +18,7 @@ import { useGenerateTournamentRound } from "@/hooks/use-tournaments";
  * @param isFirstRound Whether no rounds exist yet (button label).
  * @param reachedSuggestion Whether the Swiss-suggested round count is met.
  * @param suggested The suggested round count (for the nudge text).
+ * @param swissAutoBye Whether odd fields auto-bye a player (Swiss mode hint).
  * @returns The generate controls.
  */
 export function GenerateRoundControls({
@@ -27,6 +28,7 @@ export function GenerateRoundControls({
   isFirstRound,
   reachedSuggestion,
   suggested,
+  swissAutoBye = false,
 }: {
   id: string;
   players: PodPlayerResponse[];
@@ -34,6 +36,7 @@ export function GenerateRoundControls({
   isFirstRound: boolean;
   reachedSuggestion: boolean;
   suggested: number;
+  swissAutoBye?: boolean;
 }) {
   const generateRound = useGenerateTournamentRound();
   const [byeIds, setByeIds] = useState<string[]>([]);
@@ -77,6 +80,12 @@ export function GenerateRoundControls({
             <span className="text-sm text-amber-600 dark:text-amber-500">
               {repeatByes.map((playerId) => nameById.get(playerId) ?? "A player").join(", ")}{" "}
               {repeatByes.length === 1 ? "has" : "have"} already had a bye.
+            </span>
+          ) : null}
+          {swissAutoBye ? (
+            <span className="text-muted-foreground text-sm">
+              With an odd number of players, the lowest-ranked player with the fewest byes sits out
+              automatically. Pick byes above to override.
             </span>
           ) : null}
         </div>

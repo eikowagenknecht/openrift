@@ -10,6 +10,9 @@ import { describe, expect, it } from "vitest";
 import {
   canCheckDecks,
   canManageTournament,
+  hasPairing,
+  MATCH_FORMAT_ITEMS,
+  PAIRING_STYLE_ITEMS,
   combineLocalDateTimeToUtc,
   compareParticipantsForList,
   compareTournamentsForList,
@@ -34,6 +37,7 @@ function makeParticipant(
     riotId: null,
     status,
     seed: null,
+    region: null,
     droppedAfterRound: null,
     claimToken: null,
     claimBlocked: false,
@@ -370,5 +374,23 @@ describe("compareParticipantsForList", () => {
     ];
     const sorted = roster.toSorted(compareParticipantsForList);
     expect(sorted.map((p) => p.displayName)).toEqual(["Amy", "Mona", "Zoe"]);
+  });
+});
+
+describe("hasPairing", () => {
+  it("is true for the round-running styles and false for none", () => {
+    expect(hasPairing("pod")).toBe(true);
+    expect(hasPairing("swiss")).toBe(true);
+    expect(hasPairing("none")).toBe(false);
+  });
+});
+
+describe("pairing and match-format option lists", () => {
+  it("offers all three pairing styles", () => {
+    expect(PAIRING_STYLE_ITEMS.map((item) => item.value)).toEqual(["none", "pod", "swiss"]);
+  });
+
+  it("offers both match formats", () => {
+    expect(MATCH_FORMAT_ITEMS.map((item) => item.value)).toEqual(["bo1", "bo3"]);
   });
 });
