@@ -25,7 +25,7 @@ export function adjacentKey(a: string, b: string): string {
  * The directed key for "b sits directly after a" around the table.
  * @returns `"a>b"`.
  */
-export function successionKey(a: string, b: string): string {
+function successionKey(a: string, b: string): string {
   return `${a}>${b}`;
 }
 
