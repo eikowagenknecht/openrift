@@ -159,3 +159,49 @@ describe("pairNextRound swiss auto-bye", () => {
     await expect(pairNextRound(repos, TOURNAMENT)).rejects.toMatchObject({ status: 400 });
   });
 });
+
+describe("pairNextRound region guard", () => {
+  const REGION_TOURNAMENT = { ...SWISS_TOURNAMENT, regionsEnabled: true } as PodTournament;
+
+  it("rejects pairing while a seated player has no region", async () => {
+    const players = [player("a", { region: "noxus" }), player("b", { region: null })];
+    const { repos, createRound } = reposWithSnapshot(players);
+    const result = await pairNextRound(repos, REGION_TOURNAMENT).catch((error: unknown) => error);
+    expect(result).toBeInstanceOf(AppError);
+    expect((result as AppError).status).toBe(400);
+    expect((result as AppError).message).toContain("region");
+    expect(createRound).not.toHaveBeenCalled();
+  });
+
+  it("counts every region-less seated player in the message", async () => {
+    const players = [
+      player("a", { region: "noxus" }),
+      player("b", { region: null }),
+      player("c"),
+      player("d", { region: "ionia" }),
+    ];
+    const { repos } = reposWithSnapshot(players);
+    await expect(pairNextRound(repos, REGION_TOURNAMENT)).rejects.toMatchObject({
+      status: 400,
+      message: expect.stringContaining("2 players"),
+    });
+  });
+
+  it("allows pairing when the region-less players are byed", async () => {
+    const players = [
+      player("a", { region: "noxus" }),
+      player("b", { region: "demacia" }),
+      player("c", { region: null }),
+    ];
+    const { repos, createRound } = reposWithSnapshot(players);
+    await pairNextRound(repos, REGION_TOURNAMENT, ["c"]);
+    expect(createRound).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores missing regions when the feature is off", async () => {
+    const players = [player("a"), player("b")];
+    const { repos, createRound } = reposWithSnapshot(players);
+    await pairNextRound(repos, SWISS_TOURNAMENT);
+    expect(createRound).toHaveBeenCalledTimes(1);
+  });
+});

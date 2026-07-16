@@ -18,6 +18,7 @@ import { toast } from "sonner";
 
 import { SearchInput } from "@/components/filters/search-input";
 import { PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -120,6 +121,14 @@ export function TournamentParticipantsTab({
     null,
   );
 
+  // Region-aware tournaments cannot pair a round while an active player has no
+  // region, so the roster flags exactly those players.
+  const regionMissing = (participant: TournamentParticipantResponse) =>
+    detail.regionsEnabled && participant.status === "active" && participant.region === null;
+  const missingRegionCount = participants.filter((participant) =>
+    regionMissing(participant),
+  ).length;
+
   const needle = search.trim().toLowerCase();
   const visible = needle
     ? participants.filter((participant) =>
@@ -143,6 +152,19 @@ export function TournamentParticipantsTab({
 
   return (
     <div className="flex flex-col gap-4">
+      {canAssignRegion && missingRegionCount > 0 ? (
+        <Alert variant="warning">
+          <GlobeIcon />
+          <AlertTitle>
+            {missingRegionCount} {missingRegionCount === 1 ? "player has" : "players have"} no
+            region yet
+          </AlertTitle>
+          <AlertDescription>
+            Every active player needs a region before a round can be paired. Use the Set region
+            button on the flagged rows below.
+          </AlertDescription>
+        </Alert>
+      ) : null}
       {participants.length > 0 ? (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <SearchInput
@@ -180,6 +202,11 @@ export function TournamentParticipantsTab({
                     </Badge>
                     {detail.regionsEnabled && participant.region ? (
                       <Badge variant="outline">{regionLabel(participant.region)}</Badge>
+                    ) : regionMissing(participant) ? (
+                      <Badge variant="warning">
+                        <GlobeIcon className="size-3" />
+                        No region
+                      </Badge>
                     ) : null}
                     {participant.userId ? (
                       <Badge
@@ -197,6 +224,23 @@ export function TournamentParticipantsTab({
                   </span>
                   {manage ? (
                     <span className="flex shrink-0 items-center gap-1">
+                      {regionMissing(participant) ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-amber-600 dark:text-amber-500"
+                          onClick={() =>
+                            setRegionTarget({
+                              participantId: participant.id,
+                              name: participant.displayName,
+                              region: "none",
+                            })
+                          }
+                        >
+                          <GlobeIcon className="size-4" />
+                          Set region
+                        </Button>
+                      ) : null}
                       {deckEntry ? (
                         <Button
                           size="sm"
@@ -332,7 +376,12 @@ export function TournamentParticipantsTab({
                     <span className="flex shrink-0 items-center gap-1">
                       <Button
                         size="sm"
-                        variant="ghost"
+                        variant={regionMissing(participant) ? "outline" : "ghost"}
+                        className={
+                          regionMissing(participant)
+                            ? "text-amber-600 dark:text-amber-500"
+                            : undefined
+                        }
                         onClick={() =>
                           setRegionTarget({
                             participantId: participant.id,

@@ -51,6 +51,11 @@ function pairingModeOf(tournament: PodTournament): PairingMode {
  * effective byes the caller must persist, so a re-roll (which re-reads the stored
  * byes) keeps the count even without a second auto-bye.
  *
+ * On a region-aware tournament, every seated player must have a region before
+ * the round can be paired (byed players are exempt) — otherwise the region
+ * penalty silently treats the gaps as "no conflict" and the pairing looks fine
+ * while ignoring the feature the organizer turned on.
+ *
  * @param repos The request repos.
  * @param tournament The owning tournament row.
  * @param roundNumber The 1-based round number.
@@ -75,6 +80,20 @@ async function runPairing(
   }
   const byeSet = new Set(byePlayerIds);
   let seated = snapshot.filter((player) => !byeSet.has(player.id));
+  if (tournament.regionsEnabled) {
+    const missingRegion = seated.filter(
+      (player) => player.region === null || player.region === undefined,
+    ).length;
+    if (missingRegion > 0) {
+      throw new AppError(
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        missingRegion === 1
+          ? "1 player has no region set. Assign regions on the Participants page, or sit them out, before pairing."
+          : `${missingRegion} players have no region set. Assign regions on the Participants page, or sit them out, before pairing.`,
+      );
+    }
+  }
   let effectiveByes = byePlayerIds;
   if (pairingModeOf(tournament) === "swiss" && seated.length % 2 === 1) {
     const autoBye = pickAutoBye(seated);

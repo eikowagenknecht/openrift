@@ -37,6 +37,13 @@ export function PodPairingsSection({
   const regionByPlayer = data.tournament.regionsEnabled
     ? new Map(data.standings.map((row) => [row.playerId, row.region]))
     : undefined;
+  // Active players still missing a region: the server refuses to pair them, so
+  // the generate controls block up front and point at the Participants page.
+  const missingRegionIds = data.tournament.regionsEnabled
+    ? data.standings
+        .filter((row) => row.status === "active" && row.region === null)
+        .map((row) => row.playerId)
+    : [];
   const openRound = data.rounds.find((round) => round.status === "reporting");
   const completed = data.tournament.status === "completed";
   const finalizedCount = data.rounds.filter((round) => round.status === "finalized").length;
@@ -79,6 +86,7 @@ export function PodPairingsSection({
           reachedSuggestion={reachedSuggestion}
           suggested={suggested}
           swissAutoBye={isSwiss && activeCount % 2 === 1}
+          missingRegionIds={missingRegionIds}
         />
       ) : null}
       {finalizedCount > 1 ? (
