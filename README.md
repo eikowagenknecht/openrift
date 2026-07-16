@@ -1,12 +1,34 @@
+<!-- markdownlint-configure-file { "MD013": false, "MD033": { "allowed_elements": ["details", "summary"] } } -->
+
 # OpenRift
 
 _Built with Fury. Maintained with Calm._
 
-An open-source, [actively developed](apps/web/src/CHANGELOG.md) companion app for [Riftbound](https://riftbound.leagueoflegends.com/), League of Legends' trading card game. Track your collection, build decks, trade, and more.
+An open-source, [actively developed](apps/web/src/CHANGELOG.md) companion app for [Riftbound](https://riftbound.leagueoflegends.com/), League of Legends' trading card game. Track your collection, build decks, trade in your local groups, and more.
 
 Live and free to use at **[openrift.app](https://openrift.app)**, no install required. This repository is the code that runs it.
 
-![OpenRift card browser](docs/assets/screenshot.webp)
+![OpenRift card browser](docs/assets/screenshot-cardbrowser.webp)
+
+<details>
+<summary>More Screenshots</summary>
+
+Deck builder:
+
+![OpenRift deck builder](docs/assets/screenshot-deckbuilder.webp)
+
+Friend group:
+
+![OpenRift group](docs/assets/screenshot-group.webp)
+
+Group collecions:
+
+![OpenRift collection](docs/assets/screenshot-group-collections.webp)
+
+Tournament view:
+![OpenRift collection](docs/assets/screenshot-tournament.webp)
+
+</details>
 
 ## What it does
 
@@ -41,7 +63,7 @@ If you want to talk about OpenRift there's a [Discord](https://discord.gg/Qb6Rcj
 
 ## For developers
 
-OpenRift is a TypeScript monorepo: a TanStack Start + shadcn/ui frontend (`apps/web`), a Hono API on Bun (`apps/api`), and PostgreSQL accessed through Kysely.
+OpenRift is a TypeScript monorepo: a TanStack Start + customized shadcn/ui frontend (`apps/web`), a Hono API on Bun (`apps/api`), and PostgreSQL accessed through Kysely.
 
 - [Architecture](docs/architecture.md) covers the monorepo structure, packages, and infrastructure.
 - [Data Layer](docs/data-layer.md) documents the database schema and API endpoints.
@@ -49,9 +71,17 @@ OpenRift is a TypeScript monorepo: a TanStack Start + shadcn/ui frontend (`apps/
 - [Deployment](docs/deployment.md) walks through VPS setup, Docker Compose, and CI/CD.
 - [Contributing](docs/contributing.md) explains code style, conventions, and the changelog.
 
-On the AI question: yes, Claude does a lot of the typing, so you might find a stray em dash here and there. The architecture and every decision that matters are mine, and I review and shape all of the code. That combination is how one person ships at the pace the changelog shows. Every change has to get past the test suite (unit, integration, and end-to-end) before it lands.
+On the AI question: Claude does some of the typing, because it is way faster at that than I am (and I already have quite some typing experience accumulated over the last 20+ years of software development).
 
-Issues and pull requests are welcome. If you open a pull request, please make sure you understand the code you're submitting, since it's held to the same standard. To contribute card data rather than code, use the in-app contribute page (sign in and open **Contribute** from the menu) to submit a missing card, a correction, or an image for review.
+I get the most fun out of building tools that I end up using myself every day. So the app's architecture, unique features, and detailed decisions about UX (that AIs today mostly answer with mediocrity) are all my own. If you think something can be improved, please open an issue or a pull request. I read every one and respond to all of them.
+
+If you open a pull request, please make sure you understand the code you're submitting, since it's held to the same standard as the rest of the codebase.
+
+Also every change has to get past the test suite (unit, integration, and end-to-end) before it lands.
+
+## Contributing card data
+
+To contribute card data rather than code, use the in-app contribute page (sign in and open **Contribute** from the menu) to submit a missing card, a correction, or an image for review.
 
 ## Legal
 
