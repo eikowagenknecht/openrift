@@ -10,7 +10,7 @@ services:
   # textfile collector — its /metrics endpoint merges those gauges into its
   # own output, so we don't need a separate scrape target.
   node-exporter:
-    image: prom/node-exporter:v1.11.1
+    image: prom/node-exporter:v1.12.1
     pid: host
     volumes:
       - /proc:/host/proc:ro
@@ -116,7 +116,7 @@ services:
 
   # Scrapes all exporters, stores metrics for 90 days.
   prometheus:
-    image: prom/prometheus:v3.13.0
+    image: prom/prometheus:v3.13.1
     user: "${UID:-1000}:${GID:-1000}"
     ports:
       - "127.0.0.1:9090:9090"
