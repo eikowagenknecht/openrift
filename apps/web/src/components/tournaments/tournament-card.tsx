@@ -52,14 +52,17 @@ export function TournamentCard({ tournament }: { tournament: TournamentSummaryRe
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
-          <Badge variant="secondary">{EFFECTIVE_STATE_LABEL[state]}</Badge>
+          <Badge variant={state === "in_progress" ? "subtle" : "secondary"}>
+            {EFFECTIVE_STATE_LABEL[state]}
+          </Badge>
           {role ? <Badge variant="outline">{VIEWER_ROLE_LABEL[role]}</Badge> : null}
           {tournament.host.type === "organization" ? (
             <Badge variant="outline">{tournament.host.displayName}</Badge>
           ) : null}
           {tournament.pendingRequestCount > 0 ? (
-            <Badge variant="count" aria-label={`${tournament.pendingRequestCount} pending`}>
-              {tournament.pendingRequestCount}
+            <Badge variant="warning">
+              {tournament.pendingRequestCount} pending request
+              {tournament.pendingRequestCount === 1 ? "" : "s"}
             </Badge>
           ) : null}
         </div>

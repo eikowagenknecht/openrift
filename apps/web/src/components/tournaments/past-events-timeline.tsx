@@ -98,7 +98,7 @@ function PastEventCard({
 }
 
 /**
- * Completed and cancelled events down a subtle timeline rail, each row
+ * Completed and cancelled events as a plain stacked list, each row
  * anchored by a small date leaf.
  *
  * @returns The timeline element.
@@ -112,26 +112,19 @@ export function PastEventsTimeline({
   showContext?: boolean;
 }) {
   return (
-    <div className="before:border-border relative before:absolute before:top-4 before:bottom-4 before:left-[21px] before:border-l">
-      <ul className="flex flex-col gap-2.5">
-        {tournaments.map((tournament) => {
-          const leaf = dateLeafParts(tournament.startsAt);
-          return (
-            <li
-              key={tournament.id}
-              className="grid grid-cols-[2.75rem_minmax(0,1fr)] items-start gap-3"
-            >
-              <DateLeaf
-                month={leaf.month}
-                day={leaf.day}
-                size="sm"
-                className="relative z-10 mt-2"
-              />
-              <PastEventCard tournament={tournament} showContext={showContext} />
-            </li>
-          );
-        })}
-      </ul>
-    </div>
+    <ul className="flex flex-col gap-2.5">
+      {tournaments.map((tournament) => {
+        const leaf = dateLeafParts(tournament.startsAt);
+        return (
+          <li
+            key={tournament.id}
+            className="grid grid-cols-[2.75rem_minmax(0,1fr)] items-start gap-3"
+          >
+            <DateLeaf month={leaf.month} day={leaf.day} size="sm" className="mt-2" />
+            <PastEventCard tournament={tournament} showContext={showContext} />
+          </li>
+        );
+      })}
+    </ul>
   );
 }

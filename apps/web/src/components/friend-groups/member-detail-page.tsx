@@ -4,6 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { Heading } from "@/components/heading";
 import { TopBarBreadcrumbBar } from "@/components/layout/top-bar-breadcrumb";
 import { Badge } from "@/components/ui/badge";
+import { SectionHeading } from "@/components/ui/section-heading";
 import { UserAvatar } from "@/components/user-avatar";
 import { useGroupTrades } from "@/hooks/use-card-trades";
 import { useFriendGroupDetail, useFriendGroupMemberDetail } from "@/hooks/use-friend-groups";
@@ -11,7 +12,7 @@ import { withoutLiveTradeMatches } from "@/lib/trade-derivation";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 
 import { ContactMethodChips } from "./contact-method-chips";
-import { ROLE_LABEL, SECTION_HEADING } from "./friend-group-shell";
+import { ROLE_LABEL } from "./friend-group-shell";
 import { MatchTradeList } from "./match-row-card";
 import { SharedCollectionRow } from "./shared-collection-row";
 import { SharedListRow } from "./shared-list-row";
@@ -80,7 +81,7 @@ export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
 
         {hasMatches ? (
           <section className="flex flex-col gap-3">
-            <h2 className={SECTION_HEADING}>Possible trades</h2>
+            <SectionHeading>Possible trades</SectionHeading>
             <MatchTradeList
               incoming={incomingMatches}
               outgoing={outgoingMatches}
@@ -92,7 +93,7 @@ export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
 
         {hasCollections ? (
           <section className="flex flex-col gap-3">
-            <h2 className={SECTION_HEADING}>Collections</h2>
+            <SectionHeading>Collections</SectionHeading>
             <div className="flex flex-col gap-2">
               {sortedCollections.map((share) => (
                 <SharedCollectionRow key={share.collectionId} slug={slug} share={share} />
@@ -109,7 +110,7 @@ export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
               }
               return (
                 <section key={intent} className="flex flex-col gap-3">
-                  <h2 className={SECTION_HEADING}>{heading}</h2>
+                  <SectionHeading>{heading}</SectionHeading>
                   <div className="flex flex-col gap-2">
                     {sectionShares.map((share) => (
                       <SharedListRow

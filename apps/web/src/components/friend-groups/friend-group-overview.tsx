@@ -4,6 +4,9 @@ import { ChevronRightIcon, FolderIcon, TrophyIcon, UsersIcon, ZapIcon } from "lu
 import type { ComponentType, ReactNode, SVGProps } from "react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
+import { buttonVariants } from "@/components/ui/button";
+import { IconChip } from "@/components/ui/icon-chip";
+import { SectionHeading } from "@/components/ui/section-heading";
 import type { StatTileTone } from "@/components/ui/stat-tile";
 import { StatTile } from "@/components/ui/stat-tile";
 import { UserAvatarStack } from "@/components/user-avatar-stack";
@@ -26,7 +29,7 @@ import {
 import { capitalize, cn } from "@/lib/utils";
 
 import { FriendGroupActivityFeed } from "./friend-group-activity-feed";
-import { SECTION_HEADING, isAdmin } from "./friend-group-shell";
+import { isAdmin } from "./friend-group-shell";
 import { LIST_INTENT_ICON, LIST_INTENT_NOUN } from "./list-intent-meta";
 import { TradeDirectionIcon, TradeExpiry, TradeStatusBadge } from "./trade-row-parts";
 
@@ -105,23 +108,25 @@ function TradesHub({ slug, data }: { slug: string; data: FriendGroupDetailRespon
         "group/trades-hub bg-card flex flex-col gap-3 rounded-lg p-4 ring-1 transition-all hover:shadow-md",
         needsAction
           ? "ring-primary/40 hover:ring-primary/50"
-          : "ring-amber-600/30 hover:ring-amber-600/45 dark:ring-amber-400/30 dark:hover:ring-amber-400/45",
+          : "ring-foreground/10 hover:ring-primary/30",
       )}
       style={{ backgroundImage: HUB_WASH }}
     >
       <div className="flex min-w-0 items-center gap-3">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400">
-          <ZapIcon className="size-5" />
-        </span>
+        <IconChip icon={ZapIcon} tone="gold" />
         <span className="text-muted-foreground text-sm font-medium">Trades</span>
-        <span className="font-heading text-2xl font-semibold tabular-nums">{headline}</span>
+        <span className="font-heading text-3xl font-semibold tabular-nums">{headline}</span>
         <span className="text-muted-foreground min-w-0 truncate text-xs">{sub}</span>
+        {/* A span with Button's classes, not a Button: the whole band is the
+            anchor, and a nested interactive element would be invalid HTML. The
+            group-hover overrides re-key the hover styles to the band. */}
         <span
           className={cn(
-            "ml-auto inline-flex h-8 shrink-0 items-center gap-1 rounded-md px-3 text-sm font-medium transition-colors",
+            buttonVariants({ variant: needsAction ? "default" : "ghost" }),
+            "ml-auto shrink-0",
             needsAction
-              ? "bg-primary text-primary-foreground group-hover/trades-hub:bg-primary/90"
-              : "group-hover/trades-hub:bg-muted text-foreground",
+              ? "group-hover/trades-hub:bg-primary/90"
+              : "group-hover/trades-hub:bg-muted",
           )}
         >
           View trades
@@ -346,12 +351,9 @@ type SharedRow = {
 
 /** @returns The icon + name + sub body shared by every rail row. */
 function RailRowBody({ row }: { row: SharedRow }) {
-  const Icon = row.icon;
   return (
     <>
-      <span className="bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-full">
-        <Icon className="size-4" />
-      </span>
+      <IconChip icon={row.icon} size="sm" shape="round" />
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="truncate text-sm font-medium">{row.name}</span>
         <span className="text-muted-foreground truncate text-xs">{row.sub}</span>
@@ -398,7 +400,7 @@ function NewestShared({ slug, data }: { slug: string; data: FriendGroupDetailRes
   }
   return (
     <section className="flex flex-col gap-3">
-      <h2 className={SECTION_HEADING}>Newest shared</h2>
+      <SectionHeading>Newest shared</SectionHeading>
       <ul className="ring-foreground/10 bg-card flex flex-col rounded-lg p-1.5 ring-1">
         {rows.map((row) => (
           <li key={row.key}>
@@ -442,15 +444,13 @@ function TournamentNudge({ slug, data }: { slug: string; data: FriendGroupDetail
   const admin = isAdmin(data.viewerRole);
   return (
     <section className="flex flex-col gap-3">
-      <h2 className={SECTION_HEADING}>Next up</h2>
+      <SectionHeading>Next up</SectionHeading>
       {current.length > 0 ? (
         <ul className="ring-foreground/10 bg-card flex flex-col rounded-lg p-1.5 ring-1">
           {current.map((tournament) => (
             <li key={tournament.id}>
               <Link to="/tournaments/$id" params={{ id: tournament.id }} className={RAIL_ROW_CLASS}>
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-violet-500/15 text-violet-600 dark:text-violet-400">
-                  <TrophyIcon className="size-4" />
-                </span>
+                <IconChip icon={TrophyIcon} tone="violet" size="sm" shape="round" />
                 <span className="flex min-w-0 flex-1 flex-col">
                   <span className="truncate text-sm font-medium">{tournament.name}</span>
                   <span className="text-muted-foreground truncate text-xs">
@@ -462,7 +462,7 @@ function TournamentNudge({ slug, data }: { slug: string; data: FriendGroupDetail
           ))}
         </ul>
       ) : (
-        <div className="border-border flex flex-col gap-2 rounded-lg border-2 border-dashed p-4">
+        <div className="border-border flex flex-col gap-2 rounded-lg border border-dashed p-4">
           <p className="text-muted-foreground text-sm">
             {admin
               ? "No tournaments planned. Set one up for the next game night."

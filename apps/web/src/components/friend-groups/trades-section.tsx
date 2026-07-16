@@ -6,6 +6,7 @@ import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { SectionHeading } from "@/components/ui/section-heading";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { UserAvatar } from "@/components/user-avatar";
 import {
@@ -28,12 +29,10 @@ import {
   sumTradeValues,
   tradeSection,
 } from "@/lib/trade-derivation";
-import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 import { useTradeActionStore } from "@/stores/trade-action-store";
 
 import { AddToCollectionDialog } from "./add-to-collection-dialog";
-import { SECTION_HEADING } from "./friend-group-shell";
 import { TradeCardmarketExportDialog } from "./trade-cardmarket-export-dialog";
 import {
   CardMetaLine,
@@ -410,7 +409,7 @@ function CounterpartyGroupedBucket({
   const groups = groupTradesByCounterparty(trades);
   return (
     <section className="flex flex-col gap-3">
-      <h3 className={SECTION_HEADING}>{heading}</h3>
+      <SectionHeading as="h3">{heading}</SectionHeading>
       <div className="flex flex-col gap-2">
         {groups.map((group) => (
           <CounterpartyTradeGroup key={group.counterparty.userId} group={group} bulk={bulk} />
@@ -433,18 +432,13 @@ function CompletedBucket({ trades }: { trades: CardTradeResponse[] }) {
   const groups = groupTradesByCounterparty(trades);
   return (
     <Collapsible defaultOpen={false} className="flex flex-col gap-3">
-      <h3>
-        <CollapsibleTrigger
-          className={cn(
-            SECTION_HEADING,
-            "group hover:text-foreground flex w-full items-center gap-2 text-left transition-colors",
-          )}
-        >
+      <SectionHeading as="h3">
+        <CollapsibleTrigger className="group hover:text-foreground flex w-full items-center gap-2 text-left transition-colors">
           <ChevronRightIcon className="size-4 shrink-0 transition-transform group-data-[panel-open]:rotate-90" />
           Completed
           <span className="text-xs">({trades.length})</span>
         </CollapsibleTrigger>
-      </h3>
+      </SectionHeading>
       <CollapsibleContent>
         <div className="flex flex-col gap-2">
           {groups.map((group) => (

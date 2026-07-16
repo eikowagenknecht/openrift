@@ -1,10 +1,12 @@
 import type { FriendGroupActivityEvent } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeftRightIcon, FolderIcon, SparklesIcon } from "lucide-react";
-import type { ComponentType, ReactNode, SVGProps } from "react";
+import type { ReactNode } from "react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { CardArtThumbStack } from "@/components/cards/card-art-thumb-stack";
+import { IconChip } from "@/components/ui/icon-chip";
+import { SectionHeading } from "@/components/ui/section-heading";
 import { UserAvatar } from "@/components/user-avatar";
 import { useCards } from "@/hooks/use-cards";
 import { useFriendGroupActivity } from "@/hooks/use-friend-groups";
@@ -12,9 +14,7 @@ import { useRequiredUserId } from "@/lib/auth-session";
 import { formatRelativeTime } from "@/lib/format-relative-time";
 import type { AggregatedActivityRow, TradeBatch } from "@/lib/friend-group-activity";
 import { aggregateActivityEvents } from "@/lib/friend-group-activity";
-import { cn } from "@/lib/utils";
 
-import { SECTION_HEADING } from "./friend-group-shell";
 import { LIST_INTENT_ICON, LIST_INTENT_NOUN } from "./list-intent-meta";
 
 const FEED_VISIBLE = 20;
@@ -54,7 +54,7 @@ function activityBucket(at: string, now: Date): ActivityBucket {
 /**
  * The group's recent activity: completed trades, new matches for the viewer,
  * shared lists/collections, and members joining — newest first, split into
- * relative day groups and threaded onto a timeline rail. Derived server-side
+ * relative day groups as a clean stacked list. Derived server-side
  * from existing rows (no event log); see the activity endpoint.
  * @returns The activity-feed section.
  */
@@ -66,7 +66,7 @@ export function FriendGroupActivityFeed({ slug }: { slug: string }) {
 
   return (
     <section className="flex flex-col gap-4">
-      <h2 className={SECTION_HEADING}>Recent activity</h2>
+      <SectionHeading>Recent activity</SectionHeading>
       {rows.length === 0 ? (
         <p className="text-muted-foreground text-sm">
           Nothing yet. Trades, shared lists, and new members will show up here.
@@ -80,18 +80,12 @@ export function FriendGroupActivityFeed({ slug }: { slug: string }) {
             }
             return (
               <div key={bucket} className="flex flex-col gap-1">
-                <h3 className="text-muted-foreground/70 text-2xs px-2 font-medium tracking-wide uppercase">
+                <SectionHeading as="h3" size="sm" className="px-2">
                   {BUCKET_LABEL[bucket]}
-                </h3>
-                <ul
-                  className={cn(
-                    "flex flex-col",
-                    group.length > 1 &&
-                      "before:bg-border relative before:absolute before:top-6 before:bottom-6 before:left-6 before:w-px",
-                  )}
-                >
+                </SectionHeading>
+                <ul className="flex flex-col">
                   {group.map((row) => (
-                    <li key={rowKey(row)} className="relative">
+                    <li key={rowKey(row)}>
                       {row.kind === "trade-batch" ? (
                         <TradeBatchRow slug={slug} batch={row} />
                       ) : (
@@ -161,7 +155,7 @@ function TradeBatchRow({ slug, batch }: { slug: string; batch: TradeBatch }) {
     }));
   return (
     <Link to="/groups/$slug/trades" params={{ slug }} className={ROW_CLASS}>
-      <FeedIcon icon={ArrowLeftRightIcon} tone="primary" />
+      <IconChip icon={ArrowLeftRightIcon} tone="primary" size="sm" shape="round" />
       <span className="flex min-w-0 flex-1 flex-col gap-1.5">
         <span className="text-muted-foreground min-w-0 text-sm">
           <strong className="font-medium">
@@ -205,7 +199,7 @@ function ActivityRow({ slug, event }: { slug: string; event: FriendGroupActivity
     case "trade-completed": {
       return (
         <Link to="/groups/$slug/trades" params={{ slug }} className={ROW_CLASS}>
-          <FeedIcon icon={ArrowLeftRightIcon} tone="primary" />
+          <IconChip icon={ArrowLeftRightIcon} tone="primary" size="sm" shape="round" />
           {thumb(event.printingId, cardName(event.cardId))}
           {text(
             <>
@@ -225,7 +219,7 @@ function ActivityRow({ slug, event }: { slug: string; event: FriendGroupActivity
     case "match": {
       return (
         <Link to="/groups/$slug/trades" params={{ slug }} className={ROW_CLASS}>
-          <FeedIcon icon={SparklesIcon} tone="primary" />
+          <IconChip icon={SparklesIcon} tone="primary" size="sm" shape="round" />
           {thumb(event.printingId, cardName(event.cardId))}
           {text(
             <>
@@ -267,7 +261,7 @@ function ActivityRow({ slug, event }: { slug: string; event: FriendGroupActivity
           params={{ slug, listId: event.listId }}
           className={ROW_CLASS}
         >
-          <FeedIcon icon={Icon} />
+          <IconChip icon={Icon} size="sm" shape="round" />
           {text(
             <>
               <strong className="font-medium">{event.userName ?? "A member"}</strong> shared the{" "}
@@ -285,7 +279,7 @@ function ActivityRow({ slug, event }: { slug: string; event: FriendGroupActivity
           params={{ slug, collectionId: event.collectionId }}
           className={ROW_CLASS}
         >
-          <FeedIcon icon={FolderIcon} />
+          <IconChip icon={FolderIcon} size="sm" shape="round" />
           {text(
             <>
               <strong className="font-medium">{event.userName ?? "A member"}</strong> shared the
@@ -297,24 +291,4 @@ function ActivityRow({ slug, event }: { slug: string; event: FriendGroupActivity
       );
     }
   }
-}
-
-function FeedIcon({
-  icon: Icon,
-  tone = "muted",
-}: {
-  icon: ComponentType<SVGProps<SVGSVGElement>>;
-  tone?: "muted" | "primary";
-}) {
-  return (
-    <span
-      className={
-        tone === "primary"
-          ? "bg-primary/10 text-primary flex size-8 shrink-0 items-center justify-center rounded-full"
-          : "bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-full"
-      }
-    >
-      <Icon className="size-4" />
-    </span>
-  );
 }

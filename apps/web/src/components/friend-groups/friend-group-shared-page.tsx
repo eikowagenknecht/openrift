@@ -12,6 +12,7 @@ import { PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
 import { Button } from "@/components/ui/button";
 import { CardLink } from "@/components/ui/card-link";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { SectionHeading } from "@/components/ui/section-heading";
 import { UserAvatar } from "@/components/user-avatar";
 import { useCollections } from "@/hooks/use-collections";
 import {
@@ -21,7 +22,6 @@ import {
 import { useRequiredUserId } from "@/lib/auth-session";
 
 import { ContactMethodChips } from "./contact-method-chips";
-import { SECTION_HEADING } from "./friend-group-shell";
 import { ShareCollectionsWithGroupDialog } from "./share-collections-with-group-dialog";
 import {
   COLLECTION_ROW_CLASS,
@@ -82,7 +82,7 @@ function GroupCollectionsSection({ data }: { data: FriendGroupDetailResponse }) 
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className={SECTION_HEADING}>Group collections</h2>
+      <SectionHeading>Group collections</SectionHeading>
       {groupCollections.length === 0 ? (
         <p className="text-muted-foreground text-sm">
           No group collections yet. Any member can create one. A group collection is a pooled
@@ -166,7 +166,7 @@ function MemberSharesSection({ slug, data }: { slug: string; data: FriendGroupDe
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className={SECTION_HEADING}>Member collections</h2>
+      <SectionHeading>Member collections</SectionHeading>
       {owners.length === 0 ? (
         <p className="text-muted-foreground text-sm">
           No members have shared a collection with this group yet. You can share one of yours from

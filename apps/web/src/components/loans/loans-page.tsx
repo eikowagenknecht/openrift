@@ -23,6 +23,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { SectionHeading } from "@/components/ui/section-heading";
 import { UserAvatar } from "@/components/user-avatar";
 import { useCards } from "@/hooks/use-cards";
 import { useEnumOrders } from "@/hooks/use-enums";
@@ -40,8 +41,6 @@ import {
   loanStatusLabel,
   outstandingQuantity,
 } from "@/lib/loan-derivation";
-
-const SECTION_HEADING = "text-muted-foreground text-sm font-medium tracking-wide uppercase";
 
 /**
  * One loan as a wide row with a contextual action set, oriented to the viewer.
@@ -263,7 +262,7 @@ function LoanGroup({ heading, loans }: { heading: string; loans: LoanResponse[] 
   }
   return (
     <section className="space-y-2">
-      <h2 className={SECTION_HEADING}>{heading}</h2>
+      <SectionHeading>{heading}</SectionHeading>
       <div className="space-y-2">
         {loans.map((loan) => (
           <LoanRow key={loan.id} loan={loan} />
@@ -336,7 +335,9 @@ export function LoansPage() {
           <Collapsible>
             <CollapsibleTrigger className="group flex w-full items-center gap-1.5">
               <ChevronRightIcon className="size-3.5 transition-transform group-data-[panel-open]:rotate-90" />
-              <span className={SECTION_HEADING}>History ({history.length})</span>
+              <SectionHeading as="span" count={history.length}>
+                History
+              </SectionHeading>
             </CollapsibleTrigger>
             <CollapsibleContent className="space-y-2 pt-2">
               {history.map((loan) => (

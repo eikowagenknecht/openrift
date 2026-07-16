@@ -10,6 +10,7 @@ import { Suspense, useState } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { SectionHeading } from "@/components/ui/section-heading";
 import { UserAvatar } from "@/components/user-avatar";
 import { useGroupTrades } from "@/hooks/use-card-trades";
 import {
@@ -21,7 +22,6 @@ import { useRequiredUserId } from "@/lib/auth-session";
 import { withoutLiveTradeMatches } from "@/lib/trade-derivation";
 
 import { ContactMethodChips } from "./contact-method-chips";
-import { SECTION_HEADING } from "./friend-group-shell";
 import { MatchTradeList } from "./match-row-card";
 import { ShareListsWithGroupDialog } from "./share-lists-with-group-dialog";
 import { SharedListRow } from "./shared-list-row";
@@ -63,7 +63,7 @@ function SuggestedSection({ slug, data }: { slug: string; data: FriendGroupDetai
 
   return (
     <section className="flex flex-col gap-4">
-      <h2 className={SECTION_HEADING}>Possible trades</h2>
+      <SectionHeading>Possible trades</SectionHeading>
       {hasMatches ? (
         <MatchTradeList incoming={incoming} outgoing={outgoing} groupSlug={slug} />
       ) : (
@@ -225,7 +225,7 @@ function MemberListsSection({ slug, data }: { slug: string; data: FriendGroupDet
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className={SECTION_HEADING}>Wishlists &amp; tradelists</h2>
+      <SectionHeading>Wishlists &amp; tradelists</SectionHeading>
       {owners.length === 0 ? (
         <p className="text-muted-foreground">
           No members have shared a wishlist or tradelist with this group yet.

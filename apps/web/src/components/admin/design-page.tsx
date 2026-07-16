@@ -135,6 +135,7 @@ import {
 import { ExpandToggle } from "@/components/ui/expand-toggle";
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { IconChip } from "@/components/ui/icon-chip";
 import { Input } from "@/components/ui/input";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
@@ -146,6 +147,7 @@ import { Pressable } from "@/components/ui/pressable";
 import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { SectionHeading } from "@/components/ui/section-heading";
 import {
   Select,
   SelectContent,
@@ -226,6 +228,8 @@ const SECTIONS = [
   { id: "toggles", title: "Toggles" },
   { id: "badges-chips", title: "Badges & chips" },
   { id: "pressable", title: "Pressable & disclosure" },
+  { id: "section-heading", title: "Section heading" },
+  { id: "icon-chip", title: "Icon chip" },
   { id: "card-thumbnails", title: "Card thumbnails" },
   { id: "form-controls", title: "Form controls" },
   { id: "pickers", title: "Pickers & commands" },
@@ -274,6 +278,8 @@ export function DesignPage() {
       <TogglesSection />
       <BadgesChipsSection />
       <PressableSection />
+      <SectionHeadingSection />
+      <IconChipSection />
       <TilesSection />
       <CardThumbnailsSection />
       <FormControlsSection />
@@ -910,6 +916,67 @@ function PressableSection() {
           className="text-muted-foreground hover:text-foreground"
         />
       </DemoRow>
+    </DemoSection>
+  );
+}
+
+function SectionHeadingSection() {
+  return (
+    <DemoSection
+      id="section-heading"
+      title="Section heading"
+      note="The app's in-page section heading: a small uppercase muted label, optionally followed by a tabular count. size=sm is the quieter sub-group variant."
+    >
+      <DemoRow label="Default size">
+        <div className="w-full space-y-4">
+          <SectionHeading>Cards in collection</SectionHeading>
+          <SectionHeading count={12}>Cards with prices</SectionHeading>
+        </div>
+      </DemoRow>
+      <DemoRow label="Small size">
+        <div className="w-full space-y-3">
+          <SectionHeading size="sm">Yesterday</SectionHeading>
+          <SectionHeading size="sm" count={3}>
+            Today
+          </SectionHeading>
+        </div>
+      </DemoRow>
+    </DemoSection>
+  );
+}
+
+function IconChipSection() {
+  return (
+    <DemoSection
+      id="icon-chip"
+      title="Icon chip"
+      note="A tinted icon chip: square default size anchors dashboard tiles, round sm marks feed and rail rows."
+    >
+      <SwatchRow label="Tones (square, default)">
+        <Swatch label="neutral">
+          <IconChip icon={PackageIcon} tone="neutral" />
+        </Swatch>
+        <Swatch label="primary">
+          <IconChip icon={PackageIcon} tone="primary" />
+        </Swatch>
+        <Swatch label="gold">
+          <IconChip icon={ZapIcon} tone="gold" />
+        </Swatch>
+        <Swatch label="sky">
+          <IconChip icon={FolderIcon} tone="sky" />
+        </Swatch>
+        <Swatch label="green">
+          <IconChip icon={UsersIcon} tone="green" />
+        </Swatch>
+        <Swatch label="violet">
+          <IconChip icon={TrophyIcon} tone="violet" />
+        </Swatch>
+      </SwatchRow>
+      <SwatchRow label="Round small (feed/rail rows)">
+        <Swatch label="sm round">
+          <IconChip icon={HeartIcon} tone="primary" size="sm" shape="round" />
+        </Swatch>
+      </SwatchRow>
     </DemoSection>
   );
 }

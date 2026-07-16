@@ -95,7 +95,7 @@ export function FriendGroupHero({ slug, data }: { slug: string; data: FriendGrou
         </Button>
         <div className="flex items-end gap-6">
           <div className="flex min-w-0 flex-1 flex-col gap-2.5 py-6 pl-5">
-            <Eyebrow className="mb-0 text-sm">Friend group</Eyebrow>
+            <Eyebrow variant="kicker">Friend group</Eyebrow>
             <Heading level={1} className="text-3xl text-balance">
               {data.group.name}
             </Heading>

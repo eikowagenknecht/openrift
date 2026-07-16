@@ -3,6 +3,8 @@ import { useRender } from "@base-ui/react/use-render";
 import { ChevronRightIcon } from "lucide-react";
 import type { ComponentType, ReactNode, SVGProps } from "react";
 
+import type { IconChipTone } from "@/components/ui/icon-chip";
+import { IconChip } from "@/components/ui/icon-chip";
 import { cn } from "@/lib/utils";
 
 // Hand-authored primitive (not shadcn-scaffolded).
@@ -16,16 +18,7 @@ import { cn } from "@/lib/utils";
 // (never the ring), so tiles on one overview can carry per-surface color
 // without competing with the accent.
 
-/** Icon-chip tints. Chip only — the resting ring stays neutral for every tone. */
-const TONE_CHIP: Record<StatTileTone, string> = {
-  neutral: "bg-muted text-muted-foreground",
-  gold: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
-  sky: "bg-sky-500/15 text-sky-600 dark:text-sky-400",
-  green: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
-  violet: "bg-violet-500/15 text-violet-600 dark:text-violet-400",
-};
-
-export type StatTileTone = "neutral" | "gold" | "sky" | "green" | "violet";
+export type StatTileTone = Exclude<IconChipTone, "primary">;
 
 /**
  * Dashboard stat tile that links to a page. Pass the navigation target via
@@ -75,14 +68,7 @@ function StatTile({
         children: (
           <>
             <div className="flex items-center gap-3">
-              <span
-                className={cn(
-                  "flex size-10 shrink-0 items-center justify-center rounded-lg",
-                  accent ? "bg-primary/15 text-primary" : TONE_CHIP[tone],
-                )}
-              >
-                <Icon className="size-5" />
-              </span>
+              <IconChip icon={Icon} tone={accent ? "primary" : tone} />
               <span className="text-muted-foreground text-sm font-medium">{label}</span>
               <span
                 className={cn(

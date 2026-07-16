@@ -158,9 +158,7 @@ export function NextEventHero({ tournament, showContext = false }: NextEventHero
         <HeroBandContent tournament={tournament} />
       </CoverBand>
       <div className="flex min-w-0 flex-1 flex-col gap-3 p-5">
-        <Eyebrow className="text-primary text-2xs mb-0 tracking-widest">
-          {live ? "Happening now" : "Next event"}
-        </Eyebrow>
+        <Eyebrow variant="kicker">{live ? "Happening now" : "Next event"}</Eyebrow>
         <div className="flex min-w-0 items-center gap-3.5">
           <DateLeaf month={leaf.month} day={leaf.day} />
           <div className="min-w-0">

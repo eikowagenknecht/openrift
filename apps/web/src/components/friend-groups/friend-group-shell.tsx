@@ -25,8 +25,6 @@ export const ROLE_LABEL: Record<FriendGroupRole, string> = {
   member: "Member",
 };
 
-export const SECTION_HEADING = "text-muted-foreground text-sm font-medium tracking-wide uppercase";
-
 export function isAdmin(role: FriendGroupRole | null): role is "admin" | "owner" {
   return role === "admin" || role === "owner";
 }

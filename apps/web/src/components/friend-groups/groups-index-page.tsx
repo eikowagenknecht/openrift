@@ -29,6 +29,7 @@ import {
 import { DialogForm } from "@/components/ui/dialog-form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SectionHeading } from "@/components/ui/section-heading";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { UserAvatarStack } from "@/components/user-avatar-stack";
@@ -42,7 +43,6 @@ import {
 import { useRequiredUserId } from "@/lib/auth-session";
 import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 
-import { SECTION_HEADING } from "./friend-group-shell";
 import { ShareListsWithGroupDialog } from "./share-lists-with-group-dialog";
 
 const ROLE_BADGE: Record<FriendGroupRole, { label: string; className: string }> = {
@@ -203,7 +203,7 @@ export function GroupsIndexPage() {
       <div className={cn("mx-auto flex w-full max-w-4xl flex-col gap-6 pt-3", PAGE_PADDING_NO_TOP)}>
         {data.pendingInvites.length > 0 && (
           <section className="flex flex-col gap-3">
-            <h2 className={SECTION_HEADING}>Pending invites</h2>
+            <SectionHeading>Pending invites</SectionHeading>
             <div className="flex flex-col gap-2">
               {data.pendingInvites.map((invite) => (
                 <Card
@@ -266,7 +266,7 @@ export function GroupsIndexPage() {
 
         {data.outgoingRequests.length > 0 && (
           <section className="flex flex-col gap-3">
-            <h2 className={SECTION_HEADING}>Awaiting approval</h2>
+            <SectionHeading>Awaiting approval</SectionHeading>
             <div className="flex flex-col gap-2">
               {data.outgoingRequests.map((request) => (
                 <Card key={request.id} className="flex-row items-center justify-between gap-3 p-3">

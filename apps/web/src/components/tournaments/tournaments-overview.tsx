@@ -6,8 +6,12 @@ import { PastEventsTimeline } from "@/components/tournaments/past-events-timelin
 import { TournamentCard } from "@/components/tournaments/tournament-card";
 import { compareTournamentsForList, partitionTournaments } from "@/lib/tournament-display";
 
-/** @returns A section heading with a muted count next to it. */
-function SectionHeading({ title, count }: { title: string; count?: number }) {
+/**
+ * The events page keeps display-face section titles (not the uppercase
+ * SectionHeading label) — the hero-led layout reads better with them.
+ * @returns A section heading with a muted count next to it.
+ */
+function EventsSectionHeading({ title, count }: { title: string; count?: number }) {
   return (
     <div className="flex items-baseline gap-2">
       <Heading level={2}>{title}</Heading>
@@ -69,13 +73,13 @@ export function TournamentsOverview({
       )}
       {alsoUpcoming.length > 0 ? (
         <section className="flex flex-col gap-3">
-          <SectionHeading title="Also coming up" />
+          <EventsSectionHeading title="Also coming up" />
           <UpcomingGrid tournaments={alsoUpcoming} />
         </section>
       ) : null}
       {pastSorted.length > 0 ? (
         <section className="flex flex-col gap-3">
-          <SectionHeading title="Past events" count={pastSorted.length} />
+          <EventsSectionHeading title="Past events" count={pastSorted.length} />
           <PastEventsTimeline tournaments={pastSorted} showContext={showContext} />
         </section>
       ) : null}

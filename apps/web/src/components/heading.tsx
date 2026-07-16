@@ -27,11 +27,21 @@ export function Heading({ level = 2, as, className, children, ...props }: Headin
   );
 }
 
-export function Eyebrow({ className, children, ...props }: ComponentProps<"h4">) {
+export function Eyebrow({
+  variant = "default",
+  className,
+  children,
+  ...props
+}: ComponentProps<"h4"> & { variant?: "default" | "kicker" }) {
   return (
     <h4
       data-slot="eyebrow"
-      className={cn("text-muted-foreground mb-3 font-semibold tracking-wide uppercase", className)}
+      className={cn(
+        variant === "default"
+          ? "text-muted-foreground mb-3 font-semibold tracking-wide uppercase"
+          : "text-primary text-2xs mb-0 font-semibold tracking-widest uppercase",
+        className,
+      )}
       {...props}
     >
       {children}
