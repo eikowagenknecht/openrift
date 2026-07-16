@@ -591,5 +591,61 @@ export function copiesRepo(db: Kysely<Database>) {
         totalDistinct: distinct.count,
       };
     },
+
+    /**
+     * Representative card art batched per collection: up to `limit` distinct
+     * printings each, most-copies-first (ties broken by newest copy). Feeds
+     * the shared-collection thumb stacks on the group pages; printings
+     * without a rehosted front image never surface, so a slot always renders.
+     *
+     * @param collectionIds The collections to collect covers for.
+     * @param limit Max distinct printings per collection.
+     * @returns Cover rows grouped by collection, in display order.
+     */
+    coverPrintingsAcross(
+      collectionIds: string[],
+      limit: number,
+    ): Promise<{ collectionId: string; printingId: string; imageId: string }[]> {
+      if (collectionIds.length === 0) {
+        return Promise.resolve([]);
+      }
+      // One row per (collection, printing) with its copy count; the image
+      // joins are inner so imageless printings don't burn a cover slot.
+      const perPrinting = db
+        .selectFrom("copies as cp")
+        .innerJoin("printingImages as pim", (join) =>
+          join
+            .onRef("pim.printingId", "=", "cp.printingId")
+            .on("pim.face", "=", "front")
+            .on("pim.isActive", "=", true),
+        )
+        .innerJoin("imageFiles as ci", "ci.id", "pim.imageFileId")
+        .select([
+          "cp.collectionId",
+          "cp.printingId",
+          "ci.id as imageId",
+          sql<number>`count(*)::int`.as("copyCount"),
+          sql<Date>`max(cp.created_at)`.as("newestAt"),
+        ])
+        .where("cp.collectionId", "in", collectionIds)
+        .where("ci.rehostedUrl", "is not", null)
+        .groupBy(["cp.collectionId", "cp.printingId", "ci.id"]);
+      const ranked = db.selectFrom(perPrinting.as("per")).select([
+        "per.collectionId",
+        "per.printingId",
+        "per.imageId",
+        sql<number>`(row_number() over (
+            partition by per.collection_id
+            order by per.copy_count desc, per.newest_at desc, per.printing_id
+          ))::int`.as("coverRank"),
+      ]);
+      return db
+        .selectFrom(ranked.as("ranked"))
+        .select(["ranked.collectionId", "ranked.printingId", "ranked.imageId"])
+        .where("ranked.coverRank", "<=", limit)
+        .orderBy("ranked.collectionId")
+        .orderBy("ranked.coverRank")
+        .execute();
+    },
   };
 }

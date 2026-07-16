@@ -26,8 +26,10 @@ export const Route = createLazyFileRoute("/_app/products")({
  * @returns The fan band element.
  */
 function ProductCoverFan({ coverCards }: { coverCards: ProductCoverCard[] }) {
+  // overflow-hidden crops the fan's bottom bleed at the band edge, so the
+  // rotated card corners never paint over the name below.
   return (
-    <CoverBand aria-hidden="true" className="h-36">
+    <CoverBand aria-hidden="true" className="h-36 overflow-hidden">
       {coverCards.length === 0 ? (
         <CardFanOutline />
       ) : (

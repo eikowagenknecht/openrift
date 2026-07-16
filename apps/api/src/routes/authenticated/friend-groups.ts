@@ -111,7 +111,24 @@ interface CollectionShareRow {
   copyCount: number;
 }
 
-function toCollectionShare(row: CollectionShareRow): FriendGroupCollectionShareResponse {
+/** Max cover printings per shared collection (a CardFan holds four). */
+const COLLECTION_COVER_COUNT = 4;
+
+interface CollectionCoverRow {
+  collectionId: string;
+  printingId: string;
+  imageId: string;
+}
+
+/** @returns Cover rows grouped by collection id, in display order. */
+function groupCovers(rows: CollectionCoverRow[]): Map<string, CollectionCoverRow[]> {
+  return Map.groupBy(rows, (row) => row.collectionId);
+}
+
+function toCollectionShare(
+  row: CollectionShareRow,
+  covers?: CollectionCoverRow[],
+): FriendGroupCollectionShareResponse {
   return {
     groupId: row.groupId,
     collectionId: row.collectionId,
@@ -120,6 +137,10 @@ function toCollectionShare(row: CollectionShareRow): FriendGroupCollectionShareR
     userName: row.userName,
     sharedAt: row.sharedAt.toISOString(),
     copyCount: row.copyCount,
+    coverPrintings: (covers ?? []).map((cover) => ({
+      printingId: cover.printingId,
+      imageId: cover.imageId,
+    })),
   };
 }
 
@@ -281,7 +302,7 @@ export const friendGroupsRouter = {
   // ── DETAIL ──────────────────────────────────────────────────────────────
   get: os.get.handler(async ({ input, context }): Promise<FriendGroupDetailResponse> => {
     const viewerId = context.userId;
-    const { friendGroups, lists, cardTrades } = context.repos;
+    const { friendGroups, lists, cardTrades, copies } = context.repos;
 
     const group = await friendGroups.getBySlugOrPrevious(input.slug);
     if (!group) {
@@ -324,7 +345,14 @@ export const friendGroupsRouter = {
     // The materialized `entryCount` counts only manual rows, so rule-based lists
     // report 0. Expand just those lists (manual lists are already exact) to show
     // their real size — the same expansion the list detail page uses (ADR-034).
-    const expandedCounts = await expandRuleListCounts(lists, shares);
+    const [expandedCounts, shareCovers] = await Promise.all([
+      expandRuleListCounts(lists, shares),
+      copies.coverPrintingsAcross(
+        collectionShares.map((row) => row.collectionId),
+        COLLECTION_COVER_COUNT,
+      ),
+    ]);
+    const coversByCollection = groupCovers(shareCovers);
 
     return {
       group: toGroup(group, canSeeCode(membership.role)),
@@ -334,7 +362,9 @@ export const friendGroupsRouter = {
       shares: shares.map((row) =>
         toShare({ ...row, entryCount: expandedCounts.get(row.listId) ?? row.entryCount }),
       ),
-      collectionShares: collectionShares.map((row) => toCollectionShare(row)),
+      collectionShares: collectionShares.map((row) =>
+        toCollectionShare(row, coversByCollection.get(row.collectionId)),
+      ),
       pendingRequests: pendingRequests.map((row) => toRequest(row)),
       cardsTradedCount,
     };
@@ -780,7 +810,7 @@ export const friendGroupsRouter = {
   getMemberDetail: os.getMemberDetail.handler(
     async ({ input, context }): Promise<FriendGroupMemberDetailResponse> => {
       const viewerId = context.userId;
-      const { friendGroups, friendGroupMatches, lists } = context.repos;
+      const { friendGroups, friendGroupMatches, lists, copies } = context.repos;
       const counterpartyUserId = input.userId;
 
       const ctx = await loadGroupForMember(context.repos, input.slug, viewerId);
@@ -806,7 +836,14 @@ export const friendGroupsRouter = {
       // Rule-based lists materialize 0 rows, so expand their real counts here too
       // — the trades page (`get`) does the same. Without this the member page
       // showed 0 cards for every smart wishlist/tradelist (ADR-034).
-      const expandedCounts = await expandRuleListCounts(lists, memberShares);
+      const [expandedCounts, shareCovers] = await Promise.all([
+        expandRuleListCounts(lists, memberShares),
+        copies.coverPrintingsAcross(
+          memberCollectionShares.map((share) => share.collectionId),
+          COLLECTION_COVER_COUNT,
+        ),
+      ]);
+      const coversByCollection = groupCovers(shareCovers);
 
       const [matches, reverseMatches] = await Promise.all([
         friendGroupMatches.othersHaveYourWants({
@@ -826,7 +863,9 @@ export const friendGroupsRouter = {
         shares: memberShares.map((row) =>
           toShare({ ...row, entryCount: expandedCounts.get(row.listId) ?? row.entryCount }),
         ),
-        collectionShares: memberCollectionShares.map((row) => toCollectionShare(row)),
+        collectionShares: memberCollectionShares.map((row) =>
+          toCollectionShare(row, coversByCollection.get(row.collectionId)),
+        ),
         matches,
         reverseMatches,
       };

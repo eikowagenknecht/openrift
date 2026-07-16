@@ -190,6 +190,14 @@ export const friendGroupShareResponseSchema = z
   })
   .openapi("FriendGroupShareResponse");
 
+/** One cover art slot for a shared collection's thumb stack / fan. */
+export const friendGroupCollectionCoverSchema = z
+  .object({
+    printingId: z.string(),
+    imageId: z.string(),
+  })
+  .openapi("FriendGroupCollectionCover");
+
 export const friendGroupCollectionShareResponseSchema = z
   .object({
     groupId: z.string(),
@@ -199,6 +207,8 @@ export const friendGroupCollectionShareResponseSchema = z
     userName: z.string().nullable(),
     sharedAt: z.string(),
     copyCount: z.number().int().nonnegative(),
+    /** Representative card art from the collection's contents, fan-ordered. */
+    coverPrintings: z.array(friendGroupCollectionCoverSchema).default([]),
   })
   .openapi("FriendGroupCollectionShareResponse");
 

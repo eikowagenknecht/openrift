@@ -94,11 +94,13 @@ export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
         {hasCollections ? (
           <section className="flex flex-col gap-3">
             <SectionHeading>Collections</SectionHeading>
-            <div className="flex flex-col gap-2">
+            <ul className="ring-foreground/10 bg-card flex flex-col rounded-lg p-1.5 ring-1">
               {sortedCollections.map((share) => (
-                <SharedCollectionRow key={share.collectionId} slug={slug} share={share} />
+                <li key={share.collectionId}>
+                  <SharedCollectionRow slug={slug} share={share} />
+                </li>
               ))}
-            </div>
+            </ul>
           </section>
         ) : null}
 

@@ -178,6 +178,7 @@ export type {
   FriendGroupShareableCollectionsResponse,
   FriendGroupSharedListDetailResponse,
   FriendGroupSharedCollectionDetailResponse,
+  FriendGroupCollectionCover,
   FriendGroupCollectionShareResponse,
   FriendGroupSummaryResponse,
   FriendGroupViewerStatus,

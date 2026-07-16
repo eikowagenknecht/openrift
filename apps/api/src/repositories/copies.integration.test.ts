@@ -1,7 +1,13 @@
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { PRINTING_1, PRINTING_2, PRINTING_3, PRINTING_4 } from "../test/fixtures/constants.js";
-import { createDbContext } from "../test/integration-context.js";
+import {
+  OGS_SET,
+  PRINTING_1,
+  PRINTING_2,
+  PRINTING_3,
+  PRINTING_4,
+} from "../test/fixtures/constants.js";
+import { createDbContext, seedTestUser } from "../test/integration-context.js";
 import { collectionDeckbuildingPrefsRepo } from "./collection-deckbuilding-prefs.js";
 import { collectionsRepo } from "./collections.js";
 import { buildCopiesCursor, copiesRepo } from "./copies.js";
@@ -610,5 +616,173 @@ describe.skipIf(!groupCtx)("copies in group collections (integration)", () => {
     const found = accessible.find((row) => row.id === copy.id);
     expect(found).toBeDefined();
     expect(found!.groupId).toBe(groupId);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// coverPrintingsAcross — batched cover art for shared-collection thumb stacks
+// ---------------------------------------------------------------------------
+
+const coverCtx = createDbContext(crypto.randomUUID());
+
+describe.skipIf(!coverCtx)("copies coverPrintingsAcross (integration)", () => {
+  const { db, userId } = coverCtx!;
+  const copies = copiesRepo(db);
+  const collections = collectionsRepo(db);
+
+  const createdCollectionIds: string[] = [];
+  const cardIds: string[] = [];
+  const printingIds: string[] = [];
+  const imageFileIds: string[] = [];
+  let counter = 0;
+
+  beforeAll(async () => {
+    await seedTestUser(db, { id: userId });
+  });
+
+  afterAll(async () => {
+    if (createdCollectionIds.length > 0) {
+      await db.deleteFrom("copies").where("collectionId", "in", createdCollectionIds).execute();
+      await db.deleteFrom("collections").where("id", "in", createdCollectionIds).execute();
+    }
+    // Dependency order: printingImages -> printings -> cards, then imageFiles.
+    if (printingIds.length > 0) {
+      await db.deleteFrom("printingImages").where("printingId", "in", printingIds).execute();
+      await db.deleteFrom("printings").where("id", "in", printingIds).execute();
+    }
+    if (cardIds.length > 0) {
+      await db.deleteFrom("cards").where("id", "in", cardIds).execute();
+    }
+    if (imageFileIds.length > 0) {
+      await db.deleteFrom("imageFiles").where("id", "in", imageFileIds).execute();
+    }
+    await db.deleteFrom("users").where("id", "=", userId).execute();
+  });
+
+  /** @returns A fresh printing, optionally with a (rehosted) front image. */
+  async function makePrinting(
+    image: "rehosted" | "unrehosted" | "none",
+  ): Promise<{ printingId: string; imageId: string | null }> {
+    counter += 1;
+    const card = await db
+      .insertInto("cards")
+      .values({
+        slug: `cover-itest-${userId.slice(0, 8)}-${counter}`,
+        name: `Cover Test Card ${counter}`,
+        type: "unit",
+        might: 2,
+        energy: 1,
+        power: null,
+        mightBonus: null,
+        keywords: [],
+        tags: [],
+      })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    cardIds.push(card.id);
+    const printing = await db
+      .insertInto("printings")
+      .values({
+        cardId: card.id,
+        setId: OGS_SET.id,
+        shortCode: `CVR-${userId.slice(0, 4)}-${counter}`,
+        rarity: "common",
+        artVariant: "normal",
+        isSigned: false,
+        finish: "normal",
+        artist: "Test Artist",
+        publicCode: `OGS-8${String(counter).padStart(2, "0")}`,
+        printedRulesText: null,
+        printedEffectText: null,
+        flavorText: null,
+        comment: null,
+      })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    printingIds.push(printing.id);
+    if (image === "none") {
+      return { printingId: printing.id, imageId: null };
+    }
+    const imageFile = await db
+      .insertInto("imageFiles")
+      .values({
+        rehostedUrl:
+          image === "rehosted" ? `https://images.example.com/cover-itest-${counter}.webp` : null,
+        originalUrl: `https://images.example.com/cover-itest-orig-${counter}.webp`,
+      })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    imageFileIds.push(imageFile.id);
+    await db
+      .insertInto("printingImages")
+      .values({ printingId: printing.id, imageFileId: imageFile.id, face: "front", isActive: true })
+      .execute();
+    return { printingId: printing.id, imageId: image === "rehosted" ? imageFile.id : null };
+  }
+
+  it("ranks covers most-copies-first, caps per collection, and batches across collections", async () => {
+    const colA = await collections.create({
+      userId,
+      groupId: null,
+      name: "Cover Collection A",
+      description: null,
+      isInbox: false,
+      sortOrder: 0,
+    });
+    const colB = await collections.create({
+      userId,
+      groupId: null,
+      name: "Cover Collection B",
+      description: null,
+      isInbox: false,
+      sortOrder: 1,
+    });
+    createdCollectionIds.push(colA.id, colB.id);
+
+    const popular = await makePrinting("rehosted");
+    const single = await makePrinting("rehosted");
+    const third = await makePrinting("rehosted");
+    const imageless = await makePrinting("none");
+    const unrehosted = await makePrinting("unrehosted");
+
+    await copies.insertBatch([
+      // Collection A: 2× popular, 1× single, 1× third, plus printings that
+      // must never surface (no image row / image not rehosted).
+      { printingId: popular.printingId, collectionId: colA.id },
+      { printingId: popular.printingId, collectionId: colA.id },
+      { printingId: single.printingId, collectionId: colA.id },
+      { printingId: third.printingId, collectionId: colA.id },
+      { printingId: imageless.printingId, collectionId: colA.id },
+      { printingId: unrehosted.printingId, collectionId: colA.id },
+      // Collection B: one copy of `single` only.
+      { printingId: single.printingId, collectionId: colB.id },
+    ]);
+
+    const limited = await copies.coverPrintingsAcross([colA.id, colB.id], 2);
+    const forA = limited.filter((row) => row.collectionId === colA.id);
+    const forB = limited.filter((row) => row.collectionId === colB.id);
+
+    // A: the two-copy printing leads; the cap drops the third printing.
+    expect(forA.map((row) => row.printingId)).toHaveLength(2);
+    expect(forA[0]).toEqual({
+      collectionId: colA.id,
+      printingId: popular.printingId,
+      imageId: popular.imageId,
+    });
+    // B gets its own independent slot set.
+    expect(forB).toEqual([
+      { collectionId: colB.id, printingId: single.printingId, imageId: single.imageId },
+    ]);
+
+    // A higher limit surfaces all three imaged printings — and still never
+    // the imageless or unrehosted ones.
+    const all = await copies.coverPrintingsAcross([colA.id], 10);
+    expect(all.map((row) => row.printingId).toSorted()).toEqual(
+      [popular.printingId, single.printingId, third.printingId].toSorted(),
+    );
+  });
+
+  it("returns an empty list for no collections", async () => {
+    expect(await copies.coverPrintingsAcross([], 4)).toEqual([]);
   });
 });

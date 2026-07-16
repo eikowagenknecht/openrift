@@ -110,6 +110,7 @@ function makeApp(overrides: {
   };
   const copies = {
     listForCollection: vi.fn(() => Promise.resolve([])),
+    coverPrintingsAcross: vi.fn(() => Promise.resolve([])),
     ...overrides.copies,
   };
   const marketplace = {
@@ -483,6 +484,48 @@ describe("friend-groups route", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { cardsTradedCount: number };
     expect(body.cardsTradedCount).toBe(128);
+  });
+
+  it("GET /{slug} attaches batched cover printings to collection shares", async () => {
+    const PRINTING_ID = "00000000-0000-4000-a000-000000000030";
+    const IMAGE_ID = "00000000-0000-4000-a000-000000000031";
+    const coverPrintingsAcross = vi.fn(() =>
+      Promise.resolve([
+        { collectionId: COLLECTION_ID, printingId: PRINTING_ID, imageId: IMAGE_ID },
+      ]),
+    );
+    const { app } = makeApp({
+      friendGroups: {
+        getBySlug: vi.fn(() => Promise.resolve(group)),
+        getMembership: vi.fn(() => Promise.resolve(memberMembership)),
+        getInvite: vi.fn(() => Promise.resolve(undefined)),
+        listMembers: vi.fn(() => Promise.resolve([enrichedOwner])),
+        collectionSharesForGroup: vi.fn(() =>
+          Promise.resolve([
+            {
+              groupId: GROUP_ID,
+              collectionId: COLLECTION_ID,
+              userId: USER_ID,
+              sharedAt: now,
+              collectionName: "Trade Binder",
+              collectionSortOrder: 0,
+              userName: "Test Owner",
+              copyCount: 42,
+            },
+          ]),
+        ),
+      },
+      copies: { coverPrintingsAcross },
+    });
+    const res = await app.request("/api/v1/friend-groups/playgroup");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      collectionShares: { collectionId: string; coverPrintings: unknown[] }[];
+    };
+    expect(coverPrintingsAcross).toHaveBeenCalledWith([COLLECTION_ID], 4);
+    expect(body.collectionShares[0].coverPrintings).toEqual([
+      { printingId: PRINTING_ID, imageId: IMAGE_ID },
+    ]);
   });
 
   it("GET /{slug} expands rule-based shares so their entryCount is the real size", async () => {

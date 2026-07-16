@@ -1,40 +1,16 @@
 import type { FriendGroupCollectionShareResponse } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import { BookOpenIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import { FolderIcon } from "lucide-react";
 
-import { CardLink } from "@/components/ui/card-link";
-
-/**
- * Shared layout classes for a collection card row. Apply to the row's
- * `<CardLink>` so every collection row (member shares and the group's own
- * pool) looks identical.
- */
-export const COLLECTION_ROW_CLASS = "flex-row items-center gap-3 p-2";
+import { CardArtThumbStack } from "@/components/cards/card-art-thumb-stack";
+import { IconChip } from "@/components/ui/icon-chip";
 
 /**
- * The inner content of a collection card row: book icon, name, and a muted
- * subtitle. Wrap it in a `<CardLink className={COLLECTION_ROW_CLASS}>`
- * pointing at whichever collection view the caller needs.
- * @returns The row's icon + text content.
- */
-export function CollectionRowContent({ name, subtitle }: { name: string; subtitle: ReactNode }) {
-  return (
-    <>
-      <BookOpenIcon className="text-muted-foreground size-5 shrink-0" />
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="truncate font-medium">{name}</span>
-        <span className="text-muted-foreground text-xs">{subtitle}</span>
-      </div>
-    </>
-  );
-}
-
-/**
- * One wide row for a collection shared with the group: icon, name (links to the
- * in-group collection view), and copy count. Mirrors {@link SharedListRow} so a
- * member's collections and lists render uniformly on the Shared and
- * member-detail pages.
+ * One row for a collection shared with the group: the sky folder chip (the
+ * collections tone from the overview tiles), the name linking to the in-group
+ * collection view, the copy count, and a thumb stack of the collection's
+ * cover art. Rendered inside the bordered row list on the Collections and
+ * member-detail pages (the overview rail's row treatment).
  * @returns The shared-collection row element.
  */
 export function SharedCollectionRow({
@@ -44,22 +20,32 @@ export function SharedCollectionRow({
   slug: string;
   share: FriendGroupCollectionShareResponse;
 }) {
-  const noun = share.copyCount === 1 ? "Copy" : "Copies";
+  const noun = share.copyCount === 1 ? "copy" : "copies";
   return (
-    <CardLink
-      render={
-        <Link
-          to="/groups/$slug/collections/$collectionId"
-          params={{ slug, collectionId: share.collectionId }}
-          search={(prev) => prev}
-        />
-      }
-      className={COLLECTION_ROW_CLASS}
+    <Link
+      to="/groups/$slug/collections/$collectionId"
+      params={{ slug, collectionId: share.collectionId }}
+      search={(prev) => prev}
+      className="hover:bg-muted/50 focus-visible:ring-ring/50 flex items-center gap-2.5 rounded-md px-2 py-2 outline-none focus-visible:ring-2"
     >
-      <CollectionRowContent
-        name={share.collectionName}
-        subtitle={`Collection · ${share.copyCount} ${noun}`}
-      />
-    </CardLink>
+      <IconChip icon={FolderIcon} tone="sky" size="sm" shape="round" />
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate text-sm font-medium">{share.collectionName}</span>
+        <span className="text-muted-foreground truncate text-xs">
+          {share.copyCount} {noun}
+        </span>
+      </span>
+      {share.coverPrintings.length > 0 ? (
+        <CardArtThumbStack
+          items={share.coverPrintings.map((cover) => ({
+            key: cover.printingId,
+            imageId: cover.imageId,
+          }))}
+          max={3}
+          className="shrink-0"
+          thumbClassName="ring-card w-7"
+        />
+      ) : null}
+    </Link>
   );
 }
