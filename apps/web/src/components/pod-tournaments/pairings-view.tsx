@@ -169,6 +169,7 @@ export function PairingsView({
                 toEnginePods(round),
                 snapshotToPlayers(snapshot),
                 round.byes.map((bye) => bye.playerId),
+                round.pods.map((pod) => pod.podNumber),
               )
             : [];
         const podWarnings = new Map<number, PairingWarning[]>();
@@ -302,6 +303,20 @@ function RoundPenaltyStats({ round }: { round: PodRoundResponse }) {
         ? `same-region ${sameRegionPods === 1 ? "match" : "matches"}`
         : `same-region ${sameRegionPods === 1 ? "pod" : "pods"}`,
       icon: MapPinIcon,
+      iconTone: "gold",
+    });
+  }
+  const repeatedRegionPods = round.pods.filter(
+    (pod) => (pod.penalty?.repeatedRegion ?? 0) > 0,
+  ).length;
+  if (repeatedRegionPods > 0) {
+    items.push({
+      key: "repeatedRegion",
+      value: repeatedRegionPods,
+      label: allMatches
+        ? `repeat-region ${repeatedRegionPods === 1 ? "match" : "matches"}`
+        : `repeat-region ${repeatedRegionPods === 1 ? "pod" : "pods"}`,
+      icon: RepeatIcon,
       iconTone: "gold",
     });
   }

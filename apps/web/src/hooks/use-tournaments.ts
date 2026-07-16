@@ -340,6 +340,7 @@ const updateParticipantFn = createServerFn({ method: "POST" })
       displayName?: string;
       seed?: number | null;
       region?: string | null;
+      fixedTable?: number | null;
     }) => input,
   )
   .middleware([withCookies])
@@ -495,6 +496,7 @@ export function useUpdateParticipant() {
     displayName?: string;
     seed?: number | null;
     region?: string | null;
+    fixedTable?: number | null;
   }>((data) => updateParticipantFn({ data }));
 }
 

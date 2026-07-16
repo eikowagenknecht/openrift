@@ -40,6 +40,15 @@ export type PairingWarning =
       playerIds: [string, string];
       /** The region tag slug both players share. */
       region: string;
+    }
+  | {
+      kind: "fixedSeatDisplaced";
+      podIndex: number;
+      playerId: string;
+      /** The table the player is normally seated at. */
+      fixedTable: number;
+      /** The table their pod actually plays at this round. */
+      assignedTable: number;
     };
 
 /**
@@ -58,16 +67,22 @@ export const SPREAD_WARNING_THRESHOLD = 6;
  * - `repeatedThreePod`: each player seated in a 3-pod who has already been in one.
  * - `repeatBye`: each byed player who has already taken a bye.
  * - `sameRegion`: each in-pod pair sharing a region (region-aware events only).
+ * - `fixedSeatDisplaced`: each fixed-seat player whose pod plays at a different
+ *   table this round (only when `tableNumbers` is provided), so the organizer
+ *   can announce the move.
  *
  * @param pods The pods making up the round.
  * @param players The player snapshots referenced by the pods and byes.
  * @param byePlayerIds Players sitting this round out (taking a bye).
+ * @param tableNumbers Table number per pod, parallel to `pods` (from
+ *   `assignTableNumbers` or the stored pod numbers). Omit to skip seat checks.
  * @returns The flat list of warnings, empty when the pairing is clean.
  */
 export function computePairingWarnings(
   pods: Pod[],
   players: PairingPlayer[],
   byePlayerIds: readonly string[] = [],
+  tableNumbers?: readonly number[],
 ): PairingWarning[] {
   const playersById = new Map(players.map((player) => [player.id, player]));
   const warnings: PairingWarning[] = [];
@@ -105,6 +120,22 @@ export function computePairingWarnings(
       const spread = Math.max(...scores) - Math.min(...scores);
       if (spread >= SPREAD_WARNING_THRESHOLD) {
         warnings.push({ kind: "largeSpread", podIndex, spread });
+      }
+    }
+
+    const assignedTable = tableNumbers?.[podIndex];
+    if (assignedTable !== undefined) {
+      for (const member of members) {
+        const fixedTable = member.fixedTable ?? null;
+        if (fixedTable !== null && fixedTable !== assignedTable) {
+          warnings.push({
+            kind: "fixedSeatDisplaced",
+            podIndex,
+            playerId: member.id,
+            fixedTable,
+            assignedTable,
+          });
+        }
       }
     }
 

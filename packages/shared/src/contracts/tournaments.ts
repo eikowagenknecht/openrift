@@ -175,6 +175,11 @@ export const tournamentParticipantResponseSchema = z
     seed: z.number().int().nullable(),
     /** Region tag slug (custom-tag category `region`); null when unassigned. */
     region: z.string().nullable(),
+    /**
+     * Fixed (physical) table number, or null. Soft: steers which table the
+     * player's pod lands on, never who they are paired with.
+     */
+    fixedTable: z.number().int().nullable(),
     droppedAfterRound: z.number().int().nullable(),
     claimToken: z.string().nullable(),
     /** A judge unlinked a wrong account; the spot is blocked until a re-issue. */
@@ -408,6 +413,7 @@ export const tournamentsContract = {
       withParams(idParamSchema, {
         displayName: z.string().min(1).max(120),
         region: z.string().min(1).max(50).nullable().optional(),
+        fixedTable: z.number().int().min(1).max(999).nullable().optional(),
       }),
     )
     .output(tournamentParticipantListResponseSchema),
@@ -421,6 +427,8 @@ export const tournamentsContract = {
         // A region tag slug, or null to clear. Judges may patch region alone;
         // the other fields stay organizer/host-only.
         region: z.string().min(1).max(50).nullable().optional(),
+        // A physical table number, or null to clear (soft fixed seat).
+        fixedTable: z.number().int().min(1).max(999).nullable().optional(),
       }),
     )
     .output(tournamentParticipantListResponseSchema),

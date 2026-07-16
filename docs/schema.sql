@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 43VSnQYFYxSdJsEuhs0rEpdeMz8qo9PJeLZi84tYJzpMrumFbBo7ZaefqdmHgYO
+\restrict gfdbQdNtTQH9GTSBjh0iLOdEBr9aS9k4paLu03vOGmXYvBd5dWuUaoNTcxd0yYZ
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1868,8 +1868,10 @@ CREATE TABLE public.pod_members (
     player_id uuid NOT NULL,
     placement integer,
     game_points integer,
+    seat integer,
     CONSTRAINT chk_pod_members_game_points CHECK (((game_points IS NULL) OR (game_points >= 0))),
-    CONSTRAINT chk_pod_members_placement CHECK (((placement IS NULL) OR ((placement >= 1) AND (placement <= 4))))
+    CONSTRAINT chk_pod_members_placement CHECK (((placement IS NULL) OR ((placement >= 1) AND (placement <= 4)))),
+    CONSTRAINT chk_pod_members_seat CHECK (((seat IS NULL) OR ((seat >= 0) AND (seat <= 3))))
 );
 
 
@@ -2258,7 +2260,9 @@ CREATE TABLE public.tournament_participants (
     claimed_at timestamp with time zone,
     claim_blocked_at timestamp with time zone,
     region text,
+    fixed_table integer,
     CONSTRAINT chk_tournament_participants_claim_source CHECK (((claim_source IS NULL) OR (claim_source = ANY (ARRAY['judge_manual'::text, 'self_submit'::text, 'claim_link'::text])))),
+    CONSTRAINT chk_tournament_participants_fixed_table CHECK (((fixed_table IS NULL) OR ((fixed_table >= 1) AND (fixed_table <= 999)))),
     CONSTRAINT chk_tournament_participants_name CHECK (((length(display_name) >= 1) AND (length(display_name) <= 120))),
     CONSTRAINT chk_tournament_participants_region CHECK (((region IS NULL) OR ((char_length(region) >= 1) AND (char_length(region) <= 50)))),
     CONSTRAINT chk_tournament_participants_riot_id CHECK (((riot_id IS NULL) OR (length(riot_id) <= 120))),
@@ -5961,5 +5965,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 43VSnQYFYxSdJsEuhs0rEpdeMz8qo9PJeLZi84tYJzpMrumFbBo7ZaefqdmHgYO
+\unrestrict gfdbQdNtTQH9GTSBjh0iLOdEBr9aS9k4paLu03vOGmXYvBd5dWuUaoNTcxd0yYZ
 

@@ -91,6 +91,9 @@ export function TournamentParticipantsTab({
   const [regionTarget, setRegionTarget] = useState<(ParticipantTarget & { region: string }) | null>(
     null,
   );
+  const [fixedTableTarget, setFixedTableTarget] = useState<
+    (ParticipantTarget & { fixedTable: string }) | null
+  >(null);
   const [removeTarget, setRemoveTarget] = useState<ParticipantTarget | null>(null);
 
   const missingRegionPlayers = participants.filter((participant) =>
@@ -195,6 +198,7 @@ export function TournamentParticipantsTab({
                     onAction={fireAction}
                     onRename={setRenameTarget}
                     onSetRegion={setRegionTarget}
+                    onSetFixedTable={setFixedTableTarget}
                     onRemove={setRemoveTarget}
                   />
                 </li>
@@ -288,6 +292,70 @@ export function TournamentParticipantsTab({
         </DialogContent>
       </Dialog>
 
+      <Dialog
+        open={fixedTableTarget !== null}
+        onOpenChange={(open) => !open && setFixedTableTarget(null)}
+      >
+        <DialogContent>
+          <DialogForm
+            onSubmit={async () => {
+              if (!fixedTableTarget) {
+                return;
+              }
+              const parsed = parseFixedTable(fixedTableTarget.fixedTable);
+              if (parsed === undefined) {
+                return;
+              }
+              await run(() =>
+                updateParticipant.mutateAsync({
+                  id,
+                  participantId: fixedTableTarget.participantId,
+                  fixedTable: parsed,
+                }),
+              );
+              setFixedTableTarget(null);
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>Set fixed table for {fixedTableTarget?.name}</DialogTitle>
+              <DialogDescription>
+                The physical table this player is normally seated at. Pairings are unaffected: when
+                two fixed-table players meet, the match goes to the lower table and the other player
+                moves for that round.
+              </DialogDescription>
+            </DialogHeader>
+            <Input
+              type="number"
+              min={1}
+              max={999}
+              inputMode="numeric"
+              value={fixedTableTarget?.fixedTable ?? ""}
+              onChange={(event) =>
+                setFixedTableTarget((prev) =>
+                  prev ? { ...prev, fixedTable: event.target.value } : prev,
+                )
+              }
+              placeholder="No fixed table"
+              aria-label="Fixed table number"
+            />
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setFixedTableTarget(null)}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={
+                  updateParticipant.isPending ||
+                  parseFixedTable(fixedTableTarget?.fixedTable ?? "") === undefined
+                }
+              >
+                Save
+              </Button>
+            </DialogFooter>
+          </DialogForm>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={removeTarget !== null} onOpenChange={(open) => !open && setRemoveTarget(null)}>
         <DialogContent>
           <DialogForm
@@ -320,6 +388,23 @@ export function TournamentParticipantsTab({
       </Dialog>
     </div>
   );
+}
+
+/**
+ * Parse the fixed-table dialog's draft: empty clears the fixed table (null), a
+ * whole number 1..999 sets it, anything else is invalid.
+ * @returns The value to save, or undefined when the draft is invalid.
+ */
+function parseFixedTable(draft: string): number | null | undefined {
+  const trimmed = draft.trim();
+  if (trimmed === "") {
+    return null;
+  }
+  const parsed = Number(trimmed);
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 999) {
+    return undefined;
+  }
+  return parsed;
 }
 
 /**

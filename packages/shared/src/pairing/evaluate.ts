@@ -11,6 +11,9 @@ import type { PairingConfig, PairingPlayer, Pod, PodPenaltyBreakdown } from "./t
  * - Three-pod repeat: per player in a 3-pod, `threePodRepeatPenalties[min(pods3, 3)]`.
  * - Same region: every unordered in-pod pair whose members share a region adds
  *   `sameRegionWeight`; players without a region never match.
+ * - Repeated region: every unordered in-pod pair adds `repeatedRegionWeight`
+ *   per time either member has already faced the other's region (both
+ *   directions summed), so players see region variety across rounds.
  * - Optional pairwise score term, off by default (`pairwiseScoreWeight = 0`).
  *
  * @param pod The pod to score.
@@ -34,6 +37,7 @@ export function evaluatePod(
   let rematch = 0;
   let rematchPairs = 0;
   let sameRegion = 0;
+  let repeatedRegion = 0;
   let pairwise = 0;
   for (let i = 0; i < members.length; i++) {
     for (let j = i + 1; j < members.length; j++) {
@@ -43,9 +47,18 @@ export function evaluatePod(
         rematchPairs++;
       }
       const regionA = members[i].region ?? null;
-      if (regionA !== null && regionA === members[j].region) {
+      const regionB = members[j].region ?? null;
+      if (regionA !== null && regionA === regionB) {
         sameRegion += config.sameRegionWeight;
       }
+      let repeats = 0;
+      if (regionB !== null) {
+        repeats += members[i].regionHistory?.get(regionB) ?? 0;
+      }
+      if (regionA !== null) {
+        repeats += members[j].regionHistory?.get(regionA) ?? 0;
+      }
+      repeatedRegion += repeats * config.repeatedRegionWeight;
       if (config.pairwiseScoreWeight > 0) {
         pairwise += Math.abs(members[i].score - members[j].score) * config.pairwiseScoreWeight;
       }
@@ -76,7 +89,15 @@ export function evaluatePod(
     }
   }
 
-  const total = rematch + scoreSpread + imbalance + float + threePodRepeat + sameRegion + pairwise;
+  const total =
+    rematch +
+    scoreSpread +
+    imbalance +
+    float +
+    threePodRepeat +
+    sameRegion +
+    repeatedRegion +
+    pairwise;
   return {
     rematch,
     scoreSpread,
@@ -84,6 +105,7 @@ export function evaluatePod(
     float,
     threePodRepeat,
     sameRegion,
+    repeatedRegion,
     total,
     rematchPairs,
     spread,

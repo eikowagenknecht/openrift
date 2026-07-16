@@ -35,6 +35,32 @@ describe("generatePairing - validity", () => {
     expect(allIds(result.pods).toSorted()).toEqual(players.map((entry) => entry.id).toSorted());
   });
 
+  it("round 1 runs local search when pod players carry regions, avoiding mirrors", () => {
+    // Two players per region across three regions: two clean 3-pods exist.
+    const regions = ["noxus", "demacia", "ionia"];
+    const players = Array.from({ length: 6 }, (_, index) =>
+      player(`p${index}`, { region: regions[index % 3] }),
+    );
+    const result = generatePairing(players, 1, { rng: mulberry32(7) });
+    expect(result.strategy).toBe("local-search");
+    expect(result.perPod.every((breakdown) => breakdown.sameRegion === 0)).toBe(true);
+    expect(allIds(result.pods).toSorted()).toEqual(players.map((entry) => entry.id).toSorted());
+  });
+
+  it("prefers a fresh region opponent over a repeated one", () => {
+    // All regions distinct, so only the repeated-region term separates the
+    // pairings: a has already faced Demacia, so a vs b must be avoided.
+    const players = [
+      player("a", { region: "ionia", regionHistory: new Map([["demacia", 1]]) }),
+      player("b", { region: "demacia" }),
+      player("c", { region: "noxus" }),
+      player("d", { region: "freljord" }),
+    ];
+    const result = generatePairing(players, 2, { mode: "swiss", rng: mulberry32(3) });
+    expect(podOf(result.pods, "a")).not.toContain("b");
+    expect(result.totalPenalty).toBe(0);
+  });
+
   it("assigns every player exactly once across pods", () => {
     const players = Array.from({ length: 14 }, (_, index) =>
       player(`p${index}`, { score: index % 3 }),

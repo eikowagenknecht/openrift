@@ -22,6 +22,8 @@ export function snapshotToPlayers(snapshot: PodSnapshotPlayer[]): PairingPlayer[
     byes: player.byes,
     opponents: new Map(Object.entries(player.opponents)),
     region: player.region,
+    regionHistory: new Map(Object.entries(player.regionHistory)),
+    fixedTable: player.fixedTable,
   }));
 }
 
@@ -58,6 +60,9 @@ function describeWarning(
       return `${name(warning.playerIds[0])} & ${name(warning.playerIds[1])} both play ${regionLabel(
         warning.region,
       )}`;
+    }
+    case "fixedSeatDisplaced": {
+      return `${name(warning.playerId)} moves from table ${warning.fixedTable} to table ${warning.assignedTable} this round`;
     }
   }
 }

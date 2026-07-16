@@ -19,6 +19,18 @@ export interface PairingPlayer {
   opponents: Map<string, number>;
   /** Region tag slug for region-aware events; null/absent when regions are off. */
   region?: string | null;
+  /**
+   * Opponent region slug -> times this player has faced that region across the
+   * finalized rounds. Derived by the repo from the opponents' current regions
+   * (so a region edit recounts on read); absent when regions are off.
+   */
+  regionHistory?: ReadonlyMap<string, number>;
+  /**
+   * The physical table this player is normally seated at, or null/absent when
+   * unset. Soft: never consulted by the pairing itself, only by the table
+   * assignment after pods are formed (see `assignTableNumbers`).
+   */
+  fixedTable?: number | null;
 }
 
 /** One game group within a round. Size 2 is a Swiss 1v1 match. */
@@ -55,6 +67,12 @@ export interface PodPenaltyBreakdown {
    * region feature lack this key; readers must coalesce it to 0.
    */
   sameRegion: number;
+  /**
+   * Penalty for in-pod pairs who have already faced each other's region in
+   * earlier rounds. Breakdowns stored before this feature lack the key;
+   * readers must coalesce it to 0.
+   */
+  repeatedRegion: number;
   total: number;
   /** Count of in-pod pairs that have met before, for the organizer display. */
   rematchPairs: number;
@@ -100,6 +118,15 @@ export interface PairingConfig {
    * engine reaches across score bands before pairing two same-region players.
    */
   sameRegionWeight: number;
+  /**
+   * Penalty per prior meeting with the other player's region, per in-pod pair
+   * (both directions summed). Gives players region variety across rounds. Must
+   * lose to `sameRegionWeight` (70) so avoiding a live region mirror always
+   * beats avoiding a repeat, and to the first rematch (100), but beat small
+   * score-spread noise (10 per point) so the engine reaches across a band
+   * before serving the same region again.
+   */
+  repeatedRegionWeight: number;
   /** Optional finer pairwise score term; default 0 (off). Reserved for a future weight. */
   pairwiseScoreWeight: number;
 }
@@ -112,6 +139,7 @@ export const DEFAULT_PAIRING_CONFIG: PairingConfig = {
   floatWeight: 5,
   threePodRepeatPenalties: [0, 120, 600, 2400],
   sameRegionWeight: 70,
+  repeatedRegionWeight: 25,
   pairwiseScoreWeight: 0,
 };
 

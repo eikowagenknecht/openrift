@@ -1,4 +1,7 @@
 import {
+  arrangeSeating,
+  assignTableNumbers,
+  foldSeatingHistory,
   placementsFromGamePoints,
   pointsForPlacements,
   swissPointsForPlacements,
@@ -130,6 +133,29 @@ function tieBreakKey(id: string): number {
 // jsonb can come back as a parsed object (postgres.js) or a string (Bun); normalize.
 function parseBreakdown(value: unknown): PodPenaltyBreakdown {
   return (typeof value === "string" ? JSON.parse(value) : value) as PodPenaltyBreakdown;
+}
+
+/**
+ * Times each region has been faced: fold the opponent meeting counts through
+ * the opponents' CURRENT regions. Derive-on-read like everything else, so a
+ * region edit recounts the history on the next pairing.
+ * @returns region slug -> prior meetings against that region.
+ */
+function regionHistoryFrom(
+  opponents: Map<string, number> | undefined,
+  regionById: Map<string, string | null>,
+): Map<string, number> {
+  const history = new Map<string, number>();
+  if (!opponents) {
+    return history;
+  }
+  for (const [opponentId, meetings] of opponents) {
+    const region = regionById.get(opponentId) ?? null;
+    if (region !== null) {
+      history.set(region, (history.get(region) ?? 0) + meetings);
+    }
+  }
+  return history;
 }
 
 function emptyAggregate(): PlayerAggregate {
@@ -336,8 +362,9 @@ function toPodResponse(pod: Pod, memberRows: PodMemberRow[], scoring: PodScoring
       imbalance: breakdown.imbalance,
       float: breakdown.float,
       threePodRepeat: breakdown.threePodRepeat,
-      // Breakdowns stored before the region feature lack this key.
+      // Breakdowns stored before the region features lack these keys.
       sameRegion: breakdown.sameRegion ?? 0,
+      repeatedRegion: breakdown.repeatedRegion ?? 0,
     },
   };
 }
@@ -408,12 +435,44 @@ export function podTournamentsRepo(db: Kysely<Database>) {
   }
 
   // Insert a round's pods (+ their result-less members) and byes inside a trx.
+  // Pod numbers are the physical tables: pods holding a fixed-seat player claim
+  // that table, everyone else fills the free numbers in engine order. Members
+  // are written in seat order, arranged so nobody repeats earlier rounds'
+  // neighbors more than the field forces.
   async function writePodsAndByes(
     trx: Kysely<Database>,
     roundId: string,
     pairing: PairingResult,
     byePlayerIds: string[],
   ): Promise<void> {
+    const { tournamentId } = await trx
+      .selectFrom("podRounds")
+      .select("tournamentId")
+      .where("id", "=", roundId)
+      .executeTakeFirstOrThrow();
+    const [fixedRows, seatRows] = await Promise.all([
+      trx
+        .selectFrom("tournamentParticipants")
+        .select(["id", "fixedTable"])
+        .where("tournamentId", "=", tournamentId)
+        .where("fixedTable", "is not", null)
+        .execute(),
+      trx
+        .selectFrom("podRounds as r")
+        .innerJoin("pods as p", "p.roundId", "r.id")
+        .innerJoin("podMembers as m", "m.podId", "p.id")
+        .select(["m.podId as podId", "m.playerId as playerId", "m.seat as seat"])
+        .where("r.tournamentId", "=", tournamentId)
+        .where("r.status", "=", "finalized")
+        .execute(),
+    ]);
+    const fixedTables = new Map(
+      fixedRows.flatMap((row) =>
+        row.fixedTable === null ? [] : [[row.id, row.fixedTable] as const],
+      ),
+    );
+    const tableNumbers = assignTableNumbers(pairing.pods, fixedTables);
+    const seatingHistory = foldSeatingHistory(seatRows);
     for (let index = 0; index < pairing.pods.length; index++) {
       const pod = pairing.pods[index];
       const breakdown = pairing.perPod[index];
@@ -421,15 +480,18 @@ export function podTournamentsRepo(db: Kysely<Database>) {
         .insertInto("pods")
         .values({
           roundId,
-          podNumber: index + 1,
+          podNumber: tableNumbers[index],
           size: pod.size,
           penaltyBreakdown: JSON.stringify(breakdown),
         })
         .returning("id")
         .executeTakeFirstOrThrow();
+      const seated = arrangeSeating(pod.playerIds, seatingHistory);
       await trx
         .insertInto("podMembers")
-        .values(pod.playerIds.map((playerId) => ({ podId: podRow.id, playerId, placement: null })))
+        .values(
+          seated.map((playerId, seat) => ({ podId: podRow.id, playerId, placement: null, seat })),
+        )
         .execute();
     }
     if (byePlayerIds.length > 0) {
@@ -862,30 +924,36 @@ export function podTournamentsRepo(db: Kysely<Database>) {
     // ── Derived reads (the lean model) ───────────────────────────────────────
     /** @returns Active players as engine snapshots, aggregates derived from finalized rounds. */
     async loadPairingSnapshot(tournamentId: string, scoring: PodScoring): Promise<PairingPlayer[]> {
-      const [activePlayers, finalizedRows, finalizedByes] = await Promise.all([
+      // All participants, not just active: dropped opponents still carry the
+      // regions the region history is counted against.
+      const [players, finalizedRows, finalizedByes] = await Promise.all([
         db
           .selectFrom("tournamentParticipants")
-          .select(["id", "region"])
+          .select(["id", "region", "fixedTable", "status"])
           .where("tournamentId", "=", tournamentId)
-          .where("status", "=", "active")
           .orderBy("createdAt", "asc")
           .execute(),
         loadFinalizedRows(tournamentId),
         loadFinalizedByePlayerIds(tournamentId),
       ]);
       const aggregates = foldFinalized(finalizedRows, finalizedByes, scoring);
-      return activePlayers.map((player) => {
-        const aggregate = aggregates.get(player.id);
-        return {
-          id: player.id,
-          score: aggregate?.score ?? 0,
-          pods3: aggregate?.pods3 ?? 0,
-          pods4: aggregate?.pods4 ?? 0,
-          byes: aggregate?.byes ?? 0,
-          opponents: aggregate?.opponents ?? new Map(),
-          region: player.region,
-        };
-      });
+      const regionById = new Map(players.map((player) => [player.id, player.region]));
+      return players
+        .filter((player) => player.status === "active")
+        .map((player) => {
+          const aggregate = aggregates.get(player.id);
+          return {
+            id: player.id,
+            score: aggregate?.score ?? 0,
+            pods3: aggregate?.pods3 ?? 0,
+            pods4: aggregate?.pods4 ?? 0,
+            byes: aggregate?.byes ?? 0,
+            opponents: aggregate?.opponents ?? new Map(),
+            region: player.region,
+            regionHistory: regionHistoryFrom(aggregate?.opponents, regionById),
+            fixedTable: player.fixedTable,
+          };
+        });
     },
 
     /**
@@ -902,7 +970,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
       const [players, finalizedRows, finalizedByes] = await Promise.all([
         db
           .selectFrom("tournamentParticipants")
-          .select(["id", "region"])
+          .select(["id", "region", "fixedTable"])
           .where("tournamentId", "=", tournamentId)
           .orderBy("createdAt", "asc")
           .execute(),
@@ -910,6 +978,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
         loadFinalizedByePlayerIds(tournamentId),
       ]);
       const aggregates = foldFinalized(finalizedRows, finalizedByes, scoring);
+      const regionById = new Map(players.map((player) => [player.id, player.region]));
       return players.map((player) => {
         const aggregate = aggregates.get(player.id);
         return {
@@ -920,6 +989,8 @@ export function podTournamentsRepo(db: Kysely<Database>) {
           byes: aggregate?.byes ?? 0,
           opponents: aggregate ? Object.fromEntries(aggregate.opponents) : {},
           region: player.region,
+          regionHistory: Object.fromEntries(regionHistoryFrom(aggregate?.opponents, regionById)),
+          fixedTable: player.fixedTable,
         };
       });
     },
@@ -1035,6 +1106,8 @@ export function podTournamentsRepo(db: Kysely<Database>) {
               .innerJoin("tournamentParticipants as pl", "pl.id", "m.playerId")
               .select(["m.podId", "m.playerId", "pl.displayName", "m.placement", "m.gamePoints"])
               .where("m.podId", "in", podIds)
+              // Seat order IS the display order (NULLs last covers pre-seat rounds).
+              .orderBy("m.seat", "asc")
               .execute(),
         db
           .selectFrom("podByes as b")

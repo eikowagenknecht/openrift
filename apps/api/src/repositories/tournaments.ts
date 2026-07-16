@@ -136,6 +136,8 @@ export interface NewTournamentParticipant {
   displayName: string;
   /** Region tag slug (custom-tag category `region`); validated by the route. */
   region?: string | null;
+  /** Fixed (physical) table number; soft, steers table assignment only. */
+  fixedTable?: number | null;
   riotId?: string | null;
   userId?: string | null;
   claimSource?: TournamentClaimSource | null;
@@ -147,6 +149,7 @@ export interface NewTournamentParticipant {
 export interface TournamentParticipantPatch {
   displayName?: string;
   region?: string | null;
+  fixedTable?: number | null;
   riotId?: string | null;
   userId?: string | null;
   claimSource?: TournamentClaimSource | null;

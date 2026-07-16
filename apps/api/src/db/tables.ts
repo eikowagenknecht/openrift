@@ -897,6 +897,11 @@ export interface TournamentParticipantsTable {
   seed: number | null;
   /** Region tag slug (custom-tag category 'region'); CHECK: NULL or length 1..50. */
   region: string | null;
+  /**
+   * Physical table this player is normally seated at; CHECK: NULL or 1..999.
+   * Soft: steers post-pairing table assignment only, never who plays whom.
+   */
+  fixedTable: number | null;
   /** Claim machinery, lifted from deck_check_entries. */
   claimSource: TournamentClaimSource | null;
   /** UNIQUE where not null; resolves a claim link to one participant. */
@@ -943,6 +948,12 @@ interface PodMembersTable {
   placement: number | null;
   /** Raw game points the player ended the pod on; CHECK >= 0; NULL until reported. */
   gamePoints: number | null;
+  /**
+   * 0-based seat around the table; CHECK: NULL or 0..3. Chosen at round
+   * creation to vary neighbors versus earlier rounds; NULL on rounds persisted
+   * before the seating feature.
+   */
+  seat: number | null;
 }
 
 // Byes (migration 147). A row records that a player sat a round out; the score

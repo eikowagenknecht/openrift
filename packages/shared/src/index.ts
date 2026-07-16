@@ -128,8 +128,11 @@ export type {
   ScoringScheme,
 } from "./pairing/index.js";
 export {
+  arrangeSeating,
+  assignTableNumbers,
   computePairingWarnings,
   DEFAULT_LOCAL_SEARCH_BUDGET,
+  foldSeatingHistory,
   DEFAULT_PAIRING_CONFIG,
   determinePodSizes,
   determineSwissPodSizes,

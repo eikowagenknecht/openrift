@@ -25,6 +25,9 @@ export {
   InvalidPlayerCountError,
   makeLocalSearchStrategy,
 } from "./local-search.js";
+export type { SeatingHistory } from "./seating.js";
+export { arrangeSeating, foldSeatingHistory } from "./seating.js";
+export { assignTableNumbers } from "./table-assignment.js";
 export type { PairingWarning } from "./warnings.js";
 export { computePairingWarnings, SPREAD_WARNING_THRESHOLD } from "./warnings.js";
 export { pickAutoBye } from "./auto-bye.js";

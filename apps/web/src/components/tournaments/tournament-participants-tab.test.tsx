@@ -60,6 +60,7 @@ function makeParticipant(
     status: "active",
     seed: null,
     region: "demacia",
+    fixedTable: null,
     droppedAfterRound: null,
     claimToken: null,
     claimBlocked: false,
@@ -240,5 +241,59 @@ describe("TournamentParticipantsTab roster groups", () => {
     expect(screen.queryByText("Braum")).not.toBeInTheDocument();
     // The emptied group takes its heading with it.
     expect(screen.queryByRole("heading", { name: /Dropped/u })).not.toBeInTheDocument();
+  });
+});
+
+describe("TournamentParticipantsTab fixed tables", () => {
+  it("shows a table badge for a fixed-seat player", () => {
+    participants = [makeParticipant("p1", { displayName: "Ashe", fixedTable: 7 })];
+    renderTab();
+    expect(screen.getByText("Table 7")).toBeInTheDocument();
+  });
+
+  it("sets a fixed table from the row menu", async () => {
+    const user = userEvent.setup();
+    participants = [makeParticipant("p1", { displayName: "Ashe" })];
+    renderTab();
+
+    await user.click(screen.getByRole("button", { name: "Participant actions" }));
+    await user.click(await screen.findByText("Set fixed table"));
+    expect(await screen.findByText("Set fixed table for Ashe")).toBeInTheDocument();
+
+    await user.type(screen.getByRole("spinbutton", { name: "Fixed table number" }), "7");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(updateParticipantMutateAsync).toHaveBeenCalledWith({
+      id: "tournament-1",
+      participantId: "p1",
+      fixedTable: 7,
+    });
+  });
+
+  it("clears the fixed table when the field is emptied", async () => {
+    const user = userEvent.setup();
+    participants = [makeParticipant("p1", { displayName: "Ashe", fixedTable: 7 })];
+    renderTab();
+
+    await user.click(screen.getByRole("button", { name: "Participant actions" }));
+    await user.click(await screen.findByText("Set fixed table"));
+    await user.clear(screen.getByRole("spinbutton", { name: "Fixed table number" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(updateParticipantMutateAsync).toHaveBeenCalledWith({
+      id: "tournament-1",
+      participantId: "p1",
+      fixedTable: null,
+    });
+  });
+
+  it("refuses to save an out-of-range table number", async () => {
+    const user = userEvent.setup();
+    participants = [makeParticipant("p1", { displayName: "Ashe" })];
+    renderTab();
+
+    await user.click(screen.getByRole("button", { name: "Participant actions" }));
+    await user.click(await screen.findByText("Set fixed table"));
+    await user.type(screen.getByRole("spinbutton", { name: "Fixed table number" }), "1000");
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    expect(updateParticipantMutateAsync).not.toHaveBeenCalled();
   });
 });

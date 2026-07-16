@@ -10,7 +10,7 @@ import {
 } from "@dnd-kit/core";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import type { PairingWarning, Pod, PodRoundResponse, PodSnapshotPlayer } from "@openrift/shared";
-import { computePairingWarnings, evaluatePod } from "@openrift/shared";
+import { assignTableNumbers, computePairingWarnings, evaluatePod } from "@openrift/shared";
 import { GripVerticalIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -87,7 +87,20 @@ export function PodPairingEditor({
   const expected = participantIds(seedFromRound(round));
   const validation = validatePartition(state, expected, mode);
   const enginePods = toEnginePods(state);
-  const warnings = computePairingWarnings(enginePods, players, state.byes);
+  // Preview the table assignment the save will produce, so a seat displacement
+  // shows up while the organizer is still editing.
+  const fixedTables = new Map(
+    players.flatMap((player) => {
+      const fixedTable = player.fixedTable ?? null;
+      return fixedTable === null ? [] : [[player.id, fixedTable] as const];
+    }),
+  );
+  const warnings = computePairingWarnings(
+    enginePods,
+    players,
+    state.byes,
+    assignTableNumbers(enginePods, fixedTables),
+  );
   const totalPenalty = enginePods.reduce(
     (sum, pod) => sum + evaluatePod(pod, playersById).total,
     0,
@@ -99,7 +112,8 @@ export function PodPairingEditor({
       warning.kind === "rematch" ||
       warning.kind === "largeSpread" ||
       warning.kind === "repeatedThreePod" ||
-      warning.kind === "sameRegion"
+      warning.kind === "sameRegion" ||
+      warning.kind === "fixedSeatDisplaced"
     ) {
       // enginePods drops empties, so its indices match only non-empty pods; map back
       // to the editor pod index for display by counting non-empty pods.

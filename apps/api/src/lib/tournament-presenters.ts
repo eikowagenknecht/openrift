@@ -74,6 +74,7 @@ export function toParticipant(row: TournamentParticipantWithUser): TournamentPar
     status: row.status as TournamentParticipantStatus,
     seed: row.seed,
     region: row.region,
+    fixedTable: row.fixedTable,
     droppedAfterRound: row.droppedAfterRound,
     // Only an unclaimed, unblocked spot has a live claim link. An already-linked
     // participant (userId set) or a blocked spot's token is dead (the claim flow

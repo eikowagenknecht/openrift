@@ -80,6 +80,7 @@ function makeParticipant(
     status: "active",
     seed: null,
     region: "ionia",
+    fixedTable: null,
     droppedAfterRound: null,
     claimToken: null,
     claimBlocked: false,

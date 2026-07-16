@@ -170,6 +170,44 @@ describe("evaluatePod - same region", () => {
   });
 });
 
+describe("evaluatePod - repeated region", () => {
+  const MATCH: Pod = { size: 2, playerIds: ["a", "b"] };
+
+  it("charges 25 per prior meeting with the other player's region, both directions", () => {
+    const players = mapOf([
+      player("a", { region: "noxus", regionHistory: new Map([["demacia", 2]]) }),
+      player("b", { region: "demacia", regionHistory: new Map([["noxus", 1]]) }),
+    ]);
+    // a has faced Demacia twice, b has faced Noxus once: 3 repeats * 25.
+    expect(evaluatePod(MATCH, players, undefined).repeatedRegion).toBe(75);
+  });
+
+  it("charges nothing without history or without regions", () => {
+    const fresh = mapOf([player("a", { region: "noxus" }), player("b", { region: "demacia" })]);
+    expect(evaluatePod(MATCH, fresh, undefined).repeatedRegion).toBe(0);
+
+    const regionless = mapOf([
+      player("a", { regionHistory: new Map([["noxus", 3]]) }),
+      player("b"),
+    ]);
+    expect(evaluatePod(MATCH, regionless, undefined).repeatedRegion).toBe(0);
+  });
+
+  it("loses to a live same-region mirror under the default weights", () => {
+    const repeatPlayers = mapOf([
+      player("a", { region: "noxus", regionHistory: new Map([["demacia", 1]]) }),
+      player("b", { region: "demacia" }),
+    ]);
+    const mirrorPlayers = mapOf([
+      player("a", { region: "noxus" }),
+      player("b", { region: "noxus" }),
+    ]);
+    expect(evaluatePod(MATCH, repeatPlayers, undefined).total).toBeLessThan(
+      evaluatePod(MATCH, mirrorPlayers, undefined).total,
+    );
+  });
+});
+
 describe("evaluatePairing", () => {
   it("sums per-pod totals into the round penalty", () => {
     const players = [
@@ -191,8 +229,19 @@ describe("evaluatePairing", () => {
 
   it("named penalty terms sum to the pod total under the default config", () => {
     const players = mapOf([
-      player("a", { score: 9, pods3: 2, opponents: new Map([["b", 2]]), region: "noxus" }),
-      player("b", { score: 1, opponents: new Map([["a", 2]]), region: "noxus" }),
+      player("a", {
+        score: 9,
+        pods3: 2,
+        opponents: new Map([["b", 2]]),
+        region: "noxus",
+        regionHistory: new Map([["noxus", 2]]),
+      }),
+      player("b", {
+        score: 1,
+        opponents: new Map([["a", 2]]),
+        region: "noxus",
+        regionHistory: new Map([["noxus", 2]]),
+      }),
       player("c", { score: 0 }),
     ]);
     const breakdown = evaluatePod(POD3, players, undefined);
@@ -202,7 +251,8 @@ describe("evaluatePairing", () => {
       breakdown.imbalance +
       breakdown.float +
       breakdown.threePodRepeat +
-      breakdown.sameRegion;
+      breakdown.sameRegion +
+      breakdown.repeatedRegion;
     expect(sum).toBeCloseTo(breakdown.total);
   });
 });

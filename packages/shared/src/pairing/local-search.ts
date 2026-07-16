@@ -273,11 +273,13 @@ function randomPairing(
 
 /**
  * Orchestrate a round's pairing. Pod mode: round 1 is a random valid partition
- * (no scores or history yet); round 2+ runs bounded local search. Swiss mode
- * always runs local search so the region term is honored from round 1 (with no
- * penalties active it degenerates to a random partition anyway). The pod sizes
- * are derived from the field per mode; an unrepresentable count (1, 2, 5 for
- * pods; odd for Swiss) throws {@link InvalidPlayerCountError}.
+ * (no scores or history yet) unless any player carries a region, in which case
+ * local search runs so same-region pods are avoided from the start; round 2+
+ * always runs bounded local search. Swiss mode always runs local search for the
+ * same reason (with no penalties active it degenerates to a random partition
+ * anyway). The pod sizes are derived from the field per mode; an
+ * unrepresentable count (1, 2, 5 for pods; odd for Swiss) throws
+ * {@link InvalidPlayerCountError}.
  *
  * @param players The active players' flat snapshots.
  * @param roundNumber 1-based round number.
@@ -299,7 +301,8 @@ export function generatePairing(
   if (sizes === null) {
     throw new InvalidPlayerCountError(players.length, mode);
   }
-  if (mode === "pod" && roundNumber <= 1) {
+  const anyRegion = players.some((player) => (player.region ?? null) !== null);
+  if (mode === "pod" && roundNumber <= 1 && !anyRegion) {
     return randomPairing(players, sizes, config, rng);
   }
   return makeLocalSearchStrategy(budget).pair(players, sizes, config, rng);

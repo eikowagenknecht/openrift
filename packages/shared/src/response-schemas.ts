@@ -502,6 +502,7 @@ export const podPenaltyViewSchema = z.object({
   float: z.number(),
   threePodRepeat: z.number(),
   sameRegion: z.number(),
+  repeatedRegion: z.number(),
 });
 
 export const podResponseSchema = z.object({
@@ -576,6 +577,10 @@ export const podSnapshotPlayerSchema = z.object({
   byes: z.number().int().nonnegative(),
   opponents: z.record(z.string(), z.number().int().nonnegative()),
   region: z.string().nullable(),
+  /** Opponent region slug -> times faced across finalized rounds. */
+  regionHistory: z.record(z.string(), z.number().int().nonnegative()),
+  /** Fixed (physical) table number, or null; steers table assignment only. */
+  fixedTable: z.number().int().nullable(),
 });
 
 export const podTournamentDetailResponseSchema = z

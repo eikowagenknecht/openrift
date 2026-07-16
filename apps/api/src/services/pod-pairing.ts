@@ -304,6 +304,8 @@ function toPairingPlayer(snapshot: PodSnapshotPlayer): PairingPlayer {
     byes: snapshot.byes,
     opponents: new Map(Object.entries(snapshot.opponents)),
     region: snapshot.region,
+    regionHistory: new Map(Object.entries(snapshot.regionHistory)),
+    fixedTable: snapshot.fixedTable,
   };
 }
 

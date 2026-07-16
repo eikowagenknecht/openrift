@@ -1,6 +1,7 @@
 import type { TournamentParticipantResponse } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import {
+  ArmchairIcon,
   CheckIcon,
   CopyIcon,
   EllipsisVerticalIcon,
@@ -89,6 +90,8 @@ export interface ParticipantRowProps {
   onAction: (participantId: string, action: ParticipantAction) => void;
   onRename: (target: ParticipantTarget) => void;
   onSetRegion: (target: ParticipantTarget & { region: string }) => void;
+  /** Opens the fixed-table dialog; `fixedTable` is the input draft ("" = unset). */
+  onSetFixedTable: (target: ParticipantTarget & { fixedTable: string }) => void;
   onRemove: (target: ParticipantTarget) => void;
 }
 
@@ -111,6 +114,7 @@ export function ParticipantRow({
   onAction,
   onRename,
   onSetRegion,
+  onSetFixedTable,
   onRemove,
 }: ParticipantRowProps) {
   const regionLabel = useRegionLabel();
@@ -139,6 +143,15 @@ export function ParticipantRow({
             No region
           </Badge>
         ) : null}
+        {participant.fixedTable === null ? null : (
+          <Badge
+            variant="outline"
+            title={`Normally seated at table ${participant.fixedTable}. Pairings are unaffected; the table steers where their match is placed.`}
+          >
+            <ArmchairIcon className="size-3" />
+            Table {participant.fixedTable}
+          </Badge>
+        )}
         {participant.userId ? (
           <Badge
             variant="subtle"
@@ -237,6 +250,18 @@ export function ParticipantRow({
                   Set region
                 </DropdownMenuItem>
               ) : null}
+              <DropdownMenuItem
+                onClick={() =>
+                  onSetFixedTable({
+                    ...target,
+                    fixedTable:
+                      participant.fixedTable === null ? "" : String(participant.fixedTable),
+                  })
+                }
+              >
+                <ArmchairIcon className="size-4" />
+                Set fixed table
+              </DropdownMenuItem>
               {participant.status === "active" ? (
                 <DropdownMenuItem
                   disabled={actionPending}

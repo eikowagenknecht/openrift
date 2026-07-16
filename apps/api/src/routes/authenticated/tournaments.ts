@@ -1101,6 +1101,7 @@ export const tournamentsRouter = {
         tournamentId: input.id,
         displayName: input.displayName,
         region: input.region ?? null,
+        fixedTable: input.fixedTable ?? null,
         status: "active",
       });
       return buildParticipantList(repos, input.id);
@@ -1114,8 +1115,11 @@ export const tournamentsRouter = {
       const tournament = await loadTournament(repos, input.id);
       // Region assignment is judge work (checking decks against the entered
       // region is part of deck check), so a region-only patch needs staff, not
-      // manage. Name/seed edits stay organizer/host-only.
-      const touchesManagedFields = input.displayName !== undefined || input.seed !== undefined;
+      // manage. Name/seed/fixed-table edits stay organizer/host-only.
+      const touchesManagedFields =
+        input.displayName !== undefined ||
+        input.seed !== undefined ||
+        input.fixedTable !== undefined;
       await (touchesManagedFields
         ? requireManage(repos, tournament, userId)
         : requireStaff(repos, tournament, userId));
@@ -1125,6 +1129,7 @@ export const tournamentsRouter = {
         displayName: input.displayName,
         seed: input.seed,
         region: input.region,
+        fixedTable: input.fixedTable,
       });
       return buildParticipantList(repos, input.id);
     },

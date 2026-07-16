@@ -16,6 +16,10 @@
 
 ### Other
 
+- feat(Tournaments): **Fixed tables for players** — pin a player to a physical table and their match is placed there each round; pairings stay untouched, and if two pinned players meet, the round notes who moves.
+- feat(Tournaments): **Region variety across rounds** — on region-aware events, pairings now also avoid serving a player the same opposing region round after round.
+- feat(Tournaments): **Fresh seating orders in pods** — the player order shown on each pod is now the seating order at the table, arranged so nobody keeps the same neighbors or turn order as in earlier rounds.
+- fix(Tournaments): **Region avoidance from round 1 in pods** — 3/4-player pod events with regions on no longer pair the first round fully at random; same-region pods are avoided from the start.
 - feat(Groups): **Date-anchored activity feed** — each day in the group activity feed now gets the same calendar date tile as the events timeline, replacing the Today and Yesterday headers.
 - feat(Tournaments): **Podium on the shared standings link** — the standings page you share with players and spectators now leads with the top three, matching the tournament page.
 - feat(Groups): **Redesigned group collections page** — pooled collections are now tiles with a fan of their own card art, and each member's shared collections list openly under their name with cover thumbnails, no unfolding needed.

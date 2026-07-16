@@ -15,6 +15,10 @@ function threePod(...ids: string[]): Pod {
   return { size: 3, playerIds: ids };
 }
 
+function match(...ids: string[]): Pod {
+  return { size: 2, playerIds: ids };
+}
+
 describe("computePairingWarnings", () => {
   it("returns no warnings for a clean pairing", () => {
     const players = ["a", "b", "c", "d"].map((id) => player(id));
@@ -123,6 +127,40 @@ describe("computePairingWarnings", () => {
     expect(warnings).toEqual([
       { kind: "rematch", podIndex: 0, playerIds: ["a", "b"], meetings: 1 },
       { kind: "rematch", podIndex: 1, playerIds: ["d", "e"], meetings: 1 },
+    ]);
+  });
+
+  it("flags a fixed-seat player whose pod plays at a different table", () => {
+    const players = [player("a", { fixedTable: 7 }), player("b"), player("c"), player("d")];
+    const warnings = computePairingWarnings(
+      [match("a", "b"), match("c", "d")],
+      players,
+      [],
+      [3, 1],
+    );
+    expect(warnings).toEqual([
+      { kind: "fixedSeatDisplaced", podIndex: 0, playerId: "a", fixedTable: 7, assignedTable: 3 },
+    ]);
+  });
+
+  it("stays quiet for a fixed-seat player seated at their own table", () => {
+    const players = [player("a", { fixedTable: 3 }), player("b")];
+    const warnings = computePairingWarnings([match("a", "b")], players, [], [3]);
+    expect(warnings).toEqual([]);
+  });
+
+  it("skips seat checks entirely when no table numbers are given", () => {
+    const players = [player("a", { fixedTable: 7 }), player("b")];
+    const warnings = computePairingWarnings([match("a", "b")], players);
+    expect(warnings).toEqual([]);
+  });
+
+  it("flags both fixed-seat players in a pod when neither sits at their table", () => {
+    const players = [player("a", { fixedTable: 7 }), player("b", { fixedTable: 3 })];
+    const warnings = computePairingWarnings([match("a", "b")], players, [], [5]);
+    expect(warnings).toEqual([
+      { kind: "fixedSeatDisplaced", podIndex: 0, playerId: "a", fixedTable: 7, assignedTable: 5 },
+      { kind: "fixedSeatDisplaced", podIndex: 0, playerId: "b", fixedTable: 3, assignedTable: 5 },
     ]);
   });
 });

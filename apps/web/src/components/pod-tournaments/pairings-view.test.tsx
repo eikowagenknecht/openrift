@@ -104,6 +104,7 @@ describe("PairingsView", () => {
                 float: 0,
                 threePodRepeat: 0,
                 sameRegion: 0,
+                repeatedRegion: 0,
               },
             }),
           ],
@@ -186,8 +187,28 @@ describe("PairingsView", () => {
         }),
       ],
       snapshot: [
-        { playerId: "p9", score: 3, pods3: 0, pods4: 1, byes: 2, opponents: {}, region: null },
-        { playerId: "p10", score: 3, pods3: 0, pods4: 1, byes: 0, opponents: {}, region: null },
+        {
+          playerId: "p9",
+          score: 3,
+          pods3: 0,
+          pods4: 1,
+          byes: 2,
+          opponents: {},
+          regionHistory: {},
+          region: null,
+          fixedTable: null,
+        },
+        {
+          playerId: "p10",
+          score: 3,
+          pods3: 0,
+          pods4: 1,
+          byes: 0,
+          opponents: {},
+          regionHistory: {},
+          region: null,
+          fixedTable: null,
+        },
       ],
     });
 
@@ -195,6 +216,31 @@ describe("PairingsView", () => {
     expect(screen.getByText("Ekko")).toBeInTheDocument();
     expect(screen.getAllByText("+3 bye")).toHaveLength(2);
     expect(screen.getByText("2 earlier byes")).toBeInTheDocument();
+  });
+
+  it("warns when a fixed-seat player's pod plays at another table", () => {
+    const snapshotDefaults = {
+      score: 0,
+      pods3: 0,
+      pods4: 0,
+      byes: 0,
+      opponents: {},
+      regionHistory: {},
+      region: null,
+    };
+    renderView({
+      rounds: [makeRound({ pods: [makePod({ podNumber: 3 })] })],
+      snapshot: [
+        { playerId: "p1", ...snapshotDefaults, fixedTable: 7 },
+        { playerId: "p2", ...snapshotDefaults, fixedTable: null },
+        { playerId: "p3", ...snapshotDefaults, fixedTable: 3 },
+        { playerId: "p4", ...snapshotDefaults, fixedTable: null },
+      ],
+    });
+
+    // Ashe (fixed table 7) is displaced to table 3; Caitlyn already sits at 3.
+    expect(screen.getByText("Ashe moves from table 7 to table 3 this round")).toBeInTheDocument();
+    expect(screen.queryByText(/Caitlyn moves/u)).not.toBeInTheDocument();
   });
 
   it("seats a member with one badge and keeps the two point figures at the end", () => {

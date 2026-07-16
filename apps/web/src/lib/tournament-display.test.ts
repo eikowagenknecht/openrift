@@ -43,6 +43,7 @@ function makeParticipant(
     status,
     seed: null,
     region: null,
+    fixedTable: null,
     droppedAfterRound: null,
     claimToken: null,
     claimBlocked: false,

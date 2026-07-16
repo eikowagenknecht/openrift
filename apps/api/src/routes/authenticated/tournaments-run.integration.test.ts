@@ -125,6 +125,53 @@ describe.skipIf(!ready)("Tournament running surface (integration)", () => {
     expect(manage.status).toBe(403);
   });
 
+  it("seats fixed-table players at their table and fills the rest around them", async () => {
+    const id = await createPodTournament(host, {
+      name: "Fixed Seats",
+      host: { type: "user" },
+      pairingStyle: "swiss",
+    });
+    // Six players; one pinned to table 5, which only exists as a gap (3 matches).
+    const players = ["A", "B", "C", "D", "E", "F"].map((name) => ({
+      tournamentId: id,
+      displayName: name,
+      status: "active" as const,
+      fixedTable: name === "A" ? 5 : null,
+    }));
+    await host.db.insertInto("tournamentParticipants").values(players).execute();
+
+    const paired = await host.app.fetch(req("POST", `/tournaments/${id}/rounds`, {}));
+    expect(paired.status).toBe(200);
+
+    const run = await host.app.fetch(req("GET", `/tournaments/${id}/run`));
+    const body = (await run.json()) as {
+      rounds: { pods: { podNumber: number; members: { displayName: string }[] }[] }[];
+    };
+    const pods = body.rounds[0].pods;
+    const podOfA = pods.find((pod) => pod.members.some((member) => member.displayName === "A"));
+    expect(podOfA?.podNumber).toBe(5);
+    // The other two matches fill the free numbers from 1, leaving the gap.
+    const otherNumbers = pods
+      .filter((pod) => pod !== podOfA)
+      .map((pod) => pod.podNumber)
+      .toSorted((a, b) => a - b);
+    expect(otherNumbers).toEqual([1, 2]);
+
+    // Every member is written with a seat, unique within its pod.
+    const seatRows = await host.db
+      .selectFrom("podMembers as m")
+      .innerJoin("pods as p", "p.id", "m.podId")
+      .innerJoin("podRounds as r", "r.id", "p.roundId")
+      .select(["m.podId", "m.seat"])
+      .where("r.tournamentId", "=", id)
+      .execute();
+    expect(seatRows.length).toBeGreaterThan(0);
+    expect(seatRows.every((row) => row.seat !== null)).toBe(true);
+    for (const [, members] of Map.groupBy(seatRows, (row) => row.podId)) {
+      expect(new Set(members.map((row) => row.seat)).size).toBe(members.length);
+    }
+  });
+
   it("lets the org owner and judge run an org-hosted tournament (no owner-only 403)", async () => {
     const id = await createPodTournament(orgOwner, {
       name: "Org Run",
