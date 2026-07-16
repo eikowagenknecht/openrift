@@ -7,6 +7,7 @@
 - feat(Tournaments): **Swiss 1v1 rounds** — tournaments can now pair head-to-head Swiss rounds (best of 1 or 3) with configurable win, draw, and bye points, automatic byes, and strong rematch avoidance.
 - feat(Tournaments): **Player regions** — assign each player a region: pairings avoid same-region matchups and the standings add a per-region leaderboard.
 - feat(Tournaments): **Events pages redesign** — the next tournament gets a hero card with legend art from submitted decks, and past events line up on a timeline with winner callouts and participant avatars, on the tournaments page and in groups.
+- feat(Groups): **Redesigned group page** — a new group header with card art and member avatars, one trades hub for matches and in-progress trades, and an activity feed that folds big trade sessions into a single entry.
 - feat(Groups): **A friendlier groups overview** — groups now show as tiles with member photos, shared-list counts, and a clear marker on any group that needs your attention.
 - feat(Tournaments): **Enter just your own score** — players on the result link can now save their own game points next to their name; the pod completes once everyone has entered theirs.
 - feat(Tournaments): **Live round updates** — while a round is open, the results page refreshes itself, so scores saved by anyone appear for everyone without reloading.

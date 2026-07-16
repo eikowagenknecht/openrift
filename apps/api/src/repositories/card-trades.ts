@@ -365,6 +365,22 @@ export function cardTradesRepo(db: Kysely<Database>) {
      * plain names and the card identity; the client resolves name/image.
      * @returns Completed-trade feed rows.
      */
+    /**
+     * Total cards ever traded in a group: the sum of `quantity` over its
+     * completed trades. Feeds the group hero's "N cards traded" stat —
+     * a lifetime count, unlike the bounded activity feed.
+     * @returns The summed quantity (0 for a group with no completed trades).
+     */
+    async countCompletedCardsInGroup(groupId: string): Promise<number> {
+      const row = await db
+        .selectFrom("cardTrades")
+        .select((eb) => eb.cast<number>(eb.fn.sum(eb.ref("quantity")), "integer").as("total"))
+        .where("groupId", "=", groupId)
+        .where("status", "=", "completed")
+        .executeTakeFirst();
+      return row?.total ?? 0;
+    },
+
     async recentCompletedInGroup(groupId: string, limit: number): Promise<CompletedTradeFeedRow[]> {
       const rows = await db
         .selectFrom("cardTrades as t")

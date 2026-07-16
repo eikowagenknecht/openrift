@@ -4,6 +4,7 @@ import {
   ChevronDownIcon,
   CopyIcon,
   EllipsisVerticalIcon,
+  FolderIcon,
   HeartIcon,
   InfoIcon,
   LayersIcon,
@@ -14,6 +15,9 @@ import {
   SettingsIcon,
   Trash2Icon,
   TriangleAlertIcon,
+  TrophyIcon,
+  UsersIcon,
+  ZapIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
@@ -22,6 +26,7 @@ import { toast } from "sonner";
 
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
+import { CardArtThumbStack } from "@/components/cards/card-art-thumb-stack";
 import { CardCountStrip } from "@/components/cards/card-count-strip";
 import { CardFan, CardFanOutline } from "@/components/cards/card-fan";
 import { CardStrip, StripActionButton, StripIconButton } from "@/components/cards/card-strip";
@@ -972,6 +977,45 @@ function TilesSection() {
           />
         </div>
       </DemoRow>
+      <DemoRow
+        label="StatTile tones"
+        hint="tone tints the icon chip only (the ring stays neutral), so tiles on one overview carry per-surface color without competing with accent. accent overrides tone."
+      >
+        <div className="grid w-full max-w-4xl gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <StatTile
+            render={<Link to="/admin/design" hash="tiles" />}
+            icon={ZapIcon}
+            label="Trades"
+            value={4}
+            tone="gold"
+            hint="tone=gold"
+          />
+          <StatTile
+            render={<Link to="/admin/design" hash="tiles" />}
+            icon={FolderIcon}
+            label="Collections"
+            value={1}
+            tone="sky"
+            hint="tone=sky"
+          />
+          <StatTile
+            render={<Link to="/admin/design" hash="tiles" />}
+            icon={UsersIcon}
+            label="Members"
+            value={9}
+            tone="green"
+            hint="tone=green"
+          />
+          <StatTile
+            render={<Link to="/admin/design" hash="tiles" />}
+            icon={TrophyIcon}
+            label="Tournaments"
+            value={2}
+            tone="violet"
+            hint="tone=violet"
+          />
+        </div>
+      </DemoRow>
       <DemoRow label="UserAvatarStack">
         <div className="flex flex-wrap items-center gap-6">
           <UserAvatarStack members={STACK_MEMBERS.slice(0, 3)} size="sm" />
@@ -1082,6 +1126,36 @@ function CardThumbnailsSection() {
           <CoverBand aria-hidden="true" className="h-36 w-72 overflow-hidden rounded-lg">
             <CardFanOutline />
           </CoverBand>
+        </Swatch>
+      </DemoRow>
+      <DemoRow
+        label="CardArtThumbStack"
+        hint="Overlapping thumbs with a +N pill — one row standing for many cards (aggregated activity events, batch summaries). max caps the visible thumbs."
+      >
+        <Swatch label="3 items">
+          <CardArtThumbStack
+            items={Array.from({ length: 3 }, (_, index) => ({
+              key: `s${index}`,
+              src: PORTRAIT_SAMPLE_ART,
+            }))}
+          />
+        </Swatch>
+        <Swatch label="8 items, max 5 → +3">
+          <CardArtThumbStack
+            items={Array.from({ length: 8 }, (_, index) => ({
+              key: `m${index}`,
+              src: PORTRAIT_SAMPLE_ART,
+            }))}
+          />
+        </Swatch>
+        <Swatch label="thumbClassName=w-10">
+          <CardArtThumbStack
+            thumbClassName="w-10"
+            items={Array.from({ length: 4 }, (_, index) => ({
+              key: `l${index}`,
+              src: PORTRAIT_SAMPLE_ART,
+            }))}
+          />
         </Swatch>
       </DemoRow>
     </DemoSection>

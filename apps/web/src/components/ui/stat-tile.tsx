@@ -12,7 +12,20 @@ import { cn } from "@/lib/utils";
 // slides in on hover. Its hover is deliberately stronger than CardLink's list
 // tiles (shadow lift + border shift) — overview pages use it as a primary
 // navigation surface. `accent` is the gold treatment reserved for the one
-// tile that needs the viewer's attention.
+// tile that needs the viewer's attention. `tone` tints the icon chip only
+// (never the ring), so tiles on one overview can carry per-surface color
+// without competing with the accent.
+
+/** Icon-chip tints. Chip only — the resting ring stays neutral for every tone. */
+const TONE_CHIP: Record<StatTileTone, string> = {
+  neutral: "bg-muted text-muted-foreground",
+  gold: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+  sky: "bg-sky-500/15 text-sky-600 dark:text-sky-400",
+  green: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+  violet: "bg-violet-500/15 text-violet-600 dark:text-violet-400",
+};
+
+export type StatTileTone = "neutral" | "gold" | "sky" | "green" | "violet";
 
 /**
  * Dashboard stat tile that links to a page. Pass the navigation target via
@@ -27,6 +40,7 @@ function StatTile({
   value,
   valueClassName,
   accent = false,
+  tone = "neutral",
   hint,
   className,
   children,
@@ -39,6 +53,8 @@ function StatTile({
   /** Extra classes on the value span, e.g. `"truncate text-lg"` for long text values. */
   valueClassName?: string;
   accent?: boolean;
+  /** Icon-chip tint for per-surface color. Ignored while `accent` is set. */
+  tone?: StatTileTone;
   hint?: ReactNode;
 }) {
   return useRender({
@@ -62,7 +78,7 @@ function StatTile({
               <span
                 className={cn(
                   "flex size-10 shrink-0 items-center justify-center rounded-lg",
-                  accent ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground",
+                  accent ? "bg-primary/15 text-primary" : TONE_CHIP[tone],
                 )}
               >
                 <Icon className="size-5" />

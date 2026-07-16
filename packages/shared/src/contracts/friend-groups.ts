@@ -226,6 +226,8 @@ export const friendGroupDetailResponseSchema = z
     shares: z.array(friendGroupShareResponseSchema),
     collectionShares: z.array(friendGroupCollectionShareResponseSchema),
     pendingRequests: z.array(friendGroupRequestResponseSchema),
+    /** Lifetime sum of quantities over the group's completed trades. */
+    cardsTradedCount: z.number().int().nonnegative().default(0),
   })
   .openapi("FriendGroupDetailResponse");
 

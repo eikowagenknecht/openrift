@@ -548,6 +548,18 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     expect(completed.status).toBe("completed");
   });
 
+  it("countCompletedCardsInGroup sums only completed trades' quantities", async () => {
+    const { group } = await setupMatch(3);
+    expect(await repos.cardTrades.countCompletedCardsInGroup(group.id)).toBe(0);
+    const trade = await request(group, 2);
+    await acceptTrade(transact, trade.id, GIVER_ID);
+    // Reserved (accepted but not yet handed over) doesn't count toward the
+    // lifetime stat — only physically completed trades do.
+    expect(await repos.cardTrades.countCompletedCardsInGroup(group.id)).toBe(0);
+    await completeTrade(transact, trade.id, RECEIVER_ID);
+    expect(await repos.cardTrades.countCompletedCardsInGroup(group.id)).toBe(2);
+  });
+
   it("complete → giver Apply disposes copies (removed event + tradelist entry gone)", async () => {
     const { group, tradeListId, copyIds } = await setupMatch(1);
     const trade = await request(group, 1);

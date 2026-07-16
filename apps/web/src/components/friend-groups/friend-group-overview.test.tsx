@@ -87,6 +87,7 @@ function makeDetail(
     shares: [],
     collectionShares: [],
     pendingRequests: [],
+    cardsTradedCount: 0,
   };
 }
 
@@ -134,8 +135,9 @@ describe("OverviewContent tournaments tile", () => {
   // leaving no UI path to the group's tournaments page at all.
   it("shows the tournaments tile to a plain member with no tournaments", () => {
     renderOverview("member");
-    const tile = screen.getByRole("link", { name: /Open tournaments/u });
+    const tile = screen.getByRole("link", { name: /Tournaments/u });
     expect(tile).toHaveAttribute("href", "/groups/bothfeld/events");
+    expect(tile).toHaveTextContent("None open");
     expect(tile).toHaveTextContent("no tournaments yet");
   });
 
@@ -170,6 +172,59 @@ describe("OverviewContent tournaments tile", () => {
 
   it("still shows the tile for admins", () => {
     renderOverview("admin");
-    expect(screen.getByRole("link", { name: /Open tournaments/u })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Tournaments/u })).toBeInTheDocument();
+  });
+
+  // Tournament creation is admin-gated (the events page only offers "New
+  // tournament" to admins), so the empty-state copy must not tell plain
+  // members to plan one.
+  it("nudges admins, but not members, to plan a tournament when none is open", () => {
+    renderOverview("admin");
+    expect(screen.getByRole("link", { name: /Tournaments/u })).toHaveTextContent(
+      "Plan one for the next game night",
+    );
+    expect(screen.getByRole("link", { name: /Plan a tournament/u })).toHaveAttribute(
+      "href",
+      "/groups/bothfeld/events",
+    );
+  });
+
+  it("shows members a plain empty state without a create call-to-action", () => {
+    renderOverview("member");
+    expect(screen.getByRole("link", { name: /Tournaments/u })).not.toHaveTextContent(
+      "Plan one for the next game night",
+    );
+    expect(screen.queryByRole("link", { name: /Plan a tournament/u })).not.toBeInTheDocument();
+    expect(screen.getByText(/When an admin sets one up/u)).toBeInTheDocument();
+  });
+
+  // Regression: the rail's "Next up" used to vanish entirely once a tournament
+  // was open, instead of showing what's coming.
+  it("lists the next open tournament in the rail", () => {
+    currentTournaments = [makeTournament("a")];
+    renderOverview("member");
+    expect(screen.getByRole("link", { name: /Summoner Skirmish a/u })).toHaveAttribute(
+      "href",
+      "/tournaments/a",
+    );
+  });
+});
+
+describe("OverviewContent trades hub", () => {
+  beforeEach(() => {
+    currentTournaments = [];
+  });
+
+  it("links to the trades page from the hub header", () => {
+    renderOverview("member");
+    expect(screen.getByRole("link", { name: /View trades/u })).toHaveAttribute(
+      "href",
+      "/groups/bothfeld/trades",
+    );
+  });
+
+  it("reads calm when nothing needs the viewer", () => {
+    renderOverview("member");
+    expect(screen.getByText("no open trades right now")).toBeInTheDocument();
   });
 });

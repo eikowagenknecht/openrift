@@ -281,7 +281,7 @@ export const friendGroupsRouter = {
   // ── DETAIL ──────────────────────────────────────────────────────────────
   get: os.get.handler(async ({ input, context }): Promise<FriendGroupDetailResponse> => {
     const viewerId = context.userId;
-    const { friendGroups, lists } = context.repos;
+    const { friendGroups, lists, cardTrades } = context.repos;
 
     const group = await friendGroups.getBySlugOrPrevious(input.slug);
     if (!group) {
@@ -302,6 +302,7 @@ export const friendGroupsRouter = {
         shares: [],
         collectionShares: [],
         pendingRequests: [],
+        cardsTradedCount: 0,
       };
     }
 
@@ -310,13 +311,15 @@ export const friendGroupsRouter = {
     }
 
     const isAdmin = hasRole(membership.role, "admin");
-    const [members, shares, collectionShares, pendingRequests, contactsByUser] = await Promise.all([
-      friendGroups.listMembers(group.id),
-      friendGroups.listSharesForGroup(group.id),
-      friendGroups.collectionSharesForGroup(group.id),
-      isAdmin ? friendGroups.listRequestsForGroup(group.id) : Promise.resolve([]),
-      friendGroups.getRevealedContactsForMembers(group.id),
-    ]);
+    const [members, shares, collectionShares, pendingRequests, contactsByUser, cardsTradedCount] =
+      await Promise.all([
+        friendGroups.listMembers(group.id),
+        friendGroups.listSharesForGroup(group.id),
+        friendGroups.collectionSharesForGroup(group.id),
+        isAdmin ? friendGroups.listRequestsForGroup(group.id) : Promise.resolve([]),
+        friendGroups.getRevealedContactsForMembers(group.id),
+        cardTrades.countCompletedCardsInGroup(group.id),
+      ]);
 
     // The materialized `entryCount` counts only manual rows, so rule-based lists
     // report 0. Expand just those lists (manual lists are already exact) to show
@@ -333,6 +336,7 @@ export const friendGroupsRouter = {
       ),
       collectionShares: collectionShares.map((row) => toCollectionShare(row)),
       pendingRequests: pendingRequests.map((row) => toRequest(row)),
+      cardsTradedCount,
     };
   }),
 

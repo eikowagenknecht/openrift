@@ -1,34 +1,21 @@
-import type { FriendGroupActivityEvent, ListIntent } from "@openrift/shared";
+import type { FriendGroupActivityEvent } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import {
-  ArrowLeftRightIcon,
-  FolderIcon,
-  HandshakeIcon,
-  HeartIcon,
-  SparklesIcon,
-} from "lucide-react";
+import { ArrowLeftRightIcon, FolderIcon, SparklesIcon } from "lucide-react";
 import type { ComponentType, ReactNode, SVGProps } from "react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
+import { CardArtThumbStack } from "@/components/cards/card-art-thumb-stack";
 import { UserAvatar } from "@/components/user-avatar";
 import { useCards } from "@/hooks/use-cards";
 import { useFriendGroupActivity } from "@/hooks/use-friend-groups";
 import { useRequiredUserId } from "@/lib/auth-session";
 import { formatRelativeTime } from "@/lib/format-relative-time";
+import type { AggregatedActivityRow, TradeBatch } from "@/lib/friend-group-activity";
+import { aggregateActivityEvents } from "@/lib/friend-group-activity";
 import { cn } from "@/lib/utils";
 
 import { SECTION_HEADING } from "./friend-group-shell";
-
-const LIST_INTENT_ICON: Record<ListIntent, ComponentType<SVGProps<SVGSVGElement>>> = {
-  wish: HeartIcon,
-  trade: HandshakeIcon,
-  organize: FolderIcon,
-};
-const LIST_INTENT_NOUN: Record<ListIntent, string> = {
-  wish: "wishlist",
-  trade: "tradelist",
-  organize: "list",
-};
+import { LIST_INTENT_ICON, LIST_INTENT_NOUN } from "./list-intent-meta";
 
 const FEED_VISIBLE = 20;
 const ROW_CLASS = "hover:bg-muted/50 flex items-center gap-3 rounded-md px-2 py-2.5";
@@ -73,19 +60,19 @@ function activityBucket(at: string, now: Date): ActivityBucket {
  */
 export function FriendGroupActivityFeed({ slug }: { slug: string }) {
   const { data } = useFriendGroupActivity(slug);
-  const events = data.events.slice(0, FEED_VISIBLE);
+  const rows = aggregateActivityEvents(data.events.slice(0, FEED_VISIBLE));
   const now = new Date();
-  const grouped = Map.groupBy(events, (event) => activityBucket(event.at, now));
+  const grouped = Map.groupBy(rows, (row) => activityBucket(row.at, now));
 
   return (
     <section className="flex flex-col gap-4">
       <h2 className={SECTION_HEADING}>Recent activity</h2>
-      {events.length === 0 ? (
+      {rows.length === 0 ? (
         <p className="text-muted-foreground text-sm">
           Nothing yet. Trades, shared lists, and new members will show up here.
         </p>
       ) : (
-        <div className="flex max-w-3xl flex-col gap-5">
+        <div className="flex flex-col gap-5">
           {BUCKET_ORDER.map((bucket) => {
             const group = grouped.get(bucket);
             if (!group || group.length === 0) {
@@ -103,9 +90,13 @@ export function FriendGroupActivityFeed({ slug }: { slug: string }) {
                       "before:bg-border relative before:absolute before:top-6 before:bottom-6 before:left-6 before:w-px",
                   )}
                 >
-                  {group.map((event) => (
-                    <li key={activityKey(event)} className="relative">
-                      <ActivityRow slug={slug} event={event} />
+                  {group.map((row) => (
+                    <li key={rowKey(row)} className="relative">
+                      {row.kind === "trade-batch" ? (
+                        <TradeBatchRow slug={slug} batch={row} />
+                      ) : (
+                        <ActivityRow slug={slug} event={row.event} />
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -116,6 +107,10 @@ export function FriendGroupActivityFeed({ slug }: { slug: string }) {
       )}
     </section>
   );
+}
+
+function rowKey(row: AggregatedActivityRow): string {
+  return row.kind === "trade-batch" ? `batch:${row.events[0].tradeId}` : activityKey(row.event);
 }
 
 function activityKey(event: FriendGroupActivityEvent): string {
@@ -136,6 +131,54 @@ function activityKey(event: FriendGroupActivityEvent): string {
       return `match:${event.counterpartyUserId}:${event.printingId}`;
     }
   }
+}
+
+/**
+ * A collapsed run of completed trades between the same two members: one line
+ * of text ("Thogrim traded 20 cards to you") over an overlapping stack of the
+ * traded cards' art. Links to the Trades page like the single-trade row.
+ * @returns The batch row.
+ */
+function TradeBatchRow({ slug, batch }: { slug: string; batch: TradeBatch }) {
+  const { printingsById } = useCards();
+  const viewerId = useRequiredUserId();
+  // One thumb per distinct printing — a batch can trade several copies of the
+  // same card, and repeating its art adds nothing.
+  const seen = new Set<string>();
+  const thumbs = batch.events
+    .filter((event) => {
+      if (seen.has(event.printingId)) {
+        return false;
+      }
+      seen.add(event.printingId);
+      return true;
+    })
+    .map((event) => ({
+      key: event.tradeId,
+      imageId:
+        printingsById[event.printingId]?.images.find((image) => image.face === "front")?.imageId ??
+        null,
+    }));
+  return (
+    <Link to="/groups/$slug/trades" params={{ slug }} className={ROW_CLASS}>
+      <FeedIcon icon={ArrowLeftRightIcon} tone="primary" />
+      <span className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <span className="text-muted-foreground min-w-0 text-sm">
+          <strong className="font-medium">
+            {batch.giverUserId === viewerId ? "You" : (batch.giverName ?? "A member")}
+          </strong>{" "}
+          traded {batch.totalQuantity} cards to{" "}
+          <strong className="font-medium">
+            {batch.receiverUserId === viewerId ? "you" : (batch.receiverName ?? "a member")}
+          </strong>
+        </span>
+        <CardArtThumbStack items={thumbs} />
+      </span>
+      <time className="text-muted-foreground text-2xs shrink-0 self-start pt-0.5">
+        {formatRelativeTime(batch.at)}
+      </time>
+    </Link>
+  );
 }
 
 function ActivityRow({ slug, event }: { slug: string; event: FriendGroupActivityEvent }) {

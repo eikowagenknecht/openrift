@@ -1,14 +1,12 @@
 import type { FriendGroupDetailResponse, FriendGroupRole } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { SettingsIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { FriendGroupHero } from "@/components/friend-groups/friend-group-hero";
 import { Heading } from "@/components/heading";
 import {
-  PageDescription,
   PageTopBar,
   PageTopBarActions,
-  PageTopBarButton,
   PageTopBarSticky,
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
@@ -35,9 +33,10 @@ export function isAdmin(role: FriendGroupRole | null): role is "admin" | "owner"
 
 /**
  * The group overview frame: loads the group, shows the pending-approval stub
- * for would-be members, and otherwise renders the group header (name + Manage)
- * and description above `render(data)`. Only the overview mounts through this;
- * the section pages (trades / shared / members / events) use
+ * for would-be members, and otherwise renders the full-bleed hero identity
+ * band (which carries the page title and the Manage action — the overview has
+ * no page top bar) above `render(data)`. Only the overview mounts through
+ * this; the section pages (trades / shared / members / events) use
  * {@link FriendGroupSectionFrame}.
  * @returns The framed overview, or the pending stub.
  */
@@ -54,23 +53,8 @@ export function FriendGroupPageFrame({
   }
   return (
     <>
-      <PageTopBarSticky maxWidth="5xl">
-        <PageTopBar>
-          <PageTopBarTitle>{data.group.name}</PageTopBarTitle>
-          <PageTopBarActions>
-            <PageTopBarButton render={<Link to="/groups/$slug/manage" params={{ slug }} />}>
-              <SettingsIcon className="size-4" />
-              Manage
-            </PageTopBarButton>
-          </PageTopBarActions>
-        </PageTopBar>
-      </PageTopBarSticky>
-      <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6 pt-3", PAGE_PADDING_NO_TOP)}>
-        {data.group.description ? (
-          <header>
-            <PageDescription>{data.group.description}</PageDescription>
-          </header>
-        ) : null}
+      <FriendGroupHero slug={slug} data={data} />
+      <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6 pt-6", PAGE_PADDING_NO_TOP)}>
         {render(data)}
       </div>
     </>

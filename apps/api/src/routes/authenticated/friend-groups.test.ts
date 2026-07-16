@@ -49,6 +49,7 @@ function makeApp(overrides: {
   marketplace?: Record<string, unknown>;
   userPreferences?: Record<string, unknown>;
   users?: Record<string, unknown>;
+  cardTrades?: Record<string, unknown>;
   user?: { id: string };
 }) {
   const friendGroups = {
@@ -123,6 +124,10 @@ function makeApp(overrides: {
     getByEmail: vi.fn(),
     ...overrides.users,
   };
+  const cardTrades = {
+    countCompletedCardsInGroup: vi.fn(() => Promise.resolve(0)),
+    ...overrides.cardTrades,
+  };
 
   const app = new Hono();
   app.use("*", async (c, next) => {
@@ -135,6 +140,7 @@ function makeApp(overrides: {
       marketplace,
       userPreferences,
       users,
+      cardTrades,
     };
     c.set("user", overrides.user ?? { id: USER_ID });
     c.set("repos", repos as never);
@@ -459,6 +465,24 @@ describe("friend-groups route", () => {
     expect(body.viewerRole).toBe("owner");
     expect(body.members).toHaveLength(1);
     expect(body.pendingRequests).toHaveLength(1);
+  });
+
+  it("GET /{slug} carries the group's lifetime cards-traded count", async () => {
+    const { app } = makeApp({
+      friendGroups: {
+        getBySlug: vi.fn(() => Promise.resolve(group)),
+        getMembership: vi.fn(() => Promise.resolve(memberMembership)),
+        getInvite: vi.fn(() => Promise.resolve(undefined)),
+        listMembers: vi.fn(() => Promise.resolve([enrichedOwner])),
+      },
+      cardTrades: {
+        countCompletedCardsInGroup: vi.fn(() => Promise.resolve(128)),
+      },
+    });
+    const res = await app.request("/api/v1/friend-groups/playgroup");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { cardsTradedCount: number };
+    expect(body.cardsTradedCount).toBe(128);
   });
 
   it("GET /{slug} expands rule-based shares so their entryCount is the real size", async () => {
