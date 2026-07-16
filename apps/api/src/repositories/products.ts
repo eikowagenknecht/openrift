@@ -1,7 +1,10 @@
+import { WellKnown } from "@openrift/shared";
+import { PRODUCT_COVER_CARD_COUNT } from "@openrift/shared/contracts";
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
 import type { Database, ProductsTable } from "../db/index.js";
+import { imageId } from "./query-helpers.js";
 
 /** A product row with its content rollups (distinct printings, summed quantities). */
 export interface ProductWithCounts extends Selectable<ProductsTable> {
@@ -13,6 +16,14 @@ export interface ProductWithCounts extends Selectable<ProductsTable> {
 export interface ProductContentRow {
   printingId: string;
   quantity: number;
+}
+
+/** One cover printing for a product tile's card fan (see `coverCards`). */
+export interface ProductCoverRow {
+  productId: string;
+  printingId: string;
+  imageId: string;
+  name: string;
 }
 
 /** A product back-reference for one printing of a card. */
@@ -93,6 +104,78 @@ export function productsRepo(db: Kysely<Database>) {
     async remove(id: string): Promise<boolean> {
       const result = await db.deleteFrom("products").where("id", "=", id).executeTakeFirst();
       return result.numDeletedRows > 0n;
+    },
+
+    /**
+     * Representative cover printings for the product tiles: per product, up
+     * to `PRODUCT_COVER_CARD_COUNT` distinct cards that have an active,
+     * self-hosted front image — legends first, then highest rarity.
+     * Battlefields are excluded because their landscape art breaks the
+     * portrait card fan.
+     *
+     * @returns Cover rows in fan display order, grouped by product.
+     */
+    async coverCards(productIds: string[]): Promise<ProductCoverRow[]> {
+      if (productIds.length === 0) {
+        return [];
+      }
+      // One row per (product, card): the card's best printing (highest
+      // rarity, stable on public_code), so variant-heavy cards can't fill
+      // the whole fan with the same art.
+      const bestPerCard = db
+        .selectFrom("productPrintings as pp")
+        .innerJoin("printings as pr", "pr.id", "pp.printingId")
+        .innerJoin("cards as c", "c.id", "pr.cardId")
+        .innerJoin("printingImages as pim", (join) =>
+          join
+            .onRef("pim.printingId", "=", "pp.printingId")
+            .on("pim.face", "=", "front")
+            .on("pim.isActive", "=", true),
+        )
+        .innerJoin("imageFiles as ci", "ci.id", "pim.imageFileId")
+        .leftJoin("cardTypes as ct", "ct.slug", "c.type")
+        .leftJoin("rarities as r", "r.slug", "pr.rarity")
+        .select([
+          "pp.productId",
+          "pp.printingId",
+          imageId("ci").as("imageId"),
+          "c.name",
+          sql<number>`coalesce(ct.sort_order, 32767)`.as("typeOrder"),
+          sql<number>`coalesce(r.sort_order, -1)`.as("rarityOrder"),
+          "pr.publicCode",
+          sql<number>`(row_number() over (
+            partition by pp.product_id, pr.card_id
+            order by coalesce(r.sort_order, -1) desc, pr.public_code
+          ))::int`.as("printingRank"),
+        ])
+        .where("pp.productId", "in", productIds)
+        .where(sql`${imageId("ci")}`, "is not", null)
+        .where("c.type", "!=", WellKnown.cardType.BATTLEFIELD);
+
+      const rankedPerProduct = db
+        .selectFrom(bestPerCard.as("best"))
+        .select([
+          "best.productId",
+          "best.printingId",
+          "best.imageId",
+          "best.name",
+          sql<number>`(row_number() over (
+            partition by best.product_id
+            order by best.type_order, best.rarity_order desc, best.public_code
+          ))::int`.as("coverRank"),
+        ])
+        .where("best.printingRank", "=", 1);
+
+      const rows = await db
+        .selectFrom(rankedPerProduct.as("ranked"))
+        .select(["ranked.productId", "ranked.printingId", "ranked.imageId", "ranked.name"])
+        .where("ranked.coverRank", "<=", PRODUCT_COVER_CARD_COUNT)
+        .orderBy("ranked.productId")
+        .orderBy("ranked.coverRank")
+        .execute();
+      // imageId() is nullable in the row type but the IS NOT NULL filter
+      // guarantees it here.
+      return rows as ProductCoverRow[];
     },
 
     /** @returns The product's content rows (unordered; display order is a client concern). */

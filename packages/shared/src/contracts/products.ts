@@ -19,6 +19,15 @@ export const productSlugSchema = z
     "This slug is reserved",
   );
 
+/** One representative printing for a product tile's card fan. */
+export const productCoverCardSchema = z.object({
+  printingId: z.string(),
+  /** `image_files.id` of the active front image — resolve via `imageUrl()`. */
+  imageId: z.string(),
+  /** Card name, for alt text. */
+  name: z.string(),
+});
+
 export const productSummarySchema = z.object({
   id: z.string(),
   slug: z.string(),
@@ -28,8 +37,16 @@ export const productSummarySchema = z.object({
   printingCount: z.number(),
   /** Total physical cards (sum of quantities). */
   cardTotal: z.number(),
+  /**
+   * Up to {@link PRODUCT_COVER_CARD_COUNT} representative printings with
+   * images (legends first, then highest rarity), for the catalog tiles.
+   */
+  coverCards: z.array(productCoverCardSchema),
   updatedAt: isoDateTime,
 });
+
+/** How many cover cards a product summary carries at most. */
+export const PRODUCT_COVER_CARD_COUNT = 4;
 
 export const productContentSchema = z.object({
   printingId: z.string(),
@@ -67,6 +84,7 @@ export const productsContract = {
 };
 
 export type ProductsContract = typeof productsContract;
+export type ProductCoverCard = z.infer<typeof productCoverCardSchema>;
 export type ProductSummary = z.infer<typeof productSummarySchema>;
 export type ProductContent = z.infer<typeof productContentSchema>;
 export type ProductsListResponse = z.infer<typeof productsListResponseSchema>;

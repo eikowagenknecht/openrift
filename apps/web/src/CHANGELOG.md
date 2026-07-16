@@ -4,6 +4,7 @@
 
 ### Highlights
 
+- feat(Products): **Card-art product tiles** — the products page now shows each product with a fan of its signature cards, a short description, and the card counts.
 - feat(Decks): **Any number of copies** — cards whose text allows more than 3 copies of themselves now build and validate correctly, with the add buttons and drag limits following the printed rule.
 - feat(Cards): **See which products contain a card** — every card page now has a "Found in" list showing the sealed products and promo channels the selected printing comes in, with how many copies.
 - feat(Cards): **Chinese cards now use the printed code** — Simplified Chinese printings show as SC, matching what Riot prints on the card, and saved links and language filters carry over on their own.

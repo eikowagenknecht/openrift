@@ -7,7 +7,7 @@ import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import { createProductFromList, resyncProductContents } from "../../services/products.js";
 import { assertFound } from "../../utils/assertions.js";
-import { toProductSummary } from "../../utils/product-response.js";
+import { toCoverCards, toProductSummary } from "../../utils/product-response.js";
 
 const os = implement(adminProductsContract).$context<ApiContext>().use(requireAuthedUser);
 
@@ -24,7 +24,8 @@ export const adminProductsRouter = {
       context.userId,
       input,
     );
-    return { product: toProductSummary(product) };
+    const covers = await context.repos.products.coverCards([product.id]);
+    return { product: toProductSummary(product, toCoverCards(covers)) };
   }),
 
   resyncContents: os.resyncContents.handler(async ({ input, context }): Promise<void> => {
