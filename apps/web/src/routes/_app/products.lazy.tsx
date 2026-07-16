@@ -4,6 +4,7 @@ import { Link, createLazyFileRoute } from "@tanstack/react-router";
 import type { CSSProperties } from "react";
 
 import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
+import { CoverBand } from "@/components/cover-band";
 import { Heading } from "@/components/heading";
 import {
   PageDescription,
@@ -41,11 +42,6 @@ const FAN_LAYOUTS: readonly (readonly { x: number; r: number }[])[] = [
     { x: 69, r: 12 },
   ],
 ];
-
-// A warm glow rising from behind the fan, so the band reads as a display
-// case rather than a flat gray strip.
-const FAN_GLOW =
-  "radial-gradient(120% 90% at 50% 115%, color-mix(in oklab, var(--border-accent) 22%, transparent), transparent 70%)";
 
 const FAN_CARD_POSITION = "aspect-card absolute bottom-[-14px] left-1/2 -ml-[46px] w-[92px]";
 
@@ -85,11 +81,7 @@ function FanOutline() {
 function ProductCoverFan({ coverCards }: { coverCards: ProductCoverCard[] }) {
   const layout = FAN_LAYOUTS[Math.min(coverCards.length, FAN_LAYOUTS.length - 1)];
   return (
-    <div
-      aria-hidden="true"
-      className="bg-muted/40 relative h-36 shrink-0"
-      style={{ backgroundImage: FAN_GLOW }}
-    >
+    <CoverBand aria-hidden="true" className="h-36">
       {layout.length === 0 ? (
         <FanOutline />
       ) : (
@@ -109,7 +101,7 @@ function ProductCoverFan({ coverCards }: { coverCards: ProductCoverCard[] }) {
             />
           ))
       )}
-    </div>
+    </CoverBand>
   );
 }
 

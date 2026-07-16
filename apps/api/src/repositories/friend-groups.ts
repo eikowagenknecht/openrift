@@ -36,11 +36,78 @@ export interface MemberWithUser extends GroupMember {
   userImage: string | null;
 }
 
+/** Profile basics for a tile avatar stack; the route maps email → gravatar hash. */
+export interface MemberPreviewRow {
+  userId: string;
+  userName: string | null;
+  userEmail: string;
+  userImage: string | null;
+}
+
 /** Summary row for the `/groups` index — role of the viewer + a member-count. */
 export interface GroupSummary extends Group {
   viewerRole: FriendGroupRole;
   memberCount: number;
   pendingRequestCount: number;
+  sharedListCount: number;
+  memberPreviews: MemberPreviewRow[];
+}
+
+/** How many member profiles the index tiles show before the "+N" overflow. */
+const MEMBER_PREVIEW_LIMIT = 5;
+
+/**
+ * First `MEMBER_PREVIEW_LIMIT` members of each given group, in roster order
+ * (owner → admin → member, then name, then join date) — one query for all
+ * groups via a `row_number()` window.
+ * @returns Preview rows keyed by group id; groups without rows are absent.
+ */
+async function memberPreviewsByGroup(
+  db: Kysely<Database>,
+  groupIds: string[],
+): Promise<Map<string, MemberPreviewRow[]>> {
+  if (groupIds.length === 0) {
+    return new Map();
+  }
+  const rows = await db
+    .selectFrom((eb) =>
+      eb
+        .selectFrom("friendGroupMembers as pm")
+        .innerJoin("users as pu", "pu.id", "pm.userId")
+        .select([
+          "pm.groupId",
+          "pm.userId",
+          "pu.name as userName",
+          "pu.email as userEmail",
+          "pu.image as userImage",
+          // Raw fragment, so column names are the SQL-level snake_case ones.
+          sql<number>`row_number() over (
+            partition by pm.group_id
+            order by
+              case pm.role when 'owner' then 0 when 'admin' then 1 else 2 end,
+              lower(pu.name),
+              pm.joined_at
+          )`.as("rosterRank"),
+        ])
+        .where("pm.groupId", "in", groupIds)
+        .as("ranked"),
+    )
+    .selectAll()
+    .where("rosterRank", "<=", MEMBER_PREVIEW_LIMIT)
+    .orderBy("rosterRank", "asc")
+    .execute();
+
+  return new Map(
+    [...Map.groupBy(rows, (row) => row.groupId)].map(([groupId, members]) => [
+      groupId,
+      members.map(({ userId, userName, userEmail, userImage }) => ({
+        userId,
+        userName,
+        userEmail,
+        userImage,
+      })),
+    ]),
+  );
 }
 
 /**
@@ -187,9 +254,11 @@ export function friendGroupsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Groups the viewer is in, with member counts and (for admins/owners) a
-     * pending-request count per group. The request count is `0` for plain
-     * members so the UI can render the same row shape regardless of role.
+     * Groups the viewer is in, with member counts, a shared-list count, the
+     * first few member profiles for the tile avatar stack, and (for
+     * admins/owners) a pending-request count per group. The request count is
+     * `0` for plain members so the UI can render the same row shape
+     * regardless of role.
      * @returns Group summary rows for the index page.
      */
     async listGroupsForUser(userId: string): Promise<GroupSummary[]> {
@@ -204,6 +273,11 @@ export function friendGroupsRepo(db: Kysely<Database>) {
             .select(eb.fn.countAll<number>().as("count"))
             .whereRef("mc.groupId", "=", "g.id")
             .as("memberCount"),
+          eb
+            .selectFrom("friendGroupListShares as s")
+            .select(eb.fn.countAll<number>().as("count"))
+            .whereRef("s.groupId", "=", "g.id")
+            .as("sharedListCount"),
           eb
             .case()
             .when(eb.ref("m.role"), "in", ["owner", "admin"])
@@ -222,12 +296,19 @@ export function friendGroupsRepo(db: Kysely<Database>) {
         .orderBy("g.name", "asc")
         .execute();
 
+      const previews = await memberPreviewsByGroup(
+        db,
+        rows.map((row) => row.id),
+      );
+
       // Sub-selects come back typed as `number | null`; coerce to plain numbers
       // for the consumer.
       return rows.map((row) => ({
         ...row,
         memberCount: Number(row.memberCount ?? 0),
         pendingRequestCount: Number(row.pendingRequestCount ?? 0),
+        sharedListCount: Number(row.sharedListCount ?? 0),
+        memberPreviews: previews.get(row.id) ?? [],
       }));
     },
 
@@ -373,41 +454,80 @@ export function friendGroupsRepo(db: Kysely<Database>) {
 
     /**
      * Invites addressed to a user (direction='invite') — for the avatar-menu
-     * badge and the pinned section at the top of /groups.
+     * badge and the pinned section at the top of /groups. Carries the group's
+     * member count and preview profiles so the invite callout can show who is
+     * inside before the user accepts.
      * @returns Invite rows joined with the group's name/slug.
      */
-    listInvitesForUser(
-      userId: string,
-    ): Promise<(GroupInvite & { groupName: string; groupSlug: string })[]> {
-      return db
+    async listInvitesForUser(userId: string): Promise<
+      (GroupInvite & {
+        groupName: string;
+        groupSlug: string;
+        memberCount: number;
+        memberPreviews: MemberPreviewRow[];
+      })[]
+    > {
+      const rows = await db
         .selectFrom("friendGroupInvites as i")
         .innerJoin("friendGroups as g", "g.id", "i.groupId")
         .selectAll("i")
         .select(["g.name as groupName", "g.slug as groupSlug"])
+        .select((eb) =>
+          eb
+            .selectFrom("friendGroupMembers as mc")
+            .select(eb.fn.countAll<number>().as("count"))
+            .whereRef("mc.groupId", "=", "g.id")
+            .as("memberCount"),
+        )
         .where("i.userId", "=", userId)
         .where("i.direction", "=", "invite")
         .orderBy("i.createdAt", "asc")
         .execute();
+
+      const previews = await memberPreviewsByGroup(
+        db,
+        rows.map((row) => row.groupId),
+      );
+
+      return rows.map((row) => ({
+        ...row,
+        memberCount: Number(row.memberCount ?? 0),
+        memberPreviews: previews.get(row.groupId) ?? [],
+      }));
     },
 
     /**
      * Join requests a user has sent (direction='request') that are still
      * awaiting approval — for the "Awaiting approval" section on /groups, so the
-     * requester can find and cancel their own pending request.
+     * requester can find and cancel their own pending request. Only the member
+     * count is exposed (no profile previews): like the join preview, a group
+     * doesn't reveal its roster to someone it hasn't accepted yet.
      * @returns Request rows joined with the group's name/slug.
      */
-    listOwnRequestsForUser(
+    async listOwnRequestsForUser(
       userId: string,
-    ): Promise<(GroupInvite & { groupName: string; groupSlug: string })[]> {
-      return db
+    ): Promise<(GroupInvite & { groupName: string; groupSlug: string; memberCount: number })[]> {
+      const rows = await db
         .selectFrom("friendGroupInvites as i")
         .innerJoin("friendGroups as g", "g.id", "i.groupId")
         .selectAll("i")
         .select(["g.name as groupName", "g.slug as groupSlug"])
+        .select((eb) =>
+          eb
+            .selectFrom("friendGroupMembers as mc")
+            .select(eb.fn.countAll<number>().as("count"))
+            .whereRef("mc.groupId", "=", "g.id")
+            .as("memberCount"),
+        )
         .where("i.userId", "=", userId)
         .where("i.direction", "=", "request")
         .orderBy("i.createdAt", "asc")
         .execute();
+
+      return rows.map((row) => ({
+        ...row,
+        memberCount: Number(row.memberCount ?? 0),
+      }));
     },
 
     /**

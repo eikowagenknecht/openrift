@@ -8,6 +8,7 @@ import type {
   FriendGroupJoinPreviewResponse,
   FriendGroupListResponse,
   FriendGroupMatchesResponse,
+  FriendGroupMemberPreview,
   FriendGroupMemberDetailResponse,
   FriendGroupMemberResponse,
   FriendGroupPendingInvitesCountResponse,
@@ -32,7 +33,7 @@ import { gravatarHashForEmail } from "../../lib/gravatar.js";
 import { hasRole, loadGroupForMember, requireRole } from "../../lib/group-access.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
-import type { Group, MemberWithUser } from "../../repositories/friend-groups.js";
+import type { Group, MemberPreviewRow, MemberWithUser } from "../../repositories/friend-groups.js";
 import { expandRuleListCounts } from "../../utils/list-counts.js";
 import { toCopy, toListEntryDetail } from "../../utils/mappers.js";
 import { getFavoriteMarketplace } from "../../utils/preferences.js";
@@ -50,6 +51,15 @@ function toGroup(row: Group, includeCode: boolean): FriendGroupResponse {
     codeRotatedAt: row.codeRotatedAt.toISOString(),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+function toMemberPreview(row: MemberPreviewRow): FriendGroupMemberPreview {
+  return {
+    userId: row.userId,
+    userName: row.userName,
+    userImage: row.userImage,
+    gravatarHash: gravatarHashForEmail(row.userEmail),
   };
 }
 
@@ -154,12 +164,14 @@ export const friendGroupsRouter = {
       friendGroups.listInvitesForUser(userId),
       friendGroups.listOwnRequestsForUser(userId),
     ]);
-    const toInviteEntry = (row: (typeof invites)[number]) => ({
+    const toInviteEntry = (row: (typeof requests)[number], memberPreviews: MemberPreviewRow[]) => ({
       id: row.id,
       groupId: row.groupId,
       groupSlug: row.groupSlug,
       groupName: row.groupName,
       createdAt: row.createdAt.toISOString(),
+      memberCount: row.memberCount,
+      memberPreviews: memberPreviews.map((preview) => toMemberPreview(preview)),
     });
     return {
       items: groups.map(
@@ -168,10 +180,13 @@ export const friendGroupsRouter = {
           viewerRole: row.viewerRole,
           memberCount: row.memberCount,
           pendingRequestCount: row.pendingRequestCount,
+          sharedListCount: row.sharedListCount,
+          memberPreviews: row.memberPreviews.map((preview) => toMemberPreview(preview)),
         }),
       ),
-      pendingInvites: invites.map((row) => toInviteEntry(row)),
-      outgoingRequests: requests.map((row) => toInviteEntry(row)),
+      pendingInvites: invites.map((row) => toInviteEntry(row, row.memberPreviews)),
+      // Requesters haven't been accepted yet, so no roster previews for them.
+      outgoingRequests: requests.map((row) => toInviteEntry(row, [])),
     };
   }),
 

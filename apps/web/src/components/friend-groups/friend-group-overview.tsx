@@ -5,7 +5,7 @@ import type { ComponentType, ReactNode, SVGProps } from "react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { StatTile } from "@/components/ui/stat-tile";
-import { UserAvatar } from "@/components/user-avatar";
+import { UserAvatarStack } from "@/components/user-avatar-stack";
 import { useGroupTrades, useTradeActionCounts } from "@/hooks/use-card-trades";
 import { useCards } from "@/hooks/use-cards";
 import { useCollections } from "@/hooks/use-collections";
@@ -334,7 +334,6 @@ function MembersCard({
   pendingRequestCount: number;
 }): ReactNode {
   const shown = data.members.slice(0, 5);
-  const extra = memberCount - shown.length;
   return (
     <StatCard
       to="/groups/$slug/members"
@@ -349,19 +348,7 @@ function MembersCard({
           : undefined
       }
     >
-      <span className="flex items-center -space-x-2">
-        {shown.map((member) => (
-          <UserAvatar
-            key={member.userId}
-            image={member.userImage}
-            name={member.userName}
-            gravatarHash={member.gravatarHash}
-            size="sm"
-            className="bg-card ring-card ring-2"
-          />
-        ))}
-        {extra > 0 ? <span className="text-muted-foreground pl-3 text-xs">+{extra}</span> : null}
-      </span>
+      <UserAvatarStack members={shown} totalCount={memberCount} size="sm" />
     </StatCard>
   );
 }

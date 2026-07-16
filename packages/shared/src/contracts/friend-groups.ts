@@ -125,11 +125,24 @@ export const friendGroupResponseSchema = z
   })
   .openapi("FriendGroupResponse");
 
+/** A member teaser for avatar stacks — profile basics without the email. */
+export const friendGroupMemberPreviewSchema = z
+  .object({
+    userId: z.string(),
+    userName: z.string().nullable(),
+    userImage: z.string().nullable(),
+    gravatarHash: z.string(),
+  })
+  .openapi("FriendGroupMemberPreview");
+
 export const friendGroupSummaryResponseSchema = friendGroupResponseSchema
   .extend({
     viewerRole: friendGroupRoleSchema,
     memberCount: z.number().int().nonnegative(),
     pendingRequestCount: z.number().int().nonnegative(),
+    /** First few members (owner and admins first) for the tile avatar stack. */
+    memberPreviews: z.array(friendGroupMemberPreviewSchema),
+    sharedListCount: z.number().int().nonnegative(),
   })
   .openapi("FriendGroupSummaryResponse");
 
@@ -139,6 +152,8 @@ const friendGroupPendingInviteEntrySchema = z.object({
   groupSlug: z.string(),
   groupName: z.string(),
   createdAt: z.string(),
+  memberCount: z.number().int().nonnegative(),
+  memberPreviews: z.array(friendGroupMemberPreviewSchema),
 });
 
 export const friendGroupListResponseSchema = z

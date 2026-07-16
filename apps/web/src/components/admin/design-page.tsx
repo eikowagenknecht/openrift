@@ -25,6 +25,7 @@ import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { CardCountStrip } from "@/components/cards/card-count-strip";
 import { CardStrip, StripActionButton, StripIconButton } from "@/components/cards/card-strip";
 import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
+import { CoverBand } from "@/components/cover-band";
 import { MultiSelectCombobox } from "@/components/filters/multi-select-combobox";
 import { SearchInput } from "@/components/filters/search-input";
 import { Heading } from "@/components/heading";
@@ -171,6 +172,7 @@ import { Toggle } from "@/components/ui/toggle";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { UserAvatar } from "@/components/user-avatar";
+import { UserAvatarStack } from "@/components/user-avatar-stack";
 import { useCssVars } from "@/hooks/use-css-vars";
 import {
   formatSpecLine,
@@ -894,12 +896,22 @@ function PressableSection() {
   );
 }
 
+// Static sample members for the avatar-stack demos. The empty gravatar hash
+// keeps the fallback on initials, so the design page makes no network calls.
+const STACK_MEMBERS = [
+  { userId: "u1", userName: "Poro Herder", userImage: null, gravatarHash: "" },
+  { userId: "u2", userName: "Hex Tinkerer", userImage: null, gravatarHash: "" },
+  { userId: "u3", userName: "Void Binder", userImage: null, gravatarHash: "" },
+  { userId: "u4", userName: "Glacial Mina", userImage: null, gravatarHash: "" },
+  { userId: "u5", userName: "Stacked Sam", userImage: null, gravatarHash: "" },
+];
+
 function TilesSection() {
   return (
     <DemoSection
       id="tiles"
       title="Tiles"
-      note="CardLink is the whole-Card click target for list tiles; every tile hovers the same way (shadow lift, muted wash, 1px primary edge). Cards that keep secondary actions inside, and non-Card link tiles like the deck grid, apply cardLinkVariants() directly. StatTile is the dashboard stat; accent is reserved for the one tile needing attention."
+      note="CardLink is the whole-Card click target for list tiles; every tile hovers the same way (shadow lift, muted wash, 1px primary edge). Cards that keep secondary actions inside, and non-Card link tiles like the deck grid, apply cardLinkVariants() directly. StatTile is the dashboard stat; accent is reserved for the one tile needing attention. CoverBand is the warm-glow strip at the top of showcase tiles (product fans, group avatar stacks); UserAvatarStack is the overlapping who's-here row with a +N overflow."
     >
       <DemoRow label="CardLink">
         <CardLink
@@ -946,6 +958,34 @@ function TilesSection() {
             hint="3 requests to review"
           />
         </div>
+      </DemoRow>
+      <DemoRow label="UserAvatarStack">
+        <div className="flex flex-wrap items-center gap-6">
+          <UserAvatarStack members={STACK_MEMBERS.slice(0, 3)} size="sm" />
+          <UserAvatarStack members={STACK_MEMBERS} totalCount={17} />
+          <UserAvatarStack members={STACK_MEMBERS} totalCount={8} size="lg" />
+        </div>
+      </DemoRow>
+      <DemoRow label="CardLink (cover band)">
+        <CardLink
+          render={<Link to="/admin/design" hash="tiles" />}
+          className="w-full max-w-sm flex-col gap-0 py-0"
+        >
+          <CoverBand aria-hidden="true" className="flex h-28 items-center justify-center">
+            <UserAvatarStack members={STACK_MEMBERS} totalCount={8} size="lg" />
+          </CoverBand>
+          <div className="flex min-w-0 flex-col gap-1 p-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <Heading className="min-w-0 truncate">Tuesday Night Crew</Heading>
+              <Badge>Owner</Badge>
+            </div>
+            <p className="text-muted-foreground mt-auto pt-1 text-sm tabular-nums">
+              8 members
+              <span className="mx-1.5 opacity-60">·</span>
+              12 shared lists
+            </p>
+          </div>
+        </CardLink>
       </DemoRow>
     </DemoSection>
   );

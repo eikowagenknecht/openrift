@@ -1,9 +1,11 @@
 import type { FriendGroupRole } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { CheckIcon, ChevronRightIcon, PlusIcon, UsersIcon, XIcon } from "lucide-react";
+import { CheckIcon, PlusIcon, UsersIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 
+import { CoverBand } from "@/components/cover-band";
 import { EmptyState } from "@/components/empty-state";
+import { Heading } from "@/components/heading";
 import {
   PageTopBar,
   PageTopBarActions,
@@ -29,6 +31,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { UserAvatarStack } from "@/components/user-avatar-stack";
 import { useTradeActionCounts } from "@/hooks/use-card-trades";
 import {
   useAcceptFriendGroupInvite,
@@ -203,14 +206,25 @@ export function GroupsIndexPage() {
             <h2 className={SECTION_HEADING}>Pending invites</h2>
             <div className="flex flex-col gap-2">
               {data.pendingInvites.map((invite) => (
-                <Card key={invite.id} className="flex-row items-center justify-between gap-3 p-3">
-                  <div className="flex flex-col">
-                    <span className="font-medium">{invite.groupName}</span>
+                <Card
+                  key={invite.id}
+                  className="ring-border-accent/50 bg-border-accent/10 flex-row items-center gap-3 p-3"
+                >
+                  {invite.memberPreviews.length > 0 && (
+                    <UserAvatarStack
+                      members={invite.memberPreviews}
+                      totalCount={invite.memberCount}
+                      size="sm"
+                      className="max-sm:hidden"
+                    />
+                  )}
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <span className="truncate font-medium">{invite.groupName}</span>
                     <span className="text-muted-foreground text-xs">
-                      /groups/{invite.groupSlug}
+                      {invite.memberCount} {invite.memberCount === 1 ? "member" : "members"}
                     </span>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex shrink-0 gap-2">
                     <Button
                       size="sm"
                       variant="outline"
@@ -259,11 +273,13 @@ export function GroupsIndexPage() {
                   <Link
                     to="/groups/$slug"
                     params={{ slug: request.groupSlug }}
-                    className="flex flex-col"
+                    className="flex min-w-0 flex-col"
                   >
-                    <span className="font-medium hover:underline">{request.groupName}</span>
+                    <span className="truncate font-medium hover:underline">
+                      {request.groupName}
+                    </span>
                     <span className="text-muted-foreground text-xs">
-                      /groups/{request.groupSlug}
+                      {request.memberCount} {request.memberCount === 1 ? "member" : "members"}
                     </span>
                   </Link>
                   <Button
@@ -302,47 +318,56 @@ export function GroupsIndexPage() {
             }
           />
         ) : (
-          <div className="flex flex-col gap-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             {data.items.map((row) => {
               const badge = ROLE_BADGE[row.viewerRole];
               const actionCount = actionCountByGroup.get(row.id) ?? 0;
+              // Anything that asks the viewer to act (trade actions, join
+              // requests to review) gets the StatTile accent ring so the
+              // group that needs you stands out from across the grid.
+              const needsViewer = actionCount > 0 || row.pendingRequestCount > 0;
               return (
                 <CardLink
                   key={row.id}
                   render={<Link to="/groups/$slug" params={{ slug: row.slug }} />}
-                  className="flex-row items-start gap-4 p-4 sm:items-center"
+                  className={cn(
+                    "flex-col gap-0 py-0",
+                    needsViewer && "ring-primary/40 hover:ring-primary/50",
+                  )}
                 >
-                  <div className="bg-muted text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded-md">
-                    <UsersIcon className="size-5" />
-                  </div>
-                  <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
-                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-medium break-words sm:truncate">{row.name}</span>
-                        <Badge className={cn("shrink-0", badge.className)}>{badge.label}</Badge>
-                      </div>
-                      {row.description ? (
-                        <span className="text-muted-foreground line-clamp-1 text-sm">
-                          {row.description}
-                        </span>
-                      ) : null}
-                    </div>
-                    <div className="text-muted-foreground flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-                      <span className="whitespace-nowrap">
-                        {row.memberCount} {row.memberCount === 1 ? "member" : "members"}
-                      </span>
+                  <CoverBand aria-hidden="true" className="flex h-28 items-center justify-center">
+                    <UserAvatarStack
+                      members={row.memberPreviews}
+                      totalCount={row.memberCount}
+                      size="lg"
+                    />
+                  </CoverBand>
+                  <div className="flex min-w-0 flex-1 flex-col gap-1 p-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Heading className="min-w-0 truncate">{row.name}</Heading>
+                      <Badge className={cn("shrink-0", badge.className)}>{badge.label}</Badge>
                       {actionCount > 0 ? (
-                        <Badge className="bg-primary text-primary-foreground whitespace-nowrap">
+                        <Badge className="ml-auto whitespace-nowrap">
                           {actionCount} action{actionCount === 1 ? "" : "s"} needed
                         </Badge>
                       ) : null}
-                      {row.pendingRequestCount > 0 ? (
-                        <Badge variant="secondary" className="whitespace-nowrap">
-                          {row.pendingRequestCount} pending
-                        </Badge>
-                      ) : null}
-                      <ChevronRightIcon className="size-4 shrink-0" />
                     </div>
+                    {row.pendingRequestCount > 0 ? (
+                      <span className="text-primary text-sm font-medium">
+                        {row.pendingRequestCount} request
+                        {row.pendingRequestCount === 1 ? "" : "s"} to review
+                      </span>
+                    ) : null}
+                    {row.description ? (
+                      <p className="text-muted-foreground line-clamp-2 text-sm">
+                        {row.description}
+                      </p>
+                    ) : null}
+                    <p className="text-muted-foreground mt-auto pt-1 text-sm tabular-nums">
+                      {row.memberCount} {row.memberCount === 1 ? "member" : "members"}
+                      <span className="mx-1.5 opacity-60">·</span>
+                      {row.sharedListCount} shared {row.sharedListCount === 1 ? "list" : "lists"}
+                    </p>
                   </div>
                 </CardLink>
               );

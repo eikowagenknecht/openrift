@@ -96,11 +96,16 @@ describe("friendGroupsRepo", () => {
       viewerRole: "owner",
       memberCount: null, // simulate the worst-case typing
       pendingRequestCount: 2n,
+      sharedListCount: "3",
     };
     const repo = friendGroupsRepo(createMockDb([raw]));
     const [row] = await repo.listGroupsForUser("u-owner");
     expect(row?.memberCount).toBe(0);
     expect(row?.pendingRequestCount).toBe(2);
+    expect(row?.sharedListCount).toBe(3);
+    // The mock returns group-shaped rows for the preview query too; without a
+    // matching groupId key the group falls back to an empty preview list.
+    expect(row?.memberPreviews).toEqual([]);
   });
 
   it("addMember and removeMember resolve without throwing", async () => {
@@ -143,13 +148,30 @@ describe("friendGroupsRepo", () => {
     expect(await repo.getInvite("grp-1", "u2")).toEqual(INVITE);
   });
 
-  it("listInvitesForUser returns enriched rows", async () => {
-    const enriched = { ...INVITE, groupName: "Tuesday Night Crew", groupSlug: "playgroup" };
+  it("listInvitesForUser returns enriched rows with member previews", async () => {
+    // The mock feeds the same row to the preview query, so the profile fields
+    // double as the expected preview entry.
+    const enriched = {
+      ...INVITE,
+      groupName: "Tuesday Night Crew",
+      groupSlug: "playgroup",
+      userName: "Invitee",
+      userEmail: "invitee@example.com",
+      userImage: null,
+    };
     const repo = friendGroupsRepo(createMockDb([enriched]));
-    expect(await repo.listInvitesForUser("u2")).toEqual([enriched]);
+    expect(await repo.listInvitesForUser("u2")).toEqual([
+      {
+        ...enriched,
+        memberCount: 0,
+        memberPreviews: [
+          { userId: "u2", userName: "Invitee", userEmail: "invitee@example.com", userImage: null },
+        ],
+      },
+    ]);
   });
 
-  it("listOwnRequestsForUser returns enriched rows", async () => {
+  it("listOwnRequestsForUser returns enriched rows without previews", async () => {
     const enriched = {
       ...INVITE,
       direction: "request" as const,
@@ -157,7 +179,7 @@ describe("friendGroupsRepo", () => {
       groupSlug: "playgroup",
     };
     const repo = friendGroupsRepo(createMockDb([enriched]));
-    expect(await repo.listOwnRequestsForUser("u2")).toEqual([enriched]);
+    expect(await repo.listOwnRequestsForUser("u2")).toEqual([{ ...enriched, memberCount: 0 }]);
   });
 
   it("listRequestsForGroup returns enriched rows", async () => {

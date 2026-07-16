@@ -170,7 +170,21 @@ describe("friend-groups route", () => {
       friendGroups: {
         listGroupsForUser: vi.fn(() =>
           Promise.resolve([
-            { ...group, viewerRole: "owner", memberCount: 2, pendingRequestCount: 1 },
+            {
+              ...group,
+              viewerRole: "owner",
+              memberCount: 2,
+              pendingRequestCount: 1,
+              sharedListCount: 3,
+              memberPreviews: [
+                {
+                  userId: USER_ID,
+                  userName: "Owner",
+                  userEmail: "owner@example.com",
+                  userImage: null,
+                },
+              ],
+            },
           ]),
         ),
         listInvitesForUser: vi.fn(() =>
@@ -183,6 +197,15 @@ describe("friend-groups route", () => {
               createdAt: now,
               groupName: "Other",
               groupSlug: "other",
+              memberCount: 2,
+              memberPreviews: [
+                {
+                  userId: "u-other",
+                  userName: "Other Owner",
+                  userEmail: "other@example.com",
+                  userImage: null,
+                },
+              ],
             },
           ]),
         ),
@@ -191,12 +214,23 @@ describe("friend-groups route", () => {
     const res = await app.request("/api/v1/friend-groups");
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
-      items: unknown[];
-      pendingInvites: unknown[];
+      items: {
+        sharedListCount: number;
+        memberPreviews: { userId: string; gravatarHash: string; userEmail?: string }[];
+      }[];
+      pendingInvites: { memberCount: number; memberPreviews: unknown[] }[];
       outgoingRequests: unknown[];
     };
     expect(body.items).toHaveLength(1);
+    expect(body.items[0].sharedListCount).toBe(3);
+    // Previews are mapped to the public shape: gravatar hash instead of email.
+    expect(body.items[0].memberPreviews).toHaveLength(1);
+    expect(body.items[0].memberPreviews[0].userId).toBe(USER_ID);
+    expect(body.items[0].memberPreviews[0].gravatarHash).toBeTruthy();
+    expect(body.items[0].memberPreviews[0].userEmail).toBeUndefined();
     expect(body.pendingInvites).toHaveLength(1);
+    expect(body.pendingInvites[0].memberCount).toBe(2);
+    expect(body.pendingInvites[0].memberPreviews).toHaveLength(1);
     expect(body.outgoingRequests).toHaveLength(0);
   });
 
@@ -213,6 +247,7 @@ describe("friend-groups route", () => {
               createdAt: now,
               groupName: "Allerlei Spielerei",
               groupSlug: "allerlei-spielerei-hannover",
+              memberCount: 4,
             },
           ]),
         ),
@@ -230,6 +265,8 @@ describe("friend-groups route", () => {
         groupSlug: "allerlei-spielerei-hannover",
         groupName: "Allerlei Spielerei",
         createdAt: now.toISOString(),
+        memberCount: 4,
+        memberPreviews: [],
       },
     ]);
   });

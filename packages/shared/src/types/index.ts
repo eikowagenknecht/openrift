@@ -270,6 +270,7 @@ export type {
   FriendGroupMatchesResponse,
   FriendGroupMatchRow,
   FriendGroupMemberDetailResponse,
+  FriendGroupMemberPreview,
   FriendGroupMemberResponse,
   FriendGroupPendingInviteResponse,
   FriendGroupPendingInvitesCountResponse,

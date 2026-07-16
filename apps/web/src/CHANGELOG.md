@@ -4,6 +4,7 @@
 
 ### Highlights
 
+- feat(Groups): **A friendlier groups overview** — groups now show as tiles with member photos, shared-list counts, and a clear marker on any group that needs your attention.
 - feat(Tournaments): **Enter just your own score** — players on the result link can now save their own game points next to their name; the pod completes once everyone has entered theirs.
 - feat(Tournaments): **Live round updates** — while a round is open, the results page refreshes itself, so scores saved by anyone appear for everyone without reloading.
 

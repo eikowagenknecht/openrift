@@ -202,6 +202,69 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
     // The requester has no incoming invites; the invitee has no outgoing requests.
     expect(await repo.listInvitesForUser(SELLER_ID)).toHaveLength(0);
     expect(await repo.listOwnRequestsForUser(ADMIN_ID)).toHaveLength(0);
+
+    // Requesters see the group's size but never its roster.
+    expect(requests[0]?.memberCount).toBe(1);
+    expect(requests[0]).not.toHaveProperty("memberPreviews");
+  });
+
+  it("listGroupsForUser returns counts and roster-ordered member previews capped at five", async () => {
+    const group = await createGroup(VIEWER_ID);
+    await repo.addMember(group.id, ADMIN_ID, "admin");
+    await repo.addMember(group.id, SELLER_ID, "member");
+    await repo.addMember(group.id, OUTSIDER_ID, "member");
+    // Two throwaway members push the roster past the preview limit.
+    const extraA = await seedTestUser(db);
+    const extraB = await seedTestUser(db);
+    await repo.addMember(group.id, extraA.id, "member");
+    await repo.addMember(group.id, extraB.id, "member");
+    // Same trick as the listMembers test: lower-cased ordering ("alice" <
+    // "Bob") differs from raw byte ordering, proving the preview sort.
+    await db.updateTable("users").set({ name: "alice" }).where("id", "=", SELLER_ID).execute();
+    await db.updateTable("users").set({ name: "Bob" }).where("id", "=", OUTSIDER_ID).execute();
+    await db
+      .updateTable("users")
+      .set({ name: "zed" })
+      .where("id", "in", [extraA.id, extraB.id])
+      .execute();
+
+    const list = await createList(VIEWER_ID, "trade", "printing");
+    await repo.share(group.id, list.id, VIEWER_ID);
+
+    const summaries = await repo.listGroupsForUser(VIEWER_ID);
+    const summary = summaries.find((row) => row.id === group.id);
+    expect(summary?.memberCount).toBe(6);
+    expect(summary?.sharedListCount).toBe(1);
+    // Owner first, then admin, then members by name; the sixth member is cut.
+    expect(summary?.memberPreviews.map((preview) => preview.userId)).toEqual([
+      VIEWER_ID,
+      ADMIN_ID,
+      SELLER_ID,
+      OUTSIDER_ID,
+      extraA.id,
+    ]);
+
+    // Restore the shared fixture names and drop the throwaway users.
+    await db
+      .updateTable("users")
+      .set({ name: "Test User" })
+      .where("id", "in", [SELLER_ID, OUTSIDER_ID])
+      .execute();
+    await db.deleteFrom("users").where("id", "in", [extraA.id, extraB.id]).execute();
+  });
+
+  it("listInvitesForUser carries the group's member count and previews", async () => {
+    const group = await createGroup(VIEWER_ID);
+    await repo.addMember(group.id, ADMIN_ID, "admin");
+    await repo.createInvite(group.id, SELLER_ID, "invite");
+
+    const invites = await repo.listInvitesForUser(SELLER_ID);
+    expect(invites).toHaveLength(1);
+    expect(invites[0]?.memberCount).toBe(2);
+    expect(invites[0]?.memberPreviews.map((preview) => preview.userId)).toEqual([
+      VIEWER_ID,
+      ADMIN_ID,
+    ]);
   });
 
   it("rotates the code and invalidates the prior value", async () => {
