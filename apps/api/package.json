@@ -29,7 +29,7 @@
     "@orpc/zod": "1.14.8",
     "@piltoverarchive/riftbound-deck-codes": "1.4.0",
     "@resvg/resvg-js": "2.6.2",
-    "@sentry/bun": "10.65.0",
+    "@sentry/bun": "10.66.0",
     "better-auth": "1.6.23",
     "croner": "10.0.1",
     "hono": "4.12.30",
