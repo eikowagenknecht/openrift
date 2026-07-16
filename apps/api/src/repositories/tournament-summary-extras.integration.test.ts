@@ -15,6 +15,7 @@ describe.skipIf(!ctx)("tournament summary extras (integration)", () => {
   const repos = createRepos(db);
 
   const cardIds: string[] = [];
+  const printingIds: string[] = [];
   const imageFileIds: string[] = [];
   const userIds: string[] = [];
   let counter = 0;
@@ -34,6 +35,12 @@ describe.skipIf(!ctx)("tournament summary extras (integration)", () => {
 
   afterAll(async () => {
     await db.deleteFrom("tournaments").where("hostUserId", "=", OWNER_ID).execute();
+    // Dependency order: printingImages -> printings -> cards, then imageFiles.
+    // None of these FKs cascade, so a card cannot go before its printing.
+    if (printingIds.length > 0) {
+      await db.deleteFrom("printingImages").where("printingId", "in", printingIds).execute();
+      await db.deleteFrom("printings").where("id", "in", printingIds).execute();
+    }
     if (cardIds.length > 0) {
       await db.deleteFrom("cards").where("id", "in", cardIds).execute();
     }
@@ -123,6 +130,7 @@ describe.skipIf(!ctx)("tournament summary extras (integration)", () => {
       })
       .returning("id")
       .executeTakeFirstOrThrow();
+    printingIds.push(printing.id);
     const imageFile = await db
       .insertInto("imageFiles")
       .values({

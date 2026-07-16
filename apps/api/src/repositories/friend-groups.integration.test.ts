@@ -228,7 +228,7 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
       .where("id", "in", [extraA.id, extraB.id])
       .execute();
 
-    const list = await createList(VIEWER_ID, "trade", "printing");
+    const list = await createList(VIEWER_ID, "trade", "copy");
     await repo.share(group.id, list.id, VIEWER_ID);
 
     const summaries = await repo.listGroupsForUser(VIEWER_ID);

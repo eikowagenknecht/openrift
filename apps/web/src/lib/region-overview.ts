@@ -2,7 +2,7 @@
 // points of their players. Derived client-side from the standings rows, which
 // already carry each player's score and region.
 
-export interface RegionOverviewRow {
+interface RegionOverviewRow {
   /** The region tag slug (label lookup is the caller's job). */
   region: string;
   playerCount: number;

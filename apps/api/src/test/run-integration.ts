@@ -105,6 +105,7 @@ const PARALLEL_FILES = [
   "src/repositories/marketplace.integration.test.ts",
   "src/repositories/price-refresh.integration.test.ts",
   "src/repositories/printing-images.integration.test.ts",
+  "src/repositories/products.integration.test.ts",
   "src/repositories/provider-settings.integration.test.ts",
   "src/repositories/rules.integration.test.ts",
   "src/repositories/sets.integration.test.ts",
@@ -117,6 +118,7 @@ const PARALLEL_FILES = [
   "src/repositories/pod-tournaments.integration.test.ts",
   // Unified tournaments umbrella (ADR-033)
   "src/repositories/tournaments-schema.integration.test.ts",
+  "src/repositories/tournament-summary-extras.integration.test.ts",
   // Card trades (ADR-019)
   "src/repositories/card-trades.integration.test.ts",
   // Card lending (ADR-039)
