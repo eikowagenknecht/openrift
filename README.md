@@ -21,12 +21,13 @@ Friend group:
 
 ![OpenRift group](docs/assets/screenshot-group.webp)
 
-Group collecions:
+Group collections:
 
 ![OpenRift collection](docs/assets/screenshot-group-collections.webp)
 
 Tournament view:
-![OpenRift collection](docs/assets/screenshot-tournament.webp)
+
+![OpenRift tournament](docs/assets/screenshot-tournament.webp)
 
 </details>
 
