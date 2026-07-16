@@ -1,14 +1,19 @@
 import type { PodReportResponse } from "@openrift/shared";
 import { toast } from "sonner";
 
-import { useSubmitTournamentReportResult } from "@/hooks/use-tournaments";
+import {
+  useSubmitTournamentReportPlayerResult,
+  useSubmitTournamentReportResult,
+} from "@/hooks/use-tournaments";
 
 import { PairingsView } from "./pairings-view";
 
 // All rounds for the participant, newest-first. The open reporting round's pods
-// offer inline result entry (the token's one write); past rounds are read-only.
+// offer inline result entry — each player their own score, or a whole pod at
+// once; past rounds are read-only.
 export function ReportRoundsContent({ token, data }: { token: string; data: PodReportResponse }) {
   const submitResult = useSubmitTournamentReportResult(token);
+  const submitPlayerResult = useSubmitTournamentReportPlayerResult(token);
   const scoresByPlayer = new Map(data.standings.map((row) => [row.playerId, row.score]));
   const hasOpenRound = data.rounds.some((round) => round.status === "reporting");
   // The follow-only link resolves the report but can't enter results.
@@ -23,12 +28,22 @@ export function ReportRoundsContent({ token, data }: { token: string; data: PodR
     }
   }
 
+  async function submitPlayer(podId: string, playerId: string, gamePoints: number) {
+    try {
+      await submitPlayerResult.mutateAsync({ podId, playerId, gamePoints });
+      toast.success("Score saved");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn't save score");
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4">
       {hasOpenRound && canSubmit ? (
         <p className="text-muted-foreground text-sm">
-          Find your pod in the current round and enter the game points for each player. Places and
-          points are worked out automatically.
+          Find your pod in the current round and add your own game points next to your name, or
+          enter the whole pod&apos;s scores at once. Places and points are worked out automatically,
+          and new scores appear for everyone without reloading.
         </p>
       ) : null}
       <PairingsView
@@ -39,6 +54,7 @@ export function ReportRoundsContent({ token, data }: { token: string; data: PodR
         showPenalty={false}
         canEnterResult={(round) => canSubmit && round.status === "reporting"}
         onSubmitResult={submit}
+        onSubmitPlayerResult={canSubmit ? submitPlayer : undefined}
         emptyMessage="No rounds yet."
       />
     </div>

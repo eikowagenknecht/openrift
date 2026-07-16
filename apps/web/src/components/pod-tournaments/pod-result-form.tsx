@@ -21,8 +21,11 @@ function formatPoints(points: number): string {
   return Number.isInteger(points) ? String(points) : Number(points.toFixed(2)).toString();
 }
 
-// Parse the controlled input back to a whole, non-negative game-point count, or null when blank/invalid.
-function parsePoints(value: string): number | null {
+/**
+ * Parse a controlled points input back to a whole, non-negative game-point count.
+ * @returns The parsed count, or `null` when blank/invalid.
+ */
+export function parsePoints(value: string): number | null {
   if (value.trim() === "") {
     return null;
   }
@@ -53,7 +56,30 @@ export function PodResultForm({ pod, scheme, onSubmit, submitting, onCancel }: P
       ]),
     ),
   );
+  // Server values at open (or last sync). The round views poll while reporting, so
+  // someone else's save can land mid-edit — the mismatch surfaces a notice below
+  // instead of being silently overwritten on save.
+  const [serverBaseline, setServerBaseline] = useState<Record<string, number | null>>(() =>
+    Object.fromEntries(pod.members.map((member) => [member.playerId, member.gamePoints])),
+  );
+  const changedRemotely = pod.members.some(
+    (member) => serverBaseline[member.playerId] !== member.gamePoints,
+  );
   const parsed = pod.members.map((member) => parsePoints(points[member.playerId] ?? ""));
+
+  function loadLatest() {
+    setServerBaseline(
+      Object.fromEntries(pod.members.map((member) => [member.playerId, member.gamePoints])),
+    );
+    setPoints(
+      Object.fromEntries(
+        pod.members.map((member) => [
+          member.playerId,
+          member.gamePoints === null ? "" : String(member.gamePoints),
+        ]),
+      ),
+    );
+  }
   const allSet = parsed.every((value) => value !== null);
   const placements = allSet ? placementsFromGamePoints(parsed as number[]) : null;
   const previewPoints = placements ? pointsForPlacements(placements, pod.size, scheme) : null;
@@ -107,6 +133,14 @@ export function PodResultForm({ pod, scheme, onSubmit, submitting, onCancel }: P
         Enter the game points for each player (8 wins; more is possible). Places and points are
         worked out automatically.
       </p>
+      {changedRemotely ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 text-amber-600 dark:text-amber-500">
+          <span>Someone else saved scores for this pod while you were editing.</span>
+          <Button variant="outline" size="sm" onClick={loadLatest}>
+            Show latest
+          </Button>
+        </div>
+      ) : null}
       <div className="flex justify-end gap-2">
         {onCancel ? (
           <Button variant="ghost" onClick={onCancel} disabled={submitting}>

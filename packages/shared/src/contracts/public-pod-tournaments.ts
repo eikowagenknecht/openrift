@@ -27,10 +27,12 @@ export const podReportResponseSchema = z
 
 /**
  * oRPC contract for the public, token-gated pod-tournament participant surface
- * (ADR-022). `GET .../report/{token}` is a read-only follow-along; the PUT
- * submits one pod's result. A disabled/rotated token is a typed NOT_FOUND.
- * `submitResult` additionally produces CONFLICT when the round is already
- * finalized and BAD_REQUEST when the submitted results are invalid.
+ * (ADR-022). `GET .../report/{token}` is a read-only follow-along; the PUTs
+ * submit results — `submitResult` a whole pod at once, `submitPlayerResult` a
+ * single player's own game points (the pod completes once every member has
+ * points). A disabled/rotated token is a typed NOT_FOUND. The submit routes
+ * additionally produce CONFLICT when the round is already finalized and
+ * BAD_REQUEST when the submitted results are invalid.
  */
 export const publicPodTournamentsContract = {
   report: oc
@@ -51,6 +53,28 @@ export const publicPodTournamentsContract = {
     })
     .meta({ auth: "public" })
     .input(z.object({ token: z.string().min(1), podId: z.uuid() }).extend(podResultSchema.shape))
+    .errors({
+      NOT_FOUND: { message: "Not found" },
+      FORBIDDEN: { message: "This link is follow-only" },
+      CONFLICT: { message: "Round already finalized" },
+      BAD_REQUEST: { message: "Invalid result data" },
+    })
+    .output(podReportResponseSchema),
+  submitPlayerResult: oc
+    .route({
+      method: "PUT",
+      path: "/api/v1/pod-tournaments/report/{token}/pods/{podId}/players/{playerId}/result",
+      tags: ["Pod Tournaments"],
+    })
+    .meta({ auth: "public" })
+    .input(
+      z.object({
+        token: z.string().min(1),
+        podId: z.uuid(),
+        playerId: z.uuid(),
+        gamePoints: z.number().int().min(0).max(99),
+      }),
+    )
     .errors({
       NOT_FOUND: { message: "Not found" },
       FORBIDDEN: { message: "This link is follow-only" },

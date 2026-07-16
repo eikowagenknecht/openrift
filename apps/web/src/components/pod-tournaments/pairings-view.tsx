@@ -1,11 +1,13 @@
 import type {
   PairingWarning,
+  PodMemberResponse,
   PodResponse,
   PodRoundResponse,
   PodScoringScheme,
   PodSnapshotPlayer,
 } from "@openrift/shared";
 import { computePairingWarnings } from "@openrift/shared";
+import { CheckIcon, PencilIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 import type { ReactNode } from "react";
 
@@ -13,10 +15,11 @@ import { Heading } from "@/components/heading";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 import { snapshotToPlayers, WarningBadge, WarningList } from "./pairing-warnings";
-import { PodResultForm } from "./pod-result-form";
+import { parsePoints, PodResultForm } from "./pod-result-form";
 import { formatScore } from "./standings-table";
 
 interface PodResultEntry {
@@ -44,6 +47,12 @@ interface PairingsViewProps {
   /** Whether the given pod may be scored right now (e.g. its round is reporting). */
   canEnterResult: (round: PodRoundResponse, pod: PodResponse) => boolean;
   onSubmitResult: (podId: string, results: PodResultEntry[]) => Promise<void>;
+  /**
+   * Per-player self-reporting (participant link): when present, each member row
+   * offers inline entry of that player's own game points, and the pod completes
+   * once everyone has entered theirs.
+   */
+  onSubmitPlayerResult?: (podId: string, playerId: string, gamePoints: number) => Promise<void>;
   /** Organizer round-level controls (finalize / re-roll / edit), rendered in the round header. */
   renderRoundActions?: (round: PodRoundResponse) => ReactNode;
   emptyMessage: string;
@@ -67,6 +76,7 @@ export function PairingsView({
   warningsExpanded = true,
   canEnterResult,
   onSubmitResult,
+  onSubmitPlayerResult,
   renderRoundActions,
   emptyMessage,
 }: PairingsViewProps) {
@@ -135,6 +145,7 @@ export function PairingsView({
                   nameById={nameById}
                   canEnter={canEnterResult(round, pod)}
                   onSubmit={onSubmitResult}
+                  onSubmitPlayerResult={onSubmitPlayerResult}
                 />
               ))}
               {round.byes.length > 0 ? (
@@ -227,6 +238,7 @@ function PodCard({
   nameById,
   canEnter,
   onSubmit,
+  onSubmitPlayerResult,
 }: {
   pod: PodResponse;
   scheme: PodScoringScheme;
@@ -237,10 +249,16 @@ function PodCard({
   nameById: Map<string, string>;
   canEnter: boolean;
   onSubmit: (podId: string, results: PodResultEntry[]) => Promise<void>;
+  onSubmitPlayerResult?: (podId: string, playerId: string, gamePoints: number) => Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  // Per-player self-entry: which member row is open for input, and its draft value.
+  const [scoringPlayerId, setScoringPlayerId] = useState<string | null>(null);
+  const [scoreDraft, setScoreDraft] = useState("");
   const reported = pod.resultStatus === "reported";
+  const selfEntry = canEnter && onSubmitPlayerResult !== undefined;
+  const enteredCount = pod.members.filter((member) => member.gamePoints !== null).length;
 
   async function handleSubmit(results: PodResultEntry[]) {
     setSaving(true);
@@ -249,6 +267,28 @@ function PodCard({
     try {
       await onSubmit(pod.id, results);
       setEditing(false);
+    } catch (error) {
+      setSaving(false);
+      throw error;
+    }
+    setSaving(false);
+  }
+
+  function startScoring(member: PodMemberResponse) {
+    setScoringPlayerId(member.playerId);
+    setScoreDraft(member.gamePoints === null ? "" : String(member.gamePoints));
+  }
+
+  async function handleSaveScore() {
+    const parsed = parsePoints(scoreDraft);
+    if (parsed === null || scoringPlayerId === null || !onSubmitPlayerResult) {
+      return;
+    }
+    setSaving(true);
+    // Same try/catch shape as handleSubmit (no try/finally under React Compiler).
+    try {
+      await onSubmitPlayerResult(pod.id, scoringPlayerId, parsed);
+      setScoringPlayerId(null);
     } catch (error) {
       setSaving(false);
       throw error;
@@ -265,7 +305,11 @@ function PodCard({
             {showPenalty && !warningsExpanded ? (
               <WarningBadge warnings={warnings} nameById={nameById} />
             ) : null}
-            <span className="text-muted-foreground font-normal">{pod.size} players</span>
+            <span className="text-muted-foreground font-normal">
+              {!reported && enteredCount > 0
+                ? `${enteredCount} of ${pod.size} scores in`
+                : `${pod.size} players`}
+            </span>
           </span>
         </CardTitle>
         {showPenalty && pod.penalty ? (
@@ -305,12 +349,70 @@ function PodCard({
                       </span>
                     ) : null}
                   </span>
-                  {member.points !== null && (
+                  {selfEntry && scoringPlayerId === member.playerId ? (
+                    <span className="flex items-center gap-1.5">
+                      <Input
+                        type="number"
+                        min={0}
+                        inputMode="numeric"
+                        // oxlint-disable-next-line jsx-a11y/no-autofocus -- the input appears from the tapped "Add score" button; focusing it is the point of the tap
+                        autoFocus
+                        value={scoreDraft}
+                        onChange={(event) => setScoreDraft(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            void handleSaveScore();
+                          }
+                        }}
+                        aria-label={`Game points for ${member.displayName}`}
+                        className="h-7 w-16 tabular-nums"
+                      />
+                      <Button
+                        size="icon-sm"
+                        onClick={handleSaveScore}
+                        disabled={saving || parsePoints(scoreDraft) === null}
+                        aria-label={`Save score for ${member.displayName}`}
+                      >
+                        <CheckIcon />
+                      </Button>
+                      <Button
+                        size="icon-sm"
+                        variant="ghost"
+                        onClick={() => setScoringPlayerId(null)}
+                        disabled={saving}
+                        aria-label="Cancel score entry"
+                      >
+                        <XIcon />
+                      </Button>
+                    </span>
+                  ) : (
                     <span className="flex items-center gap-2 tabular-nums">
                       {member.gamePoints !== null && (
                         <span className="text-muted-foreground">{member.gamePoints} game</span>
                       )}
-                      <span className="font-semibold">+{formatScore(member.points)}</span>
+                      {member.points !== null && (
+                        <span className="font-semibold">+{formatScore(member.points)}</span>
+                      )}
+                      {selfEntry ? (
+                        member.gamePoints === null ? (
+                          <Button
+                            variant="secondary"
+                            size="xs"
+                            onClick={() => startScoring(member)}
+                          >
+                            Add score
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            onClick={() => startScoring(member)}
+                            aria-label={`Edit score for ${member.displayName}`}
+                          >
+                            <PencilIcon />
+                          </Button>
+                        )
+                      ) : null}
                     </span>
                   )}
                 </li>
@@ -323,7 +425,7 @@ function PodCard({
                 className={cn("self-end")}
                 onClick={() => setEditing(true)}
               >
-                {reported ? "Edit result" : "Enter result"}
+                {reported ? "Edit result" : selfEntry ? "Enter all scores" : "Enter result"}
               </Button>
             ) : null}
           </>

@@ -24,6 +24,7 @@ import { queryOptions, useQuery, useSuspenseQuery } from "@tanstack/react-query"
 import { createServerFn } from "@tanstack/react-start";
 
 import { useRequiredUserId } from "@/lib/auth-session";
+import { openRoundRefetchInterval } from "@/lib/open-round-polling";
 import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
@@ -563,6 +564,7 @@ export function tournamentRunStateQueryOptions(userId: string, id: string) {
   return queryOptions({
     queryKey: queryKeys.podTournaments.detail(userId, id),
     queryFn: () => fetchRunState({ data: id }),
+    refetchInterval: (query) => openRoundRefetchInterval(query.state.data),
   });
 }
 
@@ -570,6 +572,7 @@ export function tournamentReportQueryOptions(token: string) {
   return queryOptions({
     queryKey: queryKeys.podTournaments.report(token),
     queryFn: () => fetchReport({ data: token }),
+    refetchInterval: (query) => openRoundRefetchInterval(query.state.data),
   });
 }
 
@@ -644,6 +647,15 @@ const setFollowTokenFn = createServerFn({ method: "POST" })
       : client.disableFollowToken({ id: data.id });
   });
 
+const submitReportPlayerResultFn = createServerFn({ method: "POST" })
+  .validator(
+    (input: { token: string; podId: string; playerId: string; gamePoints: number }) => input,
+  )
+  .handler(
+    ({ data }): Promise<PodReportResponse> =>
+      apiOrpcClient(publicPodTournamentsContract).submitPlayerResult(data),
+  );
+
 const submitReportResultFn = createServerFn({ method: "POST" })
   .validator((input: { token: string; podId: string; results: PodResultEntry[] }) => input)
   .handler(
@@ -711,6 +723,16 @@ export function useSetTournamentFollowToken() {
   return useTournamentDetailMutation<{ id: string; enabled: boolean }, TournamentDetailResponse>(
     (data) => setFollowTokenFn({ data }),
   );
+}
+
+export function useSubmitTournamentReportPlayerResult(token: string) {
+  return useMutationWithInvalidation<
+    PodReportResponse,
+    { podId: string; playerId: string; gamePoints: number }
+  >({
+    mutationFn: (data) => submitReportPlayerResultFn({ data: { token, ...data } }),
+    invalidates: () => [queryKeys.podTournaments.report(token)],
+  });
 }
 
 export function useSubmitTournamentReportResult(token: string) {

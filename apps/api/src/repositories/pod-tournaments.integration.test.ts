@@ -7,6 +7,7 @@ import {
   pairNextRound,
   replaceRoundPairing,
   rerollRound,
+  submitPodPlayerResult,
   submitPodResult,
 } from "../services/pod-pairing.js";
 import { createDbContext } from "../test/integration-context.js";
@@ -106,6 +107,63 @@ describe.skipIf(!ctx)("podTournamentsRepo (integration)", () => {
       expect(player.opponents.size).toBe(3);
       expect([...player.opponents.values()].every((count) => count === 1)).toBe(true);
     }
+  });
+
+  it("completes a pod from per-player score submissions", async () => {
+    const { tournament } = await freshTournament(8);
+    await pairNextRound(repos, tournament);
+    const rounds = await tournamentsRepo.loadRounds(tournament.id, scheme);
+    const pod = rounds[0]!.pods[0]!;
+    const podAfter = async () => {
+      const reloaded = await tournamentsRepo.loadRounds(tournament.id, scheme);
+      return reloaded[0]!.pods.find((candidate) => candidate.id === pod.id)!;
+    };
+    const memberOf = (state: Awaited<ReturnType<typeof podAfter>>, playerId: string) =>
+      state.members.find((member) => member.playerId === playerId)!;
+
+    // Three of four players report their own scores: the pod stays pending, the
+    // entered points are visible, and no placements are derived yet.
+    for (const [index, member] of pod.members.slice(0, 3).entries()) {
+      await submitPodPlayerResult(repos, tournament.id, pod.id, member.playerId, 4 - index);
+    }
+    let state = await podAfter();
+    expect(state.resultStatus).toBe("pending");
+    expect(state.members.filter((member) => member.gamePoints !== null)).toHaveLength(3);
+    expect(state.members.every((member) => member.placement === null)).toBe(true);
+
+    // The last score completes the pod: placements derive and the status flips.
+    await submitPodPlayerResult(repos, tournament.id, pod.id, pod.members[3]!.playerId, 1);
+    state = await podAfter();
+    expect(state.resultStatus).toBe("reported");
+    expect(memberOf(state, pod.members[0]!.playerId).placement).toBe(1);
+    expect(memberOf(state, pod.members[3]!.playerId).placement).toBe(4);
+
+    // A player correcting their own score re-derives the placements.
+    await submitPodPlayerResult(repos, tournament.id, pod.id, pod.members[3]!.playerId, 9);
+    state = await podAfter();
+    expect(state.resultStatus).toBe("reported");
+    expect(memberOf(state, pod.members[3]!.playerId).placement).toBe(1);
+    expect(memberOf(state, pod.members[0]!.playerId).placement).toBe(2);
+  });
+
+  it("rejects a per-player score for an outsider or a finalized round", async () => {
+    const { tournament } = await freshTournament(8);
+    await pairNextRound(repos, tournament);
+    const rounds = await tournamentsRepo.loadRounds(tournament.id, scheme);
+    const open = rounds[0]!;
+    const pod = open.pods[0]!;
+    const outsider = open.pods[1]!.members[0]!.playerId;
+
+    await expect(
+      submitPodPlayerResult(repos, tournament.id, pod.id, outsider, 5),
+    ).rejects.toMatchObject({ status: 400 });
+
+    await reportOpenRound(tournament.id);
+    const reloaded = await tournamentsRepo.findById(tournament.id);
+    await finalizeRound(repos, reloaded!, open.roundNumber);
+    await expect(
+      submitPodPlayerResult(repos, tournament.id, pod.id, pod.members[0]!.playerId, 5),
+    ).rejects.toMatchObject({ status: 409 });
   });
 
   it("rejects pairing while a round is open, and re-roll keeps the round number", async () => {

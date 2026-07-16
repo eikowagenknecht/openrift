@@ -62,6 +62,9 @@ export function TournamentReportFrame({
   render: (data: PodReportResponse) => ReactNode;
 }) {
   const { data } = useTournamentReport(token);
+  // While a round is open the report query polls (see tournamentReportQueryOptions),
+  // so the page is live — the badge tells players they don't need to reload.
+  const live = data.rounds.some((round) => round.status === "reporting");
   return (
     <>
       <PageTopBarSticky maxWidth="5xl">
@@ -70,6 +73,12 @@ export function TournamentReportFrame({
           <Badge variant="secondary" className="shrink-0">
             {STATUS_LABEL[data.status]}
           </Badge>
+          {live ? (
+            <Badge variant="success" className="shrink-0" title="Updates automatically">
+              <span aria-hidden className="size-1.5 animate-pulse rounded-full bg-current" />
+              Live
+            </Badge>
+          ) : null}
         </PageTopBar>
       </PageTopBarSticky>
       <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6 pt-3", PAGE_PADDING_NO_TOP)}>

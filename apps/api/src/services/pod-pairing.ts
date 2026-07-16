@@ -345,3 +345,43 @@ export async function submitPodResult(
     })),
   );
 }
+
+/**
+ * Submit one player's own game points (participant self-reporting). Validates the
+ * pod belongs to the tournament, the round is still reporting, and the player sits
+ * in the pod. The repo write completes the pod (derives placements, flips it to
+ * `reported`) once every member has points; until then the pod stays `pending`.
+ *
+ * @param repos The request repos.
+ * @param tournamentId The tournament the caller is authorized for.
+ * @param podId The pod being scored.
+ * @param playerId The pod member whose points are being entered.
+ * @param gamePoints The player's raw game points.
+ * @returns Nothing.
+ */
+export async function submitPodPlayerResult(
+  repos: Repos,
+  tournamentId: string,
+  podId: string,
+  playerId: string,
+  gamePoints: number,
+): Promise<void> {
+  const found = await repos.podTournaments.findPodForResult(podId);
+  if (!found || found.tournament.id !== tournamentId) {
+    throw new AppError(404, ERROR_CODES.NOT_FOUND, "Pod not found");
+  }
+  if (found.round.status === "finalized") {
+    throw new AppError(
+      409,
+      ERROR_CODES.CONFLICT,
+      "This round is finalized. Results can no longer be submitted here.",
+    );
+  }
+  if (!found.memberPlayerIds.includes(playerId)) {
+    throw new AppError(400, ERROR_CODES.BAD_REQUEST, "This player is not in this pod.");
+  }
+  if (gamePoints < 0) {
+    throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Game points cannot be negative.");
+  }
+  await repos.podTournaments.setMemberGamePoints(podId, playerId, gamePoints);
+}

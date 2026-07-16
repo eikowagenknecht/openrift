@@ -2,8 +2,14 @@
 
 ## 2026-07-16
 
+### Highlights
+
+- feat(Tournaments): **Enter just your own score** — players on the result link can now save their own game points next to their name; the pod completes once everyone has entered theirs.
+- feat(Tournaments): **Live round updates** — while a round is open, the results page refreshes itself, so scores saved by anyone appear for everyone without reloading.
+
 ### Other
 
+- feat(Tournaments): **Warning before overwriting results** — the pod result form now says when someone else saved scores while you were editing, with a button to load the latest values.
 - fix(Tournaments): **Readable standings on phones** — the mobile standings are now a compact ranked list showing wins, opponent score, and game points, instead of a cramped wall of numbers.
 
 ## 2026-07-15

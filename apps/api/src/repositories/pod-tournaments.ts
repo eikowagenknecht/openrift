@@ -1,4 +1,4 @@
-import { pointsForPlacements } from "@openrift/shared";
+import { placementsFromGamePoints, pointsForPlacements } from "@openrift/shared";
 import type {
   PairingPlayer,
   PairingResult,
@@ -645,6 +645,48 @@ export function podTournamentsRepo(db: Kysely<Database>) {
             .set({ placement, gamePoints })
             .where("podId", "=", podId)
             .where("playerId", "=", playerId)
+            .execute();
+        }
+        await trx
+          .updateTable("pods")
+          .set({ resultStatus: "reported" })
+          .where("id", "=", podId)
+          .execute();
+      });
+    },
+
+    /**
+     * Writes a single member's game points (per-player self-reporting). Once every
+     * member of the pod has points, derives the placements and flips the pod to
+     * `reported` — the same completion `setPodResult` performs in one shot. The pod
+     * row is locked for the transaction so two players submitting at the same time
+     * serialize and the second one sees the first one's points.
+     */
+    async setMemberGamePoints(podId: string, playerId: string, gamePoints: number): Promise<void> {
+      await db.transaction().execute(async (trx) => {
+        await trx.selectFrom("pods").select("id").where("id", "=", podId).forUpdate().execute();
+        await trx
+          .updateTable("podMembers")
+          .set({ gamePoints })
+          .where("podId", "=", podId)
+          .where("playerId", "=", playerId)
+          .execute();
+        const members = await trx
+          .selectFrom("podMembers")
+          .select(["playerId", "gamePoints"])
+          .where("podId", "=", podId)
+          .execute();
+        const points = members.map((member) => member.gamePoints);
+        if (members.length === 0 || points.some((value) => value === null)) {
+          return;
+        }
+        const placements = placementsFromGamePoints(points as number[]);
+        for (const [index, member] of members.entries()) {
+          await trx
+            .updateTable("podMembers")
+            .set({ placement: placements[index] ?? 1 })
+            .where("podId", "=", podId)
+            .where("playerId", "=", member.playerId)
             .execute();
         }
         await trx

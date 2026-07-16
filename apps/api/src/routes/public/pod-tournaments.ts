@@ -6,7 +6,7 @@ import type { Repos } from "../../deps.js";
 import { requireUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import type { PodTournament } from "../../repositories/pod-tournaments.js";
-import { submitPodResult } from "../../services/pod-pairing.js";
+import { submitPodPlayerResult, submitPodResult } from "../../services/pod-pairing.js";
 
 /**
  * Builds the token-gated follow-along payload: standings plus every round's
@@ -81,6 +81,28 @@ export const publicPodTournamentsRouter = {
       await submitPodResult(repos, tournament.id, input.podId, input.results, {
         allowFinalized: false,
       });
+      return buildReport(repos, tournament, true);
+    },
+  ),
+
+  submitPlayerResult: os.submitPlayerResult.handler(
+    async ({ input, context, errors }): Promise<PodReportResponse> => {
+      const repos = context.repos;
+      const tournament = await repos.podTournaments.findByShareToken(input.token);
+      if (!tournament || tournament.pairingStyle !== "pod") {
+        throw errors.NOT_FOUND({ message: "Not found" });
+      }
+      // The read-only follow token resolves the report but cannot enter results.
+      if (tournament.reportToken !== input.token) {
+        throw errors.FORBIDDEN({ message: "This link is follow-only" });
+      }
+      await submitPodPlayerResult(
+        repos,
+        tournament.id,
+        input.podId,
+        input.playerId,
+        input.gamePoints,
+      );
       return buildReport(repos, tournament, true);
     },
   ),
