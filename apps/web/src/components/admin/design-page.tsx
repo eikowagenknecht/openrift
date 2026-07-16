@@ -1448,6 +1448,7 @@ const REGION_OPTIONS = [
 function CompositesSection() {
   const [plainSearch, setPlainSearch] = useState("");
   const [scopedSearch, setScopedSearch] = useState("teemo");
+  const [scopeNarrowed, setScopeNarrowed] = useState(true);
   const [regions, setRegions] = useState<string[]>(["piltover"]);
   const [excludedRegions, setExcludedRegions] = useState<string[]>(["zaun"]);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -1514,9 +1515,16 @@ function CompositesSection() {
             onValueChange={setScopedSearch}
             placeholder="Search cards…"
             leading={
-              <Badge variant="secondary" className="truncate text-xs font-normal">
-                in: name, keywords
-              </Badge>
+              scopeNarrowed ? (
+                <Badge variant="secondary" className="min-w-0 text-xs font-normal">
+                  <span className="min-w-0 truncate">in: name, keywords</span>
+                  <ChipRemoveButton
+                    aria-label="Search in all fields"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => setScopeNarrowed(false)}
+                  />
+                </Badge>
+              ) : undefined
             }
             trailing="12 / 40 cards"
             className="w-80"

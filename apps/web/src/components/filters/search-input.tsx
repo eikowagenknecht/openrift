@@ -15,8 +15,9 @@ interface SearchInputProps {
   ariaLabel?: string;
   /**
    * In-field adornment after the magnifier icon, e.g. a search-scope chip.
-   * Clicks on it focus the input (InputGroup's addon delegation), so keep it
-   * non-interactive.
+   * Clicks on non-interactive parts focus the input (InputGroup's addon
+   * delegation); buttons inside (e.g. a chip's remove X) receive their own
+   * clicks — the delegation skips them.
    */
   leading?: ReactNode;
   /** Right-aligned trailing text, e.g. a `"12 / 40 decks"` result count. */
@@ -60,11 +61,7 @@ export function SearchInput({
     <InputGroup className={className}>
       <InputGroupAddon className={cn(hasLeading && "max-w-[50%]")}>
         <SearchIcon className="shrink-0" />
-        {hasLeading && (
-          <span aria-hidden="true" className="flex min-w-0 items-center">
-            {leading}
-          </span>
-        )}
+        {hasLeading && <span className="flex min-w-0 items-center">{leading}</span>}
       </InputGroupAddon>
       <InputGroupInput
         ref={inputRef}

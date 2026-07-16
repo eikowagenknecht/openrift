@@ -43,4 +43,42 @@ describe("SearchInput", () => {
 
     expect(onClear).toHaveBeenCalledTimes(1);
   });
+
+  it("delivers clicks to a button inside leading instead of focusing the input", async () => {
+    const user = userEvent.setup();
+    const onRemove = vi.fn();
+    render(
+      <SearchInput
+        value=""
+        onValueChange={() => {}}
+        placeholder="Search cards..."
+        leading={
+          <button type="button" onClick={onRemove}>
+            Remove scope
+          </button>
+        }
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Remove scope" }));
+
+    expect(onRemove).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("textbox", { name: "Search cards..." })).not.toHaveFocus();
+  });
+
+  it("focuses the input when non-interactive leading content is clicked", async () => {
+    const user = userEvent.setup();
+    render(
+      <SearchInput
+        value=""
+        onValueChange={() => {}}
+        placeholder="Search cards..."
+        leading={<span>in: name</span>}
+      />,
+    );
+
+    await user.click(screen.getByText("in: name"));
+
+    expect(screen.getByRole("textbox", { name: "Search cards..." })).toHaveFocus();
+  });
 });

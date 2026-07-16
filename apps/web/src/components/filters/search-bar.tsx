@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { SearchInput } from "@/components/filters/search-input";
 import { Badge } from "@/components/ui/badge";
+import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useSearchUrlSync } from "@/hooks/use-search-url-sync";
 import { trackEvent } from "@/lib/analytics";
@@ -79,23 +80,27 @@ export function SearchBar({ totalCards, filteredCount }: SearchBarProps) {
   const hasPrefixes = parseSearchTerms(localSearch).some((t) => t.field !== null);
 
   const scopeLabels = searchScope.map((field) => SEARCH_FIELD_LABELS[field].label.toLowerCase());
-  const placeholder = allSelected
-    ? `Search ${unitLabel}...`
-    : `Search by ${scopeLabels.join(", ")}...`;
+  const placeholder = `Search ${unitLabel}...`;
 
-  // A narrowed scope is only spelled out in the placeholder, which vanishes
-  // once a query is typed — and a forgotten "keywords only" scope then reads
-  // as broken search. Keep the scope visible as an in-field chip while a query
-  // is active. Explicit n:/k: prefixes override the scope, so the chip hides
-  // then (mirroring the dimmed chips in the scope popover).
+  // The scope persists across searches and sessions, so a forgotten
+  // "keywords only" scope reads as broken search. Keep it visible as an
+  // in-field chip whenever it's narrowed, with its own remove X that resets
+  // to all fields — the input's clear X only clears the typed text. Explicit
+  // n:/k: prefixes override the scope, so the chip hides then (mirroring the
+  // dimmed chips in the scope popover).
   const scopeSummary =
     scopeLabels.length > 2
       ? `${scopeLabels.slice(0, 2).join(", ")} +${scopeLabels.length - 2}`
       : scopeLabels.join(", ");
   const scopeChip =
-    localSearch && !allSelected && !hasPrefixes ? (
-      <Badge variant="secondary" className="truncate text-xs font-normal">
-        in: {scopeSummary}
+    !allSelected && !hasPrefixes ? (
+      <Badge variant="secondary" className="min-w-0 text-xs font-normal">
+        <span className="min-w-0 truncate">in: {scopeSummary}</span>
+        <ChipRemoveButton
+          aria-label="Search in all fields"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={selectAllSearchFields}
+        />
       </Badge>
     ) : undefined;
 
