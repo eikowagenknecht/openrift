@@ -242,6 +242,60 @@ function foldFinalized(
   return aggregates;
 }
 
+/**
+ * Materialize and sort the standing rows for one tournament from its players
+ * and folded aggregates, best first. Shared by `computeStandings` and the
+ * batched `winnersAcross`.
+ *
+ * @param players The tournament's participants.
+ * @param aggregates Per-player aggregates from {@link foldFinalized}.
+ * @returns The standing rows, sorted best first.
+ */
+function sortedStandingRows(
+  players: PodPlayer[],
+  aggregates: Map<string, PlayerAggregate>,
+): PodStandingRow[] {
+  const scoreOf = (id: string): number => aggregates.get(id)?.score ?? 0;
+  const gamePointsOf = (id: string): number => aggregates.get(id)?.gamePoints ?? 0;
+  const meanOver = (ids: string[], valueOf: (id: string) => number): number =>
+    ids.length === 0 ? 0 : ids.reduce((sum, id) => sum + valueOf(id), 0) / ids.length;
+  const rows: PodStandingRow[] = players.map((player) => {
+    const aggregate = aggregates.get(player.id);
+    const opponents = aggregate ? [...aggregate.opponents.keys()] : [];
+    return {
+      playerId: player.id,
+      displayName: player.displayName,
+      status: player.status,
+      droppedAfterRound: player.droppedAfterRound,
+      score: aggregate?.score ?? 0,
+      gamePoints: aggregate?.gamePoints ?? 0,
+      roundsPlayed: aggregate?.roundsPlayed ?? 0,
+      pods3Count: aggregate?.pods3 ?? 0,
+      pods4Count: aggregate?.pods4 ?? 0,
+      byeCount: aggregate?.byes ?? 0,
+      podWins: aggregate?.podWins ?? 0,
+      wins: aggregate?.wins ?? 0,
+      draws: aggregate?.draws ?? 0,
+      losses: aggregate?.losses ?? 0,
+      region: player.region,
+      avgOpponentScore: meanOver(opponents, scoreOf),
+      avgOpponentGamePoints: meanOver(opponents, gamePointsOf),
+    };
+  });
+  // Final fallback is "random", but a fresh draw on every read would reshuffle
+  // tied players each refresh; instead derive a stable per-player draw from the
+  // id hash so the arbitrary order holds across reads.
+  return rows.toSorted(
+    (a, b) =>
+      b.score - a.score ||
+      b.podWins - a.podWins ||
+      b.avgOpponentScore - a.avgOpponentScore ||
+      b.gamePoints - a.gamePoints ||
+      b.avgOpponentGamePoints - a.avgOpponentGamePoints ||
+      tieBreakKey(a.playerId) - tieBreakKey(b.playerId),
+  );
+}
+
 interface PodMemberRow {
   podId: string;
   playerId: string;
@@ -887,45 +941,71 @@ export function podTournamentsRepo(db: Kysely<Database>) {
         loadFinalizedByePlayerIds(tournamentId),
       ]);
       const aggregates = foldFinalized(finalizedRows, finalizedByes, scoring);
-      const scoreOf = (id: string): number => aggregates.get(id)?.score ?? 0;
-      const gamePointsOf = (id: string): number => aggregates.get(id)?.gamePoints ?? 0;
-      const meanOver = (ids: string[], valueOf: (id: string) => number): number =>
-        ids.length === 0 ? 0 : ids.reduce((sum, id) => sum + valueOf(id), 0) / ids.length;
-      const rows: PodStandingRow[] = players.map((player) => {
-        const aggregate = aggregates.get(player.id);
-        const opponents = aggregate ? [...aggregate.opponents.keys()] : [];
-        return {
-          playerId: player.id,
-          displayName: player.displayName,
-          status: player.status,
-          droppedAfterRound: player.droppedAfterRound,
-          score: aggregate?.score ?? 0,
-          gamePoints: aggregate?.gamePoints ?? 0,
-          roundsPlayed: aggregate?.roundsPlayed ?? 0,
-          pods3Count: aggregate?.pods3 ?? 0,
-          pods4Count: aggregate?.pods4 ?? 0,
-          byeCount: aggregate?.byes ?? 0,
-          podWins: aggregate?.podWins ?? 0,
-          wins: aggregate?.wins ?? 0,
-          draws: aggregate?.draws ?? 0,
-          losses: aggregate?.losses ?? 0,
-          region: player.region,
-          avgOpponentScore: meanOver(opponents, scoreOf),
-          avgOpponentGamePoints: meanOver(opponents, gamePointsOf),
-        };
-      });
-      // Final fallback is "random", but a fresh draw on every read would reshuffle
-      // tied players each refresh; instead derive a stable per-player draw from the
-      // id hash so the arbitrary order holds across reads.
-      return rows.toSorted(
-        (a, b) =>
-          b.score - a.score ||
-          b.podWins - a.podWins ||
-          b.avgOpponentScore - a.avgOpponentScore ||
-          b.gamePoints - a.gamePoints ||
-          b.avgOpponentGamePoints - a.avgOpponentGamePoints ||
-          tieBreakKey(a.playerId) - tieBreakKey(b.playerId),
-      );
+      return sortedStandingRows(players, aggregates);
+    },
+
+    /**
+     * The standings leader per tournament, batched: three queries across all
+     * ids instead of three per tournament. A tournament with no finalized
+     * rounds (or no finalized byes) has no winner and is absent from the map.
+     *
+     * @param tournaments The tournaments with their scoring configuration.
+     * @returns A map from tournament id to its standings leader.
+     */
+    async winnersAcross(
+      tournaments: { id: string; scoring: PodScoring }[],
+    ): Promise<Map<string, { participantId: string; displayName: string }>> {
+      if (tournaments.length === 0) {
+        return new Map();
+      }
+      const ids = tournaments.map((tournament) => tournament.id);
+      const [players, memberRows, byeRows] = await Promise.all([
+        db
+          .selectFrom("tournamentParticipants")
+          .selectAll()
+          .where("tournamentId", "in", ids)
+          .orderBy("createdAt", "asc")
+          .execute(),
+        db
+          .selectFrom("podRounds as r")
+          .innerJoin("pods as p", "p.roundId", "r.id")
+          .innerJoin("podMembers as m", "m.podId", "p.id")
+          .select([
+            "r.tournamentId as tournamentId",
+            "p.id as podId",
+            "p.size as size",
+            "m.playerId as playerId",
+            "m.placement as placement",
+            "m.gamePoints as gamePoints",
+          ])
+          .where("r.tournamentId", "in", ids)
+          .where("r.status", "=", "finalized")
+          .execute(),
+        db
+          .selectFrom("podByes as b")
+          .innerJoin("podRounds as r", "r.id", "b.roundId")
+          .select(["r.tournamentId as tournamentId", "b.playerId as playerId"])
+          .where("r.tournamentId", "in", ids)
+          .where("r.status", "=", "finalized")
+          .execute(),
+      ]);
+      const playersByTournament = Map.groupBy(players, (player) => player.tournamentId);
+      const membersByTournament = Map.groupBy(memberRows, (row) => row.tournamentId);
+      const byesByTournament = Map.groupBy(byeRows, (row) => row.tournamentId);
+      const winners = new Map<string, { participantId: string; displayName: string }>();
+      for (const tournament of tournaments) {
+        const finalized = membersByTournament.get(tournament.id) ?? [];
+        const byes = (byesByTournament.get(tournament.id) ?? []).map((row) => row.playerId);
+        if (finalized.length === 0 && byes.length === 0) {
+          continue;
+        }
+        const aggregates = foldFinalized(finalized, byes, tournament.scoring);
+        const top = sortedStandingRows(playersByTournament.get(tournament.id) ?? [], aggregates)[0];
+        if (top) {
+          winners.set(tournament.id, { participantId: top.playerId, displayName: top.displayName });
+        }
+      }
+      return winners;
     },
 
     /** @returns Every round with its pods and members (placements + derived points + penalty). */

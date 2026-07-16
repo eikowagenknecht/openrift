@@ -16,7 +16,9 @@ import {
   combineLocalDateTimeToUtc,
   compareParticipantsForList,
   compareTournamentsForList,
+  dateLeafParts,
   effectiveTournamentState,
+  formatStartsIn,
   formatTournamentDate,
   isTournamentHost,
   parseScheduleInput,
@@ -67,6 +69,9 @@ function makeTournament(
     participantCount: 0,
     pendingRequestCount: 0,
     myRoles: [],
+    participantPreview: [],
+    winner: null,
+    coverLegends: [],
     createdAt: "2026-01-01T00:00:00Z",
     updatedAt: "2026-01-01T00:00:00Z",
     ...overrides,
@@ -199,6 +204,38 @@ describe("formatTournamentDate", () => {
     expect(out.length).toBeGreaterThan(0);
     expect(out).not.toContain("Z");
     expect(out).not.toMatch(/T\d{2}:\d{2}.*Z/u);
+  });
+});
+
+describe("dateLeafParts", () => {
+  it("splits an instant into an uppercase short month and a day number", () => {
+    // Noon UTC keeps the local calendar day stable across test-runner timezones.
+    const parts = dateLeafParts("2026-07-13T12:00:00Z");
+    expect(parts.month).toBe(parts.month.toUpperCase());
+    expect(parts.month.length).toBeGreaterThan(1);
+    expect(parts.day).toBe("13");
+  });
+});
+
+describe("formatStartsIn", () => {
+  const now = new Date("2026-07-16T10:00:00");
+
+  it("is null once the instant has passed", () => {
+    expect(formatStartsIn("2026-07-16T09:00:00", now)).toBeNull();
+    expect(formatStartsIn(now.toISOString(), now)).toBeNull();
+  });
+
+  it("labels the same local day as today", () => {
+    expect(formatStartsIn("2026-07-16T20:00:00", now)).toBe("today");
+  });
+
+  it("labels the next local day as tomorrow, even when under 24h away", () => {
+    expect(formatStartsIn("2026-07-17T08:00:00", now)).toBe("tomorrow");
+  });
+
+  it("counts calendar days after that", () => {
+    expect(formatStartsIn("2026-07-18T09:00:00", now)).toBe("in 2 days");
+    expect(formatStartsIn("2026-08-08T13:00:00", now)).toBe("in 23 days");
   });
 });
 

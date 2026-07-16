@@ -112,10 +112,10 @@ describe.skipIf(!ctx)("podTournamentsRepo (integration)", () => {
   it("completes a pod from per-player score submissions", async () => {
     const { tournament } = await freshTournament(8);
     await pairNextRound(repos, tournament);
-    const rounds = await tournamentsRepo.loadRounds(tournament.id, scheme);
+    const rounds = await tournamentsRepo.loadRounds(tournament.id, scoring);
     const pod = rounds[0]!.pods[0]!;
     const podAfter = async () => {
-      const reloaded = await tournamentsRepo.loadRounds(tournament.id, scheme);
+      const reloaded = await tournamentsRepo.loadRounds(tournament.id, scoring);
       return reloaded[0]!.pods.find((candidate) => candidate.id === pod.id)!;
     };
     const memberOf = (state: Awaited<ReturnType<typeof podAfter>>, playerId: string) =>
@@ -149,7 +149,7 @@ describe.skipIf(!ctx)("podTournamentsRepo (integration)", () => {
   it("rejects a per-player score for an outsider or a finalized round", async () => {
     const { tournament } = await freshTournament(8);
     await pairNextRound(repos, tournament);
-    const rounds = await tournamentsRepo.loadRounds(tournament.id, scheme);
+    const rounds = await tournamentsRepo.loadRounds(tournament.id, scoring);
     const open = rounds[0]!;
     const pod = open.pods[0]!;
     const outsider = open.pods[1]!.members[0]!.playerId;
@@ -164,6 +164,43 @@ describe.skipIf(!ctx)("podTournamentsRepo (integration)", () => {
     await expect(
       submitPodPlayerResult(repos, tournament.id, pod.id, pod.members[0]!.playerId, 5),
     ).rejects.toMatchObject({ status: 409 });
+  });
+
+  it("batches winners across tournaments, matching the per-tournament standings", async () => {
+    const { tournament: first } = await freshTournament(8);
+    await pairNextRound(repos, first);
+    const firstOpen = await reportOpenRound(first.id);
+    await finalizeRound(repos, (await tournamentsRepo.findById(first.id))!, firstOpen.roundNumber);
+
+    const { tournament: second } = await freshTournament(4);
+    await pairNextRound(repos, second);
+    const secondOpen = await reportOpenRound(second.id);
+    await finalizeRound(
+      repos,
+      (await tournamentsRepo.findById(second.id))!,
+      secondOpen.roundNumber,
+    );
+
+    // A tournament with no finalized rounds has no winner.
+    const { tournament: unplayed } = await freshTournament(4);
+
+    const winners = await tournamentsRepo.winnersAcross(
+      [first, second, unplayed].map((tournament) => ({ id: tournament.id, scoring })),
+    );
+
+    const firstStandings = await tournamentsRepo.computeStandings(first.id, scoring);
+    const secondStandings = await tournamentsRepo.computeStandings(second.id, scoring);
+    expect(winners.get(first.id)).toEqual({
+      participantId: firstStandings[0]!.playerId,
+      displayName: firstStandings[0]!.displayName,
+    });
+    expect(winners.get(second.id)).toEqual({
+      participantId: secondStandings[0]!.playerId,
+      displayName: secondStandings[0]!.displayName,
+    });
+    expect(winners.has(unplayed.id)).toBe(false);
+
+    expect(await tournamentsRepo.winnersAcross([])).toEqual(new Map());
   });
 
   it("rejects pairing while a round is open, and re-roll keeps the round number", async () => {

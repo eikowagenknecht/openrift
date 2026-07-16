@@ -60,6 +60,41 @@ export const tournamentStaffMemberResponseSchema = z
   })
   .openapi("TournamentStaffMemberResponse");
 
+/** How many participants a summary previews for the facepile. */
+export const TOURNAMENT_PARTICIPANT_PREVIEW_COUNT = 5;
+
+/** How many distinct legend arts a summary carries for the hero card fan. */
+export const TOURNAMENT_COVER_LEGEND_COUNT = 3;
+
+/** One participant in the summary facepile preview. */
+export const tournamentParticipantPreviewSchema = z
+  .object({
+    name: z.string(),
+    image: z.string().nullable(),
+    gravatarHash: z.string().nullable(),
+  })
+  .openapi("TournamentParticipantPreview");
+
+/**
+ * The standings leader of a completed tournament. The legend art comes from
+ * their deck-check entry and is only present when they consented to deck
+ * publishing.
+ */
+export const tournamentWinnerSchema = z
+  .object({
+    name: z.string(),
+    legendImageId: z.string().nullable(),
+  })
+  .openapi("TournamentWinner");
+
+/** One legend art for the hero card fan (from publishing-consented decks). */
+export const tournamentCoverLegendSchema = z
+  .object({
+    printingId: z.string(),
+    imageId: z.string(),
+  })
+  .openapi("TournamentCoverLegend");
+
 export const tournamentSummaryResponseSchema = z
   .object({
     id: z.string(),
@@ -78,6 +113,9 @@ export const tournamentSummaryResponseSchema = z
     participantCount: z.number().int().nonnegative(),
     pendingRequestCount: z.number().int().nonnegative(),
     myRoles: z.array(tournamentViewerRoleSchema),
+    participantPreview: z.array(tournamentParticipantPreviewSchema),
+    winner: tournamentWinnerSchema.nullable(),
+    coverLegends: z.array(tournamentCoverLegendSchema),
     createdAt: z.string(),
     updatedAt: z.string(),
   })

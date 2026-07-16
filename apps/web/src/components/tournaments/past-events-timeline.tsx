@@ -1,0 +1,137 @@
+import type { TournamentSummaryResponse, TournamentWinner } from "@openrift/shared";
+import { Link } from "@tanstack/react-router";
+import { CalendarIcon, LayersIcon, TrophyIcon, UsersIcon } from "lucide-react";
+
+import { CardArtThumb } from "@/components/cards/card-art-thumb";
+import { ParticipantFacepile } from "@/components/tournaments/participant-facepile";
+import { Badge } from "@/components/ui/badge";
+import { CardContent } from "@/components/ui/card";
+import { CardLink } from "@/components/ui/card-link";
+import { DateLeaf } from "@/components/ui/date-leaf";
+import { useDeckFormatList } from "@/hooks/use-enums";
+import { dateLeafParts, formatTournamentDate } from "@/lib/tournament-display";
+
+/**
+ * The winner callout of a completed event: trophy, the winner's legend art
+ * (when they consented to deck publishing), and their name.
+ *
+ * @returns The winner chip.
+ */
+function WinnerChip({ winner }: { winner: TournamentWinner }) {
+  return (
+    <span className="border-border-accent/40 bg-border-accent/10 flex shrink-0 items-center gap-2 rounded-md border py-1 pr-2.5 pl-2">
+      <TrophyIcon className="text-border-accent size-3.5 shrink-0" aria-hidden="true" />
+      {winner.legendImageId ? (
+        <CardArtThumb imageId={winner.legendImageId} className="h-9" />
+      ) : null}
+      <span className="text-sm">
+        <span className="sr-only">Winner: </span>
+        <span className="font-medium">{winner.name}</span>
+      </span>
+    </span>
+  );
+}
+
+/**
+ * @returns The event's hosting context label: its group, or its org host.
+ * Null for a plain user-hosted event with no group.
+ */
+function contextLabel(tournament: TournamentSummaryResponse): string | null {
+  if (tournament.groupName) {
+    return tournament.groupName;
+  }
+  return tournament.host.type === "organization" ? tournament.host.displayName : null;
+}
+
+/** @returns One completed event on the timeline: title, meta, winner, facepile. */
+function PastEventCard({
+  tournament,
+  showContext,
+}: {
+  tournament: TournamentSummaryResponse;
+  showContext: boolean;
+}) {
+  const { labels: formatLabels } = useDeckFormatList();
+  return (
+    <CardLink render={<Link to="/tournaments/$id" params={{ id: tournament.id }} />}>
+      <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="flex items-center gap-2">
+            <span className="truncate text-base font-medium">{tournament.name}</span>
+            {tournament.status === "cancelled" ? <Badge variant="muted">Cancelled</Badge> : null}
+            {showContext && contextLabel(tournament) ? (
+              <Badge variant="outline" className="max-sm:hidden">
+                {contextLabel(tournament)}
+              </Badge>
+            ) : null}
+          </span>
+          <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-0.5 text-sm">
+            <span className="flex items-center gap-1.5">
+              <CalendarIcon className="size-4 shrink-0" />
+              {formatTournamentDate(tournament.startsAt)}
+            </span>
+            {tournament.deckFormat ? (
+              <span className="flex items-center gap-1.5">
+                <LayersIcon className="size-4 shrink-0" />
+                {formatLabels[tournament.deckFormat]}
+              </span>
+            ) : null}
+            <span className="flex items-center gap-1.5">
+              <UsersIcon className="size-4 shrink-0" />
+              {tournament.participantCount} participant
+              {tournament.participantCount === 1 ? "" : "s"}
+            </span>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-3 sm:justify-end">
+          {tournament.winner ? <WinnerChip winner={tournament.winner} /> : null}
+          <ParticipantFacepile
+            preview={tournament.participantPreview}
+            totalCount={tournament.participantCount}
+            size="sm"
+            className="max-sm:hidden"
+          />
+        </div>
+      </CardContent>
+    </CardLink>
+  );
+}
+
+/**
+ * Completed and cancelled events down a subtle timeline rail, each row
+ * anchored by a small date leaf.
+ *
+ * @returns The timeline element.
+ */
+export function PastEventsTimeline({
+  tournaments,
+  showContext = false,
+}: {
+  tournaments: TournamentSummaryResponse[];
+  /** Label each event with its group / org host (the cross-group personal list). */
+  showContext?: boolean;
+}) {
+  return (
+    <div className="before:border-border relative before:absolute before:top-4 before:bottom-4 before:left-[21px] before:border-l">
+      <ul className="flex flex-col gap-2.5">
+        {tournaments.map((tournament) => {
+          const leaf = dateLeafParts(tournament.startsAt);
+          return (
+            <li
+              key={tournament.id}
+              className="grid grid-cols-[2.75rem_minmax(0,1fr)] items-start gap-3"
+            >
+              <DateLeaf
+                month={leaf.month}
+                day={leaf.day}
+                size="sm"
+                className="relative z-10 mt-2"
+              />
+              <PastEventCard tournament={tournament} showContext={showContext} />
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}

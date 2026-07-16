@@ -14,6 +14,7 @@ import type {
   TournamentStatus,
 } from "@openrift/shared";
 import type { Kysely, Selectable } from "kysely";
+import { sql } from "kysely";
 
 import type { Database, TournamentParticipantsTable, TournamentsTable } from "../db/index.js";
 import { generateShareToken } from "../utils/share-token.js";
@@ -223,6 +224,47 @@ export function tournamentsRepo(db: Kysely<Database>) {
         participantCount: Number(row.participantCount ?? 0),
         pendingRequestCount: Number(row.pendingRequestCount ?? 0),
       }));
+    },
+
+    /**
+     * The first `limit` participants per tournament (registration order) with
+     * their linked account's avatar data, batched for the summary facepiles.
+     * Mirrors `participantCount`'s population (every status), so the facepile
+     * never disagrees with the count next to it.
+     *
+     * @param tournamentIds The tournaments to preview.
+     * @param limit Max participants per tournament.
+     * @returns Preview rows grouped by tournament, in registration order.
+     */
+    participantPreviewAcross(
+      tournamentIds: string[],
+      limit: number,
+    ): Promise<
+      { tournamentId: string; displayName: string; image: string | null; email: string | null }[]
+    > {
+      if (tournamentIds.length === 0) {
+        return Promise.resolve([]);
+      }
+      const ranked = db
+        .selectFrom("tournamentParticipants as p")
+        .leftJoin("users as u", "u.id", "p.userId")
+        .select([
+          "p.tournamentId",
+          "p.displayName",
+          "u.image",
+          "u.email",
+          sql<number>`(row_number() over (
+            partition by p.tournament_id order by p.created_at, p.id
+          ))::int`.as("previewRank"),
+        ])
+        .where("p.tournamentId", "in", tournamentIds);
+      return db
+        .selectFrom(ranked.as("ranked"))
+        .select(["ranked.tournamentId", "ranked.displayName", "ranked.image", "ranked.email"])
+        .where("ranked.previewRank", "<=", limit)
+        .orderBy("ranked.tournamentId")
+        .orderBy("ranked.previewRank")
+        .execute();
     },
 
     /**

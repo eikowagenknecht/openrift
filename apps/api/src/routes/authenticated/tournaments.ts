@@ -1,23 +1,31 @@
-import { ERROR_CODES } from "@openrift/shared";
+import { ERROR_CODES, effectiveTournamentState } from "@openrift/shared";
 import type {
   PodPlayerResponse,
   PodTournamentDetailResponse,
   PodTournamentResponse,
+  TournamentCoverLegend,
   TournamentDetailResponse,
   TournamentHostInfo,
   TournamentListResponse,
   TournamentParticipantListResponse,
+  TournamentParticipantPreview,
   TournamentParticipantStatus,
   TournamentStaffMemberResponse,
   TournamentStatus,
   TournamentSummaryResponse,
   TournamentViewerRole,
+  TournamentWinner,
 } from "@openrift/shared";
-import { tournamentsContract } from "@openrift/shared/contracts";
+import {
+  TOURNAMENT_COVER_LEGEND_COUNT,
+  TOURNAMENT_PARTICIPANT_PREVIEW_COUNT,
+  tournamentsContract,
+} from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
 import type { Repos } from "../../deps.js";
 import { AppError } from "../../errors.js";
+import { gravatarHashForEmail } from "../../lib/gravatar.js";
 import { loadGroupForMember } from "../../lib/group-access.js";
 import {
   moduleFlags,
@@ -223,6 +231,103 @@ async function resolveHost(repos: Repos, tournament: Tournament): Promise<Tourna
   };
 }
 
+/** The visual summary extras: facepile preview, winner, and cover legends. */
+interface SummaryExtras {
+  participantPreview: TournamentParticipantPreview[];
+  winner: TournamentWinner | null;
+  coverLegends: TournamentCoverLegend[];
+}
+
+/**
+ * Batch-loads the visual extras for a set of tournaments: the facepile
+ * preview (first few participants with avatar data), the standings winner
+ * (completed pod tournaments only), and the cover legends for the card fan
+ * (publishing-consented decks only). Every id gets an entry, so callers can
+ * spread the result unconditionally.
+ *
+ * @param repos The repository bundle.
+ * @param rows The tournaments to load extras for.
+ * @returns A map from tournament id to its extras.
+ */
+async function loadSummaryExtras(
+  repos: Repos,
+  rows: Pick<
+    Tournament,
+    | "id"
+    | "status"
+    | "pairingStyle"
+    | "scoringScheme"
+    | "byePoints"
+    | "winPoints"
+    | "drawPoints"
+    | "startsAt"
+    | "endsAt"
+  >[],
+): Promise<Map<string, SummaryExtras>> {
+  const ids = rows.map((row) => row.id);
+  // A winner only exists once the tournament is effectively over and rounds
+  // were paired (pod or Swiss). Completion is date-derived (the stored status
+  // stays `running` unless the host acts), so use the same shared rule the
+  // web lists sort by.
+  const completed = rows.filter(
+    (row) =>
+      row.pairingStyle !== "none" &&
+      effectiveTournamentState(
+        row.startsAt.toISOString(),
+        row.endsAt ? row.endsAt.toISOString() : null,
+        row.status,
+      ) === "completed",
+  );
+  const [previewRows, coverRows, winners] = await Promise.all([
+    repos.tournaments.participantPreviewAcross(ids, TOURNAMENT_PARTICIPANT_PREVIEW_COUNT),
+    repos.deckCheck.coverLegendsAcross(ids, TOURNAMENT_COVER_LEGEND_COUNT),
+    repos.podTournaments.winnersAcross(
+      completed.map((row) => ({
+        id: row.id,
+        scoring: {
+          scheme: row.scoringScheme,
+          byePoints: row.byePoints,
+          winPoints: row.winPoints,
+          drawPoints: row.drawPoints,
+        },
+      })),
+    ),
+  ]);
+  const winnerLegends = await repos.deckCheck.legendImagesForParticipants(
+    [...winners.values()].map((winner) => winner.participantId),
+  );
+  const previews = Map.groupBy(previewRows, (row) => row.tournamentId);
+  const covers = Map.groupBy(coverRows, (row) => row.tournamentId);
+  return new Map(
+    ids.map((id) => {
+      const winner = winners.get(id);
+      return [
+        id,
+        {
+          participantPreview: (previews.get(id) ?? []).map((row) => ({
+            name: row.displayName,
+            image: row.image,
+            gravatarHash: row.email ? gravatarHashForEmail(row.email) : null,
+          })),
+          winner: winner
+            ? {
+                name: winner.displayName,
+                legendImageId: winnerLegends.get(winner.participantId) ?? null,
+              }
+            : null,
+          coverLegends: (covers.get(id) ?? []).map((row) => ({
+            printingId: row.printingId,
+            imageId: row.imageId,
+          })),
+        },
+      ];
+    }),
+  );
+}
+
+/** The empty extras, for the impossible missing-map-entry case. */
+const EMPTY_EXTRAS: SummaryExtras = { participantPreview: [], winner: null, coverLegends: [] };
+
 /**
  * Builds the full tournament detail, resolving host info, group slug, the
  * caller's roles, the counts, and the staff list.
@@ -233,7 +338,7 @@ async function buildDetail(
   tournament: Tournament,
   userId: string,
 ): Promise<TournamentDetailResponse> {
-  const [host, counts, staffMembers, staffRoles, participant, hostFlag, hasRounds] =
+  const [host, counts, staffMembers, staffRoles, participant, hostFlag, hasRounds, extrasMap] =
     await Promise.all([
       resolveHost(repos, tournament),
       repos.tournaments.getCounts(tournament.id),
@@ -242,7 +347,9 @@ async function buildDetail(
       repos.tournaments.findParticipantByUser(tournament.id, userId),
       isHost(repos, tournament, userId),
       repos.tournaments.hasRounds(tournament.id),
+      loadSummaryExtras(repos, [tournament]),
     ]);
+  const extras = extrasMap.get(tournament.id) ?? EMPTY_EXTRAS;
   let groupSlug: string | null = null;
   let groupName: string | null = null;
   if (tournament.groupId) {
@@ -306,6 +413,9 @@ async function buildDetail(
     participantCount: counts.participantCount,
     pendingRequestCount: counts.pendingRequestCount,
     myRoles,
+    participantPreview: extras.participantPreview,
+    winner: extras.winner,
+    coverLegends: extras.coverLegends,
     createdAt: tournament.createdAt.toISOString(),
     updatedAt: tournament.updatedAt.toISOString(),
     currentRound: tournament.currentRound,
@@ -461,10 +571,11 @@ async function buildSummaries(
   judgeOrgIdSet: Set<string>,
 ): Promise<TournamentSummaryResponse[]> {
   const ids = rows.map((row) => row.id);
-  const [staffRows, participantTids, groupInfo] = await Promise.all([
+  const [staffRows, participantTids, groupInfo, extrasMap] = await Promise.all([
     repos.tournaments.staffRolesAcross(ids, userId),
     repos.tournaments.participantTournamentIdsAcross(ids, userId),
     repos.tournaments.getGroupInfo(rows.flatMap((row) => (row.groupId ? [row.groupId] : []))),
+    loadSummaryExtras(repos, rows),
   ]);
   // Resolve host display names: batch the user hosts and the org hosts.
   const hostUserIds = rows.flatMap((row) =>
@@ -524,6 +635,7 @@ async function buildSummaries(
     if (participantSet.has(row.id)) {
       myRoles.push("participant");
     }
+    const extras = extrasMap.get(row.id) ?? EMPTY_EXTRAS;
     return {
       id: row.id,
       name: row.name,
@@ -541,6 +653,9 @@ async function buildSummaries(
       participantCount: row.participantCount,
       pendingRequestCount: row.pendingRequestCount,
       myRoles,
+      participantPreview: extras.participantPreview,
+      winner: extras.winner,
+      coverLegends: extras.coverLegends,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     };

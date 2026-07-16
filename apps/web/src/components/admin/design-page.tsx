@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { CardCountStrip } from "@/components/cards/card-count-strip";
+import { CardFan, CardFanOutline } from "@/components/cards/card-fan";
 import { CardStrip, StripActionButton, StripIconButton } from "@/components/cards/card-strip";
 import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 import { CoverBand } from "@/components/cover-band";
@@ -101,6 +102,7 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { CountPill, CountPillButton } from "@/components/ui/count-pill";
+import { DateLeaf } from "@/components/ui/date-leaf";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,
@@ -784,6 +786,17 @@ function BadgesChipsSection() {
           </Swatch>
         ))}
       </SwatchRow>
+      <SwatchRow
+        label="DateLeaf"
+        hint="Calendar-leaf date block anchoring event rows and heroes. Pass preformatted month/day parts."
+      >
+        <Swatch label="sm">
+          <DateLeaf month="JUL" day="13" size="sm" />
+        </Swatch>
+        <Swatch label="default">
+          <DateLeaf month="AUG" day="8" />
+        </Swatch>
+      </SwatchRow>
       <DemoRow
         label="Language chips (LanguageChip)"
         hint="Colored code chip for a printing's language. Colors are admin-managed in the languages taxonomy; unset languages fall back to neutral gray. Foreground is WCAG-contrast."
@@ -1048,6 +1061,27 @@ function CardThumbnailsSection() {
         </Swatch>
         <Swatch label="domain tint">
           <CardArtThumb imageId={null} rarity="showcase" domains={["chaos"]} className="h-14" />
+        </Swatch>
+      </DemoRow>
+      <DemoRow
+        label="CardFan on CoverBand"
+        hint="Fanned card art on the warm-glow CoverBand (product tiles, event heroes). CardFanOutline is the no-art stand-in; anchor=center floats the fan mid-band for taller hero bands."
+      >
+        <Swatch label="sm / bottom">
+          <CoverBand aria-hidden="true" className="h-36 w-72 overflow-hidden rounded-lg">
+            <CardFan
+              covers={[
+                { key: "a", src: PORTRAIT_SAMPLE_ART },
+                { key: "b", src: PORTRAIT_SAMPLE_ART },
+                { key: "c", src: PORTRAIT_SAMPLE_ART },
+              ]}
+            />
+          </CoverBand>
+        </Swatch>
+        <Swatch label="outline">
+          <CoverBand aria-hidden="true" className="h-36 w-72 overflow-hidden rounded-lg">
+            <CardFanOutline />
+          </CoverBand>
         </Swatch>
       </DemoRow>
     </DemoSection>

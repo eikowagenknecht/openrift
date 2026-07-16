@@ -16,6 +16,9 @@ export type { SortCardsOptions } from "./filters.js";
 
 export { isStandardPrinting } from "./standard.js";
 
+export { effectiveTournamentState } from "./tournament-lifecycle.js";
+export type { EffectiveTournamentState } from "./tournament-lifecycle.js";
+
 export type {
   ExpandedEntry,
   KeepPriorityOrders,

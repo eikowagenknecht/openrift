@@ -1,82 +1,60 @@
-import type { TournamentSummaryResponse } from "@openrift/shared";
-import { ChevronDownIcon } from "lucide-react";
-import { useState } from "react";
+import { Link } from "@tanstack/react-router";
+import { PlusIcon, TrophyIcon } from "lucide-react";
 
-import { TournamentCard } from "@/components/tournaments/tournaments-list-page";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { EmptyState } from "@/components/empty-state";
+import { TournamentsOverview } from "@/components/tournaments/tournaments-overview";
+import { buttonVariants } from "@/components/ui/button";
 import { useGroupTournaments } from "@/hooks/use-tournaments";
-import { compareTournamentsForList, partitionTournaments } from "@/lib/tournament-display";
-import { cn } from "@/lib/utils";
+
+interface GroupTournamentsLensProps {
+  slug: string;
+  canCreate: boolean;
+  /** The group's id, for pre-filling the create wizard from the empty state. */
+  groupId: string;
+}
 
 /**
  * The group's tournaments lens (ADR-033): every tournament associated with this
- * friend group, each linking to the unified tournament surface. Replaces the
- * legacy group deck-check "events" page. Completed and cancelled tournaments are
- * tucked into a collapsible "Past and archived" section below the live ones.
+ * friend group, each linking to the unified tournament surface. The next (or
+ * live) event gets a hero tile with a card-art band; completed and cancelled
+ * events read as the group's history down a timeline, with winner callouts.
  * Group admins get a "New tournament" shortcut (in the page top bar) that
  * pre-fills the group.
  * @returns The lens content.
  */
-export function GroupTournamentsLens({ slug, canCreate }: { slug: string; canCreate: boolean }) {
+export function GroupTournamentsLens({ slug, canCreate, groupId }: GroupTournamentsLensProps) {
   const { data } = useGroupTournaments(slug);
-  const { current, pastOrArchived } = partitionTournaments(data.items);
-  const currentSorted = current.toSorted((a, b) => compareTournamentsForList(a, b));
-  const pastSorted = pastOrArchived.toSorted((a, b) => compareTournamentsForList(a, b));
+
+  if (data.items.length === 0) {
+    return (
+      <EmptyState
+        className="py-12"
+        icon={TrophyIcon}
+        title="No tournaments yet"
+        description="Run pods, standings, deck submission, and deck check together (turn on only the parts you need), and this page becomes your group's event history."
+      >
+        {canCreate ? (
+          <Link
+            to="/tournaments/new"
+            search={{ group: groupId }}
+            className={buttonVariants({ variant: "default" })}
+          >
+            <PlusIcon />
+            New tournament
+          </Link>
+        ) : null}
+      </EmptyState>
+    );
+  }
 
   return (
-    <div className="flex flex-col gap-4">
-      {data.items.length === 0 ? (
-        <p className="text-muted-foreground">
-          No tournaments for this group yet.
-          {canCreate ? " Create one to run pods, deck submission, and deck check together." : ""}
-        </p>
-      ) : (
-        <>
-          {currentSorted.length === 0 ? (
-            <p className="text-muted-foreground">No upcoming tournaments.</p>
-          ) : (
-            <TournamentGrid tournaments={currentSorted} />
-          )}
-          {pastSorted.length > 0 ? <PastAndArchived tournaments={pastSorted} /> : null}
-        </>
-      )}
-    </div>
-  );
-}
-
-function TournamentGrid({ tournaments }: { tournaments: TournamentSummaryResponse[] }) {
-  return (
-    <ul className="grid gap-3">
-      {tournaments.map((tournament) => (
-        <li key={tournament.id}>
-          <TournamentCard tournament={tournament} />
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-/**
- * Completed and cancelled tournaments tucked into a collapsible section so the
- * lens leads with what's live. Collapsed by default; the count stays visible on
- * the trigger.
- * @returns The collapsible past-and-archived section.
- */
-function PastAndArchived({ tournaments }: { tournaments: TournamentSummaryResponse[] }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      <CollapsibleTrigger className="text-muted-foreground hover:text-foreground flex w-full cursor-pointer items-center gap-1.5 text-sm font-medium transition-colors">
-        <ChevronDownIcon
-          className={cn("size-4 shrink-0 transition-transform", open && "rotate-180")}
-        />
-        Past and archived ({tournaments.length})
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <div className="mt-2">
-          <TournamentGrid tournaments={tournaments} />
-        </div>
-      </CollapsibleContent>
-    </Collapsible>
+    <TournamentsOverview
+      tournaments={data.items}
+      noUpcomingText={
+        canCreate
+          ? "No upcoming tournaments. Create one to get the next event on the calendar."
+          : "No upcoming tournaments."
+      }
+    />
   );
 }

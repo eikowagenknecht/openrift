@@ -28,7 +28,9 @@ function GroupTournamentsRoute() {
           </PageTopBarPrimaryButton>
         ) : null
       }
-      render={() => <GroupTournamentsLens slug={slug} canCreate={canCreate} />}
+      render={() => (
+        <GroupTournamentsLens slug={slug} canCreate={canCreate} groupId={data.group.id} />
+      )}
     />
   );
 }

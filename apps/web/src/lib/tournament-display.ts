@@ -3,6 +3,7 @@
 // the list, detail, and wizard surfaces.
 
 import type {
+  EffectiveTournamentState,
   TournamentDeckPhase,
   TournamentDeckSubmission,
   TournamentMatchFormat,
@@ -10,10 +11,10 @@ import type {
   TournamentParticipantResponse,
   TournamentParticipantStatus,
   TournamentStaffRole,
-  TournamentStatus,
   TournamentSummaryResponse,
   TournamentViewerRole,
 } from "@openrift/shared";
+import { effectiveTournamentState } from "@openrift/shared";
 
 export const DECK_SUBMISSION_LABEL: Record<TournamentDeckSubmission, string> = {
   none: "No decklist",
@@ -188,41 +189,52 @@ export function localTimeZoneLabel(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone;
 }
 
+/**
+ * The date-leaf parts of a stored instant, in the VIEWER's local timezone and
+ * locale (the events lens is client-only, like {@link formatTournamentDate}).
+ *
+ * @returns The uppercase short month and the day of month, e.g. `JUL` / `13`.
+ */
+export function dateLeafParts(iso: string): { month: string; day: string } {
+  const date = new Date(iso);
+  return {
+    month: date.toLocaleDateString(undefined, { month: "short" }).toUpperCase(),
+    day: date.toLocaleDateString(undefined, { day: "numeric" }),
+  };
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * A short countdown to a stored instant, by local calendar day: "today",
+ * "tomorrow", or "in N days". `null` once the instant has passed (the caller
+ * shows a live/completed state instead). `now` is injectable for tests.
+ *
+ * @returns The countdown label, or null when `iso` is in the past.
+ */
+export function formatStartsIn(iso: string, now: Date = new Date()): string | null {
+  const start = new Date(iso);
+  if (start.getTime() <= now.getTime()) {
+    return null;
+  }
+  const startOfDay = (date: Date) =>
+    new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  const days = Math.round((startOfDay(start) - startOfDay(now)) / DAY_MS);
+  if (days <= 0) {
+    return "today";
+  }
+  if (days === 1) {
+    return "tomorrow";
+  }
+  return `in ${days} days`;
+}
+
 // ─── Lifecycle (ADR-033) ─────────────────────────────────────────────────────
 
-export type EffectiveTournamentState = "upcoming" | "in_progress" | "completed" | "cancelled";
-
-// Auto-complete window when no end is set: a tournament with only a start closes
-// 24h after it starts (so a 23:00 event closes the next evening, never at midnight).
-const AUTO_COMPLETE_GRACE_MS = 24 * 60 * 60 * 1000;
-
-// Effective lifecycle state derived from the stored instants + status. Completion
-// is automatic (no host action): once now is past the end (ends_at, or
-// starts_at + 24h when there is no end). `cancelled` and an explicit `completed`
-// status (e.g. ended early) win. `now` is injectable for tests.
-export function effectiveTournamentState(
-  startsAt: string,
-  endsAt: string | null,
-  status: TournamentStatus,
-  now: Date = new Date(),
-): EffectiveTournamentState {
-  if (status === "cancelled") {
-    return "cancelled";
-  }
-  if (status === "completed") {
-    return "completed";
-  }
-  const start = new Date(startsAt).getTime();
-  const end = endsAt ? new Date(endsAt).getTime() : start + AUTO_COMPLETE_GRACE_MS;
-  const t = now.getTime();
-  if (t >= end) {
-    return "completed";
-  }
-  if (t >= start) {
-    return "in_progress";
-  }
-  return "upcoming";
-}
+// The state derivation lives in shared so the API's summary extras (winner
+// resolution) use the same completion rule as these lists.
+export { effectiveTournamentState } from "@openrift/shared";
+export type { EffectiveTournamentState } from "@openrift/shared";
 
 export const EFFECTIVE_STATE_LABEL: Record<EffectiveTournamentState, string> = {
   upcoming: "Upcoming",

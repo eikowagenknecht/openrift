@@ -270,6 +270,7 @@ export type {
   PublicTournamentJoinResponse,
   PublicTournamentLandingResponse,
   TournamentClaimSource,
+  TournamentCoverLegend,
   TournamentDeckPhase,
   TournamentDeckSubmission,
   TournamentDetailResponse,
@@ -281,6 +282,7 @@ export type {
   TournamentMatchFormat,
   TournamentPairingStyle,
   TournamentParticipantListResponse,
+  TournamentParticipantPreview,
   TournamentParticipantResponse,
   TournamentParticipantStatus,
   TournamentStaffCandidateListResponse,
@@ -291,6 +293,7 @@ export type {
   TournamentStatus,
   TournamentSummaryResponse,
   TournamentViewerRole,
+  TournamentWinner,
 } from "./tournament.js";
 
 export type {

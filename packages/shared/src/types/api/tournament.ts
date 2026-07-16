@@ -18,16 +18,19 @@ import type {
   tournamentStaffInviteLandingResponseSchema,
 } from "@openrift/shared/contracts/public-tournaments";
 import type {
+  tournamentCoverLegendSchema,
   tournamentDetailResponseSchema,
   tournamentHostInfoSchema,
   tournamentListResponseSchema,
   tournamentModuleFlagsSchema,
   tournamentParticipantListResponseSchema,
+  tournamentParticipantPreviewSchema,
   tournamentParticipantResponseSchema,
   tournamentStaffCandidateListResponseSchema,
   tournamentStaffCandidateResponseSchema,
   tournamentStaffMemberResponseSchema,
   tournamentSummaryResponseSchema,
+  tournamentWinnerSchema,
 } from "@openrift/shared/contracts/tournaments";
 import type { z } from "zod";
 
@@ -103,6 +106,15 @@ export type TournamentHostInfo = z.infer<typeof tournamentHostInfoSchema>;
 
 /** Which capability modules are switched on for a tournament. */
 export type TournamentModuleFlags = z.infer<typeof tournamentModuleFlagsSchema>;
+
+/** One participant in the summary facepile preview. */
+export type TournamentParticipantPreview = z.infer<typeof tournamentParticipantPreviewSchema>;
+
+/** The standings leader of a completed tournament. */
+export type TournamentWinner = z.infer<typeof tournamentWinnerSchema>;
+
+/** One legend art for the hero card fan. */
+export type TournamentCoverLegend = z.infer<typeof tournamentCoverLegendSchema>;
 
 export type TournamentSummaryResponse = z.infer<typeof tournamentSummaryResponseSchema>;
 
