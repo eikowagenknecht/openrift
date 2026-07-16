@@ -55,6 +55,9 @@ export const adminAuditEventsContract = {
   actors: authedRoute
     .route({ method: "GET", path: `${BASE}/actors`, tags: [TAG] })
     .output(z.object({ actors: z.array(auditActorSchema) })),
+  actions: authedRoute
+    .route({ method: "GET", path: `${BASE}/actions`, tags: [TAG] })
+    .output(z.object({ actions: z.array(z.string()) })),
 };
 
 export type AdminAuditEventsContract = typeof adminAuditEventsContract;
@@ -86,4 +89,7 @@ export interface AdminAuditEventsListResponse {
 }
 export interface AdminAuditActorsResponse {
   actors: z.infer<typeof auditActorSchema>[];
+}
+export interface AdminAuditActionsResponse {
+  actions: string[];
 }

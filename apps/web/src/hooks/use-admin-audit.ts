@@ -3,6 +3,7 @@ import { infiniteQueryOptions, useInfiniteQuery, useQuery } from "@tanstack/reac
 import { createServerFn } from "@tanstack/react-start";
 
 import type {
+  AdminAuditActionsResponse,
   AdminAuditActorsResponse,
   AdminAuditEventsListResponse,
 } from "@/lib/server-fns/api-types";
@@ -12,11 +13,14 @@ import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 /** Server-side filters for the audit event list. */
 export interface AuditFilters {
   actorUserId?: string;
+  action?: string;
   search?: string;
 }
 
 const fetchAuditEventsFn = createServerFn({ method: "GET" })
-  .validator((input: { cursor?: string; actorUserId?: string; search?: string }) => input)
+  .validator(
+    (input: { cursor?: string; actorUserId?: string; action?: string; search?: string }) => input,
+  )
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<AdminAuditEventsListResponse> =>
@@ -25,6 +29,7 @@ const fetchAuditEventsFn = createServerFn({ method: "GET" })
       apiOrpcClient(adminAuditEventsContract, context.cookie).list({
         cursor: data.cursor,
         actorUserId: data.actorUserId || undefined,
+        action: data.action || undefined,
         search: data.search || undefined,
       }) as Promise<AdminAuditEventsListResponse>,
   );
@@ -34,6 +39,13 @@ const fetchAuditActorsFn = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<AdminAuditActorsResponse> =>
       apiOrpcClient(adminAuditEventsContract, context.cookie).actors(),
+  );
+
+const fetchAuditActionsFn = createServerFn({ method: "GET" })
+  .middleware([withCookies])
+  .handler(
+    ({ context }): Promise<AdminAuditActionsResponse> =>
+      apiOrpcClient(adminAuditEventsContract, context.cookie).actions(),
   );
 
 /**
@@ -50,6 +62,7 @@ export function auditEventsQueryOptions(filters: AuditFilters = {}) {
         data: {
           cursor: pageParam || undefined,
           actorUserId: filters.actorUserId,
+          action: filters.action,
           search: filters.search,
         },
       }),
@@ -68,6 +81,15 @@ export function useAuditActors() {
   return useQuery({
     queryKey: ["admin", "audit-actors"] as const,
     queryFn: () => fetchAuditActorsFn(),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+/** @returns The distinct actions appearing in the audit log (for the filter dropdown). */
+export function useAuditActions() {
+  return useQuery({
+    queryKey: ["admin", "audit-actions"] as const,
+    queryFn: () => fetchAuditActionsFn(),
     staleTime: 5 * 60 * 1000,
   });
 }

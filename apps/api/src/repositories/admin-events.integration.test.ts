@@ -139,4 +139,14 @@ describe.skipIf(!ctx)("adminEventsRepo (integration)", () => {
     // each actor appears exactly once
     expect(new Set(ids).size).toBe(ids.length);
   });
+
+  it("lists distinct actions alphabetically", async () => {
+    const actions = await repo.listActions();
+    expect(actions).toContain("card.accept-new");
+    expect(actions).toContain("card.accept-field");
+    expect(actions).toContain("printing.delete");
+    // each action appears exactly once, ordered alphabetically
+    expect(new Set(actions).size).toBe(actions.length);
+    expect(actions).toEqual([...actions].toSorted());
+  });
 });

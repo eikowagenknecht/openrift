@@ -22,11 +22,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useAuditActors, useAuditEvents } from "@/hooks/use-admin-audit";
+import { useAuditActions, useAuditActors, useAuditEvents } from "@/hooks/use-admin-audit";
 import { formatAuditChanges } from "@/lib/audit-changes";
 import type { AdminAuditEventResponse } from "@/lib/server-fns/api-types";
+import { cn } from "@/lib/utils";
 
 const ALL_ACTORS = "__all__";
+const ALL_ACTIONS = "__all_actions__";
 
 // Values longer than this collapse behind a <details> expander so a pasted
 // rules text doesn't blow up the table row.
@@ -110,11 +112,14 @@ function AuditEventRow({ event }: { event: AdminAuditEventResponse }) {
 
 export function AuditLogPage() {
   const [actorUserId, setActorUserId] = useState("");
+  const [action, setAction] = useState("");
   const [search, setSearch] = useState("");
 
   const { data: actorsData } = useAuditActors();
+  const { data: actionsData } = useAuditActions();
   const events = useAuditEvents({
     actorUserId: actorUserId || undefined,
+    action: action || undefined,
     search: search || undefined,
   });
 
@@ -124,6 +129,11 @@ export function AuditLogPage() {
       value: actor.userId,
       label: actor.name ?? actor.email ?? actor.userId,
     })),
+  ];
+
+  const actionOptions = [
+    { value: ALL_ACTIONS, label: "All actions" },
+    ...(actionsData?.actions ?? []).map((value) => ({ value, label: value })),
   ];
 
   const rows = events.data?.pages.flatMap((page) => page.items) ?? [];
@@ -157,6 +167,26 @@ export function AuditLogPage() {
           <SelectContent>
             {actorOptions.map((option) => (
               <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          items={actionOptions}
+          value={action || ALL_ACTIONS}
+          onValueChange={(value) => setAction(value && value !== ALL_ACTIONS ? value : "")}
+        >
+          <SelectTrigger aria-label="Filter by action" className="w-56">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {actionOptions.map((option) => (
+              <SelectItem
+                key={option.value}
+                value={option.value}
+                className={cn(option.value !== ALL_ACTIONS && "font-mono")}
+              >
                 {option.label}
               </SelectItem>
             ))}

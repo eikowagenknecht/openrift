@@ -42,4 +42,9 @@ export const adminAuditEventsRouter = {
     const actors = await context.repos.adminEvents.listActors();
     return { actors };
   }),
+
+  actions: os.actions.handler(async ({ context }) => {
+    const actions = await context.repos.adminEvents.listActions();
+    return { actions };
+  }),
 };

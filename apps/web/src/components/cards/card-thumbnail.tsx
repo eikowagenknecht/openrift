@@ -2,7 +2,7 @@ import { useDraggable } from "@dnd-kit/core";
 import type { Domain, Marketplace, PriceLookup, Printing, Rarity } from "@openrift/shared";
 import { WellKnown, getOrientation, imageUrl, legendDisplayName } from "@openrift/shared";
 import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode } from "react";
-import { memo, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 
 import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { CardMetaLabel } from "@/components/cards/card-meta-label";
@@ -561,6 +561,16 @@ export const CardThumbnail = memo(function CardThumbnail({
   // and re-entering doesn't re-fetch or rebuild them.
   const [fanHovered, setFanHovered] = useState(false);
   const fanTimer = useRef<ReturnType<typeof setTimeout>>(null);
+  // Only mouse-leave clears the timer, so unmounting mid-hover (before the
+  // 200ms elapses) would leave it to fire and setState on a gone component.
+  useEffect(
+    () => () => {
+      if (fanTimer.current) {
+        clearTimeout(fanTimer.current);
+      }
+    },
+    [],
+  );
 
   // custom: dim the whole card in the deckbuilder so banned cards read as unavailable
   const banDim = showBanOverlay && !hideBanIndicators && printing.card.bans.length > 0 && (

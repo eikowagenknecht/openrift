@@ -167,5 +167,20 @@ export function adminEventsRepo(db: Kysely<Database>) {
         .orderBy("email")
         .execute();
     },
+
+    /**
+     * Distinct actions that appear in the log. Only actions actually recorded
+     * are listed, so the filter dropdown never offers an empty result.
+     * @returns Action identifiers ordered alphabetically.
+     */
+    async listActions(): Promise<string[]> {
+      const rows = await db
+        .selectFrom("adminEvents")
+        .select("action")
+        .distinct()
+        .orderBy("action")
+        .execute();
+      return rows.map((row) => row.action);
+    },
   };
 }

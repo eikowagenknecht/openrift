@@ -58,6 +58,7 @@ export type {
 export type { PrintingEventsListResponse, PrintingEventView } from "@openrift/shared/contracts";
 // admin audit log (migration 201)
 export type {
+  AdminAuditActionsResponse,
   AdminAuditActorsResponse,
   AdminAuditEventResponse,
   AdminAuditEventsListResponse,

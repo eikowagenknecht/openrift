@@ -3,7 +3,7 @@ import { EMPTY_PRICE_LOOKUP } from "@openrift/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render } from "@testing-library/react";
 import type { PropsWithChildren } from "react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { CardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { CardThumbnail } from "@/components/cards/card-thumbnail";
@@ -96,6 +96,34 @@ describe("CardThumbnail siblings", () => {
     hoverTile(container);
     const srcs = [...container.querySelectorAll("img")].map((img) => img.getAttribute("src"));
     expect(srcs).toContain("/media/cards/aa/RB1-001-foil-image-id-aa-400w.webp");
+  });
+
+  // Hovering arms a 200ms fan-ready timer that only mouse-leave used to clear.
+  // Unmounting mid-hover left it pending, and firing after teardown blew up
+  // the whole suite with "window is not defined".
+  it("clears the pending fan timer when unmounted mid-hover", () => {
+    vi.useFakeTimers();
+    try {
+      const front = makePrintingWithImage("RB1-001");
+      const sibling = makePrintingWithImage("RB1-001-foil");
+      const { container, unmount } = render(
+        <CardThumbnail
+          printing={front}
+          onClick={() => {}}
+          showImages
+          siblings={[front, sibling]}
+          display={{ ...baseDisplay, coarsePointer: false }}
+        />,
+      );
+
+      hoverTile(container);
+      expect(vi.getTimerCount()).toBeGreaterThan(0);
+
+      unmount();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("re-covers mounted sibling faces in black while the fan is closed", () => {
