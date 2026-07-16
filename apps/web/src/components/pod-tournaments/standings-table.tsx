@@ -25,40 +25,33 @@ export function StandingsTable({ standings }: { standings: PodStandingRow[] }) {
   }
   return (
     <>
-      {/* Mobile: a card list, so there is no horizontal scroll on narrow screens. */}
-      <ul className="flex flex-col gap-2 sm:hidden">
+      {/* Mobile: a compact divided list. Only the tie-break chain (wins, opponent
+          score, game points) is shown; rounds/pods/byes stay desktop-only. */}
+      <ul className="divide-y sm:hidden">
         {standings.map((row, index) => (
           <li
             key={row.playerId}
-            className={cn("rounded-lg border p-3", row.status === "dropped" && "opacity-50")}
+            className={cn("flex items-center gap-3 py-2", row.status === "dropped" && "opacity-50")}
           >
-            <div className="flex items-center justify-between gap-2">
-              <span className="flex min-w-0 items-center gap-2">
-                <span className="text-muted-foreground tabular-nums">{index + 1}</span>
+            <span className="text-muted-foreground w-6 shrink-0 text-right tabular-nums">
+              {index + 1}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
                 <span className="truncate font-medium">{row.displayName}</span>
                 {row.status === "dropped" ? (
-                  <span className="text-muted-foreground shrink-0">(dropped)</span>
+                  <span className="text-muted-foreground shrink-0 text-sm">(dropped)</span>
                 ) : null}
-              </span>
-              <span className="shrink-0 font-semibold tabular-nums">{formatScore(row.score)}</span>
-            </div>
-            <div className="text-muted-foreground mt-1 flex flex-wrap gap-x-3 text-sm">
-              <span>
-                {row.podWins} win{row.podWins === 1 ? "" : "s"}
-              </span>
-              <span>opp {formatScore(row.avgOpponentScore)}</span>
-              <span>{row.gamePoints} game</span>
-              <span>
-                {row.roundsPlayed} round{row.roundsPlayed === 1 ? "" : "s"}
-              </span>
-              <span>{row.pods3Count} in 3-pods</span>
-              <span>{row.pods4Count} in 4-pods</span>
-              {row.byeCount > 0 ? (
+              </div>
+              <div className="text-muted-foreground flex gap-x-3 text-sm">
                 <span>
-                  {row.byeCount} bye{row.byeCount === 1 ? "" : "s"}
+                  {row.podWins} win{row.podWins === 1 ? "" : "s"}
                 </span>
-              ) : null}
+                <span>opp {formatScore(row.avgOpponentScore)}</span>
+                <span>{row.gamePoints} game pts</span>
+              </div>
             </div>
+            <span className="shrink-0 font-semibold tabular-nums">{formatScore(row.score)}</span>
           </li>
         ))}
       </ul>

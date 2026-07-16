@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-07-16
+
+### Other
+
+- fix(Tournaments): **Readable standings on phones** — the mobile standings are now a compact ranked list showing wins, opponent score, and game points, instead of a cramped wall of numbers.
+
 ## 2026-07-15
 
 ### Highlights
