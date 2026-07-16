@@ -1,9 +1,9 @@
 import type { CustomTagResponse } from "@openrift/shared";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { CardTagEditor } from "./custom-tags-page";
+import { CardTagEditor, TagClearCardsAction } from "./custom-tags-page";
 
 const cards = [
   {
@@ -31,6 +31,7 @@ vi.mock("@/hooks/use-admin-card-queries", () => ({
 vi.mock("@/hooks/use-custom-tags", () => ({
   useCardCustomTags: () => ({ data: { customTagIds: [] } }),
   useSetCardCustomTags: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useClearCustomTagCards: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
 const tag: CustomTagResponse = {
@@ -71,5 +72,49 @@ describe("CardTagEditor", () => {
     await user.type(input, "x");
 
     expect(screen.getByText("No card selected.")).toBeInTheDocument();
+  });
+});
+
+describe("TagClearCardsAction", () => {
+  it("renders nothing when the tag has no cards", () => {
+    render(<TagClearCardsAction row={{ ...tag, cardCount: 0 }} onClear={vi.fn()} />);
+
+    expect(screen.queryByRole("button", { name: "Clear" })).not.toBeInTheDocument();
+  });
+
+  it("asks for confirmation before clearing", async () => {
+    const user = userEvent.setup();
+    const onClear = vi.fn().mockResolvedValue(undefined);
+    render(<TagClearCardsAction row={{ ...tag, cardCount: 3 }} onClear={onClear} />);
+
+    await user.click(screen.getByRole("button", { name: "Clear" }));
+
+    expect(onClear).not.toHaveBeenCalled();
+    const dialog = await screen.findByRole("alertdialog");
+    expect(dialog).toHaveTextContent("all 3 cards");
+  });
+
+  it("clears the tag's assignments after the confirmation is accepted", async () => {
+    const user = userEvent.setup();
+    const onClear = vi.fn().mockResolvedValue(undefined);
+    render(<TagClearCardsAction row={{ ...tag, cardCount: 3 }} onClear={onClear} />);
+
+    await user.click(screen.getByRole("button", { name: "Clear" }));
+    const dialog = await screen.findByRole("alertdialog");
+    await user.click(within(dialog).getByRole("button", { name: "Clear" }));
+
+    expect(onClear).toHaveBeenCalledWith(expect.objectContaining({ id: "tag-1", cardCount: 3 }));
+  });
+
+  it("does not clear when the confirmation is cancelled", async () => {
+    const user = userEvent.setup();
+    const onClear = vi.fn().mockResolvedValue(undefined);
+    render(<TagClearCardsAction row={{ ...tag, cardCount: 3 }} onClear={onClear} />);
+
+    await user.click(screen.getByRole("button", { name: "Clear" }));
+    const dialog = await screen.findByRole("alertdialog");
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+    expect(onClear).not.toHaveBeenCalled();
   });
 });

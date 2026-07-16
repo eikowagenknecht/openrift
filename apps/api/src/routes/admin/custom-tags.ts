@@ -208,6 +208,15 @@ export const adminCustomTagsRouter = {
     return { added, requested: cardIds.length };
   }),
 
+  clearCards: os.clearCards.handler(async ({ input, context }) => {
+    const { customTags: repo } = context.repos;
+    const { id } = input;
+    const existing = await repo.getById(id);
+    assertFound(existing, "Custom tag not found");
+    const removed = await repo.clearAssignments(id);
+    return { removed };
+  }),
+
   // ── Per-card assignment ─────────────────────────────────────────────────
   getCardTags: os.getCardTags.handler(async ({ input, context }) => {
     const { customTags: repo, catalog } = context.repos;

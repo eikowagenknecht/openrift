@@ -1,3 +1,4 @@
+import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog";
 import type { CustomTagCategoryResponse, CustomTagResponse } from "@openrift/shared";
 import { useMemo, useState } from "react";
 
@@ -17,7 +18,18 @@ import {
   SectionHeaderGroup,
   SectionHeaderTitle,
 } from "@/components/section-header";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { DialogForm } from "@/components/ui/dialog-form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -35,6 +47,7 @@ import { useAllCards } from "@/hooks/use-admin-card-queries";
 import {
   useAddCardsToCustomTag,
   useCardCustomTags,
+  useClearCustomTagCards,
   useCreateCustomTag,
   useCreateCustomTagCategory,
   useCustomTagCategories,
@@ -387,6 +400,47 @@ function TagDescriptionInput({ draft, setDraft }: AdminDraftSlotProps<CustomTagD
   );
 }
 
+/**
+ * Per-row "Clear" action: removes every card assignment from the tag after a
+ * confirmation, keeping the tag itself. Hidden while the tag has no cards.
+ * `row` is injected by AdminTable via cloneElement.
+ *
+ * @returns The confirm-dialog trigger, or null when there is nothing to clear.
+ */
+export function TagClearCardsAction({
+  row,
+  onClear,
+}: AdminCellSlotProps<CustomTagResponse> & {
+  onClear?: (tag: CustomTagResponse) => Promise<unknown>;
+}) {
+  if (!row || !onClear || row.cardCount === 0) {
+    return null;
+  }
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger render={<Button variant="ghost" />}>Clear</AlertDialogTrigger>
+      <AlertDialogContent>
+        <DialogForm onSubmit={() => void onClear(row)}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear “{row.label}”?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Removes this tag from{" "}
+              {row.cardCount === 1 ? "its 1 card" : `all ${row.cardCount} cards`}. The tag itself is
+              kept, so it can be filled again later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogPrimitive.Close render={<Button type="submit" variant="destructive" />}>
+              Clear
+            </AlertDialogPrimitive.Close>
+          </AlertDialogFooter>
+        </DialogForm>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 function TagsSection({
   tags,
   categories,
@@ -397,6 +451,7 @@ function TagsSection({
   const createMutation = useCreateCustomTag();
   const updateMutation = useUpdateCustomTag();
   const deleteMutation = useDeleteCustomTag();
+  const clearMutation = useClearCustomTagCards();
 
   const defaultCategoryId = categories[0]?.id ?? "";
   const categoryItems = categories.map((cat) => ({ value: cat.id, label: cat.label }));
@@ -493,6 +548,7 @@ function TagsSection({
       delete={{
         onDelete: (t) => deleteMutation.mutateAsync(t.id),
       }}
+      actions={<TagClearCardsAction onClear={(t) => clearMutation.mutateAsync(t.id)} />}
     />
   );
 }

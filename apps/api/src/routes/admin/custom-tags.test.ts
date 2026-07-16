@@ -26,6 +26,7 @@ const mockTagRepo = {
   update: vi.fn(),
   deleteById: vi.fn(),
   addToCards: vi.fn(),
+  clearAssignments: vi.fn(),
   tagIdsForCard: vi.fn(),
   setForCard: vi.fn(),
 };
@@ -359,6 +360,36 @@ describe("POST /custom-tags/:id/cards", () => {
       CARD_ID,
       "019d4999-4219-72f6-b7bb-64004e1b1b04",
     ]);
+  });
+});
+
+describe("DELETE /custom-tags/:id/cards", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns 200 with the removed count and keeps the tag", async () => {
+    mockTagRepo.getById.mockResolvedValue(tagRow);
+    mockTagRepo.clearAssignments.mockResolvedValue(3);
+    const res = await app.request(`/api/admin/v1/custom-tags/${TAG_ID}/cards`, {
+      method: "DELETE",
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json).toEqual({ removed: 3 });
+    expect(mockTagRepo.clearAssignments).toHaveBeenCalledWith(TAG_ID);
+    expect(mockTagRepo.deleteById).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 when the tag does not exist", async () => {
+    mockTagRepo.getById.mockResolvedValue(undefined);
+    const res = await app.request(`/api/admin/v1/custom-tags/${TAG_ID}/cards`, {
+      method: "DELETE",
+    });
+    expect(res.status).toBe(404);
+    const json = await res.json();
+    expect(json.message).toContain("not found");
+    expect(mockTagRepo.clearAssignments).not.toHaveBeenCalled();
   });
 });
 

@@ -176,6 +176,31 @@ export function useDeleteCustomTag() {
   });
 }
 
+// ── Clear all card assignments for a tag ───────────────────────────────────
+
+interface ClearCustomTagCardsResponse {
+  removed: number;
+}
+
+const clearCustomTagCardsFn = createServerFn({ method: "POST" })
+  .validator((input: { id: string }) => input)
+  .middleware([withCookies])
+  .handler(
+    ({ context, data }): Promise<ClearCustomTagCardsResponse> =>
+      apiOrpcClient(adminCustomTagsContract, context.cookie).clearCards({ id: data.id }),
+  );
+
+export function useClearCustomTagCards() {
+  return useMutationWithInvalidation({
+    mutationFn: (id: string) => clearCustomTagCardsFn({ data: { id } }),
+    invalidates: [
+      queryKeys.admin.customTags,
+      queryKeys.admin.cardCustomTags.prefix,
+      queryKeys.catalog.all,
+    ],
+  });
+}
+
 // ── Per-card assignment ────────────────────────────────────────────────────
 
 const fetchCardCustomTags = createServerFn({ method: "GET" })

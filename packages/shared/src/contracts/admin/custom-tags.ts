@@ -86,7 +86,7 @@ const updateCustomTagInput = z.object({
  * route: `createCategory` → CONFLICT; `updateCategory` → NOT_FOUND + CONFLICT;
  * `removeCategory` → NOT_FOUND + CONFLICT (has tags); `createTag` → BAD_REQUEST
  * (unknown category) + CONFLICT; `updateTag` → NOT_FOUND + CONFLICT + BAD_REQUEST;
- * `removeTag` / `addCards` / `getCardTags` → NOT_FOUND; `setCardTags` →
+ * `removeTag` / `addCards` / `clearCards` / `getCardTags` → NOT_FOUND; `setCardTags` →
  * NOT_FOUND + BAD_REQUEST. The static `custom-tags/assignments` path precedes
  * `custom-tags/{id}` internally.
  */
@@ -147,6 +147,11 @@ export const adminCustomTagsContract = {
     .errors({ NOT_FOUND: { message: "Custom tag not found" } })
     .input(withParams(idParamSchema, { cardIds: z.array(z.uuid()) }))
     .output(z.object({ added: z.number(), requested: z.number() })),
+  clearCards: authedRoute
+    .route({ method: "DELETE", path: `${TAGS}/{id}/cards`, tags: [TAG] })
+    .errors({ NOT_FOUND: { message: "Custom tag not found" } })
+    .input(idParamSchema)
+    .output(z.object({ removed: z.number() })),
 
   // ── Per-card assignment ─────────────────────────────────────────────────
   getCardTags: authedRoute

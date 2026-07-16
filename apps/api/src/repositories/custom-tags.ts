@@ -210,6 +210,21 @@ export function customTagsRepo(db: Kysely<Database>) {
       return inserted.length;
     },
 
+    /**
+     * Remove every card assignment for one tag while keeping the tag itself.
+     * Used by the admin "clear" action so a tag can be re-populated from
+     * scratch without recreating it.
+     *
+     * @returns Number of assignments removed.
+     */
+    async clearAssignments(customTagId: string): Promise<number> {
+      const result = await db
+        .deleteFrom("cardCustomTags")
+        .where("customTagId", "=", customTagId)
+        .executeTakeFirst();
+      return Number(result.numDeletedRows);
+    },
+
     /** @returns true if at least one card carries this custom tag. */
     async isInUse(id: string): Promise<boolean> {
       const row = await db
