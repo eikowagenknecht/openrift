@@ -133,6 +133,40 @@ export function countTradeSuggestions(
 }
 
 /**
+ * The trades hub's headline and sub-line, shared by the group overview's hub
+ * band and the Trades page's summary band so the two never disagree. Leads
+ * with the trades awaiting the viewer's action when there are any, otherwise
+ * with the possible trades the matcher found.
+ * @param actionCount Trades currently waiting on the viewer.
+ * @param matchCount Distinct match suggestions (see {@link countTradeSuggestions}).
+ * @param activeCount Trades in progress (accepted or awaiting the other side).
+ * @returns The headline number and the sub-line that qualifies it.
+ */
+export function tradesHubSummary(
+  actionCount: number,
+  matchCount: number,
+  activeCount: number,
+): { headline: number; sub: string } {
+  if (actionCount > 0) {
+    return {
+      headline: actionCount,
+      sub: `${actionCount === 1 ? "trade needs" : "trades need"} your action${
+        matchCount > 0 ? ` · ${matchCount} possible` : ""
+      }`,
+    };
+  }
+  return {
+    headline: matchCount,
+    sub:
+      matchCount > 0
+        ? `possible ${matchCount === 1 ? "trade" : "trades"} · none waiting on you`
+        : activeCount > 0
+          ? "no new matches right now"
+          : "no open trades right now",
+  };
+}
+
+/**
  * A short label naming which of the viewer's own lists produced a match
  * suggestion: their wish list for an incoming card (they want it), their trade
  * list for an outgoing one (they have it). A grouped suggestion can span several

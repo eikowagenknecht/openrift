@@ -25,6 +25,7 @@ import {
 import {
   countTradeSuggestions,
   tradeSection,
+  tradesHubSummary,
   withoutLiveTradeMatches,
 } from "@/lib/trade-derivation";
 import { capitalize, cn } from "@/lib/utils";
@@ -80,16 +81,7 @@ function TradesHub({ slug, data }: { slug: string; data: FriendGroupDetailRespon
   );
 
   const needsAction = actionCount > 0;
-  const headline = needsAction ? actionCount : matchCount;
-  const sub = needsAction
-    ? `${actionCount === 1 ? "trade needs" : "trades need"} your action${
-        matchCount > 0 ? ` · ${matchCount} possible` : ""
-      }`
-    : matchCount > 0
-      ? `possible ${matchCount === 1 ? "trade" : "trades"} · none waiting on you`
-      : active.length > 0
-        ? "no new matches right now"
-        : "no open trades right now";
+  const { headline, sub } = tradesHubSummary(actionCount, matchCount, active.length);
 
   // The whole band is one click target (like the stat tiles), so the
   // in-progress rows inside are plain divs — they all lead to the Trades page

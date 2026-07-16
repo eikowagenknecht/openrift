@@ -1,11 +1,13 @@
 import type { CardTradeResponse } from "@openrift/shared";
-import { ChevronRightIcon } from "lucide-react";
+import { BellIcon, CheckIcon, ChevronRightIcon, ClockIcon } from "lucide-react";
+import type { ComponentType, SVGProps } from "react";
 import { useState } from "react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { IconChip } from "@/components/ui/icon-chip";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { UserAvatar } from "@/components/user-avatar";
@@ -396,10 +398,12 @@ function CounterpartyTradeGroup({
  */
 function CounterpartyGroupedBucket({
   heading,
+  icon,
   trades,
   bulk,
 }: {
   heading: string;
+  icon: ComponentType<SVGProps<SVGSVGElement>>;
   trades: CardTradeResponse[];
   bulk: BulkMode;
 }) {
@@ -409,7 +413,9 @@ function CounterpartyGroupedBucket({
   const groups = groupTradesByCounterparty(trades);
   return (
     <section className="flex flex-col gap-3">
-      <SectionHeading as="h3">{heading}</SectionHeading>
+      <SectionHeading as="h3" icon={icon} tone="gold" count={trades.length}>
+        {heading}
+      </SectionHeading>
       <div className="flex flex-col gap-2">
         {groups.map((group) => (
           <CounterpartyTradeGroup key={group.counterparty.userId} group={group} bulk={bulk} />
@@ -431,12 +437,19 @@ function CompletedBucket({ trades }: { trades: CardTradeResponse[] }) {
   }
   const groups = groupTradesByCounterparty(trades);
   return (
-    <Collapsible defaultOpen={false} className="flex flex-col gap-3">
+    // The id anchors the Trades page's jump link; the scroll margin clears the
+    // sticky header + page top bar so the heading isn't buried under them.
+    <Collapsible
+      id="completed-trades"
+      defaultOpen={false}
+      className="flex scroll-mt-28 flex-col gap-3"
+    >
       <SectionHeading as="h3">
-        <CollapsibleTrigger className="group hover:text-foreground flex w-full items-center gap-2 text-left transition-colors">
-          <ChevronRightIcon className="size-4 shrink-0 transition-transform group-data-[panel-open]:rotate-90" />
+        <CollapsibleTrigger className="group hover:text-foreground flex w-full items-center gap-2.5 text-left transition-colors">
+          <IconChip icon={CheckIcon} size="sm" />
           Completed
           <span className="text-xs">({trades.length})</span>
+          <ChevronRightIcon className="size-4 shrink-0 transition-transform group-data-[panel-open]:rotate-90" />
         </CollapsibleTrigger>
       </SectionHeading>
       <CollapsibleContent>
@@ -478,11 +491,17 @@ export function MemberTradesSection({
 
   return (
     <div className="flex flex-col gap-8">
-      <CounterpartyGroupedBucket heading="In progress" trades={active} bulk="cancel" />
       <CounterpartyGroupedBucket
         heading="Action needed"
+        icon={BellIcon}
         trades={actionNeeded}
         bulk="accept-decline"
+      />
+      <CounterpartyGroupedBucket
+        heading="In progress"
+        icon={ClockIcon}
+        trades={active}
+        bulk="cancel"
       />
       <CompletedBucket trades={history} />
     </div>
@@ -493,8 +512,8 @@ interface TradesSectionProps {
   groupId: string;
   /**
    * The "Possible trades" suggestions block, injected between the active trade
-   * buckets (In progress / Action needed) and the wishlists & tradelists so the
-   * page reads In progress → Action needed → Possible trades → Wishlists &
+   * buckets (Action needed / In progress) and the wishlists & tradelists so the
+   * page reads Action needed → In progress → Possible trades → Wishlists &
    * tradelists → Completed.
    */
   suggestions: React.ReactNode;
@@ -507,9 +526,9 @@ interface TradesSectionProps {
 }
 
 /**
- * The viewer's trades in this group, bucketed into In progress / Action needed /
+ * The viewer's trades in this group, bucketed into Action needed / In progress /
  * Completed, with the Possible trades suggestions and Wishlists & tradelists slotted in
- * just above Completed. The active work the viewer can act on stays at the top.
+ * just above Completed. Whatever is waiting on the viewer stays at the very top.
  * @returns The trades content.
  */
 export function TradesSection({ groupId, suggestions, memberLists }: TradesSectionProps) {
@@ -536,11 +555,17 @@ export function TradesSection({ groupId, suggestions, memberLists }: TradesSecti
 
   return (
     <div className="flex flex-col gap-8">
-      <CounterpartyGroupedBucket heading="In progress" trades={active} bulk="cancel" />
       <CounterpartyGroupedBucket
         heading="Action needed"
+        icon={BellIcon}
         trades={actionNeeded}
         bulk="accept-decline"
+      />
+      <CounterpartyGroupedBucket
+        heading="In progress"
+        icon={ClockIcon}
+        trades={active}
+        bulk="cancel"
       />
       {suggestions}
       {memberLists}

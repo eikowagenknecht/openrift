@@ -947,6 +947,16 @@ function SectionHeadingSection() {
           </SectionHeading>
         </div>
       </DemoRow>
+      <DemoRow label="With icon chip">
+        <div className="w-full space-y-3">
+          <SectionHeading icon={BellIcon} tone="gold" count={2}>
+            Action needed
+          </SectionHeading>
+          <SectionHeading icon={HeartIcon} tone="sky" count={5}>
+            Wishlists &amp; tradelists
+          </SectionHeading>
+        </div>
+      </DemoRow>
     </DemoSection>
   );
 }

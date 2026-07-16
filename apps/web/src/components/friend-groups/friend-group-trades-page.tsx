@@ -4,12 +4,22 @@ import type {
   FriendGroupShareResponse,
 } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import { ChevronRightIcon, HandshakeIcon, HeartIcon, Share2Icon } from "lucide-react";
+import {
+  ChevronRightIcon,
+  HandshakeIcon,
+  HeartIcon,
+  Share2Icon,
+  SparklesIcon,
+  ZapIcon,
+} from "lucide-react";
+import type { ReactNode } from "react";
 import { Suspense, useState } from "react";
 
 import { EmptyState } from "@/components/empty-state";
+import { ActionBand } from "@/components/ui/action-band";
 import { Button } from "@/components/ui/button";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Card } from "@/components/ui/card";
+import { IconChip } from "@/components/ui/icon-chip";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { UserAvatar } from "@/components/user-avatar";
 import { useGroupTrades } from "@/hooks/use-card-trades";
@@ -18,20 +28,31 @@ import {
   useFriendGroupShareableLists,
   useShareListWithFriendGroup,
 } from "@/hooks/use-friend-groups";
+import { usePrices } from "@/hooks/use-prices";
 import { useRequiredUserId } from "@/lib/auth-session";
-import { withoutLiveTradeMatches } from "@/lib/trade-derivation";
+import {
+  countTradeSuggestions,
+  sumTradeValues,
+  tradeSection,
+  tradesHubSummary,
+  withoutLiveTradeMatches,
+} from "@/lib/trade-derivation";
+import { capitalize } from "@/lib/utils";
+import { useDisplayStore } from "@/stores/display-store";
 
 import { ContactMethodChips } from "./contact-method-chips";
+import { LIST_INTENT_ICON, LIST_INTENT_NOUN, LIST_KIND_NOUN } from "./list-intent-meta";
 import { MatchTradeList } from "./match-row-card";
 import { ShareListsWithGroupDialog } from "./share-lists-with-group-dialog";
-import { SharedListRow } from "./shared-list-row";
+import { TradeValueSummary } from "./trade-row-parts";
 import { TradesSection } from "./trades-section";
 
 /**
- * The Trades page, ordered In progress → Action needed → Possible trades →
- * Wishlists & tradelists → Completed: the viewer's active trades sit at the top, the
- * match suggestions and the per-member list browser are slotted in above
- * Completed by {@link TradesSection}.
+ * The Trades page: the gold summary band up top, then the sections ordered
+ * Action needed → In progress → Possible trades → Wishlists & tradelists →
+ * Completed — whatever waits on the viewer first, the match suggestions and
+ * the per-member list browser slotted in above Completed by
+ * {@link TradesSection}.
  * @returns the trades-page content.
  */
 export function TradesPageContent({
@@ -42,11 +63,92 @@ export function TradesPageContent({
   data: FriendGroupDetailResponse;
 }) {
   return (
-    <TradesSection
-      groupId={data.group.id}
-      suggestions={<SuggestedSection slug={slug} data={data} />}
-      memberLists={<MemberListsSection slug={slug} data={data} />}
-    />
+    <div className="flex flex-col gap-8">
+      <TradesPulse slug={slug} data={data} />
+      <TradesSection
+        groupId={data.group.id}
+        suggestions={<SuggestedSection slug={slug} data={data} />}
+        memberLists={<MemberListsSection slug={slug} data={data} />}
+      />
+    </div>
+  );
+}
+
+/**
+ * The page's summary band — the same gold trades hub the group overview leads
+ * with, so following its "View trades" link lands on a familiar surface. The
+ * headline mirrors the overview ({@link tradesHubSummary}); next to it sit
+ * jump links to the sections further down, and below it the estimated value
+ * across the viewer's open trades in this group.
+ * @returns The summary band.
+ */
+function TradesPulse({ slug, data }: { slug: string; data: FriendGroupDetailResponse }) {
+  const { data: matches } = useFriendGroupMatches(slug);
+  const { data: tradesData } = useGroupTrades(data.group.id);
+  const prices = usePrices();
+  const marketplace = useDisplayStore((state) => state.marketplaceOrder[0] ?? "cardtrader");
+
+  const trades = tradesData?.items ?? [];
+  const actionNeeded = trades.filter((trade) => tradeSection(trade) === "action-needed");
+  const active = trades.filter((trade) => tradeSection(trade) === "active");
+  const history = trades.filter((trade) => tradeSection(trade) === "history");
+  // The same suggestion count the Possible trades section renders below.
+  const matchCount = countTradeSuggestions(
+    withoutLiveTradeMatches(matches.othersHaveYourWants, trades),
+    withoutLiveTradeMatches(matches.othersWantYourHaves, trades),
+  );
+  const sharedListCount = data.shares.filter(
+    (share) => share.listIntent === "wish" || share.listIntent === "trade",
+  ).length;
+
+  const { headline, sub } = tradesHubSummary(actionNeeded.length, matchCount, active.length);
+  const split = sumTradeValues([...actionNeeded, ...active], (printingId) =>
+    prices.get(printingId, marketplace),
+  );
+
+  return (
+    <ActionBand
+      icon={ZapIcon}
+      accent={actionNeeded.length > 0}
+      label="Trades"
+      value={headline}
+      sub={sub}
+      action={
+        // Jump links are a shortcut, not the only path to the sections, so
+        // they yield entirely to the headline on phones instead of squeezing it.
+        <span className="hidden flex-wrap items-center justify-end gap-1.5 sm:flex">
+          <JumpLink target="possible-trades" label="Possible trades" count={matchCount} />
+          <JumpLink target="shared-lists" label="Shared lists" count={sharedListCount} />
+          {history.length > 0 ? (
+            <JumpLink target="completed-trades" label="Completed" count={history.length} />
+          ) : null}
+        </span>
+      }
+    >
+      {/* pl-13 = the chip (size-10) plus the row gap, aligning under the label. */}
+      <TradeValueSummary split={split} marketplace={marketplace} className="pl-13" />
+    </ActionBand>
+  );
+}
+
+/**
+ * An in-page jump link on the summary band, targeting one of the page's
+ * section anchors (which carry matching `scroll-mt` clearance for the sticky
+ * bars).
+ * @returns The link, styled as a small outline button.
+ */
+function JumpLink({ target, label, count }: { target: string; label: string; count: number }) {
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      // The label lives in the Button's children, which the lint rules can't see through.
+      // oxlint-disable-next-line jsx-a11y/control-has-associated-label, jsx-a11y/anchor-has-content -- text label is inside the Button children
+      render={<a href={`#${target}`} />}
+    >
+      {label}
+      <span className="text-muted-foreground text-xs tabular-nums">({count})</span>
+    </Button>
   );
 }
 
@@ -62,8 +164,14 @@ function SuggestedSection({ slug, data }: { slug: string; data: FriendGroupDetai
   const hasMatches = incoming.length > 0 || outgoing.length > 0;
 
   return (
-    <section className="flex flex-col gap-4">
-      <SectionHeading>Possible trades</SectionHeading>
+    <section id="possible-trades" className="flex scroll-mt-28 flex-col gap-4">
+      <SectionHeading
+        icon={SparklesIcon}
+        tone="green"
+        count={countTradeSuggestions(incoming, outgoing)}
+      >
+        Possible trades
+      </SectionHeading>
       {hasMatches ? (
         <MatchTradeList incoming={incoming} outgoing={outgoing} groupSlug={slug} />
       ) : (
@@ -173,10 +281,9 @@ interface OwnerLists {
 }
 
 /**
- * Each member's shared wishlists and tradelists, grouped per member (the viewer
- * first, then alphabetically) in a collapsible. Moved here from the Shared page
- * so the Trades page is the single place to browse what members offer and act
- * on it. The viewer's own row is always shown — even with nothing shared — and
+ * Each member's shared wishlists and tradelists as a card per member (the
+ * viewer first, then alphabetically), the member's lists as rows inside their
+ * card. The viewer's card is always shown — even with nothing shared — and
  * carries an inline "Share more" button that opens the share dialog.
  * @returns The wishlists-and-tradelists section.
  */
@@ -223,79 +330,121 @@ function MemberListsSection({ slug, data }: { slug: string; data: FriendGroupDet
       return aName.localeCompare(bName);
     });
 
+  const sharedListCount = data.shares.filter(
+    (share) => share.listIntent === "wish" || share.listIntent === "trade",
+  ).length;
+
   return (
-    <section className="flex flex-col gap-3">
-      <SectionHeading>Wishlists &amp; tradelists</SectionHeading>
+    <section id="shared-lists" className="flex scroll-mt-28 flex-col gap-3">
+      <SectionHeading icon={HeartIcon} tone="sky" count={sharedListCount}>
+        Wishlists &amp; tradelists
+      </SectionHeading>
       {owners.length === 0 ? (
         <p className="text-muted-foreground">
           No members have shared a wishlist or tradelist with this group yet.
         </p>
       ) : (
-        <div className="flex flex-col gap-2">
-          {owners.map(({ member, lists }) => {
-            const isViewer = member.userId === viewerId;
-            // The viewer's row carries the share entry point; it only renders a
-            // button when there's actually something left to share.
-            const shareButton = isViewer ? (
-              <Suspense fallback={null}>
-                <ShareMoreButton slug={slug} groupName={data.group.name} />
-              </Suspense>
-            ) : null;
-            if (lists.length === 0) {
-              // Only the viewer reaches this — others with nothing shared are
-              // filtered out above.
-              return (
-                <div key={member.userId} className="flex items-center gap-2">
-                  <div className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 font-medium">
-                    <UserAvatar
-                      image={member.userImage}
-                      name={member.userName}
-                      gravatarHash={member.gravatarHash}
-                      size="sm"
-                    />
-                    <span className="truncate">{member.userName ?? "Member"}</span>
-                    <span className="text-muted-foreground text-xs">(nothing shared yet)</span>
-                  </div>
-                  {shareButton}
-                </div>
-              );
-            }
-            return (
-              <Collapsible key={member.userId}>
-                <div className="flex items-center gap-2">
-                  <CollapsibleTrigger className="group hover:bg-muted/50 flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left font-medium">
-                    <UserAvatar
-                      image={member.userImage}
-                      name={member.userName}
-                      gravatarHash={member.gravatarHash}
-                      size="sm"
-                    />
-                    <span className="truncate">{member.userName ?? "Member"}</span>
-                    <span className="text-muted-foreground text-xs">({lists.length})</span>
-                    <ChevronRightIcon className="text-muted-foreground ml-auto size-4 shrink-0 transition-transform group-data-[panel-open]:rotate-90" />
-                  </CollapsibleTrigger>
-                  {shareButton}
-                </div>
-                <ContactMethodChips methods={member.contactMethods} className="mt-1 ml-8" />
-                <CollapsibleContent>
-                  <div className="mt-1 ml-8 flex flex-col gap-2">
-                    {lists.map((share) => (
-                      <SharedListRow
-                        key={share.listId}
-                        slug={slug}
-                        member={member}
-                        share={share}
-                        showMember={false}
-                      />
-                    ))}
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
-            );
-          })}
+        <div className="grid gap-3 sm:grid-cols-2">
+          {owners.map(({ member, lists }) => (
+            <MemberListsCard
+              key={member.userId}
+              slug={slug}
+              member={member}
+              lists={lists}
+              // The viewer's card carries the share entry point; it only
+              // renders a button when there's actually something left to share.
+              shareButton={
+                member.userId === viewerId ? (
+                  <Suspense fallback={null}>
+                    <ShareMoreButton slug={slug} groupName={data.group.name} />
+                  </Suspense>
+                ) : null
+              }
+            />
+          ))}
         </div>
       )}
     </section>
+  );
+}
+
+/**
+ * One member's card in the Wishlists & tradelists grid: avatar and name up
+ * top, their contact chips, then their shared lists as rows. Only the viewer's
+ * own card can be list-less (other members without shares are filtered out
+ * upstream), so the empty text speaks to the viewer.
+ * @returns The member card.
+ */
+function MemberListsCard({
+  slug,
+  member,
+  lists,
+  shareButton,
+}: {
+  slug: string;
+  member: FriendGroupMemberResponse;
+  lists: FriendGroupShareResponse[];
+  /** The viewer's "Share more" entry point; null on other members' cards. */
+  shareButton: ReactNode;
+}) {
+  return (
+    <Card className="gap-2.5 p-4">
+      <div className="flex items-center gap-2.5">
+        <UserAvatar
+          image={member.userImage}
+          name={member.userName}
+          gravatarHash={member.gravatarHash}
+          size="sm"
+        />
+        <span className="min-w-0 flex-1 truncate font-medium">{member.userName ?? "Member"}</span>
+        {shareButton}
+      </div>
+      <ContactMethodChips methods={member.contactMethods} />
+      {lists.length === 0 ? (
+        <p className="text-muted-foreground">
+          You haven&apos;t shared a wishlist or tradelist with this group yet.
+        </p>
+      ) : (
+        <ul className="-mx-2 flex flex-col">
+          {lists.map((share) => (
+            <li key={share.listId}>
+              <MemberListRow slug={slug} share={share} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
+/**
+ * One shared list inside a member's card: a round intent chip, the list name
+ * with its kind and count, and a chevron — the whole row links to the shared
+ * list view. Follows the overview rail's row look rather than nesting
+ * SharedListRow's Card inside the member card.
+ * @returns The list row link.
+ */
+function MemberListRow({ slug, share }: { slug: string; share: FriendGroupShareResponse }) {
+  const noun =
+    share.entryCount === 1
+      ? LIST_KIND_NOUN[share.listKind].singular
+      : LIST_KIND_NOUN[share.listKind].plural;
+  return (
+    <Link
+      to="/groups/$slug/lists/$listId"
+      params={{ slug, listId: share.listId }}
+      search={{ fromUser: share.userId }}
+      className="hover:bg-muted/50 flex items-center gap-2.5 rounded-md px-2 py-1.5"
+    >
+      <IconChip icon={LIST_INTENT_ICON[share.listIntent]} size="sm" shape="round" />
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate font-medium">{share.listName}</span>
+        <span className="text-muted-foreground truncate text-xs">
+          {capitalize(LIST_INTENT_NOUN[share.listIntent])} · {share.entryCount} {noun.toLowerCase()}
+        </span>
+      </span>
+      <ChevronRightIcon className="text-muted-foreground size-4 shrink-0" />
+    </Link>
   );
 }
 

@@ -11,6 +11,7 @@ import {
   maxTradeQuantity,
   sumTradeValues,
   tradeSection,
+  tradesHubSummary,
   tradeStatusLabel,
   withoutLiveTradeMatches,
 } from "./trade-derivation";
@@ -445,5 +446,37 @@ describe("sumTradeValues", () => {
       hasGet: false,
       hasGive: false,
     });
+  });
+});
+
+describe("tradesHubSummary", () => {
+  it("leads with the action count when trades are waiting on the viewer", () => {
+    expect(tradesHubSummary(2, 3, 1)).toEqual({
+      headline: 2,
+      sub: "trades need your action · 3 possible",
+    });
+  });
+
+  it("uses singular copy for one action and drops the possible tail at zero", () => {
+    expect(tradesHubSummary(1, 0, 0)).toEqual({
+      headline: 1,
+      sub: "trade needs your action",
+    });
+  });
+
+  it("falls back to the match count when nothing is waiting on the viewer", () => {
+    expect(tradesHubSummary(0, 1, 0)).toEqual({
+      headline: 1,
+      sub: "possible trade · none waiting on you",
+    });
+    expect(tradesHubSummary(0, 4, 2)).toEqual({
+      headline: 4,
+      sub: "possible trades · none waiting on you",
+    });
+  });
+
+  it("distinguishes no-matches from no-trades-at-all when both counts are zero", () => {
+    expect(tradesHubSummary(0, 0, 2).sub).toBe("no new matches right now");
+    expect(tradesHubSummary(0, 0, 0).sub).toBe("no open trades right now");
   });
 });

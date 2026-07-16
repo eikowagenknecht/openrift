@@ -2,33 +2,20 @@ import type {
   FriendGroupMemberResponse,
   FriendGroupShareResponse,
   ListIntent,
-  ListKind,
 } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import { FolderIcon, HandshakeIcon, HeartIcon } from "lucide-react";
-import type { ComponentType, SVGProps } from "react";
 
 import { Card } from "@/components/ui/card";
 import { cardLinkVariants } from "@/components/ui/card-link";
 import { UserAvatar } from "@/components/user-avatar";
 import { cn } from "@/lib/utils";
 
-const LIST_INTENT_ICON: Record<ListIntent, ComponentType<SVGProps<SVGSVGElement>>> = {
-  wish: HeartIcon,
-  trade: HandshakeIcon,
-  organize: FolderIcon,
-};
+import { LIST_INTENT_ICON, LIST_KIND_NOUN } from "./list-intent-meta";
 
 const LIST_INTENT_LABEL: Record<ListIntent, string> = {
   wish: "Wishlist",
   trade: "Tradelist",
   organize: "Organize",
-};
-
-const LIST_KIND_NOUN: Record<ListKind, { singular: string; plural: string }> = {
-  card: { singular: "Card", plural: "Cards" },
-  printing: { singular: "Printing", plural: "Printings" },
-  copy: { singular: "Copy", plural: "Copies" },
 };
 
 /**
