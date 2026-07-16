@@ -10,6 +10,7 @@
 ### Other
 
 - feat(Tournaments): **Warning before overwriting results** — the pod result form now says when someone else saved scores while you were editing, with a button to load the latest values.
+- fix(Groups): **Accurate tournament tile hint** — the group overview now says how many open tournaments you play in, instead of a stale deck-list count that missed some events.
 - fix(Tournaments): **Readable standings on phones** — the mobile standings are now a compact ranked list showing wins, opponent score, and game points, instead of a cramped wall of numbers.
 
 ## 2026-07-15

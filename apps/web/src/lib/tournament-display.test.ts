@@ -13,7 +13,6 @@ import {
   combineLocalDateTimeToUtc,
   compareParticipantsForList,
   compareTournamentsForList,
-  countOpenTournaments,
   effectiveTournamentState,
   formatTournamentDate,
   isTournamentHost,
@@ -341,29 +340,6 @@ describe("partitionTournaments", () => {
 
   it("returns empty groups for an empty input", () => {
     expect(partitionTournaments([], now)).toEqual({ current: [], pastOrArchived: [] });
-  });
-});
-
-describe("countOpenTournaments", () => {
-  const now = new Date("2026-06-28T12:00:00Z");
-
-  it("counts only the date-aware current bucket (upcoming + in_progress)", () => {
-    const upcoming = makeTournament("setup", { id: "a", startsAt: "2026-06-29T10:00:00Z" });
-    const inProgress = makeTournament("running", {
-      id: "b",
-      startsAt: "2026-06-28T10:00:00Z",
-      endsAt: "2026-06-28T20:00:00Z",
-    });
-    const completed = makeTournament("completed", { id: "c", startsAt: "2026-06-20T10:00:00Z" });
-    expect(countOpenTournaments([upcoming, inProgress, completed], now)).toBe(2);
-  });
-
-  it("does not count a setup/running tournament whose date has passed", () => {
-    // Regression: the group dashboard tile previously counted raw status
-    // (setup/running) and so reported this as "open" while the events page
-    // correctly sank it into "Past and archived".
-    const stale = makeTournament("running", { id: "stale", startsAt: "2026-06-26T10:00:00Z" });
-    expect(countOpenTournaments([stale], now)).toBe(0);
   });
 });
 

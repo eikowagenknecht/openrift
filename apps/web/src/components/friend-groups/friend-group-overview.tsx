@@ -9,11 +9,10 @@ import { UserAvatar } from "@/components/user-avatar";
 import { useGroupTrades, useTradeActionCounts } from "@/hooks/use-card-trades";
 import { useCards } from "@/hooks/use-cards";
 import { useCollections } from "@/hooks/use-collections";
-import { useMyTournamentDecks } from "@/hooks/use-deck-check-player";
 import { useFriendGroupMatches } from "@/hooks/use-friend-groups";
 import { useGroupTournaments } from "@/hooks/use-tournaments";
 import { useRequiredUserId } from "@/lib/auth-session";
-import { countOpenTournaments } from "@/lib/tournament-display";
+import { partitionTournaments } from "@/lib/tournament-display";
 import {
   countTradeSuggestions,
   tradeSection,
@@ -46,10 +45,6 @@ function ActionCards({ slug, data }: { slug: string; data: FriendGroupDetailResp
   const { data: actionCounts } = useTradeActionCounts();
   const { data: tradesData } = useGroupTrades(data.group.id);
   const { data: collections } = useCollections();
-  // The viewer's own deck-check entries in this group feed the tile's hint
-  // (ADR-026 links entries to accounts, not group roles).
-  const { data: ownDecks } = useMyTournamentDecks();
-  const ownEntries = (ownDecks?.items ?? []).filter((entry) => entry.groupSlug === data.group.slug);
 
   const tradesActionCount =
     actionCounts?.byGroup.find((entry) => entry.groupId === data.group.id)?.count ?? 0;
@@ -130,7 +125,7 @@ function ActionCards({ slug, data }: { slug: string; data: FriendGroupDetailResp
           memberCount={memberCount}
           pendingRequestCount={pendingRequestCount}
         />
-        <GroupTournamentsTile slug={slug} ownEntries={ownEntries.length} />
+        <GroupTournamentsTile slug={slug} />
       </div>
     </div>
   );
@@ -269,17 +264,21 @@ function InProgressTradeRow({ trade }: { trade: CardTradeResponse }) {
 
 /**
  * The Tournaments tile, shown to every group member: the count of the group's
- * open tournaments, with the viewer's own entries as the supporting hint. The
- * group-tournaments list is member-scoped server-side, so the query is safe
- * for any role that reaches the overview.
+ * open tournaments, with the viewer's participation in those same tournaments
+ * as the supporting hint. The group-tournaments list is member-scoped
+ * server-side, so the query is safe for any role that reaches the overview.
  * @returns The Tournaments tile.
  */
-function GroupTournamentsTile({ slug, ownEntries }: { slug: string; ownEntries: number }) {
+function GroupTournamentsTile({ slug }: { slug: string }) {
   const { data: tournaments } = useGroupTournaments(slug);
-  const open = countOpenTournaments(tournaments.items);
+  // The same date-aware "current" bucket the events page renders, so the tile
+  // can never disagree with it. Completed and cancelled tournaments only
+  // surface through the "N total" fallback.
+  const open = partitionTournaments(tournaments.items).current;
+  const joined = open.filter((tournament) => tournament.myRoles.includes("participant")).length;
   const hint =
-    ownEntries > 0
-      ? `${ownEntries} of your ${ownEntries === 1 ? "entry" : "entries"}`
+    joined > 0
+      ? `you're in ${joined}`
       : tournaments.items.length === 0
         ? "no tournaments yet"
         : `${tournaments.items.length} total`;
@@ -289,7 +288,7 @@ function GroupTournamentsTile({ slug, ownEntries }: { slug: string; ownEntries: 
       slug={slug}
       icon={TrophyIcon}
       label="Open tournaments"
-      value={open}
+      value={open.length}
       hint={hint}
     />
   );

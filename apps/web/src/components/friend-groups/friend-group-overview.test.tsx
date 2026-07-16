@@ -1,14 +1,10 @@
-import type { FriendGroupDetailResponse } from "@openrift/shared";
+import type { FriendGroupDetailResponse, TournamentSummaryResponse } from "@openrift/shared";
 import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-interface MockDeckEntry {
-  groupSlug: string | null;
-}
-
 // Mutated per test before rendering; read lazily inside the mock factories.
-let currentOwnDecks: MockDeckEntry[] = [];
+let currentTournaments: TournamentSummaryResponse[] = [];
 
 vi.mock("@/hooks/use-card-trades", () => ({
   useGroupTrades: () => ({ data: { items: [] } }),
@@ -23,10 +19,6 @@ vi.mock("@/hooks/use-collections", () => ({
   useCollections: () => ({ data: [] }),
 }));
 
-vi.mock("@/hooks/use-deck-check-player", () => ({
-  useMyTournamentDecks: () => ({ data: { items: currentOwnDecks } }),
-}));
-
 vi.mock("@/hooks/use-friend-groups", () => ({
   useFriendGroupMatches: () => ({
     data: { othersHaveYourWants: [], othersWantYourHaves: [] },
@@ -34,7 +26,7 @@ vi.mock("@/hooks/use-friend-groups", () => ({
 }));
 
 vi.mock("@/hooks/use-tournaments", () => ({
-  useGroupTournaments: () => ({ data: { items: [] } }),
+  useGroupTournaments: () => ({ data: { items: currentTournaments } }),
 }));
 
 vi.mock("@/lib/auth-session", () => ({
@@ -102,26 +94,75 @@ function renderOverview(viewerRole: FriendGroupDetailResponse["viewerRole"]) {
   return render(<OverviewContent slug="bothfeld" data={makeDetail(viewerRole)} />);
 }
 
+function makeTournament(
+  id: string,
+  overrides: Partial<TournamentSummaryResponse> = {},
+): TournamentSummaryResponse {
+  return {
+    id,
+    name: `Summoner Skirmish ${id}`,
+    status: "running",
+    host: { type: "user", userId: "host-1", orgId: null, displayName: "Host", orgSlug: null },
+    groupId: "group-1",
+    groupSlug: "bothfeld",
+    groupName: "Bothfeld Connection",
+    pairingStyle: "pod",
+    deckSubmission: "none",
+    deckFormat: null,
+    // Far future so partitionTournaments keeps it in the current bucket.
+    startsAt: "2099-01-01T18:00:00Z",
+    endsAt: null,
+    modules: { pairing: true, deckSubmission: false },
+    participantCount: 0,
+    pendingRequestCount: 0,
+    myRoles: [],
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z",
+    ...overrides,
+  };
+}
+
 describe("OverviewContent tournaments tile", () => {
   beforeEach(() => {
-    currentOwnDecks = [];
+    currentTournaments = [];
   });
 
   // Regression: the tile used to hide for plain members with no entries,
   // leaving no UI path to the group's tournaments page at all.
-  it("shows the tournaments tile to a plain member with no entries", () => {
+  it("shows the tournaments tile to a plain member with no tournaments", () => {
     renderOverview("member");
     const tile = screen.getByRole("link", { name: /Open tournaments/u });
     expect(tile).toHaveAttribute("href", "/groups/bothfeld/events");
     expect(tile).toHaveTextContent("no tournaments yet");
   });
 
-  it("counts only the viewer's entries in this group in the hint", () => {
-    currentOwnDecks = [{ groupSlug: "bothfeld" }, { groupSlug: "elsewhere" }, { groupSlug: null }];
+  it("counts the viewer's participations in open tournaments in the hint", () => {
+    currentTournaments = [
+      makeTournament("a", { myRoles: ["participant"] }),
+      makeTournament("b", { myRoles: ["participant"] }),
+      makeTournament("c"),
+    ];
     renderOverview("member");
     expect(screen.getByRole("link", { name: /Open tournaments/u })).toHaveTextContent(
-      "1 of your entry",
+      "you're in 2",
     );
+  });
+
+  // Regression: the hint used to count deck-check entries across all of the
+  // group's tournaments, so a finished event kept inflating it forever.
+  it("ignores participations in completed tournaments and falls back to the total", () => {
+    currentTournaments = [
+      makeTournament("done", {
+        status: "completed",
+        startsAt: "2026-01-05T18:00:00Z",
+        myRoles: ["participant"],
+      }),
+      makeTournament("open"),
+    ];
+    renderOverview("member");
+    const tile = screen.getByRole("link", { name: /Open tournaments/u });
+    expect(tile).toHaveTextContent("2 total");
+    expect(tile).not.toHaveTextContent("you're in");
   });
 
   it("still shows the tile for admins", () => {
