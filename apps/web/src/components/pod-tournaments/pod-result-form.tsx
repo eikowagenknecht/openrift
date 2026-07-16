@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ordinalPlace } from "@/lib/tournament-display";
 
 interface PodResultFormProps {
   pod: PodResponse;
@@ -31,12 +32,6 @@ export function parsePoints(value: string): number | null {
   }
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
-}
-
-// Suffix the place number (1st / 2nd / 3rd / 4th) so the derived placement reads naturally.
-function ordinal(place: number): string {
-  const suffix = place === 1 ? "st" : place === 2 ? "nd" : place === 3 ? "rd" : "th";
-  return `${place}${suffix}`;
 }
 
 /**
@@ -102,19 +97,21 @@ export function PodResultForm({ pod, scheme, onSubmit, submitting, onCancel }: P
   return (
     <div className="flex flex-col gap-3">
       {pod.members.map((member, index) => (
-        <div
-          key={member.playerId}
-          className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5"
-        >
-          <span className="flex items-center gap-2">
-            <span className="font-medium">{member.displayName}</span>
+        // No flex-wrap: a long name used to push the points field onto its own
+        // line, breaking the column of inputs the organizer is typing down.
+        // The name truncates instead — it is the one part that can give.
+        <div key={member.playerId} className="flex items-center justify-between gap-x-3">
+          <span className="flex min-w-0 items-center gap-2">
+            <span className="truncate font-medium" title={member.displayName}>
+              {member.displayName}
+            </span>
             {previewPoints && placements ? (
-              <span className="text-muted-foreground tabular-nums">
-                {ordinal(placements[index] ?? 1)} · +{formatPoints(previewPoints[index] ?? 0)}
+              <span className="text-muted-foreground shrink-0 tabular-nums">
+                {ordinalPlace(placements[index] ?? 1)} · +{formatPoints(previewPoints[index] ?? 0)}
               </span>
             ) : null}
           </span>
-          <span className="flex items-center gap-2">
+          <span className="flex shrink-0 items-center gap-2">
             <Label htmlFor={`pts-${member.playerId}`} className="text-muted-foreground">
               Points
             </Label>

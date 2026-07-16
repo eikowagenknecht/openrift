@@ -12,7 +12,10 @@ import {
   canManageTournament,
   hasPairing,
   MATCH_FORMAT_ITEMS,
+  ordinalPlace,
   PAIRING_STYLE_ITEMS,
+  pairingLabel,
+  pairingPluralNoun,
   combineLocalDateTimeToUtc,
   compareParticipantsForList,
   compareTournamentsForList,
@@ -419,6 +422,48 @@ describe("hasPairing", () => {
     expect(hasPairing("pod")).toBe(true);
     expect(hasPairing("swiss")).toBe(true);
     expect(hasPairing("none")).toBe(false);
+  });
+});
+
+describe("pairingLabel", () => {
+  it("names a 1v1 a match and anything larger a pod", () => {
+    expect(pairingLabel(2, 3)).toBe("Match 3");
+    expect(pairingLabel(3, 3)).toBe("Pod 3");
+    expect(pairingLabel(4, 1)).toBe("Pod 1");
+  });
+});
+
+describe("ordinalPlace", () => {
+  it("suffixes the placements a pod can produce", () => {
+    expect([1, 2, 3, 4].map((place) => ordinalPlace(place))).toEqual(["1st", "2nd", "3rd", "4th"]);
+  });
+
+  it("keeps the teens honest for callers outside a pod", () => {
+    expect(ordinalPlace(11)).toBe("11th");
+    expect(ordinalPlace(12)).toBe("12th");
+    expect(ordinalPlace(13)).toBe("13th");
+    expect(ordinalPlace(21)).toBe("21st");
+    expect(ordinalPlace(22)).toBe("22nd");
+    expect(ordinalPlace(23)).toBe("23rd");
+    expect(ordinalPlace(111)).toBe("111th");
+  });
+});
+
+describe("pairingPluralNoun", () => {
+  it("counts an all-1v1 round as matches", () => {
+    expect(pairingPluralNoun([2, 2, 2])).toBe("matches");
+  });
+
+  it("counts multiplayer pods as pods", () => {
+    expect(pairingPluralNoun([4, 4, 3])).toBe("pods");
+  });
+
+  it("falls back to the broader word for a mixed round", () => {
+    expect(pairingPluralNoun([2, 4])).toBe("pods");
+  });
+
+  it("uses the broader word for a round with no pairings", () => {
+    expect(pairingPluralNoun([])).toBe("pods");
   });
 });
 

@@ -65,6 +65,79 @@ export function hasPairing(style: TournamentPairingStyle): boolean {
   return style !== "none";
 }
 
+/**
+ * Whether a pairing of this size is a 1v1 match rather than a multiplayer pod.
+ *
+ * Keyed on the pairing's own size, not on the tournament's pairing style: the
+ * pod engine seats a 2-player pod when the field forces one, and that pairing is
+ * a match no matter which engine drew it. "Pod" is the engine's word for the
+ * row; a 1v1 is only ever a match to the people playing it.
+ *
+ * The pod engine seats a 2-player pod whenever the field forces one, so a
+ * pairing is a match by its seat count, never by the tournament's pairing
+ * style. Callers key their 1v1 affordances (the Swiss result form, the swords
+ * icon) off this, so the rule has one home.
+ *
+ * @param size The pairing's seat count.
+ * @returns True for a 1v1.
+ */
+export function isMatchPairing(size: number): boolean {
+  return size === 2;
+}
+
+/**
+ * One pairing's display name.
+ *
+ * @param size The pairing's seat count.
+ * @param podNumber The pairing's 1-based number within its round.
+ * @returns `Match 3` for a 1v1, `Pod 3` otherwise.
+ */
+export function pairingLabel(size: number, podNumber: number): string {
+  return `${isMatchPairing(size) ? "Match" : "Pod"} ${podNumber}`;
+}
+
+/**
+ * A placement with its ordinal suffix. Pods seat at most four, but this is
+ * general: the 11th-13th exception is handled so a caller outside a pod can't
+ * be handed "11st".
+ *
+ * @param place The 1-based placement.
+ * @returns `1st`, `2nd`, `3rd`, `4th`, `11th`, …
+ */
+export function ordinalPlace(place: number): string {
+  const teen = place % 100;
+  if (teen >= 11 && teen <= 13) {
+    return `${place}th`;
+  }
+  const suffix = { 1: "st", 2: "nd", 3: "rd" }[place % 10] ?? "th";
+  return `${place}${suffix}`;
+}
+
+/**
+ * Whether a round is 1v1s throughout — the round-level shape of
+ * {@link isMatchPairing}, for surfaces that describe or count a whole round.
+ * A mixed round is not an all-match round: the broader treatment is the honest
+ * one, since match wording would misname the larger pods in it. An empty round
+ * has no shape to report and is never all-match.
+ *
+ * @param sizes The seat count of every pairing in the round.
+ * @returns True when every pairing is a 1v1.
+ */
+export function isAllMatchRound(sizes: readonly number[]): boolean {
+  return sizes.length > 0 && sizes.every((size) => isMatchPairing(size));
+}
+
+/**
+ * The plural noun for a round's pairings, for prose that counts them
+ * ("2 of 3 matches reported").
+ *
+ * @param sizes The seat count of every pairing in the round.
+ * @returns `matches` when every pairing is a 1v1, `pods` otherwise.
+ */
+export function pairingPluralNoun(sizes: readonly number[]): string {
+  return isAllMatchRound(sizes) ? "matches" : "pods";
+}
+
 export const DECK_SUBMISSION_ITEMS: { value: TournamentDeckSubmission; label: string }[] = [
   { value: "none", label: DECK_SUBMISSION_LABEL.none },
   { value: "optional", label: DECK_SUBMISSION_LABEL.optional },

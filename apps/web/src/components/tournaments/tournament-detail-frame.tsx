@@ -13,16 +13,13 @@ import {
   useMeasuredHeight,
 } from "@/components/layout/page-top-bar";
 import {
+  TopBarBreadcrumbBar,
   TopBarBreadcrumbSeparator,
   TopBarBreadcrumbTrail,
 } from "@/components/layout/top-bar-breadcrumb";
-import { Badge } from "@/components/ui/badge";
+import { TournamentHero } from "@/components/tournaments/tournament-hero";
 import { useTournamentDetail } from "@/hooks/use-tournaments";
-import {
-  canManageTournament,
-  EFFECTIVE_STATE_LABEL,
-  effectiveTournamentState,
-} from "@/lib/tournament-display";
+import { canManageTournament } from "@/lib/tournament-display";
 import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 
 type TournamentTab =
@@ -47,9 +44,11 @@ const TOURNAMENT_SECTION_LABEL: Record<TournamentSection, string> = {
 };
 
 /**
- * The shared sticky title bar for the tournament overview / dashboard landing:
- * the `Tournaments` breadcrumb, the tournament name, its effective-state badge,
- * and a Settings shortcut for organizers.
+ * The tournament overview / dashboard chrome. Unlike a section page, the
+ * overview has no title in its bar: the hero below is the title row (the group
+ * overview's precedent), so the bar keeps only the trail — with the tournament
+ * name as its trailing crumb, which is what still names the page once the hero
+ * has scrolled away — and the organizers' Settings shortcut.
  * @returns The overview-page chrome with its dashboard content.
  */
 export function TournamentOverviewFrame({
@@ -64,33 +63,22 @@ export function TournamentOverviewFrame({
 
   return (
     <>
-      <PageTopBarSticky maxWidth="5xl">
-        <PageTopBar className="gap-2">
-          <div className="flex min-w-0 flex-1 items-center gap-2 sm:items-baseline">
-            <TopBarBreadcrumbTrail
-              segments={[{ label: "Tournaments", link: <Link to="/tournaments" /> }]}
-            />
-            <TopBarBreadcrumbSeparator className="hidden sm:inline" />
-            <PageTopBarTitle>{data.name}</PageTopBarTitle>
-            <Badge variant="secondary" className="shrink-0">
-              {
-                EFFECTIVE_STATE_LABEL[
-                  effectiveTournamentState(data.startsAt, data.endsAt, data.status)
-                ]
-              }
-            </Badge>
-          </div>
-          {manage ? (
-            <PageTopBarActions>
-              <PageTopBarButton render={<Link to="/tournaments/$id/settings" params={{ id }} />}>
-                <SettingsIcon className="size-4" />
-                Settings
-              </PageTopBarButton>
-            </PageTopBarActions>
-          ) : null}
-        </PageTopBar>
-      </PageTopBarSticky>
-      <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-8 pt-3", PAGE_PADDING_NO_TOP)}>
+      <TopBarBreadcrumbBar
+        segments={[
+          { label: "Tournaments", link: <Link to="/tournaments" /> },
+          { label: data.name },
+        ]}
+        actions={
+          manage ? (
+            <PageTopBarButton render={<Link to="/tournaments/$id/settings" params={{ id }} />}>
+              <SettingsIcon className="size-4" />
+              Settings
+            </PageTopBarButton>
+          ) : undefined
+        }
+      />
+      <TournamentHero detail={data} />
+      <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-8 pt-6", PAGE_PADDING_NO_TOP)}>
         {render(data)}
       </div>
     </>

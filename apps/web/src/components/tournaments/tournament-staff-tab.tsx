@@ -1,11 +1,24 @@
-import type { TournamentDetailResponse, TournamentStaffRole } from "@openrift/shared";
+import type {
+  TournamentDetailResponse,
+  TournamentStaffMemberResponse,
+  TournamentStaffRole,
+} from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import { EllipsisVerticalIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import {
+  EllipsisVerticalIcon,
+  GavelIcon,
+  LinkIcon,
+  PlusIcon,
+  ShieldIcon,
+  Trash2Icon,
+} from "lucide-react";
+import type { ComponentType, SVGProps } from "react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 import { PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
+import { ActionBand } from "@/components/ui/action-band";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -24,8 +37,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia } from "@/components/ui/empty";
 import { Label } from "@/components/ui/label";
+import { SectionHeading } from "@/components/ui/section-heading";
 import {
   Select,
   SelectContent,
@@ -54,71 +68,26 @@ const ORG_ROLE_LABEL: Record<"owner" | "manager" | "judge", string> = {
   judge: "Judge",
 };
 
+/** Per-role section chrome: plural heading, empty-state icon, and the noun the
+ * empty copy and the invite dialog both read. */
+const ROLE_SECTION: Record<
+  TournamentStaffRole,
+  { heading: string; icon: ComponentType<SVGProps<SVGSVGElement>>; empty: string }
+> = {
+  organizer: { heading: "Organizers", icon: ShieldIcon, empty: "No organizers yet" },
+  judge: { heading: "Judges", icon: GavelIcon, empty: "No judges yet" },
+};
+
 export function TournamentStaffTab({ detail }: { detail: TournamentDetailResponse }) {
   const host = isTournamentHost(detail.myRoles);
-  const removeStaff = useRemoveTournamentStaff();
-
-  async function run(action: () => Promise<unknown>) {
-    try {
-      await action();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Something went wrong");
-    }
-  }
 
   return (
     <div className="flex flex-col gap-6">
-      {detail.staff.length === 0 ? (
-        <p className="text-muted-foreground">No staff yet.</p>
-      ) : (
-        <ul className="flex flex-col gap-2">
-          {detail.staff.map((member) => (
-            <li key={`${member.userId}-${member.source}-${member.role}`}>
-              <Card className="flex-row items-center gap-3 p-3">
-                <UserAvatar name={member.name} className="size-9 shrink-0" />
-                <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="flex flex-wrap items-center gap-2">
-                    <span className="truncate font-medium">{member.name ?? member.userId}</span>
-                    <Badge variant="outline">{STAFF_ROLE_LABEL[member.role]}</Badge>
-                    {member.source === "organization" && member.orgRole ? (
-                      <Badge variant="secondary">
-                        {ORG_ROLE_LABEL[member.orgRole]} · {detail.host.displayName}
-                      </Badge>
-                    ) : null}
-                  </span>
-                </span>
-                {host && member.source === "grant" ? (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={<Button size="sm" variant="ghost" aria-label="Staff actions" />}
-                    >
-                      <EllipsisVerticalIcon className="size-4" />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        variant="destructive"
-                        disabled={removeStaff.isPending}
-                        onClick={() =>
-                          void run(() =>
-                            removeStaff.mutateAsync({
-                              id: detail.id,
-                              userId: member.userId,
-                              role: member.role,
-                            }),
-                          )
-                        }
-                      >
-                        <Trash2Icon className="size-4" />
-                        Remove
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                ) : null}
-              </Card>
-            </li>
-          ))}
-        </ul>
-      )}
+      {/* Grouped by role rather than in API order: the question this page
+          answers first is "does the event have a judge?", which an interleaved
+          flat list can't answer at a glance. */}
+      <StaffRoleSection detail={detail} staffRole="organizer" host={host} />
+      <StaffRoleSection detail={detail} staffRole="judge" host={host} />
 
       {detail.host.type === "organization" && detail.host.orgId ? (
         <p className="text-muted-foreground text-sm">
@@ -135,31 +104,155 @@ export function TournamentStaffTab({ detail }: { detail: TournamentDetailRespons
         </p>
       ) : null}
 
-      {host ? <StaffInviteLinks detail={detail} /> : null}
+      {host ? <StaffInviteBand detail={detail} /> : null}
     </div>
   );
 }
 
 /**
- * The host's reusable staff-invite links. One per role: anyone the host shares
- * the link with confirms while logged in to take the role, so no email or user
- * search is needed. Disabling retires the link (confirmed, since it breaks any
- * link already shared); creating again mints a fresh one.
- * @returns The invite-link controls for organizer and judge.
+ * One role's staff, under a counted heading. An empty group says so rather
+ * than vanishing — a tournament with no judge is a fact the host needs to see.
+ * @returns The role section.
  */
-function StaffInviteLinks({ detail }: { detail: TournamentDetailResponse }) {
+function StaffRoleSection({
+  detail,
+  staffRole,
+  host,
+}: {
+  detail: TournamentDetailResponse;
+  staffRole: TournamentStaffRole;
+  host: boolean;
+}) {
+  const section = ROLE_SECTION[staffRole];
+  const members = detail.staff.filter((member) => member.role === staffRole);
+
   return (
-    <section className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1">
-        <h2 className="font-semibold">Staff invite links</h2>
-        <p className="text-muted-foreground text-sm">
-          Share a link with someone to make them staff. They take the role by confirming while
-          signed in. Disable a link to stop it working, then create a new one to share fresh.
-        </p>
-      </div>
-      <StaffInviteRow id={detail.id} staffRole="organizer" token={detail.organizerInviteToken} />
-      <StaffInviteRow id={detail.id} staffRole="judge" token={detail.judgeInviteToken} />
+    <section className="flex flex-col gap-3">
+      <SectionHeading count={members.length}>{section.heading}</SectionHeading>
+      {members.length === 0 ? (
+        <Empty className="border py-8">
+          <EmptyHeader>
+            <EmptyMedia>
+              <section.icon className="text-muted-foreground size-8" />
+            </EmptyMedia>
+            <EmptyDescription>
+              {section.empty}
+              {host
+                ? ` — add someone directly, or share the ${STAFF_ROLE_LABEL[
+                    staffRole
+                  ].toLowerCase()} invite link below.`
+                : "."}
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {members.map((member) => (
+            <li key={`${member.userId}-${member.source}-${member.role}`}>
+              <StaffRow detail={detail} member={member} host={host} />
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
+  );
+}
+
+function StaffRow({
+  detail,
+  member,
+  host,
+}: {
+  detail: TournamentDetailResponse;
+  member: TournamentStaffMemberResponse;
+  host: boolean;
+}) {
+  const removeStaff = useRemoveTournamentStaff();
+  const canRemove = host && member.source === "grant";
+
+  return (
+    <Card className="flex-row items-center gap-3 p-3">
+      <UserAvatar name={member.name} className="size-9 shrink-0" />
+      <span className="flex min-w-0 flex-1 items-center gap-2">
+        <span className="truncate font-medium">{member.name ?? member.userId}</span>
+        {/* The role is the section heading now, so the only chip left is the
+            one that changes what you can do: org-derived staff can't be
+            removed here. Full provenance rides along as the title. */}
+        {member.source === "organization" && member.orgRole ? (
+          <Badge
+            variant="subtle"
+            className="shrink-0"
+            title={`${ORG_ROLE_LABEL[member.orgRole]} of ${detail.host.displayName}`}
+          >
+            via org
+          </Badge>
+        ) : null}
+      </span>
+      {canRemove ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={<Button size="icon-sm" variant="ghost" aria-label="Staff actions" />}
+          >
+            <EllipsisVerticalIcon className="size-4" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              variant="destructive"
+              disabled={removeStaff.isPending}
+              onClick={async () => {
+                try {
+                  await removeStaff.mutateAsync({
+                    id: detail.id,
+                    userId: member.userId,
+                    role: member.role,
+                  });
+                } catch (error) {
+                  toast.error(error instanceof Error ? error.message : "Something went wrong");
+                }
+              }}
+            >
+              <Trash2Icon className="size-4" />
+              Remove
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : host ? (
+        // Org-derived rows have no menu; the spacer keeps their name column
+        // ending where the removable rows' does. Non-hosts see no menu on any
+        // row, so the column doesn't exist and needs no spacer.
+        <span aria-hidden="true" className="size-7 shrink-0" />
+      ) : null}
+    </Card>
+  );
+}
+
+/**
+ * The host's reusable staff-invite links as the page's action band. One row per
+ * role, always the same shape: anyone the host shares a link with confirms
+ * while logged in to take the role, so no email or user search is needed.
+ * Disabling retires the link (confirmed, since it breaks any link already
+ * shared); creating again mints a fresh one.
+ *
+ * Static band — its rows hold real buttons, so it takes no `render`.
+ * @returns The invite-link band for organizer and judge.
+ */
+function StaffInviteBand({ detail }: { detail: TournamentDetailResponse }) {
+  const activeCount = [detail.organizerInviteToken, detail.judgeInviteToken].filter(
+    (token) => token !== null,
+  ).length;
+
+  return (
+    <ActionBand
+      icon={LinkIcon}
+      label="Invite links"
+      value={activeCount}
+      sub="active · anyone with the link can claim the role"
+    >
+      <div className="flex flex-col gap-2">
+        <StaffInviteRow id={detail.id} staffRole="organizer" token={detail.organizerInviteToken} />
+        <StaffInviteRow id={detail.id} staffRole="judge" token={detail.judgeInviteToken} />
+      </div>
+    </ActionBand>
   );
 }
 
@@ -176,6 +269,7 @@ function StaffInviteRow({
   const [disableOpen, setDisableOpen] = useState(false);
   const roleLabel = STAFF_ROLE_LABEL[staffRole];
   const roleNoun = staffRole === "judge" ? "a judge" : "an organizer";
+  // Built from the env-backed origin, never a hardcoded site URL.
   const url = token ? `${getSiteUrl()}/tournaments/staff-invite/${token}` : null;
 
   async function run(enabled: boolean) {
@@ -187,14 +281,32 @@ function StaffInviteRow({
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      <Label>{roleLabel} link</Label>
-      {url ? (
-        <>
-          <div className="flex gap-2">
-            <Input readOnly value={url} aria-label={`${roleLabel} invite link`} />
+    // `flex-wrap` plus `basis-full sm:basis-0` on the label side is what stops
+    // the old bug: the row used to be a non-wrapping flex, so on a phone the
+    // link was crushed to a few pixels. Now it takes its own line and the
+    // buttons drop below it.
+    <div className="bg-muted/40 flex flex-wrap items-center gap-2 rounded-lg px-2.5 py-2">
+      <div className="flex min-w-0 flex-1 basis-full items-center gap-2 sm:basis-0">
+        <Badge variant="outline" className="shrink-0">
+          {roleLabel}
+        </Badge>
+        {url ? (
+          // Display-only, so a truncating pill rather than a readonly Input —
+          // Copy still puts the full absolute URL on the clipboard.
+          <span className="text-muted-foreground min-w-0 truncate font-mono text-xs" title={url}>
+            {url.replace(/^https?:\/\//u, "")}
+          </span>
+        ) : (
+          <span className="text-muted-foreground text-xs">No link yet</span>
+        )}
+      </div>
+      <div className="ml-auto flex shrink-0 items-center gap-1">
+        {url ? (
+          <>
             <Button
+              size="sm"
               variant="secondary"
+              aria-label={`Copy ${roleLabel.toLowerCase()} invite link`}
               onClick={async () => {
                 await navigator.clipboard.writeText(url);
                 toast.success("Link copied");
@@ -203,33 +315,40 @@ function StaffInviteRow({
               Copy
             </Button>
             <Button
+              size="sm"
               variant="ghost"
               className="text-destructive"
+              aria-label={`Disable ${roleLabel.toLowerCase()} invite link`}
               disabled={setInvite.isPending}
               onClick={() => setDisableOpen(true)}
             >
-              Disable link
+              Disable
             </Button>
-          </div>
-          <ConfirmActionDialog
-            open={disableOpen}
-            onOpenChange={setDisableOpen}
-            title={`Disable the ${roleLabel.toLowerCase()} link?`}
-            description={`Anyone you've shared it with can no longer use it to become ${roleNoun}. You can create a new link any time.`}
-            confirmLabel="Disable link"
-            pendingLabel="Disabling..."
-            isPending={setInvite.isPending}
-            onConfirm={async () => {
-              await run(false);
-              setDisableOpen(false);
-            }}
-          />
-        </>
-      ) : (
-        <Button className="w-fit" disabled={setInvite.isPending} onClick={() => void run(true)}>
-          Create link
-        </Button>
-      )}
+            <ConfirmActionDialog
+              open={disableOpen}
+              onOpenChange={setDisableOpen}
+              title={`Disable the ${roleLabel.toLowerCase()} link?`}
+              description={`Anyone you've shared it with can no longer use it to become ${roleNoun}. You can create a new link any time.`}
+              confirmLabel="Disable link"
+              pendingLabel="Disabling..."
+              isPending={setInvite.isPending}
+              onConfirm={async () => {
+                await run(false);
+                setDisableOpen(false);
+              }}
+            />
+          </>
+        ) : (
+          <Button
+            size="sm"
+            aria-label={`Create link for ${roleLabel.toLowerCase()}`}
+            disabled={setInvite.isPending}
+            onClick={() => void run(true)}
+          >
+            Create link
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

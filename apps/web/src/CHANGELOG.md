@@ -4,6 +4,7 @@
 
 ### Highlights
 
+- feat(Tournaments): **Redesigned tournament pages** — the tournament page now opens with an event header and leads with the live round and a standings podium, and the players, pairings, standings, and staff pages match the same look.
 - feat(Tournaments): **Swiss 1v1 rounds** — tournaments can now pair head-to-head Swiss rounds (best of 1 or 3) with configurable win, draw, and bye points, automatic byes, and strong rematch avoidance.
 - feat(Tournaments): **Player regions** — assign each player a region: pairings avoid same-region matchups and the standings add a per-region leaderboard.
 - feat(Tournaments): **Events pages redesign** — the next tournament gets a hero card with legend art from submitted decks, and past events line up on a timeline with winner callouts and participant avatars, on the tournaments page and in groups.
@@ -21,6 +22,7 @@
 - feat(Groups): **Tournaments first on the group overview** — the tile row now leads with tournaments, so the next event is the first thing you see.
 - feat(Tournaments): **Warning before overwriting results** — the pod result form now says when someone else saved scores while you were editing, with a button to load the latest values.
 - fix(Tournaments): **Regions required before pairing** — on region-aware events, rounds can no longer be generated while active players lack a region; the participants page now flags those players and offers a one-click Set region button.
+- fix(Tournaments): **Staff invite links fit on phones** — the invite link no longer gets squeezed to a sliver beside the Copy button on a narrow screen.
 - fix(Products): **Card art stays inside its band** — the fanned cover art on product tiles is now cropped at the band edge, so card corners no longer overlap the product name below.
 - feat(Cards): **Clearer narrowed-search indicator** — when search is limited to certain fields, the "in:" chip now stays visible even with an empty search box and has its own remove button to search all fields again.
 - fix(Cards): **Filter chips no longer detach on mobile** — the active-filter chips now stay attached to the search bar instead of sometimes floating below a gap with uneven spacing.

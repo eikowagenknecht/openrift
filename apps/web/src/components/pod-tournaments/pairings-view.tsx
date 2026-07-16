@@ -8,20 +8,48 @@ import type {
   TournamentMatchFormat,
 } from "@openrift/shared";
 import { computePairingWarnings } from "@openrift/shared";
-import { CheckIcon, PencilIcon, XIcon } from "lucide-react";
+import {
+  ArrowUpDownIcon,
+  CheckIcon,
+  MapPinIcon,
+  PencilIcon,
+  RepeatIcon,
+  ScaleIcon,
+  SwordsIcon,
+  UserMinusIcon,
+  UsersIcon,
+  XIcon,
+} from "lucide-react";
 import { useState } from "react";
 import type { ReactNode } from "react";
 
-import { Heading } from "@/components/heading";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { IconChip } from "@/components/ui/icon-chip";
 import { Input } from "@/components/ui/input";
+import { SectionHeading } from "@/components/ui/section-heading";
+import type { StatStripItem } from "@/components/ui/stat-strip";
+import { StatStrip } from "@/components/ui/stat-strip";
+import { UserAvatar } from "@/components/user-avatar";
+import {
+  isAllMatchRound,
+  isMatchPairing,
+  ordinalPlace,
+  pairingLabel,
+} from "@/lib/tournament-display";
 import { cn } from "@/lib/utils";
 
 import { snapshotToPlayers, WarningBadge, WarningList } from "./pairing-warnings";
 import { parsePoints, PodResultForm } from "./pod-result-form";
-import { formatScore } from "./standings-table";
+import { formatScore } from "./standings-display";
 import { SwissResultForm } from "./swiss-result-form";
 
 interface PodResultEntry {
@@ -67,9 +95,12 @@ interface PairingsViewProps {
    * once everyone has entered theirs.
    */
   onSubmitPlayerResult?: (podId: string, playerId: string, gamePoints: number) => Promise<void>;
-  /** Organizer round-level controls (finalize / re-roll / edit), rendered in the round header. */
+  /** Organizer round-level controls (re-roll / edit), rendered in the round header. */
   renderRoundActions?: (round: PodRoundResponse) => ReactNode;
+  /** Empty-state title. Pass `""` to render nothing at all. */
   emptyMessage: string;
+  /** Optional empty-state second line. */
+  emptyDescription?: string;
 }
 
 // Engine pods from a stored round (members in order); index aligns with round.pods.
@@ -98,9 +129,25 @@ export function PairingsView({
   onSubmitPlayerResult,
   renderRoundActions,
   emptyMessage,
+  emptyDescription,
 }: PairingsViewProps) {
   if (rounds.length === 0) {
-    return <p className="text-muted-foreground">{emptyMessage}</p>;
+    // The manual pairing editor takes the whole surface over, so it asks for no
+    // empty state at all rather than an empty-string title.
+    if (emptyMessage === "") {
+      return null;
+    }
+    return (
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <SwordsIcon />
+          </EmptyMedia>
+          <EmptyTitle>{emptyMessage}</EmptyTitle>
+          {emptyDescription ? <EmptyDescription>{emptyDescription}</EmptyDescription> : null}
+        </EmptyHeader>
+      </Empty>
+    );
   }
   const nameById = new Map<string, string>(
     rounds.flatMap((round) => [
@@ -133,16 +180,30 @@ export function PairingsView({
           list.push(warning);
           podWarnings.set(warning.podIndex, list);
         }
-        const byeWarnings = warnings.filter((warning) => warning.kind === "repeatBye");
+        // Repeat byes are noted on the byed player's own row, not as a list.
+        const priorByesByPlayer = new Map(
+          warnings
+            .filter((warning) => warning.kind === "repeatBye")
+            .map((warning) => [warning.playerId, warning.priorByes] as const),
+        );
+        const countLabel = [
+          formatPodCount(round),
+          round.byes.length > 0
+            ? `${round.byes.length} bye${round.byes.length === 1 ? "" : "s"}`
+            : null,
+        ]
+          .filter((part) => part !== null)
+          .join(" · ");
 
         return (
           <section key={round.id} className="flex flex-col gap-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Heading as="h3">Round {round.roundNumber}</Heading>
-                <Badge variant={round.status === "finalized" ? "secondary" : "default"}>
+              <div className="flex flex-wrap items-center gap-2">
+                <SectionHeading as="h3">Round {round.roundNumber}</SectionHeading>
+                <Badge variant={round.status === "finalized" ? "secondary" : "warning"}>
                   {round.status === "finalized" ? "Finalized" : "Reporting"}
                 </Badge>
+                <span className="text-muted-foreground text-sm">{countLabel}</span>
               </div>
               {renderRoundActions ? (
                 <div className="flex flex-wrap items-center justify-end gap-2">
@@ -150,7 +211,7 @@ export function PairingsView({
                 </div>
               ) : null}
             </div>
-            {showPenalty ? <RoundPenaltySummary round={round} /> : null}
+            {showPenalty ? <RoundPenaltyStats round={round} /> : null}
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {round.pods.map((pod, podIndex) => (
                 <PodCard
@@ -172,17 +233,14 @@ export function PairingsView({
                   onSubmitPlayerResult={onSubmitPlayerResult}
                 />
               ))}
-              {round.byes.length > 0 ? (
-                <ByesCard
-                  byes={round.byes}
-                  byePoints={byePoints}
-                  warnings={byeWarnings}
-                  warningsExpanded={warningsExpanded}
-                  nameById={nameById}
-                  showPenalty={showPenalty}
-                />
-              ) : null}
             </div>
+            {round.byes.length > 0 ? (
+              <ByesSection
+                byes={round.byes}
+                byePoints={byePoints}
+                priorByesByPlayer={priorByesByPlayer}
+              />
+            ) : null}
           </section>
         );
       })}
@@ -190,7 +248,24 @@ export function PairingsView({
   );
 }
 
-function RoundPenaltySummary({ round }: { round: PodRoundResponse }) {
+/**
+ * "3 pods" / "4 matches" — an all-1v1 (Swiss) round pairs matches, not pods.
+ * @returns The pod count with the round's noun.
+ */
+function formatPodCount(round: PodRoundResponse): string {
+  const allMatches = isAllMatchRound(round.pods.map((pod) => pod.size));
+  if (allMatches) {
+    return `${round.pods.length} match${round.pods.length === 1 ? "" : "es"}`;
+  }
+  return `${round.pods.length} pod${round.pods.length === 1 ? "" : "s"}`;
+}
+
+/**
+ * The round's pairing quality, as the organizer's stat row: how much penalty the
+ * engine had to accept, and where it had to accept it.
+ * @returns The stat strip.
+ */
+function RoundPenaltyStats({ round }: { round: PodRoundResponse }) {
   const rematches = round.pods.reduce((sum, pod) => sum + (pod.penalty?.rematchPairs ?? 0), 0);
   const inThreePods = round.pods
     .filter((pod) => pod.size === 3)
@@ -198,72 +273,136 @@ function RoundPenaltySummary({ round }: { round: PodRoundResponse }) {
   const largestSpread = round.pods.reduce((max, pod) => Math.max(max, pod.penalty?.spread ?? 0), 0);
   const sameRegionPods = round.pods.filter((pod) => (pod.penalty?.sameRegion ?? 0) > 0).length;
   // An all-matches (Swiss) round has no 3-pod duty to report.
-  const allMatches = round.pods.length > 0 && round.pods.every((pod) => pod.size === 2);
-  return (
-    <p className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-      <span>Penalty {Math.round(round.penaltyTotal ?? 0)}</span>
-      <span>
-        {rematches} rematch{rematches === 1 ? "" : "es"}
-      </span>
-      {allMatches ? null : <span>{inThreePods} in 3-pods</span>}
-      {sameRegionPods > 0 ? (
-        <span>
-          {sameRegionPods} same-region{" "}
-          {allMatches
-            ? sameRegionPods === 1
-              ? "match"
-              : "matches"
-            : sameRegionPods === 1
-              ? "pod"
-              : "pods"}
-        </span>
-      ) : null}
-      <span>Largest spread {largestSpread}</span>
-    </p>
-  );
+  const allMatches = isAllMatchRound(round.pods.map((pod) => pod.size));
+
+  const items: StatStripItem[] = [
+    {
+      key: "penalty",
+      value: Math.round(round.penaltyTotal ?? 0),
+      label: "penalty",
+      icon: ScaleIcon,
+    },
+    {
+      key: "rematches",
+      value: rematches,
+      label: rematches === 1 ? "rematch" : "rematches",
+      icon: RepeatIcon,
+      iconTone: rematches === 0 ? "green" : "gold",
+      tone: rematches === 0 ? "good" : "default",
+    },
+  ];
+  if (!allMatches) {
+    items.push({ key: "threePods", value: inThreePods, label: "in 3-pods", icon: UsersIcon });
+  }
+  if (sameRegionPods > 0) {
+    items.push({
+      key: "sameRegion",
+      value: sameRegionPods,
+      label: allMatches
+        ? `same-region ${sameRegionPods === 1 ? "match" : "matches"}`
+        : `same-region ${sameRegionPods === 1 ? "pod" : "pods"}`,
+      icon: MapPinIcon,
+      iconTone: "gold",
+    });
+  }
+  items.push({
+    key: "spread",
+    value: largestSpread,
+    label: "largest spread",
+    icon: ArrowUpDownIcon,
+  });
+
+  return <StatStrip items={items} />;
 }
 
-function ByesCard({
+/**
+ * The round's sat-out players, as a section of their own. A player who has byed
+ * before is flagged on their own row — a repeat bye is the thing an organizer
+ * wants to catch here.
+ * @returns The byes section.
+ */
+function ByesSection({
   byes,
   byePoints,
-  warnings,
-  warningsExpanded,
-  nameById,
-  showPenalty,
+  priorByesByPlayer,
 }: {
   byes: PodRoundResponse["byes"];
   byePoints: number;
-  warnings: PairingWarning[];
-  warningsExpanded: boolean;
-  nameById: Map<string, string>;
-  showPenalty: boolean;
+  /** Byes each player had entering this round; organizer-only, open round only. */
+  priorByesByPlayer: Map<string, number>;
 }) {
   return (
-    <Card className="gap-3 border-dashed">
-      <CardHeader className="gap-1">
-        <CardTitle className="flex items-center justify-between gap-2">
-          <span>Byes</span>
-          {showPenalty && !warningsExpanded ? (
-            <WarningBadge warnings={warnings} nameById={nameById} />
-          ) : null}
-        </CardTitle>
-        {showPenalty && warningsExpanded ? (
-          <WarningList warnings={warnings} nameById={nameById} />
-        ) : null}
-      </CardHeader>
-      <CardContent>
-        <ul className="flex flex-col gap-1.5">
-          {byes.map((bye) => (
-            <li key={bye.playerId} className="flex items-center justify-between gap-2">
-              <span className="font-medium">{bye.displayName}</span>
+    <div className="flex flex-col gap-2">
+      <SectionHeading as="h3" size="sm" icon={UserMinusIcon} count={byes.length}>
+        Byes
+      </SectionHeading>
+      <ul className="flex flex-col gap-1.5">
+        {byes.map((bye) => {
+          const priorByes = priorByesByPlayer.get(bye.playerId) ?? 0;
+          return (
+            <li
+              key={bye.playerId}
+              className="ring-foreground/10 bg-card flex items-center justify-between gap-2 rounded-lg px-3 py-2 ring-1"
+            >
+              <span className="flex min-w-0 items-center gap-2">
+                <UserAvatar name={bye.displayName} size="sm" />
+                <span className="truncate font-medium">{bye.displayName}</span>
+                {priorByes > 0 ? (
+                  <Badge variant="warning">
+                    {priorByes} earlier bye{priorByes === 1 ? "" : "s"}
+                  </Badge>
+                ) : null}
+              </span>
               <span className="font-semibold tabular-nums">
                 {byePoints > 0 ? `+${byePoints} bye` : "sat out · 0"}
               </span>
             </li>
-          ))}
-        </ul>
-      </CardContent>
-    </Card>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+/**
+ * A member's seed in the pod: where they finished and the game points that put
+ * them there. One badge rather than two figures at opposite ends of the row —
+ * the placement is derived from the game points, so they are one fact, and
+ * pairing them frees the row's end for the two point totals.
+ *
+ * Both halves are optional: an unreported pod has neither, and a pod mid
+ * self-entry has game points before anyone has placed.
+ *
+ * @param placement The 1-based finish within the pod, or null before results.
+ * @param gamePoints The member's game points, or null before they are entered.
+ * @returns The badge, or null when there is nothing to seed with.
+ */
+function MemberSeedBadge({
+  placement,
+  gamePoints,
+}: {
+  placement: number | null;
+  gamePoints: number | null;
+}) {
+  if (placement === null && gamePoints === null) {
+    return null;
+  }
+  return (
+    <Badge variant="secondary" className="shrink-0 tabular-nums">
+      {placement !== null && (
+        <span title={`Finished ${ordinalPlace(placement)} in the pod`}>{placement}</span>
+      )}
+      {placement !== null && gamePoints !== null ? (
+        <span aria-hidden="true" className="text-muted-foreground/60">
+          ·
+        </span>
+      ) : null}
+      {gamePoints !== null && (
+        <span className="text-muted-foreground" title={`${gamePoints} game points`}>
+          {gamePoints}g
+        </span>
+      )}
+    </Badge>
   );
 }
 
@@ -300,7 +439,7 @@ function PodCard({
   onSubmit: (podId: string, results: PodResultEntry[]) => Promise<void>;
   onSubmitPlayerResult?: (podId: string, playerId: string, gamePoints: number) => Promise<void>;
 }) {
-  const isMatch = pod.size === 2;
+  const isMatch = isMatchPairing(pod.size);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   // Per-player self-entry: which member row is open for input, and its draft value.
@@ -349,19 +488,19 @@ function PodCard({
   return (
     <Card className="gap-3">
       <CardHeader className="gap-1">
-        <CardTitle className="flex items-center justify-between gap-2">
-          <span>{isMatch ? `Match ${pod.podNumber}` : `Pod ${pod.podNumber}`}</span>
-          <span className="flex items-center gap-2">
+        <CardTitle className="flex items-center gap-2">
+          <IconChip
+            icon={isMatch ? SwordsIcon : UsersIcon}
+            tone={reported ? "green" : "neutral"}
+            size="sm"
+            shape="round"
+          />
+          <span>{pairingLabel(pod.size, pod.podNumber)}</span>
+          <span className="ml-auto flex items-center gap-2">
             {showPenalty && !warningsExpanded ? (
               <WarningBadge warnings={warnings} nameById={nameById} regionLabel={regionLabel} />
             ) : null}
-            {!reported && enteredCount > 0 ? (
-              <span className="text-muted-foreground font-normal">
-                {enteredCount} of {pod.size} scores in
-              </span>
-            ) : isMatch ? null : (
-              <span className="text-muted-foreground font-normal">{pod.size} players</span>
-            )}
+            <PodStatusBadge reported={reported} enteredCount={enteredCount} size={pod.size} />
           </span>
         </CardTitle>
         {showPenalty && pod.penalty ? (
@@ -400,22 +539,14 @@ function PodCard({
             <ul className="flex flex-col gap-1.5">
               {pod.members.map((member) => (
                 <li key={member.playerId} className="flex items-center justify-between gap-2">
-                  <span className="flex items-center gap-2">
-                    {member.placement !== null && (
-                      <Badge variant="secondary" className="tabular-nums">
-                        {member.placement}
-                      </Badge>
-                    )}
-                    <span className="font-medium">{member.displayName}</span>
+                  <span className="flex min-w-0 items-center gap-2">
+                    <MemberSeedBadge placement={member.placement} gamePoints={member.gamePoints} />
+                    <UserAvatar name={member.displayName} size="sm" />
+                    <span className="truncate font-medium">{member.displayName}</span>
                     {regionByPlayer?.get(member.playerId) ? (
-                      <Badge variant="outline">
+                      <Badge variant="outline" className="shrink-0">
                         {regionLabel(regionByPlayer.get(member.playerId) ?? "")}
                       </Badge>
-                    ) : null}
-                    {showPenalty ? (
-                      <span className="text-muted-foreground tabular-nums">
-                        {formatScore(scoresByPlayer.get(member.playerId) ?? 0)} pts
-                      </span>
                     ) : null}
                   </span>
                   {selfEntry && scoringPlayerId === member.playerId ? (
@@ -455,12 +586,24 @@ function PodCard({
                       </Button>
                     </span>
                   ) : (
-                    <span className="flex items-center gap-2 tabular-nums">
-                      {member.gamePoints !== null && (
-                        <span className="text-muted-foreground">{member.gamePoints} game</span>
-                      )}
+                    // shrink-0: without it a long name squeezes this cluster
+                    // until the numbers wrap mid-figure.
+                    <span className="flex shrink-0 items-center gap-2 tabular-nums">
+                      {showPenalty ? (
+                        <span
+                          className="text-muted-foreground"
+                          title={`${formatScore(scoresByPlayer.get(member.playerId) ?? 0)} points in the standings`}
+                        >
+                          {formatScore(scoresByPlayer.get(member.playerId) ?? 0)}
+                        </span>
+                      ) : null}
                       {member.points !== null && (
-                        <span className="font-semibold">+{formatScore(member.points)}</span>
+                        <span
+                          className="font-semibold"
+                          title={`${formatScore(member.points)} points from this round`}
+                        >
+                          +{formatScore(member.points)}
+                        </span>
                       )}
                       {selfEntry ? (
                         member.gamePoints === null ? (
@@ -501,5 +644,30 @@ function PodCard({
         )}
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * The pod's reporting state at a glance: green once every score is in, amber
+ * while the pod is part-way (someone still owes a score), quiet before anyone
+ * has entered anything.
+ * @returns The status badge.
+ */
+function PodStatusBadge({
+  reported,
+  enteredCount,
+  size,
+}: {
+  reported: boolean;
+  enteredCount: number;
+  size: number;
+}) {
+  if (reported) {
+    return <Badge variant="success">Reported</Badge>;
+  }
+  return (
+    <Badge variant={enteredCount > 0 ? "warning" : "muted"}>
+      {enteredCount} of {size} in
+    </Badge>
   );
 }

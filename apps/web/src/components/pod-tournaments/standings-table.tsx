@@ -1,6 +1,7 @@
 import type { PodStandingRow } from "@openrift/shared";
 
 import { Badge } from "@/components/ui/badge";
+import { Medal } from "@/components/ui/podium";
 import {
   Table,
   TableBody,
@@ -9,19 +10,60 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { UserAvatar } from "@/components/user-avatar";
 import { cn } from "@/lib/utils";
+
+import { formatPlayerRecord, formatScore, POD_WINS_HINT, standingRanks } from "./standings-display";
 
 // Default region label: the raw slug. A named module-level default keeps the
 // React Compiler from bailing out (inline arrow defaults are not reorderable).
 const rawRegionSlug = (slug: string): string => slug;
 
+// The two headers that read as codes rather than words. The columns are named
+// the way organizers say them out loud, so the long form is a tooltip on the
+// header rather than a wider column.
+const OPP_TITLE = "Average opponent points";
+const GAME_TITLE = "Game points";
+
 /**
- * Render a score as an integer when whole, otherwise up to two decimals (averages
- * like avg-opponent-score can produce 1.75, which should not round to 1.8).
- * @returns The formatted score string.
+ * The rank marker at the head of a row: a medal for the top three, the plain
+ * number below that.
+ * @returns The rank element.
  */
-export function formatScore(score: number): string {
-  return Number.isInteger(score) ? String(score) : Number(score.toFixed(2)).toString();
+function RankMark({ rank }: { rank: number }) {
+  if (rank <= 3) {
+    return <Medal rank={rank} />;
+  }
+  return <span className="text-muted-foreground tabular-nums">{rank}</span>;
+}
+
+/**
+ * A player's identity in a standings row: face, name, region, drop state.
+ * @returns The player cell contents.
+ */
+function PlayerIdentity({
+  row,
+  regionsEnabled,
+  regionLabel,
+}: {
+  row: PodStandingRow;
+  regionsEnabled: boolean;
+  regionLabel: (slug: string) => string;
+}) {
+  return (
+    <div className="flex min-w-0 items-center gap-2">
+      <UserAvatar name={row.displayName} size="sm" className="shrink-0" />
+      <span className="truncate font-medium">{row.displayName}</span>
+      {regionsEnabled && row.region ? (
+        <Badge variant="outline" className="shrink-0">
+          {regionLabel(row.region)}
+        </Badge>
+      ) : null}
+      {row.status === "dropped" ? (
+        <span className="text-muted-foreground shrink-0 text-sm">(dropped)</span>
+      ) : null}
+    </div>
+  );
 }
 
 export function StandingsTable({
@@ -33,7 +75,7 @@ export function StandingsTable({
   standings: PodStandingRow[];
   /** Column set: FFA pods (score/wins/pod tallies) or Swiss (points/W-L-D). */
   variant?: "pod" | "swiss";
-  /** Adds the Region column (and chips on mobile). */
+  /** Shows each player's region alongside their name. */
   regionsEnabled?: boolean;
   /** Region slug -> display label; defaults to the raw slug. */
   regionLabel?: (slug: string) => string;
@@ -42,6 +84,7 @@ export function StandingsTable({
     return <p className="text-muted-foreground">No players yet.</p>;
   }
   const swiss = variant === "swiss";
+  const ranks = standingRanks(standings);
   return (
     <>
       {/* Mobile: a compact divided list. Only the tie-break chain (wins, opponent
@@ -50,35 +93,26 @@ export function StandingsTable({
         {standings.map((row, index) => (
           <li
             key={row.playerId}
-            className={cn("flex items-center gap-3 py-2", row.status === "dropped" && "opacity-50")}
+            className={cn(
+              "flex items-center gap-3 py-2",
+              row.status === "dropped" && "opacity-50",
+              ranks[index] === 1 && "bg-border-accent/5",
+            )}
           >
-            <span className="text-muted-foreground w-6 shrink-0 text-right tabular-nums">
-              {index + 1}
-            </span>
+            <div className="flex w-6 shrink-0 justify-end">
+              <RankMark rank={ranks[index]} />
+            </div>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <span className="truncate font-medium">{row.displayName}</span>
-                {regionsEnabled && row.region ? (
-                  <Badge variant="outline" className="shrink-0">
-                    {regionLabel(row.region)}
-                  </Badge>
-                ) : null}
-                {row.status === "dropped" ? (
-                  <span className="text-muted-foreground shrink-0 text-sm">(dropped)</span>
-                ) : null}
-              </div>
+              <PlayerIdentity row={row} regionsEnabled={regionsEnabled} regionLabel={regionLabel} />
               <div className="text-muted-foreground flex gap-x-3 text-sm">
-                {swiss ? (
-                  <span className="tabular-nums">
-                    {row.wins}-{row.losses}-{row.draws}
-                  </span>
-                ) : (
-                  <span>
-                    {row.podWins} win{row.podWins === 1 ? "" : "s"}
-                  </span>
-                )}
-                <span>opp {formatScore(row.avgOpponentScore)}</span>
-                <span>{row.gamePoints} game pts</span>
+                <span
+                  className={swiss ? "tabular-nums" : undefined}
+                  title={swiss ? undefined : POD_WINS_HINT}
+                >
+                  {formatPlayerRecord(row, swiss)}
+                </span>
+                <span title={OPP_TITLE}>opp {formatScore(row.avgOpponentScore)}</span>
+                <span title={GAME_TITLE}>{row.gamePoints} game pts</span>
               </div>
             </div>
             <span className="shrink-0 font-semibold tabular-nums">{formatScore(row.score)}</span>
@@ -93,15 +127,22 @@ export function StandingsTable({
             <TableRow>
               <TableHead className="w-10">#</TableHead>
               <TableHead>Player</TableHead>
-              {regionsEnabled ? <TableHead>Region</TableHead> : null}
               <TableHead className="text-right">{swiss ? "Points" : "Score"}</TableHead>
               {swiss ? (
                 <TableHead className="text-right">W-L-D</TableHead>
               ) : (
-                <TableHead className="text-right">Wins</TableHead>
+                // "Wins" alone invites reading it as a match record; the column
+                // counts pods won outright.
+                <TableHead className="text-right" title={POD_WINS_HINT}>
+                  Pod wins
+                </TableHead>
               )}
-              <TableHead className="text-right">Opp</TableHead>
-              <TableHead className="text-right">Game</TableHead>
+              <TableHead className="text-right" title={OPP_TITLE}>
+                Opp
+              </TableHead>
+              <TableHead className="text-right" title={GAME_TITLE}>
+                Game
+              </TableHead>
               <TableHead className="text-right">Rounds</TableHead>
               {swiss ? null : (
                 <>
@@ -114,19 +155,23 @@ export function StandingsTable({
           </TableHeader>
           <TableBody>
             {standings.map((row, index) => (
-              <TableRow key={row.playerId} className={cn(row.status === "dropped" && "opacity-50")}>
-                <TableCell className="text-muted-foreground tabular-nums">{index + 1}</TableCell>
-                <TableCell className="font-medium">
-                  {row.displayName}
-                  {row.status === "dropped" ? (
-                    <span className="text-muted-foreground ml-2">(dropped)</span>
-                  ) : null}
+              <TableRow
+                key={row.playerId}
+                className={cn(
+                  row.status === "dropped" && "opacity-50",
+                  ranks[index] === 1 && "bg-border-accent/5",
+                )}
+              >
+                <TableCell>
+                  <RankMark rank={ranks[index]} />
                 </TableCell>
-                {regionsEnabled ? (
-                  <TableCell className="text-muted-foreground">
-                    {row.region ? regionLabel(row.region) : "—"}
-                  </TableCell>
-                ) : null}
+                <TableCell>
+                  <PlayerIdentity
+                    row={row}
+                    regionsEnabled={regionsEnabled}
+                    regionLabel={regionLabel}
+                  />
+                </TableCell>
                 <TableCell className="text-right font-semibold tabular-nums">
                   {formatScore(row.score)}
                 </TableCell>

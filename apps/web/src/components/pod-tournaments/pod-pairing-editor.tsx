@@ -294,6 +294,9 @@ function PodDropZone({
     >
       <CardHeader className="gap-1">
         <CardTitle className="flex items-center justify-between gap-2">
+          {/* Named by the event's style, not by seat count like pairingLabel():
+              a Swiss match being dragged through 1 or 3 players is still a
+              match, and renaming it mid-drag would be nonsense. */}
           <span>{mode === "swiss" ? `Match ${index + 1}` : `Pod ${index + 1}`}</span>
           <span className={cn("font-normal", valid ? "text-muted-foreground" : "text-destructive")}>
             {count} player{count === 1 ? "" : "s"}

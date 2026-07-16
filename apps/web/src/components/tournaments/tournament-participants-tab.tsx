@@ -1,27 +1,17 @@
-import type { TournamentDetailResponse, TournamentParticipantResponse } from "@openrift/shared";
-import { Link } from "@tanstack/react-router";
-import {
-  CopyIcon,
-  EllipsisVerticalIcon,
-  GlobeIcon,
-  LayersIcon,
-  Link2Icon,
-  PencilIcon,
-  RotateCcwIcon,
-  Trash2Icon,
-  UnlinkIcon,
-  UserMinusIcon,
-  UserPlusIcon,
-} from "lucide-react";
+import type { TournamentDetailResponse, TournamentParticipantStatus } from "@openrift/shared";
+import { CheckIcon, GlobeIcon, UserPlusIcon, UserXIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { SearchInput } from "@/components/filters/search-input";
 import { PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
+import { MissingRegionsBand } from "@/components/tournaments/missing-regions-band";
+import type {
+  ParticipantAction,
+  ParticipantTarget,
+} from "@/components/tournaments/participant-row";
+import { ParticipantRow, participantMissesRegion } from "@/components/tournaments/participant-row";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -31,14 +21,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { DialogForm } from "@/components/ui/dialog-form";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { SectionHeading } from "@/components/ui/section-heading";
 import {
   Select,
   SelectContent,
@@ -46,9 +30,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { UserAvatar } from "@/components/user-avatar";
+import type { StatStripItem } from "@/components/ui/stat-strip";
+import { StatStrip } from "@/components/ui/stat-strip";
 import { useCustomTagList } from "@/hooks/use-enums";
-import { useRegionLabel } from "@/hooks/use-region-label";
 import { useTournamentDeckCheckEntries } from "@/hooks/use-tournament-deck-check";
 import {
   useAddParticipant,
@@ -56,32 +40,27 @@ import {
   useTournamentParticipants,
   useUpdateParticipant,
 } from "@/hooks/use-tournaments";
-import { getSiteUrl } from "@/lib/site-config";
-import {
-  canCheckDecks,
-  canManageTournament,
-  compareParticipantsForList,
-  PARTICIPANT_STATUS_LABEL,
-} from "@/lib/tournament-display";
+import { canCheckDecks, canManageTournament } from "@/lib/tournament-display";
 
-type ParticipantAction =
-  | "drop"
-  | "reactivate"
-  | "approve"
-  | "deny"
-  | "remove"
-  | "unlink"
-  | "reissue";
-
-/** Copies the participant's claim link so the host can hand it to the player. */
-async function copyClaimLink(token: string): Promise<void> {
-  await navigator.clipboard.writeText(`${getSiteUrl()}/tournaments/claim/${token}`);
-  toast.success("Claim link copied");
-}
-
-function statusBadgeVariant(status: TournamentParticipantResponse["status"]) {
-  return status === "active" ? ("secondary" as const) : ("outline" as const);
-}
+// The roster's groups, in reading order: the things waiting on the viewer first
+// (join requests, then pending invites), the field itself, and the players who
+// are out of it sunk to the bottom. This is the priority the flat list used to
+// imply via `compareParticipantsForList`; the groups make the split visible, and
+// sort by name inside each one.
+const ROSTER_GROUPS: {
+  key: string;
+  heading: string;
+  statuses: TournamentParticipantStatus[];
+  /** The group carries an identity chip — it is an approval queue, not a list. */
+  icon?: typeof UserPlusIcon;
+  /** Out of the field: dimmed, matching the standings table's dropped rows. */
+  dimmed?: boolean;
+}[] = [
+  { key: "requested", heading: "Join requests", statuses: ["requested"], icon: UserPlusIcon },
+  { key: "invited", heading: "Invited", statuses: ["invited"] },
+  { key: "active", heading: "Active", statuses: ["active"] },
+  { key: "inactive", heading: "Dropped", statuses: ["dropped", "no_show"], dimmed: true },
+];
 
 export function TournamentParticipantsTab({
   id,
@@ -93,9 +72,8 @@ export function TournamentParticipantsTab({
   const manage = canManageTournament(detail.myRoles);
   // Judges assign regions (part of deck check) even without manage rights.
   const canAssignRegion = detail.regionsEnabled && canCheckDecks(detail.myRoles);
-  const regionLabel = useRegionLabel();
   const { data } = useTournamentParticipants(id);
-  const participants = data.items.toSorted(compareParticipantsForList);
+  const participants = data.items;
   const updateParticipant = useUpdateParticipant();
   const participantAction = useParticipantAction();
 
@@ -109,25 +87,41 @@ export function TournamentParticipantsTab({
   );
 
   const [search, setSearch] = useState("");
-  const [renameTarget, setRenameTarget] = useState<{ participantId: string; name: string } | null>(
+  const [renameTarget, setRenameTarget] = useState<ParticipantTarget | null>(null);
+  const [regionTarget, setRegionTarget] = useState<(ParticipantTarget & { region: string }) | null>(
     null,
   );
-  const [regionTarget, setRegionTarget] = useState<{
-    participantId: string;
-    name: string;
-    region: string;
-  } | null>(null);
-  const [removeTarget, setRemoveTarget] = useState<{ participantId: string; name: string } | null>(
-    null,
-  );
+  const [removeTarget, setRemoveTarget] = useState<ParticipantTarget | null>(null);
 
-  // Region-aware tournaments cannot pair a round while an active player has no
-  // region, so the roster flags exactly those players.
-  const regionMissing = (participant: TournamentParticipantResponse) =>
-    detail.regionsEnabled && participant.status === "active" && participant.region === null;
-  const missingRegionCount = participants.filter((participant) =>
-    regionMissing(participant),
+  const missingRegionPlayers = participants.filter((participant) =>
+    participantMissesRegion(participant, detail.regionsEnabled),
+  );
+  const activeCount = participants.filter((participant) => participant.status === "active").length;
+  const droppedCount = participants.filter(
+    (participant) => participant.status === "dropped" || participant.status === "no_show",
   ).length;
+  const withRegionCount = activeCount - missingRegionPlayers.length;
+
+  const stats: StatStripItem[] = [
+    { key: "active", value: activeCount, label: "active", icon: CheckIcon, iconTone: "green" },
+    { key: "dropped", value: droppedCount, label: "dropped", icon: UserXIcon },
+    ...(detail.regionsEnabled
+      ? [
+          {
+            key: "regions",
+            value: `${withRegionCount}/${activeCount}`,
+            label: "with region",
+            icon: GlobeIcon,
+            iconTone: "sky" as const,
+            // A full field is the verdict this page exists to deliver: pairing
+            // is unblocked. A partial count is just a number.
+            tone: (missingRegionPlayers.length === 0 && activeCount > 0
+              ? "good"
+              : "default") as StatStripItem["tone"],
+          },
+        ]
+      : []),
+  ];
 
   const needle = search.trim().toLowerCase();
   const visible = needle
@@ -150,23 +144,22 @@ export function TournamentParticipantsTab({
     void run(() => participantAction.mutateAsync({ id, participantId, action }));
   }
 
+  const groups = ROSTER_GROUPS.map((group) => ({
+    ...group,
+    players: visible
+      .filter((participant) => group.statuses.includes(participant.status))
+      .toSorted((a, b) => a.displayName.localeCompare(b.displayName)),
+  })).filter((group) => group.players.length > 0);
+
   return (
     <div className="flex flex-col gap-4">
-      {canAssignRegion && missingRegionCount > 0 ? (
-        <Alert variant="warning">
-          <GlobeIcon />
-          <AlertTitle>
-            {missingRegionCount} {missingRegionCount === 1 ? "player has" : "players have"} no
-            region yet
-          </AlertTitle>
-          <AlertDescription>
-            Every active player needs a region before a round can be paired. Use the Set region
-            button on the flagged rows below.
-          </AlertDescription>
-        </Alert>
+      {canAssignRegion && missingRegionPlayers.length > 0 ? (
+        <MissingRegionsBand players={missingRegionPlayers} onSetRegion={setRegionTarget} />
       ) : null}
+
       {participants.length > 0 ? (
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        <>
+          <StatStrip items={stats} />
           <SearchInput
             value={search}
             onValueChange={setSearch}
@@ -174,232 +167,41 @@ export function TournamentParticipantsTab({
             ariaLabel="Search players"
             className="w-full max-w-xs"
           />
-          <p className="text-muted-foreground text-sm">
-            {participants.length} {participants.length === 1 ? "player" : "players"}
-          </p>
-        </div>
+        </>
       ) : null}
 
       {participants.length === 0 ? (
         <p className="text-muted-foreground">No participants yet.</p>
-      ) : visible.length === 0 ? (
+      ) : groups.length === 0 ? (
         <p className="text-muted-foreground">No players match the search.</p>
       ) : (
-        <ul className="flex flex-col gap-2">
-          {visible.map((participant) => {
-            const deckEntry = entryByParticipant.get(participant.id);
-            return (
-              <li key={participant.id}>
-                <Card className="flex-row items-center gap-3 p-3">
-                  <UserAvatar
-                    name={participant.userName ?? participant.displayName}
-                    className="size-9 shrink-0"
+        groups.map((group) => (
+          <section key={group.key} className="flex flex-col gap-2">
+            <SectionHeading count={group.players.length} icon={group.icon} tone="gold">
+              {group.heading}
+            </SectionHeading>
+            <ul className="flex flex-col gap-2">
+              {group.players.map((participant) => (
+                <li key={participant.id}>
+                  <ParticipantRow
+                    participant={participant}
+                    tournamentId={id}
+                    regionsEnabled={detail.regionsEnabled}
+                    manage={manage}
+                    canAssignRegion={canAssignRegion}
+                    dimmed={group.dimmed}
+                    deckEntryId={entryByParticipant.get(participant.id)?.id}
+                    actionPending={participantAction.isPending}
+                    onAction={fireAction}
+                    onRename={setRenameTarget}
+                    onSetRegion={setRegionTarget}
+                    onRemove={setRemoveTarget}
                   />
-                  <span className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-                    <span className="truncate font-medium">{participant.displayName}</span>
-                    <Badge variant={statusBadgeVariant(participant.status)}>
-                      {PARTICIPANT_STATUS_LABEL[participant.status]}
-                    </Badge>
-                    {detail.regionsEnabled && participant.region ? (
-                      <Badge variant="outline">{regionLabel(participant.region)}</Badge>
-                    ) : regionMissing(participant) ? (
-                      <Badge variant="warning">
-                        <GlobeIcon className="size-3" />
-                        No region
-                      </Badge>
-                    ) : null}
-                    {participant.userId ? (
-                      <Badge
-                        variant="subtle"
-                        title={
-                          participant.userName
-                            ? `Linked to the OpenRift account of ${participant.userName}`
-                            : "Linked to an OpenRift account"
-                        }
-                      >
-                        <Link2Icon className="size-3" />
-                        {participant.userName ?? "Linked"}
-                      </Badge>
-                    ) : null}
-                  </span>
-                  {manage ? (
-                    <span className="flex shrink-0 items-center gap-1">
-                      {regionMissing(participant) ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-amber-600 dark:text-amber-500"
-                          onClick={() =>
-                            setRegionTarget({
-                              participantId: participant.id,
-                              name: participant.displayName,
-                              region: "none",
-                            })
-                          }
-                        >
-                          <GlobeIcon className="size-4" />
-                          Set region
-                        </Button>
-                      ) : null}
-                      {deckEntry ? (
-                        <Button
-                          size="sm"
-                          render={
-                            <Link
-                              to="/tournaments/$id/decks/$entryId"
-                              params={{ id, entryId: deckEntry.id }}
-                            />
-                          }
-                        >
-                          <LayersIcon className="size-4" />
-                          Deck
-                        </Button>
-                      ) : null}
-                      {participant.status === "requested" ? (
-                        <>
-                          <Button
-                            size="sm"
-                            disabled={participantAction.isPending}
-                            onClick={() => fireAction(participant.id, "approve")}
-                          >
-                            Approve
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-destructive"
-                            disabled={participantAction.isPending}
-                            onClick={() => fireAction(participant.id, "deny")}
-                          >
-                            Deny
-                          </Button>
-                        </>
-                      ) : null}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          render={
-                            <Button size="sm" variant="ghost" aria-label="Participant actions" />
-                          }
-                        >
-                          <EllipsisVerticalIcon className="size-4" />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() =>
-                              setRenameTarget({
-                                participantId: participant.id,
-                                name: participant.displayName,
-                              })
-                            }
-                          >
-                            <PencilIcon className="size-4" />
-                            Rename
-                          </DropdownMenuItem>
-                          {canAssignRegion ? (
-                            <DropdownMenuItem
-                              onClick={() =>
-                                setRegionTarget({
-                                  participantId: participant.id,
-                                  name: participant.displayName,
-                                  region: participant.region ?? "none",
-                                })
-                              }
-                            >
-                              <GlobeIcon className="size-4" />
-                              Set region
-                            </DropdownMenuItem>
-                          ) : null}
-                          {participant.status === "active" ? (
-                            <DropdownMenuItem
-                              disabled={participantAction.isPending}
-                              onClick={() => fireAction(participant.id, "drop")}
-                            >
-                              <UserMinusIcon className="size-4" />
-                              Drop
-                            </DropdownMenuItem>
-                          ) : participant.status === "dropped" ||
-                            participant.status === "no_show" ? (
-                            <DropdownMenuItem
-                              disabled={participantAction.isPending}
-                              onClick={() => fireAction(participant.id, "reactivate")}
-                            >
-                              <UserPlusIcon className="size-4" />
-                              Reactivate
-                            </DropdownMenuItem>
-                          ) : null}
-                          {participant.userId ? (
-                            <DropdownMenuItem
-                              disabled={participantAction.isPending}
-                              onClick={() => fireAction(participant.id, "unlink")}
-                            >
-                              <UnlinkIcon className="size-4" />
-                              Unlink
-                            </DropdownMenuItem>
-                          ) : participant.claimBlocked ? (
-                            <DropdownMenuItem
-                              disabled={participantAction.isPending}
-                              onClick={() => fireAction(participant.id, "reissue")}
-                            >
-                              <RotateCcwIcon className="size-4" />
-                              Re-issue claim link
-                            </DropdownMenuItem>
-                          ) : participant.claimToken ? (
-                            <DropdownMenuItem
-                              onClick={() => {
-                                const token = participant.claimToken;
-                                if (token) {
-                                  void copyClaimLink(token);
-                                }
-                              }}
-                            >
-                              <CopyIcon className="size-4" />
-                              Copy claim link
-                            </DropdownMenuItem>
-                          ) : null}
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            variant="destructive"
-                            onClick={() =>
-                              setRemoveTarget({
-                                participantId: participant.id,
-                                name: participant.displayName,
-                              })
-                            }
-                          >
-                            <Trash2Icon className="size-4" />
-                            Remove
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </span>
-                  ) : canAssignRegion ? (
-                    <span className="flex shrink-0 items-center gap-1">
-                      <Button
-                        size="sm"
-                        variant={regionMissing(participant) ? "outline" : "ghost"}
-                        className={
-                          regionMissing(participant)
-                            ? "text-amber-600 dark:text-amber-500"
-                            : undefined
-                        }
-                        onClick={() =>
-                          setRegionTarget({
-                            participantId: participant.id,
-                            name: participant.displayName,
-                            region: participant.region ?? "none",
-                          })
-                        }
-                      >
-                        <GlobeIcon className="size-4" />
-                        Set region
-                      </Button>
-                    </span>
-                  ) : null}
-                </Card>
-              </li>
-            );
-          })}
-        </ul>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))
       )}
 
       <Dialog open={renameTarget !== null} onOpenChange={(open) => !open && setRenameTarget(null)}>

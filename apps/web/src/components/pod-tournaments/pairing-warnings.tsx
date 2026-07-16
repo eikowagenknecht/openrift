@@ -1,6 +1,8 @@
 import type { PairingPlayer, PairingWarning, PodSnapshotPlayer } from "@openrift/shared";
 import { TriangleAlertIcon } from "lucide-react";
 
+import { Alert, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
@@ -61,9 +63,9 @@ function describeWarning(
 }
 
 /**
- * The pod's warnings written out, one amber line each. Renders nothing when there
- * are no warnings.
- * @returns The warning list, or null.
+ * The pod's warnings written out, one line each, in the app's amber warning
+ * callout. Renders nothing when there are no warnings.
+ * @returns The warning alert, or null.
  */
 export function WarningList({
   warnings,
@@ -80,22 +82,22 @@ export function WarningList({
     return null;
   }
   return (
-    <ul
-      className={cn("flex flex-col gap-0.5 text-sm text-amber-600 dark:text-amber-500", className)}
-    >
-      {warnings.map((warning, index) => (
-        <li key={index} className="flex items-start gap-1.5">
-          <TriangleAlertIcon className="mt-0.5 size-3.5 shrink-0" />
-          <span>{describeWarning(warning, nameById, regionLabel)}</span>
-        </li>
-      ))}
-    </ul>
+    <Alert variant="warning" className={cn(className)}>
+      <TriangleAlertIcon />
+      <AlertTitle>
+        <ul className="flex flex-col gap-0.5 font-normal">
+          {warnings.map((warning, index) => (
+            <li key={index}>{describeWarning(warning, nameById, regionLabel)}</li>
+          ))}
+        </ul>
+      </AlertTitle>
+    </Alert>
   );
 }
 
 /**
- * The compact form: an amber icon + count with the warnings in a tooltip. Renders
- * nothing when there are no warnings.
+ * The compact form: a warning badge with the count, and the warnings themselves
+ * in a tooltip. Renders nothing when there are no warnings.
  * @returns The badge, or null.
  */
 export function WarningBadge({
@@ -112,12 +114,8 @@ export function WarningBadge({
   }
   return (
     <Tooltip>
-      <TooltipTrigger
-        render={
-          <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-500" />
-        }
-      >
-        <TriangleAlertIcon className="size-3.5 shrink-0" />
+      <TooltipTrigger render={<Badge variant="warning" />}>
+        <TriangleAlertIcon />
         <span className="tabular-nums">{warnings.length}</span>
       </TooltipTrigger>
       <TooltipContent>

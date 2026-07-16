@@ -1,25 +1,31 @@
-import type { TournamentDetailResponse } from "@openrift/shared";
+import type { PodTournamentDetailResponse, TournamentDetailResponse } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {
-  Building2Icon,
-  CalendarIcon,
+  ChevronRightIcon,
   ClipboardCheckIcon,
-  DoorOpenIcon,
   InboxIcon,
-  LockIcon,
-  ShieldIcon,
   SwordsIcon,
   TrophyIcon,
   UsersIcon,
 } from "lucide-react";
-import type { ComponentType, ReactNode, SVGProps } from "react";
+import type { ReactNode } from "react";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import {
+  formatPlayerRecord,
+  POD_WINS_HINT,
+  standingRanks,
+} from "@/components/pod-tournaments/standings-display";
+import { ParticipantFacepile } from "@/components/tournaments/participant-facepile";
+import { ActionBand } from "@/components/ui/action-band";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { IconChip } from "@/components/ui/icon-chip";
+import type { PodiumSeat } from "@/components/ui/podium";
+import { Podium } from "@/components/ui/podium";
+import { SectionHeading } from "@/components/ui/section-heading";
 import { StatTile } from "@/components/ui/stat-tile";
+import { UserAvatar } from "@/components/user-avatar";
 import { useTournamentDeckCheckEntries } from "@/hooks/use-tournament-deck-check";
 import {
   tournamentRunStateQueryOptions,
@@ -30,38 +36,29 @@ import { useRequiredUserId } from "@/lib/auth-session";
 import {
   canCheckDecks,
   canManageTournament,
-  DECK_SUBMISSION_LABEL,
-  formatTournamentDate,
+  effectiveTournamentState,
   hasPairing,
+  pairingLabel,
+  pairingPluralNoun,
+  STAFF_ROLE_LABEL,
 } from "@/lib/tournament-display";
+import { cn } from "@/lib/utils";
 
-type TournamentTileTarget =
-  | "/tournaments/$id/participants"
-  | "/tournaments/$id/pairings"
-  | "/tournaments/$id/standings"
-  | "/tournaments/$id/decks"
-  | "/tournaments/$id/staff";
+/** The rail's row shape, shared with the group overview's rail. */
+const RAIL_ROW_CLASS = "flex items-center gap-2.5 rounded-md px-2 py-2";
+
+/** The Card edge every dashboard surface rests on (matches StatTile). */
+const CARD_EDGE_CLASS = "bg-card ring-foreground/10 rounded-lg p-5 ring-1";
 
 /**
- * A tournament-page StatTile: binds the shared dashboard-tile primitive to the
- * tournament's typed navigation targets.
- * @returns The tile.
+ * Whether the event is over, so a module reads as finished rather than as an
+ * open action waiting on the viewer.
+ *
+ * @returns True once the tournament is completed or cancelled.
  */
-function StatCard({
-  to,
-  id,
-  ...props
-}: {
-  to: TournamentTileTarget;
-  id: string;
-  icon: ComponentType<SVGProps<SVGSVGElement>>;
-  label: string;
-  value: ReactNode;
-  valueClassName?: string;
-  accent?: boolean;
-  hint?: ReactNode;
-}): ReactNode {
-  return <StatTile render={<Link to={to} params={{ id }} />} {...props} />;
+function isFinished(detail: TournamentDetailResponse): boolean {
+  const state = effectiveTournamentState(detail.startsAt, detail.endsAt, detail.status);
+  return state === "completed" || state === "cancelled";
 }
 
 /**
@@ -69,15 +66,16 @@ function StatCard({
  * viewers who can see the deck-check section. Counts come from the server-side
  * `event` summary so they match the Deck check tab exactly (ADR-033): `approved`
  * is the legality-review stage, `checked` the physical deck check.
+ *
  * @returns The Decks tile with the deck total and an approved/checked breakdown.
  */
 function DecksTile({ id }: { id: string }) {
   const { data } = useTournamentDeckCheckEntries(id);
   return (
-    <StatCard
-      to="/tournaments/$id/decks"
-      id={id}
+    <StatTile
+      render={<Link to="/tournaments/$id/decks" params={{ id }} />}
       icon={ClipboardCheckIcon}
+      tone="sky"
       label="Decks"
       value={data?.event.entryCount ?? 0}
       hint={`${data?.event.approvedCount ?? 0} approved · ${data?.event.checkedCount ?? 0} checked`}
@@ -86,139 +84,61 @@ function DecksTile({ id }: { id: string }) {
 }
 
 /**
- * The Standings tile, split out so the pod-engine query only runs for pod
- * tournaments. Names the current leader once at least one round has been
- * played; before then there is no ranking to show.
- * @returns The Standings tile naming the current leader.
+ * The field, as the main column's wide tile: the headline count with the
+ * facepile, and the two facts an organizer chases — who dropped, and who still
+ * has no region (region assignment is manager-only, so the second half only
+ * shows for viewers who can act on it).
+ *
+ * @returns The Participants tile.
  */
-function StandingsTile({ id }: { id: string }) {
-  const userId = useRequiredUserId();
-  const { data } = useQuery(tournamentRunStateQueryOptions(userId, id));
-  const leader = data?.standings[0];
-  const hasResults = leader !== undefined && leader.roundsPlayed > 0;
-  return (
-    <StatCard
-      to="/tournaments/$id/standings"
-      id={id}
-      icon={TrophyIcon}
-      label="Standings"
-      value={hasResults ? leader.displayName : "—"}
-      valueClassName={hasResults ? "truncate text-lg" : undefined}
-      hint={hasResults ? "leader" : "no results yet"}
-    />
-  );
-}
-
-function DashboardTiles({
+function ParticipantsTile({
   id,
   detail,
-  pendingCount,
+  droppedCount,
+  missingRegionCount,
 }: {
   id: string;
   detail: TournamentDetailResponse;
-  pendingCount: number;
+  droppedCount: number;
+  missingRegionCount: number;
 }) {
-  const manage = canManageTournament(detail.myRoles);
-  const runsRounds = hasPairing(detail.pairingStyle);
-  const showDecks = detail.deckSubmission !== "none" && canCheckDecks(detail.myRoles);
-
+  const hints = [
+    ...(droppedCount > 0 ? [`${droppedCount} dropped`] : []),
+    ...(missingRegionCount > 0 ? [`${missingRegionCount} without a region`] : []),
+  ];
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-      <StatCard
-        to="/tournaments/$id/participants"
-        id={id}
-        icon={UsersIcon}
-        label="Participants"
-        value={detail.participantCount}
-        accent={pendingCount > 0}
-        hint={
-          pendingCount > 0
-            ? `${pendingCount} ${pendingCount === 1 ? "request" : "requests"} to review`
-            : undefined
-        }
+    <StatTile
+      render={<Link to="/tournaments/$id/participants" params={{ id }} />}
+      icon={UsersIcon}
+      tone="green"
+      label="Participants"
+      value={detail.participantCount}
+      hint={hints.length > 0 ? hints.join(" · ") : undefined}
+    >
+      <ParticipantFacepile
+        preview={detail.participantPreview}
+        totalCount={detail.participantCount}
+        size="sm"
       />
-      {runsRounds ? (
-        <StatCard
-          to="/tournaments/$id/pairings"
-          id={id}
-          icon={SwordsIcon}
-          label="Pairings"
-          value={detail.currentRound > 0 ? detail.currentRound : "—"}
-          hint={detail.currentRound > 0 ? "current round" : "not started yet"}
-        />
-      ) : null}
-      {runsRounds ? <StandingsTile id={id} /> : null}
-      {showDecks ? <DecksTile id={id} /> : null}
-      {manage ? (
-        <StatCard
-          to="/tournaments/$id/staff"
-          id={id}
-          icon={ShieldIcon}
-          label="Staff"
-          value={detail.staff.length}
-          hint="organizers and judges"
-        />
-      ) : null}
-    </div>
+    </StatTile>
   );
 }
 
 /**
- * One fact in the header meta-line: an icon and its value, rendered inline and
- * muted so the row reads as event context rather than primary content.
- * @returns The meta item.
+ * The pending join requests, as the band that most needs the viewer. Static
+ * (no `render`): the approve/deny rows are real buttons, and a band-wide link
+ * around them would nest interactive elements.
+ *
+ * @returns The join-requests band, or null when nothing is pending.
  */
-function MetaItem({
-  icon: Icon,
-  children,
-}: {
-  icon: ComponentType<SVGProps<SVGSVGElement>>;
-  children: ReactNode;
-}): ReactNode {
-  return (
-    <span className="text-muted-foreground flex min-w-0 items-center gap-1.5">
-      <Icon className="size-4 shrink-0" />
-      <span className="truncate">{children}</span>
-    </span>
-  );
-}
-
-/**
- * One policy fact inside the shared details card: an icon chip matching the
- * dashboard tiles, the setting label, and its value pushed to the right.
- * @returns The policy row.
- */
-function PolicyRow({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: ComponentType<SVGProps<SVGSVGElement>>;
-  label: string;
-  value: ReactNode;
-}): ReactNode {
-  return (
-    <div className="flex items-center gap-3">
-      <span className="bg-muted text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded-lg">
-        <Icon className="size-5" />
-      </span>
-      <span className="text-muted-foreground shrink-0 text-sm font-medium">{label}</span>
-      <span className="ml-auto font-medium">{value}</span>
-    </div>
-  );
-}
-
-export function TournamentOverviewTab({
+function JoinRequestsBand({
   id,
-  detail,
+  pending,
 }: {
   id: string;
-  detail: TournamentDetailResponse;
+  pending: { id: string; displayName: string }[];
 }) {
-  const manage = canManageTournament(detail.myRoles);
-  const { data: participants } = useTournamentParticipants(id);
   const participantAction = useParticipantAction();
-  const pending = participants.items.filter((p) => p.status === "requested");
 
   async function run(action: () => Promise<unknown>) {
     try {
@@ -228,114 +148,442 @@ export function TournamentOverviewTab({
     }
   }
 
+  if (pending.length === 0) {
+    return null;
+  }
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex flex-col gap-5">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-          <MetaItem icon={CalendarIcon}>{formatTournamentDate(detail.startsAt)}</MetaItem>
-          <MetaItem icon={Building2Icon}>
-            {detail.host.type === "organization" && detail.host.orgSlug ? (
-              <Link
-                to="/organizations/$id"
-                params={{ id: detail.host.orgId ?? "" }}
-                className="hover:underline"
+    <ActionBand
+      icon={InboxIcon}
+      accent
+      label="Join requests"
+      value={pending.length}
+      sub={pending.length === 1 ? "wants in" : "want in"}
+    >
+      <ul className="flex flex-col gap-2">
+        {pending.map((participant) => (
+          <li
+            key={participant.id}
+            className="bg-muted/40 flex flex-wrap items-center justify-between gap-2 rounded-lg px-2.5 py-2"
+          >
+            <span className="truncate text-sm font-medium">{participant.displayName}</span>
+            <span className="flex items-center gap-1">
+              <Button
+                size="sm"
+                disabled={participantAction.isPending}
+                onClick={() =>
+                  void run(() =>
+                    participantAction.mutateAsync({
+                      id,
+                      participantId: participant.id,
+                      action: "approve",
+                    }),
+                  )
+                }
               >
-                {detail.host.displayName}
-              </Link>
-            ) : (
-              detail.host.displayName
-            )}
-          </MetaItem>
-          {detail.groupSlug ? (
-            <MetaItem icon={UsersIcon}>
-              <Link
-                to="/groups/$slug"
-                params={{ slug: detail.groupSlug }}
-                className="hover:underline"
+                Approve
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-destructive"
+                disabled={participantAction.isPending}
+                onClick={() =>
+                  void run(() =>
+                    participantAction.mutateAsync({
+                      id,
+                      participantId: participant.id,
+                      action: "deny",
+                    }),
+                  )
+                }
               >
-                {detail.groupName ?? detail.groupSlug}
-              </Link>
-            </MetaItem>
-          ) : null}
-        </div>
+                Deny
+              </Button>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </ActionBand>
+  );
+}
 
-        <DashboardTiles id={id} detail={detail} pendingCount={pending.length} />
-      </div>
+/**
+ * The round band's trailing CTA. A span with Button's classes, not a Button:
+ * the whole band is the anchor, and a nested interactive element would be
+ * invalid HTML. The group-hover overrides re-key the hover styles to the band.
+ *
+ * @returns The CTA span.
+ */
+function BandCta({ children, accent }: { children: ReactNode; accent: boolean }) {
+  return (
+    <span
+      className={cn(
+        buttonVariants({ variant: accent ? "default" : "ghost" }),
+        accent ? "group-hover/action-band:bg-primary/90" : "group-hover/action-band:bg-muted",
+      )}
+    >
+      {children}
+      <ChevronRightIcon className="size-4 transition-transform group-hover/action-band:translate-x-0.5" />
+    </span>
+  );
+}
 
-      <Card className="grid gap-x-8 gap-y-3 p-5 sm:grid-cols-2">
-        <PolicyRow
-          icon={InboxIcon}
-          label="Deck submission"
-          value={DECK_SUBMISSION_LABEL[detail.deckSubmission]}
-        />
-        <PolicyRow
-          icon={detail.selfRegistration ? DoorOpenIcon : LockIcon}
-          label="Self-registration"
-          value={detail.selfRegistration ? "Open" : "Closed"}
-        />
-      </Card>
+/**
+ * The running round, as the main column's lead band: how much of the round is
+ * in, and which pods are still holding it up. Before round 1 exists it becomes
+ * the "generate the first round" nudge, and once the event is over it reads as
+ * a finished record rather than an open action.
+ *
+ * @returns The round band.
+ */
+function RoundBand({
+  id,
+  detail,
+  run,
+}: {
+  id: string;
+  detail: TournamentDetailResponse;
+  run: PodTournamentDetailResponse;
+}) {
+  const manage = canManageTournament(detail.myRoles);
+  const finished = isFinished(detail);
+  const round = run.rounds.at(-1);
+  // Named per pairing, by seat count — the rule the pairings view already uses,
+  // so a 1v1 reads as a match on both surfaces.
+  const noun = pairingPluralNoun(round?.pods.map((pod) => pod.size) ?? []);
 
-      {manage ? (
-        <section className="flex flex-col gap-3">
-          <h2 className="font-semibold">
-            Join requests
-            {pending.length > 0 ? (
-              <Badge variant="count" className="ml-2">
-                {pending.length}
-              </Badge>
-            ) : null}
-          </h2>
-          {pending.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No pending requests.</p>
-          ) : (
-            <ul className="flex flex-col gap-2">
-              {pending.map((participant) => (
-                <li key={participant.id}>
-                  <Card className="flex-row flex-wrap items-center justify-between gap-2 p-3">
-                    <span className="flex flex-col">
-                      <span className="font-medium">{participant.displayName}</span>
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Button
-                        size="sm"
-                        disabled={participantAction.isPending}
-                        onClick={() =>
-                          void run(() =>
-                            participantAction.mutateAsync({
-                              id,
-                              participantId: participant.id,
-                              action: "approve",
-                            }),
-                          )
-                        }
-                      >
-                        Approve
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-destructive"
-                        disabled={participantAction.isPending}
-                        onClick={() =>
-                          void run(() =>
-                            participantAction.mutateAsync({
-                              id,
-                              participantId: participant.id,
-                              action: "deny",
-                            }),
-                          )
-                        }
-                      >
-                        Deny
-                      </Button>
-                    </span>
-                  </Card>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+  if (!round) {
+    return (
+      <ActionBand
+        render={<Link to="/tournaments/$id/pairings" params={{ id }} />}
+        icon={SwordsIcon}
+        accent={manage && !finished}
+        label="Rounds"
+        value="—"
+        sub={finished ? "no rounds were run" : "nothing paired yet"}
+        action={
+          <BandCta accent={manage && !finished}>
+            {manage && !finished ? "Generate round 1" : "View pairings"}
+          </BandCta>
+        }
+      />
+    );
+  }
+
+  const reported = round.pods.filter((pod) => pod.resultStatus === "reported").length;
+  const open = round.pods.filter((pod) => pod.resultStatus !== "reported");
+  const needsViewer = manage && !finished && (open.length > 0 || round.status === "finalized");
+
+  return (
+    <ActionBand
+      render={<Link to="/tournaments/$id/pairings" params={{ id }} />}
+      icon={SwordsIcon}
+      accent={needsViewer}
+      label={`Round ${round.roundNumber}`}
+      value={`${reported}/${round.pods.length}`}
+      sub={`${noun} reported`}
+      action={
+        <BandCta accent={needsViewer}>
+          {finished ? "View pairings" : open.length > 0 ? "Report results" : "View pairings"}
+        </BandCta>
+      }
+    >
+      {open.length > 0 ? (
+        <ul className="flex flex-col gap-1">
+          {open.map((pod) => {
+            const scoresIn = pod.members.filter((member) => member.gamePoints !== null).length;
+            return (
+              <li
+                key={pod.id}
+                className="bg-muted/40 text-muted-foreground truncate rounded-lg px-2.5 py-1.5 text-sm"
+              >
+                <span className="text-foreground font-medium">
+                  {pairingLabel(pod.size, pod.podNumber)}
+                </span>{" "}
+                · {scoresIn} of {pod.members.length} scores in
+              </li>
+            );
+          })}
+        </ul>
       ) : null}
+    </ActionBand>
+  );
+}
+
+/**
+ * The standings throne: the podium under a header that links through to the
+ * full table, with ranks 4-5 as trailing rows so the module stays a standings
+ * surface rather than a trophy cabinet.
+ *
+ * @returns The throne module.
+ */
+function ThroneModule({
+  id,
+  run,
+  pairingStyle,
+}: {
+  id: string;
+  run: PodTournamentDetailResponse;
+  pairingStyle: TournamentDetailResponse["pairingStyle"];
+}) {
+  // Standings arrive sorted and tie-broken by the engine. The rank is NOT the
+  // row's position: players level on points share one (1, 1, 3), and the rule
+  // lives in standingRanks so this throne and the Standings page can never
+  // disagree about who is second.
+  const played = run.standings.filter((row) => row.roundsPlayed > 0);
+  const ranks = standingRanks(played);
+  const ranked = played.map((row, index) => ({ row, rank: ranks[index] ?? index + 1 }));
+  const swiss = pairingStyle === "swiss";
+  const seats: PodiumSeat[] = ranked.slice(0, 3).map(({ row, rank }) => ({
+    key: row.playerId,
+    rank,
+    name: row.displayName,
+    score: row.score,
+    hint: formatPlayerRecord(row, swiss),
+  }));
+  const trailing = ranked.slice(3, 5);
+  const finalized = run.rounds.filter((round) => round.status === "finalized").length;
+
+  return (
+    <Link
+      to="/tournaments/$id/standings"
+      params={{ id }}
+      className={cn(
+        CARD_EDGE_CLASS,
+        "group/throne hover:ring-primary/30 flex flex-col gap-4 no-underline transition-all hover:shadow-md",
+      )}
+    >
+      <div className="flex min-w-0 items-center gap-2.5">
+        <IconChip icon={TrophyIcon} tone="gold" size="sm" />
+        <SectionHeading>Standings</SectionHeading>
+        {finalized > 0 ? (
+          <span className="text-muted-foreground/60 truncate text-sm tabular-nums">
+            after round {finalized}
+          </span>
+        ) : null}
+        <span className="text-muted-foreground ml-auto flex shrink-0 items-center gap-1 text-sm">
+          Full table
+          <ChevronRightIcon className="size-4 transition-transform group-hover/throne:translate-x-0.5" />
+        </span>
+      </div>
+      <Podium seats={seats} emptyLabel="The throne fills after round 1 is finalized." />
+      {trailing.length > 0 ? (
+        <ul className="flex flex-col">
+          {trailing.map(({ row, rank }) => (
+            <li key={row.playerId} className={RAIL_ROW_CLASS}>
+              <span className="text-muted-foreground w-4 shrink-0 text-center text-sm tabular-nums">
+                {rank}
+              </span>
+              <UserAvatar name={row.displayName} size="sm" />
+              <span className="min-w-0 flex-1 truncate text-sm font-medium">{row.displayName}</span>
+              <span
+                className="text-muted-foreground shrink-0 text-xs"
+                title={swiss ? undefined : POD_WINS_HINT}
+              >
+                {formatPlayerRecord(row, swiss)}
+              </span>
+              <span className="font-heading w-8 shrink-0 text-right font-semibold tabular-nums">
+                {row.score}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </Link>
+  );
+}
+
+const ROUND_DOT_CLASS = {
+  finalized: "bg-emerald-500",
+  reporting: "bg-amber-500",
+  next: "bg-muted-foreground/30",
+} as const;
+
+/**
+ * The rail's rounds list: every round with its status, plus the next round as a
+ * dimmed row while one can still be generated — so the rail shows the shape of
+ * the whole event, not only what has happened.
+ *
+ * @returns The rounds section.
+ */
+function RoundsRail({
+  id,
+  detail,
+  run,
+}: {
+  id: string;
+  detail: TournamentDetailResponse;
+  run: PodTournamentDetailResponse;
+}) {
+  const finished = isFinished(detail);
+  const hasOpenRound = run.rounds.some((round) => round.status === "reporting");
+  const showNext = !finished && !hasOpenRound;
+
+  return (
+    <section className="flex flex-col gap-3">
+      <SectionHeading>Rounds</SectionHeading>
+      <ul className="ring-foreground/10 bg-card flex flex-col rounded-lg p-1.5 ring-1">
+        {run.rounds.map((round) => (
+          <li key={round.id}>
+            <Link
+              to="/tournaments/$id/pairings"
+              params={{ id }}
+              className={cn(RAIL_ROW_CLASS, "hover:bg-muted/50")}
+            >
+              <span
+                className={cn("size-2 shrink-0 rounded-full", ROUND_DOT_CLASS[round.status])}
+                aria-hidden="true"
+              />
+              <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                Round {round.roundNumber}
+              </span>
+              <span className="text-muted-foreground shrink-0 text-xs">
+                {round.status === "finalized" ? "Finalized" : "Reporting"}
+              </span>
+            </Link>
+          </li>
+        ))}
+        {showNext ? (
+          <li className={cn(RAIL_ROW_CLASS, "opacity-60")}>
+            <span
+              className={cn("size-2 shrink-0 rounded-full", ROUND_DOT_CLASS.next)}
+              aria-hidden="true"
+            />
+            <span className="min-w-0 flex-1 truncate text-sm font-medium">
+              Round {run.rounds.length + 1}
+            </span>
+            <span className="text-muted-foreground shrink-0 text-xs">Not generated</span>
+          </li>
+        ) : null}
+        {run.rounds.length === 0 && !showNext ? (
+          <li className={cn(RAIL_ROW_CLASS, "text-muted-foreground text-sm")}>
+            No rounds were run.
+          </li>
+        ) : null}
+      </ul>
+    </section>
+  );
+}
+
+/**
+ * The rail's staff list. Manager-only: `detail.staff` is populated for every
+ * viewer, but who judges an event is organizer context, not public billing.
+ *
+ * @returns The staff section.
+ */
+function StaffRail({ id, detail }: { id: string; detail: TournamentDetailResponse }) {
+  const hasJudges = detail.staff.some((member) => member.role === "judge");
+  return (
+    <section className="flex flex-col gap-3">
+      <SectionHeading>Staff</SectionHeading>
+      <ul className="ring-foreground/10 bg-card flex flex-col rounded-lg p-1.5 ring-1">
+        {detail.staff.map((member) => (
+          <li key={`${member.userId}:${member.role}`} className={RAIL_ROW_CLASS}>
+            <UserAvatar name={member.name} size="sm" />
+            <span className="min-w-0 flex-1 truncate text-sm font-medium">
+              {member.name ?? "Unnamed"}
+            </span>
+            <span className="text-muted-foreground shrink-0 text-xs">
+              {STAFF_ROLE_LABEL[member.role]}
+            </span>
+          </li>
+        ))}
+        {hasJudges ? null : (
+          <li className={cn(RAIL_ROW_CLASS, "text-muted-foreground text-sm")}>
+            <span className="min-w-0 flex-1">No judges yet.</span>
+            <Link
+              to="/tournaments/$id/staff"
+              params={{ id }}
+              className="text-primary shrink-0 text-sm font-medium hover:underline"
+            >
+              Add
+            </Link>
+          </li>
+        )}
+      </ul>
+    </section>
+  );
+}
+
+/**
+ * The round band, throne, and rounds rail, split out so the pod-engine
+ * run-state query only runs for tournaments that actually pair rounds.
+ *
+ * @returns The round-driven modules for the given slot.
+ */
+function RunStateModules({
+  id,
+  detail,
+  slot,
+}: {
+  id: string;
+  detail: TournamentDetailResponse;
+  slot: "main" | "rail";
+}) {
+  const userId = useRequiredUserId();
+  const { data } = useQuery(tournamentRunStateQueryOptions(userId, id));
+
+  if (!data) {
+    return null;
+  }
+  if (slot === "rail") {
+    return <RoundsRail id={id} detail={detail} run={data} />;
+  }
+  return (
+    <>
+      <RoundBand id={id} detail={detail} run={data} />
+      <ThroneModule id={id} run={data} pairingStyle={detail.pairingStyle} />
+    </>
+  );
+}
+
+/**
+ * The tournament overview / dashboard: the join requests and the running round
+ * lead the main column, the standings throne sits under them, and the field and
+ * decks close it out, with the rounds and staff as the rail's context.
+ *
+ * @returns The overview-page content.
+ */
+export function TournamentOverviewTab({
+  id,
+  detail,
+}: {
+  id: string;
+  detail: TournamentDetailResponse;
+}) {
+  const manage = canManageTournament(detail.myRoles);
+  const runsRounds = hasPairing(detail.pairingStyle);
+  const showDecks = detail.deckSubmission !== "none" && canCheckDecks(detail.myRoles);
+  const { data: participants } = useTournamentParticipants(id);
+
+  const pending = participants.items.filter((p) => p.status === "requested");
+  const droppedCount = participants.items.filter((p) => p.status === "dropped").length;
+  // Region assignment is a manager action, so the gap is only worth naming to
+  // someone who can close it.
+  const missingRegionCount =
+    manage && detail.regionsEnabled
+      ? participants.items.filter((p) => p.status === "active" && p.region === null).length
+      : 0;
+
+  return (
+    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_18rem]">
+      <div className="flex min-w-0 flex-col gap-6">
+        {manage ? <JoinRequestsBand id={id} pending={pending} /> : null}
+        {runsRounds ? <RunStateModules id={id} detail={detail} slot="main" /> : null}
+        <div className={cn("grid gap-4", showDecks && "sm:grid-cols-2")}>
+          <ParticipantsTile
+            id={id}
+            detail={detail}
+            droppedCount={droppedCount}
+            missingRegionCount={missingRegionCount}
+          />
+          {showDecks ? <DecksTile id={id} /> : null}
+        </div>
+      </div>
+      <aside className="flex flex-col gap-8">
+        {runsRounds ? <RunStateModules id={id} detail={detail} slot="rail" /> : null}
+        {manage ? <StaffRail id={id} detail={detail} /> : null}
+      </aside>
     </div>
   );
 }

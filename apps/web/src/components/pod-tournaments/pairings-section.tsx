@@ -15,6 +15,7 @@ import {
 import { GenerateRoundControls } from "./generate-round-controls";
 import { PairingsView } from "./pairings-view";
 import { PodPairingEditor } from "./pod-pairing-editor";
+import { CompletedRoundsBand, OpenRoundBand } from "./round-state-band";
 
 export function PodPairingsSection({
   id,
@@ -68,28 +69,30 @@ export function PodPairingsSection({
   return (
     <div className="flex flex-col gap-4">
       {completed ? (
-        <p className="text-muted-foreground text-sm">
-          This tournament is over (read-only). Reopen it in Settings to make changes.
-        </p>
-      ) : suggested > 0 ? (
-        <p className="text-muted-foreground text-sm">
-          Swiss suggests about {suggested} round{suggested === 1 ? "" : "s"} for {activeCount}{" "}
-          active player{activeCount === 1 ? "" : "s"}; {finalizedCount} finalized so far.
-        </p>
-      ) : null}
-      {!openRound && !completed ? (
+        <CompletedRoundsBand finalizedCount={finalizedCount} />
+      ) : openRound ? (
+        <OpenRoundBand
+          round={openRound}
+          suggested={suggested}
+          finalizing={finalizeRound.isPending}
+          onFinalize={() =>
+            void run(() => finalizeRound.mutateAsync({ id, roundNumber: openRound.roundNumber }))
+          }
+        />
+      ) : (
         <GenerateRoundControls
           id={id}
           players={data.players}
           standings={data.standings}
           isFirstRound={data.rounds.length === 0}
+          nextRoundNumber={data.rounds.length + 1}
           reachedSuggestion={reachedSuggestion}
           suggested={suggested}
           swissAutoBye={isSwiss && activeCount % 2 === 1}
           missingRegionIds={missingRegionIds}
         />
-      ) : null}
-      {finalizedCount > 1 ? (
+      )}
+      {finalizedCount > 1 && !completed ? (
         <p className="text-muted-foreground text-sm">
           Editing a finalized round fixes scores, but it does not redraw pods that later rounds
           already used.
@@ -126,7 +129,7 @@ export function PodPairingsSection({
           if (round.status !== "reporting") {
             return null;
           }
-          const allReported = round.pods.every((pod) => pod.resultStatus === "reported");
+          // Finalize lives in the round's state band above, not here.
           const anyReported = round.pods.some((pod) => pod.resultStatus === "reported");
           return (
             <>
@@ -158,19 +161,11 @@ export function PodPairingsSection({
               >
                 Re-roll
               </Button>
-              <Button
-                size="sm"
-                disabled={!allReported || finalizeRound.isPending}
-                onClick={() =>
-                  void run(() => finalizeRound.mutateAsync({ id, roundNumber: round.roundNumber }))
-                }
-              >
-                Finalize round
-              </Button>
             </>
           );
         }}
-        emptyMessage={editing ? "" : "No rounds yet. Generate the first round to begin."}
+        emptyMessage={editing ? "" : "No rounds yet"}
+        emptyDescription="Generate the first round to begin."
       />
     </div>
   );

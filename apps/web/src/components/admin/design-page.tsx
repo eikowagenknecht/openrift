@@ -7,6 +7,7 @@ import {
   CopyIcon,
   EllipsisVerticalIcon,
   FolderIcon,
+  GlobeIcon,
   HeartIcon,
   InfoIcon,
   LayersIcon,
@@ -147,6 +148,8 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { Label } from "@/components/ui/label";
 import { PickerList, PickerRow } from "@/components/ui/picker-list";
+import type { PodiumSeat } from "@/components/ui/podium";
+import { Podium } from "@/components/ui/podium";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Pressable } from "@/components/ui/pressable";
 import { Progress } from "@/components/ui/progress";
@@ -170,6 +173,7 @@ import {
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Slider } from "@/components/ui/slider";
+import { StatStrip } from "@/components/ui/stat-strip";
 import { StatTile } from "@/components/ui/stat-tile";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -1007,12 +1011,18 @@ const STACK_MEMBERS = [
   { userId: "u5", userName: "Stacked Sam", userImage: null, gravatarHash: "" },
 ];
 
+const PODIUM_SEATS: PodiumSeat[] = [
+  { key: "p1", rank: 1, name: "Poro Herder", score: 12, hint: "3 wins · opp 1.75" },
+  { key: "p2", rank: 2, name: "Hex Tinkerer", score: 10, hint: "2 wins · opp 1.71" },
+  { key: "p3", rank: 3, name: "Void Binder", score: 9, hint: "2 wins · opp 1.62" },
+];
+
 function TilesSection() {
   return (
     <DemoSection
       id="tiles"
       title="Tiles"
-      note="CardLink is the whole-Card click target for list tiles; every tile hovers the same way (shadow lift, muted wash, 1px primary edge). Cards that keep secondary actions inside, and non-Card link tiles like the deck grid, apply cardLinkVariants() directly. StatTile is the dashboard stat; accent is reserved for the one tile needing attention. ActionBand is the full-width 'needs you' band (the overview's trades hub, the members page's join requests). CoverBand is the warm-glow strip at the top of showcase tiles (product fans, group avatar stacks); UserAvatarStack is the overlapping who's-here row with a +N overflow."
+      note="CardLink is the whole-Card click target for list tiles; every tile hovers the same way (shadow lift, muted wash, 1px primary edge). Cards that keep secondary actions inside, and non-Card link tiles like the deck grid, apply cardLinkVariants() directly. StatTile is the dashboard stat; accent is reserved for the one tile needing attention. StatStrip is its non-linking sibling for inline context counts. ActionBand is the full-width 'needs you' band (the overview's trades hub, the members page's join requests). Podium is the standings throne. CoverBand is the warm-glow strip at the top of showcase tiles (product fans, group avatar stacks); UserAvatarStack is the overlapping who's-here row with a +N overflow."
     >
       <DemoRow label="CardLink">
         <CardLink
@@ -1140,6 +1150,42 @@ function TilesSection() {
               </Button>
             </div>
           </ActionBand>
+        </div>
+      </DemoRow>
+      <DemoRow
+        label="StatStrip"
+        hint="The compact inline counts row — StatTile's quiet sibling, for facts that are context rather than navigation. Nothing links; reach for StatTile when the number should take you somewhere. tone=good tints a value that carries a verdict."
+        className="flex-col items-stretch"
+      >
+        <StatStrip
+          items={[
+            { key: "active", value: 11, label: "active", icon: CheckIcon, iconTone: "green" },
+            { key: "dropped", value: 3, label: "dropped", icon: UsersIcon },
+            { key: "regions", value: 4, label: "regions", icon: GlobeIcon, iconTone: "sky" },
+          ]}
+        />
+        <StatStrip
+          items={[
+            { key: "penalty", value: 12, label: "penalty" },
+            { key: "rematches", value: 0, label: "rematches", tone: "good" },
+            { key: "three", value: 3, label: "in 3-pods" },
+            { key: "spread", value: 4, label: "largest spread" },
+          ]}
+        />
+      </DemoRow>
+      <DemoRow
+        label="Podium"
+        hint="The standings throne: top three, winner centered and raised on the accent glow. Ranks render as given — a tie hands two seats rank 1 and both get gold, while the raised seat is the caller's tie-break winner. Owns its degenerate states: ghost seats before the first result, fewer columns for a small field."
+        className="items-start gap-6"
+      >
+        <div className="w-full max-w-sm">
+          <Podium seats={PODIUM_SEATS} />
+        </div>
+        <div className="w-full max-w-sm">
+          <Podium seats={PODIUM_SEATS.slice(0, 2)} />
+        </div>
+        <div className="w-full max-w-sm">
+          <Podium seats={[]} emptyLabel="The throne fills after round 1 is finalized." />
         </div>
       </DemoRow>
       <DemoRow label="UserAvatarStack">
