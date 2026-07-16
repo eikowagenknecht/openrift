@@ -11,13 +11,14 @@ import { Badge } from "@/components/ui/badge";
 import { CardLink } from "@/components/ui/card-link";
 import { DateLeaf } from "@/components/ui/date-leaf";
 import { useDeckFormatList } from "@/hooks/use-enums";
+import { dateLeafParts } from "@/lib/format-date";
 import {
   VIEWER_ROLE_LABEL,
-  dateLeafParts,
   effectiveTournamentState,
   formatStartsIn,
   formatTournamentDate,
   primaryViewerRole,
+  tournamentContextLabel,
 } from "@/lib/tournament-display";
 
 /**
@@ -57,17 +58,6 @@ function HeroBandContent({ tournament }: { tournament: TournamentSummaryResponse
       <TrophyIcon className="size-10" />
     </span>
   );
-}
-
-/**
- * @returns The event's hosting context label: its group, or its org host.
- * Null for a plain user-hosted event with no group.
- */
-function contextLabel(tournament: TournamentSummaryResponse): string | null {
-  if (tournament.groupName) {
-    return tournament.groupName;
-  }
-  return tournament.host.type === "organization" ? tournament.host.displayName : null;
 }
 
 interface NextEventHeroProps {
@@ -130,8 +120,8 @@ export function NextEventHero({ tournament, showContext = false }: NextEventHero
             <Badge variant="subtle">{startsIn}</Badge>
           ) : null}
           {role ? <Badge variant="outline">{VIEWER_ROLE_LABEL[role]}</Badge> : null}
-          {showContext && contextLabel(tournament) ? (
-            <Badge variant="outline">{contextLabel(tournament)}</Badge>
+          {showContext && tournamentContextLabel(tournament) ? (
+            <Badge variant="outline">{tournamentContextLabel(tournament)}</Badge>
           ) : null}
           {tournament.pendingRequestCount > 0 ? (
             <Badge variant="warning">

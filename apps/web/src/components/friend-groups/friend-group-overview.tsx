@@ -17,6 +17,7 @@ import { useCollections } from "@/hooks/use-collections";
 import { useFriendGroupMatches } from "@/hooks/use-friend-groups";
 import { useGroupTournaments } from "@/hooks/use-tournaments";
 import { useRequiredUserId } from "@/lib/auth-session";
+import { frontImageId } from "@/lib/card-meta";
 import {
   compareTournamentsForList,
   formatTournamentDate,
@@ -32,6 +33,7 @@ import { capitalize, cn } from "@/lib/utils";
 
 import { FriendGroupActivityFeed } from "./friend-group-activity-feed";
 import { isAdmin } from "./friend-group-shell";
+import { HOVER_ROW_CLASS } from "./hover-row";
 import { LIST_INTENT_ICON, LIST_INTENT_NOUN } from "./list-intent-meta";
 import { TradeDirectionIcon, TradeExpiry, TradeStatusBadge } from "./trade-row-parts";
 
@@ -136,7 +138,7 @@ function InProgressTradeRow({ trade }: { trade: CardTradeResponse }) {
   const card = cardsById[trade.cardId];
   const printing = printingsById[trade.printingId];
   const cardName = card?.name ?? "Card";
-  const imageId = printing?.images.find((image) => image.face === "front")?.imageId ?? null;
+  const imageId = frontImageId(printing);
   const incoming = trade.role === "receiver";
   // A pending trade's badge already reads "Waiting for {name}", so only name the
   // member in the row text when the badge doesn't (a reserved "Ready to swap").
@@ -317,8 +319,6 @@ function OverviewRail({ slug, data }: { slug: string; data: FriendGroupDetailRes
   );
 }
 
-const RAIL_ROW_CLASS = "hover:bg-muted/50 flex items-center gap-2.5 rounded-md px-2 py-2";
-
 type SharedRow = {
   key: string;
   sharedAt: string;
@@ -388,7 +388,7 @@ function NewestShared({ slug, data }: { slug: string; data: FriendGroupDetailRes
               <Link
                 to="/groups/$slug/lists/$listId"
                 params={{ slug, listId: row.listId }}
-                className={RAIL_ROW_CLASS}
+                className={HOVER_ROW_CLASS}
               >
                 <RailRowBody row={row} />
               </Link>
@@ -396,7 +396,7 @@ function NewestShared({ slug, data }: { slug: string; data: FriendGroupDetailRes
               <Link
                 to="/groups/$slug/collections/$collectionId"
                 params={{ slug, collectionId: row.collectionId }}
-                className={RAIL_ROW_CLASS}
+                className={HOVER_ROW_CLASS}
               >
                 <RailRowBody row={row} />
               </Link>
@@ -427,7 +427,11 @@ function TournamentNudge({ slug, data }: { slug: string; data: FriendGroupDetail
         <ul className="ring-foreground/10 bg-card flex flex-col rounded-lg p-1.5 ring-1">
           {current.map((tournament) => (
             <li key={tournament.id}>
-              <Link to="/tournaments/$id" params={{ id: tournament.id }} className={RAIL_ROW_CLASS}>
+              <Link
+                to="/tournaments/$id"
+                params={{ id: tournament.id }}
+                className={HOVER_ROW_CLASS}
+              >
                 <IconChip icon={TrophyIcon} tone="violet" size="sm" shape="round" />
                 <span className="flex min-w-0 flex-1 flex-col">
                   <span className="truncate text-sm font-medium">{tournament.name}</span>

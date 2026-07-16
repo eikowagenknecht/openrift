@@ -9,7 +9,8 @@ import { CardContent } from "@/components/ui/card";
 import { CardLink } from "@/components/ui/card-link";
 import { DateLeaf } from "@/components/ui/date-leaf";
 import { useDeckFormatList } from "@/hooks/use-enums";
-import { dateLeafParts, formatTournamentDate } from "@/lib/tournament-display";
+import { dateLeafParts } from "@/lib/format-date";
+import { formatTournamentDate, tournamentContextLabel } from "@/lib/tournament-display";
 
 /**
  * The winner callout of a completed event: trophy, the winner's legend art
@@ -32,17 +33,6 @@ function WinnerChip({ winner }: { winner: TournamentWinner }) {
   );
 }
 
-/**
- * @returns The event's hosting context label: its group, or its org host.
- * Null for a plain user-hosted event with no group.
- */
-function contextLabel(tournament: TournamentSummaryResponse): string | null {
-  if (tournament.groupName) {
-    return tournament.groupName;
-  }
-  return tournament.host.type === "organization" ? tournament.host.displayName : null;
-}
-
 /** @returns One completed event on the timeline: title, meta, winner, facepile. */
 function PastEventCard({
   tournament,
@@ -59,9 +49,9 @@ function PastEventCard({
           <span className="flex items-center gap-2">
             <span className="truncate text-base font-medium">{tournament.name}</span>
             {tournament.status === "cancelled" ? <Badge variant="muted">Cancelled</Badge> : null}
-            {showContext && contextLabel(tournament) ? (
+            {showContext && tournamentContextLabel(tournament) ? (
               <Badge variant="outline" className="max-sm:hidden">
-                {contextLabel(tournament)}
+                {tournamentContextLabel(tournament)}
               </Badge>
             ) : null}
           </span>

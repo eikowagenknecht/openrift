@@ -16,6 +16,7 @@
 
 ### Other
 
+- feat(Groups): **Date-anchored activity feed** — each day in the group activity feed now gets the same calendar date tile as the events timeline, replacing the Today and Yesterday headers.
 - feat(Tournaments): **Podium on the shared standings link** — the standings page you share with players and spectators now leads with the top three, matching the tournament page.
 - feat(Groups): **Redesigned group collections page** — pooled collections are now tiles with a fan of their own card art, and each member's shared collections list openly under their name with cover thumbnails, no unfolding needed.
 - feat(Groups): **Redesigned members page** — join requests stand out in a highlighted approval band, and each member is now a card showing their role, join date, cards traded, and what they share.

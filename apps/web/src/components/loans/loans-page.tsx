@@ -35,6 +35,7 @@ import {
   useReturnLoanCopies,
   useWriteOffLoan,
 } from "@/hooks/use-loans";
+import { frontImageId } from "@/lib/card-meta";
 import {
   loanCounterpartyLabel,
   loanSection,
@@ -62,7 +63,7 @@ function LoanRow({ loan }: { loan: LoanResponse }) {
   const card = cardsById[loan.cardId];
   const printing = printingsById[loan.printingId];
   const cardName = card?.name ?? "Card";
-  const imageId = printing?.images.find((image) => image.face === "front")?.imageId ?? null;
+  const imageId = frontImageId(printing);
 
   const lending = loan.role === "lender";
   const outstanding = outstandingQuantity(loan);

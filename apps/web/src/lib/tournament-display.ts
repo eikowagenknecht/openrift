@@ -263,17 +263,19 @@ export function localTimeZoneLabel(): string {
 }
 
 /**
- * The date-leaf parts of a stored instant, in the VIEWER's local timezone and
- * locale (the events lens is client-only, like {@link formatTournamentDate}).
+ * The event's hosting-context label for list rows and hero badges: its group,
+ * or its org host. Null for a plain user-hosted event with no group, where
+ * naming the host adds nothing.
  *
- * @returns The uppercase short month and the day of month, e.g. `JUL` / `13`.
+ * @returns The context label, or null.
  */
-export function dateLeafParts(iso: string): { month: string; day: string } {
-  const date = new Date(iso);
-  return {
-    month: date.toLocaleDateString(undefined, { month: "short" }).toUpperCase(),
-    day: date.toLocaleDateString(undefined, { day: "numeric" }),
-  };
+export function tournamentContextLabel(
+  tournament: Pick<TournamentSummaryResponse, "groupName" | "host">,
+): string | null {
+  if (tournament.groupName) {
+    return tournament.groupName;
+  }
+  return tournament.host.type === "organization" ? tournament.host.displayName : null;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;

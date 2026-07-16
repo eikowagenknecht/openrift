@@ -23,6 +23,7 @@ import {
 import { useCards } from "@/hooks/use-cards";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { usePrices } from "@/hooks/use-prices";
+import { frontImageId } from "@/lib/card-meta";
 import { MARKETPLACE_META } from "@/lib/marketplace-meta";
 import type { TradeCounterpartyGroup } from "@/lib/trade-derivation";
 import {
@@ -68,7 +69,7 @@ function TradeRow({ trade }: { trade: CardTradeResponse }) {
   const card = cardsById[trade.cardId];
   const printing = printingsById[trade.printingId];
   const cardName = card?.name ?? "Card";
-  const imageId = printing?.images.find((image) => image.face === "front")?.imageId ?? null;
+  const imageId = frontImageId(printing);
 
   const incoming = trade.role === "receiver";
   // A pending trade awaiting the viewer's accept/decline is "Your decision", not

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildCardMetaDescription,
+  frontImageId,
   getCardFrontImageFullUrl,
   pickCardMetaPrinting,
   resolveCardMetaPrinting,
@@ -118,6 +119,27 @@ describe("buildCardMetaDescription", () => {
   it("omits the rules-text segment entirely when it strips down to nothing", () => {
     const result = buildCardMetaDescription(baseCard, makePrinting(":rb_energy_2:"), labels);
     expect(result).toBe("Brazen Buccaneer is a Fury Unit card from Riftbound.");
+  });
+});
+
+describe("frontImageId", () => {
+  it("returns the front face's image id, skipping other faces", () => {
+    const printing: CatalogPrintingResponse = {
+      ...makePrinting(null),
+      images: [
+        { face: "back", imageId: "back-id" },
+        { face: "front", imageId: "front-id" },
+      ],
+    };
+    expect(frontImageId(printing)).toBe("front-id");
+  });
+
+  it("returns null when the printing has no front image", () => {
+    expect(frontImageId(makePrinting(null))).toBeNull();
+  });
+
+  it("returns null for a missing printing", () => {
+    expect(frontImageId(undefined)).toBeNull();
   });
 });
 

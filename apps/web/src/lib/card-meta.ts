@@ -96,6 +96,20 @@ export function buildCardMetaDescription(
 }
 
 /**
+ * The printing's front-face image id — the lookup behind nearly every card
+ * thumbnail. Structurally typed so it takes any printing response shape that
+ * carries images.
+ *
+ * @returns The front image id, or null when the printing is missing or has no
+ *   front image.
+ */
+export function frontImageId(
+  printing: { images: readonly { face: string; imageId: string }[] } | undefined,
+): string | null {
+  return printing?.images.find((image) => image.face === "front")?.imageId ?? null;
+}
+
+/**
  * Picks the front-face image URL for the given printing — meant for og:image.
  *
  * @returns The full-size front image URL, or undefined when the printing has none.
@@ -103,6 +117,6 @@ export function buildCardMetaDescription(
 export function getCardFrontImageFullUrl(
   printing: CatalogPrintingResponse | undefined,
 ): string | undefined {
-  const id = printing?.images.find((i) => i.face === "front")?.imageId;
+  const id = frontImageId(printing);
   return id ? imageUrl(id, "full") : undefined;
 }

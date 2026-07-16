@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatAbsoluteDate } from "./format-date";
+import { dateLeafParts, formatAbsoluteDate } from "./format-date";
 
 // These assertions are timezone-independent by design: the helper pins
 // `timeZone: "UTC"` and the `en-US` locale. Run under a hostile TZ
@@ -43,5 +43,15 @@ describe("formatAbsoluteDate", () => {
 
   it("defaults to the en-US numeric format", () => {
     expect(formatAbsoluteDate("2026-06-08")).toBe("6/8/2026");
+  });
+});
+
+describe("dateLeafParts", () => {
+  it("splits an instant into an uppercase short month and a day number", () => {
+    // Noon UTC keeps the local calendar day stable across test-runner timezones.
+    const parts = dateLeafParts("2026-07-13T12:00:00Z");
+    expect(parts.month).toBe(parts.month.toUpperCase());
+    expect(parts.month.length).toBeGreaterThan(1);
+    expect(parts.day).toBe("13");
   });
 });

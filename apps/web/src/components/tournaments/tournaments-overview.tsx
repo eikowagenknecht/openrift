@@ -1,26 +1,10 @@
 import type { TournamentSummaryResponse } from "@openrift/shared";
 
-import { Heading } from "@/components/heading";
 import { NextEventHero } from "@/components/tournaments/next-event-hero";
 import { PastEventsTimeline } from "@/components/tournaments/past-events-timeline";
 import { TournamentCard } from "@/components/tournaments/tournament-card";
+import { SectionHeading } from "@/components/ui/section-heading";
 import { compareTournamentsForList, partitionTournaments } from "@/lib/tournament-display";
-
-/**
- * The events page keeps display-face section titles (not the uppercase
- * SectionHeading label) — the hero-led layout reads better with them.
- * @returns A section heading with a muted count next to it.
- */
-function EventsSectionHeading({ title, count }: { title: string; count?: number }) {
-  return (
-    <div className="flex items-baseline gap-2">
-      <Heading level={2}>{title}</Heading>
-      {count === undefined ? null : (
-        <span className="text-muted-foreground text-sm tabular-nums">{count}</span>
-      )}
-    </div>
-  );
-}
 
 function UpcomingGrid({ tournaments }: { tournaments: TournamentSummaryResponse[] }) {
   return (
@@ -73,13 +57,15 @@ export function TournamentsOverview({
       )}
       {alsoUpcoming.length > 0 ? (
         <section className="flex flex-col gap-3">
-          <EventsSectionHeading title="Also coming up" />
+          <SectionHeading variant="display">Also coming up</SectionHeading>
           <UpcomingGrid tournaments={alsoUpcoming} />
         </section>
       ) : null}
       {pastSorted.length > 0 ? (
         <section className="flex flex-col gap-3">
-          <EventsSectionHeading title="Past events" count={pastSorted.length} />
+          <SectionHeading variant="display" count={pastSorted.length}>
+            Past events
+          </SectionHeading>
           <PastEventsTimeline tournaments={pastSorted} showContext={showContext} />
         </section>
       ) : null}

@@ -3,6 +3,7 @@ import { getOrientation, imageUrl } from "@openrift/shared";
 
 import { PrintingVariantLabel } from "@/components/cards/printing-label";
 import { ImgWithFallback } from "@/components/ui/img-with-fallback";
+import { frontImageId } from "@/lib/card-meta";
 import { formatCardId } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -20,8 +21,8 @@ export function PrintingThumbnail({
   printing: Printing;
   className?: string;
 }) {
-  const frontImageId = printing.images.find((image) => image.face === "front")?.imageId ?? null;
-  const thumbnail = frontImageId ? imageUrl(frontImageId, "120w") : null;
+  const imageId = frontImageId(printing);
+  const thumbnail = imageId ? imageUrl(imageId, "120w") : null;
   const landscape = getOrientation(printing.card.types) === "landscape";
   const thumbnailSize = landscape ? "h-10 w-14" : "h-14 w-10";
 

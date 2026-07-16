@@ -5,64 +5,39 @@ import type { ReactNode } from "react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { CardArtThumbStack } from "@/components/cards/card-art-thumb-stack";
+import { DateLeaf } from "@/components/ui/date-leaf";
 import { IconChip } from "@/components/ui/icon-chip";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { UserAvatar } from "@/components/user-avatar";
 import { useCards } from "@/hooks/use-cards";
 import { useFriendGroupActivity } from "@/hooks/use-friend-groups";
 import { useRequiredUserId } from "@/lib/auth-session";
+import { frontImageId } from "@/lib/card-meta";
+import { dateLeafParts } from "@/lib/format-date";
 import { formatRelativeTime } from "@/lib/format-relative-time";
 import type { AggregatedActivityRow, TradeBatch } from "@/lib/friend-group-activity";
-import { aggregateActivityEvents } from "@/lib/friend-group-activity";
+import {
+  aggregateActivityEvents,
+  distinctPrintingIds,
+  groupActivityRowsByDay,
+} from "@/lib/friend-group-activity";
 
+import { HOVER_ROW_CLASS } from "./hover-row";
 import { LIST_INTENT_ICON, LIST_INTENT_NOUN } from "./list-intent-meta";
 
 const FEED_VISIBLE = 20;
-const ROW_CLASS = "hover:bg-muted/50 flex items-center gap-3 rounded-md px-2 py-2.5";
-
-const DAY_MS = 86_400_000;
-type ActivityBucket = "today" | "yesterday" | "week" | "earlier";
-const BUCKET_ORDER: readonly ActivityBucket[] = ["today", "yesterday", "week", "earlier"];
-const BUCKET_LABEL: Record<ActivityBucket, string> = {
-  today: "Today",
-  yesterday: "Yesterday",
-  week: "Earlier this week",
-  earlier: "Earlier",
-};
-
-/**
- * Sorts an activity timestamp into a relative day bucket, matching how
- * {@link formatRelativeTime} reads "now" so the heading and the per-row label
- * never disagree.
- * @returns The bucket the event belongs to.
- */
-function activityBucket(at: string, now: Date): ActivityBucket {
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const ts = new Date(at).getTime();
-  if (ts >= startOfToday) {
-    return "today";
-  }
-  if (ts >= startOfToday - DAY_MS) {
-    return "yesterday";
-  }
-  if (ts >= startOfToday - 6 * DAY_MS) {
-    return "week";
-  }
-  return "earlier";
-}
 
 /**
  * The group's recent activity: completed trades, new matches for the viewer,
- * shared lists/collections, and members joining — newest first, split into
- * relative day groups as a clean stacked list. Derived server-side
- * from existing rows (no event log); see the activity endpoint.
+ * shared lists/collections, and members joining — newest first, each calendar
+ * day anchored by a small date leaf (the events-timeline treatment). Derived
+ * server-side from existing rows (no event log); see the activity endpoint.
  * @returns The activity-feed section.
  */
 export function FriendGroupActivityFeed({ slug }: { slug: string }) {
   const { data } = useFriendGroupActivity(slug);
   const rows = aggregateActivityEvents(data.events.slice(0, FEED_VISIBLE));
-  const now = new Date();
-  const grouped = Map.groupBy(rows, (row) => activityBucket(row.at, now));
+  const days = groupActivityRowsByDay(rows);
 
   return (
     <section className="flex flex-col gap-4">
@@ -72,19 +47,17 @@ export function FriendGroupActivityFeed({ slug }: { slug: string }) {
           Nothing yet. Trades, shared lists, and new members will show up here.
         </p>
       ) : (
-        <div className="flex flex-col gap-5">
-          {BUCKET_ORDER.map((bucket) => {
-            const group = grouped.get(bucket);
-            if (!group || group.length === 0) {
-              return null;
-            }
+        <ul className="flex flex-col gap-2.5">
+          {days.map((day) => {
+            const leaf = dateLeafParts(day.at);
             return (
-              <div key={bucket} className="flex flex-col gap-1">
-                <SectionHeading as="h3" size="sm" className="px-2">
-                  {BUCKET_LABEL[bucket]}
-                </SectionHeading>
+              <li
+                key={day.key}
+                className="grid grid-cols-[2.75rem_minmax(0,1fr)] items-start gap-3"
+              >
+                <DateLeaf month={leaf.month} day={leaf.day} size="sm" className="mt-1" />
                 <ul className="flex flex-col">
-                  {group.map((row) => (
+                  {day.rows.map((row) => (
                     <li key={rowKey(row)}>
                       {row.kind === "trade-batch" ? (
                         <TradeBatchRow slug={slug} batch={row} />
@@ -94,10 +67,10 @@ export function FriendGroupActivityFeed({ slug }: { slug: string }) {
                     </li>
                   ))}
                 </ul>
-              </div>
+              </li>
             );
           })}
-        </div>
+        </ul>
       )}
     </section>
   );
@@ -136,25 +109,12 @@ function activityKey(event: FriendGroupActivityEvent): string {
 function TradeBatchRow({ slug, batch }: { slug: string; batch: TradeBatch }) {
   const { printingsById } = useCards();
   const viewerId = useRequiredUserId();
-  // One thumb per distinct printing — a batch can trade several copies of the
-  // same card, and repeating its art adds nothing.
-  const seen = new Set<string>();
-  const thumbs = batch.events
-    .filter((event) => {
-      if (seen.has(event.printingId)) {
-        return false;
-      }
-      seen.add(event.printingId);
-      return true;
-    })
-    .map((event) => ({
-      key: event.tradeId,
-      imageId:
-        printingsById[event.printingId]?.images.find((image) => image.face === "front")?.imageId ??
-        null,
-    }));
+  const thumbs = distinctPrintingIds(batch.events).map((printingId) => ({
+    key: printingId,
+    imageId: frontImageId(printingsById[printingId]),
+  }));
   return (
-    <Link to="/groups/$slug/trades" params={{ slug }} className={ROW_CLASS}>
+    <Link to="/groups/$slug/trades" params={{ slug }} className={HOVER_ROW_CLASS}>
       <IconChip icon={ArrowLeftRightIcon} tone="primary" size="sm" shape="round" />
       <span className="flex min-w-0 flex-1 flex-col gap-1.5">
         <span className="text-muted-foreground min-w-0 text-sm">
@@ -180,12 +140,14 @@ function ActivityRow({ slug, event }: { slug: string; event: FriendGroupActivity
   const viewerId = useRequiredUserId();
 
   const cardName = (cardId: string): string => cardsById[cardId]?.name ?? "a card";
-  const thumb = (printingId: string, alt: string): ReactNode => {
-    const imageId = printingsById[printingId]?.images.find(
-      (image) => image.face === "front",
-    )?.imageId;
-    return <CardArtThumb imageId={imageId} alt={alt} className="w-7" loading="lazy" />;
-  };
+  const thumb = (printingId: string, alt: string): ReactNode => (
+    <CardArtThumb
+      imageId={frontImageId(printingsById[printingId])}
+      alt={alt}
+      className="w-7"
+      loading="lazy"
+    />
+  );
   const time = (
     <time className="text-muted-foreground text-2xs shrink-0">{formatRelativeTime(event.at)}</time>
   );
@@ -198,7 +160,7 @@ function ActivityRow({ slug, event }: { slug: string; event: FriendGroupActivity
   switch (event.kind) {
     case "trade-completed": {
       return (
-        <Link to="/groups/$slug/trades" params={{ slug }} className={ROW_CLASS}>
+        <Link to="/groups/$slug/trades" params={{ slug }} className={HOVER_ROW_CLASS}>
           <IconChip icon={ArrowLeftRightIcon} tone="primary" size="sm" shape="round" />
           {thumb(event.printingId, cardName(event.cardId))}
           {text(
@@ -218,7 +180,7 @@ function ActivityRow({ slug, event }: { slug: string; event: FriendGroupActivity
     }
     case "match": {
       return (
-        <Link to="/groups/$slug/trades" params={{ slug }} className={ROW_CLASS}>
+        <Link to="/groups/$slug/trades" params={{ slug }} className={HOVER_ROW_CLASS}>
           <IconChip icon={SparklesIcon} tone="primary" size="sm" shape="round" />
           {thumb(event.printingId, cardName(event.cardId))}
           {text(
@@ -236,7 +198,7 @@ function ActivityRow({ slug, event }: { slug: string; event: FriendGroupActivity
         <Link
           to="/groups/$slug/members/$userId"
           params={{ slug, userId: event.userId }}
-          className={ROW_CLASS}
+          className={HOVER_ROW_CLASS}
         >
           <UserAvatar
             image={event.userImage}
@@ -259,7 +221,7 @@ function ActivityRow({ slug, event }: { slug: string; event: FriendGroupActivity
         <Link
           to="/groups/$slug/lists/$listId"
           params={{ slug, listId: event.listId }}
-          className={ROW_CLASS}
+          className={HOVER_ROW_CLASS}
         >
           <IconChip icon={Icon} size="sm" shape="round" />
           {text(
@@ -277,7 +239,7 @@ function ActivityRow({ slug, event }: { slug: string; event: FriendGroupActivity
         <Link
           to="/groups/$slug/collections/$collectionId"
           params={{ slug, collectionId: event.collectionId }}
-          className={ROW_CLASS}
+          className={HOVER_ROW_CLASS}
         >
           <IconChip icon={FolderIcon} size="sm" shape="round" />
           {text(

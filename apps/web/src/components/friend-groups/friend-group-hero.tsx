@@ -10,6 +10,8 @@ import { UserAvatarStack } from "@/components/user-avatar-stack";
 import { useCards } from "@/hooks/use-cards";
 import { useCollections } from "@/hooks/use-collections";
 import { useFriendGroupActivity } from "@/hooks/use-friend-groups";
+import { frontImageId } from "@/lib/card-meta";
+import { distinctPrintingIds } from "@/lib/friend-group-activity";
 
 /** How many member avatars the hero stack shows before collapsing to "+N". */
 const HERO_AVATARS = 5;
@@ -40,21 +42,12 @@ export function FriendGroupHero({ slug, data }: { slug: string; data: FriendGrou
 
   // The fan shows the group's own cards: art from the most recent card-bearing
   // activity, one slot per distinct printing.
-  const seen = new Set<string>();
-  const covers = activity.events
-    .filter((event) => event.kind === "trade-completed" || event.kind === "match")
-    .filter((event) => {
-      if (seen.has(event.printingId)) {
-        return false;
-      }
-      seen.add(event.printingId);
-      return true;
-    })
-    .flatMap((event) => {
-      const imageId = printingsById[event.printingId]?.images.find(
-        (image) => image.face === "front",
-      )?.imageId;
-      return imageId ? [{ key: event.printingId, imageId }] : [];
+  const covers = distinctPrintingIds(
+    activity.events.filter((event) => event.kind === "trade-completed" || event.kind === "match"),
+  )
+    .flatMap((printingId) => {
+      const imageId = frontImageId(printingsById[printingId]);
+      return imageId ? [{ key: printingId, imageId }] : [];
     })
     .slice(0, 4);
 

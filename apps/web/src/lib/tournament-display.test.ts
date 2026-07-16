@@ -19,7 +19,6 @@ import {
   combineLocalDateTimeToUtc,
   compareParticipantsForList,
   compareTournamentsForList,
-  dateLeafParts,
   effectiveTournamentState,
   formatStartsIn,
   formatTournamentDate,
@@ -28,6 +27,7 @@ import {
   partitionTournaments,
   primaryViewerRole,
   splitUtcToLocalDateTime,
+  tournamentContextLabel,
 } from "./tournament-display";
 
 function makeParticipant(
@@ -210,13 +210,24 @@ describe("formatTournamentDate", () => {
   });
 });
 
-describe("dateLeafParts", () => {
-  it("splits an instant into an uppercase short month and a day number", () => {
-    // Noon UTC keeps the local calendar day stable across test-runner timezones.
-    const parts = dateLeafParts("2026-07-13T12:00:00Z");
-    expect(parts.month).toBe(parts.month.toUpperCase());
-    expect(parts.month.length).toBeGreaterThan(1);
-    expect(parts.day).toBe("13");
+describe("tournamentContextLabel", () => {
+  it("prefers the group name", () => {
+    const tournament = makeTournament("setup", {
+      groupName: "Allerlei Spielerei",
+      host: { type: "organization", userId: null, orgId: "o1", displayName: "LGS", orgSlug: "lgs" },
+    });
+    expect(tournamentContextLabel(tournament)).toBe("Allerlei Spielerei");
+  });
+
+  it("falls back to an organization host's display name", () => {
+    const tournament = makeTournament("setup", {
+      host: { type: "organization", userId: null, orgId: "o1", displayName: "LGS", orgSlug: "lgs" },
+    });
+    expect(tournamentContextLabel(tournament)).toBe("LGS");
+  });
+
+  it("is null for a plain user-hosted event with no group", () => {
+    expect(tournamentContextLabel(makeTournament("setup"))).toBeNull();
   });
 });
 

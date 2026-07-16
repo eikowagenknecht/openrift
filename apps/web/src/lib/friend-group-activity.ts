@@ -26,6 +26,54 @@ export type AggregatedActivityRow =
   | { kind: "event"; at: string; event: FriendGroupActivityEvent }
   | TradeBatch;
 
+/**
+ * One local calendar day of feed rows, for the timeline layout (one date leaf
+ * beside the day's rows). `at` is the day's newest timestamp — the input is
+ * newest-first, so it's the first row's — for the leaf label.
+ */
+export interface ActivityDayGroup {
+  /** Local-calendar-day key, unique per day. */
+  key: string;
+  at: string;
+  rows: AggregatedActivityRow[];
+}
+
+function localDayKey(at: string): string {
+  const date = new Date(at);
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+/**
+ * Groups feed rows into local-calendar-day runs, newest-first like the input,
+ * so the feed can anchor each day with a date leaf (the events-timeline
+ * treatment) instead of textual "Today" / "Yesterday" subheaders.
+ * @returns The day groups.
+ */
+export function groupActivityRowsByDay(rows: AggregatedActivityRow[]): ActivityDayGroup[] {
+  const groups: ActivityDayGroup[] = [];
+  for (const row of rows) {
+    const key = localDayKey(row.at);
+    const last = groups.at(-1);
+    if (last?.key === key) {
+      last.rows.push(row);
+    } else {
+      groups.push({ key, at: row.at, rows: [row] });
+    }
+  }
+  return groups;
+}
+
+/**
+ * The distinct printing ids of a run of card-bearing events, in event order —
+ * the dedup behind every "one art thumb per distinct card" surface (the hero
+ * fan, batch-row thumb stacks). Several events can move copies of the same
+ * printing, and repeating its art adds nothing.
+ * @returns The printing ids, first occurrence wins.
+ */
+export function distinctPrintingIds(events: readonly { printingId: string }[]): string[] {
+  return [...new Set(events.map((event) => event.printingId))];
+}
+
 function sameParties(a: TradeCompletedEvent, b: TradeCompletedEvent): boolean {
   return a.giverUserId === b.giverUserId && a.receiverUserId === b.receiverUserId;
 }

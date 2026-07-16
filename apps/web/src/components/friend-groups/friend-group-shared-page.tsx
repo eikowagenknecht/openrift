@@ -26,6 +26,7 @@ import {
   useFriendGroupShareableCollections,
 } from "@/hooks/use-friend-groups";
 import { useRequiredUserId } from "@/lib/auth-session";
+import { frontImageId } from "@/lib/card-meta";
 import { deriveCollectionCovers } from "@/lib/collection-cover-art";
 import { useCopiesCollection } from "@/lib/copies-collection";
 
@@ -108,9 +109,7 @@ function useGroupCollectionCoverFans(): Map<string, { key: string; imageId: stri
     [...covers].map(([collectionId, printingIds]) => [
       collectionId,
       printingIds.flatMap((printingId) => {
-        const imageId = printingsById[printingId]?.images.find(
-          (image) => image.face === "front",
-        )?.imageId;
+        const imageId = frontImageId(printingsById[printingId]);
         return imageId ? [{ key: printingId, imageId }] : [];
       }),
     ]),

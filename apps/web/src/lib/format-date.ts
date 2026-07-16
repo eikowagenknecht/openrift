@@ -24,3 +24,19 @@ export function formatAbsoluteDate(input: string, options?: Intl.DateTimeFormatO
     ...options,
   });
 }
+
+/**
+ * The parts of a {@link DateLeaf} (the calendar-leaf date tile) for a stored
+ * instant, in the VIEWER's local timezone and locale. Unlike
+ * {@link formatAbsoluteDate} this is deliberately not SSR-deterministic — its
+ * consumers (the events timeline, the group activity feed) are client-only.
+ *
+ * @returns The uppercase short month and the day of month, e.g. `JUL` / `13`.
+ */
+export function dateLeafParts(iso: string): { month: string; day: string } {
+  const date = new Date(iso);
+  return {
+    month: date.toLocaleDateString(undefined, { month: "short" }).toUpperCase(),
+    day: date.toLocaleDateString(undefined, { day: "numeric" }),
+  };
+}

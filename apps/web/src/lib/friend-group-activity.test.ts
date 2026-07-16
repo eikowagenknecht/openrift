@@ -1,7 +1,12 @@
 import type { FriendGroupActivityEvent } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
-import { aggregateActivityEvents } from "./friend-group-activity";
+import type { AggregatedActivityRow } from "./friend-group-activity";
+import {
+  aggregateActivityEvents,
+  distinctPrintingIds,
+  groupActivityRowsByDay,
+} from "./friend-group-activity";
 
 type TradeCompletedEvent = Extract<FriendGroupActivityEvent, { kind: "trade-completed" }>;
 
@@ -108,5 +113,83 @@ describe("aggregateActivityEvents", () => {
     expect(rows).toHaveLength(2);
     expect(rows[0].kind).toBe("event");
     expect(rows[1].kind).toBe("trade-batch");
+  });
+});
+
+describe("groupActivityRowsByDay", () => {
+  // Timestamps built through the local-time Date constructor, so the expected
+  // local-calendar-day grouping holds in any test-runner timezone.
+  const atLocal = (day: number, hour: number): string =>
+    new Date(2026, 6, day, hour, 0, 0).toISOString();
+
+  const eventRow = (at: string): AggregatedActivityRow => ({
+    kind: "event",
+    at,
+    event: memberJoined(at),
+  });
+
+  it("returns an empty list for no rows", () => {
+    expect(groupActivityRowsByDay([])).toEqual([]);
+  });
+
+  it("gathers same-day rows into one group anchored at the newest timestamp", () => {
+    const newer = eventRow(atLocal(15, 18));
+    const older = eventRow(atLocal(15, 9));
+    const groups = groupActivityRowsByDay([newer, older]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].at).toBe(newer.at);
+    expect(groups[0].rows).toEqual([newer, older]);
+  });
+
+  it("splits rows on different local days into separate groups, newest-first", () => {
+    const today = eventRow(atLocal(15, 12));
+    const yesterdayLate = eventRow(atLocal(14, 23));
+    const yesterdayEarly = eventRow(atLocal(14, 1));
+    const lastWeek = eventRow(atLocal(8, 12));
+    const groups = groupActivityRowsByDay([today, yesterdayLate, yesterdayEarly, lastWeek]);
+    expect(groups.map((group) => group.rows)).toEqual([
+      [today],
+      [yesterdayLate, yesterdayEarly],
+      [lastWeek],
+    ]);
+    expect(groups.map((group) => group.at)).toEqual([today.at, yesterdayLate.at, lastWeek.at]);
+  });
+
+  it("keys groups uniquely across month boundaries", () => {
+    const july = eventRow(new Date(2026, 6, 1, 12).toISOString());
+    const june = eventRow(new Date(2026, 5, 1, 12).toISOString());
+    const groups = groupActivityRowsByDay([july, june]);
+    expect(groups).toHaveLength(2);
+    expect(groups[0].key).not.toBe(groups[1].key);
+  });
+
+  it("carries trade-batch rows like plain event rows", () => {
+    const batchAt = atLocal(15, 12);
+    const [batch] = aggregateActivityEvents([
+      trade({ at: batchAt }),
+      trade({ at: atLocal(15, 11) }),
+    ]);
+    const joined = eventRow(atLocal(14, 12));
+    const groups = groupActivityRowsByDay([batch, joined]);
+    expect(groups).toHaveLength(2);
+    expect(groups[0].rows).toEqual([batch]);
+    expect(groups[0].at).toBe(batchAt);
+  });
+});
+
+describe("distinctPrintingIds", () => {
+  it("keeps only the first occurrence of a repeated printing, in event order", () => {
+    const events = [
+      { printingId: "p-1" },
+      { printingId: "p-2" },
+      { printingId: "p-1" },
+      { printingId: "p-3" },
+      { printingId: "p-2" },
+    ];
+    expect(distinctPrintingIds(events)).toEqual(["p-1", "p-2", "p-3"]);
+  });
+
+  it("returns an empty list for no card-bearing events", () => {
+    expect(distinctPrintingIds([])).toEqual([]);
   });
 });
