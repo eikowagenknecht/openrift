@@ -392,16 +392,18 @@ export const championCopyLimitAcrossZones: DeckRule = (state) => {
   return [];
 };
 
-// Sideboard can have at most 8 cards.
+// Sideboard can have at most this many cards.
+export const SIDEBOARD_MAXIMUM = 10;
+
 export const sideboardMaximum: DeckRule = (state) => {
   const count = totalQuantity(cardsInZone(state.cards, WellKnown.deckZone.SIDEBOARD));
 
-  if (count > 8) {
+  if (count > SIDEBOARD_MAXIMUM) {
     return [
       {
         zone: WellKnown.deckZone.SIDEBOARD,
         code: "SIDEBOARD_TOO_MANY",
-        message: `${count}/8 sideboard cards — remove ${count - 8}`,
+        message: `${count}/${SIDEBOARD_MAXIMUM} sideboard cards — remove ${count - SIDEBOARD_MAXIMUM}`,
       },
     ];
   }

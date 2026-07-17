@@ -1,5 +1,5 @@
 import type { DeckFormat, DeckZone } from "@openrift/shared";
-import { WellKnown, formatHasSideboard } from "@openrift/shared";
+import { SIDEBOARD_MAXIMUM, WellKnown, formatHasSideboard } from "@openrift/shared";
 
 /**
  * Human-friendly zone labels, shared by the deck sidebar, overview dashboard,
@@ -43,7 +43,7 @@ export const ZONE_EXPECTED: Partial<Record<DeckZone, number>> = {
 /**
  * Expected card count for a zone in a complete, legal deck of the given
  * format. Custom-Region plays a single battlefield instead of three, and
- * formats without a sideboard have no /8 target there. Drives the zone
+ * formats without a sideboard have no target there. Drives the zone
  * completion hints and the Cards KPI.
  * @returns The target count, or undefined when the zone has no fixed target.
  */
@@ -67,7 +67,7 @@ export const ZONE_EMPTY_HINTS: Record<DeckZone, string> = {
   runes: "Auto-fills from your Legend",
   battlefield: "Choose 3 unique Battlefield cards",
   main: "Add cards from the browser",
-  sideboard: "Add up to 8 sideboard cards",
+  sideboard: `Add up to ${SIDEBOARD_MAXIMUM} sideboard cards`,
   overflow: "Stash extra cards here while you decide",
 };
 

@@ -1,5 +1,5 @@
 import type { DeckZone } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import { SIDEBOARD_MAXIMUM, WellKnown } from "@openrift/shared";
 import { jsPDF } from "jspdf";
 
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
@@ -608,11 +608,11 @@ export async function generateRegistrationPdf(
   rightY = drawQtyNameRows(doc, runeCards, runeRowCount, rightColX, rightY, colWidth);
   rightY += 3;
 
-  // Sideboard (exactly 8 rows)
-  rightY = drawSectionLabel(doc, "Sideboard", rightColX, rightY, "(0-8 cards)");
+  // Sideboard (one row per allowed card, always drawn in full)
+  rightY = drawSectionLabel(doc, "Sideboard", rightColX, rightY, `(0-${SIDEBOARD_MAXIMUM} cards)`);
 
   rightY = drawQtyNameHeader(doc, rightColX, rightY);
-  rightY = drawQtyNameRows(doc, sideboardCards, 8, rightColX, rightY, colWidth);
+  rightY = drawQtyNameRows(doc, sideboardCards, SIDEBOARD_MAXIMUM, rightColX, rightY, colWidth);
 
   // ── Footer (bottom-aligned to card area) ────────────────────────────────
 

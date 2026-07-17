@@ -466,12 +466,14 @@ describe("battlefieldNoDuplicates", () => {
 // ── sideboardMaximum ────────────────────────────────────────────────────────
 
 describe("sideboardMaximum", () => {
-  it("passes with 8 or fewer", () => {
-    expect(sideboardMaximum(makeState([makeCard({ zone: "sideboard", quantity: 8 })]))).toEqual([]);
+  it("passes with 10 or fewer", () => {
+    expect(sideboardMaximum(makeState([makeCard({ zone: "sideboard", quantity: 10 })]))).toEqual(
+      [],
+    );
   });
 
-  it("fails with more than 8", () => {
-    const violations = sideboardMaximum(makeState([makeCard({ zone: "sideboard", quantity: 9 })]));
+  it("fails with more than 10", () => {
+    const violations = sideboardMaximum(makeState([makeCard({ zone: "sideboard", quantity: 11 })]));
     expect(violations).toHaveLength(1);
     expect(violations[0].code).toBe("SIDEBOARD_TOO_MANY");
   });
@@ -1022,12 +1024,12 @@ describe("validateDeck for custom-region", () => {
 
   it("does not run the sideboard cap rules — the zone is disallowed outright", () => {
     const tagSlugs = ["bandle-city"];
-    // 9 copies of one card would trip both SIDEBOARD_TOO_MANY and
+    // 11 copies of one card would trip both SIDEBOARD_TOO_MANY and
     // SIDEBOARD_COPY_LIMIT under constructed rules.
     const cards = [
       ...fullyTaggedShell(tagSlugs),
       ...fullyTaggedMain(tagSlugs),
-      withTags(makeCard({ cardId: "side-1", zone: "sideboard", quantity: 9 }), tagSlugs),
+      withTags(makeCard({ cardId: "side-1", zone: "sideboard", quantity: 11 }), tagSlugs),
     ];
     const violations = validateDeck(makeState(cards, "custom-region", { tagSlugs }));
     const codes = violations.map((v) => v.code);

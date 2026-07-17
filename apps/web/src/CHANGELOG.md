@@ -4,6 +4,7 @@
 
 ### Other
 
+- feat(Decks): **Sideboards hold 10 cards** — the sideboard limit is now 10 instead of 8, in the builder hints, the deck legality check, and the registration sheet.
 - feat(Cards): **Format-specific ban display** — cards banned only in 2v2 now carry a "2v2 Ban" ribbon and stay usable in the deck builder, while full constructed bans keep the red banned treatment.
 - fix(Rules): **Tidier rules toolbar** — the toolbar background now reaches the screen edges on phones instead of stopping short, and the changes toggle is a compact icon button.
 - fix(Rules): **Readable rule diffs** — comparing rule versions no longer shows garbled characters or misplaced highlights, and rules whose wording never changed are no longer flagged as changed.
