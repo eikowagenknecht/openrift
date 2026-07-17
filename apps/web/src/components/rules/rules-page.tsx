@@ -3,7 +3,7 @@ import { compareRuleNumbers } from "@openrift/shared";
 import { useDebouncedCallback } from "@tanstack/react-pacer";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ChevronsDownUpIcon, ChevronsUpDownIcon, CopyIcon, FileClockIcon } from "lucide-react";
-import type { MouseEvent } from "react";
+import type { MouseEvent, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { flushSync } from "react-dom";
 import type { Components } from "react-markdown";
@@ -36,8 +36,14 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Toggle } from "@/components/ui/toggle";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useRuleVersions, useRulesAtVersion } from "@/hooks/use-rules";
-import type { DiffSegment } from "@/lib/text-diff";
-import { textDiff } from "@/lib/text-diff";
+import type { HastNode, MdNode } from "@/lib/rules-markdown";
+import {
+  diffRuleMarkdown,
+  preprocessRuleMarkdown,
+  rehypeHighlightPenalties,
+  remarkLinkifyRuleReferences,
+  RULE_REFERENCE_REGEX,
+} from "@/lib/rules-markdown";
 import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 import { useRulesDiffExpandStore } from "@/stores/rules-diff-expand-store";
 import { useRulesFoldStore } from "@/stores/rules-fold-store";
@@ -62,81 +68,6 @@ async function copyRuleLink(ruleNumber: string): Promise<void> {
     toast.error("Could not copy link");
   }
 }
-
-// Rule references inside rule body text. Three forms:
-//   - "rule N" / "Rule N" / "rules N" → same-page anchor (#rule-N)
-//   - bare "N.M…" with at least one dot, starting at 3 digits → same-page anchor
-//   - "CR N" → cross-link to the core rules page
-//
-// The number's tail is constrained: digits, optional `.digit` segments,
-// optional single `.letter` segment, optional final `.digit`. This keeps
-// matches from bleeding into the next sentence (e.g. "rule 540.4.b. Continue"
-// matches "540.4.b", not "540.4.b.C…").
-const RULE_REFERENCE_REGEX =
-  /(?:\b(?<keyword>[Rr]ules?|CR)\s+(?<dotted>\d+(?:\.\d+)*(?:\.[a-z](?:\.\d+)?)?)|\b(?<bare>\d{3}(?:\.\d+)+(?:\.[a-z](?:\.\d+)?)?))/gu;
-
-interface MdNode {
-  type: string;
-  value?: string;
-  url?: string;
-  children?: MdNode[];
-}
-
-function splitTextOnRuleReferences(text: string): MdNode[] {
-  const result: MdNode[] = [];
-  let last = 0;
-  RULE_REFERENCE_REGEX.lastIndex = 0;
-  let match: RegExpExecArray | null = RULE_REFERENCE_REGEX.exec(text);
-  while (match !== null) {
-    if (match.index > last) {
-      result.push({ type: "text", value: text.slice(last, match.index) });
-    }
-    const keyword = match[1];
-    const ruleNumber = match[2] ?? match[3];
-    const url = keyword === "CR" ? `/rules/core#rule-${ruleNumber}` : `#rule-${ruleNumber}`;
-    result.push({
-      type: "link",
-      url,
-      children: [{ type: "text", value: match[0] }],
-    });
-    last = match.index + match[0].length;
-    match = RULE_REFERENCE_REGEX.exec(text);
-  }
-  if (last < text.length) {
-    result.push({ type: "text", value: text.slice(last) });
-  }
-  return result;
-}
-
-function visitTextNodes(node: MdNode): void {
-  if (!node.children) {
-    return;
-  }
-  for (let index = 0; index < node.children.length; index++) {
-    const child = node.children[index];
-    if (child.type === "link") {
-      // Don't relink text inside an existing link.
-      continue;
-    }
-    if (child.type === "text" && typeof child.value === "string") {
-      const replacements = splitTextOnRuleReferences(child.value);
-      const isUnchanged =
-        replacements.length === 1 &&
-        replacements[0].type === "text" &&
-        replacements[0].value === child.value;
-      if (!isUnchanged) {
-        node.children.splice(index, 1, ...replacements);
-        index += replacements.length - 1;
-      }
-      continue;
-    }
-    visitTextNodes(child);
-  }
-}
-
-const remarkLinkifyRuleReferences = () => (tree: MdNode) => {
-  visitTextNodes(tree);
-};
 
 // Game terms that get auto-linked when they appear in italics. Three sources:
 //   - Subtitles (depth-0 section headings: "Game Objects" → 120, "Combat" → 454)
@@ -293,76 +224,6 @@ const PENALTY_STYLES: Record<string, string> = {
   Disqualification: "bg-[#990000] text-white",
 };
 
-const PENALTY_REGEX =
-  /\[(?<penalty>Warnings?|Game Loss|No Penalty|Match Loss|Disqualification)\]/gu;
-
-// IPG-style sources often italicize the label inside the brackets, e.g.
-// `[*Warnings*]`. Strip the inner emphasis markers so the regex above (and the
-// markdown parser) see clean `[Label]` tokens.
-const PENALTY_NORMALIZE_REGEX =
-  /\[\s*[*_]*\s*(?<penalty>Warnings?|Game Loss|No Penalty|Match Loss|Disqualification)\s*[*_]*\s*\]/gu;
-
-interface HastNode {
-  type: string;
-  tagName?: string;
-  value?: string;
-  properties?: Record<string, unknown>;
-  children?: HastNode[];
-}
-
-function splitTextOnPenalties(text: string): HastNode[] {
-  const result: HastNode[] = [];
-  let last = 0;
-  PENALTY_REGEX.lastIndex = 0;
-  let match: RegExpExecArray | null = PENALTY_REGEX.exec(text);
-  while (match !== null) {
-    if (match.index > last) {
-      result.push({ type: "text", value: text.slice(last, match.index) });
-    }
-    result.push({
-      type: "element",
-      tagName: "span",
-      properties: { "data-penalty": match[1] },
-      children: [{ type: "text", value: match[0] }],
-    });
-    last = match.index + match[0].length;
-    match = PENALTY_REGEX.exec(text);
-  }
-  if (last < text.length) {
-    result.push({ type: "text", value: text.slice(last) });
-  }
-  return result;
-}
-
-function visitHastTextNodes(node: HastNode): void {
-  if (node.tagName === "a") {
-    // Don't restyle text inside an existing link.
-    return;
-  }
-  if (!node.children) {
-    return;
-  }
-  for (let index = 0; index < node.children.length; index++) {
-    const child = node.children[index];
-    if (child.type === "text" && typeof child.value === "string") {
-      if (!PENALTY_REGEX.test(child.value)) {
-        PENALTY_REGEX.lastIndex = 0;
-        continue;
-      }
-      PENALTY_REGEX.lastIndex = 0;
-      const replacements = splitTextOnPenalties(child.value);
-      node.children.splice(index, 1, ...replacements);
-      index += replacements.length - 1;
-      continue;
-    }
-    visitHastTextNodes(child);
-  }
-}
-
-const rehypeHighlightPenalties = () => (tree: HastNode) => {
-  visitHastTextNodes(tree);
-};
-
 function handleSamePageAnchorClick(event: MouseEvent<HTMLAnchorElement>, href: string): void {
   // Modifier-clicks and non-primary buttons should keep their default behavior
   // (open in new tab, etc.) — don't intercept those.
@@ -398,138 +259,91 @@ function handleSamePageAnchorClick(event: MouseEvent<HTMLAnchorElement>, href: s
   }
 }
 
-const MARKDOWN_COMPONENTS: Components = {
-  a: ({ href, children }) => {
-    if (typeof href === "string" && href.startsWith("#")) {
-      return (
-        <a
-          href={href}
-          className="text-primary hover:underline"
-          onClick={(event) => handleSamePageAnchorClick(event, href)}
-        >
-          {children}
-        </a>
-      );
-    }
-    if (typeof href === "string" && href.startsWith("/rules/core#")) {
-      // Cross-link from the tournament page (or anywhere) into the latest core
-      // rules version, with the matching anchor preserved through the redirect.
-      const hash = href.slice("/rules/core#".length);
-      return (
-        <Link
-          to="/rules/$kind"
-          params={{ kind: "core" }}
-          hash={hash}
-          className="text-primary hover:underline"
-        >
-          {children}
-        </Link>
-      );
-    }
+function RuleMarkdownAnchor({ href, children }: { href?: string; children?: ReactNode }) {
+  if (typeof href === "string" && href.startsWith("#")) {
     return (
-      <a href={href} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+      <a
+        href={href}
+        className="text-primary hover:underline"
+        onClick={(event) => handleSamePageAnchorClick(event, href)}
+      >
         {children}
       </a>
     );
-  },
-  span: ({ children, ...props }) => {
-    const penalty = (props as { "data-penalty"?: string })["data-penalty"];
-    if (penalty && PENALTY_STYLES[penalty]) {
-      return (
-        <span
-          className={cn("rounded px-1.5 py-0.5 text-sm font-semibold", PENALTY_STYLES[penalty])}
-        >
-          {children}
-        </span>
-      );
-    }
-    const diff = (props as { "data-diff"?: string })["data-diff"];
-    if (diff === "added") {
-      return (
-        <mark className="rounded-xs bg-emerald-500/15 px-0.5 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300">
-          {children}
-        </mark>
-      );
-    }
-    if (diff === "removed") {
-      return (
-        <span className="bg-destructive/10 text-destructive rounded-xs px-0.5 line-through decoration-from-font">
-          {children}
-        </span>
-      );
-    }
-    return <span {...props}>{children}</span>;
-  },
+  }
+  if (typeof href === "string" && href.startsWith("/rules/core#")) {
+    // Cross-link from the tournament page (or anywhere) into the latest core
+    // rules version, with the matching anchor preserved through the redirect.
+    const hash = href.slice("/rules/core#".length);
+    return (
+      <Link
+        to="/rules/$kind"
+        params={{ kind: "core" }}
+        hash={hash}
+        className="text-primary hover:underline"
+      >
+        {children}
+      </Link>
+    );
+  }
+  return (
+    <a href={href} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+      {children}
+    </a>
+  );
+}
+
+function RuleMarkdownSpan({
+  penalty,
+  diff,
+  children,
+}: {
+  penalty?: string;
+  diff?: string;
+  children?: ReactNode;
+}) {
+  if (penalty && PENALTY_STYLES[penalty]) {
+    return (
+      <span className={cn("rounded px-1.5 py-0.5 text-sm font-semibold", PENALTY_STYLES[penalty])}>
+        {children}
+      </span>
+    );
+  }
+  if (diff === "added") {
+    return (
+      <mark className="rounded-xs bg-emerald-500/15 px-0.5 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300">
+        {children}
+      </mark>
+    );
+  }
+  if (diff === "removed") {
+    return (
+      <span className="bg-destructive/10 text-destructive rounded-xs px-0.5 line-through decoration-from-font">
+        {children}
+      </span>
+    );
+  }
+  return <span>{children}</span>;
+}
+
+const MARKDOWN_COMPONENTS: Components = {
+  a: ({ href, children }) => <RuleMarkdownAnchor href={href}>{children}</RuleMarkdownAnchor>,
+  span: ({ children, ...props }) => (
+    <RuleMarkdownSpan
+      penalty={(props as { "data-penalty"?: string })["data-penalty"]}
+      diff={(props as { "data-diff"?: string })["data-diff"]}
+    >
+      {children}
+    </RuleMarkdownSpan>
+  ),
 };
 
 const ALLOWED_MARKDOWN_ELEMENTS = ["em", "strong", "code", "a", "br", "span"];
-
-// Private Use Area sentinels marking diff segments inside merged rule content.
-// They survive markdown parsing as opaque characters and are converted to
-// <span data-diff="..."> nodes by `rehypeHighlightDiffs` so they render with
-// styling (and the surrounding markdown, emphasis, links, still works).
-const DIFF_ADDED_START = "\uE000";
-const DIFF_ADDED_END = "\uE001";
-const DIFF_REMOVED_START = "\uE002";
-const DIFF_REMOVED_END = "\uE003";
-const DIFF_REGEX = /\uE000(?<added>[^\uE001]*)\uE001|\uE002(?<removed>[^\uE003]*)\uE003/gu;
-
-function splitTextOnDiffs(text: string): HastNode[] {
-  const result: HastNode[] = [];
-  let last = 0;
-  DIFF_REGEX.lastIndex = 0;
-  let match: RegExpExecArray | null = DIFF_REGEX.exec(text);
-  while (match !== null) {
-    if (match.index > last) {
-      result.push({ type: "text", value: text.slice(last, match.index) });
-    }
-    const isAdded = match[0].startsWith(DIFF_ADDED_START);
-    result.push({
-      type: "element",
-      tagName: "span",
-      properties: { "data-diff": isAdded ? "added" : "removed" },
-      children: [{ type: "text", value: isAdded ? match[1] : match[2] }],
-    });
-    last = match.index + match[0].length;
-    match = DIFF_REGEX.exec(text);
-  }
-  if (last < text.length) {
-    result.push({ type: "text", value: text.slice(last) });
-  }
-  return result;
-}
-
-function visitHastTextNodesForDiffs(node: HastNode): void {
-  if (!node.children) {
-    return;
-  }
-  for (let index = 0; index < node.children.length; index++) {
-    const child = node.children[index];
-    if (child.type === "text" && typeof child.value === "string") {
-      DIFF_REGEX.lastIndex = 0;
-      if (!DIFF_REGEX.test(child.value)) {
-        DIFF_REGEX.lastIndex = 0;
-        continue;
-      }
-      DIFF_REGEX.lastIndex = 0;
-      const replacements = splitTextOnDiffs(child.value);
-      node.children.splice(index, 1, ...replacements);
-      index += replacements.length - 1;
-      continue;
-    }
-    visitHastTextNodesForDiffs(child);
-  }
-}
-
-const rehypeHighlightDiffs = () => (tree: HastNode) => {
-  visitHastTextNodesForDiffs(tree);
-};
 
 // Stable references — re-creating these arrays each render busts ReactMarkdown's
 // memoization, forcing a full remark/rehype reparse for every rule on every keystroke.
 const REMARK_PLUGINS = [remarkLinkifyRuleReferences];
 const REHYPE_PLUGINS = [rehypeHighlightPenalties];
-const DIFF_REHYPE_PLUGINS = [rehypeHighlightPenalties, rehypeHighlightDiffs];
 
 /**
  * Renders a rule's body as a constrained markdown subset, with rule-number
@@ -548,13 +362,7 @@ export function RuleContent({
   termAnchors?: ReadonlyMap<string, string>;
   ruleNumber?: string;
 }) {
-  // Treat every newline in the source as a hard line break by appending the
-  // markdown two-space hard-break marker before each \n. Normalize penalty
-  // labels first so `[*Warning*]` collapses to `[Warning]` and the rehype
-  // matcher recognizes it as a single text node.
-  const processed = content
-    .replaceAll(PENALTY_NORMALIZE_REGEX, "[$<penalty>]")
-    .replaceAll("\n", "  \n");
+  const processed = preprocessRuleMarkdown(content);
   // Per-rule plugin set: when termAnchors is non-empty, append the term
   // linkifier with this rule's number so it can skip self-links. The compiler
   // memoizes both the array and the closure across re-renders of the same
@@ -789,53 +597,64 @@ function computeSearchResult(rules: RuleResponse[], terms: string[]): SearchResu
 }
 
 /**
- * Builds a single markdown string from word-diff segments by wrapping
- * non-equal segments in invisible PUA sentinels. The merged string is fed
- * back through the same markdown pipeline, and `rehypeHighlightDiffs`
- * converts the sentinels into styled spans — so emphasis/links/penalty
- * highlighting still render in the diff view.
+ * Renders one node of the merged diff tree produced by `diffRuleMarkdown`,
+ * reusing the same anchor and badge components as the markdown pipeline.
  *
- * @returns The merged markdown source with sentinel-wrapped diff regions.
+ * @returns The rendered node.
  */
-function buildDiffMarkdown(segments: DiffSegment[]): string {
-  let out = "";
-  for (const seg of segments) {
-    if (seg.type === "equal") {
-      out += seg.text;
-    } else if (seg.type === "added") {
-      out += `${DIFF_ADDED_START}${seg.text}${DIFF_ADDED_END}`;
-    } else {
-      out += `${DIFF_REMOVED_START}${seg.text}${DIFF_REMOVED_END}`;
+function renderDiffNode(node: HastNode, key: number): ReactNode {
+  if (node.type === "text") {
+    return node.value ?? "";
+  }
+  const children = (node.children ?? []).map((child, index) => renderDiffNode(child, index));
+  switch (node.tagName) {
+    case "br": {
+      return <br key={key} />;
+    }
+    case "em": {
+      return <em key={key}>{children}</em>;
+    }
+    case "strong": {
+      return <strong key={key}>{children}</strong>;
+    }
+    case "code": {
+      return <code key={key}>{children}</code>;
+    }
+    case "a": {
+      const href = node.properties?.href;
+      return (
+        <RuleMarkdownAnchor key={key} href={typeof href === "string" ? href : undefined}>
+          {children}
+        </RuleMarkdownAnchor>
+      );
+    }
+    default: {
+      const penalty = node.properties?.["data-penalty"];
+      const diff = node.properties?.["data-diff"];
+      return (
+        <RuleMarkdownSpan
+          key={key}
+          penalty={typeof penalty === "string" ? penalty : undefined}
+          diff={typeof diff === "string" ? diff : undefined}
+        >
+          {children}
+        </RuleMarkdownSpan>
+      );
     }
   }
-  return out;
 }
 
 /**
- * Renders an inline word-level diff between two rule contents through the
- * full markdown pipeline, so `*emphasis*`, links, and other formatting are
- * preserved alongside the diff highlights.
+ * Renders an inline word-level diff between two rule contents. Both versions
+ * are parsed through the full markdown pipeline first and diffed structurally
+ * (see `diffRuleMarkdown`), so `*emphasis*`, links, and penalty badges are
+ * preserved alongside the diff highlights and can't be mangled by the diff.
  *
  * @returns The diffed rule body with markdown rendering intact.
  */
-function InlineDiff({ oldText, newText }: { oldText: string; newText: string }) {
-  const segments = textDiff(oldText, newText);
-  const merged = buildDiffMarkdown(segments);
-  const processed = merged
-    .replaceAll(PENALTY_NORMALIZE_REGEX, "[$<penalty>]")
-    .replaceAll("\n", "  \n");
-  return (
-    <ReactMarkdown
-      remarkPlugins={REMARK_PLUGINS}
-      rehypePlugins={DIFF_REHYPE_PLUGINS}
-      components={MARKDOWN_COMPONENTS}
-      allowedElements={ALLOWED_MARKDOWN_ELEMENTS}
-      unwrapDisallowed
-      skipHtml
-    >
-      {processed}
-    </ReactMarkdown>
-  );
+export function InlineDiff({ oldText, newText }: { oldText: string; newText: string }) {
+  const nodes = diffRuleMarkdown(oldText, newText);
+  return <>{nodes.map((node, index) => renderDiffNode(node, index))}</>;
 }
 
 type ChangeKind = "new" | "changed" | "moved" | "replaced" | "removed";

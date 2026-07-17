@@ -67,7 +67,7 @@
     "// kysely": "Dedupe: better-auth pins kysely 0.29.2 while the api uses 0.29.3; two kysely copies fork @better-auth/core into two identical-but-different-path type copies, breaking the api build.",
     "@hono/node-server": "1.19.14",
     "@tanstack/query-core": "5.101.0",
-    "hono": "4.12.28",
+    "hono": "4.12.30",
     "html2canvas": "npm:html2canvas-pro@2.2.3",
     "kysely": "0.29.3"
   },

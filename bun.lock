@@ -116,6 +116,7 @@
         "input-otp": "1.4.2",
         "jspdf": "4.2.1",
         "lucide-react": "1.24.0",
+        "mdast-util-from-markdown": "2.0.3",
         "nitro": "3.0.260610-beta",
         "qrcode.react": "4.2.0",
         "react": "19.2.7",
@@ -206,7 +207,7 @@
     "// kysely": "Dedupe: better-auth pins kysely 0.29.2 while the api uses 0.29.3; two kysely copies fork @better-auth/core into two identical-but-different-path type copies, breaking the api build.",
     "@hono/node-server": "1.19.14",
     "@tanstack/query-core": "5.101.0",
-    "hono": "4.12.28",
+    "hono": "4.12.30",
     "html2canvas": "npm:html2canvas-pro@2.2.3",
     "kysely": "0.29.3",
   },
@@ -1809,7 +1810,7 @@
 
     "hex-rgb": ["hex-rgb@4.3.0", "", {}, "sha512-Ox1pJVrDCyGHMG9CFg1tmrRUMRPRsAWYc/PinY0XzJU4K7y7vjNoLKIQ7BR5UJMCxNN8EM1MNDmHWA/B3aZUuw=="],
 
-    "hono": ["hono@4.12.28", "", {}, "sha512-YwUvVpSF7m1yOblFPrU3Hbo8XhPheBoiyfGuII6z19LnOr6JpDnyyp7LFNrfV56wS8tpvtBFGRISHN02pDdLOA=="],
+    "hono": ["hono@4.12.30", "", {}, "sha512-emn+JoJjrN9YTpRDS5it/UI2SO9BAE37T6I3d963RxcZ81G9A4pr2SZTEiiaiKbzx+NKRg5BZ89fCL7gCJCUog=="],
 
     "hono-rate-limiter": ["hono-rate-limiter@0.5.3", "", { "peerDependencies": { "hono": "^4.10.8", "unstorage": "^1.17.3" }, "optionalPeers": ["unstorage"] }, "sha512-M0DxbVMpPELEzLi0AJg1XyBHLGJXz7GySjsPoK+gc5YeeBsdGDGe+2RvVuCAv8ydINiwlbxqYMNxUEyYfRji/A=="],
 

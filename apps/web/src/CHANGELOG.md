@@ -5,6 +5,7 @@
 ### Other
 
 - feat(Cards): **Format-specific ban display** — cards banned only in 2v2 now carry a "2v2 Ban" ribbon and stay usable in the deck builder, while full constructed bans keep the red banned treatment.
+- fix(Rules): **Readable rule diffs** — comparing rule versions no longer shows garbled characters, stray asterisks, or misplaced highlights; italics, rule links, and penalty badges now render correctly inside changes.
 
 ## 2026-07-16
 

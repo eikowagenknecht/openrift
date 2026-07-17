@@ -34,7 +34,7 @@ vi.mock("@tanstack/react-router", () => ({
   createLink: (Component: unknown) => Component,
 }));
 
-const { RuleContent, buildTermAnchors } = await import("./rules-page");
+const { RuleContent, InlineDiff, buildTermAnchors } = await import("./rules-page");
 
 function makeRule(overrides: {
   ruleNumber: string;
@@ -153,6 +153,47 @@ describe("RuleContent", () => {
     const link = screen.getByRole("link", { name: "rule 540" });
     expect(link).toHaveAttribute("href", "#rule-540");
     expect(screen.queryAllByRole("link")).toHaveLength(1);
+  });
+});
+
+describe("InlineDiff", () => {
+  it("marks a replaced word and keeps the rest plain", () => {
+    const { container } = render(<InlineDiff oldText="the cat sat" newText="the dog sat" />);
+    expect(container.querySelector("span.line-through")).toHaveTextContent("cat");
+    expect(container.querySelector("mark")).toHaveTextContent("dog");
+    expect(container.textContent).toBe("the cat dog sat");
+  });
+
+  it("renders emphasis and rule links from the new version without mangling", () => {
+    const { container } = render(
+      <InlineDiff
+        oldText={"matches your *Champion Legend.*\nSee rule 540."}
+        newText={"matches your *Champion Legend. Example:*\nSee rule 540."}
+      />,
+    );
+    expect(container.textContent).not.toContain("*");
+    expect(container.querySelector("em")).toHaveTextContent("Champion Legend. Example:");
+    const link = screen.getByRole("link", { name: "rule 540" });
+    expect(link).toHaveAttribute("href", "#rule-540");
+  });
+
+  it("renders a penalty badge inside an added segment", () => {
+    const { container } = render(
+      <InlineDiff oldText="Penalty: none." newText="Penalty: [Game Loss] none." />,
+    );
+    const badge = [...container.querySelectorAll("span")].find((span) =>
+      span.className.includes("font-semibold"),
+    );
+    expect(badge).toHaveTextContent("[Game Loss]");
+    expect(badge?.querySelector("mark")).not.toBeNull();
+  });
+
+  it("shows no marks for a whitespace-only rewrap", () => {
+    const { container } = render(
+      <InlineDiff oldText={"first line\nsecond line"} newText="first line second line" />,
+    );
+    expect(container.querySelector("mark")).toBeNull();
+    expect(container.querySelector("span.line-through")).toBeNull();
   });
 });
 
