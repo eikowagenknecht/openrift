@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { HastNode } from "./rules-markdown";
-import { diffRuleMarkdown, preprocessRuleMarkdown } from "./rules-markdown";
+import { diffRuleMarkdown, hasVisibleRuleChanges, preprocessRuleMarkdown } from "./rules-markdown";
 
 function collectText(nodes: HastNode[]): string {
   let out = "";
@@ -174,5 +174,49 @@ describe("diffRuleMarkdown", () => {
     expect(withoutRemoved(nodes).split(/\s+/u).filter(Boolean)).toEqual(
       newText.split(/\s+/u).filter(Boolean),
     );
+  });
+});
+
+describe("hasVisibleRuleChanges", () => {
+  it("reports no change for identical sources", () => {
+    expect(hasVisibleRuleChanges("same text", "same text")).toBe(false);
+  });
+
+  it("reports no change when only emphasis moved", () => {
+    expect(hasVisibleRuleChanges("a *Champion Legend* here", "a *Champion* Legend here")).toBe(
+      false,
+    );
+  });
+
+  it("reports no change when only whitespace differs", () => {
+    expect(hasVisibleRuleChanges("one two\nthree", "one   two three")).toBe(false);
+  });
+
+  it("reports no change when a link was added around unchanged text", () => {
+    expect(hasVisibleRuleChanges("See 103.2 for details", "See [103.2](/x) for details")).toBe(
+      false,
+    );
+  });
+
+  it("reports a change when a word is added", () => {
+    expect(hasVisibleRuleChanges("one two", "one two three")).toBe(true);
+  });
+
+  it("reports a change when a word is removed", () => {
+    expect(hasVisibleRuleChanges("one two three", "one three")).toBe(true);
+  });
+
+  it("reports a change when a word is replaced", () => {
+    expect(hasVisibleRuleChanges("the quick fox", "the slow fox")).toBe(true);
+  });
+
+  it("reports a change when punctuation differs", () => {
+    expect(hasVisibleRuleChanges("cards, not runes", "cards; not runes")).toBe(true);
+  });
+
+  it("handles empty sources", () => {
+    expect(hasVisibleRuleChanges("", "")).toBe(false);
+    expect(hasVisibleRuleChanges("", "new text")).toBe(true);
+    expect(hasVisibleRuleChanges("old text", "")).toBe(true);
   });
 });

@@ -39,6 +39,7 @@ import { useRuleVersions, useRulesAtVersion } from "@/hooks/use-rules";
 import type { HastNode, MdNode } from "@/lib/rules-markdown";
 import {
   diffRuleMarkdown,
+  hasVisibleRuleChanges,
   preprocessRuleMarkdown,
   rehypeHighlightPenalties,
   remarkLinkifyRuleReferences,
@@ -826,10 +827,44 @@ function detectMoves(
 }
 
 /**
+ * Rules the source marks as modified whose rendered output is identical to the
+ * previous version's — the edit only touched whitespace, emphasis, or link
+ * markup, all of which the inline diff renders silently. Badging these as
+ * "Changed" opens an empty diff, so they're treated as unchanged instead.
+ * Rules whose content moved or was replaced are excluded: those carry their
+ * own badge and are accounted for separately.
+ *
+ * @returns The set of rule_numbers whose diff would show no marks.
+ */
+function detectSilentChanges(
+  rules: readonly RuleResponse[],
+  changes: RuleChangesResponse,
+  version: string,
+  newToOld: ReadonlyMap<string, string>,
+  displacedSet: ReadonlySet<string>,
+): Set<string> {
+  const silent = new Set<string>();
+  for (const rule of rules) {
+    if (rule.version !== version || rule.changeType !== "modified") {
+      continue;
+    }
+    if (newToOld.has(rule.ruleNumber) || displacedSet.has(rule.ruleNumber)) {
+      continue;
+    }
+    const previousContent = changes.modifiedPrev[rule.ruleNumber];
+    if (previousContent !== undefined && !hasVisibleRuleChanges(previousContent, rule.content)) {
+      silent.add(rule.ruleNumber);
+    }
+  }
+  return silent;
+}
+
+/**
  * Builds a map from rule_number → ChangeKind for the given version's diff.
  * A rule whose new content matches some other rule's previous content is
  * tagged "moved" — whether it's brand-new or just modified. Tombstones whose
- * content moved to a new rule_number (per `movedTombstones`) are skipped.
+ * content moved to a new rule_number (per `movedTombstones`) are skipped, and
+ * so are rules in `silentSet` (see `detectSilentChanges`).
  *
  * @returns Map of rule_number to its change kind in this version.
  */
@@ -840,6 +875,7 @@ function buildChangeKindMap(
   newToOld: ReadonlyMap<string, string>,
   displacedSet: ReadonlySet<string>,
   movedTombstones: ReadonlySet<string>,
+  silentSet: ReadonlySet<string>,
 ): Map<string, ChangeKind> {
   const map = new Map<string, ChangeKind>();
   const addedSet = new Set(changes.added);
@@ -853,7 +889,7 @@ function buildChangeKindMap(
       map.set(rule.ruleNumber, "replaced");
     } else if (addedSet.has(rule.ruleNumber)) {
       map.set(rule.ruleNumber, "new");
-    } else if (rule.changeType === "modified") {
+    } else if (rule.changeType === "modified" && !silentSet.has(rule.ruleNumber)) {
       map.set(rule.ruleNumber, "changed");
     }
   }
@@ -1114,17 +1150,23 @@ function ChangesSummary({
   previousVersion,
   changes,
   moves,
+  silentChanges,
 }: {
   previousVersion: string;
   changes: RuleChangesResponse;
   moves: RuleMoves;
+  silentChanges: ReadonlySet<string>;
 }) {
   const movesCount = moves.newToOld.size;
   const replacedCount = moves.displacedSet.size;
   const movedFromAdded = moves.toAddedSet.size;
   const movedFromModified = movesCount - movedFromAdded;
   const newCount = changes.added.length - movedFromAdded;
-  const changedCount = Object.keys(changes.modifiedPrev).length - movedFromModified - replacedCount;
+  const changedCount =
+    Object.keys(changes.modifiedPrev).length -
+    movedFromModified -
+    replacedCount -
+    silentChanges.size;
   const removedCount = changes.removed.length - moves.fromRemovedSet.size;
   if (
     newCount === 0 &&
@@ -1172,34 +1214,31 @@ function ShowChangesToggle({
   const setShow = useRulesShowChangesStore((state) => state.setShow);
 
   const isOn = hasPreviousVersion && checked;
+  const label = hasPreviousVersion
+    ? "Show changes since previous version"
+    : "First version, no prior to compare";
 
-  const content = (
-    <Toggle
-      variant="outline"
-      pressed={isOn}
-      disabled={!hasPreviousVersion}
-      onPressedChange={(next) => setShow(kind, next)}
-      aria-label="Show changes since previous version"
-      // Persistent primary fill for the pressed state (incl. on hover), overriding
-      // the base toggle's muted active look — same treatment as the card-browser
-      // and deck-list toolbar toggles.
-      className="aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary aria-pressed:hover:text-primary-foreground gap-1.5"
-    >
-      <FileClockIcon />
-      <span className="hidden sm:inline">Show changes</span>
-    </Toggle>
-  );
-
-  if (hasPreviousVersion) {
-    return content;
-  }
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger render={<span className="inline-flex" />}>{content}</TooltipTrigger>
-        <TooltipContent>First version, no prior to compare</TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <Tooltip>
+      {/* A disabled toggle takes no pointer events, so the tooltip hangs off a
+          wrapper span rather than the toggle itself. */}
+      <TooltipTrigger render={<span className="inline-flex" />}>
+        <Toggle
+          variant="outline"
+          pressed={isOn}
+          disabled={!hasPreviousVersion}
+          onPressedChange={(next) => setShow(kind, next)}
+          aria-label="Show changes since previous version"
+          // Persistent primary fill for the pressed state (incl. on hover), overriding
+          // the base toggle's muted active look — same treatment as the card-browser
+          // and deck-list toolbar toggles.
+          className="aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary aria-pressed:hover:text-primary-foreground"
+        >
+          <FileClockIcon />
+        </Toggle>
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -1349,6 +1388,16 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
     showChanges && changes
       ? mergeTombstones(baseRules, changes.removed, movedTombstones)
       : baseRules;
+  const silentChanges =
+    showChanges && changes
+      ? detectSilentChanges(
+          rules,
+          changes,
+          version,
+          moves?.newToOld ?? EMPTY_STRING_MAP,
+          moves?.displacedSet ?? EMPTY_STRING_SET,
+        )
+      : EMPTY_STRING_SET;
   const changeKindByRule =
     showChanges && changes
       ? buildChangeKindMap(
@@ -1358,6 +1407,7 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
           moves?.newToOld ?? EMPTY_STRING_MAP,
           moves?.displacedSet ?? EMPTY_STRING_SET,
           movedTombstones,
+          silentChanges,
         )
       : null;
 
@@ -1427,7 +1477,10 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
               <div
                 className={cn(
                   PAGE_TOP_BAR_STICKY,
-                  "z-20 mb-4 flex flex-wrap items-center gap-3 px-0",
+                  // `mx-safe-neg` cancels the page container's gutter so the
+                  // blur band reaches the physical edge (the bar's own px-safe
+                  // re-insets the controls), matching the card-browser toolbar.
+                  "mx-safe-neg z-20 mb-4 flex flex-wrap items-center gap-3",
                 )}
                 // -1px matches the page top bar's own -1px offset in
                 // PAGE_TOP_BAR_STICKY, keeping this tier flush with its bottom.
@@ -1444,7 +1497,12 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
               </div>
               {comments && !isSearching && <VersionComments markdown={comments} />}
               {showChanges && previousVersion && changes && moves && (
-                <ChangesSummary previousVersion={previousVersion} changes={changes} moves={moves} />
+                <ChangesSummary
+                  previousVersion={previousVersion}
+                  changes={changes}
+                  moves={moves}
+                  silentChanges={silentChanges}
+                />
               )}
               {noSearchResults ? (
                 <div className="text-muted-foreground py-16 text-center">

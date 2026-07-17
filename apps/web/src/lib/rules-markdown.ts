@@ -479,3 +479,24 @@ export function diffRuleMarkdown(oldSource: string, newSource: string): HastNode
   const oldTokens = flattenTree(parseRuleMarkdown(oldSource));
   return buildMergedTree(diffTokens(oldTokens, newTokens));
 }
+
+/**
+ * Whether `diffRuleMarkdown` would render any add/remove marks for this pair.
+ * The diff compares token text only, so two bodies that differ purely in
+ * whitespace, emphasis, or link markup render identically and are silent.
+ *
+ * @returns True when at least one word was added or removed.
+ */
+export function hasVisibleRuleChanges(oldSource: string, newSource: string): boolean {
+  if (oldSource === newSource) {
+    return false;
+  }
+  const oldTokens = flattenTree(parseRuleMarkdown(oldSource));
+  const newTokens = flattenTree(parseRuleMarkdown(newSource));
+  if (oldTokens.length !== newTokens.length) {
+    return true;
+  }
+  // Equal-length token sequences with pairwise-equal text are exactly the
+  // pairs whose LCS covers everything, i.e. an all-`equal` diff.
+  return oldTokens.some((token, index) => token.text !== newTokens[index].text);
+}
