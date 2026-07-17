@@ -70,6 +70,7 @@ export { inferZone } from "./zone-inference.js";
 
 export {
   isAlwaysFoilRarity,
+  isBaseBanFormat,
   LOW_RARITIES,
   marketplaceFinish,
   RENAMED_LANGUAGES,

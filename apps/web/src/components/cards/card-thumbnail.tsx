@@ -1,6 +1,12 @@
 import { useDraggable } from "@dnd-kit/core";
 import type { Domain, Marketplace, PriceLookup, Printing, Rarity } from "@openrift/shared";
-import { WellKnown, getOrientation, imageUrl, legendDisplayName } from "@openrift/shared";
+import {
+  WellKnown,
+  getOrientation,
+  imageUrl,
+  isBaseBanFormat,
+  legendDisplayName,
+} from "@openrift/shared";
 import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import { memo, useEffect, useRef, useState } from "react";
 
@@ -572,8 +578,16 @@ export const CardThumbnail = memo(function CardThumbnail({
     [],
   );
 
-  // custom: dim the whole card in the deckbuilder so banned cards read as unavailable
-  const banDim = showBanOverlay && !hideBanIndicators && printing.card.bans.length > 0 && (
+  // Banlists are additive per play mode: base-list bans apply to all
+  // constructed play, mode-scoped bans (e.g. 2v2-only) leave the card legal
+  // elsewhere, so only base bans get the full "unusable" treatment.
+  const activeBans = hideBanIndicators ? [] : printing.card.bans;
+  const baseBans = activeBans.filter((ban) => isBaseBanFormat(ban.formatId));
+  const modeBans = activeBans.filter((ban) => !isBaseBanFormat(ban.formatId));
+
+  // custom: dim the whole card in the deckbuilder so banned cards read as unavailable.
+  // A deck has no play-mode identity, so mode-scoped bans don't dim.
+  const banDim = showBanOverlay && baseBans.length > 0 && (
     <div className="pointer-events-none absolute inset-0 z-20 rounded-[inherit] bg-black/70" />
   );
 
@@ -593,14 +607,21 @@ export const CardThumbnail = memo(function CardThumbnail({
   );
 
   // Banned ribbon mirrors the Preview ribbon (top-right) and sits above it at z-40
-  // so the rare previewed-and-banned card still reads as banned.
-  const banRibbon = !hideBanIndicators && printing.card.bans.length > 0 && (
+  // so the rare previewed-and-banned card still reads as banned. A base-list ban
+  // reads "Banned"; a single mode-scoped ban is labeled with its mode ("2v2 Ban").
+  const soleModeBan = baseBans.length === 0 && modeBans.length === 1 ? modeBans[0] : undefined;
+  const banLines = activeBans.map((ban) => `Banned in ${ban.formatName} since ${ban.bannedAt}`);
+  const banRibbon = activeBans.length > 0 && (
     <div
       className="@container pointer-events-none absolute inset-0 z-40 overflow-hidden rounded-[inherit]"
-      title="Banned in the current format"
+      title={
+        baseBans.length > 0
+          ? banLines.join("\n")
+          : [...banLines, "Legal in other constructed play."].join("\n")
+      }
     >
       <div className="absolute top-[18cqi] -right-[22cqi] w-[90cqi] rotate-[45deg] bg-red-600 py-[1.5cqi] text-center text-[6cqi] font-black tracking-wider text-red-50 uppercase shadow-md select-none">
-        Banned
+        {soleModeBan ? `${soleModeBan.formatName} Ban` : "Banned"}
       </div>
     </div>
   );

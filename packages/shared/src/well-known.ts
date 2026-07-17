@@ -109,6 +109,18 @@ export const WellKnown = {
      */
     CUSTOM_REGION: "custom-region",
   },
+  /**
+   * Backed by the `formats` table (competitive banlist formats — distinct
+   * from `deck_formats`). Not startup-validated: `formats` has no
+   * `is_well_known` column.
+   */
+  banFormat: {
+    /**
+     * The base banlist; applies to all constructed play. Other `formats`
+     * rows (e.g. `2v2`) hold additional bans scoped to that play mode.
+     */
+    CONSTRUCTED: "standard",
+  },
   deckZone: {
     /** Default zone for most cards. */
     MAIN: "main",
@@ -215,4 +227,19 @@ export function marketplaceFinish(dbFinish: string): string {
     return WellKnown.finish.FOIL;
   }
   return dbFinish;
+}
+
+/**
+ * Whether a `card_bans.format_id` refers to the base banlist.
+ *
+ * Banlists are additive per play mode: the base list
+ * ({@link WellKnown.banFormat} `CONSTRUCTED`) applies to all constructed
+ * play, while other `formats` rows (e.g. `2v2`) carry extra bans scoped to
+ * that mode. A deck has no play-mode identity, so mode-scoped bans get the
+ * softer UI treatment (mode-labeled ribbon, no deck-builder dim) instead of
+ * reading as unusable everywhere.
+ * @returns True when the format is the base list covering all constructed play.
+ */
+export function isBaseBanFormat(formatId: string): boolean {
+  return formatId === WellKnown.banFormat.CONSTRUCTED;
 }

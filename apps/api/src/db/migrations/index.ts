@@ -155,6 +155,7 @@ import * as m206 from "./206-max-copies-override.js";
 import * as m207 from "./207-swiss-regions.js";
 import * as m208 from "./208-fixed-tables.js";
 import * as m209 from "./209-pod-seats.js";
+import * as m210 from "./210-2v2-ban-format.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -369,4 +370,5 @@ export const migrations: Record<string, Migration> = {
   "207-swiss-regions": m207,
   "208-fixed-tables": m208,
   "209-pod-seats": m209,
+  "210-2v2-ban-format": m210,
 };

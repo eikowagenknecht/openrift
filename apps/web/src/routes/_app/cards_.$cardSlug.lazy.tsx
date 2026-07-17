@@ -4,6 +4,7 @@ import {
   EUR_MARKETPLACES,
   getOrientation,
   imageUrl,
+  isBaseBanFormat,
   legendDisplayName,
   preferredPrinting,
   snapshotHeadline,
@@ -410,6 +411,12 @@ function CardDetailPage() {
                         </AlertTitle>
                         {ban.reason && (
                           <AlertDescription className="mt-0.5">{ban.reason}</AlertDescription>
+                        )}
+                        {!isBaseBanFormat(ban.formatId) && (
+                          <AlertDescription className="mt-0.5">
+                            Applies to {ban.formatName} play only. The card stays legal in other
+                            constructed play.
+                          </AlertDescription>
                         )}
                       </div>
                     ))}
