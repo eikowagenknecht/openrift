@@ -68,9 +68,9 @@ export function CreatePrintingPage({
   const sets = setsData.sets;
   const markers = markersData.markers;
   const languages = languagesData.languages;
-  const channelOptions = leafChannels(buildChannelTree(channelsData.distributionChannels)).map(
-    (node) => ({ value: node.channel.slug, label: node.breadcrumb }),
-  );
+  const channelOptions = leafChannels(buildChannelTree(channelsData.distributionChannels))
+    .map((node) => ({ value: node.channel.slug, label: node.breadcrumb }))
+    .toSorted((a, b) => a.label.localeCompare(b.label));
 
   const firstSet = sets[0]?.slug ?? "";
   const source = duplicateFrom
@@ -338,7 +338,9 @@ export function CreatePrintingPage({
               <Field>
                 <FieldLabel>Markers</FieldLabel>
                 <MultiSelectDropdown
-                  options={markers.map((m) => ({ value: m.slug, label: m.label }))}
+                  options={markers
+                    .map((m) => ({ value: m.slug, label: m.label }))
+                    .toSorted((a, b) => a.label.localeCompare(b.label))}
                   selected={selectedMarkerSlugs}
                   onChange={setSelectedMarkerSlugs}
                   emptyOptionsText="No markers defined"
