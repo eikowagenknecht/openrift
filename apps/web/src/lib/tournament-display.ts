@@ -179,6 +179,13 @@ export function canCheckDecks(myRoles: readonly TournamentViewerRole[]): boolean
   return myRoles.includes("host") || myRoles.includes("organizer") || myRoles.includes("judge");
 }
 
+// True when the viewer works the event (host / organizer / judge) — the set
+// the staff-gated API surfaces (the participant roster with its claim links)
+// accept. Fetching those as a plain participant 403s, so gate on this first.
+export function isTournamentStaff(myRoles: readonly TournamentViewerRole[]): boolean {
+  return myRoles.includes("host") || myRoles.includes("organizer") || myRoles.includes("judge");
+}
+
 // Combine a local-time date (YYYY-MM-DD) + time (HH:mm) the HOST typed into a
 // UTC ISO instant for storage. Interprets the inputs in the runtime's local
 // timezone. Returns null if either part is malformed.

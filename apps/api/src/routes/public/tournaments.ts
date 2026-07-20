@@ -1,7 +1,6 @@
 import type {
   PublicTournamentJoinResponse,
   PublicTournamentLandingResponse,
-  TournamentParticipantStatus,
   TournamentStaffInviteLandingResponse,
   TournamentStatus,
 } from "@openrift/shared";
@@ -63,7 +62,7 @@ export async function resolveSelfJoin(
   if (existing) {
     return {
       participantId: existing.id,
-      status: existing.status as TournamentParticipantStatus,
+      status: existing.status,
       alreadyJoined: true,
     };
   }
@@ -78,7 +77,7 @@ export async function resolveSelfJoin(
     });
     return {
       participantId: created.id,
-      status: created.status as TournamentParticipantStatus,
+      status: created.status,
       alreadyJoined: false,
     };
   } catch (error) {
@@ -89,7 +88,7 @@ export async function resolveSelfJoin(
       if (raced) {
         return {
           participantId: raced.id,
-          status: raced.status as TournamentParticipantStatus,
+          status: raced.status,
           alreadyJoined: true,
         };
       }

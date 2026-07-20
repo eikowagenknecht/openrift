@@ -23,7 +23,6 @@ import type {
   ListRuleCombine,
   ListRules,
   OrganizationRole,
-  PodPlayerStatus,
   PodResultStatus,
   PodRoundStatus,
   PodScoringScheme,
@@ -36,6 +35,7 @@ import type {
   TournamentListLockMode,
   TournamentMatchFormat,
   TournamentPairingStyle,
+  TournamentParticipantStatus,
   TournamentStaffRole,
   UserPreferencesResponse,
 } from "@openrift/shared/types";
@@ -888,10 +888,10 @@ export interface TournamentParticipantsTable {
   displayName: string;
   /** CHECK: NULL or length <= 120 */
   riotId: string | null;
-  // CHECK permits the full participant lifecycle (requested/invited/active/
-  // dropped/no_show); the TS type widens to TournamentParticipantStatus in a
-  // later phase when those states are produced by the umbrella surfaces.
-  status: Generated<PodPlayerStatus>;
+  // Full participant lifecycle (requested/invited/active/dropped/no_show).
+  // The pod-engine surfaces only accept the roster subset (PodPlayerStatus);
+  // their repo queries filter to it in SQL and $narrowType the rows.
+  status: Generated<TournamentParticipantStatus>;
   /** Round number after which the player was dropped; NULL while active. */
   droppedAfterRound: number | null;
   seed: number | null;

@@ -1,5 +1,4 @@
 import type {
-  PodPlayerStatus,
   PodScoringScheme,
   PodTournamentStatus,
   TournamentClaimSource,
@@ -23,15 +22,11 @@ export type Tournament = Selectable<TournamentsTable>;
 export type TournamentParticipant = Selectable<TournamentParticipantsTable>;
 
 // The DB CHECKs permit the full umbrella lifecycle, but the Kysely Insertable
-// types are intentionally narrowed to the pod subset (see tables.ts). Cast the
-// wide ADR-033 statuses through `unknown` so writes compile without touching the
-// generated table types.
+// type for tournaments is intentionally narrowed to the pod subset (see
+// tables.ts). Cast the wide ADR-033 statuses through `unknown` so writes
+// compile without touching the generated table types.
 function asTournamentStatus(status: TournamentStatus): PodTournamentStatus {
   return status as unknown as PodTournamentStatus;
-}
-
-function asParticipantStatus(status: TournamentParticipantStatus): PodPlayerStatus {
-  return status as unknown as PodPlayerStatus;
 }
 
 /**
@@ -215,7 +210,7 @@ export function tournamentsRepo(db: Kysely<Database>) {
             .selectFrom("tournamentParticipants as p")
             .select(eb.fn.countAll<number>().as("c"))
             .whereRef("p.tournamentId", "=", "t.id")
-            .where("p.status", "=", asParticipantStatus("requested"))
+            .where("p.status", "=", "requested")
             .as("pendingRequestCount"),
         ])
         .where("t.groupId", "=", groupId)
@@ -640,7 +635,7 @@ export function tournamentsRepo(db: Kysely<Database>) {
         .values({
           ...rest,
           claimToken: claimToken ?? generateShareToken(),
-          status: status ? asParticipantStatus(status) : undefined,
+          status,
         })
         .returningAll()
         .executeTakeFirstOrThrow();
@@ -656,7 +651,7 @@ export function tournamentsRepo(db: Kysely<Database>) {
         .updateTable("tournamentParticipants")
         .set({
           ...rest,
-          ...(status === undefined ? {} : { status: asParticipantStatus(status) }),
+          ...(status === undefined ? {} : { status }),
           updatedAt: new Date(),
         })
         .where("id", "=", participantId)
@@ -851,7 +846,7 @@ export function tournamentsRepo(db: Kysely<Database>) {
             .selectFrom("tournamentParticipants as p")
             .select(eb.fn.countAll<number>().as("c"))
             .whereRef("p.tournamentId", "=", "t.id")
-            .where("p.status", "=", asParticipantStatus("requested"))
+            .where("p.status", "=", "requested")
             .as("pendingRequestCount"),
         ])
         .where("t.id", "=", tournamentId)
@@ -892,7 +887,7 @@ export function tournamentsRepo(db: Kysely<Database>) {
             .selectFrom("tournamentParticipants as p")
             .select(eb.fn.countAll<number>().as("c"))
             .whereRef("p.tournamentId", "=", "t.id")
-            .where("p.status", "=", asParticipantStatus("requested"))
+            .where("p.status", "=", "requested")
             .as("pendingRequestCount"),
         ])
         .where((eb) =>

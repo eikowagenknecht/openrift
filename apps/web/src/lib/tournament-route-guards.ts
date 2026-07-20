@@ -1,5 +1,5 @@
 import type { QueryClient } from "@tanstack/react-query";
-import { redirect } from "@tanstack/react-router";
+import { notFound, redirect } from "@tanstack/react-router";
 
 import {
   tournamentDetailQueryOptions,
@@ -8,11 +8,21 @@ import {
 
 /**
  * Ensures the unified tournament detail is loaded and returns it, so a tab
- * loader can both prefetch it and gate visibility on roles/config.
+ * loader can both prefetch it and gate visibility on roles/config. A deleted
+ * or unknown tournament (the server fn's NOT_FOUND sentinel) renders the
+ * router's not-found page instead of the error screen, so stale links and
+ * crawlers get a real 404.
  * @returns The tournament detail.
  */
-export function loadTournamentDetail(queryClient: QueryClient, userId: string, id: string) {
-  return queryClient.ensureQueryData(tournamentDetailQueryOptions(userId, id));
+export async function loadTournamentDetail(queryClient: QueryClient, userId: string, id: string) {
+  try {
+    return await queryClient.ensureQueryData(tournamentDetailQueryOptions(userId, id));
+  } catch (error) {
+    if (error instanceof Error && error.message === "NOT_FOUND") {
+      throw notFound();
+    }
+    throw error;
+  }
 }
 
 /**

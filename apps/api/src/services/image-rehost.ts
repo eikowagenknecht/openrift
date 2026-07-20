@@ -16,8 +16,10 @@ import type {
   RehostStatusResponse,
   UnrehostImagesResponse,
 } from "@openrift/shared";
+import { ERROR_CODES } from "@openrift/shared";
 import type { Logger } from "@openrift/shared/logger";
 
+import { AppError } from "../errors.js";
 import type { Io } from "../io.js";
 import type { jobRunsRepo } from "../repositories/job-runs.js";
 import type { printingImagesRepo } from "../repositories/printing-images.js";
@@ -381,7 +383,13 @@ export async function processAndSave(
   allowOverwrite = false,
 ): Promise<void> {
   if (!allowOverwrite && (await rehostFilesExist(io, outputDir, fileBase))) {
-    throw new Error(`Rehost files already exist for ${fileBase} in ${outputDir}`);
+    // A guard, not a failure: the printing was already rehosted. Typed so the
+    // admin UI gets a clean 409 instead of a Sentry-reported 500.
+    throw new AppError(
+      409,
+      ERROR_CODES.CONFLICT,
+      `Rehost files already exist for ${fileBase} in ${outputDir}; use overwrite to regenerate`,
+    );
   }
   await io.fs.mkdir(outputDir, { recursive: true });
   // Sweep any pre-existing orig with a different extension so we don't end

@@ -10,6 +10,7 @@ import type {
   PairingPlayer,
   PairingResult,
   PodPenaltyBreakdown,
+  PodPlayerStatus,
   PodResponse,
   PodRoundResponse,
   PodScoringScheme,
@@ -29,6 +30,17 @@ import type {
 
 export type PodTournament = Selectable<TournamentsTable>;
 export type PodPlayer = Selectable<TournamentParticipantsTable>;
+/**
+ * A participant on the competing roster (active or dropped). The umbrella
+ * lifecycle also has requested/invited/no_show participants, but those never
+ * appear on the run surface (players, standings, winners) — the pod response
+ * schemas reject them, and OPENRIFT-API-B was a `requested` self-registration
+ * 500ing `runState` output validation. Queries narrow via ROSTER_STATUSES.
+ */
+export type PodRosterPlayer = PodPlayer & { status: PodPlayerStatus };
+
+/** The statuses that put a participant on the competing roster. */
+const ROSTER_STATUSES: readonly PodPlayerStatus[] = ["active", "dropped"];
 export type PodRound = Selectable<PodRoundsTable>;
 export type Pod = Selectable<PodsTable>;
 
@@ -278,7 +290,7 @@ function foldFinalized(
  * @returns The standing rows, sorted best first.
  */
 function sortedStandingRows(
-  players: PodPlayer[],
+  players: PodRosterPlayer[],
   aggregates: Map<string, PlayerAggregate>,
 ): PodStandingRow[] {
   const scoreOf = (id: string): number => aggregates.get(id)?.score ?? 0;
@@ -616,11 +628,13 @@ export function podTournamentsRepo(db: Kysely<Database>) {
     },
 
     // ── Players ────────────────────────────────────────────────────────────
-    listPlayers(tournamentId: string): Promise<PodPlayer[]> {
+    listPlayers(tournamentId: string): Promise<PodRosterPlayer[]> {
       return db
         .selectFrom("tournamentParticipants")
         .selectAll()
         .where("tournamentId", "=", tournamentId)
+        .where("status", "in", ROSTER_STATUSES)
+        .$narrowType<{ status: PodPlayerStatus }>()
         .orderBy("createdAt", "asc")
         .execute();
     },
@@ -972,6 +986,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
           .selectFrom("tournamentParticipants")
           .select(["id", "region", "fixedTable"])
           .where("tournamentId", "=", tournamentId)
+          .where("status", "in", ROSTER_STATUSES)
           .orderBy("createdAt", "asc")
           .execute(),
         loadFinalizedRows(tournamentId),
@@ -1006,6 +1021,8 @@ export function podTournamentsRepo(db: Kysely<Database>) {
           .selectFrom("tournamentParticipants")
           .selectAll()
           .where("tournamentId", "=", tournamentId)
+          .where("status", "in", ROSTER_STATUSES)
+          .$narrowType<{ status: PodPlayerStatus }>()
           .orderBy("createdAt", "asc")
           .execute(),
         loadFinalizedRows(tournamentId),
@@ -1035,6 +1052,8 @@ export function podTournamentsRepo(db: Kysely<Database>) {
           .selectFrom("tournamentParticipants")
           .selectAll()
           .where("tournamentId", "in", ids)
+          .where("status", "in", ROSTER_STATUSES)
+          .$narrowType<{ status: PodPlayerStatus }>()
           .orderBy("createdAt", "asc")
           .execute(),
         db

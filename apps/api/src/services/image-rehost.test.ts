@@ -352,12 +352,18 @@ describe("processAndSave", () => {
     expect(mockWriteFile).toHaveBeenCalledWith("/tmp/out/card-001-full.webp", expect.any(Buffer));
   });
 
-  it("throws when files already exist on disk", async () => {
+  it("throws a typed 409 when files already exist on disk", async () => {
     mockReaddir.mockResolvedValue(["card-001-orig.png", "card-001-400w.webp"]);
     const buf = Buffer.from("test-img");
+    // Typed as a CONFLICT so the admin UI gets a clean 409 instead of a
+    // Sentry-reported 500 (OPENRIFT-API-C).
     await expect(
       processAndSave(mockIo, buf, ".png", "/tmp/out", "card-001", 0, false),
-    ).rejects.toThrow("Rehost files already exist for card-001");
+    ).rejects.toMatchObject({
+      name: "AppError",
+      status: 409,
+      message: expect.stringContaining("Rehost files already exist for card-001"),
+    });
     expect(mockWriteFile).not.toHaveBeenCalled();
   });
 

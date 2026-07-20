@@ -37,7 +37,16 @@ if (dsn && appEnv !== "development") {
     // AbortError: client closed the connection mid-SSR (navigated away, refresh,
     // flaky network). Surfaced by the tanstackstart request middleware with no
     // stacktrace; nothing actionable on the server.
-    ignoreErrors: ["NOT_FOUND", /^AbortError: The connection was closed/u],
+    // Server function info/module: a pre-deploy tab calling a server-fn hash
+    // the live manifest no longer has (version skew). Expected after every
+    // deploy; the client self-heals via reloadIfStaleServerFnError
+    // (lib/stale-bundle-reload.ts), and tabs from before that fix shipped can
+    // only ever produce this noise.
+    ignoreErrors: [
+      "NOT_FOUND",
+      /^AbortError: The connection was closed/u,
+      /^Server function (?:info not found|module not resolved)/u,
+    ],
     beforeSend: dropExpiredSessionEvents,
     initialScope: { tags: { service: "web-ssr" } },
   });

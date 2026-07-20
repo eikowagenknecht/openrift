@@ -41,6 +41,14 @@ services:
       - ./media:/app/media
     ports:
       - "127.0.0.1:${API_PORT:-3001}:3000"
+    # /api/health also pings the DB, so "healthy" means actually serving.
+    # start_period covers the startup migrations after a deploy.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
     logging:
       driver: json-file
       options:
@@ -51,8 +59,12 @@ services:
   # TanStack Start SSR server (internal only — not exposed to host).
   web:
     image: ghcr.io/openriftapp/openrift-web:${IMAGE_TAG:-latest}
+    # Healthy, not just started: the SSR server serving requests into a
+    # still-booting API produced connection-refused bursts on every deploy
+    # and host reboot (OPENRIFT-SSR-1T/1Y/1Z).
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3001/health || exit 1"]
       interval: 10s

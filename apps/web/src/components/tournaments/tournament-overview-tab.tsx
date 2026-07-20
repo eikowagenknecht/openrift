@@ -38,6 +38,7 @@ import {
   canManageTournament,
   effectiveTournamentState,
   hasPairing,
+  isTournamentStaff,
   pairingLabel,
   pairingPluralNoun,
   STAFF_ROLE_LABEL,
@@ -106,9 +107,12 @@ function ParticipantsTile({
     ...(droppedCount > 0 ? [`${droppedCount} dropped`] : []),
     ...(missingRegionCount > 0 ? [`${missingRegionCount} without a region`] : []),
   ];
+  // The roster page is staff-only (its route redirects others back here), so
+  // the tile is only a link for staff.
+  const staff = isTournamentStaff(detail.myRoles);
   return (
     <StatTile
-      render={<Link to="/tournaments/$id/participants" params={{ id }} />}
+      render={staff ? <Link to="/tournaments/$id/participants" params={{ id }} /> : <div />}
       icon={UsersIcon}
       tone="green"
       label="Participants"
@@ -542,6 +546,10 @@ function RunStateModules({
  * lead the main column, the standings throne sits under them, and the field and
  * decks close it out, with the rounds and staff as the rail's context.
  *
+ * The participant roster is staff-gated on the API (it carries the claim
+ * links), so only the staff variant subscribes to it; a plain participant gets
+ * the same dashboard without the roster-derived hints.
+ *
  * @returns The overview-page content.
  */
 export function TournamentOverviewTab({
@@ -551,9 +559,17 @@ export function TournamentOverviewTab({
   id: string;
   detail: TournamentDetailResponse;
 }) {
+  if (isTournamentStaff(detail.myRoles)) {
+    return <StaffOverviewTab id={id} detail={detail} />;
+  }
+  return (
+    <OverviewTabBody id={id} detail={detail} pending={[]} droppedCount={0} missingRegionCount={0} />
+  );
+}
+
+/** @returns The overview with the staff-only roster hints resolved. */
+function StaffOverviewTab({ id, detail }: { id: string; detail: TournamentDetailResponse }) {
   const manage = canManageTournament(detail.myRoles);
-  const runsRounds = hasPairing(detail.pairingStyle);
-  const showDecks = detail.deckSubmission !== "none" && canCheckDecks(detail.myRoles);
   const { data: participants } = useTournamentParticipants(id);
 
   const pending = participants.items.filter((p) => p.status === "requested");
@@ -564,6 +580,35 @@ export function TournamentOverviewTab({
     manage && detail.regionsEnabled
       ? participants.items.filter((p) => p.status === "active" && p.region === null).length
       : 0;
+
+  return (
+    <OverviewTabBody
+      id={id}
+      detail={detail}
+      pending={pending}
+      droppedCount={droppedCount}
+      missingRegionCount={missingRegionCount}
+    />
+  );
+}
+
+/** @returns The overview layout, shared by the staff and participant variants. */
+function OverviewTabBody({
+  id,
+  detail,
+  pending,
+  droppedCount,
+  missingRegionCount,
+}: {
+  id: string;
+  detail: TournamentDetailResponse;
+  pending: { id: string; displayName: string }[];
+  droppedCount: number;
+  missingRegionCount: number;
+}) {
+  const manage = canManageTournament(detail.myRoles);
+  const runsRounds = hasPairing(detail.pairingStyle);
+  const showDecks = detail.deckSubmission !== "none" && canCheckDecks(detail.myRoles);
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_18rem]">

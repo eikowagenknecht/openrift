@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-07-20
+
+### Highlights
+
+- fix(Tournaments): **Tournament pages for players** — opening a tournament as a player no longer shows an error screen, and a pending join request no longer breaks the pairings and standings for everyone.
+
+### Other
+
+- fix(Tournaments): **Deleted tournament links** — an old link to a removed tournament now shows a proper 404 page instead of an error screen.
+
 ## 2026-07-17
 
 ### Other

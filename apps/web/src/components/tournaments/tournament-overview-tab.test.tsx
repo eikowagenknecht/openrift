@@ -10,6 +10,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const participantActionMutate = vi.fn();
 let participants: TournamentParticipantResponse[] = [];
+// The real roster query is staff-gated on the API and 403s for anyone else, so
+// tests can flip this to prove a surface never subscribes for non-staff.
+let participantsForbidden = false;
 let runState: PodTournamentDetailResponse | undefined;
 
 vi.mock("@/hooks/use-tournaments", () => ({
@@ -17,7 +20,12 @@ vi.mock("@/hooks/use-tournaments", () => ({
     queryKey: ["run-state", userId, id],
   }),
   useParticipantAction: () => ({ mutateAsync: participantActionMutate, isPending: false }),
-  useTournamentParticipants: () => ({ data: { items: participants } }),
+  useTournamentParticipants: () => {
+    if (participantsForbidden) {
+      throw new Error("Host or staff only");
+    }
+    return { data: { items: participants } };
+  },
 }));
 
 // The run-state query is the only `useQuery` the tab makes; the tab reads
@@ -275,6 +283,7 @@ function makeDetail(overrides: Partial<TournamentDetailResponse> = {}): Tourname
 beforeEach(() => {
   vi.clearAllMocks();
   participants = [makeParticipant("a"), makeParticipant("b")];
+  participantsForbidden = false;
   runState = makeRunState();
 });
 
@@ -444,6 +453,26 @@ describe("TournamentOverviewTab", () => {
     render(<TournamentOverviewTab id="t-1" detail={makeDetail({ myRoles: ["participant"] })} />);
 
     expect(screen.queryByText("Join requests")).not.toBeInTheDocument();
+  });
+
+  it("renders for a plain participant without the staff-only roster query", () => {
+    // Regression for OPENRIFT-SSR-20/21: the roster endpoint 403s for
+    // non-staff, so the overview must not subscribe to it for them.
+    participantsForbidden = true;
+    render(<TournamentOverviewTab id="t-1" detail={makeDetail({ myRoles: ["participant"] })} />);
+
+    expect(screen.getByText("Participants")).toBeInTheDocument();
+    // The roster page is staff-only, so the tile is not a link for them.
+    expect(screen.queryByRole("link", { name: /participants/iu })).not.toBeInTheDocument();
+  });
+
+  it("links the participants tile to the roster page for staff", () => {
+    render(<TournamentOverviewTab id="t-1" detail={makeDetail({ myRoles: ["judge"] })} />);
+
+    expect(screen.getByRole("link", { name: /participants/iu })).toHaveAttribute(
+      "href",
+      "/tournaments/t-1/participants",
+    );
   });
 
   it("hints at dropped players and missing regions for a manager", () => {

@@ -102,6 +102,16 @@ describe("updatePrintingMarkers", () => {
 
 // ── deletePrinting ──────────────────────────────────────────────────────
 
+const NO_PRINTING_BLOCKERS = {
+  copies: 0,
+  collectionEvents: 0,
+  listEntries: 0,
+  loans: 0,
+  cardTrades: 0,
+  marketplaceProductVariants: 0,
+  productPrintings: 0,
+};
+
 describe("deletePrinting", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -129,6 +139,7 @@ describe("deletePrinting", () => {
     const repos = {
       candidateMutations: {
         getPrintingById: vi.fn(async () => ({ id: "p-uuid" })),
+        countPrintingDeleteBlockers: vi.fn(async () => NO_PRINTING_BLOCKERS),
         unlinkCandidatePrintingsByPrintingId,
         deletePrintingImagesByPrintingId,
         deletePrintingLinkOverridesById,
@@ -145,10 +156,37 @@ describe("deletePrinting", () => {
     expect(deletePrintingById).toHaveBeenCalledWith("p-uuid");
   });
 
+  it("blocks the delete with a typed 409 naming the referencing user data", async () => {
+    // Regression for OPENRIFT-API-3: copies referencing the printing used to
+    // surface as a raw PostgresError 500 instead of a clean CONFLICT.
+    const deletePrintingById = vi.fn(async () => {});
+    const repos = {
+      candidateMutations: {
+        getPrintingById: vi.fn(async () => ({ id: "p-uuid" })),
+        countPrintingDeleteBlockers: vi.fn(async () => ({
+          ...NO_PRINTING_BLOCKERS,
+          copies: 3,
+          listEntries: 1,
+        })),
+        deletePrintingById,
+      },
+    };
+    const transact = mockTransact(repos);
+
+    await expect(deletePrinting(transact, {} as Io, repos as any, "p-uuid")).rejects.toMatchObject({
+      name: "AppError",
+      status: 409,
+      message:
+        "Printing cannot be deleted, it is still referenced by: collection copies (3), list entries (1)",
+    });
+    expect(deletePrintingById).not.toHaveBeenCalled();
+  });
+
   it("cleans up rehosted files on disk after transaction", async () => {
     const repos = {
       candidateMutations: {
         getPrintingById: vi.fn(async () => ({ id: "p-uuid" })),
+        countPrintingDeleteBlockers: vi.fn(async () => NO_PRINTING_BLOCKERS),
         unlinkCandidatePrintingsByPrintingId: vi.fn(async () => {}),
         deletePrintingImagesByPrintingId: vi.fn(async () => [
           { imageFileId: "ci-1" },

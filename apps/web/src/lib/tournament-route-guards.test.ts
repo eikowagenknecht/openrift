@@ -1,5 +1,5 @@
 import type { QueryClient } from "@tanstack/react-query";
-import { isRedirect } from "@tanstack/react-router";
+import { isNotFound, isRedirect } from "@tanstack/react-router";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -30,6 +30,25 @@ describe("loadTournamentDetail", () => {
       queryKey: ["tournament-detail", "user-1", "t-1"],
     });
     expect(result).toEqual({ id: "t-1" });
+  });
+
+  it("converts the NOT_FOUND sentinel into the router's notFound", async () => {
+    // Regression for OPENRIFT-SSR-1K: a deleted or unknown tournament must
+    // render the 404 page, not the generic error screen.
+    const ensureQueryData = vi.fn().mockRejectedValue(new Error("NOT_FOUND"));
+    const queryClient = { ensureQueryData } as unknown as QueryClient;
+
+    await expect(loadTournamentDetail(queryClient, "user-1", "t-gone")).rejects.toSatisfy(
+      isNotFound,
+    );
+  });
+
+  it("passes every other failure through untouched", async () => {
+    const failure = new Error("boom");
+    const ensureQueryData = vi.fn().mockRejectedValue(failure);
+    const queryClient = { ensureQueryData } as unknown as QueryClient;
+
+    await expect(loadTournamentDetail(queryClient, "user-1", "t-1")).rejects.toBe(failure);
   });
 });
 

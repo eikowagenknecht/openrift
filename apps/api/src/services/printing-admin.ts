@@ -4,7 +4,10 @@ import type { ArtVariant, CardSize, Finish, Rarity } from "@openrift/shared/type
 import type { Transact } from "../deps.js";
 import { AppError } from "../errors.js";
 import type { Io } from "../io.js";
-import type { candidateMutationsRepo } from "../repositories/candidate-mutations.js";
+import type {
+  candidateMutationsRepo,
+  PrintingDeleteBlockers,
+} from "../repositories/candidate-mutations.js";
 import type { distributionChannelsRepo } from "../repositories/distribution-channels.js";
 import type { markersRepo } from "../repositories/markers.js";
 import type { printingEventsRepo } from "../repositories/printing-events.js";
@@ -142,8 +145,42 @@ export async function cleanupOrphanedImageFiles(
   }
 }
 
+const PRINTING_BLOCKER_LABELS: Record<keyof PrintingDeleteBlockers, string> = {
+  copies: "collection copies",
+  collectionEvents: "collection history entries",
+  listEntries: "list entries",
+  loans: "loans",
+  cardTrades: "trades",
+  marketplaceProductVariants: "marketplace variant mappings",
+  productPrintings: "marketplace product mappings",
+};
+
 /**
- * Delete a printing and clean up all related data.
+ * Throw a CONFLICT AppError naming every non-zero blocker count (the
+ * printing-scoped mirror of card-admin's `throwIfBlocked`).
+ * @returns Nothing; returns normally when all counts are zero.
+ */
+function throwIfPrintingBlocked(blockers: PrintingDeleteBlockers): void {
+  const blocking = Object.entries(blockers).filter(([, count]) => count > 0);
+  if (blocking.length > 0) {
+    const detail = blocking
+      .map(
+        ([source, count]) =>
+          `${PRINTING_BLOCKER_LABELS[source as keyof PrintingDeleteBlockers]} (${count})`,
+      )
+      .join(", ");
+    throw new AppError(
+      409,
+      ERROR_CODES.CONFLICT,
+      `Printing cannot be deleted, it is still referenced by: ${detail}`,
+    );
+  }
+}
+
+/**
+ * Delete a printing and clean up all related data. Referencing user data
+ * (copies, list entries, trades, ...) blocks the delete with a typed 409
+ * naming the blockers, instead of surfacing the raw FK violation as a 500.
  */
 export async function deletePrinting(
   transact: Transact,
@@ -156,9 +193,22 @@ export async function deletePrinting(
   const printing = await mut.getPrintingById(printingId);
   assertFound(printing, "Printing not found");
 
-  const deletedImageFileIds = await transact((trxRepos) =>
-    deletePrintingRows(trxRepos.candidateMutations, printing.id),
-  );
+  throwIfPrintingBlocked(await mut.countPrintingDeleteBlockers(printing.id));
+
+  let deletedImageFileIds: string[];
+  try {
+    deletedImageFileIds = await transact((trxRepos) =>
+      deletePrintingRows(trxRepos.candidateMutations, printing.id),
+    );
+  } catch (error: unknown) {
+    // 23503 = foreign_key_violation: a referencing row appeared between the
+    // blocker check and the delete — re-check so the client gets the same
+    // CONFLICT it would have gotten had the row existed up front.
+    if (error instanceof Error && "code" in error && error.code === "23503") {
+      throwIfPrintingBlocked(await mut.countPrintingDeleteBlockers(printing.id));
+    }
+    throw error;
+  }
 
   await cleanupOrphanedImageFiles(io, mut, deletedImageFileIds);
 }

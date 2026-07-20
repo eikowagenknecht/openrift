@@ -9,7 +9,6 @@ import type {
   TournamentListResponse,
   TournamentParticipantListResponse,
   TournamentParticipantPreview,
-  TournamentParticipantStatus,
   TournamentStaffMemberResponse,
   TournamentStatus,
   TournamentSummaryResponse,
@@ -36,7 +35,7 @@ import {
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import { scoringOf } from "../../repositories/pod-tournaments.js";
-import type { PodPlayer, PodTournament } from "../../repositories/pod-tournaments.js";
+import type { PodRosterPlayer, PodTournament } from "../../repositories/pod-tournaments.js";
 import type {
   Tournament,
   TournamentParticipant,
@@ -482,7 +481,7 @@ function toPodTournament(row: PodTournament): PodTournamentResponse {
 }
 
 /** @returns The pod-engine view of a participant row. */
-function toPodPlayer(row: PodPlayer): PodPlayerResponse {
+function toPodPlayer(row: PodRosterPlayer): PodPlayerResponse {
   return {
     id: row.id,
     displayName: row.displayName,
@@ -1173,7 +1172,7 @@ export const tournamentsRouter = {
       await requireManage(repos, tournament, userId);
       assertParticipantsOpen(tournament);
       const participant = await loadParticipant(repos, input.id, input.participantId);
-      if ((participant.status as TournamentParticipantStatus) !== "requested") {
+      if (participant.status !== "requested") {
         throw errors.CONFLICT({ message: "Only a pending request can be approved" });
       }
       await repos.tournaments.updateParticipant(input.participantId, { status: "active" });
@@ -1188,7 +1187,7 @@ export const tournamentsRouter = {
       const tournament = await loadTournament(repos, input.id);
       await requireManage(repos, tournament, userId);
       const participant = await loadParticipant(repos, input.id, input.participantId);
-      if ((participant.status as TournamentParticipantStatus) !== "requested") {
+      if (participant.status !== "requested") {
         throw errors.CONFLICT({ message: "Only a pending request can be denied" });
       }
       await repos.tournaments.deleteParticipant(input.participantId);

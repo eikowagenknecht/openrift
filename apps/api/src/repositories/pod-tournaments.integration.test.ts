@@ -305,6 +305,44 @@ describe.skipIf(!ctx)("podTournamentsRepo (integration)", () => {
     expect(round2.pods.map((pod) => pod.size).toSorted()).toEqual([3, 4]);
   });
 
+  it("excludes non-roster participants (requested/invited/no_show) from the run surface", async () => {
+    // Regression for OPENRIFT-API-B: a self-registration through the open
+    // submission link creates a `requested` participant, and the run surface
+    // (players, standings, winners) must not serve it — the pod response
+    // schemas only accept the active/dropped roster, so a leaked row 500s
+    // `runState` on output validation.
+    const { tournament, players } = await freshTournament(4);
+    await repos.tournaments.createParticipant({
+      tournamentId: tournament.id,
+      displayName: "Approval Queue",
+      status: "requested",
+    });
+    await repos.tournaments.createParticipant({
+      tournamentId: tournament.id,
+      displayName: "Invited Only",
+      status: "invited",
+    });
+    const dropped = players[0]!;
+    await tournamentsRepo.dropPlayer(dropped.id, 0);
+
+    const listed = await tournamentsRepo.listPlayers(tournament.id);
+    expect(listed).toHaveLength(4);
+    expect(listed.map((player) => player.status).toSorted()).toEqual([
+      "active",
+      "active",
+      "active",
+      "dropped",
+    ]);
+
+    const standings = await tournamentsRepo.computeStandings(tournament.id, scoring);
+    expect(standings).toHaveLength(4);
+    for (const row of standings) {
+      expect(["active", "dropped"]).toContain(row.status);
+    }
+    expect(standings.map((row) => row.displayName)).not.toContain("Approval Queue");
+    expect(standings.map((row) => row.displayName)).not.toContain("Invited Only");
+  });
+
   it("starts a late joiner at zero with no history, paired only from the next round", async () => {
     const { tournament } = await freshTournament(8);
     await pairNextRound(repos, tournament);

@@ -115,10 +115,21 @@ const fetchGroupTournaments = createServerFn({ method: "GET" })
 const fetchParticipants = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data: id }): Promise<TournamentParticipantListResponse> =>
+  .handler(async ({ context, data: id }): Promise<TournamentParticipantListResponse> => {
+    // Map the deleted-tournament 404 to the sentinel like the other fetchers,
+    // so a stale tab polling a gone tournament doesn't spam Sentry with raw
+    // ORPCErrors (OPENRIFT-SSR-1K).
+    const { error, data } = await safe(
       apiOrpcClient(tournamentsContract, context.cookie).listParticipants({ id }),
-  );
+    );
+    if (error) {
+      if (isDefinedError(error) && error.code === "NOT_FOUND") {
+        throw new Error("NOT_FOUND");
+      }
+      throw error;
+    }
+    return data;
+  });
 
 const fetchSubmitLanding = createServerFn({ method: "GET" })
   .validator((input: string) => input)
@@ -136,10 +147,18 @@ const fetchSubmitLanding = createServerFn({ method: "GET" })
 const fetchStaffCandidates = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data: id }): Promise<TournamentStaffCandidateListResponse> =>
+  .handler(async ({ context, data: id }): Promise<TournamentStaffCandidateListResponse> => {
+    const { error, data } = await safe(
       apiOrpcClient(tournamentsContract, context.cookie).listStaffCandidates({ id }),
-  );
+    );
+    if (error) {
+      if (isDefinedError(error) && error.code === "NOT_FOUND") {
+        throw new Error("NOT_FOUND");
+      }
+      throw error;
+    }
+    return data;
+  });
 
 const fetchStaffInviteLanding = createServerFn({ method: "GET" })
   .validator((input: string) => input)
