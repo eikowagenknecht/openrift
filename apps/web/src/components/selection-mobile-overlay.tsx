@@ -75,15 +75,18 @@ export function SelectionMobileOverlay({
     }
   };
 
-  const handlePrevCard =
-    selectedIndex > 0
-      ? () => navigateToIndex(selectedIndex - 1, items[selectedIndex - 1].printing)
-      : undefined;
+  // The store's selectedIndex can go stale against `items` (the list shrinks
+  // or reorders while the overlay is open), so both neighbors are bounds-checked
+  // against the current array, not just the index (OPENRIFT-SSR-22).
+  const prevItem = selectedIndex > 0 ? items[selectedIndex - 1] : undefined;
+  const handlePrevCard = prevItem
+    ? () => navigateToIndex(selectedIndex - 1, prevItem.printing)
+    : undefined;
 
-  const handleNextCard =
-    selectedIndex >= 0 && selectedIndex < items.length - 1
-      ? () => navigateToIndex(selectedIndex + 1, items[selectedIndex + 1].printing)
-      : undefined;
+  const nextItem = selectedIndex >= 0 ? items[selectedIndex + 1] : undefined;
+  const handleNextCard = nextItem
+    ? () => navigateToIndex(selectedIndex + 1, nextItem.printing)
+    : undefined;
 
   const handleSelectPrinting = (printing: Printing) => {
     const idx = items.findIndex((item) => item.printing.id === printing.id);

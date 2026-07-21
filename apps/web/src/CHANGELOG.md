@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-07-21
+
+### Other
+
+- fix(Cards): **Mobile card-detail navigation crash** — swiping through cards on a phone no longer crashes when the list changed while the detail view was open.
+
 ## 2026-07-20
 
 ### Highlights

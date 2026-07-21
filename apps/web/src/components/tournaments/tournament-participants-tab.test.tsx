@@ -15,9 +15,13 @@ vi.mock("@/hooks/use-tournaments", () => ({
   useUpdateParticipant: () => ({ mutateAsync: updateParticipantMutateAsync, isPending: false }),
 }));
 
-// Staff-only deck-check fetch; no submitted decks in these cases.
+// Staff-only deck-check fetch; no submitted decks in these cases. A spy so the
+// enabled flag can be asserted (the endpoint 404s when deck submission is off).
+const useTournamentDeckCheckEntries = vi.fn((_id: string, _enabled?: boolean) => ({
+  data: undefined,
+}));
 vi.mock("@/hooks/use-tournament-deck-check", () => ({
-  useTournamentDeckCheckEntries: () => ({ data: undefined }),
+  useTournamentDeckCheckEntries,
 }));
 
 // The region vocabulary is admin-curated custom tags; pin it so the region
@@ -295,5 +299,24 @@ describe("TournamentParticipantsTab fixed tables", () => {
     await user.type(screen.getByRole("spinbutton", { name: "Fixed table number" }), "1000");
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
     expect(updateParticipantMutateAsync).not.toHaveBeenCalled();
+  });
+});
+
+describe("TournamentParticipantsTab deck-check query gating", () => {
+  it("disables the entries query when deck submission is off", () => {
+    // The deck-check endpoint 404s for tournaments without deck submission, so
+    // an enabled query would poll a raw error every 5s (OPENRIFT-SSR-1K).
+    renderTab(makeDetail({ deckSubmission: "none" }));
+    expect(useTournamentDeckCheckEntries).toHaveBeenCalledWith("tournament-1", false);
+  });
+
+  it("enables the entries query for managers of deck-submission tournaments", () => {
+    renderTab(makeDetail({ deckSubmission: "required" }));
+    expect(useTournamentDeckCheckEntries).toHaveBeenCalledWith("tournament-1", true);
+  });
+
+  it("disables the entries query for viewers without manage rights", () => {
+    renderTab(makeDetail({ deckSubmission: "required", myRoles: [] }));
+    expect(useTournamentDeckCheckEntries).toHaveBeenCalledWith("tournament-1", false);
   });
 });

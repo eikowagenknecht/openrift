@@ -1,5 +1,6 @@
 import type { DeckCheckEntryDetailResponse, DeckCheckEventDetailResponse } from "@openrift/shared";
 import { tournamentDeckCheckContract } from "@openrift/shared/contracts";
+import { isDefinedError, safe } from "@orpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
@@ -26,18 +27,37 @@ const POLL_INTERVAL_MS = 5000;
 const fetchEntries = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data: tournamentId }): Promise<DeckCheckEventDetailResponse> =>
+  .handler(async ({ context, data: tournamentId }): Promise<DeckCheckEventDetailResponse> => {
+    // Map the 404 (deleted tournament, or deck submission disabled) to the
+    // Sentry-ignored sentinel like the use-tournaments fetchers, so the 5s
+    // entry poll doesn't spam raw ORPCErrors (OPENRIFT-SSR-1K).
+    const { error, data } = await safe(
       apiOrpcClient(tournamentDeckCheckContract, context.cookie).listEntries({ tournamentId }),
-  );
+    );
+    if (error) {
+      if (isDefinedError(error) && error.code === "NOT_FOUND") {
+        throw new Error("NOT_FOUND");
+      }
+      throw error;
+    }
+    return data;
+  });
 
 const fetchEntry = createServerFn({ method: "GET" })
   .validator((input: { tournamentId: string; entryId: string }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<DeckCheckEntryDetailResponse> =>
+  .handler(async ({ context, data }): Promise<DeckCheckEntryDetailResponse> => {
+    const { error, data: entry } = await safe(
       apiOrpcClient(tournamentDeckCheckContract, context.cookie).getEntry(data),
-  );
+    );
+    if (error) {
+      if (isDefinedError(error) && error.code === "NOT_FOUND") {
+        throw new Error("NOT_FOUND");
+      }
+      throw error;
+    }
+    return entry;
+  });
 
 // ── Query hooks ─────────────────────────────────────────────────────────────
 

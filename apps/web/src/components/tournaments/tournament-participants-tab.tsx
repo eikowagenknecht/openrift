@@ -77,9 +77,13 @@ export function TournamentParticipantsTab({
   const updateParticipant = useUpdateParticipant();
   const participantAction = useParticipantAction();
 
-  // The deck-check endpoint is staff-only, so only fetch when the viewer can
-  // manage. Maps each participant to their deck entry so the row can link to it.
-  const { data: deckCheck } = useTournamentDeckCheckEntries(id, manage);
+  // The deck-check endpoint is staff-only and 404s when deck submission is
+  // off, so only fetch when the viewer can manage AND the tournament collects
+  // decks. Maps each participant to their deck entry so the row can link to it.
+  const { data: deckCheck } = useTournamentDeckCheckEntries(
+    id,
+    manage && detail.deckSubmission !== "none",
+  );
   const entryByParticipant = new Map(
     (deckCheck?.entries ?? [])
       .filter((entry) => entry.participantId !== null)
