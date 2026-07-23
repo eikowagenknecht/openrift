@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-07-23
+
+### Other
+
+- feat(Collection): **Marker and channel filters everywhere** — collections, shared collections, and lists now offer the promo marker and distribution channel filters known from the card browser.
+
 ## 2026-07-21
 
 ### Other

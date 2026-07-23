@@ -64,17 +64,10 @@ function SharedCollectionCountCell({
 // are scoped to the viewer's own personal collections (not this collection's
 // counts), so they can answer "which cards here do I have less than a playset
 // of?". See the `ownedCountByPrinting` wiring in SharedCollectionGrid.
-const SHARED_HIDDEN_FILTER_SECTIONS: ReadonlySet<string> = new Set([
-  "owned",
-  "markers",
-  "channels",
-  "customTags",
-]);
-const SHARED_HIDDEN_FILTER_SECTIONS_AUTHED: ReadonlySet<string> = new Set([
-  "markers",
-  "channels",
-  "customTags",
-]);
+// Markers and channels stay visible (a shared collection can hold promo
+// printings); both sections self-hide when no printing here carries one.
+const SHARED_HIDDEN_FILTER_SECTIONS: ReadonlySet<string> = new Set(["owned", "customTags"]);
+const SHARED_HIDDEN_FILTER_SECTIONS_AUTHED: ReadonlySet<string> = new Set(["customTags"]);
 
 interface SharedCollectionViewProps {
   data: PublicCollectionDetailResponse;

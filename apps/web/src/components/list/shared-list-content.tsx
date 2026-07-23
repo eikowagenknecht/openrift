@@ -72,9 +72,6 @@ import type { PendingRequest } from "@/lib/tradelist-exchange";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
-// Public visitor has no owned-count context; lists also don't carry catalog-
-// wide channels / markers / custom-tag assignments. Match the public
-// collection share's hidden set.
 function SharedListQuantityCell({
   itemId,
   entryByItemId,
@@ -92,12 +89,10 @@ function SharedListQuantityCell({
 // Stable empty so the non-request path doesn't allocate a fresh map each render.
 const EMPTY_PENDING_REQUESTS: ReadonlyMap<string, PendingRequest> = new Map();
 
-const SHARED_HIDDEN_FILTER_SECTIONS: ReadonlySet<string> = new Set([
-  "owned",
-  "markers",
-  "channels",
-  "customTags",
-]);
+// Public visitor has no owned-count context, and custom tags are private to
+// their owner. Markers and channels stay visible (matching the public
+// collection share); both self-hide when no listed printing carries one.
+const SHARED_HIDDEN_FILTER_SECTIONS: ReadonlySet<string> = new Set(["owned", "customTags"]);
 
 /**
  * The friend-group exchange surfaced on a member's shared list: a "Want" request

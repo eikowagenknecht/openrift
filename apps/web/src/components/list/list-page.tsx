@@ -138,15 +138,12 @@ function emptyStateCopy(kind: ListKind): { title: string; description: string } 
 }
 
 // Browse mode: lists carry their own per-entry data, so the catalog-wide
-// owned/markers/channels/customTags filter sections aren't meaningful. They're
-// re-enabled in add mode (where the grid IS the catalog) — see the
-// `hiddenSections` branch in ListEntryBrowser.
-const LIST_HIDDEN_FILTER_SECTIONS: ReadonlySet<string> = new Set([
-  "owned",
-  "markers",
-  "channels",
-  "customTags",
-]);
+// owned/customTags filter sections aren't meaningful. They're re-enabled in
+// add mode (where the grid IS the catalog) — see the `hiddenSections` branch
+// in ListEntryBrowser. Markers and channels stay visible in both modes: they
+// are printing-level attributes a listed promo printing can carry, and both
+// sections self-hide when nothing on the list has one.
+const LIST_HIDDEN_FILTER_SECTIONS: ReadonlySet<string> = new Set(["owned", "customTags"]);
 
 export function ListPage({ listId }: ListPageProps) {
   const navigate = useNavigate();
@@ -742,9 +739,9 @@ function ListEntryBrowser({
     sortDir,
     view: dataView,
     groupBy,
-    // Browse mode hides the catalog-wide owned/markers/channels/customTags
-    // sections (see LIST_HIDDEN_FILTER_SECTIONS), so the owned-count map
-    // wouldn't drive any visible UI here.
+    // Browse mode hides the catalog-wide owned/customTags sections (see
+    // LIST_HIDDEN_FILTER_SECTIONS), so the owned-count map wouldn't drive
+    // any visible UI here.
     ownedCountByPrinting: undefined,
     favoriteMarketplace: display.favoriteMarketplace,
     prices: display.prices,

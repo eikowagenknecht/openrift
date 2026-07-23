@@ -115,14 +115,12 @@ import { QuickAddPalette } from "./quick-add-palette";
 import { TakeConfirmDialog } from "./take-confirm-dialog";
 import { TakeWishlistFollowUpDialog } from "./take-wishlist-followup-dialog";
 
-const COLLECTION_GRID_HIDDEN_FILTER_SECTIONS: ReadonlySet<string> = new Set([
-  "markers",
-  "channels",
-  // Custom tags are a deck-builder concept (format constraints, freeform
-  // self-narrowing). Hiding them here keeps the collection grid focused on
-  // physical attributes you actually own copies of.
-  "customTags",
-]);
+// Custom tags are a deck-builder concept (format constraints, freeform
+// self-narrowing). Hiding them here keeps the collection grid focused on
+// physical attributes you actually own copies of. Markers and channels stay
+// visible: collections can hold promo printings, and both sections self-hide
+// when no owned printing carries one.
+const COLLECTION_GRID_HIDDEN_FILTER_SECTIONS: ReadonlySet<string> = new Set(["customTags"]);
 
 function printingsArrayEqual(a: readonly Printing[], b: readonly Printing[]): boolean {
   if (a.length !== b.length) {
