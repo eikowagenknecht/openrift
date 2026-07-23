@@ -366,7 +366,10 @@ function PaletteInner({
         `Moved 1× ${legendDisplayName(printing.card)} to ${collectionDisplayName(moveTo)}`,
         { id: `palette-move-${printing.id}` },
       );
-      inputRef.current?.focus();
+      const input = inputRef.current;
+      if (input) {
+        input.focus();
+      }
     } catch {
       // Roll the session history back; the global onError already toasted.
       setMoveHistory((prev) => prev.filter((entry) => entry !== record));
@@ -388,7 +391,10 @@ function PaletteInner({
         `Moved 1× ${legendDisplayName(printing.card)} back to ${collectionDisplayName(record.fromCollectionId)}`,
         { id: `palette-move-${printing.id}` },
       );
-      inputRef.current?.focus();
+      const input = inputRef.current;
+      if (input) {
+        input.focus();
+      }
     } catch {
       setMoveHistory((prev) => [...prev, record]);
     }
