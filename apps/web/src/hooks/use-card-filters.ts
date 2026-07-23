@@ -368,7 +368,7 @@ export function useFilterActions() {
     updateSearch({
       search: undefined,
       sets: undefined,
-      languages: undefined,
+      // Language is intentionally preserved when clearing filters.
       rarities: undefined,
       types: undefined,
       superTypes: undefined,
@@ -404,7 +404,7 @@ export function useFilterActions() {
       standard: undefined,
       // Negation companions (ADR-034).
       setsEx: undefined,
-      languagesEx: undefined,
+      // Language (incl. its negation companion) is preserved when clearing.
       raritiesEx: undefined,
       typesEx: undefined,
       superTypesEx: undefined,

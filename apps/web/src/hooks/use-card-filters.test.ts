@@ -257,6 +257,24 @@ describe("useCardFilters", () => {
     expect(search).not.toHaveProperty("setsEx");
   });
 
+  it("clearAllFilters preserves the language selection", () => {
+    mockSearch = {
+      search: "test",
+      sets: ["RB1"],
+      languages: ["en"],
+      languagesEx: ["de"],
+    };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+
+    act(() => result.current.clearAllFilters());
+
+    const search = lastNavigateSearch();
+    expect(search).not.toHaveProperty("search");
+    expect(search).not.toHaveProperty("sets");
+    expect(search.languages).toEqual(["en"]);
+    expect(search.languagesEx).toEqual(["de"]);
+  });
+
   it("setRange sets both min and max for energy", () => {
     const { result } = renderHook(() => useCardFilters(), { wrapper });
 

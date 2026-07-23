@@ -10,6 +10,7 @@
 
 - feat(Collection): **Search the move dialogs** — moving cards to a collection or entries to another list now offers a filter box, so the target is quick to find.
 - feat(Collection): **Marker and channel filters everywhere** — collections, shared collections, and lists now offer the promo marker and distribution channel filters known from the card browser.
+- fix(Cards): **Clear filters keeps your language** — the clear-filters button now resets every filter except the language selection, so you stay in your chosen language.
 
 ## 2026-07-21
 
