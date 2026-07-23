@@ -9,6 +9,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { CommandEmpty } from "@/components/ui/command";
 import { DialogForm } from "@/components/ui/dialog-form";
 import { PickerList, PickerRow } from "@/components/ui/picker-list";
 import { cn } from "@/lib/utils";
@@ -46,17 +47,24 @@ export function MoveToListDialog({
           <AlertDialogDescription>
             Choose a list to move the selected cards to.
           </AlertDialogDescription>
-          <div className="max-h-60 overflow-y-auto">
+          {/* No overflow here — CommandList scrolls internally, keeping the filter input pinned. */}
+          <div>
             {lists.length === 0 ? (
               <p className="text-muted-foreground py-4 text-center text-sm">
                 No other matching lists available.
               </p>
             ) : (
-              <PickerList highlightedId={highlightedId} onHighlightChange={setHighlightedId}>
+              <PickerList
+                searchPlaceholder="Filter lists…"
+                highlightedId={highlightedId}
+                onHighlightChange={setHighlightedId}
+              >
+                <CommandEmpty>No matching lists.</CommandEmpty>
                 {lists.map((list) => (
                   <PickerRow
                     key={list.id}
                     value={list.id}
+                    keywords={[list.name]}
                     onSelect={() => setSelectedId(list.id)}
                     className={cn(
                       "px-3 py-2",

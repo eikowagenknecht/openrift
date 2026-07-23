@@ -384,6 +384,7 @@ export function CardBrowser() {
           collectionName="Inbox"
           printingsByCardId={catalogAllPrintingsByCardId}
           ownedCountByPrinting={ownedCountByPrinting}
+          collections={collections}
         />
       )}
     </>

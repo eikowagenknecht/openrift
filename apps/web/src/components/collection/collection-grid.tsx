@@ -1275,6 +1275,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           printingsByCardId={catalogAllPrintingsByCardId}
           ownedCountByPrinting={ownedCountByPrinting}
           preferredLanguages={preferredLanguages}
+          collections={collections}
         />
       )}
       {currentCollection && !currentCollection.isInbox && (

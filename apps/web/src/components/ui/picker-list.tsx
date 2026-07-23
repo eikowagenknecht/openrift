@@ -2,17 +2,35 @@ import { Command as CommandPrimitive } from "cmdk";
 import type { KeyboardEvent, ReactNode, Ref } from "react";
 import { useLayoutEffect, useRef } from "react";
 
-import { Command, CommandList } from "@/components/ui/command";
+import { Command, CommandInput, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 
 interface PickerListProps {
   header?: ReactNode;
+  /** When set, renders a type-to-filter input above the list. Rows are matched against their `keywords` prop only (never `value`, which is usually an opaque id), so every `PickerRow` must pass `keywords` for filtering to find it. */
+  searchPlaceholder?: string;
   /** Currently highlighted row id. Always pass a string (use "" for "no initial choice"); cmdk skips its controlled-state sync if `value` is undefined. */
   highlightedId: string;
   onHighlightChange: (value: string) => void;
   /** Custom keyboard shortcuts (e.g. `-`, `+`). cmdk already handles arrows / Home / End / Enter. */
   onKeyDown?: (event: KeyboardEvent<HTMLDivElement>, highlightedId: string) => void;
   children: ReactNode;
+}
+
+/**
+ * cmdk filter that matches the query against row `keywords` only. Row `value`s
+ * are opaque ids here, so cmdk's default value matching would produce phantom
+ * hits. Uniform scores (1/0) keep the rows in their original order instead of
+ * cmdk's score-based reordering.
+ *
+ * @returns 1 when a keyword contains the query (or the query is empty), else 0.
+ */
+function keywordFilter(_value: string, search: string, keywords?: string[]): number {
+  const query = search.trim().toLowerCase();
+  if (!query) {
+    return 1;
+  }
+  return keywords?.some((keyword) => keyword.toLowerCase().includes(query)) ? 1 : 0;
 }
 
 /**
@@ -26,31 +44,39 @@ interface PickerListProps {
  */
 export function PickerList({
   header,
+  searchPlaceholder,
   highlightedId,
   onHighlightChange,
   onKeyDown,
   children,
 }: PickerListProps) {
   // cmdk's keydown handler only fires when focus lives inside the Command, so we
-  // move focus to the root on mount. NOT via the `autoFocus` DOM attribute:
+  // move focus to the root on mount — or to the filter input when search is
+  // enabled, so typing starts immediately. NOT via the `autoFocus` DOM attribute:
   // React honors it by calling `.focus()` with no options, which scrolls the
   // element into view. When the picker lives in a popover anchored to a tile in
   // a window-virtualized grid, that scroll jumps the whole grid and detaches the
   // popover from its anchor. Focus explicitly with `preventScroll` instead.
   const rootRef = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
-    rootRef.current?.focus({ preventScroll: true });
+    const input = rootRef.current?.querySelector<HTMLElement>("[cmdk-input]");
+    (input ?? rootRef.current)?.focus({ preventScroll: true });
   }, []);
 
+  const searchable = searchPlaceholder !== undefined;
   return (
     <Command
       ref={rootRef}
       loop
-      tabIndex={0}
+      // With a filter input, focus lives in the input; keep the root out of the
+      // tab order so dialog initial-focus logic lands on the input instead.
+      tabIndex={searchable ? -1 : 0}
       value={highlightedId}
       onValueChange={onHighlightChange}
+      filter={searchable ? keywordFilter : undefined}
       onKeyDown={(event) => onKeyDown?.(event, highlightedId)}
     >
+      {searchable ? <CommandInput placeholder={searchPlaceholder} /> : null}
       {header}
       <CommandList>{children}</CommandList>
     </Command>
@@ -59,6 +85,8 @@ export function PickerList({
 
 interface PickerRowProps {
   value: string;
+  /** Display strings the parent PickerList's filter input matches against (e.g. the row's name). Required for the row to survive filtering when the list is searchable. */
+  keywords?: string[];
   /** Called on click and on Enter when this row is highlighted. Omit for rows whose interaction lives in inline controls (e.g. inline +/- buttons). */
   onSelect?: () => void;
   className?: string;
@@ -97,7 +125,7 @@ function scrollRowWithinList(el: HTMLElement): void {
  *
  * @returns A cmdk-tracked row that participates in keyboard nav and hover-sync.
  */
-export function PickerRow({ value, onSelect, className, ref, children }: PickerRowProps) {
+export function PickerRow({ value, keywords, onSelect, className, ref, children }: PickerRowProps) {
   const setRef = (node: HTMLDivElement | null) => {
     if (node) {
       // Contain cmdk's scroll-into-view to the list (see scrollRowWithinList).
@@ -115,6 +143,7 @@ export function PickerRow({ value, onSelect, className, ref, children }: PickerR
       ref={setRef}
       data-slot="picker-row"
       value={value}
+      keywords={keywords}
       onSelect={onSelect}
       className={cn(
         // scroll-my-2 gives cmdk's scrollIntoView({block:"nearest"}) explicit breathing room around the row, so keyboard nav doesn't park the active row flush against (or partly under) the list edge.

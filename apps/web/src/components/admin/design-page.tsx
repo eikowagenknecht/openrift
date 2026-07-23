@@ -1499,6 +1499,7 @@ const CHAMPIONS = ["Ahri", "Jinx", "Teemo", "Viktor", "Yasuo"];
 function PickersSection() {
   const [champions, setChampions] = useState<string[]>(["Jinx"]);
   const [highlighted, setHighlighted] = useState("");
+  const [searchableHighlighted, setSearchableHighlighted] = useState("");
   return (
     <DemoSection
       id="pickers"
@@ -1557,6 +1558,30 @@ function PickersSection() {
             <PickerList highlightedId={highlighted} onHighlightChange={setHighlighted}>
               {CHAMPIONS.slice(0, 3).map((name) => (
                 <PickerRow key={name} value={name} onSelect={() => toast(`Picked ${name}`)}>
+                  {name}
+                </PickerRow>
+              ))}
+            </PickerList>
+          </div>
+        </Demo>
+        <Demo
+          name="PickerList (searchable)"
+          hint="searchPlaceholder adds a type-to-filter input; rows match on their keywords."
+        >
+          <div className="w-full max-w-56 rounded-lg border">
+            <PickerList
+              searchPlaceholder="Filter legends…"
+              highlightedId={searchableHighlighted}
+              onHighlightChange={setSearchableHighlighted}
+            >
+              <CommandEmpty>No matching legend.</CommandEmpty>
+              {CHAMPIONS.map((name) => (
+                <PickerRow
+                  key={name}
+                  value={name}
+                  keywords={[name]}
+                  onSelect={() => toast(`Picked ${name}`)}
+                >
                   {name}
                 </PickerRow>
               ))}

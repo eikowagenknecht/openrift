@@ -2,8 +2,13 @@
 
 ## 2026-07-23
 
+### Highlights
+
+- feat(Collection): **Move cards with the quick palette** — the Ctrl+K palette gains a Move mode: pick source and target collections and shift copies by typing card names.
+
 ### Other
 
+- feat(Collection): **Search the move dialogs** — moving cards to a collection or entries to another list now offers a filter box, so the target is quick to find.
 - feat(Collection): **Marker and channel filters everywhere** — collections, shared collections, and lists now offer the promo marker and distribution channel filters known from the card browser.
 
 ## 2026-07-21

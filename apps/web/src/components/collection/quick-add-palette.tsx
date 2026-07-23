@@ -1,6 +1,14 @@
-import type { Printing } from "@openrift/shared";
+import type { CollectionResponse, Printing } from "@openrift/shared";
 import { getOrientation, imageUrl, legendDisplayName } from "@openrift/shared";
-import { ChevronRightIcon, MinusIcon, PlusIcon, SearchIcon, XIcon } from "lucide-react";
+import {
+  ArrowRightIcon,
+  ArrowRightLeftIcon,
+  ChevronRightIcon,
+  MinusIcon,
+  PlusIcon,
+  SearchIcon,
+  XIcon,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -16,13 +24,32 @@ import {
 } from "@/components/ui/input-group";
 import { Kbd } from "@/components/ui/kbd";
 import { Pressable } from "@/components/ui/pressable";
-import { useBatchedAddCopies, useDisposeCopies } from "@/hooks/use-copies";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  useBatchedAddCopies,
+  useCopies,
+  useDisposeCopies,
+  useMoveCopies,
+} from "@/hooks/use-copies";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { usePrices } from "@/hooks/use-prices";
 import { searchCards } from "@/hooks/use-quick-add-search";
 import { compactFormatterForMarketplace, formatCardId, priceColorClass } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
 import { LANDSCAPE_ROTATION_STYLE, needsCssRotation } from "@/lib/images";
+import {
+  buildMoveSources,
+  groupMovableCopies,
+  MOVE_FROM_ANYWHERE,
+  movableCountsByPrinting,
+} from "@/lib/move-sources";
 import { summarizeBatchAdd } from "@/lib/summarize-batch-add";
 import { cn } from "@/lib/utils";
 import { useAddModeStore } from "@/stores/add-mode-store";
@@ -43,6 +70,12 @@ interface QuickAddPaletteProps {
    * so disabled languages don't surface here.
    */
   preferredLanguages?: readonly string[];
+  /**
+   * The viewer's collections — enables the Move mode (pull existing copies
+   * into the target instead of adding new ones). Omit to keep the palette
+   * add-only. Needs at least two collections to be useful.
+   */
+  collections?: CollectionResponse[];
 }
 
 export function QuickAddPalette({
@@ -53,6 +86,7 @@ export function QuickAddPalette({
   printingsByCardId,
   ownedCountByPrinting,
   preferredLanguages,
+  collections,
 }: QuickAddPaletteProps) {
   const isMobile = useIsMobile();
 
@@ -69,6 +103,7 @@ export function QuickAddPalette({
                 printingsByCardId={printingsByCardId}
                 ownedCountByPrinting={ownedCountByPrinting}
                 preferredLanguages={preferredLanguages}
+                collections={collections}
                 isMobile
               />
             )}
@@ -92,6 +127,7 @@ export function QuickAddPalette({
             printingsByCardId={printingsByCardId}
             ownedCountByPrinting={ownedCountByPrinting}
             preferredLanguages={preferredLanguages}
+            collections={collections}
             isMobile={false}
           />
         )}
@@ -106,7 +142,15 @@ interface PaletteInnerProps {
   printingsByCardId: Map<string, Printing[]>;
   ownedCountByPrinting?: Record<string, number>;
   preferredLanguages?: readonly string[];
+  collections?: CollectionResponse[];
   isMobile: boolean;
+}
+
+/** One palette-session move, kept so Shift+Enter / the minus button can send the copy back where it came from. */
+interface MoveRecord {
+  copyId: string;
+  printingId: string;
+  fromCollectionId: string;
 }
 
 function PaletteInner({
@@ -115,6 +159,7 @@ function PaletteInner({
   printingsByCardId,
   ownedCountByPrinting,
   preferredLanguages,
+  collections,
   isMobile,
 }: PaletteInnerProps) {
   const [query, setQuery] = useState("");
@@ -149,8 +194,52 @@ function PaletteInner({
   const favoriteMarketplace = marketplaceOrder[0] ?? "cardtrader";
   const compactFmt = compactFormatterForMarketplace(favoriteMarketplace);
 
+  // ── Move mode ──────────────────────────────────────────────────────
+  // Instead of creating new copies, Move reassigns existing ones: From
+  // (a source collection, or anywhere) → To (defaults to the collection
+  // the palette opened on). Both sides are pickable, so the same palette
+  // pulls cards into a fresh deckbox or clears the inbox out into one.
+  const canMove = (collections?.length ?? 0) >= 2;
+  const [mode, setMode] = useState<"add" | "move">("add");
+  const [moveFrom, setMoveFrom] = useState<string>(MOVE_FROM_ANYWHERE);
+  const [moveTo, setMoveTo] = useState<string>(collectionId);
+  // Set by the swap button so a second click restores the exact previous
+  // direction (a plain value swap can't restore "All collections").
+  // Cleared when either dropdown is changed manually.
+  const [swapUndo, setSwapUndo] = useState<{ from: string; to: string } | null>(null);
+  const [moveHistory, setMoveHistory] = useState<MoveRecord[]>([]);
+  // Which source collection Enter moves from, as an index into the selected
+  // printing's source list (ArrowRight/Tab cycles it, clicking a chip sets it).
+  const [sourceIndex, setSourceIndex] = useState(0);
+  const moveCopies = useMoveCopies();
+  // Live rows across all collections; PaletteInner only mounts while the
+  // palette is open, so the subscription doesn't outlive it.
+  const { data: allCopies } = useCopies();
+  const inMoveMode = mode === "move" && canMove;
+  const inboxId = collections?.find((col) => col.isInbox)?.id;
+  const collectionDisplayName = (id: string) =>
+    collections?.find((col) => col.id === id)?.name ?? "collection";
+  const movableByPrinting = inMoveMode
+    ? groupMovableCopies(allCopies, {
+        excludeCollectionId: moveTo,
+        onlyCollectionId: moveFrom === MOVE_FROM_ANYWHERE ? undefined : moveFrom,
+      })
+    : null;
+  const movableCounts = movableByPrinting ? movableCountsByPrinting(movableByPrinting) : undefined;
+  const fromItems = [
+    { value: MOVE_FROM_ANYWHERE, label: "All collections" },
+    ...(collections ?? [])
+      .filter((col) => col.id !== moveTo)
+      .map((col) => ({ value: col.id, label: col.name })),
+  ];
+  const toItems = (collections ?? [])
+    .filter((col) => col.id !== moveFrom)
+    .map((col) => ({ value: col.id, label: col.name }));
+
   const results = searchCards(query, printingsByCardId, {
-    ownedCountByPrinting,
+    // In move mode the ×N badges show what's movable in the current
+    // From scope, not the global owned count.
+    ownedCountByPrinting: inMoveMode ? (movableCounts ?? {}) : ownedCountByPrinting,
     preferredLanguages,
   });
 
@@ -178,6 +267,11 @@ function PaletteInner({
     setSelectedIndex((prev) => Math.min(prev, Math.max(0, results.length - 1)));
     setExpandedCardId(null);
   }, [results.length]);
+
+  // A new printing row, direction, or target starts back at the default source.
+  useEffect(() => {
+    setSourceIndex(0);
+  }, [expandedCardId, expandedIndex, moveFrom, moveTo]);
 
   // Scroll selected item into view (keyboard navigation only)
   useEffect(() => {
@@ -248,6 +342,84 @@ function PaletteInner({
     }
   };
 
+  const handleMoveOne = async (printing: Printing, sourceCollectionId?: string) => {
+    const sources = buildMoveSources(movableByPrinting?.get(printing.id) ?? [], inboxId);
+    const source = sourceCollectionId
+      ? sources.find((s) => s.collectionId === sourceCollectionId)
+      : sources[Math.min(sourceIndex, sources.length - 1)];
+    const copyId = source?.copyIds[0];
+    if (!source || !copyId) {
+      return;
+    }
+    const record: MoveRecord = {
+      copyId,
+      printingId: printing.id,
+      fromCollectionId: source.collectionId,
+    };
+    setMoveHistory((prev) => [...prev, record]);
+    try {
+      await moveCopies.mutateAsync({ copyIds: [copyId], toCollectionId: moveTo });
+      // Stable id per printing: a held Enter replaces the toast instead of
+      // stacking one per keypress. Error toasts come from the global
+      // mutation onError in query-client.ts.
+      toast.success(
+        `Moved 1× ${legendDisplayName(printing.card)} to ${collectionDisplayName(moveTo)}`,
+        { id: `palette-move-${printing.id}` },
+      );
+      inputRef.current?.focus();
+    } catch {
+      // Roll the session history back; the global onError already toasted.
+      setMoveHistory((prev) => prev.filter((entry) => entry !== record));
+    }
+  };
+
+  const handleUndoMove = async (printing: Printing) => {
+    const record = moveHistory.findLast((entry) => entry.printingId === printing.id);
+    if (!record) {
+      return;
+    }
+    setMoveHistory((prev) => prev.filter((entry) => entry !== record));
+    try {
+      await moveCopies.mutateAsync({
+        copyIds: [record.copyId],
+        toCollectionId: record.fromCollectionId,
+      });
+      toast.success(
+        `Moved 1× ${legendDisplayName(printing.card)} back to ${collectionDisplayName(record.fromCollectionId)}`,
+        { id: `palette-move-${printing.id}` },
+      );
+      inputRef.current?.focus();
+    } catch {
+      setMoveHistory((prev) => [...prev, record]);
+    }
+  };
+
+  const handleSwapDirection = () => {
+    if (swapUndo) {
+      setMoveFrom(swapUndo.from);
+      setMoveTo(swapUndo.to);
+      setSwapUndo(null);
+      return;
+    }
+    const previous = { from: moveFrom, to: moveTo };
+    if (moveFrom === MOVE_FROM_ANYWHERE) {
+      // "All collections" can't become the target — anchor From to the old
+      // target and default the destination to the inbox (or the first other
+      // collection when the inbox IS the old target, i.e. clearing it out).
+      const target =
+        inboxId && inboxId !== moveTo ? inboxId : collections?.find((col) => col.id !== moveTo)?.id;
+      if (!target) {
+        return;
+      }
+      setMoveFrom(moveTo);
+      setMoveTo(target);
+    } else {
+      setMoveFrom(moveTo);
+      setMoveTo(moveFrom);
+    }
+    setSwapUndo(previous);
+  };
+
   const clearSearch = () => {
     setQuery("");
     setSelectedIndex(0);
@@ -255,14 +427,41 @@ function PaletteInner({
     inputRef.current?.focus();
   };
 
+  // Applied as onMouseDown to every clickable element in the result list.
+  // Preventing mousedown's default keeps focus in the search input, so
+  // keyboard navigation survives any mouse click (clicks still fire).
+  const keepInputFocus = (event: React.MouseEvent) => {
+    event.preventDefault();
+  };
+
   // Determine if the currently selected printing (when expanded) has session adds, for footer hint
   const expandedCard = expandedCardId
     ? results.find((r) => r.cardId === expandedCardId)
     : undefined;
   const selectedPrinting = expandedCard?.printings[expandedIndex];
+  const selectedSourceCount =
+    inMoveMode && moveFrom === MOVE_FROM_ANYWHERE && selectedPrinting
+      ? new Set(
+          (movableByPrinting?.get(selectedPrinting.id) ?? []).map((copy) => copy.collectionId),
+        ).size
+      : 0;
   const canUndoSelected = selectedPrinting
-    ? (addedItems.get(selectedPrinting.id)?.quantity ?? 0) > 0
+    ? inMoveMode
+      ? moveHistory.some((entry) => entry.printingId === selectedPrinting.id)
+      : (addedItems.get(selectedPrinting.id)?.quantity ?? 0) > 0
     : false;
+
+  // Handled on the palette root, not the input: after clicking a tab (or any
+  // other control) focus leaves the input, and the shortcut should keep
+  // working from anywhere inside the palette. React synthetic events bubble
+  // here even from portaled popups.
+  const handleModeShortcut = (event: React.KeyboardEvent) => {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "m" && canMove) {
+      event.preventDefault();
+      setMode((prev) => (prev === "add" ? "move" : "add"));
+      inputRef.current?.focus();
+    }
+  };
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
@@ -288,14 +487,45 @@ function PaletteInner({
     } else if (event.key === "ArrowLeft" || (event.key === "Tab" && event.shiftKey)) {
       if (expandedCardId) {
         event.preventDefault();
+        // Step back through the source chips first; only from the leftmost
+        // chip does Left collapse the card (go back one level).
+        if (inMoveMode && moveFrom === MOVE_FROM_ANYWHERE && selectedPrinting) {
+          const sources = buildMoveSources(
+            movableByPrinting?.get(selectedPrinting.id) ?? [],
+            inboxId,
+          );
+          const activeSource = Math.min(sourceIndex, sources.length - 1);
+          if (activeSource > 0) {
+            setSourceIndex(activeSource - 1);
+            return;
+          }
+        }
         setExpandedCardId(null);
       }
     } else if (event.key === "ArrowRight" || (event.key === "Tab" && !event.shiftKey)) {
-      const card = results[selectedIndex];
-      if (card && !expandedCardId) {
-        event.preventDefault();
-        setExpandedCardId(card.cardId);
-        setExpandedIndex(0);
+      if (expandedCardId) {
+        // Inside an expanded card, walk rightward through the source chips
+        // (move mode with an open source scope only). Clamps at the last
+        // chip — Left walks back and exits at the leftmost, so no wrap.
+        if (inMoveMode && moveFrom === MOVE_FROM_ANYWHERE && selectedPrinting) {
+          const sources = buildMoveSources(
+            movableByPrinting?.get(selectedPrinting.id) ?? [],
+            inboxId,
+          );
+          if (sources.length > 1) {
+            event.preventDefault();
+            setSourceIndex((prev) =>
+              Math.min(Math.min(prev, sources.length - 1) + 1, sources.length - 1),
+            );
+          }
+        }
+      } else {
+        const card = results[selectedIndex];
+        if (card) {
+          event.preventDefault();
+          setExpandedCardId(card.cardId);
+          setExpandedIndex(0);
+        }
       }
     } else if (event.key === "Enter") {
       event.preventDefault();
@@ -305,10 +535,11 @@ function PaletteInner({
       if (expandedCardId) {
         const card = results.find((r) => r.cardId === expandedCardId);
         if (card) {
+          const printing = card.printings[expandedIndex];
           if (event.shiftKey) {
-            handleUndo(card.printings[expandedIndex]);
+            void (inMoveMode ? handleUndoMove(printing) : handleUndo(printing));
           } else {
-            handleAdd(card.printings[expandedIndex]);
+            void (inMoveMode ? handleMoveOne(printing) : handleAdd(printing));
           }
         }
       } else {
@@ -333,7 +564,8 @@ function PaletteInner({
   };
 
   return (
-    <div className="relative">
+    // oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- bubbling keyboard shortcut listener, not an interactive element
+    <div className="relative" onKeyDown={handleModeShortcut}>
       {/* Card image preview — shown at the top of the drawer on mobile, where
           there's no off-canvas space for the desktop side pane. */}
       {isMobile && previewPrinting && previewThumbnailMobile && (
@@ -397,6 +629,96 @@ function PaletteInner({
         </div>
       )}
 
+      {/* Mode toggle + move direction. The drawer already pads its content
+          (p-4), so the horizontal inset applies on desktop only. */}
+      {canMove && (
+        <div className={cn("flex flex-col gap-2 pb-1", !isMobile && "px-3 pt-3")}>
+          <Tabs
+            value={mode}
+            onValueChange={(value) => {
+              setMode(value as "add" | "move");
+              // Hand focus back to the search input so typing (and Ctrl+M)
+              // keep working after a mouse click on a tab.
+              inputRef.current?.focus();
+            }}
+          >
+            <TabsList className="w-full">
+              {/* The shortcut hint sits on the inactive tab — the one Ctrl+M
+                  would switch to. Keyboard-only, so hidden on mobile. */}
+              <TabsTrigger value="add">
+                Add
+                {!isMobile && mode === "move" && (
+                  <Kbd className="pointer-events-none opacity-60">Ctrl+M</Kbd>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="move">
+                Move
+                {!isMobile && mode === "add" && (
+                  <Kbd className="pointer-events-none opacity-60">Ctrl+M</Kbd>
+                )}
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+          {inMoveMode && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-muted-foreground text-xs">from</span>
+              <Select
+                items={fromItems}
+                value={moveFrom}
+                onValueChange={(value) => {
+                  if (value) {
+                    setMoveFrom(value);
+                    setSwapUndo(null);
+                  }
+                }}
+              >
+                <SelectTrigger aria-label="Move from" className="min-w-0 flex-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {fromItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                onClick={handleSwapDirection}
+                aria-label="Swap move direction"
+              >
+                <ArrowRightLeftIcon />
+              </Button>
+              <span className="text-muted-foreground text-xs">to</span>
+              <Select
+                items={toItems}
+                value={moveTo}
+                onValueChange={(value) => {
+                  if (value) {
+                    setMoveTo(value);
+                    setSwapUndo(null);
+                  }
+                }}
+              >
+                <SelectTrigger aria-label="Move to" className="min-w-0 flex-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {toItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* SearchIcon input */}
       <InputGroup className="h-11 border-0 has-[[data-slot=input-group-control]:focus-visible]:ring-0 dark:bg-transparent">
         <InputGroupAddon align="inline-start">
@@ -405,11 +727,19 @@ function PaletteInner({
         <InputGroupInput
           ref={inputRef}
           type="text"
-          aria-label={`Add card to ${collectionName}`}
+          aria-label={
+            inMoveMode
+              ? `Move card to ${collectionDisplayName(moveTo)}`
+              : `Add card to ${collectionName}`
+          }
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={`Add to "${collectionName}"...`}
+          placeholder={
+            inMoveMode
+              ? `Move to "${collectionDisplayName(moveTo)}"...`
+              : `Add to "${collectionName}"...`
+          }
           className="text-base sm:text-sm"
           autoFocus // oxlint-disable-line jsx-a11y/no-autofocus -- command palette, always focused on open
         />
@@ -424,12 +754,18 @@ function PaletteInner({
 
       <div className="border-border border-t" />
 
-      {/* Results */}
-      <div ref={listRef} className="max-h-72 overflow-y-auto">
+      {/* Results — taller while a card is expanded on desktop, so the
+          printing rows (plus source chips in move mode) fit without
+          scrolling. The drawer keeps one height; vertical space there is
+          the screen itself. */}
+      <div
+        ref={listRef}
+        className={cn("overflow-y-auto", !isMobile && expandedCardId ? "max-h-112" : "max-h-72")}
+      >
         {/* Empty state */}
         {query.length === 0 && (
           <div className="text-muted-foreground px-3 py-8 text-center text-sm">
-            Type a card name to add
+            {inMoveMode ? "Type a card name to move" : "Type a card name to add"}
           </div>
         )}
 
@@ -454,6 +790,7 @@ function PaletteInner({
                   "group flex w-full items-center gap-3 px-3 py-2 text-sm transition-colors",
                   isSelected || isExpanded ? "bg-accent text-accent-foreground" : "hover:bg-muted",
                 )}
+                onMouseDown={keepInputFocus}
                 onClick={() => {
                   setSelectedIndex(index);
                   setExpandedCardId(isExpanded ? null : card.cardId);
@@ -497,6 +834,17 @@ function PaletteInner({
                     const addedEntry = addedItems.get(printing.id);
                     const sessionAdded =
                       (addedEntry?.quantity ?? 0) + (addedEntry?.pendingCount ?? 0);
+                    const movableForPrinting = movableCounts?.[printing.id] ?? 0;
+                    const movedThisSession = inMoveMode
+                      ? moveHistory.filter((entry) => entry.printingId === printing.id).length
+                      : 0;
+                    // Source breakdown only for the selected row — it drives
+                    // both the per-source chips (From = anywhere) and the
+                    // "nothing to move" note.
+                    const sources =
+                      inMoveMode && isPrintingSelected
+                        ? buildMoveSources(movableByPrinting?.get(printing.id) ?? [], inboxId)
+                        : null;
                     const rarityIcon = getFilterIconPath("rarities", printing.rarity);
                     const price = prices.get(printing.id, favoriteMarketplace);
                     return (
@@ -504,78 +852,164 @@ function PaletteInner({
                         key={printing.id}
                         data-selected={isPrintingSelected}
                         className={cn(
-                          "group flex w-full items-center gap-1 rounded text-xs transition-colors",
+                          "group rounded transition-colors",
                           isPrintingSelected && "bg-accent text-accent-foreground",
                         )}
                         onMouseEnter={() => setExpandedIndex(printingIndex)}
                       >
-                        <div className="flex min-w-0 flex-1 items-center gap-1.5 px-2 py-1.5">
-                          {rarityIcon && (
-                            <img
-                              src={rarityIcon}
-                              alt={printing.rarity}
-                              title={printing.rarity}
-                              width={28}
-                              height={28}
-                              className="size-3.5 shrink-0"
-                            />
+                        <div className="flex w-full items-center gap-1 text-xs">
+                          <div className="flex min-w-0 flex-1 items-center gap-1.5 px-2 py-1.5">
+                            {rarityIcon && (
+                              <img
+                                src={rarityIcon}
+                                alt={printing.rarity}
+                                title={printing.rarity}
+                                width={28}
+                                height={28}
+                                className="size-3.5 shrink-0"
+                              />
+                            )}
+                            <span className="text-muted-foreground group-data-[selected=true]:text-accent-foreground/80 text-2xs w-[3.5rem] shrink-0 font-mono">
+                              {formatCardId(printing)}
+                            </span>
+                            <span className="min-w-0 flex-1 truncate">
+                              <PrintingVariantLabel printing={printing} siblings={card.printings} />
+                            </span>
+                          </div>
+                          {price !== undefined && (
+                            <span
+                              className={cn(
+                                "text-2xs shrink-0 tabular-nums",
+                                isPrintingSelected
+                                  ? "text-accent-foreground/80"
+                                  : priceColorClass(price),
+                              )}
+                            >
+                              {compactFmt(price)}
+                            </span>
                           )}
-                          <span className="text-muted-foreground group-data-[selected=true]:text-accent-foreground/80 text-2xs w-[3.5rem] shrink-0 font-mono">
-                            {formatCardId(printing)}
-                          </span>
-                          <span className="min-w-0 flex-1 truncate">
-                            <PrintingVariantLabel printing={printing} siblings={card.printings} />
-                          </span>
+                          {inMoveMode ? (
+                            <div className="mr-1.5 ml-1 flex shrink-0 items-center gap-0.5">
+                              <Button
+                                type="button"
+                                tabIndex={-1}
+                                onMouseDown={keepInputFocus}
+                                size="icon-xs"
+                                variant="ghost"
+                                onClick={() => handleUndoMove(printing)}
+                                disabled={movedThisSession === 0}
+                                aria-label={`Undo move ${legendDisplayName(printing.card)}`}
+                              >
+                                <MinusIcon />
+                              </Button>
+                              <span
+                                className={cn(
+                                  "text-2xs w-5 text-center tabular-nums",
+                                  isPrintingSelected
+                                    ? movedThisSession > 0
+                                      ? "text-accent-foreground"
+                                      : "text-accent-foreground/80"
+                                    : movedThisSession > 0
+                                      ? "text-green-600 dark:text-green-400"
+                                      : "text-muted-foreground",
+                                )}
+                              >
+                                {movableForPrinting}
+                              </span>
+                              <Button
+                                type="button"
+                                tabIndex={-1}
+                                onMouseDown={keepInputFocus}
+                                size="icon-xs"
+                                onClick={() => handleMoveOne(printing)}
+                                disabled={movableForPrinting === 0}
+                                aria-label={`Move ${legendDisplayName(printing.card)}`}
+                                className="group-data-[selected=true]:bg-accent-foreground group-data-[selected=true]:text-accent group-data-[selected=true]:hover:bg-accent-foreground/80"
+                              >
+                                <ArrowRightIcon />
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="mr-1.5 ml-1 flex shrink-0 items-center gap-0.5">
+                              <Button
+                                type="button"
+                                tabIndex={-1}
+                                onMouseDown={keepInputFocus}
+                                size="icon-xs"
+                                variant="ghost"
+                                onClick={() => handleUndo(printing)}
+                                disabled={sessionAdded === 0}
+                                aria-label={`Undo add ${legendDisplayName(printing.card)}`}
+                              >
+                                <MinusIcon />
+                              </Button>
+                              <span
+                                className={cn(
+                                  "text-2xs w-5 text-center tabular-nums",
+                                  isPrintingSelected
+                                    ? sessionAdded > 0
+                                      ? "text-accent-foreground"
+                                      : "text-accent-foreground/80"
+                                    : sessionAdded > 0
+                                      ? "text-green-600 dark:text-green-400"
+                                      : "text-muted-foreground",
+                                )}
+                              >
+                                {ownedForPrinting}
+                              </span>
+                              <Button
+                                type="button"
+                                tabIndex={-1}
+                                onMouseDown={keepInputFocus}
+                                size="icon-xs"
+                                onClick={() => handleAdd(printing)}
+                                aria-label={`Add ${legendDisplayName(printing.card)}`}
+                                className="group-data-[selected=true]:bg-accent-foreground group-data-[selected=true]:text-accent group-data-[selected=true]:hover:bg-accent-foreground/80"
+                              >
+                                <PlusIcon />
+                              </Button>
+                            </div>
+                          )}
                         </div>
-                        {price !== undefined && (
-                          <span
-                            className={cn(
-                              "text-2xs shrink-0 tabular-nums",
-                              isPrintingSelected
-                                ? "text-accent-foreground/80"
-                                : priceColorClass(price),
-                            )}
-                          >
-                            {compactFmt(price)}
-                          </span>
-                        )}
-                        <div className="mr-1.5 ml-1 flex shrink-0 items-center gap-0.5">
-                          <Button
-                            type="button"
-                            tabIndex={-1}
-                            size="icon-xs"
-                            variant="ghost"
-                            onClick={() => handleUndo(printing)}
-                            disabled={sessionAdded === 0}
-                            aria-label={`Undo add ${legendDisplayName(printing.card)}`}
-                          >
-                            <MinusIcon />
-                          </Button>
-                          <span
-                            className={cn(
-                              "text-2xs w-5 text-center tabular-nums",
-                              isPrintingSelected
-                                ? sessionAdded > 0
-                                  ? "text-accent-foreground"
-                                  : "text-accent-foreground/80"
-                                : sessionAdded > 0
-                                  ? "text-green-600 dark:text-green-400"
-                                  : "text-muted-foreground",
-                            )}
-                          >
-                            {ownedForPrinting}
-                          </span>
-                          <Button
-                            type="button"
-                            tabIndex={-1}
-                            size="icon-xs"
-                            onClick={() => handleAdd(printing)}
-                            aria-label={`Add ${legendDisplayName(printing.card)}`}
-                            className="group-data-[selected=true]:bg-accent-foreground group-data-[selected=true]:text-accent group-data-[selected=true]:hover:bg-accent-foreground/80"
-                          >
-                            <PlusIcon />
-                          </Button>
-                        </div>
+                        {/* Per-source breakdown for the selected row in move mode */}
+                        {sources !== null &&
+                          (sources.length === 0 ? (
+                            <div className="text-2xs text-accent-foreground/80 px-2 pb-1.5">
+                              No copies available to move
+                            </div>
+                          ) : (
+                            moveFrom === MOVE_FROM_ANYWHERE && (
+                              <div className="text-2xs flex flex-wrap items-center gap-1 px-2 pb-1.5">
+                                <span className="text-accent-foreground/80">from</span>
+                                {sources.map((source, chipIndex) => {
+                                  const isActiveSource =
+                                    chipIndex === Math.min(sourceIndex, sources.length - 1);
+                                  return (
+                                    <Pressable
+                                      key={source.collectionId}
+                                      onMouseDown={keepInputFocus}
+                                      className={cn(
+                                        "rounded-full border px-2 py-0.5 tabular-nums",
+                                        isActiveSource
+                                          ? "bg-accent-foreground text-accent border-transparent"
+                                          : "border-accent-foreground/30 hover:bg-accent-foreground/10",
+                                      )}
+                                      onClick={() => {
+                                        setSourceIndex(chipIndex);
+                                        void handleMoveOne(printing, source.collectionId);
+                                      }}
+                                    >
+                                      {collectionDisplayName(source.collectionId)} ×
+                                      {source.copyIds.length}
+                                      {isActiveSource && !isMobile && (
+                                        <span className="opacity-70"> ↵</span>
+                                      )}
+                                    </Pressable>
+                                  );
+                                })}
+                              </div>
+                            )
+                          ))}
                       </div>
                     );
                   })}
@@ -595,7 +1029,7 @@ function PaletteInner({
               <Kbd>↑↓</Kbd> navigate
             </span>
             <span>
-              <Kbd>↵</Kbd> {expandedCardId ? "add" : "select"}
+              <Kbd>↵</Kbd> {expandedCardId ? (inMoveMode ? "move" : "add") : "select"}
             </span>
             {expandedCardId && canUndoSelected && (
               <span>
@@ -605,6 +1039,11 @@ function PaletteInner({
             {expandedCardId && (
               <span>
                 <Kbd>←</Kbd> back
+              </span>
+            )}
+            {expandedCardId && selectedSourceCount > 1 && (
+              <span>
+                <Kbd>→</Kbd> source
               </span>
             )}
             <span>
