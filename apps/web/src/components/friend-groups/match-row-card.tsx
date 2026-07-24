@@ -29,8 +29,14 @@ import { useEnumOrders } from "@/hooks/use-enums";
 import { useMarketplaceInfo } from "@/hooks/use-marketplace-info";
 import { usePrices } from "@/hooks/use-prices";
 import { compactFormatterForMarketplace, priceColorClass } from "@/lib/format";
-import type { MatchDirection, TradeValueSplit } from "@/lib/trade-derivation";
-import { describeViewerSource, matchSuggestionKey, maxTradeQuantity } from "@/lib/trade-derivation";
+import type { MatchCopyDetail, MatchDirection, TradeValueSplit } from "@/lib/trade-derivation";
+import {
+  describeViewerSource,
+  matchCopyConditionLabel,
+  matchSuggestionKey,
+  maxTradeQuantity,
+  summarizeMatchCopies,
+} from "@/lib/trade-derivation";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 import { useMatchVariantsFoldStore } from "@/stores/match-variants-fold-store";
@@ -158,13 +164,15 @@ interface ResolvedMatchRow extends FriendGroupMatchRow {
 }
 
 /**
- * One tile = one (counterparty, wish entry, printing). The same physical copy
- * is interchangeable in a tradelist today (per-copy condition is deferred in
- * ADR-005), so N copies of the same printing collapse into one tile with an
- * `availableCount`.
+ * One tile = one (counterparty, wish entry, printing). N copies of the same
+ * printing collapse into one tile with an `availableCount`; each copy's
+ * recorded metadata (condition, public note — ADR-038) is kept in `copies` so
+ * the tile can summarize what the counterparty would actually get.
  */
 export interface AggregatedMatch extends ResolvedMatchRow {
   availableCount: number;
+  /** Per-copy recorded metadata across the aggregated copies, in row order. */
+  copies: MatchCopyDetail[];
 }
 
 interface DirectedMatch extends AggregatedMatch {
@@ -226,6 +234,30 @@ function MatchRowMeta({ match }: { match: AggregatedMatch }) {
         </>
       }
     />
+  );
+}
+
+/**
+ * The offered copies' recorded metadata (ADR-038): a condition/grade summary
+ * ("Near Mint ×2 · PSA 9") and the sellers' public notes, so the counterparty
+ * sees what they'd actually get before requesting. Renders nothing when no
+ * aggregated copy records either — the common all-unrecorded stack stays quiet.
+ * @returns The copy-metadata line, or null.
+ */
+function MatchCopyMetadataLine({ match }: { match: AggregatedMatch }) {
+  const { labels } = useEnumOrders();
+  const { conditions, notes } = summarizeMatchCopies(match.copies, (copy) =>
+    matchCopyConditionLabel(copy, labels),
+  );
+  if (conditions === null && notes.length === 0) {
+    return null;
+  }
+  const noteText = notes.map((note) => `“${note}”`).join(" · ");
+  const text = [conditions, noteText].filter((part) => part !== null && part !== "").join(" · ");
+  return (
+    <span className="text-muted-foreground truncate text-xs" title={text}>
+      {text}
+    </span>
   );
 }
 
@@ -320,6 +352,7 @@ function MatchRow({
         >
           <span className="truncate font-medium">{match.cardName}</span>
           <MatchRowMeta match={match} />
+          <MatchCopyMetadataLine match={match} />
           <MatchSourceLine direction={match.direction} listNames={[match.viewerListName]} />
         </div>
       </div>
@@ -385,11 +418,18 @@ function aggregateMatches(rows: ResolvedMatchRow[]): AggregatedMatch[] {
   const aggregated = new Map<string, AggregatedMatch>();
   for (const row of rows) {
     const key = `${row.buyEntryId}\0${row.counterpartyListId}\0${row.printingId}`;
+    const copy: MatchCopyDetail = {
+      condition: row.condition,
+      grader: row.grader,
+      grade: row.grade,
+      notesPublic: row.notesPublic,
+    };
     const existing = aggregated.get(key);
     if (existing) {
       existing.availableCount += 1;
+      existing.copies.push(copy);
     } else {
-      aggregated.set(key, { ...row, availableCount: 1 });
+      aggregated.set(key, { ...row, availableCount: 1, copies: [copy] });
     }
   }
   return [...aggregated.values()];

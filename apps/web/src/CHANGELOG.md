@@ -5,6 +5,11 @@
 ### Highlights
 
 - feat(Collection): **Special versions count as owned** — wishlist rules gain a "Count special versions" switch: alt arts, foils, signed and promo copies fill the missing count, while the list keeps asking only for printings matching the filter.
+- feat(Trades): **Condition and notes on suggestions** — trade suggestions now show the offered copies' condition (or grade) and public notes, so you know what you'd get before requesting.
+
+### Other
+
+- fix(Trades): **Altered cards no longer match** — copies marked as altered are excluded from automatic trade matching, since a wish means the clean version.
 
 ## 2026-07-23
 

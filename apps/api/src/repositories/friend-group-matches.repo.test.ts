@@ -234,6 +234,12 @@ function copyRow(overrides: Record<string, unknown> = {}): Record<string, unknow
     cardId: "crd-1",
     createdAt: NOW,
     reserved: false,
+    loaned: false,
+    isAltered: false,
+    condition: null,
+    grader: null,
+    grade: null,
+    notesPublic: null,
     ...overrides,
   };
 }
@@ -258,13 +264,13 @@ function printingRow(overrides: Record<string, unknown> = {}): Record<string, un
  * A baseline manual binder (seller) + wishlist (viewer) sharing one card.
  * @returns Per-table FIFO queues for {@link makeDb}.
  */
-function baselineQueues(overrides: { reserved?: boolean } = {}) {
+function baselineQueues(overrides: { reserved?: boolean; copy?: Record<string, unknown> } = {}) {
   return {
     // First call: trade shares. Second call: wish shares.
     friendGroupListShares: [[tradeShare()], [wishShare()]],
     // First call: supply (trade-list) entries. Second: demand (wish-list) entries.
     listEntries: [[supplyEntry()], [demandEntry({ quantity: 2 })]],
-    copies: [[copyRow({ reserved: overrides.reserved ?? false })]],
+    copies: [[copyRow({ reserved: overrides.reserved ?? false, ...overrides.copy })]],
     users: [[userRow()]],
     printings: [[printingRow()]],
   };
@@ -294,6 +300,45 @@ describe("friendGroupMatchesRepo (ADR-034 app-level matcher)", () => {
     const repo = friendGroupMatchesRepo(makeDb(baselineQueues({ reserved: true })), PROVIDERS);
     const rows = await repo.othersHaveYourWants({ groupId: "g", viewerUserId: "viewer" });
     expect(rows).toEqual([]);
+  });
+
+  it("excludes altered copies from matching", async () => {
+    const repo = friendGroupMatchesRepo(
+      makeDb(baselineQueues({ copy: { isAltered: true } })),
+      PROVIDERS,
+    );
+    const rows = await repo.othersHaveYourWants({ groupId: "g", viewerUserId: "viewer" });
+    expect(rows).toEqual([]);
+  });
+
+  it("excludes altered copies from the mirror direction too", async () => {
+    const queues = baselineQueues({ copy: { isAltered: true } });
+    queues.friendGroupListShares[0][0].ownerUserId = "viewer";
+    queues.friendGroupListShares[1][0].ownerUserId = "buyer";
+    queues.users[0][0] = { id: "buyer", name: "Bob", image: null, email: "b@x.com" };
+    const repo = friendGroupMatchesRepo(makeDb(queues), PROVIDERS);
+    const rows = await repo.othersWantYourHaves({ groupId: "g", viewerUserId: "viewer" });
+    expect(rows).toEqual([]);
+  });
+
+  it("surfaces the offered copy's condition and public note on the match row", async () => {
+    const repo = friendGroupMatchesRepo(
+      makeDb(baselineQueues({ copy: { condition: "near-mint", notesPublic: "corner wear" } })),
+      PROVIDERS,
+    );
+    const rows = await repo.othersHaveYourWants({ groupId: "g", viewerUserId: "viewer" });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ condition: "near-mint", notesPublic: "corner wear" });
+  });
+
+  it("surfaces the offered copy's grading on the match row", async () => {
+    const repo = friendGroupMatchesRepo(
+      makeDb(baselineQueues({ copy: { grader: "psa", grade: 9 } })),
+      PROVIDERS,
+    );
+    const rows = await repo.othersHaveYourWants({ groupId: "g", viewerUserId: "viewer" });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ condition: null, grader: "psa", grade: 9 });
   });
 
   it("never matches the viewer with themselves", async () => {
@@ -918,6 +963,42 @@ describe("friendGroupMatchesRepo — dynamic rules (ADR-034)", () => {
     expect(rows).toHaveLength(1);
     // Manual 1 + rule 1 = 2 (ADR-034 additive merge); the manual entry keeps its id.
     expect(rows[0]).toMatchObject({ cardId: "crd-1", buyEntryId: "e-w1", buyQuantity: 2 });
+  });
+});
+
+describe("giverPrintingSupply", () => {
+  /** @returns Queues for one giver trade list offering one copy of prt-1. */
+  function giverQueues(copy: Record<string, unknown> = {}) {
+    return {
+      friendGroupListShares: [[tradeShare({ ownerUserId: "giver" })]],
+      listEntries: [[supplyEntry()]],
+      copies: [[copyRow(copy)]],
+    };
+  }
+  const scope = { groupId: "g", giverUserId: "giver", printingId: "prt-1" };
+
+  it("counts an offered clean copy as reservable and as a basis", async () => {
+    const repo = friendGroupMatchesRepo(makeDb(giverQueues()), PROVIDERS);
+    expect(await repo.giverPrintingSupply(scope)).toEqual({
+      unreservedCopyIds: ["cp-1"],
+      hasAny: true,
+    });
+  });
+
+  it("keeps hasAny true for a reserved copy (stack exhausted, not vanished)", async () => {
+    const repo = friendGroupMatchesRepo(makeDb(giverQueues({ reserved: true })), PROVIDERS);
+    expect(await repo.giverPrintingSupply(scope)).toEqual({
+      unreservedCopyIds: [],
+      hasAny: true,
+    });
+  });
+
+  it("treats an altered copy as no basis at all (not reservable, hasAny false)", async () => {
+    const repo = friendGroupMatchesRepo(makeDb(giverQueues({ isAltered: true })), PROVIDERS);
+    expect(await repo.giverPrintingSupply(scope)).toEqual({
+      unreservedCopyIds: [],
+      hasAny: false,
+    });
   });
 });
 

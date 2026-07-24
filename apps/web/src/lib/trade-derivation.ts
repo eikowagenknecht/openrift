@@ -191,6 +191,77 @@ export function describeViewerSource(
   return `${distinct.length} of your ${kind}s`;
 }
 
+/** The per-copy metadata a match row surfaces about an offered copy (ADR-038). */
+export interface MatchCopyDetail {
+  condition: string | null;
+  grader: string | null;
+  grade: number | null;
+  notesPublic: string | null;
+}
+
+/**
+ * The display label for one offered copy's condition slot: grader + grade when
+ * slabbed ("PSA 9"), the condition label otherwise, or null when the copy
+ * records neither — mirroring the collection dialog's condition badge.
+ * @param copy The copy's metadata.
+ * @param labels Slug-to-label maps for conditions and graders.
+ * @returns The label, or null when nothing is recorded.
+ */
+export function matchCopyConditionLabel(
+  copy: MatchCopyDetail,
+  labels: { conditions: Record<string, string>; graders: Record<string, string> },
+): string | null {
+  if (copy.grader !== null && copy.grade !== null) {
+    return `${labels.graders[copy.grader]} ${copy.grade}`;
+  }
+  if (copy.condition !== null) {
+    return labels.conditions[copy.condition];
+  }
+  return null;
+}
+
+/**
+ * Summarizes the offered copies' recorded metadata for one suggestion tile.
+ * Condition/grade labels collapse to per-label counts ("Near Mint ×2 · PSA 9");
+ * copies recording neither only surface as "not recorded" next to recorded
+ * ones, so an all-unrecorded stack (the common case) produces no summary at
+ * all. Notes dedupe to the distinct non-empty public notes across the copies.
+ * @param copies The aggregated tile's per-copy metadata.
+ * @param labelOf Resolves one copy to its condition/grade display label ("Near
+ * Mint", "PSA 9"), or null when the copy records neither.
+ * @returns The condition summary (null when no copy records one) and the distinct public notes.
+ */
+export function summarizeMatchCopies(
+  copies: readonly MatchCopyDetail[],
+  labelOf: (copy: MatchCopyDetail) => string | null,
+): { conditions: string | null; notes: string[] } {
+  const counts = new Map<string, number>();
+  let unrecorded = 0;
+  for (const copy of copies) {
+    const label = labelOf(copy);
+    if (label === null) {
+      unrecorded += 1;
+    } else {
+      counts.set(label, (counts.get(label) ?? 0) + 1);
+    }
+  }
+  const notes = [
+    ...new Set(
+      copies.map((copy) => copy.notesPublic?.trim() ?? "").filter((note) => note.length > 0),
+    ),
+  ];
+  if (counts.size === 0) {
+    return { conditions: null, notes };
+  }
+  const withCount = (label: string, count: number): string =>
+    count > 1 ? `${label} ×${count}` : label;
+  const parts = [...counts.entries()].map(([label, count]) => withCount(label, count));
+  if (unrecorded > 0) {
+    parts.push(withCount("not recorded", unrecorded));
+  }
+  return { conditions: parts.join(" · "), notes };
+}
+
 /** @returns A short human label for a trade status. */
 export function tradeStatusLabel(status: CardTradeResponse["status"]): string {
   switch (status) {

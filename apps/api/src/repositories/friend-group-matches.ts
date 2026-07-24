@@ -54,6 +54,13 @@ export interface MatchRow {
   sellEntryId: string | null;
   sellListId: string;
   copyId: string;
+  /** The offered copy's recorded condition slug; null = unrecorded or graded. */
+  condition: string | null;
+  /** The offered copy's grader slug; non-null exactly when `grade` is. */
+  grader: string | null;
+  grade: number | null;
+  /** The offered copy's public note, shown to the counterparty. */
+  notesPublic: string | null;
   printingId: string;
   cardId: string;
   cardName: string;
@@ -209,6 +216,10 @@ interface ManualEntryWithMeta extends ManualEntryRow {
 
 interface SupplyEntry {
   copyId: string;
+  condition: string | null;
+  grader: string | null;
+  grade: number | null;
+  notesPublic: string | null;
   printingId: string;
   cardId: string;
   sellEntryId: string | null;
@@ -353,6 +364,11 @@ interface CopyMeta {
   createdAt: Date;
   reserved: boolean;
   loaned: boolean;
+  altered: boolean;
+  condition: string | null;
+  grader: string | null;
+  grade: number | null;
+  notesPublic: string | null;
 }
 
 async function loadCopyMeta(
@@ -373,6 +389,11 @@ async function loadCopyMeta(
       "cp.printingId",
       "p.cardId",
       "cp.createdAt",
+      "cp.isAltered",
+      "cp.condition",
+      "cp.grader",
+      "cp.grade",
+      "cp.notesPublic",
       sql<boolean>`(ctc.copy_id is not null)`.as("reserved"),
       sql<boolean>`(lc.copy_id is not null)`.as("loaned"),
     ])
@@ -385,6 +406,11 @@ async function loadCopyMeta(
       createdAt: row.createdAt,
       reserved: row.reserved,
       loaned: row.loaned,
+      altered: row.isAltered,
+      condition: row.condition,
+      grader: row.grader,
+      grade: row.grade,
+      notesPublic: row.notesPublic,
     });
   }
   return meta;
@@ -436,12 +462,17 @@ function buildSupply(
     const meta = copyMeta.get(entry.copyId);
     // ADR-019: copies reserved by a live trade are invisible to matching.
     // ADR-039: copies out on a loan are physically absent, same treatment.
-    if (!meta || meta.reserved || meta.loaned) {
+    // Altered copies never match automatically — a wish means the clean card.
+    if (!meta || meta.reserved || meta.loaned || meta.altered) {
       continue;
     }
     const manualEntry = entry.id === null ? undefined : manualById.get(entry.id);
     supply.push({
       copyId: entry.copyId,
+      condition: meta.condition,
+      grader: meta.grader,
+      grade: meta.grade,
+      notesPublic: meta.notesPublic,
       printingId: meta.printingId,
       cardId: meta.cardId,
       sellEntryId: entry.id,
@@ -769,6 +800,10 @@ async function runMatchQuery(
         sellEntryId: supplyEntry.sellEntryId,
         sellListId: supplyEntry.sellListId,
         copyId: supplyEntry.copyId,
+        condition: supplyEntry.condition,
+        grader: supplyEntry.grader,
+        grade: supplyEntry.grade,
+        notesPublic: supplyEntry.notesPublic,
         printingId: supplyEntry.printingId,
         cardId: supplyEntry.cardId,
         cardName: detail.cardName,
@@ -890,9 +925,13 @@ async function resolveGiverPrintingSupply(
     }
   }
 
-  const hasAny = [...offeredCopyIds].some(
-    (copyId) => copyMeta.get(copyId)?.printingId === scope.printingId,
-  );
+  // Altered copies are outside matching entirely (see buildSupply), so they
+  // don't count as an offered basis either — a stack that only has altered
+  // copies left reads as vanished, not as exhausted by reservations.
+  const hasAny = [...offeredCopyIds].some((copyId) => {
+    const meta = copyMeta.get(copyId);
+    return meta !== undefined && meta.printingId === scope.printingId && !meta.altered;
+  });
   return { unreservedCopyIds: [...unreserved], hasAny };
 }
 

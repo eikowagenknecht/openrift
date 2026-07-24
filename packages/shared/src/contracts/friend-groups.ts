@@ -306,6 +306,12 @@ export const friendGroupMatchRowSchema = z
     sellEntryId: z.string().nullable(),
     sellListId: z.string(),
     copyId: z.string(),
+    // The offered copy's recorded condition (or grading) and public note, so
+    // the counterparty sees what they'd get before requesting (ADR-038).
+    condition: z.string().nullable(),
+    grader: z.string().nullable(),
+    grade: z.number().nullable(),
+    notesPublic: z.string().nullable(),
     printingId: z.string(),
     cardId: z.string(),
     cardName: z.string(),

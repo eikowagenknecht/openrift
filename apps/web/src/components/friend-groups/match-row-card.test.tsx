@@ -43,6 +43,10 @@ function makeMatch(): AggregatedMatch {
     sellEntryId: "sell-entry-1",
     sellListId: "list-1",
     copyId: "copy-1",
+    condition: null,
+    grader: null,
+    grade: null,
+    notesPublic: null,
     printingId: "printing-1",
     cardId: "card-1",
     cardName: "Fury Rune",
@@ -74,6 +78,7 @@ function makeMatch(): AggregatedMatch {
     domains: ["fury"],
     printing: null,
     availableCount: 1,
+    copies: [{ condition: null, grader: null, grade: null, notesPublic: null }],
   };
 }
 

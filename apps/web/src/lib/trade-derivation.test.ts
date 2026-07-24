@@ -1,20 +1,27 @@
 import type { CardTradeResponse } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
-import type { MatchSuggestionFields } from "./trade-derivation";
+import type { MatchCopyDetail, MatchSuggestionFields } from "./trade-derivation";
 import {
   bucketMemberTrades,
   countTradeSuggestions,
   describeViewerSource,
   groupTradesByCounterparty,
+  matchCopyConditionLabel,
   matchSuggestionKey,
   maxTradeQuantity,
+  summarizeMatchCopies,
   sumTradeValues,
   tradeSection,
   tradesHubSummary,
   tradeStatusLabel,
   withoutLiveTradeMatches,
 } from "./trade-derivation";
+
+const CONDITION_LABELS: Record<string, string> = {
+  "near-mint": "Near Mint",
+  played: "Played",
+};
 
 function stubTrade(overrides: Partial<CardTradeResponse> = {}): CardTradeResponse {
   return {
@@ -478,5 +485,70 @@ describe("tradesHubSummary", () => {
   it("distinguishes no-matches from no-trades-at-all when both counts are zero", () => {
     expect(tradesHubSummary(0, 0, 2).sub).toBe("no new matches right now");
     expect(tradesHubSummary(0, 0, 0).sub).toBe("no open trades right now");
+  });
+});
+
+describe("matchCopyConditionLabel and summarizeMatchCopies", () => {
+  const LABELS = {
+    conditions: CONDITION_LABELS,
+    graders: { psa: "PSA" },
+  };
+  const copy = (overrides: Partial<MatchCopyDetail> = {}): MatchCopyDetail => ({
+    condition: null,
+    grader: null,
+    grade: null,
+    notesPublic: null,
+    ...overrides,
+  });
+  const labelOf = (detail: MatchCopyDetail) => matchCopyConditionLabel(detail, LABELS);
+
+  it("labels a graded copy by grader + grade and a raw copy by condition", () => {
+    expect(labelOf(copy({ grader: "psa", grade: 9.5 }))).toBe("PSA 9.5");
+    expect(labelOf(copy({ condition: "near-mint" }))).toBe("Near Mint");
+    expect(labelOf(copy())).toBeNull();
+  });
+
+  it("returns no summary for an all-unrecorded stack", () => {
+    expect(summarizeMatchCopies([copy(), copy()], labelOf)).toEqual({
+      conditions: null,
+      notes: [],
+    });
+  });
+
+  it("counts repeated labels and singles out unique ones, grades included", () => {
+    expect(
+      summarizeMatchCopies(
+        [
+          copy({ condition: "near-mint" }),
+          copy({ condition: "near-mint" }),
+          copy({ grader: "psa", grade: 9 }),
+        ],
+        labelOf,
+      ).conditions,
+    ).toBe("Near Mint ×2 · PSA 9");
+  });
+
+  it("appends unrecorded copies only when they sit next to recorded ones", () => {
+    expect(
+      summarizeMatchCopies([copy({ condition: "played" }), copy(), copy()], labelOf).conditions,
+    ).toBe("Played · not recorded ×2");
+  });
+
+  it("dedupes public notes and drops empty or whitespace-only ones", () => {
+    expect(
+      summarizeMatchCopies(
+        [
+          copy({ notesPublic: "corner wear" }),
+          copy({ notesPublic: "corner wear" }),
+          copy({ notesPublic: "  " }),
+          copy({ notesPublic: "shiny back" }),
+        ],
+        labelOf,
+      ).notes,
+    ).toEqual(["corner wear", "shiny back"]);
+  });
+
+  it("handles an empty copies array", () => {
+    expect(summarizeMatchCopies([], labelOf)).toEqual({ conditions: null, notes: [] });
   });
 });
