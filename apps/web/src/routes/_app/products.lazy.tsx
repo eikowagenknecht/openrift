@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { CardLink } from "@/components/ui/card-link";
 import { useProductsList } from "@/hooks/use-products";
 import { markdownTeaser } from "@/lib/markdown-teaser";
+import { formatProductCounts } from "@/lib/product-counts";
 
 export const Route = createLazyFileRoute("/_app/products")({
   component: ProductsIndexPage,
@@ -54,7 +55,7 @@ function ProductTile({ product }: { product: ProductSummary }) {
         <Heading className="truncate">{product.name}</Heading>
         {teaser && <p className="text-muted-foreground line-clamp-2 text-sm">{teaser}</p>}
         <p className="text-muted-foreground mt-auto pt-1 text-sm">
-          {product.cardTotal} cards · {product.printingCount} unique
+          {formatProductCounts(product.cardTotal, product.printingCount)}
         </p>
       </div>
     </CardLink>

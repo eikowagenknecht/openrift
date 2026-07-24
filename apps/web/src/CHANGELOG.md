@@ -9,15 +9,10 @@
 
 ### Other
 
-- fix(Trades): **Altered cards no longer match** — copies marked as altered are excluded from automatic trade matching, since a wish means the clean version.
-
-### Other
-
 - feat(Collection): **Rule presets for lists** — the rule editor now offers common setups like "one of everything" or "keep a playset, trade the rest" as one-click starting points.
-
-### Other
-
+- fix(Trades): **Altered cards no longer match** — copies marked as altered are excluded from automatic trade matching, since a wish means the clean version.
 - fix(Collection): **Rule counts say "missing"** — with "Only what I'm missing" on, the rule editor labels its counts as missing instead of matches, since owned copies shrink that number.
+- fix(Products): **Simpler card counts** — products where every card is unique now show one count instead of repeating the same number twice.
 
 ## 2026-07-23
 

@@ -37,6 +37,7 @@ import { useSession } from "@/lib/auth-session";
 import { filterPrintingsByLanguages } from "@/lib/filter-printings-by-languages";
 import { formatterForMarketplace } from "@/lib/format";
 import { maxOwnedCount } from "@/lib/owned-bucket";
+import { formatProductCounts } from "@/lib/product-counts";
 import type { FilterSearch } from "@/lib/search-schemas";
 import { FilterSearchProvider } from "@/lib/search-schemas";
 import { useDisplayStore } from "@/stores/display-store";
@@ -99,7 +100,7 @@ export function ProductDetailView({ data, search }: ProductDetailViewProps) {
                 <PageTopBarBack to="/products" aria-label="Back to products" />
                 <PageTopBarTitle>{product.name}</PageTopBarTitle>
                 <span className="text-muted-foreground hidden shrink-0 text-xs sm:inline">
-                  {product.cardTotal} cards · {product.printingCount} unique
+                  {formatProductCounts(product.cardTotal, product.printingCount)}
                   {/* Prices are a client-only suspense query — mount after hydration. */}
                   {hydrated && (
                     <Suspense fallback={null}>
