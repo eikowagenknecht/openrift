@@ -40,10 +40,11 @@ function orderRank(order: readonly string[], slug: string): number {
  * The top tier is standard-vs-special ({@link isStandardPrinting}): a special
  * copy (marked, signed, alt art, premium finish) is kept over a plain one, even
  * across rarities — "keep the special one, offer the plain reprint". Below
- * that, lexicographic across rarity, finish, art variant, then signed — each
- * measured against its reference order (premium last → higher rank kept).
- * `canonicalRank` is the neutral final tiebreak so equally-nice printings stay
- * deterministic.
+ * that, lexicographic across rarity, finish, markers, art variant, then signed
+ * — rarity/finish/art measured against their reference order (premium last →
+ * higher rank kept), markers by presence (a marked printing — promo stamp,
+ * event stamp — is kept over an unmarked one). `canonicalRank` is the neutral
+ * final tiebreak so equally-nice printings stay deterministic.
  * @returns Negative if `a` should be kept before `b`, positive if `b` first, 0 if equal.
  */
 function comparePrintingKeepPriority(a: Printing, b: Printing, orders: KeepPriorityOrders): number {
@@ -51,6 +52,7 @@ function comparePrintingKeepPriority(a: Printing, b: Printing, orders: KeepPrior
     Number(isStandardPrinting(a)) - Number(isStandardPrinting(b)) ||
     orderRank(orders.rarities, b.rarity) - orderRank(orders.rarities, a.rarity) ||
     orderRank(orders.finishes, b.finish) - orderRank(orders.finishes, a.finish) ||
+    Number(b.markers.length > 0) - Number(a.markers.length > 0) ||
     orderRank(orders.artVariants, b.artVariant) - orderRank(orders.artVariants, a.artVariant) ||
     Number(b.isSigned) - Number(a.isSigned) ||
     a.canonicalRank - b.canonicalRank
@@ -317,27 +319,52 @@ function combineWishRules(
   return entries;
 }
 
-/** One trade rule's keep/offer split for one card. */
-interface TradeCardPool {
-  /** The rule's resolved keep count for this card. */
+/** One trade rule's keep/offer split for one group (card or printing). */
+interface TradeRulePool {
+  /** The rule's resolved keep count for this group. */
   keepN: number;
   /** The rule's candidate copies, ordered keep-first (nicest first). */
   ordered: OwnedCopyRow[];
 }
 
 /**
- * One trade rule's candidate copies grouped per card and ordered keep-first:
- * the nicer printing first (standard-vs-special → rarity → finish → art →
- * signed, per {@link comparePrintingKeepPriority} — stable over time, no
- * prices), with copy id (uuidv7) as the final deterministic tiebreak.
- * @returns Card id → the rule's keep count and ordered candidates.
+ * Comparator over owned copies by their printing's keep priority
+ * ({@link comparePrintingKeepPriority}), with copy id (uuidv7) as the final
+ * deterministic tiebreak. Without reference orders (or for unknown printings)
+ * the copy id alone decides.
+ * @returns A comparator for `toSorted` that puts kept-first copies first.
+ */
+function copyKeepComparator(
+  printingById: Map<string, Printing>,
+  enumOrders: KeepPriorityOrders | undefined,
+): (first: OwnedCopyRow, second: OwnedCopyRow) => number {
+  return (first, second) => {
+    const firstPrinting = printingById.get(first.printingId);
+    const secondPrinting = printingById.get(second.printingId);
+    if (enumOrders && firstPrinting && secondPrinting) {
+      const byNiceness = comparePrintingKeepPriority(firstPrinting, secondPrinting, enumOrders);
+      if (byNiceness !== 0) {
+        return byNiceness;
+      }
+    }
+    return first.copyId.localeCompare(second.copyId);
+  };
+}
+
+/**
+ * One trade rule's candidate copies grouped per the rule's `keepPer` (per card
+ * by default, per printing when set) and ordered keep-first: the nicer printing
+ * first (standard-vs-special → rarity → finish → markers → art → signed, per
+ * {@link comparePrintingKeepPriority} — stable over time, no prices), with copy
+ * id (uuidv7) as the final deterministic tiebreak.
+ * @returns Group key (card id or printing id) → the rule's keep count and ordered candidates.
  */
 function tradeRulePools(
   rule: TradeRule,
   ctx: RuleEvalContext,
   cardById: Map<string, Card>,
   printingById: Map<string, Printing>,
-): Map<string, TradeCardPool> {
+): Map<string, TradeRulePool> {
   const passing = new Set(
     filterCards(ctx.catalog, rule.filter, {
       customTagAssignments: ctx.customTagAssignments,
@@ -350,27 +377,30 @@ function tradeRulePools(
       passing.has(copy.printingId) &&
       !excludedCopies.has(copy.copyId),
   );
-  const enumOrders = ctx.enumOrders;
-  const pools = new Map<string, TradeCardPool>();
-  for (const [cardId, copies] of Map.groupBy(candidates, (copy) => copy.cardId)) {
-    const card = cardById.get(cardId);
+  const compare = copyKeepComparator(printingById, ctx.enumOrders);
+  const pools = new Map<string, TradeRulePool>();
+  const grouped = Map.groupBy(candidates, (copy) =>
+    rule.keepPer === "printing" ? copy.printingId : copy.cardId,
+  );
+  for (const [key, copies] of grouped) {
+    // Every copy in a group shares one card (a printing belongs to one card),
+    // so the playset size is well-defined for both groupings.
+    const card = cardById.get(copies[0]?.cardId ?? "");
     if (!card) {
       continue;
     }
-    const ordered = copies.toSorted((first, second) => {
-      const firstPrinting = printingById.get(first.printingId);
-      const secondPrinting = printingById.get(second.printingId);
-      if (enumOrders && firstPrinting && secondPrinting) {
-        const byNiceness = comparePrintingKeepPriority(firstPrinting, secondPrinting, enumOrders);
-        if (byNiceness !== 0) {
-          return byNiceness;
-        }
-      }
-      return first.copyId.localeCompare(second.copyId);
+    pools.set(key, {
+      keepN: resolveQuantity(rule.keepPerCard, card),
+      ordered: copies.toSorted(compare),
     });
-    pools.set(cardId, { keepN: resolveQuantity(rule.keepPerCard, card), ordered });
   }
   return pools;
+}
+
+/** The count-mode accumulator for one group: keep counts + the copy union. */
+interface CountGroupAcc {
+  keeps: number[];
+  copies: Map<string, OwnedCopyRow>;
 }
 
 /**
@@ -379,10 +409,12 @@ function tradeRulePools(
  * - `protect`: a copy is offered iff at least one rule matched it and **no**
  *   matching rule kept it — every rule's kept copies are sacred, so stacking
  *   rules can only widen protection, never leak a guarded copy.
- * - `count-sum` / `count-max`: per card, the rules' keep counts combine into
- *   one total (sum or max), then the nicest that-many across the union of
- *   matched copies are kept and the rest offered — "keep N total, I don't
- *   care which".
+ * - `count-sum` / `count-max`: the rules' keep counts combine into one total
+ *   (sum or max) within each grouping — per-card rules per card, per-printing
+ *   rules per printing (counts against different group sizes never mix) — then
+ *   the nicest that-many across the union of matched copies are kept and the
+ *   rest offered — "keep N total, I don't care which". A copy kept by either
+ *   grouping stays kept (the protect invariant applied across groupings).
  * @returns One quantity-1 entry per offered copy.
  */
 function combineTradeRules(
@@ -398,7 +430,10 @@ function combineTradeRules(
     }
     printingById.set(printing.id, printing);
   }
-  const pools = rules.map((rule) => tradeRulePools(rule, ctx, cardById, printingById));
+  const pooled = rules.map((rule) => ({
+    keepPer: rule.keepPer ?? "card",
+    pool: tradeRulePools(rule, ctx, cardById, printingById),
+  }));
   const toEntry = (copy: OwnedCopyRow): VirtualEntry => ({
     kind: "copy",
     copyId: copy.copyId,
@@ -408,7 +443,7 @@ function combineTradeRules(
   if (mode === "protect") {
     const matched = new Map<string, OwnedCopyRow>();
     const kept = new Set<string>();
-    for (const pool of pools) {
+    for (const { pool } of pooled) {
       for (const { keepN, ordered } of pool.values()) {
         ordered.forEach((copy, index) => {
           matched.set(copy.copyId, copy);
@@ -422,11 +457,16 @@ function combineTradeRules(
       .filter((copy) => !kept.has(copy.copyId))
       .map((copy) => toEntry(copy));
   }
-  // count-sum / count-max: merge per card, then keep the nicest keepTotal.
-  const perCard = new Map<string, { keeps: number[]; copies: Map<string, OwnedCopyRow> }>();
-  for (const pool of pools) {
-    for (const [cardId, { keepN, ordered }] of pool) {
-      const acc = perCard.get(cardId) ?? {
+  // count-sum / count-max: merge each rule's pools into its grouping's layer,
+  // then keep the nicest keepTotal per group and offer what no layer kept.
+  const layers = {
+    card: new Map<string, CountGroupAcc>(),
+    printing: new Map<string, CountGroupAcc>(),
+  };
+  for (const { keepPer, pool } of pooled) {
+    const layer = layers[keepPer];
+    for (const [key, { keepN, ordered }] of pool) {
+      const acc = layer.get(key) ?? {
         keeps: [] as number[],
         copies: new Map<string, OwnedCopyRow>(),
       };
@@ -434,27 +474,27 @@ function combineTradeRules(
       for (const copy of ordered) {
         acc.copies.set(copy.copyId, copy);
       }
-      perCard.set(cardId, acc);
+      layer.set(key, acc);
     }
   }
-  const entries: VirtualEntry[] = [];
-  const enumOrders = ctx.enumOrders;
-  for (const { keeps, copies } of perCard.values()) {
-    const keepTotal = mode === "count-sum" ? keeps.reduce((a, b) => a + b, 0) : Math.max(...keeps);
-    const ordered = [...copies.values()].toSorted((first, second) => {
-      const firstPrinting = printingById.get(first.printingId);
-      const secondPrinting = printingById.get(second.printingId);
-      if (enumOrders && firstPrinting && secondPrinting) {
-        const byNiceness = comparePrintingKeepPriority(firstPrinting, secondPrinting, enumOrders);
-        if (byNiceness !== 0) {
-          return byNiceness;
+  const compare = copyKeepComparator(printingById, ctx.enumOrders);
+  const matched = new Map<string, OwnedCopyRow>();
+  const kept = new Set<string>();
+  for (const layer of [layers.card, layers.printing]) {
+    for (const { keeps, copies } of layer.values()) {
+      const keepTotal =
+        mode === "count-sum" ? keeps.reduce((a, b) => a + b, 0) : Math.max(...keeps);
+      [...copies.values()].toSorted(compare).forEach((copy, index) => {
+        matched.set(copy.copyId, copy);
+        if (index < keepTotal) {
+          kept.add(copy.copyId);
         }
-      }
-      return first.copyId.localeCompare(second.copyId);
-    });
-    entries.push(...ordered.slice(keepTotal).map((copy) => toEntry(copy)));
+      });
+    }
   }
-  return entries;
+  return [...matched.values()]
+    .filter((copy) => !kept.has(copy.copyId))
+    .map((copy) => toEntry(copy));
 }
 
 /**

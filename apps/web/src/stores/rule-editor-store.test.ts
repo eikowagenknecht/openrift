@@ -13,6 +13,7 @@ function draft(overrides: Partial<DraftRule> = {}): DraftRule {
     filter: EMPTY_CARD_FILTERS,
     quantity: { mode: "fixed", n: 1 },
     keepPerCard: { mode: "fixed", n: 0 },
+    keepPer: "card",
     collectionIds: null,
     excludeIds: [],
     excludeCopyIds: [],
@@ -105,9 +106,38 @@ describe("useRuleEditorStore", () => {
         filter: EMPTY_CARD_FILTERS,
         collectionIds: ["col-1"],
         keepPerCard: { mode: "playset", multiplier: 2 },
+        keepPer: "card",
         excludeCopyIds: [],
       },
     ]);
+  });
+
+  it("round-trips keepPer on trade rules and defaults it to card", () => {
+    const rule: ListRule = {
+      kind: "trade",
+      filter: EMPTY_CARD_FILTERS,
+      collectionIds: null,
+      keepPerCard: { mode: "playset", multiplier: 1 },
+      keepPer: "printing",
+      excludeCopyIds: [],
+    };
+    useRuleEditorStore.getState().load([rule]);
+    expect(useRuleEditorStore.getState().rules[0]?.keepPer).toBe("printing");
+    expect(useRuleEditorStore.getState().buildRules("trade")[0]).toMatchObject({
+      keepPer: "printing",
+    });
+
+    // A saved rule without the field (pre-feature) loads as per card.
+    const { keepPer: _keepPer, ...legacy } = rule;
+    useRuleEditorStore.getState().load([legacy as ListRule]);
+    expect(useRuleEditorStore.getState().rules[0]?.keepPer).toBe("card");
+
+    // setKeepPer patches only the targeted rule.
+    useRuleEditorStore.getState().addRule();
+    useRuleEditorStore.getState().setKeepPer(1, "printing");
+    const rules = useRuleEditorStore.getState().rules;
+    expect(rules[0]?.keepPer).toBe("card");
+    expect(rules[1]?.keepPer).toBe("printing");
   });
 
   it("toggleExcludeCopyId removes and re-adds a single copy on the targeted rule", () => {

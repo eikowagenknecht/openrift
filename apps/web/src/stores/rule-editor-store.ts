@@ -4,6 +4,7 @@ import type {
   ListRule,
   ListRuleCombine,
   RuleQuantity,
+  TradeKeepPer,
 } from "@openrift/shared";
 import { EMPTY_CARD_FILTERS } from "@openrift/shared";
 import { create } from "zustand";
@@ -18,8 +19,10 @@ export interface DraftRule {
   filter: CardFilters;
   /** Wish lists: desired quantity per matched card/printing. */
   quantity: RuleQuantity;
-  /** Trade lists: copies kept per card; the surplus is offered. */
+  /** Trade lists: copies kept per card/printing; the surplus is offered. */
   keepPerCard: RuleQuantity;
+  /** Trade lists: what the keep count groups by (card pools all printings). */
+  keepPer: TradeKeepPer;
   /** Trade lists: restrict the source collections; null = all owned. */
   collectionIds: string[] | null;
   /** Wish lists: card/printing ids to drop from the result. */
@@ -54,6 +57,7 @@ export interface RuleEditorState {
   setFilter: (index: number, filter: CardFilters) => void;
   setQuantity: (index: number, quantity: RuleQuantity) => void;
   setKeepPerCard: (index: number, keepPerCard: RuleQuantity) => void;
+  setKeepPer: (index: number, keepPer: TradeKeepPer) => void;
   setNetOwned: (index: number, netOwned: boolean) => void;
   setCollectionIds: (index: number, collectionIds: string[] | null) => void;
   toggleExcludeId: (index: number, id: string) => void;
@@ -80,6 +84,7 @@ function emptyDraft(languages: string[] = []): DraftRule {
     filter: languages.length > 0 ? { ...EMPTY_CARD_FILTERS, languages } : EMPTY_CARD_FILTERS,
     quantity: DEFAULT_QUANTITY,
     keepPerCard: DEFAULT_KEEP,
+    keepPer: "card",
     collectionIds: null,
     excludeIds: [],
     excludeCopyIds: [],
@@ -102,6 +107,7 @@ function draftFromRule(rule: ListRule): DraftRule {
     ...emptyDraft(),
     filter: rule.filter,
     keepPerCard: rule.keepPerCard,
+    keepPer: rule.keepPer ?? "card",
     collectionIds: rule.collectionIds,
     excludeCopyIds: rule.excludeCopyIds,
   };
@@ -133,6 +139,7 @@ export function serializeRules(rules: DraftRule[], intent: ListIntent): ListRule
             filter: rule.filter,
             collectionIds: rule.collectionIds,
             keepPerCard: rule.keepPerCard,
+            keepPer: rule.keepPer,
             excludeCopyIds: rule.excludeCopyIds,
           },
   );
@@ -173,6 +180,11 @@ export const useRuleEditorStore = create<RuleEditorState>()((set, get) => ({
   setKeepPerCard: (index, keepPerCard) =>
     set((state) => ({
       rules: patchRule(state.rules, index, (rule) => ({ ...rule, keepPerCard })),
+    })),
+
+  setKeepPer: (index, keepPer) =>
+    set((state) => ({
+      rules: patchRule(state.rules, index, (rule) => ({ ...rule, keepPer })),
     })),
 
   setNetOwned: (index, netOwned) =>

@@ -364,6 +364,35 @@ describe("evaluateListRule — trade", () => {
     expect(out.map((entry) => entry.copyId)).toEqual(["cpRare"]);
   });
 
+  it("keeps marked copies over unmarked ones of equal rarity and finish", () => {
+    // Regression: a promo (marked) foil and a plain foil tie on every ranked
+    // dimension, and the promo's later canonicalRank used to sort it into the
+    // offer pile. Markers now outrank the tiebreak: 2 foils + 3 promos with
+    // keep 3 must keep all promos and offer the foils.
+    const markedCatalog = [
+      makePrinting("foil", "c1", { rarity: "common", finish: "foil" }),
+      makePrinting("promo", "c1", {
+        rarity: "common",
+        finish: "foil",
+        markers: [{ id: "m1", slug: "promo", label: "Promo", description: null }],
+        canonicalRank: 1,
+      }),
+    ];
+    const ownedCopies = [
+      ownedCopy({ copyId: "cpFoil1", printingId: "foil", cardId: "c1" }),
+      ownedCopy({ copyId: "cpFoil2", printingId: "foil", cardId: "c1" }),
+      ownedCopy({ copyId: "cpPromo1", printingId: "promo", cardId: "c1" }),
+      ownedCopy({ copyId: "cpPromo2", printingId: "promo", cardId: "c1" }),
+      ownedCopy({ copyId: "cpPromo3", printingId: "promo", cardId: "c1" }),
+    ];
+    const out = evaluateListRule(tradeRule({ keepPerCard: { mode: "fixed", n: 3 } }), "copy", {
+      catalog: markedCatalog,
+      ownedCopies,
+      enumOrders,
+    });
+    expect(out.map((entry) => entry.copyId)).toEqual(["cpFoil1", "cpFoil2"]);
+  });
+
   it("falls back to copy id when no reference orders are supplied", () => {
     const ownedCopies = [
       ownedCopy({ copyId: "cpRare", printingId: "rare", cardId: "c1" }),
@@ -430,6 +459,32 @@ describe("evaluateListRule — trade", () => {
       { catalog: mixedCatalog, ownedCopies },
     );
     expect(out.map((entry) => entry.copyId)).toEqual(["cp1"]);
+  });
+
+  it("keepPer printing keeps the count of each printing separately", () => {
+    // One card, two printings, keep a playset (3) per printing: 5 copies of pA
+    // offer 2, 2 copies of pB offer none. The default per-card grouping would
+    // pool all 7 and offer 4.
+    const twoPrintings = [makePrinting("pA", "c1"), makePrinting("pB", "c1")];
+    const ownedCopies = [
+      ...Array.from({ length: 5 }, (_unused, index) =>
+        ownedCopy({ copyId: `a${index + 1}`, printingId: "pA", cardId: "c1" }),
+      ),
+      ownedCopy({ copyId: "b1", printingId: "pB", cardId: "c1" }),
+      ownedCopy({ copyId: "b2", printingId: "pB", cardId: "c1" }),
+    ];
+    const perPrinting = evaluateListRule(
+      tradeRule({ keepPer: "printing", keepPerCard: { mode: "playset", multiplier: 1 } }),
+      "copy",
+      { catalog: twoPrintings, ownedCopies },
+    );
+    expect(perPrinting.map((entry) => entry.copyId).sort()).toEqual(["a4", "a5"]);
+    const perCard = evaluateListRule(
+      tradeRule({ keepPerCard: { mode: "playset", multiplier: 1 } }),
+      "copy",
+      { catalog: twoPrintings, ownedCopies },
+    );
+    expect(perCard).toHaveLength(4);
   });
 
   it("UC4: keep two playsets, trade the rest", () => {
@@ -919,6 +974,29 @@ describe("evaluateListRules — trade combine (the Zeri matrix)", () => {
     expect(out.map((entry) => entry.copyId).sort()).toEqual(["z2", "z4"]);
   });
 
+  it("count modes combine within a grouping and union the keeps across them", () => {
+    // Rule A keeps 1 per card; rule C keeps 1 of each printing. Counts against
+    // different group sizes never add up — each grouping keeps its own nicest,
+    // and a copy kept by either stays kept (the protect invariant).
+    const mixed: ListRule[] = [
+      rules[0]!,
+      {
+        kind: "trade",
+        filter: filters(),
+        collectionIds: null,
+        keepPerCard: { mode: "fixed", n: 1 },
+        keepPer: "printing",
+        excludeCopyIds: [],
+      },
+    ];
+    for (const mode of ["count-sum", "count-max"] as const) {
+      const out = evaluateListRules(mixed, "copy", ctx, mode);
+      // Card layer keeps Z1; printing layer keeps the nicest of each printing:
+      // Z1 (foil-signed), Z2 (foil), Z3 (first plain). Offered: Z4 + Z5.
+      expect(out.map((entry) => entry.copyId).sort()).toEqual(["z4", "z5"]);
+    }
+  });
+
   it("carries the reserved annotation through combination", () => {
     const reservedCopies = ownedCopies.map((copy) =>
       copy.copyId === "z5" ? { ...copy, reserved: true } : copy,
@@ -955,6 +1033,21 @@ describe("listRulesSchema — rule count cap", () => {
 
   it("accepts an empty rule set", () => {
     expect(listRulesSchema.safeParse([]).success).toBe(true);
+  });
+
+  it("accepts keepPer on trade rules and rejects unknown groupings", () => {
+    const base = {
+      kind: "trade",
+      filter: EMPTY_CARD_FILTERS,
+      collectionIds: null,
+      keepPerCard: { mode: "fixed", n: 1 },
+      excludeCopyIds: [],
+    };
+    // Absent = per card (rules saved before the field existed).
+    expect(listRulesSchema.safeParse([base]).success).toBe(true);
+    expect(listRulesSchema.safeParse([{ ...base, keepPer: "printing" }]).success).toBe(true);
+    expect(listRulesSchema.safeParse([{ ...base, keepPer: "card" }]).success).toBe(true);
+    expect(listRulesSchema.safeParse([{ ...base, keepPer: "set" }]).success).toBe(false);
   });
 });
 

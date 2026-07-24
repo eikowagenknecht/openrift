@@ -7,6 +7,7 @@ import type {
   OwnedCopyRow,
   Printing,
   RuleQuantity,
+  TradeKeepPer,
 } from "@openrift/shared";
 import {
   defaultRuleCombine,
@@ -249,6 +250,11 @@ const TRADE_COMBINE_OPTIONS = [
   { value: "count-max", label: "Keep the highest total" },
 ] as const;
 
+const KEEP_PER_OPTIONS = [
+  { value: "card", label: "Card (all printings together)" },
+  { value: "printing", label: "Printing (each separately)" },
+] as const;
+
 /**
  * The combine-mode select, shown once a list has two or more rules (ADR-034
  * amendment 2). Wish lists reconcile overlapping quantities (sum / max); trade
@@ -290,8 +296,8 @@ function RuleCombineRow({ isTrade }: { isTrade: boolean }) {
           ? value === "protect"
             ? "A copy is only offered when every rule that matches it agrees to offer it."
             : value === "count-sum"
-              ? "Adds up the keep counts per card and keeps your best copies up to that total."
-              : "Uses the highest keep count per card and keeps your best copies up to it."
+              ? "Adds up the keep counts per card (or printing) and keeps your best copies up to that total."
+              : "Uses the highest keep count per card (or printing) and keeps your best copies up to it."
           : value === "sum"
             ? "A card matched by several rules is wanted once per rule, added together."
             : "A card matched by several rules is wanted as much as the most demanding rule."}
@@ -513,6 +519,7 @@ function RuleFields({
   const setFilter = useRuleEditorStore((state) => state.setFilter);
   const setQuantity = useRuleEditorStore((state) => state.setQuantity);
   const setKeepPerCard = useRuleEditorStore((state) => state.setKeepPerCard);
+  const setKeepPer = useRuleEditorStore((state) => state.setKeepPer);
   const setNetOwned = useRuleEditorStore((state) => state.setNetOwned);
   const setCollectionIds = useRuleEditorStore((state) => state.setCollectionIds);
 
@@ -538,7 +545,38 @@ function RuleFields({
         </FilterRow>
       )}
 
-      <FilterRow label={isTrade ? "Keep per card" : "Want quantity"}>
+      {isTrade && (
+        <FilterRow label="Keep counts per">
+          <Select
+            items={KEEP_PER_OPTIONS}
+            value={rule.keepPer}
+            onValueChange={(next) => setKeepPer(index, next as TradeKeepPer)}
+          >
+            <SelectTrigger className={CONTROL_WIDTH} aria-label="Keep counts per">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {KEEP_PER_OPTIONS.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </FilterRow>
+      )}
+
+      <FilterRow
+        label={
+          isTrade
+            ? rule.keepPer === "printing"
+              ? "Keep per printing"
+              : "Keep per card"
+            : "Want quantity"
+        }
+      >
         <QuantityControl
           value={isTrade ? rule.keepPerCard : rule.quantity}
           onChange={(next) => (isTrade ? setKeepPerCard(index, next) : setQuantity(index, next))}
@@ -546,7 +584,9 @@ function RuleFields({
       </FilterRow>
       <p className="text-muted-foreground -mt-1 text-sm">
         {isTrade
-          ? "Keep this many per card, and offer the rest. 0 trades all."
+          ? rule.keepPer === "printing"
+            ? "Keep this many of each printing, and offer the rest. 0 trades all."
+            : "Keep this many per card, counted across all its printings, and offer the rest. 0 trades all."
           : kind === "card"
             ? "How many of each matched card you want."
             : "How many of each matched printing you want."}

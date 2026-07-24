@@ -38,17 +38,29 @@ export const wishRuleSchema = z.object({
 export type WishRule = z.infer<typeof wishRuleSchema>;
 
 /**
+ * What a trade rule's keep count groups by: `card` pools every printing of a
+ * card together; `printing` keeps the count of each printing separately.
+ */
+export const tradeKeepPerSchema = z.enum(["card", "printing"]);
+export type TradeKeepPer = z.infer<typeof tradeKeepPerSchema>;
+
+/**
  * Supply rule for trade lists (intent = trade, kind = copy). Selects the
- * owner's copies whose printing matches `filter`, keeps `keepPerCard` per card,
- * and offers the surplus for trade.
+ * owner's copies whose printing matches `filter`, keeps `keepPerCard` per
+ * card (or per printing, see `keepPer`), and offers the surplus for trade.
  */
 export const tradeRuleSchema = z.object({
   kind: z.literal("trade"),
   filter: cardFiltersSchema,
   /** null = all owned collections; else restrict the source to these collection ids. */
   collectionIds: z.array(z.string()).nullable(),
-  /** Keep N per card, trade the rest. `{ mode: "fixed", n: 0 }` = trade all. */
+  /** Keep N per card/printing, trade the rest. `{ mode: "fixed", n: 0 }` = trade all. */
   keepPerCard: ruleQuantitySchema,
+  /**
+   * What `keepPerCard` counts against. Optional for backward compatibility —
+   * absent means `card` (all printings of a card pooled together).
+   */
+  keepPer: tradeKeepPerSchema.optional(),
   /** copy_ids to never offer, even when surplus. */
   excludeCopyIds: z.array(z.string()),
 });
@@ -70,9 +82,10 @@ export const TRADE_RULE_COMBINES = ["protect", "count-sum", "count-max"] as cons
  * Trade (copy keep/offer splits):
  * - `protect` (default): a copy is offered only when every rule matching it
  *   agreed to offer it — no rule's kept copy is ever listed.
- * - `count-sum` / `count-max`: per card, combine the rules' keep counts
- *   (sum or max), keep the nicest that-many across the union of matched
- *   copies, offer the rest.
+ * - `count-sum` / `count-max`: combine the rules' keep counts (sum or max)
+ *   within each grouping (per-card rules per card, per-printing rules per
+ *   printing), keep the nicest that-many across the union of matched copies,
+ *   offer the rest. A copy kept by either grouping stays kept.
  */
 export const listRuleCombineSchema = z.enum([...WISH_RULE_COMBINES, ...TRADE_RULE_COMBINES]);
 export type ListRuleCombine = z.infer<typeof listRuleCombineSchema>;
