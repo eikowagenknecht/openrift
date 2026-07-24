@@ -44,6 +44,20 @@ describe("useRuleEditorStore", () => {
     expect(useRuleEditorStore.getState().rules).toEqual([]);
   });
 
+  it("addDrafts appends the given drafts after the existing rules", () => {
+    const store = useRuleEditorStore.getState();
+    store.addRule();
+    store.addDrafts([
+      draft({ quantity: { mode: "playset", multiplier: 1 }, netOwned: true }),
+      draft({ keepPerCard: { mode: "fixed", n: 1 }, keepPer: "printing" }),
+    ]);
+    const rules = useRuleEditorStore.getState().rules;
+    expect(rules).toHaveLength(3);
+    expect(rules[1]?.quantity).toEqual({ mode: "playset", multiplier: 1 });
+    expect(rules[1]?.netOwned).toBe(true);
+    expect(rules[2]?.keepPer).toBe("printing");
+  });
+
   it("addRule seeds the language filter from the given languages", () => {
     useRuleEditorStore.getState().addRule(["DE", "EN"]);
     expect(useRuleEditorStore.getState().rules[0]?.filter).toEqual({

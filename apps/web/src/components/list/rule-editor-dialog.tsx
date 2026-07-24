@@ -57,6 +57,7 @@ import { useRequiredUserId } from "@/lib/auth-session";
 import { catalogQueryOptions } from "@/lib/catalog-query";
 import { collectionsQueryOptions } from "@/lib/collections-query";
 import { copiesQueryOptions } from "@/lib/copies-query";
+import { TRADE_RULE_PRESETS, WISH_RULE_PRESETS } from "@/lib/rule-presets";
 import { useDisplayStore } from "@/stores/display-store";
 import { serializeRules, useRuleEditorStore } from "@/stores/rule-editor-store";
 
@@ -173,9 +174,10 @@ export function RuleEditorDialog({
 }
 
 /**
- * The shared rule-list shell: an empty-state hint, one {@link RuleBlock} per draft
- * rule, the combine-mode select (once two rules exist), an optional footer (the
- * wish preview), and an "Add rule" button that hides once the rule count reaches
+ * The shared rule-list shell: an empty-state hint with one-click presets (common
+ * setups that seed editable drafts), one {@link RuleBlock} per draft rule, the
+ * combine-mode select (once two rules exist), an optional footer (the wish
+ * preview), and an "Add rule" button that hides once the rule count reaches
  * `MAX_LIST_RULES` (each rule is a full-catalog pass at read time).
  * @returns The list shell node.
  */
@@ -197,13 +199,33 @@ function RuleList({
 }) {
   const rules = useRuleEditorStore((state) => state.rules);
   const addRule = useRuleEditorStore((state) => state.addRule);
+  const addDrafts = useRuleEditorStore((state) => state.addDrafts);
   // Seed a new rule's language facet from the user's preferred languages, so a
   // fresh rule starts scoped the way they browse. Still fully editable afterwards.
   const preferredLanguages = useDisplayStore((state) => state.languages);
+  const presets = isTrade ? TRADE_RULE_PRESETS : WISH_RULE_PRESETS;
 
   return (
     <div className="flex flex-col gap-4">
-      {rules.length === 0 && <p className="text-muted-foreground text-sm">{emptyMessage}</p>}
+      {rules.length === 0 && (
+        <>
+          <p className="text-muted-foreground text-sm">{emptyMessage}</p>
+          <div className="flex flex-col gap-2">
+            {presets.map((preset) => (
+              <Button
+                key={preset.id}
+                type="button"
+                variant="outline"
+                className="h-auto flex-col items-start gap-0.5 py-2 text-left whitespace-normal"
+                onClick={() => addDrafts(preset.build(preferredLanguages))}
+              >
+                <span>{preset.label}</span>
+                <span className="text-muted-foreground font-normal">{preset.description}</span>
+              </Button>
+            ))}
+          </div>
+        </>
+      )}
 
       {rules.map((_, index) => (
         // Rules have no stable id; the store is the single source of truth and

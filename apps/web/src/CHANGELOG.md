@@ -11,6 +11,10 @@
 
 - fix(Trades): **Altered cards no longer match** — copies marked as altered are excluded from automatic trade matching, since a wish means the clean version.
 
+### Other
+
+- feat(Collection): **Rule presets for lists** — the rule editor now offers common setups like "one of everything" or "keep a playset, trade the rest" as one-click starting points.
+
 ## 2026-07-23
 
 ### Highlights

@@ -55,6 +55,8 @@ export interface RuleEditorState {
   setRuleCombine: (ruleCombine: ListRuleCombine | null) => void;
   /** Appends a fresh rule. `languages` seeds its language filter (the user's preferred languages). */
   addRule: (languages?: string[]) => void;
+  /** Appends pre-built drafts (rule presets from `@/lib/rule-presets`). */
+  addDrafts: (drafts: DraftRule[]) => void;
   removeRule: (index: number) => void;
   setFilter: (index: number, filter: CardFilters) => void;
   setQuantity: (index: number, quantity: RuleQuantity) => void;
@@ -82,7 +84,7 @@ const DEFAULT_KEEP: RuleQuantity = { mode: "fixed", n: 0 };
  * language facet seeded from `languages` (the user's preferred languages; empty
  * = show all, matching the card browser).
  */
-function emptyDraft(languages: string[] = []): DraftRule {
+export function emptyDraft(languages: string[] = []): DraftRule {
   return {
     filter: languages.length > 0 ? { ...EMPTY_CARD_FILTERS, languages } : EMPTY_CARD_FILTERS,
     quantity: DEFAULT_QUANTITY,
@@ -174,6 +176,8 @@ export const useRuleEditorStore = create<RuleEditorState>()((set, get) => ({
   setRuleCombine: (ruleCombine) => set({ ruleCombine }),
 
   addRule: (languages) => set((state) => ({ rules: [...state.rules, emptyDraft(languages)] })),
+
+  addDrafts: (drafts) => set((state) => ({ rules: [...state.rules, ...drafts] })),
 
   removeRule: (index) => set((state) => ({ rules: state.rules.filter((_, i) => i !== index) })),
 
