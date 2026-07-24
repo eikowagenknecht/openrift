@@ -64,9 +64,11 @@ export const WISH_RULE_PRESETS: RulePreset[] = [
     id: "main-set-playsets",
     label: "Playsets of the main sets",
     description:
-      "Want a playset of every regular card in the main sets, skipping runes, tokens, and " +
-      "special printings. Shows only what you're missing, and special versions you own " +
-      "count as filling the playset.",
+      "Collect a full playset of every card in the main sets, without runes and " +
+      "tokens. The list asks only for the basic version of each card, but any copies " +
+      "you already own count, even foils and alt arts. Once a card is complete, it " +
+      "disappears from the list. Overnumbered cards are excluded because most people " +
+      "don't have them in their active decks. If you do, remove that filter from the rule.",
     build: (ctx) => {
       const draft = emptyDraft(ctx?.languages);
       return [
