@@ -67,6 +67,7 @@ interface CreateProductInput {
   slug: string;
   name: string;
   description?: string | null;
+  setId?: string | null;
   listId: string;
 }
 
@@ -117,6 +118,7 @@ interface UpdateProductInput {
   slug?: string;
   name?: string;
   description?: string | null;
+  setId?: string | null;
 }
 
 const updateProductFn = createServerFn({ method: "POST" })

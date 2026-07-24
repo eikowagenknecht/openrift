@@ -20,6 +20,11 @@ export function setsRepo(db: Kysely<Database>) {
       return db.selectFrom("sets").select("id").where("slug", "=", slug).executeTakeFirst();
     },
 
+    /** @returns The set's display reference (slug, name) by UUID, or undefined. */
+    getRef(id: string): Promise<{ slug: string; name: string } | undefined> {
+      return db.selectFrom("sets").select(["slug", "name"]).where("id", "=", id).executeTakeFirst();
+    },
+
     /** @returns A set's printed total by UUID, or undefined. */
     getPrintedTotal(id: string): Promise<{ printedTotal: number | null } | undefined> {
       return db.selectFrom("sets").select("printedTotal").where("id", "=", id).executeTakeFirst();

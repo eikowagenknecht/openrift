@@ -40,11 +40,14 @@ export const adminProductsRouter = {
 
   update: os.update.handler(async ({ input, context }): Promise<void> => {
     const { id, ...patch } = input;
-    const { products } = context.repos;
+    const { products, sets } = context.repos;
     const existing = await products.getById(id);
     assertFound(existing, "Product not found");
     if (patch.slug !== undefined && (await products.slugTaken(patch.slug, id))) {
       throw new AppError(409, ERROR_CODES.CONFLICT, `Slug "${patch.slug}" already in use`);
+    }
+    if (patch.setId !== null && patch.setId !== undefined) {
+      assertFound(await sets.getRef(patch.setId), "Set not found");
     }
     await products.update(id, patch);
   }),

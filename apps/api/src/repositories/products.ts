@@ -10,6 +10,9 @@ import { imageId } from "./query-helpers.js";
 export interface ProductWithCounts extends Selectable<ProductsTable> {
   printingCount: number;
   cardTotal: number;
+  /** Joined from `sets` — null when the product has no set. */
+  setSlug: string | null;
+  setName: string | null;
 }
 
 /** One content row of a product snapshot. */
@@ -39,17 +42,27 @@ export function productsRepo(db: Kysely<Database>) {
     db
       .selectFrom("products as p")
       .leftJoin("productPrintings as pp", "pp.productId", "p.id")
+      .leftJoin("sets as s", "s.id", "p.setId")
       .selectAll("p")
       .select([
+        "s.slug as setSlug",
+        "s.name as setName",
         sql<number>`count(pp.printing_id)::int`.as("printingCount"),
         sql<number>`coalesce(sum(pp.quantity), 0)::int`.as("cardTotal"),
       ])
-      .groupBy("p.id");
+      .groupBy(["p.id", "s.slug", "s.name", "s.sortOrder"]);
 
   return {
-    /** @returns All products with content counts, ordered by name. */
+    /**
+     * @returns All products with content counts, in set release order
+     * (products without a set last), then by name. The /products index
+     * groups consecutive rows by set, so this ordering is load-bearing.
+     */
     listWithCounts(): Promise<ProductWithCounts[]> {
-      return withCounts().orderBy("p.name").execute();
+      return withCounts()
+        .orderBy(sql`s.sort_order nulls last`)
+        .orderBy("p.name")
+        .execute();
     },
 
     /** @returns The product with content counts, or undefined. */
@@ -80,13 +93,19 @@ export function productsRepo(db: Kysely<Database>) {
       slug: string;
       name: string;
       description: string | null;
+      setId: string | null;
     }): Promise<Selectable<ProductsTable>> {
       return db.insertInto("products").values(values).returningAll().executeTakeFirstOrThrow();
     },
 
     async update(
       id: string,
-      patch: Partial<{ slug: string; name: string; description: string | null }>,
+      patch: Partial<{
+        slug: string;
+        name: string;
+        description: string | null;
+        setId: string | null;
+      }>,
     ): Promise<void> {
       await db.updateTable("products").set(patch).where("id", "=", id).execute();
     },

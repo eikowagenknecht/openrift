@@ -28,11 +28,20 @@ export const productCoverCardSchema = z.object({
   name: z.string(),
 });
 
+/** The set a product released with, for grouping the /products index. */
+export const productSetSchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  name: z.string(),
+});
+
 export const productSummarySchema = z.object({
   id: z.string(),
   slug: z.string(),
   name: z.string(),
   description: z.string().nullable(),
+  /** The set the product belongs to, or null for cross-set products. */
+  set: productSetSchema.nullable(),
   /** Distinct printings in the product. */
   printingCount: z.number(),
   /** Total physical cards (sum of quantities). */
@@ -84,6 +93,7 @@ export const productsContract = {
 };
 
 export type ProductsContract = typeof productsContract;
+export type ProductSet = z.infer<typeof productSetSchema>;
 export type ProductCoverCard = z.infer<typeof productCoverCardSchema>;
 export type ProductSummary = z.infer<typeof productSummarySchema>;
 export type ProductContent = z.infer<typeof productContentSchema>;

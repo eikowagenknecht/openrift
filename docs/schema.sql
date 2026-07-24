@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict gfdbQdNtTQH9GTSBjh0iLOdEBr9aS9k4paLu03vOGmXYvBd5dWuUaoNTcxd0yYZ
+\restrict miMpXhqboZh00Cw9miMLAMqaQkQmLxSPxaQRfZ5yKLVyyPvVDQd2bnfUpcQIhZ4
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -2093,6 +2093,7 @@ CREATE TABLE public.products (
     description text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    set_id uuid,
     CONSTRAINT chk_products_description CHECK (((description IS NULL) OR (length(description) <= 2000))),
     CONSTRAINT chk_products_name CHECK (((length(name) >= 1) AND (length(name) <= 120))),
     CONSTRAINT chk_products_slug CHECK ((slug ~ '^[a-z0-9][a-z0-9-]{2,79}$'::text))
@@ -4113,6 +4114,13 @@ CREATE INDEX idx_product_printings_printing ON public.product_printings USING bt
 
 
 --
+-- Name: idx_products_set; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_products_set ON public.products USING btree (set_id);
+
+
+--
 -- Name: idx_rules_kind_version_sort; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5842,6 +5850,14 @@ ALTER TABLE ONLY public.product_printings
 
 
 --
+-- Name: products products_set_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_set_id_fkey FOREIGN KEY (set_id) REFERENCES public.sets(id) ON DELETE SET NULL;
+
+
+--
 -- Name: rules rules_kind_version_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5965,5 +5981,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict gfdbQdNtTQH9GTSBjh0iLOdEBr9aS9k4paLu03vOGmXYvBd5dWuUaoNTcxd0yYZ
+\unrestrict miMpXhqboZh00Cw9miMLAMqaQkQmLxSPxaQRfZ5yKLVyyPvVDQd2bnfUpcQIhZ4
 

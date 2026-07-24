@@ -1460,6 +1460,8 @@ export interface ProductsTable {
   name: string;
   /** Markdown. CHECK: NULL or length <= 2000 */
   description: string | null;
+  /** FK → sets.id, ON DELETE SET NULL — the wave the product released with */
+  setId: string | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }

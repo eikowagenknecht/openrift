@@ -54,10 +54,21 @@ export async function createProductFromList(
   repos: Repos,
   transact: Transact,
   userId: string,
-  input: { slug: string; name: string; description?: string | null; listId: string },
+  input: {
+    slug: string;
+    name: string;
+    description?: string | null;
+    setId?: string | null;
+    listId: string;
+  },
 ): Promise<ProductWithCounts> {
   if (await repos.products.slugTaken(input.slug)) {
     throw new AppError(409, ERROR_CODES.CONFLICT, `Slug "${input.slug}" already in use`);
+  }
+  const setId = input.setId ?? null;
+  const setRef = setId === null ? null : await repos.sets.getRef(setId);
+  if (setId !== null) {
+    assertFound(setRef, "Set not found");
   }
   const contents = await resolveListContents(repos, userId, input.listId);
 
@@ -66,12 +77,15 @@ export async function createProductFromList(
       slug: input.slug,
       name: input.name,
       description: input.description ?? null,
+      setId,
     });
     await trx.products.replaceContents(product.id, contents);
     return {
       ...product,
       printingCount: contents.length,
       cardTotal: contents.reduce((sum, row) => sum + row.quantity, 0),
+      setSlug: setRef?.slug ?? null,
+      setName: setRef?.name ?? null,
     };
   });
 }

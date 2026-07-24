@@ -1,4 +1,4 @@
-import type { ProductCoverCard, ProductSummary } from "@openrift/shared/contracts";
+import type { ProductCoverCard, ProductSet, ProductSummary } from "@openrift/shared/contracts";
 import { Link, createLazyFileRoute } from "@tanstack/react-router";
 
 import { CardFan, CardFanOutline } from "@/components/cards/card-fan";
@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { CardLink } from "@/components/ui/card-link";
 import { useProductsList } from "@/hooks/use-products";
+import { groupProductsBySet } from "@/lib/group-products-by-set";
 import { markdownTeaser } from "@/lib/markdown-teaser";
 import { formatProductCounts } from "@/lib/product-counts";
 
@@ -81,9 +82,39 @@ function ProductsEmptyState() {
   );
 }
 
+/** @returns A section heading: the set name linking to the set page, or "Other products". */
+function ProductGroupHeading({ set }: { set: ProductSet | null }) {
+  if (!set) {
+    return <Heading className="mb-4">Other products</Heading>;
+  }
+  return (
+    <Heading className="mb-4">
+      <Link to="/sets/$setSlug" params={{ setSlug: set.slug }} className="hover:underline">
+        {set.name}
+      </Link>
+    </Heading>
+  );
+}
+
+function ProductGrid({ products }: { products: ProductSummary[] }) {
+  return (
+    <ul className="grid gap-4 sm:grid-cols-2">
+      {products.map((product) => (
+        <li key={product.id}>
+          <ProductTile product={product} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function ProductsIndexPage() {
   const { data } = useProductsList();
   const { products } = data;
+  const groups = groupProductsBySet(products);
+  // With no sets assigned anywhere there is only the null group — render it
+  // as a flat grid instead of a lone "Other products" section.
+  const showHeadings = groups.some((group) => group.set !== null);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -99,13 +130,12 @@ function ProductsIndexPage() {
         {products.length === 0 ? (
           <ProductsEmptyState />
         ) : (
-          <ul className="grid gap-4 sm:grid-cols-2">
-            {products.map((product) => (
-              <li key={product.id}>
-                <ProductTile product={product} />
-              </li>
-            ))}
-          </ul>
+          groups.map((group, index) => (
+            <section key={group.key} className={index > 0 ? "mt-8" : undefined}>
+              {showHeadings && <ProductGroupHeading set={group.set} />}
+              <ProductGrid products={group.products} />
+            </section>
+          ))
         )}
       </div>
     </div>

@@ -34,6 +34,7 @@ import {
   useResyncProduct,
   useUpdateProduct,
 } from "@/hooks/use-products";
+import { useSets } from "@/hooks/use-sets";
 
 import type { AdminCellSlotProps, AdminColumnDef, AdminDraftSlotProps } from "./admin-table";
 import { AdminTable } from "./admin-table";
@@ -43,6 +44,8 @@ interface ProductDraft {
   name: string;
   slug: string;
   description: string;
+  /** Set UUID, or "" for no set. */
+  setId: string;
 }
 
 /** @returns A client-side validation error for the metadata fields, or null. */
@@ -78,6 +81,10 @@ function SlugCell({ row }: AdminCellSlotProps<ProductSummary>) {
 
 function DescriptionCell({ row }: AdminCellSlotProps<ProductSummary>) {
   return <span className="text-muted-foreground line-clamp-1 max-w-64">{row?.description}</span>;
+}
+
+function SetCell({ row }: AdminCellSlotProps<ProductSummary>) {
+  return <span className="text-muted-foreground">{row?.set?.name}</span>;
 }
 
 function CardTotalCell({ row }: AdminCellSlotProps<ProductSummary>) {
@@ -137,9 +144,61 @@ function DescriptionInput({ draft, setDraft }: AdminDraftSlotProps<ProductDraft>
   );
 }
 
+/** Sentinel select value for "no set" (BaseUI selects don't take ""). */
+const NO_SET = "none";
+
+function SetPicker({
+  value,
+  onChange,
+  className,
+}: {
+  /** Set UUID, or "" for no set. */
+  value: string;
+  onChange: (setId: string) => void;
+  className?: string;
+}) {
+  const { data } = useSets();
+  const items = [
+    { value: NO_SET, label: "No set" },
+    ...data.sets.map((set) => ({ value: set.id, label: set.name })),
+  ];
+  return (
+    <Select
+      items={items}
+      value={value || NO_SET}
+      onValueChange={(next) => onChange(next === NO_SET || next === null ? "" : next)}
+    >
+      <SelectTrigger aria-label="Set" className={className}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {items.map((item) => (
+          <SelectItem key={item.value} value={item.value}>
+            {item.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+function SetInput({ draft, setDraft }: AdminDraftSlotProps<ProductDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <SetPicker
+      value={draft.setId}
+      onChange={(setId) => setDraft((prev) => ({ ...prev, setId }))}
+      className="h-8"
+    />
+  );
+}
+
 const productColumns: AdminColumnDef<ProductSummary, ProductDraft>[] = [
   { header: "Name", sortValue: (p) => p.name, cell: <NameCell />, editCell: <NameInput /> },
   { header: "Slug", sortValue: (p) => p.slug, cell: <SlugCell />, editCell: <SlugInput /> },
+  { header: "Set", sortValue: (p) => p.set?.name ?? "", cell: <SetCell />, editCell: <SetInput /> },
   { header: "Description", cell: <DescriptionCell />, editCell: <DescriptionInput /> },
   { header: "Cards", align: "right", sortValue: (p) => p.cardTotal, cell: <CardTotalCell /> },
   {
@@ -200,7 +259,7 @@ function ListPicker({
 
 // ── Create dialog ────────────────────────────────────────────────────────────
 
-const EMPTY_CREATE_DRAFT = { name: "", slug: "", description: "", listId: "" };
+const EMPTY_CREATE_DRAFT = { name: "", slug: "", description: "", setId: "", listId: "" };
 
 function CreateProductDialog({
   open,
@@ -236,6 +295,7 @@ function CreateProductDialog({
       name: draft.name.trim(),
       slug: draft.slug,
       description: draft.description.trim() || null,
+      setId: draft.setId || null,
       listId: draft.listId,
     };
     try {
@@ -298,6 +358,16 @@ function CreateProductDialog({
                 placeholder="origins-starter-set"
                 className="font-mono"
               />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label>Set</Label>
+              <SetPicker
+                value={draft.setId}
+                onChange={(setId) => setDraft((prev) => ({ ...prev, setId }))}
+              />
+              <p className="text-muted-foreground text-xs">
+                The wave the product released with. The public products page groups by it.
+              </p>
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="product-description">Description</Label>
@@ -447,6 +517,7 @@ export function AdminProductsPage() {
             name: product.name,
             slug: product.slug,
             description: product.description ?? "",
+            setId: product.set?.id ?? "",
           }),
           onSave: (draft) =>
             updateProduct.mutateAsync({
@@ -454,6 +525,7 @@ export function AdminProductsPage() {
               name: draft.name.trim(),
               slug: draft.slug,
               description: draft.description.trim() || null,
+              setId: draft.setId || null,
             }),
           validate: validateDraft,
         }}

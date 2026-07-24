@@ -15,6 +15,8 @@ const createProductInput = z.object({
   slug: productSlugSchema,
   name: z.string().min(1).max(120),
   description: z.string().min(1).max(2000).nullable().optional(),
+  /** The set the product released with, or null for cross-set products. */
+  setId: z.uuid().nullable().optional(),
   /** The admin's own printing-kind list whose resolved entries become the contents. */
   listId: z.uuid(),
 });
@@ -23,6 +25,7 @@ const updateProductInput = z.object({
   slug: productSlugSchema.optional(),
   name: z.string().min(1).max(120).optional(),
   description: z.string().min(1).max(2000).nullable().optional(),
+  setId: z.uuid().nullable().optional(),
 });
 
 /**

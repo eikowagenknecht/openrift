@@ -12,6 +12,11 @@ export function toProductSummary(
     slug: product.slug,
     name: product.name,
     description: product.description,
+    // The join guarantees slug and name whenever setId is present.
+    set:
+      product.setId !== null && product.setSlug !== null && product.setName !== null
+        ? { id: product.setId, slug: product.setSlug, name: product.setName }
+        : null,
     printingCount: product.printingCount,
     cardTotal: product.cardTotal,
     coverCards,

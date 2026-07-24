@@ -38,6 +38,7 @@ describe.skipIf(!ctx)("products repo productsForCard (integration)", () => {
       slug: `products-repo-itest-${slugCounter}`,
       name,
       description: null,
+      setId: null,
     });
     createdProductIds.push(product.id);
     await repos.products.replaceContents(product.id, rows);
@@ -187,6 +188,7 @@ describe.skipIf(!ctx)("products repo coverCards (integration)", () => {
       slug: `cover-itest-product-${counter}`,
       name,
       description: null,
+      setId: null,
     });
     productIds.push(product.id);
     await repos.products.replaceContents(
@@ -301,5 +303,93 @@ describe.skipIf(!ctx)("products repo coverCards (integration)", () => {
 
     expect(await repos.products.coverCards([bareId])).toEqual([]);
     expect(await repos.products.coverCards([])).toEqual([]);
+  });
+});
+
+describe.skipIf(!ctx)("products repo set grouping (integration)", () => {
+  // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
+  const { db } = ctx!;
+  const repos = createRepos(db);
+
+  const productIds: string[] = [];
+  const setIds: string[] = [];
+  let counter = 0;
+
+  async function makeSet(name: string, sortOrder: number): Promise<string> {
+    counter += 1;
+    const set = await db
+      .insertInto("sets")
+      .values({ slug: `set-itest-${counter}`, name, printedTotal: null, sortOrder })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    setIds.push(set.id);
+    return set.id;
+  }
+
+  async function makeProduct(name: string, setId: string | null): Promise<string> {
+    counter += 1;
+    const product = await repos.products.create({
+      slug: `set-itest-product-${counter}`,
+      name,
+      description: null,
+      setId,
+    });
+    productIds.push(product.id);
+    return product.id;
+  }
+
+  afterAll(async () => {
+    if (productIds.length > 0) {
+      await db.deleteFrom("products").where("id", "in", productIds).execute();
+    }
+    if (setIds.length > 0) {
+      await db.deleteFrom("sets").where("id", "in", setIds).execute();
+    }
+  });
+
+  it("orders by set sort order, then name, with set-less products last", async () => {
+    // High sort orders keep fixture sets out of the way.
+    const laterSetId = await makeSet("Itest Later Wave", 902);
+    const earlierSetId = await makeSet("Itest Earlier Wave", 901);
+    const laterProductId = await makeProduct("Aaa Later Kit", laterSetId);
+    const noSetProductId = await makeProduct("Aaa Setless Bundle", null);
+    const earlierBId = await makeProduct("Bbb Earlier Kit", earlierSetId);
+    const earlierAId = await makeProduct("Aaa Earlier Kit", earlierSetId);
+
+    const rows = await repos.products.listWithCounts();
+    const mine = rows.filter((row) => productIds.includes(row.id));
+
+    expect(mine.map((row) => row.id)).toEqual([
+      earlierAId,
+      earlierBId,
+      laterProductId,
+      noSetProductId,
+    ]);
+  });
+
+  it("joins the set slug and name, null for set-less products", async () => {
+    const setId = await makeSet("Itest Join Wave", 904);
+    const withSetId = await makeProduct("Join Kit", setId);
+    const withoutSetId = await makeProduct("Join Setless Kit", null);
+
+    const rows = await repos.products.listWithCounts();
+    const byId = new Map(rows.map((row) => [row.id, row]));
+
+    expect(byId.get(withSetId)).toMatchObject({ setId, setName: "Itest Join Wave" });
+    expect(byId.get(withSetId)?.setSlug).toMatch(/^set-itest-/u);
+    expect(byId.get(withoutSetId)).toMatchObject({ setId: null, setSlug: null, setName: null });
+  });
+
+  it("updates a product's set and reads it back with counts", async () => {
+    const setId = await makeSet("Itest Patch Wave", 903);
+    const productId = await makeProduct("Patchable Kit", null);
+
+    await repos.products.update(productId, { setId });
+    const updated = await repos.products.getByIdWithCounts(productId);
+    expect(updated).toMatchObject({ setId, setName: "Itest Patch Wave" });
+
+    await repos.products.update(productId, { setId: null });
+    const cleared = await repos.products.getByIdWithCounts(productId);
+    expect(cleared).toMatchObject({ setId: null, setSlug: null, setName: null });
   });
 });
