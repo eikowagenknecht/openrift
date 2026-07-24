@@ -18,6 +18,7 @@ function draft(overrides: Partial<DraftRule> = {}): DraftRule {
     excludeIds: [],
     excludeCopyIds: [],
     netOwned: false,
+    countSpecialVersions: false,
     ...overrides,
   };
 }
@@ -83,6 +84,7 @@ describe("useRuleEditorStore", () => {
         quantity: { mode: "playset", multiplier: 1 },
         excludeIds: ["card-1"],
         netOwned: false,
+        countSpecialVersions: false,
       },
       {
         kind: "wish",
@@ -90,6 +92,7 @@ describe("useRuleEditorStore", () => {
         quantity: { mode: "fixed", n: 2 },
         excludeIds: [],
         netOwned: true,
+        countSpecialVersions: false,
       },
     ]);
   });
@@ -204,6 +207,32 @@ describe("useRuleEditorStore", () => {
     expect(built).toMatchObject({ kind: "wish", netOwned: true });
   });
 
+  it("round-trips countSpecialVersions on wish rules", () => {
+    const rules: ListRule[] = [
+      {
+        kind: "wish",
+        filter: EMPTY_CARD_FILTERS,
+        quantity: { mode: "playset", multiplier: 1 },
+        excludeIds: [],
+        netOwned: true,
+        countSpecialVersions: true,
+      },
+    ];
+    useRuleEditorStore.getState().load(rules);
+    expect(useRuleEditorStore.getState().rules[0]?.countSpecialVersions).toBe(true);
+    const built = useRuleEditorStore.getState().buildRules("wish")[0];
+    expect(built).toMatchObject({ kind: "wish", countSpecialVersions: true });
+  });
+
+  it("setCountSpecialVersions flips the flag on the targeted rule", () => {
+    const store = useRuleEditorStore.getState();
+    store.addRule();
+    store.addRule();
+    store.setCountSpecialVersions(1, true);
+    expect(useRuleEditorStore.getState().rules[0]?.countSpecialVersions).toBe(false);
+    expect(useRuleEditorStore.getState().rules[1]?.countSpecialVersions).toBe(true);
+  });
+
   it("defaults netOwned to false when a saved wish rule omits it", () => {
     const rules: ListRule[] = [
       {
@@ -276,6 +305,7 @@ describe("useRuleEditorStore", () => {
         quantity: { mode: "fixed", n: 1 },
         excludeIds: [],
         netOwned: false,
+        countSpecialVersions: false,
       },
     ]);
     expect(serializeRules(rules, "organize")).toEqual([]);

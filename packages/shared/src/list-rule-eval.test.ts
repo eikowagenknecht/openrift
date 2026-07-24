@@ -867,6 +867,161 @@ describe("evaluateListRules — acceptable printings and filter-aware netting (a
     expect(out[0]?.quantity).toBe(3);
   });
 
+  describe("countSpecialVersions (widened netting pool)", () => {
+    // c1 in a plain and an alt-art foil printing; c2 exists only as a special.
+    const specialsCatalog = [
+      makePrinting("plain", "c1"),
+      makePrinting("alt", "c1", { artVariant: "altart", finish: "foil" }),
+      makePrinting("alt-only", "c2", { artVariant: "altart", finish: "foil" }),
+    ];
+
+    it("owned special versions fill the shortfall while the acceptable set stays strict", () => {
+      // Want 3 standard c1, own 2 alt arts → shortfall 1, but only the plain
+      // printing may satisfy the want. Without the flag the alts are invisible.
+      const ownedCopies = [
+        ownedCopy({ copyId: "x1", printingId: "alt", cardId: "c1" }),
+        ownedCopy({ copyId: "x2", printingId: "alt", cardId: "c1" }),
+      ];
+      expect(
+        evaluateListRules(
+          [wishRule({ filter: filters({ isStandard: true }), netOwned: true })],
+          "card",
+          { catalog: specialsCatalog, ownedCopies },
+        ),
+      ).toEqual([
+        { kind: "card", cardId: "c1", quantity: 3, acceptablePrintingIds: new Set(["plain"]) },
+      ]);
+      expect(
+        evaluateListRules(
+          [
+            wishRule({
+              filter: filters({ isStandard: true }),
+              netOwned: true,
+              countSpecialVersions: true,
+            }),
+          ],
+          "card",
+          { catalog: specialsCatalog, ownedCopies },
+        ),
+      ).toEqual([
+        { kind: "card", cardId: "c1", quantity: 1, acceptablePrintingIds: new Set(["plain"]) },
+      ]);
+    });
+
+    it("drops a want fully covered by special versions", () => {
+      const ownedCopies = [1, 2, 3].map((index) =>
+        ownedCopy({ copyId: `x${index}`, printingId: "alt", cardId: "c1" }),
+      );
+      const out = evaluateListRules(
+        [
+          wishRule({
+            filter: filters({ isStandard: true }),
+            netOwned: true,
+            countSpecialVersions: true,
+          }),
+        ],
+        "card",
+        { catalog: specialsCatalog, ownedCopies },
+      );
+      expect(out).toEqual([]);
+    });
+
+    it("never adds wants for cards only the relaxed filter matches", () => {
+      // c2 has no standard printing, so it must stay off the list even though
+      // the relaxed pass matches its alt art.
+      const out = evaluateListRules(
+        [
+          wishRule({
+            filter: filters({ isStandard: true }),
+            netOwned: true,
+            countSpecialVersions: true,
+          }),
+        ],
+        "card",
+        { catalog: specialsCatalog },
+      );
+      expect(out.map((entry) => entry.cardId)).toEqual(["c1"]);
+    });
+
+    it("relaxes only the standard flag — other facets still gate the pool", () => {
+      // The alt art is excluded by its variant, so it must not net the want
+      // even with the flag on: only isStandard is cleared, nothing else.
+      const ownedCopies = [ownedCopy({ copyId: "x1", printingId: "alt", cardId: "c1" })];
+      const out = evaluateListRules(
+        [
+          wishRule({
+            filter: filters({ isStandard: true, artVariantsExclude: ["altart"] }),
+            netOwned: true,
+            countSpecialVersions: true,
+          }),
+        ],
+        "card",
+        { catalog: specialsCatalog, ownedCopies },
+      );
+      expect(out[0]).toMatchObject({ cardId: "c1", quantity: 3 });
+    });
+
+    it("is inert without a standard-printings restriction (never counts plain copies)", () => {
+      // A specials-only rule ("Standard printings: no") must not have the
+      // inverted effect: the owned plain copy stays outside the pool.
+      const ownedCopies = [ownedCopy({ copyId: "x1", printingId: "plain", cardId: "c1" })];
+      const out = evaluateListRules(
+        [
+          wishRule({
+            filter: filters({ isStandard: false }),
+            netOwned: true,
+            countSpecialVersions: true,
+          }),
+        ],
+        "card",
+        { catalog: specialsCatalog, ownedCopies },
+      );
+      expect(out.find((entry) => entry.cardId === "c1")).toMatchObject({ quantity: 3 });
+    });
+
+    it("does nothing without netOwned", () => {
+      const ownedCopies = [ownedCopy({ copyId: "x1", printingId: "alt", cardId: "c1" })];
+      const out = evaluateListRules(
+        [wishRule({ filter: filters({ isStandard: true }), countSpecialVersions: true })],
+        "card",
+        { catalog: specialsCatalog, ownedCopies },
+      );
+      expect(out[0]).toMatchObject({ cardId: "c1", quantity: 3 });
+    });
+
+    it("leaves printing-kind netting untouched", () => {
+      // Per-printing netting: the owned alt art nets only its own printing,
+      // flag or not — the plain printing's want survives.
+      const ownedCopies = [ownedCopy({ copyId: "x1", printingId: "alt", cardId: "c1" })];
+      const out = evaluateListRules(
+        [
+          wishRule({
+            quantity: { mode: "fixed", n: 1 },
+            netOwned: true,
+            countSpecialVersions: true,
+          }),
+        ],
+        "printing",
+        { catalog: specialsCatalog, ownedCopies },
+      );
+      expect(out.map((entry) => entry.printingId).sort()).toEqual(["alt-only", "plain"]);
+    });
+
+    it("survives the rules schema round-trip", () => {
+      const parsed = listRulesSchema.parse([
+        {
+          kind: "wish",
+          filter: filters(),
+          quantity: { mode: "fixed", n: 1 },
+          excludeIds: [],
+          netOwned: true,
+          countSpecialVersions: true,
+        },
+      ]);
+      expect(parsed[0]).toMatchObject({ countSpecialVersions: true });
+    });
+  });
+
   it("expandList keeps the set on rule-only entries and drops it on manual overlap", () => {
     const ruleEntries: VirtualEntry[] = [
       { kind: "card", cardId: "c1", quantity: 3, acceptablePrintingIds: new Set(["p1"]) },

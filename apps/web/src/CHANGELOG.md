@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-07-24
+
+### Highlights
+
+- feat(Collection): **Special versions count as owned** — wishlist rules gain a "Count special versions" switch: alt arts, foils, signed and promo copies fill the missing count, while the list keeps asking only for printings matching the filter.
+
 ## 2026-07-23
 
 ### Highlights

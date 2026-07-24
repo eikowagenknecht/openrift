@@ -34,6 +34,16 @@ export const wishRuleSchema = z.object({
    * backward compatibility — absent/false means the plain target (ADR-034).
    */
   netOwned: z.boolean().optional(),
+  /**
+   * When true (card lists with `netOwned` and a standard-printings
+   * restriction), owned special versions — the filter re-run with the
+   * standard-printing flag cleared — also fill the shortfall, while the want
+   * itself (and its acceptable printings) keeps the strict filter. "Count my
+   * alt arts, but never ask for one." Inert unless the filter is set to
+   * standard printings only, so the label stays literally true. Optional for
+   * backward compatibility — absent/false nets against the filter as-is.
+   */
+  countSpecialVersions: z.boolean().optional(),
 });
 export type WishRule = z.infer<typeof wishRuleSchema>;
 

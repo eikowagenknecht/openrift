@@ -31,6 +31,8 @@ export interface DraftRule {
   excludeCopyIds: string[];
   /** Wish lists: subtract owned copies and want only the shortfall (ADR-034). */
   netOwned: boolean;
+  /** Wish lists (card kind + netOwned): owned special versions also fill the shortfall. */
+  countSpecialVersions: boolean;
 }
 
 /**
@@ -59,6 +61,7 @@ export interface RuleEditorState {
   setKeepPerCard: (index: number, keepPerCard: RuleQuantity) => void;
   setKeepPer: (index: number, keepPer: TradeKeepPer) => void;
   setNetOwned: (index: number, netOwned: boolean) => void;
+  setCountSpecialVersions: (index: number, countSpecialVersions: boolean) => void;
   setCollectionIds: (index: number, collectionIds: string[] | null) => void;
   toggleExcludeId: (index: number, id: string) => void;
   toggleExcludeCopyId: (index: number, copyId: string) => void;
@@ -89,6 +92,7 @@ function emptyDraft(languages: string[] = []): DraftRule {
     excludeIds: [],
     excludeCopyIds: [],
     netOwned: false,
+    countSpecialVersions: false,
   };
 }
 
@@ -101,6 +105,7 @@ function draftFromRule(rule: ListRule): DraftRule {
       quantity: rule.quantity,
       excludeIds: rule.excludeIds,
       netOwned: rule.netOwned ?? false,
+      countSpecialVersions: rule.countSpecialVersions ?? false,
     };
   }
   return {
@@ -133,6 +138,7 @@ export function serializeRules(rules: DraftRule[], intent: ListIntent): ListRule
             quantity: rule.quantity,
             excludeIds: rule.excludeIds,
             netOwned: rule.netOwned,
+            countSpecialVersions: rule.countSpecialVersions,
           }
         : {
             kind: "trade",
@@ -190,6 +196,11 @@ export const useRuleEditorStore = create<RuleEditorState>()((set, get) => ({
   setNetOwned: (index, netOwned) =>
     set((state) => ({
       rules: patchRule(state.rules, index, (rule) => ({ ...rule, netOwned })),
+    })),
+
+  setCountSpecialVersions: (index, countSpecialVersions) =>
+    set((state) => ({
+      rules: patchRule(state.rules, index, (rule) => ({ ...rule, countSpecialVersions })),
     })),
 
   setCollectionIds: (index, collectionIds) =>

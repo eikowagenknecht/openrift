@@ -136,6 +136,12 @@ interface WishRuleTargets {
   targets: Map<string, number>;
   /** Card kind only: card id → the printing ids the rule's filter matched. */
   matchedPrintings: Map<string, Set<string>>;
+  /**
+   * Card kind only: card id → the printings whose owned copies net the want.
+   * Identical to {@link matchedPrintings} unless the rule counts special
+   * versions, in which case it is the superset the relaxed filter matched.
+   */
+  netPrintings: Map<string, Set<string>>;
 }
 
 /**
@@ -145,7 +151,15 @@ interface WishRuleTargets {
  * owned pool instead of each subtracting it again. For card kind the matched
  * printing ids per card come along too — they become the want's acceptable
  * printings and the netting pool (ADR-034 amendment 3).
- * @returns The rule's targets plus, for card kind, its matched printings.
+ *
+ * With `countSpecialVersions` (card kind + `netOwned` + a filter restricted
+ * to standard printings), the netting pool is widened instead to the filter
+ * re-run with the standard-printing flag cleared: owned special versions fill
+ * the shortfall, while the want and its acceptable printings keep the strict
+ * filter. Only cards the strict filter matched get a pool — the relaxed pass
+ * never adds wants. Without the standard restriction the flag is inert, so it
+ * never has the inverted effect of counting plain copies.
+ * @returns The rule's targets plus, for card kind, its matched and netting printings.
  */
 function wishRuleTargets(
   rule: WishRule,
@@ -165,7 +179,7 @@ function wishRuleTargets(
       }
       targets.set(printing.id, resolveQuantity(rule.quantity, printing.card));
     }
-    return { targets, matchedPrintings };
+    return { targets, matchedPrintings, netPrintings: matchedPrintings };
   }
   // listKind === "card": collapse matched printings to their cards, keeping
   // every matched printing id per card.
@@ -183,7 +197,24 @@ function wishRuleTargets(
       matchedPrintings.set(printing.cardId, new Set([printing.id]));
     }
   }
-  return { targets, matchedPrintings };
+  if (!rule.countSpecialVersions || !rule.netOwned || rule.filter.isStandard !== true) {
+    return { targets, matchedPrintings, netPrintings: matchedPrintings };
+  }
+  // Clearing the flag only ever widens the match, so the relaxed set is a
+  // superset of the strict one for every targeted card.
+  const relaxed = filterCards(
+    ctx.catalog,
+    { ...rule.filter, isStandard: null },
+    { customTagAssignments: ctx.customTagAssignments },
+  );
+  const netPrintings = new Map<string, Set<string>>();
+  for (const printing of relaxed) {
+    if (!targets.has(printing.cardId)) {
+      continue;
+    }
+    unionInto(netPrintings, printing.cardId, [printing.id]);
+  }
+  return { targets, matchedPrintings, netPrintings };
 }
 
 /**
@@ -209,11 +240,7 @@ function ownedCountsByPrinting(ctx: RuleEvalContext): Map<string, number> {
  * Merges `printings` into the set stored under `key`, creating it on first use.
  * @returns Nothing; mutates `map` in place.
  */
-function unionInto(
-  map: Map<string, Set<string>>,
-  key: string,
-  printings: ReadonlySet<string>,
-): void {
+function unionInto(map: Map<string, Set<string>>, key: string, printings: Iterable<string>): void {
   const existing = map.get(key);
   if (existing) {
     for (const id of printings) {
@@ -257,7 +284,9 @@ function countOwnedInPool(
  * carries the union of the contributing rules' matched printings as its
  * acceptable set, and netting only counts owned copies whose printing a
  * `netOwned` rule matched — an owned copy outside the filters neither fills
- * the want nor satisfies it in matching.
+ * the want nor satisfies it in matching. A `countSpecialVersions` rule widens
+ * only its netting pool (see {@link wishRuleTargets}); the acceptable set
+ * stays strict.
  * @returns One virtual entry per key with a positive combined quantity.
  */
 function combineWishRules(
@@ -275,7 +304,7 @@ function combineWishRules(
   let anyNet = false;
   for (const rule of rules) {
     anyNet ||= rule.netOwned === true;
-    const { targets, matchedPrintings } = wishRuleTargets(rule, listKind, ctx);
+    const { targets, matchedPrintings, netPrintings } = wishRuleTargets(rule, listKind, ctx);
     for (const [key, target] of targets) {
       const acc = byKey.get(key) ?? { plain: 0, net: 0 };
       if (rule.netOwned) {
@@ -287,8 +316,11 @@ function combineWishRules(
       const printings = matchedPrintings.get(key);
       if (printings) {
         unionInto(acceptableByKey, key, printings);
-        if (rule.netOwned) {
-          unionInto(netPoolByKey, key, printings);
+      }
+      if (rule.netOwned) {
+        const pool = netPrintings.get(key);
+        if (pool) {
+          unionInto(netPoolByKey, key, pool);
         }
       }
     }

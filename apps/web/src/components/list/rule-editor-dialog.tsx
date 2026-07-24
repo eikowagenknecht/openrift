@@ -521,6 +521,7 @@ function RuleFields({
   const setKeepPerCard = useRuleEditorStore((state) => state.setKeepPerCard);
   const setKeepPer = useRuleEditorStore((state) => state.setKeepPer);
   const setNetOwned = useRuleEditorStore((state) => state.setNetOwned);
+  const setCountSpecialVersions = useRuleEditorStore((state) => state.setCountSpecialVersions);
   const setCollectionIds = useRuleEditorStore((state) => state.setCollectionIds);
 
   if (!rule) {
@@ -601,6 +602,19 @@ function RuleFields({
             aria-label="Only what I'm missing"
             checked={rule.netOwned}
             onCheckedChange={(next) => setNetOwned(index, next)}
+          />
+        </FilterRow>
+      )}
+
+      {!isTrade && kind === "card" && rule.netOwned && rule.filter.isStandard === true && (
+        <FilterRow
+          label="Count special versions"
+          hint="Alt arts, foils, signed and promo copies you own also fill the missing count. The list still only asks for standard printings."
+        >
+          <Switch
+            aria-label="Count special versions"
+            checked={rule.countSpecialVersions}
+            onCheckedChange={(next) => setCountSpecialVersions(index, next)}
           />
         </FilterRow>
       )}
