@@ -94,7 +94,7 @@ function ProductsIndexPage() {
       </PageTopBarSticky>
       <div className="px-safe mx-auto w-full max-w-4xl pt-3 pb-6">
         <PageDescription className="pb-4">
-          Full card lists for the official Riftbound products catalogued so far.
+          Full card lists for official Riftbound products.
         </PageDescription>
         {products.length === 0 ? (
           <ProductsEmptyState />

@@ -6,8 +6,7 @@ import { productsListQueryOptions } from "@/hooks/use-products";
 import { collectionPageJsonLd, seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 
-const PRODUCTS_DESCRIPTION =
-  "Full card lists for the official Riftbound products catalogued so far.";
+const PRODUCTS_DESCRIPTION = "Full card lists for official Riftbound products.";
 
 export const Route = createFileRoute("/_app/products")({
   head: ({ loaderData }) => {
