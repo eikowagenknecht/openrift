@@ -72,6 +72,7 @@ function makeMatch(): AggregatedMatch {
     rarityLabel: "Common",
     finishLabel: "Foil",
     domains: ["fury"],
+    printing: null,
     availableCount: 1,
   };
 }

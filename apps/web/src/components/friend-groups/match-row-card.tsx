@@ -4,12 +4,14 @@ import type {
   FriendGroupMatchRow,
   Marketplace,
   MarketplaceInfo,
+  Printing,
 } from "@openrift/shared";
 import { legendDisplayName } from "@openrift/shared";
 import { ChevronRightIcon } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
+import { PrintingHoverPreview } from "@/components/cards/printing-hover-preview";
 import { MatchPreferenceCell } from "@/components/trade-preferences/match-preference-cell";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -151,6 +153,8 @@ interface ResolvedMatchRow extends FriendGroupMatchRow {
   finishLabel: string;
   /** The card's domains, used to tint the art-less thumbnail placeholder. */
   domains: string[];
+  /** The full catalog printing, for the hover preview. Null when unknown. */
+  printing: Printing | null;
 }
 
 /**
@@ -183,15 +187,17 @@ function resolveMatchRows(
   return rows.map((row) => {
     const card = cardsById[row.cardId];
     const set = setsById.get(row.setId);
+    const printing = printingsById[row.printingId] ?? null;
     return {
       ...row,
       cardName: card ? legendDisplayName(card) : row.cardName,
       cardSlug: card?.slug ?? row.cardId,
-      shortCode: printingsById[row.printingId]?.shortCode ?? "",
+      shortCode: printing?.shortCode ?? "",
       setName: set?.name ?? row.setId,
       rarityLabel: labels.rarities[row.rarity] ?? row.rarity,
       finishLabel: labels.finishes[row.finish] ?? row.finish,
       domains: card?.domains ?? [],
+      printing,
     };
   });
 }
@@ -266,6 +272,11 @@ function MatchRow({
   liveTrade?: CardTradeResponse;
 }) {
   const incoming = match.direction === "incoming";
+  // Large card preview beside the row on hover (mouse only), anchored to the row
+  // so it floats out to whichever side has room — the same interaction as the
+  // deck builder's list. Touch has no hover, so nothing changes there.
+  const rowRef = useRef<HTMLDivElement>(null);
+  const [previewing, setPreviewing] = useState(false);
   // sellPref is always the seller's side, buyPref the buyer's. When the card
   // comes to you the counterparty is the seller (sellPref = their ask); when it
   // goes to them they're the buyer (buyPref = their offer).
@@ -283,7 +294,12 @@ function MatchRow({
     // On phones the row stacks: the card identity (with price hint + member
     // chip) sits on top, and the action drops to its own right-aligned bar
     // below. From sm up both groups dissolve (sm:contents) back into one row.
-    <div className="group hover:bg-muted flex flex-col gap-2 rounded-md border border-dashed p-2 transition-colors sm:flex-row sm:items-center sm:gap-3">
+    <div
+      ref={rowRef}
+      onMouseEnter={() => setPreviewing(true)}
+      onMouseLeave={() => setPreviewing(false)}
+      className="group hover:bg-muted flex flex-col gap-2 rounded-md border border-dashed p-2 transition-colors sm:flex-row sm:items-center sm:gap-3"
+    >
       {/* Identity: on phones its own top row (arrow + art + name/meta); from sm
           up the wrapper dissolves (sm:contents) so it flows into the inline row. */}
       <div className="flex min-w-0 items-center gap-3 sm:contents">
@@ -349,6 +365,10 @@ function MatchRow({
 
         <MatchRowTradeAction match={match} groupSlug={groupSlug} liveTrade={liveTrade} />
       </div>
+
+      {previewing && match.printing ? (
+        <PrintingHoverPreview printing={match.printing} anchorRef={rowRef} />
+      ) : null}
     </div>
   );
 }

@@ -9,6 +9,7 @@
 ### Other
 
 - feat(Collection): **Keep rules per printing** — tradelist keep rules can now count per printing instead of per card, so each printing keeps its own playset.
+- feat(Trades): **Preview cards on hover** — hovering a trade suggestion now shows a large card image beside the list, like the deck builder.
 - feat(Collection): **Search the move dialogs** — moving cards to a collection or entries to another list now offers a filter box, so the target is quick to find.
 - fix(Collection): **Promos kept over plain foils** — tradelist keep rules now treat stamped printings (promos) as nicer than unmarked ones, so they stay in the keep pile instead of the offer pile.
 - feat(Collection): **Marker and channel filters everywhere** — collections, shared collections, and lists now offer the promo marker and distribution channel filters known from the card browser.
