@@ -1,5 +1,7 @@
 import type { ProductCoverCard, ProductSet, ProductSummary } from "@openrift/shared/contracts";
 import { Link, createLazyFileRoute } from "@tanstack/react-router";
+import { PlusIcon } from "lucide-react";
+import { useState } from "react";
 
 import { CardFan, CardFanOutline } from "@/components/cards/card-fan";
 import { CoverBand } from "@/components/cover-band";
@@ -10,9 +12,11 @@ import {
   PageTopBarSticky,
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
+import { ProductAddDialog } from "@/components/products/product-add-dialog";
 import { Button } from "@/components/ui/button";
 import { CardLink } from "@/components/ui/card-link";
 import { useProductsList } from "@/hooks/use-products";
+import { useSession } from "@/lib/auth-session";
 import { groupProductsBySet } from "@/lib/group-products-by-set";
 import { markdownTeaser } from "@/lib/markdown-teaser";
 import { formatProductCounts } from "@/lib/product-counts";
@@ -96,12 +100,32 @@ function ProductGroupHeading({ set }: { set: ProductSet | null }) {
   );
 }
 
-function ProductGrid({ products }: { products: ProductSummary[] }) {
+function ProductGrid({
+  products,
+  onAdd,
+}: {
+  products: ProductSummary[];
+  /** Renders a quick-add overlay per tile when set (viewer is signed in). */
+  onAdd?: (product: ProductSummary) => void;
+}) {
   return (
     <ul className="grid gap-4 sm:grid-cols-2">
       {products.map((product) => (
-        <li key={product.id}>
+        // relative hosts the quick-add overlay as a sibling of the tile
+        // link, so the button never nests inside the anchor.
+        <li key={product.id} className="relative">
           <ProductTile product={product} />
+          {onAdd && (
+            <Button
+              variant="secondary"
+              size="icon-sm"
+              className="absolute top-2 right-2 shadow-sm"
+              aria-label={`Add ${product.name} to a collection`}
+              onClick={() => onAdd(product)}
+            >
+              <PlusIcon />
+            </Button>
+          )}
         </li>
       ))}
     </ul>
@@ -115,6 +139,18 @@ function ProductsIndexPage() {
   // With no sets assigned anywhere there is only the null group — render it
   // as a flat grid instead of a lone "Other products" section.
   const showHeadings = groups.some((group) => group.set !== null);
+  const { data: session } = useSession();
+  const isLoggedIn = Boolean(session?.user);
+  // The dialog keeps the last-picked product while closing so the exit
+  // animation doesn't run on an empty shell.
+  const [addProduct, setAddProduct] = useState<ProductSummary | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const handleAdd = isLoggedIn
+    ? (product: ProductSummary) => {
+        setAddProduct(product);
+        setAddOpen(true);
+      }
+    : undefined;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -133,11 +169,19 @@ function ProductsIndexPage() {
           groups.map((group, index) => (
             <section key={group.key} className={index > 0 ? "mt-8" : undefined}>
               {showHeadings && <ProductGroupHeading set={group.set} />}
-              <ProductGrid products={group.products} />
+              <ProductGrid products={group.products} onAdd={handleAdd} />
             </section>
           ))
         )}
       </div>
+      {addProduct && (
+        <ProductAddDialog
+          open={addOpen}
+          onOpenChange={setAddOpen}
+          productSlug={addProduct.slug}
+          productName={addProduct.name}
+        />
+      )}
     </div>
   );
 }

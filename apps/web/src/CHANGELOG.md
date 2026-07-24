@@ -4,6 +4,7 @@
 
 ### Highlights
 
+- feat(Products): **Add a product to your collection** — one click on a product page (or the plus on the products list) puts the full card list into a collection of your choice.
 - feat(Collection): **Special versions count as owned** — wishlist rules gain a "Count special versions" switch: alt arts, foils, signed and promo copies fill the missing count, while the list keeps asking only for printings matching the filter.
 - feat(Trades): **Condition and notes on suggestions** — trade suggestions now show the offered copies' condition (or grade) and public notes, so you know what you'd get before requesting.
 

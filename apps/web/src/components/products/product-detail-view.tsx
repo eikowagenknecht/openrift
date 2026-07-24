@@ -16,12 +16,15 @@ import { StaticCountTableActions } from "@/components/cards/static-count-table-a
 import {
   PAGE_TOP_BAR_STICKY,
   PageTopBar,
+  PageTopBarActions,
   PageTopBarBack,
   PageTopBarHeightContext,
+  PageTopBarPrimaryButton,
   PageTopBarTitle,
   useMeasuredHeight,
 } from "@/components/layout/page-top-bar";
 import { MarkdownText } from "@/components/markdown-text";
+import { ProductAddDialog } from "@/components/products/product-add-dialog";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { useCardData } from "@/hooks/use-card-data";
@@ -80,14 +83,19 @@ interface ProductDetailViewProps {
 /**
  * Public product page (ADR-015): a read-only card-browser surface over the
  * product's fixed printing set. No add strips — browsing a product never
- * touches collections.
+ * touches collections. The one deliberate write path is the top-bar
+ * "Add to collection" action, which bulk-adds the product's contents via
+ * an explicit confirm dialog.
  *
  * @returns The product page node.
  */
 export function ProductDetailView({ data, search }: ProductDetailViewProps) {
   const [topBarSlot, setTopBarSlot] = useState<HTMLDivElement | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
   const topBarHeight = useMeasuredHeight(topBarSlot);
   const hydrated = useHydrated();
+  const { data: session } = useSession();
+  const isLoggedIn = Boolean(session?.user);
   const { product } = data;
 
   return (
@@ -109,8 +117,21 @@ export function ProductDetailView({ data, search }: ProductDetailViewProps) {
                   )}
                 </span>
               </div>
+              {isLoggedIn && (
+                <PageTopBarActions>
+                  <PageTopBarPrimaryButton onClick={() => setAddOpen(true)}>
+                    Add to collection
+                  </PageTopBarPrimaryButton>
+                </PageTopBarActions>
+              )}
             </PageTopBar>
           </div>
+          <ProductAddDialog
+            open={addOpen}
+            onOpenChange={setAddOpen}
+            productSlug={product.slug}
+            productName={product.name}
+          />
           <div className="flex min-w-0 flex-1 flex-col px-3 pb-3">
             {product.description ? (
               <MarkdownText text={product.description} className="text-muted-foreground py-3" />

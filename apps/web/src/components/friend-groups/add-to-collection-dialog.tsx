@@ -1,8 +1,10 @@
-import { PlusSquareIcon } from "lucide-react";
 import { Suspense, useState } from "react";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
+import {
+  CollectionRadioPicker,
+  NEW_COLLECTION_OPTION,
+} from "@/components/collection/collection-radio-picker";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,13 +16,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { DialogForm } from "@/components/ui/dialog-form";
-import { Input } from "@/components/ui/input";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useApplyTradeSync } from "@/hooks/use-card-trades";
 import { useCollections, useCreateCollection } from "@/hooks/use-collections";
-
-/** Sentinel for the "create a new collection" radio option. */
-const NEW_COLLECTION = "__new__";
 
 interface AddToCollectionDialogProps {
   open: boolean;
@@ -91,7 +88,7 @@ function AddToCollectionBody({
 
   const inbox = collections.find((collection) => collection.isInbox);
   const [selectedId, setSelectedId] = useState<string>(
-    () => inbox?.id ?? collections[0]?.id ?? NEW_COLLECTION,
+    () => inbox?.id ?? collections[0]?.id ?? NEW_COLLECTION_OPTION,
   );
   const [newName, setNewName] = useState("Collection");
 
@@ -99,7 +96,7 @@ function AddToCollectionBody({
     const newCollectionName = newName.trim() || "Collection";
     try {
       let targetCollectionId: string;
-      if (selectedId === NEW_COLLECTION) {
+      if (selectedId === NEW_COLLECTION_OPTION) {
         const created = await createCollection.mutateAsync({
           name: newCollectionName,
         });
@@ -124,58 +121,22 @@ function AddToCollectionBody({
         </DialogDescription>
       </DialogHeader>
 
-      <RadioGroup value={selectedId} onValueChange={(value) => setSelectedId(String(value))}>
-        {collections.map((collection) => {
-          const inputId = `add-collection-${collection.id}`;
-          return (
-            <label
-              key={collection.id}
-              htmlFor={inputId}
-              className="hover:bg-muted/50 flex cursor-pointer items-center gap-3 rounded-md px-2 py-2"
-            >
-              <RadioGroupItem id={inputId} value={collection.id} />
-              <span className="min-w-0 flex-1 truncate font-medium">{collection.name}</span>
-              {collection.isInbox ? (
-                <Badge variant="secondary" className="shrink-0">
-                  Inbox
-                </Badge>
-              ) : null}
-              {collection.groupName ? (
-                // Group-shared: adding here makes the card visible to that group.
-                <Badge variant="outline" className="max-w-32 shrink-0 truncate">
-                  {collection.groupName}
-                </Badge>
-              ) : null}
-              <span className="text-muted-foreground shrink-0 text-xs">
-                {collection.copyCount} {collection.copyCount === 1 ? "card" : "cards"}
-              </span>
-            </label>
-          );
-        })}
-        <label
-          htmlFor="add-collection-new"
-          className="hover:bg-muted/50 flex cursor-pointer items-center gap-3 rounded-md px-2 py-2"
-        >
-          <RadioGroupItem id="add-collection-new" value={NEW_COLLECTION} />
-          <span className="flex-1 font-medium">New collection</span>
-          <PlusSquareIcon className="text-muted-foreground size-4 shrink-0" />
-        </label>
-      </RadioGroup>
-
-      {selectedId === NEW_COLLECTION ? (
-        <Input
-          value={newName}
-          onChange={(event) => setNewName(event.target.value)}
-          placeholder="Collection name"
-          aria-label="New collection name"
-        />
-      ) : null}
+      <CollectionRadioPicker
+        collections={collections}
+        selectedId={selectedId}
+        onSelectedIdChange={setSelectedId}
+        newName={newName}
+        onNewNameChange={setNewName}
+        idPrefix="add-collection"
+      />
 
       <DialogFooter>
         <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
         <Button
           type="submit"
-          disabled={pending || (selectedId === NEW_COLLECTION && newName.trim().length === 0)}
+          disabled={
+            pending || (selectedId === NEW_COLLECTION_OPTION && newName.trim().length === 0)
+          }
         >
           Add to collection
         </Button>
