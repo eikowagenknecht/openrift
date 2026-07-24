@@ -8,7 +8,7 @@ import { emptyDraft } from "@/stores/rule-editor-store";
  * static definitions, so anything DB-driven (set slugs) arrives here at
  * apply time.
  */
-export interface RulePresetContext {
+interface RulePresetContext {
   /** The user's preferred languages; seeds each rule's language facet like a blank rule. */
   languages?: string[];
   /** Slugs of the catalog's main (non-supplemental) sets, for set-scoped presets. */
