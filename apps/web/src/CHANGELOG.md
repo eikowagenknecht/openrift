@@ -15,6 +15,10 @@
 
 - feat(Collection): **Rule presets for lists** — the rule editor now offers common setups like "one of everything" or "keep a playset, trade the rest" as one-click starting points.
 
+### Other
+
+- fix(Collection): **Rule counts say "missing"** — with "Only what I'm missing" on, the rule editor labels its counts as missing instead of matches, since owned copies shrink that number.
+
 ## 2026-07-23
 
 ### Highlights

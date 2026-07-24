@@ -432,6 +432,10 @@ function WishRuleEditor({ kind }: { kind: ListKind }) {
       ? expandList(kind, [], evaluateListRules(serialized, kind, ctx, ruleCombine)).length
       : null;
 
+  // With every rule netting owned copies, the combined figure is a shortfall,
+  // not a match count — label it as such (mixed rules keep the neutral phrasing).
+  const allNet = rules.every((rule) => rule.netOwned);
+
   return (
     <RuleList
       kind={kind}
@@ -442,7 +446,8 @@ function WishRuleEditor({ kind }: { kind: ListKind }) {
       footer={
         rules.length >= 2 && previewCount !== null ? (
           <p className="text-muted-foreground -mt-1 text-sm">
-            Combined, that&apos;s {matchLabel(previewCount, kind)} right now.
+            Combined, {allNet ? "you're still missing" : "that's"} {matchLabel(previewCount, kind)}{" "}
+            right now.
           </p>
         ) : null
       }
@@ -466,11 +471,28 @@ function matchLabel(count: number, kind: ListKind): string {
 }
 
 /**
+ * The per-rule count phrase next to the rule title. Trade rules offer copies;
+ * a wish rule with "Only what I'm missing" on shows a post-netting shortfall,
+ * so its verb is "missing" rather than "matches" — the number shrinks as owned
+ * copies fill wants, which "matches" would misrepresent.
+ * @returns The verb + count phrase, e.g. "matches 42 cards" / "missing 3 cards".
+ */
+export function ruleCountLabel(
+  count: number,
+  kind: ListKind,
+  { isTrade, netOwned }: { isTrade: boolean; netOwned: boolean },
+): string {
+  const verb = isTrade ? "offers" : netOwned ? "missing" : "matches";
+  return `${verb} ${matchLabel(count, kind)}`;
+}
+
+/**
  * One rule, rendered as a bordered block with a remove button and the full facet
  * editor + quantity control. Shared by the wish and trade editors; `title` is the
  * header label ("Rule 1", "Rule 2", …). `matchCount` shows how many
- * cards/printings a wish rule matches (or copies a trade rule offers) on its
- * own, next to the title.
+ * cards/printings a wish rule matches — or, with "Only what I'm missing" on,
+ * is still missing — on its own (copies offered for a trade rule), next to
+ * the title.
  * @returns The block node.
  */
 function RuleBlock({
@@ -489,6 +511,7 @@ function RuleBlock({
   collectionOptions: { value: string; label: string }[];
 }) {
   const removeRule = useRuleEditorStore((state) => state.removeRule);
+  const netOwned = useRuleEditorStore((state) => state.rules[index]?.netOwned ?? false);
 
   return (
     <div className="border-border flex flex-col gap-3 rounded-lg border p-3">
@@ -497,7 +520,7 @@ function RuleBlock({
           <span className="text-sm font-medium">{title}</span>
           {matchCount !== undefined && (
             <span className="text-muted-foreground text-xs">
-              {isTrade ? "offers" : "matches"} {matchLabel(matchCount, kind)}
+              {ruleCountLabel(matchCount, kind, { isTrade, netOwned })}
             </span>
           )}
         </div>
