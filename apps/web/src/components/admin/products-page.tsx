@@ -9,6 +9,14 @@ import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { PageDescription, PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
 import { Button } from "@/components/ui/button";
 import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@/components/ui/combobox";
+import {
   Dialog,
   DialogContent,
   DialogFooter,
@@ -35,6 +43,7 @@ import {
   useUpdateProduct,
 } from "@/hooks/use-products";
 import { useSets } from "@/hooks/use-sets";
+import { suggestListIdForProduct } from "@/lib/suggest-product-list";
 
 import type { AdminCellSlotProps, AdminColumnDef, AdminDraftSlotProps } from "./admin-table";
 import { AdminTable } from "./admin-table";
@@ -212,6 +221,12 @@ const productColumns: AdminColumnDef<ProductSummary, ProductDraft>[] = [
 
 // ── List picker (shared by create + re-sync dialogs) ─────────────────────────
 
+interface ListPickerItem {
+  value: string;
+  label: string;
+  name: string;
+}
+
 function ListPicker({
   value,
   onChange,
@@ -220,11 +235,14 @@ function ListPicker({
   onChange: (listId: string, listName: string) => void;
 }) {
   const { data: lists } = useLists();
-  const printingLists = lists.filter((list) => list.kind === "printing");
-  const items = printingLists.map((list) => ({
-    value: list.id,
-    label: `${list.name} (${list.entryCount} entries)`,
-  }));
+  const items: ListPickerItem[] = lists
+    .filter((list) => list.kind === "printing")
+    .toSorted((a, b) => a.name.localeCompare(b.name))
+    .map((list) => ({
+      value: list.id,
+      label: `${list.name} (${list.entryCount} entries)`,
+      name: list.name,
+    }));
 
   if (items.length === 0) {
     return (
@@ -234,26 +252,30 @@ function ListPicker({
       </p>
     );
   }
+  const selected = items.find((item) => item.value === value) ?? null;
   return (
-    <Select
+    <Combobox<ListPickerItem>
       items={items}
-      value={value}
-      onValueChange={(next) => {
-        const picked = printingLists.find((list) => list.id === next);
-        onChange(next ?? "", picked?.name ?? "");
-      }}
+      value={selected}
+      onValueChange={(item) => onChange(item?.value ?? "", item?.name ?? "")}
+      itemToStringLabel={(item) => item.label}
     >
-      <SelectTrigger aria-label="Source list" className="w-full">
-        <SelectValue placeholder="Pick one of your printing lists" />
-      </SelectTrigger>
-      <SelectContent>
-        {items.map((item) => (
-          <SelectItem key={item.value} value={item.value}>
-            {item.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+      <ComboboxInput
+        aria-label="Source list"
+        placeholder="Pick one of your printing lists"
+        className="w-full"
+      />
+      <ComboboxContent>
+        <ComboboxEmpty>No matching lists</ComboboxEmpty>
+        <ComboboxList>
+          {(item: ListPickerItem) => (
+            <ComboboxItem key={item.value} value={item}>
+              {item.label}
+            </ComboboxItem>
+          )}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
   );
 }
 
@@ -404,14 +426,28 @@ function ResyncDialog({
   product: ProductSummary | null;
   onOpenChange: (open: boolean) => void;
 }) {
+  const { data: lists } = useLists();
   const [listId, setListId] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // Tracks which product the picker was pre-filled for, so opening the dialog
+  // for a product suggests the list named like it exactly once.
+  const [suggestedFor, setSuggestedFor] = useState<string | null>(null);
   const resyncProduct = useResyncProduct();
+
+  // Adjust state during render (React's alternative to an effect): when the
+  // dialog opens for a new product, pre-select the printing list that looks
+  // like it so the admin usually just confirms.
+  if (product && product.id !== suggestedFor) {
+    setSuggestedFor(product.id);
+    setListId(suggestListIdForProduct(lists, product) ?? "");
+    setError(null);
+  }
 
   const handleOpenChange = (next: boolean) => {
     if (!next) {
       setListId("");
       setError(null);
+      setSuggestedFor(null);
     }
     onOpenChange(next);
   };
