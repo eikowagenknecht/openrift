@@ -29,13 +29,45 @@ describe("rule presets", () => {
     }
   });
 
-  it("seeds the language facet from the given languages, like a blank rule", () => {
+  it("seeds the language facet from the context languages, like a blank rule", () => {
     for (const preset of [...WISH_RULE_PRESETS, ...TRADE_RULE_PRESETS]) {
-      const [draft] = preset.build(["DE", "EN"]);
-      expect(draft?.filter).toEqual({ ...EMPTY_CARD_FILTERS, languages: ["DE", "EN"] });
+      const [draft] = preset.build({ languages: ["DE", "EN"] });
+      expect(draft?.filter.languages).toEqual(["DE", "EN"]);
+      const [blank] = preset.build();
+      expect(blank?.filter.languages).toEqual([]);
+    }
+  });
+
+  it("catalog-wide presets leave every other facet blank", () => {
+    for (const preset of [...WISH_RULE_PRESETS, ...TRADE_RULE_PRESETS]) {
+      if (preset.id === "main-set-playsets") {
+        continue;
+      }
       const [blank] = preset.build();
       expect(blank?.filter).toEqual(EMPTY_CARD_FILTERS);
     }
+  });
+
+  it("main-set playsets scope to the given main sets and count special versions", () => {
+    const preset = WISH_RULE_PRESETS.find((entry) => entry.id === "main-set-playsets");
+    const [draft] = preset?.build({ mainSetSlugs: ["origins", "spirit-blossom"] }) ?? [];
+    expect(draft).toMatchObject({
+      quantity: { mode: "playset", multiplier: 1 },
+      netOwned: true,
+      countSpecialVersions: true,
+    });
+    expect(draft?.filter).toEqual({
+      ...EMPTY_CARD_FILTERS,
+      sets: ["origins", "spirit-blossom"],
+      isStandard: true,
+      artVariantsExclude: ["overnumbered"],
+      typesExclude: ["rune"],
+      superTypesExclude: ["token"],
+    });
+    // Without catalog context the set facet stays empty (= all sets) rather
+    // than crashing — the dialog always passes the slugs in practice.
+    const [bare] = preset?.build() ?? [];
+    expect(bare?.filter.sets).toEqual([]);
   });
 
   it("wish presets want only the shortfall (net owned)", () => {

@@ -16,6 +16,7 @@ import {
   expandList,
   legendDisplayName,
   MAX_LIST_RULES,
+  WellKnown,
 } from "@openrift/shared";
 import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { PlusIcon, Trash2Icon, XIcon } from "lucide-react";
@@ -203,6 +204,11 @@ function RuleList({
   // Seed a new rule's language facet from the user's preferred languages, so a
   // fresh rule starts scoped the way they browse. Still fully editable afterwards.
   const preferredLanguages = useDisplayStore((state) => state.languages);
+  // Set-scoped presets snapshot the catalog's current main sets at apply time.
+  const { sets } = useCards();
+  const mainSetSlugs = sets
+    .filter((set) => set.setType === WellKnown.setType.MAIN)
+    .map((set) => set.slug);
   const presets = isTrade ? TRADE_RULE_PRESETS : WISH_RULE_PRESETS;
 
   return (
@@ -217,7 +223,9 @@ function RuleList({
                 type="button"
                 variant="outline"
                 className="h-auto flex-col items-start gap-0.5 py-2 text-left whitespace-normal"
-                onClick={() => addDrafts(preset.build(preferredLanguages))}
+                onClick={() =>
+                  addDrafts(preset.build({ languages: preferredLanguages, mainSetSlugs }))
+                }
               >
                 <span>{preset.label}</span>
                 <span className="text-muted-foreground font-normal">{preset.description}</span>
