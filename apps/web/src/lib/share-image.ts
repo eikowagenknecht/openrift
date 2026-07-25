@@ -109,8 +109,41 @@ export function collectionShareImageUrl(
  * @returns A promise that resolves once the download has been triggered.
  */
 export async function downloadImageFromUrl(url: string, filename: string): Promise<void> {
-  const response = await fetch(url);
-  await triggerBlobDownload(response, filename);
+  triggerBlobDownload(await fetchImageBlob(url), filename);
+}
+
+/**
+ * Fetches a share image as a blob without downloading it, for callers that
+ * re-wrap the image (e.g. the A4 PDF export).
+ * @returns The image blob.
+ */
+export async function fetchImageBlob(url: string): Promise<Blob> {
+  return await readImageBlob(await fetch(url));
+}
+
+/**
+ * Fetches a from-cards image (`POST`) as a blob without downloading it.
+ * @returns The image blob.
+ */
+export async function fetchImageBlobFromPost(url: string, body: unknown): Promise<Blob> {
+  return await readImageBlob(
+    await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }),
+  );
+}
+
+/**
+ * Unwraps an image response, turning a non-OK status into an error.
+ * @returns The response body as a blob.
+ */
+async function readImageBlob(response: Response): Promise<Blob> {
+  if (!response.ok) {
+    throw new Error(`Image request failed: ${response.status}`);
+  }
+  return await response.blob();
 }
 
 /**
@@ -123,24 +156,13 @@ export async function downloadImageFromPost(
   body: unknown,
   filename: string,
 ): Promise<void> {
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  await triggerBlobDownload(response, filename);
+  triggerBlobDownload(await fetchImageBlobFromPost(url, body), filename);
 }
 
 /**
- * Reads a fetched image response into a blob and triggers a browser download
- * with the given filename via an object URL.
- * @returns A promise that resolves once the download has been triggered.
+ * Triggers a browser download of an image blob via an object URL.
  */
-async function triggerBlobDownload(response: Response, filename: string): Promise<void> {
-  if (!response.ok) {
-    throw new Error(`Image request failed: ${response.status}`);
-  }
-  const blob = await response.blob();
+function triggerBlobDownload(blob: Blob, filename: string): void {
   const objectUrl = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = objectUrl;

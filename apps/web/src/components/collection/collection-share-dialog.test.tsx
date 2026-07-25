@@ -35,6 +35,7 @@ function Harness({ isPublic, shareToken }: { isPublic: boolean; shareToken: stri
   return (
     <CollectionShareDialog
       collectionId="abc"
+      collectionName="Main binder"
       isPublic={isPublic}
       shareToken={shareToken}
       open={open}

@@ -315,6 +315,7 @@ export function ListPage({ listId }: ListPageProps) {
       listId={listId}
       listName={data.list.name}
       kind={data.list.kind}
+      intent={data.list.intent}
       tradeDefaults={data.list.tradeDefaults}
       currency={data.list.currency}
       shareToken={data.list.shareToken}

@@ -3,6 +3,7 @@ import { imageUrl, preferredPrinting, WellKnown } from "@openrift/shared";
 import { jsPDF } from "jspdf";
 
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
+import { loadLogoDataUrl } from "@/lib/pdf-logo";
 
 export type ProxyPageSize = "a4" | "letter";
 export type ProxyRenderMode = "image" | "text";
@@ -212,36 +213,6 @@ export async function prerenderImageCards(
   }
 
   return rendered;
-}
-
-/**
- * Loads the OpenRift logo as a PNG data URL for embedding in the PDF.
- * @returns PNG data URL of the logo.
- */
-let cachedLogoDataUrl: string | null = null;
-async function loadLogoDataUrl(): Promise<string> {
-  if (cachedLogoDataUrl) {
-    return cachedLogoDataUrl;
-  }
-
-  // oxlint-disable-next-line promise/avoid-new -- wrapping callback-based Image loading API
-  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-    const image = new Image();
-    image.addEventListener("load", () => resolve(image));
-    image.addEventListener("error", reject);
-    image.src = "/logo-color.svg";
-  });
-
-  const canvas = document.createElement("canvas");
-  canvas.width = 512;
-  canvas.height = 512;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) {
-    throw new Error("Failed to get canvas 2d context");
-  }
-  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-  cachedLogoDataUrl = canvas.toDataURL("image/png");
-  return cachedLogoDataUrl;
 }
 
 /**

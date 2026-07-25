@@ -3,12 +3,15 @@ import {
   CopyIcon,
   ImageDownIcon,
   LinkIcon,
+  PrinterIcon,
   RefreshCwIcon,
   Trash2Icon,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
+import { BinderSheetDialog } from "@/components/share/binder-sheet-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -26,6 +29,7 @@ import {
   useRotateUserShare,
   useUserShareState,
 } from "@/hooks/use-user-share";
+import { useSession } from "@/lib/auth-session";
 import { bundleShareImageUrl, downloadImageFromUrl } from "@/lib/share-image";
 import { getSiteUrl } from "@/lib/site-config";
 
@@ -44,11 +48,14 @@ interface UserShareDialogProps {
  */
 export function UserShareDialog({ open, onOpenChange }: UserShareDialogProps) {
   const { data, isPending } = useUserShareState();
+  const { data: session } = useSession();
   const enableShare = useEnableUserShare();
   const disableShare = useDisableUserShare();
   const rotateShare = useRotateUserShare();
   const [justCopied, setJustCopied] = useState(false);
   const [downloadingImage, setDownloadingImage] = useState(false);
+  const [binderSheetOpen, setBinderSheetOpen] = useState(false);
+  const [confirmRotateOpen, setConfirmRotateOpen] = useState(false);
 
   const shareToken = data?.shareToken ?? null;
   const shareUrl = shareToken ? `${getSiteUrl()}/users/share/${shareToken}` : null;
@@ -86,79 +93,126 @@ export function UserShareDialog({ open, onOpenChange }: UserShareDialogProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Share all your lists</DialogTitle>
-          <DialogDescription>
-            {sharing
-              ? "Anyone with this link can view every wishlist and tradelist you have. Organize lists stay private."
-              : "Create one link that shows all your wishlists and tradelists. New lists you create will appear automatically."}
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Share all your lists</DialogTitle>
+            <DialogDescription>
+              {sharing
+                ? "Anyone with this link can view every wishlist and tradelist you have. Organize lists stay private."
+                : "Create one link that shows all your wishlists and tradelists. New lists you create will appear automatically."}
+            </DialogDescription>
+          </DialogHeader>
 
-        {isPending ? (
-          <Skeleton className="h-10 w-full" />
-        ) : sharing && shareUrl ? (
-          <div className="flex items-center gap-2">
-            <Input value={shareUrl} readOnly onFocus={(event) => event.currentTarget.select()} />
-            <Button variant="outline" onClick={handleCopy}>
-              {justCopied ? <CheckIcon /> : <CopyIcon />}
-              {justCopied ? "Copied" : "Copy"}
-            </Button>
-          </div>
-        ) : null}
-
-        {sharing && shareUrl ? (
-          <div className="flex flex-col gap-2 border-t pt-4">
-            <div>
-              <h3 className="font-medium">Post to a chat</h3>
-              <p className="text-muted-foreground text-sm">
-                Share a card image of all your lists in WhatsApp, Discord, or any group chat.
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              className="self-start"
-              onClick={handleDownloadImage}
-              disabled={downloadingImage}
-            >
-              <ImageDownIcon />
-              {downloadingImage ? "Preparing…" : "Download image"}
-            </Button>
-          </div>
-        ) : null}
-
-        {!isPending && (
-          <DialogFooter className="gap-2">
-            {sharing ? (
-              <>
-                <Button
-                  variant="outline"
-                  onClick={() => rotateShare.mutate()}
-                  disabled={rotateShare.isPending}
-                >
-                  <RefreshCwIcon />
-                  Reset link
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={() => disableShare.mutate()}
-                  disabled={disableShare.isPending}
-                >
-                  <Trash2Icon />
-                  Stop sharing
-                </Button>
-              </>
-            ) : (
-              <Button onClick={() => enableShare.mutate()} disabled={enableShare.isPending}>
-                <LinkIcon />
-                Create link
+          {isPending ? (
+            <Skeleton className="h-10 w-full" />
+          ) : sharing && shareUrl ? (
+            <div className="flex items-center gap-2">
+              <Input value={shareUrl} readOnly onFocus={(event) => event.currentTarget.select()} />
+              <Button variant="outline" onClick={handleCopy}>
+                {justCopied ? <CheckIcon /> : <CopyIcon />}
+                {justCopied ? "Copied" : "Copy"}
               </Button>
-            )}
-          </DialogFooter>
-        )}
-      </DialogContent>
-    </Dialog>
+            </div>
+          ) : null}
+
+          {sharing && shareUrl ? (
+            <div className="flex flex-col gap-2 border-t pt-4">
+              <div>
+                <h3 className="font-medium">Post to a chat</h3>
+                <p className="text-muted-foreground text-sm">
+                  Share a card image of all your lists in WhatsApp, Discord, or any group chat.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                className="self-start"
+                onClick={handleDownloadImage}
+                disabled={downloadingImage}
+              >
+                <ImageDownIcon />
+                {downloadingImage ? "Preparing…" : "Download image"}
+              </Button>
+            </div>
+          ) : null}
+
+          {sharing && shareUrl ? (
+            <div className="flex flex-col gap-2 border-t pt-4">
+              <div>
+                <h3 className="font-medium">Print for your binder</h3>
+                <p className="text-muted-foreground text-sm">
+                  A QR sheet at true card or binder-page size, so trade partners can scan your lists
+                  straight out of your binder.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                className="self-start"
+                onClick={() => setBinderSheetOpen(true)}
+              >
+                <PrinterIcon />
+                Create PDF
+              </Button>
+            </div>
+          ) : null}
+
+          {!isPending && (
+            <DialogFooter className="gap-2">
+              {sharing ? (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => setConfirmRotateOpen(true)}
+                    disabled={rotateShare.isPending}
+                  >
+                    <RefreshCwIcon />
+                    Reset link
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => disableShare.mutate()}
+                    disabled={disableShare.isPending}
+                  >
+                    <Trash2Icon />
+                    Stop sharing
+                  </Button>
+                </>
+              ) : (
+                <Button onClick={() => enableShare.mutate()} disabled={enableShare.isPending}>
+                  <LinkIcon />
+                  Create link
+                </Button>
+              )}
+            </DialogFooter>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {shareUrl ? (
+        <BinderSheetDialog
+          open={binderSheetOpen}
+          onOpenChange={setBinderSheetOpen}
+          shareUrl={shareUrl}
+          defaultTitle={session?.user?.name ?? "My lists"}
+          defaultSubtitle="Scan to see my wish & tradelists"
+          filenameHint="my-lists"
+        />
+      ) : null}
+
+      <ConfirmActionDialog
+        open={confirmRotateOpen}
+        onOpenChange={setConfirmRotateOpen}
+        title="Reset your share link?"
+        description="The old link stops working immediately. Anything printed with the old link, like a binder QR sheet, stops working too and needs reprinting."
+        confirmLabel="Reset link"
+        pendingLabel="Resetting…"
+        isPending={rotateShare.isPending}
+        onConfirm={() => {
+          rotateShare.mutate();
+          setConfirmRotateOpen(false);
+        }}
+      />
+    </>
   );
 }

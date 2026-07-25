@@ -1311,6 +1311,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           open={shareOpen}
           onOpenChange={setShareOpen}
           collectionId={currentCollection.id}
+          collectionName={currentCollection.name}
           isPublic={currentCollection.isPublic}
           shareToken={currentCollection.shareToken}
         />

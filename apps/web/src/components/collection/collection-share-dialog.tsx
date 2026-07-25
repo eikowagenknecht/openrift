@@ -1,6 +1,7 @@
-import { CheckIcon, CopyIcon, LinkIcon, Trash2Icon } from "lucide-react";
+import { CheckIcon, CopyIcon, LinkIcon, PrinterIcon, Trash2Icon } from "lucide-react";
 import { Suspense, useState } from "react";
 
+import { BinderSheetDialog } from "@/components/share/binder-sheet-dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -24,6 +25,8 @@ import { getSiteUrl } from "@/lib/site-config";
 
 interface CollectionShareDialogProps {
   collectionId: string;
+  /** Prefills the binder sheet's title. */
+  collectionName: string;
   isPublic: boolean;
   shareToken: string | null;
   open: boolean;
@@ -32,6 +35,7 @@ interface CollectionShareDialogProps {
 
 export function CollectionShareDialog({
   collectionId,
+  collectionName,
   isPublic,
   shareToken,
   open,
@@ -40,6 +44,7 @@ export function CollectionShareDialog({
   const shareCollection = useShareCollection();
   const unshareCollection = useUnshareCollection();
   const [justCopied, setJustCopied] = useState(false);
+  const [binderSheetOpen, setBinderSheetOpen] = useState(false);
 
   const shareUrl = shareToken ? `${getSiteUrl()}/collections/share/${shareToken}` : null;
   const sharing = isPublic && shareToken !== null;
@@ -68,52 +73,89 @@ export function CollectionShareDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogForm onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>Share collection</DialogTitle>
-            <DialogDescription>
-              {sharing
-                ? "Anyone with this link can view this collection, including the card list and its total value."
-                : "Create a link to share this collection. Anyone with the link will be able to view it without signing in."}
-            </DialogDescription>
-          </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent>
+          <DialogForm onSubmit={handleSubmit}>
+            <DialogHeader>
+              <DialogTitle>Share collection</DialogTitle>
+              <DialogDescription>
+                {sharing
+                  ? "Anyone with this link can view this collection, including the card list and its total value."
+                  : "Create a link to share this collection. Anyone with the link will be able to view it without signing in."}
+              </DialogDescription>
+            </DialogHeader>
 
-          {sharing && shareUrl ? (
-            <div className="flex items-center gap-2">
-              <Input value={shareUrl} readOnly onFocus={(event) => event.currentTarget.select()} />
-              <Button variant="outline" onClick={handleCopy}>
-                {justCopied ? <CheckIcon /> : <CopyIcon />}
-                {justCopied ? "Copied" : "Copy"}
-              </Button>
-            </div>
-          ) : null}
+            {sharing && shareUrl ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  value={shareUrl}
+                  readOnly
+                  onFocus={(event) => event.currentTarget.select()}
+                />
+                <Button variant="outline" onClick={handleCopy}>
+                  {justCopied ? <CheckIcon /> : <CopyIcon />}
+                  {justCopied ? "Copied" : "Copy"}
+                </Button>
+              </div>
+            ) : null}
 
-          <Suspense fallback={null}>
-            <CollectionGroupShareSection collectionId={collectionId} />
-          </Suspense>
+            {sharing && shareUrl ? (
+              <div className="flex flex-col gap-2 border-t pt-4">
+                <div>
+                  <h3 className="font-medium">Print for your binder</h3>
+                  <p className="text-muted-foreground text-sm">
+                    A QR sheet at true card or binder-page size, so anyone can scan this collection
+                    straight out of your binder.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  className="self-start"
+                  onClick={() => setBinderSheetOpen(true)}
+                >
+                  <PrinterIcon />
+                  Create PDF
+                </Button>
+              </div>
+            ) : null}
 
-          <DialogFooter>
-            {sharing ? (
-              <Button
-                variant="destructive"
-                onClick={() => unshareCollection.mutate(collectionId)}
-                disabled={unshareCollection.isPending}
-              >
-                <Trash2Icon />
-                Stop sharing
-              </Button>
-            ) : (
-              <Button type="submit" disabled={shareCollection.isPending}>
-                <LinkIcon />
-                Create link
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogForm>
-      </DialogContent>
-    </Dialog>
+            <Suspense fallback={null}>
+              <CollectionGroupShareSection collectionId={collectionId} />
+            </Suspense>
+
+            <DialogFooter>
+              {sharing ? (
+                <Button
+                  variant="destructive"
+                  onClick={() => unshareCollection.mutate(collectionId)}
+                  disabled={unshareCollection.isPending}
+                >
+                  <Trash2Icon />
+                  Stop sharing
+                </Button>
+              ) : (
+                <Button type="submit" disabled={shareCollection.isPending}>
+                  <LinkIcon />
+                  Create link
+                </Button>
+              )}
+            </DialogFooter>
+          </DialogForm>
+        </DialogContent>
+      </Dialog>
+
+      {shareUrl ? (
+        <BinderSheetDialog
+          open={binderSheetOpen}
+          onOpenChange={setBinderSheetOpen}
+          shareUrl={shareUrl}
+          defaultTitle={collectionName}
+          defaultSubtitle="Scan to see my collection"
+          filenameHint={collectionName}
+        />
+      ) : null}
+    </>
   );
 }
 

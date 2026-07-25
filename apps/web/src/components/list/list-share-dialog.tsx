@@ -1,14 +1,23 @@
 import type {
   Currency,
   ListEntryDetailResponse,
+  ListIntent,
   ListKind,
   TradePreference,
 } from "@openrift/shared";
 import { useQueryClient } from "@tanstack/react-query";
-import { CheckIcon, CopyIcon, ImageDownIcon, LinkIcon, Trash2Icon } from "lucide-react";
+import {
+  CheckIcon,
+  CopyIcon,
+  ImageDownIcon,
+  LinkIcon,
+  PrinterIcon,
+  Trash2Icon,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { BinderSheetDialog } from "@/components/share/binder-sheet-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -29,6 +38,8 @@ interface ListShareDialogProps {
   listId: string;
   listName: string;
   kind: ListKind;
+  /** Drives the binder sheet's prefilled instruction line (wishlist vs trades). */
+  intent: ListIntent;
   tradeDefaults: TradePreference;
   currency: Currency | null;
   shareToken: string | null;
@@ -40,10 +51,17 @@ interface ListShareDialogProps {
   onManageGroups: () => void;
 }
 
+const BINDER_SUBTITLES: Record<ListIntent, string> = {
+  wish: "Scan to see my wishlist",
+  trade: "Scan to see my trades",
+  organize: "Scan to see this list",
+};
+
 export function ListShareDialog({
   listId,
   listName,
   kind,
+  intent,
   tradeDefaults,
   currency,
   shareToken,
@@ -59,6 +77,7 @@ export function ListShareDialog({
   const [justCopied, setJustCopied] = useState(false);
   const [copiedText, setCopiedText] = useState(false);
   const [downloadingImage, setDownloadingImage] = useState(false);
+  const [binderSheetOpen, setBinderSheetOpen] = useState(false);
 
   const shareUrl = shareToken ? `${getSiteUrl()}/lists/share/${shareToken}` : null;
   const sharing = shareToken !== null;
@@ -127,73 +146,106 @@ export function ListShareDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Share list</DialogTitle>
-          <DialogDescription>
-            {sharing
-              ? "Anyone with this link can view the cards on this list."
-              : "Create a link to share this list. Anyone with the link will be able to view it without signing in."}
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Share list</DialogTitle>
+            <DialogDescription>
+              {sharing
+                ? "Anyone with this link can view the cards on this list."
+                : "Create a link to share this list. Anyone with the link will be able to view it without signing in."}
+            </DialogDescription>
+          </DialogHeader>
 
-        {sharing && shareUrl ? (
-          <div className="flex items-center gap-2">
-            <Input value={shareUrl} readOnly onFocus={(event) => event.currentTarget.select()} />
-            <Button variant="outline" onClick={handleCopy}>
-              {justCopied ? <CheckIcon /> : <CopyIcon />}
-              {justCopied ? "Copied" : "Copy"}
-            </Button>
+          {sharing && shareUrl ? (
+            <div className="flex items-center gap-2">
+              <Input value={shareUrl} readOnly onFocus={(event) => event.currentTarget.select()} />
+              <Button variant="outline" onClick={handleCopy}>
+                {justCopied ? <CheckIcon /> : <CopyIcon />}
+                {justCopied ? "Copied" : "Copy"}
+              </Button>
+            </div>
+          ) : null}
+
+          <div className="flex flex-col gap-2 border-t pt-4">
+            <div>
+              <h3 className="font-medium">Post to a chat</h3>
+              <p className="text-muted-foreground text-sm">
+                Drop a card image or a text list straight into WhatsApp, Discord, or any group chat.
+                {sharing ? "" : " The text uses no link until you create one above."}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleCopyText}>
+                {copiedText ? <CheckIcon /> : <CopyIcon />}
+                {copiedText ? "Copied" : "Copy text"}
+              </Button>
+              <Button variant="outline" onClick={handleDownloadImage} disabled={downloadingImage}>
+                <ImageDownIcon />
+                {downloadingImage ? "Preparing…" : "Download image"}
+              </Button>
+            </div>
           </div>
-        ) : null}
 
-        <div className="flex flex-col gap-2 border-t pt-4">
-          <div>
-            <h3 className="font-medium">Post to a chat</h3>
-            <p className="text-muted-foreground text-sm">
-              Drop a card image or a text list straight into WhatsApp, Discord, or any group chat.
-              {sharing ? "" : " The text uses no link until you create one above."}
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handleCopyText}>
-              {copiedText ? <CheckIcon /> : <CopyIcon />}
-              {copiedText ? "Copied" : "Copy text"}
-            </Button>
-            <Button variant="outline" onClick={handleDownloadImage} disabled={downloadingImage}>
-              <ImageDownIcon />
-              {downloadingImage ? "Preparing…" : "Download image"}
-            </Button>
-          </div>
-        </div>
+          {sharing && shareUrl ? (
+            <div className="flex flex-col gap-2 border-t pt-4">
+              <div>
+                <h3 className="font-medium">Print for your binder</h3>
+                <p className="text-muted-foreground text-sm">
+                  A QR sheet at true card or binder-page size, so trade partners can scan this list
+                  straight out of your binder.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                className="self-start"
+                onClick={() => setBinderSheetOpen(true)}
+              >
+                <PrinterIcon />
+                Create PDF
+              </Button>
+            </div>
+          ) : null}
 
-        <p className="text-muted-foreground border-t pt-4 text-sm">
-          Prefer to keep it inside your circle? Set which of your groups can see it in{" "}
-          <Button variant="link" className="h-auto p-0" onClick={onManageGroups}>
-            Group visibility
-          </Button>
-          .
-        </p>
+          <p className="text-muted-foreground border-t pt-4 text-sm">
+            Prefer to keep it inside your circle? Set which of your groups can see it in{" "}
+            <Button variant="link" className="h-auto p-0" onClick={onManageGroups}>
+              Group visibility
+            </Button>
+            .
+          </p>
 
-        <DialogFooter>
-          {sharing ? (
-            <Button
-              variant="destructive"
-              onClick={() => unshareList.mutate(listId)}
-              disabled={unshareList.isPending}
-            >
-              <Trash2Icon />
-              Stop sharing
-            </Button>
-          ) : (
-            <Button onClick={() => shareList.mutate(listId)} disabled={shareList.isPending}>
-              <LinkIcon />
-              Create link
-            </Button>
-          )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <DialogFooter>
+            {sharing ? (
+              <Button
+                variant="destructive"
+                onClick={() => unshareList.mutate(listId)}
+                disabled={unshareList.isPending}
+              >
+                <Trash2Icon />
+                Stop sharing
+              </Button>
+            ) : (
+              <Button onClick={() => shareList.mutate(listId)} disabled={shareList.isPending}>
+                <LinkIcon />
+                Create link
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {shareUrl ? (
+        <BinderSheetDialog
+          open={binderSheetOpen}
+          onOpenChange={setBinderSheetOpen}
+          shareUrl={shareUrl}
+          defaultTitle={listName}
+          defaultSubtitle={BINDER_SUBTITLES[intent]}
+          filenameHint={listName}
+        />
+      ) : null}
+    </>
   );
 }

@@ -34,6 +34,7 @@ function Harness({
         listId="abc"
         listName="Holiday Targets"
         kind="card"
+        intent="wish"
         tradeDefaults={{ pricePref: null, priceAbsoluteCents: null, tradeType: null }}
         currency={null}
         shareToken={shareToken}

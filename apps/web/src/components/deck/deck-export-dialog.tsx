@@ -5,6 +5,7 @@ import {
   FileTextIcon,
   ImageDownIcon,
   Loader2Icon,
+  PrinterIcon,
   Share2Icon,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -37,6 +38,7 @@ import { useEncodeDeckCards, useExportDeck } from "@/hooks/use-decks";
 import { useSession } from "@/lib/auth-session";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { toEncodeDeckCards } from "@/lib/deck-encode-input";
+import { downloadImageAsPdf } from "@/lib/image-pdf";
 import type { RegistrationFields, RegistrationPageSize } from "@/lib/registration-pdf";
 import { generateRegistrationPdf } from "@/lib/registration-pdf";
 import {
@@ -44,6 +46,8 @@ import {
   deckOwnerImageUrl,
   downloadImageFromPost,
   downloadImageFromUrl,
+  fetchImageBlob,
+  fetchImageBlobFromPost,
 } from "@/lib/share-image";
 import { getSiteUrl } from "@/lib/site-config";
 import { isLocalDeckId, useLocalDecksStore } from "@/stores/local-decks-store";
@@ -153,6 +157,7 @@ export function DeckExportDialog({
   );
   const [copied, setCopied] = useState(false);
   const [downloadingImage, setDownloadingImage] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [tab, setTab] = useState<ExportTab>("text");
   const [formats, setFormats] = useState<Partial<Record<ExportFormat, FormatState>>>({});
   const [registrationPageSize, setRegistrationPageSize] = useState<RegistrationPageSize>("a4");
@@ -260,21 +265,25 @@ export function DeckExportDialog({
     setGenerating(false);
   };
 
+  // Local decks have no server row, so the image renders from the current cards
+  // (the server enriches names/art/energy from the posted ids); saved decks
+  // resolve by id through the owner-authenticated route.
+  const localImageBody = () => ({
+    deckName: deckName ?? "",
+    format: localDeckFormat,
+    ownerName: session?.user?.name ?? "",
+    cards: toEncodeDeckCards(cardsProp ?? liveCards),
+  });
+
+  const imageFileName = () => (deckName ?? "deck").replaceAll(/[^\w -]+/gu, "_").trim() || "deck";
+
   const handleDownloadImage = async () => {
     setDownloadingImage(true);
-    const safeName = (deckName ?? "deck").replaceAll(/[^\w -]+/gu, "_").trim() || "deck";
-    // Local decks have no server row, so render from the current cards (the
-    // server enriches names/art/energy from the posted ids); saved decks resolve
-    // by id through the owner-authenticated route.
+    const safeName = imageFileName();
     const download = isLocal
       ? downloadImageFromPost(
           deckImageFromCardsUrl(getSiteUrl(), "hq"),
-          {
-            deckName: deckName ?? "",
-            format: localDeckFormat,
-            ownerName: session?.user?.name ?? "",
-            cards: toEncodeDeckCards(cardsProp ?? liveCards),
-          },
+          localImageBody(),
           `${safeName}.png`,
         )
       : downloadImageFromUrl(deckOwnerImageUrl(getSiteUrl(), deckId, "hq"), `${safeName}.png`);
@@ -285,6 +294,22 @@ export function DeckExportDialog({
     } catch {
       toast.error("Couldn't prepare the image. Please try again.");
       setDownloadingImage(false);
+    }
+  };
+
+  const handleDownloadImagePdf = async () => {
+    setDownloadingPdf(true);
+    const safeName = imageFileName();
+    const blob = isLocal
+      ? fetchImageBlobFromPost(deckImageFromCardsUrl(getSiteUrl(), "hq"), localImageBody())
+      : fetchImageBlob(deckOwnerImageUrl(getSiteUrl(), deckId, "hq"));
+    // React Compiler can't yet lower try/finally, so reset in both paths.
+    try {
+      await downloadImageAsPdf(await blob, `${safeName}.pdf`);
+      setDownloadingPdf(false);
+    } catch {
+      toast.error("Couldn't prepare the PDF. Please try again.");
+      setDownloadingPdf(false);
     }
   };
 
@@ -331,25 +356,40 @@ export function DeckExportDialog({
               <div className="flex flex-col gap-3">
                 <p className="text-muted-foreground text-sm">
                   This is the same preview that appears when you paste a shared deck link into
-                  WhatsApp, Discord, or Signal.
+                  WhatsApp, Discord, or Signal. The PDF puts it on one A4 page for printing.
                 </p>
-                <Button
-                  className="self-start"
-                  onClick={handleDownloadImage}
-                  disabled={downloadingImage}
-                >
-                  {downloadingImage ? (
-                    <>
-                      <Loader2Icon className="size-4 animate-spin" />
-                      Preparing…
-                    </>
-                  ) : (
-                    <>
-                      <ImageDownIcon className="size-4" />
-                      Download image
-                    </>
-                  )}
-                </Button>
+                <div className="flex gap-2">
+                  <Button onClick={handleDownloadImage} disabled={downloadingImage}>
+                    {downloadingImage ? (
+                      <>
+                        <Loader2Icon className="size-4 animate-spin" />
+                        Preparing…
+                      </>
+                    ) : (
+                      <>
+                        <ImageDownIcon className="size-4" />
+                        Download image
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleDownloadImagePdf}
+                    disabled={downloadingPdf}
+                  >
+                    {downloadingPdf ? (
+                      <>
+                        <Loader2Icon className="size-4 animate-spin" />
+                        Preparing…
+                      </>
+                    ) : (
+                      <>
+                        <PrinterIcon className="size-4" />
+                        Download PDF
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
             </TabsContent>
           ) : tab === "registration" ? (

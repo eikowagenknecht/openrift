@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-07-25
+
+### Highlights
+
+- feat(Collection): **Printable binder QR sheet** — share dialogs can now create a PDF with a QR code to your link, sized to a real card or a 2×2 or 3×3 binder page, so trade partners can scan it out of your binder.
+
+### Other
+
+- feat(Decks): **Deck image as a printable PDF** — the deck image export now also downloads as a single A4 page.
+
 ## 2026-07-24
 
 ### Highlights
