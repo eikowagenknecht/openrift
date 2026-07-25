@@ -3,6 +3,7 @@ import { createLazyFileRoute } from "@tanstack/react-router";
 import { DeckEditorPage } from "@/components/deck/deck-editor-page";
 import { NotFoundFallback } from "@/components/error-message";
 import { useHydrated } from "@/hooks/use-hydrated";
+import { ViewSurfaceProvider } from "@/hooks/use-view-prefs";
 import { FilterSearchProvider } from "@/lib/search-schemas";
 import { isLocalDeckId, useLocalDecksStore } from "@/stores/local-decks-store";
 
@@ -32,11 +33,13 @@ function DeckEditor() {
     return <NotFoundFallback />;
   }
   return (
-    <FilterSearchProvider value={search}>
-      {/* Key on deckId: it remounts the whole editor subtree when the deck
-          changes, so a deck id never switches its local/server class within one
-          mount. That keeps `useDeckDetail`'s prefix branch hook-order-stable. */}
-      <DeckEditorPage key={deckId} deckId={deckId} />
-    </FilterSearchProvider>
+    <ViewSurfaceProvider value="deckBrowser">
+      <FilterSearchProvider value={search}>
+        {/* Key on deckId: it remounts the whole editor subtree when the deck
+            changes, so a deck id never switches its local/server class within one
+            mount. That keeps `useDeckDetail`'s prefix branch hook-order-stable. */}
+        <DeckEditorPage key={deckId} deckId={deckId} />
+      </FilterSearchProvider>
+    </ViewSurfaceProvider>
   );
 }

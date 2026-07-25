@@ -55,6 +55,7 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { publicPromoListQueryOptions } from "@/hooks/use-public-promos";
 import { SSR_RESPONSIVE_GRID_COLS, useResponsiveColumns } from "@/hooks/use-responsive-columns";
+import { ViewSurfaceProvider } from "@/hooks/use-view-prefs";
 import { useSession } from "@/lib/auth-session";
 import { catalogQueryOptions } from "@/lib/catalog-query";
 import { applyOwnedBucketFilter } from "@/lib/owned-bucket";
@@ -76,9 +77,11 @@ export const Route = createLazyFileRoute("/_app/promos_/$language")({
 function PromosRoute() {
   const search = Route.useSearch();
   return (
-    <FilterSearchProvider value={{ ...search, view: "printings" }}>
-      <PromosPage />
-    </FilterSearchProvider>
+    <ViewSurfaceProvider value="promos">
+      <FilterSearchProvider value={{ ...search, view: "printings" }}>
+        <PromosPage />
+      </FilterSearchProvider>
+    </ViewSurfaceProvider>
   );
 }
 

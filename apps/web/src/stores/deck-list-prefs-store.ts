@@ -2,6 +2,8 @@ import type { Domain } from "@openrift/shared";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+import { useLocalViewPrefsStore } from "@/stores/view-prefs-store";
+
 export type DeckListSortField = "updated" | "created" | "name" | "value";
 
 export type SortDir = "asc" | "desc";
@@ -19,23 +21,6 @@ export type DeckListFormatFilter = "all" | string;
 
 export type DeckListValidityFilter = "all" | "valid" | "invalid";
 
-const SORT_FIELDS: ReadonlySet<DeckListSortField> = new Set([
-  "updated",
-  "created",
-  "name",
-  "value",
-]);
-
-const SORT_DIRS: ReadonlySet<SortDir> = new Set(["asc", "desc"]);
-
-const GROUP_OPTIONS: ReadonlySet<DeckListGroupBy> = new Set([
-  "none",
-  "format",
-  "domains",
-  "legend",
-  "validity",
-]);
-
 const FORMAT_FILTER_SLUG_RE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u;
 
 function isValidFormatFilter(value: unknown): value is DeckListFormatFilter {
@@ -51,20 +36,8 @@ interface DeckListPrefsState {
   search: string;
   setSearch: (value: string) => void;
 
-  // Sort: field + direction (matches the /cards options-bar style)
-  sortField: DeckListSortField;
-  sortDir: SortDir;
-  setSortField: (value: DeckListSortField) => void;
-  setSortDir: (value: SortDir) => void;
-
   density: DeckListDensity;
   setDensity: (value: DeckListDensity) => void;
-
-  // Group: field + direction (controls the order of group headers)
-  groupBy: DeckListGroupBy;
-  groupDir: SortDir;
-  setGroupBy: (value: DeckListGroupBy) => void;
-  setGroupDir: (value: SortDir) => void;
 
   formatFilter: DeckListFormatFilter;
   setFormatFilter: (value: DeckListFormatFilter) => void;
@@ -84,11 +57,7 @@ interface DeckListPrefsState {
 }
 
 const DEFAULTS = {
-  sortField: "updated" as DeckListSortField,
-  sortDir: "desc" as SortDir,
   density: "grid" as DeckListDensity,
-  groupBy: "none" as DeckListGroupBy,
-  groupDir: "asc" as SortDir,
   formatFilter: "all" as DeckListFormatFilter,
   validityFilter: "all" as DeckListValidityFilter,
   domainFilter: [] as Domain[],
@@ -101,18 +70,8 @@ export const useDeckListPrefsStore = create<DeckListPrefsState>()(
       search: "",
       setSearch: (value) => set({ search: value }),
 
-      sortField: DEFAULTS.sortField,
-      sortDir: DEFAULTS.sortDir,
-      setSortField: (value) => set({ sortField: value }),
-      setSortDir: (value) => set({ sortDir: value }),
-
       density: DEFAULTS.density,
       setDensity: (value) => set({ density: value }),
-
-      groupBy: DEFAULTS.groupBy,
-      groupDir: DEFAULTS.groupDir,
-      setGroupBy: (value) => set({ groupBy: value }),
-      setGroupDir: (value) => set({ groupDir: value }),
 
       formatFilter: DEFAULTS.formatFilter,
       setFormatFilter: (value) => set({ formatFilter: value }),
@@ -138,11 +97,7 @@ export const useDeckListPrefsStore = create<DeckListPrefsState>()(
     {
       name: "openrift-deck-list-prefs",
       partialize: (state) => ({
-        sortField: state.sortField,
-        sortDir: state.sortDir,
         density: state.density,
-        groupBy: state.groupBy,
-        groupDir: state.groupDir,
         formatFilter: state.formatFilter,
         validityFilter: state.validityFilter,
         domainFilter: state.domainFilter,
@@ -150,21 +105,9 @@ export const useDeckListPrefsStore = create<DeckListPrefsState>()(
       }),
       merge: (persisted, current) => {
         const raw = (persisted as Record<string, unknown>) ?? {};
-        const sortField = SORT_FIELDS.has(raw.sortField as DeckListSortField)
-          ? (raw.sortField as DeckListSortField)
-          : current.sortField;
-        const sortDir = SORT_DIRS.has(raw.sortDir as SortDir)
-          ? (raw.sortDir as SortDir)
-          : current.sortDir;
         const density = DENSITY_OPTIONS.has(raw.density as DeckListDensity)
           ? (raw.density as DeckListDensity)
           : current.density;
-        const groupBy = GROUP_OPTIONS.has(raw.groupBy as DeckListGroupBy)
-          ? (raw.groupBy as DeckListGroupBy)
-          : current.groupBy;
-        const groupDir = SORT_DIRS.has(raw.groupDir as SortDir)
-          ? (raw.groupDir as SortDir)
-          : current.groupDir;
         const formatFilter = isValidFormatFilter(raw.formatFilter)
           ? raw.formatFilter
           : current.formatFilter;
@@ -178,11 +121,7 @@ export const useDeckListPrefsStore = create<DeckListPrefsState>()(
           typeof raw.showArchived === "boolean" ? raw.showArchived : current.showArchived;
         return {
           ...current,
-          sortField,
-          sortDir,
           density,
-          groupBy,
-          groupDir,
           formatFilter,
           validityFilter,
           domainFilter,
@@ -192,3 +131,34 @@ export const useDeckListPrefsStore = create<DeckListPrefsState>()(
     },
   ),
 );
+
+/**
+ * The deck list's sort/group choice, typed to this surface's vocabulary.
+ *
+ * The values themselves live in the shared per-surface view-prefs store (which
+ * validates them against the surface's allowed sets), so this hook is just the
+ * typed window onto the "decks" entry. Density, filters, and the archived
+ * toggle stay in the store above — only sort and grouping moved.
+ *
+ * @returns The deck list's sort/group values and their setters.
+ */
+export function useDeckListViewPrefs() {
+  const sortField = useLocalViewPrefsStore((state) => state.decks.sort) as DeckListSortField;
+  const sortDir = useLocalViewPrefsStore((state) => state.decks.sortDir);
+  const groupBy = useLocalViewPrefsStore((state) => state.decks.groupBy) as DeckListGroupBy;
+  const groupDir = useLocalViewPrefsStore((state) => state.decks.groupDir);
+  const setSort = useLocalViewPrefsStore((state) => state.setSort);
+  const setSortDirection = useLocalViewPrefsStore((state) => state.setSortDir);
+  const setGroup = useLocalViewPrefsStore((state) => state.setGroupBy);
+  const setGroupDirection = useLocalViewPrefsStore((state) => state.setGroupDir);
+  return {
+    sortField,
+    sortDir,
+    groupBy,
+    groupDir,
+    setSortField: (value: DeckListSortField) => setSort("decks", value),
+    setSortDir: (value: SortDir) => setSortDirection("decks", value),
+    setGroupBy: (value: DeckListGroupBy) => setGroup("decks", value),
+    setGroupDir: (value: SortDir) => setGroupDirection("decks", value),
+  };
+}

@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { CardBrowser } from "@/components/card-browser";
 import { FirstRowPreview } from "@/components/cards/first-row-preview";
 import { useHydrated } from "@/hooks/use-hydrated";
+import { ViewSurfaceProvider } from "@/hooks/use-view-prefs";
 import { seedCatalogVersion } from "@/lib/catalog-version";
 import { FilterSearchProvider } from "@/lib/search-schemas";
 import { PAGE_PADDING_NO_TOP } from "@/lib/utils";
@@ -42,10 +43,12 @@ function CardsPage() {
     seedCatalogVersion(catalogVersion);
   }
   return (
-    <FilterSearchProvider value={search}>
-      <div className={`flex flex-1 flex-col ${PAGE_PADDING_NO_TOP}`}>
-        <CardBrowserShell />
-      </div>
-    </FilterSearchProvider>
+    <ViewSurfaceProvider value="cards">
+      <FilterSearchProvider value={search}>
+        <div className={`flex flex-1 flex-col ${PAGE_PADDING_NO_TOP}`}>
+          <CardBrowserShell />
+        </div>
+      </FilterSearchProvider>
+    </ViewSurfaceProvider>
   );
 }

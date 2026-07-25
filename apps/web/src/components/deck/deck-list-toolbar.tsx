@@ -14,7 +14,7 @@ import type { DeckListFilterAvailability } from "@/lib/deck-list-utils";
 import { getFilterIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import type { DeckListGroupBy, DeckListSortField } from "@/stores/deck-list-prefs-store";
-import { useDeckListPrefsStore } from "@/stores/deck-list-prefs-store";
+import { useDeckListPrefsStore, useDeckListViewPrefs } from "@/stores/deck-list-prefs-store";
 
 const SORT_OPTIONS: SortGroupOption<DeckListSortField>[] = [
   { value: "updated", label: "Updated" },
@@ -44,16 +44,18 @@ export function DeckListToolbar({
 }) {
   const search = useDeckListPrefsStore((state) => state.search);
   const setSearch = useDeckListPrefsStore((state) => state.setSearch);
-  const sortField = useDeckListPrefsStore((state) => state.sortField);
-  const setSortField = useDeckListPrefsStore((state) => state.setSortField);
-  const sortDir = useDeckListPrefsStore((state) => state.sortDir);
-  const setSortDir = useDeckListPrefsStore((state) => state.setSortDir);
+  const {
+    sortField,
+    setSortField,
+    sortDir,
+    setSortDir,
+    groupBy,
+    setGroupBy,
+    groupDir,
+    setGroupDir,
+  } = useDeckListViewPrefs();
   const density = useDeckListPrefsStore((state) => state.density);
   const setDensity = useDeckListPrefsStore((state) => state.setDensity);
-  const groupBy = useDeckListPrefsStore((state) => state.groupBy);
-  const setGroupBy = useDeckListPrefsStore((state) => state.setGroupBy);
-  const groupDir = useDeckListPrefsStore((state) => state.groupDir);
-  const setGroupDir = useDeckListPrefsStore((state) => state.setGroupDir);
   const formatFilter = useDeckListPrefsStore((state) => state.formatFilter);
   const setFormatFilter = useDeckListPrefsStore((state) => state.setFormatFilter);
   const validityFilter = useDeckListPrefsStore((state) => state.validityFilter);

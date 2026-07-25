@@ -26,6 +26,7 @@ import { Toaster } from "@/components/ui/sonner";
 // stripped from production bundles.
 // oxlint-disable-next-line import/no-unassigned-import -- side-effect tracer
 import "@/lib/debug/memo-cache-trace";
+import { ResolvedViewPrefsProvider } from "@/hooks/use-view-prefs";
 import { sessionQueryOptions } from "@/lib/auth-session";
 import { featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { runtimeConfigScript } from "@/lib/runtime-config";
@@ -38,6 +39,8 @@ import {
 import { getIsPreview, getSiteUrl } from "@/lib/site-config";
 import { siteSettingsQueryOptions } from "@/lib/site-settings";
 import { SOCIAL_LINKS } from "@/lib/social-links";
+import type { CookieViewSurface, ViewPrefsBlob } from "@/lib/view-prefs";
+import { resolveViewPrefsFromCookie, VIEW_PREFS_COOKIE } from "@/lib/view-prefs";
 
 // CSS ?url import causes a harmless hydration warning in dev (Vite appends
 // ?t=<timestamp> on the client). No effect in production.
@@ -57,6 +60,15 @@ const getServerTheme = createServerFn({ method: "GET" }).handler((): "light" | "
 // Only invoked during SSR, same as getServerTheme.
 const getServerPalette = createServerFn({ method: "GET" }).handler(
   (): Palette => resolvePaletteFromCookie(getCookie("palette")),
+);
+
+// Server function that reads the per-surface sort/group cookie. The SSR pass
+// has no access to the Zustand store (it hydrates from document.cookie, which
+// doesn't exist server-side), so the resolved value rides in route context and
+// supplies the default for /cards and /promos. Both sides read the same cookie,
+// so the server HTML and the hydrated grid agree. Only invoked during SSR.
+const getServerViewPrefs = createServerFn({ method: "GET" }).handler(
+  (): ViewPrefsBlob<CookieViewSurface> => resolveViewPrefsFromCookie(getCookie(VIEW_PREFS_COOKIE)),
 );
 
 // Reads the Sentry DSN from the server environment so it can be inlined into
@@ -197,20 +209,23 @@ export const Route = createRootRouteWithContext<{
     if (globalThis.window !== undefined) {
       const resolvedTheme = resolveThemeFromCookie(readClientCookie("theme"));
       const resolvedPalette = resolvePaletteFromCookie(readClientCookie("palette"));
+      const resolvedViewPrefs = resolveViewPrefsFromCookie(readClientCookie(VIEW_PREFS_COOKIE));
       const sentryDsn = globalThis.__OPENRIFT_CONFIG__?.sentryDsn ?? "";
       const appEnv = parseAppEnv(globalThis.__OPENRIFT_CONFIG__?.appEnv);
       await Promise.all([flagsReady, settingsReady]);
-      return { resolvedTheme, resolvedPalette, sentryDsn, appEnv };
+      return { resolvedTheme, resolvedPalette, resolvedViewPrefs, sentryDsn, appEnv };
     }
-    const [resolvedTheme, resolvedPalette, sentryDsn, appEnv] = await Promise.all([
-      getServerTheme(),
-      getServerPalette(),
-      getServerSentryDsn(),
-      getServerAppEnv(),
-      flagsReady,
-      settingsReady,
-    ]);
-    return { resolvedTheme, resolvedPalette, sentryDsn, appEnv };
+    const [resolvedTheme, resolvedPalette, resolvedViewPrefs, sentryDsn, appEnv] =
+      await Promise.all([
+        getServerTheme(),
+        getServerPalette(),
+        getServerViewPrefs(),
+        getServerSentryDsn(),
+        getServerAppEnv(),
+        flagsReady,
+        settingsReady,
+      ]);
+    return { resolvedTheme, resolvedPalette, resolvedViewPrefs, sentryDsn, appEnv };
   },
   component: RootComponent,
   notFoundComponent: RouteNotFoundFallback,
@@ -248,12 +263,17 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
+  const { resolvedViewPrefs } = Route.useRouteContext();
   return (
     <>
       {/* `isolate` scopes descendant z-indexes to this div so AppBackground's
           -z-10 layer paints above this background instead of behind it. */}
       <div className="bg-background text-foreground isolate flex min-h-screen flex-col">
-        <Outlet />
+        {/* Per-surface sort/group defaults, resolved from the request cookie so
+            the server HTML matches what the hydrated grid will render. */}
+        <ResolvedViewPrefsProvider value={resolvedViewPrefs}>
+          <Outlet />
+        </ResolvedViewPrefsProvider>
         <Toaster position="bottom-right" />
       </div>
       {!import.meta.env.VITE_DISABLE_DEVTOOLS && (

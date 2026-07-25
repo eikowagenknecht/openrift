@@ -8,6 +8,7 @@ import {
   sortCards,
 } from "@openrift/shared";
 import { createServerFn } from "@tanstack/react-start";
+import { getCookie } from "@tanstack/react-start/server";
 
 import { dedupeToCardsViewTiles } from "@/lib/card-tiles";
 import { searchToFilters } from "@/lib/cards-facets";
@@ -15,6 +16,12 @@ import { enrichCatalog, readCatalogFromServerCache } from "@/lib/catalog-query";
 import { needsCssRotation } from "@/lib/images";
 import type { FilterSearch } from "@/lib/search-schemas";
 import { orderSetsMainFirst } from "@/lib/set-order";
+import type { SurfaceViewPrefs } from "@/lib/view-prefs";
+import {
+  resolveViewPrefsFromCookie,
+  VIEW_PREFS_COOKIE,
+  VIEW_SURFACE_CONFIGS,
+} from "@/lib/view-prefs";
 
 export interface FirstRowCard {
   printingId: string;
@@ -41,10 +48,13 @@ const FIRST_ROW_LIMIT = 16;
 // PREFERENCE_DEFAULTS rather than restating it — a hand-copied default drifts
 // the moment the real one changes, and the mismatch would only show up as a
 // first-paint flicker nobody traces back to here.
+//
+// Sort and grouping are the exception: they live in the `view-prefs` cookie
+// precisely so this pass can read them (see lib/view-prefs.ts). The handler
+// below resolves them per request and passes them in, so a user who groups by
+// rarity gets a first row grouped by rarity instead of a reshuffle on hydrate.
 const SSR_USER_LANGUAGES: readonly string[] = PREFERENCE_DEFAULTS.languages;
 const SSR_DEFAULT_VIEW: "cards" | "printings" = "cards";
-const SSR_DEFAULT_GROUP_BY: GroupByField = "set";
-const SSR_DEFAULT_SORT: SortOption = "id";
 
 /**
  * Slim, SSR-only view of the first N catalog printings in the same order the
@@ -74,15 +84,17 @@ export function extractFirstRow(
   catalog: CatalogResponse,
   search: FilterSearch,
   limit: number,
+  viewDefaults: SurfaceViewPrefs = VIEW_SURFACE_CONFIGS.cards.defaults,
 ): FirstRowCard[] {
   const view = search.view === "printings" ? "printings" : SSR_DEFAULT_VIEW;
-  const groupBy = (search.groupBy ?? SSR_DEFAULT_GROUP_BY) as GroupByField;
-  const requestedSort = (search.sort ?? SSR_DEFAULT_SORT) as SortOption;
+  const groupBy = (search.groupBy ?? viewDefaults.groupBy) as GroupByField;
+  const requestedSort = (search.sort ?? viewDefaults.sort) as SortOption;
   // sortCards needs rarityOrder for "rarity" and a price lookup for "price";
   // the SSR pipeline has neither, so fall back to "id" (shortCode) for those.
   const sortBy: SortOption =
     requestedSort === "rarity" || requestedSort === "price" ? "id" : requestedSort;
-  const sortDir: "asc" | "desc" = search.sortDir === "desc" ? "desc" : "asc";
+  const sortDir: "asc" | "desc" =
+    (search.sortDir ?? viewDefaults.sortDir) === "desc" ? "desc" : "asc";
 
   const { allPrintings, sets } = enrichCatalog(catalog);
   const ordered = sortByLanguageAndCanonicalRank(allPrintings, SSR_USER_LANGUAGES);
@@ -134,5 +146,8 @@ export const fetchFirstRowCards = createServerFn({ method: "GET" })
   .validator((input: FilterSearch) => input)
   .handler(async ({ data }): Promise<FirstRowCard[]> => {
     const catalog = await readCatalogFromServerCache();
-    return extractFirstRow(catalog, data, FIRST_ROW_LIMIT);
+    // Same cookie the hydrated grid resolves its defaults from, so the tiles
+    // rendered here are the tiles the live grid will show.
+    const viewPrefs = resolveViewPrefsFromCookie(getCookie(VIEW_PREFS_COOKIE));
+    return extractFirstRow(catalog, data, FIRST_ROW_LIMIT, viewPrefs.cards);
   });

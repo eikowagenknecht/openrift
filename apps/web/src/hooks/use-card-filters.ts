@@ -17,6 +17,7 @@ import type {
 import { useRouter } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
 
+import { useSurfaceViewDefaults, useViewPrefsWriter } from "@/hooks/use-view-prefs";
 import { trackEvent } from "@/lib/analytics";
 import { cycleIncludeExclude } from "@/lib/filter-cycle";
 import { isPrintingsOnlyGrouping } from "@/lib/group-by-field";
@@ -107,7 +108,19 @@ const ARRAY_KEY_PRESENCE_PARAM: Partial<Record<ArrayKey, PresenceParam>> = {
  * nullable fields).
  * @returns The filter state with defaults applied.
  */
-function toFilterState(raw: FilterSearch, defaultView: DefaultCardView) {
+// The sort/group defaults arrive as four primitives rather than one object on
+// purpose: passing a derived object into this call makes React Compiler treat
+// it as maybe-mutated, which stops it caching `toFilterState` and re-mints
+// `filters` every render (the /collections redraw loop — see the note in
+// `useFilterValues` and the source guard in use-card-filters.test.ts).
+function toFilterState(
+  raw: FilterSearch,
+  defaultView: DefaultCardView,
+  defaultSort: string,
+  defaultSortDir: SortDirection,
+  defaultGroupBy: string,
+  defaultGroupDir: SortDirection,
+) {
   return {
     search: raw.search ?? "",
     sets: raw.sets ?? [],
@@ -159,11 +172,11 @@ function toFilterState(raw: FilterSearch, defaultView: DefaultCardView) {
     tagsPresence: raw.tagsPresence ?? null,
     banned: raw.banned ?? null,
     errata: raw.errata ?? null,
-    sort: raw.sort ?? "id",
-    sortDir: raw.sortDir ?? "asc",
+    sort: raw.sort ?? defaultSort,
+    sortDir: raw.sortDir ?? defaultSortDir,
     view: raw.view ?? defaultView,
-    groupBy: raw.groupBy ?? "set",
-    groupDir: raw.groupDir ?? "asc",
+    groupBy: raw.groupBy ?? defaultGroupBy,
+    groupDir: raw.groupDir ?? defaultGroupDir,
   };
 }
 
@@ -177,7 +190,15 @@ function toFilterState(raw: FilterSearch, defaultView: DefaultCardView) {
 export function useFilterValues() {
   const raw = useFilterSearch();
   const defaultView = useDisplayStore((s) => s.defaultCardView);
-  const filterState = toFilterState(raw, defaultView);
+  const viewDefaults = useSurfaceViewDefaults();
+  const filterState = toFilterState(
+    raw,
+    defaultView,
+    viewDefaults.sort,
+    viewDefaults.sortDir,
+    viewDefaults.groupBy,
+    viewDefaults.groupDir,
+  );
   const searchScope = useSearchScopeStore((s) => s.scope);
 
   // The presence map is built inline, not via a helper. Passing the whole
@@ -347,7 +368,16 @@ export function useFilterValues() {
 export function useFilterActions() {
   const raw = useFilterSearch();
   const defaultView = useDisplayStore((s) => s.defaultCardView);
-  const filterState = toFilterState(raw, defaultView);
+  const viewDefaults = useSurfaceViewDefaults();
+  const viewPrefs = useViewPrefsWriter();
+  const filterState = toFilterState(
+    raw,
+    defaultView,
+    viewDefaults.sort,
+    viewDefaults.sortDir,
+    viewDefaults.groupBy,
+    viewDefaults.groupDir,
+  );
   const router = useRouter();
   const toggleSearchField = useSearchScopeStore((s) => s.toggleField);
   const selectAllSearchFields = useSearchScopeStore((s) => s.selectAll);
@@ -587,12 +617,17 @@ export function useFilterActions() {
     updateSearch({ standard: next });
   };
 
+  // Toolbar changes write both: the store remembers the choice for the next
+  // visit, the URL keeps the current view shareable. A param equal to the
+  // (possibly just-updated) default is dropped so a plain visit stays clean.
   const setSortBy = (sort: SortOption) => {
-    updateSearch({ sort: sort === "id" ? undefined : sort });
+    viewPrefs.setSort(sort);
+    updateSearch({ sort: sort === viewDefaults.sort ? undefined : sort });
   };
 
   const setSortDir = (dir: SortDirection) => {
-    updateSearch({ sortDir: dir === "asc" ? undefined : dir });
+    viewPrefs.setSortDir(dir);
+    updateSearch({ sortDir: dir === viewDefaults.sortDir ? undefined : dir });
   };
 
   const setView = (v: "cards" | "printings" | "copies") => {
@@ -608,11 +643,13 @@ export function useFilterActions() {
   };
 
   const setGroupBy = (groupBy: GroupByField) => {
-    updateSearch({ groupBy: groupBy === "set" ? undefined : groupBy });
+    viewPrefs.setGroupBy(groupBy);
+    updateSearch({ groupBy: groupBy === viewDefaults.groupBy ? undefined : groupBy });
   };
 
   const setGroupDir = (dir: SortDirection) => {
-    updateSearch({ groupDir: dir === "asc" ? undefined : dir });
+    viewPrefs.setGroupDir(dir);
+    updateSearch({ groupDir: dir === viewDefaults.groupDir ? undefined : dir });
   };
 
   return {

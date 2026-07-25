@@ -32,6 +32,7 @@ import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { useMoveCopies } from "@/hooks/use-copies";
 import { useBulkAddCopiesToList, useMoveListEntries } from "@/hooks/use-lists";
+import { ViewSurfaceProvider } from "@/hooks/use-view-prefs";
 import { describeListAdd } from "@/lib/list-toast";
 import { FilterSearchProvider } from "@/lib/search-schemas";
 import { cn } from "@/lib/utils";
@@ -251,35 +252,37 @@ function CollectionLayout() {
   }
 
   return (
-    <FilterSearchProvider value={search}>
-      <PageTopBarHeightContext value={topBarHeight}>
-        <div className="flex min-h-0 flex-1 flex-col">
-          <SidebarProvider className="flex-1">
-            <DndContext
-              sensors={sensors}
-              collisionDetection={pointerWithin}
-              onDragStart={handleDragStart}
-              onDragEnd={handleDragEnd}
-              onDragCancel={() => {
-                setActiveDrag(null);
-              }}
-            >
-              <DndScrollWatcher />
-              <TopBarSlotContext value={topBarSlot}>
-                <CollectionSidebar />
-                <CollectionContent setTopBarSlot={setTopBarSlot} />
-              </TopBarSlotContext>
-              <DragOverlay dropAnimation={null} modifiers={MODIFIERS}>
-                {activeDrag?.type === "collection-card" && (
-                  <DragPreview drag={activeDrag} modifier={moveModifier} />
-                )}
-                {activeDrag?.type === "list-entry" && <ListEntryDragPreview drag={activeDrag} />}
-              </DragOverlay>
-            </DndContext>
-          </SidebarProvider>
-        </div>
-      </PageTopBarHeightContext>
-    </FilterSearchProvider>
+    <ViewSurfaceProvider value="collections">
+      <FilterSearchProvider value={search}>
+        <PageTopBarHeightContext value={topBarHeight}>
+          <div className="flex min-h-0 flex-1 flex-col">
+            <SidebarProvider className="flex-1">
+              <DndContext
+                sensors={sensors}
+                collisionDetection={pointerWithin}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+                onDragCancel={() => {
+                  setActiveDrag(null);
+                }}
+              >
+                <DndScrollWatcher />
+                <TopBarSlotContext value={topBarSlot}>
+                  <CollectionSidebar />
+                  <CollectionContent setTopBarSlot={setTopBarSlot} />
+                </TopBarSlotContext>
+                <DragOverlay dropAnimation={null} modifiers={MODIFIERS}>
+                  {activeDrag?.type === "collection-card" && (
+                    <DragPreview drag={activeDrag} modifier={moveModifier} />
+                  )}
+                  {activeDrag?.type === "list-entry" && <ListEntryDragPreview drag={activeDrag} />}
+                </DragOverlay>
+              </DndContext>
+            </SidebarProvider>
+          </div>
+        </PageTopBarHeightContext>
+      </FilterSearchProvider>
+    </ViewSurfaceProvider>
   );
 }
 

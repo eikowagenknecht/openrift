@@ -4,6 +4,7 @@
 
 ### Highlights
 
+- feat(App): **Sorting and grouping stick per page** — cards, collections, decks and promos each remember how you last sorted and grouped them, while a link someone shares still opens in their view without changing your own.
 - feat(Collection): **Printable binder QR sheet** — share dialogs can now create a PDF with a QR code to your link, sized to a real card or a 2×2 or 3×3 binder page, so trade partners can scan it out of your binder.
 - fix(Cards): **Search ignores punctuation** — "dorans shield" and "doran's shield" now find Doran’s Shield, and searching card text no longer needs the exact apostrophe, dash or accent that the card is printed with.
 - fix(App): **Crash on older iPhones** — card, deck and collection pages failed to load on iOS below 17.4, and now work again.

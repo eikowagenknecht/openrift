@@ -63,7 +63,7 @@ import {
   sampleDeckKeyCards,
 } from "@/lib/sample-deck";
 import { cn, CONTAINER_WIDTH, PAGE_PADDING_NO_TOP } from "@/lib/utils";
-import { useDeckListPrefsStore } from "@/stores/deck-list-prefs-store";
+import { useDeckListPrefsStore, useDeckListViewPrefs } from "@/stores/deck-list-prefs-store";
 import { useLocalDecksStore } from "@/stores/local-decks-store";
 
 import { ClaimLocalDecksPrompt } from "./claim-local-decks-prompt";
@@ -298,11 +298,8 @@ export function DeckListPage() {
   const toolbarOffset = useHeaderHeight() + titleHeight - 1;
 
   const search = useDeckListPrefsStore((state) => state.search);
-  const sortField = useDeckListPrefsStore((state) => state.sortField);
-  const sortDir = useDeckListPrefsStore((state) => state.sortDir);
+  const { sortField, sortDir, groupBy, groupDir } = useDeckListViewPrefs();
   const density = useDeckListPrefsStore((state) => state.density);
-  const groupBy = useDeckListPrefsStore((state) => state.groupBy);
-  const groupDir = useDeckListPrefsStore((state) => state.groupDir);
   const formatFilter = useDeckListPrefsStore((state) => state.formatFilter);
   const validityFilter = useDeckListPrefsStore((state) => state.validityFilter);
   const domainFilter = useDeckListPrefsStore((state) => state.domainFilter);
