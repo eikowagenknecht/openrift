@@ -228,6 +228,19 @@ describe("GET /api/v1/decks", () => {
     expect(json.items[0].missingCount).toBe(2);
   });
 
+  // Overflow is a parking zone, so cards stashed there aren't part of the deck
+  // and never show up as missing — matching the deck editor's ownership panel.
+  it("ignores overflow cards when counting missing", async () => {
+    mockRepo.listForUser.mockResolvedValue([dbDeck]);
+    mockRepo.allCardsForUser.mockResolvedValue([
+      dbDeckCardFull,
+      { ...dbDeckCardFull, id: "stash", cardId: "stashed-card", zone: "overflow", quantity: 3 },
+    ]);
+    const res = await app.request("/api/v1/decks");
+    const json = await res.json();
+    expect(json.items[0].missingCount).toBe(4);
+  });
+
   it("reports zero missing when owned stock covers the deck", async () => {
     mockRepo.listForUser.mockResolvedValue([dbDeck]);
     mockRepo.allCardsForUser.mockResolvedValue([dbDeckCardFull]);

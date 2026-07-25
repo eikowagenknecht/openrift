@@ -1,3 +1,4 @@
+import { WellKnown } from "@openrift/shared";
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
@@ -176,6 +177,9 @@ export function marketplaceRepo(db: Kysely<Database>) {
      *
      * Uses the cheapest printing of each card (from the materialized view)
      * to estimate what it would cost to buy the deck on a given marketplace.
+     * Overflow is skipped — it's a parking zone for cards the user hasn't
+     * committed to the deck, and the deck editor leaves it out of its own
+     * value figure too (see `computeDeckOwnership` in the web app).
      *
      * @returns A map from deck ID to total value in cents.
      */
@@ -193,6 +197,7 @@ export function marketplaceRepo(db: Kysely<Database>) {
             ON mvp.printing_id = p.id AND mvp.marketplace = ${marketplace}
           WHERE p.card_id = dc.card_id
         ) cheapest ON true
+        WHERE dc.zone <> ${WellKnown.deckZone.OVERFLOW}
         GROUP BY dc.deck_id
       `.execute(db);
 

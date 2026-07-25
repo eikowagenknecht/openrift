@@ -92,6 +92,14 @@ function DeckOwnershipBody({ data, marketplace, onViewMissing }: DeckOwnershipPa
             {MARKETPLACE_META[marketplace].label} prices
           </div>
           <Row label="Deck value" value={fmt(data.deckValueCents)} />
+          {/* Only worth splitting out once the sideboard actually costs
+              something — otherwise "Main deck" just repeats "Deck value". */}
+          {data.sideboardValueCents !== undefined && data.sideboardValueCents > 0 && (
+            <>
+              <Row label="Main deck" value={fmt(data.mainValueCents)} indent />
+              <Row label="Sideboard" value={fmt(data.sideboardValueCents)} indent />
+            </>
+          )}
           <Row label="Owned value" value={fmt(data.ownedValueCents)} />
           {data.missingValueCents !== undefined && data.missingValueCents > 0 && (
             <Row label="Missing value" value={fmt(data.missingValueCents)} />
@@ -109,9 +117,9 @@ function DeckOwnershipBody({ data, marketplace, onViewMissing }: DeckOwnershipPa
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({ label, value, indent }: { label: string; value: string; indent?: boolean }) {
   return (
-    <div className="flex items-center justify-between">
+    <div className={cn("flex items-center justify-between", indent && "pl-3 text-xs")}>
       <span className="text-muted-foreground">{label}</span>
       <span className="font-medium">{value}</span>
     </div>

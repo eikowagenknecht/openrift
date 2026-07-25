@@ -306,6 +306,8 @@ export function DeckOverview({
           {ownershipData?.deckValueCents !== undefined && (
             <ValueKpi
               deckValueCents={ownershipData.deckValueCents}
+              mainValueCents={ownershipData.mainValueCents}
+              sideboardValueCents={ownershipData.sideboardValueCents}
               ownedValueCents={ownershipData.ownedValueCents}
               missingValueCents={ownershipData.missingValueCents}
               missingCount={ownershipData.missingCount}
@@ -535,6 +537,8 @@ function ProgressBar({ pct }: { pct: number }) {
 
 function ValueKpi({
   deckValueCents,
+  mainValueCents,
+  sideboardValueCents,
   ownedValueCents,
   missingValueCents,
   missingCount,
@@ -544,6 +548,8 @@ function ValueKpi({
   anonymous,
 }: {
   deckValueCents: number;
+  mainValueCents: number | undefined;
+  sideboardValueCents: number | undefined;
   ownedValueCents: number | undefined;
   missingValueCents: number | undefined;
   missingCount: number;
@@ -563,12 +569,26 @@ function ValueKpi({
         }`
       : "Fully owned";
 
+  // The split only says something once the sideboard carries value — with an
+  // empty sideboard the main figure is just the headline again.
+  const value =
+    mainValueCents !== undefined && sideboardValueCents !== undefined && sideboardValueCents > 0 ? (
+      <span className="flex flex-wrap items-baseline gap-x-1.5">
+        {fmtPrice(deckValueCents)}
+        <span className="text-muted-foreground text-sm font-normal">
+          {fmtPrice(mainValueCents)} main + {fmtPrice(sideboardValueCents)} side
+        </span>
+      </span>
+    ) : (
+      fmtPrice(deckValueCents)
+    );
+
   if (anonymous) {
     return (
       <KpiTile
         className="@3xl:col-span-2"
         label="Value"
-        value={fmtPrice(deckValueCents)}
+        value={value}
         caption={
           <>
             <span className="truncate">Estimated cost to build</span>
@@ -588,7 +608,7 @@ function ValueKpi({
     <KpiTile
       className="@3xl:col-span-2"
       label="Value"
-      value={fmtPrice(deckValueCents)}
+      value={value}
       bar={
         <TooltipProvider>
           <Tooltip>

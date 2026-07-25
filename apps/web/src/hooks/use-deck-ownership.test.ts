@@ -578,6 +578,127 @@ describe("computeDeckOwnership", () => {
     expect(result.ownedValueCents).toBe(3); // 3*1
     expect(result.missingValueCents).toBe(12); // 2*5 + 1*2
   });
+
+  it("splits deck value into main deck and sideboard", () => {
+    const deckCards = [
+      stubDeckBuilderCard({ cardId: "l", quantity: 1, zone: "legend" }),
+      stubDeckBuilderCard({ cardId: "a", quantity: 3, zone: "main" }),
+      stubDeckBuilderCard({ cardId: "s", quantity: 2, zone: "sideboard" }),
+    ];
+    const printings = [
+      stubPrinting({ id: "pl", cardId: "l" }),
+      stubPrinting({ id: "pa", cardId: "a" }),
+      stubPrinting({ id: "ps", cardId: "s" }),
+    ];
+    const prices = stubPriceLookup({
+      pl: { tcgplayer: 20 },
+      pa: { tcgplayer: 4 },
+      ps: { tcgplayer: 3 },
+    });
+
+    const result = computeDeckOwnership(deckCards, printings, {}, "tcgplayer", prices, EN_FIRST);
+
+    expect(result.mainValueCents).toBe(32); // legend 1*20 + main 3*4
+    expect(result.sideboardValueCents).toBe(6); // 2*3
+    expect(result.deckValueCents).toBe(38);
+  });
+
+  it("reports a zero sideboard value when the deck has no sideboard", () => {
+    const deckCards = [stubDeckBuilderCard({ cardId: "a", quantity: 2, zone: "main" })];
+    const printings = [stubPrinting({ id: "pa", cardId: "a" })];
+    const prices = stubPriceLookup({ pa: { tcgplayer: 7 } });
+
+    const result = computeDeckOwnership(deckCards, printings, {}, "tcgplayer", prices, EN_FIRST);
+
+    expect(result.mainValueCents).toBe(14);
+    expect(result.sideboardValueCents).toBe(0);
+  });
+
+  it("leaves overflow out of every ownership and value total", () => {
+    // Overflow is a parking zone — cards stashed there aren't part of the deck,
+    // so they must not inflate the cost, the card counts, or the buy list.
+    const deckCards = [
+      stubDeckBuilderCard({ cardId: "a", cardName: "Alpha", quantity: 2, zone: "main" }),
+      stubDeckBuilderCard({ cardId: "z", cardName: "Zed", quantity: 4, zone: "overflow" }),
+    ];
+    const printings = [
+      stubPrinting({ id: "pa", cardId: "a" }),
+      stubPrinting({ id: "pz", cardId: "z" }),
+    ];
+    const prices = stubPriceLookup({
+      pa: { tcgplayer: 10 },
+      pz: { tcgplayer: 50 },
+    });
+
+    const result = computeDeckOwnership(
+      deckCards,
+      printings,
+      { pa: 1, pz: 1 },
+      "tcgplayer",
+      prices,
+      EN_FIRST,
+      { pz: 1 },
+      { pz: 1 },
+    );
+
+    expect(result.totalNeeded).toBe(2);
+    expect(result.totalOwned).toBe(1);
+    expect(result.totalLocked).toBe(0);
+    expect(result.totalBorrowed).toBe(0);
+    expect(result.missingCount).toBe(1);
+    expect(result.missingCards.map((entry) => entry.cardName)).toEqual(["Alpha"]);
+    expect(result.deckValueCents).toBe(20); // 2 * 10, no 4 * 50
+    expect(result.mainValueCents).toBe(20);
+    expect(result.ownedValueCents).toBe(10);
+    expect(result.missingValueCents).toBe(10);
+  });
+
+  it("still exposes a per-row entry for overflow cards", () => {
+    const deckCards = [stubDeckBuilderCard({ cardId: "z", quantity: 2, zone: "overflow" })];
+    const printings = [stubPrinting({ id: "pz", cardId: "z" })];
+    const prices = stubPriceLookup({ pz: { tcgplayer: 9 } });
+
+    const result = computeDeckOwnership(
+      deckCards,
+      printings,
+      { pz: 2 },
+      "tcgplayer",
+      prices,
+      EN_FIRST,
+    );
+
+    const entry = result.byCardZone.get("z:overflow");
+    expect(entry?.owned).toBe(2);
+    expect(entry?.displayPrice).toBe(9);
+    // Present for display only — the deck itself has no priced cards.
+    expect(result.deckValueCents).toBeUndefined();
+  });
+
+  it("does not let an overflow copy claim ownership away from the main deck", () => {
+    // Regression: deck cards arrive in zone order, so an overflow row listed
+    // before the main row used to claim the only owned copy and report the
+    // main row as missing.
+    const cardId = "card-1";
+    const deckCards = [
+      stubDeckBuilderCard({ cardId, quantity: 1, zone: "overflow" }),
+      stubDeckBuilderCard({ cardId, quantity: 1, zone: "main" }),
+    ];
+    const printings = [stubPrinting({ id: "p1", cardId })];
+
+    const result = computeDeckOwnership(
+      deckCards,
+      printings,
+      { p1: 1 },
+      "tcgplayer",
+      EMPTY_PRICE_LOOKUP,
+      EN_FIRST,
+    );
+
+    expect(result.byCardZone.get(`${cardId}:main`)?.owned).toBe(1);
+    expect(result.byCardZone.get(`${cardId}:overflow`)?.owned).toBe(0);
+    expect(result.totalOwned).toBe(1);
+    expect(result.missingCount).toBe(0);
+  });
 });
 
 describe("computeDeckOwnership (source-level regression)", () => {

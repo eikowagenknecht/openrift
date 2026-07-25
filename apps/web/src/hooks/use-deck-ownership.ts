@@ -1,5 +1,5 @@
 import type { Marketplace, PriceLookup, Printing, Rarity } from "@openrift/shared";
-import { getOrientation, legendDisplayName, preferredPrinting } from "@openrift/shared";
+import { WellKnown, getOrientation, legendDisplayName, preferredPrinting } from "@openrift/shared";
 
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 
@@ -57,8 +57,21 @@ export interface CardOwnership {
     | undefined;
 }
 
+/**
+ * Zones whose cards make up the deck proper. Overflow is a free parking zone
+ * (see `COPY_LIMIT_ZONES` in `use-deck-builder`) — cards stashed there aren't
+ * part of the deck, so they're left out of every ownership and cost total.
+ * @returns True when the zone counts toward ownership and value.
+ */
+function isCountedZone(zone: string): boolean {
+  return zone !== WellKnown.deckZone.OVERFLOW;
+}
+
 export interface DeckOwnershipData {
-  /** Per-card ownership keyed by `cardId:zone` */
+  /**
+   * Per-card ownership keyed by `cardId:zone`. Overflow rows are present so
+   * they still render owned counts and prices, but they don't feed the totals.
+   */
   byCardZone: Map<string, CardOwnership>;
   totalNeeded: number;
   totalOwned: number;
@@ -66,6 +79,10 @@ export interface DeckOwnershipData {
   totalBorrowed: number;
   missingCount: number;
   deckValueCents: number | undefined;
+  /** Deck value excluding the sideboard — legend, champion, runes, battlefields, main. */
+  mainValueCents: number | undefined;
+  /** Deck value of the sideboard zone alone. */
+  sideboardValueCents: number | undefined;
   ownedValueCents: number | undefined;
   missingValueCents: number | undefined;
   missingCards: CardOwnership[];
@@ -156,10 +173,20 @@ export function computeDeckOwnership(
   let missingCount = 0;
   let hasPrices = false;
   let deckValueCents = 0;
+  let mainValueCents = 0;
+  let sideboardValueCents = 0;
   let ownedValueCents = 0;
   let missingValueCents = 0;
 
-  for (const card of deckCards) {
+  // Overflow rows are walked last so a stashed copy never claims an owned copy
+  // ahead of the zone that actually needs it — their own owned/borrowed numbers
+  // are whatever the deck proper left over.
+  const orderedCards = deckCards.toSorted(
+    (left, right) => Number(isCountedZone(right.zone)) - Number(isCountedZone(left.zone)),
+  );
+
+  for (const card of orderedCards) {
+    const counted = isCountedZone(card.zone);
     const totalOwnedForCard = ownedByCardId.get(card.cardId) ?? 0;
     const alreadyClaimed = claimedByCardId.get(card.cardId) ?? 0;
     const availableForZone = Math.max(0, totalOwnedForCard - alreadyClaimed);
@@ -234,6 +261,11 @@ export function computeDeckOwnership(
     };
 
     byCardZone.set(`${card.cardId}:${card.zone}`, entry);
+
+    if (!counted) {
+      continue;
+    }
+
     totalNeeded += card.quantity;
     totalOwned += ownedInZone;
     totalLocked += lockedInZone;
@@ -247,6 +279,11 @@ export function computeDeckOwnership(
     if (displayPrice !== undefined) {
       hasPrices = true;
       deckValueCents += displayPrice * card.quantity;
+      if (card.zone === WellKnown.deckZone.SIDEBOARD) {
+        sideboardValueCents += displayPrice * card.quantity;
+      } else {
+        mainValueCents += displayPrice * card.quantity;
+      }
       ownedValueCents += displayPrice * ownedInZone;
       missingValueCents += displayPrice * shortfall;
     }
@@ -260,6 +297,8 @@ export function computeDeckOwnership(
     totalBorrowed,
     missingCount,
     deckValueCents: hasPrices ? deckValueCents : undefined,
+    mainValueCents: hasPrices ? mainValueCents : undefined,
+    sideboardValueCents: hasPrices ? sideboardValueCents : undefined,
     ownedValueCents: hasPrices ? ownedValueCents : undefined,
     missingValueCents: hasPrices ? missingValueCents : undefined,
     missingCards,

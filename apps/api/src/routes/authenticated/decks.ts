@@ -241,12 +241,16 @@ export const decksRouter = {
         .reduce((sum, card) => sum + card.quantity, 0);
 
       // Missing count: needed minus buildable minus borrowed-in, per card.
-      // Sums over every zone the deck editor's ownership panel counts (all of
-      // them — see `computeDeckOwnership`), so the two numbers agree. Buildable
-      // and borrowed pools are shared across decks: each deck is measured
-      // independently against the full inventory, matching the editor.
+      // Sums over every zone the deck editor's ownership panel counts (all but
+      // overflow, which is a parking zone — see `computeDeckOwnership`), so the
+      // two numbers agree. Buildable and borrowed pools are shared across
+      // decks: each deck is measured independently against the full inventory,
+      // matching the editor.
       const neededByCard = new Map<string, number>();
       for (const card of cards) {
+        if (card.zone === WellKnown.deckZone.OVERFLOW) {
+          continue;
+        }
         neededByCard.set(card.cardId, (neededByCard.get(card.cardId) ?? 0) + card.quantity);
       }
       let missingCount = 0;

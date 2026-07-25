@@ -10,6 +10,7 @@
 ### Other
 
 - feat(Decks): **Deck image as a printable PDF** — the deck image export now also downloads as a single A4 page.
+- fix(Decks): **Deck cost ignores overflow** — cards parked in the overflow zone no longer count toward a deck's price, ownership or missing count, and the cost now splits into main deck plus sideboard.
 
 ## 2026-07-24
 
