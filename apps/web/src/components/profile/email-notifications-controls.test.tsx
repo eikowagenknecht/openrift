@@ -71,7 +71,9 @@ describe("EmailNotificationsControls", () => {
     expect(frequency).toHaveTextContent("Every 5 minutes");
 
     await userEvent.click(frequency);
-    await userEvent.click(screen.getByRole("option", { name: "Instant" }));
+    // Base UI opens the popup a frame after the click (useClick defers the open
+    // into a requestAnimationFrame), so the options must be awaited.
+    await userEvent.click(await screen.findByRole("option", { name: "Instant" }));
     expect(setCadence).toHaveBeenCalledWith("instant");
   });
 
