@@ -10,7 +10,7 @@
   },
   "devDependencies": {
     "@piltoverarchive/riftbound-deck-codes": "1.4.0",
-    "@playwright/test": "1.61.1",
+    "@playwright/test": "1.62.0",
     "postgres": "3.4.9"
   }
 }
