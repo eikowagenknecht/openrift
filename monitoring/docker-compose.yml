@@ -99,6 +99,15 @@ services:
   # PostgreSQL metrics: connections, query stats, replication.
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter:v0.20.1
+    # The stat_replication collector's query selects pg_stat_replication.slot_name,
+    # a column that does not exist in PostgreSQL 18, so every scrape fails with
+    # `column "slot_name" does not exist` and logs an ERROR + STATEMENT pair to the
+    # database log (~5.7k lines/day at a 15s scrape interval). It yields nothing
+    # here anyway: this is a single node with no standbys, so pg_stat_replication
+    # is always empty. The separate `replication` collector still provides
+    # pg_replication_lag_seconds / pg_replication_is_replica.
+    command:
+      - --no-collector.stat_replication
     environment:
       DATA_SOURCE_NAME: ${POSTGRES_CONNECTION}
       PG_EXPORTER_EXTEND_QUERY_PATH: /etc/postgres-exporter/queries.yaml

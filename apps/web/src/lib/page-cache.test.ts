@@ -45,6 +45,28 @@ describe("applyPageCacheControl", () => {
     expect(setDetail.headers.get("Cache-Control")).toBe(PUBLIC);
   });
 
+  // Regression: `/rules` was in the exact-path list but `/rules/` was missing
+  // from the prefix list, so the versioned ruleset documents — the heaviest
+  // pages in the app, ~4 MB of HTML each — were served `private, no-cache` and
+  // regenerated at origin on every single request.
+  it("caches versioned ruleset documents via prefix match", () => {
+    const versioned = applyPageCacheControl(getRequest("/rules/core/2026-07-16"), htmlResponse());
+    expect(versioned.headers.get("Cache-Control")).toBe(PUBLIC);
+  });
+
+  it("still caches the /rules index itself", () => {
+    const index = applyPageCacheControl(getRequest("/rules"), htmlResponse());
+    expect(index.headers.get("Cache-Control")).toBe(PUBLIC);
+  });
+
+  it("keeps ruleset documents private for logged-in users", () => {
+    const result = applyPageCacheControl(
+      getRequest("/rules/core/2026-07-16", { cookie: "better-auth.session_token=abc" }),
+      htmlResponse(),
+    );
+    expect(result.headers.get("Cache-Control")).toBe(PRIVATE);
+  });
+
   it("applies cache headers to HEAD requests too", () => {
     const result = applyPageCacheControl(getRequest("/cards", {}, "HEAD"), htmlResponse());
     expect(result.headers.get("Cache-Control")).toBe(PUBLIC);

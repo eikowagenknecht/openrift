@@ -1,3 +1,7 @@
+// Must stay the first import: it installs shims for built-ins newer than the
+// browserslist floor, and the modules below reach code that calls them.
+// oxlint-disable-next-line import/no-unassigned-import -- side-effect module by design; it patches globals
+import "./lib/polyfills";
 import { StartClient } from "@tanstack/react-start/client";
 import { StrictMode } from "react";
 import { hydrateRoot } from "react-dom/client";

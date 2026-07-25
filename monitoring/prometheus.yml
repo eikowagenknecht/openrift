@@ -19,13 +19,24 @@ scrape_configs:
       - targets: ["postgres-exporter:9187"]
 
   # Hono API: per-route HTTP metrics + Node.js runtime metrics.
-  # Scrape both the prod docker-network hostname and host.docker.internal so
-  # the same config works whether the API runs in docker (prod, preview) or
-  # via `bun dev:api` on the host (local dev). The unused target shows as
-  # `down` in /targets, which is expected and harmless.
+  # The API is reachable at the docker-network hostname when it runs in a
+  # container (prod, preview), and at host.docker.internal when it runs via
+  # `bun dev:api` on the host (local dev). Only one of the two exists in any
+  # given environment, so the other is always `down`.
+  #
+  # They are kept in separate jobs rather than as two targets of one job so
+  # that the permanently-down one is not indistinguishable from a real
+  # outage: alert and dashboard on `up{job="openrift-api"}`, which is exactly
+  # the containerised API, and leave `openrift-api-dev` unalerted.
   - job_name: "openrift-api"
     static_configs:
-      - targets: ["api:3000", "host.docker.internal:3000"]
+      - targets: ["api:3000"]
+
+  # Local-dev only (`bun dev:api` on the host). Expected to be down in prod
+  # and preview — never alert on this job. See the note above.
+  - job_name: "openrift-api-dev"
+    static_configs:
+      - targets: ["host.docker.internal:3000"]
 
   # Prometheus self-monitoring
   - job_name: "prometheus"

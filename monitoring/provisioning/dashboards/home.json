@@ -52,7 +52,7 @@
       "title": "API RPS (5m)",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
-        { "expr": "sum(rate(http_requests_total{job=\"openrift-api\"}[5m]))", "refId": "A" }
+        { "expr": "sum(rate(http_requests_total{job=~\"openrift-api(-dev)?\"}[5m]))", "refId": "A" }
       ],
       "fieldConfig": {
         "defaults": {
@@ -87,7 +87,7 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{job=\"openrift-api\"}[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{job=~\"openrift-api(-dev)?\"}[5m])))",
           "refId": "A"
         }
       ],
@@ -128,7 +128,7 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "(sum(rate(http_requests_total{job=\"openrift-api\",status=~\"5..\"}[5m])) or vector(0)) / clamp_min(sum(rate(http_requests_total{job=\"openrift-api\"}[5m])), 1e-9)",
+          "expr": "(sum(rate(http_requests_total{job=~\"openrift-api(-dev)?\",status=~\"5..\"}[5m])) or vector(0)) / clamp_min(sum(rate(http_requests_total{job=~\"openrift-api(-dev)?\"}[5m])), 1e-9)",
           "refId": "A"
         }
       ],

@@ -2,7 +2,7 @@ import type { RuleChangesResponse, RuleKind, RuleResponse } from "@openrift/shar
 import { compareRuleNumbers } from "@openrift/shared";
 import { useDebouncedCallback } from "@tanstack/react-pacer";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ChevronsDownUpIcon, ChevronsUpDownIcon, CopyIcon, FileClockIcon } from "lucide-react";
+import { ChevronsDownUpIcon, ChevronsUpDownIcon, FileClockIcon } from "lucide-react";
 import type { MouseEvent, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { flushSync } from "react-dom";
@@ -996,15 +996,15 @@ function RuleRow({
         }}
         aria-label={`Copy link to rule ${formatRuleNumber(rule.ruleNumber)}`}
         className={cn(
-          "group/rule-number text-muted-foreground hover:text-foreground mr-3 flex shrink-0 items-start gap-1 font-mono text-xs no-underline",
+          // The copy glyph is drawn by `rule-copy-affordance` as a ::after mask
+          // rather than a <CopyIcon> element. It is decorative and hover-only,
+          // and this page renders ~2,400 of them — as markup that was ~1.05 MB
+          // of the document. See the utility's note in index.css.
+          "rule-copy-affordance text-muted-foreground hover:text-foreground mr-3 flex shrink-0 items-start gap-1 font-mono text-xs no-underline",
           isTitle && "font-semibold",
         )}
       >
         <span>{formatRuleNumber(rule.ruleNumber)}</span>
-        <CopyIcon
-          aria-hidden="true"
-          className="hidden size-3 opacity-0 transition-opacity group-hover/rule-number:opacity-100 sm:inline-block"
-        />
       </Pressable>
       <span
         className={cn(

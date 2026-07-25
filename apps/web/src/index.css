@@ -541,3 +541,43 @@ html.hide-scrollbar::-webkit-scrollbar {
 @utility mr-safe-neg {
   margin-right: calc(-1 * max(0.75rem, env(safe-area-inset-right, 0px)));
 }
+
+/* The rules page renders one copy-link affordance per rule — around 2,400 of
+   them on `/rules/core/*`. As a <CopyIcon> element that was ~1.05 MB of the
+   document's ~4 MB and roughly 9,500 DOM nodes, all for a decorative glyph that
+   is aria-hidden, invisible until its row is hovered, and not shown on phones
+   at all. Drawing it as a mask on ::after keeps it pixel-identical while costing
+   zero markup per row.
+
+   The mask is the lucide `copy` glyph (same geometry as the CopyIcon component,
+   stroke-width 2, round caps/joins), inlined because a mask cannot reference a
+   component. If lucide's copy icon changes shape, this needs updating with it —
+   it is the only hand-inlined lucide path in the app. */
+@utility rule-copy-affordance {
+  &::after {
+    content: "";
+    display: none;
+    width: calc(var(--spacing) * 3);
+    height: calc(var(--spacing) * 3);
+    flex: none;
+    align-self: center;
+    background-color: currentColor;
+    opacity: 0;
+    transition: opacity 150ms;
+    mask-repeat: no-repeat;
+    mask-position: center;
+    mask-size: contain;
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect width='14' height='14' x='8' y='8' rx='2' ry='2'/%3E%3Cpath d='M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2'/%3E%3C/svg%3E");
+  }
+
+  /* Matches the icon's old `hidden sm:inline-block`. */
+  @variant sm {
+    &::after {
+      display: inline-block;
+    }
+  }
+
+  &:hover::after {
+    opacity: 1;
+  }
+}

@@ -166,6 +166,36 @@
       }
     },
     {
+      // Code that ships to the browser must stay within the browserslist floor
+      // in apps/web/package.json. Vite's build.target downlevels syntax only —
+      // a missing built-in METHOD compiles through and throws at runtime, which
+      // is how Map.groupBy took out every card-browser route on iOS < 17.4.
+      // Map.groupBy itself is fine: apps/web/src/lib/polyfills.ts shims it.
+      // Need one of these? Add a shim there and drop it from this list.
+      // apps/api is deliberately excluded — it runs on Bun, which has them all.
+      "files": ["apps/web/src/**", "packages/shared/src/**"],
+      "rules": {
+        "no-restricted-properties": [
+          "error",
+          {
+            "object": "Object",
+            "property": "groupBy",
+            "message": "Object.groupBy is Safari/iOS 17.4+ and is not shimmed. Use Map.groupBy (shimmed in lib/polyfills.ts), or add a shim there."
+          },
+          {
+            "object": "Promise",
+            "property": "withResolvers",
+            "message": "Promise.withResolvers is Safari/iOS 17.4+ and is not shimmed. Add a shim to apps/web/src/lib/polyfills.ts before using it in browser code."
+          },
+          {
+            "object": "Array",
+            "property": "fromAsync",
+            "message": "Array.fromAsync is Safari/iOS 18.4+ and is not shimmed. Add a shim to apps/web/src/lib/polyfills.ts before using it in browser code."
+          }
+        ]
+      }
+    },
+    {
       "files": ["packages/e2e/**/*.ts"],
       "rules": {
         "import/no-nodejs-modules": "off",

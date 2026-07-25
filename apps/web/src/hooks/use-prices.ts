@@ -24,6 +24,27 @@ function fetchPricesFromEdge(): Promise<PricesResponse> {
   return browserApiOrpcClient(pricesContract).prices();
 }
 
+/**
+ * Fetches the raw price map during SSR for SEO markup only, deliberately
+ * bypassing the React Query cache.
+ *
+ * Do **not** reach for `queryClient.ensureQueryData(pricesQueryOptions)` on the
+ * server. TanStack Start dehydrates the router's query cache into the SSR HTML,
+ * so a server-side cache write inlines the whole catalog price map (~270 KB, one
+ * entry per printing) into the page — on `/cards/$cardSlug` that was 74% of the
+ * document, to produce at most three JSON-LD offer objects. The browser gets
+ * this resource far more cheaply from Cloudflare's edge cache via
+ * {@link fetchPricesFromEdge}, shared across every surface that shows prices.
+ *
+ * `fetchPrices` still goes through `serverCache`, so this stays a warm hit
+ * across requests — the saving is in what gets serialized into the response,
+ * not in how often the API is called.
+ * @returns The raw prices response.
+ */
+export function fetchPricesForSeo(): Promise<PricesResponse> {
+  return fetchPrices();
+}
+
 export const pricesQueryOptions = queryOptions({
   queryKey: queryKeys.prices.all,
   queryFn: () => (globalThis.window === undefined ? fetchPrices() : fetchPricesFromEdge()),

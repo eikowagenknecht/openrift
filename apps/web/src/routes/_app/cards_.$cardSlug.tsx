@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
 import { effectiveLanguageOrder } from "@/hooks/use-effective-language-order";
 import { initQueryOptions } from "@/hooks/use-init";
-import { pricesQueryOptions } from "@/hooks/use-prices";
+import { fetchPricesForSeo, pricesQueryOptions } from "@/hooks/use-prices";
 import {
   buildCardMetaDescription,
   getCardFrontImageFullUrl,
@@ -147,9 +147,21 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
     // Prices come from the /prices resource now, not inlined on the
     // card response. They're SEO-only here, so a price-fetch failure must not
     // break the card page — fall back to no offers.
+    //
+    // The two branches are deliberate, mirroring the split in /cards. On the
+    // server, go around the query client: TanStack Start dehydrates its cache
+    // into the SSR HTML, so writing the response there inlined the entire
+    // ~270 KB catalog price map into every card page (74% of the document) just
+    // to emit three JSON-LD offers. On the client, keep warming the cache — the
+    // pricing, footer and printing-picker components read it through
+    // `usePrices()` (a suspense query), and the browser gets it from
+    // Cloudflare's edge cache rather than from this page's HTML.
     let pricesResponse: PricesResponse;
     try {
-      pricesResponse = await context.queryClient.ensureQueryData(pricesQueryOptions);
+      pricesResponse =
+        globalThis.window === undefined
+          ? await fetchPricesForSeo()
+          : await context.queryClient.ensureQueryData(pricesQueryOptions);
     } catch {
       pricesResponse = { prices: {}, currencies: MARKETPLACE_CURRENCY };
     }

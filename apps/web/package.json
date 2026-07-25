@@ -108,5 +108,13 @@
     "typescript-eslint": "8.64.0",
     "vite": "8.1.5",
     "vitest": "4.1.10"
-  }
+  },
+  "browserslist": [
+    "chrome >= 111",
+    "edge >= 111",
+    "firefox >= 111",
+    "safari >= 16.4",
+    "ios_saf >= 16.4",
+    "not dead"
+  ]
 }

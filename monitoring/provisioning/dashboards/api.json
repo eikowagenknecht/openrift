@@ -81,7 +81,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(http_requests_total{job=\"openrift-api\",${audience}}[$__range]))",
+          "expr": "sum(rate(http_requests_total{job=~\"openrift-api(-dev)?\",${audience}}[$__range]))",
           "legendFormat": "RPS",
           "refId": "A"
         }
@@ -115,7 +115,7 @@
       },
       "targets": [
         {
-          "expr": "(sum(rate(http_requests_total{job=\"openrift-api\",status=~\"5..\",${audience}}[$__range])) or vector(0)) / clamp_min(sum(rate(http_requests_total{job=\"openrift-api\",${audience}}[$__range])), 1e-9)",
+          "expr": "(sum(rate(http_requests_total{job=~\"openrift-api(-dev)?\",status=~\"5..\",${audience}}[$__range])) or vector(0)) / clamp_min(sum(rate(http_requests_total{job=~\"openrift-api(-dev)?\",${audience}}[$__range])), 1e-9)",
           "legendFormat": "Error %",
           "refId": "A"
         }
@@ -146,19 +146,19 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.50, sum by (le) (rate(http_request_duration_seconds_bucket{job=\"openrift-api\",${audience}}[5m])))",
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(http_request_duration_seconds_bucket{job=~\"openrift-api(-dev)?\",${audience}}[5m])))",
           "legendFormat": "p50",
           "exemplar": true,
           "refId": "A"
         },
         {
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{job=\"openrift-api\",${audience}}[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{job=~\"openrift-api(-dev)?\",${audience}}[5m])))",
           "legendFormat": "p95",
           "exemplar": true,
           "refId": "B"
         },
         {
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket{job=\"openrift-api\",${audience}}[5m])))",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket{job=~\"openrift-api(-dev)?\",${audience}}[5m])))",
           "legendFormat": "p99",
           "exemplar": true,
           "refId": "C"
@@ -200,7 +200,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (status) (rate(http_requests_total{job=\"openrift-api\",${audience}}[5m])) > 0",
+          "expr": "sum by (status) (rate(http_requests_total{job=~\"openrift-api(-dev)?\",${audience}}[5m])) > 0",
           "legendFormat": "{{ status }}",
           "refId": "A"
         }
@@ -241,7 +241,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (route) (rate(http_requests_total{job=\"openrift-api\",${audience}}[5m])) > 0",
+          "expr": "sum by (route) (rate(http_requests_total{job=~\"openrift-api(-dev)?\",${audience}}[5m])) > 0",
           "legendFormat": "{{ route }}",
           "refId": "A"
         }
@@ -277,7 +277,7 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (le, route) (rate(http_request_duration_seconds_bucket{job=\"openrift-api\",${audience}}[5m]))) > 0",
+          "expr": "histogram_quantile(0.95, sum by (le, route) (rate(http_request_duration_seconds_bucket{job=~\"openrift-api(-dev)?\",${audience}}[5m]))) > 0",
           "legendFormat": "{{ route }}",
           "exemplar": true,
           "refId": "A"
@@ -329,14 +329,14 @@
       },
       "targets": [
         {
-          "expr": "topk(10, histogram_quantile(0.95, sum by (le, route) (rate(http_request_duration_seconds_bucket{job=\"openrift-api\",${audience}}[$__range]))))",
+          "expr": "topk(10, histogram_quantile(0.95, sum by (le, route) (rate(http_request_duration_seconds_bucket{job=~\"openrift-api(-dev)?\",${audience}}[$__range]))))",
           "legendFormat": "{{ route }}",
           "refId": "A",
           "instant": true,
           "format": "table"
         },
         {
-          "expr": "round(sum by (route) (increase(http_requests_total{job=\"openrift-api\",${audience}}[$__range]))) > 0",
+          "expr": "round(sum by (route) (increase(http_requests_total{job=~\"openrift-api(-dev)?\",${audience}}[$__range]))) > 0",
           "legendFormat": "{{ route }}",
           "refId": "B",
           "instant": true,
@@ -489,7 +489,7 @@
       },
       "targets": [
         {
-          "expr": "nodejs_eventloop_lag_p99_seconds{job=\"openrift-api\"}",
+          "expr": "nodejs_eventloop_lag_p99_seconds{job=~\"openrift-api(-dev)?\"}",
           "legendFormat": "lag p99",
           "refId": "A"
         }
@@ -510,12 +510,12 @@
       },
       "targets": [
         {
-          "expr": "nodejs_heap_size_used_bytes{job=\"openrift-api\"}",
+          "expr": "nodejs_heap_size_used_bytes{job=~\"openrift-api(-dev)?\"}",
           "legendFormat": "heap used",
           "refId": "A"
         },
         {
-          "expr": "nodejs_heap_size_total_bytes{job=\"openrift-api\"}",
+          "expr": "nodejs_heap_size_total_bytes{job=~\"openrift-api(-dev)?\"}",
           "legendFormat": "heap total",
           "refId": "B"
         }
@@ -542,7 +542,7 @@
       },
       "targets": [
         {
-          "expr": "process_resident_memory_bytes{job=\"openrift-api\"}",
+          "expr": "process_resident_memory_bytes{job=~\"openrift-api(-dev)?\"}",
           "legendFormat": "RSS",
           "refId": "A"
         }

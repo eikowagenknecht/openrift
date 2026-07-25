@@ -25,7 +25,14 @@ const PRELOAD_LINKS = [
 // purged on deploy: keep the prefix list in deploy.sh.example's
 // purge_cloudflare_cache() in sync with these two lists.
 const EXACT_PATHS = new Set(["/", "/cards", "/sets", "/rules", "/privacy-policy", "/promos"]);
-const PREFIX_PATHS = ["/cards/", "/sets/", "/decks/share/", "/promos/"];
+// `/rules/` covers the versioned ruleset documents (`/rules/core/2026-07-16`).
+// They are published, dated snapshots — identical for every visitor and frozen
+// once released — but were missing here, so they fell through to
+// `private, no-cache` and Cloudflare reported `BYPASS`. Every hit re-rendered
+// the full document (~4 MB of HTML) at origin and re-sent ~410 KB gzipped, on
+// the single heaviest page in the app. The deploy purge already lists a
+// `/rules` prefix, which covers these too.
+const PREFIX_PATHS = ["/cards/", "/sets/", "/rules/", "/decks/share/", "/promos/"];
 
 function isCacheablePublicPath(pathname: string): boolean {
   if (EXACT_PATHS.has(pathname)) {
