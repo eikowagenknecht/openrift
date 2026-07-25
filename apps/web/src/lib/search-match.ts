@@ -1,16 +1,21 @@
-import { normalizeNameForMatching } from "@openrift/shared";
+import { squashForSearch } from "@openrift/shared";
 
 /**
  * Splits a free-text search query into normalized, punctuation-stripped tokens.
- * Each whitespace-separated word is run through `normalizeNameForMatching`, so
- * commas, apostrophes, and casing drop out (e.g. "Annie, Dark" → ["annie",
+ * Each whitespace-separated word is run through `squashForSearch`, so commas,
+ * apostrophes, casing and accents all drop out (e.g. "Annie, Dark" → ["annie",
  * "dark"]). Empty/punctuation-only words are discarded.
- * @returns The lowercased alphanumeric tokens (empty when the query has none).
+ *
+ * Folds via `squashForSearch` rather than `normalizeNameForMatching`: the latter
+ * strips everything outside `[a-z0-9]`, which deletes non-ASCII instead of
+ * folding it, so `unité` collapsed to `unit` and a CJK name to the empty string.
+ *
+ * @returns The lowercased tokens (empty when the query has none).
  */
 export function searchTokens(query: string): string[] {
   return query
     .split(/\s+/u)
-    .map((part) => normalizeNameForMatching(part))
+    .map((part) => squashForSearch(part))
     .filter((token) => token.length > 0);
 }
 
@@ -27,7 +32,7 @@ export function matchesAllTokens(tokens: readonly string[], ...haystacks: string
   if (tokens.length === 0) {
     return false;
   }
-  const normalized = haystacks.map((haystack) => normalizeNameForMatching(haystack));
+  const normalized = haystacks.map((haystack) => squashForSearch(haystack));
   return tokens.every((token) => normalized.some((haystack) => haystack.includes(token)));
 }
 
@@ -37,9 +42,9 @@ export function matchesAllTokens(tokens: readonly string[], ...haystacks: string
  * @returns True when the normalized text begins with the normalized query.
  */
 export function normalizedStartsWith(text: string, query: string): boolean {
-  const normalizedQuery = normalizeNameForMatching(query);
+  const normalizedQuery = squashForSearch(query);
   if (normalizedQuery.length === 0) {
     return false;
   }
-  return normalizeNameForMatching(text).startsWith(normalizedQuery);
+  return squashForSearch(text).startsWith(normalizedQuery);
 }

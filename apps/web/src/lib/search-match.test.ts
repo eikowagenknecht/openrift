@@ -11,6 +11,22 @@ describe("searchTokens", () => {
     expect(searchTokens("Kai'Sa")).toEqual(["kaisa"]);
   });
 
+  it("treats the stored curly apostrophe the same as a typed straight one", () => {
+    expect(searchTokens("Kai’Sa")).toEqual(["kaisa"]);
+  });
+
+  it("folds accented letters onto their base rather than deleting them", () => {
+    // normalizeNameForMatching turned "unité" into "unit", so "unite" never matched.
+    expect(searchTokens("unité")).toEqual(["unite"]);
+  });
+
+  it("keeps CJK words instead of emptying them", () => {
+    // normalizeNameForMatching reduced these to "", making every CJK query a
+    // no-op that silently matched nothing.
+    expect(searchTokens("莺之歌")).toEqual(["莺之歌"]);
+    expect(searchTokens("黯荧岛Dark Glow")).toEqual(["黯荧岛dark", "glow"]);
+  });
+
   it("collapses repeated whitespace and ignores empty words", () => {
     expect(searchTokens("  annie   dark  ")).toEqual(["annie", "dark"]);
   });
@@ -47,6 +63,16 @@ describe("matchesAllTokens", () => {
 
   it("returns false when there are no tokens", () => {
     expect(matchesAllTokens([], "Annie, Dark Child")).toBe(false);
+  });
+
+  it("matches a stored curly apostrophe from a straight-quote query", () => {
+    expect(matchesAllTokens(searchTokens("kai'sa survivor"), "Kai’Sa, Survivor")).toBe(true);
+    expect(matchesAllTokens(searchTokens("kaisa"), "Kai’Sa, Survivor")).toBe(true);
+  });
+
+  it("matches a CJK haystack that used to normalize away", () => {
+    expect(matchesAllTokens(searchTokens("莺之歌"), "莺之歌")).toBe(true);
+    expect(matchesAllTokens(searchTokens("dark glow"), "黯荧岛Dark Glow")).toBe(true);
   });
 });
 

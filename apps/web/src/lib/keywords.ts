@@ -1,4 +1,5 @@
 import type { KeywordsResponse } from "@openrift/shared";
+import { foldForSearch } from "@openrift/shared";
 
 const FALLBACK_COLOR = "#6a6a6a";
 
@@ -6,14 +7,18 @@ const FALLBACK_COLOR = "#6a6a6a";
  * Builds a reverse map from translated labels to their canonical (English) keyword name.
  * E.g. { "护盾": "Shield", "突袭": "Assault", ... }
  *
- * @returns Map from translated label (lowercased) to canonical keyword name.
+ * Keys are folded with `foldForSearch`, not merely lowercased, because the
+ * keyword search in `filters.ts` looks up a folded term. Fold both sides or a
+ * translated label containing an apostrophe or an accent never resolves.
+ *
+ * @returns Map from folded translated label to canonical keyword name.
  */
 export function buildTranslationReverseMap(styles: KeywordsResponse["items"]): Map<string, string> {
   const map = new Map<string, string>();
   for (const [canonical, entry] of Object.entries(styles)) {
     if (entry.translations) {
       for (const label of Object.values(entry.translations)) {
-        map.set(label.toLowerCase(), canonical);
+        map.set(foldForSearch(label), canonical);
       }
     }
   }
@@ -27,7 +32,7 @@ export function buildTranslationReverseMap(styles: KeywordsResponse["items"]): M
  * @returns The canonical keyword name.
  */
 function resolveKeywordCanonical(keyword: string, reverseMap: Map<string, string>): string {
-  return reverseMap.get(keyword.toLowerCase()) ?? keyword;
+  return reverseMap.get(foldForSearch(keyword)) ?? keyword;
 }
 
 export function getKeywordStyle(

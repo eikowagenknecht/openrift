@@ -1,3 +1,4 @@
+import { foldForSearch } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { SearchIcon } from "lucide-react";
@@ -175,8 +176,10 @@ function matches(query: string, ...fields: (string | undefined | null)[]): boole
   if (!query) {
     return true;
   }
-  const needle = query.toLowerCase();
-  return fields.some((field) => field?.toLowerCase().includes(needle));
+  // Folded on both sides so a typed apostrophe finds the curly one in the copy.
+  // Definitions are prose, so no squashed comparison here — see `squashForSearch`.
+  const needle = foldForSearch(query);
+  return fields.some((field) => (field ? foldForSearch(field).includes(needle) : false));
 }
 
 function GroupHeading({ id, title }: { id: string; title: string }) {

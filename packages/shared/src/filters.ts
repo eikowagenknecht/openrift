@@ -1,3 +1,4 @@
+import { foldCached, foldForSearch, squashCached, squashForSearch } from "./search-fold.js";
 import { isStandardPrinting } from "./standard.js";
 import type {
   CardFilters,
@@ -24,6 +25,31 @@ import { WellKnown } from "./well-known.js";
 interface ParsedSearchTerm {
   field: SearchField | null;
   text: string;
+  /** `text` run through `foldForSearch`, computed once per term rather than per printing. */
+  folded: string;
+  /** `text` run through `squashForSearch`, for the identifier-like fields only. */
+  squashed: string;
+}
+
+/**
+ * Wraps a raw term with its folded forms, or returns null when the term folds
+ * away to nothing.
+ *
+ * A term folds to empty only when it is made entirely of characters the fold
+ * deletes, i.e. apostrophes and quote marks (hyphens and dots survive). Dropping
+ * it keeps such a term equivalent to an empty search, which is what a user
+ * half-way through typing `"a phrase"` expects. Keeping it would be worse in
+ * both directions: an empty needle makes `includes` return true for every card,
+ * and rejecting it outright would blank the grid.
+ *
+ * @returns The parsed term, or null if it carries no searchable characters.
+ */
+function toTerm(field: SearchField | null, text: string): ParsedSearchTerm | null {
+  const folded = foldForSearch(text);
+  if (folded === "") {
+    return null;
+  }
+  return { field, text, folded, squashed: squashForSearch(text) };
 }
 
 /**
@@ -36,10 +62,10 @@ interface ParsedSearchTerm {
  * @example
  * ```ts
  * parseSearchTerms('n:Dragon fire')
- * // => [{ field: "name", text: "Dragon" }, { field: null, text: "fire" }]
+ * // => [{ field: "name", text: "Dragon", ... }, { field: null, text: "fire", ... }]
  *
  * parseSearchTerms('n:"Fire Dragon"')
- * // => [{ field: "name", text: "Fire Dragon" }]
+ * // => [{ field: "name", text: "Fire Dragon", ... }]
  * ```
  */
 export function parseSearchTerms(raw: string): ParsedSearchTerm[] {
@@ -50,84 +76,104 @@ export function parseSearchTerms(raw: string): ParsedSearchTerm[] {
   while ((match = regex.exec(raw)) !== null) {
     const groups = match.groups;
     const prefix = groups?.prefix;
-    if (prefix) {
-      const text = (groups?.quoted ?? groups?.bare ?? "").trim();
-      if (text) {
-        terms.push({ field: SEARCH_PREFIX_MAP[prefix] ?? null, text });
-      }
-    } else {
-      const text = (groups?.looseQuoted ?? groups?.loose ?? "").trim();
-      if (text) {
-        terms.push({ field: null, text });
-      }
+    const text = (
+      prefix ? (groups?.quoted ?? groups?.bare ?? "") : (groups?.looseQuoted ?? groups?.loose ?? "")
+    ).trim();
+    const term = text ? toTerm(prefix ? (SEARCH_PREFIX_MAP[prefix] ?? null) : null, text) : null;
+    if (term) {
+      terms.push(term);
     }
   }
   return terms;
 }
 
 /**
+ * Whether a folded haystack contains a folded term. Prose fields stop here.
+ * @returns `true` when the value contains the term after folding.
+ */
+function foldedContains(value: string | null | undefined, term: ParsedSearchTerm): boolean {
+  return value ? foldCached(value).includes(term.folded) : false;
+}
+
+/**
+ * As {@link foldedContains}, but also accepts a match once every separator is
+ * removed from both sides, so `quickdraw` finds `Quick-Draw` and `ogn269` finds
+ * `OGN-269`. Restricted to short identifier-like fields — see
+ * {@link squashForSearch} for why prose must not go through this.
+ * @returns `true` when the value contains the term after folding or squashing.
+ */
+function looselyContains(value: string | null | undefined, term: ParsedSearchTerm): boolean {
+  if (!value) {
+    return false;
+  }
+  return foldCached(value).includes(term.folded) || squashCached(value).includes(term.squashed);
+}
+
+/**
  * Checks whether a single printing matches a search term against a specific field.
  * Used by both prefixed searches (e.g. "n:dragon") and un-prefixed broad searches.
  *
- * @returns `true` if the printing's field value contains the search text (case-insensitive).
+ * Both sides are folded (see `search-fold.ts`), so typographic punctuation in the
+ * stored data never blocks a match. Identifier-like fields additionally match with
+ * separators removed; rules and flavor text deliberately do not.
+ *
+ * @returns `true` if the printing's field value contains the search text.
  *
  * @example
  * ```ts
- * printingMatchesField(printing, "name", "dragon") // true if card name contains "dragon"
+ * printingMatchesField(printing, "name", term) // true if card name contains the term
  * ```
  */
 function printingMatchesField(
   printing: Printing,
   field: SearchField,
-  text: string,
+  term: ParsedSearchTerm,
   keywordReverseMap?: Map<string, string>,
 ): boolean {
   const { card } = printing;
-  const lower = text.toLowerCase();
   if (field === "name") {
-    return (
-      card.name.toLowerCase().includes(lower) ||
-      (printing.printedName?.toLowerCase().includes(lower) ?? false)
-    );
+    return looselyContains(card.name, term) || looselyContains(printing.printedName, term);
   }
   if (field === "cardText") {
     return (
-      (card.errata?.correctedRulesText?.toLowerCase().includes(lower) ?? false) ||
-      (card.errata?.correctedEffectText?.toLowerCase().includes(lower) ?? false) ||
-      (printing.printedRulesText?.toLowerCase().includes(lower) ?? false) ||
-      (printing.printedEffectText?.toLowerCase().includes(lower) ?? false)
+      foldedContains(card.errata?.correctedRulesText, term) ||
+      foldedContains(card.errata?.correctedEffectText, term) ||
+      foldedContains(printing.printedRulesText, term) ||
+      foldedContains(printing.printedEffectText, term)
     );
   }
   if (field === "keywords") {
     // Match against canonical keywords directly
-    if (card.keywords.some((kw) => kw.toLowerCase().includes(lower))) {
+    if (card.keywords.some((kw) => looselyContains(kw, term))) {
       return true;
     }
-    // Also try resolving the search term via the translation reverse map
+    // Also try resolving the search term via the translation reverse map, whose
+    // keys are folded by `buildTranslationReverseMap` so this lookup lines up.
     if (keywordReverseMap) {
-      const canonical = keywordReverseMap.get(lower);
+      const canonical = keywordReverseMap.get(term.folded);
       if (canonical) {
-        return card.keywords.some((kw) => kw.toLowerCase() === canonical.toLowerCase());
+        const foldedCanonical = foldForSearch(canonical);
+        return card.keywords.some((kw) => foldCached(kw) === foldedCanonical);
       }
     }
     return false;
   }
   if (field === "tags") {
-    return card.tags.some((tag) => tag.toLowerCase().includes(lower));
+    return card.tags.some((tag) => looselyContains(tag, term));
   }
   if (field === "artist") {
-    return printing.artist.toLowerCase().includes(lower);
+    return looselyContains(printing.artist, term);
   }
   if (field === "flavorText") {
-    return printing.flavorText?.toLowerCase().includes(lower) ?? false;
+    return foldedContains(printing.flavorText, term);
   }
   if (field === "type") {
     return (
-      card.types.some((t) => t.toLowerCase().includes(lower)) ||
-      card.superTypes.some((st) => st.toLowerCase().includes(lower))
+      card.types.some((t) => looselyContains(t, term)) ||
+      card.superTypes.some((st) => looselyContains(st, term))
     );
   }
-  return printing.shortCode.toLowerCase().includes(lower);
+  return looselyContains(printing.shortCode, term);
 }
 
 /**
@@ -321,12 +367,12 @@ function matchesSearch(
   }
   return terms.every((term) => {
     if (term.field) {
-      return printingMatchesField(printing, term.field, term.text, keywordReverseMap);
+      return printingMatchesField(printing, term.field, term, keywordReverseMap);
     }
     // Un-prefixed terms widen to all fields when any prefix is present (e.g. "n:Dragon fire"
     // searches "fire" everywhere), but respect the user's search scope when no prefixes are used.
     const fields = hasPrefixes ? ALL_SEARCH_FIELDS : searchScope;
-    return fields.some((f) => printingMatchesField(printing, f, term.text, keywordReverseMap));
+    return fields.some((f) => printingMatchesField(printing, f, term, keywordReverseMap));
   });
 }
 

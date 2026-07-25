@@ -1,5 +1,5 @@
 import type { DeckListItemResponse, Domain } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import { foldForSearch, squashForSearch, WellKnown } from "@openrift/shared";
 
 import type {
   DeckListFormatFilter,
@@ -41,11 +41,20 @@ function deckMatchesSearch(item: DeckListItemWithNames, query: string): boolean 
   if (query === "") {
     return true;
   }
+  // Legend and champion names carry curly apostrophes ("Kai’Sa"), so both sides
+  // are folded. These are all short name-like values, so the squashed form is
+  // fair game too and lets "kaisa" match.
   const haystack = [item.deck.name, item.legendName, item.championName]
     .filter((value): value is string => value !== null && value !== undefined)
-    .join(" ")
-    .toLowerCase();
-  return haystack.includes(query.toLowerCase());
+    .join(" ");
+  const folded = foldForSearch(query);
+  if (folded === "") {
+    return true;
+  }
+  return (
+    foldForSearch(haystack).includes(folded) ||
+    squashForSearch(haystack).includes(squashForSearch(query))
+  );
 }
 
 function deckMatchesFormat(item: DeckListItemWithNames, filter: DeckListFormatFilter): boolean {

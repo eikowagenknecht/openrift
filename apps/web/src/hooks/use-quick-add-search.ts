@@ -1,5 +1,5 @@
 import type { Printing } from "@openrift/shared";
-import { legendDisplayName, normalizeNameForMatching } from "@openrift/shared";
+import { foldForSearch, legendDisplayName, squashForSearch } from "@openrift/shared";
 
 interface QuickAddCardResult {
   /** The card ID shared by all printings in this group. */
@@ -41,10 +41,11 @@ export function searchCards(
     return [];
   }
 
-  const normalizedQuery = normalizeNameForMatching(trimmed);
+  const normalizedQuery = squashForSearch(trimmed);
   if (normalizedQuery.length === 0) {
     return [];
   }
+  const foldedQuery = foldForSearch(trimmed);
 
   const languageAllowlist =
     preferredLanguages && preferredLanguages.length > 0 ? new Set(preferredLanguages) : null;
@@ -61,7 +62,7 @@ export function searchCards(
     // Match and display by the colloquial Legend name ("Azir, Emperor of the
     // Sands") so typing the champion finds it; non-Legends are unchanged.
     const cardName = legendDisplayName(printings[0].card);
-    const normalizedName = normalizeNameForMatching(cardName);
+    const normalizedName = squashForSearch(cardName);
 
     let rank: number;
     if (normalizedName === normalizedQuery) {
@@ -71,16 +72,17 @@ export function searchCards(
       // Prefix match
       rank = 1;
     } else {
-      // Word-boundary match: check if any word in the name starts with the query
-      const words = cardName.toLowerCase().split(/\s+/u);
-      const queryLower = trimmed.toLowerCase();
-      if (words.some((word) => word.startsWith(queryLower))) {
+      // Word-boundary match: check if any word in the name starts with the query.
+      // Compared on the folded forms, so a typed "kai'sa" lines up with the
+      // stored "Kai’Sa" here the same way it does for the ranks above.
+      const words = foldForSearch(cardName).split(" ");
+      if (words.some((word) => word.startsWith(foldedQuery))) {
         rank = 2;
       } else if (normalizedName.includes(normalizedQuery)) {
         // Substring match
         rank = 3;
-      } else if (printings.some((p) => p.shortCode.toLowerCase().includes(queryLower))) {
-        // Short code match (e.g. "OGN-042" or just "042")
+      } else if (printings.some((p) => squashForSearch(p.shortCode).includes(normalizedQuery))) {
+        // Short code match (e.g. "OGN-042", "ogn042" or just "042")
         rank = 4;
       } else {
         continue;

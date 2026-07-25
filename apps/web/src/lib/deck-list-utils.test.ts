@@ -75,6 +75,31 @@ describe("filterDecks", () => {
     expect(search("")).toEqual(["a", "b", "c"]);
   });
 
+  it("matches a legend name whose stored apostrophe is curly", () => {
+    const items = [
+      makeItem({ id: "a", name: "Evolution", legendName: "Kai’Sa", championName: "Kai’Sa" }),
+      makeItem({ id: "b", name: "Brawl", legendName: "Sett" }),
+    ];
+    const search = (query: string) =>
+      filterDecks(items, { search: query, format: "all", validity: "all", domains: [] }).map(
+        (item) => item.deck.id,
+      );
+    expect(search("kai’sa")).toEqual(["a"]);
+    expect(search("kai'sa")).toEqual(["a"]);
+    expect(search("kaisa")).toEqual(["a"]);
+  });
+
+  it("treats a query of only removed punctuation as no search", () => {
+    const items = [makeItem({ id: "a" }), makeItem({ id: "b" })];
+    const result = filterDecks(items, {
+      search: "'",
+      format: "all",
+      validity: "all",
+      domains: [],
+    });
+    expect(result.map((item) => item.deck.id)).toEqual(["a", "b"]);
+  });
+
   it("filters by format", () => {
     const items = [
       makeItem({ id: "a", format: "constructed" }),
