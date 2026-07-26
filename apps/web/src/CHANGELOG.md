@@ -6,6 +6,10 @@
 
 - feat(Tournaments): **Your deck lives on the tournament page** — every tournament you entered now shows a My deck tile that opens your list, tells you when it is still unsubmitted or a judge asked for changes, and replaces the old "My tournament decks" entry in the account menu.
 
+### Other
+
+- fix(Tournaments): **Pair up players stuck on byes** — the round editor gains a New match zone, so after a drop removes a table its remaining players can be seated against each other again.
+
 ## 2026-07-25
 
 ### Highlights

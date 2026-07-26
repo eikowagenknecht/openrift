@@ -93,6 +93,20 @@ describe("movePlayer", () => {
     expect(next.pods[1].playerIds).toEqual(["e", "f", "g", "h"]);
   });
 
+  it("moves a player into a brand-new pod", () => {
+    const next = movePlayer(seedFromRound(round()), "a", { kind: "newPod" });
+    expect(next.pods[0].playerIds).toEqual(["b", "c", "d"]);
+    expect(next.pods[2].playerIds).toEqual(["a"]);
+  });
+
+  it("pairs two byed players into a new pod neither existing pod could take", () => {
+    // The bug scenario: every existing table is full, two players sit in Byes.
+    let state = movePlayer(seedFromRound(round()), "h", { kind: "newPod" });
+    state = movePlayer(state, "e", { kind: "pod", index: 2 });
+    expect(state.pods[2].playerIds).toEqual(["h", "e"]);
+    expect(state.byes).toEqual([]);
+  });
+
   it("does not mutate the input state", () => {
     const state = seedFromRound(round());
     movePlayer(state, "a", { kind: "bye" });
@@ -167,6 +181,23 @@ describe("validatePartition (swiss)", () => {
     };
     const result = validatePartition(state, expected, "swiss");
     expect(result.ok).toBe(true);
+  });
+
+  it("accepts and saves a new match formed from two byed players", () => {
+    // Regression: after a mid-round drop removed a table, its survivor and the
+    // round's original bye were stuck in Byes with no table to join.
+    let state: EditorState = {
+      pods: [{ playerIds: ["a", "b"] }],
+      byes: ["c", "d"],
+    };
+    state = movePlayer(state, "c", { kind: "newPod" });
+    state = movePlayer(state, "d", { kind: "pod", index: 1 });
+    const result = validatePartition(state, expected, "swiss");
+    expect(result.ok).toBe(true);
+    expect(toPayload(state).pods).toEqual([
+      { size: 2, playerIds: ["a", "b"] },
+      { size: 2, playerIds: ["c", "d"] },
+    ]);
   });
 
   it("still rejects a 2-pod in the default pod mode", () => {

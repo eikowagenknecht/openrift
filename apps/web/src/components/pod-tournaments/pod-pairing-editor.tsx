@@ -11,7 +11,7 @@ import {
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import type { PairingWarning, Pod, PodRoundResponse, PodSnapshotPlayer } from "@openrift/shared";
 import { assignTableNumbers, computePairingWarnings, evaluatePod } from "@openrift/shared";
-import { GripVerticalIcon } from "lucide-react";
+import { GripVerticalIcon, PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -42,8 +42,9 @@ function toEnginePods(state: EditorState): Pod[] {
 
 /**
  * Drag-and-drop editor for the open round's pairing. The organizer rearranges
- * players between pods and a bye zone; pods flex in size (a save is blocked until
- * every pod is 3 or 4 and everyone is seated). Penalty and warnings update live.
+ * players between pods, a new-pod zone (spawns a table the round doesn't have),
+ * and a bye zone; pods flex in size (a save is blocked until every pod is 3 or 4
+ * and everyone is seated). Penalty and warnings update live.
  *
  * @param id The tournament id.
  * @param round The open (reporting) round being edited.
@@ -167,8 +168,8 @@ export function PodPairingEditor({
         </div>
         <p className="text-muted-foreground text-sm">
           {mode === "swiss"
-            ? "Drag players between matches or into Byes. Every match must have exactly 2 players to save. Warnings are advisory."
-            : "Drag players between pods or into Byes. Every pod must have 3 or 4 players to save. Warnings are advisory."}
+            ? "Drag players between matches, onto New match, or into Byes. Every match must have exactly 2 players to save. Warnings are advisory."
+            : "Drag players between pods, onto New pod, or into Byes. Every pod must have 3 or 4 players to save. Warnings are advisory."}
         </p>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {state.pods.map((pod, index) => (
@@ -192,6 +193,7 @@ export function PodPairingEditor({
               ))}
             </PodDropZone>
           ))}
+          <NewPodDropZone mode={mode} />
           <ByeDropZone byeIds={state.byes} warnings={byeWarnings} nameById={nameById}>
             {state.byes.map((playerId) => (
               <PlayerChip
@@ -319,6 +321,33 @@ function PodDropZone({
         <WarningList warnings={warnings} nameById={nameById} regionLabel={regionLabel} />
       </CardHeader>
       <CardContent className="flex min-h-12 flex-col gap-1.5">{children}</CardContent>
+    </Card>
+  );
+}
+
+// A drop target that spawns a fresh pod seated with the dropped player. Always
+// visible: without it, players parked in Byes could never form a table the
+// round no longer has (e.g. after a mid-round drop emptied one).
+function NewPodDropZone({ mode }: { mode: EditorMode }) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: "new-pod",
+    data: { target: { kind: "newPod" } satisfies MoveTarget },
+  });
+  return (
+    <Card ref={setNodeRef} className={cn("gap-2 border-dashed", isOver && "ring-primary ring-2")}>
+      <CardHeader className="gap-1">
+        <CardTitle className="flex items-center justify-between gap-2">
+          <span>{mode === "swiss" ? "New match" : "New pod"}</span>
+          <PlusIcon className="text-muted-foreground size-4" />
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="flex min-h-12 items-center">
+        <p className="text-muted-foreground text-sm">
+          {mode === "swiss"
+            ? "Drop a player here to open a new match."
+            : "Drop a player here to open a new pod."}
+        </p>
+      </CardContent>
     </Card>
   );
 }

@@ -11,8 +11,8 @@ export interface EditorState {
   byes: string[];
 }
 
-/** Where a dragged player is being dropped: into a specific pod, or the bye zone. */
-export type MoveTarget = { kind: "pod"; index: number } | { kind: "bye" };
+/** Where a dragged player is being dropped: into a specific pod, a brand-new pod, or the bye zone. */
+export type MoveTarget = { kind: "pod"; index: number } | { kind: "newPod" } | { kind: "bye" };
 
 /** The payload sent to the replace-pairing endpoint, with empty pods dropped. */
 export interface PairingPayload {
@@ -52,12 +52,14 @@ export function participantIds(state: EditorState): string[] {
 }
 
 /**
- * Move a player to a pod or the bye zone, removing them from wherever they were.
- * A no-op move (already at the target) returns an equivalent new state. Pure.
+ * Move a player to a pod, a brand-new pod, or the bye zone, removing them from
+ * wherever they were. A `newPod` target appends a pod seated with just this
+ * player (so byed players can form a table the round no longer has). A no-op
+ * move (already at the target) returns an equivalent new state. Pure.
  *
  * @param state The current partition.
  * @param playerId The player being moved.
- * @param target The destination pod index or the bye zone.
+ * @param target The destination pod index, the new-pod zone, or the bye zone.
  * @returns The new partition.
  */
 export function movePlayer(state: EditorState, playerId: string, target: MoveTarget): EditorState {
@@ -67,6 +69,8 @@ export function movePlayer(state: EditorState, playerId: string, target: MoveTar
   const byes = state.byes.filter((id) => id !== playerId);
   if (target.kind === "bye") {
     byes.push(playerId);
+  } else if (target.kind === "newPod") {
+    pods.push({ playerIds: [playerId] });
   } else if (pods[target.index]) {
     pods[target.index].playerIds.push(playerId);
   }
