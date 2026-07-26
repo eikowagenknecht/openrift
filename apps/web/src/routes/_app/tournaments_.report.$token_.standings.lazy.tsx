@@ -24,10 +24,15 @@ function ReportStandingsRoute() {
           // page spectators and unclaimed players actually open, so it gets the
           // throne too rather than a bare table.
           <div className="flex flex-col gap-6">
-            <StandingsPodium standings={data.standings} variant={variant} />
+            <StandingsPodium
+              standings={data.standings}
+              variant={variant}
+              playMode={data.playMode}
+            />
             <StandingsTable
               standings={data.standings}
               variant={variant}
+              playMode={data.playMode}
               regionsEnabled={data.regionsEnabled}
               regionLabel={regionLabel}
             />

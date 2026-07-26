@@ -35,6 +35,7 @@ export function PodPairingsSection({
 
   const scoresByPlayer = new Map(data.standings.map((row) => [row.playerId, row.score]));
   const isSwiss = data.tournament.pairingStyle === "swiss";
+  const teamMode = data.tournament.playMode === "2v2";
   const regionByPlayer = data.tournament.regionsEnabled
     ? new Map(data.standings.map((row) => [row.playerId, row.region]))
     : undefined;
@@ -48,8 +49,15 @@ export function PodPairingsSection({
   const openRound = data.rounds.find((round) => round.status === "reporting");
   const completed = data.tournament.status === "completed";
   const finalizedCount = data.rounds.filter((round) => round.status === "finalized").length;
-  const activeCount = data.players.filter((player) => player.status === "active").length;
-  const suggested = suggestedRoundCount(activeCount);
+  const activePlayers = data.players.filter((player) => player.status === "active");
+  const activeCount = activePlayers.length;
+  // 2v2 paces by teams: the suggested round count and the odd-field auto-bye
+  // hint both speak in pairing units, not people.
+  const activeTeamCount = new Set(
+    activePlayers.flatMap((player) => (player.teamId === null ? [] : [player.teamId])),
+  ).size;
+  const unitCount = teamMode ? activeTeamCount : activeCount;
+  const suggested = suggestedRoundCount(unitCount);
   const reachedSuggestion = suggested > 0 && finalizedCount >= suggested;
 
   async function run(action: () => Promise<unknown>) {
@@ -88,7 +96,8 @@ export function PodPairingsSection({
           nextRoundNumber={data.rounds.length + 1}
           reachedSuggestion={reachedSuggestion}
           suggested={suggested}
-          swissAutoBye={isSwiss && activeCount % 2 === 1}
+          swissAutoBye={isSwiss && unitCount % 2 === 1}
+          playMode={data.tournament.playMode}
           missingRegionIds={missingRegionIds}
         />
       )}
@@ -103,13 +112,14 @@ export function PodPairingsSection({
           id={id}
           round={openRound}
           snapshot={data.openRoundSnapshot}
-          mode={isSwiss ? "swiss" : "pod"}
+          mode={teamMode ? "team" : isSwiss ? "swiss" : "pod"}
           regionLabel={regionLabel}
           onClose={() => setEditingRound(null)}
         />
       ) : null}
       <PairingsView
         rounds={shownRounds}
+        playMode={data.tournament.playMode}
         scoresByPlayer={scoresByPlayer}
         scheme={data.tournament.scoringScheme}
         byePoints={data.tournament.byePoints}

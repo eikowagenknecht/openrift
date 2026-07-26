@@ -135,12 +135,18 @@ export type {
   PodPenaltyBreakdown,
   PodSizes,
   ScoringScheme,
+  TeamSnapshotPlayer,
+  TeamUnitsResult,
 } from "./pairing/index.js";
 export {
   arrangeSeating,
   assignTableNumbers,
+  buildTeamUnits,
+  collapseTeamByes,
+  collapseTeamPods,
   computePairingWarnings,
   DEFAULT_LOCAL_SEARCH_BUDGET,
+  expandTeamPairing,
   foldSeatingHistory,
   DEFAULT_PAIRING_CONFIG,
   determinePodSizes,

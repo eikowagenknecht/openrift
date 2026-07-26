@@ -2,6 +2,7 @@ import type {
   TournamentDeckSubmission,
   TournamentMatchFormat,
   TournamentPairingStyle,
+  TournamentPlayMode,
 } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -37,6 +38,7 @@ import {
   MATCH_FORMAT_ITEMS,
   PAIRING_STYLE_ITEMS,
   parseScheduleInput,
+  PLAY_MODE_ITEMS,
   splitUtcToLocalDateTime,
 } from "@/lib/tournament-display";
 import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
@@ -61,6 +63,7 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
   const [name, setName] = useState("");
   const [hostValue, setHostValue] = useState("user");
   const [pairingStyle, setPairingStyle] = useState<TournamentPairingStyle>("pod");
+  const [playMode, setPlayMode] = useState<TournamentPlayMode>("1v1");
   const [matchFormat, setMatchFormat] = useState<TournamentMatchFormat>("bo1");
   const [winPointsText, setWinPointsText] = useState("3");
   const [drawPointsText, setDrawPointsText] = useState("1");
@@ -100,6 +103,19 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
   const wantsDeck = deckSubmission !== "none";
   const runsRounds = hasPairing(pairingStyle);
   const isSwiss = pairingStyle === "swiss";
+  const isTeams = playMode === "2v2";
+  // 2v2 pairs team Swiss: free-for-all pods don't compose with fixed teams,
+  // and the region layer isn't team-aware yet.
+  const pairingItems = isTeams
+    ? PAIRING_STYLE_ITEMS.filter((item) => item.value !== "pod")
+    : PAIRING_STYLE_ITEMS;
+
+  function handlePlayModeChange(value: TournamentPlayMode) {
+    setPlayMode(value);
+    if (value === "2v2" && pairingStyle === "pod") {
+      setPairingStyle("swiss");
+    }
+  }
   // Points inputs: an integer 0-99, kept as text for controlled editing.
   const parsePoints = (text: string): number | null => {
     if (!/^\d{1,2}$/u.test(text.trim())) {
@@ -136,11 +152,12 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
       name: name.trim(),
       host,
       pairingStyle,
+      playMode,
       matchFormat: isSwiss ? matchFormat : undefined,
       winPoints: isSwiss ? (winPoints ?? undefined) : undefined,
       drawPoints: isSwiss ? (drawPoints ?? undefined) : undefined,
       byePoints: runsRounds ? (byePoints ?? undefined) : undefined,
-      regionsEnabled: runsRounds ? regionsEnabled : undefined,
+      regionsEnabled: runsRounds && !isTeams ? regionsEnabled : undefined,
       startsAt,
       endsAt,
       deckSubmission,
@@ -316,8 +333,35 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1.5">
+                <Label>Play mode</Label>
+                <Select
+                  items={PLAY_MODE_ITEMS}
+                  value={playMode}
+                  onValueChange={(value) =>
+                    value && handlePlayModeChange(value as TournamentPlayMode)
+                  }
+                >
+                  <SelectTrigger className="max-w-sm" aria-label="Play mode">
+                    <SelectValue placeholder="Play mode" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PLAY_MODE_ITEMS.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {isTeams ? (
+                  <span className="text-muted-foreground text-sm">
+                    You pair players into fixed teams of two on the Participants page; rounds pair
+                    team against team.
+                  </span>
+                ) : null}
+              </div>
               <Select
-                items={PAIRING_STYLE_ITEMS}
+                items={pairingItems}
                 value={pairingStyle}
                 onValueChange={(value) => value && setPairingStyle(value as TournamentPairingStyle)}
               >
@@ -325,7 +369,7 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
                   <SelectValue placeholder="Choose how players are paired" />
                 </SelectTrigger>
                 <SelectContent>
-                  {PAIRING_STYLE_ITEMS.map((item) => (
+                  {pairingItems.map((item) => (
                     <SelectItem key={item.value} value={item.value}>
                       {item.label}
                     </SelectItem>
@@ -417,7 +461,7 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
             </Card>
           ) : null}
 
-          {runsRounds ? (
+          {runsRounds && !isTeams ? (
             <Card>
               <CardHeader>
                 <CardTitle>Regions</CardTitle>

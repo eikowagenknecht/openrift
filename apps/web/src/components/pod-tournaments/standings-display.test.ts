@@ -14,6 +14,7 @@ function makeRow(playerId: string, overrides: Partial<PodStandingRow> = {}): Pod
     displayName: `Player ${playerId}`,
     status: "active",
     droppedAfterRound: null,
+    teamId: null,
     score: 0,
     gamePoints: 0,
     roundsPlayed: 1,

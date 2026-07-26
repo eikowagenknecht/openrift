@@ -11,6 +11,11 @@ import type {
   ParticipantTarget,
 } from "@/components/tournaments/participant-row";
 import { ParticipantRow, participantMissesRegion } from "@/components/tournaments/participant-row";
+import {
+  TeamsSection,
+  teammateNamesById,
+  unteamedActivePlayers,
+} from "@/components/tournaments/teams-section";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -108,10 +113,28 @@ export function TournamentParticipantsTab({
     (participant) => participant.status === "dropped" || participant.status === "no_show",
   ).length;
   const withRegionCount = activeCount - missingRegionPlayers.length;
+  const teamMode = detail.playMode === "2v2";
+  const unteamedCount = teamMode ? unteamedActivePlayers(participants).length : 0;
+  const teammateNames = teamMode ? teammateNamesById(participants) : new Map<string, string>();
 
   const stats: StatStripItem[] = [
     { key: "active", value: activeCount, label: "active", icon: CheckIcon, iconTone: "green" },
     { key: "dropped", value: droppedCount, label: "dropped", icon: UserXIcon },
+    ...(teamMode
+      ? [
+          {
+            key: "teamed",
+            value: `${activeCount - unteamedCount}/${activeCount}`,
+            label: "on a team",
+            icon: CheckIcon,
+            // A fully-teamed field is what unblocks pairing; a partial count
+            // is the number to fix below.
+            tone: (unteamedCount === 0 && activeCount > 0
+              ? "good"
+              : "default") as StatStripItem["tone"],
+          },
+        ]
+      : []),
     ...(detail.regionsEnabled
       ? [
           {
@@ -164,6 +187,8 @@ export function TournamentParticipantsTab({
         <MissingRegionsBand players={missingRegionPlayers} onSetRegion={setRegionTarget} />
       ) : null}
 
+      {teamMode ? <TeamsSection id={id} participants={participants} manage={manage} /> : null}
+
       {participants.length > 0 ? (
         <>
           <StatStrip items={stats} />
@@ -197,6 +222,7 @@ export function TournamentParticipantsTab({
                     manage={manage}
                     canAssignRegion={canAssignRegion}
                     dimmed={group.dimmed}
+                    teammateName={teammateNames.get(participant.id)}
                     deckEntryId={entryByParticipant.get(participant.id)?.id}
                     actionPending={participantAction.isPending}
                     onAction={fireAction}

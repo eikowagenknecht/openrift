@@ -10,7 +10,12 @@ import {
 } from "@dnd-kit/core";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import type { PairingWarning, Pod, PodRoundResponse, PodSnapshotPlayer } from "@openrift/shared";
-import { assignTableNumbers, computePairingWarnings, evaluatePod } from "@openrift/shared";
+import {
+  assignTableNumbers,
+  buildTeamUnits,
+  computePairingWarnings,
+  evaluatePod,
+} from "@openrift/shared";
 import { GripVerticalIcon, PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -27,6 +32,7 @@ import {
   validatePartition,
 } from "@/lib/pod-pairing-editor";
 import type { EditorMode, EditorState, MoveTarget } from "@/lib/pod-pairing-editor";
+import { teamNamesById } from "@/lib/team-display";
 import { cn } from "@/lib/utils";
 
 import { snapshotToPlayers, WarningList } from "./pairing-warnings";
@@ -69,7 +75,14 @@ export function PodPairingEditor({
   regionLabel?: (slug: string) => string;
   onClose: () => void;
 }) {
-  const [state, setState] = useState<EditorState>(() => seedFromRound(round));
+  const teamMode = mode === "team";
+  const players = snapshotToPlayers(snapshot);
+  // In team mode the editor's draggable unit is the TEAM: the state holds team
+  // ids (plus the ids of unteamed byed players), and only the save expands
+  // them back to the four seated players per match.
+  const teams = buildTeamUnits(players);
+  const seedState = teamMode ? seedUnitsFromRound(round, teams.teamByPlayer) : seedFromRound(round);
+  const [state, setState] = useState<EditorState>(() => seedState);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const replace = useReplaceTournamentPairing();
 
@@ -81,31 +94,39 @@ export function PodPairingEditor({
     ),
     ...round.byes.map((bye) => [bye.playerId, bye.displayName] as const),
   ]);
-  const scoreById = new Map(snapshot.map((player) => [player.playerId, player.score]));
-  const players = snapshotToPlayers(snapshot);
-  const playersById = new Map(players.map((player) => [player.id, player]));
+  if (teamMode) {
+    const roundRows = round.pods.flatMap((pod) =>
+      pod.members.map((member) => ({ teamId: member.teamId, displayName: member.displayName })),
+    );
+    for (const [teamId, name] of teamNamesById(roundRows)) {
+      nameById.set(teamId, name);
+    }
+  }
+  const scoreById = teamMode
+    ? new Map(teams.units.map((unit) => [unit.id, unit.score]))
+    : new Map(snapshot.map((player) => [player.playerId, player.score]));
+  const engineUnits = teamMode ? teams.units : players;
+  const unitsById = new Map(engineUnits.map((unit) => [unit.id, unit]));
 
-  const expected = participantIds(seedFromRound(round));
+  const expected = participantIds(seedState);
   const validation = validatePartition(state, expected, mode);
   const enginePods = toEnginePods(state);
   // Preview the table assignment the save will produce, so a seat displacement
-  // shows up while the organizer is still editing.
+  // shows up while the organizer is still editing. (Fixed tables are per player
+  // and don't steer team units.)
   const fixedTables = new Map(
-    players.flatMap((player) => {
-      const fixedTable = player.fixedTable ?? null;
-      return fixedTable === null ? [] : [[player.id, fixedTable] as const];
+    engineUnits.flatMap((unit) => {
+      const fixedTable = unit.fixedTable ?? null;
+      return fixedTable === null ? [] : [[unit.id, fixedTable] as const];
     }),
   );
   const warnings = computePairingWarnings(
     enginePods,
-    players,
+    engineUnits,
     state.byes,
     assignTableNumbers(enginePods, fixedTables),
   );
-  const totalPenalty = enginePods.reduce(
-    (sum, pod) => sum + evaluatePod(pod, playersById).total,
-    0,
-  );
+  const totalPenalty = enginePods.reduce((sum, pod) => sum + evaluatePod(pod, unitsById).total, 0);
 
   const podWarnings = new Map<number, PairingWarning[]>();
   for (const warning of warnings) {
@@ -139,13 +160,40 @@ export function PodPairingEditor({
     }
   }
 
+  // An unteamed byed player is a draggable chip too, but they can only sit
+  // out — a match needs two whole teams.
+  const seatedNonTeamIds = teamMode
+    ? state.pods
+        .flatMap((pod) => pod.playerIds)
+        .filter((unitId) => !teams.membersByTeam.has(unitId))
+    : [];
+  const errors = [
+    ...validation.errors,
+    ...seatedNonTeamIds.map(
+      (unitId) => `${nameById.get(unitId) ?? "A player"} has no team and can only sit out.`,
+    ),
+  ];
+  const canSave = validation.ok && seatedNonTeamIds.length === 0;
+
   async function handleSave() {
-    if (!validation.ok) {
+    if (!canSave) {
       return;
     }
     const payload = toPayload(state);
+    // Team mode edits move team units; the server speaks players, so expand
+    // each unit back to its members on the way out.
+    const expandUnit = (unitId: string) => teams.membersByTeam.get(unitId) ?? [unitId];
+    const expanded = teamMode
+      ? {
+          pods: payload.pods.map((pod) => {
+            const playerIds = pod.playerIds.flatMap(expandUnit);
+            return { size: playerIds.length as 2 | 3 | 4, playerIds };
+          }),
+          byes: payload.byes.flatMap(expandUnit),
+        }
+      : payload;
     try {
-      await replace.mutateAsync({ id, roundNumber: round.roundNumber, ...payload });
+      await replace.mutateAsync({ id, roundNumber: round.roundNumber, ...expanded });
       onClose();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't save pairing");
@@ -167,9 +215,11 @@ export function PodPairingEditor({
           </span>
         </div>
         <p className="text-muted-foreground text-sm">
-          {mode === "swiss"
-            ? "Drag players between matches, onto New match, or into Byes. Every match must have exactly 2 players to save. Warnings are advisory."
-            : "Drag players between pods, onto New pod, or into Byes. Every pod must have 3 or 4 players to save. Warnings are advisory."}
+          {mode === "team"
+            ? "Drag teams between matches, onto New match, or into Byes. Every match must have exactly 2 teams to save. Warnings are advisory."
+            : mode === "swiss"
+              ? "Drag players between matches, onto New match, or into Byes. Every match must have exactly 2 players to save. Warnings are advisory."
+              : "Drag players between pods, onto New pod, or into Byes. Every pod must have 3 or 4 players to save. Warnings are advisory."}
         </p>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {state.pods.map((pod, index) => (
@@ -205,9 +255,9 @@ export function PodPairingEditor({
             ))}
           </ByeDropZone>
         </div>
-        {validation.errors.length > 0 ? (
+        {errors.length > 0 ? (
           <ul className="text-destructive flex flex-col gap-0.5 text-sm">
-            {validation.errors.map((message) => (
+            {errors.map((message) => (
               <li key={message}>{message}</li>
             ))}
           </ul>
@@ -216,7 +266,7 @@ export function PodPairingEditor({
           <Button variant="ghost" onClick={onClose} disabled={replace.isPending}>
             Cancel
           </Button>
-          <Button onClick={() => void handleSave()} disabled={!validation.ok || replace.isPending}>
+          <Button onClick={() => void handleSave()} disabled={!canSave || replace.isPending}>
             {replace.isPending ? "Saving…" : "Save pairing"}
           </Button>
         </div>
@@ -232,6 +282,24 @@ export function PodPairingEditor({
       </DragOverlay>
     </DndContext>
   );
+}
+
+/**
+ * Seed the team-mode editor from the open round: each pod's members collapse
+ * to their team ids (first appearance order), and byes collapse to team ids
+ * where a whole team sits out, or stay player ids for unteamed byed players.
+ * @returns The initial unit-level partition.
+ */
+function seedUnitsFromRound(
+  round: PodRoundResponse,
+  teamByPlayer: ReadonlyMap<string, string>,
+): EditorState {
+  return {
+    pods: round.pods.map((pod) => ({
+      playerIds: [...new Set(pod.members.map((member) => member.teamId ?? member.playerId))],
+    })),
+    byes: [...new Set(round.byes.map((bye) => teamByPlayer.get(bye.playerId) ?? bye.playerId))],
+  };
 }
 
 // The editor index of the n-th non-empty pod (enginePods drops empties).
@@ -313,9 +381,11 @@ function PodDropZone({
           {/* Named by the event's style, not by seat count like pairingLabel():
               a Swiss match being dragged through 1 or 3 players is still a
               match, and renaming it mid-drag would be nonsense. */}
-          <span>{mode === "swiss" ? `Match ${index + 1}` : `Pod ${index + 1}`}</span>
+          <span>{mode === "pod" ? `Pod ${index + 1}` : `Match ${index + 1}`}</span>
           <span className={cn("font-normal", valid ? "text-muted-foreground" : "text-destructive")}>
-            {count} player{count === 1 ? "" : "s"}
+            {mode === "team"
+              ? `${count} team${count === 1 ? "" : "s"}`
+              : `${count} player${count === 1 ? "" : "s"}`}
           </span>
         </CardTitle>
         <WarningList warnings={warnings} nameById={nameById} regionLabel={regionLabel} />
@@ -337,15 +407,17 @@ function NewPodDropZone({ mode }: { mode: EditorMode }) {
     <Card ref={setNodeRef} className={cn("gap-2 border-dashed", isOver && "ring-primary ring-2")}>
       <CardHeader className="gap-1">
         <CardTitle className="flex items-center justify-between gap-2">
-          <span>{mode === "swiss" ? "New match" : "New pod"}</span>
+          <span>{mode === "pod" ? "New pod" : "New match"}</span>
           <PlusIcon className="text-muted-foreground size-4" />
         </CardTitle>
       </CardHeader>
       <CardContent className="flex min-h-12 items-center">
         <p className="text-muted-foreground text-sm">
-          {mode === "swiss"
-            ? "Drop a player here to open a new match."
-            : "Drop a player here to open a new pod."}
+          {mode === "team"
+            ? "Drop a team here to open a new match."
+            : mode === "swiss"
+              ? "Drop a player here to open a new match."
+              : "Drop a player here to open a new pod."}
         </p>
       </CardContent>
     </Card>

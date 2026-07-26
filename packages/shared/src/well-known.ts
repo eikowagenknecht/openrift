@@ -120,6 +120,8 @@ export const WellKnown = {
      * rows (e.g. `2v2`) hold additional bans scoped to that play mode.
      */
     CONSTRUCTED: "standard",
+    /** The extra bans that apply on top of the base list in 2v2 play. */
+    TWO_V_TWO: "2v2",
   },
   deckZone: {
     /** Default zone for most cards. */

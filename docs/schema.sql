@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict miMpXhqboZh00Cw9miMLAMqaQkQmLxSPxaQRfZ5yKLVyyPvVDQd2bnfUpcQIhZ4
+\restrict d3rqK6JX2BnxxT4tIFlpa8Q2vXvLSoywsgaK6oBEwW0jPH1j7BvUuRbIb19oVf3
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -2262,6 +2262,7 @@ CREATE TABLE public.tournament_participants (
     claim_blocked_at timestamp with time zone,
     region text,
     fixed_table integer,
+    team_id uuid,
     CONSTRAINT chk_tournament_participants_claim_source CHECK (((claim_source IS NULL) OR (claim_source = ANY (ARRAY['judge_manual'::text, 'self_submit'::text, 'claim_link'::text])))),
     CONSTRAINT chk_tournament_participants_fixed_table CHECK (((fixed_table IS NULL) OR ((fixed_table >= 1) AND (fixed_table <= 999)))),
     CONSTRAINT chk_tournament_participants_name CHECK (((length(display_name) >= 1) AND (length(display_name) <= 120))),
@@ -2281,6 +2282,17 @@ CREATE TABLE public.tournament_staff (
     role text NOT NULL,
     added_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT chk_tournament_staff_role CHECK ((role = ANY (ARRAY['organizer'::text, 'judge'::text])))
+);
+
+
+--
+-- Name: tournament_teams; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.tournament_teams (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    tournament_id uuid NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
 
@@ -2320,6 +2332,7 @@ CREATE TABLE public.tournaments (
     win_points integer DEFAULT 3 NOT NULL,
     draw_points integer DEFAULT 1 NOT NULL,
     regions_enabled boolean DEFAULT false NOT NULL,
+    play_mode text DEFAULT '1v1'::text NOT NULL,
     CONSTRAINT chk_tournaments_bye_points CHECK ((bye_points >= 0)),
     CONSTRAINT chk_tournaments_deck_phase CHECK ((deck_phase = ANY (ARRAY['open'::text, 'closed'::text, 'locked'::text]))),
     CONSTRAINT chk_tournaments_deck_submission CHECK ((deck_submission = ANY (ARRAY['none'::text, 'optional'::text, 'required'::text]))),
@@ -2329,6 +2342,9 @@ CREATE TABLE public.tournaments (
     CONSTRAINT chk_tournaments_match_format CHECK ((match_format = ANY (ARRAY['bo1'::text, 'bo3'::text]))),
     CONSTRAINT chk_tournaments_name CHECK (((length(name) >= 1) AND (length(name) <= 120))),
     CONSTRAINT chk_tournaments_pairing_style CHECK ((pairing_style = ANY (ARRAY['none'::text, 'pod'::text, 'swiss'::text]))),
+    CONSTRAINT chk_tournaments_play_mode CHECK ((play_mode = ANY (ARRAY['1v1'::text, '2v2'::text]))),
+    CONSTRAINT chk_tournaments_play_mode_pairing CHECK (((play_mode = '1v1'::text) OR (pairing_style <> 'pod'::text))),
+    CONSTRAINT chk_tournaments_play_mode_regions CHECK (((play_mode = '1v1'::text) OR (regions_enabled = false))),
     CONSTRAINT chk_tournaments_scheme CHECK ((scoring_scheme = ANY (ARRAY['standard'::text, 'three_pod_reduced'::text]))),
     CONSTRAINT chk_tournaments_status CHECK ((status = ANY (ARRAY['setup'::text, 'running'::text, 'completed'::text, 'cancelled'::text]))),
     CONSTRAINT chk_tournaments_win_points CHECK ((win_points >= 0))
@@ -3336,6 +3352,14 @@ ALTER TABLE ONLY public.tournament_staff
 
 
 --
+-- Name: tournament_teams tournament_teams_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tournament_teams
+    ADD CONSTRAINT tournament_teams_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: tournaments tournaments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4149,6 +4173,13 @@ CREATE INDEX idx_tag_definitions_category_id ON public.tag_definitions USING btr
 
 
 --
+-- Name: idx_tournament_participants_team; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_tournament_participants_team ON public.tournament_participants USING btree (team_id);
+
+
+--
 -- Name: idx_tournament_participants_tournament; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4167,6 +4198,13 @@ CREATE INDEX idx_tournament_participants_user ON public.tournament_participants 
 --
 
 CREATE INDEX idx_tournament_staff_user ON public.tournament_staff USING btree (user_id);
+
+
+--
+-- Name: idx_tournament_teams_tournament; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_tournament_teams_tournament ON public.tournament_teams USING btree (tournament_id);
 
 
 --
@@ -5882,6 +5920,14 @@ ALTER TABLE ONLY public.tag_definitions
 
 
 --
+-- Name: tournament_participants tournament_participants_team_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tournament_participants
+    ADD CONSTRAINT tournament_participants_team_fkey FOREIGN KEY (team_id) REFERENCES public.tournament_teams(id) ON DELETE SET NULL;
+
+
+--
 -- Name: tournament_participants tournament_participants_tournament_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5911,6 +5957,14 @@ ALTER TABLE ONLY public.tournament_staff
 
 ALTER TABLE ONLY public.tournament_staff
     ADD CONSTRAINT tournament_staff_user_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: tournament_teams tournament_teams_tournament_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tournament_teams
+    ADD CONSTRAINT tournament_teams_tournament_fkey FOREIGN KEY (tournament_id) REFERENCES public.tournaments(id) ON DELETE CASCADE;
 
 
 --
@@ -5981,5 +6035,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict miMpXhqboZh00Cw9miMLAMqaQkQmLxSPxaQRfZ5yKLVyyPvVDQd2bnfUpcQIhZ4
+\unrestrict d3rqK6JX2BnxxT4tIFlpa8Q2vXvLSoywsgaK6oBEwW0jPH1j7BvUuRbIb19oVf3
 

@@ -7,6 +7,7 @@ import type {
   DeckZone,
   Domain,
   SuperType,
+  TournamentPlayMode,
   ZoneSuggestion,
 } from "@openrift/shared";
 
@@ -143,7 +144,7 @@ export function toDeckCheckEntryCardResponse(row: DeckCheckEntryCard): DeckCheck
  */
 export async function buildEntryAdvisories(
   repos: Repos,
-  event: { format: string | null; allowedSets: string[] | null },
+  event: { format: string | null; playMode: TournamentPlayMode; allowedSets: string[] | null },
   cards: AdvisoryCardLine[],
 ): Promise<EntryAdvisories> {
   const matchedIds = [
@@ -153,20 +154,61 @@ export async function buildEntryAdvisories(
       ),
     ),
   ];
-  const [enumRows, details, setSlugsByCard, championIdentifierTags] = await Promise.all([
-    repos.enums.all(),
-    repos.deckCheck.getCardDetails(matchedIds),
-    event.allowedSets && event.allowedSets.length > 0
-      ? repos.deckCheck.getCardSetSlugs(matchedIds)
-      : Promise.resolve(new Map<string, string[]>()),
-    // Only Custom-Region's signature rule consumes the champion-identifier
-    // tag set — skip the query for every other format.
-    event.format === WellKnown.deckFormat.CUSTOM_REGION
-      ? repos.catalog.championIdentifierTags()
-      : Promise.resolve([] as string[]),
-  ]);
+  // Banlists are additive per play mode: the base list covers all constructed
+  // play, and a 2v2 event checks the 2v2-only additions on top.
+  const banFormatIds =
+    event.playMode === "2v2"
+      ? [WellKnown.banFormat.CONSTRUCTED, WellKnown.banFormat.TWO_V_TWO]
+      : [WellKnown.banFormat.CONSTRUCTED];
+  const [enumRows, details, setSlugsByCard, championIdentifierTags, activeBans] = await Promise.all(
+    [
+      repos.enums.all(),
+      repos.deckCheck.getCardDetails(matchedIds),
+      event.allowedSets && event.allowedSets.length > 0
+        ? repos.deckCheck.getCardSetSlugs(matchedIds)
+        : Promise.resolve(new Map<string, string[]>()),
+      // Only Custom-Region's signature rule consumes the champion-identifier
+      // tag set — skip the query for every other format.
+      event.format === WellKnown.deckFormat.CUSTOM_REGION
+        ? repos.catalog.championIdentifierTags()
+        : Promise.resolve([] as string[]),
+      repos.cardBans.listActiveForCards(matchedIds, banFormatIds),
+    ],
+  );
 
   const violations: DeckViolation[] = [];
+
+  const banned2v2 = new Set(
+    activeBans
+      .filter((ban) => ban.formatId === WellKnown.banFormat.TWO_V_TWO)
+      .map((ban) => ban.cardId),
+  );
+  const bannedBase = new Set(
+    activeBans
+      .filter((ban) => ban.formatId === WellKnown.banFormat.CONSTRUCTED)
+      .map((ban) => ban.cardId),
+  );
+  const flaggedBanned = new Set<string>();
+  for (const card of cards) {
+    if (!card.resolvedCardId || card.matchStatus !== "matched") {
+      continue;
+    }
+    if (flaggedBanned.has(card.resolvedCardId)) {
+      continue;
+    }
+    const base = bannedBase.has(card.resolvedCardId);
+    const extra = banned2v2.has(card.resolvedCardId);
+    if (!base && !extra) {
+      continue;
+    }
+    flaggedBanned.add(card.resolvedCardId);
+    violations.push({
+      zone: "deck",
+      code: "banned-card",
+      message: base ? `${card.rawName} is banned` : `${card.rawName} is banned in 2v2`,
+      cardId: card.resolvedCardId,
+    });
+  }
 
   if (event.format) {
     const deckCards = cards.flatMap((card) => {

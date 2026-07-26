@@ -372,6 +372,7 @@ export type {
   TournamentModuleFlags,
   TournamentMyDeckEntry,
   TournamentPairingStyle,
+  TournamentPlayMode,
   TournamentParticipantListResponse,
   TournamentParticipantPreview,
   TournamentParticipantResponse,

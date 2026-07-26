@@ -12,10 +12,38 @@ function makePod(overrides: Partial<PodResponse> = {}): PodResponse {
     size: 4,
     resultStatus: "pending",
     members: [
-      { playerId: "p1", displayName: "Ashe", gamePoints: null, placement: null, points: null },
-      { playerId: "p2", displayName: "Braum", gamePoints: null, placement: null, points: null },
-      { playerId: "p3", displayName: "Caitlyn", gamePoints: null, placement: null, points: null },
-      { playerId: "p4", displayName: "Darius", gamePoints: null, placement: null, points: null },
+      {
+        playerId: "p1",
+        displayName: "Ashe",
+        teamId: null,
+        gamePoints: null,
+        placement: null,
+        points: null,
+      },
+      {
+        playerId: "p2",
+        displayName: "Braum",
+        teamId: null,
+        gamePoints: null,
+        placement: null,
+        points: null,
+      },
+      {
+        playerId: "p3",
+        displayName: "Caitlyn",
+        teamId: null,
+        gamePoints: null,
+        placement: null,
+        points: null,
+      },
+      {
+        playerId: "p4",
+        displayName: "Darius",
+        teamId: null,
+        gamePoints: null,
+        placement: null,
+        points: null,
+      },
     ],
     penalty: null,
     ...overrides,
@@ -41,6 +69,7 @@ function renderView(props: Partial<Parameters<typeof PairingsView>[0]> = {}) {
   return render(
     <PairingsView
       rounds={[makeRound()]}
+      playMode="1v1"
       scoresByPlayer={new Map()}
       scheme="standard"
       byePoints={3}
@@ -138,6 +167,7 @@ describe("PairingsView", () => {
                 {
                   playerId: "p5",
                   displayName: "Ezreal",
+                  teamId: null,
                   gamePoints: 3,
                   placement: null,
                   points: null,
@@ -145,6 +175,7 @@ describe("PairingsView", () => {
                 {
                   playerId: "p6",
                   displayName: "Fiora",
+                  teamId: null,
                   gamePoints: 1,
                   placement: null,
                   points: null,
@@ -152,6 +183,7 @@ describe("PairingsView", () => {
                 {
                   playerId: "p7",
                   displayName: "Garen",
+                  teamId: null,
                   gamePoints: null,
                   placement: null,
                   points: null,
@@ -159,6 +191,7 @@ describe("PairingsView", () => {
                 {
                   playerId: "p8",
                   displayName: "Hecarim",
+                  teamId: null,
                   gamePoints: null,
                   placement: null,
                   points: null,
@@ -189,6 +222,7 @@ describe("PairingsView", () => {
       snapshot: [
         {
           playerId: "p9",
+          teamId: null,
           score: 3,
           pods3: 0,
           pods4: 1,
@@ -200,6 +234,7 @@ describe("PairingsView", () => {
         },
         {
           playerId: "p10",
+          teamId: null,
           score: 3,
           pods3: 0,
           pods4: 1,
@@ -231,10 +266,10 @@ describe("PairingsView", () => {
     renderView({
       rounds: [makeRound({ pods: [makePod({ podNumber: 3 })] })],
       snapshot: [
-        { playerId: "p1", ...snapshotDefaults, fixedTable: 7 },
-        { playerId: "p2", ...snapshotDefaults, fixedTable: null },
-        { playerId: "p3", ...snapshotDefaults, fixedTable: 3 },
-        { playerId: "p4", ...snapshotDefaults, fixedTable: null },
+        { playerId: "p1", teamId: null, ...snapshotDefaults, fixedTable: 7 },
+        { playerId: "p2", teamId: null, ...snapshotDefaults, fixedTable: null },
+        { playerId: "p3", teamId: null, ...snapshotDefaults, fixedTable: 3 },
+        { playerId: "p4", teamId: null, ...snapshotDefaults, fixedTable: null },
       ],
     });
 
@@ -254,6 +289,7 @@ describe("PairingsView", () => {
                 {
                   playerId: "p1",
                   displayName: "Ashe",
+                  teamId: null,
                   gamePoints: 8,
                   placement: 1,
                   points: 3,
@@ -261,6 +297,7 @@ describe("PairingsView", () => {
                 {
                   playerId: "p2",
                   displayName: "PinkelGelbeZaehne",
+                  teamId: null,
                   gamePoints: 5,
                   placement: 2,
                   points: 2,
@@ -297,6 +334,7 @@ describe("PairingsView", () => {
                 {
                   playerId: "p1",
                   displayName: "Ashe",
+                  teamId: null,
                   gamePoints: 6,
                   placement: null,
                   points: null,
@@ -304,6 +342,7 @@ describe("PairingsView", () => {
                 {
                   playerId: "p2",
                   displayName: "Braum",
+                  teamId: null,
                   gamePoints: null,
                   placement: null,
                   points: null,
@@ -332,5 +371,95 @@ describe("PairingsView", () => {
     await user.click(screen.getByRole("button", { name: "Save score for Ashe" }));
 
     expect(onSubmitPlayerResult).toHaveBeenCalledWith("pod-1", "p1", 7);
+  });
+});
+
+describe("PairingsView 2v2 team matches", () => {
+  function makeTeamPod(overrides: Partial<PodResponse> = {}): PodResponse {
+    return makePod({
+      members: [
+        {
+          playerId: "p1",
+          displayName: "Ashe",
+          teamId: "team-a",
+          gamePoints: null,
+          placement: null,
+          points: null,
+        },
+        {
+          playerId: "p2",
+          displayName: "Braum",
+          teamId: "team-a",
+          gamePoints: null,
+          placement: null,
+          points: null,
+        },
+        {
+          playerId: "p3",
+          displayName: "Caitlyn",
+          teamId: "team-b",
+          gamePoints: null,
+          placement: null,
+          points: null,
+        },
+        {
+          playerId: "p4",
+          displayName: "Darius",
+          teamId: "team-b",
+          gamePoints: null,
+          placement: null,
+          points: null,
+        },
+      ],
+      ...overrides,
+    });
+  }
+
+  it("renders a size-4 pod as a match with the sides divided", () => {
+    renderView({
+      playMode: "2v2",
+      rounds: [makeRound({ pods: [makeTeamPod()] })],
+    });
+
+    // Team rounds count matches, and the card is named a match, not a pod.
+    expect(screen.getByText("1 match")).toBeInTheDocument();
+    expect(screen.getByText("Match 1")).toBeInTheDocument();
+    expect(screen.getByText("vs")).toBeInTheDocument();
+    // Reporting progress counts sides, not the four players.
+    expect(screen.getByText("0 of 2 in")).toBeInTheDocument();
+  });
+
+  it("offers the Swiss scoreline form for a team match with joined side names", async () => {
+    const user = userEvent.setup();
+    renderView({
+      playMode: "2v2",
+      rounds: [makeRound({ pods: [makeTeamPod()] })],
+    });
+
+    await user.click(screen.getByRole("button", { name: "Enter result" }));
+    expect(screen.getByText("Ashe & Braum")).toBeInTheDocument();
+    expect(screen.getByText("Caitlyn & Darius")).toBeInTheDocument();
+  });
+
+  it("submits the chosen scoreline mirrored across each side's players", async () => {
+    const user = userEvent.setup();
+    const onSubmitResult = vi.fn(() => Promise.resolve());
+    renderView({
+      playMode: "2v2",
+      matchFormat: "bo1",
+      rounds: [makeRound({ pods: [makeTeamPod()] })],
+      onSubmitResult,
+    });
+
+    await user.click(screen.getByRole("button", { name: "Enter result" }));
+    await user.click(screen.getByRole("button", { name: "1–0" }));
+    await user.click(screen.getByRole("button", { name: "Save result" }));
+
+    expect(onSubmitResult).toHaveBeenCalledWith("pod-1", [
+      { playerId: "p1", gamePoints: 1 },
+      { playerId: "p2", gamePoints: 1 },
+      { playerId: "p3", gamePoints: 0 },
+      { playerId: "p4", gamePoints: 0 },
+    ]);
   });
 });

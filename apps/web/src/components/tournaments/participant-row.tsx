@@ -14,6 +14,7 @@ import {
   UnlinkIcon,
   UserMinusIcon,
   UserPlusIcon,
+  UsersIcon,
   XIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -84,6 +85,8 @@ export interface ParticipantRowProps {
   canAssignRegion: boolean;
   /** Dims the row — the dropped group, matching the standings table. */
   dimmed?: boolean;
+  /** The 2v2 teammate's name, rendered as a chip; absent outside team play. */
+  teammateName?: string;
   /** The player's deck-check entry, when they submitted one. */
   deckEntryId?: string;
   actionPending: boolean;
@@ -109,6 +112,7 @@ export function ParticipantRow({
   manage,
   canAssignRegion,
   dimmed = false,
+  teammateName,
   deckEntryId,
   actionPending,
   onAction,
@@ -135,6 +139,12 @@ export function ParticipantRow({
         <Badge variant={statusBadgeVariant(participant.status)}>
           {PARTICIPANT_STATUS_LABEL[participant.status]}
         </Badge>
+        {teammateName ? (
+          <Badge variant="outline" title={`Teamed with ${teammateName}`}>
+            <UsersIcon className="size-3" />
+            {teammateName}
+          </Badge>
+        ) : null}
         {regionsEnabled && participant.region ? (
           <Badge variant="outline">{regionLabel(participant.region)}</Badge>
         ) : missesRegion ? (

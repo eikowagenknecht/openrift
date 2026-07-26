@@ -1,4 +1,4 @@
-import type { PodStandingRow } from "@openrift/shared";
+import type { PodStandingRow, TournamentPlayMode } from "@openrift/shared";
 
 import { Badge } from "@/components/ui/badge";
 import { Medal } from "@/components/ui/podium";
@@ -11,6 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { UserAvatar } from "@/components/user-avatar";
+import { collapseTeamStandings } from "@/lib/team-display";
 import { cn } from "@/lib/utils";
 
 import { formatPlayerRecord, formatScore, POD_WINS_HINT, standingRanks } from "./standings-display";
@@ -67,19 +68,24 @@ function PlayerIdentity({
 }
 
 export function StandingsTable({
-  standings,
+  standings: standingsInput,
   variant = "pod",
+  playMode = "1v1",
   regionsEnabled = false,
   regionLabel = rawRegionSlug,
 }: {
   standings: PodStandingRow[];
   /** Column set: FFA pods (score/wins/pod tallies) or Swiss (points/W-L-D). */
   variant?: "pod" | "swiss";
+  /** 2v2 collapses teammate rows into one row per team. */
+  playMode?: TournamentPlayMode;
   /** Shows each player's region alongside their name. */
   regionsEnabled?: boolean;
   /** Region slug -> display label; defaults to the raw slug. */
   regionLabel?: (slug: string) => string;
 }) {
+  const teamMode = playMode === "2v2";
+  const standings = teamMode ? collapseTeamStandings(standingsInput) : standingsInput;
   if (standings.length === 0) {
     return <p className="text-muted-foreground">No players yet.</p>;
   }
@@ -126,7 +132,7 @@ export function StandingsTable({
           <TableHeader>
             <TableRow>
               <TableHead className="w-10">#</TableHead>
-              <TableHead>Player</TableHead>
+              <TableHead>{teamMode ? "Team" : "Player"}</TableHead>
               <TableHead className="text-right">{swiss ? "Points" : "Score"}</TableHead>
               {swiss ? (
                 <TableHead className="text-right">W-L-D</TableHead>

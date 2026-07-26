@@ -36,6 +36,7 @@ import type {
   TournamentMatchFormat,
   TournamentPairingStyle,
   TournamentParticipantStatus,
+  TournamentPlayMode,
   TournamentStaffRole,
   UserPreferencesResponse,
 } from "@openrift/shared/types";
@@ -823,6 +824,11 @@ export interface TournamentsTable {
 
   // The pairing engine. 'none' = no rounds; 'pod' = pod rounds; 'swiss' = 1v1 matches.
   pairingStyle: Generated<TournamentPairingStyle>;
+  /**
+   * 1v1 or 2v2 team play, orthogonal to the pairing style. CHECKs reject
+   * 2v2 + pod pairing and 2v2 + regions (chk_tournaments_play_mode_*).
+   */
+  playMode: Generated<TournamentPlayMode>;
   currentRound: Generated<number>;
   scoringScheme: Generated<PodScoringScheme>;
   /** Score points a sat-out (bye) game is worth; CHECK >= 0. Defaults to 3. */
@@ -875,6 +881,15 @@ interface TournamentStaffTable {
   addedAt: CreatedAt;
 }
 
+// A fixed 2v2 team (migration 212). Identity only: membership rides on
+// tournament_participants.team_id, and the display name derives from the two
+// member names. Deleting the row dissolves the team (members SET NULL).
+export interface TournamentTeamsTable {
+  id: Generated<string>;
+  tournamentId: string;
+  createdAt: CreatedAt;
+}
+
 // Unified participant (ADR-033): walk-in name → invited/claimable email →
 // linked account. Replaces pod_players and the identity half of
 // deck_check_entries. Pairing reads only id/status; the identity + claim columns
@@ -895,6 +910,11 @@ export interface TournamentParticipantsTable {
   /** Round number after which the player was dropped; NULL while active. */
   droppedAfterRound: number | null;
   seed: number | null;
+  /**
+   * The participant's fixed 2v2 team (SET NULL when the team dissolves).
+   * Always NULL in 1v1 play. Exactly-two-members is service-enforced.
+   */
+  teamId: string | null;
   /** Region tag slug (custom-tag category 'region'); CHECK: NULL or length 1..50. */
   region: string | null;
   /**
@@ -1804,6 +1824,7 @@ export interface Database {
   tournaments: TournamentsTable;
   tournamentStaff: TournamentStaffTable;
   tournamentParticipants: TournamentParticipantsTable;
+  tournamentTeams: TournamentTeamsTable;
   podRounds: PodRoundsTable;
   pods: PodsTable;
   podMembers: PodMembersTable;

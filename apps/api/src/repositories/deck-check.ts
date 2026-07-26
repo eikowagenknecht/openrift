@@ -9,6 +9,7 @@ import type {
   DeckCheckReviewOutcome,
   TournamentHostType,
   TournamentParticipantStatus,
+  TournamentPlayMode,
 } from "@openrift/shared";
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
@@ -45,6 +46,8 @@ export interface DeckCheckEvent {
   name: string;
   eventDate: Date | null;
   format: string | null;
+  /** 1v1 or 2v2: a 2v2 event's decks are additionally checked against the 2v2 banlist. */
+  playMode: TournamentPlayMode;
   allowedSets: string[] | null;
   status: "active" | "archived";
   listLockMode: DeckCheckListLockMode;
@@ -197,6 +200,7 @@ function tournamentToEvent(row: Selectable<TournamentsTable>): DeckCheckEvent {
     name: row.name,
     eventDate: row.startsAt,
     format: row.deckFormat,
+    playMode: row.playMode,
     allowedSets: parseJsonb<string[]>(row.allowedSets as string[] | string | null),
     status: eventStatusForTournamentStatus(row.status),
     listLockMode: row.listLockMode,

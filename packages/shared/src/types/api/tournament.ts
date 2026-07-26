@@ -48,6 +48,14 @@ export type TournamentStatus = "setup" | "running" | "completed" | "cancelled";
  */
 export type TournamentPairingStyle = "none" | "pod" | "swiss";
 
+/**
+ * The play mode, orthogonal to the pairing style. `2v2` composes with `swiss`
+ * (team Swiss: fixed teams of two, each match a size-4 pod holding two teams)
+ * and with `none` (deck-only events checked against the 2v2 banlist); it is
+ * rejected with `pod` and with the region layer.
+ */
+export type TournamentPlayMode = "1v1" | "2v2";
+
 /** Swiss result entry: best of 1 or best of 3. Only meaningful for `swiss`. */
 export type TournamentMatchFormat = "bo1" | "bo3";
 

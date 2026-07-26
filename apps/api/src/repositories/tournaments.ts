@@ -9,6 +9,7 @@ import type {
   TournamentParticipantStatus,
   TournamentMatchFormat,
   TournamentPairingStyle,
+  TournamentPlayMode,
   TournamentStaffRole,
   TournamentStatus,
 } from "@openrift/shared";
@@ -63,6 +64,8 @@ export interface NewTournament {
   /** Optional end instant: a multi-day close, or null for a single-day event. */
   endsAt?: Date | null;
   pairingStyle: TournamentPairingStyle;
+  /** 1v1 or 2v2 team play; omit for the DB default of 1v1. */
+  playMode?: TournamentPlayMode;
   scoringScheme?: PodScoringScheme;
   byePoints?: number;
   matchFormat?: TournamentMatchFormat;
@@ -88,6 +91,8 @@ export interface TournamentPatch {
   hostOrgId?: string | null;
   /** The pairing engine. The route guards that it only changes before any round. */
   pairingStyle?: TournamentPairingStyle;
+  /** The play mode. The route guards that it only changes before any round. */
+  playMode?: TournamentPlayMode;
   startsAt?: Date;
   endsAt?: Date | null;
   groupId?: string | null;

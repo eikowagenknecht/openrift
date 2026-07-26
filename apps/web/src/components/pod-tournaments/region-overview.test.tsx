@@ -10,6 +10,7 @@ function makeRow(playerId: string, region: string | null, score: number): PodSta
     displayName: `Player ${playerId}`,
     status: "active",
     droppedAfterRound: null,
+    teamId: null,
     score,
     gamePoints: 0,
     roundsPlayed: 1,

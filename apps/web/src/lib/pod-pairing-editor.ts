@@ -20,8 +20,12 @@ export interface PairingPayload {
   byes: string[];
 }
 
-/** Which sizes a pod may have in the editor: FFA pods (3/4) or Swiss matches (2). */
-export type EditorMode = "pod" | "swiss";
+/**
+ * Which sizes a pod may have in the editor: FFA pods (3/4), Swiss matches (2
+ * players), or 2v2 team matches (2 units, where each dragged chip is a whole
+ * team and the ids in the state are team ids).
+ */
+export type EditorMode = "pod" | "swiss" | "team";
 
 export interface PartitionValidation {
   /** True when the partition can be saved. */
@@ -95,7 +99,7 @@ export function validatePartition(
 ): PartitionValidation {
   const errors: string[] = [];
   const sizeOk = (size: number): boolean =>
-    mode === "swiss" ? size === 2 : size === 3 || size === 4;
+    mode === "swiss" || mode === "team" ? size === 2 : size === 3 || size === 4;
   const podValid = state.pods.map((pod) => {
     const size = pod.playerIds.length;
     return size === 0 || sizeOk(size);
@@ -104,21 +108,26 @@ export function validatePartition(
     const size = pod.playerIds.length;
     if (size !== 0 && !sizeOk(size)) {
       errors.push(
-        mode === "swiss"
-          ? `Match ${index + 1} has ${size} players. Matches must have exactly 2.`
-          : `Pod ${index + 1} has ${size} players. Pods must have 3 or 4.`,
+        mode === "team"
+          ? `Match ${index + 1} has ${size} team${size === 1 ? "" : "s"}. Matches must have exactly 2.`
+          : mode === "swiss"
+            ? `Match ${index + 1} has ${size} players. Matches must have exactly 2.`
+            : `Pod ${index + 1} has ${size} players. Pods must have 3 or 4.`,
       );
     }
   });
 
   const seated = participantIds(state);
   const seatedSet = new Set(seated);
+  const unit = mode === "team" ? "team" : "player";
   if (seatedSet.size !== seated.length) {
-    errors.push("A player appears in more than one pod or bye.");
+    errors.push(`A ${unit} appears in more than one ${mode === "pod" ? "pod" : "match"} or bye.`);
   }
   const expected = new Set(expectedPlayerIds);
   if (seatedSet.size !== expected.size || [...expected].some((id) => !seatedSet.has(id))) {
-    errors.push("Every player in the round must be in a pod or sitting out.");
+    errors.push(
+      `Every ${unit} in the round must be in a ${mode === "pod" ? "pod" : "match"} or sitting out.`,
+    );
   }
 
   return { ok: errors.length === 0, podValid, errors };

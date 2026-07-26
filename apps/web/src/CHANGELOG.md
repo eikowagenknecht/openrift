@@ -4,6 +4,7 @@
 
 ### Highlights
 
+- feat(Tournaments): **2v2 team tournaments** — pick 2v2 as the play mode, pair players into fixed teams of two, and run Swiss rounds where teams are paired, scored, and ranked together (decks are also checked against the 2v2 banlist).
 - feat(Tournaments): **Your deck lives on the tournament page** — every tournament you entered now shows a My deck tile that opens your list, tells you when it is still unsubmitted or a judge asked for changes, and replaces the old "My tournament decks" entry in the account menu.
 
 ### Other

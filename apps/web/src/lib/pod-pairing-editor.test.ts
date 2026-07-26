@@ -14,6 +14,7 @@ function round(): PodRoundResponse {
   const member = (playerId: string) => ({
     playerId,
     displayName: playerId,
+    teamId: null,
     gamePoints: null,
     placement: null,
     points: null,
@@ -219,5 +220,37 @@ describe("toPayload", () => {
     const payload = toPayload(state);
     expect(payload.pods).toEqual([{ size: 4, playerIds: ["a", "b", "c", "d"] }]);
     expect(payload.byes.toSorted()).toEqual(["e", "f", "g", "h"]);
+  });
+});
+
+describe("validatePartition (team)", () => {
+  // Team-mode ids are team ids: each chip in the editor is a whole 2v2 team.
+  it("accepts matches of exactly two teams", () => {
+    const state: EditorState = {
+      pods: [{ playerIds: ["team-a", "team-b"] }],
+      byes: ["team-c"],
+    };
+    const result = validatePartition(state, ["team-a", "team-b", "team-c"], "team");
+    expect(result.ok).toBe(true);
+  });
+
+  it("rejects a match with a lone team, with team copy", () => {
+    const state: EditorState = {
+      pods: [{ playerIds: ["team-a"] }],
+      byes: ["team-b", "team-c"],
+    };
+    const result = validatePartition(state, ["team-a", "team-b", "team-c"], "team");
+    expect(result.ok).toBe(false);
+    expect(result.errors[0]).toContain("1 team");
+  });
+
+  it("rejects when a team went missing from the partition", () => {
+    const state: EditorState = {
+      pods: [{ playerIds: ["team-a", "team-b"] }],
+      byes: [],
+    };
+    const result = validatePartition(state, ["team-a", "team-b", "team-c"], "team");
+    expect(result.ok).toBe(false);
+    expect(result.errors[0]).toContain("Every team");
   });
 });

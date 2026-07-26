@@ -281,6 +281,7 @@ export type {
   TournamentMyDeckEntry,
   TournamentMatchFormat,
   TournamentPairingStyle,
+  TournamentPlayMode,
   TournamentParticipantListResponse,
   TournamentParticipantPreview,
   TournamentParticipantResponse,

@@ -24,6 +24,7 @@ function makePlayer(id: string, displayName: string): PodPlayerResponse {
     displayName,
     status: "active",
     droppedAfterRound: null,
+    teamId: null,
     createdAt: "2026-07-01T10:00:00Z",
   };
 }
@@ -34,6 +35,7 @@ function makeStanding(playerId: string, byeCount: number): PodStandingRow {
     displayName: playerId,
     status: "active",
     droppedAfterRound: null,
+    teamId: null,
     score: 0,
     gamePoints: 0,
     roundsPlayed: 0,

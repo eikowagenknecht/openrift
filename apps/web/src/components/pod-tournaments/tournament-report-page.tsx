@@ -47,13 +47,16 @@ export function ReportRoundsContent({ token, data }: { token: string; data: PodR
     <div className="flex flex-col gap-4">
       {hasOpenRound && canSubmit ? (
         <p className="text-muted-foreground text-sm">
-          {swiss
-            ? "Find your match in the current round and add your own games won next to your name, or pick the whole scoreline at once. Points are worked out automatically, and new scores appear for everyone without reloading."
-            : "Find your pod in the current round and add your own game points next to your name, or enter the whole pod's scores at once. Places and points are worked out automatically, and new scores appear for everyone without reloading."}
+          {data.playMode === "2v2"
+            ? "Find your match in the current round and add your team's games won next to your name (either teammate can enter it), or pick the whole scoreline at once. Points are worked out automatically, and new scores appear for everyone without reloading."
+            : swiss
+              ? "Find your match in the current round and add your own games won next to your name, or pick the whole scoreline at once. Points are worked out automatically, and new scores appear for everyone without reloading."
+              : "Find your pod in the current round and add your own game points next to your name, or enter the whole pod's scores at once. Places and points are worked out automatically, and new scores appear for everyone without reloading."}
         </p>
       ) : null}
       <PairingsView
         rounds={data.rounds}
+        playMode={data.playMode}
         scoresByPlayer={scoresByPlayer}
         scheme={data.scoringScheme}
         byePoints={data.byePoints}

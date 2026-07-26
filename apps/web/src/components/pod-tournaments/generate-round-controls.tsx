@@ -1,4 +1,4 @@
-import type { PodPlayerResponse, PodStandingRow } from "@openrift/shared";
+import type { PodPlayerResponse, PodStandingRow, TournamentPlayMode } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { RotateCcwIcon, TriangleAlertIcon, UserMinusIcon, UserXIcon } from "lucide-react";
 import { useState } from "react";
@@ -20,6 +20,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { UserAvatar } from "@/components/user-avatar";
 import { useGenerateTournamentRound, useParticipantAction } from "@/hooks/use-tournaments";
+import { teamDisplayName } from "@/lib/team-display";
 
 /**
  * The next round's state band: the "generate" action plus an optional bye
@@ -52,6 +53,7 @@ export function GenerateRoundControls({
   reachedSuggestion,
   suggested,
   swissAutoBye = false,
+  playMode = "1v1",
   missingRegionIds = [],
 }: {
   id: string;
@@ -62,28 +64,74 @@ export function GenerateRoundControls({
   reachedSuggestion: boolean;
   suggested: number;
   swissAutoBye?: boolean;
+  /** 2v2: byes sit out whole teams, and unteamed players block pairing. */
+  playMode?: TournamentPlayMode;
   missingRegionIds?: string[];
 }) {
   const generateRound = useGenerateTournamentRound();
   const participantAction = useParticipantAction();
   const [byeIds, setByeIds] = useState<string[]>([]);
 
+  const teamMode = playMode === "2v2";
   const activePlayers = players.filter((player) => player.status === "active");
   const droppedPlayers = players.filter((player) => player.status === "dropped");
   const byeCountById = new Map(standings.map((row) => [row.playerId, row.byeCount]));
-  const repeatByes = byeIds.filter((playerId) => (byeCountById.get(playerId) ?? 0) >= 1);
   const nameById = new Map(players.map((player) => [player.id, player.displayName]));
+
+  // What the bye picker offers: whole teams in 2v2 (a bye covers both members;
+  // an unteamed player can still be sat out alone), individual players in 1v1.
+  const byeUnits: { key: string; label: string; memberIds: string[] }[] = [];
+  if (teamMode) {
+    const byTeam = new Map<string, PodPlayerResponse[]>();
+    for (const player of activePlayers) {
+      if (player.teamId === null) {
+        byeUnits.push({ key: player.id, label: player.displayName, memberIds: [player.id] });
+        continue;
+      }
+      const members = byTeam.get(player.teamId) ?? [];
+      members.push(player);
+      byTeam.set(player.teamId, members);
+    }
+    for (const [teamId, members] of byTeam) {
+      byeUnits.push({
+        key: teamId,
+        label: teamDisplayName(members.map((member) => member.displayName)),
+        memberIds: members.map((member) => member.id),
+      });
+    }
+  } else {
+    byeUnits.push(
+      ...activePlayers.map((player) => ({
+        key: player.id,
+        label: player.displayName,
+        memberIds: [player.id],
+      })),
+    );
+  }
+  const unitChecked = (unit: { memberIds: string[] }) =>
+    unit.memberIds.every((memberId) => byeIds.includes(memberId));
+  const selectedUnits = byeUnits.filter((unit) => unitChecked(unit));
+  const repeatByeUnits = selectedUnits.filter(
+    (unit) => (byeCountById.get(unit.memberIds[0]) ?? 0) >= 1,
+  );
+
   // The server rejects a pairing that seats a region-less player, so mirror
   // that here: byed players are exempt, everyone else needs a region first.
   const seatedWithoutRegion = missingRegionIds.filter((playerId) => !byeIds.includes(playerId));
+  // Likewise for 2v2: every seated player must be on a team.
+  const seatedWithoutTeam = teamMode
+    ? activePlayers
+        .filter((player) => player.teamId === null && !byeIds.includes(player.id))
+        .map((player) => player.id)
+    : [];
   const seatedCount = activePlayers.length - byeIds.length;
-  const blocked = seatedWithoutRegion.length > 0;
+  const blocked = seatedWithoutRegion.length > 0 || seatedWithoutTeam.length > 0;
 
-  function toggleBye(playerId: string) {
+  function toggleByeUnit(unit: { memberIds: string[] }) {
     setByeIds((current) =>
-      current.includes(playerId)
-        ? current.filter((byeId) => byeId !== playerId)
-        : [...current, playerId],
+      unit.memberIds.every((memberId) => current.includes(memberId))
+        ? current.filter((byeId) => !unit.memberIds.includes(byeId))
+        : [...current.filter((byeId) => !unit.memberIds.includes(byeId)), ...unit.memberIds],
     );
   }
 
@@ -99,8 +147,13 @@ export function GenerateRoundControls({
         action: dropped ? "drop" : "reactivate",
       });
       if (dropped) {
-        // A dropped player can't be seated, so they can't hold a bye either.
-        setByeIds((current) => current.filter((byeId) => byeId !== player.id));
+        // A dropped player can't be seated, so they can't hold a bye either. In
+        // 2v2 the server drops the whole team, so the teammate's bye goes too.
+        const goneIds =
+          teamMode && player.teamId !== null
+            ? players.filter((row) => row.teamId === player.teamId).map((row) => row.id)
+            : [player.id];
+        setByeIds((current) => current.filter((byeId) => !goneIds.includes(byeId)));
       }
       toast.success(dropped ? `Dropped ${player.displayName}` : `${player.displayName} is back in`);
     } catch (error) {
@@ -126,11 +179,11 @@ export function GenerateRoundControls({
       icon={UserMinusIcon}
       accent
       label={`Round ${nextRoundNumber}`}
-      value={seatedCount}
+      value={teamMode ? Math.floor(seatedCount / 2) : seatedCount}
       sub={
         suggested > 0
-          ? `players to pair · round ${nextRoundNumber} of ~${suggested}`
-          : "players to pair"
+          ? `${teamMode ? "teams" : "players"} to pair · round ${nextRoundNumber} of ~${suggested}`
+          : `${teamMode ? "teams" : "players"} to pair`
       }
       action={
         <Button disabled={generateRound.isPending || blocked} onClick={() => void generate()}>
@@ -146,27 +199,33 @@ export function GenerateRoundControls({
             <Popover>
               <PopoverTrigger render={<Button variant="outline" size="sm" />}>
                 <UserMinusIcon />
-                {byeIds.length === 0 ? "Sit players out" : `Sitting out ${byeIds.length}`}
+                {selectedUnits.length === 0
+                  ? teamMode
+                    ? "Sit teams out"
+                    : "Sit players out"
+                  : `Sitting out ${selectedUnits.length}`}
               </PopoverTrigger>
               <PopoverContent className="w-64 p-0" align="start">
                 <Command>
-                  <CommandInput placeholder="Search players..." />
+                  <CommandInput placeholder={teamMode ? "Search teams..." : "Search players..."} />
                   <CommandList>
-                    <CommandEmpty>No players found.</CommandEmpty>
+                    <CommandEmpty>
+                      {teamMode ? "No teams found." : "No players found."}
+                    </CommandEmpty>
                     <CommandGroup>
-                      {activePlayers.map((player) => {
-                        const priorByes = byeCountById.get(player.id) ?? 0;
+                      {byeUnits.map((unit) => {
+                        const priorByes = byeCountById.get(unit.memberIds[0]) ?? 0;
                         return (
                           <CommandItem
-                            key={player.id}
-                            // The id keeps the search value unique when two players
+                            key={unit.key}
+                            // The key keeps the search value unique when two units
                             // share a display name; cmdk still matches on the name.
-                            value={`${player.displayName} ${player.id}`}
-                            data-checked={byeIds.includes(player.id)}
-                            onSelect={() => toggleBye(player.id)}
+                            value={`${unit.label} ${unit.key}`}
+                            data-checked={unitChecked(unit)}
+                            onSelect={() => toggleByeUnit(unit)}
                           >
-                            <UserAvatar name={player.displayName} size="sm" />
-                            <span className="truncate">{player.displayName}</span>
+                            <UserAvatar name={unit.label} size="sm" />
+                            <span className="truncate">{unit.label}</span>
                             {priorByes > 0 ? (
                               <Badge variant="warning">
                                 {priorByes} bye{priorByes === 1 ? "" : "s"}
@@ -238,30 +297,27 @@ export function GenerateRoundControls({
               </Command>
             </PopoverContent>
           </Popover>
-          {byeIds.map((playerId) => {
-            const name = nameById.get(playerId) ?? "A player";
-            return (
-              <Badge key={playerId} variant="secondary">
-                {name}
-                <ChipRemoveButton
-                  aria-label={`Don't sit ${name} out`}
-                  onClick={() => toggleBye(playerId)}
-                />
-              </Badge>
-            );
-          })}
+          {selectedUnits.map((unit) => (
+            <Badge key={unit.key} variant="secondary">
+              {unit.label}
+              <ChipRemoveButton
+                aria-label={`Don't sit ${unit.label} out`}
+                onClick={() => toggleByeUnit(unit)}
+              />
+            </Badge>
+          ))}
         </div>
       ) : null}
-      {repeatByes.length > 0 ? (
+      {repeatByeUnits.length > 0 ? (
         <Alert variant="warning">
           <TriangleAlertIcon />
           <AlertTitle>
-            {repeatByes.map((playerId) => nameById.get(playerId) ?? "A player").join(", ")}{" "}
-            {repeatByes.length === 1 ? "has" : "have"} already had a bye.
+            {repeatByeUnits.map((unit) => unit.label).join(", ")}{" "}
+            {repeatByeUnits.length === 1 ? "has" : "have"} already had a bye.
           </AlertTitle>
         </Alert>
       ) : null}
-      {blocked ? (
+      {seatedWithoutRegion.length > 0 ? (
         <Alert variant="warning">
           <TriangleAlertIcon />
           <AlertTitle>
@@ -274,10 +330,24 @@ export function GenerateRoundControls({
           </AlertTitle>
         </Alert>
       ) : null}
+      {seatedWithoutTeam.length > 0 ? (
+        <Alert variant="warning">
+          <TriangleAlertIcon />
+          <AlertTitle>
+            {seatedWithoutTeam.map((playerId) => nameById.get(playerId) ?? "A player").join(", ")}{" "}
+            {seatedWithoutTeam.length === 1 ? "is" : "are"} not on a team yet. Pair them on the{" "}
+            <Link to="/tournaments/$id/participants" params={{ id }}>
+              Participants page
+            </Link>{" "}
+            (or sit them out) before pairing.
+          </AlertTitle>
+        </Alert>
+      ) : null}
       {swissAutoBye ? (
         <p className="text-muted-foreground text-sm">
-          With an odd number of players, the lowest-ranked player with the fewest byes sits out
-          automatically. Pick byes above to override.
+          {teamMode
+            ? "With an odd number of teams, the lowest-ranked team with the fewest byes sits out automatically. Pick byes above to override."
+            : "With an odd number of players, the lowest-ranked player with the fewest byes sits out automatically. Pick byes above to override."}
         </p>
       ) : null}
       {reachedSuggestion ? (

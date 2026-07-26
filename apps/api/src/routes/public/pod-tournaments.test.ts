@@ -48,6 +48,7 @@ const dbTournament = {
   drawPoints: 1,
   regionsEnabled: false,
   pairingStyle: "pod" as const,
+  playMode: "1v1" as const,
   reportToken: TOKEN,
   followToken: FOLLOW_TOKEN,
 };
@@ -63,6 +64,7 @@ const standingRow = {
   displayName: "Alice",
   status: "active" as const,
   droppedAfterRound: null,
+  teamId: null,
   score: 9,
   gamePoints: 9,
   roundsPlayed: 3,

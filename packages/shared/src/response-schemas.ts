@@ -461,6 +461,7 @@ export const podScoringSchemeSchema = z.enum(["standard", "three_pod_reduced"]);
 export const podPlayerStatusSchema = z.enum(["active", "dropped"]);
 export const podPairingStyleSchema = z.enum(["none", "pod", "swiss"]);
 export const podMatchFormatSchema = z.enum(["bo1", "bo3"]);
+export const podPlayModeSchema = z.enum(["1v1", "2v2"]);
 
 export const podStandingRowSchema = z
   .object({
@@ -468,6 +469,8 @@ export const podStandingRowSchema = z
     displayName: z.string(),
     status: podPlayerStatusSchema,
     droppedAfterRound: z.number().int().nullable(),
+    /** The player's fixed 2v2 team, or null (always null in 1v1 play). */
+    teamId: z.string().nullable(),
     score: z.number(),
     gamePoints: z.number().nonnegative(),
     roundsPlayed: z.number().int().nonnegative(),
@@ -488,6 +491,8 @@ export const podStandingRowSchema = z
 export const podMemberResponseSchema = z.object({
   playerId: z.string(),
   displayName: z.string(),
+  /** The member's fixed 2v2 team, for side grouping; null in 1v1 play. */
+  teamId: z.string().nullable(),
   gamePoints: z.number().int().nullable(),
   placement: z.number().int().nullable(),
   points: z.number().nullable(),
@@ -547,6 +552,7 @@ export const podTournamentResponseSchema = z
     status: podTournamentStatusSchema,
     currentRound: z.number().int().nonnegative(),
     pairingStyle: podPairingStyleSchema,
+    playMode: podPlayModeSchema,
     scoringScheme: podScoringSchemeSchema,
     byePoints: z.number().int().nonnegative(),
     matchFormat: podMatchFormatSchema,
@@ -565,12 +571,16 @@ export const podPlayerResponseSchema = z
     displayName: z.string(),
     status: podPlayerStatusSchema,
     droppedAfterRound: z.number().int().nullable(),
+    /** The player's fixed 2v2 team, or null (always null in 1v1 play). */
+    teamId: z.string().nullable(),
     createdAt: z.string(),
   })
   .openapi("PodPlayerResponse");
 
 export const podSnapshotPlayerSchema = z.object({
   playerId: z.string(),
+  /** The player's fixed 2v2 team, or null (always null in 1v1 play). */
+  teamId: z.string().nullable(),
   score: z.number(),
   pods3: z.number().int().nonnegative(),
   pods4: z.number().int().nonnegative(),

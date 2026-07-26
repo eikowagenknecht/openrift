@@ -11,10 +11,15 @@ export function TournamentStandingsTab({ id }: { id: string }) {
   const variant = data.tournament.pairingStyle === "swiss" ? "swiss" : "pod";
   return (
     <div className="flex flex-col gap-6">
-      <StandingsPodium standings={data.standings} variant={variant} />
+      <StandingsPodium
+        standings={data.standings}
+        variant={variant}
+        playMode={data.tournament.playMode}
+      />
       <StandingsTable
         standings={data.standings}
         variant={variant}
+        playMode={data.tournament.playMode}
         regionsEnabled={data.tournament.regionsEnabled}
         regionLabel={regionLabel}
       />

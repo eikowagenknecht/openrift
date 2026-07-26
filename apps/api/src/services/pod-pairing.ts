@@ -1,6 +1,10 @@
 import {
+  buildTeamUnits,
+  collapseTeamByes,
+  collapseTeamPods,
   ERROR_CODES,
   evaluatePairing,
+  expandTeamPairing,
   generatePairing,
   InvalidPlayerCountError,
   pickAutoBye,
@@ -8,10 +12,10 @@ import {
 } from "@openrift/shared";
 import type {
   PairingMode,
-  PairingPlayer,
   PairingResult,
   Pod,
   PodSnapshotPlayer,
+  TeamSnapshotPlayer,
 } from "@openrift/shared";
 
 import type { Repos } from "../deps.js";
@@ -94,6 +98,9 @@ async function runPairing(
       );
     }
   }
+  if (tournament.playMode === "2v2") {
+    return runTeamPairing(snapshot, seated, roundNumber, byePlayerIds);
+  }
   let effectiveByes = byePlayerIds;
   if (pairingModeOf(tournament) === "swiss" && seated.length % 2 === 1) {
     const autoBye = pickAutoBye(seated);
@@ -106,6 +113,81 @@ async function runPairing(
   try {
     return {
       pairing: generatePairing(seated, roundNumber, { mode: pairingModeOf(tournament) }),
+      byePlayerIds: effectiveByes,
+    };
+  } catch (error) {
+    if (error instanceof InvalidPlayerCountError) {
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, error.message);
+    }
+    throw error;
+  }
+}
+
+/**
+ * The 2v2 half of `runPairing`: validate the field decomposes into whole
+ * teams, collapse it to team units, run the Swiss engine over the teams, and
+ * expand the result back to size-4 player pods.
+ *
+ * Every seated player must be on a complete team — unteamed players and
+ * half-teams (a partner dropped without the team following) block with a
+ * clear 400, mirroring the missing-region block, so nobody silently misses a
+ * round. Byes must cover whole teams; a byed unteamed player is legal (the
+ * organizer's way to park an odd walk-in without dropping them). An odd team
+ * count auto-byes one whole team (fewest byes, then lowest score).
+ *
+ * @param snapshot The full active snapshot (for team lookups of byed players).
+ * @param seated The snapshot minus organizer byes.
+ * @param roundNumber The 1-based round number.
+ * @param byePlayerIds The organizer byes.
+ * @returns The expanded pairing plus the effective byes to persist.
+ */
+function runTeamPairing(
+  snapshot: TeamSnapshotPlayer[],
+  seated: TeamSnapshotPlayer[],
+  roundNumber: number,
+  byePlayerIds: string[],
+): { pairing: PairingResult; byePlayerIds: string[] } {
+  const full = buildTeamUnits(snapshot);
+  const { partialByePlayerIds } = collapseTeamByes(byePlayerIds, full.teamByPlayer);
+  if (partialByePlayerIds.length > 0) {
+    throw new AppError(
+      400,
+      ERROR_CODES.BAD_REQUEST,
+      "A bye must sit out a whole team — include both members.",
+    );
+  }
+  const field = buildTeamUnits(seated);
+  if (field.unteamedPlayerIds.length > 0) {
+    const count = field.unteamedPlayerIds.length;
+    throw new AppError(
+      400,
+      ERROR_CODES.BAD_REQUEST,
+      count === 1
+        ? "1 player is not on a team. Pair them on the Participants page, sit them out, or drop them before pairing."
+        : `${count} players are not on a team. Pair them on the Participants page, sit them out, or drop them before pairing.`,
+    );
+  }
+  if (field.incompleteTeamIds.length > 0) {
+    throw new AppError(
+      400,
+      ERROR_CODES.BAD_REQUEST,
+      "A team is missing its partner. Drop the remaining member too, or sit them out, before pairing.",
+    );
+  }
+  let units = field.units;
+  let effectiveByes = byePlayerIds;
+  if (units.length % 2 === 1) {
+    const autoByeTeam = pickAutoBye(units);
+    effectiveByes = [...byePlayerIds, ...(field.membersByTeam.get(autoByeTeam) ?? [])];
+    units = units.filter((unit) => unit.id !== autoByeTeam);
+  }
+  if (units.length === 0) {
+    return { pairing: EMPTY_PAIRING, byePlayerIds: effectiveByes };
+  }
+  try {
+    const teamPairing = generatePairing(units, roundNumber, { mode: "swiss" });
+    return {
+      pairing: expandTeamPairing(teamPairing, field.membersByTeam),
       byePlayerIds: effectiveByes,
     };
   } catch (error) {
@@ -238,6 +320,7 @@ export async function replaceRoundPairing(
 
   // Every pod must match its member count and have a size the style allows.
   const swiss = pairingModeOf(tournament) === "swiss";
+  const team = tournament.playMode === "2v2";
   for (const pod of pods) {
     if (pod.size !== pod.playerIds.length) {
       throw new AppError(
@@ -246,14 +329,21 @@ export async function replaceRoundPairing(
         `A pod declares size ${pod.size} but has ${pod.playerIds.length} players.`,
       );
     }
-    if (swiss && pod.size !== 2) {
+    if (team && pod.size !== 4) {
+      throw new AppError(
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "2v2 matches must have exactly 4 players (two teams).",
+      );
+    }
+    if (!team && swiss && pod.size !== 2) {
       throw new AppError(
         400,
         ERROR_CODES.BAD_REQUEST,
         "Swiss matches must have exactly 2 players.",
       );
     }
-    if (!swiss && pod.size === 2) {
+    if (!team && !swiss && pod.size === 2) {
       throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Pods must have 3 or 4 players.");
     }
   }
@@ -283,21 +373,51 @@ export async function replaceRoundPairing(
   }
 
   // Recompute the penalty from the pre-round snapshot so the stored breakdown
-  // stays truthful after a hand edit.
+  // stays truthful after a hand edit. In 2v2 the truthful unit is the team:
+  // pods collapse to team pods (rejecting any that are not two full teams) and
+  // the penalty is scored over team units, exactly as at generation.
   const snapshot = await repos.podTournaments.loadOpenRoundSnapshot(
     tournament.id,
     scoringOf(tournament),
   );
   const players = snapshot.map((entry) => toPairingPlayer(entry));
   const enginePods: Pod[] = pods.map((pod) => ({ size: pod.size, playerIds: pod.playerIds }));
-  const { perPod, totalPenalty } = evaluatePairing(enginePods, players);
-  const pairing: PairingResult = { pods: enginePods, perPod, totalPenalty, strategy: "manual" };
+  let evaluated: { perPod: PairingResult["perPod"]; totalPenalty: number };
+  if (team) {
+    const teams = buildTeamUnits(players);
+    const { teamPods, invalidPodIndexes } = collapseTeamPods(enginePods, teams.teamByPlayer);
+    if (invalidPodIndexes.length > 0) {
+      throw new AppError(
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Each 2v2 match must hold two complete teams.",
+      );
+    }
+    const { partialByePlayerIds } = collapseTeamByes(byePlayerIds, teams.teamByPlayer);
+    if (partialByePlayerIds.length > 0) {
+      throw new AppError(
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "A bye must sit out a whole team — include both members.",
+      );
+    }
+    evaluated = evaluatePairing(teamPods, teams.units);
+  } else {
+    evaluated = evaluatePairing(enginePods, players);
+  }
+  const pairing: PairingResult = {
+    pods: enginePods,
+    perPod: evaluated.perPod,
+    totalPenalty: evaluated.totalPenalty,
+    strategy: "manual",
+  };
   await repos.podTournaments.replacePairing(round.id, pairing, byePlayerIds);
 }
 
-function toPairingPlayer(snapshot: PodSnapshotPlayer): PairingPlayer {
+function toPairingPlayer(snapshot: PodSnapshotPlayer): TeamSnapshotPlayer {
   return {
     id: snapshot.playerId,
+    teamId: snapshot.teamId,
     score: snapshot.score,
     pods3: snapshot.pods3,
     pods4: snapshot.pods4,
@@ -398,6 +518,28 @@ export async function submitPodResult(
   if (seen.size !== memberIds.size) {
     throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Every player in the pod needs a result.");
   }
+  if (found.tournament.playMode === "2v2") {
+    // A 2v2 result is a team result: both members of a side carry the same
+    // game score, so the derived placements collapse to two team placements.
+    for (const [teamId, teamResults] of Map.groupBy(results, (result) =>
+      found.teamByPlayer.get(result.playerId),
+    )) {
+      if (teamId === undefined) {
+        throw new AppError(
+          400,
+          ERROR_CODES.BAD_REQUEST,
+          "A result names a player who is not on a team.",
+        );
+      }
+      if (new Set(teamResults.map((result) => result.gamePoints)).size > 1) {
+        throw new AppError(
+          400,
+          ERROR_CODES.BAD_REQUEST,
+          "Teammates share one team result — their game points must match.",
+        );
+      }
+    }
+  }
 
   const placements = placementsFromGamePoints(results.map((result) => result.gamePoints));
   await repos.podTournaments.setPodResult(
@@ -447,5 +589,12 @@ export async function submitPodPlayerResult(
   if (gamePoints < 0) {
     throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Game points cannot be negative.");
   }
-  await repos.podTournaments.setMemberGamePoints(podId, playerId, gamePoints);
+  // A 2v2 self-report is the team's result: mirror it onto the teammate, so
+  // the pod completes once each side has reported (any member of either team).
+  const teamId = found.teamByPlayer.get(playerId);
+  const targets =
+    found.tournament.playMode === "2v2" && teamId !== undefined
+      ? found.memberPlayerIds.filter((memberId) => found.teamByPlayer.get(memberId) === teamId)
+      : [playerId];
+  await repos.podTournaments.setMemberGamePoints(podId, targets, gamePoints);
 }

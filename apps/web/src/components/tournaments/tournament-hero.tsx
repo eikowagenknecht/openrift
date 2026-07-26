@@ -32,11 +32,13 @@ const HERO_WASH = [
  */
 function heroKicker(detail: TournamentDetailResponse): string {
   const kind =
-    detail.pairingStyle === "pod"
-      ? "Pod tournament"
-      : detail.pairingStyle === "swiss"
-        ? "Swiss tournament"
-        : "Tournament";
+    detail.playMode === "2v2"
+      ? "2v2 team tournament"
+      : detail.pairingStyle === "pod"
+        ? "Pod tournament"
+        : detail.pairingStyle === "swiss"
+          ? "Swiss tournament"
+          : "Tournament";
   const state = effectiveTournamentState(detail.startsAt, detail.endsAt, detail.status);
   return `${kind} · ${state === "in_progress" ? "Live" : EFFECTIVE_STATE_LABEL[state]}`;
 }

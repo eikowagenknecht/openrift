@@ -20,6 +20,7 @@ extendZodWithOpenApi(z);
 
 const tournamentStatusSchema = z.enum(["setup", "running", "completed", "cancelled"]);
 const tournamentPairingStyleSchema = z.enum(["none", "pod", "swiss"]);
+const tournamentPlayModeSchema = z.enum(["1v1", "2v2"]);
 const tournamentMatchFormatSchema = z.enum(["bo1", "bo3"]);
 const tournamentDeckSubmissionSchema = z.enum(["none", "optional", "required"]);
 const tournamentDeckPhaseSchema = z.enum(["open", "closed", "locked"]);
@@ -109,6 +110,8 @@ export const tournamentSummaryResponseSchema = z
     groupSlug: z.string().nullable(),
     groupName: z.string().nullable(),
     pairingStyle: tournamentPairingStyleSchema,
+    /** 1v1 or 2v2 team play, orthogonal to the pairing style. */
+    playMode: tournamentPlayModeSchema,
     deckSubmission: tournamentDeckSubmissionSchema,
     deckFormat: z.string().nullable(),
     startsAt: z.string(),
@@ -192,6 +195,13 @@ export const tournamentParticipantResponseSchema = z
     riotId: z.string().nullable(),
     status: tournamentParticipantStatusSchema,
     seed: z.number().int().nullable(),
+    /**
+     * The participant's fixed 2v2 team, or null when unteamed (always null in
+     * 1v1 play). Teams have no stored name: the pair of member display names
+     * IS the team identity, so the roster payload already carries everything
+     * needed to render teams.
+     */
+    teamId: z.string().nullable(),
     /** Region tag slug (custom-tag category `region`); null when unassigned. */
     region: z.string().nullable(),
     /**
@@ -227,6 +237,9 @@ export const createTournamentSchema = z.object({
   name: z.string().min(1).max(120),
   host: hostInputSchema,
   pairingStyle: tournamentPairingStyleSchema,
+  // 2v2 team play. Composes with 'swiss' or 'none'; rejected with 'pod' and
+  // with regionsEnabled (422, mirroring the DB CHECKs).
+  playMode: tournamentPlayModeSchema.optional(),
   scoringScheme: scoringSchemeSchema.optional(),
   byePoints: z.number().int().min(0).max(99).optional(),
   matchFormat: tournamentMatchFormatSchema.optional(),
@@ -253,6 +266,10 @@ export const updateTournamentSchema = z.object({
   // The pairing engine. Only honored while the tournament has no rounds yet (the
   // handler 409s otherwise, since rounds/pods depend on it).
   pairingStyle: tournamentPairingStyleSchema.optional(),
+  // Like pairingStyle: only honored while the tournament has no rounds yet.
+  // Switching to 2v2 also requires no teams-incompatible settings (pod
+  // pairing, regions); leaving 2v2 requires no teams to exist.
+  playMode: tournamentPlayModeSchema.optional(),
   startsAt: isoDateTime.optional(),
   endsAt: isoDateTime.nullable().optional(),
   scoringScheme: scoringSchemeSchema.optional(),
@@ -279,6 +296,7 @@ const BASE = "/api/v1/tournaments";
 
 const idParamSchema = z.object({ id: z.uuid() });
 const participantParamSchema = z.object({ id: z.uuid(), participantId: z.uuid() });
+const teamParamSchema = z.object({ id: z.uuid(), teamId: z.uuid() });
 const staffParamSchema = z.object({
   id: z.uuid(),
   userId: z.string().min(1),
@@ -514,6 +532,29 @@ export const tournamentsContract = {
     })
     .errors({ NOT_FOUND: { message: "Tournament or participant not found" } })
     .input(participantParamSchema)
+    .output(tournamentParticipantListResponseSchema),
+
+  // ── Teams (2v2 play mode) ──────────────────────────────────────────────────
+  // Teams are fixed pairs, built by the organizer from the individual roster.
+  // Membership rides on the participant rows (`teamId`), so both mutations
+  // answer with the participant list. New teams stay creatable between rounds
+  // (late arrivals); dissolving is blocked once the team has played a round.
+  createTeam: authedRoute
+    .route({ method: "POST", path: `${BASE}/{id}/teams`, tags: [TAG], successStatus: 201 })
+    .errors({
+      NOT_FOUND: { message: "Tournament or participant not found" },
+      CONFLICT: { message: "A participant is already on a team" },
+      BAD_REQUEST: { message: "Teams need exactly two active participants of a 2v2 tournament" },
+    })
+    .input(withParams(idParamSchema, { participantIds: z.array(z.uuid()).length(2) }))
+    .output(tournamentParticipantListResponseSchema),
+  dissolveTeam: authedRoute
+    .route({ method: "DELETE", path: `${BASE}/{id}/teams/{teamId}`, tags: [TAG] })
+    .errors({
+      NOT_FOUND: { message: "Tournament or team not found" },
+      CONFLICT: { message: "A team that has played a round cannot be dissolved" },
+    })
+    .input(teamParamSchema)
     .output(tournamentParticipantListResponseSchema),
 
   // ── Running (pod_rounds format) ────────────────────────────────────────────

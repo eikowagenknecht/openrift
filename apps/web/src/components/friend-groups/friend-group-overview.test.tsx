@@ -109,6 +109,7 @@ function makeTournament(
     groupSlug: "bothfeld",
     groupName: "Bothfeld Connection",
     pairingStyle: "pod",
+    playMode: "1v1",
     deckSubmission: "none",
     deckFormat: null,
     // Far future so partitionTournaments keeps it in the current bucket.

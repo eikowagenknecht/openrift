@@ -63,6 +63,7 @@ function makeParticipant(
     riotId: null,
     status: "active",
     seed: null,
+    teamId: null,
     region: "demacia",
     fixedTable: null,
     droppedAfterRound: null,

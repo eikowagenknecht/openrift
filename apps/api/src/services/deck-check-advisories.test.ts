@@ -127,7 +127,7 @@ describe("buildEntryAdvisories", () => {
   }
 
   /**
-   * Builds a repos stub carrying just the three calls buildEntryAdvisories
+   * Builds a repos stub carrying just the calls buildEntryAdvisories
    * makes; everything else is absent and would throw if touched.
    * @returns A minimal Repos double.
    */
@@ -142,6 +142,9 @@ describe("buildEntryAdvisories", () => {
       deckCheck: {
         getCardDetails: () => Promise.resolve(cardDetails),
         getCardSetSlugs: () => Promise.resolve(new Map<string, string[]>()),
+      },
+      cardBans: {
+        listActiveForCards: () => Promise.resolve([]),
       },
       catalog: {
         championIdentifierTags: () => {
@@ -187,7 +190,7 @@ describe("buildEntryAdvisories", () => {
     ]);
     const advisories = await buildEntryAdvisories(
       stubRepos(cardDetails, ["Karma", "Ivern"]),
-      { format: "custom-region", allowedSets: null },
+      { format: "custom-region", playMode: "1v1" as const, allowedSets: null },
       [
         line({ id: "a", resolvedCardId: "legend-karma", zone: "legend" }),
         line({ id: "b", resolvedCardId: "sig-daisy", zone: "main" }),
@@ -201,7 +204,7 @@ describe("buildEntryAdvisories", () => {
     // The stub throws if championIdentifierTags is called at all.
     const advisories = await buildEntryAdvisories(
       stubRepos(new Map(), null),
-      { format: "constructed", allowedSets: null },
+      { format: "constructed", playMode: "1v1" as const, allowedSets: null },
       [],
     );
     expect(advisories.violations.some((v) => v.code === "SIGNATURE_CHAMPION_COPIES")).toBe(false);
@@ -229,7 +232,7 @@ describe("buildEntryAdvisories", () => {
     ]);
     const advisories = await buildEntryAdvisories(
       stubRepos(cardDetails, []),
-      { format: "custom-region", allowedSets: null },
+      { format: "custom-region", playMode: "1v1" as const, allowedSets: null },
       [line({ id: "a", resolvedCardId: "legend-karma", zone: "legend" })],
     );
     const codes = advisories.violations.map((violation) => violation.code);

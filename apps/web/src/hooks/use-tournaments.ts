@@ -9,6 +9,7 @@ import type {
   TournamentListResponse,
   TournamentMatchFormat,
   TournamentPairingStyle,
+  TournamentPlayMode,
   TournamentParticipantListResponse,
   TournamentStaffCandidateListResponse,
   TournamentStaffInviteLandingResponse,
@@ -39,6 +40,7 @@ interface CreateTournamentInput {
   name: string;
   host: { type: "user" } | { type: "organization"; orgId: string };
   pairingStyle: TournamentPairingStyle;
+  playMode?: TournamentPlayMode;
   matchFormat?: TournamentMatchFormat;
   winPoints?: number;
   drawPoints?: number;
@@ -61,6 +63,7 @@ interface UpdateTournamentInput {
   status?: TournamentStatus;
   host?: { type: "user" } | { type: "organization"; orgId: string };
   pairingStyle?: TournamentPairingStyle;
+  playMode?: TournamentPlayMode;
   startsAt?: string;
   endsAt?: string | null;
   scoringScheme?: "standard" | "three_pod_reduced";
@@ -405,6 +408,25 @@ const participantActionFn = createServerFn({ method: "POST" })
     }
   });
 
+// Teams (2v2 play mode). Membership rides on the participant rows, so both
+// mutations answer with (and invalidate as) the participant list.
+
+const createTeamFn = createServerFn({ method: "POST" })
+  .validator((input: { id: string; participantIds: string[] }) => input)
+  .middleware([withCookies])
+  .handler(
+    ({ context, data }): Promise<TournamentParticipantListResponse> =>
+      apiOrpcClient(tournamentsContract, context.cookie).createTeam(data),
+  );
+
+const dissolveTeamFn = createServerFn({ method: "POST" })
+  .validator((input: { id: string; teamId: string }) => input)
+  .middleware([withCookies])
+  .handler(
+    ({ context, data }): Promise<TournamentParticipantListResponse> =>
+      apiOrpcClient(tournamentsContract, context.cookie).dissolveTeam(data),
+  );
+
 const requestJoinFn = createServerFn({ method: "POST" })
   .validator((input: string) => input)
   .middleware([withCookies])
@@ -525,6 +547,16 @@ export function useParticipantAction() {
     participantId: string;
     action: "drop" | "reactivate" | "approve" | "deny" | "remove" | "unlink" | "reissue";
   }>((data) => participantActionFn({ data }));
+}
+
+export function useCreateTeam() {
+  return useParticipantMutation<{ id: string; participantIds: string[] }>((data) =>
+    createTeamFn({ data }),
+  );
+}
+
+export function useDissolveTeam() {
+  return useParticipantMutation<{ id: string; teamId: string }>((data) => dissolveTeamFn({ data }));
 }
 
 export function useRequestJoinTournament() {

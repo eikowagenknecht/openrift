@@ -17,6 +17,7 @@ import type {
   PodSnapshotPlayer,
   PodStandingRow,
   PodTournamentStatus,
+  TournamentPlayMode,
 } from "@openrift/shared";
 import type { Kysely, Selectable } from "kysely";
 
@@ -61,7 +62,12 @@ export interface PodForResult {
   round: PodRound;
   tournament: PodTournament;
   memberPlayerIds: string[];
+  /** Player id -> current team id, for the members that have one (2v2 play). */
+  teamByPlayer: Map<string, string>;
 }
+
+/** An engine snapshot row plus the player's team, for team-unit pairing (2v2). */
+export type PairingSnapshotPlayer = PairingPlayer & { teamId: string | null };
 
 /**
  * The per-tournament scoring knobs the derive-on-read model needs: the FFA
@@ -73,6 +79,12 @@ export interface PodScoring {
   byePoints: number;
   winPoints: number;
   drawPoints: number;
+  /**
+   * 1v1 or 2v2 team play. In 2v2, a size-4 pod is a team match: each side's
+   * members share a placement, and the whole pod scores like a Swiss match
+   * (win/draw points per team) instead of the FFA placement tables.
+   */
+  playMode: TournamentPlayMode;
 }
 
 /**
@@ -87,6 +99,7 @@ export function scoringOf(tournament: PodTournament): PodScoring {
     byePoints: tournament.byePoints,
     winPoints: tournament.winPoints,
     drawPoints: tournament.drawPoints,
+    playMode: tournament.playMode,
   };
 }
 
@@ -102,6 +115,51 @@ function pointsForPod(placements: number[], size: 2 | 3 | 4, scoring: PodScoring
     return swissPointsForPlacements(placements, scoring.winPoints, scoring.drawPoints);
   }
   return pointsForPlacements(placements, size, scoring.scheme);
+}
+
+/**
+ * The two team ids of a 2v2 team match, or null when the members don't form
+ * exactly two full teams (a 1v1 pod, or pre-teams legacy data — those fall back
+ * to the per-player scoring paths).
+ *
+ * @param members One row per pod member, carrying the participant's team.
+ * @returns The two distinct team ids, or null.
+ */
+function teamsOf(members: { teamId: string | null }[]): [string, string] | null {
+  if (members.length !== 4 || members.some((member) => member.teamId === null)) {
+    return null;
+  }
+  const distinct = [...new Set(members.map((member) => member.teamId as string))];
+  return distinct.length === 2 ? [distinct[0], distinct[1]] : null;
+}
+
+/**
+ * Points per member of a 2v2 team match: both sides' placements collapse to one
+ * placement per team (members share it), the pair scores like a Swiss match,
+ * and each member earns their team's points.
+ *
+ * @param members The four member rows, carrying placement and team.
+ * @param teams The two team ids from {@link teamsOf}.
+ * @param scoring The tournament's scoring knobs.
+ * @returns Points per member, parallel to `members`.
+ */
+function pointsForTeamPod(
+  members: { teamId: string | null; placement: number | null }[],
+  teams: [string, string],
+  scoring: PodScoring,
+): number[] {
+  const placementOf = (teamId: string): number =>
+    Math.min(
+      ...members
+        .filter((member) => member.teamId === teamId)
+        .map((member) => member.placement ?? 0),
+    );
+  const teamPoints = swissPointsForPlacements(
+    [placementOf(teams[0]), placementOf(teams[1])],
+    scoring.winPoints,
+    scoring.drawPoints,
+  );
+  return members.map((member) => teamPoints[member.teamId === teams[0] ? 0 : 1] ?? 0);
 }
 
 /** Per-player aggregate, derived from the finalized rounds (the lean model's source of truth). */
@@ -127,6 +185,8 @@ interface FinalizedMemberRow {
   podId: string;
   size: number;
   playerId: string;
+  /** The player's current fixed team (2v2 play); null in 1v1 play. */
+  teamId: string | null;
   placement: number | null;
   gamePoints: number | null;
 }
@@ -216,20 +276,27 @@ function foldFinalized(
 
   for (const [, members] of Map.groupBy(rows, (row) => row.podId)) {
     const size = podSizeOf(members[0]?.size ?? 4);
-    const points = pointsForPod(
-      members.map((member) => member.placement ?? 0),
-      size,
-      scoring,
-    );
+    const teams = scoring.playMode === "2v2" ? teamsOf(members) : null;
+    const points = teams
+      ? pointsForTeamPod(members, teams, scoring)
+      : pointsForPod(
+          members.map((member) => member.placement ?? 0),
+          size,
+          scoring,
+        );
     members.forEach((member, index) => {
       const aggregate = ensure(member.playerId);
       aggregate.score += points[index] ?? 0;
       aggregate.gamePoints += member.gamePoints ?? 0;
       aggregate.roundsPlayed += 1;
-      if (size === 3) {
-        aggregate.pods3 += 1;
-      } else if (size === 4) {
-        aggregate.pods4 += 1;
+      // A team match is a Swiss match, not an FFA pod: the pod-fairness
+      // tallies stay 0 for it.
+      if (teams === null) {
+        if (size === 3) {
+          aggregate.pods3 += 1;
+        } else if (size === 4) {
+          aggregate.pods4 += 1;
+        }
       }
     });
     // Pod win = sole 1st place: the unique lowest placement value in the pod.
@@ -239,27 +306,49 @@ function foldFinalized(
     if (placements.length === members.length && members.length > 0) {
       const best = Math.min(...placements);
       const leaders = members.filter((member) => member.placement === best);
-      if (leaders.length === 1) {
-        ensure(leaders[0].playerId).podWins += 1;
-      }
-      // The Swiss match record: a 2-pod is a win/draw/loss per member.
-      if (size === 2) {
+      if (teams) {
+        // The team match record: leaders span one team (that team won) or
+        // both (a draw); every member carries their team's result.
+        const leaderTeams = new Set(leaders.map((member) => member.teamId));
         for (const member of members) {
           const aggregate = ensure(member.playerId);
-          if (leaders.length === 1) {
-            if (member.placement === best) {
-              aggregate.wins += 1;
-            } else {
-              aggregate.losses += 1;
-            }
-          } else {
+          if (leaderTeams.size === 2) {
             aggregate.draws += 1;
+          } else if (leaderTeams.has(member.teamId)) {
+            aggregate.wins += 1;
+            aggregate.podWins += 1;
+          } else {
+            aggregate.losses += 1;
+          }
+        }
+      } else {
+        if (leaders.length === 1) {
+          ensure(leaders[0].playerId).podWins += 1;
+        }
+        // The Swiss match record: a 2-pod is a win/draw/loss per member.
+        if (size === 2) {
+          for (const member of members) {
+            const aggregate = ensure(member.playerId);
+            if (leaders.length === 1) {
+              if (member.placement === best) {
+                aggregate.wins += 1;
+              } else {
+                aggregate.losses += 1;
+              }
+            } else {
+              aggregate.draws += 1;
+            }
           }
         }
       }
     }
     for (let i = 0; i < members.length; i++) {
       for (let j = i + 1; j < members.length; j++) {
+        // Teammates are not opponents: their meeting count would poison the
+        // rematch penalty and the opponent-strength tie-breakers.
+        if (teams !== null && members[i].teamId === members[j].teamId) {
+          continue;
+        }
         const firstId = members[i].playerId;
         const secondId = members[j].playerId;
         const first = ensure(firstId);
@@ -305,6 +394,7 @@ function sortedStandingRows(
       displayName: player.displayName,
       status: player.status,
       droppedAfterRound: player.droppedAfterRound,
+      teamId: player.teamId,
       score: aggregate?.score ?? 0,
       gamePoints: aggregate?.gamePoints ?? 0,
       roundsPlayed: aggregate?.roundsPlayed ?? 0,
@@ -322,7 +412,9 @@ function sortedStandingRows(
   });
   // Final fallback is "random", but a fresh draw on every read would reshuffle
   // tied players each refresh; instead derive a stable per-player draw from the
-  // id hash so the arbitrary order holds across reads.
+  // id hash so the arbitrary order holds across reads. The draw hashes the team
+  // id first so fully-tied teammates stay adjacent (their stat columns always
+  // tie exactly) instead of interleaving with an equally-tied other team.
   return rows.toSorted(
     (a, b) =>
       b.score - a.score ||
@@ -330,6 +422,7 @@ function sortedStandingRows(
       b.avgOpponentScore - a.avgOpponentScore ||
       b.gamePoints - a.gamePoints ||
       b.avgOpponentGamePoints - a.avgOpponentGamePoints ||
+      tieBreakKey(a.teamId ?? a.playerId) - tieBreakKey(b.teamId ?? b.playerId) ||
       tieBreakKey(a.playerId) - tieBreakKey(b.playerId),
   );
 }
@@ -338,6 +431,7 @@ interface PodMemberRow {
   podId: string;
   playerId: string;
   displayName: string;
+  teamId: string | null;
   placement: number | null;
   gamePoints: number | null;
 }
@@ -346,12 +440,15 @@ function toPodResponse(pod: Pod, memberRows: PodMemberRow[], scoring: PodScoring
   const size = podSizeOf(pod.size);
   const reported =
     pod.resultStatus === "reported" && memberRows.every((member) => member.placement !== null);
+  const teams = scoring.playMode === "2v2" ? teamsOf(memberRows) : null;
   const points = reported
-    ? pointsForPod(
-        memberRows.map((member) => member.placement ?? 0),
-        size,
-        scoring,
-      )
+    ? teams
+      ? pointsForTeamPod(memberRows, teams, scoring)
+      : pointsForPod(
+          memberRows.map((member) => member.placement ?? 0),
+          size,
+          scoring,
+        )
     : null;
   const breakdown = parseBreakdown(pod.penaltyBreakdown);
   return {
@@ -362,6 +459,7 @@ function toPodResponse(pod: Pod, memberRows: PodMemberRow[], scoring: PodScoring
     members: memberRows.map((member, index) => ({
       playerId: member.playerId,
       displayName: member.displayName,
+      teamId: member.teamId,
       gamePoints: member.gamePoints,
       placement: member.placement,
       points: points ? (points[index] ?? null) : null,
@@ -422,10 +520,12 @@ export function podTournamentsRepo(db: Kysely<Database>) {
       .selectFrom("podRounds as r")
       .innerJoin("pods as p", "p.roundId", "r.id")
       .innerJoin("podMembers as m", "m.podId", "p.id")
+      .innerJoin("tournamentParticipants as pl", "pl.id", "m.playerId")
       .select([
         "p.id as podId",
         "p.size as size",
         "m.playerId as playerId",
+        "pl.teamId as teamId",
         "m.placement as placement",
         "m.gamePoints as gamePoints",
       ])
@@ -461,6 +561,11 @@ export function podTournamentsRepo(db: Kysely<Database>) {
       .selectFrom("podRounds")
       .select("tournamentId")
       .where("id", "=", roundId)
+      .executeTakeFirstOrThrow();
+    const { playMode } = await trx
+      .selectFrom("tournaments")
+      .select("playMode")
+      .where("id", "=", tournamentId)
       .executeTakeFirstOrThrow();
     const [fixedRows, seatRows] = await Promise.all([
       trx
@@ -498,7 +603,10 @@ export function podTournamentsRepo(db: Kysely<Database>) {
         })
         .returning("id")
         .executeTakeFirstOrThrow();
-      const seated = arrangeSeating(pod.playerIds, seatingHistory);
+      // 2v2 keeps the expanded team order (each side's members adjacent) —
+      // neighbor-variety seating is an FFA concern and would interleave teams.
+      const seated =
+        playMode === "2v2" ? pod.playerIds : arrangeSeating(pod.playerIds, seatingHistory);
       await trx
         .insertInto("podMembers")
         .values(
@@ -700,6 +808,58 @@ export function podTournamentsRepo(db: Kysely<Database>) {
       return row !== undefined;
     },
 
+    // ── Teams (2v2 play mode) ──────────────────────────────────────────────
+    /**
+     * Create a team from two participants, atomically. Eligibility (2v2
+     * tournament, both active and unteamed) is the service's job.
+     * @returns The created team id.
+     */
+    createTeam(tournamentId: string, participantIds: [string, string]): Promise<string> {
+      return db.transaction().execute(async (trx) => {
+        const team = await trx
+          .insertInto("tournamentTeams")
+          .values({ tournamentId })
+          .returning("id")
+          .executeTakeFirstOrThrow();
+        await trx
+          .updateTable("tournamentParticipants")
+          .set({ teamId: team.id })
+          .where("id", "in", participantIds)
+          .execute();
+        return team.id;
+      });
+    },
+
+    /** @returns The team row, or `undefined` if no team has that id. */
+    findTeam(teamId: string): Promise<{ id: string; tournamentId: string } | undefined> {
+      return db
+        .selectFrom("tournamentTeams")
+        .select(["id", "tournamentId"])
+        .where("id", "=", teamId)
+        .executeTakeFirst();
+    },
+
+    /** Deletes the team; the members' `teamId` clears via ON DELETE SET NULL. */
+    async dissolveTeam(teamId: string): Promise<void> {
+      await db.deleteFrom("tournamentTeams").where("id", "=", teamId).execute();
+    },
+
+    /** Deletes every team of a tournament (leaving 2v2 before any round). */
+    async dissolveAllTeams(tournamentId: string): Promise<void> {
+      await db.deleteFrom("tournamentTeams").where("tournamentId", "=", tournamentId).execute();
+    },
+
+    /** @returns True if any member of the team is seated in any pod (the team has played). */
+    async teamHasMemberships(teamId: string): Promise<boolean> {
+      const row = await db
+        .selectFrom("podMembers as m")
+        .innerJoin("tournamentParticipants as pl", "pl.id", "m.playerId")
+        .select("m.podId")
+        .where("pl.teamId", "=", teamId)
+        .executeTakeFirst();
+      return row !== undefined;
+    },
+
     // ── Rounds / pods ──────────────────────────────────────────────────────
     findOpenRound(tournamentId: string): Promise<PodRound | undefined> {
       return db
@@ -822,11 +982,22 @@ export function podTournamentsRepo(db: Kysely<Database>) {
         return undefined;
       }
       const memberRows = await db
-        .selectFrom("podMembers")
-        .select("playerId")
-        .where("podId", "=", podId)
+        .selectFrom("podMembers as m")
+        .innerJoin("tournamentParticipants as pl", "pl.id", "m.playerId")
+        .select(["m.playerId as playerId", "pl.teamId as teamId"])
+        .where("m.podId", "=", podId)
         .execute();
-      return { pod, round, tournament, memberPlayerIds: memberRows.map((row) => row.playerId) };
+      return {
+        pod,
+        round,
+        tournament,
+        memberPlayerIds: memberRows.map((row) => row.playerId),
+        teamByPlayer: new Map(
+          memberRows.flatMap((row) =>
+            row.teamId === null ? [] : [[row.playerId, row.teamId] as const],
+          ),
+        ),
+      };
     },
 
     /** Writes each member's game points + derived placement and flips the pod to `reported`. */
@@ -852,20 +1023,26 @@ export function podTournamentsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Writes a single member's game points (per-player self-reporting). Once every
-     * member of the pod has points, derives the placements and flips the pod to
-     * `reported` — the same completion `setPodResult` performs in one shot. The pod
-     * row is locked for the transaction so two players submitting at the same time
-     * serialize and the second one sees the first one's points.
+     * Writes one or more members' game points (per-player self-reporting; 2v2
+     * passes both members of the reporter's team, since a team shares one game
+     * score). Once every member of the pod has points, derives the placements
+     * and flips the pod to `reported` — the same completion `setPodResult`
+     * performs in one shot. The pod row is locked for the transaction so two
+     * players submitting at the same time serialize and the second one sees
+     * the first one's points.
      */
-    async setMemberGamePoints(podId: string, playerId: string, gamePoints: number): Promise<void> {
+    async setMemberGamePoints(
+      podId: string,
+      playerIds: string[],
+      gamePoints: number,
+    ): Promise<void> {
       await db.transaction().execute(async (trx) => {
         await trx.selectFrom("pods").select("id").where("id", "=", podId).forUpdate().execute();
         await trx
           .updateTable("podMembers")
           .set({ gamePoints })
           .where("podId", "=", podId)
-          .where("playerId", "=", playerId)
+          .where("playerId", "in", playerIds)
           .execute();
         const members = await trx
           .selectFrom("podMembers")
@@ -937,13 +1114,16 @@ export function podTournamentsRepo(db: Kysely<Database>) {
 
     // ── Derived reads (the lean model) ───────────────────────────────────────
     /** @returns Active players as engine snapshots, aggregates derived from finalized rounds. */
-    async loadPairingSnapshot(tournamentId: string, scoring: PodScoring): Promise<PairingPlayer[]> {
+    async loadPairingSnapshot(
+      tournamentId: string,
+      scoring: PodScoring,
+    ): Promise<PairingSnapshotPlayer[]> {
       // All participants, not just active: dropped opponents still carry the
       // regions the region history is counted against.
       const [players, finalizedRows, finalizedByes] = await Promise.all([
         db
           .selectFrom("tournamentParticipants")
-          .select(["id", "region", "fixedTable", "status"])
+          .select(["id", "region", "fixedTable", "status", "teamId"])
           .where("tournamentId", "=", tournamentId)
           .orderBy("createdAt", "asc")
           .execute(),
@@ -958,6 +1138,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
           const aggregate = aggregates.get(player.id);
           return {
             id: player.id,
+            teamId: player.teamId,
             score: aggregate?.score ?? 0,
             pods3: aggregate?.pods3 ?? 0,
             pods4: aggregate?.pods4 ?? 0,
@@ -984,7 +1165,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
       const [players, finalizedRows, finalizedByes] = await Promise.all([
         db
           .selectFrom("tournamentParticipants")
-          .select(["id", "region", "fixedTable"])
+          .select(["id", "region", "fixedTable", "teamId"])
           .where("tournamentId", "=", tournamentId)
           .where("status", "in", ROSTER_STATUSES)
           .orderBy("createdAt", "asc")
@@ -998,6 +1179,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
         const aggregate = aggregates.get(player.id);
         return {
           playerId: player.id,
+          teamId: player.teamId,
           score: aggregate?.score ?? 0,
           pods3: aggregate?.pods3 ?? 0,
           pods4: aggregate?.pods4 ?? 0,
@@ -1060,11 +1242,13 @@ export function podTournamentsRepo(db: Kysely<Database>) {
           .selectFrom("podRounds as r")
           .innerJoin("pods as p", "p.roundId", "r.id")
           .innerJoin("podMembers as m", "m.podId", "p.id")
+          .innerJoin("tournamentParticipants as pl", "pl.id", "m.playerId")
           .select([
             "r.tournamentId as tournamentId",
             "p.id as podId",
             "p.size as size",
             "m.playerId as playerId",
+            "pl.teamId as teamId",
             "m.placement as placement",
             "m.gamePoints as gamePoints",
           ])
@@ -1090,9 +1274,19 @@ export function podTournamentsRepo(db: Kysely<Database>) {
           continue;
         }
         const aggregates = foldFinalized(finalized, byes, tournament.scoring);
-        const top = sortedStandingRows(playersByTournament.get(tournament.id) ?? [], aggregates)[0];
+        const rows = sortedStandingRows(playersByTournament.get(tournament.id) ?? [], aggregates);
+        const top = rows[0];
         if (top) {
-          winners.set(tournament.id, { participantId: top.playerId, displayName: top.displayName });
+          // A 2v2 winner is the whole team: both member names, teammates being
+          // adjacent in the sorted rows.
+          const displayName =
+            top.teamId === null
+              ? top.displayName
+              : rows
+                  .filter((row) => row.teamId === top.teamId)
+                  .map((row) => row.displayName)
+                  .join(" & ");
+          winners.set(tournament.id, { participantId: top.playerId, displayName });
         }
       }
       return winners;
@@ -1123,7 +1317,14 @@ export function podTournamentsRepo(db: Kysely<Database>) {
           : db
               .selectFrom("podMembers as m")
               .innerJoin("tournamentParticipants as pl", "pl.id", "m.playerId")
-              .select(["m.podId", "m.playerId", "pl.displayName", "m.placement", "m.gamePoints"])
+              .select([
+                "m.podId",
+                "m.playerId",
+                "pl.displayName",
+                "pl.teamId",
+                "m.placement",
+                "m.gamePoints",
+              ])
               .where("m.podId", "in", podIds)
               // Seat order IS the display order (NULLs last covers pre-seat rounds).
               .orderBy("m.seat", "asc")

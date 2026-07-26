@@ -2,6 +2,7 @@ import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
   podMatchFormatSchema,
   podPairingStyleSchema,
+  podPlayModeSchema,
   podRoundResponseSchema,
   podScoringSchemeSchema,
   podStandingRowSchema,
@@ -19,6 +20,7 @@ export const podReportResponseSchema = z
     status: podTournamentStatusSchema,
     currentRound: z.number().int().nonnegative(),
     pairingStyle: podPairingStyleSchema,
+    playMode: podPlayModeSchema,
     scoringScheme: podScoringSchemeSchema,
     byePoints: z.number().int().nonnegative(),
     matchFormat: podMatchFormatSchema,

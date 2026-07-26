@@ -10,6 +10,7 @@ import type {
   TournamentPairingStyle,
   TournamentParticipantResponse,
   TournamentParticipantStatus,
+  TournamentPlayMode,
   TournamentStaffRole,
   TournamentSummaryResponse,
   TournamentViewerRole,
@@ -42,6 +43,16 @@ export const PAIRING_STYLE_ITEMS: { value: TournamentPairingStyle; label: string
   { value: "none", label: "None (I'm not running rounds here)" },
   { value: "pod", label: "Pod rounds (3 or 4-player free-for-alls)" },
   { value: "swiss", label: "Swiss rounds (1v1 matches)" },
+];
+
+export const PLAY_MODE_LABEL: Record<TournamentPlayMode, string> = {
+  "1v1": "1v1",
+  "2v2": "2v2 teams",
+};
+
+export const PLAY_MODE_ITEMS: { value: TournamentPlayMode; label: string }[] = [
+  { value: "1v1", label: "1v1 (every player for themselves)" },
+  { value: "2v2", label: "2v2 teams (fixed pairs, team Swiss)" },
 ];
 
 export const MATCH_FORMAT_LABEL: Record<TournamentMatchFormat, string> = {

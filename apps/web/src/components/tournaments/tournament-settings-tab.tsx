@@ -51,6 +51,7 @@ import {
   MATCH_FORMAT_LABEL,
   PAIRING_STYLE_ITEMS,
   PAIRING_STYLE_LABEL,
+  PLAY_MODE_ITEMS,
   parseScheduleInput,
   splitUtcToLocalDateTime,
 } from "@/lib/tournament-display";
@@ -123,6 +124,11 @@ export function TournamentSettingsTab({ detail }: { detail: TournamentDetailResp
   const id = detail.id;
   const runsRounds = hasPairing(detail.pairingStyle);
   const isSwiss = detail.pairingStyle === "swiss";
+  // 2v2 pairs team Swiss only; the pod option disappears while it's on.
+  const pairingItems =
+    detail.playMode === "2v2"
+      ? PAIRING_STYLE_ITEMS.filter((item) => item.value !== "pod")
+      : PAIRING_STYLE_ITEMS;
   const isHost = detail.myRoles.includes("host");
   const tzLabel = localTimeZoneLabel();
   const effectiveState = effectiveTournamentState(detail.startsAt, detail.endsAt, detail.status);
@@ -345,14 +351,56 @@ export function TournamentSettingsTab({ detail }: { detail: TournamentDetailResp
             <CardTitle>Pairings</CardTitle>
             <CardDescription>
               {detail.hasRounds
-                ? `${PAIRING_STYLE_LABEL[detail.pairingStyle]}. The pairing engine is fixed once a round has been generated.`
+                ? `${detail.playMode === "2v2" ? "2v2 teams · " : ""}${PAIRING_STYLE_LABEL[detail.pairingStyle]}. The pairing engine is fixed once a round has been generated.`
                 : "Let OpenRift pair rounds and track standings, or leave it off if you run pairings somewhere else. Can only change before the first round."}
             </CardDescription>
           </CardHeader>
           {detail.hasRounds ? null : (
             <CardContent className="flex flex-col gap-2">
+              <div className="flex flex-col gap-1.5">
+                <Label>Play mode</Label>
+                <Select
+                  items={PLAY_MODE_ITEMS}
+                  value={detail.playMode}
+                  disabled={locked || updateTournament.isPending}
+                  onValueChange={(value) => {
+                    if (value === "1v1" || value === "2v2") {
+                      // 2v2 pairs team Swiss, so a pod-style event moves to
+                      // Swiss in the same patch; leaving 2v2 dissolves any
+                      // (never-played) teams server-side.
+                      void run(() =>
+                        updateTournament.mutateAsync({
+                          id,
+                          playMode: value,
+                          pairingStyle:
+                            value === "2v2" && detail.pairingStyle === "pod" ? "swiss" : undefined,
+                          regionsEnabled:
+                            value === "2v2" && detail.regionsEnabled ? false : undefined,
+                        }),
+                      );
+                    }
+                  }}
+                >
+                  <SelectTrigger className="max-w-sm" aria-label="Play mode">
+                    <SelectValue placeholder="Play mode" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PLAY_MODE_ITEMS.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {detail.playMode === "2v2" ? (
+                  <span className="text-muted-foreground text-sm">
+                    Pair players into fixed teams of two on the Participants tab; rounds pair team
+                    against team.
+                  </span>
+                ) : null}
+              </div>
               <Select
-                items={PAIRING_STYLE_ITEMS}
+                items={pairingItems}
                 value={detail.pairingStyle}
                 disabled={locked || updateTournament.isPending}
                 onValueChange={(value) => {
@@ -365,7 +413,7 @@ export function TournamentSettingsTab({ detail }: { detail: TournamentDetailResp
                   <SelectValue placeholder="Pairings" />
                 </SelectTrigger>
                 <SelectContent>
-                  {PAIRING_STYLE_ITEMS.map((item) => (
+                  {pairingItems.map((item) => (
                     <SelectItem key={item.value} value={item.value}>
                       {item.label}
                     </SelectItem>
@@ -410,7 +458,7 @@ export function TournamentSettingsTab({ detail }: { detail: TournamentDetailResp
 
         {runsRounds ? <PointsCard detail={detail} locked={locked} /> : null}
 
-        {runsRounds ? (
+        {runsRounds && detail.playMode !== "2v2" ? (
           <Card id="regions" className="scroll-mt-16">
             <CardHeader>
               <CardTitle>Regions</CardTitle>

@@ -73,6 +73,7 @@ export function toParticipant(row: TournamentParticipantWithUser): TournamentPar
     riotId: row.riotId,
     status: row.status as TournamentParticipantStatus,
     seed: row.seed,
+    teamId: row.teamId,
     region: row.region,
     fixedTable: row.fixedTable,
     droppedAfterRound: row.droppedAfterRound,

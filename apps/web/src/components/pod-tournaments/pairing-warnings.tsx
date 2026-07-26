@@ -1,4 +1,4 @@
-import type { PairingPlayer, PairingWarning, PodSnapshotPlayer } from "@openrift/shared";
+import type { PairingWarning, PodSnapshotPlayer, TeamSnapshotPlayer } from "@openrift/shared";
 import { TriangleAlertIcon } from "lucide-react";
 
 import { Alert, AlertTitle } from "@/components/ui/alert";
@@ -10,12 +10,14 @@ import { cn } from "@/lib/utils";
 const rawRegionSlug = (slug: string): string => slug;
 
 /**
- * Rebuild the engine's `PairingPlayer[]` (Map opponents) from the wire snapshot.
+ * Rebuild the engine's snapshot players (Map opponents, plus the 2v2 team) from
+ * the wire snapshot.
  * @returns The players in the engine's snapshot shape.
  */
-export function snapshotToPlayers(snapshot: PodSnapshotPlayer[]): PairingPlayer[] {
+export function snapshotToPlayers(snapshot: PodSnapshotPlayer[]): TeamSnapshotPlayer[] {
   return snapshot.map((player) => ({
     id: player.playerId,
+    teamId: player.teamId,
     score: player.score,
     pods3: player.pods3,
     pods4: player.pods4,

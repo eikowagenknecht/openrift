@@ -6,8 +6,9 @@ import type {
   PodScoringScheme,
   PodSnapshotPlayer,
   TournamentMatchFormat,
+  TournamentPlayMode,
 } from "@openrift/shared";
-import { computePairingWarnings } from "@openrift/shared";
+import { buildTeamUnits, collapseTeamPods, computePairingWarnings } from "@openrift/shared";
 import {
   ArrowUpDownIcon,
   CheckIcon,
@@ -39,6 +40,7 @@ import { SectionHeading } from "@/components/ui/section-heading";
 import type { StatStripItem } from "@/components/ui/stat-strip";
 import { StatStrip } from "@/components/ui/stat-strip";
 import { UserAvatar } from "@/components/user-avatar";
+import { groupPodMembersByTeam, teamNamesById } from "@/lib/team-display";
 import {
   isAllMatchRound,
   isMatchPairing,
@@ -62,6 +64,8 @@ const rawRegionSlug = (slug: string): string => slug;
 
 interface PairingsViewProps {
   rounds: PodRoundResponse[];
+  /** 2v2 renders each size-4 pod as a team match (two sides, team results). */
+  playMode: TournamentPlayMode;
   /** Current standings score per player, for context in the pod cards. */
   scoresByPlayer: Map<string, number>;
   /** The active scheme, so the result form previews the right points. */
@@ -113,6 +117,7 @@ function toEnginePods(round: PodRoundResponse) {
 
 export function PairingsView({
   rounds,
+  playMode,
   scoresByPlayer,
   scheme,
   byePoints,
@@ -149,6 +154,7 @@ export function PairingsView({
       </Empty>
     );
   }
+  const teamMode = playMode === "2v2";
   const nameById = new Map<string, string>(
     rounds.flatMap((round) => [
       ...round.pods.flatMap((pod) =>
@@ -157,21 +163,57 @@ export function PairingsView({
       ...round.byes.map((bye) => [bye.playerId, bye.displayName] as const),
     ]),
   );
+  // In 2v2 the warnings speak in team ids (the pairing unit), so the name map
+  // also resolves teams to their joined member names.
+  const memberRows = rounds.flatMap((round) =>
+    round.pods.flatMap((pod) =>
+      pod.members.map((m) => ({ teamId: m.teamId ?? null, displayName: m.displayName })),
+    ),
+  );
+  const teamNames = teamMode ? teamNamesById(memberRows) : new Map<string, string>();
+  for (const [teamId, name] of teamNames) {
+    nameById.set(teamId, name);
+  }
 
   return (
     <div className="flex flex-col gap-8">
       {rounds.toReversed().map((round) => {
         // Warnings are organizer-only and only meaningful on the open round, where
-        // the snapshot reflects the state the pairing was built from.
-        const warnings =
-          showPenalty && snapshot && round.status === "reporting"
-            ? computePairingWarnings(
-                toEnginePods(round),
-                snapshotToPlayers(snapshot),
-                round.byes.map((bye) => bye.playerId),
-                round.pods.map((pod) => pod.podNumber),
-              )
-            : [];
+        // the snapshot reflects the state the pairing was built from. In 2v2 they
+        // are computed over team units — the level the pairing was drawn at — so
+        // a team rematch reads as one warning, not four player pairs.
+        const players = snapshot ? snapshotToPlayers(snapshot) : [];
+        let warnings: PairingWarning[] = [];
+        if (showPenalty && snapshot && round.status === "reporting") {
+          if (teamMode) {
+            const teams = buildTeamUnits(players);
+            const { teamPods, invalidPodIndexes } = collapseTeamPods(
+              toEnginePods(round),
+              teams.teamByPlayer,
+            );
+            // Indexes stay parallel only with every pod collapsed; a transient
+            // invalid pod (mid-drop state) just skips the warnings pass.
+            warnings =
+              invalidPodIndexes.length === 0
+                ? computePairingWarnings(
+                    teamPods,
+                    teams.units,
+                    round.byes.flatMap((bye) => {
+                      const teamId = teams.teamByPlayer.get(bye.playerId);
+                      return teamId === undefined ? [] : [teamId];
+                    }),
+                    round.pods.map((pod) => pod.podNumber),
+                  )
+                : [];
+          } else {
+            warnings = computePairingWarnings(
+              toEnginePods(round),
+              players,
+              round.byes.map((bye) => bye.playerId),
+              round.pods.map((pod) => pod.podNumber),
+            );
+          }
+        }
         const podWarnings = new Map<number, PairingWarning[]>();
         for (const warning of warnings) {
           if (warning.kind === "repeatBye") {
@@ -181,14 +223,25 @@ export function PairingsView({
           list.push(warning);
           podWarnings.set(warning.podIndex, list);
         }
-        // Repeat byes are noted on the byed player's own row, not as a list.
-        const priorByesByPlayer = new Map(
-          warnings
-            .filter((warning) => warning.kind === "repeatBye")
-            .map((warning) => [warning.playerId, warning.priorByes] as const),
-        );
+        // Repeat byes are noted on the byed player's own row, not as a list. A
+        // 2v2 repeat-bye names the team, so both members' rows carry it.
+        const priorByesByPlayer = new Map<string, number>();
+        for (const warning of warnings) {
+          if (warning.kind !== "repeatBye") {
+            continue;
+          }
+          if (teamMode) {
+            for (const player of players) {
+              if (player.teamId === warning.playerId) {
+                priorByesByPlayer.set(player.id, warning.priorByes);
+              }
+            }
+          } else {
+            priorByesByPlayer.set(warning.playerId, warning.priorByes);
+          }
+        }
         const countLabel = [
-          formatPodCount(round),
+          formatPodCount(round, teamMode),
           round.byes.length > 0
             ? `${round.byes.length} bye${round.byes.length === 1 ? "" : "s"}`
             : null,
@@ -218,6 +271,7 @@ export function PairingsView({
                 <PodCard
                   key={pod.id}
                   pod={pod}
+                  teamMode={teamMode}
                   scheme={scheme}
                   matchFormat={matchFormat}
                   winPoints={winPoints}
@@ -250,11 +304,12 @@ export function PairingsView({
 }
 
 /**
- * "3 pods" / "4 matches" — an all-1v1 (Swiss) round pairs matches, not pods.
+ * "3 pods" / "4 matches" — an all-1v1 (Swiss) round pairs matches, not pods,
+ * and every 2v2 team round is matches throughout.
  * @returns The pod count with the round's noun.
  */
-function formatPodCount(round: PodRoundResponse): string {
-  const allMatches = isAllMatchRound(round.pods.map((pod) => pod.size));
+function formatPodCount(round: PodRoundResponse, teamMode: boolean): string {
+  const allMatches = teamMode || isAllMatchRound(round.pods.map((pod) => pod.size));
   if (allMatches) {
     return `${round.pods.length} match${round.pods.length === 1 ? "" : "es"}`;
   }
@@ -423,6 +478,7 @@ function MemberSeedBadge({
 
 function PodCard({
   pod,
+  teamMode,
   scheme,
   matchFormat,
   winPoints,
@@ -439,6 +495,8 @@ function PodCard({
   onSubmitPlayerResult,
 }: {
   pod: PodResponse;
+  /** 2v2: the pod is a team match (two sides of two, one result per side). */
+  teamMode: boolean;
   scheme: PodScoringScheme;
   matchFormat: TournamentMatchFormat;
   winPoints: number;
@@ -454,7 +512,7 @@ function PodCard({
   onSubmit: (podId: string, results: PodResultEntry[]) => Promise<void>;
   onSubmitPlayerResult?: (podId: string, playerId: string, gamePoints: number) => Promise<void>;
 }) {
-  const isMatch = isMatchPairing(pod.size);
+  const isMatch = teamMode || isMatchPairing(pod.size);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   // Per-player self-entry: which member row is open for input, and its draft value.
@@ -510,12 +568,17 @@ function PodCard({
             size="sm"
             shape="round"
           />
-          <span>{pairingLabel(pod.size, pod.podNumber)}</span>
+          <span>{teamMode ? `Match ${pod.podNumber}` : pairingLabel(pod.size, pod.podNumber)}</span>
           <span className="ml-auto flex items-center gap-2">
             {showPenalty && !warningsExpanded ? (
               <WarningBadge warnings={warnings} nameById={nameById} regionLabel={regionLabel} />
             ) : null}
-            <PodStatusBadge reported={reported} enteredCount={enteredCount} size={pod.size} />
+            <PodStatusBadge
+              reported={reported}
+              // A team shares one score, so reporting progress counts sides.
+              enteredCount={teamMode ? Math.floor(enteredCount / 2) : enteredCount}
+              size={teamMode ? 2 : pod.size}
+            />
           </span>
         </CardTitle>
         {showPenalty && pod.penalty ? (
@@ -533,6 +596,7 @@ function PodCard({
           isMatch ? (
             <SwissResultForm
               pod={pod}
+              teamMatch={teamMode}
               matchFormat={matchFormat}
               winPoints={winPoints}
               drawPoints={drawPoints}
@@ -552,98 +616,23 @@ function PodCard({
         ) : (
           <>
             <ul className="flex flex-col gap-1.5">
-              {pod.members.map((member) => (
-                <li key={member.playerId} className="flex items-center justify-between gap-2">
-                  <span className="flex min-w-0 items-center gap-2">
-                    <MemberSeedBadge placement={member.placement} gamePoints={member.gamePoints} />
-                    <UserAvatar name={member.displayName} size="sm" />
-                    <span className="truncate font-medium">{member.displayName}</span>
-                    {regionByPlayer?.get(member.playerId) ? (
-                      <Badge variant="outline" className="shrink-0">
-                        {regionLabel(regionByPlayer.get(member.playerId) ?? "")}
-                      </Badge>
-                    ) : null}
-                  </span>
-                  {selfEntry && scoringPlayerId === member.playerId ? (
-                    <span className="flex items-center gap-1.5">
-                      <Input
-                        type="number"
-                        min={0}
-                        inputMode="numeric"
-                        // oxlint-disable-next-line jsx-a11y/no-autofocus -- the input appears from the tapped "Add score" button; focusing it is the point of the tap
-                        autoFocus
-                        value={scoreDraft}
-                        onChange={(event) => setScoreDraft(event.target.value)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") {
-                            void handleSaveScore();
-                          }
-                        }}
-                        aria-label={`Game points for ${member.displayName}`}
-                        className="h-7 w-16 tabular-nums"
-                      />
-                      <Button
-                        size="icon-sm"
-                        onClick={handleSaveScore}
-                        disabled={saving || parsePoints(scoreDraft) === null}
-                        aria-label={`Save score for ${member.displayName}`}
-                      >
-                        <CheckIcon />
-                      </Button>
-                      <Button
-                        size="icon-sm"
-                        variant="ghost"
-                        onClick={() => setScoringPlayerId(null)}
-                        disabled={saving}
-                        aria-label="Cancel score entry"
-                      >
-                        <XIcon />
-                      </Button>
-                    </span>
-                  ) : (
-                    // shrink-0: without it a long name squeezes this cluster
-                    // until the numbers wrap mid-figure.
-                    <span className="flex shrink-0 items-center gap-2 tabular-nums">
-                      {showPenalty ? (
-                        <span
-                          className="text-muted-foreground"
-                          title={`${formatScore(scoresByPlayer.get(member.playerId) ?? 0)} points in the standings`}
+              {(teamMode ? groupPodMembersByTeam(pod.members) : [pod.members]).flatMap(
+                (group, groupIndex) => [
+                  // A quiet divider between the two sides of a team match.
+                  ...(groupIndex > 0
+                    ? [
+                        <li
+                          key={`vs-${groupIndex}`}
+                          aria-hidden="true"
+                          className="text-muted-foreground/60 py-0.5 text-center text-xs font-medium tracking-wide uppercase"
                         >
-                          {formatScore(scoresByPlayer.get(member.playerId) ?? 0)}
-                        </span>
-                      ) : null}
-                      {member.points !== null && (
-                        <span
-                          className="font-semibold"
-                          title={`${formatScore(member.points)} points from this round`}
-                        >
-                          +{formatScore(member.points)}
-                        </span>
-                      )}
-                      {selfEntry ? (
-                        member.gamePoints === null ? (
-                          <Button
-                            variant="secondary"
-                            size="xs"
-                            onClick={() => startScoring(member)}
-                          >
-                            Add score
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            onClick={() => startScoring(member)}
-                            aria-label={`Edit score for ${member.displayName}`}
-                          >
-                            <PencilIcon />
-                          </Button>
-                        )
-                      ) : null}
-                    </span>
-                  )}
-                </li>
-              ))}
+                          vs
+                        </li>,
+                      ]
+                    : []),
+                  ...group.map((member, memberIndex) => memberRow(member, memberIndex === 0)),
+                ],
+              )}
             </ul>
             {canEnter ? (
               <Button
@@ -660,6 +649,101 @@ function PodCard({
       </CardContent>
     </Card>
   );
+
+  function memberRow(member: PodMemberResponse, firstOfGroup: boolean) {
+    return (
+      <li key={member.playerId} className="flex items-center justify-between gap-2">
+        <span className="flex min-w-0 items-center gap-2">
+          {/* In a team match both members share one result, so the
+                        seed badge appears once per side. */}
+          {!teamMode || firstOfGroup ? (
+            <MemberSeedBadge placement={member.placement} gamePoints={member.gamePoints} />
+          ) : null}
+          <UserAvatar name={member.displayName} size="sm" />
+          <span className="truncate font-medium">{member.displayName}</span>
+          {regionByPlayer?.get(member.playerId) ? (
+            <Badge variant="outline" className="shrink-0">
+              {regionLabel(regionByPlayer.get(member.playerId) ?? "")}
+            </Badge>
+          ) : null}
+        </span>
+        {selfEntry && scoringPlayerId === member.playerId ? (
+          <span className="flex items-center gap-1.5">
+            <Input
+              type="number"
+              min={0}
+              inputMode="numeric"
+              // oxlint-disable-next-line jsx-a11y/no-autofocus -- the input appears from the tapped "Add score" button; focusing it is the point of the tap
+              autoFocus
+              value={scoreDraft}
+              onChange={(event) => setScoreDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  void handleSaveScore();
+                }
+              }}
+              aria-label={`Game points for ${member.displayName}`}
+              className="h-7 w-16 tabular-nums"
+            />
+            <Button
+              size="icon-sm"
+              onClick={handleSaveScore}
+              disabled={saving || parsePoints(scoreDraft) === null}
+              aria-label={`Save score for ${member.displayName}`}
+            >
+              <CheckIcon />
+            </Button>
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              onClick={() => setScoringPlayerId(null)}
+              disabled={saving}
+              aria-label="Cancel score entry"
+            >
+              <XIcon />
+            </Button>
+          </span>
+        ) : (
+          // shrink-0: without it a long name squeezes this cluster
+          // until the numbers wrap mid-figure.
+          <span className="flex shrink-0 items-center gap-2 tabular-nums">
+            {showPenalty ? (
+              <span
+                className="text-muted-foreground"
+                title={`${formatScore(scoresByPlayer.get(member.playerId) ?? 0)} points in the standings`}
+              >
+                {formatScore(scoresByPlayer.get(member.playerId) ?? 0)}
+              </span>
+            ) : null}
+            {member.points !== null && (
+              <span
+                className="font-semibold"
+                title={`${formatScore(member.points)} points from this round`}
+              >
+                +{formatScore(member.points)}
+              </span>
+            )}
+            {selfEntry ? (
+              member.gamePoints === null ? (
+                <Button variant="secondary" size="xs" onClick={() => startScoring(member)}>
+                  Add score
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={() => startScoring(member)}
+                  aria-label={`Edit score for ${member.displayName}`}
+                >
+                  <PencilIcon />
+                </Button>
+              )
+            ) : null}
+          </span>
+        )}
+      </li>
+    );
+  }
 }
 
 /**

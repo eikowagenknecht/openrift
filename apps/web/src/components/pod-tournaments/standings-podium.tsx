@@ -1,7 +1,8 @@
-import type { PodStandingRow } from "@openrift/shared";
+import type { PodStandingRow, TournamentPlayMode } from "@openrift/shared";
 
 import type { PodiumSeat } from "@/components/ui/podium";
 import { Podium } from "@/components/ui/podium";
+import { collapseTeamStandings } from "@/lib/team-display";
 
 import {
   decidingTieBreak,
@@ -60,14 +61,18 @@ function podiumSeats(standings: readonly PodStandingRow[], swiss: boolean): Podi
 export function StandingsPodium({
   standings,
   variant = "pod",
+  playMode = "1v1",
 }: {
   standings: PodStandingRow[];
   /** Drives the hint's record format: Swiss shows W-L-D, pods show wins. */
   variant?: "pod" | "swiss";
+  /** 2v2 collapses teammate rows into one seat per team. */
+  playMode?: TournamentPlayMode;
 }) {
+  const rows = playMode === "2v2" ? collapseTeamStandings(standings) : standings;
   return (
     <Podium
-      seats={podiumSeats(standings, variant === "swiss")}
+      seats={podiumSeats(rows, variant === "swiss")}
       emptyLabel="The throne fills after round 1 is finalized."
     />
   );

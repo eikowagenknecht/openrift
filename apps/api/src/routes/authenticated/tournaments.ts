@@ -7,8 +7,10 @@ import type {
   TournamentDetailResponse,
   TournamentHostInfo,
   TournamentListResponse,
+  TournamentPairingStyle,
   TournamentParticipantListResponse,
   TournamentParticipantPreview,
+  TournamentPlayMode,
   TournamentStaffMemberResponse,
   TournamentStatus,
   TournamentSummaryResponse,
@@ -75,6 +77,36 @@ function assertDateOrder(
       422,
       ERROR_CODES.VALIDATION_ERROR,
       "Submissions must close on or before the tournament ends",
+    );
+  }
+}
+
+/**
+ * Throws 422 when the play mode contradicts a sibling setting, mirroring the
+ * DB CHECKs (chk_tournaments_play_mode_*) with readable messages. Cross-field
+ * like {@link assertDateOrder}: callers pass the effective post-merge values.
+ * @returns Nothing; throws on an invalid combination.
+ */
+function assertPlayModeCompatible(
+  playMode: TournamentPlayMode,
+  pairingStyle: TournamentPairingStyle,
+  regionsEnabled: boolean,
+): void {
+  if (playMode !== "2v2") {
+    return;
+  }
+  if (pairingStyle === "pod") {
+    throw new AppError(
+      422,
+      ERROR_CODES.VALIDATION_ERROR,
+      "2v2 team play pairs Swiss team matches — it can't combine with free-for-all pods",
+    );
+  }
+  if (regionsEnabled) {
+    throw new AppError(
+      422,
+      ERROR_CODES.VALIDATION_ERROR,
+      "Regions aren't available in 2v2 team play yet",
     );
   }
 }
@@ -255,6 +287,7 @@ async function loadSummaryExtras(
     | "id"
     | "status"
     | "pairingStyle"
+    | "playMode"
     | "scoringScheme"
     | "byePoints"
     | "winPoints"
@@ -288,6 +321,7 @@ async function loadSummaryExtras(
           byePoints: row.byePoints,
           winPoints: row.winPoints,
           drawPoints: row.drawPoints,
+          playMode: row.playMode,
         },
       })),
     ),
@@ -420,6 +454,7 @@ async function buildDetail(
     groupSlug,
     groupName,
     pairingStyle: tournament.pairingStyle,
+    playMode: tournament.playMode,
     deckSubmission: tournament.deckSubmission,
     startsAt: tournament.startsAt.toISOString(),
     endsAt: tournament.endsAt ? tournament.endsAt.toISOString() : null,
@@ -492,6 +527,7 @@ function toPodTournament(row: PodTournament): PodTournamentResponse {
     status: row.status,
     currentRound: row.currentRound,
     pairingStyle: row.pairingStyle,
+    playMode: row.playMode,
     scoringScheme: row.scoringScheme,
     byePoints: row.byePoints,
     matchFormat: row.matchFormat,
@@ -511,6 +547,7 @@ function toPodPlayer(row: PodRosterPlayer): PodPlayerResponse {
     displayName: row.displayName,
     status: row.status,
     droppedAfterRound: row.droppedAfterRound,
+    teamId: row.teamId,
     createdAt: row.createdAt.toISOString(),
   };
 }
@@ -567,6 +604,26 @@ async function podRunDetailById(repos: Repos, id: string): Promise<PodTournament
 }
 
 /** @returns The tournament's participants as the list response. */
+/**
+ * The active teammate of a teamed participant, or undefined (no team, or the
+ * partner is not active).
+ * @returns The teammate's participant row, or undefined.
+ */
+async function findActiveTeammate(
+  repos: Repos,
+  tournamentId: string,
+  participant: TournamentParticipant,
+): Promise<TournamentParticipant | undefined> {
+  if (participant.teamId === null) {
+    return undefined;
+  }
+  const participants = await repos.tournaments.listParticipants(tournamentId);
+  return participants.find(
+    (row) =>
+      row.teamId === participant.teamId && row.id !== participant.id && row.status === "active",
+  );
+}
+
 async function buildParticipantList(
   repos: Repos,
   tournamentId: string,
@@ -668,6 +725,7 @@ async function buildSummaries(
       groupSlug: row.groupId ? (groupInfo.get(row.groupId)?.slug ?? null) : null,
       groupName: row.groupId ? (groupInfo.get(row.groupId)?.name ?? null) : null,
       pairingStyle: row.pairingStyle,
+      playMode: row.playMode,
       deckSubmission: row.deckSubmission,
       deckFormat: row.deckFormat,
       startsAt: row.startsAt.toISOString(),
@@ -780,6 +838,11 @@ export const tournamentsRouter = {
         input.endsAt ? new Date(input.endsAt) : null,
         input.submissionsCloseAt ? new Date(input.submissionsCloseAt) : null,
       );
+      assertPlayModeCompatible(
+        input.playMode ?? "1v1",
+        input.pairingStyle,
+        input.regionsEnabled ?? false,
+      );
 
       let hostUserId: string | null = null;
       let hostOrgId: string | null = null;
@@ -812,6 +875,7 @@ export const tournamentsRouter = {
           groupId: input.groupId ?? null,
           name: input.name,
           pairingStyle: input.pairingStyle,
+          playMode: input.playMode,
           scoringScheme: input.scoringScheme,
           byePoints: input.byePoints,
           matchFormat: input.matchFormat,
@@ -879,16 +943,27 @@ export const tournamentsRouter = {
       const pairingChanging =
         patch.pairingStyle !== undefined && patch.pairingStyle !== tournament.pairingStyle;
       // The match format shapes result entry, so it is frozen alongside the
-      // pairing engine once rounds exist.
+      // pairing engine once rounds exist. The play mode shapes both, so it
+      // freezes with them.
       const matchFormatChanging =
         patch.matchFormat !== undefined && patch.matchFormat !== tournament.matchFormat;
-      if ((pairingChanging || matchFormatChanging) && (await repos.tournaments.hasRounds(id))) {
+      const playModeChanging =
+        patch.playMode !== undefined && patch.playMode !== tournament.playMode;
+      if (
+        (pairingChanging || matchFormatChanging || playModeChanging) &&
+        (await repos.tournaments.hasRounds(id))
+      ) {
         throw new AppError(
           409,
           ERROR_CODES.CONFLICT,
           "The pairing engine can't change once a round has been generated",
         );
       }
+      assertPlayModeCompatible(
+        patch.playMode ?? tournament.playMode,
+        patch.pairingStyle ?? tournament.pairingStyle,
+        patch.regionsEnabled ?? tournament.regionsEnabled,
+      );
       // Validate the merged schedule: a patch may touch only one of the three
       // instants, so the order check needs the existing row to fill the rest.
       assertDateOrder(
@@ -939,6 +1014,7 @@ export const tournamentsRouter = {
         name: patch.name,
         status: patch.status,
         pairingStyle: pairingChanging ? patch.pairingStyle : undefined,
+        playMode: playModeChanging ? patch.playMode : undefined,
         startsAt: patch.startsAt === undefined ? undefined : new Date(patch.startsAt),
         endsAt:
           patch.endsAt === undefined ? undefined : patch.endsAt ? new Date(patch.endsAt) : null,
@@ -961,6 +1037,11 @@ export const tournamentsRouter = {
         allowedSets: patch.allowedSets,
         selfRegistration: patch.selfRegistration,
       });
+      // Leaving 2v2 dissolves the (never-played — the rounds guard above)
+      // teams, so no stale team ids survive into 1v1 responses.
+      if (playModeChanging && patch.playMode === "1v1") {
+        await repos.podTournaments.dissolveAllTeams(id);
+      }
       // The follow-along report is a pod-engine surface. Leaving the pod engine
       // revokes its share token so the now-meaningless report link stops resolving
       // (the public report also gates on pairingStyle, but clearing the token keeps
@@ -1164,11 +1245,22 @@ export const tournamentsRouter = {
       const userId = context.userId;
       const tournament = await loadTournament(repos, input.id);
       await requireManage(repos, tournament, userId);
-      await loadParticipant(repos, input.id, input.participantId);
+      const participant = await loadParticipant(repos, input.id, input.participantId);
       await repos.tournaments.updateParticipant(input.participantId, {
         status: "dropped",
         droppedAfterRound: tournament.currentRound,
       });
+      // Dropping half a fixed team drops the whole team: 2v2 has no
+      // substitutes and a lone partner can never be paired.
+      if (tournament.playMode === "2v2" && participant.teamId !== null) {
+        const teammate = await findActiveTeammate(repos, input.id, participant);
+        if (teammate) {
+          await repos.tournaments.updateParticipant(teammate.id, {
+            status: "dropped",
+            droppedAfterRound: tournament.currentRound,
+          });
+        }
+      }
       return buildParticipantList(repos, input.id);
     },
   ),
@@ -1179,11 +1271,28 @@ export const tournamentsRouter = {
       const userId = context.userId;
       const tournament = await loadTournament(repos, input.id);
       await requireManage(repos, tournament, userId);
-      await loadParticipant(repos, input.id, input.participantId);
+      const participant = await loadParticipant(repos, input.id, input.participantId);
       await repos.tournaments.updateParticipant(input.participantId, {
         status: "active",
         droppedAfterRound: null,
       });
+      // Team drops are symmetric (see dropParticipant), so a team returns
+      // whole too: bring the dropped teammate back with them.
+      if (tournament.playMode === "2v2" && participant.teamId !== null) {
+        const participants = await repos.tournaments.listParticipants(input.id);
+        const teammate = participants.find(
+          (row) =>
+            row.teamId === participant.teamId &&
+            row.id !== participant.id &&
+            row.status === "dropped",
+        );
+        if (teammate) {
+          await repos.tournaments.updateParticipant(teammate.id, {
+            status: "active",
+            droppedAfterRound: null,
+          });
+        }
+      }
       return buildParticipantList(repos, input.id);
     },
   ),
@@ -1261,6 +1370,61 @@ export const tournamentsRouter = {
       await requireManage(repos, tournament, userId);
       await loadParticipant(repos, input.id, input.participantId);
       await repos.tournaments.reissueClaim(input.participantId);
+      return buildParticipantList(repos, input.id);
+    },
+  ),
+
+  // ── Teams (2v2 play mode) ───────────────────────────────────────────────
+  createTeam: os.createTeam.handler(
+    async ({ input, context, errors }): Promise<TournamentParticipantListResponse> => {
+      const repos = context.repos;
+      const userId = context.userId;
+      const tournament = await loadTournament(repos, input.id);
+      await requireManage(repos, tournament, userId);
+      if (tournament.playMode !== "2v2") {
+        throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Teams exist only in 2v2 tournaments.");
+      }
+      const [firstId, secondId] = input.participantIds;
+      if (firstId === secondId || firstId === undefined || secondId === undefined) {
+        throw new AppError(400, ERROR_CODES.BAD_REQUEST, "A team needs two different players.");
+      }
+      const members = await Promise.all([
+        loadParticipant(repos, input.id, firstId),
+        loadParticipant(repos, input.id, secondId),
+      ]);
+      for (const member of members) {
+        if (member.status !== "active") {
+          throw new AppError(
+            400,
+            ERROR_CODES.BAD_REQUEST,
+            "Only active participants can join a team.",
+          );
+        }
+        if (member.teamId !== null) {
+          throw errors.CONFLICT({ message: `${member.displayName} is already on a team` });
+        }
+      }
+      await repos.podTournaments.createTeam(input.id, [firstId, secondId]);
+      return buildParticipantList(repos, input.id);
+    },
+  ),
+
+  dissolveTeam: os.dissolveTeam.handler(
+    async ({ input, context, errors }): Promise<TournamentParticipantListResponse> => {
+      const repos = context.repos;
+      const userId = context.userId;
+      const tournament = await loadTournament(repos, input.id);
+      await requireManage(repos, tournament, userId);
+      const team = await repos.podTournaments.findTeam(input.teamId);
+      if (!team || team.tournamentId !== input.id) {
+        throw new AppError(404, ERROR_CODES.NOT_FOUND, "Team not found");
+      }
+      // A team that has played is part of the recorded rounds; standings and
+      // rematch history would silently degrade if it fell apart.
+      if (await repos.podTournaments.teamHasMemberships(input.teamId)) {
+        throw errors.CONFLICT({ message: "A team that has played a round cannot be dissolved" });
+      }
+      await repos.podTournaments.dissolveTeam(input.teamId);
       return buildParticipantList(repos, input.id);
     },
   ),

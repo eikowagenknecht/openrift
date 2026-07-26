@@ -25,6 +25,20 @@ export function cardBansRepo(db: Kysely<Database>) {
         .execute();
     },
 
+    /** @returns Active bans among `cardIds` in any of `formatIds`, as (cardId, formatId) pairs. */
+    listActiveForCards(cardIds: string[], formatIds: string[]) {
+      if (cardIds.length === 0 || formatIds.length === 0) {
+        return Promise.resolve([]);
+      }
+      return db
+        .selectFrom("cardBans")
+        .select(["cardId", "formatId"])
+        .where("cardId", "in", cardIds)
+        .where("formatId", "in", formatIds)
+        .where("unbannedAt", "is", null)
+        .execute();
+    },
+
     /** @returns A specific active ban, or undefined. */
     findActiveBan(cardId: string, formatId: string) {
       return db

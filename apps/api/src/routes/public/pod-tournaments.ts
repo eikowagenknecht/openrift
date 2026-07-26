@@ -29,6 +29,7 @@ async function buildReport(
     status: tournament.status,
     currentRound: tournament.currentRound,
     pairingStyle: tournament.pairingStyle,
+    playMode: tournament.playMode,
     scoringScheme: tournament.scoringScheme,
     byePoints: tournament.byePoints,
     matchFormat: tournament.matchFormat,
