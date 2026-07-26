@@ -92,7 +92,10 @@ export const publicPodTournamentsRouter = {
     async ({ input, context, errors }): Promise<PodReportResponse> => {
       const repos = context.repos;
       const tournament = await repos.podTournaments.findByShareToken(input.token);
-      if (!tournament || tournament.pairingStyle !== "pod") {
+      // Both pairing engines seat players in pods, so per-player entry applies to
+      // Swiss as much as to pods. Only a no-pairing tournament has nothing to
+      // report against.
+      if (!tournament || tournament.pairingStyle === "none") {
         throw errors.NOT_FOUND({ message: "Not found" });
       }
       // The read-only follow token resolves the report but cannot enter results.

@@ -7,8 +7,10 @@ import type { Variables } from "../../types.js";
 import { publicPodTournamentsRouter } from "./pod-tournaments";
 
 const mockSubmitPodResult = vi.fn(() => Promise.resolve());
+const mockSubmitPodPlayerResult = vi.fn(() => Promise.resolve());
 vi.mock("../../services/pod-pairing.js", () => ({
   submitPodResult: (...args: unknown[]) => mockSubmitPodResult(...(args as [])),
+  submitPodPlayerResult: (...args: unknown[]) => mockSubmitPodPlayerResult(...(args as [])),
 }));
 
 const mockPodTournamentsRepo = {
@@ -260,6 +262,99 @@ describe("PUT /api/v1/pod-tournaments/report/:token/pods/:podId/result", () => {
     expect(res.status).toBe(409);
     const json = await res.json();
     expect(json.message).toBe("Round is not accepting results");
+  });
+});
+
+describe("PUT /api/v1/pod-tournaments/report/:token/pods/:podId/players/:playerId/result", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mockSubmitPodPlayerResult.mockResolvedValue(undefined);
+    mockPodTournamentsRepo.computeStandings.mockResolvedValue([]);
+    mockPodTournamentsRepo.loadRounds.mockResolvedValue([]);
+  });
+
+  const putRequest = (token: string, playerId: string, body: unknown) =>
+    app.request(
+      `/api/v1/pod-tournaments/report/${token}/pods/${POD_ID}/players/${playerId}/result`,
+      {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      },
+    );
+
+  it("submits the player's score and returns the refreshed report", async () => {
+    mockPodTournamentsRepo.findByShareToken.mockResolvedValue(dbTournament);
+
+    const res = await putRequest(TOKEN, playerIds[0], { gamePoints: 3 });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.tournamentName).toBe("Friday Night Pods");
+    expect(mockSubmitPodPlayerResult).toHaveBeenCalledTimes(1);
+    const callArgs = mockSubmitPodPlayerResult.mock.calls[0] as unknown[];
+    expect(callArgs[1]).toBe(TOURNAMENT_ID);
+    expect(callArgs[2]).toBe(POD_ID);
+    expect(callArgs[3]).toBe(playerIds[0]);
+    expect(callArgs[4]).toBe(3);
+  });
+
+  it("accepts per-player entry on a Swiss tournament", async () => {
+    // Swiss seats players in pods too, so a participant must be able to enter
+    // their own score. Guarding on `pairingStyle !== "pod"` 404'd every Swiss
+    // event while the pod-wide endpoint on the same token still worked.
+    mockPodTournamentsRepo.findByShareToken.mockResolvedValue({
+      ...dbTournament,
+      pairingStyle: "swiss",
+    });
+
+    const res = await putRequest(TOKEN, playerIds[0], { gamePoints: 2 });
+    expect(res.status).toBe(200);
+    expect(mockSubmitPodPlayerResult).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns FORBIDDEN when submitting via the read-only follow token", async () => {
+    mockPodTournamentsRepo.findByShareToken.mockResolvedValue(dbTournament);
+
+    const res = await putRequest(FOLLOW_TOKEN, playerIds[0], { gamePoints: 3 });
+    expect(res.status).toBe(403);
+    const json = await res.json();
+    expect(json.message).toBe("This link is follow-only");
+    expect(mockSubmitPodPlayerResult).not.toHaveBeenCalled();
+  });
+
+  it("returns NOT_FOUND when the token does not resolve", async () => {
+    mockPodTournamentsRepo.findByShareToken.mockResolvedValue(undefined);
+
+    const res = await putRequest(TOKEN, playerIds[0], { gamePoints: 3 });
+    expect(res.status).toBe(404);
+    const json = await res.json();
+    expect(json.message).toBe("Not found");
+    expect(mockSubmitPodPlayerResult).not.toHaveBeenCalled();
+  });
+
+  it("returns NOT_FOUND when the tournament has no pairing engine", async () => {
+    mockPodTournamentsRepo.findByShareToken.mockResolvedValue({
+      ...dbTournament,
+      pairingStyle: "none",
+    });
+
+    const res = await putRequest(TOKEN, playerIds[0], { gamePoints: 3 });
+    expect(res.status).toBe(404);
+    const json = await res.json();
+    expect(json.message).toBe("Not found");
+    expect(mockSubmitPodPlayerResult).not.toHaveBeenCalled();
+  });
+
+  it("bridges an AppError from submitPodPlayerResult to its status and message", async () => {
+    mockPodTournamentsRepo.findByShareToken.mockResolvedValue(dbTournament);
+    mockSubmitPodPlayerResult.mockRejectedValue(
+      new AppError(400, "BAD_REQUEST", "This player is not in this pod."),
+    );
+
+    const res = await putRequest(TOKEN, playerIds[0], { gamePoints: 3 });
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.message).toBe("This player is not in this pod.");
   });
 });
 
