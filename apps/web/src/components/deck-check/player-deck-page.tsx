@@ -184,11 +184,11 @@ function PlayerDeckBody({ data }: { data: PlayerDeckCheckEntryDetailResponse }) 
 }
 
 /**
- * The entry's lifecycle as one badge (ADR-027). Shared with the tournament
- * dashboard's My deck tile, so both surfaces name a state the same way.
+ * The entry's lifecycle as one badge (ADR-027). The dashboard's My deck tile
+ * names the same states as plain text, in `MY_DECK_STATE_LABEL`.
  * @returns The state badge.
  */
-export function PlayerStateBadge({
+function PlayerStateBadge({
   state,
   reviewOutcome,
 }: {
