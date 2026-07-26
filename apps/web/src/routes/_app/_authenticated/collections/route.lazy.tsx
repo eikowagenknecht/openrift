@@ -34,6 +34,7 @@ import { useMoveCopies } from "@/hooks/use-copies";
 import { useBulkAddCopiesToList, useMoveListEntries } from "@/hooks/use-lists";
 import { ViewSurfaceProvider } from "@/hooks/use-view-prefs";
 import { describeListAdd } from "@/lib/list-toast";
+import { parseMoveDigit } from "@/lib/parse-move-digit";
 import { FilterSearchProvider } from "@/lib/search-schemas";
 import { cn } from "@/lib/utils";
 import { useDragPreviewStore } from "@/stores/drag-preview-store";
@@ -68,13 +69,6 @@ function CollectionLayout() {
   // card would be missed (the keydown fires before listeners attach). Editable
   // targets are ignored so typing a "3" in a search field doesn't update state.
   useEffect(() => {
-    const parseDigit = (key: string) => {
-      if (key.length !== 1) {
-        return null;
-      }
-      const value = Number(key);
-      return Number.isInteger(value) && value >= 2 && value <= 9 ? value : null;
-    };
     const isEditableTarget = (target: EventTarget | null) => {
       if (!(target instanceof HTMLElement)) {
         return false;
@@ -90,7 +84,7 @@ function CollectionLayout() {
         setMoveModifier("all");
         return;
       }
-      const digit = parseDigit(event.key);
+      const digit = parseMoveDigit(event.key);
       if (digit !== null) {
         setMoveModifier(digit);
       }
@@ -100,7 +94,7 @@ function CollectionLayout() {
         setMoveModifier((current) => (current === "all" ? null : current));
         return;
       }
-      const digit = parseDigit(event.key);
+      const digit = parseMoveDigit(event.key);
       if (digit !== null) {
         setMoveModifier((current) => (current === digit ? null : current));
       }
