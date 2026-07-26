@@ -24,23 +24,14 @@ export const playerDeckCheckEntryParamSchema = z.object({
   entryId: z.uuid(),
 });
 
-export const playerDeckCheckEntrySummaryResponseSchema = z.object({
-  id: z.string(),
-  eventName: z.string(),
-  eventDate: z.string().nullable(),
-  groupName: z.string().nullable(),
-  groupSlug: z.string().nullable(),
-  state: deckCheckEntryStateSchema,
-  reviewOutcome: deckCheckReviewOutcomeSchema.nullable(),
-  unlockRequested: z.boolean(),
-  playerMessage: z.string().nullable(),
-  submittedAt: z.string().nullable(),
-  updatedAt: z.string(),
+/**
+ * The player reads their deck by tournament, not by entry id (ADR-033): the
+ * deck is a section of the tournament page, so the route param is the
+ * tournament. Writes still address the entry itself.
+ */
+export const playerDeckCheckTournamentParamSchema = z.object({
+  tournamentId: z.uuid(),
 });
-
-export const playerDeckCheckEntriesResponseSchema = z
-  .object({ items: z.array(playerDeckCheckEntrySummaryResponseSchema) })
-  .openapi("PlayerDeckCheckEntriesResponse");
 
 export const playerDeckCheckEntryDetailResponseSchema = z
   .object({
@@ -99,7 +90,10 @@ export const deckCheckSubmissionPageResponseSchema = z
 
 export const deckCheckSubmissionResultResponseSchema = z
   .object({
+    /** Null on a dry run, which resolves the list without writing an entry. */
     entryId: z.string().nullable(),
+    /** Always set: it is where the player's deck page lives once they land. */
+    tournamentId: z.string(),
     cards: z.array(deckCheckEntryCardResponseSchema),
     violations: z.array(deckViolationSchema),
   })
@@ -127,13 +121,14 @@ const ONE_SOURCE_MESSAGE = "Provide exactly one of deckId, deckCode, or cards";
  * with the submission body and re-apply the "exactly one deck source" rule.
  */
 export const deckCheckPlayerContract = {
-  listMine: authedRoute
-    .route({ method: "GET", path: "/api/v1/deck-check/mine", tags: [TAG] })
-    .output(playerDeckCheckEntriesResponseSchema),
   getMine: authedRoute
-    .route({ method: "GET", path: "/api/v1/deck-check/mine/{entryId}", tags: [TAG] })
+    .route({
+      method: "GET",
+      path: "/api/v1/deck-check/mine/tournament/{tournamentId}",
+      tags: [TAG],
+    })
     .errors({ NOT_FOUND: { message: "Entry not found" } })
-    .input(playerDeckCheckEntryParamSchema)
+    .input(playerDeckCheckTournamentParamSchema)
     .output(playerDeckCheckEntryDetailResponseSchema),
   editList: authedRoute
     .route({ method: "PUT", path: "/api/v1/deck-check/mine/{entryId}/list", tags: [TAG] })

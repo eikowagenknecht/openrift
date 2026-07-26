@@ -108,7 +108,7 @@ export interface NewDeckCheckEntry {
   state?: DeckCheckEntryState;
 }
 
-/** One row of the player's "My tournament decks" list (ADR-026). */
+/** An entry as its own player reads it, on the tournament's My deck page. */
 export interface PlayerDeckCheckEntryRow extends DeckCheckEntry {
   eventName: string;
   eventDate: Date | string | null;
@@ -299,6 +299,58 @@ export function deckCheckRepo(db: Kysely<Database>) {
         eb.ref("p.claimBlockedAt").as("claimBlockedAt"),
         eb.ref("p.claimToken").as("claimToken"),
       ]);
+  }
+
+  /**
+   * The player projection's base select: the entry, its participant, and the
+   * tournament/group labels the player's deck page shows. Callers add the
+   * ownership predicate (always `p.userId`) plus whichever key they hold.
+   * @returns The query builder.
+   */
+  function selectPlayerEntry() {
+    return (
+      db
+        .selectFrom("deckCheckEntries as en")
+        .innerJoin("tournamentParticipants as p", "p.id", "en.participantId")
+        .innerJoin("tournaments as ev", "ev.id", "en.tournamentId")
+        // Left join: a personally-hosted tournament with no friend group (ADR-033)
+        // still resolves; the group name/slug are only labels and stay null.
+        .leftJoin("friendGroups as g", "g.id", "ev.groupId")
+        .selectAll("en")
+        .select((eb) => [
+          eb.ref("p.displayName").as("playerName"),
+          eb.ref("p.riotId").as("riotId"),
+          eb.ref("p.userId").as("claimedUserId"),
+          eb.ref("p.claimSource").as("claimSource"),
+          eb.ref("p.claimedAt").as("claimedAt"),
+          eb.ref("p.claimBlockedAt").as("claimBlockedAt"),
+          eb.ref("p.claimToken").as("claimToken"),
+          eb.ref("ev.name").as("eventName"),
+          eb.ref("ev.startsAt").as("eventDate"),
+          eb.ref("ev.status").as("eventStatusRaw"),
+          eb.ref("ev.submissionsCloseAt").as("submissionsCloseAt"),
+          eb.ref("g.name").as("groupName"),
+          eb.ref("g.slug").as("groupSlug"),
+        ])
+    );
+  }
+
+  /**
+   * Flattens a {@link selectPlayerEntry} row onto the player projection.
+   * @returns The entry with its tournament and group labels.
+   */
+  function materializePlayerEntry(
+    row: Awaited<ReturnType<ReturnType<typeof selectPlayerEntry>["executeTakeFirstOrThrow"]>>,
+  ): PlayerDeckCheckEntryRow {
+    return {
+      ...materializeEntry(row),
+      eventName: row.eventName,
+      eventDate: row.eventDate,
+      eventStatus: eventStatusForTournamentStatus(row.eventStatusRaw),
+      submissionsCloseAt: row.submissionsCloseAt,
+      groupName: row.groupName,
+      groupSlug: row.groupSlug,
+    };
   }
 
   /** @returns The flattened entry by id, or undefined. */
@@ -867,95 +919,38 @@ export function deckCheckRepo(db: Kysely<Database>) {
     },
 
     /**
-     * The caller's own entries across all events, withdrawn included.
-     * @returns The entries with their event and group names, newest first.
-     */
-    async listEntriesForPlayer(userId: string): Promise<PlayerDeckCheckEntryRow[]> {
-      const rows = await db
-        .selectFrom("deckCheckEntries as en")
-        .innerJoin("tournamentParticipants as p", "p.id", "en.participantId")
-        .innerJoin("tournaments as ev", "ev.id", "en.tournamentId")
-        // Left join: a personally-hosted tournament with no friend group (ADR-033)
-        // still lists; the group name/slug are only labels and stay null.
-        .leftJoin("friendGroups as g", "g.id", "ev.groupId")
-        .selectAll("en")
-        .select((eb) => [
-          eb.ref("p.displayName").as("playerName"),
-          eb.ref("p.riotId").as("riotId"),
-          eb.ref("p.userId").as("claimedUserId"),
-          eb.ref("p.claimSource").as("claimSource"),
-          eb.ref("p.claimedAt").as("claimedAt"),
-          eb.ref("p.claimBlockedAt").as("claimBlockedAt"),
-          eb.ref("p.claimToken").as("claimToken"),
-          eb.ref("ev.name").as("eventName"),
-          eb.ref("ev.startsAt").as("eventDate"),
-          eb.ref("ev.status").as("eventStatusRaw"),
-          eb.ref("ev.submissionsCloseAt").as("submissionsCloseAt"),
-          eb.ref("g.name").as("groupName"),
-          eb.ref("g.slug").as("groupSlug"),
-        ])
-        .where("p.userId", "=", userId)
-        .orderBy("en.updatedAt", "desc")
-        .execute();
-      return rows.map((row) => ({
-        ...materializeEntry(row),
-        eventName: row.eventName,
-        eventDate: row.eventDate,
-        eventStatus: eventStatusForTournamentStatus(row.eventStatusRaw),
-        submissionsCloseAt: row.submissionsCloseAt,
-        groupName: row.groupName,
-        groupSlug: row.groupSlug,
-      }));
-    },
-
-    /**
      * One entry, guarded by ownership: returns nothing unless the entry's
      * participant is linked to the caller. The 404-vs-403 distinction happens in
      * the route.
-     * @returns The entry with its event and group names, or undefined.
+     * @returns The entry with its tournament and group names, or undefined.
      */
     async getEntryForPlayer(
       entryId: string,
       userId: string,
     ): Promise<PlayerDeckCheckEntryRow | undefined> {
-      const row = await db
-        .selectFrom("deckCheckEntries as en")
-        .innerJoin("tournamentParticipants as p", "p.id", "en.participantId")
-        .innerJoin("tournaments as ev", "ev.id", "en.tournamentId")
-        // Left join: a personally-hosted tournament with no friend group (ADR-033)
-        // still resolves; the group name/slug are only labels and stay null.
-        .leftJoin("friendGroups as g", "g.id", "ev.groupId")
-        .selectAll("en")
-        .select((eb) => [
-          eb.ref("p.displayName").as("playerName"),
-          eb.ref("p.riotId").as("riotId"),
-          eb.ref("p.userId").as("claimedUserId"),
-          eb.ref("p.claimSource").as("claimSource"),
-          eb.ref("p.claimedAt").as("claimedAt"),
-          eb.ref("p.claimBlockedAt").as("claimBlockedAt"),
-          eb.ref("p.claimToken").as("claimToken"),
-          eb.ref("ev.name").as("eventName"),
-          eb.ref("ev.startsAt").as("eventDate"),
-          eb.ref("ev.status").as("eventStatusRaw"),
-          eb.ref("ev.submissionsCloseAt").as("submissionsCloseAt"),
-          eb.ref("g.name").as("groupName"),
-          eb.ref("g.slug").as("groupSlug"),
-        ])
+      const row = await selectPlayerEntry()
         .where("en.id", "=", entryId)
         .where("p.userId", "=", userId)
         .executeTakeFirst();
-      if (!row) {
-        return undefined;
-      }
-      return {
-        ...materializeEntry(row),
-        eventName: row.eventName,
-        eventDate: row.eventDate,
-        eventStatus: eventStatusForTournamentStatus(row.eventStatusRaw),
-        submissionsCloseAt: row.submissionsCloseAt,
-        groupName: row.groupName,
-        groupSlug: row.groupSlug,
-      };
+      return row ? materializePlayerEntry(row) : undefined;
+    },
+
+    /**
+     * The caller's own entry in one tournament — the read behind the player's
+     * deck page, which is addressed by tournament rather than by entry id
+     * (ADR-033). At most one row: a participant is unique per account per
+     * tournament, and an entry belongs to exactly one participant.
+     * @returns The entry with its tournament and group names, or undefined.
+     */
+    async getEntryForPlayerByTournament(
+      tournamentId: string,
+      userId: string,
+    ): Promise<PlayerDeckCheckEntryRow | undefined> {
+      const row = await selectPlayerEntry()
+        .where("en.tournamentId", "=", tournamentId)
+        .where("p.userId", "=", userId)
+        .executeTakeFirst();
+      return row ? materializePlayerEntry(row) : undefined;
     },
 
     /**

@@ -5,6 +5,7 @@ import {
   ChevronRightIcon,
   ClipboardCheckIcon,
   InboxIcon,
+  ScrollTextIcon,
   SwordsIcon,
   TrophyIcon,
   UsersIcon,
@@ -83,6 +84,78 @@ function DecksTile({ id }: { id: string }) {
     />
   );
 }
+
+/**
+ * What the viewer's own deck is waiting on, as the tile's hint. Only the first
+ * two states are the player's move, so only those accent the tile.
+ *
+ * @returns The hint line, and whether the deck needs the viewer.
+ */
+function myDeckStatus(
+  entry: NonNullable<TournamentDetailResponse["myDeckEntry"]>,
+  deckPhase: TournamentDetailResponse["deckPhase"],
+): { hint: string; needsViewer: boolean } {
+  const windowOpen = deckPhase === "open";
+  if (entry.state === "editable" && windowOpen) {
+    return { hint: "Not submitted yet — send it in for review.", needsViewer: true };
+  }
+  if (entry.reviewOutcome === "issue" && entry.state !== "checked") {
+    return { hint: "A judge asked for changes.", needsViewer: true };
+  }
+  if (entry.unlockRequested) {
+    return { hint: "Waiting on a judge to unlock it.", needsViewer: false };
+  }
+  if (entry.state === "withdrawn") {
+    return { hint: "The organizer withdrew this entry.", needsViewer: false };
+  }
+  if (entry.hasPlayerMessage) {
+    return { hint: "A judge left you a message.", needsViewer: false };
+  }
+  return { hint: "View your list.", needsViewer: false };
+}
+
+/**
+ * The viewer's own deck. The one deck-check surface a plain entrant sees: the
+ * Decks tile beside it is the judging queue and stays staff-gated, so without
+ * this tile a player has no route to the list they handed in (ADR-033).
+ *
+ * @returns The My deck tile.
+ */
+function MyDeckTile({
+  id,
+  entry,
+  deckPhase,
+}: {
+  id: string;
+  entry: NonNullable<TournamentDetailResponse["myDeckEntry"]>;
+  deckPhase: TournamentDetailResponse["deckPhase"];
+}) {
+  const { hint, needsViewer } = myDeckStatus(entry, deckPhase);
+  return (
+    <StatTile
+      render={<Link to="/tournaments/$id/my-deck" params={{ id }} />}
+      icon={ScrollTextIcon}
+      tone="violet"
+      accent={needsViewer}
+      label="My deck"
+      value={MY_DECK_STATE_LABEL[entry.state]}
+      valueClassName="truncate text-lg"
+      hint={hint}
+    />
+  );
+}
+
+/** The entry lifecycle as the tile's headline value (ADR-027). */
+const MY_DECK_STATE_LABEL: Record<
+  NonNullable<TournamentDetailResponse["myDeckEntry"]>["state"],
+  string
+> = {
+  editable: "Not submitted",
+  submitted: "Submitted",
+  approved: "Approved",
+  checked: "Checked",
+  withdrawn: "Withdrawn",
+};
 
 /**
  * The field, as the main column's wide tile: the headline count with the
@@ -609,13 +682,14 @@ function OverviewTabBody({
   const manage = canManageTournament(detail.myRoles);
   const runsRounds = hasPairing(detail.pairingStyle);
   const showDecks = detail.deckSubmission !== "none" && canCheckDecks(detail.myRoles);
+  const myDeck = detail.myDeckEntry;
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_18rem]">
       <div className="flex min-w-0 flex-col gap-6">
         {manage ? <JoinRequestsBand id={id} pending={pending} /> : null}
         {runsRounds ? <RunStateModules id={id} detail={detail} slot="main" /> : null}
-        <div className={cn("grid gap-4", showDecks && "sm:grid-cols-2")}>
+        <div className={cn("grid gap-4", (showDecks || myDeck) && "sm:grid-cols-2")}>
           <ParticipantsTile
             id={id}
             detail={detail}
@@ -623,6 +697,7 @@ function OverviewTabBody({
             missingRegionCount={missingRegionCount}
           />
           {showDecks ? <DecksTile id={id} /> : null}
+          {myDeck ? <MyDeckTile id={id} entry={myDeck} deckPhase={detail.deckPhase} /> : null}
         </div>
       </div>
       <aside className="flex flex-col gap-8">

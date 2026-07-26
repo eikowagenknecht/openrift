@@ -19,9 +19,7 @@ import type {
   deckCheckClaimResultResponseSchema,
   deckCheckSubmissionPageResponseSchema,
   deckCheckSubmissionResultResponseSchema,
-  playerDeckCheckEntriesResponseSchema,
   playerDeckCheckEntryDetailResponseSchema,
-  playerDeckCheckEntrySummaryResponseSchema,
 } from "@openrift/shared/contracts/deck-check-player";
 import type { deckCheckEntryCardResponseSchema } from "@openrift/shared/response-schemas";
 import type { z } from "zod";
@@ -95,13 +93,6 @@ export type DeckCheckIngestEntryResult = z.infer<typeof deckCheckIngestEntryResu
 export type DeckCheckIngestResultResponse = z.infer<typeof deckCheckIngestResultResponseSchema>;
 
 // ─── Player self-service (ADR-026) ───────────────────────────────────────────
-
-/** One row of the player's "My tournament decks" list. */
-export type PlayerDeckCheckEntrySummaryResponse = z.infer<
-  typeof playerDeckCheckEntrySummaryResponseSchema
->;
-
-export type PlayerDeckCheckEntriesResponse = z.infer<typeof playerDeckCheckEntriesResponseSchema>;
 
 /**
  * The player projection of one entry: a strict subset of the judge payload.

@@ -4,9 +4,7 @@ import type {
   DeckCheckEntryCardResponse,
   DeckCheckSubmissionPageResponse,
   DeckCheckSubmissionResultResponse,
-  PlayerDeckCheckEntriesResponse,
   PlayerDeckCheckEntryDetailResponse,
-  PlayerDeckCheckEntrySummaryResponse,
 } from "@openrift/shared";
 import { deckCheckPlayerContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
@@ -47,29 +45,6 @@ function isoDate(value: Date | string | null): string | null {
     return null;
   }
   return value instanceof Date ? value.toISOString().slice(0, 10) : String(value);
-}
-
-function toPlayerSummary(row: PlayerDeckCheckEntryRow): PlayerDeckCheckEntrySummaryResponse {
-  // The list view shows the effective state without persisting the deadline
-  // settle: an editable entry past the close date reads as submitted; the
-  // actual transition happens when the entry (or its event) is next loaded.
-  const windowOpen = submissionWindowOpen({
-    status: row.eventStatus,
-    submissionsCloseAt: row.submissionsCloseAt,
-  });
-  return {
-    id: row.id,
-    eventName: row.eventName,
-    eventDate: isoDate(row.eventDate),
-    groupName: row.groupName,
-    groupSlug: row.groupSlug,
-    state: row.state === "editable" && !windowOpen ? "submitted" : row.state,
-    reviewOutcome: row.reviewOutcome,
-    unlockRequested: row.unlockRequestedAt !== null,
-    playerMessage: row.playerMessage,
-    submittedAt: row.submittedAt?.toISOString() ?? null,
-    updatedAt: row.updatedAt.toISOString(),
-  };
 }
 
 /**
@@ -153,7 +128,36 @@ async function loadOwnEntry(
   userId: string,
   entryId: string,
 ): Promise<{ row: PlayerDeckCheckEntryRow; event: DeckCheckEvent }> {
-  const row = await repos.deckCheck.getEntryForPlayer(entryId, userId);
+  return withSettledEvent(repos, await repos.deckCheck.getEntryForPlayer(entryId, userId));
+}
+
+/**
+ * The same load keyed by tournament: the player's deck page is a section of the
+ * tournament, so it addresses the entry through the tournament it belongs to
+ * (ADR-033). A viewer with no entry there is a 404, exactly like a viewer
+ * asking for someone else's.
+ * @returns The (possibly settled) row and its event.
+ */
+async function loadOwnEntryForTournament(
+  repos: Repos,
+  userId: string,
+  tournamentId: string,
+): Promise<{ row: PlayerDeckCheckEntryRow; event: DeckCheckEvent }> {
+  return withSettledEvent(
+    repos,
+    await repos.deckCheck.getEntryForPlayerByTournament(tournamentId, userId),
+  );
+}
+
+/**
+ * Resolves a looked-up player row to its event and settles the deadline
+ * auto-submit, 404-ing whenever either half is missing.
+ * @returns The (possibly settled) row and its event.
+ */
+async function withSettledEvent(
+  repos: Repos,
+  row: PlayerDeckCheckEntryRow | undefined,
+): Promise<{ row: PlayerDeckCheckEntryRow; event: DeckCheckEvent }> {
   if (!row) {
     throw new AppError(404, ERROR_CODES.NOT_FOUND, "Entry not found");
   }
@@ -283,18 +287,11 @@ const os = implement(deckCheckPlayerContract).$context<ApiContext>().use(require
  * `AppError` and mapped to ORPCErrors by the handler's appErrorInterceptor.
  */
 export const deckCheckPlayerRouter = {
-  listMine: os.listMine.handler(async ({ context }): Promise<PlayerDeckCheckEntriesResponse> => {
-    const repos = context.repos;
-    const userId = context.userId;
-    const rows = await repos.deckCheck.listEntriesForPlayer(userId);
-    return { items: rows.map((row) => toPlayerSummary(row)) };
-  }),
-
   getMine: os.getMine.handler(
     async ({ input, context }): Promise<PlayerDeckCheckEntryDetailResponse> => {
       const repos = context.repos;
       const userId = context.userId;
-      const { row, event } = await loadOwnEntry(repos, userId, input.entryId);
+      const { row, event } = await loadOwnEntryForTournament(repos, userId, input.tournamentId);
       return buildPlayerDetail(repos, row, event);
     },
   ),
@@ -324,6 +321,7 @@ export const deckCheckPlayerRouter = {
       if (input.dryRun) {
         return {
           entryId: null,
+          tournamentId: event.id,
           cards: toPreviewCards(cardRows),
           violations: advisories.violations,
         };
@@ -339,6 +337,7 @@ export const deckCheckPlayerRouter = {
       const cards = await repos.deckCheck.listCardsForEntry(entry.id);
       return {
         entryId: entry.id,
+        tournamentId: event.id,
         cards: cards.map((card) => toDeckCheckEntryCardResponse(card)),
         violations: advisories.violations,
       };
@@ -459,6 +458,7 @@ export const deckCheckPlayerRouter = {
       if (input.dryRun) {
         return {
           entryId: null,
+          tournamentId: event.id,
           cards: toPreviewCards(cardRows),
           violations: advisories.violations,
         };
@@ -477,6 +477,7 @@ export const deckCheckPlayerRouter = {
       const cards = await repos.deckCheck.listCardsForEntry(entry.id);
       return {
         entryId: entry.id,
+        tournamentId: event.id,
         cards: cards.map((card) => toDeckCheckEntryCardResponse(card)),
         violations: advisories.violations,
       };

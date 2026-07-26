@@ -212,9 +212,7 @@ export type {
   DeckCheckReviewOutcome,
   DeckCheckSubmissionPageResponse,
   DeckCheckSubmissionResultResponse,
-  PlayerDeckCheckEntriesResponse,
   PlayerDeckCheckEntryDetailResponse,
-  PlayerDeckCheckEntrySummaryResponse,
   ZoneSuggestion,
 } from "./deck-check.js";
 
@@ -280,6 +278,7 @@ export type {
   TournamentListLockMode,
   TournamentListResponse,
   TournamentModuleFlags,
+  TournamentMyDeckEntry,
   TournamentMatchFormat,
   TournamentPairingStyle,
   TournamentParticipantListResponse,

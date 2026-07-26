@@ -276,8 +276,22 @@ function makeDetail(overrides: Partial<TournamentDetailResponse> = {}): Tourname
     judgeInviteToken: null,
     staff: [],
     hasRounds: true,
+    myDeckEntry: null,
     ...overrides,
   } as TournamentDetailResponse;
+}
+
+function makeMyDeck(
+  overrides: Partial<NonNullable<TournamentDetailResponse["myDeckEntry"]>> = {},
+): NonNullable<TournamentDetailResponse["myDeckEntry"]> {
+  return {
+    id: "entry-1",
+    state: "submitted",
+    reviewOutcome: null,
+    unlockRequested: false,
+    hasPlayerMessage: false,
+    ...overrides,
+  };
 }
 
 beforeEach(() => {
@@ -484,5 +498,102 @@ describe("TournamentOverviewTab", () => {
     render(<TournamentOverviewTab id="t-1" detail={makeDetail({ regionsEnabled: true })} />);
 
     expect(screen.getByText("1 dropped · 1 without a region")).toBeInTheDocument();
+  });
+
+  describe("My deck tile", () => {
+    const PLAYER: Partial<TournamentDetailResponse> = { myRoles: ["participant"] };
+
+    it("gives a plain participant the only route to their own deck", () => {
+      // The Decks tile beside it is the judging queue and stays staff-gated, so
+      // without this tile an entrant cannot reach the list they handed in.
+      render(
+        <TournamentOverviewTab
+          id="t-1"
+          detail={makeDetail({ ...PLAYER, myDeckEntry: makeMyDeck() })}
+        />,
+      );
+
+      expect(screen.getByRole("link", { name: /My deck/u })).toHaveAttribute(
+        "href",
+        "/tournaments/t-1/my-deck",
+      );
+      expect(screen.queryByRole("link", { name: /^Decks/u })).not.toBeInTheDocument();
+    });
+
+    it("stays hidden for a viewer holding no entry", () => {
+      render(<TournamentOverviewTab id="t-1" detail={makeDetail({ ...PLAYER })} />);
+
+      expect(screen.queryByRole("link", { name: /My deck/u })).not.toBeInTheDocument();
+    });
+
+    it("calls out an unsubmitted deck while the window is open", () => {
+      render(
+        <TournamentOverviewTab
+          id="t-1"
+          detail={makeDetail({
+            ...PLAYER,
+            deckPhase: "open",
+            myDeckEntry: makeMyDeck({ state: "editable" }),
+          })}
+        />,
+      );
+
+      const tile = screen.getByRole("link", { name: /My deck/u });
+      expect(within(tile).getByText("Not submitted")).toBeInTheDocument();
+      expect(within(tile).getByText(/send it in for review/u)).toBeInTheDocument();
+    });
+
+    it("stops nagging about an unsubmitted deck once the window shuts", () => {
+      // Past the deadline the list was auto-submitted as-is; there is nothing
+      // left for the player to do, so the tile must not read as an open task.
+      render(
+        <TournamentOverviewTab
+          id="t-1"
+          detail={makeDetail({
+            ...PLAYER,
+            deckPhase: "locked",
+            myDeckEntry: makeMyDeck({ state: "editable" }),
+          })}
+        />,
+      );
+
+      const tile = screen.getByRole("link", { name: /My deck/u });
+      expect(within(tile).queryByText(/send it in for review/u)).not.toBeInTheDocument();
+    });
+
+    it("surfaces a judge's rejection over an older message", () => {
+      render(
+        <TournamentOverviewTab
+          id="t-1"
+          detail={makeDetail({
+            ...PLAYER,
+            myDeckEntry: makeMyDeck({
+              state: "editable",
+              reviewOutcome: "issue",
+              hasPlayerMessage: true,
+            }),
+            deckPhase: "closed",
+          })}
+        />,
+      );
+
+      const tile = screen.getByRole("link", { name: /My deck/u });
+      expect(within(tile).getByText("A judge asked for changes.")).toBeInTheDocument();
+    });
+
+    it("shows both tiles to a judge who is also entered", () => {
+      render(
+        <TournamentOverviewTab
+          id="t-1"
+          detail={makeDetail({
+            myRoles: ["judge", "participant"],
+            myDeckEntry: makeMyDeck({ state: "approved" }),
+          })}
+        />,
+      );
+
+      expect(screen.getByRole("link", { name: /My deck/u })).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: /^Decks/u })).toBeInTheDocument();
+    });
   });
 });

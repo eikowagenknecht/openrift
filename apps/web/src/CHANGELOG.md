@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-07-26
+
+### Highlights
+
+- feat(Tournaments): **Your deck lives on the tournament page** — every tournament you entered now shows a My deck tile that opens your list, tells you when it is still unsubmitted or a judge asked for changes, and replaces the old "My tournament decks" entry in the account menu.
+
 ## 2026-07-25
 
 ### Highlights

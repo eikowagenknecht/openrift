@@ -119,8 +119,10 @@ export const queryKeys = {
       ["user-share", "public", token, "lists", listId] as const,
   },
   tournamentDecks: {
-    mine: (userId: string) => ["tournament-decks", userId] as const,
-    entry: (userId: string, entryId: string) => ["tournament-decks", userId, entryId] as const,
+    // The player's own deck, keyed by the tournament it belongs to — the deck
+    // is a section of the tournament page, not a standalone surface (ADR-033).
+    entry: (userId: string, tournamentId: string) =>
+      ["tournament-decks", userId, tournamentId] as const,
     submission: (userId: string, token: string) =>
       ["tournament-decks", userId, "submission", token] as const,
     claim: (token: string) => ["tournament-decks", "claim", token] as const,

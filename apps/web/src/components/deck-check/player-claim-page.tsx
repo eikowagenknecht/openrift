@@ -64,15 +64,15 @@ export function PlayerClaimPage({ token }: { token: string }) {
     const result = await claim.mutateAsync(token);
     // Only route on a successful (or idempotent) claim; refusals — conflict,
     // blocked, duplicate — stay on the page and render their explanation.
-    if (result.status === "claimed" || result.status === "already") {
-      if (result.entryId) {
-        void navigate({
-          to: "/tournaments/my-decks/$entryId",
-          params: { entryId: result.entryId },
-        });
-      } else if (result.tournamentId) {
-        void navigate({ to: "/tournaments/$id", params: { id: result.tournamentId } });
-      }
+    if (
+      (result.status === "claimed" || result.status === "already") &&
+      result.tournamentId !== null
+    ) {
+      void navigate({
+        // The deck page when the claim carried one, the tournament otherwise.
+        to: result.entryId ? "/tournaments/$id/my-deck" : "/tournaments/$id",
+        params: { id: result.tournamentId },
+      });
     }
   };
 
@@ -128,25 +128,17 @@ export function PlayerClaimPage({ token }: { token: string }) {
                 one can&apos;t also be linked to it. If that&apos;s a mistake, contact the
                 organizer.
               </p>
-              {claim.data?.entryId ? (
+              {claim.data?.tournamentId ? (
                 <div>
                   <Button
                     render={
                       <Link
-                        to="/tournaments/my-decks/$entryId"
-                        params={{ entryId: claim.data.entryId }}
+                        to={claim.data.entryId ? "/tournaments/$id/my-deck" : "/tournaments/$id"}
+                        params={{ id: claim.data.tournamentId }}
                       />
                     }
                   >
-                    Go to your deck
-                  </Button>
-                </div>
-              ) : claim.data?.tournamentId ? (
-                <div>
-                  <Button
-                    render={<Link to="/tournaments/$id" params={{ id: claim.data.tournamentId }} />}
-                  >
-                    Go to the tournament
+                    {claim.data.entryId ? "Go to your deck" : "Go to the tournament"}
                   </Button>
                 </div>
               ) : null}

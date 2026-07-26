@@ -201,19 +201,17 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
   });
 
   describe("player access", () => {
-    it("lists only the caller's entries", async () => {
-      const res = await playerApp.fetch(req("GET", "/deck-check/mine"));
-      const body = (await res.json()) as { items: { eventName: string }[] };
-      expect(body.items).toHaveLength(1);
-      expect(body.items[0]?.eventName).toBe("Self-Service Cup");
-
-      const memberRes = await memberApp.fetch(req("GET", "/deck-check/mine"));
-      expect(((await memberRes.json()) as { items: unknown[] }).items).toHaveLength(0);
+    it("resolves the caller's own entry from the tournament id", async () => {
+      const res = await playerApp.fetch(req("GET", `/deck-check/mine/tournament/${eventId}`));
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { entry: { eventName: string } };
+      expect(body.entry.eventName).toBe("Self-Service Cup");
     });
 
-    it("returns 404 (not 403) for an entry not linked to the caller", async () => {
-      const entry = await repos.deckCheck.getEntryByExternalId(eventId, "p-entry-1");
-      const res = await strangerApp.fetch(req("GET", `/deck-check/mine/${entry?.id}`));
+    it("returns 404 for a viewer with no entry in the tournament", async () => {
+      // Same tournament, a member who never handed in a deck: the read is
+      // keyed on the caller's own participant link, not on the tournament.
+      const res = await memberApp.fetch(req("GET", `/deck-check/mine/tournament/${eventId}`));
       expect(res.status).toBe(404);
     });
 
@@ -221,7 +219,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
       const entry = await repos.deckCheck.getEntryByExternalId(eventId, "p-entry-1");
       await repos.deckCheck.updateEntry(entry!.id, { notes: "judge-private note" });
 
-      const res = await playerApp.fetch(req("GET", `/deck-check/mine/${entry?.id}`));
+      const res = await playerApp.fetch(req("GET", `/deck-check/mine/tournament/${eventId}`));
       expect(res.status).toBe(200);
       const raw = await res.text();
       expect(raw).not.toContain("judge-private note");
@@ -240,7 +238,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
     it("lists and opens a personally-hosted entry with no owning friend group", async () => {
       // A tournament hosted by a user directly, with groupId = null — the new
       // first-class config. The player's own queries must left-join the group,
-      // not inner-join, or this entry vanishes from "My tournament decks".
+      // not inner-join, or the player's own deck page 404s for this entry.
       const tournament = await repos.tournaments.create({
         hostType: "user",
         hostUserId: OWNER_ID,
@@ -267,18 +265,15 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
       });
 
       try {
-        const listRes = await playerApp.fetch(req("GET", "/deck-check/mine"));
-        const list = (await listRes.json()) as {
-          items: { eventName: string; groupName: string | null; groupSlug: string | null }[];
-        };
-        const row = list.items.find((item) => item.eventName === "Solo-Hosted Cup");
-        expect(row).toBeDefined();
-        expect(row?.groupName).toBeNull();
-        expect(row?.groupSlug).toBeNull();
-
-        const detailRes = await playerApp.fetch(req("GET", `/deck-check/mine/${entry.id}`));
+        const detailRes = await playerApp.fetch(
+          req("GET", `/deck-check/mine/tournament/${tournament.id}`),
+        );
         expect(detailRes.status).toBe(200);
-        const detail = (await detailRes.json()) as { entry: { groupName: string | null } };
+        const detail = (await detailRes.json()) as {
+          entry: { id: string; eventName: string; groupName: string | null };
+        };
+        expect(detail.entry.id).toBe(entry.id);
+        expect(detail.entry.eventName).toBe("Solo-Hosted Cup");
         expect(detail.entry.groupName).toBeNull();
       } finally {
         await db.deleteFrom("tournaments").where("id", "=", tournament.id).execute();
@@ -421,10 +416,10 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
       );
       expect(submit.status).toBe(409);
 
-      // Viewing still works; the list badges the entry as withdrawn.
-      const list = await playerApp.fetch(req("GET", "/deck-check/mine"));
-      const body = (await list.json()) as { items: { state: string }[] };
-      expect(body.items.some((item) => item.state === "withdrawn")).toBe(true);
+      // Viewing still works; the deck page badges the entry as withdrawn.
+      const view = await playerApp.fetch(req("GET", `/deck-check/mine/tournament/${eventId}`));
+      const body = (await view.json()) as { entry: { state: string } };
+      expect(body.entry.state).toBe("withdrawn");
     });
 
     it("a user without a linked entry creates one openrift: entry, upserted on re-submit", async () => {
@@ -600,7 +595,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
       );
       expect(edit.status).toBe(409);
 
-      const view = await strangerApp.fetch(req("GET", `/deck-check/mine/${entry?.id}`));
+      const view = await strangerApp.fetch(req("GET", `/deck-check/mine/tournament/${eventId}`));
       expect(view.status).toBe(200);
       const body = (await view.json()) as { entry: { canEdit: boolean } };
       expect(body.entry.canEdit).toBe(false);
@@ -627,6 +622,18 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
         req("PUT", `/deck-check/mine/${entryId2}/list`, { deckId: strangerDeckId }),
       );
       expect(res.status).toBe(409);
+    });
+
+    it("hands each caller their own entry in a tournament holding several", async () => {
+      // Both the player and the stranger have an entry in this tournament by
+      // now. The read is addressed by tournament, so ownership is the only
+      // thing separating the two payloads.
+      const mine = await playerApp.fetch(req("GET", `/deck-check/mine/tournament/${eventId}`));
+      const theirs = await strangerApp.fetch(req("GET", `/deck-check/mine/tournament/${eventId}`));
+      const mineBody = (await mine.json()) as { entry: { id: string } };
+      const theirsBody = (await theirs.json()) as { entry: { id: string } };
+      expect(theirsBody.entry.id).toBe(entryId2);
+      expect(mineBody.entry.id).not.toBe(entryId2);
     });
 
     it("unlocks a submitted entry self-service, then resubmits with a diff", async () => {
@@ -723,7 +730,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
       expect(reloaded?.reviewOutcome).toBe("issue");
       expect(reloaded?.playerMessage).toBe("Fix the rune count");
 
-      const view = await strangerApp.fetch(req("GET", `/deck-check/mine/${entryId2}`));
+      const view = await strangerApp.fetch(req("GET", `/deck-check/mine/tournament/${eventId}`));
       const body = (await view.json()) as {
         entry: { state: string; reviewOutcome: string | null; playerMessage: string | null };
       };

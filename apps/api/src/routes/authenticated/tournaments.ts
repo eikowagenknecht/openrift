@@ -337,17 +337,32 @@ async function buildDetail(
   tournament: Tournament,
   userId: string,
 ): Promise<TournamentDetailResponse> {
-  const [host, counts, staffMembers, staffRoles, participant, hostFlag, hasRounds, extrasMap] =
-    await Promise.all([
-      resolveHost(repos, tournament),
-      repos.tournaments.getCounts(tournament.id),
-      resolveStaff(repos, tournament),
-      repos.tournaments.getStaffRoles(tournament.id, userId),
-      repos.tournaments.findParticipantByUser(tournament.id, userId),
-      isHost(repos, tournament, userId),
-      repos.tournaments.hasRounds(tournament.id),
-      loadSummaryExtras(repos, [tournament]),
-    ]);
+  const [
+    host,
+    counts,
+    staffMembers,
+    staffRoles,
+    participant,
+    hostFlag,
+    hasRounds,
+    extrasMap,
+    deckEntry,
+  ] = await Promise.all([
+    resolveHost(repos, tournament),
+    repos.tournaments.getCounts(tournament.id),
+    resolveStaff(repos, tournament),
+    repos.tournaments.getStaffRoles(tournament.id, userId),
+    repos.tournaments.findParticipantByUser(tournament.id, userId),
+    isHost(repos, tournament, userId),
+    repos.tournaments.hasRounds(tournament.id),
+    loadSummaryExtras(repos, [tournament]),
+    // The viewer's own deck, for the My deck tile and the deck route's guard.
+    // Skipped entirely when the tournament takes no lists, so the common
+    // no-decks case pays nothing.
+    tournament.deckSubmission === "none"
+      ? undefined
+      : repos.deckCheck.getEntryForPlayerByTournament(tournament.id, userId),
+  ]);
   const extras = extrasMap.get(tournament.id) ?? EMPTY_EXTRAS;
   let groupSlug: string | null = null;
   let groupName: string | null = null;
@@ -412,6 +427,15 @@ async function buildDetail(
     participantCount: counts.participantCount,
     pendingRequestCount: counts.pendingRequestCount,
     myRoles,
+    myDeckEntry: deckEntry
+      ? {
+          id: deckEntry.id,
+          state: deckEntry.state,
+          reviewOutcome: deckEntry.reviewOutcome,
+          unlockRequested: deckEntry.unlockRequestedAt !== null,
+          hasPlayerMessage: deckEntry.playerMessage !== null,
+        }
+      : null,
     participantPreview: extras.participantPreview,
     winner: extras.winner,
     coverLegends: extras.coverLegends,

@@ -28,6 +28,7 @@ type TournamentTab =
   | "pairings"
   | "standings"
   | "decks"
+  | "my-deck"
   | "staff"
   | "settings";
 
@@ -38,7 +39,9 @@ const TOURNAMENT_SECTION_LABEL: Record<TournamentSection, string> = {
   participants: "Participants",
   pairings: "Pairings",
   standings: "Standings",
+  // "Decks" is the judging queue (every entrant); "My deck" is the player's own.
   decks: "Decks",
+  "my-deck": "My deck",
   staff: "Staff",
   settings: "Settings",
 };

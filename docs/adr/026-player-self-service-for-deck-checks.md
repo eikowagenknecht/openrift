@@ -5,6 +5,13 @@ date: 2026-06-12
 
 # ADR-026: Player Self-Service for Deck Checks
 
+> **Amended 2026-07-26 ([ADR-033](033-unified-tournaments.md)).** Two of the decisions below were written for a world with no player-visible tournament entity, and ADR-033 built one.
+>
+> - **Linking** no longer auto-matches on email. ADR-033 made a participant either a linked account or an accountless walk-in claimed through its claim link; migration 176 dropped `tournament_participants.email` and the auto-match it fed. Claim tokens and judge manual links are the only two sources.
+> - **Surface** is no longer a standalone "My tournament decks" list in the header user menu. Per ADR-033's "participant-facing flows live under `/tournaments/$id/…`", the player's deck is a section of the tournament it belongs to: a My deck tile on the tournament dashboard opening `/tournaments/$id/my-deck`. The cross-event index is `/tournaments` itself, which already lists every tournament the viewer hosts, judges, or plays in. The reasoning for keeping the label off `/tournaments` (a collision with ADR-022's pod runner and ADR-014's archive) expired when ADR-033 claimed that name for the umbrella.
+>
+> The PII boundary is unchanged and still the point: the read is keyed on the caller's own participant link, so a tournament-addressed request can only ever return the caller's own entry.
+
 ## Context and Problem Statement
 
 ADR-025 built deck checks as a judge-only tool: an organizer pushes entrant decklists into a group over a machine API, and a team of judges verifies them. Entrants are free-text identity with no `users` link, lists arrive only over the ingest API, and nothing about a check is visible outside the judging team. ADR-025 deliberately deferred three things to keep that first version tight: player accounts / a claim flow, a submission flow inside OpenRift, and any non-judge visibility of entrant lists.

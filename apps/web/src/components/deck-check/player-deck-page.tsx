@@ -13,18 +13,10 @@ import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { DeckCheckCardZonesSkeleton } from "@/components/deck-check/deck-check-skeletons";
 import { PlayerDeckSourceForm } from "@/components/deck-check/player-deck-source-form";
 import type { DeckSourceInput } from "@/components/deck-check/player-deck-source-form";
-import { PlayerStateBadge } from "@/components/deck-check/player-decks-page";
 import { DeckDomainBar } from "@/components/deck/deck-domain-bar";
 import { FormatStateBadge, typeCountSummary } from "@/components/deck/deck-tile";
-import {
-  PAGE_TOP_BAR_STICKY,
-  PageTopBar,
-  PageTopBarActions,
-  PageTopBarBack,
-  PageTopBarButton,
-  PageTopBarPrimaryButton,
-  PageTopBarTitle,
-} from "@/components/layout/page-top-bar";
+import { PageTopBarButton, PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
+import { TournamentSectionFrame } from "@/components/tournaments/tournament-detail-frame";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -47,47 +39,57 @@ import { useCreateDeck, useSaveDeckCards } from "@/hooks/use-decks";
 import { useDeckFormatList, useZoneOrder } from "@/hooks/use-enums";
 import { deckCardsFromCheckEntry } from "@/lib/deck-check-save";
 import { formatAbsoluteDate } from "@/lib/format-date";
-import { PAGE_PADDING } from "@/lib/utils";
 
 /** Rendered width of one card in the read-only grid. */
 const PLAYER_CELL_WIDTH = 150;
 
 /**
- * One tournament deck, rendered for its player (ADR-026/027): the list by
- * zone, the lifecycle state, the judge's player-facing message, and the
- * state-dependent actions (edit and submit while editable, unlock when
- * submitted, request an unlock when approved). Never any other entrant,
- * never judge notes.
+ * The viewer's own deck in one tournament (ADR-026/027, re-homed under the
+ * tournament by ADR-033): the list by zone, the lifecycle state, the judge's
+ * player-facing message, and the state-dependent actions (edit and submit while
+ * editable, unlock when submitted, request an unlock when approved). Never any
+ * other entrant, never judge notes.
+ *
+ * The route guard only lets a viewer who holds an entry this far, so a missing
+ * entry here means it was withdrawn (or the tournament changed) mid-visit.
  * @returns The page.
  */
-export function PlayerDeckPage({ entryId }: { entryId: string }) {
-  const { data, isPending, isError } = useMyTournamentDeck(entryId);
+export function PlayerDeckPage({ tournamentId }: { tournamentId: string }) {
+  const { data, isPending, isError } = useMyTournamentDeck(tournamentId);
 
-  if (isPending) {
-    return (
-      <div>
-        <div className={PAGE_TOP_BAR_STICKY}>
-          <div className="mx-auto w-full max-w-5xl">
-            <PageTopBar>
-              <PageTopBarBack to="/tournaments/my-decks" aria-label="Back to my tournament decks" />
-              <Skeleton className="h-5 w-44" />
-            </PageTopBar>
-          </div>
-        </div>
-        <div className={`flex justify-center ${PAGE_PADDING}`}>
-          <div className="flex w-full max-w-5xl flex-col gap-4">
+  return (
+    <TournamentSectionFrame
+      id={tournamentId}
+      section="my-deck"
+      actions={
+        data ? (
+          <>
+            <SaveToDecksButton data={data} />
+            <PlayerDeckActions entry={data.entry} tournamentId={tournamentId} />
+          </>
+        ) : undefined
+      }
+      render={() =>
+        isPending ? (
+          <div className="flex flex-col gap-4">
             <Skeleton className="h-4 w-48" />
             <Skeleton className="h-2 w-full" />
             <DeckCheckCardZonesSkeleton cellWidth={PLAYER_CELL_WIDTH} />
           </div>
-        </div>
-      </div>
-    );
-  }
-  if (isError || !data) {
-    return <p className="text-muted-foreground p-6 text-center">This deck is not available.</p>;
-  }
+        ) : isError || !data ? (
+          <p className="text-muted-foreground py-12 text-center">
+            Your deck for this tournament is no longer available. Contact a judge.
+          </p>
+        ) : (
+          <PlayerDeckBody data={data} />
+        )
+      }
+    />
+  );
+}
 
+/** @returns The deck's state banners, sharing summary, and card grid. */
+function PlayerDeckBody({ data }: { data: PlayerDeckCheckEntryDetailResponse }) {
   const { entry } = data;
   const eventDate = entry.eventDate
     ? formatAbsoluteDate(entry.eventDate, { year: "numeric", month: "short", day: "numeric" })
@@ -103,98 +105,113 @@ export function PlayerDeckPage({ entryId }: { entryId: string }) {
     : null;
 
   return (
-    <div>
-      <div className={PAGE_TOP_BAR_STICKY}>
-        <div className="mx-auto w-full max-w-5xl">
-          <PageTopBar>
-            <PageTopBarBack to="/tournaments/my-decks" aria-label="Back to my tournament decks" />
-            <PageTopBarTitle>{entry.eventName}</PageTopBarTitle>
-            <PageTopBarActions>
-              <SaveToDecksButton data={data} />
-              <PlayerDeckActions entry={entry} />
-            </PageTopBarActions>
-          </PageTopBar>
-        </div>
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-muted-foreground text-sm">
+          {[entry.groupName, eventDate].filter(Boolean).join(" · ")}
+        </span>
+        <span className="flex-1" />
+        {entry.reviewOutcome === "issue" && entry.state === "editable" ? (
+          <Badge variant="destructive">Changes requested</Badge>
+        ) : null}
+        {entry.unlockRequested ? <Badge variant="outline">Unlock requested</Badge> : null}
+        <PlayerStateBadge state={entry.state} reviewOutcome={entry.reviewOutcome} />
       </div>
-      <div className={`flex justify-center ${PAGE_PADDING}`}>
-        <div className="flex w-full max-w-5xl flex-col gap-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-muted-foreground text-sm">
-              {[entry.groupName, eventDate].filter(Boolean).join(" · ")}
-            </span>
-            <span className="flex-1" />
-            {entry.reviewOutcome === "issue" && entry.state === "editable" ? (
-              <Badge variant="destructive">Changes requested</Badge>
-            ) : null}
-            {entry.unlockRequested ? <Badge variant="outline">Unlock requested</Badge> : null}
-            <PlayerStateBadge state={entry.state} reviewOutcome={entry.reviewOutcome} />
-          </div>
 
-          {entry.state === "withdrawn" ? (
-            <Banner>
-              Your entry was withdrawn by the organizer. If that is unexpected, contact a judge.
-            </Banner>
-          ) : null}
-          {entry.playerMessage ? (
-            <div className="bg-muted/50 rounded-md border p-3 text-sm">
-              <p className="text-muted-foreground mb-1 font-medium">Message from the judges</p>
-              <p className="whitespace-pre-wrap">{entry.playerMessage}</p>
-            </div>
-          ) : null}
-          {entry.state === "editable" && entry.windowOpen ? (
-            <Banner>
-              This deck is not submitted yet. Submit it for review
-              {closesAt ? ` before ${closesAt}` : ""}. An unsubmitted list is sent in as-is when
-              submissions close.
-            </Banner>
-          ) : null}
-          {entry.state === "submitted" && entry.windowOpen ? (
-            <p className="text-muted-foreground text-sm">
-              {entry.canUnlock
-                ? `Your deck is locked for review. You can unlock it to make changes${closesAt ? ` until ${closesAt}` : ""}; a judge then reviews the new list.`
-                : entry.unlockRequested
-                  ? "Your unlock request is waiting for a judge. Once granted, you can edit and resubmit your deck."
-                  : "Your deck is submitted and locked. To change it, request an unlock, which a judge has to grant."}
-            </p>
-          ) : null}
-          {entry.state === "approved" && entry.windowOpen ? (
-            <p className="text-muted-foreground text-sm">
-              {entry.unlockRequested
-                ? "Your unlock request is waiting for a judge. Once granted, you can edit and resubmit your deck."
-                : "A judge approved your deck. To change it, request an unlock, which a judge has to grant."}
-            </p>
-          ) : null}
-          {!entry.windowOpen && entry.state !== "withdrawn" && entry.state !== "checked" ? (
-            <p className="text-muted-foreground text-sm">
-              Submissions are closed. Contact a judge to change your list.
-            </p>
-          ) : null}
-          <p className="text-muted-foreground text-sm">
-            {sharingSummary(
-              entry.allowDeckPublishing,
-              entry.allowNameSharing,
-              entry.allowRiotIdSharing,
-            )}
-            {entry.canEdit ? " You can change this when replacing your deck." : ""}
-          </p>
-          {data.violations.length > 0 ? (
-            <Banner>
-              <ul className="flex list-disc flex-col gap-1 pl-5">
-                {data.violations.map((violation) => (
-                  <li key={`${violation.zone}:${violation.code}:${violation.cardId ?? ""}`}>
-                    {violation.message}
-                  </li>
-                ))}
-              </ul>
-            </Banner>
-          ) : null}
-
-          <DeckMetaSummary data={data} />
-          <PlayerCardGrid cards={data.cards} />
+      {entry.state === "withdrawn" ? (
+        <Banner>
+          Your entry was withdrawn by the organizer. If that is unexpected, contact a judge.
+        </Banner>
+      ) : null}
+      {entry.playerMessage ? (
+        <div className="bg-muted/50 rounded-md border p-3 text-sm">
+          <p className="text-muted-foreground mb-1 font-medium">Message from the judges</p>
+          <p className="whitespace-pre-wrap">{entry.playerMessage}</p>
         </div>
-      </div>
+      ) : null}
+      {entry.state === "editable" && entry.windowOpen ? (
+        <Banner>
+          This deck is not submitted yet. Submit it for review
+          {closesAt ? ` before ${closesAt}` : ""}. An unsubmitted list is sent in as-is when
+          submissions close.
+        </Banner>
+      ) : null}
+      {entry.state === "submitted" && entry.windowOpen ? (
+        <p className="text-muted-foreground text-sm">
+          {entry.canUnlock
+            ? `Your deck is locked for review. You can unlock it to make changes${closesAt ? ` until ${closesAt}` : ""}; a judge then reviews the new list.`
+            : entry.unlockRequested
+              ? "Your unlock request is waiting for a judge. Once granted, you can edit and resubmit your deck."
+              : "Your deck is submitted and locked. To change it, request an unlock, which a judge has to grant."}
+        </p>
+      ) : null}
+      {entry.state === "approved" && entry.windowOpen ? (
+        <p className="text-muted-foreground text-sm">
+          {entry.unlockRequested
+            ? "Your unlock request is waiting for a judge. Once granted, you can edit and resubmit your deck."
+            : "A judge approved your deck. To change it, request an unlock, which a judge has to grant."}
+        </p>
+      ) : null}
+      {!entry.windowOpen && entry.state !== "withdrawn" && entry.state !== "checked" ? (
+        <p className="text-muted-foreground text-sm">
+          Submissions are closed. Contact a judge to change your list.
+        </p>
+      ) : null}
+      <p className="text-muted-foreground text-sm">
+        {sharingSummary(
+          entry.allowDeckPublishing,
+          entry.allowNameSharing,
+          entry.allowRiotIdSharing,
+        )}
+        {entry.canEdit ? " You can change this when replacing your deck." : ""}
+      </p>
+      {data.violations.length > 0 ? (
+        <Banner>
+          <ul className="flex list-disc flex-col gap-1 pl-5">
+            {data.violations.map((violation) => (
+              <li key={`${violation.zone}:${violation.code}:${violation.cardId ?? ""}`}>
+                {violation.message}
+              </li>
+            ))}
+          </ul>
+        </Banner>
+      ) : null}
+
+      <DeckMetaSummary data={data} />
+      <PlayerCardGrid cards={data.cards} />
     </div>
   );
+}
+
+/**
+ * The entry's lifecycle as one badge (ADR-027). Shared with the tournament
+ * dashboard's My deck tile, so both surfaces name a state the same way.
+ * @returns The state badge.
+ */
+export function PlayerStateBadge({
+  state,
+  reviewOutcome,
+}: {
+  state: PlayerDeckCheckEntryDetailResponse["entry"]["state"];
+  reviewOutcome: PlayerDeckCheckEntryDetailResponse["entry"]["reviewOutcome"];
+}) {
+  if (state === "editable") {
+    return <Badge variant="outline">Not submitted</Badge>;
+  }
+  if (state === "approved") {
+    return <Badge>Approved</Badge>;
+  }
+  if (state === "checked") {
+    return reviewOutcome === "issue" ? (
+      <Badge variant="destructive">Checked · issue</Badge>
+    ) : (
+      <Badge>Checked</Badge>
+    );
+  }
+  if (state === "withdrawn") {
+    return <Badge variant="secondary">Withdrawn</Badge>;
+  }
+  return <Badge variant="secondary">Submitted</Badge>;
 }
 
 /**
@@ -393,10 +410,17 @@ function SaveToDecksButton({ data }: { data: PlayerDeckCheckEntryDetailResponse 
  * approved. Nothing once checked, withdrawn, or after the deadline.
  * @returns The action buttons, or null.
  */
-function PlayerDeckActions({ entry }: { entry: PlayerDeckCheckEntryDetailResponse["entry"] }) {
+function PlayerDeckActions({
+  entry,
+  tournamentId,
+}: {
+  entry: PlayerDeckCheckEntryDetailResponse["entry"];
+  tournamentId: string;
+}) {
   const submit = useSubmitMyTournamentDeck();
   const unlock = useUnlockMyTournamentDeck();
   const cancelRequest = useCancelUnlockRequest();
+  const ref = { entryId: entry.id, tournamentId };
 
   if (!entry.windowOpen) {
     return null;
@@ -406,14 +430,12 @@ function PlayerDeckActions({ entry }: { entry: PlayerDeckCheckEntryDetailRespons
       <>
         <ReplaceDeckButton
           entryId={entry.id}
+          tournamentId={tournamentId}
           allowDeckPublishing={entry.allowDeckPublishing}
           allowNameSharing={entry.allowNameSharing}
           allowRiotIdSharing={entry.allowRiotIdSharing}
         />
-        <PageTopBarPrimaryButton
-          disabled={submit.isPending}
-          onClick={() => submit.mutate(entry.id)}
-        >
+        <PageTopBarPrimaryButton disabled={submit.isPending} onClick={() => submit.mutate(ref)}>
           Submit for review
         </PageTopBarPrimaryButton>
       </>
@@ -421,7 +443,7 @@ function PlayerDeckActions({ entry }: { entry: PlayerDeckCheckEntryDetailRespons
   }
   if (entry.canUnlock) {
     return (
-      <PageTopBarButton disabled={unlock.isPending} onClick={() => unlock.mutate(entry.id)}>
+      <PageTopBarButton disabled={unlock.isPending} onClick={() => unlock.mutate(ref)}>
         Unlock to edit
       </PageTopBarButton>
     );
@@ -430,7 +452,7 @@ function PlayerDeckActions({ entry }: { entry: PlayerDeckCheckEntryDetailRespons
     return (
       <PageTopBarButton
         disabled={cancelRequest.isPending}
-        onClick={() => cancelRequest.mutate(entry.id)}
+        onClick={() => cancelRequest.mutate(ref)}
       >
         Cancel unlock request
       </PageTopBarButton>
@@ -438,7 +460,7 @@ function PlayerDeckActions({ entry }: { entry: PlayerDeckCheckEntryDetailRespons
   }
   if (entry.canRequestUnlock) {
     return (
-      <PageTopBarButton disabled={unlock.isPending} onClick={() => unlock.mutate(entry.id)}>
+      <PageTopBarButton disabled={unlock.isPending} onClick={() => unlock.mutate(ref)}>
         Request unlock
       </PageTopBarButton>
     );
@@ -448,11 +470,13 @@ function PlayerDeckActions({ entry }: { entry: PlayerDeckCheckEntryDetailRespons
 
 function ReplaceDeckButton({
   entryId,
+  tournamentId,
   allowDeckPublishing,
   allowNameSharing,
   allowRiotIdSharing,
 }: {
   entryId: string;
+  tournamentId: string;
   allowDeckPublishing: boolean;
   allowNameSharing: boolean;
   allowRiotIdSharing: boolean;
@@ -462,7 +486,7 @@ function ReplaceDeckButton({
   const preview = usePreviewTournamentDeck();
 
   const submit = async (input: DeckSourceInput) => {
-    await edit.mutateAsync({ entryId, ...input });
+    await edit.mutateAsync({ entryId, tournamentId, ...input });
     preview.reset();
     setOpen(false);
   };

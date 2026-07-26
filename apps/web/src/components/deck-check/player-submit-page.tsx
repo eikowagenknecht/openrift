@@ -69,7 +69,7 @@ export function PlayerSubmitDeckSection({ token }: { token: string }) {
   const submit = async (input: DeckSourceInput) => {
     const result = await submitDeck.mutateAsync({ token, ...input });
     if (result.entryId) {
-      void navigate({ to: "/tournaments/my-decks/$entryId", params: { entryId: result.entryId } });
+      void navigate({ to: "/tournaments/$id/my-deck", params: { id: result.tournamentId } });
     }
   };
 

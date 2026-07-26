@@ -23,6 +23,7 @@ import type {
   tournamentHostInfoSchema,
   tournamentListResponseSchema,
   tournamentModuleFlagsSchema,
+  tournamentMyDeckEntrySchema,
   tournamentParticipantListResponseSchema,
   tournamentParticipantPreviewSchema,
   tournamentParticipantResponseSchema,
@@ -115,6 +116,9 @@ export type TournamentWinner = z.infer<typeof tournamentWinnerSchema>;
 
 /** One legend art for the hero card fan. */
 export type TournamentCoverLegend = z.infer<typeof tournamentCoverLegendSchema>;
+
+/** The viewer's own deck entry on a tournament, as the dashboard sees it. */
+export type TournamentMyDeckEntry = z.infer<typeof tournamentMyDeckEntrySchema>;
 
 export type TournamentSummaryResponse = z.infer<typeof tournamentSummaryResponseSchema>;
 

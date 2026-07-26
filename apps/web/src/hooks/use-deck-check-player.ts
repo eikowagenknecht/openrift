@@ -3,7 +3,6 @@ import type {
   DeckCheckClaimResultResponse,
   DeckCheckSubmissionPageResponse,
   DeckCheckSubmissionResultResponse,
-  PlayerDeckCheckEntriesResponse,
   PlayerDeckCheckEntryDetailResponse,
 } from "@openrift/shared";
 import { deckCheckClaimContract, deckCheckPlayerContract } from "@openrift/shared/contracts";
@@ -35,19 +34,12 @@ export interface TournamentDeckSubmissionInput {
 
 // ── Server functions ────────────────────────────────────────────────────────
 
-const fetchMyTournamentDecks = createServerFn({ method: "GET" })
-  .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<PlayerDeckCheckEntriesResponse> =>
-      apiOrpcClient(deckCheckPlayerContract, context.cookie).listMine(),
-  );
-
 const fetchMyTournamentDeck = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .middleware([withCookies])
   .handler(
-    ({ context, data: entryId }): Promise<PlayerDeckCheckEntryDetailResponse> =>
-      apiOrpcClient(deckCheckPlayerContract, context.cookie).getMine({ entryId }),
+    ({ context, data: tournamentId }): Promise<PlayerDeckCheckEntryDetailResponse> =>
+      apiOrpcClient(deckCheckPlayerContract, context.cookie).getMine({ tournamentId }),
   );
 
 const editMyTournamentDeckFn = createServerFn({ method: "POST" })
@@ -116,19 +108,17 @@ const claimTournamentDeckFn = createServerFn({ method: "POST" })
 
 // ── Query hooks ─────────────────────────────────────────────────────────────
 
-export function useMyTournamentDecks() {
+/**
+ * The viewer's own deck in one tournament. Addressed by tournament, since that
+ * is what the route carries; the entry id it resolves to is what the write
+ * hooks below take.
+ * @returns The player deck-entry query.
+ */
+export function useMyTournamentDeck(tournamentId: string) {
   const userId = useRequiredUserId();
   return useQuery({
-    queryKey: queryKeys.tournamentDecks.mine(userId),
-    queryFn: () => fetchMyTournamentDecks(),
-  });
-}
-
-export function useMyTournamentDeck(entryId: string) {
-  const userId = useRequiredUserId();
-  return useQuery({
-    queryKey: queryKeys.tournamentDecks.entry(userId, entryId),
-    queryFn: () => fetchMyTournamentDeck({ data: entryId }),
+    queryKey: queryKeys.tournamentDecks.entry(userId, tournamentId),
+    queryFn: () => fetchMyTournamentDeck({ data: tournamentId }),
   });
 }
 
@@ -152,48 +142,58 @@ export function useClaimLanding(token: string) {
 
 // ── Mutation hooks ──────────────────────────────────────────────────────────
 
+/**
+ * Every write addresses the entry by id but is cached under its tournament, and
+ * each one moves the entry's state — which the tournament detail also carries
+ * (`myDeckEntry`, the My deck tile). So both keys refresh together.
+ * @returns The two keys a deck write invalidates.
+ */
+function deckWriteKeys(userId: string, tournamentId: string) {
+  return [
+    queryKeys.tournamentDecks.entry(userId, tournamentId),
+    queryKeys.tournaments.detail(userId, tournamentId),
+  ];
+}
+
+/** The addressing every player deck write shares: the entry, and its home. */
+interface DeckEntryRef {
+  entryId: string;
+  tournamentId: string;
+}
+
 export function useEditMyTournamentDeck() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation({
-    mutationFn: (vars: { entryId: string } & TournamentDeckSubmissionInput) =>
-      editMyTournamentDeckFn({ data: vars }),
-    invalidates: (vars) => [
-      queryKeys.tournamentDecks.mine(userId),
-      queryKeys.tournamentDecks.entry(userId, vars.entryId),
-    ],
+    // `tournamentId` addresses the cache, not the endpoint; drop it from the body.
+    mutationFn: ({
+      tournamentId: _tournamentId,
+      ...body
+    }: DeckEntryRef & TournamentDeckSubmissionInput) => editMyTournamentDeckFn({ data: body }),
+    invalidates: (vars) => deckWriteKeys(userId, vars.tournamentId),
   });
 }
 
 export function useSubmitMyTournamentDeck() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation({
-    mutationFn: (entryId: string) => submitMyTournamentDeckFn({ data: entryId }),
-    invalidates: (entryId) => [
-      queryKeys.tournamentDecks.mine(userId),
-      queryKeys.tournamentDecks.entry(userId, entryId),
-    ],
+    mutationFn: (vars: DeckEntryRef) => submitMyTournamentDeckFn({ data: vars.entryId }),
+    invalidates: (vars) => deckWriteKeys(userId, vars.tournamentId),
   });
 }
 
 export function useUnlockMyTournamentDeck() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation({
-    mutationFn: (entryId: string) => unlockMyTournamentDeckFn({ data: entryId }),
-    invalidates: (entryId) => [
-      queryKeys.tournamentDecks.mine(userId),
-      queryKeys.tournamentDecks.entry(userId, entryId),
-    ],
+    mutationFn: (vars: DeckEntryRef) => unlockMyTournamentDeckFn({ data: vars.entryId }),
+    invalidates: (vars) => deckWriteKeys(userId, vars.tournamentId),
   });
 }
 
 export function useCancelUnlockRequest() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation({
-    mutationFn: (entryId: string) => cancelUnlockRequestFn({ data: entryId }),
-    invalidates: (entryId) => [
-      queryKeys.tournamentDecks.mine(userId),
-      queryKeys.tournamentDecks.entry(userId, entryId),
-    ],
+    mutationFn: (vars: DeckEntryRef) => cancelUnlockRequestFn({ data: vars.entryId }),
+    invalidates: (vars) => deckWriteKeys(userId, vars.tournamentId),
   });
 }
 
@@ -202,9 +202,11 @@ export function useSubmitTournamentDeck() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { token: string } & TournamentDeckSubmissionInput) =>
       submitTournamentDeckFn({ data: vars }),
-    invalidates: (vars) => [
-      queryKeys.tournamentDecks.mine(userId),
+    // The token names the link, not the tournament; the result is what says
+    // which tournament just took a deck.
+    invalidates: (vars, data) => [
       queryKeys.tournamentDecks.submission(userId, vars.token),
+      ...deckWriteKeys(userId, data.tournamentId),
     ],
   });
 }

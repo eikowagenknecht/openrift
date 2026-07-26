@@ -1,5 +1,9 @@
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
-import { podTournamentDetailResponseSchema } from "@openrift/shared/response-schemas";
+import {
+  deckCheckEntryStateSchema,
+  deckCheckReviewOutcomeSchema,
+  podTournamentDetailResponseSchema,
+} from "@openrift/shared/response-schemas";
 import {
   friendGroupSlugParamSchema,
   isoDateTime,
@@ -125,8 +129,23 @@ export const tournamentListResponseSchema = z
   .object({ items: z.array(tournamentSummaryResponseSchema) })
   .openapi("TournamentListResponse");
 
+/**
+ * The viewer's own deck entry, as much of it as the tournament dashboard needs
+ * (ADR-033): enough to render the My deck tile and to gate the deck route,
+ * without the list itself. Null when the viewer holds no entry — either they
+ * are not a participant, or the tournament takes no decks.
+ */
+export const tournamentMyDeckEntrySchema = z.object({
+  id: z.string(),
+  state: deckCheckEntryStateSchema,
+  reviewOutcome: deckCheckReviewOutcomeSchema.nullable(),
+  unlockRequested: z.boolean(),
+  hasPlayerMessage: z.boolean(),
+});
+
 export const tournamentDetailResponseSchema = tournamentSummaryResponseSchema
   .extend({
+    myDeckEntry: tournamentMyDeckEntrySchema.nullable(),
     currentRound: z.number().int().nonnegative(),
     scoringScheme: scoringSchemeSchema,
     byePoints: z.number().int().nonnegative(),
