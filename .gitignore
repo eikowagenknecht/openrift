@@ -50,3 +50,8 @@ deploy.sh
 
 # Auto-generated test artifacts from Hypothesis (a property-based testing library)
 .hypothesis/
+# Generated scanner files (bun scripts/scan/export-index.ts); the encoder model is never committed
+apps/web/public/scan-embed-bank.bin
+apps/web/public/scan-labels.json
+apps/web/public/scan-encoder.onnx
+apps/web/public/scan-opencv.js

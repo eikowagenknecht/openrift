@@ -14,6 +14,7 @@
     "./response-schemas": "./src/response-schemas.ts",
     "./utils": "./src/utils.ts",
     "./keywords": "./src/keywords.ts",
+    "./scan": "./src/scan/index.ts",
     "./types": "./src/types/index.ts",
     "./logger": "./src/logger.ts"
   },

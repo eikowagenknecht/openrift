@@ -10,10 +10,11 @@ import { sentryTanstackStart } from "@sentry/tanstackstart-react/vite";
 import tailwindcss from "@tailwindcss/vite";
 import { devtools } from "@tanstack/devtools-vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
+import basicSsl from "@vitejs/plugin-basic-ssl";
 import viteReact, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { nitro } from "nitro/vite";
 import Sonda from "sonda/vite";
-import type { Plugin } from "vite";
+import type { Plugin, ViteDevServer } from "vite";
 import { defineConfig, loadEnv } from "vite";
 
 const commitHash = execSync("git rev-parse --short HEAD").toString().trim();
@@ -187,6 +188,36 @@ export default defineConfig(({ mode, command }) => {
       // keeps the network "busy" forever, which breaks Playwright's
       // networkidle wait during global-setup warmup.
       ...(process.env.VITE_DISABLE_DEVTOOLS ? [] : [devtools()]),
+      // Opt-in HTTPS for the dev server (`bun run dev:https`): getUserMedia
+      // needs a secure context, so testing the card scanner's live camera from
+      // a phone requires it. Self-signed — the phone shows a certificate
+      // warning once, and the page is a secure context after accepting it.
+      // Off by default: e2e, curl checks and plain-http dev flows stay as-is.
+      // It only configures server.https, so its position is not sensitive.
+      ...(process.env.DEV_HTTPS
+        ? [
+            basicSsl(),
+            // Cross-origin isolation unlocks SharedArrayBuffer, which
+            // onnxruntime needs for multi-threaded WASM (the scanner's encoder
+            // is ~4x slower single-threaded). A middleware rather than
+            // `server.headers` because the SSR document is served by the Start
+            // plugin, not vite's static middleware, and isolation is decided
+            // by the document's headers. Gated behind the same flag as TLS
+            // because COEP blocks any cross-origin subresource lacking
+            // CORP/CORS — fine for scanner testing, too strict for everyday
+            // dev.
+            {
+              name: "dev-cross-origin-isolation",
+              configureServer(server: ViteDevServer) {
+                server.middlewares.use((_req, res, next) => {
+                  res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+                  res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
+                  next();
+                });
+              },
+            },
+          ]
+        : []),
       serveMediaPlugin,
       tailwindcss(),
       tanstackStart({
