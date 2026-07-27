@@ -34,6 +34,7 @@ import {
   useTournamentParticipants,
 } from "@/hooks/use-tournaments";
 import { useRequiredUserId } from "@/lib/auth-session";
+import { collapseTeamStandings } from "@/lib/team-display";
 import {
   canCheckDecks,
   canManageTournament,
@@ -398,16 +399,20 @@ function ThroneModule({
   id,
   run,
   pairingStyle,
+  playMode,
 }: {
   id: string;
   run: PodTournamentDetailResponse;
   pairingStyle: TournamentDetailResponse["pairingStyle"];
+  playMode: TournamentDetailResponse["playMode"];
 }) {
   // Standings arrive sorted and tie-broken by the engine. The rank is NOT the
   // row's position: players level on points share one (1, 1, 3), and the rule
   // lives in standingRanks so this throne and the Standings page can never
   // disagree about who is second.
-  const played = run.standings.filter((row) => row.roundsPlayed > 0);
+  // 2v2 collapses teammate rows into one seat per team, like the full table.
+  const rows = playMode === "2v2" ? collapseTeamStandings(run.standings) : run.standings;
+  const played = rows.filter((row) => row.roundsPlayed > 0);
   const ranks = standingRanks(played);
   const ranked = played.map((row, index) => ({ row, rank: ranks[index] ?? index + 1 }));
   const swiss = pairingStyle === "swiss";
@@ -609,7 +614,12 @@ function RunStateModules({
   return (
     <>
       <RoundBand id={id} detail={detail} run={data} />
-      <ThroneModule id={id} run={data} pairingStyle={detail.pairingStyle} />
+      <ThroneModule
+        id={id}
+        run={data}
+        pairingStyle={detail.pairingStyle}
+        playMode={detail.playMode}
+      />
     </>
   );
 }

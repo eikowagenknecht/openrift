@@ -1,10 +1,9 @@
 import type { PodResponse, TournamentMatchFormat } from "@openrift/shared";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { swissPointsPreview, swissResultPresets } from "@/lib/swiss-results";
 import { groupPodMembersByTeam, teamDisplayName } from "@/lib/team-display";
-import { cn } from "@/lib/utils";
 
 interface SwissResultFormProps {
   /**
@@ -24,7 +23,7 @@ interface SwissResultFormProps {
 
 /**
  * Result entry for one Swiss match — 1v1 or a 2v2 team match: pick a scoreline
- * preset (from the first side's perspective), preview the match points, save.
+ * preset (grouped by outcome, winner-first), preview the match points, save.
  * In 2v2 each side's score fans out to both of its players (a team shares one
  * result). The same form serves the organizer and the participant link.
  * @returns The match result-entry form.
@@ -71,31 +70,79 @@ export function SwissResultForm({
     return null;
   }
 
+  // The presets are stored side1-first; grouping them into one row per
+  // outcome (side 1 wins / draw / side 2 wins) makes the orientation visible
+  // from layout alone, so each button can show its scoreline winner-first
+  // (the way a result is spoken). Bo1 has only one scoreline per outcome, so
+  // its chips say Win / Draw instead of a redundant 1–0 / 0–0.
+  const bo1 = matchFormat === "bo1";
+  interface OutcomeEntry {
+    index: number;
+    label: string;
+    aria: string;
+  }
+  const outcomeGroups = [
+    { label: side1Name, aria: `${side1Name} wins`, entries: [] as OutcomeEntry[] },
+    { label: bo1 ? "" : "Draw", aria: "Draw", entries: [] as OutcomeEntry[] },
+    { label: side2Name, aria: `${side2Name} wins`, entries: [] as OutcomeEntry[] },
+  ];
+  presets.forEach((preset, index) => {
+    const [one, two] = preset.gamePoints;
+    const draw = one === two;
+    const group = one > two ? outcomeGroups[0] : draw ? outcomeGroups[1] : outcomeGroups[2];
+    if (!group) {
+      return;
+    }
+    const scoreline = `${Math.max(one, two)}–${Math.min(one, two)}`;
+    group.entries.push({
+      index,
+      label: bo1 ? (draw ? "Draw" : "Win") : scoreline,
+      aria: bo1 ? group.aria : `${group.aria} ${scoreline}`,
+    });
+  });
+
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-sm">
-        <span className="font-medium">{side1Name}</span> vs{" "}
-        <span className="font-medium">{side2Name}</span>
-        <span className="text-muted-foreground"> · scores read {side1Name}&apos;s games first</span>
-      </p>
-      <div className="flex flex-wrap gap-1.5">
-        {presets.map((preset, index) => (
-          <Button
-            key={preset.label}
-            variant={selected === index ? "default" : "outline"}
-            size="sm"
-            className={cn("tabular-nums")}
-            onClick={() => setSelected(index)}
-            disabled={submitting}
-          >
-            {preset.label}
-          </Button>
+      {/* Row per outcome: the name truncates on the left, its scoreline chips
+          keep to one cluster on the right, so long team names never explode
+          the layout. */}
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2">
+        {outcomeGroups.map((group) => (
+          <Fragment key={group.aria}>
+            <span
+              className="text-muted-foreground truncate text-sm"
+              title={group.label || undefined}
+            >
+              {group.label}
+            </span>
+            <div className="flex flex-wrap justify-end gap-1.5">
+              {group.entries.map((entry) => (
+                <Button
+                  key={entry.index}
+                  variant={selected === entry.index ? "default" : "outline"}
+                  size="sm"
+                  className="tabular-nums"
+                  onClick={() => setSelected(entry.index)}
+                  disabled={submitting}
+                  // The visible label repeats across the win rows ("1–0" or
+                  // "Win" on either side), so the accessible name carries the
+                  // outcome.
+                  aria-label={entry.aria}
+                >
+                  {entry.label}
+                </Button>
+              ))}
+            </div>
+          </Fragment>
         ))}
       </div>
       {preview ? (
-        <p className="text-muted-foreground text-sm tabular-nums">
-          {side1Name} +{preview[0]} · {side2Name} +{preview[1]}
-        </p>
+        <div className="text-muted-foreground grid w-fit grid-cols-[auto_auto] gap-x-4 text-sm tabular-nums">
+          <span>{side1Name}</span>
+          <span className="text-right">+{preview[0]} points</span>
+          <span>{side2Name}</span>
+          <span className="text-right">+{preview[1]} points</span>
+        </div>
       ) : null}
       <div className="flex justify-end gap-2">
         {onCancel ? (

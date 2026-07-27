@@ -28,4 +28,9 @@ describe("getUserInitials", () => {
   it("returns ? when neither name nor email is available", () => {
     expect(getUserInitials(undefined, undefined)).toBe("?");
   });
+
+  it("takes one initial per member from a 2v2 team name", () => {
+    expect(getUserInitials("Ashe & Braum", undefined)).toBe("AB");
+    expect(getUserInitials("2 & 4", undefined)).toBe("24");
+  });
 });

@@ -33,7 +33,6 @@ export function PodPairingsSection({
   const [editingRound, setEditingRound] = useState<number | null>(null);
   const [warningsExpanded, setWarningsExpanded] = useState(true);
 
-  const scoresByPlayer = new Map(data.standings.map((row) => [row.playerId, row.score]));
   const isSwiss = data.tournament.pairingStyle === "swiss";
   const teamMode = data.tournament.playMode === "2v2";
   const regionByPlayer = data.tournament.regionsEnabled
@@ -120,7 +119,6 @@ export function PodPairingsSection({
       <PairingsView
         rounds={shownRounds}
         playMode={data.tournament.playMode}
-        scoresByPlayer={scoresByPlayer}
         scheme={data.tournament.scoringScheme}
         byePoints={data.tournament.byePoints}
         matchFormat={data.tournament.matchFormat}

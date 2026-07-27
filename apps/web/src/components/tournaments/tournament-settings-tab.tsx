@@ -40,6 +40,7 @@ import {
   useUpdateTournament,
 } from "@/hooks/use-tournaments";
 import { getSiteUrl } from "@/lib/site-config";
+import type { TournamentRoundsChoice } from "@/lib/tournament-display";
 import {
   combineLocalDateTimeToUtc,
   DECK_PHASE_LABEL,
@@ -47,12 +48,13 @@ import {
   effectiveTournamentState,
   hasPairing,
   localTimeZoneLabel,
-  MATCH_FORMAT_ITEMS,
   MATCH_FORMAT_LABEL,
-  PAIRING_STYLE_ITEMS,
   PAIRING_STYLE_LABEL,
   PLAY_MODE_ITEMS,
+  pairingFromRoundsChoice,
   parseScheduleInput,
+  ROUNDS_CHOICE_ITEMS,
+  roundsChoiceFor,
   splitUtcToLocalDateTime,
 } from "@/lib/tournament-display";
 
@@ -79,7 +81,7 @@ function buildTocItems({
       : []),
     { id: "schedule", label: "Schedule", level: 1 },
     { id: "pairings-decks", label: "Pairings & decks" },
-    { id: "pairings", label: "Pairings", level: 1 },
+    { id: "pairings", label: "Format", level: 1 },
     ...(runsRounds
       ? [
           { id: "points", label: "Points", level: 1 },
@@ -124,11 +126,13 @@ export function TournamentSettingsTab({ detail }: { detail: TournamentDetailResp
   const id = detail.id;
   const runsRounds = hasPairing(detail.pairingStyle);
   const isSwiss = detail.pairingStyle === "swiss";
+  // Non-null exactly when pairings are on (runsRounds).
+  const roundsChoice = roundsChoiceFor(detail.pairingStyle, detail.matchFormat);
   // 2v2 pairs team Swiss only; the pod option disappears while it's on.
-  const pairingItems =
+  const roundsItems =
     detail.playMode === "2v2"
-      ? PAIRING_STYLE_ITEMS.filter((item) => item.value !== "pod")
-      : PAIRING_STYLE_ITEMS;
+      ? ROUNDS_CHOICE_ITEMS.filter((item) => item.value !== "pod")
+      : ROUNDS_CHOICE_ITEMS;
   const isHost = detail.myRoles.includes("host");
   const tzLabel = localTimeZoneLabel();
   const effectiveState = effectiveTournamentState(detail.startsAt, detail.endsAt, detail.status);
@@ -343,15 +347,15 @@ export function TournamentSettingsTab({ detail }: { detail: TournamentDetailResp
       <SettingsGroup id="pairings-decks" title="Pairings & decks">
         <Card id="pairings" className="scroll-mt-16">
           <CardHeader>
-            <CardTitle>Pairings</CardTitle>
+            <CardTitle>Format</CardTitle>
             <CardDescription>
               {detail.hasRounds
                 ? `${detail.playMode === "2v2" ? "2v2 teams · " : ""}${PAIRING_STYLE_LABEL[detail.pairingStyle]}. The pairing engine is fixed once a round has been generated.`
-                : "Let OpenRift pair rounds and track standings, or leave it off if you run pairings somewhere else. Can only change before the first round."}
+                : "The play mode applies to the whole tournament: 1v1 and 2v2 have different ban lists, and deck check uses the matching one. Can only change before the first round."}
             </CardDescription>
           </CardHeader>
           {detail.hasRounds ? null : (
-            <CardContent className="flex flex-col gap-2">
+            <CardContent className="flex flex-wrap gap-x-4 gap-y-3">
               <div className="flex flex-col gap-1.5">
                 <Label>Play mode</Label>
                 <Select
@@ -376,7 +380,7 @@ export function TournamentSettingsTab({ detail }: { detail: TournamentDetailResp
                     }
                   }}
                 >
-                  <SelectTrigger className="max-w-sm" aria-label="Play mode">
+                  <SelectTrigger aria-label="Play mode">
                     <SelectValue placeholder="Play mode" />
                   </SelectTrigger>
                   <SelectContent>
@@ -387,52 +391,57 @@ export function TournamentSettingsTab({ detail }: { detail: TournamentDetailResp
                     ))}
                   </SelectContent>
                 </Select>
-                {detail.playMode === "2v2" ? (
-                  <span className="text-muted-foreground text-sm">
-                    Pair players into fixed teams of two on the Participants tab; rounds pair team
-                    against team.
-                  </span>
-                ) : null}
               </div>
-              <Select
-                items={pairingItems}
-                value={detail.pairingStyle}
-                disabled={locked || updateTournament.isPending}
-                onValueChange={(value) => {
-                  if (value === "pod" || value === "none" || value === "swiss") {
-                    void run(() => updateTournament.mutateAsync({ id, pairingStyle: value }));
-                  }
-                }}
-              >
-                <SelectTrigger className="max-w-sm" aria-label="Pairings">
-                  <SelectValue placeholder="Pairings" />
-                </SelectTrigger>
-                <SelectContent>
-                  {pairingItems.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {isSwiss ? (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="t-pairings-enabled">Pairings</Label>
+                <div className="flex h-8 items-center">
+                  <Switch
+                    id="t-pairings-enabled"
+                    checked={runsRounds}
+                    disabled={locked || updateTournament.isPending}
+                    onCheckedChange={(checked) => {
+                      // Re-enabling restores the default engine for the play
+                      // mode (2v2 pairs team Swiss only).
+                      void run(() =>
+                        updateTournament.mutateAsync({
+                          id,
+                          pairingStyle: checked
+                            ? detail.playMode === "2v2"
+                              ? "swiss"
+                              : "pod"
+                            : "none",
+                        }),
+                      );
+                    }}
+                  />
+                </div>
+              </div>
+              {roundsChoice ? (
                 <div className="flex flex-col gap-1.5">
-                  <Label>Match format</Label>
+                  <Label>Rounds</Label>
                   <Select
-                    items={MATCH_FORMAT_ITEMS}
-                    value={detail.matchFormat}
+                    items={roundsItems}
+                    value={roundsChoice}
                     disabled={locked || updateTournament.isPending}
                     onValueChange={(value) => {
-                      if (value === "bo1" || value === "bo3") {
-                        void run(() => updateTournament.mutateAsync({ id, matchFormat: value }));
+                      if (!value || value === roundsChoice) {
+                        return;
                       }
+                      const next = pairingFromRoundsChoice(value as TournamentRoundsChoice);
+                      void run(() =>
+                        updateTournament.mutateAsync({
+                          id,
+                          pairingStyle: next.pairingStyle,
+                          matchFormat: next.pairingStyle === "swiss" ? next.matchFormat : undefined,
+                        }),
+                      );
                     }}
                   >
-                    <SelectTrigger className="max-w-sm" aria-label="Match format">
-                      <SelectValue placeholder="Match format" />
+                    <SelectTrigger aria-label="Rounds">
+                      <SelectValue placeholder="Rounds" />
                     </SelectTrigger>
                     <SelectContent>
-                      {MATCH_FORMAT_ITEMS.map((item) => (
+                      {roundsItems.map((item) => (
                         <SelectItem key={item.value} value={item.value}>
                           {item.label}
                         </SelectItem>

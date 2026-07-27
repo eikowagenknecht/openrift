@@ -16,7 +16,6 @@ export function ReportRoundsContent({ token, data }: { token: string; data: PodR
   const submitResult = useSubmitTournamentReportResult(token);
   const submitPlayerResult = useSubmitTournamentReportPlayerResult(token);
   const regionLabel = useRegionLabel();
-  const scoresByPlayer = new Map(data.standings.map((row) => [row.playerId, row.score]));
   const regionByPlayer = data.regionsEnabled
     ? new Map(data.standings.map((row) => [row.playerId, row.region]))
     : undefined;
@@ -48,7 +47,7 @@ export function ReportRoundsContent({ token, data }: { token: string; data: PodR
       {hasOpenRound && canSubmit ? (
         <p className="text-muted-foreground text-sm">
           {data.playMode === "2v2"
-            ? "Find your match in the current round and add your team's games won next to your name (either teammate can enter it), or pick the whole scoreline at once. Points are worked out automatically, and new scores appear for everyone without reloading."
+            ? "Find your match in the current round and add your team's games won (either teammate can enter it), or pick the whole scoreline at once. Points are worked out automatically, and new scores appear for everyone without reloading."
             : swiss
               ? "Find your match in the current round and add your own games won next to your name, or pick the whole scoreline at once. Points are worked out automatically, and new scores appear for everyone without reloading."
               : "Find your pod in the current round and add your own game points next to your name, or enter the whole pod's scores at once. Places and points are worked out automatically, and new scores appear for everyone without reloading."}
@@ -57,7 +56,6 @@ export function ReportRoundsContent({ token, data }: { token: string; data: PodR
       <PairingsView
         rounds={data.rounds}
         playMode={data.playMode}
-        scoresByPlayer={scoresByPlayer}
         scheme={data.scoringScheme}
         byePoints={data.byePoints}
         matchFormat={data.matchFormat}

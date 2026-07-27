@@ -70,7 +70,6 @@ function renderView(props: Partial<Parameters<typeof PairingsView>[0]> = {}) {
     <PairingsView
       rounds={[makeRound()]}
       playMode="1v1"
-      scoresByPlayer={new Map()}
       scheme="standard"
       byePoints={3}
       matchFormat="bo3"
@@ -307,21 +306,85 @@ describe("PairingsView", () => {
           ],
         }),
       ],
-      scoresByPlayer: new Map([
-        ["p1", 12],
-        ["p2", 10],
-      ]),
     });
 
     // Placement and the game points that produced it read as one badge, so the
-    // row's end carries only the two point totals.
+    // row's end carries only the round points (no standings total).
     const ashe = screen.getByText("Ashe").closest("li") as HTMLElement;
     expect(within(ashe).getByTitle("Finished 1st in the pod")).toHaveTextContent("1");
     expect(within(ashe).getByTitle("8 game points")).toHaveTextContent("8g");
-    expect(within(ashe).getByTitle("12 points in the standings")).toHaveTextContent("12");
+    expect(within(ashe).queryByTitle(/points in the standings/u)).not.toBeInTheDocument();
     expect(within(ashe).getByTitle("3 points from this round")).toHaveTextContent("+3");
     // The old free-standing "N game" figure is gone from the row's end.
     expect(within(ashe).queryByText(/game$/u)).not.toBeInTheDocument();
+  });
+
+  it("badges a 1v1 match with each side's plain score, no placement", () => {
+    renderView({
+      rounds: [
+        makeRound({
+          pods: [
+            makePod({
+              size: 2,
+              resultStatus: "reported",
+              members: [
+                {
+                  playerId: "p1",
+                  displayName: "Ashe",
+                  teamId: null,
+                  gamePoints: 2,
+                  placement: 1,
+                  points: 3,
+                },
+                {
+                  playerId: "p2",
+                  displayName: "Braum",
+                  teamId: null,
+                  gamePoints: 1,
+                  placement: 2,
+                  points: 0,
+                },
+              ],
+            }),
+          ],
+        }),
+      ],
+    });
+
+    const ashe = screen.getByText("Ashe").closest("li") as HTMLElement;
+    expect(within(ashe).getByTitle("2 game points")).toHaveTextContent("2");
+    expect(within(ashe).queryByTitle(/Finished/u)).not.toBeInTheDocument();
+    const braum = screen.getByText("Braum").closest("li") as HTMLElement;
+    expect(within(braum).getByTitle("1 game points")).toHaveTextContent("1");
+  });
+
+  it("hides the pod fairness line when every figure is zero", () => {
+    const cleanPenalty = {
+      total: 0,
+      rematchPairs: 0,
+      spread: 0,
+      scoreSpread: 0,
+      imbalance: 0,
+      float: 0,
+      threePodRepeat: 0,
+      sameRegion: 0,
+      repeatedRegion: 0,
+    };
+    renderView({
+      rounds: [makeRound({ pods: [makePod({ penalty: cleanPenalty })] })],
+    });
+    expect(screen.queryByText(/0 rematches/u)).not.toBeInTheDocument();
+    expect(screen.queryByText(/spread 0/u)).not.toBeInTheDocument();
+
+    // Nonzero figures still show, zero ones stay out of the line.
+    renderView({
+      rounds: [
+        makeRound({
+          pods: [makePod({ penalty: { ...cleanPenalty, rematchPairs: 1, total: 3.4 } })],
+        }),
+      ],
+    });
+    expect(screen.getByText("1 rematch · penalty 3")).toBeInTheDocument();
   });
 
   it("seeds a badge from game points before anyone has placed", () => {
@@ -425,6 +488,10 @@ describe("PairingsView 2v2 team matches", () => {
     expect(screen.getByText("1 match")).toBeInTheDocument();
     expect(screen.getByText("Match 1")).toBeInTheDocument();
     expect(screen.getByText("vs")).toBeInTheDocument();
+    // Each side is one entity: the joined team name, not four player rows.
+    expect(screen.getByText("Ashe & Braum")).toBeInTheDocument();
+    expect(screen.getByText("Caitlyn & Darius")).toBeInTheDocument();
+    expect(screen.queryByText("Ashe")).not.toBeInTheDocument();
     // Reporting progress counts sides, not the four players.
     expect(screen.getByText("0 of 2 in")).toBeInTheDocument();
   });
@@ -439,6 +506,9 @@ describe("PairingsView 2v2 team matches", () => {
     await user.click(screen.getByRole("button", { name: "Enter result" }));
     expect(screen.getByText("Ashe & Braum")).toBeInTheDocument();
     expect(screen.getByText("Caitlyn & Darius")).toBeInTheDocument();
+    expect(screen.getByText("Draw")).toBeInTheDocument();
+    // Orientation lives in the accessible names, winner-first.
+    expect(screen.getByRole("button", { name: "Ashe & Braum wins 1–0" })).toBeInTheDocument();
   });
 
   it("submits the chosen scoreline mirrored across each side's players", async () => {
@@ -452,7 +522,8 @@ describe("PairingsView 2v2 team matches", () => {
     });
 
     await user.click(screen.getByRole("button", { name: "Enter result" }));
-    await user.click(screen.getByRole("button", { name: "1–0" }));
+    // Bo1 chips read Win / Draw; the accessible name is the outcome alone.
+    await user.click(screen.getByRole("button", { name: "Ashe & Braum wins" }));
     await user.click(screen.getByRole("button", { name: "Save result" }));
 
     expect(onSubmitResult).toHaveBeenCalledWith("pod-1", [

@@ -40,7 +40,7 @@ import { SectionHeading } from "@/components/ui/section-heading";
 import type { StatStripItem } from "@/components/ui/stat-strip";
 import { StatStrip } from "@/components/ui/stat-strip";
 import { UserAvatar } from "@/components/user-avatar";
-import { groupPodMembersByTeam, teamNamesById } from "@/lib/team-display";
+import { groupPodMembersByTeam, teamDisplayName, teamNamesById } from "@/lib/team-display";
 import {
   isAllMatchRound,
   isMatchPairing,
@@ -66,8 +66,6 @@ interface PairingsViewProps {
   rounds: PodRoundResponse[];
   /** 2v2 renders each size-4 pod as a team match (two sides, team results). */
   playMode: TournamentPlayMode;
-  /** Current standings score per player, for context in the pod cards. */
-  scoresByPlayer: Map<string, number>;
   /** The active scheme, so the result form previews the right points. */
   scheme: PodScoringScheme;
   /** Score points a sat-out (bye) game is worth, shown on the byes card. */
@@ -118,7 +116,6 @@ function toEnginePods(round: PodRoundResponse) {
 export function PairingsView({
   rounds,
   playMode,
-  scoresByPlayer,
   scheme,
   byePoints,
   matchFormat,
@@ -278,7 +275,6 @@ export function PairingsView({
                   drawPoints={drawPoints}
                   regionByPlayer={regionByPlayer}
                   regionLabel={regionLabel}
-                  scoresByPlayer={scoresByPlayer}
                   showPenalty={showPenalty}
                   warnings={podWarnings.get(podIndex) ?? []}
                   warningsExpanded={warningsExpanded}
@@ -476,6 +472,26 @@ function MemberSeedBadge({
   );
 }
 
+/**
+ * The pod's fairness internals, nonzero figures only — a clean pairing (no
+ * rematches, no spread, no penalty) says nothing at all instead of a row of
+ * zeros.
+ * @returns The joined summary, or null when every figure is zero.
+ */
+function podPenaltySummary(penalty: NonNullable<PodResponse["penalty"]>): string | null {
+  const parts: string[] = [];
+  if (penalty.rematchPairs > 0) {
+    parts.push(`${penalty.rematchPairs} rematch${penalty.rematchPairs === 1 ? "" : "es"}`);
+  }
+  if (penalty.spread > 0) {
+    parts.push(`spread ${penalty.spread}`);
+  }
+  if (Math.round(penalty.total) > 0) {
+    parts.push(`penalty ${Math.round(penalty.total)}`);
+  }
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
 function PodCard({
   pod,
   teamMode,
@@ -485,7 +501,6 @@ function PodCard({
   drawPoints,
   regionByPlayer,
   regionLabel,
-  scoresByPlayer,
   showPenalty,
   warnings,
   warningsExpanded,
@@ -503,7 +518,6 @@ function PodCard({
   drawPoints: number;
   regionByPlayer?: Map<string, string | null>;
   regionLabel: (slug: string) => string;
-  scoresByPlayer: Map<string, number>;
   showPenalty: boolean;
   warnings: PairingWarning[];
   warningsExpanded: boolean;
@@ -521,6 +535,7 @@ function PodCard({
   const reported = pod.resultStatus === "reported";
   const selfEntry = canEnter && onSubmitPlayerResult !== undefined;
   const enteredCount = pod.members.filter((member) => member.gamePoints !== null).length;
+  const penaltySummary = pod.penalty ? podPenaltySummary(pod.penalty) : null;
 
   async function handleSubmit(results: PodResultEntry[]) {
     setSaving(true);
@@ -581,11 +596,8 @@ function PodCard({
             />
           </span>
         </CardTitle>
-        {showPenalty && pod.penalty ? (
-          <p className="text-muted-foreground text-sm">
-            {pod.penalty.rematchPairs} rematch{pod.penalty.rematchPairs === 1 ? "" : "es"} · spread{" "}
-            {pod.penalty.spread} · penalty {Math.round(pod.penalty.total)}
-          </p>
+        {showPenalty && penaltySummary ? (
+          <p className="text-muted-foreground text-sm">{penaltySummary}</p>
         ) : null}
         {showPenalty && warningsExpanded ? (
           <WarningList warnings={warnings} nameById={nameById} regionLabel={regionLabel} />
@@ -616,23 +628,24 @@ function PodCard({
         ) : (
           <>
             <ul className="flex flex-col gap-1.5">
-              {(teamMode ? groupPodMembersByTeam(pod.members) : [pod.members]).flatMap(
-                (group, groupIndex) => [
-                  // A quiet divider between the two sides of a team match.
-                  ...(groupIndex > 0
-                    ? [
-                        <li
-                          key={`vs-${groupIndex}`}
-                          aria-hidden="true"
-                          className="text-muted-foreground/60 py-0.5 text-center text-xs font-medium tracking-wide uppercase"
-                        >
-                          vs
-                        </li>,
-                      ]
-                    : []),
-                  ...group.map((member, memberIndex) => memberRow(member, memberIndex === 0)),
-                ],
-              )}
+              {(teamMode
+                ? groupPodMembersByTeam(pod.members)
+                : pod.members.map((member) => [member])
+              ).flatMap((group, groupIndex) => [
+                // A quiet divider between the two sides of a team match.
+                ...(teamMode && groupIndex > 0
+                  ? [
+                      <li
+                        key={`vs-${groupIndex}`}
+                        aria-hidden="true"
+                        className="text-muted-foreground/60 py-0.5 text-center text-xs font-medium tracking-wide uppercase"
+                      >
+                        vs
+                      </li>,
+                    ]
+                  : []),
+                sideRow(group),
+              ])}
             </ul>
             {canEnter ? (
               <Button
@@ -650,24 +663,43 @@ function PodCard({
     </Card>
   );
 
-  function memberRow(member: PodMemberResponse, firstOfGroup: boolean) {
+  // One row per side: a lone player in 1v1 and pods, the whole team in 2v2. A
+  // team is one entity here — one name, one score, one points figure — and the
+  // shared result lives on the side's first member (teammates mirror it).
+  function sideRow(members: PodMemberResponse[]) {
+    const lead = members[0];
+    if (!lead) {
+      return null;
+    }
+    const name = teamDisplayName(members.map((member) => member.displayName));
     return (
-      <li key={member.playerId} className="flex items-center justify-between gap-2">
+      <li key={lead.teamId ?? lead.playerId} className="flex items-center justify-between gap-2">
         <span className="flex min-w-0 items-center gap-2">
-          {/* In a team match both members share one result, so the
-                        seed badge appears once per side. */}
-          {!teamMode || firstOfGroup ? (
-            <MemberSeedBadge placement={member.placement} gamePoints={member.gamePoints} />
-          ) : null}
-          <UserAvatar name={member.displayName} size="sm" />
-          <span className="truncate font-medium">{member.displayName}</span>
-          {regionByPlayer?.get(member.playerId) ? (
+          {isMatch ? (
+            // A match reads like a scoreboard: the side's score in front,
+            // the winner evident from comparing the two rows — no
+            // placement · Ng pod vocabulary.
+            lead.gamePoints === null ? null : (
+              <Badge
+                variant="secondary"
+                className="shrink-0 tabular-nums"
+                title={`${lead.gamePoints} game points`}
+              >
+                {lead.gamePoints}
+              </Badge>
+            )
+          ) : (
+            <MemberSeedBadge placement={lead.placement} gamePoints={lead.gamePoints} />
+          )}
+          <UserAvatar name={name} size="sm" />
+          <span className="truncate font-medium">{name}</span>
+          {regionByPlayer?.get(lead.playerId) ? (
             <Badge variant="outline" className="shrink-0">
-              {regionLabel(regionByPlayer.get(member.playerId) ?? "")}
+              {regionLabel(regionByPlayer.get(lead.playerId) ?? "")}
             </Badge>
           ) : null}
         </span>
-        {selfEntry && scoringPlayerId === member.playerId ? (
+        {selfEntry && scoringPlayerId === lead.playerId ? (
           <span className="flex items-center gap-1.5">
             <Input
               type="number"
@@ -682,14 +714,14 @@ function PodCard({
                   void handleSaveScore();
                 }
               }}
-              aria-label={`Game points for ${member.displayName}`}
+              aria-label={`Game points for ${name}`}
               className="h-7 w-16 tabular-nums"
             />
             <Button
               size="icon-sm"
               onClick={handleSaveScore}
               disabled={saving || parsePoints(scoreDraft) === null}
-              aria-label={`Save score for ${member.displayName}`}
+              aria-label={`Save score for ${name}`}
             >
               <CheckIcon />
             </Button>
@@ -707,33 +739,25 @@ function PodCard({
           // shrink-0: without it a long name squeezes this cluster
           // until the numbers wrap mid-figure.
           <span className="flex shrink-0 items-center gap-2 tabular-nums">
-            {showPenalty ? (
-              <span
-                className="text-muted-foreground"
-                title={`${formatScore(scoresByPlayer.get(member.playerId) ?? 0)} points in the standings`}
-              >
-                {formatScore(scoresByPlayer.get(member.playerId) ?? 0)}
-              </span>
-            ) : null}
-            {member.points !== null && (
+            {lead.points !== null && (
               <span
                 className="font-semibold"
-                title={`${formatScore(member.points)} points from this round`}
+                title={`${formatScore(lead.points)} points from this round`}
               >
-                +{formatScore(member.points)}
+                +{formatScore(lead.points)}
               </span>
             )}
             {selfEntry ? (
-              member.gamePoints === null ? (
-                <Button variant="secondary" size="xs" onClick={() => startScoring(member)}>
+              lead.gamePoints === null ? (
+                <Button variant="secondary" size="xs" onClick={() => startScoring(lead)}>
                   Add score
                 </Button>
               ) : (
                 <Button
                   variant="ghost"
                   size="icon-xs"
-                  onClick={() => startScoring(member)}
-                  aria-label={`Edit score for ${member.displayName}`}
+                  onClick={() => startScoring(lead)}
+                  aria-label={`Edit score for ${name}`}
                 >
                   <PencilIcon />
                 </Button>

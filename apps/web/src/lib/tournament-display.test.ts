@@ -11,11 +11,12 @@ import {
   canCheckDecks,
   canManageTournament,
   hasPairing,
-  MATCH_FORMAT_ITEMS,
   ordinalPlace,
-  PAIRING_STYLE_ITEMS,
+  pairingFromRoundsChoice,
   pairingLabel,
   pairingPluralNoun,
+  ROUNDS_CHOICE_ITEMS,
+  roundsChoiceFor,
   combineLocalDateTimeToUtc,
   compareParticipantsForList,
   compareTournamentsForList,
@@ -481,12 +482,46 @@ describe("pairingPluralNoun", () => {
   });
 });
 
-describe("pairing and match-format option lists", () => {
-  it("offers all three pairing styles", () => {
-    expect(PAIRING_STYLE_ITEMS.map((item) => item.value)).toEqual(["none", "pod", "swiss"]);
+describe("rounds choice", () => {
+  it("offers both Swiss formats and FFA pods", () => {
+    expect(ROUNDS_CHOICE_ITEMS.map((item) => item.value)).toEqual([
+      "swiss-bo1",
+      "swiss-bo3",
+      "pod",
+    ]);
   });
 
-  it("offers both match formats", () => {
-    expect(MATCH_FORMAT_ITEMS.map((item) => item.value)).toEqual(["bo1", "bo3"]);
+  it("is null when pairings are off", () => {
+    expect(roundsChoiceFor("none", "bo1")).toBeNull();
+    expect(roundsChoiceFor("none", "bo3")).toBeNull();
+  });
+
+  it("maps pods regardless of the stored match format", () => {
+    expect(roundsChoiceFor("pod", "bo1")).toBe("pod");
+    expect(roundsChoiceFor("pod", "bo3")).toBe("pod");
+  });
+
+  it("splits Swiss by match format", () => {
+    expect(roundsChoiceFor("swiss", "bo1")).toBe("swiss-bo1");
+    expect(roundsChoiceFor("swiss", "bo3")).toBe("swiss-bo3");
+  });
+
+  it("expands every choice back to pairing fields", () => {
+    expect(pairingFromRoundsChoice("swiss-bo1")).toEqual({
+      pairingStyle: "swiss",
+      matchFormat: "bo1",
+    });
+    expect(pairingFromRoundsChoice("swiss-bo3")).toEqual({
+      pairingStyle: "swiss",
+      matchFormat: "bo3",
+    });
+    expect(pairingFromRoundsChoice("pod")).toEqual({ pairingStyle: "pod", matchFormat: "bo1" });
+  });
+
+  it("round-trips every dropdown option", () => {
+    for (const item of ROUNDS_CHOICE_ITEMS) {
+      const { pairingStyle, matchFormat } = pairingFromRoundsChoice(item.value);
+      expect(roundsChoiceFor(pairingStyle, matchFormat)).toBe(item.value);
+    }
   });
 });

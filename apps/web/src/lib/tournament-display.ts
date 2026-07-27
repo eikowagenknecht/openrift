@@ -36,23 +36,16 @@ export const PAIRING_STYLE_LABEL: Record<TournamentPairingStyle, string> = {
   none: "None",
 };
 
-// Select option lists shared by the create wizard and the settings tab, so the
-// two surfaces can't drift apart. The pairing labels carry the longer guidance
-// shown inside the dropdown; PAIRING_STYLE_LABEL is the short inline form.
-export const PAIRING_STYLE_ITEMS: { value: TournamentPairingStyle; label: string }[] = [
-  { value: "none", label: "None (I'm not running rounds here)" },
-  { value: "pod", label: "Pod rounds (3 or 4-player free-for-alls)" },
-  { value: "swiss", label: "Swiss rounds (1v1 matches)" },
-];
-
 export const PLAY_MODE_LABEL: Record<TournamentPlayMode, string> = {
   "1v1": "1v1",
   "2v2": "2v2 teams",
 };
 
+// Select option lists shared by the create wizard and the settings tab, so the
+// two surfaces can't drift apart.
 export const PLAY_MODE_ITEMS: { value: TournamentPlayMode; label: string }[] = [
-  { value: "1v1", label: "1v1 (every player for themselves)" },
-  { value: "2v2", label: "2v2 teams (fixed pairs, team Swiss)" },
+  { value: "1v1", label: "1v1" },
+  { value: "2v2", label: "2v2" },
 ];
 
 export const MATCH_FORMAT_LABEL: Record<TournamentMatchFormat, string> = {
@@ -60,10 +53,53 @@ export const MATCH_FORMAT_LABEL: Record<TournamentMatchFormat, string> = {
   bo3: "Best of 3",
 };
 
-export const MATCH_FORMAT_ITEMS: { value: TournamentMatchFormat; label: string }[] = [
-  { value: "bo1", label: MATCH_FORMAT_LABEL.bo1 },
-  { value: "bo3", label: MATCH_FORMAT_LABEL.bo3 },
+// The single "Rounds" dropdown on the Format card: pairing engine and (for
+// Swiss) match format combined. "None" is deliberately not an option — the
+// pairings enable switch owns that state.
+export type TournamentRoundsChoice = "swiss-bo1" | "swiss-bo3" | "pod";
+
+export const ROUNDS_CHOICE_ITEMS: { value: TournamentRoundsChoice; label: string }[] = [
+  { value: "swiss-bo1", label: "Swiss - BO1" },
+  { value: "swiss-bo3", label: "Swiss - BO3" },
+  { value: "pod", label: "FFA" },
 ];
+
+/**
+ * The Rounds-dropdown value for a stored pairing style + match format.
+ *
+ * @param pairingStyle The tournament's pairing style.
+ * @param matchFormat The tournament's match format (only meaningful for Swiss).
+ * @returns The combined choice, or null when pairings are off.
+ */
+export function roundsChoiceFor(
+  pairingStyle: TournamentPairingStyle,
+  matchFormat: TournamentMatchFormat,
+): TournamentRoundsChoice | null {
+  if (pairingStyle === "none") {
+    return null;
+  }
+  if (pairingStyle === "pod") {
+    return "pod";
+  }
+  return matchFormat === "bo3" ? "swiss-bo3" : "swiss-bo1";
+}
+
+/**
+ * The stored pairing fields for a Rounds-dropdown value. Pods have no match
+ * format; bo1 is the neutral value the create contract expects.
+ *
+ * @param choice The combined Rounds choice.
+ * @returns The pairing style and match format to store.
+ */
+export function pairingFromRoundsChoice(choice: TournamentRoundsChoice): {
+  pairingStyle: TournamentPairingStyle;
+  matchFormat: TournamentMatchFormat;
+} {
+  if (choice === "pod") {
+    return { pairingStyle: "pod", matchFormat: "bo1" };
+  }
+  return { pairingStyle: "swiss", matchFormat: choice === "swiss-bo3" ? "bo3" : "bo1" };
+}
 
 /**
  * Whether a pairing style runs rounds at all (pods or Swiss). The single gate

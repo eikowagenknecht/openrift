@@ -1,9 +1,4 @@
-import type {
-  TournamentDeckSubmission,
-  TournamentMatchFormat,
-  TournamentPairingStyle,
-  TournamentPlayMode,
-} from "@openrift/shared";
+import type { TournamentDeckSubmission, TournamentPlayMode } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -30,15 +25,16 @@ import { Switch } from "@/components/ui/switch";
 import { useFriendGroups } from "@/hooks/use-friend-groups";
 import { useMyOrganizations } from "@/hooks/use-organizations";
 import { useCreateTournament } from "@/hooks/use-tournaments";
+import type { TournamentRoundsChoice } from "@/lib/tournament-display";
 import {
   combineLocalDateTimeToUtc,
   DECK_SUBMISSION_ITEMS,
   hasPairing,
   localTimeZoneLabel,
-  MATCH_FORMAT_ITEMS,
-  PAIRING_STYLE_ITEMS,
+  pairingFromRoundsChoice,
   parseScheduleInput,
   PLAY_MODE_ITEMS,
+  ROUNDS_CHOICE_ITEMS,
   splitUtcToLocalDateTime,
 } from "@/lib/tournament-display";
 import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
@@ -62,9 +58,9 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
 
   const [name, setName] = useState("");
   const [hostValue, setHostValue] = useState("user");
-  const [pairingStyle, setPairingStyle] = useState<TournamentPairingStyle>("pod");
+  const [pairingsEnabled, setPairingsEnabled] = useState(true);
+  const [roundsChoice, setRoundsChoice] = useState<TournamentRoundsChoice>("pod");
   const [playMode, setPlayMode] = useState<TournamentPlayMode>("1v1");
-  const [matchFormat, setMatchFormat] = useState<TournamentMatchFormat>("bo1");
   const [winPointsText, setWinPointsText] = useState("3");
   const [drawPointsText, setDrawPointsText] = useState("1");
   const [byePointsText, setByePointsText] = useState("3");
@@ -101,19 +97,22 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
 
   const tzLabel = localTimeZoneLabel();
   const wantsDeck = deckSubmission !== "none";
+  const { pairingStyle, matchFormat } = pairingsEnabled
+    ? pairingFromRoundsChoice(roundsChoice)
+    : { pairingStyle: "none" as const, matchFormat: "bo1" as const };
   const runsRounds = hasPairing(pairingStyle);
   const isSwiss = pairingStyle === "swiss";
   const isTeams = playMode === "2v2";
   // 2v2 pairs team Swiss: free-for-all pods don't compose with fixed teams,
   // and the region layer isn't team-aware yet.
-  const pairingItems = isTeams
-    ? PAIRING_STYLE_ITEMS.filter((item) => item.value !== "pod")
-    : PAIRING_STYLE_ITEMS;
+  const roundsItems = isTeams
+    ? ROUNDS_CHOICE_ITEMS.filter((item) => item.value !== "pod")
+    : ROUNDS_CHOICE_ITEMS;
 
   function handlePlayModeChange(value: TournamentPlayMode) {
     setPlayMode(value);
-    if (value === "2v2" && pairingStyle === "pod") {
-      setPairingStyle("swiss");
+    if (value === "2v2" && roundsChoice === "pod") {
+      setRoundsChoice("swiss-bo1");
     }
   }
   // Points inputs: an integer 0-99, kept as text for controlled editing.
@@ -190,7 +189,6 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
           <Card>
             <CardHeader>
               <CardTitle>Name</CardTitle>
-              <CardDescription>The tournament&apos;s display name.</CardDescription>
             </CardHeader>
             <CardContent>
               <Input
@@ -209,12 +207,12 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
             <CardHeader>
               <CardTitle>Host</CardTitle>
               <CardDescription>
-                Who runs this tournament. An organization brings in its owners, managers, and judges
-                automatically. As a personal host, that is just you. You can also link it to one of
-                your groups.
+                An organization host brings in its owners, managers, and judges automatically.
+                Linking a group lets members find and follow the tournament, and lets you add them
+                as staff without an email invite.
               </CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-col gap-3">
+            <CardContent className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
                 <Label>Host</Label>
                 <Select
@@ -222,7 +220,7 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
                   value={hostValue}
                   onValueChange={(value) => value && setHostValue(value)}
                 >
-                  <SelectTrigger className="max-w-sm" aria-label="Host">
+                  <SelectTrigger className="w-full" aria-label="Host">
                     <SelectValue placeholder="Choose a host" />
                   </SelectTrigger>
                   <SelectContent>
@@ -241,7 +239,7 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
                   value={groupId}
                   onValueChange={(value) => value && setGroupId(value)}
                 >
-                  <SelectTrigger className="max-w-sm" aria-label="Group">
+                  <SelectTrigger className="w-full" aria-label="Group">
                     <SelectValue placeholder="Not linked to a group" />
                   </SelectTrigger>
                   <SelectContent>
@@ -261,63 +259,59 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
               <CardTitle>Schedule</CardTitle>
               <CardDescription>
                 Times are in {tzLabel}. A tournament with no end auto-completes 24 hours after it
-                starts. Set an end for a multi-day event.
+                starts.
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap items-end gap-x-3 gap-y-3">
-                <div className="flex flex-col gap-1.5">
-                  <Label>Starts</Label>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <DatePicker
-                      value={startDate}
-                      onChange={setStartDate}
-                      onClear={() => setStartDate("")}
-                      className="w-44"
-                    />
-                    <Input
-                      value={startTime}
-                      onChange={(event) => setStartTime(event.target.value)}
-                      placeholder="HH:mm"
-                      aria-label="Start time (24h)"
-                      className="w-24 tabular-nums"
-                    />
-                  </div>
-                  {startInvalid ? (
-                    <span className="text-destructive text-sm">
-                      Enter a date (YYYY-MM-DD) and a 24-hour time (HH:mm).
-                    </span>
-                  ) : null}
+            <CardContent className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+              <div className="flex flex-col gap-1.5">
+                <Label>Starts</Label>
+                <div className="flex flex-wrap items-center gap-2">
+                  <DatePicker
+                    value={startDate}
+                    onChange={setStartDate}
+                    onClear={() => setStartDate("")}
+                    className="w-44"
+                  />
+                  <Input
+                    value={startTime}
+                    onChange={(event) => setStartTime(event.target.value)}
+                    placeholder="HH:mm"
+                    aria-label="Start time (24h)"
+                    className="w-24 tabular-nums"
+                  />
                 </div>
-                <span className="text-muted-foreground mb-2 text-sm">to</span>
-                <div className="flex flex-col gap-1.5">
-                  <Label>Ends (optional)</Label>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <DatePicker
-                      value={endDate}
-                      onChange={setEndDate}
-                      onClear={() => setEndDate("")}
-                      className="w-44"
-                    />
-                    <Input
-                      value={endTime}
-                      onChange={(event) => setEndTime(event.target.value)}
-                      placeholder="HH:mm"
-                      aria-label="End time (24h)"
-                      className="w-24 tabular-nums"
-                    />
-                  </div>
-                  {endIncomplete ? (
-                    <span className="text-destructive text-sm">
-                      Enter both a date (YYYY-MM-DD) and a 24-hour time (HH:mm), or leave both
-                      blank.
-                    </span>
-                  ) : endBeforeStart ? (
-                    <span className="text-destructive text-sm">
-                      The end must be at or after the start.
-                    </span>
-                  ) : null}
+                {startInvalid ? (
+                  <span className="text-destructive text-sm">
+                    Enter a date (YYYY-MM-DD) and a 24-hour time (HH:mm).
+                  </span>
+                ) : null}
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label>Ends (optional)</Label>
+                <div className="flex flex-wrap items-center gap-2">
+                  <DatePicker
+                    value={endDate}
+                    onChange={setEndDate}
+                    onClear={() => setEndDate("")}
+                    className="w-44"
+                  />
+                  <Input
+                    value={endTime}
+                    onChange={(event) => setEndTime(event.target.value)}
+                    placeholder="HH:mm"
+                    aria-label="End time (24h)"
+                    className="w-24 tabular-nums"
+                  />
                 </div>
+                {endIncomplete ? (
+                  <span className="text-destructive text-sm">
+                    Enter both a date (YYYY-MM-DD) and a 24-hour time (HH:mm), or leave both blank.
+                  </span>
+                ) : endBeforeStart ? (
+                  <span className="text-destructive text-sm">
+                    The end must be at or after the start.
+                  </span>
+                ) : null}
               </div>
             </CardContent>
           </Card>
@@ -326,13 +320,13 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
         <SettingsGroup id="pairings-decks" title="Pairings & decks">
           <Card>
             <CardHeader>
-              <CardTitle>Pairings</CardTitle>
+              <CardTitle>Format</CardTitle>
               <CardDescription>
-                Let OpenRift pair rounds and track standings, or leave it off if you run pairings
-                somewhere else.
+                The play mode applies to the whole tournament: 1v1 and 2v2 have different ban lists,
+                and deck check uses the matching one.
               </CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-col gap-3">
+            <CardContent className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
                 <Label>Play mode</Label>
                 <Select
@@ -342,7 +336,7 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
                     value && handlePlayModeChange(value as TournamentPlayMode)
                   }
                 >
-                  <SelectTrigger className="max-w-sm" aria-label="Play mode">
+                  <SelectTrigger className="w-full" aria-label="Play mode">
                     <SelectValue placeholder="Play mode" />
                   </SelectTrigger>
                   <SelectContent>
@@ -353,44 +347,137 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
                     ))}
                   </SelectContent>
                 </Select>
-                {isTeams ? (
-                  <span className="text-muted-foreground text-sm">
-                    You pair players into fixed teams of two on the Participants page; rounds pair
-                    team against team.
-                  </span>
-                ) : null}
               </div>
-              <Select
-                items={pairingItems}
-                value={pairingStyle}
-                onValueChange={(value) => value && setPairingStyle(value as TournamentPairingStyle)}
-              >
-                <SelectTrigger className="max-w-sm" aria-label="Pairings">
-                  <SelectValue placeholder="Choose how players are paired" />
-                </SelectTrigger>
-                <SelectContent>
-                  {pairingItems.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {isSwiss ? (
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Pairings</CardTitle>
+              <CardDescription>
+                Use OpenRift to generate each round&apos;s matchups and track standings. Points can
+                be changed later, standings recalculate.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              <div className="flex items-center gap-3">
+                <Switch
+                  id="t-pairings"
+                  checked={pairingsEnabled}
+                  onCheckedChange={setPairingsEnabled}
+                />
+                <Label htmlFor="t-pairings">Enable pairings</Label>
+              </div>
+              {runsRounds ? (
+                <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+                  <div className="flex flex-col gap-1.5">
+                    <Label>Rounds</Label>
+                    <Select
+                      items={roundsItems}
+                      value={roundsChoice}
+                      onValueChange={(value) =>
+                        value && setRoundsChoice(value as TournamentRoundsChoice)
+                      }
+                    >
+                      <SelectTrigger className="w-full" aria-label="Rounds">
+                        <SelectValue placeholder="Rounds" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {roundsItems.map((item) => (
+                          <SelectItem key={item.value} value={item.value}>
+                            {item.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label>Points</Label>
+                    <div className="flex h-8 flex-wrap items-center gap-x-4 gap-y-3">
+                      {isSwiss ? (
+                        <>
+                          <div className="flex items-center gap-2">
+                            <Label
+                              htmlFor="t-win-points"
+                              className="text-muted-foreground font-normal"
+                            >
+                              Win
+                            </Label>
+                            <Input
+                              id="t-win-points"
+                              value={winPointsText}
+                              onChange={(event) => setWinPointsText(event.target.value)}
+                              inputMode="numeric"
+                              className="w-16 tabular-nums"
+                              aria-label="Points for a match win"
+                            />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Label
+                              htmlFor="t-draw-points"
+                              className="text-muted-foreground font-normal"
+                            >
+                              Draw
+                            </Label>
+                            <Input
+                              id="t-draw-points"
+                              value={drawPointsText}
+                              onChange={(event) => setDrawPointsText(event.target.value)}
+                              inputMode="numeric"
+                              className="w-16 tabular-nums"
+                              aria-label="Points for a draw"
+                            />
+                          </div>
+                        </>
+                      ) : null}
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor="t-bye-points" className="text-muted-foreground font-normal">
+                          Bye
+                        </Label>
+                        <Input
+                          id="t-bye-points"
+                          value={byePointsText}
+                          onChange={(event) => setByePointsText(event.target.value)}
+                          inputMode="numeric"
+                          className="w-16 tabular-nums"
+                          aria-label="Points for a bye"
+                        />
+                      </div>
+                    </div>
+                    {pointsInvalid ? (
+                      <span className="text-destructive text-sm">
+                        Points must be whole numbers between 0 and 99.
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Decks</CardTitle>
+              <CardDescription>
+                Judges can verify collected decklists on the Deck check tab.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
-                  <Label>Match format</Label>
+                  <Label>Deck submission</Label>
                   <Select
-                    items={MATCH_FORMAT_ITEMS}
-                    value={matchFormat}
+                    items={DECK_SUBMISSION_ITEMS}
+                    value={deckSubmission}
                     onValueChange={(value) =>
-                      value && setMatchFormat(value as TournamentMatchFormat)
+                      value && setDeckSubmission(value as TournamentDeckSubmission)
                     }
                   >
-                    <SelectTrigger className="max-w-sm" aria-label="Match format">
-                      <SelectValue placeholder="Match format" />
+                    <SelectTrigger className="w-full" aria-label="Deck submission">
+                      <SelectValue placeholder="Deck submission" />
                     </SelectTrigger>
                     <SelectContent>
-                      {MATCH_FORMAT_ITEMS.map((item) => (
+                      {DECK_SUBMISSION_ITEMS.map((item) => (
                         <SelectItem key={item.value} value={item.value}>
                           {item.label}
                         </SelectItem>
@@ -398,124 +485,7 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
                     </SelectContent>
                   </Select>
                 </div>
-              ) : null}
-            </CardContent>
-          </Card>
-
-          {runsRounds ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Points</CardTitle>
-                <CardDescription>
-                  {isSwiss
-                    ? "Points a match win, a draw, and a bye are worth. Standings recalculate if you change these later."
-                    : "Points a bye (sitting a round out) is worth. Standings recalculate if you change this later."}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-3">
-                  {isSwiss ? (
-                    <>
-                      <div className="flex flex-col gap-1.5">
-                        <Label htmlFor="t-win-points">Win</Label>
-                        <Input
-                          id="t-win-points"
-                          value={winPointsText}
-                          onChange={(event) => setWinPointsText(event.target.value)}
-                          inputMode="numeric"
-                          className="w-20 tabular-nums"
-                          aria-label="Points for a match win"
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1.5">
-                        <Label htmlFor="t-draw-points">Draw</Label>
-                        <Input
-                          id="t-draw-points"
-                          value={drawPointsText}
-                          onChange={(event) => setDrawPointsText(event.target.value)}
-                          inputMode="numeric"
-                          className="w-20 tabular-nums"
-                          aria-label="Points for a draw"
-                        />
-                      </div>
-                    </>
-                  ) : null}
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="t-bye-points">Bye</Label>
-                    <Input
-                      id="t-bye-points"
-                      value={byePointsText}
-                      onChange={(event) => setByePointsText(event.target.value)}
-                      inputMode="numeric"
-                      className="w-20 tabular-nums"
-                      aria-label="Points for a bye"
-                    />
-                  </div>
-                </div>
-                {pointsInvalid ? (
-                  <span className="text-destructive mt-2 block text-sm">
-                    Points must be whole numbers between 0 and 99.
-                  </span>
-                ) : null}
-              </CardContent>
-            </Card>
-          ) : null}
-
-          {runsRounds && !isTeams ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Regions</CardTitle>
-                <CardDescription>
-                  Track a region per player. Pairings avoid same-region matchups, and standings add
-                  a per-region leaderboard.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-3">
-                  <Switch
-                    id="t-regions"
-                    checked={regionsEnabled}
-                    onCheckedChange={setRegionsEnabled}
-                  />
-                  <Label htmlFor="t-regions">Track player regions</Label>
-                </div>
-              </CardContent>
-            </Card>
-          ) : null}
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Decks</CardTitle>
-              <CardDescription>
-                Collect decklists in OpenRift, or leave it off if you track lists elsewhere. When
-                lists are collected, judges can verify them on the Deck check tab.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3">
-              <div className="flex flex-col gap-1.5">
-                <Label>Deck submission</Label>
-                <Select
-                  items={DECK_SUBMISSION_ITEMS}
-                  value={deckSubmission}
-                  onValueChange={(value) =>
-                    value && setDeckSubmission(value as TournamentDeckSubmission)
-                  }
-                >
-                  <SelectTrigger className="max-w-sm" aria-label="Deck submission">
-                    <SelectValue placeholder="Deck submission" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DECK_SUBMISSION_ITEMS.map((item) => (
-                      <SelectItem key={item.value} value={item.value}>
-                        {item.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {wantsDeck ? (
-                <>
+                {wantsDeck ? (
                   <div className="flex flex-col gap-1.5">
                     <Label>Submission deadline (optional)</Label>
                     <div className="flex flex-wrap items-center gap-2">
@@ -540,38 +510,62 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
                       </span>
                     ) : null}
                   </div>
-                  <div className="flex flex-col gap-1.5">
-                    <div className="flex items-center gap-3">
-                      <Switch
-                        id="t-allow-edits"
-                        checked={lockMode === "at_deadline"}
-                        onCheckedChange={(checked) =>
-                          setLockMode(checked ? "at_deadline" : "on_submit")
-                        }
-                      />
-                      <Label htmlFor="t-allow-edits">
-                        Let players edit their decks after submitting
-                      </Label>
-                    </div>
-                    <span className="text-muted-foreground text-sm">
-                      When off, a submitted deck is final and only a judge can unlock it.
-                      Riot&apos;s official rules require this. When on, players can keep editing
-                      until the submission deadline above.
-                    </span>
+                ) : null}
+              </div>
+              {wantsDeck ? (
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center gap-3">
+                    <Switch
+                      id="t-allow-edits"
+                      checked={lockMode === "at_deadline"}
+                      onCheckedChange={(checked) =>
+                        setLockMode(checked ? "at_deadline" : "on_submit")
+                      }
+                    />
+                    <Label htmlFor="t-allow-edits">
+                      Let players edit their decks after submitting
+                    </Label>
                   </div>
-                </>
+                  <span className="text-muted-foreground text-sm">
+                    When off, a submitted deck is final and only a judge can unlock it, as
+                    Riot&apos;s official rules require.
+                  </span>
+                </div>
               ) : null}
             </CardContent>
           </Card>
         </SettingsGroup>
+
+        {runsRounds && !isTeams ? (
+          <SettingsGroup id="custom" title="Custom" collapsible defaultCollapsed>
+            <Card>
+              <CardHeader>
+                <CardTitle>Regions</CardTitle>
+                <CardDescription>
+                  Pairings avoid same-region matchups, and standings add a per-region leaderboard.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-3">
+                  <Switch
+                    id="t-regions"
+                    checked={regionsEnabled}
+                    onCheckedChange={setRegionsEnabled}
+                  />
+                  <Label htmlFor="t-regions">Track player regions</Label>
+                </div>
+              </CardContent>
+            </Card>
+          </SettingsGroup>
+        ) : null}
 
         <SettingsGroup id="registration" title="Registration">
           <Card>
             <CardHeader>
               <CardTitle>Self-registration</CardTitle>
               <CardDescription>
-                Let players request a spot through a shareable link. You can copy and share the link
-                after creating the tournament.
+                Players request a spot through a shareable link that you get after creating the
+                tournament.
               </CardDescription>
             </CardHeader>
             <CardContent>

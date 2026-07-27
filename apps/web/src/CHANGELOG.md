@@ -4,12 +4,17 @@
 
 ### Highlights
 
+- feat(Tournaments): **Simpler tournament setup** — the create page trims the explanations and groups play mode, pairings (one Swiss BO1/BO3 or FFA choice with an on/off switch), points and decks into compact two-column cards.
+- feat(Tournaments): **2v2 teams shown as teams** — match cards, the standings preview and result entry now treat each duo as one entry with a shared score, combined avatar initials, and per-side scoreline buttons.
 - feat(App): **A QR for every share link** — collection, list, deck, profile and all-lists links now show a scannable code next to the link, so you can hand one to someone at a table without printing anything first.
 
 ### Other
 
 - feat(Trades): **Easier-to-read trade emails** — update and request emails now sort cards under accepted/declined and wants/offers headings instead of repeating a full sentence per card, and match digests list cards per trade partner.
 - feat(Groups): **Join-code QR without the detour** — the invite code on the manage page shows its QR in place instead of behind a dialog, and copying the link now confirms it worked.
+- fix(App): **Dropdown options no longer cut off** — open dropdowns now widen to fit long options instead of clipping them at the button's width.
+- fix(Tournaments): **Start date prefill now visible** — the new-tournament page filled the start date in on save, but the field looked empty until now.
+- fix(Tournaments): **Quieter match cards for organizers** — pairing fairness stats only appear when something is off, and player rows drop the cryptic standings figure.
 - fix(Decks): **Scannable QR on deck share images** — the code was drawn light-on-dark, which some phone cameras refuse to read, and now sits on a light plate.
 - fix(App): **QR codes scan more easily** — every code on screen carries more error correction and a proper quiet zone, so they read from further away and at sharper angles.
 

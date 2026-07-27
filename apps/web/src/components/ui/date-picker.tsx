@@ -53,6 +53,20 @@ export function DatePicker({
   const [text, setText] = useState(value ?? "");
   const [month, setMonth] = useState<Date | undefined>(value ? parseIso(value) : undefined);
 
+  // The input renders local text state so partial typing survives, but that
+  // means an external value change after mount (e.g. the create wizard's
+  // client-only "now" prefill) must be copied in here or it never shows. Skip
+  // the copy when the text already matches, so committing a typed date doesn't
+  // reset the cursor.
+  const [lastValue, setLastValue] = useState(value);
+  if (value !== lastValue) {
+    setLastValue(value);
+    if ((value ?? "") !== text) {
+      setText(value ?? "");
+      setMonth(value ? parseIso(value) : undefined);
+    }
+  }
+
   const selected = value ? parseIso(value) : undefined;
 
   function handleTextChange(raw: string) {
