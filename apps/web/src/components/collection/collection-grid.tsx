@@ -1,4 +1,4 @@
-import type { GroupByField, Marketplace, Printing } from "@openrift/shared";
+import type { Marketplace, Printing } from "@openrift/shared";
 import { copyHasMetadata, legendDisplayName } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
@@ -10,7 +10,7 @@ import {
   SquarePlusIcon,
   Trash2Icon,
 } from "lucide-react";
-import { use, useEffect, useDeferredValue, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 
@@ -31,7 +31,6 @@ import {
 } from "@/components/collection/collection-table-wiring";
 import { CollectionTopBar } from "@/components/collection/collection-top-bar";
 import { FloatingActionBar } from "@/components/collection/floating-action-bar";
-import { buildOnDecrement } from "@/components/collection/route-decrement";
 import { VariantLocationsPopoverHost } from "@/components/collection/variant-locations-popover-host";
 import { EmptyState } from "@/components/empty-state";
 import { AddToListDialog } from "@/components/list/add-to-list-dialog";
@@ -40,50 +39,38 @@ import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
-import { useCardData } from "@/hooks/use-card-data";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCardSelection } from "@/hooks/use-card-selection";
 import { useCards } from "@/hooks/use-cards";
-import { useCollectionCardData } from "@/hooks/use-collection-card-data";
+import { useCollectionGridData } from "@/hooks/use-collection-grid-data";
+import { useCollectionGridSelection } from "@/hooks/use-collection-grid-selection";
 import {
   useClearCollection,
   useCollections,
-  useCollectionsMap,
   useDeleteCollection,
   useSetCollectionDeckbuilding,
 } from "@/hooks/use-collections";
 import { useCopyListMemberships, useDisposeCopies, useMoveCopies } from "@/hooks/use-copies";
-import { useChannelRegistry } from "@/hooks/use-enums";
 import { useIsMobile } from "@/hooks/use-is-mobile";
-import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
-import { useOwnedCount } from "@/hooks/use-owned-count";
 import { useQuickAddActions } from "@/hooks/use-quick-add-actions";
 import { useSeedLanguagesFromPrefs } from "@/hooks/use-seed-languages-from-prefs";
 import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { useWishEntries } from "@/hooks/use-wish-entries";
 import type { WishEntryFlat } from "@/hooks/use-wish-entries";
-import { useSession } from "@/lib/auth-session";
-import { cardsViewTileKey, splitsCardIntoTiles, tileSiblings } from "@/lib/card-tiles";
+import { tileSiblings } from "@/lib/card-tiles";
 import { collectionTableActionsColumn } from "@/lib/collection-table";
 import { aggregatePersonalCollectionValue } from "@/lib/collection-value";
 import { useCopiesCollection } from "@/lib/copies-collection";
-import { filterPrintingsByLanguages } from "@/lib/filter-printings-by-languages";
 import { formatterForMarketplace } from "@/lib/format";
-import { maxOwnedCount } from "@/lib/owned-bucket";
-import { resolveContextActionTarget } from "@/lib/stack-selection";
 import { isTempCopyId } from "@/lib/temp-copy-id";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 import { useAddModeStore } from "@/stores/add-mode-store";
-import type { VariantPopoverIntent } from "@/stores/add-mode-store";
 import type { CollectionContextAction } from "@/stores/card-row-actions-store";
-import { useCardRowActionsStore } from "@/stores/card-row-actions-store";
 import { useDisplayStore } from "@/stores/display-store";
-import { useDragPreviewStore } from "@/stores/drag-preview-store";
 import { useOnboardingStore } from "@/stores/onboarding-store";
 import { useSelectionStore } from "@/stores/selection-store";
 import { useSiblingOverrideStore } from "@/stores/sibling-override-store";
 
-import { computeDragSelectionSummary, dragSelectionNoun } from "./collection-drag";
 import type { CopyDetailsTarget } from "./copy-details-dialog";
 import { DisposeDialog } from "./dispose-dialog";
 import { MoveDialog } from "./move-dialog";
@@ -95,18 +82,6 @@ import { MoveDialog } from "./move-dialog";
 // when no owned printing carries one.
 const COLLECTION_GRID_HIDDEN_FILTER_SECTIONS: ReadonlySet<string> = new Set(["customTags"]);
 
-function printingsArrayEqual(a: readonly Printing[], b: readonly Printing[]): boolean {
-  if (a.length !== b.length) {
-    return false;
-  }
-  for (let idx = 0; idx < a.length; idx++) {
-    if (a[idx] !== b[idx]) {
-      return false;
-    }
-  }
-  return true;
-}
-
 interface CollectionGridProps {
   collectionId?: string;
   title: string;
@@ -117,7 +92,6 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const { toggleSidebar } = useSidebar();
   const topBarSlot = use(TopBarSlotContext);
   const { data: collections } = useCollections();
-  const collectionsMap = useCollectionsMap();
   const showImages = useDisplayStore((state) => state.showImages);
   // Lifted out of <CardThumbnail> — see useCardThumbnailDisplay for the why.
   // We reuse display.prices / display.favoriteMarketplace below for useCardData.
@@ -142,10 +116,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     sets,
     printingsByCardId: catalogAllPrintingsByCardId,
   } = useCards();
-  const channels = useChannelRegistry();
   const prices = display.prices;
-  const { data: session } = useSession();
-  const { data: ownedCountByPrinting } = useOwnedCount(Boolean(session?.user));
 
   // On first mount, seed the URL `languages` filter from the user's preferred
   // languages if none are set — same behaviour as the /cards catalog. Owned
@@ -154,7 +125,6 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   // clear the Language section in the filter panel. After seeding,
   // `filters.languages` is the single source of truth (empty = show all).
   useSeedLanguagesFromPrefs(filters.languages);
-  const languageFilter = filters.languages;
 
   // Quick Add palette adds *new* cards, so it should only surface languages
   // the user has enabled in their profile prefs — unlike the collection grid
@@ -162,173 +132,47 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   // language. Empty pref means "show all".
   const preferredLanguages = useDisplayStore((state) => state.languages);
 
-  // "copies" is a collection-only UI concept — at the data level it behaves like "printings"
-  const dataView = view === "copies" ? "printings" : view;
-  const keywordReverseMap = useKeywordReverseMap();
-
-  // An owned filter is "active" when either the buckets dropdown or the
-  // copies-owned range is set — used to gate the global owned-count map into
-  // the catalog/library hook (see its memo note below).
-  const ownedFilterActive =
-    filters.ownedFilter.length > 0 ||
-    filters.ownedCountMin !== null ||
-    filters.ownedCountMax !== null;
-
-  // A group-owned "bulk box" has no personal owner; every copy belongs to the
-  // group. There the Owned/Copies filter should measure the viewer's PERSONAL
-  // shortfall ("cards here I don't own a playset of yet"), not the box's own
-  // stock. A full playset is a card-level notion, so we feed the collection
-  // hook the viewer's personal total per card summed across EVERY variant they
-  // own — a box that stocks only the normal printing must still count the
-  // viewer's foil copies, or a card they already have a full playset of would
-  // bucket as "partial". `ownedCountByPrinting` already excludes group copies;
-  // `allPrintings` supplies each card's full sibling set. A viewer's own
-  // personal collection keeps the default collection-scoped counts.
-  const currentCollection = collectionId ? collectionsMap.get(collectionId) : undefined;
-  const isGroupCollection = Boolean(currentCollection?.groupId);
-  const personalCardTotals: Record<string, number> = {};
-  if (isGroupCollection && ownedCountByPrinting) {
-    for (const printing of allPrintings) {
-      const owned = ownedCountByPrinting[printing.id];
-      if (owned) {
-        personalCardTotals[printing.cardId] = (personalCardTotals[printing.cardId] ?? 0) + owned;
-      }
-    }
-  }
-
-  // The tile axis for per-card aggregation (counts, copy selection, siblings).
-  // Only the collection's own cards-view grid splits a card into per-set /
-  // per-rarity tiles; the library overlay keeps the catalog's one-tile-per-card
-  // layout (its useCardData call below deliberately stays ungrouped), so tiles
-  // there collapse by cardId.
-  const tileGroupBy: GroupByField = dataView === "cards" && !showLibrary ? groupBy : "none";
-
-  // ── Collection data (browse/select modes) ───────────────────────────
+  // ── Collection grid data pipeline (collection-scoped + catalog-scoped card
+  //    data, show-library active-set selection, group-collection personal
+  //    shortfall override, tile grouping axis, deferred/stale bookkeeping) ──
   const {
-    availableFilters: collectionAvailableFilters,
-    availableLanguages: collectionAvailableLanguages,
-    filterCounts: collectionFilterCounts,
-    sortedCards: collectionSortedCards,
+    dataView,
+    currentCollection,
+    isGroupCollection,
+    tileGroupBy,
+    availableFilters,
+    availableLanguages,
+    filterCounts,
+    sortedCards,
+    printingsByCardId,
+    detailPanePrintingsByCardId,
+    totalUniqueCards,
+    setDisplayLabel,
+    ownedCountBound,
     selectableCopyIds,
-    printingsByCardId: collectionPrintingsByCardId,
     stacks,
     totalCopies,
     stackByPrintingId,
-    totalUniqueCards: collectionTotalUniqueCards,
-    ownedCountMax: collectionOwnedCountMax,
-    setDisplayLabel: collectionSetDisplayLabel,
-    isReady: copiesReady,
-  } = useCollectionCardData({
+    copiesReady,
+    catalogPrintingsByCardId,
+    catalogPriceRangeByCardId,
+    deferredSortedCards,
+    isGridStale,
+    ownedCountByPrinting,
+  } = useCollectionGridData({
     collectionId,
     filters,
     sortBy,
     sortDir,
-    view: dataView,
+    view,
     groupBy,
-    sets,
-    favoriteMarketplace,
-    prices,
-    keywordReverseMap,
-    languageOrder: languageFilter,
-    channels,
-    ownedFilter: filters.ownedFilter,
-    ownedCountMin: filters.ownedCountMin,
-    ownedCountMax: filters.ownedCountMax,
-    // Group bulk box → measure the viewer's personal shortfall, not box stock.
-    // Applied whenever this is a group box (not only once an owned filter is
-    // active) so the Copies basis stays personal-copies consistently — without
-    // this the slider's max silently flipped from box stock to personal on the
-    // first owned-filter interaction.
-    ownedCardTotalOverride: isGroupCollection ? personalCardTotals : undefined,
-  });
-
-  // ── Catalog data (drives "show library" view + the quick-add palette in
-  //    every mode). The bucket filter uses global counts here because
-  //    "Full Playset" against the full library is a global notion. The
-  //    collection hook applies the per-collection version separately.
-  const {
-    availableFilters: catalogAvailableFilters,
-    availableLanguages: catalogAvailableLanguages,
-    filterCounts: catalogFilterCounts,
-    sortedCards: catalogSortedCards,
-    printingsByCardId: catalogPrintingsByCardId,
-    priceRangeByCardId: catalogPriceRangeByCardId,
-    totalUniqueCards: catalogTotalUniqueCards,
-    setDisplayLabel: catalogSetDisplayLabel,
-  } = useCardData({
+    showLibrary,
     allPrintings,
     sets,
-    filters,
-    sortBy,
-    sortDir,
-    view: dataView,
-    // Intentionally not threading groupBy: the cell renderer assumes one cell
-    // per cardId for sibling/variant logic. Skipping the dedup here would
-    // require a parallel pass over those branches; the /cards catalog browser
-    // is the only consumer wired up so far.
-    //
-    // `ownedCountByPrinting` is only consumed by the owned filters (buckets +
-    // copies range) — passing the map unconditionally would bust this hook's
-    // memo on every +/- (the map is a fresh projection of the global copies set
-    // on every copy mutation), which in turn rebuilds `printingsByCardId` /
-    // `priceRangeByCardId` and forces every visible cell to re-render. Same
-    // guard /cards uses.
-    ownedCountByPrinting: ownedFilterActive ? ownedCountByPrinting : undefined,
-    ownedFilter: filters.ownedFilter,
-    ownedCountMin: filters.ownedCountMin,
-    ownedCountMax: filters.ownedCountMax,
+    catalogAllPrintingsByCardId,
     favoriteMarketplace,
     prices,
-    keywordReverseMap,
-    channels,
   });
-
-  // ── Pick active data set based on whether the library is shown ──────
-  const availableFilters = showLibrary ? catalogAvailableFilters : collectionAvailableFilters;
-  const availableLanguages = showLibrary ? catalogAvailableLanguages : collectionAvailableLanguages;
-  // Faceted counts so every filter chip (and the price/stat sliders) narrows to
-  // the subset matching the other active filters — including the Copies range.
-  const filterCounts = showLibrary ? catalogFilterCounts : collectionFilterCounts;
-  const sortedCards = showLibrary ? catalogSortedCards : collectionSortedCards;
-  const printingsByCardId = showLibrary ? catalogPrintingsByCardId : collectionPrintingsByCardId;
-  // The detail-pane picker lists every printing of the clicked card, not just
-  // the ones shown in the grid (filtered by set/search/rarity, or narrowed to
-  // the collection in browse mode). Scope only by the active language filter.
-  const detailPanePrintingsByCardId = filterPrintingsByLanguages(
-    catalogAllPrintingsByCardId,
-    filters.languages,
-  );
-  const totalUniqueCards = showLibrary ? catalogTotalUniqueCards : collectionTotalUniqueCards;
-  const setDisplayLabel = showLibrary ? catalogSetDisplayLabel : collectionSetDisplayLabel;
-  // Copies slider bound. In the library view the bound is global (most copies
-  // owned of any card across all collections); in browse/select it's the
-  // per-collection max the collection hook already computed.
-  const ownedCountBound = showLibrary
-    ? maxOwnedCount(
-        allPrintings,
-        ownedCountByPrinting ?? {},
-        dataView === "printings" ? "printing" : "card",
-      )
-    : collectionOwnedCountMax;
-
-  // Defer the card grid re-render so filter UI responds immediately
-  const deferredSortedCards = useDeferredValue(sortedCards);
-  // Only surface the dimmed "stale" state if the deferred render is genuinely
-  // slow. Adding or removing a single copy re-derives sortedCards but the
-  // deferred value catches up within a frame; without this debounce the
-  // grid briefly flashes grayed out on every +/- click.
-  const stalePending = deferredSortedCards !== sortedCards;
-  const [isGridStale, setIsGridStale] = useState(false);
-  useEffect(() => {
-    if (!stalePending) {
-      setIsGridStale(false);
-      return;
-    }
-    const timer = globalThis.setTimeout(() => setIsGridStale(true), 150);
-    return () => {
-      globalThis.clearTimeout(timer);
-    };
-  }, [stalePending]);
 
   // ── Selection state (select mode) ───────────────────────────────────
   const {
@@ -341,30 +185,6 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     setLastSelectedItemId,
     addToSelection,
   } = useCardSelection();
-
-  // In "cards" view, collect all copy IDs and printing IDs per tile for
-  // selection/popover. Keyed by the tile (cardId, or cardId|set / cardId|rarity
-  // when split) so a card owned across sets keeps each set tile's copies
-  // separate instead of pooling them under one card.
-  const allCopyIdsByTile = new Map<string, string[]>();
-  const allPrintingIdsByTile = new Map<string, string[]>();
-  if (dataView === "cards") {
-    for (const stack of stacks) {
-      const tileKey = cardsViewTileKey(stack.printing, tileGroupBy);
-      const copyIds = allCopyIdsByTile.get(tileKey);
-      if (copyIds) {
-        copyIds.push(...stack.copyIds);
-      } else {
-        allCopyIdsByTile.set(tileKey, [...stack.copyIds]);
-      }
-      const printingIds = allPrintingIdsByTile.get(tileKey);
-      if (printingIds) {
-        printingIds.push(stack.printingId);
-      } else {
-        allPrintingIdsByTile.set(tileKey, [stack.printingId]);
-      }
-    }
-  }
 
   // "copies" view expands individual copies. When the library is shown the
   // toolbar hides the "copies" option, but if the user had it selected from
@@ -688,168 +508,6 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           );
   }
 
-  // ── Grid click handlers ─────────────────────────────────────────────
-  // When a card is split into per-set / per-rarity tiles, multiple cells share
-  // a cardId, so click selection must navigate by printing to land on the tile
-  // the user clicked rather than the card's first tile.
-  const findBy =
-    dataView === "cards" && !splitsCardIntoTiles(tileGroupBy) ? "card" : ("printing" as const);
-
-  // Drag-overlay summary: walk items + selection for the first three unique
-  // printings whose copies are selected (the fan) plus the selected-tile count
-  // (the overlay label, e.g. "3 printings"). Fed into useDragPreviewStore here
-  // so cells can subscribe to the fan with a stable ref — a +/- click leaves
-  // `selected` untouched, so the same printing refs come back from the walk
-  // and we skip the store update via the shallow compare below. Without that
-  // compare, cells would re-render on every +/- since the store would publish
-  // a fresh array reference every render.
-  const dragSummary = computeDragSelectionSummary({
-    mode,
-    selected,
-    items,
-    stackByItemId,
-    stacked,
-  });
-  const dragNoun = dragSelectionNoun(view);
-  useEffect(() => {
-    const state = useDragPreviewStore.getState();
-    if (
-      !printingsArrayEqual(dragSummary.printings, state.preview) ||
-      dragSummary.count !== state.selectionCount ||
-      dragNoun !== state.selectionNoun
-    ) {
-      state.setPreview(dragSummary.printings, dragSummary.count, dragNoun);
-    }
-  });
-
-  const handleGridCardClick = (printing: Printing) => {
-    useAddModeStore.getState().closeVariants();
-    useSelectionStore.getState().selectCard(printing, items, findBy);
-  };
-
-  const handleSiblingClick = (printing: Printing) => {
-    handleGridCardClick(printing);
-    useSiblingOverrideStore.getState().setOverride("collection", printing.cardId, printing.id);
-  };
-
-  const toggleStackForItem = (itemId: string, stack: StackedEntry) => {
-    if (stacked) {
-      const cardCopyIds =
-        allCopyIdsByTile.get(cardsViewTileKey(stack.printing, tileGroupBy)) ?? stack.copyIds;
-      toggleStack(cardCopyIds);
-    } else {
-      toggleSelect(itemId);
-    }
-  };
-
-  const shiftSelectRange = (itemId: string) => {
-    const lastId = getLastSelectedItemId();
-    if (lastId === null) {
-      const stack = stackByItemId.get(itemId);
-      if (stack) {
-        toggleStackForItem(itemId, stack);
-        setLastSelectedItemId(itemId);
-      }
-      return;
-    }
-    const startIdx = items.findIndex((i) => i.id === lastId);
-    const endIdx = items.findIndex((i) => i.id === itemId);
-    if (startIdx === -1 || endIdx === -1) {
-      const stack = stackByItemId.get(itemId);
-      if (stack) {
-        toggleStackForItem(itemId, stack);
-        setLastSelectedItemId(itemId);
-      }
-      return;
-    }
-    const lo = Math.min(startIdx, endIdx);
-    const hi = Math.max(startIdx, endIdx);
-    const rangeIds: string[] = [];
-    for (let idx = lo; idx <= hi; idx++) {
-      const rangeItem = items[idx];
-      if (stacked) {
-        const rangeCardCopyIds = allCopyIdsByTile.get(
-          cardsViewTileKey(rangeItem.printing, tileGroupBy),
-        );
-        if (rangeCardCopyIds) {
-          rangeIds.push(...rangeCardCopyIds);
-        } else {
-          const rangeStack = stackByItemId.get(rangeItem.id);
-          if (rangeStack) {
-            rangeIds.push(...rangeStack.copyIds);
-          }
-        }
-      } else {
-        rangeIds.push(rangeItem.id);
-      }
-    }
-    addToSelection(rangeIds);
-    setLastSelectedItemId(itemId);
-  };
-
-  // Right-click menu action on a card. See resolveContextActionTarget for the
-  // browse-vs-select rules; here we apply any selection narrowing and open the
-  // matching dialog on the resolved copy ids.
-  const handleContextAction = (
-    itemId: string,
-    action: CollectionContextAction,
-    printing?: Printing,
-  ) => {
-    const stack = stackByItemId.get(itemId);
-    if (!stack) {
-      return;
-    }
-    // Lend targets one printing, never the multi-selection: a loan row is a
-    // single printing + quantity (ADR-039). It follows the cell's *displayed*
-    // printing (sibling swaps included) when that variant has copies in scope,
-    // falling back to the tile's representative stack — the dialog names the
-    // printing either way. The stepper is capped to the copies in view; the
-    // server enforces the true unclaimed bound.
-    if (action === "lend") {
-      const lendStack = (printing && stackByPrintingId.get(printing.id)) || stack;
-      setLendTarget({
-        printing: lendStack.printing,
-        maxQuantity: stacked ? lendStack.copyIds.length : 1,
-      });
-      return;
-    }
-    const cardCopyIds = stacked
-      ? (allCopyIdsByTile.get(cardsViewTileKey(stack.printing, tileGroupBy)) ?? stack.copyIds)
-      : [itemId];
-    // Copy details always targets the clicked tile (never the selection): the
-    // dialog edits one copy at a time, so selection narrowing doesn't apply.
-    if (action === "copyDetails") {
-      const idSet = new Set(cardCopyIds);
-      const printingByCopyId = new Map<string, Printing>();
-      for (const entry of stacks) {
-        for (const copyId of entry.copyIds) {
-          if (idSet.has(copyId)) {
-            printingByCopyId.set(copyId, entry.printing);
-          }
-        }
-      }
-      setCopyDetailsTarget({
-        copyIds: cardCopyIds,
-        cardName: legendDisplayName(stack.printing.card),
-        printingByCopyId,
-      });
-      return;
-    }
-    const { copyIds, narrowSelectionTo } = resolveContextActionTarget({
-      mode,
-      stacked,
-      itemId,
-      cardCopyIds,
-      selected,
-    });
-    if (narrowSelectionTo) {
-      clearSelection();
-      addToSelection(narrowSelectionTo);
-      setLastSelectedItemId(itemId);
-    }
-    openAction(action, copyIds);
-  };
-
   // Take one copy of a card from the group "bulk box" into the viewer's inbox.
   // Reuses the move pipeline (member → inbox is a writable move); no trade
   // record, since a free pile has no reciprocation. If the card was on the
@@ -871,6 +529,34 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     const initialQuantity = Math.min(Math.max(1, count), availableCopyIds.length);
     setTakeConfirm({ printing: stack.printing, availableCopyIds, initialQuantity });
   };
+
+  // ── Grid click handlers, drag-preview effect, row-actions-store effect ──
+  const { allCopyIdsByTile } = useCollectionGridSelection({
+    items,
+    stackByItemId,
+    stackByPrintingId,
+    stacks,
+    tileGroupBy,
+    dataView,
+    view,
+    stacked,
+    mode,
+    setSelectMode,
+    selected,
+    toggleSelect,
+    toggleStack,
+    clearSelection,
+    getLastSelectedItemId,
+    setLastSelectedItemId,
+    addToSelection,
+    handleQuickAdd,
+    tryUndoAdd,
+    handleOpenVariants,
+    handleTake,
+    setLendTarget,
+    setCopyDetailsTarget,
+    openAction,
+  });
 
   // Run the take the viewer confirmed: move the chosen number of copies into
   // their inbox, then offer the wishlist cleanup when the card was one they
@@ -900,77 +586,6 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       },
     );
   };
-
-  // Register table-row action handlers in the no-subscribe store so the
-  // virtualized CardTable + per-cell CollectionGridCell can dispatch row
-  // clicks / +/- / select-mode actions without taking these unstable closures
-  // as props. Mirrors card-browser.tsx's wiring; see card-row-actions-store.ts
-  // for the why. Re-register every render so rows pick up the freshest
-  // implementation.
-  // When the tile is split by set, the +/- variant popover offers only the
-  // tile's own set so it can't add or remove a printing from another set.
-  const openVariantsForTile = handleOpenVariants
-    ? (printing: Printing, anchorEl: HTMLElement, intent: VariantPopoverIntent) =>
-        // Cards view shows every variant of the card (scoped to the tile's set
-        // when split by set); printings/copies view scopes to the one printing
-        // the tile stands for.
-        handleOpenVariants(printing, anchorEl, intent, tileGroupBy === "set", dataView !== "cards")
-    : undefined;
-
-  // oxlint-disable-next-line react-hooks/exhaustive-deps -- intentional: re-register every render
-  useEffect(() => {
-    useCardRowActionsStore.getState().setHandlers({
-      onRowClick: handleGridCardClick,
-      onSiblingClick: handleSiblingClick,
-      onIncrement: handleQuickAdd,
-      onDecrement: buildOnDecrement({
-        dataView,
-        groupBy: tileGroupBy,
-        ownedPrintingIdsByTile: allPrintingIdsByTile,
-        handleOpenVariants: openVariantsForTile,
-        tryUndoAdd,
-      }),
-      onOpenVariants: openVariantsForTile,
-      onItemClick: (itemId, printing, modifiers) => {
-        const stack = stackByItemId.get(itemId);
-        // Browse mode: ctrl-click on an owned card flips into select mode and
-        // toggles. Plain click opens the detail pane.
-        if (mode === "browse") {
-          if (modifiers.ctrl && stack) {
-            setSelectMode(true);
-            toggleStackForItem(itemId, stack);
-            setLastSelectedItemId(itemId);
-            return;
-          }
-          handleGridCardClick(printing);
-          return;
-        }
-        // Select mode: shift-click extends the range, regular click toggles.
-        if (!stack) {
-          return;
-        }
-        if (modifiers.shift) {
-          shiftSelectRange(itemId);
-        } else {
-          toggleStackForItem(itemId, stack);
-          setLastSelectedItemId(itemId);
-        }
-      },
-      onItemToggle: (itemId) => {
-        const stack = stackByItemId.get(itemId);
-        if (!stack) {
-          return;
-        }
-        toggleStackForItem(itemId, stack);
-        setLastSelectedItemId(itemId);
-      },
-      onContextAction: handleContextAction,
-      onTake: handleTake,
-    });
-    return () => {
-      useCardRowActionsStore.getState().setHandlers({});
-    };
-  });
 
   const searchAndClose = (query: string) => {
     setSearch(query);
