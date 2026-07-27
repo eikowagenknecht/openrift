@@ -108,7 +108,7 @@ export const marketplaceGroupParamSchema = z.object({
  * `parseCursor`'s `new Date(...)` and producing an Invalid Date that
  * propagates into the query.
  */
-const keysetCursorSchema = z
+export const keysetCursorSchema = z
   .string()
   .min(1)
   .refine(

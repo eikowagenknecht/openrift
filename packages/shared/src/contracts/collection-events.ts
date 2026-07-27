@@ -1,5 +1,6 @@
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { cardTypeSchema, imageIdSchema, raritySchema } from "@openrift/shared/response-schemas";
+import { keysetCursorSchema } from "@openrift/shared/schemas";
 import { z } from "zod";
 
 import { authedRoute } from "./_base.js";
@@ -7,7 +8,11 @@ import { authedRoute } from "./_base.js";
 extendZodWithOpenApi(z);
 
 export const collectionEventsQuerySchema = z.object({
-  cursor: z.string().min(1).optional(),
+  // Same keyset shape produced by collection-events.ts's buildEventsCursor:
+  // an ISO 8601 timestamp, optionally suffixed with "_<id>". Rejecting
+  // malformed cursors here means a garbage `cursor` fails with a 400 instead
+  // of reaching the repo's `new Date(...)` and producing a 500.
+  cursor: keysetCursorSchema.optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
 });
 

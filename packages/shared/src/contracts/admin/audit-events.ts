@@ -1,4 +1,4 @@
-import { isoDateTime } from "@openrift/shared/schemas";
+import { isoDateTime, keysetCursorSchema } from "@openrift/shared/schemas";
 import { z } from "zod";
 
 import { authedRoute } from "../_base.js";
@@ -30,6 +30,19 @@ const auditActorSchema = z.object({
   email: z.string().nullable(),
 });
 
+export const adminAuditEventsQuerySchema = z.object({
+  // Same keyset shape produced by admin-events.ts's buildEventsCursor
+  // (re-exported from collection-events.ts): an ISO 8601 timestamp,
+  // optionally suffixed with "_<id>". Rejecting malformed cursors here
+  // means a garbage `cursor` fails with a 400 instead of reaching the
+  // repo's `new Date(...)` and producing a 500.
+  cursor: keysetCursorSchema.optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+  actorUserId: z.string().optional(),
+  action: z.string().optional(),
+  search: z.string().optional(),
+});
+
 /**
  * oRPC contract for the admin audit log (migration 201). Cursor-paginated,
  * newest first; `search` matches entity label/id/card slug.
@@ -37,15 +50,7 @@ const auditActorSchema = z.object({
 export const adminAuditEventsContract = {
   list: authedRoute
     .route({ method: "GET", path: BASE, tags: [TAG] })
-    .input(
-      z.object({
-        cursor: z.string().min(1).optional(),
-        limit: z.coerce.number().int().min(1).max(100).optional(),
-        actorUserId: z.string().optional(),
-        action: z.string().optional(),
-        search: z.string().optional(),
-      }),
-    )
+    .input(adminAuditEventsQuerySchema)
     .output(
       z.object({
         items: z.array(adminAuditEventSchema),
