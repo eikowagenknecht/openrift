@@ -14,7 +14,6 @@ import type { Collection } from "@tanstack/react-db";
 import { createCollection } from "@tanstack/react-db";
 import { useQueryClient } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
-import { useMemo } from "react";
 
 import { useSession } from "@/lib/auth-session";
 import { markOrphaned } from "@/lib/collection-cleanup";
@@ -85,8 +84,5 @@ export function useCopiesCollection(): Collection<CopyResponse, string | number>
   const { data: session } = useSession();
   const queryClient = useQueryClient();
   const userId = session?.user?.id ?? null;
-  return useMemo(
-    () => (userId ? getCopiesCollection(queryClient, userId) : null),
-    [queryClient, userId],
-  );
+  return userId ? getCopiesCollection(queryClient, userId) : null;
 }

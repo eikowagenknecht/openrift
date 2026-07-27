@@ -1,18 +1,22 @@
 import type { CandidateCardSummaryResponse } from "@openrift/shared";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import type { ColumnDef, SortingState, Updater } from "@tanstack/react-table";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
-  flexRender,
   getCoreRowModel,
   getFilteredRowModel,
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
 import { ImagePlusIcon, LoaderIcon } from "lucide-react";
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
+import {
+  useAdminCardsTableUrlSync,
+  useVirtualizedTableRows,
+  VirtualizedAdminCardTable,
+} from "@/components/admin/admin-card-table-shared";
 import type { CardNameCellMeta } from "@/components/admin/card-name-cell";
 import { CardNameCell } from "@/components/admin/card-name-cell";
 import { DebouncedSearchInput } from "@/components/admin/debounced-search-input";
@@ -21,22 +25,13 @@ import { SortableHeader } from "@/components/admin/sortable-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   acceptFavoritesFn,
   useAcceptFavoriteNewCard,
   useLinkCard,
 } from "@/hooks/use-admin-card-mutations";
 import { useAllCards } from "@/hooks/use-admin-card-queries";
-import { parseSortParam, stringifySort } from "@/lib/admin-cards-search";
+import { parseSortParam } from "@/lib/admin-cards-search";
 import { queryKeys } from "@/lib/query-keys";
-import { useWindowVirtualizerFresh } from "@/lib/virtualizer-fresh";
 import { Route as CardsRoute } from "@/routes/_app/_authenticated/admin/cards";
 
 // ---------------------------------------------------------------------------
@@ -99,13 +94,6 @@ const COLUMN_WIDTHS: Record<string, string> = {
   name: "60%",
   candidates: "120px",
 };
-
-// ---------------------------------------------------------------------------
-// Virtualizer constants
-// ---------------------------------------------------------------------------
-
-const ROW_HEIGHT = 41;
-const OVERSCAN = 20;
 
 // ---------------------------------------------------------------------------
 // Component
@@ -198,23 +186,9 @@ export function CandidateCardsTable({ data, isAdmin }: { data: Row[]; isAdmin: b
     });
   }
 
-  function handleSortingChange(updater: Updater<SortingState>) {
-    const next = typeof updater === "function" ? updater(sorting) : updater;
-    void navigate({
-      search: (prev) => ({ ...prev, tableSort: stringifySort(next) }),
-      replace: true,
-    });
-  }
-
-  const handleGlobalFilterChange = useCallback(
-    (updater: Updater<string>) => {
-      const next = typeof updater === "function" ? updater(globalFilter) : updater;
-      void navigate({
-        search: (prev) => ({ ...prev, q: next === "" ? undefined : next }),
-        replace: true,
-      });
-    },
-    [globalFilter, navigate],
+  const { handleSortingChange, handleGlobalFilterChange } = useAdminCardsTableUrlSync(
+    sorting,
+    globalFilter,
   );
 
   const columns = makeColumns({ linkCard, acceptFavorite, allCards, isAdmin });
@@ -237,23 +211,9 @@ export function CandidateCardsTable({ data, isAdmin }: { data: Row[]; isAdmin: b
 
   const rows = table.getRowModel().rows;
 
-  // See accepted-cards-table for the window-virtualization rationale.
-  const tableAnchorRef = useRef<HTMLTableSectionElement>(null);
-  const [scrollMargin, setScrollMargin] = useState(0);
-  useLayoutEffect(() => {
-    const el = tableAnchorRef.current;
-    if (!el) {
-      return;
-    }
-    setScrollMargin(Math.round(el.getBoundingClientRect().top + globalThis.scrollY));
-  }, [rows.length]);
-
-  const { virtualItems, totalSize } = useWindowVirtualizerFresh({
-    count: rows.length,
-    estimateSize: () => ROW_HEIGHT,
-    overscan: OVERSCAN,
-    scrollMargin,
-  });
+  const { tableAnchorRef, virtualItems, totalSize, scrollMargin } = useVirtualizedTableRows(
+    rows.length,
+  );
 
   return (
     <div className="space-y-4">
@@ -314,46 +274,15 @@ export function CandidateCardsTable({ data, isAdmin }: { data: Row[]; isAdmin: b
       {rows.length === 0 ? (
         <p className="text-muted-foreground py-8 text-center text-sm">No candidates found.</p>
       ) : (
-        <Table className="min-w-[720px] table-fixed">
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} style={{ width: COLUMN_WIDTHS[header.id] }}>
-                    {flexRender(header.column.columnDef.header, header.getContext())}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody ref={tableAnchorRef}>
-            {/* See accepted-cards-table for why we adjust by scrollMargin. */}
-            {virtualItems.length > 0 && (
-              // oxlint-disable-next-line jsx-a11y/control-has-associated-label -- TanStack Virtual spacer row, no semantic content
-              <tr style={{ height: virtualItems[0].start - scrollMargin }} />
-            )}
-            {virtualItems.map((virtualRow) => {
-              const row = rows[virtualRow.index];
-              return (
-                <TableRow key={row.id} data-index={virtualRow.index}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className="whitespace-normal">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              );
-            })}
-            {virtualItems.length > 0 && (
-              // oxlint-disable-next-line jsx-a11y/control-has-associated-label -- TanStack Virtual spacer row, no semantic content
-              <tr
-                style={{
-                  height: totalSize - (virtualItems.at(-1)?.end ?? 0) + scrollMargin,
-                }}
-              />
-            )}
-          </TableBody>
-        </Table>
+        <VirtualizedAdminCardTable
+          table={table}
+          rows={rows}
+          virtualItems={virtualItems}
+          totalSize={totalSize}
+          scrollMargin={scrollMargin}
+          tableAnchorRef={tableAnchorRef}
+          columnWidths={COLUMN_WIDTHS}
+        />
       )}
     </div>
   );

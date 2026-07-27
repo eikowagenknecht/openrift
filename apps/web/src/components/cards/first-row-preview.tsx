@@ -164,7 +164,7 @@ export function FirstRowPreview() {
                   // grid down and inward when CardBrowser hydrates.
                   <div
                     key={card.printingId}
-                    className={`rounded-lg p-1.5 ${visibilityForIndex(i)}`}
+                    className={cn("rounded-lg p-1.5", visibilityForIndex(i))}
                   >
                     {card.rotated ? (
                       // Landscape battlefields: mirror CardThumbnail's rotated

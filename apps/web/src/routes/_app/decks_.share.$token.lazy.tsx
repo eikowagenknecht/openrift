@@ -2,7 +2,7 @@ import type { PublicDeckCardResponse } from "@openrift/shared";
 import { WellKnown, imageUrl } from "@openrift/shared";
 import { createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import { CopyIcon } from "lucide-react";
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { DeckMissingCardsDialog } from "@/components/deck/deck-missing-cards-dialog";
@@ -35,7 +35,7 @@ import { useSession } from "@/lib/auth-session";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import type { FilterSearch } from "@/lib/search-schemas";
 import { FilterSearchProvider } from "@/lib/search-schemas";
-import { CONTAINER_WIDTH, PAGE_PADDING } from "@/lib/utils";
+import { CONTAINER_WIDTH, PAGE_PADDING, cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
@@ -114,8 +114,8 @@ function SharedDeckContent({
   // Everything the shell needs — builder cards, thumbnails, hover full-image
   // URLs — comes straight from the enriched payload. No catalog lookup, so
   // this branch is SSR-safe.
-  const builderCards = useMemo(() => data.cards.map(toBuilderCardFromPublic), [data.cards]);
-  const thumbByKey = useMemo(() => {
+  const builderCards = data.cards.map(toBuilderCardFromPublic);
+  const thumbByKey = (() => {
     const map = new Map<string, string>();
     for (const card of data.cards) {
       if (card.imageId) {
@@ -123,8 +123,8 @@ function SharedDeckContent({
       }
     }
     return map;
-  }, [data.cards]);
-  const hoverMeta = useMemo(() => {
+  })();
+  const hoverMeta = (() => {
     const map = new Map<string, { fullUrl: string; landscape: boolean }>();
     for (const card of data.cards) {
       if (card.imageId) {
@@ -135,7 +135,7 @@ function SharedDeckContent({
       }
     }
     return map;
-  }, [data.cards]);
+  })();
 
   const [ownershipData, setOwnershipData] = useState<DeckOwnershipData>();
 
@@ -194,7 +194,7 @@ function SharedDeckContent({
   return (
     <div
       ref={containerRef}
-      className={`${PAGE_PADDING} ${CONTAINER_WIDTH} relative flex flex-col gap-4 py-4`}
+      className={cn(PAGE_PADDING, CONTAINER_WIDTH, "relative flex flex-col gap-4 py-4")}
     >
       {topBarSlot &&
         createPortal(

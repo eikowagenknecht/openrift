@@ -1,7 +1,7 @@
 import type { StagedProductResponse } from "@openrift/shared";
 import { useNavigate } from "@tanstack/react-router";
 import { AlertTriangleIcon, BanIcon, EllipsisVerticalIcon, LinkIcon, XIcon } from "lucide-react";
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 
 import { displayedProductLanguage } from "@/components/admin/marketplace-products-table";
 import type { CardSearchResult } from "@/components/cards/card-search-dropdown";
@@ -104,46 +104,35 @@ export function UnmatchedProductsPanel() {
   const [languageFilter, setLanguageFilter] = useState<"all" | string>("all");
   const [search, setSearch] = useState("");
 
-  const allRows = useMemo(() => flattenUnmatched(data), [data]);
+  const allRows = flattenUnmatched(data);
 
   // Populate finish and language filters from the visible data so options
   // reflect what's actually in the current dataset, not a fixed allow-list.
-  const availableFinishes = useMemo(
-    () => [...new Set(allRows.map((row) => row.product.finish))].toSorted(),
-    [allRows],
-  );
-  const availableLanguages = useMemo(
-    () =>
-      [
-        ...new Set(
-          allRows.map((row) => row.product.language).filter((l): l is string => l !== null),
-        ),
-      ].toSorted(),
-    [allRows],
-  );
+  const availableFinishes = [...new Set(allRows.map((row) => row.product.finish))].toSorted();
+  const availableLanguages = [
+    ...new Set(allRows.map((row) => row.product.language).filter((l): l is string => l !== null)),
+  ].toSorted();
 
-  const filtered = useMemo(() => {
-    const needle = search.trim().toLowerCase();
-    return allRows.filter((row) => {
-      if (marketplaceFilter !== "all" && row.marketplace !== marketplaceFilter) {
-        return false;
-      }
-      if (finishFilter !== "all" && row.product.finish !== finishFilter) {
-        return false;
-      }
-      if (languageFilter !== "all" && row.product.language !== languageFilter) {
-        return false;
-      }
-      if (needle && !row.product.productName.toLowerCase().includes(needle)) {
-        return false;
-      }
-      return true;
-    });
-  }, [allRows, marketplaceFilter, finishFilter, languageFilter, search]);
+  const needle = search.trim().toLowerCase();
+  const filtered = allRows.filter((row) => {
+    if (marketplaceFilter !== "all" && row.marketplace !== marketplaceFilter) {
+      return false;
+    }
+    if (finishFilter !== "all" && row.product.finish !== finishFilter) {
+      return false;
+    }
+    if (languageFilter !== "all" && row.product.language !== languageFilter) {
+      return false;
+    }
+    if (needle && !row.product.productName.toLowerCase().includes(needle)) {
+      return false;
+    }
+    return true;
+  });
 
   // Sort rows so marketplace-grouped header rows render in a stable order and
   // the rows within each marketplace match the per-card marketplace table.
-  const sortedRows = useMemo(() => {
+  const sortedRows = (() => {
     const marketplaceOrder: Record<Marketplace, number> = {
       tcgplayer: 0,
       cardmarket: 1,
@@ -157,7 +146,7 @@ export function UnmatchedProductsPanel() {
         (a.product.language ?? "").localeCompare(b.product.language ?? "") ||
         a.product.externalId - b.product.externalId,
     );
-  }, [filtered]);
+  })();
 
   // Mutations — one per marketplace, reused from the old unified page.
   const tcgAssign = useUnifiedAssignToCard("tcgplayer");

@@ -1,6 +1,6 @@
 import type { DistributionChannelKind, DistributionChannelResponse } from "@openrift/shared";
-import { useMemo } from "react";
 
+import { validateSlugAndLabel } from "@/components/admin/admin-crud-shared";
 import { AdminTable } from "@/components/admin/admin-table";
 import type {
   AdminCellSlotProps,
@@ -23,7 +23,6 @@ import {
   useReorderDistributionChannels,
   useUpdateDistributionChannel,
 } from "@/hooks/use-distribution-channels";
-import { isValidSlug } from "@/lib/admin-slug";
 import type { ChannelTreeNode } from "@/lib/distribution-channel-tree";
 import { buildChannelTree, canReparent } from "@/lib/distribution-channel-tree";
 
@@ -239,12 +238,10 @@ function ParentSelect({ draft, setDraft, tree, channels }: ParentSelectProps) {
   );
 }
 
-function KindEditCell({ draft, setDraft }: AdminDraftSlotProps<ChannelDraft>) {
+// The `kind` Select shared by the edit and add-row cells below.
+function KindSelect({ draft, setDraft }: AdminDraftSlotProps<ChannelDraft>) {
   if (!draft || !setDraft) {
     return null;
-  }
-  if (draft.parentId !== null) {
-    return <span className="text-muted-foreground capitalize">{KIND_LABEL[draft.kind]}</span>;
   }
   return (
     <Select
@@ -264,26 +261,18 @@ function KindEditCell({ draft, setDraft }: AdminDraftSlotProps<ChannelDraft>) {
   );
 }
 
-function KindAddSelect({ draft, setDraft }: AdminDraftSlotProps<ChannelDraft>) {
+function KindEditCell({ draft, setDraft }: AdminDraftSlotProps<ChannelDraft>) {
   if (!draft || !setDraft) {
     return null;
   }
-  return (
-    <Select
-      value={draft.kind}
-      onValueChange={(value) =>
-        value && setDraft((prev) => ({ ...prev, kind: value as DistributionChannelKind }))
-      }
-    >
-      <SelectTrigger className="h-8 w-32">
-        <SelectValue>{(value: string) => KIND_LABEL[value as DistributionChannelKind]}</SelectValue>
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="event">Event</SelectItem>
-        <SelectItem value="product">Product</SelectItem>
-      </SelectContent>
-    </Select>
-  );
+  if (draft.parentId !== null) {
+    return <span className="text-muted-foreground capitalize">{KIND_LABEL[draft.kind]}</span>;
+  }
+  return <KindSelect draft={draft} setDraft={setDraft} />;
+}
+
+function KindAddSelect({ draft, setDraft }: AdminDraftSlotProps<ChannelDraft>) {
+  return <KindSelect draft={draft} setDraft={setDraft} />;
 }
 
 function ChildrenLabelInput({ draft, setDraft }: AdminDraftSlotProps<ChannelDraft>) {
@@ -322,10 +311,10 @@ export function DistributionChannelsPage() {
   const reorderMutation = useReorderDistributionChannels();
 
   const channels = data.distributionChannels;
-  const tree = useMemo(() => buildChannelTree(channels), [channels]);
-  const orderedChannels = useMemo(() => tree.map((node) => node.channel), [tree]);
-  const nodeById = useMemo(() => new Map(tree.map((n) => [n.channel.id, n])), [tree]);
-  const labelById = useMemo(() => new Map(channels.map((c) => [c.id, c.label])), [channels]);
+  const tree = buildChannelTree(channels);
+  const orderedChannels = tree.map((node) => node.channel);
+  const nodeById = new Map(tree.map((n) => [n.channel.id, n]));
+  const labelById = new Map(channels.map((c) => [c.id, c.label]));
 
   function moveChannel(index: number, direction: -1 | 1) {
     const current = orderedChannels[index];
@@ -443,17 +432,7 @@ export function DistributionChannelsPage() {
             parentId: d.parentId,
             childrenLabel: d.childrenLabel.trim() || null,
           }),
-        validate: (d) => {
-          const slug = d.slug.trim();
-          const label = d.label.trim();
-          if (!slug || !label) {
-            return "Slug and label are required";
-          }
-          if (!isValidSlug(slug)) {
-            return "Slug must be kebab-case (e.g. nexus-night-2025)";
-          }
-          return null;
-        },
+        validate: (d) => validateSlugAndLabel(d.slug, d.label, "nexus-night-2025"),
         label: "Add Distribution Channel",
       }}
       edit={{
@@ -476,17 +455,7 @@ export function DistributionChannelsPage() {
             parentId: d.parentId,
             childrenLabel: d.childrenLabel.trim() || null,
           }),
-        validate: (d) => {
-          const slug = d.slug.trim();
-          const label = d.label.trim();
-          if (!slug || !label) {
-            return "Slug and label are required";
-          }
-          if (!isValidSlug(slug)) {
-            return "Slug must be kebab-case (e.g. nexus-night-2025)";
-          }
-          return null;
-        },
+        validate: (d) => validateSlugAndLabel(d.slug, d.label, "nexus-night-2025"),
       }}
       reorder={{
         onMove: moveChannel,

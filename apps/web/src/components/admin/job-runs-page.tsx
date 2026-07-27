@@ -31,6 +31,7 @@ import { useAdminJobRuns } from "@/hooks/use-job-runs";
 import { useCancelRegenerateImages } from "@/hooks/use-rehost";
 import { getPageItems } from "@/lib/paginate";
 import type { JobRunView } from "@/lib/server-fns/api-types";
+import { cn } from "@/lib/utils";
 
 /** Job kinds that expose a cancel endpoint. Only resumable jobs that re-read
  *  `result` between batches can be cancelled mid-run; everything else has no
@@ -418,7 +419,7 @@ function FilterSelect({
 }) {
   return (
     <Select items={options} value={value} onValueChange={(next) => onChange(next ?? ANY)}>
-      <SelectTrigger className={`h-8 ${width}`}>
+      <SelectTrigger className={cn("h-8", width)}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

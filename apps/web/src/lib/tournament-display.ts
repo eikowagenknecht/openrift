@@ -36,11 +36,6 @@ export const PAIRING_STYLE_LABEL: Record<TournamentPairingStyle, string> = {
   none: "None",
 };
 
-export const PLAY_MODE_LABEL: Record<TournamentPlayMode, string> = {
-  "1v1": "1v1",
-  "2v2": "2v2 teams",
-};
-
 // Select option lists shared by the create wizard and the settings tab, so the
 // two surfaces can't drift apart.
 export const PLAY_MODE_ITEMS: { value: TournamentPlayMode; label: string }[] = [

@@ -1,3 +1,4 @@
+import { LabelInput, validateSlugAndLabel } from "@/components/admin/admin-crud-shared";
 import { AdminTable } from "@/components/admin/admin-table";
 import type {
   AdminCellSlotProps,
@@ -13,7 +14,6 @@ import {
   useReorderArtVariants,
   useUpdateArtVariant,
 } from "@/hooks/use-art-variants";
-import { isValidSlug } from "@/lib/admin-slug";
 
 interface ArtVariantRow {
   slug: string;
@@ -64,19 +64,6 @@ function SlugAddInput({ draft, setDraft }: AdminDraftSlotProps<ArtVariantDraft>)
   );
 }
 
-function LabelInput({ draft, setDraft }: AdminDraftSlotProps<ArtVariantDraft>) {
-  if (!draft || !setDraft) {
-    return null;
-  }
-  return (
-    <Input
-      value={draft.label}
-      onChange={(event) => setDraft((prev) => ({ ...prev, label: event.target.value }))}
-      className="h-8"
-    />
-  );
-}
-
 function LabelAddInput({ draft, setDraft }: AdminDraftSlotProps<ArtVariantDraft>) {
   if (!draft || !setDraft) {
     return null;
@@ -102,7 +89,7 @@ const columns: AdminColumnDef<ArtVariantRow, ArtVariantDraft>[] = [
     header: "Label",
     sortValue: (artVariant) => artVariant.label,
     cell: <LabelCell />,
-    editCell: <LabelInput />,
+    editCell: <LabelInput<ArtVariantDraft> />,
     addCell: <LabelAddInput />,
   },
   {
@@ -149,17 +136,8 @@ export function ArtVariantsPage() {
             slug: draft.slug.trim(),
             label: draft.label.trim(),
           }),
-        validate: (draft) => {
-          const slug = draft.slug.trim();
-          const label = draft.label.trim();
-          if (!slug || !label) {
-            return "Slug and label are required";
-          }
-          if (!isValidSlug(slug)) {
-            return "Slug must be kebab-case (e.g. alternate, extended-art)";
-          }
-          return null;
-        },
+        validate: (draft) =>
+          validateSlugAndLabel(draft.slug, draft.label, "alternate, extended-art"),
         label: "Add Art Variant",
       }}
       edit={{

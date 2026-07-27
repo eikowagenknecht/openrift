@@ -20,7 +20,7 @@ import { useLanguageList } from "@/hooks/use-enums";
 import { useSession } from "@/lib/auth-session";
 import { formatAbsoluteDate } from "@/lib/format-date";
 import { useGravatarHash } from "@/lib/gravatar";
-import { PAGE_PADDING } from "@/lib/utils";
+import { cn, PAGE_PADDING } from "@/lib/utils";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/profile")({
   component: ProfilePage,
@@ -55,7 +55,7 @@ function ProfilePage() {
     : null;
 
   return (
-    <div className={`flex justify-center ${PAGE_PADDING}`}>
+    <div className={cn("flex justify-center", PAGE_PADDING)}>
       <SettingsLayout toc={NAV_SECTIONS} className="max-w-4xl">
         <Card>
           <CardHeader className="flex flex-row items-center gap-4">

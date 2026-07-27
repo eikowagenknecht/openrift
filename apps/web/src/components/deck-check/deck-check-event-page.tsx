@@ -221,11 +221,17 @@ function EntryRow({
       <Link
         to="/tournaments/$id/decks/$entryId"
         params={{ id: tournamentId, entryId: entry.id }}
-        className={`flex min-w-0 flex-1 items-center gap-2 ${participantInactive ? "opacity-60" : ""}`}
+        className={cn(
+          "flex min-w-0 flex-1 items-center gap-2",
+          participantInactive && "opacity-60",
+        )}
       >
         <span className="flex min-w-0 flex-1 items-center gap-2">
           <span
-            className={`min-w-0 truncate font-medium ${entry.state === "withdrawn" ? "line-through" : ""}`}
+            className={cn(
+              "min-w-0 truncate font-medium",
+              entry.state === "withdrawn" && "line-through",
+            )}
           >
             {entry.playerName}
           </span>

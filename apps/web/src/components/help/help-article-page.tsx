@@ -3,7 +3,7 @@ import { ChevronRightIcon } from "lucide-react";
 import { Suspense, lazy } from "react";
 
 import { Heading } from "@/components/heading";
-import { PAGE_PADDING } from "@/lib/utils";
+import { cn, PAGE_PADDING } from "@/lib/utils";
 
 import type { HelpArticle } from "./articles";
 
@@ -11,7 +11,7 @@ export function HelpArticlePage({ article }: { article: HelpArticle }) {
   const ArticleContent = lazy(article.component);
 
   return (
-    <div className={`mx-auto w-full max-w-2xl flex-1 ${PAGE_PADDING}`}>
+    <div className={cn("mx-auto w-full max-w-2xl flex-1", PAGE_PADDING)}>
       <nav aria-label="Breadcrumb" className="mb-4">
         <ol className="text-muted-foreground flex items-center gap-1 text-sm">
           <li>

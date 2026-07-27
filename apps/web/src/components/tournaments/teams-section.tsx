@@ -17,6 +17,7 @@ import {
 import { UserAvatar } from "@/components/user-avatar";
 import { useCreateTeam, useDissolveTeam } from "@/hooks/use-tournaments";
 import { teamDisplayName } from "@/lib/team-display";
+import { cn } from "@/lib/utils";
 
 /**
  * The 2v2 team roster: the fixed pairs, a builder that pairs two unteamed
@@ -105,7 +106,10 @@ export function TeamsSection({
             return (
               <li
                 key={team.teamId}
-                className={`ring-foreground/10 bg-card flex items-center justify-between gap-2 rounded-lg px-3 py-2 ring-1 ${team.dropped ? "opacity-50" : ""}`}
+                className={cn(
+                  "ring-foreground/10 bg-card flex items-center justify-between gap-2 rounded-lg px-3 py-2 ring-1",
+                  team.dropped && "opacity-50",
+                )}
               >
                 <span className="flex min-w-0 items-center gap-2">
                   <UserAvatar name={name} size="sm" />

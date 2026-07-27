@@ -9,7 +9,7 @@ import { createTransaction, eq, useLiveQuery } from "@tanstack/react-db";
 import { useBatcher } from "@tanstack/react-pacer";
 import type { QueryClient } from "@tanstack/react-query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 
 import { trackEvent } from "@/lib/analytics";
 import { useUserId } from "@/lib/auth-session";
@@ -464,40 +464,37 @@ export function useBatchedAddCopies(callbacks?: BatchedAddCallbacks) {
     { wait: BATCH_DELAY },
   );
 
-  const add = useCallback(
-    (
-      printingId: string,
-      collectionId: string,
-    ): { tempId: string; result: Promise<AddCopyResult> } => {
-      // Optimistic: insert the row into the synced store immediately with a
-      // temp id so owned-count / grid filters update now, not after the 300ms
-      // batch window + API round-trip. The mutation swaps this for the real
-      // server-assigned row on success. The tempId is returned so callers
-      // can record it in session-level "recently added" UI immediately and
-      // swap for the real id after the API confirms.
-      const tempId = `${TEMP_COPY_ID_PREFIX}${randomUuid()}`;
-      if (copiesCollection) {
-        const groupId = userId ? groupIdForCollection(queryClient, userId, collectionId) : null;
-        copiesCollection.utils.writeInsert([
-          {
-            id: tempId,
-            printingId,
-            collectionId,
-            groupId,
-            ...EMPTY_COPY_METADATA,
-            onLoan: false,
-            reserved: false,
-          },
-        ]);
-      }
-      // oxlint-disable-next-line promise/avoid-new -- deferred pattern needed to batch individual calls into one POST
-      const result = new Promise<AddCopyResult>((resolve, reject) => {
-        batcher.addItem({ printingId, collectionId, tempId, resolve, reject });
-      });
-      return { tempId, result };
-    },
-    [copiesCollection, batcher, queryClient, userId],
-  );
+  const add = (
+    printingId: string,
+    collectionId: string,
+  ): { tempId: string; result: Promise<AddCopyResult> } => {
+    // Optimistic: insert the row into the synced store immediately with a
+    // temp id so owned-count / grid filters update now, not after the 300ms
+    // batch window + API round-trip. The mutation swaps this for the real
+    // server-assigned row on success. The tempId is returned so callers
+    // can record it in session-level "recently added" UI immediately and
+    // swap for the real id after the API confirms.
+    const tempId = `${TEMP_COPY_ID_PREFIX}${randomUuid()}`;
+    if (copiesCollection) {
+      const groupId = userId ? groupIdForCollection(queryClient, userId, collectionId) : null;
+      copiesCollection.utils.writeInsert([
+        {
+          id: tempId,
+          printingId,
+          collectionId,
+          groupId,
+          ...EMPTY_COPY_METADATA,
+          onLoan: false,
+          reserved: false,
+        },
+      ]);
+    }
+    // oxlint-disable-next-line promise/avoid-new -- deferred pattern needed to batch individual calls into one POST
+    const result = new Promise<AddCopyResult>((resolve, reject) => {
+      batcher.addItem({ printingId, collectionId, tempId, resolve, reject });
+    });
+    return { tempId, result };
+  };
 
   return { add, isPending: addCopies.isPending };
 }

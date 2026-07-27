@@ -1,8 +1,17 @@
-import type { ListKind, Printing } from "@openrift/shared";
+import type { ListKind } from "@openrift/shared";
 import { useNavigate } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
+import type { ImportStep } from "@/hooks/import-flow-shared";
+import {
+  createImportEntryHandlers,
+  deriveImportSummary,
+  handleImportFileUpload,
+  IMPORT_BATCH_SIZE,
+  runImportParse,
+  STATUS_SORT_ORDER,
+} from "@/hooks/import-flow-shared";
 import { useCards } from "@/hooks/use-cards";
 import { useCreateCollection } from "@/hooks/use-collections";
 import { useAddCopies, useDisposeCopies } from "@/hooks/use-copies";
@@ -10,21 +19,11 @@ import type { ImportableListKind } from "@/hooks/use-list-import-flow";
 import { buildListImportPayload } from "@/hooks/use-list-import-flow";
 import { useBulkAddListEntries, useLists } from "@/hooks/use-lists";
 import { useCopiesCollection } from "@/lib/copies-collection";
-import type { MatchStatus, MatchedEntry } from "@/lib/import-matcher";
+import type { MatchedEntry } from "@/lib/import-matcher";
 import { matchEntries } from "@/lib/import-matcher";
 import type { ImportCopyMetadata } from "@/lib/import-parsers";
 import { copyIdsInCollection, LIST_TARGET_PREFIX } from "@/lib/import-replace";
-import { summarizeMatchedEntries } from "@/lib/import-summary";
-import { parseListImport } from "@/lib/list-import-parser";
 import { useDisplayStore } from "@/stores/display-store";
-
-const STATUS_SORT_ORDER: Record<MatchStatus, number> = {
-  unresolved: 0,
-  "needs-review": 1,
-  exact: 2,
-};
-
-const BATCH_SIZE = 500;
 
 /** A list the importer can target, narrowed to the kinds that accept imported cards. */
 export interface ImportableListOption {
@@ -46,8 +45,6 @@ export function toImportableListOptions(
     .filter((list) => list.kind === "card" || list.kind === "printing")
     .map((list) => ({ id: list.id, name: list.name, kind: list.kind as ImportableListKind }));
 }
-
-type ImportStep = "input" | "preview";
 
 /**
  * Manages all state and handlers for the import flow: parsing, matching,
@@ -81,90 +78,42 @@ export function useImportFlow() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleParse = (text: string) => {
-    const { entries, errors, rowCount: parsedRowCount } = parseListImport(text);
-    setRowCount(parsedRowCount);
-    setParseErrors(errors);
-
-    if (entries.length === 0) {
-      return;
-    }
-
-    const matched = matchEntries(entries, allPrintings, preferredLanguages[0]);
-    const sorted = matched.toSorted((entryA, entryB) => {
-      const statusDiff = STATUS_SORT_ORDER[entryA.status] - STATUS_SORT_ORDER[entryB.status];
-      if (statusDiff !== 0) {
-        return statusDiff;
-      }
-      return entryA.entry.sourceCode.localeCompare(entryB.entry.sourceCode);
-    });
-    setMatchedEntries(sorted);
-    setSkippedIndices(new Set());
-
-    // Auto-expand non-exact entries so the user sees details that need attention
-    const nonExact = new Set<number>();
-    for (let index = 0; index < sorted.length; index++) {
-      if (sorted[index].status !== "exact") {
-        nonExact.add(index);
-      }
-    }
-    setExpandedIndices(nonExact);
-
-    setStep("preview");
-  };
-
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) {
-      return;
-    }
-    const text = await file.text();
-    setRawText(text);
-    handleParse(text);
-    // Reset file input so the same file can be re-selected
-    if (fileRef.current) {
-      fileRef.current.value = "";
-    }
-  };
-
-  const handleResolve = (index: number, printing: Printing) => {
-    setMatchedEntries((prev) =>
-      prev.map((entry, entryIndex) =>
-        entryIndex === index
-          ? { ...entry, resolvedPrinting: printing, status: "exact" as MatchStatus }
-          : entry,
-      ),
+    runImportParse(
+      text,
+      (entries) => {
+        const matched = matchEntries(entries, allPrintings, preferredLanguages[0]);
+        return matched.toSorted((entryA, entryB) => {
+          const statusDiff = STATUS_SORT_ORDER[entryA.status] - STATUS_SORT_ORDER[entryB.status];
+          if (statusDiff !== 0) {
+            return statusDiff;
+          }
+          return entryA.entry.sourceCode.localeCompare(entryB.entry.sourceCode);
+        });
+      },
+      {
+        setRowCount,
+        setParseErrors,
+        setMatchedEntries,
+        setSkippedIndices,
+        setExpandedIndices,
+        setStep,
+      },
     );
   };
 
-  const handleSkip = (index: number) => {
-    setSkippedIndices((prev) => new Set([...prev, index]));
-  };
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) =>
+    handleImportFileUpload(event, fileRef, setRawText, handleParse);
 
-  const handleUnskip = (index: number) => {
-    setSkippedIndices((prev) => {
-      const next = new Set(prev);
-      next.delete(index);
-      return next;
-    });
-  };
-
-  const handleToggleExpand = (index: number) => {
-    setExpandedIndices((prev) => {
-      const next = new Set(prev);
-      if (next.has(index)) {
-        next.delete(index);
-      } else {
-        next.add(index);
-      }
-      return next;
-    });
-  };
-
-  const importableEntries = matchedEntries.filter(
-    (entry, index) => entry.resolvedPrinting && !skippedIndices.has(index),
+  const { handleResolve, handleSkip, handleUnskip, handleToggleExpand } = createImportEntryHandlers(
+    setMatchedEntries,
+    setSkippedIndices,
+    setExpandedIndices,
   );
-  const summary = summarizeMatchedEntries(matchedEntries, skippedIndices);
-  const skippedCount = skippedIndices.size;
+
+  const { importableEntries, summary, skippedCount } = deriveImportSummary(
+    matchedEntries,
+    skippedIndices,
+  );
 
   const importIntoList = async (listId: string) => {
     const list = importableLists.find((option) => option.id === listId);
@@ -177,8 +126,8 @@ export function useImportFlow() {
 
     const payload = buildListImportPayload(importableEntries, list.kind);
     const batches: (typeof payload)[] = [];
-    for (let offset = 0; offset < payload.length; offset += BATCH_SIZE) {
-      batches.push(payload.slice(offset, offset + BATCH_SIZE));
+    for (let offset = 0; offset < payload.length; offset += IMPORT_BATCH_SIZE) {
+      batches.push(payload.slice(offset, offset + IMPORT_BATCH_SIZE));
     }
     const cardLabel = summary.totalCards === 1 ? "card" : "cards";
 
@@ -273,8 +222,8 @@ export function useImportFlow() {
 
     // Batch in groups of 500
     const batches: (typeof copies)[] = [];
-    for (let offset = 0; offset < copies.length; offset += BATCH_SIZE) {
-      batches.push(copies.slice(offset, offset + BATCH_SIZE));
+    for (let offset = 0; offset < copies.length; offset += IMPORT_BATCH_SIZE) {
+      batches.push(copies.slice(offset, offset + IMPORT_BATCH_SIZE));
     }
     const copyLabel = summary.totalCards === 1 ? "copy" : "copies";
 

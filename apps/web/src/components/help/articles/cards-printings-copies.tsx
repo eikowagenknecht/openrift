@@ -6,6 +6,7 @@ import { CardText } from "@/components/cards/card-text";
 import { Heading } from "@/components/heading";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
+import { cn } from "@/lib/utils";
 
 /** Short codes used in the diagram, in display order. */
 const DIAGRAM_SHORT_CODES = ["OGN-007", "OGN-007a", "SFD-R01b"];
@@ -293,13 +294,16 @@ function CardImage({ src, alt, className }: { src?: string; alt: string; classNa
   const [errored, setErrored] = useState(false);
   const showSkeleton = !src || errored || !loaded;
   return (
-    <div className={`relative overflow-hidden rounded ${className}`}>
+    <div className={cn("relative overflow-hidden rounded", className)}>
       {showSkeleton && <Skeleton className="absolute inset-0" aria-hidden="true" />}
       {src && !errored && (
         <img
           src={src}
           alt={alt}
-          className={`absolute inset-0 h-full w-full transition-opacity ${loaded ? "opacity-100" : "opacity-0"}`}
+          className={cn(
+            "absolute inset-0 h-full w-full transition-opacity",
+            loaded ? "opacity-100" : "opacity-0",
+          )}
           onLoad={() => setLoaded(true)}
           onError={() => setErrored(true)}
         />
@@ -327,7 +331,12 @@ function ExampleTable({ rows }: { rows: React.ReactNode[][] }) {
               {row.map((cell, cellIndex) => (
                 <td
                   key={cellIndex}
-                  className={`px-3 py-2 ${cellIndex === 0 ? "bg-muted/50 font-medium whitespace-nowrap" : "text-muted-foreground min-w-32"}`}
+                  className={cn(
+                    "px-3 py-2",
+                    cellIndex === 0
+                      ? "bg-muted/50 font-medium whitespace-nowrap"
+                      : "text-muted-foreground min-w-32",
+                  )}
                 >
                   {cell === null ? "—" : cell}
                 </td>

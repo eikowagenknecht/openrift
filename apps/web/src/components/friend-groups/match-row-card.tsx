@@ -202,8 +202,8 @@ function resolveMatchRows(
       cardSlug: card?.slug ?? row.cardId,
       shortCode: printing?.shortCode ?? "",
       setName: set?.name ?? row.setId,
-      rarityLabel: labels.rarities[row.rarity] ?? row.rarity,
-      finishLabel: labels.finishes[row.finish] ?? row.finish,
+      rarityLabel: labels.rarities[row.rarity],
+      finishLabel: labels.finishes[row.finish],
       domains: card?.domains ?? [],
       printing,
     };

@@ -33,15 +33,15 @@ export function formatPrintingLabelParts(
   const language = siblings && !allSame((c) => c.language) ? printing.language : null;
   const rest: string[] = [];
   if (printing.artVariant !== WellKnown.artVariant.NORMAL) {
-    rest.push(labels.artVariants[printing.artVariant] ?? printing.artVariant);
+    rest.push(labels.artVariants[printing.artVariant]);
   }
   if (printing.finish !== WellKnown.finish.NORMAL && !allSame((c) => c.finish)) {
-    rest.push(labels.finishes[printing.finish] ?? printing.finish);
+    rest.push(labels.finishes[printing.finish]);
   }
   // Oversized is always labeled when present (like art variant): the larger
   // print carries meaning even without a standard counterpart in the list.
   if (printing.size !== "standard") {
-    rest.push(labels.cardSizes[printing.size] ?? printing.size);
+    rest.push(labels.cardSizes[printing.size]);
   }
   if (printing.isSigned && !allSame((c) => c.isSigned)) {
     rest.push("Signed");

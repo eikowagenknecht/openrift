@@ -8,7 +8,7 @@ import { Heading } from "@/components/heading";
 import { Pressable } from "@/components/ui/pressable";
 import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
 import { prefillFromCard } from "@/lib/contribute-json";
-import { PAGE_PADDING } from "@/lib/utils";
+import { cn, PAGE_PADDING } from "@/lib/utils";
 
 export const Route = createLazyFileRoute("/_app/contribute_/$cardSlug")({
   component: ContributeCorrectionPage,
@@ -33,7 +33,7 @@ function ContributeCorrectionPage() {
   };
 
   return (
-    <div className={`${PAGE_PADDING} mx-auto flex w-full max-w-3xl flex-col gap-6 xl:max-w-6xl`}>
+    <div className={cn(PAGE_PADDING, "mx-auto flex w-full max-w-3xl flex-col gap-6 xl:max-w-6xl")}>
       <Pressable
         onClick={handleBack}
         className="text-muted-foreground hover:text-foreground inline-flex w-fit items-center gap-1.5"

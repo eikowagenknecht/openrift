@@ -159,7 +159,7 @@ export function CreateCardPage() {
               >
                 {orders.cardTypes.map((typeSlug) => (
                   <ToggleGroupItem key={typeSlug} value={typeSlug}>
-                    {labels.cardTypes[typeSlug] ?? typeSlug}
+                    {labels.cardTypes[typeSlug]}
                   </ToggleGroupItem>
                 ))}
               </ToggleGroup>
@@ -177,7 +177,7 @@ export function CreateCardPage() {
               >
                 {orders.domains.map((domainSlug) => (
                   <ToggleGroupItem key={domainSlug} value={domainSlug}>
-                    {labels.domains[domainSlug] ?? domainSlug}
+                    {labels.domains[domainSlug]}
                   </ToggleGroupItem>
                 ))}
               </ToggleGroup>
@@ -195,7 +195,7 @@ export function CreateCardPage() {
               >
                 {orders.superTypes.map((superTypeSlug) => (
                   <ToggleGroupItem key={superTypeSlug} value={superTypeSlug}>
-                    {labels.superTypes[superTypeSlug] ?? superTypeSlug}
+                    {labels.superTypes[superTypeSlug]}
                   </ToggleGroupItem>
                 ))}
               </ToggleGroup>

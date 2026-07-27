@@ -1,3 +1,4 @@
+import { LabelInput } from "@/components/admin/admin-crud-shared";
 import { AdminTable } from "@/components/admin/admin-table";
 import type {
   AdminCellSlotProps,
@@ -94,19 +95,6 @@ function SlugAddInput({ draft, setDraft }: AdminDraftSlotProps<DomainDraft>) {
   );
 }
 
-function LabelInput({ draft, setDraft }: AdminDraftSlotProps<DomainDraft>) {
-  if (!draft || !setDraft) {
-    return null;
-  }
-  return (
-    <Input
-      value={draft.label}
-      onChange={(event) => setDraft((prev) => ({ ...prev, label: event.target.value }))}
-      className="h-8"
-    />
-  );
-}
-
 function LabelAddInput({ draft, setDraft }: AdminDraftSlotProps<DomainDraft>) {
   if (!draft || !setDraft) {
     return null;
@@ -148,7 +136,7 @@ const columns: AdminColumnDef<DomainRow, DomainDraft>[] = [
     width: "w-40",
     sortValue: (domain) => domain.label,
     cell: <LabelCell />,
-    editCell: <LabelInput />,
+    editCell: <LabelInput<DomainDraft> />,
     addCell: <LabelAddInput />,
   },
   {

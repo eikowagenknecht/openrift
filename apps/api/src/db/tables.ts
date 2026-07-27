@@ -884,7 +884,8 @@ interface TournamentStaffTable {
 // A fixed 2v2 team (migration 212). Identity only: membership rides on
 // tournament_participants.team_id, and the display name derives from the two
 // member names. Deleting the row dissolves the team (members SET NULL).
-export interface TournamentTeamsTable {
+// Not exported: only the Database interface references it.
+interface TournamentTeamsTable {
   id: Generated<string>;
   tournamentId: string;
   createdAt: CreatedAt;

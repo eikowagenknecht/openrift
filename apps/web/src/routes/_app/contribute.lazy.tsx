@@ -3,7 +3,7 @@ import { createLazyFileRoute } from "@tanstack/react-router";
 import { ContributeForm } from "@/components/contribute/contribute-form";
 import { Heading } from "@/components/heading";
 import { emptyFormState } from "@/lib/contribute-json";
-import { PAGE_PADDING } from "@/lib/utils";
+import { cn, PAGE_PADDING } from "@/lib/utils";
 
 export const Route = createLazyFileRoute("/_app/contribute")({
   component: ContributePage,
@@ -11,7 +11,7 @@ export const Route = createLazyFileRoute("/_app/contribute")({
 
 function ContributePage() {
   return (
-    <div className={`${PAGE_PADDING} mx-auto flex max-w-3xl flex-col gap-6 xl:max-w-6xl`}>
+    <div className={cn(PAGE_PADDING, "mx-auto flex max-w-3xl flex-col gap-6 xl:max-w-6xl")}>
       <header className="flex max-w-3xl flex-col gap-1">
         <Heading level={1}>Add a card to OpenRift</Heading>
         <p className="text-muted-foreground">

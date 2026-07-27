@@ -10,7 +10,7 @@ import {
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { PackagePlusIcon, SparklesIcon } from "lucide-react";
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { EmptyState } from "@/components/empty-state";
 import {
@@ -39,7 +39,7 @@ import { Toggle } from "@/components/ui/toggle";
 import { usePrices } from "@/hooks/use-prices";
 import { publicSetDetailQueryOptions, publicSetListQueryOptions } from "@/hooks/use-public-sets";
 import { useSession } from "@/lib/auth-session";
-import { PAGE_PADDING_NO_TOP } from "@/lib/utils";
+import { PAGE_PADDING_NO_TOP, cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
 function poolFromPrintings(printings: readonly Printing[], language: string): PackPool {
@@ -69,10 +69,7 @@ function languagesWithEnoughPrintings(printings: readonly Printing[]): string[] 
 
 export function PackOpenerPage() {
   const { data: setList } = useSuspenseQuery(publicSetListQueryOptions);
-  const mainSets = useMemo(
-    () => setList.sets.filter((set) => set.setType === WellKnown.setType.MAIN),
-    [setList.sets],
-  );
+  const mainSets = setList.sets.filter((set) => set.setType === WellKnown.setType.MAIN);
 
   const [setSlug, setSetSlug] = useState<string>(() => mainSets[0]?.slug ?? "");
   const [language, setLanguage] = useState<string>(WellKnown.language.EN);
@@ -91,7 +88,7 @@ export function PackOpenerPage() {
     return (
       <>
         <PackOpenerTopBar />
-        <div className={`${PAGE_PADDING_NO_TOP} pt-3`}>
+        <div className={cn(PAGE_PADDING_NO_TOP, "pt-3")}>
           <EmptyState
             className="py-12"
             icon={PackagePlusIcon}
@@ -108,7 +105,7 @@ export function PackOpenerPage() {
         <ToggleField label="Foil shimmer" checked={shimmer} onChange={setShimmer} />
         <ToggleField label="Auto-reveal" checked={autoReveal} onChange={setAutoReveal} />
       </PackOpenerTopBar>
-      <div className={`${PAGE_PADDING_NO_TOP} pt-3`}>
+      <div className={cn(PAGE_PADDING_NO_TOP, "pt-3")}>
         <PageDescription className="mb-6">
           Open virtual Riftbound booster packs. Pull rates match the real booster as published by
           Riot (7 Common, 3 Uncommon, 2 Rare-or-better, 1 Foil, 1 Rune). No cards are added to your
@@ -241,7 +238,7 @@ function LanguageField({
   onChange: (value: string) => void;
 }) {
   const { data } = useSuspenseQuery(publicSetDetailQueryOptions(setSlug));
-  const languages = useMemo(() => languagesWithEnoughPrintings(data.printings), [data.printings]);
+  const languages = languagesWithEnoughPrintings(data.printings);
   const effectiveValue = languages.includes(value)
     ? value
     : (languages[0] ?? WellKnown.language.EN);
@@ -333,10 +330,7 @@ function OpenAction({
   onOpened: (packs: PackResult[]) => void;
 }) {
   const { data } = useSuspenseQuery(publicSetDetailQueryOptions(setSlug));
-  const pool = useMemo(
-    () => poolFromPrintings(data.printings, language),
-    [data.printings, language],
-  );
+  const pool = poolFromPrintings(data.printings, language);
   const openable = isPoolOpenable(pool);
 
   return (
@@ -370,10 +364,7 @@ function SinglePackResult({
   autoReveal: boolean;
 }) {
   const { data } = useSuspenseQuery(publicSetDetailQueryOptions(setSlug));
-  const imagesByPrintingId = useMemo(
-    () => new Map(data.printings.map((p) => [p.id, p.images] as const)),
-    [data.printings],
-  );
+  const imagesByPrintingId = new Map(data.printings.map((p) => [p.id, p.images] as const));
   // In auto-reveal mode stats are shown immediately; in manual mode they
   // appear once every card has been flipped.
   const [statsVisible, setStatsVisible] = useState(autoReveal);
@@ -409,10 +400,7 @@ function BulkPackResult({
   autoReveal: boolean;
 }) {
   const { data } = useSuspenseQuery(publicSetDetailQueryOptions(setSlug));
-  const imagesByPrintingId = useMemo(
-    () => new Map(data.printings.map((p) => [p.id, p.images] as const)),
-    [data.printings],
-  );
+  const imagesByPrintingId = new Map(data.printings.map((p) => [p.id, p.images] as const));
   // Track which packs have been fully revealed. Stats only show once every
   // pack is flipped (auto-reveal skips the gate entirely).
   const [revealedCount, setRevealedCount] = useState(autoReveal ? packs.length : 0);

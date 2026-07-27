@@ -359,7 +359,7 @@ export function CompactFilterBar({
         excluded={filterState.raritiesEx}
         onCycle={(value) => cycleArrayFilter("rarities", "raritiesEx", value)}
         iconPath={(value) => getFilterIconPath("rarities", value)}
-        displayLabel={(value) => labels.rarities[value] ?? value}
+        displayLabel={(value) => labels.rarities[value]}
         counts={filterCounts?.rarities}
         showLabels={showLabels}
       />
@@ -532,11 +532,11 @@ export function CompactFilterBar({
   });
   const typeOptions = availableFilters.types.map((value) => ({
     value,
-    label: labels.cardTypes[value] ?? value,
+    label: labels.cardTypes[value],
   }));
   const superTypeOptions = availableFilters.superTypes.map((value) => ({
     value,
-    label: labels.superTypes[value] ?? value,
+    label: labels.superTypes[value],
   }));
 
   return (
@@ -634,11 +634,11 @@ export function CompactFilterBar({
             // collapses to that single axis.
             const artVariantOptions = availableFilters.artVariants.map((value) => ({
               value,
-              label: labels.artVariants[value] ?? value,
+              label: labels.artVariants[value],
             }));
             const finishOptions = availableFilters.finishes.map((value) => ({
               value,
-              label: labels.finishes[value] ?? value,
+              label: labels.finishes[value],
             }));
             const both = showArtVariantSection && showFinishSection;
             const primaryIsArt = showArtVariantSection;

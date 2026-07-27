@@ -506,7 +506,7 @@ export function FilterMoreMenu({
       emptyText="No rarities match."
       options={availableFilters.rarities.map((value) => ({
         value,
-        label: labels.rarities[value] ?? value,
+        label: labels.rarities[value],
       }))}
       selected={filterState.rarities}
       excluded={filterState.raritiesEx}
@@ -524,7 +524,7 @@ export function FilterMoreMenu({
       emptyText="No types match."
       options={availableFilters.types.map((value) => ({
         value,
-        label: labels.cardTypes[value] ?? value,
+        label: labels.cardTypes[value],
       }))}
       selected={filterState.types}
       excluded={filterState.typesEx}
@@ -543,7 +543,7 @@ export function FilterMoreMenu({
       emptyText="No supertypes match."
       options={availableFilters.superTypes.map((value) => ({
         value,
-        label: labels.superTypes[value] ?? value,
+        label: labels.superTypes[value],
       }))}
       selected={filterState.superTypes}
       excluded={filterState.superTypesEx}
@@ -561,11 +561,11 @@ export function FilterMoreMenu({
         // collapses to that single axis. Mirrors the compact bar's Variant chip.
         const artVariantOptions = availableFilters.artVariants.map((value) => ({
           value,
-          label: labels.artVariants[value] ?? value,
+          label: labels.artVariants[value],
         }));
         const finishOptions = availableFilters.finishes.map((value) => ({
           value,
-          label: labels.finishes[value] ?? value,
+          label: labels.finishes[value],
         }));
         const both = showArtVariantSection && showFinishSection;
         const primaryIsArt = showArtVariantSection;

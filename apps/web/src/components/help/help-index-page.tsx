@@ -5,7 +5,7 @@ import { Heading } from "@/components/heading";
 import { CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CardLink } from "@/components/ui/card-link";
 import { SOCIAL_LINKS } from "@/lib/social-links";
-import { PAGE_PADDING } from "@/lib/utils";
+import { cn, PAGE_PADDING } from "@/lib/utils";
 
 import { helpArticleList } from "./articles";
 
@@ -13,7 +13,7 @@ export function HelpIndexPage() {
   const articles = helpArticleList.filter((article) => !article.featureFlag);
 
   return (
-    <div className={`mx-auto w-full max-w-2xl flex-1 ${PAGE_PADDING}`}>
+    <div className={cn("mx-auto w-full max-w-2xl flex-1", PAGE_PADDING)}>
       <div className="mb-6">
         <Heading level={1}>Help Center</Heading>
       </div>

@@ -1,15 +1,14 @@
-import type {
-  CatalogCardResponse,
-  CatalogPrintingResponse,
-  DistributionChannelWithCount,
-  PromosListResponse,
-} from "@openrift/shared";
+import type { DistributionChannelWithCount, PromosListResponse } from "@openrift/shared";
 import { promosContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
 import { requireUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
-import { loadMarkerAndChannelMaps, resolveMarkers } from "../../utils/printing-response.js";
+import {
+  buildCardsResponse,
+  buildPrintingsResponse,
+  loadMarkerAndChannelMaps,
+} from "../../utils/printing-response.js";
 
 const os = implement(promosContract).$context<ApiContext>().use(requireUser);
 
@@ -39,47 +38,13 @@ export const promosRouter = {
     ]);
     const { markerBySlug, channelsByPrinting } = markerChannelMaps;
 
-    const bansByCard = Map.groupBy(banRows, (r) => r.cardId);
-    const errataByCard = new Map(
-      errataRows.map((r) => [
-        r.cardId,
-        {
-          correctedRulesText: r.correctedRulesText,
-          correctedEffectText: r.correctedEffectText,
-          source: r.source,
-          sourceUrl: r.sourceUrl,
-          effectiveDate: r.effectiveDate ? String(r.effectiveDate) : null,
-        },
-      ]),
+    const cards = buildCardsResponse(cardRows, banRows, errataRows);
+    const printings = buildPrintingsResponse(
+      printingRows,
+      imageRows,
+      markerBySlug,
+      channelsByPrinting,
     );
-
-    const cards: Record<string, CatalogCardResponse> = Object.fromEntries(
-      cardRows.map((r) => [
-        r.id,
-        {
-          ...r,
-          errata: errataByCard.get(r.id) ?? null,
-          bans: (bansByCard.get(r.id) ?? []).map((b) => ({
-            formatId: b.formatId,
-            formatName: b.formatName,
-            bannedAt: b.bannedAt,
-            reason: b.reason,
-          })),
-        },
-      ]),
-    );
-
-    const imagesByPrinting = Map.groupBy(imageRows, (r) => r.printingId);
-
-    const printings: CatalogPrintingResponse[] = printingRows.map(({ markerSlugs, ...rest }) => ({
-      ...rest,
-      markers: resolveMarkers(markerSlugs, markerBySlug),
-      distributionChannels: channelsByPrinting.get(rest.id) ?? [],
-      images: (imagesByPrinting.get(rest.id) ?? []).map((i) => ({
-        face: i.face,
-        imageId: i.imageId,
-      })),
-    }));
 
     // Count cards + printings per channel by walking the resolved links.
     const channelCounts = new Map<string, { cards: Set<string>; printings: number }>();

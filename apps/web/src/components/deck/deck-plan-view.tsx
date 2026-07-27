@@ -6,6 +6,7 @@ import type {
 import { getOrientation, imageUrl } from "@openrift/shared";
 
 import { ImgWithFallback } from "@/components/ui/img-with-fallback";
+import { cn } from "@/lib/utils";
 
 // Read-only render of a deck's plan (ADR-029) for the public share page. Purely
 // presentational: it takes the plan plus a denormalized card-meta lookup so it
@@ -61,7 +62,7 @@ function SwapColumn({
 }) {
   return (
     <div className="flex-1 space-y-1.5">
-      <div className={`text-2xs font-semibold tracking-wide uppercase ${tone}`}>
+      <div className={cn("text-2xs font-semibold tracking-wide uppercase", tone)}>
         {sign} {label}
       </div>
       {swaps.length === 0 ? (

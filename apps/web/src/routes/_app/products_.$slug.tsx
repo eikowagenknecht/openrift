@@ -7,7 +7,7 @@ import { productDetailQueryOptions } from "@/hooks/use-products";
 import { filterSearchSchema } from "@/lib/search-schemas";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
-import { CONTAINER_WIDTH, PAGE_PADDING } from "@/lib/utils";
+import { cn, CONTAINER_WIDTH, PAGE_PADDING } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/products_/$slug")({
   validateSearch: filterSearchSchema,
@@ -45,7 +45,7 @@ export const Route = createFileRoute("/_app/products_/$slug")({
 
 function ProductDetailPending() {
   return (
-    <div className={`${PAGE_PADDING} ${CONTAINER_WIDTH} flex flex-col gap-4 py-4`}>
+    <div className={cn(PAGE_PADDING, CONTAINER_WIDTH, "flex flex-col gap-4 py-4")}>
       <Skeleton className="h-8 w-48" />
       <Skeleton className="h-5 w-32" />
       <Skeleton className="h-96 w-full" />

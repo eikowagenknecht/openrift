@@ -19,7 +19,7 @@ import {
 import { UserAvatar } from "@/components/user-avatar";
 import { usePublicUserBundle } from "@/hooks/use-user-share";
 import { useUserId } from "@/lib/auth-session";
-import { CONTAINER_WIDTH, PAGE_PADDING } from "@/lib/utils";
+import { cn, CONTAINER_WIDTH, PAGE_PADDING } from "@/lib/utils";
 
 export const Route = createLazyFileRoute("/_app/users_/share/$token")({
   component: SharedUserBundlePage,
@@ -39,7 +39,7 @@ function SharedUserBundlePage() {
   const isEmpty = lists.length === 0 && collections.length === 0;
 
   return (
-    <div className={`${PAGE_PADDING} ${CONTAINER_WIDTH} flex flex-col gap-6 py-4`}>
+    <div className={cn(PAGE_PADDING, CONTAINER_WIDTH, "flex flex-col gap-6 py-4")}>
       <header className="flex items-center gap-3">
         <UserAvatar
           name={owner.displayName}

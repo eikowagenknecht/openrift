@@ -264,7 +264,7 @@ const roadmapItems: RoadmapItem[] = [
 
 export function RoadmapPage() {
   return (
-    <div className={`mx-auto w-full max-w-2xl ${PAGE_PADDING}`}>
+    <div className={cn("mx-auto w-full max-w-2xl", PAGE_PADDING)}>
       <div className="mb-6 flex items-baseline justify-between">
         <Heading level={1}>Roadmap</Heading>
         <Link to="/changelog" className="text-muted-foreground hover:text-foreground text-sm">

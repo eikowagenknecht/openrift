@@ -1,27 +1,23 @@
-import type { Printing } from "@openrift/shared";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
+import type { ImportStep } from "@/hooks/import-flow-shared";
+import {
+  createImportEntryHandlers,
+  deriveImportSummary,
+  handleImportFileUpload,
+  IMPORT_BATCH_SIZE,
+  runImportParse,
+  STATUS_SORT_ORDER,
+} from "@/hooks/import-flow-shared";
 import { useCards } from "@/hooks/use-cards";
 import { useBulkAddListEntries } from "@/hooks/use-lists";
-import type { MatchStatus, MatchedEntry } from "@/lib/import-matcher";
+import type { MatchedEntry } from "@/lib/import-matcher";
 import { matchEntries } from "@/lib/import-matcher";
-import { summarizeMatchedEntries } from "@/lib/import-summary";
-import { parseListImport } from "@/lib/list-import-parser";
 import { useDisplayStore } from "@/stores/display-store";
 
 /** List kinds that support text/CSV import. Copy-kind has no source-file identity. */
 export type ImportableListKind = "card" | "printing";
-
-const STATUS_SORT_ORDER: Record<MatchStatus, number> = {
-  unresolved: 0,
-  "needs-review": 1,
-  exact: 2,
-};
-
-const BATCH_SIZE = 500;
-
-type ImportStep = "input" | "preview";
 
 /**
  * Import-flow plumbing for card- and printing-kind lists: parse a deck-text or
@@ -66,93 +62,47 @@ export function useListImportFlow(
   };
 
   const handleParse = (text: string) => {
-    const { entries, errors, rowCount: parsedRowCount } = parseListImport(text);
-    setRowCount(parsedRowCount);
-    setParseErrors(errors);
-
-    if (entries.length === 0) {
-      return;
-    }
-
-    // Card-kind lists only need a cardId, so collapse "one card, several
-    // printings" ambiguity down to exact. Printing-kind lists need the user to
-    // pick the specific printing, so leave needs-review intact.
-    const matched = matchEntries(entries, allPrintings, preferredLanguages[0]).map((entry) =>
-      listKind === "card" ? promoteToExact(entry) : entry,
-    );
-    const sorted = matched.toSorted((entryA, entryB) => {
-      const statusDiff = STATUS_SORT_ORDER[entryA.status] - STATUS_SORT_ORDER[entryB.status];
-      if (statusDiff !== 0) {
-        return statusDiff;
-      }
-      return entryA.entry.cardName.localeCompare(entryB.entry.cardName);
-    });
-    setMatchedEntries(sorted);
-    setSkippedIndices(new Set());
-
-    const nonExact = new Set<number>();
-    for (let index = 0; index < sorted.length; index++) {
-      if (sorted[index].status !== "exact") {
-        nonExact.add(index);
-      }
-    }
-    setExpandedIndices(nonExact);
-
-    setStep("preview");
-  };
-
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) {
-      return;
-    }
-    const text = await file.text();
-    setRawText(text);
-    handleParse(text);
-    if (fileRef.current) {
-      fileRef.current.value = "";
-    }
-  };
-
-  const handleResolve = (index: number, printing: Printing) => {
-    setMatchedEntries((prev) =>
-      prev.map((entry, entryIndex) =>
-        entryIndex === index
-          ? { ...entry, resolvedPrinting: printing, status: "exact" as MatchStatus }
-          : entry,
-      ),
+    runImportParse(
+      text,
+      (entries) => {
+        // Card-kind lists only need a cardId, so collapse "one card, several
+        // printings" ambiguity down to exact. Printing-kind lists need the user to
+        // pick the specific printing, so leave needs-review intact.
+        const matched = matchEntries(entries, allPrintings, preferredLanguages[0]).map((entry) =>
+          listKind === "card" ? promoteToExact(entry) : entry,
+        );
+        return matched.toSorted((entryA, entryB) => {
+          const statusDiff = STATUS_SORT_ORDER[entryA.status] - STATUS_SORT_ORDER[entryB.status];
+          if (statusDiff !== 0) {
+            return statusDiff;
+          }
+          return entryA.entry.cardName.localeCompare(entryB.entry.cardName);
+        });
+      },
+      {
+        setRowCount,
+        setParseErrors,
+        setMatchedEntries,
+        setSkippedIndices,
+        setExpandedIndices,
+        setStep,
+      },
     );
   };
 
-  const handleSkip = (index: number) => {
-    setSkippedIndices((prev) => new Set([...prev, index]));
-  };
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) =>
+    handleImportFileUpload(event, fileRef, setRawText, handleParse);
 
-  const handleUnskip = (index: number) => {
-    setSkippedIndices((prev) => {
-      const next = new Set(prev);
-      next.delete(index);
-      return next;
-    });
-  };
-
-  const handleToggleExpand = (index: number) => {
-    setExpandedIndices((prev) => {
-      const next = new Set(prev);
-      if (next.has(index)) {
-        next.delete(index);
-      } else {
-        next.add(index);
-      }
-      return next;
-    });
-  };
-
-  const importableEntries = matchedEntries.filter(
-    (entry, index) => entry.resolvedPrinting && !skippedIndices.has(index),
+  const { handleResolve, handleSkip, handleUnskip, handleToggleExpand } = createImportEntryHandlers(
+    setMatchedEntries,
+    setSkippedIndices,
+    setExpandedIndices,
   );
-  const summary = summarizeMatchedEntries(matchedEntries, skippedIndices);
-  const skippedCount = skippedIndices.size;
+
+  const { importableEntries, summary, skippedCount } = deriveImportSummary(
+    matchedEntries,
+    skippedIndices,
+  );
 
   const handleImport = async () => {
     if (importableEntries.length === 0) {
@@ -165,8 +115,8 @@ export function useListImportFlow(
     const payload = buildListImportPayload(importableEntries, listKind);
 
     const batches: (typeof payload)[] = [];
-    for (let offset = 0; offset < payload.length; offset += BATCH_SIZE) {
-      batches.push(payload.slice(offset, offset + BATCH_SIZE));
+    for (let offset = 0; offset < payload.length; offset += IMPORT_BATCH_SIZE) {
+      batches.push(payload.slice(offset, offset + IMPORT_BATCH_SIZE));
     }
 
     const sendAllBatches = async () => {

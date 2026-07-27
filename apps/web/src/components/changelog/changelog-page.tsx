@@ -50,7 +50,7 @@ function EntryItem({ entry }: { entry: ChangelogEntry }) {
 
 export function ChangelogPage() {
   return (
-    <div className={`mx-auto max-w-2xl ${PAGE_PADDING}`}>
+    <div className={cn("mx-auto max-w-2xl", PAGE_PADDING)}>
       <div className="mb-6 flex items-baseline justify-between">
         <Heading level={1}>What&apos;s new</Heading>
         <Link to="/roadmap" className="text-muted-foreground hover:text-foreground text-sm">

@@ -130,7 +130,7 @@ export function SupportPage() {
   const { labels } = useEnumOrders();
 
   return (
-    <div className={`mx-auto flex w-full max-w-2xl flex-1 flex-col ${PAGE_PADDING}`}>
+    <div className={cn("mx-auto flex w-full max-w-2xl flex-1 flex-col", PAGE_PADDING)}>
       {/* Hero */}
       <div className="mb-10">
         <Heading level={1} className="mb-4">

@@ -11,6 +11,7 @@ import { normalizeNameForMatching } from "@openrift/shared/utils";
 
 import type { Repos } from "../deps.js";
 import type { MarketplaceConfig, StagingRow } from "../routes/admin/marketplace-configs.js";
+import { buildStagedRowMapping } from "./marketplace-mapping-shared.js";
 import { buildCardIndex, buildResponseGroups } from "./marketplace-mapping.js";
 
 type UnifiedCardRow = Awaited<
@@ -126,6 +127,99 @@ function dedupePrintingsByPrintingId<T extends { printingId: string }>(printings
   return result;
 }
 
+type MarketplaceSlot = "tcgplayer" | "cardmarket" | "cardtrader";
+type RawGroupPrinting = MappingOverviewResult["groups"][number]["printings"][number];
+type MergedPrinting = UnifiedMappingGroupResponse["printings"][number];
+type MergedGroup = Omit<UnifiedMappingGroupResponse, "primaryShortCode">;
+
+const EXTERNAL_ID_FIELD: Record<
+  MarketplaceSlot,
+  "tcgExternalId" | "cmExternalId" | "ctExternalId"
+> = {
+  tcgplayer: "tcgExternalId",
+  cardmarket: "cmExternalId",
+  cardtrader: "ctExternalId",
+};
+
+function emptyMarketplaceSlot(): MergedGroup["tcgplayer"] {
+  return { stagedProducts: [], assignedProducts: [], assignments: [] };
+}
+
+function toMergedPrinting(p: RawGroupPrinting, marketplace: MarketplaceSlot): MergedPrinting {
+  return {
+    printingId: p.printingId,
+    setId: p.setId,
+    shortCode: p.shortCode,
+    rarity: p.rarity,
+    artVariant: p.artVariant,
+    isSigned: p.isSigned,
+    markerSlugs: p.markerSlugs,
+    finish: p.finish,
+    size: p.size,
+    language: p.language,
+    imageUrl: p.imageUrl,
+    tcgExternalId: marketplace === "tcgplayer" ? p.externalId : null,
+    cmExternalId: marketplace === "cardmarket" ? p.externalId : null,
+    ctExternalId: marketplace === "cardtrader" ? p.externalId : null,
+  };
+}
+
+/**
+ * Merge one marketplace's overview groups into `mergedMap`, keyed by cardId.
+ * A cardId already in the map gains this marketplace's external IDs on its
+ * existing printings (plus any printings only this marketplace has); a new
+ * cardId gets a fresh entry seeded from this marketplace alone.
+ * @returns Nothing — `mergedMap` is updated in place.
+ */
+function mergeMarketplaceIntoMap(
+  mergedMap: Map<string, MergedGroup>,
+  result: MappingOverviewResult,
+  marketplace: MarketplaceSlot,
+): void {
+  const idField = EXTERNAL_ID_FIELD[marketplace];
+  for (const group of result.groups) {
+    const printings = dedupePrintingsByPrintingId(group.printings);
+    const marketplaceData = {
+      stagedProducts: group.stagedProducts,
+      assignedProducts: group.assignedProducts,
+      assignments: group.assignments,
+    };
+    const existing = mergedMap.get(group.cardId);
+    if (existing) {
+      const byPrinting = new Map(printings.map((p) => [p.printingId, p.externalId]));
+      for (const p of existing.printings) {
+        p[idField] = byPrinting.get(p.printingId) ?? null;
+      }
+      // Add printings that only have this marketplace's variants — otherwise
+      // they vanish from the unified view and any assignment referencing
+      // them loses its context.
+      const existingIds = new Set(existing.printings.map((p) => p.printingId));
+      for (const p of printings) {
+        if (!existingIds.has(p.printingId)) {
+          existing.printings.push(toMergedPrinting(p, marketplace));
+        }
+      }
+      existing[marketplace] = marketplaceData;
+    } else {
+      mergedMap.set(group.cardId, {
+        cardId: group.cardId,
+        cardSlug: group.cardSlug,
+        cardName: group.cardName,
+        superTypes: group.superTypes,
+        domains: group.domains,
+        energy: group.energy,
+        might: group.might,
+        setId: group.setId,
+        setName: group.setName,
+        printings: printings.map((p) => toMergedPrinting(p, marketplace)),
+        tcgplayer: marketplace === "tcgplayer" ? marketplaceData : emptyMarketplaceSlot(),
+        cardmarket: marketplace === "cardmarket" ? marketplaceData : emptyMarketplaceSlot(),
+        cardtrader: marketplace === "cardtrader" ? marketplaceData : emptyMarketplaceSlot(),
+      });
+    }
+  }
+}
+
 /**
  * Merge per-marketplace overview results into a single map keyed by cardId.
  * Each printing carries external IDs from whichever marketplaces have it.
@@ -135,198 +229,11 @@ function mergeOverviewsByCard(
   tcgResult: MappingOverviewResult,
   cmResult: MappingOverviewResult,
   ctResult: MappingOverviewResult,
-): Map<string, Omit<UnifiedMappingGroupResponse, "primaryShortCode">> {
-  const mergedMap = new Map<string, Omit<UnifiedMappingGroupResponse, "primaryShortCode">>();
-
-  // Index TCGplayer groups by cardId
-  for (const group of tcgResult.groups) {
-    mergedMap.set(group.cardId, {
-      cardId: group.cardId,
-      cardSlug: group.cardSlug,
-      cardName: group.cardName,
-      superTypes: group.superTypes,
-      domains: group.domains,
-      energy: group.energy,
-      might: group.might,
-      setId: group.setId,
-      setName: group.setName,
-      printings: dedupePrintingsByPrintingId(group.printings).map((p) => ({
-        printingId: p.printingId,
-        setId: p.setId,
-        shortCode: p.shortCode,
-        rarity: p.rarity,
-        artVariant: p.artVariant,
-        isSigned: p.isSigned,
-        markerSlugs: p.markerSlugs,
-        finish: p.finish,
-        size: p.size,
-        language: p.language,
-        imageUrl: p.imageUrl,
-        tcgExternalId: p.externalId,
-        cmExternalId: null,
-        ctExternalId: null,
-      })),
-      tcgplayer: {
-        stagedProducts: group.stagedProducts,
-        assignedProducts: group.assignedProducts,
-        assignments: group.assignments,
-      },
-      cardmarket: { stagedProducts: [], assignedProducts: [], assignments: [] },
-      cardtrader: { stagedProducts: [], assignedProducts: [], assignments: [] },
-    });
-  }
-
-  // Merge Cardmarket groups
-  for (const group of cmResult.groups) {
-    const cmPrintings = dedupePrintingsByPrintingId(group.printings);
-    const existing = mergedMap.get(group.cardId);
-    if (existing) {
-      // Add CM external IDs to existing printings
-      const cmByPrinting = new Map(cmPrintings.map((p) => [p.printingId, p.externalId]));
-      for (const p of existing.printings) {
-        p.cmExternalId = cmByPrinting.get(p.printingId) ?? null;
-      }
-      // Add printings that only have CM variants — otherwise they vanish from
-      // the unified view and any assignment referencing them loses its context.
-      const existingIds = new Set(existing.printings.map((p) => p.printingId));
-      for (const p of cmPrintings) {
-        if (!existingIds.has(p.printingId)) {
-          existing.printings.push({
-            printingId: p.printingId,
-            setId: p.setId,
-            shortCode: p.shortCode,
-            rarity: p.rarity,
-            artVariant: p.artVariant,
-            isSigned: p.isSigned,
-            markerSlugs: p.markerSlugs,
-            finish: p.finish,
-            size: p.size,
-            language: p.language,
-            imageUrl: p.imageUrl,
-            tcgExternalId: null,
-            cmExternalId: p.externalId,
-            ctExternalId: null,
-          });
-        }
-      }
-      existing.cardmarket = {
-        stagedProducts: group.stagedProducts,
-        assignedProducts: group.assignedProducts,
-        assignments: group.assignments,
-      };
-    } else {
-      mergedMap.set(group.cardId, {
-        cardId: group.cardId,
-        cardSlug: group.cardSlug,
-        cardName: group.cardName,
-        superTypes: group.superTypes,
-        domains: group.domains,
-        energy: group.energy,
-        might: group.might,
-        setId: group.setId,
-        setName: group.setName,
-        printings: cmPrintings.map((p) => ({
-          printingId: p.printingId,
-          setId: p.setId,
-          shortCode: p.shortCode,
-          rarity: p.rarity,
-          artVariant: p.artVariant,
-          isSigned: p.isSigned,
-          markerSlugs: p.markerSlugs,
-          finish: p.finish,
-          size: p.size,
-          language: p.language,
-          imageUrl: p.imageUrl,
-          tcgExternalId: null,
-          cmExternalId: p.externalId,
-          ctExternalId: null,
-        })),
-        tcgplayer: { stagedProducts: [], assignedProducts: [], assignments: [] },
-        cardmarket: {
-          stagedProducts: group.stagedProducts,
-          assignedProducts: group.assignedProducts,
-          assignments: group.assignments,
-        },
-        cardtrader: { stagedProducts: [], assignedProducts: [], assignments: [] },
-      });
-    }
-  }
-
-  // Merge CardTrader groups
-  for (const group of ctResult.groups) {
-    const ctPrintings = dedupePrintingsByPrintingId(group.printings);
-    const existing = mergedMap.get(group.cardId);
-    if (existing) {
-      const ctByPrinting = new Map(ctPrintings.map((p) => [p.printingId, p.externalId]));
-      for (const p of existing.printings) {
-        p.ctExternalId = ctByPrinting.get(p.printingId) ?? null;
-      }
-      // Add printings that only have CT variants — otherwise they vanish from
-      // the unified view and any assignment referencing them loses its context.
-      const existingIds = new Set(existing.printings.map((p) => p.printingId));
-      for (const p of ctPrintings) {
-        if (!existingIds.has(p.printingId)) {
-          existing.printings.push({
-            printingId: p.printingId,
-            setId: p.setId,
-            shortCode: p.shortCode,
-            rarity: p.rarity,
-            artVariant: p.artVariant,
-            isSigned: p.isSigned,
-            markerSlugs: p.markerSlugs,
-            finish: p.finish,
-            size: p.size,
-            language: p.language,
-            imageUrl: p.imageUrl,
-            tcgExternalId: null,
-            cmExternalId: null,
-            ctExternalId: p.externalId,
-          });
-        }
-      }
-      existing.cardtrader = {
-        stagedProducts: group.stagedProducts,
-        assignedProducts: group.assignedProducts,
-        assignments: group.assignments,
-      };
-    } else {
-      mergedMap.set(group.cardId, {
-        cardId: group.cardId,
-        cardSlug: group.cardSlug,
-        cardName: group.cardName,
-        superTypes: group.superTypes,
-        domains: group.domains,
-        energy: group.energy,
-        might: group.might,
-        setId: group.setId,
-        setName: group.setName,
-        printings: ctPrintings.map((p) => ({
-          printingId: p.printingId,
-          setId: p.setId,
-          shortCode: p.shortCode,
-          rarity: p.rarity,
-          artVariant: p.artVariant,
-          isSigned: p.isSigned,
-          markerSlugs: p.markerSlugs,
-          finish: p.finish,
-          size: p.size,
-          language: p.language,
-          imageUrl: p.imageUrl,
-          tcgExternalId: null,
-          cmExternalId: null,
-          ctExternalId: p.externalId,
-        })),
-        tcgplayer: { stagedProducts: [], assignedProducts: [], assignments: [] },
-        cardmarket: { stagedProducts: [], assignedProducts: [], assignments: [] },
-        cardtrader: {
-          stagedProducts: group.stagedProducts,
-          assignedProducts: group.assignedProducts,
-          assignments: group.assignments,
-        },
-      });
-    }
-  }
-
+): Map<string, MergedGroup> {
+  const mergedMap = new Map<string, MergedGroup>();
+  mergeMarketplaceIntoMap(mergedMap, tcgResult, "tcgplayer");
+  mergeMarketplaceIntoMap(mergedMap, cmResult, "cardmarket");
+  mergeMarketplaceIntoMap(mergedMap, ctResult, "cardtrader");
   return mergedMap;
 }
 
@@ -335,9 +242,7 @@ function mergeOverviewsByCard(
  * code across its printings — used for sorting and as the "canonical" ID).
  * @returns An array of merged groups with primaryShortCode populated.
  */
-function withPrimaryShortCode(
-  mergedMap: Map<string, Omit<UnifiedMappingGroupResponse, "primaryShortCode">>,
-): UnifiedMappingGroupResponse[] {
+function withPrimaryShortCode(mergedMap: Map<string, MergedGroup>): UnifiedMappingGroupResponse[] {
   return [...mergedMap.values()].map((g) => ({
     ...g,
     primaryShortCode: g.printings.reduce(
@@ -545,33 +450,13 @@ export async function buildUnifiedMappingsCardResponse(
           }
         }
       }
-      const mappedProductInfo = new Map<string, ReturnType<MarketplaceConfig["mapPriceRow"]>>();
-      if (mappedPrintingIds.size > 0) {
-        const mappedRows = await config.priceQuery([...mappedPrintingIds]);
-        for (const row of mappedRows) {
-          const key = `${row.printingId}::${row.externalId}::${row.finish}::${row.language ?? ""}`;
-          if (!mappedProductInfo.has(key)) {
-            mappedProductInfo.set(key, config.mapPriceRow(row));
-          }
-        }
-      }
-
-      const mapStagedRow = (
-        row: StagingRow,
-        extra?: { isOverride?: boolean },
-      ): StagedProductResponse => ({
-        externalId: row.externalId ?? "",
-        productName: row.productName,
-        finish: row.finish,
-        language: row.language,
-        ...config.mapStagingPrices(row),
-        recordedAt: row.recordedAt.toISOString(),
-        ...(extra?.isOverride === undefined ? {} : { isOverride: extra.isOverride }),
-        groupId: row.groupId,
-        groupName: groupNameMap.get(row.groupId) ?? `Group #${row.groupId}`,
-        groupKind: groupKindMap.get(row.groupId),
-        groupSetSlug: groupSetSlugMap.get(row.groupId) ?? null,
-      });
+      const { mappedProductInfo, mapStagedRow } = await buildStagedRowMapping(
+        config,
+        mappedPrintingIds,
+        groupNameMap,
+        groupKindMap,
+        groupSetSlugMap,
+      );
 
       const groups = buildResponseGroups(
         cardGroups,

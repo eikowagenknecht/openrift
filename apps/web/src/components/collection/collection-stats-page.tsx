@@ -533,7 +533,7 @@ function RarityDistributionChart({ data }: { data: RarityCount[] }) {
 
   const config: ChartConfig = {};
   const chartData: DonutEntry[] = data.map((entry) => {
-    const label = labels.rarities[entry.rarity] ?? entry.rarity;
+    const label = labels.rarities[entry.rarity];
     const color = rarityColors[entry.rarity] ?? "var(--color-muted-foreground)";
     config[entry.rarity] = { label, color };
     return { name: label, value: entry.count, fill: color };
@@ -559,7 +559,7 @@ function TypeDistributionChart({ data }: { data: { type: string; total: number }
 
   const config: ChartConfig = {};
   const chartData: DonutEntry[] = data.map((entry, index) => {
-    const label = labels.cardTypes[entry.type] ?? entry.type;
+    const label = labels.cardTypes[entry.type];
     const color = TYPE_CHART_COLORS[index % TYPE_CHART_COLORS.length];
     config[entry.type] = { label, color };
     return { name: label, value: entry.total, fill: color };

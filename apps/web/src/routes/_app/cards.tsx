@@ -14,7 +14,7 @@ import { catalogQueryOptions, readCatalogVersionFromServerCache } from "@/lib/ca
 import { cleanedSearchForRedirect } from "@/lib/search-schemas";
 import { collectionPageJsonLd, seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
-import { PAGE_PADDING_NO_TOP } from "@/lib/utils";
+import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 
 const CARDS_DESCRIPTION =
   "Complete Riftbound TCG card database with marketplace price comparison. Filter by set, domain, rarity, cost, and keyword to browse every card and printing.";
@@ -171,7 +171,7 @@ export const Route = createFileRoute("/_app/cards")({
 // consistent (no jump in toolbar height, left-pane width, or grid position).
 function CardsPending() {
   return (
-    <div className={`flex flex-1 flex-col ${PAGE_PADDING_NO_TOP}`}>
+    <div className={cn("flex flex-1 flex-col", PAGE_PADDING_NO_TOP)}>
       <CardBrowserLayout
         toolbar={
           <div className="bg-input mb-1.5 h-9 w-full rounded-md sm:mb-3" aria-hidden="true" />

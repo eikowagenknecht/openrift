@@ -325,7 +325,7 @@ export function FilterBadgeSections({
           excluded={filterState.raritiesEx}
           onCycle={(v) => cycleArrayFilter("rarities", "raritiesEx", v)}
           iconPath={(v) => getFilterIconPath("rarities", v)}
-          displayLabel={(v) => labels.rarities[v] ?? v}
+          displayLabel={(v) => labels.rarities[v]}
           counts={filterCounts?.rarities}
         />
       )}
@@ -337,7 +337,7 @@ export function FilterBadgeSections({
           excluded={filterState.typesEx}
           onCycle={(v) => cycleArrayFilter("types", "typesEx", v)}
           iconPath={(v) => getFilterIconPath("types", v)}
-          displayLabel={(v) => labels.cardTypes[v] ?? v}
+          displayLabel={(v) => labels.cardTypes[v]}
           counts={filterCounts?.types}
         />
       )}
@@ -351,7 +351,7 @@ export function FilterBadgeSections({
             excluded={filterState.superTypesEx}
             onCycle={(v) => cycleArrayFilter("superTypes", "superTypesEx", v)}
             iconPath={(v) => getFilterIconPath("superTypes", v)}
-            displayLabel={(v) => labels.superTypes[v] ?? v}
+            displayLabel={(v) => labels.superTypes[v]}
             counts={filterCounts?.superTypes}
           />
         )}
@@ -362,7 +362,7 @@ export function FilterBadgeSections({
           selected={filterState.artVariants}
           excluded={filterState.artVariantsEx}
           onCycle={(v) => cycleArrayFilter("artVariants", "artVariantsEx", v)}
-          displayLabel={(v) => labels.artVariants[v] ?? v}
+          displayLabel={(v) => labels.artVariants[v]}
           counts={filterCounts?.artVariants}
           trailing={
             signedInArtVariant ? (
@@ -385,7 +385,7 @@ export function FilterBadgeSections({
             selected={filterState.finishes}
             excluded={filterState.finishesEx}
             onCycle={(v) => cycleArrayFilter("finishes", "finishesEx", v)}
-            displayLabel={(v) => labels.finishes[v] ?? v}
+            displayLabel={(v) => labels.finishes[v]}
             counts={filterCounts?.finishes}
           />
         )}

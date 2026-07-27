@@ -931,7 +931,10 @@ export function Header() {
       className="bg-background/80 border-border-accent sticky top-0 z-50 border-b pt-[env(safe-area-inset-top)] backdrop-blur-lg"
     >
       <div
-        className={`${CONTAINER_WIDTH} px-safe grid h-14 grid-cols-[1fr_auto_1fr] items-center md:grid-cols-[1fr_auto]`}
+        className={cn(
+          CONTAINER_WIDTH,
+          "px-safe grid h-14 grid-cols-[1fr_auto_1fr] items-center md:grid-cols-[1fr_auto]",
+        )}
       >
         {/* Left: Hamburger on mobile. -ml-1 pulls the 20px glyph out of the
             28px icon button's padding so it lands on the px-safe gutter,

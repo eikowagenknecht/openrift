@@ -244,11 +244,6 @@ describe("formatPrintingLabel", () => {
     expect(formatPrintingLabel(stub(), undefined, TEST_LABELS)).toBe("Standard");
   });
 
-  it("falls back to the slug when a finish is missing from the labels map", () => {
-    const p = stub({ finish: "metal" as Printing["finish"] });
-    expect(formatPrintingLabel(p, undefined, TEST_LABELS)).toBe("metal");
-  });
-
   it("uses the label map for custom finish slugs", () => {
     const p = stub({ finish: "metal" as Printing["finish"] });
     const labels: EnumLabels = {

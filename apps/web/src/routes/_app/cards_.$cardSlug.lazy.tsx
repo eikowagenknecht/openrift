@@ -182,7 +182,7 @@ function CardDetailPage() {
       "Finish",
       <span key="finish" className="inline-flex items-center gap-1.5">
         <FinishIcon finish={selectedPrinting.finish} className="w-4 shrink-0 justify-center" />
-        {labels.finishes[selectedPrinting.finish] ?? selectedPrinting.finish}
+        {labels.finishes[selectedPrinting.finish]}
       </span>,
     ],
   );
@@ -191,7 +191,7 @@ function CardDetailPage() {
       "Art variant",
       <span key="art" className="inline-flex items-center gap-1">
         <PaletteIcon className="size-3.5" />
-        {labels.artVariants[selectedPrinting.artVariant] ?? selectedPrinting.artVariant}
+        {labels.artVariants[selectedPrinting.artVariant]}
       </span>,
     ]);
   }
@@ -249,7 +249,7 @@ function CardDetailPage() {
   const infoRowCount = Math.max(leftRows.length, rightRows.length);
 
   return (
-    <div className={`${PAGE_PADDING} mx-auto flex max-w-6xl flex-col gap-4`}>
+    <div className={cn(PAGE_PADDING, "mx-auto flex max-w-6xl flex-col gap-4")}>
       <div>
         <Link
           to="/cards"
@@ -711,7 +711,7 @@ function PrintingCard({
     badges.push(
       <span key="finish" className="inline-flex items-center gap-0.5 text-xs">
         <FinishIcon finish={printing.finish} iconClassName="size-3" />
-        {labels.finishes[printing.finish] ?? printing.finish}
+        {labels.finishes[printing.finish]}
       </span>,
     );
   }
@@ -719,7 +719,7 @@ function PrintingCard({
     badges.push(
       <span key="art" className="text-muted-foreground inline-flex items-center gap-0.5 text-xs">
         <PaletteIcon className="size-3" />
-        {labels.artVariants[printing.artVariant] ?? printing.artVariant}
+        {labels.artVariants[printing.artVariant]}
       </span>,
     );
   }
@@ -877,8 +877,7 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
       <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <Heading level={2}>
           Price History — {formatPublicCode(printing)}
-          {printing.finish !== WellKnown.finish.NORMAL &&
-            ` ${labels.finishes[printing.finish] ?? printing.finish}`}
+          {printing.finish !== WellKnown.finish.NORMAL && ` ${labels.finishes[printing.finish]}`}
           {printing.markers.length > 0 && ` (${printing.markers.map((m) => m.label).join(", ")})`}
           {printing.language !== WellKnown.language.EN && (
             <>

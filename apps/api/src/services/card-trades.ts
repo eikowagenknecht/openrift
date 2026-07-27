@@ -57,6 +57,78 @@ async function reloadDto(
 }
 
 /**
+ * Loads a trade and verifies the caller is a party to it. Shared entry point
+ * for every mutation below.
+ * @returns The trade and the caller's role on it.
+ */
+async function loadTradeForParty(
+  repos: Repos,
+  tradeId: string,
+  byUserId: string,
+): Promise<{ trade: CardTrade; role: CardTradeRole }> {
+  const trade = await repos.cardTrades.getById(tradeId);
+  if (trade === undefined) {
+    throw new AppError(404, ERROR_CODES.NOT_FOUND, "Trade not found");
+  }
+  const role = callerRole(trade, byUserId);
+  if (role === null) {
+    throw new AppError(403, ERROR_CODES.FORBIDDEN, "You are not a party to this trade");
+  }
+  return { trade, role };
+}
+
+/** Throws a 409 with `message` unless `trade.status` is `expected`. */
+function assertTradeStatus(trade: CardTrade, expected: CardTrade["status"], message: string): void {
+  if (trade.status !== expected) {
+    throw new AppError(409, ERROR_CODES.CONFLICT, message);
+  }
+}
+
+/** Throws 403 unless `role` is the recipient, i.e. not the trade's initiator. */
+function assertRecipient(trade: CardTrade, role: CardTradeRole, action: string): void {
+  if (role === trade.initiator) {
+    throw new AppError(403, ERROR_CODES.FORBIDDEN, `Only the recipient can ${action} this trade`);
+  }
+}
+
+/**
+ * Caps `quantity` against the giver's live (unreserved) supply of `printingId`.
+ * Rule-aware (ADR-034): a copy offered only via a dynamic trade rule counts here
+ * just as it does in the match view, so callers can't disagree with the dialog's
+ * `availableCount`.
+ */
+async function assertSupplyAvailable(
+  repos: Repos,
+  groupId: string,
+  giverUserId: string,
+  printingId: string,
+  quantity: number,
+): Promise<void> {
+  const { unreservedCopyIds } = await repos.friendGroupMatches.giverPrintingSupply({
+    groupId,
+    giverUserId,
+    printingId,
+  });
+  if (quantity > unreservedCopyIds.length) {
+    throw tooFewAvailable(unreservedCopyIds.length);
+  }
+}
+
+/** Claims the giver's side of a completed trade's sync (guards a double-apply). */
+async function claimGiverSyncSide(repos: Repos, tradeId: string): Promise<void> {
+  if ((await repos.cardTrades.setGiverSyncApplied(tradeId)) === 0) {
+    throw new AppError(409, ERROR_CODES.CONFLICT, "You've already resolved your side");
+  }
+}
+
+/** Claims the receiver's side of a completed trade's sync (guards a double-apply). */
+async function claimReceiverSyncSide(repos: Repos, tradeId: string): Promise<void> {
+  if ((await repos.cardTrades.setReceiverSyncApplied(tradeId)) === 0) {
+    throw new AppError(409, ERROR_CODES.CONFLICT, "You've already resolved your side");
+  }
+}
+
+/**
  * Creates a `pending` trade from a still-valid match. Validates membership, that
  * the match holds (re-running the match repo scoped to the counterparty + printing),
  * the quantity against live supply, and that no live trade already exists.
@@ -117,17 +189,8 @@ export async function createTrade(
     buyQuantity: demandQuantity,
   } = printingMatches[0];
 
-  // Live supply nets out reserved copies. Rule-aware (ADR-034): a copy offered
-  // only via a dynamic trade rule counts here just as it does in the match view,
-  // so the dialog's `availableCount` and this check can't disagree.
-  const { unreservedCopyIds } = await repos.friendGroupMatches.giverPrintingSupply({
-    groupId: group.id,
-    giverUserId,
-    printingId,
-  });
-  if (quantity > unreservedCopyIds.length) {
-    throw tooFewAvailable(unreservedCopyIds.length);
-  }
+  // Live supply nets out reserved copies.
+  await assertSupplyAvailable(repos, group.id, giverUserId, printingId, quantity);
   // Never trade more than the wanting side wants — over-trading would over-credit
   // copies and drive the wishlist negative on sync.
   if (quantity > demandQuantity) {
@@ -194,20 +257,9 @@ export function acceptTrade(
   byUserId: string,
 ): Promise<CardTradeResponse> {
   return transact(async (trxRepos) => {
-    const trade = await trxRepos.cardTrades.getById(tradeId);
-    if (trade === undefined) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Trade not found");
-    }
-    const role = callerRole(trade, byUserId);
-    if (role === null) {
-      throw new AppError(403, ERROR_CODES.FORBIDDEN, "You are not a party to this trade");
-    }
-    if (trade.status !== "pending") {
-      throw new AppError(409, ERROR_CODES.CONFLICT, "This trade is no longer pending");
-    }
-    if (role === trade.initiator) {
-      throw new AppError(403, ERROR_CODES.FORBIDDEN, "Only the recipient can accept this trade");
-    }
+    const { trade, role } = await loadTradeForParty(trxRepos, tradeId, byUserId);
+    assertTradeStatus(trade, "pending", "This trade is no longer pending");
+    assertRecipient(trade, role, "accept");
 
     // Rule-aware (ADR-034): the reservable supply mirrors the match view, so a
     // copy offered only via a dynamic trade rule is pinnable here. `hasAny` is
@@ -267,20 +319,9 @@ export function declineTrade(
   byUserId: string,
 ): Promise<CardTradeResponse> {
   return transact(async (trxRepos) => {
-    const trade = await trxRepos.cardTrades.getById(tradeId);
-    if (trade === undefined) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Trade not found");
-    }
-    const role = callerRole(trade, byUserId);
-    if (role === null) {
-      throw new AppError(403, ERROR_CODES.FORBIDDEN, "You are not a party to this trade");
-    }
-    if (trade.status !== "pending") {
-      throw new AppError(409, ERROR_CODES.CONFLICT, "This trade is no longer pending");
-    }
-    if (role === trade.initiator) {
-      throw new AppError(403, ERROR_CODES.FORBIDDEN, "Only the recipient can decline this trade");
-    }
+    const { trade, role } = await loadTradeForParty(trxRepos, tradeId, byUserId);
+    assertTradeStatus(trade, "pending", "This trade is no longer pending");
+    assertRecipient(trade, role, "decline");
     const declined = await trxRepos.cardTrades.markDeclined(tradeId, byUserId);
     if (declined === 0) {
       throw new AppError(409, ERROR_CODES.CONFLICT, "This trade is no longer pending");
@@ -300,14 +341,7 @@ export function cancelTrade(
   byUserId: string,
 ): Promise<CardTradeResponse> {
   return transact(async (trxRepos) => {
-    const trade = await trxRepos.cardTrades.getById(tradeId);
-    if (trade === undefined) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Trade not found");
-    }
-    const role = callerRole(trade, byUserId);
-    if (role === null) {
-      throw new AppError(403, ERROR_CODES.FORBIDDEN, "You are not a party to this trade");
-    }
+    const { trade, role } = await loadTradeForParty(trxRepos, tradeId, byUserId);
     if (trade.status === "pending") {
       if (role !== trade.initiator) {
         throw new AppError(
@@ -352,30 +386,20 @@ export function setTradeQuantity(
     if (quantity < 1) {
       throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Quantity must be at least 1");
     }
-    const trade = await trxRepos.cardTrades.getById(tradeId);
-    if (trade === undefined) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Trade not found");
-    }
-    const role = callerRole(trade, byUserId);
-    if (role === null) {
-      throw new AppError(403, ERROR_CODES.FORBIDDEN, "You are not a party to this trade");
-    }
-    if (trade.status !== "pending") {
-      throw new AppError(409, ERROR_CODES.CONFLICT, "This request can no longer be changed");
-    }
+    const { trade, role } = await loadTradeForParty(trxRepos, tradeId, byUserId);
+    assertTradeStatus(trade, "pending", "This request can no longer be changed");
     if (role !== trade.initiator) {
       throw new AppError(403, ERROR_CODES.FORBIDDEN, "Only the initiator can change this request");
     }
 
-    // Cap by the giver's live (unreserved) supply, rule-aware, mirroring createTrade.
-    const { unreservedCopyIds } = await trxRepos.friendGroupMatches.giverPrintingSupply({
-      groupId: trade.groupId,
-      giverUserId: trade.giverUserId,
-      printingId: trade.printingId,
-    });
-    if (quantity > unreservedCopyIds.length) {
-      throw tooFewAvailable(unreservedCopyIds.length);
-    }
+    // Cap by the giver's live (unreserved) supply, mirroring createTrade.
+    await assertSupplyAvailable(
+      trxRepos,
+      trade.groupId,
+      trade.giverUserId,
+      trade.printingId,
+      quantity,
+    );
 
     // Keep the receiver's wish entry ≥ the request: claiming a copy is an explicit
     // "I want this one too", and trade-sync decrements the wish by the trade
@@ -408,21 +432,8 @@ export function completeTrade(
   byUserId: string,
 ): Promise<CardTradeResponse> {
   return transact(async (trxRepos) => {
-    const trade = await trxRepos.cardTrades.getById(tradeId);
-    if (trade === undefined) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Trade not found");
-    }
-    const role = callerRole(trade, byUserId);
-    if (role === null) {
-      throw new AppError(403, ERROR_CODES.FORBIDDEN, "You are not a party to this trade");
-    }
-    if (trade.status !== "reserved") {
-      throw new AppError(
-        409,
-        ERROR_CODES.CONFLICT,
-        "Only a reserved trade can be marked as traded",
-      );
-    }
+    const { trade } = await loadTradeForParty(trxRepos, tradeId, byUserId);
+    assertTradeStatus(trade, "reserved", "Only a reserved trade can be marked as traded");
     const completed = await trxRepos.cardTrades.markCompleted(tradeId, byUserId);
     if (completed === 0) {
       // A concurrent cancel released it after we read `reserved`.
@@ -504,28 +515,13 @@ export function applyTradeSync(
   targetCollectionId?: string,
 ): Promise<CardTradeResponse> {
   return transact(async (trxRepos) => {
-    const trade = await trxRepos.cardTrades.getById(tradeId);
-    if (trade === undefined) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Trade not found");
-    }
-    const role = callerRole(trade, byUserId);
-    if (role === null) {
-      throw new AppError(403, ERROR_CODES.FORBIDDEN, "You are not a party to this trade");
-    }
-    if (trade.status !== "completed") {
-      throw new AppError(
-        409,
-        ERROR_CODES.CONFLICT,
-        "Sync is only available after the trade is completed",
-      );
-    }
+    const { trade, role } = await loadTradeForParty(trxRepos, tradeId, byUserId);
+    assertTradeStatus(trade, "completed", "Sync is only available after the trade is completed");
 
     if (role === "giver") {
       // Claim the giver's side first (guarded UPDATE): a concurrent double-apply
       // matches zero rows here and 409s, so the dispose below runs exactly once.
-      if ((await trxRepos.cardTrades.setGiverSyncApplied(tradeId)) === 0) {
-        throw new AppError(409, ERROR_CODES.CONFLICT, "You've already resolved your side");
-      }
+      await claimGiverSyncSide(trxRepos, tradeId);
       const copyIds = await trxRepos.cardTrades.listReservedCopyIds(tradeId);
       // Release the reservation rows so the dispose guard passes, then dispose
       // through the shared service body (emits a `removed` event and
@@ -539,9 +535,7 @@ export function applyTradeSync(
     } else {
       // Claim the receiver's side first, so a concurrent double-apply cannot add
       // the copies twice or double-decrement the wish.
-      if ((await trxRepos.cardTrades.setReceiverSyncApplied(tradeId)) === 0) {
-        throw new AppError(409, ERROR_CODES.CONFLICT, "You've already resolved your side");
-      }
+      await claimReceiverSyncSide(trxRepos, tradeId);
       await applyReceiverSync(trxRepos, trade, targetCollectionId);
     }
 
@@ -561,31 +555,16 @@ export function skipTradeSync(
   byUserId: string,
 ): Promise<CardTradeResponse> {
   return transact(async (trxRepos) => {
-    const trade = await trxRepos.cardTrades.getById(tradeId);
-    if (trade === undefined) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Trade not found");
-    }
-    const role = callerRole(trade, byUserId);
-    if (role === null) {
-      throw new AppError(403, ERROR_CODES.FORBIDDEN, "You are not a party to this trade");
-    }
-    if (trade.status !== "completed") {
-      throw new AppError(
-        409,
-        ERROR_CODES.CONFLICT,
-        "Sync is only available after the trade is completed",
-      );
-    }
+    const { trade, role } = await loadTradeForParty(trxRepos, tradeId, byUserId);
+    assertTradeStatus(trade, "completed", "Sync is only available after the trade is completed");
 
     if (role === "giver") {
-      if ((await trxRepos.cardTrades.setGiverSyncApplied(tradeId)) === 0) {
-        throw new AppError(409, ERROR_CODES.CONFLICT, "You've already resolved your side");
-      }
+      await claimGiverSyncSide(trxRepos, tradeId);
       // The copy physically left; release the claim so the stale copy reappears
       // as available until the giver fixes their data manually.
       await trxRepos.cardTrades.deleteCopiesForTrade(tradeId);
-    } else if ((await trxRepos.cardTrades.setReceiverSyncApplied(tradeId)) === 0) {
-      throw new AppError(409, ERROR_CODES.CONFLICT, "You've already resolved your side");
+    } else {
+      await claimReceiverSyncSide(trxRepos, tradeId);
     }
 
     return reloadDto(trxRepos, tradeId, byUserId);

@@ -1,4 +1,6 @@
 import type {
+  CatalogCardResponse,
+  CatalogPrintingResponse,
   DistributionChannelKind,
   Marker,
   PrintingDistributionChannel,
@@ -10,6 +12,14 @@ interface MarkerChannelMaps {
   markerBySlug: Map<string, Marker>;
   channelsByPrinting: Map<string, PrintingDistributionChannel[]>;
 }
+
+type CardRow = Awaited<ReturnType<Repos["catalog"]["cardsByIds"]>>[number];
+type CardBanRow = Awaited<ReturnType<Repos["catalog"]["cardBansByCardIds"]>>[number];
+type CardErrataRow = Awaited<ReturnType<Repos["catalog"]["cardErrataByCardIds"]>>[number];
+type PrintingRow = Awaited<ReturnType<Repos["catalog"]["printingsBySetId"]>>[number];
+type PrintingImageRow = Awaited<
+  ReturnType<Repos["catalog"]["printingImagesByPrintingIds"]>
+>[number];
 
 /**
  * Loads marker metadata + per-printing distribution channel links and indexes
@@ -88,4 +98,70 @@ export function resolveMarkers(
   return markerSlugs
     .map((slug) => markerBySlug.get(slug))
     .filter((m): m is Marker => m !== undefined);
+}
+
+/**
+ * Builds the `cards` lookup shared by the public catalog reads: raw card
+ * rows decorated with their resolved errata and ban list, keyed by card id.
+ * @returns Card responses keyed by card id.
+ */
+export function buildCardsResponse(
+  cardRows: readonly CardRow[],
+  banRows: readonly CardBanRow[],
+  errataRows: readonly CardErrataRow[],
+): Record<string, CatalogCardResponse> {
+  const bansByCard = Map.groupBy(banRows, (r) => r.cardId);
+  const errataByCard = new Map(
+    errataRows.map((r) => [
+      r.cardId,
+      {
+        correctedRulesText: r.correctedRulesText,
+        correctedEffectText: r.correctedEffectText,
+        source: r.source,
+        sourceUrl: r.sourceUrl,
+        effectiveDate: r.effectiveDate ? String(r.effectiveDate) : null,
+      },
+    ]),
+  );
+
+  return Object.fromEntries(
+    cardRows.map((r) => [
+      r.id,
+      {
+        ...r,
+        errata: errataByCard.get(r.id) ?? null,
+        bans: (bansByCard.get(r.id) ?? []).map((b) => ({
+          formatId: b.formatId,
+          formatName: b.formatName,
+          bannedAt: b.bannedAt,
+          reason: b.reason,
+        })),
+      },
+    ]),
+  );
+}
+
+/**
+ * Builds the `printings` list shared by the public catalog reads: raw
+ * printing rows decorated with resolved markers, distribution channels, and
+ * images.
+ * @returns Printing responses in the same order as `printingRows`.
+ */
+export function buildPrintingsResponse(
+  printingRows: readonly PrintingRow[],
+  imageRows: readonly PrintingImageRow[],
+  markerBySlug: ReadonlyMap<string, Marker>,
+  channelsByPrinting: ReadonlyMap<string, PrintingDistributionChannel[]>,
+): CatalogPrintingResponse[] {
+  const imagesByPrinting = Map.groupBy(imageRows, (r) => r.printingId);
+
+  return printingRows.map(({ markerSlugs, ...rest }) => ({
+    ...rest,
+    markers: resolveMarkers(markerSlugs, markerBySlug),
+    distributionChannels: channelsByPrinting.get(rest.id) ?? [],
+    images: (imagesByPrinting.get(rest.id) ?? []).map((i) => ({
+      face: i.face,
+      imageId: i.imageId,
+    })),
+  }));
 }

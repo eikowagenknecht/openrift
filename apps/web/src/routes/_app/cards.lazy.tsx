@@ -7,7 +7,7 @@ import { useHydrated } from "@/hooks/use-hydrated";
 import { ViewSurfaceProvider } from "@/hooks/use-view-prefs";
 import { seedCatalogVersion } from "@/lib/catalog-version";
 import { FilterSearchProvider } from "@/lib/search-schemas";
-import { PAGE_PADDING_NO_TOP } from "@/lib/utils";
+import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 
 export const Route = createLazyFileRoute("/_app/cards")({
   component: CardsPage,
@@ -45,7 +45,7 @@ function CardsPage() {
   return (
     <ViewSurfaceProvider value="cards">
       <FilterSearchProvider value={search}>
-        <div className={`flex flex-1 flex-col ${PAGE_PADDING_NO_TOP}`}>
+        <div className={cn("flex flex-1 flex-col", PAGE_PADDING_NO_TOP)}>
           <CardBrowserShell />
         </div>
       </FilterSearchProvider>

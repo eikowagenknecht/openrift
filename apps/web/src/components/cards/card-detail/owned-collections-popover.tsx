@@ -93,7 +93,7 @@ export function OwnedCollectionsPopover({
                   <span>{variant.shortCode}</span>
                   <FinishIcon
                     finish={variant.finish}
-                    title={labels.finishes[variant.finish] ?? variant.finish}
+                    title={labels.finishes[variant.finish]}
                     iconClassName="size-3"
                   />
                 </div>

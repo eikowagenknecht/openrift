@@ -11,6 +11,7 @@ import { Heading } from "@/components/heading";
 import { DefinitionList, DefinitionRow } from "@/components/help/definition-list";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SOCIAL_LINKS } from "@/lib/social-links";
+import { cn } from "@/lib/utils";
 
 export default function ImportExportArticle() {
   return (
@@ -431,7 +432,10 @@ function ExampleExportRow({ values }: { values: string[] }) {
       {values.map((value, index) => (
         <td
           key={index}
-          className={`px-3 py-1.5 whitespace-nowrap ${index === 0 ? "font-mono text-xs" : "text-muted-foreground"}`}
+          className={cn(
+            "px-3 py-1.5 whitespace-nowrap",
+            index === 0 ? "font-mono text-xs" : "text-muted-foreground",
+          )}
         >
           {value}
         </td>

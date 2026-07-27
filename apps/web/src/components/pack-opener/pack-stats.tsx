@@ -60,7 +60,7 @@ export function PackStats({ packs, prices, marketplace }: PackStatsProps) {
       ? "Rune"
       : slug === WellKnown.artVariant.ULTIMATE
         ? "Ultimate"
-        : (labels.rarities[slug] ?? slug);
+        : labels.rarities[slug];
   const [unpricedVisible, setUnpricedVisible] = useState(false);
 
   const rarityCounts: Record<string, number> = {};

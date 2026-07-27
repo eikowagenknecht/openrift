@@ -6,7 +6,7 @@ import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
 import { usePreferencesSync } from "@/hooks/use-preferences-sync";
 import { sessionQueryOptions, useSession } from "@/lib/auth-session";
-import { CONTAINER_WIDTH, FOOTER_PADDING_NO_TOP } from "@/lib/utils";
+import { cn, CONTAINER_WIDTH, FOOTER_PADDING_NO_TOP } from "@/lib/utils";
 import { useSelectionStore } from "@/stores/selection-store";
 
 export const Route = createFileRoute("/_app")({
@@ -38,7 +38,7 @@ function AppLayout() {
     <>
       <AppBackground />
       <Header />
-      <main className={`flex min-h-0 flex-1 flex-col ${CONTAINER_WIDTH}`}>
+      <main className={cn("flex min-h-0 flex-1 flex-col", CONTAINER_WIDTH)}>
         <div className="flex min-h-0 flex-1 flex-col">
           <Outlet />
         </div>

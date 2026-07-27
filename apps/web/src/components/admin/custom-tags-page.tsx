@@ -1,7 +1,12 @@
 import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog";
 import type { CustomTagCategoryResponse, CustomTagResponse } from "@openrift/shared";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
+import {
+  CategoryDescriptionInput,
+  CategorySelectOptions,
+  validateSlugAndLabel,
+} from "@/components/admin/admin-crud-shared";
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { AdminTable } from "@/components/admin/admin-table";
 import type {
@@ -178,23 +183,6 @@ function CategoryLabelAddInput({ draft, setDraft }: AdminDraftSlotProps<CustomTa
   );
 }
 
-function CategoryDescriptionInput({
-  draft,
-  setDraft,
-}: AdminDraftSlotProps<CustomTagCategoryDraft>) {
-  if (!draft || !setDraft) {
-    return null;
-  }
-  return (
-    <Input
-      value={draft.description}
-      onChange={(e) => setDraft((prev) => ({ ...prev, description: e.target.value }))}
-      placeholder="Optional description"
-      className="h-8"
-    />
-  );
-}
-
 const categoryColumns: AdminColumnDef<CustomTagCategoryResponse, CustomTagCategoryDraft>[] = [
   {
     header: "Slug",
@@ -213,8 +201,8 @@ const categoryColumns: AdminColumnDef<CustomTagCategoryResponse, CustomTagCatego
     header: "Description",
     sortValue: (cat) => cat.description ?? "",
     cell: <CategoryDescriptionCell />,
-    editCell: <CategoryDescriptionInput />,
-    addCell: <CategoryDescriptionInput />,
+    editCell: <CategoryDescriptionInput<CustomTagCategoryDraft> />,
+    addCell: <CategoryDescriptionInput<CustomTagCategoryDraft> />,
   },
   {
     header: "Tags",
@@ -249,17 +237,7 @@ function CategoriesSection({ categories }: { categories: CustomTagCategoryRespon
             label: d.label.trim(),
             description: d.description.trim() || null,
           }),
-        validate: (d) => {
-          const slug = d.slug.trim();
-          const label = d.label.trim();
-          if (!slug || !label) {
-            return "Slug and label are required";
-          }
-          if (!isValidSlug(slug)) {
-            return "Slug must be kebab-case (e.g. region)";
-          }
-          return null;
-        },
+        validate: (d) => validateSlugAndLabel(d.slug, d.label, "region"),
         label: "Add Category",
       }}
       edit={{
@@ -575,15 +553,7 @@ function CategorySelect({
       <SelectTrigger className="h-8 w-40" aria-label="Category">
         <SelectValue />
       </SelectTrigger>
-      <SelectContent>
-        <SelectGroup>
-          {items.map((item) => (
-            <SelectItem key={item.value} value={item.value}>
-              {item.label}
-            </SelectItem>
-          ))}
-        </SelectGroup>
-      </SelectContent>
+      <CategorySelectOptions items={items} />
     </Select>
   );
 }
@@ -662,10 +632,7 @@ function BulkImport({ tags }: { tags: CustomTagResponse[] }) {
     tagLabel: string;
   } | null>(null);
 
-  const plan: BulkImportPlan = useMemo(
-    () => planCustomTagBulkImport(text, allCards),
-    [text, allCards],
-  );
+  const plan: BulkImportPlan = planCustomTagBulkImport(text, allCards);
 
   const selectedTag = tags.find((t) => t.id === tagId);
   const canImport = selectedTag !== undefined && plan.cardIds.length > 0 && !mutation.isPending;

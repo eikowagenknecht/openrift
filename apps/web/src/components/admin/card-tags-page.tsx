@@ -1,6 +1,11 @@
 import type { ClassifiedCardTag, TagCategoryResponse } from "@openrift/shared";
 import { useState } from "react";
 
+import {
+  CategoryDescriptionInput,
+  CategorySelectOptions,
+  validateSlugAndLabel,
+} from "@/components/admin/admin-crud-shared";
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { AdminTable } from "@/components/admin/admin-table";
 import type {
@@ -11,14 +16,7 @@ import type {
 import { PageDescription } from "@/components/layout/page-top-bar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Toggle } from "@/components/ui/toggle";
 import {
   useCardTags,
@@ -29,7 +27,6 @@ import {
   useTagCategoryList,
   useUpdateTagCategory,
 } from "@/hooks/use-card-tags";
-import { isValidSlug } from "@/lib/admin-slug";
 
 interface TagCategoryDraft {
   id: string;
@@ -120,20 +117,6 @@ function CategoryLabelInput({ draft, setDraft }: AdminDraftSlotProps<TagCategory
   );
 }
 
-function CategoryDescriptionInput({ draft, setDraft }: AdminDraftSlotProps<TagCategoryDraft>) {
-  if (!draft || !setDraft) {
-    return null;
-  }
-  return (
-    <Input
-      value={draft.description}
-      onChange={(e) => setDraft((prev) => ({ ...prev, description: e.target.value }))}
-      placeholder="Optional description"
-      className="h-8"
-    />
-  );
-}
-
 const categoryColumns: AdminColumnDef<TagCategoryResponse, TagCategoryDraft>[] = [
   {
     header: "Slug",
@@ -152,8 +135,8 @@ const categoryColumns: AdminColumnDef<TagCategoryResponse, TagCategoryDraft>[] =
     header: "Description",
     sortValue: (cat) => cat.description ?? "",
     cell: <CategoryDescriptionCell />,
-    editCell: <CategoryDescriptionInput />,
-    addCell: <CategoryDescriptionInput />,
+    editCell: <CategoryDescriptionInput<TagCategoryDraft> />,
+    addCell: <CategoryDescriptionInput<TagCategoryDraft> />,
   },
   {
     header: "Tags",
@@ -188,17 +171,7 @@ function CategoriesSection({ categories }: { categories: TagCategoryResponse[] }
             label: d.label.trim(),
             description: d.description.trim() || null,
           }),
-        validate: (d) => {
-          const slug = d.slug.trim();
-          const label = d.label.trim();
-          if (!slug || !label) {
-            return "Slug and label are required";
-          }
-          if (!isValidSlug(slug)) {
-            return "Slug must be kebab-case (e.g. species)";
-          }
-          return null;
-        },
+        validate: (d) => validateSlugAndLabel(d.slug, d.label, "species"),
         label: "Add Category",
       }}
       edit={{
@@ -268,15 +241,7 @@ function ClassificationCategorySelect({ row, items, onSetCategory }: Classificat
       <SelectTrigger className="h-8 w-44" aria-label={`Category for ${row.tag}`}>
         <SelectValue />
       </SelectTrigger>
-      <SelectContent>
-        <SelectGroup>
-          {items.map((item) => (
-            <SelectItem key={item.value} value={item.value}>
-              {item.label}
-            </SelectItem>
-          ))}
-        </SelectGroup>
-      </SelectContent>
+      <CategorySelectOptions items={items} />
     </Select>
   );
 }

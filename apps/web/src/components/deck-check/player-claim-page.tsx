@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useClaimLanding, useClaimTournamentDeck } from "@/hooks/use-deck-check-player";
 import { useUserId } from "@/lib/auth-session";
 import { formatTournamentDate } from "@/lib/tournament-display";
-import { PAGE_PADDING } from "@/lib/utils";
+import { cn, PAGE_PADDING } from "@/lib/utils";
 
 /**
  * The pre-claim landing for a participant claim link (ADR-026 amendment,
@@ -38,7 +38,7 @@ export function PlayerClaimPage({ token }: { token: string }) {
             </PageTopBar>
           </div>
         </div>
-        <div className={`flex justify-center ${PAGE_PADDING}`}>
+        <div className={cn("flex justify-center", PAGE_PADDING)}>
           <div className="flex w-full max-w-3xl flex-col gap-4">
             <DeckCheckInfoCardSkeleton />
             <Skeleton className="h-4 w-full max-w-md" />
@@ -87,7 +87,7 @@ export function PlayerClaimPage({ token }: { token: string }) {
           </PageTopBar>
         </div>
       </div>
-      <div className={`flex justify-center ${PAGE_PADDING}`}>
+      <div className={cn("flex justify-center", PAGE_PADDING)}>
         <div className="flex w-full max-w-3xl flex-col gap-4">
           <Card className="gap-2 p-4">
             <h2 className="font-medium">{data.tournamentName}</h2>

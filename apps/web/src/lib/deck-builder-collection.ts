@@ -15,7 +15,7 @@ import type { Collection } from "@tanstack/react-db";
 import { createCollection, localOnlyCollectionOptions } from "@tanstack/react-db";
 import { useQueryClient } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
-import { useMemo, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 
 import { saveDeckCardsFn } from "@/hooks/use-decks";
 import { useUserId } from "@/lib/auth-session";
@@ -339,10 +339,7 @@ export function useDeckDraftCollection(
   // Gate on the `local:` prefix, not on userId: a local deck always resolves
   // (even logged out), while a server deck needs a real user.
   const scope = isLocalDeckId(deckId) ? LOCAL_SCOPE : userId;
-  return useMemo(
-    () => (scope ? getDeckDraftCollection(queryClient, scope, deckId) : null),
-    [queryClient, scope, deckId],
-  );
+  return scope ? getDeckDraftCollection(queryClient, scope, deckId) : null;
 }
 
 export function useDeckSaveStatus(

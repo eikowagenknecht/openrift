@@ -11,6 +11,7 @@ import type {
   ProductInfo,
   StagingRow,
 } from "../routes/admin/marketplace-configs.js";
+import { buildStagedRowMapping } from "./marketplace-mapping-shared.js";
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -422,7 +423,7 @@ export async function getMappingOverview(
     overrideMap,
   );
 
-  // 6. Fetch latest prices for already-mapped printings
+  // 6. Collect printings that already have a bound external ID
   const mappedPrintingIds = new Set<string>();
   for (const group of cardGroups.values()) {
     for (const p of group.printings) {
@@ -432,39 +433,14 @@ export async function getMappingOverview(
     }
   }
 
-  // Key by the full SKU tuple (printingId, externalId, finish, language). The
-  // SKU key on `marketplace_products` is `(externalId, finish, language)` —
-  // CM regularly imports one externalId as multiple finishes, and both can be
-  // bound to the same printing, so dropping `finish`/`language` from the key
-  // would silently let one finish's price overwrite the other.
-  const mappedProductInfo = new Map<string, ProductInfo>();
-  if (mappedPrintingIds.size > 0) {
-    const mappedRows = await config.priceQuery([...mappedPrintingIds]);
-    for (const row of mappedRows) {
-      const key = `${row.printingId}::${row.externalId}::${row.finish}::${row.language ?? ""}`;
-      if (!mappedProductInfo.has(key)) {
-        mappedProductInfo.set(key, config.mapPriceRow(row));
-      }
-    }
-  }
-
-  // 7. Map staged rows to product format
-  const mapStagedRow = (
-    row: StagingRow,
-    extra?: { isOverride?: boolean },
-  ): StagedProductResponse => ({
-    externalId: row.externalId ?? "",
-    productName: row.productName,
-    finish: row.finish,
-    language: row.language,
-    ...config.mapStagingPrices(row),
-    recordedAt: row.recordedAt.toISOString(),
-    ...(extra?.isOverride === undefined ? {} : { isOverride: extra.isOverride }),
-    groupId: row.groupId,
-    groupName: groupNameMap.get(row.groupId) ?? `Group #${row.groupId}`,
-    groupKind: groupKindMap.get(row.groupId),
-    groupSetSlug: groupSetSlugMap.get(row.groupId) ?? null,
-  });
+  // 7. Fetch their latest prices and build the staged-row → response mapper
+  const { mappedProductInfo, mapStagedRow } = await buildStagedRowMapping(
+    config,
+    mappedPrintingIds,
+    groupNameMap,
+    groupKindMap,
+    groupSetSlugMap,
+  );
 
   // Unmatched products (excluding ignored)
   const unmatchedProducts = uniqueStaged
