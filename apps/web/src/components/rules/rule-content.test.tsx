@@ -34,7 +34,7 @@ vi.mock("@tanstack/react-router", () => ({
   createLink: (Component: unknown) => Component,
 }));
 
-const { RuleContent, InlineDiff, buildTermAnchors } = await import("./rules-page");
+const { RuleContent, InlineDiff, buildTermAnchors } = await import("./rule-content");
 
 function makeRule(overrides: {
   ruleNumber: string;

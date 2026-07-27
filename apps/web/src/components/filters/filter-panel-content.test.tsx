@@ -40,11 +40,11 @@ vi.mock("@/hooks/use-enums", () => ({
 }));
 
 // oxlint-disable-next-line import/first -- must import after vi.mock
-import {
-  FilterBadgeSections,
-  FilterChipSections,
-  FilterRangeSections,
-} from "./filter-panel-content";
+import { FilterBadgeSections } from "./filter-badge-sections";
+// oxlint-disable-next-line import/first -- must import after vi.mock
+import { FilterChipSections } from "./filter-chip-sections";
+// oxlint-disable-next-line import/first -- must import after vi.mock
+import { FilterRangeSections } from "./filter-range-sections";
 
 const NULL_RANGES = {
   energy: { min: null, max: null },

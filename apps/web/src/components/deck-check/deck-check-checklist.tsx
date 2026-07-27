@@ -1,0 +1,716 @@
+import type { DeckCheckEntryCardResponse, Printing } from "@openrift/shared";
+import { WellKnown, getOrientation, imageUrl, legendDisplayName } from "@openrift/shared";
+import { CheckIcon, LayoutGridIcon, PencilIcon, Rows3Icon, XIcon } from "lucide-react";
+import { useRef, useState } from "react";
+import { toast } from "sonner";
+
+import { CardCell } from "@/components/cards/card-cell";
+import { CardStrip, StripIconButton } from "@/components/cards/card-strip";
+import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
+import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
+import { FixCardDialog } from "@/components/deck-check/deck-check-entry-dialogs";
+import { HoveredCardPreview } from "@/components/deck/hovered-card-preview";
+import { Button } from "@/components/ui/button";
+import { Pressable } from "@/components/ui/pressable";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { useCards } from "@/hooks/use-cards";
+import { useEnumOrders, useZoneOrder } from "@/hooks/use-enums";
+import { useIsMobile } from "@/hooks/use-is-mobile";
+import {
+  useRemoveTournamentDeckCheckCard,
+  useTickTournamentDeckCheckCard,
+} from "@/hooks/use-tournament-deck-check";
+import { sortDeckCheckCards } from "@/lib/deck-check-sort";
+import { cn } from "@/lib/utils";
+import type { DeckCheckDisplayMode, DeckCheckSort } from "@/stores/deck-check-view-store";
+
+/** The floating-preview payload built from a row's resolved printing. */
+interface HoveredPreview {
+  thumbnailUrl: string;
+  fullUrl: string;
+  landscape: boolean;
+}
+
+/** Gap between checker cells, matching the grid's `gap-3` (used in width math). */
+export const CHECK_GRID_GAP = 12;
+/** Fallback rendered cell width before the grid has been measured. */
+export const CHECK_CELL_WIDTH = 172;
+
+export function CardChecklist({
+  tournamentId,
+  entryId,
+  cards,
+  displayMode,
+  sortBy,
+  sortDir,
+  columns,
+  cellWidth,
+  locked,
+  fixLocked,
+  fixZoneOnly,
+  tickLocked,
+  onStale,
+}: {
+  tournamentId: string;
+  entryId: string;
+  cards: DeckCheckEntryCardResponse[];
+  displayMode: DeckCheckDisplayMode;
+  sortBy: DeckCheckSort;
+  sortDir: "asc" | "desc";
+  columns: number;
+  cellWidth: number;
+  /** Adding and removing cards are only allowed while submitted (ADR-027). */
+  locked: boolean;
+  /** Zone fixes are allowed while submitted, approved, or checked. */
+  fixLocked: boolean;
+  /** Once approved or checked, the fix dialog only moves zones (no re-identify). */
+  fixZoneOnly: boolean;
+  /** Found-ticks are frozen outside the submitted and approved (physical check) states. */
+  tickLocked: boolean;
+  onStale: () => void;
+}) {
+  const { zoneLabels } = useZoneOrder();
+  const { orders } = useEnumOrders();
+  const { allPrintings } = useCards();
+  const isMobile = useIsMobile();
+  const previewContainerRef = useRef<HTMLDivElement>(null);
+  const [hovered, setHovered] = useState<HoveredPreview | null>(null);
+
+  const printingById = new Map(allPrintings.map((printing) => [printing.id, printing]));
+  // Resolve catalogue identity for the "name" / "id" / "domain" / "energy" sorts.
+  const identify = (printingId: string | null) => {
+    const printing = printingId ? printingById.get(printingId) : undefined;
+    return printing
+      ? {
+          name: printing.card.name,
+          shortCode: printing.shortCode,
+          domains: printing.card.domains,
+          energy: printing.card.energy,
+          power: printing.card.power,
+        }
+      : undefined;
+  };
+
+  // List rows float a large card image while hovered (desktop only); build the
+  // preview payload from the row's resolved front image.
+  const handleHover = (printing: Printing | null) => {
+    const front = printing?.images.find((image) => image.face === "front");
+    setHovered(
+      printing && front
+        ? {
+            thumbnailUrl: imageUrl(front.imageId, "400w"),
+            fullUrl: imageUrl(front.imageId, "full"),
+            landscape: getOrientation(printing.card.types) === "landscape",
+          }
+        : null,
+    );
+  };
+
+  const cardsByZone = Map.groupBy(cards, (card) => card.zone);
+  const zoneCards = (zone: DeckCheckEntryCardResponse["zone"]) =>
+    sortDeckCheckCards(cardsByZone.get(zone) ?? [], sortBy, sortDir, identify, orders.domains);
+
+  // The small zones (one to three cards each) flow on a shared wrapping row,
+  // so on wide screens legend, champion, and battlefields share one line and
+  // fall onto separate lines only when they no longer fit.
+  const flowZones = (
+    [
+      WellKnown.deckZone.LEGEND,
+      WellKnown.deckZone.CHAMPION,
+      WellKnown.deckZone.BATTLEFIELD,
+    ] as const
+  ).filter((zone) => cardsByZone.has(zone));
+  const stackedZones = (
+    [
+      WellKnown.deckZone.MAIN,
+      WellKnown.deckZone.SIDEBOARD,
+      WellKnown.deckZone.OVERFLOW,
+      WellKnown.deckZone.RUNES,
+    ] as const
+  ).filter((zone) => cardsByZone.has(zone));
+
+  if (displayMode === "list") {
+    // List view stacks every zone vertically — the flow/stacked split only
+    // matters for the thumbnail grid's wrapping row.
+    const orderedZones = [...flowZones, ...stackedZones];
+    return (
+      <div ref={previewContainerRef} className="relative flex flex-col gap-6">
+        <HoveredCardPreview
+          hoveredCard={isMobile ? null : hovered}
+          origin="main"
+          containerRef={previewContainerRef}
+        />
+        {orderedZones.map((zone) => (
+          <ZoneSection
+            key={zone}
+            tournamentId={tournamentId}
+            entryId={entryId}
+            label={zoneLabels[zone]}
+            cards={zoneCards(zone)}
+            displayMode="list"
+            printingById={printingById}
+            onHover={handleHover}
+            columns={columns}
+            cellWidth={cellWidth}
+            locked={locked}
+            fixLocked={fixLocked}
+            fixZoneOnly={fixZoneOnly}
+            tickLocked={tickLocked}
+            onStale={onStale}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      {flowZones.length > 0 ? (
+        <div className="flex flex-wrap gap-x-10 gap-y-6">
+          {flowZones.map((zone) => (
+            <ZoneSection
+              key={zone}
+              tournamentId={tournamentId}
+              entryId={entryId}
+              label={zoneLabels[zone]}
+              cards={zoneCards(zone)}
+              displayMode="grid"
+              columns={columns}
+              cellWidth={cellWidth}
+              intrinsic
+              locked={locked}
+              fixLocked={fixLocked}
+              fixZoneOnly={fixZoneOnly}
+              tickLocked={tickLocked}
+              onStale={onStale}
+            />
+          ))}
+        </div>
+      ) : null}
+      {stackedZones.map((zone) => (
+        <ZoneSection
+          key={zone}
+          tournamentId={tournamentId}
+          entryId={entryId}
+          label={zoneLabels[zone]}
+          cards={zoneCards(zone)}
+          displayMode="grid"
+          columns={columns}
+          cellWidth={cellWidth}
+          locked={locked}
+          fixLocked={fixLocked}
+          fixZoneOnly={fixZoneOnly}
+          tickLocked={tickLocked}
+          onStale={onStale}
+        />
+      ))}
+    </div>
+  );
+}
+
+/** Active-state classes for the toolbar toggle groups (filled when pressed). */
+const ACTIVE_TOGGLE_CLASS =
+  "aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary aria-pressed:hover:text-primary-foreground";
+
+export function DisplayModeToggle({
+  mode,
+  onModeChange,
+}: {
+  mode: DeckCheckDisplayMode;
+  onModeChange: (mode: DeckCheckDisplayMode) => void;
+}) {
+  return (
+    <ToggleGroup
+      aria-label="Display mode"
+      variant="outline"
+      spacing={0}
+      value={[mode]}
+      onValueChange={([next]) => {
+        if (next === "grid" || next === "list") {
+          onModeChange(next);
+        }
+      }}
+    >
+      <ToggleGroupItem
+        value="grid"
+        className={ACTIVE_TOGGLE_CLASS}
+        title="Grid view"
+        aria-label="Grid view"
+      >
+        <LayoutGridIcon className="size-4" />
+      </ToggleGroupItem>
+      <ToggleGroupItem
+        value="list"
+        className={ACTIVE_TOGGLE_CLASS}
+        title="List view"
+        aria-label="List view"
+      >
+        <Rows3Icon className="size-4" />
+      </ToggleGroupItem>
+    </ToggleGroup>
+  );
+}
+
+function ZoneSection({
+  tournamentId,
+  entryId,
+  label,
+  cards,
+  displayMode,
+  printingById,
+  onHover,
+  columns,
+  cellWidth,
+  intrinsic,
+  locked,
+  fixLocked,
+  fixZoneOnly,
+  tickLocked,
+  onStale,
+}: {
+  tournamentId: string;
+  entryId: string;
+  label: string;
+  cards: DeckCheckEntryCardResponse[];
+  displayMode: DeckCheckDisplayMode;
+  /** Printing lookup for resolving list-row names; only passed in list mode. */
+  printingById?: Map<string, Printing>;
+  /** Floating-preview hover callback; only passed in list mode. */
+  onHover?: (printing: Printing | null) => void;
+  /** Resolved cards-per-row count for the stacked (full-width) zones. */
+  columns: number;
+  /** Rendered width of one card, driving image sizing and intrinsic sections. */
+  cellWidth: number;
+  /** Content-sized section for the wrapping zone row. */
+  intrinsic?: boolean;
+  /** Locked outside the submitted state; hides the per-copy remove control. */
+  locked: boolean;
+  /** Locked outside submitted/approved/checked; hides the per-copy fix control. */
+  fixLocked: boolean;
+  /** Once approved or checked, the fix dialog only moves zones (no re-identify). */
+  fixZoneOnly: boolean;
+  /** Found-ticks frozen outside the submitted and approved (physical check) states. */
+  tickLocked: boolean;
+  onStale: () => void;
+}) {
+  const verifiedCopies = cards.reduce(
+    (sum, card) => sum + card.foundCopies.filter(Boolean).length,
+    0,
+  );
+  const totalCopies = cards.reduce((sum, card) => sum + card.quantity, 0);
+  const done = totalCopies > 0 && verifiedCopies === totalCopies;
+
+  const heading = (
+    <h3
+      className={cn(
+        "flex items-center gap-1.5 text-sm font-medium tracking-wide uppercase",
+        done ? "text-green-600" : "text-muted-foreground",
+      )}
+    >
+      <span>{label}</span>
+      <span>
+        · {verifiedCopies}/{totalCopies}
+      </span>
+      {done ? <CheckIcon className="size-3.5" strokeWidth={3} /> : null}
+    </h3>
+  );
+
+  if (displayMode === "list") {
+    return (
+      <section className="flex min-w-0 flex-col gap-1.5">
+        {heading}
+        <div className="flex flex-col">
+          {cards.flatMap((card) =>
+            Array.from({ length: card.quantity }, (_copy, copyIndex) => (
+              <ChecklistRow
+                key={`${card.id}:${copyIndex}`}
+                tournamentId={tournamentId}
+                entryId={entryId}
+                card={card}
+                copyIndex={copyIndex}
+                printing={
+                  card.resolvedPrintingId ? printingById?.get(card.resolvedPrintingId) : undefined
+                }
+                onHover={onHover}
+                locked={locked}
+                fixLocked={fixLocked}
+                fixZoneOnly={fixZoneOnly}
+                tickLocked={tickLocked}
+                onStale={onStale}
+              />
+            )),
+          )}
+        </div>
+      </section>
+    );
+  }
+
+  // Flow zones size each card to `cellWidth`; stacked zones fill the row with
+  // exactly `columns` equal tracks so the count matches the toolbar control.
+  const intrinsicWidth = totalCopies * cellWidth + (totalCopies - 1) * CHECK_GRID_GAP;
+  const gridTemplateColumns = intrinsic
+    ? `repeat(auto-fill, minmax(min(${cellWidth}px, 100%), 1fr))`
+    : `repeat(${columns}, minmax(0, 1fr))`;
+  return (
+    <section
+      className="flex min-w-0 flex-col gap-2"
+      style={intrinsic ? { width: `min(100%, ${intrinsicWidth}px)` } : undefined}
+    >
+      {heading}
+      <div className="grid gap-3" style={{ gridTemplateColumns }}>
+        {cards.flatMap((card) =>
+          Array.from({ length: card.quantity }, (_copy, copyIndex) => (
+            <ChecklistCell
+              key={`${card.id}:${copyIndex}`}
+              tournamentId={tournamentId}
+              entryId={entryId}
+              card={card}
+              copyIndex={copyIndex}
+              cellWidth={cellWidth}
+              locked={locked}
+              fixLocked={fixLocked}
+              fixZoneOnly={fixZoneOnly}
+              tickLocked={tickLocked}
+              onStale={onStale}
+            />
+          )),
+        )}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * One physical copy of a card line as a dense text row: a found checkbox, set
+ * code, name, and (for multi-copy lines) the copy number. Tapping the row
+ * toggles found for that copy; remove and (for unmatched lines) fix sit at the
+ * right. Hovering floats the large card image via the shared preview.
+ * @returns The tappable copy row.
+ */
+function ChecklistRow({
+  tournamentId,
+  entryId,
+  card,
+  copyIndex,
+  printing,
+  onHover,
+  locked,
+  fixLocked,
+  fixZoneOnly,
+  tickLocked,
+  onStale,
+}: {
+  tournamentId: string;
+  entryId: string;
+  card: DeckCheckEntryCardResponse;
+  copyIndex: number;
+  printing?: Printing;
+  onHover?: (printing: Printing | null) => void;
+  /** Locked outside the submitted state; hides the per-copy remove control. */
+  locked: boolean;
+  /** Locked outside submitted/approved/checked; hides the fix control. */
+  fixLocked: boolean;
+  /** Once approved or checked, the fix dialog only moves zones (no re-identify). */
+  fixZoneOnly: boolean;
+  /** Ticking frozen outside the submitted and approved (physical check) states. */
+  tickLocked: boolean;
+  onStale: () => void;
+}) {
+  const tickCard = useTickTournamentDeckCheckCard();
+  const removeCard = useRemoveTournamentDeckCheckCard();
+  const [removeOpen, setRemoveOpen] = useState(false);
+  const [fixOpen, setFixOpen] = useState(false);
+  const found = card.foundCopies[copyIndex] === true;
+  const matched = printing !== undefined && card.matchStatus === "matched";
+  const name = matched ? legendDisplayName(printing.card) : card.rawName;
+
+  const toggle = async () => {
+    // Ticking is the physical check; allowed while submitted or approved, frozen otherwise.
+    if (tickLocked) {
+      return;
+    }
+    try {
+      await tickCard.mutateAsync({
+        tournamentId,
+        entryId,
+        cardId: card.id,
+        copyIndex,
+        found: !found,
+      });
+    } catch {
+      toast.info("This list changed, reloading now");
+      onStale();
+    }
+  };
+
+  return (
+    <div
+      className="hover:bg-muted/40 flex items-center gap-2 rounded-md"
+      onMouseEnter={() => {
+        if (matched) {
+          onHover?.(printing);
+        }
+      }}
+      onMouseLeave={() => onHover?.(null)}
+    >
+      <Pressable
+        onClick={() => void toggle()}
+        className="flex min-w-0 flex-1 items-center gap-3 rounded-md px-2 py-1.5"
+      >
+        <span
+          aria-hidden
+          className={cn(
+            "flex size-5 shrink-0 items-center justify-center rounded border",
+            found ? "border-green-600 bg-green-600 text-white" : "border-input",
+          )}
+        >
+          {found ? <CheckIcon className="size-3.5" strokeWidth={3} /> : null}
+        </span>
+        {matched ? (
+          <span className="text-muted-foreground w-24 shrink-0 text-sm tabular-nums">
+            {printing.shortCode}
+          </span>
+        ) : null}
+        <span
+          className={cn("min-w-0 flex-1 truncate", found && "text-muted-foreground line-through")}
+        >
+          {name}
+        </span>
+        {matched ? null : (
+          <span className="text-muted-foreground shrink-0 text-sm">
+            {card.matchStatus === "ambiguous" ? "Several matches" : "Not in catalog"}
+          </span>
+        )}
+        {card.quantity > 1 ? (
+          <span className="text-muted-foreground text-2xs shrink-0">copy {copyIndex + 1}</span>
+        ) : null}
+      </Pressable>
+      {fixLocked && locked ? null : (
+        <div className="flex shrink-0 items-center gap-0.5 pr-1">
+          {fixLocked ? null : (
+            <>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                aria-label={fixZoneOnly ? `Move ${name}` : `Fix ${name}`}
+                className="text-muted-foreground"
+                onClick={() => setFixOpen(true)}
+              >
+                <PencilIcon className="size-3.5" />
+              </Button>
+              <FixCardDialog
+                tournamentId={tournamentId}
+                entryId={entryId}
+                card={card}
+                open={fixOpen}
+                onOpenChange={setFixOpen}
+                zoneOnly={fixZoneOnly}
+              />
+            </>
+          )}
+          {locked ? null : (
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              aria-label={`Remove this copy of ${card.rawName}`}
+              className="text-muted-foreground hover:text-destructive"
+              onClick={() => setRemoveOpen(true)}
+            >
+              <XIcon className="size-3.5" />
+            </Button>
+          )}
+        </div>
+      )}
+      <ConfirmActionDialog
+        open={removeOpen}
+        onOpenChange={setRemoveOpen}
+        title={`Remove ${card.rawName}?`}
+        description={
+          card.quantity > 1
+            ? "Only this copy is removed from the list."
+            : "The card is removed from this list."
+        }
+        confirmLabel="Remove"
+        pendingLabel="Removing..."
+        isPending={removeCard.isPending}
+        onConfirm={async () => {
+          await removeCard.mutateAsync({ tournamentId, entryId, cardId: card.id, copyIndex });
+          setRemoveOpen(false);
+        }}
+      />
+    </div>
+  );
+}
+
+/**
+ * One physical copy of a card line. A line with quantity 3 renders three
+ * cells — the deck on the table is unsorted, so the judge finds copies one at
+ * a time. Each cell carries its own found tick, so the cell you tap is the
+ * one that lights up.
+ * @returns The tappable copy cell.
+ */
+function ChecklistCell({
+  tournamentId,
+  entryId,
+  card,
+  copyIndex,
+  cellWidth,
+  locked,
+  fixLocked,
+  fixZoneOnly,
+  tickLocked,
+  onStale,
+}: {
+  tournamentId: string;
+  entryId: string;
+  card: DeckCheckEntryCardResponse;
+  copyIndex: number;
+  cellWidth: number;
+  /** Locked outside the submitted state; hides the remove control. */
+  locked: boolean;
+  /** Locked outside submitted/approved/checked; hides the fix control. */
+  fixLocked: boolean;
+  /** Once approved or checked, the fix dialog only moves zones (no re-identify). */
+  fixZoneOnly: boolean;
+  /** Ticking frozen outside the submitted and approved (physical check) states. */
+  tickLocked: boolean;
+  onStale: () => void;
+}) {
+  const { allPrintings } = useCards();
+  const display = useCardThumbnailDisplay();
+  const tickCard = useTickTournamentDeckCheckCard();
+  const removeCard = useRemoveTournamentDeckCheckCard();
+  const [removeOpen, setRemoveOpen] = useState(false);
+  const [fixOpen, setFixOpen] = useState(false);
+  const found = card.foundCopies[copyIndex] === true;
+
+  const toggle = async () => {
+    // Ticking is the physical check; allowed while submitted or approved, frozen otherwise.
+    if (tickLocked) {
+      return;
+    }
+    try {
+      await tickCard.mutateAsync({
+        tournamentId,
+        entryId,
+        cardId: card.id,
+        copyIndex,
+        found: !found,
+      });
+    } catch {
+      // A 409 means the list was re-imported under us; reload the entry.
+      toast.info("This list changed, reloading now");
+      onStale();
+    }
+  };
+
+  const foundOverlay = found ? (
+    <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+      <div className="bg-background/80 rounded-full p-3 shadow-md">
+        <CheckIcon className="size-12 text-green-600" strokeWidth={3} />
+      </div>
+    </div>
+  ) : null;
+
+  // Fix / remove live in a bar above the card (not overlaid on the image), so
+  // the controls stay fully tappable on touch instead of fighting the cell's
+  // tap-to-tick handler. Mirrors the deck editor's DeckAddStrip placement.
+  const actionStrip =
+    fixLocked && locked ? null : (
+      <>
+        <CardStrip
+          right={
+            <>
+              {fixLocked ? null : (
+                <StripIconButton
+                  className="text-muted-foreground hover:text-foreground"
+                  aria-label={fixZoneOnly ? `Move ${card.rawName}` : `Fix ${card.rawName}`}
+                  onClick={() => setFixOpen(true)}
+                >
+                  <PencilIcon />
+                </StripIconButton>
+              )}
+              {locked ? null : (
+                <StripIconButton
+                  className="text-muted-foreground hover:text-destructive"
+                  aria-label={`Remove this copy of ${card.rawName}`}
+                  onClick={() => setRemoveOpen(true)}
+                >
+                  <XIcon />
+                </StripIconButton>
+              )}
+            </>
+          }
+        />
+        {fixLocked ? null : (
+          <FixCardDialog
+            tournamentId={tournamentId}
+            entryId={entryId}
+            card={card}
+            open={fixOpen}
+            onOpenChange={setFixOpen}
+            zoneOnly={fixZoneOnly}
+          />
+        )}
+        {locked ? null : (
+          <ConfirmActionDialog
+            open={removeOpen}
+            onOpenChange={setRemoveOpen}
+            title={`Remove ${card.rawName}?`}
+            description={
+              card.quantity > 1
+                ? "Only this copy is removed from the list."
+                : "The card is removed from this list."
+            }
+            confirmLabel="Remove"
+            pendingLabel="Removing..."
+            isPending={removeCard.isPending}
+            onConfirm={async () => {
+              await removeCard.mutateAsync({ tournamentId, entryId, cardId: card.id, copyIndex });
+              setRemoveOpen(false);
+            }}
+          />
+        )}
+      </>
+    );
+
+  const printing = card.resolvedPrintingId
+    ? allPrintings.find((candidate) => candidate.id === card.resolvedPrintingId)
+    : undefined;
+
+  if (!printing || card.matchStatus !== "matched") {
+    return (
+      <div>
+        {actionStrip}
+        <div className="relative">
+          <Pressable
+            onClick={() => void toggle()}
+            className={cn(
+              "flex h-full w-full flex-col items-start gap-1 rounded-md border border-dashed border-amber-500/60 bg-amber-500/10 p-2 text-sm",
+              found && "opacity-60",
+            )}
+          >
+            <span className="font-medium break-all">{card.rawName}</span>
+            <span className="text-muted-foreground">
+              {card.matchStatus === "ambiguous" ? "Several matches" : "Not in catalog"}
+            </span>
+          </Pressable>
+          {foundOverlay}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <CardCell
+      printing={printing}
+      ctx={{ isSelected: false, isFlashing: false, cardWidth: cellWidth, priority: false }}
+      display={display}
+      showImages
+      onClick={() => void toggle()}
+      strip={actionStrip}
+      leftOverlay={foundOverlay}
+      dimmed={found}
+    />
+  );
+}

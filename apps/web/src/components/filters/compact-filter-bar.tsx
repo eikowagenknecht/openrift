@@ -4,13 +4,11 @@ import type { ReactNode } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
 
 import { CardIcon } from "@/components/card-icon";
+import { FilterChipSections } from "@/components/filters/filter-chip-sections";
 import { FilterCustomizeControl } from "@/components/filters/filter-customize-control";
+import { FlagBadge } from "@/components/filters/filter-flag-badge";
 import { FilterMoreMenu } from "@/components/filters/filter-more-menu";
-import {
-  FilterChipSections,
-  FilterRangeSections,
-  FlagBadge,
-} from "@/components/filters/filter-panel-content";
+import { FilterRangeSections } from "@/components/filters/filter-range-sections";
 import {
   FILTER_TRIGGER_ACTIVE_CLASS,
   FILTER_TRIGGER_CLASS,

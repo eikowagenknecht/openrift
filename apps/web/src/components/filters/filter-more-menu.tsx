@@ -2,7 +2,8 @@ import type { AvailableFilters, FilterCounts, PresenceDimension } from "@openrif
 import { CheckIcon, ChevronDownIcon, MinusIcon } from "lucide-react";
 import { Fragment } from "react";
 
-import { FilterRangeSections, OWNED_BUCKETS } from "@/components/filters/filter-panel-content";
+import { OWNED_BUCKETS } from "@/components/filters/filter-chip-sections";
+import { FilterRangeSections } from "@/components/filters/filter-range-sections";
 import {
   FILTER_TRIGGER_ACTIVE_CLASS,
   FILTER_TRIGGER_CLASS,

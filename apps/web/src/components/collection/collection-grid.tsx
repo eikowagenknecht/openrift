@@ -3,19 +3,12 @@ import { copyHasMetadata, legendDisplayName } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   BookOpenIcon,
-  CheckIcon,
-  CheckSquareIcon,
   DownloadIcon,
-  EllipsisVerticalIcon,
-  LayersIcon,
   LibraryBigIcon,
   ListPlusIcon,
   PackageIcon,
-  PencilIcon,
-  Share2Icon,
   SquarePlusIcon,
   Trash2Icon,
-  XIcon,
 } from "lucide-react";
 import { use, useEffect, useDeferredValue, useState } from "react";
 import { createPortal } from "react-dom";
@@ -29,34 +22,23 @@ import {
 } from "@/components/cards/card-browser-filter-scaffold";
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
-import { CollectionTableActions } from "@/components/cards/collection-table-actions";
-import { AnnotatedDisposeDialog } from "@/components/collection/annotated-dispose-dialog";
 import { CollectionGridCell } from "@/components/collection/collection-grid-cell";
+import { CollectionGridOverlays } from "@/components/collection/collection-grid-overlays";
 import { CollectionIntroBanner } from "@/components/collection/collection-intro-banner";
-import { CollectionValueSummary } from "@/components/collection/collection-value-summary";
+import {
+  CollectionActionsCell,
+  CollectionRowWrapper,
+} from "@/components/collection/collection-table-wiring";
+import { CollectionTopBar } from "@/components/collection/collection-top-bar";
 import { FloatingActionBar } from "@/components/collection/floating-action-bar";
 import { buildOnDecrement } from "@/components/collection/route-decrement";
 import { VariantLocationsPopoverHost } from "@/components/collection/variant-locations-popover-host";
 import { EmptyState } from "@/components/empty-state";
-import {
-  PageTopBar,
-  PageTopBarActions,
-  PageTopBarButton,
-  PageTopBarIconButton,
-  PageTopBarPrimaryButton,
-  PageTopBarTitle,
-} from "@/components/layout/page-top-bar";
 import { AddToListDialog } from "@/components/list/add-to-list-dialog";
 import { LendCardDialog } from "@/components/loans/lend-card-dialog";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { Button, buttonVariants } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useCardData } from "@/hooks/use-card-data";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
@@ -88,7 +70,7 @@ import { useCopiesCollection } from "@/lib/copies-collection";
 import { filterPrintingsByLanguages } from "@/lib/filter-printings-by-languages";
 import { formatterForMarketplace } from "@/lib/format";
 import { maxOwnedCount } from "@/lib/owned-bucket";
-import { isStackSelected, resolveContextActionTarget } from "@/lib/stack-selection";
+import { resolveContextActionTarget } from "@/lib/stack-selection";
 import { isTempCopyId } from "@/lib/temp-copy-id";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 import { useAddModeStore } from "@/stores/add-mode-store";
@@ -101,19 +83,10 @@ import { useOnboardingStore } from "@/stores/onboarding-store";
 import { useSelectionStore } from "@/stores/selection-store";
 import { useSiblingOverrideStore } from "@/stores/sibling-override-store";
 
-import { ClearInboxDialog } from "./clear-inbox-dialog";
 import { computeDragSelectionSummary, dragSelectionNoun } from "./collection-drag";
-import { CollectionShareDialog } from "./collection-share-dialog";
 import type { CopyDetailsTarget } from "./copy-details-dialog";
-import { CopyDetailsDialog } from "./copy-details-dialog";
-import { DeleteCollectionDialog } from "./delete-collection-dialog";
 import { DisposeDialog } from "./dispose-dialog";
-import { DraggableCard } from "./draggable-card";
-import { EditCollectionDialog } from "./edit-collection-dialog";
 import { MoveDialog } from "./move-dialog";
-import { QuickAddPalette } from "./quick-add-palette";
-import { TakeConfirmDialog } from "./take-confirm-dialog";
-import { TakeWishlistFollowUpDialog } from "./take-wishlist-followup-dialog";
 
 // Custom tags are a deck-builder concept (format constraints, freeform
 // self-narrowing). Hiding them here keeps the collection grid focused on
@@ -132,106 +105,6 @@ function printingsArrayEqual(a: readonly Printing[], b: readonly Printing[]): bo
     }
   }
   return true;
-}
-
-interface CollectionActionsCellProps {
-  printing?: Printing;
-  collectionId?: string;
-  dataView: "cards" | "printings" | "copies";
-  catalogPrintingsByCardId: Map<string, Printing[]>;
-  /** Tile axis for cards view — scopes the summed siblings to the tile. */
-  tileGroupBy: GroupByField;
-}
-
-function CollectionActionsCell({
-  printing,
-  collectionId,
-  dataView,
-  catalogPrintingsByCardId,
-  tileGroupBy,
-}: CollectionActionsCellProps) {
-  if (!printing) {
-    return null;
-  }
-  return (
-    <CollectionTableActions
-      printing={printing}
-      collectionId={collectionId}
-      siblingIds={
-        dataView === "cards"
-          ? tileSiblings(printing, catalogPrintingsByCardId.get(printing.cardId), tileGroupBy)?.map(
-              (sibling) => sibling.id,
-            )
-          : undefined
-      }
-    />
-  );
-}
-
-interface CollectionRowWrapperProps {
-  printing?: Printing;
-  itemId?: string;
-  children?: React.ReactNode;
-  collectionId: string | undefined;
-  stackByItemId: Map<string, StackedEntry>;
-  allCopyIdsByTile: Map<string, string[]>;
-  /** True when the source collection is a shared group collection. */
-  sourceCollectionIsGroup: boolean;
-  tileGroupBy: GroupByField;
-  mode: "browse" | "select";
-  stacked: boolean;
-  selected: Set<string>;
-}
-
-function CollectionRowWrapper({
-  printing,
-  itemId,
-  children,
-  collectionId,
-  stackByItemId,
-  allCopyIdsByTile,
-  sourceCollectionIsGroup,
-  tileGroupBy,
-  mode,
-  stacked,
-  selected,
-}: CollectionRowWrapperProps) {
-  // Drag preview is shared from the parent's selection-driven store so all
-  // rows agree on the same fanned set of cards during a select-mode drag.
-  const dragPreviewPrintings = useDragPreviewStore((s) => s.preview);
-  if (!printing || !itemId) {
-    return children;
-  }
-  const stack = stackByItemId.get(itemId);
-  if (!stack) {
-    return children;
-  }
-  const cardCopyIds = allCopyIdsByTile.get(cardsViewTileKey(printing, tileGroupBy));
-  const effectiveCopyIds = cardCopyIds ?? stack.copyIds;
-  const isItemSelected =
-    mode === "select" && isStackSelected(stacked, itemId, effectiveCopyIds, selected);
-  const isFromSelection = mode === "select" && isItemSelected && selected.size > 0;
-  const copyIds = isFromSelection ? [...selected] : stacked ? effectiveCopyIds : [itemId];
-  const isStackDrag = !isFromSelection && stacked && effectiveCopyIds.length > 1;
-  const previewPrintings = dragPreviewPrintings.length > 0 ? dragPreviewPrintings : [printing];
-  // True only when the whole (non-selection) drag is group-owned copies, so a
-  // trade/wish list can refuse it. Select-mode drags resolve their copy set
-  // live at drop time, so we don't flag them from this stale snapshot.
-  const sourceAllGroupCopies = !isFromSelection && copyIds.length > 0 && sourceCollectionIsGroup;
-  return (
-    <DraggableCard
-      id={itemId}
-      copyIds={copyIds}
-      fromSelection={isFromSelection}
-      isStackDrag={isStackDrag}
-      printing={printing}
-      previewPrintings={previewPrintings}
-      sourceCollectionId={collectionId}
-      sourceAllGroupCopies={sourceAllGroupCopies}
-    >
-      {children}
-    </DraggableCard>
-  );
 }
 
 interface CollectionGridProps {
@@ -1265,95 +1138,41 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   // QuickAddPalette keeps its state (search input, expanded card) on the first
   // add instead of remounting when the empty-state subtree unmounts.
   const collectionOverlays = (
-    <>
-      {addTarget && (
-        <QuickAddPalette
-          open={quickAddOpen}
-          onOpenChange={setQuickAddOpen}
-          collectionId={addTarget}
-          collectionName={currentCollection?.name ?? "Collection"}
-          printingsByCardId={catalogAllPrintingsByCardId}
-          ownedCountByPrinting={ownedCountByPrinting}
-          preferredLanguages={preferredLanguages}
-          collections={collections}
-        />
-      )}
-      {currentCollection && !currentCollection.isInbox && (
-        <DeleteCollectionDialog
-          open={deleteOpen}
-          onOpenChange={setDeleteOpen}
-          collectionName={currentCollection.name}
-          copyCount={currentCollection.copyCount}
-          onConfirm={handleDeleteCollection}
-          isPending={deleteCollection.isPending}
-        />
-      )}
-      {currentCollection?.isInbox && (
-        <ClearInboxDialog
-          open={clearInboxOpen}
-          onOpenChange={setClearInboxOpen}
-          copyCount={currentCollection.copyCount}
-          onConfirm={handleClearInbox}
-          isPending={clearCollection.isPending}
-        />
-      )}
-      {currentCollection && (
-        <EditCollectionDialog
-          open={editOpen}
-          onOpenChange={setEditOpen}
-          collectionId={currentCollection.id}
-          currentName={currentCollection.name}
-          isInbox={currentCollection.isInbox}
-        />
-      )}
-      {currentCollection && (
-        <CollectionShareDialog
-          open={shareOpen}
-          onOpenChange={setShareOpen}
-          collectionId={currentCollection.id}
-          collectionName={currentCollection.name}
-          isPublic={currentCollection.isPublic}
-          shareToken={currentCollection.shareToken}
-        />
-      )}
-      <AnnotatedDisposeDialog
-        pending={pendingAnnotatedDispose}
-        onConfirm={() => void confirmAnnotatedDispose()}
-        onCancel={cancelAnnotatedDispose}
-        isPending={disposeIsPending}
-      />
-      <CopyDetailsDialog
-        target={copyDetailsTarget}
-        onOpenChange={(open) => {
-          if (!open) {
-            setCopyDetailsTarget(null);
-          }
-        }}
-      />
-      <TakeConfirmDialog
-        printing={takeConfirm?.printing ?? null}
-        maxQuantity={takeConfirm?.availableCopyIds.length ?? 1}
-        initialQuantity={takeConfirm?.initialQuantity ?? 1}
-        inboxName={inboxName ?? "Inbox"}
-        isPending={moveCopies.isPending}
-        onConfirm={performTake}
-        onOpenChange={(open) => {
-          if (!open) {
-            setTakeConfirm(null);
-          }
-        }}
-      />
-      <TakeWishlistFollowUpDialog
-        printing={takeFollowUp?.printing ?? null}
-        entries={takeFollowUp?.entries ?? []}
-        takenQuantity={takeFollowUp?.takenQuantity ?? 1}
-        onOpenChange={(open) => {
-          if (!open) {
-            setTakeFollowUp(null);
-          }
-        }}
-      />
-    </>
+    <CollectionGridOverlays
+      addTarget={addTarget}
+      quickAddOpen={quickAddOpen}
+      setQuickAddOpen={setQuickAddOpen}
+      currentCollection={currentCollection}
+      catalogAllPrintingsByCardId={catalogAllPrintingsByCardId}
+      ownedCountByPrinting={ownedCountByPrinting}
+      preferredLanguages={preferredLanguages}
+      collections={collections}
+      deleteOpen={deleteOpen}
+      setDeleteOpen={setDeleteOpen}
+      handleDeleteCollection={handleDeleteCollection}
+      deleteIsPending={deleteCollection.isPending}
+      clearInboxOpen={clearInboxOpen}
+      setClearInboxOpen={setClearInboxOpen}
+      handleClearInbox={handleClearInbox}
+      clearInboxIsPending={clearCollection.isPending}
+      editOpen={editOpen}
+      setEditOpen={setEditOpen}
+      shareOpen={shareOpen}
+      setShareOpen={setShareOpen}
+      pendingAnnotatedDispose={pendingAnnotatedDispose}
+      confirmAnnotatedDispose={confirmAnnotatedDispose}
+      cancelAnnotatedDispose={cancelAnnotatedDispose}
+      disposeIsPending={disposeIsPending}
+      copyDetailsTarget={copyDetailsTarget}
+      setCopyDetailsTarget={setCopyDetailsTarget}
+      takeConfirm={takeConfirm}
+      setTakeConfirm={setTakeConfirm}
+      performTake={performTake}
+      moveIsPending={moveCopies.isPending}
+      takeFollowUp={takeFollowUp}
+      setTakeFollowUp={setTakeFollowUp}
+      inboxName={inboxName}
+    />
   );
 
   // ── Content branch ──────────────────────────────────────────────────
@@ -1567,180 +1386,5 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       )}
       {collectionOverlays}
     </>
-  );
-}
-
-interface CollectionTopBarProps {
-  title: string;
-  onToggleSidebar: () => void;
-  mode: "browse" | "select";
-  valueCents: number | null | undefined;
-  unpricedCount: number | null | undefined;
-  formatValue: (value: number) => string;
-  addTarget?: string;
-  onQuickAdd: () => void;
-  onSelectAll: () => void;
-  onEnterSelect: () => void;
-  onExitSelect: () => void;
-  hasCards: boolean;
-  isAllSelected: boolean;
-  view: string;
-  canEdit: boolean;
-  canDelete: boolean;
-  canClearInbox: boolean;
-  canShare: boolean;
-  canToggleDeckbuilding: boolean;
-  deckbuildingAvailable: boolean;
-  onEdit: () => void;
-  onDelete: () => void;
-  onClearInbox: () => void;
-  onShare: () => void;
-  onToggleDeckbuilding: () => void;
-}
-
-function CollectionTopBar({
-  title,
-  onToggleSidebar,
-  mode,
-  valueCents,
-  unpricedCount,
-  formatValue,
-  addTarget,
-  onQuickAdd,
-  onSelectAll,
-  onEnterSelect,
-  onExitSelect,
-  hasCards,
-  isAllSelected,
-  view,
-  canEdit,
-  canDelete,
-  canClearInbox,
-  canShare,
-  canToggleDeckbuilding,
-  deckbuildingAvailable,
-  onEdit,
-  onDelete,
-  onClearInbox,
-  onShare,
-  onToggleDeckbuilding,
-}: CollectionTopBarProps) {
-  return (
-    <PageTopBar>
-      <div className="flex min-w-0 flex-1 items-baseline gap-2">
-        <PageTopBarTitle onToggleSidebar={onToggleSidebar}>{title}</PageTopBarTitle>
-
-        <CollectionValueSummary
-          valueCents={valueCents}
-          unpricedCount={unpricedCount}
-          formatValue={formatValue}
-        />
-      </div>
-
-      <PageTopBarActions>
-        <div className="flex items-center gap-2">
-          {addTarget && hasCards && (
-            <>
-              <PageTopBarIconButton
-                onClick={onQuickAdd}
-                aria-label="Quick add"
-                className="sm:hidden"
-              >
-                <SquarePlusIcon className="size-4" />
-              </PageTopBarIconButton>
-              <PageTopBarButton onClick={onQuickAdd} className="hidden sm:flex">
-                <SquarePlusIcon className="size-4" />
-                Quick add
-              </PageTopBarButton>
-            </>
-          )}
-          {mode === "select" ? (
-            <>
-              <PageTopBarIconButton
-                onClick={onSelectAll}
-                aria-label={isAllSelected ? "Deselect all" : "Select all"}
-                className="sm:hidden"
-              >
-                <CheckIcon className="size-4" />
-              </PageTopBarIconButton>
-              <PageTopBarButton onClick={onSelectAll} className="hidden sm:flex">
-                <CheckIcon className="size-4" />
-                {isAllSelected ? "Deselect all" : "Select all"}
-              </PageTopBarButton>
-              <PageTopBarIconButton onClick={onExitSelect} aria-label="Done" className="sm:hidden">
-                <XIcon className="size-4" />
-              </PageTopBarIconButton>
-              <PageTopBarPrimaryButton onClick={onExitSelect} className="hidden sm:flex">
-                Done
-              </PageTopBarPrimaryButton>
-            </>
-          ) : (
-            hasCards && (
-              <>
-                <PageTopBarIconButton
-                  onClick={onEnterSelect}
-                  aria-label={`Manage ${view}`}
-                  className="sm:hidden"
-                >
-                  <CheckSquareIcon className="size-4" />
-                </PageTopBarIconButton>
-                <PageTopBarButton onClick={onEnterSelect} className="hidden sm:flex">
-                  <CheckSquareIcon className="size-4" />
-                  Manage {view}
-                </PageTopBarButton>
-              </>
-            )
-          )}
-          {(canEdit || canDelete || canClearInbox || canShare || canToggleDeckbuilding) && (
-            <DropdownMenu>
-              <DropdownMenuTrigger render={<PageTopBarIconButton />}>
-                <EllipsisVerticalIcon className="size-4" />
-                <span className="sr-only">Collection actions</span>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {canEdit && (
-                  <DropdownMenuItem onClick={onEdit}>
-                    <PencilIcon className="size-4" />
-                    Edit collection
-                  </DropdownMenuItem>
-                )}
-                {canToggleDeckbuilding && (
-                  <DropdownMenuItem onClick={onToggleDeckbuilding}>
-                    <LayersIcon className="size-4" />
-                    {deckbuildingAvailable
-                      ? "Exclude from my deck building"
-                      : "Include in my deck building"}
-                  </DropdownMenuItem>
-                )}
-                {canShare && (
-                  <DropdownMenuItem onClick={onShare}>
-                    <Share2Icon className="size-4" />
-                    Share
-                  </DropdownMenuItem>
-                )}
-                {canDelete && (
-                  <DropdownMenuItem
-                    className="text-destructive focus:text-destructive"
-                    onClick={onDelete}
-                  >
-                    <Trash2Icon className="size-4" />
-                    Delete collection
-                  </DropdownMenuItem>
-                )}
-                {canClearInbox && (
-                  <DropdownMenuItem
-                    className="text-destructive focus:text-destructive"
-                    onClick={onClearInbox}
-                  >
-                    <Trash2Icon className="size-4" />
-                    Clear inbox
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-        </div>
-      </PageTopBarActions>
-    </PageTopBar>
   );
 }
