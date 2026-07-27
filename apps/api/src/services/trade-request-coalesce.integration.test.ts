@@ -239,7 +239,7 @@ describe.skipIf(!ctx)("trade-request coalescing (integration)", () => {
     expect(result.requests).toBe(2);
     expect(flush.sent).toHaveLength(1);
     expect(flush.sent[0].to).toBe(GIVER_EMAIL);
-    expect(flush.sent[0].subject).toContain("2 trade requests");
+    expect(flush.sent[0].subject).toContain("wants 2 of your cards");
     expect(flush.sent[0].subject).not.toContain("more");
 
     // A second flush has nothing left to send (the rows are now claimed).

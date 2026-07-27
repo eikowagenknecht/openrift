@@ -11,6 +11,29 @@ function quantityLabel(quantity: number, cardName: string): string {
   return quantity > 1 ? `${quantity}× ${cardName}` : cardName;
 }
 
+/**
+ * Lead sentence for a single trade request, e.g.
+ * "Garen wants to trade for your 2× Card." — shared by the instant email and
+ * the coalesced email's single-request form.
+ * @returns The HTML sentence for the request's kind.
+ */
+function requestLead(senderHtml: string, card: string, kind: "wants" | "offers"): string {
+  const cardHtml = `<strong>${escapeHtml(card)}</strong>`;
+  return kind === "wants"
+    ? `${senderHtml} wants to trade for your ${cardHtml}.`
+    : `${senderHtml} is offering you ${cardHtml}.`;
+}
+
+/**
+ * Subject for a single trade request, matching the lead sentence's phrasing.
+ * @returns The subject line (without the "— OpenRift" suffix).
+ */
+function requestSubject(sender: string, cardName: string, kind: "wants" | "offers"): string {
+  return kind === "wants"
+    ? `${sender} wants to trade for ${cardName}`
+    : `${sender} offers you ${cardName}`;
+}
+
 export interface TradeRequestEmailInput {
   /** Display name of the recipient (the non-initiator); may be null. */
   recipientName: string | null;
@@ -40,15 +63,8 @@ export function buildTradeRequestEmail(input: TradeRequestEmailInput): {
   const card = quantityLabel(input.quantity, input.cardName);
   const greeting = input.recipientName ? `Hi ${escapeHtml(input.recipientName)},` : "Hi,";
 
-  const lead =
-    input.kind === "wants"
-      ? `<strong>${escapeHtml(initiator)}</strong> wants to trade for your <strong>${escapeHtml(card)}</strong>.`
-      : `<strong>${escapeHtml(initiator)}</strong> is offering you <strong>${escapeHtml(card)}</strong>.`;
-
-  const subject =
-    input.kind === "wants"
-      ? `${initiator} wants to trade for ${input.cardName} — OpenRift`
-      : `${initiator} offers you ${input.cardName} — OpenRift`;
+  const lead = requestLead(`<strong>${escapeHtml(initiator)}</strong>`, card, input.kind);
+  const subject = `${requestSubject(initiator, input.cardName, input.kind)} — OpenRift`;
 
   const contactLine = input.initiatorContact
     ? `<p style="margin:0 0 20px;">Reach ${escapeHtml(initiator)}: ${escapeHtml(input.initiatorContact)}</p>`
@@ -86,6 +102,12 @@ export interface CoalescedRequestGroup {
   requests: CoalescedRequest[];
 }
 
+/** Per-direction presentation for the coalesced request email, in display order. */
+const REQUEST_KINDS = [
+  { kind: "wants", heading: "Wants from you" },
+  { kind: "offers", heading: "Offers you" },
+] as const;
+
 export interface CoalescedTradeRequestsEmailInput {
   /** Display name of the recipient (the non-initiator); may be null. */
   recipientName: string | null;
@@ -115,27 +137,55 @@ export function buildCoalescedTradeRequestsEmail(input: CoalescedTradeRequestsEm
   const sender = input.senderName ?? "A group member";
   const senderHtml = escapeHtml(sender);
   const greeting = input.recipientName ? `Hi ${escapeHtml(input.recipientName)},` : "Hi,";
-  const total = input.groups.reduce((sum, group) => sum + group.requests.length, 0);
+  const allRequests = input.groups.flatMap((group) => group.requests);
+  const total = allRequests.length;
 
-  // The sender is the actor; the group is only *where* the trade lives (it scopes
-  // the deep link). Every line names the sender so each one stands on its own as
-  // the player's action, never the group's. With a single shared group the group
-  // name rides on the button; with several, a muted "In {group}" location line
-  // separates the blocks.
+  // The email is coalesced per sender, so the intro names the sender once and
+  // the lines group by direction ("Wants from you" / "Offers you") — only the
+  // cards vary, so that's all a line shows. No verdict colors here: neither
+  // direction is good or bad news. The group stays the deep-link location: on
+  // the button for a single group, on a muted "In {group}" line when several
+  // are involved. A single request keeps the instant email's sentence form.
+  if (total === 1) {
+    const group = input.groups[0];
+    const request = group.requests[0];
+    const card = quantityLabel(request.quantity, request.cardName);
+    const bodyHtml = `
+      <p style="margin:0 0 12px;">${greeting}</p>
+      <p style="margin:0 0 16px;">${requestLead(`<strong>${senderHtml}</strong>`, card, request.kind)}</p>
+      <p style="margin:0 0 20px;">Open the trade to accept or decline it. Heads up: trade requests expire 7 days after they're sent.</p>
+      <p style="margin:0;">${emailButton(`View the trades in ${group.groupName}`, group.tradesUrl)}</p>
+    `;
+    return {
+      subject: `${requestSubject(sender, request.cardName, request.kind)} — OpenRift`,
+      html: renderEmailLayout({
+        heading: "New trade request",
+        bodyHtml,
+        unsubscribe: { url: input.unsubscribeUrl, label: "Trade-request emails" },
+      }),
+    };
+  }
+
   const multiGroup = input.groups.length > 1;
 
   const groupBlocks = input.groups
     .map((group) => {
-      const rows = group.requests
-        .map((request) => {
-          const card = quantityLabel(request.quantity, request.cardName);
-          const phrase =
-            request.kind === "wants"
-              ? `${senderHtml} wants your <strong>${escapeHtml(card)}</strong>`
-              : `${senderHtml} offers you <strong>${escapeHtml(card)}</strong>`;
-          return `<li style="margin:0 0 4px;">${phrase}</li>`;
-        })
-        .join("");
+      const sections = REQUEST_KINDS.map(({ kind, heading }) => {
+        const cards = group.requests.filter((request) => request.kind === kind);
+        if (cards.length === 0) {
+          return "";
+        }
+        const rows = cards
+          .map(
+            (request) =>
+              `<li style="margin:0 0 4px;"><strong>${escapeHtml(quantityLabel(request.quantity, request.cardName))}</strong></li>`,
+          )
+          .join("");
+        return `
+          <p style="margin:0 0 4px;font-weight:600;">${heading}</p>
+          <ul style="margin:0 0 12px;padding-left:18px;">${rows}</ul>
+        `;
+      }).join("");
       const locationLine = multiGroup
         ? `<p style="margin:0 0 6px;color:${MUTED_TEXT};font-size:13px;">In ${escapeHtml(group.groupName)}</p>`
         : "";
@@ -143,19 +193,30 @@ export function buildCoalescedTradeRequestsEmail(input: CoalescedTradeRequestsEm
       return `
         <div style="margin:0 0 20px;">
           ${locationLine}
-          <ul style="margin:0 0 10px;padding-left:18px;">${rows}</ul>
+          ${sections}
           <p style="margin:0;">${emailButton(buttonLabel, group.tradesUrl)}</p>
         </div>
       `;
     })
     .join("");
 
-  const countLabel = total === 1 ? "1 trade request" : `${total} trade requests`;
-  const subject = `${sender} sent you ${countLabel} — OpenRift`;
+  // "wants 2 of your cards and offers you 1" — the directions tell the story
+  // from the notification tray, before the email is opened.
+  const wantsCount = allRequests.filter((request) => request.kind === "wants").length;
+  const offersCount = total - wantsCount;
+  const parts: string[] = [];
+  if (wantsCount > 0) {
+    parts.push(`wants ${wantsCount} of your cards`);
+  }
+  if (offersCount > 0) {
+    // With a wants part ahead, "cards" is already established: "…and offers you 1".
+    parts.push(wantsCount > 0 ? `offers you ${offersCount}` : `offers you ${offersCount} cards`);
+  }
+  const subject = `${sender} ${joinWithAnd(parts)} — OpenRift`;
 
   const bodyHtml = `
     <p style="margin:0 0 12px;">${greeting}</p>
-    <p style="margin:0 0 20px;"><strong>${senderHtml}</strong> sent you some trade requests. Heads up: trade requests expire 7 days after they're sent.</p>
+    <p style="margin:0 0 20px;"><strong>${senderHtml}</strong> sent you ${total} trade requests. Heads up: trade requests expire 7 days after they're sent.</p>
     ${groupBlocks}
   `;
 
@@ -195,9 +256,32 @@ export interface TradeStatusUpdateEmailInput {
 }
 
 /**
- * Phrase for one status line, e.g. "Garen accepted your request for 2× Card".
- * The actor is named on every line so each update reads as the player's action,
- * not the group's.
+ * Per-outcome presentation for the status-update email, in display order:
+ * good news first, then declines, then cancellations.
+ */
+const STATUS_OUTCOMES = [
+  { event: "reserved", verb: "accepted", heading: "Accepted", color: "#15803d" },
+  { event: "declined", verb: "declined", heading: "Declined", color: "#b91c1c" },
+  { event: "cancelled", verb: "cancelled", heading: "Cancelled", color: MUTED_TEXT },
+] as const;
+
+/**
+ * Joins parts into an English enumeration ("a", "a and b", "a, b, and c").
+ * @returns The joined phrase.
+ */
+function joinWithAnd(parts: string[]): string {
+  if (parts.length <= 1) {
+    return parts[0] ?? "";
+  }
+  if (parts.length === 2) {
+    return `${parts[0]} and ${parts[1]}`;
+  }
+  return `${parts.slice(0, -1).join(", ")}, and ${parts.at(-1)}`;
+}
+
+/**
+ * Sentence for the single-update email, e.g.
+ * "Garen accepted your request for 2× Card".
  * @returns The HTML phrase for the update's event.
  */
 function statusUpdatePhrase(update: TradeStatusUpdate, actorHtml: string): string {
@@ -216,6 +300,24 @@ function statusUpdatePhrase(update: TradeStatusUpdate, actorHtml: string): strin
 }
 
 /**
+ * Subject for the single-update email, matching the body's sentence phrasing.
+ * @returns The subject line (without the "— OpenRift" suffix).
+ */
+function singleUpdateSubject(actor: string, event: TradeStatusUpdate["event"]): string {
+  switch (event) {
+    case "reserved": {
+      return `${actor} accepted your trade request`;
+    }
+    case "declined": {
+      return `${actor} declined your trade request`;
+    }
+    case "cancelled": {
+      return `${actor} cancelled a trade`;
+    }
+  }
+}
+
+/**
  * Builds the coalesced "{actor} updated your trades" email (ADR-030): folds one
  * member's accept/decline/cancel actions toward this recipient into a single
  * message, so accepting a basket of cards sends one email, not one per card.
@@ -228,20 +330,53 @@ export function buildTradeStatusUpdateEmail(input: TradeStatusUpdateEmailInput):
   const actor = input.actorName ?? "A group member";
   const actorHtml = escapeHtml(actor);
   const greeting = input.recipientName ? `Hi ${escapeHtml(input.recipientName)},` : "Hi,";
-  const total = input.groups.reduce((sum, group) => sum + group.updates.length, 0);
+  const allUpdates = input.groups.flatMap((group) => group.updates);
+  const total = allUpdates.length;
 
-  // Same hierarchy as the request email: the actor leads every line, the group is
-  // only the deep-link location — on the button for a single group, on a muted
-  // "In {group}" line when several are involved.
+  // The email is coalesced per actor, so the actor is constant and the intro
+  // carries it once. The lines themselves group by outcome under colored
+  // headers — the verdict and the card are the only things that vary, so they
+  // are all a line shows. The group stays the deep-link location: on the button
+  // for a single group, on a muted "In {group}" line when several are involved.
+  // A single update keeps the plain-sentence form; a header over one bullet
+  // reads as noise.
+  if (total === 1) {
+    const group = input.groups[0];
+    const bodyHtml = `
+      <p style="margin:0 0 12px;">${greeting}</p>
+      <p style="margin:0 0 20px;">${statusUpdatePhrase(group.updates[0], `<strong>${actorHtml}</strong>`)}.</p>
+      <p style="margin:0;">${emailButton(`View the trades in ${group.groupName}`, group.tradesUrl)}</p>
+    `;
+    return {
+      subject: `${singleUpdateSubject(actor, group.updates[0].event)} — OpenRift`,
+      html: renderEmailLayout({
+        heading: "Trade updates",
+        bodyHtml,
+        unsubscribe: { url: input.unsubscribeUrl, label: "Trade-status emails" },
+      }),
+    };
+  }
+
   const multiGroup = input.groups.length > 1;
 
   const groupBlocks = input.groups
     .map((group) => {
-      const rows = group.updates
-        .map(
-          (update) => `<li style="margin:0 0 4px;">${statusUpdatePhrase(update, actorHtml)}</li>`,
-        )
-        .join("");
+      const sections = STATUS_OUTCOMES.map(({ event, heading, color }) => {
+        const cards = group.updates.filter((update) => update.event === event);
+        if (cards.length === 0) {
+          return "";
+        }
+        const rows = cards
+          .map(
+            (update) =>
+              `<li style="margin:0 0 4px;"><strong>${escapeHtml(quantityLabel(update.quantity, update.cardName))}</strong></li>`,
+          )
+          .join("");
+        return `
+          <p style="margin:0 0 4px;font-weight:600;color:${color};">${heading}</p>
+          <ul style="margin:0 0 12px;padding-left:18px;">${rows}</ul>
+        `;
+      }).join("");
       const locationLine = multiGroup
         ? `<p style="margin:0 0 6px;color:${MUTED_TEXT};font-size:13px;">In ${escapeHtml(group.groupName)}</p>`
         : "";
@@ -249,19 +384,28 @@ export function buildTradeStatusUpdateEmail(input: TradeStatusUpdateEmailInput):
       return `
         <div style="margin:0 0 20px;">
           ${locationLine}
-          <ul style="margin:0 0 10px;padding-left:18px;">${rows}</ul>
+          ${sections}
           <p style="margin:0;">${emailButton(buttonLabel, group.tradesUrl)}</p>
         </div>
       `;
     })
     .join("");
 
-  const countLabel = total === 1 ? "a trade" : `${total} of your trades`;
-  const subject = `${actor} updated ${countLabel} — OpenRift`;
+  // "accepted 2 and declined 1" — the verdict counts tell the story from the
+  // notification tray, before the email is opened.
+  const countPhrase = joinWithAnd(
+    STATUS_OUTCOMES.map(({ event, verb }) => ({
+      verb,
+      count: allUpdates.filter((update) => update.event === event).length,
+    }))
+      .filter(({ count }) => count > 0)
+      .map(({ verb, count }) => `${verb} ${count}`),
+  );
+  const subject = `${actor} ${countPhrase} of your trades — OpenRift`;
 
   const bodyHtml = `
     <p style="margin:0 0 12px;">${greeting}</p>
-    <p style="margin:0 0 20px;"><strong>${actorHtml}</strong> ${total === 1 ? "updated one of your trades:" : "updated some of your trades:"}</p>
+    <p style="margin:0 0 20px;"><strong>${actorHtml}</strong> updated some of your trades:</p>
     ${groupBlocks}
   `;
 
@@ -306,26 +450,64 @@ export function buildTradeMatchDigestEmail(input: TradeMatchDigestEmailInput): {
   const totalMatches = input.groups.reduce((sum, group) => sum + group.matches.length, 0);
   const greeting = input.recipientName ? `Hi ${escapeHtml(input.recipientName)},` : "Hi,";
 
+  const countLabel = totalMatches === 1 ? "1 new match" : `${totalMatches} new matches`;
+  const subject = `${countLabel} in your trading groups — OpenRift`;
+
+  // Matches group by counterparty ("Garen has …"), not card by card — the
+  // person is the call to action, the cards are the detail. The group is the
+  // deep-link location, same as the other trade emails: on the button for a
+  // single group, on a muted "In {group}" line when several are involved. A
+  // single match keeps the plain-sentence form.
+  if (totalMatches === 1) {
+    const group = input.groups[0];
+    const match = group.matches[0];
+    const bodyHtml = `
+      <p style="margin:0 0 12px;">${greeting}</p>
+      <p style="margin:0 0 20px;"><strong>${escapeHtml(match.counterpartyLabel)}</strong> now has <strong>${escapeHtml(match.cardName)}</strong> from your wishlist.</p>
+      <p style="margin:0;">${emailButton(`View the trades in ${group.groupName}`, group.tradesUrl)}</p>
+    `;
+    return {
+      subject,
+      html: renderEmailLayout({
+        heading: "New trade matches",
+        bodyHtml,
+        unsubscribe: { url: input.unsubscribeUrl, label: "Daily match digest" },
+      }),
+    };
+  }
+
+  const multiGroup = input.groups.length > 1;
+
   const groupBlocks = input.groups
     .map((group) => {
-      const rows = group.matches
-        .map(
-          (match) =>
-            `<li style="margin:0 0 4px;"><strong>${escapeHtml(match.cardName)}</strong> from ${escapeHtml(match.counterpartyLabel)}</li>`,
-        )
+      const byCounterparty = Map.groupBy(group.matches, (match) => match.counterpartyLabel);
+      const sections = [...byCounterparty.entries()]
+        .map(([counterpartyLabel, matches]) => {
+          const rows = matches
+            .map(
+              (match) =>
+                `<li style="margin:0 0 4px;"><strong>${escapeHtml(match.cardName)}</strong></li>`,
+            )
+            .join("");
+          return `
+            <p style="margin:0 0 4px;font-weight:600;">${escapeHtml(counterpartyLabel)} has</p>
+            <ul style="margin:0 0 12px;padding-left:18px;">${rows}</ul>
+          `;
+        })
         .join("");
+      const locationLine = multiGroup
+        ? `<p style="margin:0 0 6px;color:${MUTED_TEXT};font-size:13px;">In ${escapeHtml(group.groupName)}</p>`
+        : "";
+      const buttonLabel = multiGroup ? "View the trades" : `View the trades in ${group.groupName}`;
       return `
         <div style="margin:0 0 20px;">
-          <p style="margin:0 0 8px;font-weight:600;">${escapeHtml(group.groupName)}</p>
-          <ul style="margin:0 0 10px;padding-left:18px;">${rows}</ul>
-          <p style="margin:0;">${emailButton("Open trades", group.tradesUrl)}</p>
+          ${locationLine}
+          ${sections}
+          <p style="margin:0;">${emailButton(buttonLabel, group.tradesUrl)}</p>
         </div>
       `;
     })
     .join("");
-
-  const countLabel = totalMatches === 1 ? "1 new match" : `${totalMatches} new matches`;
-  const subject = `${countLabel} in your trading groups — OpenRift`;
 
   const bodyHtml = `
     <p style="margin:0 0 12px;">${greeting}</p>

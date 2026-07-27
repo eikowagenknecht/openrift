@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-07-27
+
+### Other
+
+- feat(Trades): **Easier-to-read trade emails** — update and request emails now sort cards under accepted/declined and wants/offers headings instead of repeating a full sentence per card, and match digests list cards per trade partner.
+
 ## 2026-07-26
 
 ### Highlights

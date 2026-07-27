@@ -213,7 +213,7 @@ describe.skipIf(!ctx)("trade-status emails (integration)", () => {
     expect(result.events).toBe(2);
     expect(flush.sent).toHaveLength(1);
     expect(flush.sent[0].to).toBe(RECEIVER_EMAIL);
-    expect(flush.sent[0].subject).toBe("Giver updated 2 of your trades — OpenRift");
+    expect(flush.sent[0].subject).toBe("Giver accepted 2 of your trades — OpenRift");
 
     // A second flush has nothing left — the rows are claimed.
     const flush2 = makeSink();
