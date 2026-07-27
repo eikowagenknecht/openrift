@@ -15,15 +15,8 @@
       ]
     },
     "apps/web": {
-      "entry": [
-        "src/client.tsx",
-        "src/server.ts",
-        "src/start.ts",
-        "src/router.ts",
-        "src/routes/**/*.tsx",
-        "src/components/cards/card-detail/index.tsx"
-      ],
-      "ignore": ["src/env.d.ts", "src/components/ui/**", "src/**/*.bench.ts", "public/sw.js"],
+      "entry": ["src/routes/**/*.tsx", "src/components/cards/card-detail/index.tsx"],
+      "ignore": ["src/components/ui/**", "public/sw.js"],
       "ignoreDependencies": ["@tanstack/router-cli", "@tanstack/router-plugin"]
     },
     "packages/shared": {},

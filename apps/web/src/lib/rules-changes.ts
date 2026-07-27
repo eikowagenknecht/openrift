@@ -51,7 +51,7 @@ export interface RuleMoves {
 // normalizer. Derived from `RULE_REFERENCE_REGEX.source` so the two stay in
 // sync, but with its own `lastIndex` state to avoid clobbering the markdown
 // pipeline's iteration.
-export const RULE_REFERENCE_NORMALIZE_REGEX = new RegExp(RULE_REFERENCE_REGEX.source, "gu");
+const RULE_REFERENCE_NORMALIZE_REGEX = new RegExp(RULE_REFERENCE_REGEX.source, "gu");
 
 /**
  * Canonicalizes rule content for move detection: strips emphasis/code
@@ -64,7 +64,7 @@ export const RULE_REFERENCE_NORMALIZE_REGEX = new RegExp(RULE_REFERENCE_REGEX.so
  *
  * @returns The canonical form for content equality comparison.
  */
-export function normalizeForMoveDetection(text: string): string {
+function normalizeForMoveDetection(text: string): string {
   return text
     .replaceAll(RULE_REFERENCE_NORMALIZE_REGEX, "REF")
     .replaceAll(/[*_`]/gu, "")
@@ -350,7 +350,7 @@ export function parseSearchTerms(query: string): string[] {
   return query.trim().toLowerCase().split(/\s+/u).filter(Boolean);
 }
 
-export function ruleMatches(rule: RuleResponse, terms: string[]): boolean {
+function ruleMatches(rule: RuleResponse, terms: string[]): boolean {
   if (terms.length === 0) {
     return false;
   }
@@ -365,7 +365,7 @@ export function ruleMatches(rule: RuleResponse, terms: string[]): boolean {
  *
  * @returns Indices of ancestor rules within the original list.
  */
-export function findAncestorIndices(
+function findAncestorIndices(
   rules: RuleResponse[],
   matchIndex: number,
   rulesByNumber: Map<string, number>,

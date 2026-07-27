@@ -225,7 +225,7 @@ function handleSamePageAnchorClick(event: MouseEvent<HTMLAnchorElement>, href: s
   }
 }
 
-export function RuleMarkdownAnchor({ href, children }: { href?: string; children?: ReactNode }) {
+function RuleMarkdownAnchor({ href, children }: { href?: string; children?: ReactNode }) {
   if (typeof href === "string" && href.startsWith("#")) {
     return (
       <a
@@ -259,7 +259,7 @@ export function RuleMarkdownAnchor({ href, children }: { href?: string; children
   );
 }
 
-export function RuleMarkdownSpan({
+function RuleMarkdownSpan({
   penalty,
   diff,
   children,

@@ -74,7 +74,7 @@ import { useSiblingOverrideStore } from "@/stores/sibling-override-store";
 // in ListEntryBrowser. Markers and channels stay visible in both modes: they
 // are printing-level attributes a listed promo printing can carry, and both
 // sections self-hide when nothing on the list has one.
-export const LIST_HIDDEN_FILTER_SECTIONS: ReadonlySet<string> = new Set(["owned", "customTags"]);
+const LIST_HIDDEN_FILTER_SECTIONS: ReadonlySet<string> = new Set(["owned", "customTags"]);
 
 export interface ListEntryBrowserProps {
   listId: string;
