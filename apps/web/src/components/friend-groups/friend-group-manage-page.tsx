@@ -8,6 +8,7 @@ import type {
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   BookOpenIcon,
+  CheckIcon,
   CopyIcon,
   CrownIcon,
   FolderIcon,
@@ -17,7 +18,6 @@ import {
   QrCodeIcon,
   Trash2Icon,
 } from "lucide-react";
-import { QRCodeSVG } from "qrcode.react";
 import type { ComponentType, SVGProps } from "react";
 import { useState } from "react";
 
@@ -40,6 +40,7 @@ import {
 import { DialogForm } from "@/components/ui/dialog-form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { QrCode } from "@/components/ui/qr-code";
 import {
   Select,
   SelectContent,
@@ -50,6 +51,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { useContactMethods } from "@/hooks/use-contact-methods";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import {
   useDeleteFriendGroup,
   useDisableFriendGroupCode,
@@ -200,6 +202,7 @@ function AdminSettings({ data, slug }: { data: FriendGroupDetailResponse; slug: 
   const [rotateConfirmOpen, setRotateConfirmOpen] = useState(false);
   const [disableConfirmOpen, setDisableConfirmOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
+  const { copied, copy } = useCopyToClipboard();
 
   const slugChanged = newSlug !== data.group.slug;
   const joinUrl = data.group.code
@@ -277,102 +280,93 @@ function AdminSettings({ data, slug }: { data: FriendGroupDetailResponse; slug: 
             Join code
           </Label>
           {data.group.code ? (
-            // flex-wrap matters: on phones the five items don't fit one line,
-            // and without it Rotate/Disable get clipped off-screen.
-            <div className="flex flex-wrap items-center gap-2">
-              <code className="bg-muted min-w-36 flex-1 rounded px-2 py-1 font-mono text-sm">
-                {data.group.code}
-              </code>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => navigator.clipboard.writeText(joinUrl ?? "")}
-              >
-                <CopyIcon className="size-4" />
-                Copy link
-              </Button>
-              <Dialog open={qrOpen} onOpenChange={setQrOpen}>
-                <DialogTrigger render={<Button size="sm" variant="ghost" />}>
+            <>
+              {/* flex-wrap matters: on phones the five items don't fit one line,
+                  and without it Rotate/Disable get clipped off-screen. */}
+              <div className="flex flex-wrap items-center gap-2">
+                <code className="bg-muted min-w-36 flex-1 rounded px-2 py-1 font-mono text-sm">
+                  {data.group.code}
+                </code>
+                <Button size="sm" variant="ghost" onClick={() => void copy(joinUrl ?? "")}>
+                  {copied ? <CheckIcon className="size-4" /> : <CopyIcon className="size-4" />}
+                  {copied ? "Copied" : "Copy link"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  aria-expanded={qrOpen}
+                  onClick={() => setQrOpen(!qrOpen)}
+                >
                   <QrCodeIcon className="size-4" />
-                  QR code
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Join code QR</DialogTitle>
-                    <DialogDescription>
-                      Scan this to open the invite link and join the group.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="flex flex-col items-center gap-4">
-                    {/* QR modules need a light background to scan in either theme. */}
-                    <div className="w-fit rounded-md bg-white p-4">
-                      <QRCodeSVG value={joinUrl ?? ""} size={224} />
-                    </div>
-                    <code className="text-muted-foreground text-center text-sm break-all">
-                      {joinUrl}
-                    </code>
-                  </div>
-                </DialogContent>
-              </Dialog>
-              <Dialog open={rotateConfirmOpen} onOpenChange={setRotateConfirmOpen}>
-                <DialogTrigger render={<Button size="sm" variant="destructive" />}>
-                  Rotate
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogForm
-                    onSubmit={async () => {
-                      await rotateCode.mutateAsync(slug);
-                      setRotateConfirmOpen(false);
-                    }}
-                  >
-                    <DialogHeader>
-                      <DialogTitle>Rotate the join code?</DialogTitle>
-                      <DialogDescription>
-                        The current code stops working immediately. Anyone holding an old invite
-                        link will need a new one.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                      <Button variant="ghost" onClick={() => setRotateConfirmOpen(false)}>
-                        Cancel
-                      </Button>
-                      <Button type="submit" variant="destructive" disabled={rotateCode.isPending}>
-                        Rotate
-                      </Button>
-                    </DialogFooter>
-                  </DialogForm>
-                </DialogContent>
-              </Dialog>
-              <Dialog open={disableConfirmOpen} onOpenChange={setDisableConfirmOpen}>
-                <DialogTrigger render={<Button size="sm" variant="destructive" />}>
-                  Disable
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogForm
-                    onSubmit={async () => {
-                      await disableCode.mutateAsync(slug);
-                      setDisableConfirmOpen(false);
-                    }}
-                  >
-                    <DialogHeader>
-                      <DialogTitle>Disable code-based joining?</DialogTitle>
-                      <DialogDescription>
-                        The code stops working immediately. New members will only be able to join
-                        via direct email invites until you re-enable code-based joining.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                      <Button variant="ghost" onClick={() => setDisableConfirmOpen(false)}>
-                        Cancel
-                      </Button>
-                      <Button type="submit" variant="destructive" disabled={disableCode.isPending}>
-                        Disable
-                      </Button>
-                    </DialogFooter>
-                  </DialogForm>
-                </DialogContent>
-              </Dialog>
-            </div>
+                  {qrOpen ? "Hide QR code" : "QR code"}
+                </Button>
+                <Dialog open={rotateConfirmOpen} onOpenChange={setRotateConfirmOpen}>
+                  <DialogTrigger render={<Button size="sm" variant="destructive" />}>
+                    Rotate
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogForm
+                      onSubmit={async () => {
+                        await rotateCode.mutateAsync(slug);
+                        setRotateConfirmOpen(false);
+                      }}
+                    >
+                      <DialogHeader>
+                        <DialogTitle>Rotate the join code?</DialogTitle>
+                        <DialogDescription>
+                          The current code stops working immediately. Anyone holding an old invite
+                          link will need a new one.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <DialogFooter>
+                        <Button variant="ghost" onClick={() => setRotateConfirmOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button type="submit" variant="destructive" disabled={rotateCode.isPending}>
+                          Rotate
+                        </Button>
+                      </DialogFooter>
+                    </DialogForm>
+                  </DialogContent>
+                </Dialog>
+                <Dialog open={disableConfirmOpen} onOpenChange={setDisableConfirmOpen}>
+                  <DialogTrigger render={<Button size="sm" variant="destructive" />}>
+                    Disable
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogForm
+                      onSubmit={async () => {
+                        await disableCode.mutateAsync(slug);
+                        setDisableConfirmOpen(false);
+                      }}
+                    >
+                      <DialogHeader>
+                        <DialogTitle>Disable code-based joining?</DialogTitle>
+                        <DialogDescription>
+                          The code stops working immediately. New members will only be able to join
+                          via direct email invites until you re-enable code-based joining.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <DialogFooter>
+                        <Button variant="ghost" onClick={() => setDisableConfirmOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button
+                          type="submit"
+                          variant="destructive"
+                          disabled={disableCode.isPending}
+                        >
+                          Disable
+                        </Button>
+                      </DialogFooter>
+                    </DialogForm>
+                  </DialogContent>
+                </Dialog>
+              </div>
+              {qrOpen && joinUrl ? (
+                <QrCode value={joinUrl} size={224} label="QR code for the group join link" />
+              ) : null}
+            </>
           ) : (
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground text-sm">

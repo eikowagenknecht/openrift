@@ -18,6 +18,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { BinderSheetDialog } from "@/components/share/binder-sheet-dialog";
+import { ShareLinkRow } from "@/components/share/share-link-row";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -27,7 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { useShareList, useUnshareList } from "@/hooks/use-lists";
 import { ensurePriceLookup } from "@/hooks/use-prices";
 import { formatListShareText } from "@/lib/list-export";
@@ -74,26 +75,12 @@ export function ListShareDialog({
   const shareList = useShareList();
   const unshareList = useUnshareList();
   const queryClient = useQueryClient();
-  const [justCopied, setJustCopied] = useState(false);
-  const [copiedText, setCopiedText] = useState(false);
+  const { copied: copiedText, copy: copyText } = useCopyToClipboard();
   const [downloadingImage, setDownloadingImage] = useState(false);
   const [binderSheetOpen, setBinderSheetOpen] = useState(false);
 
   const shareUrl = shareToken ? `${getSiteUrl()}/lists/share/${shareToken}` : null;
   const sharing = shareToken !== null;
-
-  const handleCopy = async () => {
-    if (!shareUrl) {
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      setJustCopied(true);
-      globalThis.setTimeout(() => setJustCopied(false), 1500);
-    } catch {
-      // Ignore clipboard errors — rare, and the user can still select the text.
-    }
-  };
 
   const handleCopyText = async () => {
     // Only CardTrader-priced lists need the (lazily fetched) price payload;
@@ -119,11 +106,9 @@ export function ListShareDialog({
         currency,
         ctPriceFor,
       });
-      await navigator.clipboard.writeText(text);
-      setCopiedText(true);
-      globalThis.setTimeout(() => setCopiedText(false), 1500);
+      await copyText(text);
     } catch {
-      // Ignore clipboard errors; the user can still copy the link.
+      // Price lookup or formatting failed; the user can still copy the link.
     }
   };
 
@@ -158,15 +143,7 @@ export function ListShareDialog({
             </DialogDescription>
           </DialogHeader>
 
-          {sharing && shareUrl ? (
-            <div className="flex items-center gap-2">
-              <Input value={shareUrl} readOnly onFocus={(event) => event.currentTarget.select()} />
-              <Button variant="outline" onClick={handleCopy}>
-                {justCopied ? <CheckIcon /> : <CopyIcon />}
-                {justCopied ? "Copied" : "Copy"}
-              </Button>
-            </div>
-          ) : null}
+          {sharing && shareUrl ? <ShareLinkRow url={shareUrl} label="List share link" /> : null}
 
           <div className="flex flex-col gap-2 border-t pt-4">
             <div>

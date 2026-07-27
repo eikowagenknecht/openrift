@@ -1,6 +1,7 @@
-import { CheckIcon, CopyIcon, LinkIcon, RefreshCwIcon, Trash2Icon } from "lucide-react";
+import { LinkIcon, RefreshCwIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 
+import { ShareLinkRow } from "@/components/share/share-link-row";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -14,7 +15,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DialogForm } from "@/components/ui/dialog-form";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useDisableUserShare,
@@ -35,25 +35,11 @@ export function PublicSharingSection() {
   const enableShare = useEnableUserShare();
   const disableShare = useDisableUserShare();
   const rotateShare = useRotateUserShare();
-  const [justCopied, setJustCopied] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
 
   const shareToken = data?.shareToken ?? null;
   const shareUrl = shareToken ? `${getSiteUrl()}/users/share/${shareToken}` : null;
   const sharing = shareToken !== null;
-
-  const handleCopy = async () => {
-    if (!shareUrl) {
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      setJustCopied(true);
-      globalThis.setTimeout(() => setJustCopied(false), 1500);
-    } catch {
-      // Ignore clipboard errors — rare, and the user can still select the text.
-    }
-  };
 
   return (
     <Card>
@@ -69,13 +55,7 @@ export function PublicSharingSection() {
           <Skeleton className="h-10 w-full" />
         ) : sharing && shareUrl ? (
           <>
-            <div className="flex items-center gap-2">
-              <Input value={shareUrl} readOnly onFocus={(event) => event.currentTarget.select()} />
-              <Button variant="outline" onClick={handleCopy}>
-                {justCopied ? <CheckIcon /> : <CopyIcon />}
-                {justCopied ? "Copied" : "Copy"}
-              </Button>
-            </div>
+            <ShareLinkRow url={shareUrl} label="Bundle share link" />
             <div className="flex flex-wrap gap-2">
               <AlertDialog open={resetOpen} onOpenChange={setResetOpen}>
                 <AlertDialogTrigger

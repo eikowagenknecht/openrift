@@ -1,12 +1,12 @@
 import type { TournamentDetailResponse } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { QRCodeSVG } from "qrcode.react";
 import { Suspense, useState } from "react";
 import { toast } from "sonner";
 
 import type { PageTocItem } from "@/components/layout/page-toc";
 import { SettingsGroup } from "@/components/layout/settings-group";
 import { SettingsLayout } from "@/components/layout/settings-layout";
+import { ShareLinkRow } from "@/components/share/share-link-row";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -189,11 +189,6 @@ export function TournamentSettingsTab({ detail }: { detail: TournamentDetailResp
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Something went wrong");
     }
-  }
-
-  async function copyLink(url: string) {
-    await navigator.clipboard.writeText(url);
-    toast.success("Link copied");
   }
 
   return (
@@ -642,32 +637,23 @@ export function TournamentSettingsTab({ detail }: { detail: TournamentDetailResp
                 <Label>
                   {detail.selfRegistration ? "Registration link" : "Deck submission link"}
                 </Label>
-                <div className="flex gap-2">
-                  <Input readOnly value={registrationUrl} aria-label="Share link" />
-                  <Button
-                    variant="secondary"
-                    onClick={async () => {
-                      await navigator.clipboard.writeText(registrationUrl);
-                      toast.success("Link copied");
-                    }}
-                  >
-                    Copy
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    disabled={locked || setSubmissionToken.isPending}
-                    onClick={() => setConfirmRotate(true)}
-                  >
-                    Rotate link
-                  </Button>
-                </div>
+                <ShareLinkRow
+                  url={registrationUrl}
+                  label={detail.selfRegistration ? "Registration link" : "Deck submission link"}
+                  defaultQrOpen
+                  actions={
+                    <Button
+                      variant="ghost"
+                      disabled={locked || setSubmissionToken.isPending}
+                      onClick={() => setConfirmRotate(true)}
+                    >
+                      Rotate link
+                    </Button>
+                  }
+                />
                 <p className="text-muted-foreground text-sm">
                   Rotating makes a new link and stops the old one working.
                 </p>
-                {/* QR modules need a light background to scan in either theme. */}
-                <div className="w-fit rounded-md bg-white p-3">
-                  <QRCodeSVG value={registrationUrl} size={160} />
-                </div>
               </div>
             ) : null}
           </CardContent>
@@ -690,12 +676,11 @@ export function TournamentSettingsTab({ detail }: { detail: TournamentDetailResp
                   Anyone with this link can follow along and enter pod results.
                 </p>
                 {reportUrl ? (
-                  <div className="flex flex-col gap-2">
-                    <div className="flex gap-2">
-                      <Input readOnly value={reportUrl} aria-label="Result reporting link" />
-                      <Button variant="secondary" onClick={() => void copyLink(reportUrl)}>
-                        Copy
-                      </Button>
+                  <ShareLinkRow
+                    url={reportUrl}
+                    label="Result reporting link"
+                    defaultQrOpen
+                    actions={
                       <Button
                         variant="ghost"
                         className="text-destructive"
@@ -704,12 +689,8 @@ export function TournamentSettingsTab({ detail }: { detail: TournamentDetailResp
                       >
                         Disable
                       </Button>
-                    </div>
-                    {/* QR modules need a light background to scan in either theme. */}
-                    <div className="w-fit rounded-md bg-white p-3">
-                      <QRCodeSVG value={reportUrl} size={160} />
-                    </div>
-                  </div>
+                    }
+                  />
                 ) : (
                   <Button
                     className="w-fit"
@@ -729,12 +710,11 @@ export function TournamentSettingsTab({ detail }: { detail: TournamentDetailResp
                   Anyone with this link can follow along but cannot enter results.
                 </p>
                 {followUrl ? (
-                  <div className="flex flex-col gap-2">
-                    <div className="flex gap-2">
-                      <Input readOnly value={followUrl} aria-label="Follow-only link" />
-                      <Button variant="secondary" onClick={() => void copyLink(followUrl)}>
-                        Copy
-                      </Button>
+                  <ShareLinkRow
+                    url={followUrl}
+                    label="Follow-only link"
+                    defaultQrOpen
+                    actions={
                       <Button
                         variant="ghost"
                         className="text-destructive"
@@ -743,12 +723,8 @@ export function TournamentSettingsTab({ detail }: { detail: TournamentDetailResp
                       >
                         Disable
                       </Button>
-                    </div>
-                    {/* QR modules need a light background to scan in either theme. */}
-                    <div className="w-fit rounded-md bg-white p-3">
-                      <QRCodeSVG value={followUrl} size={160} />
-                    </div>
-                  </div>
+                    }
+                  />
                 ) : (
                   <Button
                     className="w-fit"

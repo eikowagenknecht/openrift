@@ -524,9 +524,13 @@ export async function renderDeckImage(io: Io, input: DeckImageInput, scale = 1):
       Promise.all(domains.map((domain) => glyphUri(io, domain, DOMAIN_ICON, scale))),
       input.shareUrl
         ? QRCode.toDataURL(input.shareUrl, {
+            errorCorrectionLevel: "M",
             width: QR_SIZE * scale,
+            // The 2-module quiet zone is white rather than transparent, so it
+            // doubles as the light plate the code needs. That keeps the mark's
+            // footprint at exactly QR_SIZE for the layout maths below.
             margin: 2,
-            color: { dark: COLORS.gold, light: "#00000000" },
+            color: { dark: "#000000", light: "#ffffff" },
           }).catch(() => null)
         : Promise.resolve(null),
     ]);
@@ -677,7 +681,10 @@ export async function renderDeckImage(io: Io, input: DeckImageInput, scale = 1):
       runeCards.map((card, index) => cardTile(card, runeUris[index] ?? null, runeTileW, runeTileH)),
     );
 
-  // Scannable host label beside the QR, bottom-right.
+  // Scannable host label beside the QR, bottom-right. The code is dark-on-white
+  // rather than gold-on-transparent: a light-on-dark code is inverted polarity,
+  // which older and cheaper scanners refuse, and this image is the artifact most
+  // likely to be scanned off a stranger's phone.
   const footerMark =
     hasFooterMark &&
     element(
@@ -690,7 +697,12 @@ export async function renderDeckImage(io: Io, input: DeckImageInput, scale = 1):
             input.siteHost,
           )
         : false,
-      qrUri ? { type: "img", props: { src: qrUri, width: QR_SIZE, height: QR_SIZE } } : false,
+      qrUri
+        ? {
+            type: "img",
+            props: { src: qrUri, width: QR_SIZE, height: QR_SIZE, style: { borderRadius: 6 } },
+          }
+        : false,
     );
 
   const bottomRow =

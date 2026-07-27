@@ -52,6 +52,7 @@ import {
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
 import { TopBarBreadcrumbTrail } from "@/components/layout/top-bar-breadcrumb";
+import { ShareLinkRow } from "@/components/share/share-link-row";
 import {
   Accordion,
   AccordionContent,
@@ -153,6 +154,7 @@ import { Podium } from "@/components/ui/podium";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Pressable } from "@/components/ui/pressable";
 import { Progress } from "@/components/ui/progress";
+import { QrCode } from "@/components/ui/qr-code";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SectionHeading } from "@/components/ui/section-heading";
@@ -240,6 +242,7 @@ const SECTIONS = [
   { id: "pressable", title: "Pressable & disclosure" },
   { id: "section-heading", title: "Section heading" },
   { id: "icon-chip", title: "Icon chip" },
+  { id: "qr-codes", title: "QR codes" },
   { id: "card-thumbnails", title: "Card thumbnails" },
   { id: "form-controls", title: "Form controls" },
   { id: "pickers", title: "Pickers & commands" },
@@ -290,6 +293,7 @@ export function DesignPage() {
       <PressableSection />
       <SectionHeadingSection />
       <IconChipSection />
+      <QrCodesSection />
       <TilesSection />
       <CardThumbnailsSection />
       <FormControlsSection />
@@ -1005,6 +1009,46 @@ function IconChipSection() {
           <IconChip icon={HeartIcon} tone="primary" size="sm" shape="round" />
         </Swatch>
       </SwatchRow>
+    </DemoSection>
+  );
+}
+
+const DEMO_SHARE_URL = "https://openrift.app/lists/share/AbCdEf123456";
+
+function QrCodesSection() {
+  return (
+    <DemoSection
+      id="qr-codes"
+      title="QR codes"
+      note="Every QR on screen goes through QrCode. It carries the white plate and error-correction level M, both of which the underlying library gets wrong for this app. Toggle the theme: the plate is what keeps the code scannable in dark mode."
+      docs="components/ui/qr-code.tsx · components/share/share-link-row.tsx"
+    >
+      <DemoRow
+        label="Sizes"
+        hint="160 is the default; 224 suits a code meant to be scanned across a table."
+      >
+        <QrCode value={DEMO_SHARE_URL} />
+        <QrCode value={DEMO_SHARE_URL} size={224} />
+      </DemoRow>
+      <DemoRow
+        label="ShareLinkRow"
+        hint="The canonical share-link presentation: read-only URL, inline copy confirmation, QR behind its toggle."
+        className="flex-col items-stretch"
+      >
+        <ShareLinkRow url={DEMO_SHARE_URL} label="Share link" />
+      </DemoRow>
+      <DemoRow
+        label="ShareLinkRow (expanded, with an action)"
+        hint="Full pages pass defaultQrOpen so an organizer can leave the code on screen."
+        className="flex-col items-stretch"
+      >
+        <ShareLinkRow
+          url={DEMO_SHARE_URL}
+          label="Registration link"
+          defaultQrOpen
+          actions={<Button variant="ghost">Rotate link</Button>}
+        />
+      </DemoRow>
     </DemoSection>
   );
 }

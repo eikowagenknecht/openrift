@@ -9,6 +9,12 @@ import { formatLabelFromSlug, renderDeckImage, truncateTitle } from "./deck-imag
 // still renders, and the rune glyphs ship as bundled assets.
 const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
+// Canvas geometry mirrored from deck-image.ts, to locate the QR mark in output.
+const WIDTH = 1200;
+const HEIGHT = 630;
+const PAD = 22;
+const QR_SIZE = 84;
+
 function card(
   cardName: string,
   zone: string,
@@ -74,6 +80,36 @@ describe("renderDeckImage", () => {
       cards: constructedDeck,
     });
     expect(png.subarray(0, 8)).toEqual(PNG_MAGIC);
+  });
+
+  it("renders the QR dark-on-white so the code is not inverted", async () => {
+    const png = await renderDeckImage(defaultIo, { ...baseInput, cards: constructedDeck });
+    // The mark sits in the bottom-right corner, inside the canvas padding.
+    const { data, info } = await defaultIo
+      .sharp(png)
+      .extract({
+        left: WIDTH - PAD - QR_SIZE,
+        top: HEIGHT - PAD - QR_SIZE,
+        width: QR_SIZE,
+        height: QR_SIZE,
+      })
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+
+    let white = 0;
+    for (let offset = 0; offset < data.length; offset += info.channels) {
+      const red = data[offset] ?? 0;
+      const green = data[offset + 1] ?? 0;
+      const blue = data[offset + 2] ?? 0;
+      if (red >= 240 && green >= 240 && blue >= 240) {
+        white++;
+      }
+    }
+
+    // Gold-on-transparent (the previous treatment) composited over the #14161d
+    // background tops out around 205 per channel, so any near-white at all means
+    // the light plate is there.
+    expect(white).toBeGreaterThan(QR_SIZE * QR_SIZE * 0.2);
   });
 
   it("renders without the owner chip when no owner name is given (logged-out local deck)", async () => {

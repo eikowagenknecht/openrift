@@ -44,6 +44,7 @@ import {
 } from "@/components/ui/table";
 import type { ApiKeySummary } from "@/hooks/use-api-keys";
 import { useApiKeys, useCreateApiKey, useDeleteApiKey } from "@/hooks/use-api-keys";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { formatAbsoluteDate } from "@/lib/format-date";
 
 /**
@@ -60,17 +61,9 @@ function keyDate(value: Date | string | null): string {
 }
 
 function CreatedKeyDialog({ createdKey, onClose }: { createdKey: string; onClose: () => void }) {
-  const [justCopied, setJustCopied] = useState(false);
-
-  async function handleCopy() {
-    try {
-      await navigator.clipboard.writeText(createdKey);
-      setJustCopied(true);
-      setTimeout(() => setJustCopied(false), 2000);
-    } catch {
-      // Ignore clipboard errors — rare, and the user can still select the text.
-    }
-  }
+  // A secret, not a share link, so this stays a plain copy button rather than a
+  // ShareLinkRow — the key must never end up in a QR.
+  const { copied: justCopied, copy } = useCopyToClipboard(2000);
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -85,7 +78,7 @@ function CreatedKeyDialog({ createdKey, onClose }: { createdKey: string; onClose
           {createdKey}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={handleCopy}>
+          <Button variant="outline" onClick={() => void copy(createdKey)}>
             {justCopied ? <CheckIcon className="size-4" /> : <CopyIcon className="size-4" />}
             {justCopied ? "Copied" : "Copy key"}
           </Button>

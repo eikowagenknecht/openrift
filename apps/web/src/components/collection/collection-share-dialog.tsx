@@ -1,7 +1,8 @@
-import { CheckIcon, CopyIcon, LinkIcon, PrinterIcon, Trash2Icon } from "lucide-react";
+import { LinkIcon, PrinterIcon, Trash2Icon } from "lucide-react";
 import { Suspense, useState } from "react";
 
 import { BinderSheetDialog } from "@/components/share/binder-sheet-dialog";
+import { ShareLinkRow } from "@/components/share/share-link-row";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -13,7 +14,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { DialogForm } from "@/components/ui/dialog-form";
-import { Input } from "@/components/ui/input";
 import { useCollectionGroupShares } from "@/hooks/use-collection-group-shares";
 import { useShareCollection, useUnshareCollection } from "@/hooks/use-collections";
 import {
@@ -43,7 +43,6 @@ export function CollectionShareDialog({
 }: CollectionShareDialogProps) {
   const shareCollection = useShareCollection();
   const unshareCollection = useUnshareCollection();
-  const [justCopied, setJustCopied] = useState(false);
   const [binderSheetOpen, setBinderSheetOpen] = useState(false);
 
   const shareUrl = shareToken ? `${getSiteUrl()}/collections/share/${shareToken}` : null;
@@ -57,19 +56,6 @@ export function CollectionShareDialog({
       return;
     }
     shareCollection.mutate(collectionId);
-  };
-
-  const handleCopy = async () => {
-    if (!shareUrl) {
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      setJustCopied(true);
-      globalThis.setTimeout(() => setJustCopied(false), 1500);
-    } catch {
-      // Ignore clipboard errors — rare, and the user can still select the text.
-    }
   };
 
   return (
@@ -87,17 +73,7 @@ export function CollectionShareDialog({
             </DialogHeader>
 
             {sharing && shareUrl ? (
-              <div className="flex items-center gap-2">
-                <Input
-                  value={shareUrl}
-                  readOnly
-                  onFocus={(event) => event.currentTarget.select()}
-                />
-                <Button variant="outline" onClick={handleCopy}>
-                  {justCopied ? <CheckIcon /> : <CopyIcon />}
-                  {justCopied ? "Copied" : "Copy"}
-                </Button>
-              </div>
+              <ShareLinkRow url={shareUrl} label="Collection share link" />
             ) : null}
 
             {sharing && shareUrl ? (

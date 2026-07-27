@@ -2,9 +2,16 @@
 
 ## 2026-07-27
 
+### Highlights
+
+- feat(App): **A QR for every share link** — collection, list, deck, profile and all-lists links now show a scannable code next to the link, so you can hand one to someone at a table without printing anything first.
+
 ### Other
 
 - feat(Trades): **Easier-to-read trade emails** — update and request emails now sort cards under accepted/declined and wants/offers headings instead of repeating a full sentence per card, and match digests list cards per trade partner.
+- feat(Groups): **Join-code QR without the detour** — the invite code on the manage page shows its QR in place instead of behind a dialog, and copying the link now confirms it worked.
+- fix(Decks): **Scannable QR on deck share images** — the code was drawn light-on-dark, which some phone cameras refuse to read, and now sits on a light plate.
+- fix(App): **QR codes scan more easily** — every code on screen carries more error correction and a proper quiet zone, so they read from further away and at sharper angles.
 
 ## 2026-07-26
 

@@ -1,17 +1,10 @@
-import {
-  CheckIcon,
-  CopyIcon,
-  ImageDownIcon,
-  LinkIcon,
-  PrinterIcon,
-  RefreshCwIcon,
-  Trash2Icon,
-} from "lucide-react";
+import { ImageDownIcon, LinkIcon, PrinterIcon, RefreshCwIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 import { BinderSheetDialog } from "@/components/share/binder-sheet-dialog";
+import { ShareLinkRow } from "@/components/share/share-link-row";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,7 +14,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useDisableUserShare,
@@ -52,7 +44,6 @@ export function UserShareDialog({ open, onOpenChange }: UserShareDialogProps) {
   const enableShare = useEnableUserShare();
   const disableShare = useDisableUserShare();
   const rotateShare = useRotateUserShare();
-  const [justCopied, setJustCopied] = useState(false);
   const [downloadingImage, setDownloadingImage] = useState(false);
   const [binderSheetOpen, setBinderSheetOpen] = useState(false);
   const [confirmRotateOpen, setConfirmRotateOpen] = useState(false);
@@ -60,19 +51,6 @@ export function UserShareDialog({ open, onOpenChange }: UserShareDialogProps) {
   const shareToken = data?.shareToken ?? null;
   const shareUrl = shareToken ? `${getSiteUrl()}/users/share/${shareToken}` : null;
   const sharing = shareToken !== null;
-
-  const handleCopy = async () => {
-    if (!shareUrl) {
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      setJustCopied(true);
-      globalThis.setTimeout(() => setJustCopied(false), 1500);
-    } catch {
-      // Ignore clipboard errors — rare, and the user can still select the text.
-    }
-  };
 
   const handleDownloadImage = async () => {
     if (!shareToken) {
@@ -108,13 +86,7 @@ export function UserShareDialog({ open, onOpenChange }: UserShareDialogProps) {
           {isPending ? (
             <Skeleton className="h-10 w-full" />
           ) : sharing && shareUrl ? (
-            <div className="flex items-center gap-2">
-              <Input value={shareUrl} readOnly onFocus={(event) => event.currentTarget.select()} />
-              <Button variant="outline" onClick={handleCopy}>
-                {justCopied ? <CheckIcon /> : <CopyIcon />}
-                {justCopied ? "Copied" : "Copy"}
-              </Button>
-            </div>
+            <ShareLinkRow url={shareUrl} label="Bundle share link" />
           ) : null}
 
           {sharing && shareUrl ? (
