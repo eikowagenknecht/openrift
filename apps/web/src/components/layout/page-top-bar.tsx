@@ -146,6 +146,7 @@ export function PageTopBar({ children, className }: PageTopBarProps) {
 }
 
 const BackAnchor = forwardRef<HTMLAnchorElement, AnchorHTMLAttributes<HTMLAnchorElement>>(
+  // oxlint-disable-next-line react/function-component-definition -- a forwardRef render function is a callback, so the function-expression form this rule wants trips prefer-arrow-callback instead; the two rules cannot both be satisfied here
   ({ children: _children, className, ...rest }, ref) => (
     <a
       ref={ref}

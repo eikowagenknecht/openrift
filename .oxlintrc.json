@@ -162,7 +162,8 @@
     {
       "files": ["apps/web/src/components/ui/**"],
       "rules": {
-        "react/forbid-elements": "off"
+        "react/forbid-elements": "off",
+        "react/function-component-definition": "off" // shadcn scaffolds components as arrow consts; rewriting them adds permanent drift from upstream and noise when re-scaffolding
       }
     },
     {
