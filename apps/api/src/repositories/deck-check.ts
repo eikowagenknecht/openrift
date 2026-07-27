@@ -655,6 +655,37 @@ export function deckCheckRepo(db: Kysely<Database>) {
       return row ? materializeEntry(row) : undefined;
     },
 
+    /**
+     * Loads one entry for a judge state transition, taking a `FOR UPDATE` lock
+     * on its row first. Two near-simultaneous judge requests against the same
+     * entry now serialize on that lock instead of both reading the same
+     * pre-transition state and the later commit silently overwriting the
+     * earlier one (audit: stale-snapshot judge transitions). Callers must run
+     * this inside a transaction so the lock is actually held.
+     * @returns The freshly-locked entry, or undefined when it does not match
+     * the tournament.
+     */
+    async getEntryForUpdate(
+      tournamentId: string,
+      entryId: string,
+    ): Promise<DeckCheckEntry | undefined> {
+      const locked = await db
+        .selectFrom("deckCheckEntries")
+        .select("id")
+        .where("id", "=", entryId)
+        .where("tournamentId", "=", tournamentId)
+        .forUpdate()
+        .executeTakeFirst();
+      if (!locked) {
+        return undefined;
+      }
+      const row = await selectEntryWithParticipant()
+        .where("en.id", "=", entryId)
+        .where("en.tournamentId", "=", tournamentId)
+        .executeTakeFirst();
+      return row ? materializeEntry(row) : undefined;
+    },
+
     async getEntryByExternalId(
       tournamentId: string,
       externalId: string,

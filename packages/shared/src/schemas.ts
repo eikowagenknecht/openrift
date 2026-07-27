@@ -99,8 +99,30 @@ export const marketplaceGroupParamSchema = z.object({
   id: z.coerce.number().int(),
 });
 
+/**
+ * A keyset pagination cursor as produced by `buildCopiesCursor` (and the
+ * matching helpers in `collection-events.ts` / `admin-events.ts`): either a
+ * bare ISO 8601 timestamp (legacy form) or `"<ISO timestamp>_<id>"`. Rejecting
+ * syntactically invalid cursors here means a garbage `cursor` query param
+ * fails validation with the normal 400 response instead of reaching
+ * `parseCursor`'s `new Date(...)` and producing an Invalid Date that
+ * propagates into the query.
+ */
+const keysetCursorSchema = z
+  .string()
+  .min(1)
+  .refine(
+    (cursor) => {
+      const separatorIndex = cursor.indexOf("_");
+      const timePart = separatorIndex === -1 ? cursor : cursor.slice(0, separatorIndex);
+      const idPart = separatorIndex === -1 ? null : cursor.slice(separatorIndex + 1);
+      return isoDateTime.safeParse(timePart).success && idPart !== "";
+    },
+    { message: 'cursor must be an ISO 8601 timestamp, optionally suffixed with "_<id>"' },
+  );
+
 export const copiesQuerySchema = z.object({
-  cursor: z.string().min(1).optional(),
+  cursor: keysetCursorSchema.optional(),
   // Hard cap matches the server-side clamp (COPIES_PAGE_MAX = 1000 in
   // repositories/copies.ts). PAG-1 dropped the 10k soft-cap in the route; the
   // schema/OpenAPI doc must advertise the limit the server actually honors.

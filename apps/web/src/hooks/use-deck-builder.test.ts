@@ -747,6 +747,69 @@ describe("setLegendAction", () => {
     expect(runes.every((r) => r.domains.every((d) => ["mind", "body"].includes(d)))).toBe(true);
   });
 
+  it("keeps compatible runes and drops only incompatible ones on a partial-overlap switch", () => {
+    // Regression: a single incompatible rune previously wiped every rune row,
+    // including compatible ones and their preferredPrintingId picks.
+    const legend = stubDeckBuilderCard({
+      cardId: "legend-1",
+      cardType: "legend",
+      zone: "legend",
+      domains: ["fury", "calm"],
+    });
+    const compatibleRune = stubDeckBuilderCard({
+      cardId: "rune-compatible",
+      cardType: "rune",
+      zone: "runes",
+      domains: ["calm"],
+      quantity: 6,
+      preferredPrintingId: "printing-compatible",
+    });
+    const incompatibleRune = stubDeckBuilderCard({
+      cardId: "rune-incompatible",
+      cardType: "rune",
+      zone: "runes",
+      domains: ["fury"],
+      quantity: 6,
+    });
+    collection = createDraftCollection([legend, compatibleRune, incompatibleRune]);
+    const newLegend = stubDeckBuilderCard({
+      cardId: "legend-2",
+      cardType: "legend",
+      domains: ["calm", "mind"],
+    });
+    setLegendAction(collection, newLegend, EMPTY_RUNES, "constructed");
+    const runes = cardsOf(collection).filter((c) => c.zone === "runes");
+    expect(runes.map((r) => r.cardId)).toEqual(["rune-compatible"]);
+    expect(runes[0].preferredPrintingId).toBe("printing-compatible");
+  });
+
+  it("deletes no runes when the new legend's domains cover every existing rune", () => {
+    const legend = stubDeckBuilderCard({
+      cardId: "legend-1",
+      cardType: "legend",
+      zone: "legend",
+      domains: ["fury", "calm"],
+    });
+    const rune = stubDeckBuilderCard({
+      cardId: "rune-1",
+      cardType: "rune",
+      zone: "runes",
+      domains: ["fury"],
+      quantity: 6,
+      preferredPrintingId: "printing-1",
+    });
+    collection = createDraftCollection([legend, rune]);
+    const newLegend = stubDeckBuilderCard({
+      cardId: "legend-2",
+      cardType: "legend",
+      domains: ["fury", "mind"],
+    });
+    setLegendAction(collection, newLegend, EMPTY_RUNES, "constructed");
+    const runes = cardsOf(collection).filter((c) => c.zone === "runes");
+    expect(runes.map((r) => r.cardId)).toEqual(["rune-1"]);
+    expect(runes[0].preferredPrintingId).toBe("printing-1");
+  });
+
   it("auto-populates runes when runesByDomain is provided", () => {
     const furyRune = stubDeckBuilderCard({
       cardId: "fury-rune",

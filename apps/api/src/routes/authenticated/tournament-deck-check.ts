@@ -166,16 +166,28 @@ export const tournamentDeckCheckRouter = {
     async ({ input, context }): Promise<DeckCheckEntryDetailResponse> => {
       const repos = context.repos;
       const event = await authorizeJudge(repos, input.tournamentId, context.userId);
-      const entry = await loadEntry(repos, event, input.entryId);
+      // 404 fast, outside the transaction; the entry loaded here is not used
+      // for the transition itself — see the re-load below.
+      await loadEntry(repos, event, input.entryId);
 
-      const updated = await context.transact((txRepos) =>
-        applyJudgeTransition(txRepos, context.userId, entry, {
+      const updated = await context.transact(async (txRepos) => {
+        // Re-load under a row lock inside the transaction, rather than reusing
+        // the entry loaded above: two near-simultaneous judge requests both
+        // loading the pre-transaction state would otherwise both validate
+        // against it, and the second commit would silently overwrite the
+        // first's state/reviewOutcome instead of failing the transition.
+        const fresh = await txRepos.deckCheck.getEntryForUpdate(event.id, input.entryId);
+        if (!fresh) {
+          throw new AppError(404, ERROR_CODES.NOT_FOUND, "Entry not found");
+        }
+        const settled = await settleExpiredEditable(txRepos, event, fresh);
+        return applyJudgeTransition(txRepos, context.userId, settled, {
           state: input.state,
           reviewOutcome: input.reviewOutcome,
           notes: input.notes,
           playerMessage: input.playerMessage,
-        }),
-      );
+        });
+      });
       return buildEntryDetail(repos, event, updated);
     },
   ),

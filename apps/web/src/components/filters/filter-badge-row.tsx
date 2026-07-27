@@ -102,9 +102,20 @@ function FilterBadgeGrid({
   /** Extra control(s) rendered inline after the badges (e.g. the Signed flag in Art Variant). */
   trailing?: ReactNode;
 }) {
+  // A value can be selected (or excluded) while it was still an available
+  // option, then drop out of `options` when the available set narrows (e.g.
+  // switching to owned-only). It keeps filtering either way, so keep it
+  // visible — appended after the real options — instead of letting it vanish
+  // from the panel with no way to toggle it off. Matches the combobox
+  // sections, which already keep orphaned selections visible.
+  const orphaned = [...(selected ?? []), ...(excluded ?? [])].filter(
+    (value, index, all) => !options.includes(value) && all.indexOf(value) === index,
+  );
+  const renderedOptions = orphaned.length > 0 ? [...options, ...orphaned] : options;
+
   return (
     <div className={cn("flex flex-1 flex-wrap gap-1", className)}>
-      {options.map((option) => {
+      {renderedOptions.map((option) => {
         const icon = iconPath?.(option);
         const isSelected = selected?.includes(option);
         const isExcluded = excluded?.includes(option);

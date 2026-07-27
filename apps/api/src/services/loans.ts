@@ -103,6 +103,18 @@ export function createLoan(transact: Transact, input: CreateLoanInput): Promise<
       throw tooFewAvailable(lockedCopyIds.length);
     }
 
+    // `listUnclaimedCopyIds` excluded reserved copies before the lock, but a
+    // concurrent acceptTrade can reserve one of these ids in the gap between that
+    // read and the lock above — the unclaimed check and the trade reservation
+    // live in separate tables, so `copies.lockByIds` alone can't catch it (the
+    // pinCopies unique-violation catch below only guards against another loan).
+    // Re-check the trade side now that the rows are locked.
+    const reservedByTrade = new Set(await trxRepos.cardTrades.filterReservedCopyIds(lockedCopyIds));
+    const availableCopyIds = lockedCopyIds.filter((id) => !reservedByTrade.has(id));
+    if (availableCopyIds.length < quantity) {
+      throw tooFewAvailable(availableCopyIds.length);
+    }
+
     const loan = await trxRepos.loans.create({
       lenderUserId,
       borrowerUserId: borrowerUserId ?? null,
@@ -112,15 +124,15 @@ export function createLoan(transact: Transact, input: CreateLoanInput): Promise<
       quantity,
     });
     try {
-      await trxRepos.loans.pinCopies(loan.id, lockedCopyIds.slice(0, quantity));
+      await trxRepos.loans.pinCopies(loan.id, availableCopyIds.slice(0, quantity));
     } catch (error) {
-      // A concurrent loan or trade-accept pinned one of these copies between our
-      // unclaimed read and this insert (UNIQUE(copy_id) on loan_copies / the
-      // shared reservation). Surface it as "too few available" — the same 409
-      // acceptTrade returns — instead of a raw 500. At least one of the picked
-      // copies was lost, so report one fewer than we thought we had.
+      // A concurrent loan pinned one of these copies between our unclaimed read
+      // and this insert (UNIQUE(copy_id) on loan_copies). Surface it as "too few
+      // available" — the same 409 acceptTrade returns — instead of a raw 500. At
+      // least one of the picked copies was lost, so report one fewer than we
+      // thought we had.
       if (isUniqueViolation(error)) {
-        throw tooFewAvailable(Math.max(0, lockedCopyIds.length - 1));
+        throw tooFewAvailable(Math.max(0, availableCopyIds.length - 1));
       }
       throw error;
     }

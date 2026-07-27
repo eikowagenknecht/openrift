@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { AppError } from "../errors.js";
 import { createMockDb } from "../test/mock-db.js";
 import { buildCopiesCursor, copiesRepo } from "./copies.js";
 
@@ -31,6 +32,24 @@ describe("copiesRepo", () => {
     expect(
       await repo.listForAccessibleCollections("u1", 20, "2026-01-01T00:00:00.000Z_cp-last"),
     ).toEqual([]);
+  });
+
+  // Regression: parseCursor used to pass an unparseable cursor straight into
+  // `new Date(...)` and let the resulting Invalid Date reach the Kysely
+  // query, producing an INTERNAL_ERROR 500. The query schema now rejects
+  // malformed cursors before they get this far, but the repo also guards
+  // itself so any unvalidated caller fails with a 400 AppError instead.
+  it("listForAccessibleCollections rejects an unparseable cursor", () => {
+    const db = createMockDb([]);
+    const repo = copiesRepo(db);
+    expect(() => repo.listForAccessibleCollections("u1", 20, "not-a-date")).toThrow(AppError);
+    try {
+      repo.listForAccessibleCollections("u1", 20, "not-a-date");
+      expect.unreachable("should have thrown");
+    } catch (error) {
+      expect(error).toBeInstanceOf(AppError);
+      expect((error as AppError).status).toBe(400);
+    }
   });
 
   it("existsForViewer returns id when found", async () => {

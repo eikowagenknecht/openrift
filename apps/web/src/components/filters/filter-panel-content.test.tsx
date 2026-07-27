@@ -1,5 +1,6 @@
 import type { AvailableFilters, FilterCounts } from "@openrift/shared";
 import { render } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -152,6 +153,23 @@ describe("FilterRangeSections", () => {
       />,
     );
     expect(queryByText("Energy")).not.toBeNull();
+  });
+
+  it("disables the price slider when its faceted range collapses to one value", () => {
+    // Regression: the price slider is logarithmic, so its internal slider
+    // scale always spans 0–LOG_STEPS regardless of the faceted bounds. The
+    // degeneracy check used to compare that fixed scale to itself and could
+    // never trip, so a collapsed faceted range (min === max, but > 0 — not
+    // the "no priced cards" case) left the slider enabled and broken.
+    setupHooks();
+    const { container } = render(
+      <FilterRangeSections
+        availableFilters={makeAvailable()}
+        filterCounts={makeFilterCounts({ price: { min: 25, max: 25 } })}
+      />,
+    );
+    const priceSlider = container.querySelector('input[aria-label="Price range"]');
+    expect(priceSlider).toBeDisabled();
   });
 
   it("hides the price slider when no priced cards exist in the catalog", () => {
@@ -375,6 +393,39 @@ describe("FilterBadgeSections — hiddenSections gating", () => {
     // Signed rides the variant unit, which isn't requested here.
     expect(queryByText("Signed")).toBeNull();
     expect(queryByText("Owned")).not.toBeNull();
+  });
+
+  it("keeps a selected value visible and toggleable when it drops out of options", async () => {
+    // Regression: a Set selected while it was available (e.g. show-library
+    // mode) used to vanish from the panel once the available set narrowed
+    // (owned-only), even though it kept filtering. It must stay visible,
+    // and clicking it must still toggle it off.
+    const user = userEvent.setup();
+    const cycleArrayFilter = vi.fn();
+    setupBadgeHooks({ sets: ["ORPHANED"] });
+    mockUseFilterActions.mockReturnValue({
+      toggleArrayFilter: vi.fn(),
+      setArrayFilter: vi.fn(),
+      toggleSigned: vi.fn(),
+      togglePromo: vi.fn(),
+      toggleBanned: vi.fn(),
+      toggleErrata: vi.fn(),
+      toggleStandard: vi.fn(),
+      cycleArrayFilter,
+    });
+    const { getByText } = render(
+      <FilterBadgeSections
+        availableFilters={makeAvailable({ sets: ["OGN"] })}
+        hiddenSections={new Set(["owned"])}
+      />,
+    );
+    // The in-range option still renders normally.
+    expect(getByText("OGN")).not.toBeNull();
+    // The orphaned selection renders too, appended after the real options.
+    const orphanedBadge = getByText("ORPHANED");
+    expect(orphanedBadge).not.toBeNull();
+    await user.click(orphanedBadge);
+    expect(cycleArrayFilter).toHaveBeenCalledWith("sets", "setsEx", "ORPHANED");
   });
 
   it("renders one tags dropdown per category, plus Other for unclassified", () => {

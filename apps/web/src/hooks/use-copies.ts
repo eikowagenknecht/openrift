@@ -23,6 +23,12 @@ import { withTimeout } from "@/lib/with-timeout";
 
 const BATCH_SIZE = 500;
 
+// Shown when every id in a batch mutation (move/dispose/update) turned out to
+// be a temp id (still in flight from useBatchedAddCopies) — rejecting instead
+// of silently no-op-ing keeps the caller's onError path (error toast,
+// selection kept) instead of a success toast for an action that did nothing.
+const STILL_ADDING_ERROR_MESSAGE = "These cards are still being added. Try again in a moment.";
+
 /**
  * Resolves a collection's owning group from the cached collections list, so
  * optimistic copy rows carry the same `groupId` the server feed would assign.
@@ -280,7 +286,11 @@ export function useMoveCopies() {
       // mutation rather than reaching across the in-flight add.
       const realCopyIds = copyIds.filter((id) => !isTempCopyId(id));
       if (realCopyIds.length === 0) {
-        return;
+        // Every id was a temp id still in flight from an optimistic add —
+        // there is nothing real to move. Reject so the caller's onError
+        // path fires (error toast, selection kept) instead of resolving as
+        // if the move happened.
+        throw new Error(STILL_ADDING_ERROR_MESSAGE);
       }
       const collection = copiesCollection;
       const tx = createTransaction<CopyResponse>({
@@ -295,9 +305,12 @@ export function useMoveCopies() {
                 abortController: controller,
               },
             );
+            // Confirm this chunk in the synced store immediately, so a later
+            // chunk's failure only rolls back the not-yet-committed
+            // remainder instead of discarding chunks the server already
+            // committed.
+            collection.utils.writeUpdate(batch.map((id) => ({ id, collectionId: toCollectionId })));
           }
-          // Confirm the move in the synced store — partial updates keyed by id.
-          collection.utils.writeUpdate(ids.map((id) => ({ id, collectionId: toCollectionId })));
           void queryClient.invalidateQueries({
             queryKey: queryKeys.copies.all(userId),
             refetchType: "none",
@@ -356,7 +369,11 @@ export function useUpdateCopies() {
       // useBatchedAddCopies aren't valid uuids, so the API would 400.
       const realCopyIds = copyIds.filter((id) => !isTempCopyId(id));
       if (realCopyIds.length === 0) {
-        return;
+        // Every id was a temp id still in flight from an optimistic add —
+        // there is nothing real to update. Reject so the caller's onError
+        // path fires (error toast, selection kept) instead of resolving as
+        // if the update happened.
+        throw new Error(STILL_ADDING_ERROR_MESSAGE);
       }
       const applied = definedCopyMetadataFields(normalizeCopyMetadataPatch(patch));
       const collection = copiesCollection;
@@ -369,9 +386,12 @@ export function useUpdateCopies() {
               label: "Update copies",
               abortController: controller,
             });
+            // Confirm this chunk in the synced store immediately, so a
+            // later chunk's failure only rolls back the not-yet-committed
+            // remainder instead of discarding chunks the server already
+            // committed.
+            collection.utils.writeUpdate(batch.map((id) => ({ id, ...applied })));
           }
-          // Confirm the patch in the synced store — partial updates keyed by id.
-          collection.utils.writeUpdate(ids.map((id) => ({ id, ...applied })));
           void queryClient.invalidateQueries({
             queryKey: queryKeys.copies.all(userId),
             refetchType: "none",
@@ -517,7 +537,11 @@ export function useDisposeCopies() {
       // they removed.
       const realCopyIds = copyIds.filter((id) => !isTempCopyId(id));
       if (realCopyIds.length === 0) {
-        return;
+        // Every id was a temp id still in flight from an optimistic add —
+        // there is nothing real to dispose. Reject so the caller's onError
+        // path fires (error toast, selection kept) instead of resolving as
+        // if the dispose happened.
+        throw new Error(STILL_ADDING_ERROR_MESSAGE);
       }
       const collection = copiesCollection;
       const tx = createTransaction<CopyResponse>({
@@ -529,9 +553,12 @@ export function useDisposeCopies() {
               label: "Dispose copies",
               abortController: controller,
             });
+            // Confirm this chunk's deletions in the synced store
+            // immediately, so a later chunk's failure only rolls back the
+            // not-yet-committed remainder instead of discarding chunks the
+            // server already committed.
+            collection.utils.writeDelete(batch);
           }
-          // Confirm the deletions in the synced store.
-          collection.utils.writeDelete(ids);
           void queryClient.invalidateQueries({
             queryKey: queryKeys.copies.all(userId),
             refetchType: "none",

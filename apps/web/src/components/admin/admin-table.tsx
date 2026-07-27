@@ -1,4 +1,3 @@
-import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
 import {
   flexRender,
@@ -20,6 +19,7 @@ import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { PageTopBarButton, PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
 import {
   AlertDialog,
+  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -664,10 +664,21 @@ function DeleteButton<TData>({
   deleteError: string;
   setDeleteError: (err: string) => void;
 }) {
+  const [open, setOpen] = useState(false);
+  const [deletePending, setDeletePending] = useState(false);
+
   if (config.confirm) {
     const { title, description } = config.confirm(row);
     return (
-      <AlertDialog>
+      <AlertDialog
+        open={open}
+        onOpenChange={(nextOpen) => {
+          setOpen(nextOpen);
+          if (!nextOpen) {
+            setDeleteError("");
+          }
+        }}
+      >
         <AlertDialogTrigger
           render={<Button variant="ghost" size="icon" className="text-destructive" />}
         >
@@ -676,11 +687,19 @@ function DeleteButton<TData>({
         <AlertDialogContent>
           <DialogForm
             onSubmit={async () => {
+              // Guard against double-submission while a delete is in flight.
+              if (deletePending) {
+                return;
+              }
               setDeleteError("");
+              setDeletePending(true);
               try {
                 await config.onDelete(row);
+                setOpen(false);
               } catch (error) {
                 setDeleteError(error instanceof Error ? error.message : "Delete failed");
+              } finally {
+                setDeletePending(false);
               }
             }}
           >
@@ -690,10 +709,10 @@ function DeleteButton<TData>({
             </AlertDialogHeader>
             {deleteError && <p className="text-destructive text-sm">{deleteError}</p>}
             <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setDeleteError("")}>Cancel</AlertDialogCancel>
-              <AlertDialogPrimitive.Close render={<Button type="submit" variant="destructive" />}>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction type="submit" variant="destructive" disabled={deletePending}>
                 Delete
-              </AlertDialogPrimitive.Close>
+              </AlertDialogAction>
             </AlertDialogFooter>
           </DialogForm>
         </AlertDialogContent>

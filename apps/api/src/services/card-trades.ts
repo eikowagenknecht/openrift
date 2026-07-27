@@ -291,12 +291,24 @@ export function acceptTrade(
     if (lockedCopyIds.length < trade.quantity) {
       throw tooFewAvailable(lockedCopyIds.length);
     }
+
+    // `giverPrintingSupply` excluded loaned copies before the lock, but a
+    // concurrent createLoan can pin one of these ids in the gap between that
+    // read and the lock above — the reservable-supply check and loan pins live
+    // in separate tables, so `copies.lockByIds` alone can't catch it (the
+    // pinCopies unique-violation catch below only guards against another
+    // accept). Re-check the loan side now that the rows are locked.
+    const claimedByLoan = new Set(await trxRepos.loans.filterLoanedCopyIds(lockedCopyIds));
+    const availableCopyIds = lockedCopyIds.filter((id) => !claimedByLoan.has(id));
+    if (availableCopyIds.length < trade.quantity) {
+      throw tooFewAvailable(availableCopyIds.length);
+    }
     try {
-      await trxRepos.cardTrades.pinCopies(tradeId, lockedCopyIds.slice(0, trade.quantity));
+      await trxRepos.cardTrades.pinCopies(tradeId, availableCopyIds.slice(0, trade.quantity));
     } catch (error) {
       // A concurrent accept claimed one of these copies first (UNIQUE(copy_id)).
       if (isUniqueViolation(error)) {
-        throw tooFewAvailable(Math.max(0, lockedCopyIds.length - 1));
+        throw tooFewAvailable(Math.max(0, availableCopyIds.length - 1));
       }
       throw error;
     }

@@ -7,11 +7,18 @@
 - feat(Tournaments): **Simpler tournament setup** — the create page trims the explanations and groups play mode, pairings (one Swiss BO1/BO3 or FFA choice with an on/off switch), points and decks into compact two-column cards.
 - feat(Tournaments): **2v2 teams shown as teams** — match cards, the standings preview and result entry now treat each duo as one entry with a shared score, combined avatar initials, and per-side scoreline buttons.
 - feat(App): **A QR for every share link** — collection, list, deck, profile and all-lists links now show a scannable code next to the link, so you can hand one to someone at a table without printing anything first.
+- fix(Collection): **Accurate bulk move and dispose** — when a large move or dispose fails partway, the cards that already went through now stay done, with the error covering only the rest.
 
 ### Other
 
 - feat(Trades): **Easier-to-read trade emails** — update and request emails now sort cards under accepted/declined and wants/offers headings instead of repeating a full sentence per card, and match digests list cards per trade partner.
 - feat(Groups): **Join-code QR without the detour** — the invite code on the manage page shows its QR in place instead of behind a dialog, and copying the link now confirms it worked.
+- fix(Collection): **No false success on just-added cards** — acting on cards in the brief moment they are still saving now shows a clear message instead of a success that did nothing.
+- fix(Trades): **No double-booked copies** — a copy can no longer be claimed by a trade and a loan at the same time when both happen in the same instant.
+- fix(Tournaments): **Judges no longer overwrite each other** — two judges deciding on the same deck at once now get a clear conflict instead of silently replacing the first decision.
+- fix(Decks): **Copy limit applies from Overflow** — dragging extra copies of a card out of Overflow into the deck no longer sneaks past the 3-copy limit.
+- fix(Decks): **Legend swap keeps matching runes** — switching legends now removes only the runes that no longer fit the new domains instead of clearing all of them.
+- fix(Cards): **Filter panel edge cases** — a still-active filter now stays visible when it drops out of the options list, and the price slider disables when only one price remains.
 - fix(Account): **Flicker while typing your email** — the sign-in and sign-up pages rebuilt the whole card on every keystroke, which made the email field flicker on iOS.
 - fix(App): **Dropdown options no longer cut off** — open dropdowns now widen to fit long options instead of clipping them at the button's width.
 - fix(Tournaments): **Start date prefill now visible** — the new-tournament page filled the start date in on save, but the field looked empty until now.

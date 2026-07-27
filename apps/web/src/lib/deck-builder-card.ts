@@ -176,9 +176,12 @@ export function isCardAllowedInZone(
  * Determines whether dropping the currently dragged card into `zone` would
  * exceed a zone's capacity (3-copy cap, 12-rune cap, battlefield uniqueness).
  *
- * Cross-zone moves of an existing deck card preserve the cross-zone copy
- * total, so the 3-copy cap doesn't apply — including for drops back into the
- * source zone, which would otherwise force the user to discard the card.
+ * Moves between two copy-limit zones (main/sideboard/champion) preserve the
+ * cross-zone copy total, so the 3-copy cap doesn't apply there — including
+ * for drops back into the source zone, which would otherwise force the user
+ * to discard the card. Drops from a non-copy-limit source (overflow, or the
+ * card browser) still count toward the cap, since overflow copies don't
+ * count toward the total and nothing else caps the add.
  *
  * @returns true if the zone should reject the drop.
  */
@@ -204,7 +207,7 @@ export function isDeckZoneFullForDrag(args: {
   ) {
     return true;
   }
-  if (COPY_LIMIT_ZONES.has(zone) && fromZone === null) {
+  if (COPY_LIMIT_ZONES.has(zone) && (fromZone === null || !COPY_LIMIT_ZONES.has(fromZone))) {
     const total = allCards
       .filter((entry) => entry.cardId === draggedCardId && COPY_LIMIT_ZONES.has(entry.zone))
       .reduce((sum, entry) => sum + entry.quantity, 0);

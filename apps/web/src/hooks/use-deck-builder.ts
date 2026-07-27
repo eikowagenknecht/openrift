@@ -548,15 +548,11 @@ export function setLegendAction(
   const runesAfter = allCards(collection).filter(
     (entry) => entry.zone === WellKnown.deckZone.RUNES,
   );
-  const hasIncompatibleRunes = runesAfter.some(
+  const incompatibleRunes = runesAfter.filter(
     (entry) => !entry.domains.every((domain) => legendDomainSet.has(domain)),
   );
-  if (hasIncompatibleRunes) {
-    for (const rune of runesAfter) {
-      collection.delete(
-        deckCardKey(rune.cardId, WellKnown.deckZone.RUNES, rune.preferredPrintingId),
-      );
-    }
+  for (const rune of incompatibleRunes) {
+    collection.delete(deckCardKey(rune.cardId, WellKnown.deckZone.RUNES, rune.preferredPrintingId));
   }
 
   // Auto-populate runes if runes zone is now empty and the legend has two

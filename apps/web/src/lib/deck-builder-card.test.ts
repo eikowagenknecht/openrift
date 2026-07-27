@@ -133,6 +133,40 @@ describe("isDeckZoneFullForDrag", () => {
     ).toBe(true);
   });
 
+  it("blocks moves from overflow into a capped zone that is already at the cap", () => {
+    // Regression: overflow copies don't count toward the total, so nothing
+    // else caps a move out of overflow — the destination-zone check must.
+    const allCards = [
+      { cardId, zone: "main" as DeckZone, quantity: 3 },
+      { cardId, zone: "overflow" as DeckZone, quantity: 1 },
+    ];
+    expect(
+      isDeckZoneFullForDrag({
+        zone: "main",
+        draggedCard: { cardId, maxCopiesOverride: null },
+        fromZone: "overflow",
+        allCards,
+        format: "constructed",
+      }),
+    ).toBe(true);
+  });
+
+  it("allows moves from main to sideboard at the cap — both are copy-limit zones", () => {
+    const allCards = [
+      { cardId, zone: "main" as DeckZone, quantity: 3 },
+      { cardId, zone: "sideboard" as DeckZone, quantity: 0 },
+    ];
+    expect(
+      isDeckZoneFullForDrag({
+        zone: "sideboard",
+        draggedCard: { cardId, maxCopiesOverride: null },
+        fromZone: "main",
+        allCards,
+        format: "constructed",
+      }),
+    ).toBe(false);
+  });
+
   it("allows browser-card adds past 3 copies for cards with the unlimited override", () => {
     const allCards = [{ cardId, zone: "main" as DeckZone, quantity: 17 }];
     expect(

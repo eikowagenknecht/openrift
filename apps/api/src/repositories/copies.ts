@@ -1,8 +1,10 @@
 import type { CopyLink, OwnedCopyRow } from "@openrift/shared";
+import { ERROR_CODES } from "@openrift/shared";
 import type { Insertable, Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
 import type { CopiesTable, Database } from "../db/index.js";
+import { AppError } from "../errors.js";
 
 /**
  * Slim copy row — printing details are resolved client-side from the catalog.
@@ -82,13 +84,20 @@ export function clampCopiesLimit(limit?: number): number {
 
 function parseCursor(cursor: string): { time: Date; id: string | null } {
   const separatorIndex = cursor.indexOf(CURSOR_SEPARATOR);
-  if (separatorIndex === -1) {
-    // Legacy timestamp-only cursor (backward compat during deploys)
-    return { time: new Date(cursor), id: null };
+  // Legacy timestamp-only cursor (backward compat during deploys) has no
+  // separator; either way, the part before it (or the whole string) must be
+  // a parseable timestamp.
+  const rawTime = separatorIndex === -1 ? cursor : cursor.slice(0, separatorIndex);
+  const time = new Date(rawTime);
+  if (Number.isNaN(time.getTime())) {
+    // The query schema (copiesQuerySchema) already rejects syntactically
+    // invalid cursors before this runs; this is a defensive backstop against
+    // any other caller passing an unvalidated cursor straight through.
+    throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Invalid cursor");
   }
   return {
-    time: new Date(cursor.slice(0, separatorIndex)),
-    id: cursor.slice(separatorIndex + 1),
+    time,
+    id: separatorIndex === -1 ? null : cursor.slice(separatorIndex + 1),
   };
 }
 

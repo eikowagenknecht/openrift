@@ -253,8 +253,10 @@ function RangeFilterSection({
   // When the faceted range collapses to a single value, the slider math (Base
   // UI computes thumb position as (value - min) / (max - min)) divides by zero.
   // Render a disabled slider with a synthetic 1-unit range so the row stays in
-  // layout but is non-interactive.
-  const isDegenerate = sMax <= sMin;
+  // layout but is non-interactive. Logarithmic sliders always run on the fixed
+  // 0–LOG_STEPS scale (sMin/sMax never collapse), so degeneracy must be judged
+  // against the real faceted bounds instead.
+  const isDegenerate = logarithmic ? availableMax <= availableMin : sMax <= sMin;
   const renderSliderMin = sMin;
   const renderSliderMax = isDegenerate ? sMin + 1 : sMax;
   const toSlider = logarithmic
