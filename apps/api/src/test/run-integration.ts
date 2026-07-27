@@ -42,6 +42,8 @@ const PARALLEL_FILES = [
   "src/routes/authenticated/lists.integration.test.ts",
   "src/routes/authenticated/deck-check-player.integration.test.ts",
   "src/routes/authenticated/tournament-deck-check.integration.test.ts",
+  "src/routes/authenticated/tournament-deck-check-concurrency.integration.test.ts",
+  "src/services/card-trades-loan-race.integration.test.ts",
   "src/routes/authenticated/decks.integration.test.ts",
   "src/routes/authenticated/preferences.integration.test.ts",
   // Unified tournaments umbrella (ADR-033)

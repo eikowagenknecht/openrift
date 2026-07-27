@@ -263,5 +263,3 @@ export function useCollectionGridData({
     ownedCountByPrinting,
   };
 }
-
-export type UseCollectionGridDataResult = ReturnType<typeof useCollectionGridData>;
