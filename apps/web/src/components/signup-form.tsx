@@ -1,7 +1,8 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Controller, useForm, useWatch } from "react-hook-form";
+import type { Control } from "react-hook-form";
+import { Controller, useForm, useFormState, useWatch } from "react-hook-form";
 import { z } from "zod/v4";
 
 import { AuthFormCard, SocialAuthButtons } from "@/components/auth-form-shell";
@@ -45,11 +46,6 @@ export function SignupForm({
     defaultValues: { name: "", email: initialEmail, password: "" },
   });
 
-  // `useWatch` rather than `form.watch()`: the latter returns a function the
-  // React Compiler flags as un-memoizable (IncompatibleLibrary), bailing on the
-  // whole component. The hook form subscribes the same way without the bailout.
-  const watchedEmail = useWatch({ control: form.control, name: "email" });
-
   async function onSubmit(values: SignUpValues) {
     setLoading(true);
     const { error } = await signUp.email(values);
@@ -70,9 +66,7 @@ export function SignupForm({
     >
       <form onSubmit={form.handleSubmit(onSubmit)} noValidate>
         <FieldGroup>
-          {form.formState.errors.root && (
-            <FieldError>{form.formState.errors.root.message}</FieldError>
-          )}
+          <RootFormError control={form.control} />
           <Controller
             name="name"
             control={form.control}
@@ -136,11 +130,42 @@ export function SignupForm({
       </form>
       <SocialAuthButtons redirectTo={redirectTo ?? "/collections"} />
       <FieldDescription className="text-center">
-        Already have an account?{" "}
-        <Link to="/login" search={{ redirect: redirectTo, email: watchedEmail || undefined }}>
-          Sign in
-        </Link>
+        Already have an account? <LoginLink control={form.control} redirectTo={redirectTo} />
       </FieldDescription>
     </AuthFormCard>
+  );
+}
+
+/**
+ * @returns The form-level server error, or null when there is none.
+ */
+function RootFormError({ control }: { control: Control<SignUpValues> }) {
+  const { errors } = useFormState({ control });
+  return errors.root ? <FieldError>{errors.root.message}</FieldError> : null;
+}
+
+/**
+ * Isolated so the watch re-renders one link instead of the whole card. Reading
+ * the email in `SignupForm` itself rebuilt every field, the social buttons, and
+ * this link's router `search` object on each keystroke.
+ *
+ * `useWatch` rather than `form.watch()`: the latter returns a function the React
+ * Compiler flags as un-memoizable (IncompatibleLibrary), bailing on the whole
+ * component. The hook subscribes the same way without the bailout.
+ *
+ * @returns A login link carrying the email typed so far.
+ */
+function LoginLink({
+  control,
+  redirectTo,
+}: {
+  control: Control<SignUpValues>;
+  redirectTo?: string;
+}) {
+  const email = useWatch({ control, name: "email" });
+  return (
+    <Link to="/login" search={{ redirect: redirectTo, email: email || undefined }}>
+      Sign in
+    </Link>
   );
 }

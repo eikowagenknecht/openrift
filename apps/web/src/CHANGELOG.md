@@ -12,6 +12,7 @@
 
 - feat(Trades): **Easier-to-read trade emails** — update and request emails now sort cards under accepted/declined and wants/offers headings instead of repeating a full sentence per card, and match digests list cards per trade partner.
 - feat(Groups): **Join-code QR without the detour** — the invite code on the manage page shows its QR in place instead of behind a dialog, and copying the link now confirms it worked.
+- fix(Account): **Flicker while typing your email** — the sign-in and sign-up pages rebuilt the whole card on every keystroke, which made the email field flicker on iOS.
 - fix(App): **Dropdown options no longer cut off** — open dropdowns now widen to fit long options instead of clipping them at the button's width.
 - fix(Tournaments): **Start date prefill now visible** — the new-tournament page filled the start date in on save, but the field looked empty until now.
 - fix(Tournaments): **Quieter match cards for organizers** — pairing fairness stats only appear when something is off, and player rows drop the cryptic standings figure.
