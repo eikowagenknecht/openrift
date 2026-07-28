@@ -1,0 +1,294 @@
+{
+  "id": null,
+  "uid": "openrift-api-consumers",
+  "title": "OpenRift / API Consumers",
+  "tags": ["api", "openrift"],
+  "schemaVersion": 39,
+  "editable": true,
+  "graphTooltip": 1,
+  "refresh": "5m",
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "timezone": "browser",
+  "annotations": {
+    "list": []
+  },
+  "links": [],
+  "templating": {
+    "list": []
+  },
+  "panels": [
+    {
+      "title": "API requests by client",
+      "description": "External requests to /api/v1, /api/doc, and /api/ui from the nginx proxy access log. Browser User-Agents are collapsed into one (browsers) bucket; everything else (scripts, tools, bots) keeps its User-Agent. Server-side calls from the web container bypass the proxy and are not counted.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "expr": "sum by (client) (count_over_time({container=\"openrift-proxy-1\"} | pattern `<_> - - [<_>] \"<_> <path> <_>\" <_> <_> \"<referer>\" \"<ua>\" <_>` | path=~\"/api/(v1/|doc|ui).*\" | label_format client=`{{ if hasPrefix \"Mozilla/\" .ua }}(browsers){{ else }}{{ .ua }}{{ end }}` [$__interval]))",
+          "legendFormat": "{{client}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "stacking": {
+              "mode": "normal"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "(browsers)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "gray"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "title": "Non-browser clients (User-Agent)",
+      "description": "Scripts, tools, and bots hitting the API over the dashboard time range. The /developers page asks every client to identify itself like MyDeckTool/1.0 (contact) — generic agents here are consumers we cannot reach before a breaking change.",
+      "type": "table",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "expr": "topk(20, sum by (ua) (count_over_time({container=\"openrift-proxy-1\"} | pattern `<_> - - [<_>] \"<_> <path> <_>\" <_> <_> \"<referer>\" \"<ua>\" <_>` | path=~\"/api/(v1/|doc|ui).*\" | ua !~ \"Mozilla/.*\" [$__range])))",
+          "legendFormat": "{{ua}}",
+          "refId": "A",
+          "queryType": "instant",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {}
+        },
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "ua": "User-Agent",
+              "Value": "Requests"
+            },
+            "indexByName": {
+              "User-Agent": 0,
+              "Requests": 1
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": {},
+            "sort": [
+              {
+                "field": "Requests",
+                "desc": true
+              }
+            ]
+          }
+        }
+      ],
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      }
+    },
+    {
+      "title": "Third-party web apps (Referer origin)",
+      "description": "Browser traffic to the API whose Referer is not openrift.app — i.e. other websites calling the API from their frontend. Browsers cannot set a custom User-Agent, so the Origin/Referer is how these are identified.",
+      "type": "table",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "expr": "topk(20, sum by (origin) (count_over_time({container=\"openrift-proxy-1\"} | pattern `<_> - - [<_>] \"<_> <path> <_>\" <_> <_> \"<referer>\" \"<ua>\" <_>` | path=~\"/api/(v1/|doc|ui).*\" | referer != \"-\" | referer !~ \"https://openrift.app.*\" | label_format origin=`{{ regexReplaceAll \"(https?://[^/]+).*\" .referer \"${1}\" }}` [$__range])))",
+          "legendFormat": "{{origin}}",
+          "refId": "A",
+          "queryType": "instant",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {}
+        },
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "origin": "Origin",
+              "Value": "Requests"
+            },
+            "indexByName": {
+              "Origin": 0,
+              "Requests": 1
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": {},
+            "sort": [
+              {
+                "field": "Requests",
+                "desc": true
+              }
+            ]
+          }
+        }
+      ],
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      }
+    },
+    {
+      "title": "Non-browser requests by endpoint",
+      "description": "What the non-browser clients are actually fetching (query strings stripped).",
+      "type": "table",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "expr": "topk(25, sum by (ua, endpoint) (count_over_time({container=\"openrift-proxy-1\"} | pattern `<_> - - [<_>] \"<_> <path> <_>\" <_> <_> \"<referer>\" \"<ua>\" <_>` | path=~\"/api/(v1/|doc|ui).*\" | ua !~ \"Mozilla/.*\" | label_format endpoint=`{{ regexReplaceAll \"\\\\?.*\" .path \"\" }}` [$__range])))",
+          "legendFormat": "{{ua}} {{endpoint}}",
+          "refId": "A",
+          "queryType": "instant",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {}
+        },
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "path": true
+            },
+            "renameByName": {
+              "ua": "User-Agent",
+              "endpoint": "Endpoint",
+              "Value": "Requests"
+            },
+            "indexByName": {
+              "User-Agent": 0,
+              "Endpoint": 1,
+              "Requests": 2
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": {},
+            "sort": [
+              {
+                "field": "Requests",
+                "desc": true
+              }
+            ]
+          }
+        }
+      ],
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 17
+      }
+    }
+  ]
+}
