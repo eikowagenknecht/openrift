@@ -2,13 +2,17 @@ import type {
   Currency,
   ListEntryDetailResponse,
   ListKind,
+  Printing,
   TradePreference,
 } from "@openrift/shared";
 import {
   resolveEffectiveTradePreference,
+  sortCards,
   straightenApostrophes,
   WellKnown,
 } from "@openrift/shared";
+
+import type { StackedEntry } from "@/hooks/use-stacked-copies";
 
 import { formatPrice, formatPriceEur } from "./format";
 
@@ -102,6 +106,47 @@ function mergeCopiesByPrinting(
     );
   }
   return [...byPrinting.values()];
+}
+
+/**
+ * Converts printing/copy-kind list entries into the stacked shape the CSV
+ * writers consume, so wishlists and tradelists export through the same
+ * writers as collections. Entries of the same printing merge (a trade list
+ * carries one entry per physical copy), quantities become synthetic copy ids
+ * (the writers only read their count when no `copiesById` lookup is given),
+ * and the result is sorted by card ID like a collection export. Card-kind
+ * entries reference no printing and are skipped, as are entries whose
+ * printing is missing from the catalog lookup.
+ * @returns Stacks sorted by card ID.
+ */
+export function stacksFromListEntries(
+  entries: readonly ListEntryDetailResponse[],
+  printingsById: Readonly<Record<string, Printing>>,
+): StackedEntry[] {
+  const quantities = new Map<string, number>();
+  for (const entry of entries) {
+    if (entry.kind === "card") {
+      continue;
+    }
+    const printing = printingsById[entry.printingId];
+    if (!printing) {
+      continue;
+    }
+    quantities.set(entry.printingId, (quantities.get(entry.printingId) ?? 0) + entry.quantity);
+  }
+
+  const sorted = sortCards(
+    [...quantities.keys()].map((printingId) => printingsById[printingId]),
+    "id",
+  );
+  return sorted.map((printing) => ({
+    printingId: printing.id,
+    printing,
+    copyIds: Array.from(
+      { length: quantities.get(printing.id) ?? 0 },
+      (_, index) => `${printing.id}#${index}`,
+    ),
+  }));
 }
 
 /** One want for the Cardmarket export: a card name and how many of it. */

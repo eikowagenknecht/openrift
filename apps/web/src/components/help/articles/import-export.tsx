@@ -216,11 +216,13 @@ export default function ImportExportArticle() {
         <p className="text-muted-foreground">
           Export downloads your collection as a CSV file. Pick a collection and a format from the
           dropdowns, then click <strong className="text-foreground">Export</strong>. Choose{" "}
-          <strong className="text-foreground">OpenRift CSV</strong> for the columns shown below, or{" "}
-          <strong className="text-foreground">Piltover Archive CSV</strong> to produce a file in
-          Piltover Archive&apos;s own layout (finish, art variant, and promos are encoded into the{" "}
-          <code className="bg-muted rounded px-1.5 py-0.5 text-xs">Variant Number</code>). Either
-          format re-imports cleanly into OpenRift.
+          <strong className="text-foreground">OpenRift CSV</strong> for the columns shown below, or
+          one of <strong className="text-foreground">Piltover Archive</strong>,{" "}
+          <strong className="text-foreground">RiftMana</strong>, or{" "}
+          <strong className="text-foreground">RiftCore</strong> to produce a file in that
+          tool&apos;s own layout. Every format re-imports cleanly into OpenRift, though the other
+          tools&apos; formats can&apos;t carry everything (RiftMana keeps conditions but not which
+          promo a card is, RiftCore has no languages or conditions at all).
         </p>
 
         <div className="border-border mt-3 overflow-x-auto rounded-lg border text-sm">
@@ -297,9 +299,11 @@ export default function ImportExportArticle() {
           <code className="bg-muted rounded px-1.5 py-0.5 text-xs">
             openrift-<em>collection</em>-<em>date</em>.csv
           </code>{" "}
-          (or <code className="bg-muted rounded px-1.5 py-0.5 text-xs">piltover-…</code> for the
-          Piltover Archive format). The exported CSV uses the same short code format as import, so
-          you can re-import an OpenRift export into another account or after a reset.
+          (or <code className="bg-muted rounded px-1.5 py-0.5 text-xs">piltover-…</code>,{" "}
+          <code className="bg-muted rounded px-1.5 py-0.5 text-xs">riftmana-…</code>,{" "}
+          <code className="bg-muted rounded px-1.5 py-0.5 text-xs">riftcore-…</code> for the other
+          formats). The exported CSV uses the same short code format as import, so you can re-import
+          an OpenRift export into another account or after a reset.
         </p>
       </section>
 

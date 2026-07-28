@@ -1,12 +1,13 @@
-import type { ListEntryDetailResponse } from "@openrift/shared";
+import type { ListEntryDetailResponse, Printing } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
-import { EMPTY_TRADE_PREFERENCE } from "@/test/factories";
+import { EMPTY_TRADE_PREFERENCE, stubPrinting } from "@/test/factories";
 
 import {
   formatCardListAsDeckText,
   formatCardmarketWants,
   formatListShareText,
+  stacksFromListEntries,
 } from "./list-export";
 
 function cardEntry(
@@ -105,6 +106,77 @@ describe("formatCardmarketWants", () => {
 
   it("returns an empty string when there are no wants", () => {
     expect(formatCardmarketWants([])).toBe("");
+  });
+});
+
+function printingListEntry(
+  id: string,
+  printingId: string,
+  quantity: number,
+): ListEntryDetailResponse {
+  return {
+    id,
+    listId: "list-1",
+    ruleQuantity: 0,
+    source: "manual",
+    kind: "printing",
+    printingId,
+    quantity,
+    cardName: "Test Card",
+    setId: "set-1",
+    rarity: "common",
+    finish: "normal",
+    shortCode: "OGN-001",
+    language: "EN",
+    imageId: null,
+    tradeOverride: EMPTY_TRADE_PREFERENCE,
+  };
+}
+
+describe("stacksFromListEntries", () => {
+  it("merges entries of the same printing into one stack with quantity-many copy ids", () => {
+    const printing = stubPrinting({ id: "p1", shortCode: "OGN-001" });
+    const printingsById: Record<string, Printing> = { p1: printing };
+    const stacks = stacksFromListEntries(
+      [printingListEntry("e1", "p1", 2), printingListEntry("e2", "p1", 1)],
+      printingsById,
+    );
+    expect(stacks).toHaveLength(1);
+    expect(stacks[0].printingId).toBe("p1");
+    expect(stacks[0].printing).toBe(printing);
+    expect(stacks[0].copyIds).toHaveLength(3);
+  });
+
+  it("sorts stacks by card ID like a collection export", () => {
+    const printingsById: Record<string, Printing> = {
+      p1: stubPrinting({ id: "p1", shortCode: "OGN-042" }),
+      p2: stubPrinting({ id: "p2", shortCode: "OGN-001" }),
+    };
+    const stacks = stacksFromListEntries(
+      [printingListEntry("e1", "p1", 1), printingListEntry("e2", "p2", 1)],
+      printingsById,
+    );
+    expect(stacks.map((stack) => stack.printing.shortCode)).toEqual(["OGN-001", "OGN-042"]);
+  });
+
+  it("skips card-kind entries and printings missing from the catalog", () => {
+    const printingsById: Record<string, Printing> = {
+      p1: stubPrinting({ id: "p1", shortCode: "OGN-001" }),
+    };
+    const stacks = stacksFromListEntries(
+      [
+        cardEntry("e1", "c1", "Teemo, Scout", 2),
+        printingListEntry("e2", "p1", 1),
+        printingListEntry("e3", "p-unknown", 4),
+      ],
+      printingsById,
+    );
+    expect(stacks).toHaveLength(1);
+    expect(stacks[0].printingId).toBe("p1");
+  });
+
+  it("returns an empty array for an empty list", () => {
+    expect(stacksFromListEntries([], {})).toEqual([]);
   });
 });
 

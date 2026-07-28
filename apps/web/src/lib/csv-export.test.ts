@@ -4,7 +4,13 @@ import { describe, expect, it } from "vitest";
 import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { stubCopy } from "@/test/factories";
 
-import { generateExportCSV, generatePiltoverArchiveCSV } from "./csv-export";
+import {
+  csvExportFilename,
+  generateExportCSV,
+  generatePiltoverArchiveCSV,
+  generateRiftCoreCSV,
+  generateRiftManaCSV,
+} from "./csv-export";
 import { parseImportData } from "./import-parsers";
 
 function makeStack(overrides: {
@@ -279,5 +285,185 @@ describe("generatePiltoverArchiveCSV", () => {
     expect(byCode.get("OGN-079a")).toMatchObject({ artVariant: "altart" });
     expect(byCode.get("OGN-123*")).toMatchObject({ artVariant: "overnumbered" });
     expect(byCode.get("OGN-010")).toMatchObject({ isPromo: true, language: "SC" });
+  });
+});
+
+describe("generateRiftManaCSV", () => {
+  it("emits the RiftMana header row", () => {
+    expect(generateRiftManaCSV([]).split("\n")[0]).toBe(
+      "Normal Qty,Foil Qty,Card Name,Card ID,Set,Color,Rarity,Normal Price,Foil Price," +
+        "Normal Condition,Foil Condition,Notes,Language",
+    );
+  });
+
+  it("merges normal and foil printings of a card into one row", () => {
+    const lines = generateRiftManaCSV([
+      makeStack({ shortCode: "OGN-001", copyCount: 2 }),
+      makeStack({ shortCode: "OGN-001", finish: "foil" }),
+    ]).split("\n");
+    expect(lines).toHaveLength(2);
+    expect(lines[1]).toBe("2,1,Test Card,OGN-001,Origins,Arcane,Common,,,,,,English");
+  });
+
+  it("counts always-foil rarities in the Normal Qty column", () => {
+    const lines = generateRiftManaCSV([
+      makeStack({ shortCode: "OGN-025", finish: "foil", rarity: "rare" }),
+    ]).split("\n");
+    expect(lines[1].split(",").slice(0, 2)).toEqual(["1", "0"]);
+  });
+
+  it("appends the -p suffix for promo printings", () => {
+    const lines = generateRiftManaCSV([
+      makeStack({
+        shortCode: "OGN-010",
+        markers: [{ id: "m1", slug: "nexus", label: "Nexus", description: null }],
+      }),
+    ]).split("\n");
+    expect(lines[1].split(",")[3]).toBe("OGN-010-p");
+  });
+
+  it("keeps languages as separate rows and writes their full names", () => {
+    const lines = generateRiftManaCSV([
+      makeStack({ shortCode: "OGN-001", language: "EN" }),
+      makeStack({ shortCode: "OGN-001", language: "SC" }),
+    ]).split("\n");
+    expect(lines).toHaveLength(3);
+    expect(lines[1]).toContain("English");
+    expect(lines[2]).toContain("Chinese (Simplified)");
+  });
+
+  it("encodes recorded conditions per finish column (ADR-038)", () => {
+    const stack = makeStack({ shortCode: "OGN-001", copyCount: 3 });
+    stack.copyIds = ["c1", "c2", "c3"];
+    const copiesById = new Map<string, CopyResponse>([
+      ["c1", stubCopy({ id: "c1", condition: "near-mint" })],
+      ["c2", stubCopy({ id: "c2", condition: "light-played" })],
+      ["c3", stubCopy({ id: "c3" })],
+    ]);
+    const lines = generateRiftManaCSV([stack], copiesById).split("\n");
+    expect(lines[1].split(",")[9]).toBe("NM:1;LP:1");
+  });
+
+  it("round-trips through the RiftMana import parser", () => {
+    const stacks = [
+      makeStack({ shortCode: "OGN-001", name: "Plain", copyCount: 2 }),
+      makeStack({ shortCode: "OGN-001", name: "Plain", finish: "foil" }),
+      makeStack({ shortCode: "OGN-025", name: "Always foil", finish: "foil", rarity: "rare" }),
+      makeStack({ shortCode: "OGN-079a", name: "Alt", artVariant: "altart" }),
+      makeStack({ shortCode: "OGN-123*", name: "Over", artVariant: "overnumbered" }),
+      makeStack({
+        shortCode: "OGN-010",
+        name: "Promo",
+        language: "SC",
+        markers: [{ id: "m1", slug: "nexus", label: "Nexus", description: null }],
+      }),
+    ];
+    const result = parseImportData(generateRiftManaCSV(stacks));
+
+    expect(result.source).toBe("riftmana");
+    expect(result.errors).toEqual([]);
+
+    const byKey = new Map(
+      result.entries.map((entry) => [`${entry.sourceCode}:${entry.finish}`, entry]),
+    );
+    expect(byKey.get("OGN-001:normal")).toMatchObject({ quantity: 2, artVariant: "normal" });
+    expect(byKey.get("OGN-001:foil")).toMatchObject({ quantity: 1 });
+    // Always-foil rarity exports in the normal column; the importer infers foil.
+    expect(byKey.get("OGN-025:foil")).toMatchObject({ quantity: 1 });
+    expect(byKey.get("OGN-079a:normal")).toMatchObject({ artVariant: "altart" });
+    expect(byKey.get("OGN-123*:normal")).toMatchObject({ artVariant: "overnumbered" });
+    expect(byKey.get("OGN-010:normal")).toMatchObject({ isPromo: true, language: "SC" });
+  });
+
+  it("round-trips conditions as split entries (ADR-038)", () => {
+    const stack = makeStack({ shortCode: "OGN-001", copyCount: 3 });
+    stack.copyIds = ["c1", "c2", "c3"];
+    const copiesById = new Map<string, CopyResponse>([
+      ["c1", stubCopy({ id: "c1", condition: "near-mint" })],
+      ["c2", stubCopy({ id: "c2", condition: "near-mint" })],
+      ["c3", stubCopy({ id: "c3", condition: "played" })],
+    ]);
+    const result = parseImportData(generateRiftManaCSV([stack], copiesById));
+    expect(result.errors).toEqual([]);
+    expect(result.entries).toHaveLength(2);
+    expect(result.entries[0]).toMatchObject({
+      quantity: 2,
+      metadata: { condition: "near-mint" },
+    });
+    expect(result.entries[1]).toMatchObject({ quantity: 1, metadata: { condition: "played" } });
+  });
+});
+
+describe("generateRiftCoreCSV", () => {
+  it("leads with the RIFTCORE marker line, then the header row", () => {
+    const lines = generateRiftCoreCSV([]).split("\n");
+    expect(lines[0]).toBe("RIFTCORE COLLECTION EXPORT");
+    expect(lines[1]).toBe(
+      "Card ID,Card Name,Set,Card Number,Type,Rarity,Domain,Standard Qty,Foil Qty," +
+        "Proving Grounds Qty,Total Qty",
+    );
+  });
+
+  it("merges normal and foil printings of a card into one row with totals", () => {
+    const lines = generateRiftCoreCSV([
+      makeStack({ shortCode: "OGN-001", copyCount: 2 }),
+      makeStack({ shortCode: "OGN-001", finish: "foil" }),
+    ]).split("\n");
+    expect(lines).toHaveLength(3);
+    expect(lines[2]).toBe("OGN-001,Test Card,Origins,001,unit,Common,Arcane,2,1,0,3");
+  });
+
+  it("writes RiftCore's Card ID spelling: uppercase modifier and S for *", () => {
+    const lines = generateRiftCoreCSV([
+      makeStack({ shortCode: "OGN-030a", artVariant: "altart" }),
+      makeStack({ shortCode: "OGN-123*", artVariant: "overnumbered" }),
+    ]).split("\n");
+    expect(lines[2].split(",")[0]).toBe("OGN-030A");
+    expect(lines[3].split(",")[0]).toBe("OGN-123S");
+  });
+
+  it("counts always-foil rarities in the Standard Qty column", () => {
+    const lines = generateRiftCoreCSV([
+      makeStack({ shortCode: "OGN-025", finish: "foil", rarity: "rare" }),
+    ]).split("\n");
+    expect(lines[2].split(",").slice(7, 11)).toEqual(["1", "0", "0", "1"]);
+  });
+
+  it("round-trips through the RiftCore import parser", () => {
+    const stacks = [
+      makeStack({ shortCode: "OGN-001", name: "Plain", copyCount: 2 }),
+      makeStack({ shortCode: "OGN-001", name: "Plain", finish: "foil" }),
+      makeStack({ shortCode: "OGN-025", name: "Always foil", finish: "foil", rarity: "rare" }),
+      makeStack({ shortCode: "OGN-030a", name: "Alt", artVariant: "altart" }),
+      makeStack({ shortCode: "OGN-123*", name: "Over", artVariant: "overnumbered" }),
+    ];
+    const result = parseImportData(generateRiftCoreCSV(stacks));
+
+    expect(result.source).toBe("riftcore");
+    expect(result.errors).toEqual([]);
+
+    const byKey = new Map(
+      result.entries.map((entry) => [`${entry.sourceCode}:${entry.finish}`, entry]),
+    );
+    expect(byKey.get("OGN-001:normal")).toMatchObject({ quantity: 2 });
+    expect(byKey.get("OGN-001:foil")).toMatchObject({ quantity: 1 });
+    // Always-foil rarity exports in the standard column; the importer infers foil.
+    expect(byKey.get("OGN-025:foil")).toMatchObject({ quantity: 1 });
+    expect(byKey.get("OGN-030a:normal")).toMatchObject({ artVariant: "altart" });
+    expect(byKey.get("OGN-123*:normal")).toMatchObject({ artVariant: "overnumbered" });
+  });
+});
+
+describe("csvExportFilename", () => {
+  it("kebab-cases the name and adds the format prefix and date", () => {
+    expect(csvExportFilename("riftmana", "My Trade Binder!")).toMatch(
+      /^riftmana-my-trade-binder-\d{4}-\d{2}-\d{2}\.csv$/u,
+    );
+  });
+
+  it("falls back to 'export' when the name has no usable characters", () => {
+    expect(csvExportFilename("openrift", "☆☆☆")).toMatch(
+      /^openrift-export-\d{4}-\d{2}-\d{2}\.csv$/u,
+    );
   });
 });

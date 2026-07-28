@@ -52,7 +52,8 @@ import type { ImportableListOption } from "@/hooks/use-import-flow";
 import { useImportFlow } from "@/hooks/use-import-flow";
 import { useRequiredUserId } from "@/lib/auth-session";
 import { copiesQueryOptions } from "@/lib/copies-query";
-import { downloadCSV, generateExportCSV, generatePiltoverArchiveCSV } from "@/lib/csv-export";
+import type { CsvExportFormat } from "@/lib/csv-export";
+import { CSV_EXPORT_FORMATS, csvExportFilename, downloadCSV } from "@/lib/csv-export";
 import type { MatchedEntry } from "@/lib/import-matcher";
 import { isReplaceableTarget, LIST_TARGET_PREFIX } from "@/lib/import-replace";
 import { SOCIAL_LINKS } from "@/lib/social-links";
@@ -137,7 +138,7 @@ function ExportSection() {
   const { data: collections } = useCollections();
   const { allPrintings } = useCards();
   const [exportCollectionId, setExportCollectionId] = useState<string>("__all__");
-  const [exportFormat, setExportFormat] = useState<"openrift" | "piltover">("openrift");
+  const [exportFormat, setExportFormat] = useState<CsvExportFormat>("openrift");
 
   const queryCollectionId = exportCollectionId === "__all__" ? undefined : exportCollectionId;
   const { data: copies, isLoading } = useQuery(copiesQueryOptions(userId, queryCollectionId));
@@ -191,22 +192,14 @@ function ExportSection() {
     // Per-copy metadata (ADR-038): each printing exports one row per distinct
     // metadata combination, so conditions and notes survive the round trip.
     const copiesById = new Map(copies.map((copy) => [copy.id, copy]));
-    const csv =
-      exportFormat === "piltover"
-        ? generatePiltoverArchiveCSV(sortedStacks, copiesById)
-        : generateExportCSV(sortedStacks, copiesById);
+    const csv = CSV_EXPORT_FORMATS[exportFormat].generate(sortedStacks, copiesById);
 
     const collectionName =
       exportCollectionId === "__all__"
         ? "all-cards"
-        : (collections?.find((col) => col.id === exportCollectionId)?.name ?? "collection")
-            .toLowerCase()
-            .replaceAll(/[^a-z0-9]+/gu, "-")
-            .replaceAll(/^-|-$/gu, "");
+        : (collections?.find((col) => col.id === exportCollectionId)?.name ?? "collection");
 
-    const date = new Date().toISOString().slice(0, 10);
-    const prefix = exportFormat === "piltover" ? "piltover" : "openrift";
-    downloadCSV(csv, `${prefix}-${collectionName}-${date}.csv`);
+    downloadCSV(csv, csvExportFilename(exportFormat, collectionName));
     toast.success("Collection exported.");
   };
 
@@ -217,8 +210,8 @@ function ExportSection() {
       <div>
         <Heading level={2}>Export Collection</Heading>
         <p className="text-muted-foreground text-sm">
-          Download your collection as a CSV file, in OpenRift&apos;s own format or Piltover
-          Archive&apos;s.
+          Download your collection as a CSV file, in OpenRift&apos;s own format or another
+          tool&apos;s.
         </p>
       </div>
 
@@ -251,17 +244,20 @@ function ExportSection() {
 
           <Select
             value={exportFormat}
-            onValueChange={(value) =>
-              setExportFormat((value as "openrift" | "piltover") ?? "openrift")
-            }
-            items={{ openrift: "OpenRift CSV", piltover: "Piltover Archive CSV" }}
+            onValueChange={(value) => setExportFormat((value as CsvExportFormat) ?? "openrift")}
+            items={Object.fromEntries(
+              Object.entries(CSV_EXPORT_FORMATS).map(([key, def]) => [key, def.label]),
+            )}
           >
             <SelectTrigger className="w-[200px]" id="export-format">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="openrift">OpenRift CSV</SelectItem>
-              <SelectItem value="piltover">Piltover Archive CSV</SelectItem>
+              {Object.entries(CSV_EXPORT_FORMATS).map(([key, def]) => (
+                <SelectItem key={key} value={key}>
+                  {def.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
@@ -280,9 +276,9 @@ function ExportSection() {
           </Button>
         </div>
 
-        {exportFormat === "piltover" && (
+        {exportFormat !== "openrift" && (
           <p className="text-muted-foreground text-sm">
-            OpenRift tracks some printings Piltover Archive doesn&apos;t, so a few cards may not be
+            OpenRift tracks some printings other tools don&apos;t, so a few cards may not be
             recognized when you import this file there.
           </p>
         )}

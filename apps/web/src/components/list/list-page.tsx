@@ -169,12 +169,10 @@ export function ListPage({ listId }: ListPageProps) {
                   Import
                 </DropdownMenuItem>
               )}
-              {data.list.kind === "card" && (
-                <DropdownMenuItem onClick={() => setExportOpen(true)}>
-                  <DownloadIcon className="size-4" />
-                  Export
-                </DropdownMenuItem>
-              )}
+              <DropdownMenuItem onClick={() => setExportOpen(true)}>
+                <DownloadIcon className="size-4" />
+                Export
+              </DropdownMenuItem>
               <DropdownMenuItem
                 className="text-destructive focus:text-destructive"
                 onClick={() => setDeleteOpen(true)}
@@ -248,8 +246,14 @@ export function ListPage({ listId }: ListPageProps) {
     />
   );
 
-  const exportDialog = data.list.kind === "card" && (
-    <ListExportDialog entries={data.entries} open={exportOpen} onOpenChange={setExportOpen} />
+  const exportDialog = (
+    <ListExportDialog
+      listName={data.list.name}
+      kind={data.list.kind}
+      entries={data.entries}
+      open={exportOpen}
+      onOpenChange={setExportOpen}
+    />
   );
 
   const importDialog = (data.list.kind === "card" || data.list.kind === "printing") && (

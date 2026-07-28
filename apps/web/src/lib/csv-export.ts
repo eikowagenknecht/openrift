@@ -2,7 +2,7 @@ import type { CopyResponse } from "@openrift/shared";
 import { isAlwaysFoilRarity, straightenApostrophes, WellKnown } from "@openrift/shared";
 
 import type { StackedEntry } from "@/hooks/use-stacked-copies";
-import { piltoverConditionCode } from "@/lib/condition-codes";
+import { conditionShortCode, piltoverConditionCode } from "@/lib/condition-codes";
 
 const HEADERS = [
   "Card ID",
@@ -256,6 +256,296 @@ export function generatePiltoverArchiveCSV(
   }
 
   return lines.join("\n");
+}
+
+/** RiftMana column order, matching its CSV export and our import parser. */
+const RIFTMANA_HEADERS = [
+  "Normal Qty",
+  "Foil Qty",
+  "Card Name",
+  "Card ID",
+  "Set",
+  "Color",
+  "Rarity",
+  "Normal Price",
+  "Foil Price",
+  "Normal Condition",
+  "Foil Condition",
+  "Notes",
+  "Language",
+] as const;
+
+// RiftMana CSVs carry full language names, not our catalog codes. Unknown
+// codes pass through unchanged; the importer's normalizeLanguage reads both.
+const RIFTMANA_LANGUAGE_NAMES: Record<string, string> = {
+  EN: "English",
+  FR: "French",
+  SC: "Chinese (Simplified)",
+};
+
+/**
+ * Encodes per-condition counts as a RiftMana condition cell (e.g. "NM:2;LP:1").
+ * Copies without a recorded condition (including graded ones) are left out —
+ * the importer pools any quantity the encoding doesn't cover into a
+ * condition-less entry, so totals still match.
+ * @returns The encoded cell, or "" when no copy has a condition.
+ */
+function encodeRiftManaConditions(groups: readonly MetadataGroup[]): string {
+  const byCode = new Map<string, number>();
+  for (const group of groups) {
+    const slug = group.copy?.condition;
+    if (!slug) {
+      continue;
+    }
+    const code = conditionShortCode(slug);
+    byCode.set(code, (byCode.get(code) ?? 0) + group.quantity);
+  }
+  return [...byCode.entries()].map(([code, quantity]) => `${code}:${quantity}`).join(";");
+}
+
+/**
+ * True when a printing's quantity belongs in the format's foil column. Cards
+ * whose rarity is always foil (rare/epic/showcase) go in the normal/standard
+ * column — that's where RiftMana and RiftCore track them, and both importers
+ * infer foil from the rarity, so the round trip is preserved.
+ * @returns Whether to count the printing in the foil quantity column.
+ */
+function belongsInFoilColumn(printing: StackedEntry["printing"]): boolean {
+  return printing.finish === WellKnown.finish.FOIL && !isAlwaysFoilRarity(printing.rarity);
+}
+
+interface RiftManaRow {
+  cardName: string;
+  cardId: string;
+  set: string;
+  color: string;
+  rarity: string;
+  language: string;
+  normalQty: number;
+  foilQty: number;
+  normalGroups: MetadataGroup[];
+  foilGroups: MetadataGroup[];
+}
+
+/**
+ * Generates a CSV string in RiftMana's format from stacked copy entries. The
+ * output round-trips through {@link parseImportData}: normal and foil copies
+ * of the same printing merge into one row with separate quantity columns, art
+ * variants stay encoded in the Card ID's modifier, and promo printings get
+ * RiftMana's `-p` suffix (the specific promo type is lost — the format only
+ * knows "promo").
+ *
+ * With a `copiesById` lookup, recorded conditions are encoded in the
+ * per-finish condition columns (e.g. "NM:2;LP:1" — ADR-038). The price and
+ * notes columns are always left empty.
+ * @returns CSV text with RiftMana headers and one row per card+language.
+ */
+export function generateRiftManaCSV(
+  stacks: StackedEntry[],
+  copiesById?: ReadonlyMap<string, CopyResponse>,
+): string {
+  const rows = new Map<string, RiftManaRow>();
+
+  for (const stack of stacks) {
+    const { printing } = stack;
+    const cardId = printing.markers.length > 0 ? `${printing.shortCode}-p` : printing.shortCode;
+    const key = `${cardId}::${printing.language}`;
+    let row = rows.get(key);
+    if (!row) {
+      row = {
+        cardName: straightenApostrophes(printing.card.name),
+        cardId,
+        set: titleCaseSlug(printing.setSlug),
+        color: printing.card.domains.join(" / "),
+        rarity: titleCaseSlug(printing.rarity),
+        language: RIFTMANA_LANGUAGE_NAMES[printing.language] ?? printing.language,
+        normalQty: 0,
+        foilQty: 0,
+        normalGroups: [],
+        foilGroups: [],
+      };
+      rows.set(key, row);
+    }
+    const groups = groupStackByMetadata(stack.copyIds, copiesById);
+    if (belongsInFoilColumn(printing)) {
+      row.foilQty += stack.copyIds.length;
+      row.foilGroups.push(...groups);
+    } else {
+      row.normalQty += stack.copyIds.length;
+      row.normalGroups.push(...groups);
+    }
+  }
+
+  const lines: string[] = [RIFTMANA_HEADERS.join(",")];
+  for (const row of rows.values()) {
+    lines.push(
+      [
+        String(row.normalQty),
+        String(row.foilQty),
+        row.cardName,
+        row.cardId,
+        row.set,
+        row.color,
+        row.rarity,
+        "",
+        "",
+        encodeRiftManaConditions(row.normalGroups),
+        encodeRiftManaConditions(row.foilGroups),
+        "",
+        row.language,
+      ]
+        .map((field) => escapeField(field))
+        .join(","),
+    );
+  }
+  return lines.join("\n");
+}
+
+/** RiftCore column order, matching its CSV export and our import parser. */
+const RIFTCORE_HEADERS = [
+  "Card ID",
+  "Card Name",
+  "Set",
+  "Card Number",
+  "Type",
+  "Rarity",
+  "Domain",
+  "Standard Qty",
+  "Foil Qty",
+  "Proving Grounds Qty",
+  "Total Qty",
+] as const;
+
+/**
+ * Converts our short code to RiftCore's Card ID spelling: uppercase art
+ * modifier ("OGN-030a" → "OGN-030A") and "S" for our "*" ("OGN-123*" →
+ * "OGN-123S"). Short codes that don't match the standard grammar (e.g. the
+ * bare set prefix of token printings) pass through unchanged.
+ * @returns The RiftCore Card ID.
+ */
+function riftCoreCardId(shortCode: string): string {
+  const match = shortCode.match(/^(?<set>[A-Z]{3})-(?<code>[A-Z0-9]{3})(?<modifier>[a-z*]?)$/u);
+  if (!match) {
+    return shortCode;
+  }
+  const modifier = match[3] === "*" ? "S" : match[3].toUpperCase();
+  return `${match[1]}-${match[2]}${modifier}`;
+}
+
+interface RiftCoreRow {
+  cardId: string;
+  cardName: string;
+  set: string;
+  cardNumber: string;
+  type: string;
+  rarity: string;
+  domain: string;
+  standardQty: number;
+  foilQty: number;
+}
+
+/**
+ * Generates a CSV string in RiftCore's format from stacked copy entries. The
+ * output round-trips through {@link parseImportData}: the file leads with the
+ * `RIFTCORE COLLECTION EXPORT` marker line the importer detects, then the
+ * header row, then one row per card with separate Standard/Foil quantity
+ * columns (Proving Grounds Qty is always 0).
+ *
+ * The format carries no language, condition, or promo information, so those
+ * are dropped: printings of the same card in different languages merge into
+ * one row.
+ * @returns CSV text with the RiftCore preamble, headers, and one row per card.
+ */
+export function generateRiftCoreCSV(stacks: StackedEntry[]): string {
+  const rows = new Map<string, RiftCoreRow>();
+
+  for (const stack of stacks) {
+    const { printing } = stack;
+    const cardId = riftCoreCardId(printing.shortCode);
+    let row = rows.get(cardId);
+    if (!row) {
+      row = {
+        cardId,
+        cardName: straightenApostrophes(printing.card.name),
+        set: titleCaseSlug(printing.setSlug),
+        cardNumber: printing.shortCode.split("-")[1] ?? "",
+        type: printing.card.types.join(" / "),
+        rarity: titleCaseSlug(printing.rarity),
+        domain: printing.card.domains.join(" / "),
+        standardQty: 0,
+        foilQty: 0,
+      };
+      rows.set(cardId, row);
+    }
+    if (belongsInFoilColumn(printing)) {
+      row.foilQty += stack.copyIds.length;
+    } else {
+      row.standardQty += stack.copyIds.length;
+    }
+  }
+
+  const lines: string[] = ["RIFTCORE COLLECTION EXPORT", RIFTCORE_HEADERS.join(",")];
+  for (const row of rows.values()) {
+    lines.push(
+      [
+        row.cardId,
+        row.cardName,
+        row.set,
+        row.cardNumber,
+        row.type,
+        row.rarity,
+        row.domain,
+        String(row.standardQty),
+        String(row.foilQty),
+        "0",
+        String(row.standardQty + row.foilQty),
+      ]
+        .map((field) => escapeField(field))
+        .join(","),
+    );
+  }
+  return lines.join("\n");
+}
+
+/** A CSV format the app can export collections and lists to. */
+export type CsvExportFormat = "openrift" | "piltover" | "riftmana" | "riftcore";
+
+/** Display label, filename prefix, and writer for each export format. */
+export const CSV_EXPORT_FORMATS: Record<
+  CsvExportFormat,
+  {
+    label: string;
+    filenamePrefix: string;
+    generate: (stacks: StackedEntry[], copiesById?: ReadonlyMap<string, CopyResponse>) => string;
+  }
+> = {
+  openrift: { label: "OpenRift CSV", filenamePrefix: "openrift", generate: generateExportCSV },
+  piltover: {
+    label: "Piltover Archive CSV",
+    filenamePrefix: "piltover",
+    generate: generatePiltoverArchiveCSV,
+  },
+  riftmana: { label: "RiftMana CSV", filenamePrefix: "riftmana", generate: generateRiftManaCSV },
+  riftcore: {
+    label: "RiftCore CSV",
+    filenamePrefix: "riftcore",
+    generate: (stacks) => generateRiftCoreCSV(stacks),
+  },
+};
+
+/**
+ * Builds the download filename for an export: `<format>-<name>-<date>.csv`
+ * with the name kebab-cased.
+ * @returns The filename.
+ */
+export function csvExportFilename(format: CsvExportFormat, name: string): string {
+  const slug =
+    name
+      .toLowerCase()
+      .replaceAll(/[^a-z0-9]+/gu, "-")
+      .replaceAll(/^-|-$/gu, "") || "export";
+  const date = new Date().toISOString().slice(0, 10);
+  return `${CSV_EXPORT_FORMATS[format].filenamePrefix}-${slug}-${date}.csv`;
 }
 
 /**

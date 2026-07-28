@@ -244,12 +244,13 @@ export default function ListsArticle() {
         <Heading className="mb-2">Importing and exporting</Heading>
         <p className="text-muted-foreground">
           Card-kind lists can be imported from and exported to plain text (one card per line with
-          quantities). Printing-kind and copy-kind lists can&apos;t, since pasted text can&apos;t
-          identify a specific printing or copy. See{" "}
+          quantities). Printing-kind and copy-kind lists can&apos;t be imported that way, since
+          pasted text can&apos;t identify a specific printing or copy, but they export as a CSV file
+          in the same formats as a collection (OpenRift, Piltover Archive, RiftMana, RiftCore). See{" "}
           <a href="/help/import-export" className="text-primary hover:underline">
             Importing &amp; Exporting
           </a>{" "}
-          for the format.
+          for the formats.
         </p>
       </section>
 
