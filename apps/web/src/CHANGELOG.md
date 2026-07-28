@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-07-28
+
+### Highlights
+
+- feat(Decks): **Smarter deck import** — the importer now detects what you pasted (deck list, deck code, TTS string, or a shared-deck link) and can read a deck straight from an uploaded file or a URL containing a deck code.
+
 ## 2026-07-27
 
 ### Highlights
