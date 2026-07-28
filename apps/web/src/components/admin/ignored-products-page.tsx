@@ -1,4 +1,5 @@
 import type { IgnoredProductResponse } from "@openrift/shared";
+import { marketplaceLabel } from "@openrift/shared";
 import { Undo2Icon } from "lucide-react";
 
 import { AdminTable } from "@/components/admin/admin-table";
@@ -7,7 +8,6 @@ import { PageDescription } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useIgnoredProducts, useUnignoreProduct } from "@/hooks/use-ignored-products";
-import { marketplaceLabel } from "@/lib/marketplace-meta";
 
 import { CM_CONFIG, TCG_CONFIG } from "./source-configs";
 

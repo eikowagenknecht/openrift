@@ -1,4 +1,5 @@
 import type { MarketplaceGroupKind } from "@openrift/shared";
+import { marketplaceLabel } from "@openrift/shared";
 import { useState } from "react";
 
 import { AdminTable } from "@/components/admin/admin-table";
@@ -17,7 +18,6 @@ import {
 import type { MarketplaceGroup } from "@/hooks/use-marketplace-groups";
 import { useMarketplaceGroups, useUpdateMarketplaceGroup } from "@/hooks/use-marketplace-groups";
 import { useSets } from "@/hooks/use-sets";
-import { marketplaceLabel } from "@/lib/marketplace-meta";
 
 const groupKindItems: { value: MarketplaceGroupKind; label: string }[] = [
   { value: "basic", label: "Basic" },

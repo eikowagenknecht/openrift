@@ -40,6 +40,15 @@ export type { ErrorCode } from "./error-codes.js";
 
 export { EMPTY_PRICE_LOOKUP, priceLookupFromMap } from "./price-lookup.js";
 
+export {
+  affiliateUrl,
+  cardmarketLangParam,
+  cardtraderAffiliateUrl,
+  MARKETPLACE_LINKS,
+  MARKETPLACE_SHORT_LABELS,
+  marketplaceLabel,
+} from "./marketplace.js";
+
 export { foldForSearch, squashForSearch } from "./search-fold.js";
 
 export {

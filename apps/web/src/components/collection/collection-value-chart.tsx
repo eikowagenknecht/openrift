@@ -1,4 +1,5 @@
 import type { CompletionScopePreference, Marketplace, TimeRange } from "@openrift/shared";
+import { MARKETPLACE_SHORT_LABELS } from "@openrift/shared";
 import { Loader2Icon } from "lucide-react";
 import { useState } from "react";
 import { Area, CartesianGrid, ComposedChart, XAxis, YAxis } from "recharts";
@@ -9,7 +10,6 @@ import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
 import { useCollectionValueHistory } from "@/hooks/use-collection-value-history";
 import { formatterForMarketplace } from "@/lib/format";
-import { MARKETPLACE_SHORT_LABELS } from "@/lib/marketplace-meta";
 import { useDisplayStore } from "@/stores/display-store";
 
 const TIME_RANGES: { value: TimeRange; label: string }[] = [

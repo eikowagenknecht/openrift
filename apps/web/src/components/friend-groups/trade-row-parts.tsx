@@ -1,4 +1,5 @@
 import type { CardTradeStatus, Finish, Marketplace, Rarity } from "@openrift/shared";
+import { marketplaceLabel } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { ArrowDownLeftIcon, ArrowUpRightIcon, BellIcon, CheckIcon, ClockIcon } from "lucide-react";
 import type { ReactNode } from "react";
@@ -10,7 +11,6 @@ import { usePrices } from "@/hooks/use-prices";
 import { compactFormatterForMarketplace, priceColorClass } from "@/lib/format";
 import { formatTimeRemaining } from "@/lib/format-relative-time";
 import { getFilterIconPath } from "@/lib/icons";
-import { marketplaceLabel } from "@/lib/marketplace-meta";
 import type { TradeValueSplit } from "@/lib/trade-derivation";
 import { tradeStatusLabel } from "@/lib/trade-derivation";
 import { cn } from "@/lib/utils";

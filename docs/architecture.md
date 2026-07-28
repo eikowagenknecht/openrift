@@ -6,6 +6,7 @@ OpenRift is a Turborepo monorepo with a React frontend, a Hono API server, and a
 openrift/
 ├── apps/
 │   ├── api/              # Hono API server (Bun)
+│   ├── discord-bot/      # Discord card-lookup bot (Bun)
 │   └── web/              # TanStack Start SSR app (Bun)
 ├── nginx/                # Nginx configs (container + host)
 ├── packages/
@@ -38,6 +39,10 @@ In production, the Start server runs on Bun and streams HTML using `<Suspense>` 
 Lightweight [Hono](https://hono.dev/) server on [Bun](https://bun.sh/). Uses [Kysely](https://kysely.dev/) as a type-safe query builder with [PostgreSQL](https://www.postgresql.org/). Exposes a REST API consumed by the frontend.
 
 See [Data Layer](data-layer.md) for endpoints and schema. See [Authentication](authentication.md) for the account creation and session management flows.
+
+### `apps/discord-bot` — Discord Bot
+
+Stateless [discord.js](https://discord.js.org/) bot answering card-name lookups (`/card` slash command and `[[card name]]` message references) with the card image, a link to the card page, and marketplace prices. Reads everything from the public API; no database access. See [discord-bot.md](discord-bot.md).
 
 ### `packages/shared` — Shared Logic
 

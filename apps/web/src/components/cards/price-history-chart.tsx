@@ -1,4 +1,5 @@
 import type { AnySnapshot, Marketplace, TimeRange } from "@openrift/shared";
+import { MARKETPLACE_SHORT_LABELS } from "@openrift/shared";
 import { ChevronUpIcon, Loader2Icon } from "lucide-react";
 import { useState } from "react";
 import { Area, CartesianGrid, ComposedChart, Line, ReferenceLine, XAxis, YAxis } from "recharts";
@@ -10,7 +11,6 @@ import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
 import { usePriceHistory } from "@/hooks/use-price-history";
 import { formatterForMarketplace } from "@/lib/format";
-import { MARKETPLACE_SHORT_LABELS } from "@/lib/marketplace-meta";
 import { useDisplayStore } from "@/stores/display-store";
 
 const chartConfig = {

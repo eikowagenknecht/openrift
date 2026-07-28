@@ -1,5 +1,5 @@
 import type { Marketplace, Printing, TimeRange } from "@openrift/shared";
-import { snapshotHeadline } from "@openrift/shared";
+import { MARKETPLACE_LINKS, snapshotHeadline } from "@openrift/shared";
 import { TrendingDownIcon, TrendingUpIcon } from "lucide-react";
 
 import { MarketplaceLink } from "@/components/marketplace-link";
@@ -7,9 +7,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePriceHistory } from "@/hooks/use-price-history";
 import { usePrices } from "@/hooks/use-prices";
-import { affiliateUrl, cardtraderAffiliateUrl } from "@/lib/affiliate";
 import { formatPrice, formatPriceEur, priceColorClass } from "@/lib/format";
-import { cardmarketLangParam } from "@/lib/marketplace-language";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
@@ -28,7 +26,7 @@ const MARKETPLACE_CONFIG: Record<Marketplace, MarketplaceConfig> = {
     icon: "/images/external/tcgplayer-38x28.webp",
     iconClassName: "invert dark:invert-0",
     formatValue: formatPrice,
-    getUrl: (id) => affiliateUrl(`https://www.tcgplayer.com/product/${id}`),
+    getUrl: MARKETPLACE_LINKS.tcgplayer.productUrl,
     isAffiliate: true,
   },
   cardmarket: {
@@ -36,15 +34,14 @@ const MARKETPLACE_CONFIG: Record<Marketplace, MarketplaceConfig> = {
     icon: "/images/external/cardmarket-20x28.webp",
     iconClassName: "invert dark:invert-0",
     formatValue: formatPriceEur,
-    getUrl: (id, language) =>
-      `https://www.cardmarket.com/en/Riftbound/Products?idProduct=${id}${cardmarketLangParam(language)}`,
+    getUrl: MARKETPLACE_LINKS.cardmarket.productUrl,
   },
   cardtrader: {
     label: "CardTrader",
     icon: "/images/external/cardtrader-20x28.webp",
     iconClassName: "invert dark:invert-0",
     formatValue: formatPriceEur,
-    getUrl: (id) => cardtraderAffiliateUrl(`https://www.cardtrader.com/en/cards/${id}`),
+    getUrl: MARKETPLACE_LINKS.cardtrader.productUrl,
     isAffiliate: true,
   },
 };

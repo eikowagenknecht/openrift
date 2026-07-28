@@ -90,6 +90,27 @@ services:
     restart: unless-stopped
     stop_grace_period: 15s
 
+  # Discord bot (card lookups over the public API). Opt-in per instance: set
+  # COMPOSE_PROFILES=bot in the instance's .env to run it; without the profile
+  # the service is skipped entirely (preview stays bot-less by default).
+  bot:
+    image: ghcr.io/openriftapp/openrift-bot:${IMAGE_TAG:-latest}
+    profiles:
+      - bot
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      DISCORD_BOT_TOKEN: "${DISCORD_BOT_TOKEN-}"
+      API_INTERNAL_URL: "http://api:3000"
+      SITE_URL: "${SITE_URL}"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "10"
+    restart: unless-stopped
+
   # Nginx reverse proxy + static asset serving (exposed to host).
   proxy:
     image: ghcr.io/openriftapp/openrift-proxy:${IMAGE_TAG:-latest}

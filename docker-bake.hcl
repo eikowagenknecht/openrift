@@ -7,7 +7,7 @@ variable "SENTRY_ORG"     { default = "" }
 variable "SENTRY_PROJECT" { default = "" }
 
 group "default" {
-  targets = ["api", "web", "proxy"]
+  targets = ["api", "web", "proxy", "bot"]
 }
 
 target "_base" {
@@ -47,4 +47,10 @@ target "proxy" {
   inherits = ["_base"]
   target   = "proxy"
   tags     = tags_for("openrift-proxy")
+}
+
+target "bot" {
+  inherits = ["_base"]
+  target   = "bot"
+  tags     = tags_for("openrift-bot")
 }

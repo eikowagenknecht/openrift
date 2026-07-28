@@ -6,6 +6,7 @@ import {
   imageUrl,
   isBaseBanFormat,
   legendDisplayName,
+  MARKETPLACE_SHORT_LABELS,
   preferredPrinting,
   snapshotHeadline,
   WellKnown,
@@ -49,7 +50,6 @@ import { usePriceHistory } from "@/hooks/use-price-history";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { formatPublicCode, formatterForMarketplace } from "@/lib/format";
 import { getFilterIconPath, getTypeIconPaths } from "@/lib/icons";
-import { MARKETPLACE_SHORT_LABELS } from "@/lib/marketplace-meta";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 

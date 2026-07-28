@@ -8,6 +8,7 @@ WORKDIR /app
 # Copy workspace config and package.json files first (layer cache)
 COPY bun.lock package.json ./
 COPY apps/api/package.json apps/api/
+COPY apps/discord-bot/package.json apps/discord-bot/
 COPY apps/web/package.json apps/web/
 COPY packages/shared/package.json packages/shared/
 COPY packages/e2e/package.json packages/e2e/
@@ -45,6 +46,7 @@ WORKDIR /app
 # Install dependencies natively on alpine so native addons (sharp) get musl binaries
 COPY --from=build /app/bun.lock /app/package.json ./
 COPY --from=build /app/apps/api/package.json apps/api/
+COPY --from=build /app/apps/discord-bot/package.json apps/discord-bot/
 COPY --from=build /app/apps/web/package.json apps/web/
 COPY --from=build /app/packages/shared/package.json packages/shared/
 COPY --from=build /app/packages/e2e/package.json packages/e2e/
@@ -66,7 +68,24 @@ EXPOSE 3001
 
 CMD ["bun", "run", ".output/server/index.mjs"]
 
-# ─── Stage 4: Proxy (nginx — reverse proxy + static asset serving) ──────────
+# ─── Stage 4: Discord bot (card lookups over the public API) ────────────────
+FROM oven/bun:1.3.14-alpine AS bot
+
+WORKDIR /app
+
+COPY --from=build /app/bun.lock /app/package.json ./
+COPY --from=build /app/apps/api/package.json apps/api/
+COPY --from=build /app/apps/discord-bot/package.json apps/discord-bot/
+COPY --from=build /app/apps/web/package.json apps/web/
+COPY --from=build /app/packages/shared/package.json packages/shared/
+COPY --from=build /app/packages/e2e/package.json packages/e2e/
+RUN bun install --frozen-lockfile --production --ignore-scripts
+
+COPY --from=build /app/packages/shared ./packages/shared
+COPY --from=build /app/apps/discord-bot ./apps/discord-bot
+CMD ["bun", "run", "apps/discord-bot/src/index.ts"]
+
+# ─── Stage 5: Proxy (nginx — reverse proxy + static asset serving) ──────────
 FROM nginx:1.31.3-alpine AS proxy
 
 RUN rm /etc/nginx/conf.d/default.conf

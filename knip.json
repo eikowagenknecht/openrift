@@ -5,6 +5,10 @@
       "entry": ["scripts/**/*.ts"],
       "project": ["scripts/**/*.ts"]
     },
+    "apps/discord-bot": {
+      "entry": ["src/index.ts"],
+      "ignore": ["src/**/*.test.ts", "src/test/**"]
+    },
     "apps/api": {
       "entry": ["src/app.ts"],
       "ignore": [

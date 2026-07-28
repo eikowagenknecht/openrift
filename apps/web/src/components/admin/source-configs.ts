@@ -1,4 +1,4 @@
-import { cardmarketLangParam } from "@/lib/marketplace-language";
+import { cardmarketLangParam } from "@openrift/shared";
 
 import type { SourceMappingConfig } from "./price-mappings-types";
 
