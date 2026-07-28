@@ -315,14 +315,17 @@ export default defineConfig(({ mode, command }) => {
       strictPort: Boolean(process.env.PORT),
       // Proxy /api/auth (better-auth browser client), /api/v1/* (direct
       // client fetches for endpoints we want CF to edge-cache, e.g. the
-      // catalog in use-cards.ts), and /api/health (used by
-      // initVisibilityVersionCheck to refresh X-Build-Id on idle tabs) to
-      // the API server. In production, nginx handles all /api/* (see
-      // nginx/web.conf location /api/).
+      // catalog in use-cards.ts), /api/health (used by
+      // initVisibilityVersionCheck to refresh X-Build-Id on idle tabs), and
+      // /api/doc + /api/ui (OpenAPI spec and Swagger UI, linked from
+      // /developers) to the API server. In production, nginx handles all
+      // /api/* (see nginx/web.conf location /api/).
       proxy: {
         "/api/auth": { target: apiProxyTarget },
         "/api/v1": { target: apiProxyTarget },
         "/api/health": { target: apiProxyTarget },
+        "/api/doc": { target: apiProxyTarget },
+        "/api/ui": { target: apiProxyTarget },
       },
     },
   };

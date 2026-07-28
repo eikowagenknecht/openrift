@@ -1,11 +1,13 @@
 import { Link } from "@tanstack/react-router";
 import { siDiscord, siGithub } from "simple-icons";
 
+import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import { COMMIT_HASH } from "@/lib/env";
 import { SOCIAL_LINKS } from "@/lib/social-links";
 import { cn } from "@/lib/utils";
 
 export function Footer({ className }: { className?: string }) {
+  const developersEnabled = useFeatureEnabled("developers");
   return (
     <footer className={cn("text-2xs text-muted-foreground/60 mx-auto text-center", className)}>
       <p>
@@ -21,6 +23,14 @@ export function Footer({ className }: { className?: string }) {
           Support Us
         </Link>
         <span aria-hidden="true"> · </span>
+        {developersEnabled && (
+          <>
+            <Link to="/developers" className="hover:text-muted-foreground">
+              Developers
+            </Link>
+            <span aria-hidden="true"> · </span>
+          </>
+        )}
         <a
           href={SOCIAL_LINKS.discordInvite}
           target="_blank"

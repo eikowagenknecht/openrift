@@ -71,6 +71,10 @@ const KNOWN_FLAGS: KnownFlag[] = [
     description: "Show the How to Play Riftbound help article",
   },
   {
+    key: "developers",
+    description: "Show the public API docs page (/developers), its footer link, and sitemap entry",
+  },
+  {
     key: "trade-request-email",
     description: "Instant trade-request emails (ADR-030). On by default — turn OFF to stop sending",
     enabled: true,

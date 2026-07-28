@@ -6,7 +6,7 @@
 import "./instrument.server.mjs";
 // oxlint-disable-next-line import/no-unassigned-import -- side-effect instrumentation bootstrap
 import "./tracing.server";
-import type { SitemapDataResponse } from "@openrift/shared";
+import type { FeatureFlagsResponse, SitemapDataResponse } from "@openrift/shared";
 import handler, { createServerEntry } from "@tanstack/react-start/server-entry";
 
 import { helpArticleList } from "./components/help/articles";
@@ -63,7 +63,17 @@ function buildProdRobotsTxt(): string {
   ].join("\n");
 }
 
-const STATIC_PAGES = [
+interface StaticPage {
+  path: string;
+  priority: string;
+  changefreq: string;
+  // Only listed while this feature flag is enabled — the route redirects away
+  // when the flag is off, and crawlers shouldn't see URLs that depend on flag
+  // state (same rationale as the help articles below).
+  featureFlag?: string;
+}
+
+const STATIC_PAGES: StaticPage[] = [
   { path: "/", priority: "1.0", changefreq: "weekly" },
   { path: "/cards", priority: "0.8", changefreq: "weekly" },
   { path: "/sets", priority: "0.7", changefreq: "weekly" },
@@ -74,19 +84,41 @@ const STATIC_PAGES = [
   { path: "/help", priority: "0.4", changefreq: "monthly" },
   { path: "/roadmap", priority: "0.3", changefreq: "monthly" },
   { path: "/changelog", priority: "0.3", changefreq: "weekly" },
+  { path: "/developers", priority: "0.3", changefreq: "monthly", featureFlag: "developers" },
   { path: "/legal-notice", priority: "0.1", changefreq: "yearly" },
   { path: "/privacy-policy", priority: "0.1", changefreq: "yearly" },
 ];
 
+// Global flag defaults for sitemap gating (anonymous view, no per-user
+// overrides). A failed fetch degrades to "all flags off": flag-gated entries
+// drop out of the sitemap rather than failing the whole sitemap.
+async function fetchGlobalFeatureFlags(): Promise<Record<string, boolean>> {
+  try {
+    const data = await fetchApiJson<FeatureFlagsResponse>({
+      errorTitle: "Couldn't load feature flags",
+      path: "/api/v1/feature-flags",
+    });
+    return data.flags;
+  } catch {
+    return {};
+  }
+}
+
 async function generateSitemap(): Promise<string> {
   const siteUrl = getSiteUrl();
-  const data = await fetchApiJson<SitemapDataResponse>({
-    errorTitle: "Couldn't load sitemap data",
-    path: "/api/v1/sitemap-data",
-  });
+  const [data, flags] = await Promise.all([
+    fetchApiJson<SitemapDataResponse>({
+      errorTitle: "Couldn't load sitemap data",
+      path: "/api/v1/sitemap-data",
+    }),
+    fetchGlobalFeatureFlags(),
+  ]);
 
   const urls: string[] = [];
   for (const page of STATIC_PAGES) {
+    if (page.featureFlag !== undefined && flags[page.featureFlag] !== true) {
+      continue;
+    }
     urls.push(
       `  <url><loc>${siteUrl}${page.path}</loc><lastmod>${DEPLOY_DATE}</lastmod><changefreq>${page.changefreq}</changefreq><priority>${page.priority}</priority></url>`,
     );
