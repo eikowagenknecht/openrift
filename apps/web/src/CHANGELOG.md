@@ -4,8 +4,14 @@
 
 ### Highlights
 
+- feat(Decks): **Missing cards straight to a wishlist** — the missing-cards view can now top up one of your existing wishlists, and a new copy button gives a paste-ready wants list for Cardmarket's shopping wizard.
 - feat(Collection): **CSV export in more formats** — collections now also export in RiftMana and RiftCore layouts, and wishlists and tradelists can download as CSV in any supported format.
 - feat(Decks): **Smarter deck import** — the importer now detects what you pasted (deck list, deck code, TTS string, or a shared-deck link) and can read a deck straight from an uploaded file or a URL containing a deck code.
+
+### Other
+
+- feat(Collection): **Cardmarket export for lists** — the list export dialog adds a paste-ready wants list for Cardmarket's shopping wizard, and lists of specific printings can now export too.
+- fix(Decks): **Import & replace for local decks** — using it on a deck stored in this browser failed or quietly made a new deck, the cards now land in the deck you started from.
 
 ## 2026-07-27
 

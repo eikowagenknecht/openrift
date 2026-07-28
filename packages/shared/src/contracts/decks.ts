@@ -201,18 +201,6 @@ export const deckPlanDetailResponseSchema = z
   .object({ plan: deckPlanResponseSchema })
   .openapi("DeckPlanDetailResponse");
 
-export const deckAvailabilityItemResponseSchema = z.object({
-  cardId: z.string(),
-  zone: deckZoneSchema,
-  needed: z.number(),
-  owned: z.number(),
-  shortfall: z.number(),
-});
-
-export const deckAvailabilityResponseSchema = z
-  .object({ items: z.array(deckAvailabilityItemResponseSchema) })
-  .openapi("DeckAvailabilityResponse");
-
 export const deckCardsResponseSchema = z
   .object({ cards: z.array(deckCardResponseSchema) })
   .openapi("DeckCardsResponse");
@@ -235,7 +223,7 @@ const archiveDeckBodySchema = z.object({ archived: z.boolean() });
  * `/api/v1/decks`). All require a session, so they share the `authedRoute`
  * base (UNAUTHORIZED + FORBIDDEN). Domain codes per route: `create` →
  * BAD_REQUEST (unknown format or invalid format config); `get`, `remove`,
- * `replaceCards`, `getPlan`, `clone`, `availability`, `export`, `setPinned`,
+ * `replaceCards`, `getPlan`, `clone`, `export`, `setPinned`,
  * `setArchived`, `getShare`, `share`, `rotateShare`, `unshare` →
  * NOT_FOUND; `update` → NOT_FOUND + BAD_REQUEST; `replacePlan` → NOT_FOUND +
  * BAD_REQUEST (invalid plan content); `cloneShared` → NOT_FOUND (unknown
@@ -291,11 +279,6 @@ export const decksContract = {
     .input(idParamSchema)
     .errors({ NOT_FOUND: { message: "Deck not found" } })
     .output(deckResponseSchema),
-  availability: authedRoute
-    .route({ method: "GET", path: "/api/v1/decks/{id}/availability", tags: [TAG] })
-    .input(idParamSchema)
-    .errors({ NOT_FOUND: { message: "Deck not found" } })
-    .output(deckAvailabilityResponseSchema),
   export: authedRoute
     .route({ method: "GET", path: "/api/v1/decks/{id}/export", tags: [TAG] })
     .input(withParams(idParamSchema, deckExportQuerySchema))

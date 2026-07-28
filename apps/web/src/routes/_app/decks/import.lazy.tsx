@@ -78,6 +78,7 @@ import {
   parseDeckImportData,
   sniffDeckImportFormat,
 } from "@/lib/deck-import-parsers";
+import { resolveReplaceTarget } from "@/lib/deck-import-replace";
 import type { ImportBucket } from "@/lib/import-summary";
 import { classifyBucket } from "@/lib/import-summary";
 import { matchesAllTokens, searchTokens } from "@/lib/search-match";
@@ -212,14 +213,23 @@ function DeckImportPage() {
   const saveDeckCards = useSaveDeckCards();
   const navigate = useNavigate();
 
+  const localDecks = useLocalDecksStore((state) => state.decks);
+  // Local decks replace in this browser's store, session or not; server decks
+  // need a session. With no valid target, the flow creates a new deck instead.
+  const replaceTarget = resolveReplaceTarget(
+    replaceDeckId,
+    Boolean(userId),
+    (id) => localDecks[id] !== undefined,
+  );
   const replaceDeckQuery = useQuery({
     ...deckDetailQueryOptions(userId ?? "", replaceDeckId ?? ""),
-    enabled: Boolean(replaceDeckId) && Boolean(userId),
+    enabled: replaceTarget.mode === "server",
   });
-  const replaceDeckName = replaceDeckQuery.data?.deck.name;
-  // Replace targets a server deck, which requires a session; logged out always
-  // creates a new local deck instead.
-  const isReplaceMode = Boolean(replaceDeckId) && Boolean(userId);
+  const replaceDeckName =
+    replaceTarget.mode === "local"
+      ? localDecks[replaceTarget.deckId]?.name
+      : replaceDeckQuery.data?.deck.name;
+  const isReplaceMode = replaceTarget.mode !== "none";
 
   const queryClient = useQueryClient();
 
@@ -397,17 +407,23 @@ function DeckImportPage() {
   const buildCards = () => dedupeMatchedEntries(importableEntries);
 
   const executeReplace = () => {
-    if (!replaceDeckId) {
+    if (replaceTarget.mode === "none") {
       return;
     }
     const targetName = replaceDeckName ?? "deck";
     setIsImporting(true);
+    if (replaceTarget.mode === "local") {
+      useLocalDecksStore.getState().setCards(replaceTarget.deckId, buildCards());
+      toast.success(`Replaced cards in "${targetName}" with ${totalCards} cards.`);
+      void navigate({ to: "/decks/$deckId", params: { deckId: replaceTarget.deckId } });
+      return;
+    }
     saveDeckCards.mutate(
-      { deckId: replaceDeckId, cards: buildCards() },
+      { deckId: replaceTarget.deckId, cards: buildCards() },
       {
         onSuccess: () => {
           toast.success(`Replaced cards in "${targetName}" with ${totalCards} cards.`);
-          void navigate({ to: "/decks/$deckId", params: { deckId: replaceDeckId } });
+          void navigate({ to: "/decks/$deckId", params: { deckId: replaceTarget.deckId } });
         },
         onError: () => {
           toast.error("Failed to replace deck cards.");

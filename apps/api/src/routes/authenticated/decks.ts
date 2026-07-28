@@ -1,7 +1,5 @@
 import type {
   CardType,
-  DeckAvailabilityItemResponse,
-  DeckAvailabilityResponse,
   DeckDetailResponse,
   DeckExportResponse,
   DeckFormatConfig,
@@ -28,13 +26,7 @@ import type { FieldMapping } from "../../patch.js";
 import type { DeckUpdateInput } from "../../repositories/decks.js";
 import { encodeDeck } from "../../services/deck-codecs/encode-deck.js";
 import { assertDeleted, assertFound } from "../../utils/assertions.js";
-import {
-  toDeck,
-  toDeckAvailabilityItem,
-  toDeckCard,
-  toDeckPlan,
-  toDeckSummary,
-} from "../../utils/mappers.js";
+import { toDeck, toDeckCard, toDeckPlan, toDeckSummary } from "../../utils/mappers.js";
 import { withUniqueShareToken } from "../../utils/share-token.js";
 
 async function assertKnownFormat(deckFormats: Repos["deckFormats"], format: string): Promise<void> {
@@ -506,40 +498,6 @@ export const decksRouter = {
     assertFound(newDeck, "Not found");
     return toDeck(newDeck);
   }),
-
-  // ── GET /decks/:id/availability ───────────────────────────────────────────
-  // For a wanted deck, returns per-card availability from deckbuilding collections
-  availability: os.availability.handler(
-    async ({ input, context }): Promise<DeckAvailabilityResponse> => {
-      const { decks } = context.repos;
-      const userId = context.userId;
-
-      const deck = await decks.exists(input.id, userId);
-      assertFound(deck, "Not found");
-
-      const deckCards = await decks.cardRequirements(input.id);
-      const cardIds = deckCards.map((dc) => dc.cardId);
-      const availableCopies =
-        cardIds.length > 0 ? await decks.availableCopiesByCard(userId, cardIds) : [];
-
-      const ownedByCard = new Map<string, number>();
-      for (const row of availableCopies) {
-        ownedByCard.set(row.cardId, row.count);
-      }
-
-      const availability: DeckAvailabilityItemResponse[] = deckCards.map((dc) =>
-        toDeckAvailabilityItem({
-          cardId: dc.cardId,
-          zone: dc.zone,
-          needed: dc.quantity,
-          owned: ownedByCard.get(dc.cardId) ?? 0,
-          shortfall: Math.max(0, dc.quantity - (ownedByCard.get(dc.cardId) ?? 0)),
-        }),
-      );
-
-      return { items: availability };
-    },
-  ),
 
   // ── GET /decks/:id/export ────────────────────────────────────────────────
   // Encode a deck as a shareable deck code

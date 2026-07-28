@@ -96,7 +96,6 @@ export const queryKeys = {
   decks: {
     all: (userId: string) => ["decks", userId] as const,
     detail: (userId: string, id: string) => ["decks", userId, id] as const,
-    availability: (userId: string, id: string) => ["decks", userId, id, "availability"] as const,
     plan: (userId: string, id: string) => ["decks", userId, id, "plan"] as const,
     publicByToken: (token: string) => ["decks", "share", token] as const,
   },

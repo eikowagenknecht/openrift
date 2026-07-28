@@ -23,7 +23,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { useCards } from "@/hooks/use-cards";
 import type { CsvExportFormat } from "@/lib/csv-export";
 import { CSV_EXPORT_FORMATS, csvExportFilename, downloadCSV } from "@/lib/csv-export";
-import { formatCardListAsDeckText, stacksFromListEntries } from "@/lib/list-export";
+import {
+  formatCardListAsDeckText,
+  formatCardmarketWants,
+  stacksFromListEntries,
+} from "@/lib/list-export";
 
 interface ListExportDialogProps {
   listName: string;
@@ -36,7 +40,9 @@ interface ListExportDialogProps {
 /**
  * Card-kind lists export as a plain-text deck list (one `<quantity> <name>`
  * per line); printing- and copy-kind lists export as a CSV download in any of
- * the supported formats, reusing the collection export writers.
+ * the supported formats, reusing the collection export writers. Card- and
+ * printing-kind lists additionally get a Cardmarket-ready wants block —
+ * copy-kind lists hold owned copies, not wants, so they don't.
  * @returns The export dialog.
  */
 export function ListExportDialog({
@@ -54,6 +60,7 @@ export function ListExportDialog({
         ) : (
           <CsvExport listName={listName} entries={entries} />
         )}
+        {kind !== "copy" && <CardmarketBlock entries={entries} />}
       </DialogContent>
     </Dialog>
   );
@@ -159,5 +166,58 @@ function CsvExport({
         </div>
       </div>
     </DialogForm>
+  );
+}
+
+/**
+ * Cardmarket-ready wants block: pure `Nx Name` lines with its own copy button,
+ * because Cardmarket's shopping wizard matches lines by card name and any
+ * extra text (short codes, prices, CSV columns) breaks the match.
+ * @returns The wants block, or null when the list has no entries.
+ */
+function CardmarketBlock({ entries }: { entries: readonly ListEntryDetailResponse[] }) {
+  const [copied, setCopied] = useState(false);
+
+  const text = formatCardmarketWants(
+    entries.map((entry) => ({ name: entry.cardName, quantity: entry.quantity })),
+  );
+
+  if (text.length === 0) {
+    return null;
+  }
+
+  const handleCopy = async () => {
+    try {
+      // Use \r\n so line breaks survive iOS Safari's clipboard.
+      await navigator.clipboard.writeText(text.replaceAll("\n", "\r\n"));
+      setCopied(true);
+      globalThis.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Ignore clipboard errors — user can still select the text manually.
+    }
+  };
+
+  const lineCount = text.split("\n").length;
+
+  return (
+    <div className="flex min-w-0 flex-col gap-1.5 border-t pt-4">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="font-medium">Cardmarket wants</h3>
+        <Button size="sm" variant="outline" onClick={handleCopy}>
+          {copied ? <CheckIcon /> : <CopyIcon />}
+          {copied ? "Copied" : "Copy"}
+        </Button>
+      </div>
+      <p className="text-muted-foreground text-sm">
+        Paste into Cardmarket&apos;s shopping wizard to price the list with your own filters.
+      </p>
+      <Textarea
+        readOnly
+        value={text}
+        className="field-sizing-fixed font-mono text-xs"
+        rows={Math.min(Math.max(lineCount, 2), 8)}
+        onClick={(event) => (event.target as HTMLTextAreaElement).select()}
+      />
+    </div>
   );
 }

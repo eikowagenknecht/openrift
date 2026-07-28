@@ -224,8 +224,6 @@ export type {
   PublicCollectionResponse,
   PublicCopyResponse,
   ResetCollectionsResponse,
-  DeckAvailabilityItemResponse,
-  DeckAvailabilityResponse,
   DeckCardResponse,
   DeckCloneResponse,
   DeckDetailResponse,

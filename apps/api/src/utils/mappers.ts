@@ -5,7 +5,6 @@ import type {
   CopyLink,
   CopyResponse,
   PublicCopyResponse,
-  DeckAvailabilityItemResponse,
   DeckCardResponse,
   DeckPlanResponse,
   DeckResponse,
@@ -597,25 +596,5 @@ export function toPublicDeckCard(
     resolvedPrintingId: printingMeta.resolvedPrintingId,
     shortCode: printingMeta.shortCode,
     imageId: printingMeta.imageId,
-  };
-}
-
-/**
- * Maps a deck availability computation to DeckAvailabilityItemResponse.
- * @returns The serialized deck availability item.
- */
-export function toDeckAvailabilityItem(row: {
-  cardId: string;
-  zone: string;
-  needed: number;
-  owned: number;
-  shortfall: number;
-}): DeckAvailabilityItemResponse {
-  return {
-    cardId: row.cardId,
-    zone: row.zone as DeckAvailabilityItemResponse["zone"],
-    needed: row.needed,
-    owned: row.owned,
-    shortfall: row.shortfall,
   };
 }

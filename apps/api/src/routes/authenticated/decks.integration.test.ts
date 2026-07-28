@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { CARD_CALM_UNIT, CARD_FURY_UNIT, PRINTING_1 } from "../../test/fixtures/constants.js";
+import { CARD_CALM_UNIT, CARD_FURY_UNIT } from "../../test/fixtures/constants.js";
 import { createTestContext, req } from "../../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
@@ -237,42 +237,6 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
           cards: [{ cardId: CARD_FURY_UNIT.id, zone: "main", quantity: 40 }],
         }),
       );
-      expect(res.status).toBe(404);
-    });
-  });
-
-  // ── GET /decks/:id/availability ────────────────────────────────────────────
-
-  describe("GET /decks/:id/availability", () => {
-    it("returns per-card availability with owned/needed/shortfall", async () => {
-      // Add a copy so availability isn't all zeros
-      await app.fetch(req("GET", "/collections")); // ensure inbox
-      await app.fetch(req("POST", "/copies", { copies: [{ printingId: PRINTING_1.id }] }));
-
-      const res = await app.fetch(req("GET", `/decks/${deckId}/availability`));
-      expect(res.status).toBe(200);
-
-      const json = (await res.json()) as {
-        items: {
-          cardId: string;
-          needed: number;
-          owned: number;
-          shortfall: number;
-        }[];
-      };
-      expect(Array.isArray(json.items)).toBe(true);
-      // Deck has 1 card entry (CARD_FURY_UNIT with quantity 40), should show availability
-      expect(json.items.length).toBe(1);
-      expect(json.items[0].cardId).toBe(CARD_FURY_UNIT.id);
-      expect(json.items[0].needed).toBe(40);
-      // We added 1 copy of PRINTING_1 which maps to CARD_FURY_UNIT
-      expect(json.items[0].owned).toBeGreaterThanOrEqual(1);
-      expect(json.items[0].shortfall).toBe(json.items[0].needed - json.items[0].owned);
-    });
-
-    it("returns 404 for non-existent deck", async () => {
-      const fakeId = "00000000-0000-4000-a000-000000000000";
-      const res = await app.fetch(req("GET", `/decks/${fakeId}/availability`));
       expect(res.status).toBe(404);
     });
   });

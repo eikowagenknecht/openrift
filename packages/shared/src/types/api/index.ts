@@ -78,8 +78,6 @@ export type {
 } from "./collection.js";
 
 export type {
-  DeckAvailabilityItemResponse,
-  DeckAvailabilityResponse,
   DeckCardResponse,
   DeckCloneResponse,
   DeckDetailResponse,

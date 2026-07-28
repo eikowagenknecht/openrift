@@ -21,8 +21,6 @@ const mockRepo = {
   cardsWithDetails: vi.fn(() => Promise.resolve([] as object[])),
   getIdAndFormat: vi.fn(() => Promise.resolve(undefined as object | undefined)),
   exists: vi.fn(() => Promise.resolve(undefined as object | undefined)),
-  cardRequirements: vi.fn(() => Promise.resolve([] as object[])),
-  availableCopiesByCard: vi.fn(() => Promise.resolve([] as object[])),
   replaceCards: vi.fn(() => Promise.resolve()),
   cloneDeck: vi.fn(() => Promise.resolve(undefined as object | undefined)),
   getShareState: vi.fn(() => Promise.resolve(undefined as object | undefined)),
@@ -463,102 +461,6 @@ describe("PUT /api/v1/decks/:id/cards", () => {
       }),
     });
     expect(res.status).toBe(200);
-  });
-});
-
-describe("GET /api/v1/decks/:id/availability", () => {
-  beforeEach(() => {
-    mockRepo.exists.mockReset();
-    mockRepo.cardRequirements.mockReset();
-    mockRepo.availableCopiesByCard.mockReset();
-  });
-
-  it("returns 200 with availability data", async () => {
-    mockRepo.exists.mockResolvedValue({ id: DECK_ID });
-    mockRepo.cardRequirements.mockResolvedValue([
-      { cardId: "c0000000-0001-4000-a000-000000000001", zone: "main", quantity: 4 },
-    ]);
-    mockRepo.availableCopiesByCard.mockResolvedValue([
-      { cardId: "c0000000-0001-4000-a000-000000000001", count: 2 },
-    ]);
-    const res = await app.request(`/api/v1/decks/${DECK_ID}/availability`);
-    expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json.items).toHaveLength(1);
-    expect(json.items[0].cardId).toBe("c0000000-0001-4000-a000-000000000001");
-    expect(json.items[0].needed).toBe(4);
-    expect(json.items[0].owned).toBe(2);
-    expect(json.items[0].shortfall).toBe(2);
-  });
-
-  it("returns 0 shortfall when owned >= needed", async () => {
-    mockRepo.exists.mockResolvedValue({ id: DECK_ID });
-    mockRepo.cardRequirements.mockResolvedValue([
-      { cardId: "c0000000-0001-4000-a000-000000000001", zone: "main", quantity: 2 },
-    ]);
-    mockRepo.availableCopiesByCard.mockResolvedValue([
-      { cardId: "c0000000-0001-4000-a000-000000000001", count: 5 },
-    ]);
-    const res = await app.request(`/api/v1/decks/${DECK_ID}/availability`);
-    const json = await res.json();
-    expect(json.items[0].shortfall).toBe(0);
-    expect(json.items[0].owned).toBe(5);
-  });
-
-  it("returns 404 when deck not found", async () => {
-    mockRepo.exists.mockResolvedValue();
-    const res = await app.request(`/api/v1/decks/${DECK_ID}/availability`);
-    expect(res.status).toBe(404);
-  });
-
-  it("defaults owned to 0 when card not in available copies", async () => {
-    mockRepo.exists.mockResolvedValue({ id: DECK_ID });
-    mockRepo.cardRequirements.mockResolvedValue([
-      { cardId: "c0000000-0003-4000-a000-000000000001", zone: "main", quantity: 3 },
-    ]);
-    mockRepo.availableCopiesByCard.mockResolvedValue([]);
-    const res = await app.request(`/api/v1/decks/${DECK_ID}/availability`);
-    const json = await res.json();
-    expect(json.items[0].owned).toBe(0);
-    expect(json.items[0].shortfall).toBe(3);
-  });
-
-  it("skips availableCopiesByCard when deck has no cards", async () => {
-    mockRepo.exists.mockResolvedValue({ id: DECK_ID });
-    mockRepo.cardRequirements.mockResolvedValue([]);
-    const res = await app.request(`/api/v1/decks/${DECK_ID}/availability`);
-    expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json.items).toEqual([]);
-    expect(mockRepo.availableCopiesByCard).not.toHaveBeenCalled();
-  });
-
-  it("returns availability for multiple cards with mixed ownership", async () => {
-    mockRepo.exists.mockResolvedValue({ id: DECK_ID });
-    mockRepo.cardRequirements.mockResolvedValue([
-      { cardId: "c0000000-0001-4000-a000-000000000001", zone: "main", quantity: 4 },
-      { cardId: "c0000000-0002-4000-a000-000000000001", zone: "sideboard", quantity: 2 },
-    ]);
-    mockRepo.availableCopiesByCard.mockResolvedValue([
-      { cardId: "c0000000-0001-4000-a000-000000000001", count: 3 },
-    ]);
-    const res = await app.request(`/api/v1/decks/${DECK_ID}/availability`);
-    const json = await res.json();
-    expect(json.items).toHaveLength(2);
-    expect(json.items[0]).toEqual({
-      cardId: "c0000000-0001-4000-a000-000000000001",
-      zone: "main",
-      needed: 4,
-      owned: 3,
-      shortfall: 1,
-    });
-    expect(json.items[1]).toEqual({
-      cardId: "c0000000-0002-4000-a000-000000000001",
-      zone: "sideboard",
-      needed: 2,
-      owned: 0,
-      shortfall: 2,
-    });
   });
 });
 

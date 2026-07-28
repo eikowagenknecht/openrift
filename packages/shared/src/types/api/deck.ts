@@ -1,6 +1,4 @@
 import type {
-  deckAvailabilityItemResponseSchema,
-  deckAvailabilityResponseSchema,
   deckCardResponseSchema,
   deckCloneResponseSchema,
   deckDetailResponseSchema,
@@ -39,8 +37,6 @@ export type DeckListResponse = z.infer<typeof deckListResponseSchema>;
 export type DeckSummaryResponse = z.infer<typeof deckSummaryResponseSchema>;
 
 export type DeckListItemResponse = z.infer<typeof deckListItemResponseSchema>;
-
-export type DeckAvailabilityResponse = z.infer<typeof deckAvailabilityResponseSchema>;
 
 export type DeckResponse = z.infer<typeof deckResponseSchema>;
 
@@ -89,7 +85,5 @@ export type PublicDeckDetailResponse = z.infer<typeof publicDeckDetailResponseSc
 export type DeckShareResponse = z.infer<typeof deckShareResponseSchema>;
 
 export type DeckCloneResponse = z.infer<typeof deckCloneResponseSchema>;
-
-export type DeckAvailabilityItemResponse = z.infer<typeof deckAvailabilityItemResponseSchema>;
 
 export type DeckExportResponse = z.infer<typeof deckExportResponseSchema>;

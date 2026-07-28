@@ -8,7 +8,6 @@ import {
   toCopy,
   toDeck,
   toDeckSummary,
-  toDeckAvailabilityItem,
   toDeckCard,
   toList,
   toListDetail,
@@ -710,29 +709,6 @@ describe("toDeckCard", () => {
       cardId: "card-1",
       zone: "main",
       quantity: 4,
-    });
-  });
-});
-
-// ---------------------------------------------------------------------------
-// toDeckAvailabilityItem
-// ---------------------------------------------------------------------------
-
-describe("toDeckAvailabilityItem", () => {
-  it("maps a deck availability computation", () => {
-    const result = toDeckAvailabilityItem({
-      cardId: "card-1",
-      zone: "main",
-      needed: 4,
-      owned: 2,
-      shortfall: 2,
-    });
-    expect(result).toEqual({
-      cardId: "card-1",
-      zone: "main",
-      needed: 4,
-      owned: 2,
-      shortfall: 2,
     });
   });
 });

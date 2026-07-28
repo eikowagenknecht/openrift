@@ -16,6 +16,7 @@ import type {
 } from "@openrift/shared";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
+import type { CardOwnership } from "@/hooks/use-deck-ownership";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 
 /** Empty trade preference (ADR-017). Useful for list/entry fixtures that don't exercise prefs. */
@@ -181,6 +182,37 @@ export function stubDeckBuilderCard(overrides: Partial<DeckBuilderCard> = {}): D
     energy: 1,
     might: 1,
     power: 1,
+    ...overrides,
+  };
+}
+
+/**
+ * Creates a CardOwnership stub (a missing-cards row) for deck ownership and
+ * export tests. Defaults to one missing copy with a display printing.
+ * @returns A CardOwnership with overrides applied.
+ */
+export function stubCardOwnership(overrides: Partial<CardOwnership> = {}): CardOwnership {
+  const name = overrides.cardName ?? "Test Card";
+  return {
+    cardId: nextId(),
+    cardName: name,
+    cardSlug: "test-card",
+    displayName: name,
+    zone: "main",
+    needed: 1,
+    owned: 0,
+    shortfall: 1,
+    locked: 0,
+    borrowed: 0,
+    displayPrice: undefined,
+    displayPrinting: {
+      id: nextId(),
+      language: "EN",
+      shortCode: "OGN-001",
+      rarity: "common",
+      imageId: undefined,
+      landscape: false,
+    },
     ...overrides,
   };
 }

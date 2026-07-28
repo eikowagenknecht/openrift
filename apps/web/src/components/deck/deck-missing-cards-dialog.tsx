@@ -5,7 +5,7 @@ import { CheckIcon, CopyIcon, HeartIcon, LockIcon, ShoppingCartIcon } from "luci
 import { useState } from "react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
-import type { InitialEntry } from "@/components/list/create-list-dialog";
+import { AddToWishlistDialog } from "@/components/list/add-to-wishlist-dialog";
 import { CreateListDialog } from "@/components/list/create-list-dialog";
 import { MarketplaceLink } from "@/components/marketplace-link";
 import { Button } from "@/components/ui/button";
@@ -20,9 +20,11 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import type { CardOwnership } from "@/hooks/use-deck-ownership";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useMarketplaceInfo } from "@/hooks/use-marketplace-info";
+import { missingCardsToListEntries, missingCardsToWants } from "@/lib/deck-missing-export";
 import { zoneLabel } from "@/lib/deck-zone-labels";
 import { formatterForMarketplace } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
+import { formatCardmarketWants } from "@/lib/list-export";
 import { MARKETPLACE_META } from "@/lib/marketplace-meta";
 
 interface DeckMissingCardsDialogProps {
@@ -92,6 +94,38 @@ function CardIdentity({
   );
 }
 
+/**
+ * Footer copy button with its own copied-feedback state, so the readable list
+ * and the Cardmarket export can sit side by side without sharing feedback.
+ * @returns The copy button.
+ */
+function CopyTextButton({ label, getText }: { label: string; getText: () => string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    // Use \r\n so line breaks survive iOS Safari's clipboard
+    await navigator.clipboard.writeText(getText().replaceAll("\n", "\r\n"));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <Button variant="outline" size="sm" onClick={handleCopy}>
+      {copied ? (
+        <>
+          <CheckIcon className="size-3.5" />
+          Copied
+        </>
+      ) : (
+        <>
+          <CopyIcon className="size-3.5" />
+          {label}
+        </>
+      )}
+    </Button>
+  );
+}
+
 export function DeckMissingCardsDialog({
   open,
   onOpenChange,
@@ -101,7 +135,7 @@ export function DeckMissingCardsDialog({
   mode = "missing",
   deckName,
 }: DeckMissingCardsDialogProps) {
-  const [copied, setCopied] = useState(false);
+  const [wishlistPickerOpen, setWishlistPickerOpen] = useState(false);
   const [wishlistOpen, setWishlistOpen] = useState(false);
   const navigate = useNavigate();
   const fmt = formatterForMarketplace(marketplace);
@@ -134,37 +168,25 @@ export function DeckMissingCardsDialog({
     return meta.searchUrl(card.cardName);
   };
 
-  const handleCopy = async () => {
-    const lines = sorted.map((card) => {
-      const code = card.displayPrinting?.shortCode;
-      const cardName = straightenApostrophes(card.cardName);
-      const namePart = code ? `${code} ${cardName}` : cardName;
-      const price =
-        card.displayPrice === undefined ? "" : ` - ${fmt(card.displayPrice * card.shortfall)}`;
-      return `${card.shortfall}x ${namePart}${price}`;
-    });
-    // Use \r\n so line breaks survive iOS Safari's clipboard
-    const text = lines.join("\r\n");
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  const listText = () =>
+    sorted
+      .map((card) => {
+        const code = card.displayPrinting?.shortCode;
+        const cardName = straightenApostrophes(card.cardName);
+        const namePart = code ? `${code} ${cardName}` : cardName;
+        const price =
+          card.displayPrice === undefined ? "" : ` - ${fmt(card.displayPrice * card.shortfall)}`;
+        return `${card.shortfall}x ${namePart}${price}`;
+      })
+      .join("\n");
+
+  // Pure `Nx Name` lines — Cardmarket's wants import matches by card name, so
+  // the short codes and prices of the readable list above would break it.
+  const cardmarketText = () => formatCardmarketWants(missingCardsToWants(sorted));
 
   const totalMissing = sorted.reduce((sum, card) => sum + card.shortfall, 0);
 
-  const buildWishlistEntries = (kind: ListKind): InitialEntry[] => {
-    if (kind === "card") {
-      return sorted.map((card) => ({ cardId: card.cardId, quantity: card.shortfall }));
-    }
-    if (kind === "printing") {
-      return sorted.flatMap((card) =>
-        card.displayPrinting
-          ? [{ printingId: card.displayPrinting.id, quantity: card.shortfall }]
-          : [],
-      );
-    }
-    return [];
-  };
+  const buildWishlistEntries = (kind: ListKind) => missingCardsToListEntries(sorted, kind);
 
   const showWishlistButton = mode === "missing" && deckName !== undefined && sorted.length > 0;
 
@@ -276,26 +298,24 @@ export function DeckMissingCardsDialog({
 
         <DialogFooter>
           {showWishlistButton && (
-            <Button variant="outline" size="sm" onClick={() => setWishlistOpen(true)}>
+            <Button variant="outline" size="sm" onClick={() => setWishlistPickerOpen(true)}>
               <HeartIcon className="size-3.5" />
-              Create wishlist
+              Add to wishlist
             </Button>
           )}
-          <Button variant="outline" size="sm" onClick={handleCopy}>
-            {copied ? (
-              <>
-                <CheckIcon className="size-3.5" />
-                Copied
-              </>
-            ) : (
-              <>
-                <CopyIcon className="size-3.5" />
-                Copy to clipboard
-              </>
-            )}
-          </Button>
+          <CopyTextButton label="Copy for Cardmarket" getText={cardmarketText} />
+          <CopyTextButton label="Copy list" getText={listText} />
         </DialogFooter>
       </DialogContent>
+      {showWishlistButton && (
+        <AddToWishlistDialog
+          open={wishlistPickerOpen}
+          onOpenChange={setWishlistPickerOpen}
+          entriesFor={buildWishlistEntries}
+          onCreateNew={() => setWishlistOpen(true)}
+          onAdded={() => onOpenChange(false)}
+        />
+      )}
       {showWishlistButton && (
         <CreateListDialog
           intent="wish"

@@ -5,6 +5,7 @@ import { initQueryOptions } from "@/hooks/use-init";
 import { sessionQueryOptions } from "@/lib/auth-session";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
+import { isLocalDeckId } from "@/stores/local-decks-store";
 
 interface DeckImportSearch {
   replaceDeckId?: string;
@@ -22,11 +23,12 @@ export const Route = createFileRoute("/_app/decks/import")({
   loaderDeps: ({ search }) => ({ replaceDeckId: search.replaceDeckId }),
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Import Deck", noIndex: true }),
   // Auth-optional (ADR-035): logged out, a pasted code creates a browser-local
-  // deck (no loader prefetch needed). Replace mode targets a server deck, so it
-  // only prefetches that deck's detail when a session exists.
+  // deck (no loader prefetch needed). Replace mode only prefetches server deck
+  // detail — a `local:` target lives in this browser's storage, and asking the
+  // server about its synthetic id would 404.
   loader: async ({ context, deps }) => {
     await context.queryClient.ensureQueryData(initQueryOptions);
-    if (deps.replaceDeckId) {
+    if (deps.replaceDeckId && !isLocalDeckId(deps.replaceDeckId)) {
       const session = await context.queryClient.ensureQueryData(sessionQueryOptions());
       if (session?.user) {
         await context.queryClient.ensureQueryData(

@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, it } from "vitest";
 
-import { CARD_FURY_UNIT, PRINTING_1 } from "../test/fixtures/constants.js";
+import { CARD_FURY_UNIT } from "../test/fixtures/constants.js";
 import { createDbContext } from "../test/integration-context.js";
 import { decksRepo } from "./decks.js";
 
@@ -230,7 +230,7 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
   });
 
   // ---------------------------------------------------------------------------
-  // replaceCards + cardsWithDetails + cardRequirements
+  // replaceCards + cardsWithDetails
   // ---------------------------------------------------------------------------
 
   it("replaces deck cards and retrieves them with details", async () => {
@@ -248,14 +248,6 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
     expect(cards[0].cardType).toBe("unit");
   });
 
-  it("returns card requirements for a deck", async () => {
-    const deckId = createdDeckIds[0];
-    const reqs = await repo.cardRequirements(deckId);
-
-    expect(reqs).toHaveLength(1);
-    expect(reqs[0]).toEqual({ cardId: seedCardId, zone: "main", quantity: 3 });
-  });
-
   it("returns empty cards for a deck with no cards", async () => {
     const deckId = createdDeckIds[1];
     const cards = await repo.cardsWithDetails(deckId, userId);
@@ -269,25 +261,6 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
 
     const cards = await repo.cardsWithDetails(deckId, userId);
     expect(cards).toEqual([]);
-  });
-
-  // ---------------------------------------------------------------------------
-  // wantedCardRequirements
-  // ---------------------------------------------------------------------------
-
-  it("returns card requirements from wanted decks only", async () => {
-    // createdDeckIds[1] is the wanted deck
-    const wantedDeckId = createdDeckIds[1];
-    await repo.replaceCards(wantedDeckId, [{ cardId: seedCardId, zone: "main", quantity: 2 }]);
-
-    const reqs = await repo.wantedCardRequirements(userId);
-
-    expect(reqs.length).toBeGreaterThanOrEqual(1);
-    const match = reqs.find((r) => r.deckId === wantedDeckId);
-    expect(match).toBeDefined();
-    expect(match!.cardId).toBe(seedCardId);
-    expect(match!.quantity).toBe(2);
-    expect(match!.deckName).toBe("Wanted Deck");
   });
 
   // ---------------------------------------------------------------------------
@@ -325,47 +298,5 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
     const result = await repo.deleteByIdForUser(deckId, "a0000000-9999-4000-a000-000000000001");
 
     expect(result.numDeletedRows).toBe(0n);
-  });
-
-  // ---------------------------------------------------------------------------
-  // availableCopiesByCard
-  // ---------------------------------------------------------------------------
-
-  it("returns copy count per card from deckbuilding collections", async () => {
-    // Create a collection that is available for deckbuilding
-    const col = await db
-      .insertInto("collections")
-      .values({
-        userId,
-        name: "Deckbuilding Test",
-        description: null,
-        isInbox: false,
-        sortOrder: 50,
-      })
-      .returningAll()
-      .executeTakeFirstOrThrow();
-
-    // Insert a copy using seed data
-    const seedPrintingId = PRINTING_1.id;
-    await db
-      .insertInto("copies")
-      .values({ printingId: seedPrintingId, collectionId: col.id })
-      .execute();
-
-    const result = await repo.availableCopiesByCard(userId, [seedCardId]);
-    expect(result.length).toBe(1);
-    expect(result[0].cardId).toBe(seedCardId);
-    expect(result[0].count).toBeGreaterThanOrEqual(1);
-
-    // Clean up
-    await db.deleteFrom("copies").where("collectionId", "=", col.id).execute();
-    await db.deleteFrom("collections").where("id", "=", col.id).execute();
-  });
-
-  it("returns empty for cards not in any deckbuilding collection", async () => {
-    const result = await repo.availableCopiesByCard(userId, [
-      "a0000000-0000-4000-a000-000000000000",
-    ]);
-    expect(result).toEqual([]);
   });
 });
