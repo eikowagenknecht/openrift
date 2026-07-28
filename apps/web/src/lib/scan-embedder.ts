@@ -13,6 +13,30 @@ let cached: Promise<CardEmbedder> | null = null;
 // can remount (strict mode, navigation) while the download is in flight and
 // the fresh mount's callback is the one that should keep painting.
 let progressListener: ((loaded: number, total: number) => void) | null = null;
+// Steady-state encoder cost from the init self-bench. Zero until measured.
+let embedMsPerImage = 0;
+
+/**
+ * Encoder cost above which a device counts as too slow for live scanning.
+ *
+ * A lock is a 3-frame agreeing run and a frame costs roughly 2.5x the
+ * per-image encoder time (detect, verify and preprocessing scale with the
+ * same silicon — iPhone 15 Pro Max ~85 ms/image and 0.5 s locks, Pixel 1
+ * ~920 ms/image and 8-12 s locks). ~250 ms/image is where the predicted lock
+ * crosses the 2 s bar (user decision 2026-07-27); the same threshold turns on
+ * the engine's slow-device profile.
+ */
+export const SLOW_DEVICE_EMBED_MS = 250;
+
+/**
+ * The measured per-image encoder cost on this device, from the init
+ * self-bench.
+ *
+ * @returns Milliseconds per image, or 0 before the embedder has loaded.
+ */
+export function measuredEmbedMsPerImage(): number {
+  return embedMsPerImage;
+}
 
 /**
  * Load onnxruntime-web and the MobileCLIP-S0 vision tower, once per page.
@@ -56,28 +80,42 @@ export async function loadScanEmbedder(
     );
     const session = await ort.InferenceSession.create(model, {
       executionProviders: ["wasm"],
+      // "basic" instead of the default "all": full graph optimization of the
+      // fp16 model costs 3x fp32's create time (409 vs 137 ms on a desktop,
+      // long enough to look like a hang on a 2016 phone) while "basic"
+      // creates 4x cheaper with identical measured inference speed.
+      graphOptimizationLevel: "basic",
     });
 
-    // Self-benchmark: one frame's worth of encoder work (4 candidates x 4
-    // rotations) on deterministic input, twice — the first pass includes
-    // session warmup, the second is the steady-state per-frame cost. Prints to
-    // the piped console so phone thread scaling can be read from the terminal.
-    const benchBatch = 16;
-    const benchInput = new Float32Array(benchBatch * 3 * EMBED_IMAGE_SIZE * EMBED_IMAGE_SIZE);
-    for (let pass = 0; pass < 2; pass++) {
+    // Self-benchmark: a small warmup batch, then one timed batch — enough to
+    // estimate the per-image encoder cost that drives the slow-device
+    // profile, cheap enough that a slow phone does not spend half its startup
+    // benchmarking itself (the old 2x batch-16 bench cost 25 s on a Pixel 1).
+    // Prints to the piped console so thread scaling can be read per device.
+    // Batch 1 is timed separately: the session embeds candidates one at a
+    // time, so the per-call overhead a single-image inference carries (proxy
+    // round-trip, arena setup) is the number that decides whether candidates
+    // are worth batching on a slow device.
+    const warmupBatch = 2;
+    const benchBatch = 4;
+    for (const batch of [warmupBatch, benchBatch, 1]) {
+      const benchInput = new Float32Array(batch * 3 * EMBED_IMAGE_SIZE * EMBED_IMAGE_SIZE);
       const benchStart = performance.now();
       await session.run({
-        pixel_values: new ort.Tensor("float32", new Float32Array(benchInput), [
-          benchBatch,
+        pixel_values: new ort.Tensor("float32", benchInput, [
+          batch,
           3,
           EMBED_IMAGE_SIZE,
           EMBED_IMAGE_SIZE,
         ]),
       });
-      console.log(
-        `[scan] ort bench: batch${benchBatch} pass ${pass} ${(performance.now() - benchStart).toFixed(0)}ms`,
-      );
+      const elapsed = performance.now() - benchStart;
+      if (batch === benchBatch) {
+        embedMsPerImage = elapsed / batch;
+      }
+      console.log(`[scan] ort bench: batch${batch} ${elapsed.toFixed(0)}ms`);
     }
+    console.log(`[scan] ort bench: ~${embedMsPerImage.toFixed(0)}ms/image`);
 
     return async (pixels, count) => {
       // The staging tensor is sized for a full batch; a short final chunk must

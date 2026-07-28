@@ -27,13 +27,17 @@ import {
 import { CACHE_DIR, DATA_DIR, listReferenceImages, loadImage, mapConcurrent } from "./lib";
 
 const MODEL_DIR = path.join(DATA_DIR, "models/mobileclip-s0");
-export const MODEL_FILE = path.join(MODEL_DIR, "vision_model.onnx");
+/** Overridable via SCAN_ENCODER so quantized encoder candidates can run the
+ * same bench; an override gets its own bank cache (bank and encoder must
+ * always match). */
+export const MODEL_FILE = process.env.SCAN_ENCODER ?? path.join(MODEL_DIR, "vision_model.onnx");
+const MODEL_TAG = process.env.SCAN_ENCODER ? `-${path.basename(MODEL_FILE, ".onnx")}` : "";
 
 /** References embedded per `session.run`. Above this the gain flattens and the staging tensor gets large. */
 const BUILD_BATCH = 8;
 
 function cacheFile(kind: EmbedKind, extension: string): string {
-  return path.join(CACHE_DIR, `embed-bank-${kind}-v1.${extension}`);
+  return path.join(CACHE_DIR, `embed-bank-${kind}${MODEL_TAG}-v1.${extension}`);
 }
 
 let sessionPromise: Promise<ort.InferenceSession> | null = null;

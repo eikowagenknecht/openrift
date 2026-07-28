@@ -1,13 +1,6 @@
 import { imageUrl } from "@openrift/shared";
-import {
-  CameraIcon,
-  CameraOffIcon,
-  CheckIcon,
-  ImageIcon,
-  LoaderIcon,
-  RotateCcwIcon,
-} from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { CameraIcon, CameraOffIcon, CheckIcon, LoaderIcon, RotateCcwIcon } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { PageDescription } from "@/components/layout/page-top-bar";
@@ -35,6 +28,7 @@ import { describeKey, loadScanBank } from "@/lib/scan-bank";
 
 const MODES: { value: string; label: string }[] = [
   { value: "single", label: "Single card (guide rect, fastest)" },
+  { value: "capture", label: "Single card, tap to scan (slow devices)" },
   { value: "pan", label: "Pan (binder pages, spread-out cards)" },
 ];
 
@@ -273,7 +267,6 @@ export function ScanTestPage() {
   const [loaded, setLoaded] = useState<LoadedScanBank | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [settings, setSettings] = useState<ScannerSettings>(DEFAULT_SCANNER_SETTINGS);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   // A live feed needs a secure context. Over a plain LAN dev server there is no
   // camera API at all, and saying so beats an unexplained failure. Resolved in
   // an effect because the route is server-rendered: reading navigator during
@@ -313,17 +306,21 @@ export function ScanTestPage() {
     active,
     cvReady,
     embedderReady,
+    embedMsPerImage,
+    deviceTooSlow,
     engineProgress,
     error: scanError,
     readout,
-    stillPreview,
     start,
     stop,
-    scanStill,
+    capture,
     clearHistory,
   } = useCardScanner(loaded, settings);
 
   const ready = loaded !== null && cvReady && embedderReady;
+  // Lock ~ 3 agreeing frames at ~2.5x the per-image encoder cost each; see
+  // SLOW_DEVICE_EMBED_MS for the measurements behind the factor.
+  const predictedLockSeconds = Math.ceil((embedMsPerImage * 7.5) / 1000);
 
   function handleStart() {
     void start();
@@ -331,18 +328,11 @@ export function ScanTestPage() {
   function handleStop() {
     stop();
   }
+  function handleCapture() {
+    void capture();
+  }
   function handleClear() {
     clearHistory();
-  }
-  function handlePickPhoto() {
-    fileInputRef.current?.click();
-  }
-  function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (file) {
-      void scanStill(file);
-    }
-    event.target.value = "";
   }
 
   return (
@@ -354,6 +344,19 @@ export function ScanTestPage() {
           against the whole catalogue by embedding and verified by features, entirely on-device. A
           card locks once several frames agree; the lock time is the number the phone is judged on.
         </PageDescription>
+
+        {deviceTooSlow && (
+          <Card className="mt-4 border-amber-500">
+            <CardContent className="pt-6">
+              <p className="font-medium">This device is too slow for live scanning.</p>
+              <p className="text-muted-foreground mt-2">
+                Recognising a card live would take roughly {predictedLockSeconds} seconds instead of
+                under one. Switch the mode to <strong>tap to scan</strong>: aim with the guide as
+                usual and each tap scans one frame.
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {loadError && (
           <Card className="border-destructive mt-4">
@@ -379,14 +382,7 @@ export function ScanTestPage() {
                 ref={overlayRef}
                 className="pointer-events-none absolute inset-0 h-full w-full"
               />
-              {!active && stillPreview && (
-                <img
-                  src={stillPreview}
-                  alt="Captured frame with the detected card outlined"
-                  className="absolute inset-0 h-full w-full object-contain"
-                />
-              )}
-              {!active && !stillPreview && (
+              {!active && (
                 <div className="text-muted-foreground absolute inset-0 grid place-items-center px-6 text-center">
                   {ready ? (
                     `Ready — ${loaded.bank.keys.length} cards, bank ${(loaded.bytes / 1024 / 1024).toFixed(1)} MB`
@@ -417,20 +413,12 @@ export function ScanTestPage() {
                   Start camera
                 </Button>
               )}
-              {/* Disabled while live: a still frame would race the loop's
-                  in-flight frame on the same session. */}
-              <Button onClick={handlePickPhoto} variant="secondary" disabled={!ready || active}>
-                <ImageIcon />
-                Photo
-              </Button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={handleFileChange}
-              />
+              {active && settings.mode === "capture" && (
+                <Button onClick={handleCapture}>
+                  <CameraIcon />
+                  Scan frame
+                </Button>
+              )}
               <Button onClick={handleClear} variant="ghost">
                 <RotateCcwIcon />
                 Clear
@@ -447,13 +435,12 @@ export function ScanTestPage() {
             {scanError && <p className="text-destructive">{scanError}</p>}
             {cameraAvailable === false && (
               <p className="text-muted-foreground">
-                The live feed needs a secure context, so it is unavailable over a plain http:// dev
-                server. Use <strong>Photo</strong> to shoot a single frame, or open the site over
-                https (a tunnel, or Chrome&apos;s
+                The camera needs a secure context, so it is unavailable over a plain http:// dev
+                server. Open the site over https (a tunnel, or Chrome&apos;s
                 <code className="bg-muted mx-1 rounded px-1 py-0.5">
                   unsafely-treat-insecure-origin-as-secure
                 </code>
-                flag) for the live loop.
+                flag).
               </p>
             )}
 

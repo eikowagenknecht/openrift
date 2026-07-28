@@ -407,6 +407,10 @@ export function createScanSession(
       if (candidates.length === 0) {
         // No proposal near the guide: try the guide itself, so a card that
         // defeats both detectors (glare, low contrast) still gets embedded.
+        // This also covers close-up framing: a card outline larger than ~1x
+        // the frame's short side exceeds every rectangle fit-rect
+        // enumerates, and without the guide fallback the best proposal is an
+        // interior alignment of the card's own printed frame.
         candidates = [guideCandidate(guide, frame)];
       }
     }

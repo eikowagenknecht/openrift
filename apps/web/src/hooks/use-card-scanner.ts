@@ -16,15 +16,21 @@ import { useEffect, useRef, useState } from "react";
 import { fetchWithProgress } from "@/lib/fetch-progress";
 import type { LoadedScanBank } from "@/lib/scan-bank";
 import { describeKey } from "@/lib/scan-bank";
-import { loadScanEmbedder } from "@/lib/scan-embedder";
+import {
+  SLOW_DEVICE_EMBED_MS,
+  loadScanEmbedder,
+  measuredEmbedMsPerImage,
+} from "@/lib/scan-embedder";
 
 /**
  * `single` asks the user to place one card in a drawn guide rect: detection is
  * anchored to the guide, junk elsewhere in frame is ignored, and the
- * verification shortlist is trimmed. `pan` is the free-form mode for panning
- * over a binder page or spread-out cards.
+ * verification shortlist is trimmed. `capture` is the same framing but the
+ * pipeline only runs when `capture()` is tapped — one inference per shot, for
+ * devices too slow to scan continuously. `pan` is the free-form mode for
+ * panning over a binder page or spread-out cards.
  */
-export type ScannerMode = "single" | "pan";
+export type ScannerMode = "single" | "capture" | "pan";
 
 export interface ScannerSettings {
   mode: ScannerMode;
@@ -149,10 +155,6 @@ const EMPTY_READOUT: ScannerReadout = {
 
 /**
  * Outline a detected card on a 2D context.
- *
- * Kept at module level because the React Compiler cannot lower a conditional
- * value block inside a try/catch, and the still-image path needs this inside
- * one.
  *
  * @returns Nothing; the context is drawn on directly.
  */
@@ -355,15 +357,35 @@ export function useCardScanner(loaded: LoadedScanBank | null, settings: ScannerS
   const settingsRef = useRef(settings);
   const lastPublishRef = useRef(0);
   const frameTimesRef = useRef<number[]>([]);
+  // Quarter turns applied to grabbed frames so matching runs on upright
+  // content. Android can hand over a camera buffer rotated relative to the
+  // display (orientation state at track start), and users place cards
+  // sideways or upside-down; both read as persistent non-zero winner
+  // rotations, which cost double (the confident gate never hits, ORB inliers
+  // weaken, printing disambiguation abstains). Adopted from two consecutive
+  // verified winners agreeing on a rotation, so the frame converges to the
+  // fast upright path per aimed card.
+  const frameTurnsRef = useRef(0);
+  const winnerRotationStreakRef = useRef({ rotation: 0, count: 0 });
+  // A capture-mode tap in flight; further taps are ignored until it settles.
+  const capturingRef = useRef(false);
+  // One adoption per proof: after adopting, further adoption stays disarmed
+  // until an upright (r0) winner confirms the compensation worked. Without
+  // this, a card whose REFERENCE is landscape (battlefields report r1 no
+  // matter how the frame is oriented) spins the frame indefinitely — each
+  // spin flips the processed dimensions, thrashing the only-ever-growing
+  // OpenCV heap until the tab dies (observed on a Pixel 1, 2026-07-27).
+  const rotationAdoptionArmedRef = useRef(true);
 
   const [active, setActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [readout, setReadout] = useState<ScannerReadout>(EMPTY_READOUT);
-  const [stillPreview, setStillPreview] = useState<string | null>(null);
   const cvRef = useRef<(OpenCvLike & OrbCvLike) | null>(null);
   const [cvReady, setCvReady] = useState(false);
   const embedderRef = useRef<CardEmbedder | null>(null);
   const [embedderReady, setEmbedderReady] = useState(false);
+  // The init self-bench's per-image encoder cost, for the too-slow notice.
+  const [embedMsPerImage, setEmbedMsPerImage] = useState(0);
   const [engineProgress, setEngineProgress] = useState<EngineProgress>(INITIAL_ENGINE_PROGRESS);
 
   // Loaded only when asked for, and only on this route: the build is around ten
@@ -436,6 +458,7 @@ export function useCardScanner(loaded: LoadedScanBank | null, settings: ScannerS
       }
       if (embedder) {
         embedderRef.current = embedder;
+        setEmbedMsPerImage(measuredEmbedMsPerImage());
         setEmbedderReady(true);
         setEngineProgress((previous) => ({
           ...previous,
@@ -485,6 +508,21 @@ export function useCardScanner(loaded: LoadedScanBank | null, settings: ScannerS
     if (!cv || !embedder || !loaded) {
       return null;
     }
+    // Slow-device profile, from the encoder self-bench (a Pixel 1 measures
+    // ~700 ms/image where an iPhone measures ~85): in guide mode every
+    // candidate is a crop of the same physical card, so trying 4 candidates
+    // and speculative rotation fallbacks means seconds of encoder time per
+    // frame on such a device. Two candidate tries and a fallback bound that
+    // only clearly-sideways content (~0.45+ upright) crosses keep the
+    // marginal-frame cost at one or two encoder passes. Pan mode and fast
+    // devices keep the clip-calibrated defaults.
+    const slowDevice = measuredEmbedMsPerImage() > SLOW_DEVICE_EMBED_MS;
+    // Capture mode shares the guide-anchored session; it only differs in who
+    // drives the frames.
+    const single = settingsRef.current.mode !== "pan";
+    if (slowDevice) {
+      console.log(`[scan] slow-device profile (${measuredEmbedMsPerImage().toFixed(0)}ms/image)`);
+    }
     return createScanSession(
       {
         cv,
@@ -497,23 +535,43 @@ export function useCardScanner(loaded: LoadedScanBank | null, settings: ScannerS
         fetchReference,
       },
       {
-        candidatesToTry: settingsRef.current.candidatesToTry,
+        // One try on slow devices: in guide mode the top-ordered candidate is
+        // the aimed card on nearly every frame, and each extra try is a full
+        // single-image inference (measured 3.5 s hot on a Pixel 1).
+        candidatesToTry:
+          slowDevice && single
+            ? Math.min(1, settingsRef.current.candidatesToTry)
+            : settingsRef.current.candidatesToTry,
         confidentDistance: settingsRef.current.confidentDistance,
-        ...(settingsRef.current.mode === "single"
+        ...(single
           ? {
               guideFor: guideQuadFor,
               topK: SINGLE_MODE_TOP_K,
               // One card by premise and ORB margin still gates every frame; a
               // 3-frame run shaves ~200 ms off each lock. Pan keeps the
               // clip-calibrated 4 (a 3-frame burst once false-locked there).
-              accept: { ...DEFAULT_SESSION_OPTIONS.accept, lockRun: 3 },
+              // Capture mode locks on a single verified tap: each tap is a
+              // deliberate aimed shot, the inlier floor and rival margin
+              // still gate it, and a wrong tap is retaken — requiring three
+              // taps per card would defeat the mode.
+              accept: {
+                ...DEFAULT_SESSION_OPTIONS.accept,
+                lockRun: settingsRef.current.mode === "capture" ? 1 : 3,
+              },
+              ...(slowDevice ? { rotationFallbackDistance: 0.45 } : {}),
             }
           : {}),
       },
     );
   }
 
-  function grabFrame(video: HTMLVideoElement): RgbaImage | null {
+  /**
+   * Grab the current video frame, scaled to the processing size and rotated
+   * by the adopted quarter turns so the engine sees upright content.
+   *
+   * @returns The frame, or null while the video has no dimensions.
+   */
+  function grabFrame(video: HTMLVideoElement, turns: number): RgbaImage | null {
     const { videoWidth, videoHeight } = video;
     if (videoWidth === 0 || videoHeight === 0) {
       return null;
@@ -531,17 +589,96 @@ export function useCardScanner(loaded: LoadedScanBank | null, settings: ScannerS
       workCanvasRef.current = document.createElement("canvas");
     }
     const canvas = workCanvasRef.current;
-    if (canvas.width !== width || canvas.height !== height) {
-      canvas.width = width;
-      canvas.height = height;
+    const rotatedWidth = turns % 2 === 1 ? height : width;
+    const rotatedHeight = turns % 2 === 1 ? width : height;
+    if (canvas.width !== rotatedWidth || canvas.height !== rotatedHeight) {
+      canvas.width = rotatedWidth;
+      canvas.height = rotatedHeight;
     }
     const context = canvas.getContext("2d", { willReadFrequently: true });
     if (!context) {
       return null;
     }
+    context.save();
+    if (turns === 1) {
+      context.translate(rotatedWidth, 0);
+    } else if (turns === 2) {
+      context.translate(rotatedWidth, rotatedHeight);
+    } else if (turns === 3) {
+      context.translate(0, rotatedHeight);
+    }
+    context.rotate((turns * Math.PI) / 2);
     context.drawImage(video, 0, 0, width, height);
-    const data = context.getImageData(0, 0, width, height);
-    return { data: data.data, width, height };
+    context.restore();
+    const data = context.getImageData(0, 0, rotatedWidth, rotatedHeight);
+    return { data: data.data, width: rotatedWidth, height: rotatedHeight };
+  }
+
+  /**
+   * Map a point from rotated-frame coordinates back to the unrotated frame
+   * the video element displays.
+   *
+   * @returns The point in display-frame coordinates.
+   */
+  function unrotatePoint(
+    point: { x: number; y: number },
+    rotatedWidth: number,
+    rotatedHeight: number,
+    turns: number,
+  ): { x: number; y: number } {
+    if (turns === 1) {
+      return { x: point.y, y: rotatedWidth - point.x };
+    }
+    if (turns === 2) {
+      return { x: rotatedWidth - point.x, y: rotatedHeight - point.y };
+    }
+    if (turns === 3) {
+      return { x: rotatedHeight - point.y, y: point.x };
+    }
+    return point;
+  }
+
+  /**
+   * Adopt a frame rotation when verified winners persistently report one.
+   *
+   * @returns Nothing; the adopted turns apply from the next grabbed frame.
+   */
+  function noteWinnerRotation(outcome: FrameOutcome): void {
+    if (!outcome.winner) {
+      return;
+    }
+    const winnerKey = outcome.winner.key;
+    // A winner whose reference render is landscape (battlefields) reports a
+    // non-zero rotation regardless of frame orientation — it says nothing
+    // about the frame and must never drive adoption.
+    if (loaded?.labels[winnerKey]?.type === "battlefield") {
+      return;
+    }
+    const rotation = outcome.ranked.find((entry) => entry.key === winnerKey)?.rotation ?? 0;
+    const streak = winnerRotationStreakRef.current;
+    if (rotation === 0) {
+      streak.rotation = 0;
+      streak.count = 0;
+      // An upright winner is proof the current compensation is correct;
+      // re-arm so a later card placed differently can adopt again.
+      rotationAdoptionArmedRef.current = true;
+      return;
+    }
+    if (streak.rotation === rotation) {
+      streak.count += 1;
+    } else {
+      streak.rotation = rotation;
+      streak.count = 1;
+    }
+    if (streak.count >= 2 && rotationAdoptionArmedRef.current) {
+      frameTurnsRef.current = (frameTurnsRef.current + rotation) % 4;
+      streak.rotation = 0;
+      streak.count = 0;
+      rotationAdoptionArmedRef.current = false;
+      console.log(
+        `[scan] frame rotation adopted: +${rotation} quarter turns (now ${frameTurnsRef.current})`,
+      );
+    }
   }
 
   function drawOverlay(
@@ -549,6 +686,7 @@ export function useCardScanner(loaded: LoadedScanBank | null, settings: ScannerS
     color: string,
     frameWidth: number,
     frameHeight: number,
+    turns: number,
     dashed = false,
   ) {
     const canvas = overlayRef.current;
@@ -569,17 +707,23 @@ export function useCardScanner(loaded: LoadedScanBank | null, settings: ScannerS
 
     // The video is rendered with object-fit: cover, so the displayed area is a
     // centre crop of the frame; the overlay has to match that mapping or the
-    // outline drifts away from the card.
-    const scale = Math.max(canvas.width / frameWidth, canvas.height / frameHeight);
-    const offsetX = (canvas.width - frameWidth * scale) / 2;
-    const offsetY = (canvas.height - frameHeight * scale) / 2;
+    // outline drifts away from the card. Quads live in rotated-frame
+    // coordinates, so they map back through the frame rotation first.
+    const displayWidth = turns % 2 === 1 ? frameHeight : frameWidth;
+    const displayHeight = turns % 2 === 1 ? frameWidth : frameHeight;
+    const scale = Math.max(canvas.width / displayWidth, canvas.height / displayHeight);
+    const offsetX = (canvas.width - displayWidth * scale) / 2;
+    const offsetY = (canvas.height - displayHeight * scale) / 2;
     const mapped = (quad: Quad) =>
-      quad.map((point) => ({
-        x: point.x * scale + offsetX,
-        y: point.y * scale + offsetY,
-      })) as unknown as Quad;
+      quad.map((point) => {
+        const display = unrotatePoint(point, frameWidth, frameHeight, turns);
+        return {
+          x: display.x * scale + offsetX,
+          y: display.y * scale + offsetY,
+        };
+      }) as unknown as Quad;
 
-    if (settingsRef.current.mode === "single") {
+    if (settingsRef.current.mode !== "pan") {
       strokeQuad(context, mapped(guideQuadFor(frameWidth, frameHeight)), "rgba(255,255,255,0.6)");
     }
     if (!candidate) {
@@ -681,7 +825,8 @@ export function useCardScanner(loaded: LoadedScanBank | null, settings: ScannerS
     if (!video || !session) {
       return;
     }
-    const frame = grabFrame(video);
+    const turns = frameTurnsRef.current;
+    const frame = grabFrame(video, turns);
     if (!frame) {
       return;
     }
@@ -701,6 +846,7 @@ export function useCardScanner(loaded: LoadedScanBank | null, settings: ScannerS
 
     noteLock(outcome);
     notePrinting(outcome);
+    noteWinnerRotation(outcome);
 
     // Dev diagnostic: the devtools vite plugin pipes this to the terminal, so
     // phone runs can be watched from the dev-server log.
@@ -728,6 +874,7 @@ export function useCardScanner(loaded: LoadedScanBank | null, settings: ScannerS
       color,
       frame.width,
       frame.height,
+      turns,
       outcome.winner === null && !outcome.refused,
     );
     publish(outcome, outcome.locked !== null);
@@ -763,6 +910,11 @@ export function useCardScanner(loaded: LoadedScanBank | null, settings: ScannerS
     }
     frameIndexRef.current = 0;
     sessionStartRef.current = performance.now();
+    // A fresh camera track can come up in a different orientation, so the
+    // adopted rotation starts over.
+    frameTurnsRef.current = 0;
+    winnerRotationStreakRef.current = { rotation: 0, count: 0 };
+    rotationAdoptionArmedRef.current = true;
 
     // The try blocks hold nothing but the awaited call: the React Compiler
     // bails out of the whole hook on a `finally` clause or on conditionals and
@@ -816,12 +968,30 @@ export function useCardScanner(loaded: LoadedScanBank | null, settings: ScannerS
 
     runningRef.current = true;
     setActive(true);
-    setStillPreview(null);
     console.log(
       `[scan] START mode ${settingsRef.current.mode} processingSize ${settingsRef.current.processingSize} candidatesToTry ${settingsRef.current.candidatesToTry}` +
         ` confidentDistance ${settingsRef.current.confidentDistance}` +
         ` video ${video?.videoWidth ?? 0}x${video?.videoHeight ?? 0}`,
     );
+
+    capturingRef.current = false;
+    if (settingsRef.current.mode === "capture" && video) {
+      // Camera on, guide drawn, pipeline idle: frames run one at a time when
+      // capture() is tapped.
+      const scale = Math.min(
+        1,
+        settingsRef.current.processingSize / Math.max(video.videoWidth, video.videoHeight),
+      );
+      drawOverlay(
+        null,
+        "",
+        Math.round(video.videoWidth * scale),
+        Math.round(video.videoHeight * scale),
+        0,
+      );
+      startingRef.current = false;
+      return;
+    }
 
     // Declared here rather than at hook level so the loop never references a
     // hoisted function by name; the React Compiler cannot rewrite that and
@@ -846,9 +1016,30 @@ export function useCardScanner(loaded: LoadedScanBank | null, settings: ScannerS
     startingRef.current = false;
   }
 
+  /**
+   * Capture-mode trigger: run exactly one frame through the pipeline. The
+   * frame shares the live session, so repeated captures of one card build an
+   * agreeing run and can lock, exactly like live frames.
+   */
+  async function capture(): Promise<void> {
+    if (!runningRef.current || capturingRef.current) {
+      return;
+    }
+    capturingRef.current = true;
+    const inFlight = runFrame();
+    frameInFlightRef.current = inFlight;
+    try {
+      await inFlight;
+    } catch (captureError) {
+      setError(errorMessage(captureError, "Frame processing failed"));
+    }
+    capturingRef.current = false;
+  }
+
   function stop() {
     runGenerationRef.current++;
     runningRef.current = false;
+    capturingRef.current = false;
     setActive(false);
     const canvas = overlayRef.current;
     canvas?.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height);
@@ -861,83 +1052,9 @@ export function useCardScanner(loaded: LoadedScanBank | null, settings: ScannerS
     }
   }
 
-  /**
-   * Run a single still image, from the file picker or the phone's camera app.
-   *
-   * A live feed needs a secure context, which a plain LAN dev server is not.
-   * Capturing one photo goes through the OS camera instead, so the pipeline can
-   * still be exercised on a real phone against real cards. One photo shows the
-   * raw frame verdict; several photos of the same card in a row count as
-   * agreeing frames and can lock it, exactly like the live loop.
-   *
-   * @returns Nothing; the readout is updated in place.
-   */
-  async function scanStill(file: File) {
-    // The live loop owns the session while running; a still would race its
-    // in-flight frame on the session's shared scratch buffers.
-    if (startingRef.current || runningRef.current) {
-      return;
-    }
-    setError(null);
-    if (!sessionRef.current) {
-      sessionRef.current = createSession();
-      sessionStartRef.current = performance.now();
-    }
-    const session = sessionRef.current;
-    if (!session) {
-      setError("The engine is still loading, try again in a moment.");
-      return;
-    }
-
-    let bitmap: ImageBitmap;
-    try {
-      bitmap = await createImageBitmap(file);
-    } catch (stillError) {
-      setError(errorMessage(stillError, "Could not read that image"));
-      return;
-    }
-
-    const current = settingsRef.current;
-    const scale = Math.min(1, current.processingSize / Math.max(bitmap.width, bitmap.height));
-    const width = Math.round(bitmap.width * scale);
-    const height = Math.round(bitmap.height * scale);
-
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const context = canvas.getContext("2d", { willReadFrequently: true });
-    if (!context) {
-      bitmap.close();
-      return;
-    }
-    context.drawImage(bitmap, 0, 0, width, height);
-    bitmap.close();
-    const imageData = context.getImageData(0, 0, width, height);
-
-    const inFlight = session.processFrame(
-      { data: imageData.data, width, height },
-      frameIndexRef.current++,
-      (performance.now() - sessionStartRef.current) / 1000,
-      () => performance.now(),
-    );
-    frameInFlightRef.current = inFlight;
-    const outcome = await inFlight;
-
-    noteLock(outcome);
-    strokeQuad(
-      context,
-      outcome.candidate === null ? undefined : outcome.candidate.quad,
-      outcome.winner ? "rgba(74, 222, 128, 0.95)" : "rgba(148, 163, 184, 0.9)",
-      outcome.winner === null,
-    );
-    setStillPreview(canvas.toDataURL("image/jpeg", 0.8));
-    publish(outcome, true);
-  }
-
   function clearHistory() {
     locksRef.current = [];
     frameTimesRef.current = [];
-    setStillPreview(null);
     setReadout({ ...EMPTY_READOUT });
   }
 
@@ -946,14 +1063,17 @@ export function useCardScanner(loaded: LoadedScanBank | null, settings: ScannerS
     overlayRef,
     cvReady,
     embedderReady,
+    /** Measured per-image encoder cost; 0 until the encoder has loaded. */
+    embedMsPerImage,
+    /** True when live locks are predicted to take over ~2 s on this device. */
+    deviceTooSlow: embedMsPerImage > SLOW_DEVICE_EMBED_MS,
     engineProgress,
     active,
     error,
     readout,
-    stillPreview,
     start,
     stop,
-    scanStill,
+    capture,
     clearHistory,
   };
 }
