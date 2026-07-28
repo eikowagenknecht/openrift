@@ -13,6 +13,7 @@ import type {
 import { CARD_ASPECT, DEFAULT_SESSION_OPTIONS, createScanSession } from "@openrift/shared/scan";
 import { useEffect, useRef, useState } from "react";
 
+import { cameraErrorMessage } from "@/lib/camera-error";
 import { fetchWithProgress } from "@/lib/fetch-progress";
 import type { LoadedScanBank } from "@/lib/scan-bank";
 import { describeKey } from "@/lib/scan-bank";
@@ -950,7 +951,7 @@ export function useCardScanner(
         },
       });
     } catch (cameraError) {
-      setError(errorMessage(cameraError, "Could not open the camera"));
+      setError(cameraErrorMessage(cameraError, "Could not open the camera"));
       startingRef.current = false;
       return;
     }
