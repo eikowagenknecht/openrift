@@ -49,6 +49,7 @@ export function measuredEmbedMsPerImage(): number {
  * @returns The injected encoder the shared scan session runs on.
  */
 export async function loadScanEmbedder(
+  modelUrl: string,
   onProgress?: (loaded: number, total: number) => void,
 ): Promise<CardEmbedder> {
   if (onProgress) {
@@ -74,9 +75,9 @@ export async function loadScanEmbedder(
     );
 
     const model = await fetchWithProgress(
-      "/scan-encoder.onnx",
+      modelUrl,
       (loaded, total) => progressListener?.(loaded, total),
-      "scan-encoder.onnx is missing. Run: bun scripts/scan/export-index.ts",
+      `could not load the encoder from ${modelUrl} (in dev, run: bun scripts/scan/export-index.ts)`,
     );
     const session = await ort.InferenceSession.create(model, {
       executionProviders: ["wasm"],

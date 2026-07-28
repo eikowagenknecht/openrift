@@ -82,6 +82,14 @@ export function createConfig(env: Record<string, string | undefined>) {
     },
 
     changelogPath: env.CHANGELOG_PATH || "apps/web/src/CHANGELOG.md",
+
+    // Filenames under media/scan/ of the engine-versioned scanner assets.
+    // They are uploaded once per engine version (never committed) with a
+    // version in the name, because nginx serves /media/ as immutable.
+    scan: {
+      encoderFile: env.SCAN_ENCODER_FILE ?? "scan-encoder-fp16-v1.onnx",
+      opencvFile: env.SCAN_OPENCV_FILE ?? "scan-opencv-v1.js",
+    },
   } as const;
 }
 

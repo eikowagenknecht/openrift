@@ -42,6 +42,7 @@ import { adminProductsRouter } from "../routes/admin/products.js";
 import { adminProviderSettingsRouter } from "../routes/admin/provider-settings.js";
 import { adminRaritiesRouter } from "../routes/admin/rarities.js";
 import { adminRulesRouter } from "../routes/admin/rules.js";
+import { adminScanRouter } from "../routes/admin/scan.js";
 import { adminSiteSettingsRouter } from "../routes/admin/site-settings.js";
 import { adminStagingCardOverridesRouter } from "../routes/admin/staging-card-overrides.js";
 import { adminStatusRouter } from "../routes/admin/status.js";
@@ -82,6 +83,7 @@ import { pricesRouter } from "../routes/public/prices.js";
 import { productsRouter } from "../routes/public/products.js";
 import { promosRouter } from "../routes/public/promos.js";
 import { rulesRouter } from "../routes/public/rules.js";
+import { scanRouter } from "../routes/public/scan.js";
 import { setsRouter } from "../routes/public/sets.js";
 import { siteSettingsRouter } from "../routes/public/site-settings.js";
 import { sitemapRouter } from "../routes/public/sitemap.js";
@@ -129,6 +131,7 @@ const apiRouter = {
   adminOperationsRouter,
   adminOrganizationsRouter,
   adminPrintingEventsRouter,
+  adminScanRouter,
   adminProductsRouter,
   adminProviderSettingsRouter,
   adminRaritiesRouter,
@@ -175,6 +178,7 @@ const apiRouter = {
   rulesRouter,
   setsRouter,
   siteSettingsRouter,
+  scanRouter,
   sitemapRouter,
   publicTournamentsRouter,
   unsubscribeRouter,

@@ -52,6 +52,7 @@ import { productsRepo } from "./repositories/products.js";
 import { providerSettingsRepo } from "./repositories/provider-settings.js";
 import { raritiesRepo } from "./repositories/rarities.js";
 import { rulesRepo } from "./repositories/rules.js";
+import { scanIndexRepo } from "./repositories/scan-index.js";
 import { setsRepo } from "./repositories/sets.js";
 import { siteSettingsRepo } from "./repositories/site-settings.js";
 import { statusRepo } from "./repositories/status.js";
@@ -157,6 +158,7 @@ export interface Repos {
   priceRefresh: ReturnType<typeof priceRefreshRepo>;
   printingEvents: ReturnType<typeof printingEventsRepo>;
   jobRuns: ReturnType<typeof jobRunsRepo>;
+  scanIndex: ReturnType<typeof scanIndexRepo>;
 }
 
 export interface Services {
@@ -282,6 +284,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     priceRefresh: priceRefreshRepo(db),
     printingEvents: printingEventsRepo(db),
     jobRuns: jobRunsRepo(db),
+    scanIndex: scanIndexRepo(db),
   };
   return Object.fromEntries(
     Object.entries(raw).map(([name, repo]) => [

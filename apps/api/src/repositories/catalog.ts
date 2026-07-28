@@ -44,6 +44,18 @@ type CatalogPrintingImageRow = Pick<Selectable<PrintingImagesTable>, "printingId
   imageId: string;
 };
 
+/** One scanner bank reference: a front render plus its label identity. */
+export interface ScanReferenceRow {
+  imageId: string;
+  name: string;
+  setSlug: string;
+  publicCode: string;
+  language: string;
+  cardType: string;
+  artVariant: string | null;
+  createdAt: Date;
+}
+
 /**
  * Printing row returned by the catalog. `markerSlugs` is the printing's
  * denormalized sorted marker array (empty for unmarked printings).
@@ -586,6 +598,45 @@ export function catalogRepo(db: Kysely<Database>) {
         .orderBy("printingImages.printingId")
         .orderBy("printingImages.face")
         .execute() as Promise<CatalogPrintingImageRow[]>;
+    },
+
+    /**
+     * Every active front-face render the scanner's embedding bank indexes,
+     * with the identity fields the scan labels carry. One row per image file;
+     * `createdAt` is the printing image's creation time (the bank watermark
+     * is the maximum over the built set).
+     *
+     * @returns One row per catalogued front render.
+     */
+    scanReferences(): Promise<ScanReferenceRow[]> {
+      return (
+        db
+          .selectFrom("printingImages")
+          .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
+          .innerJoin("printings", "printings.id", "printingImages.printingId")
+          .innerJoin("cards", "cards.id", "printings.cardId")
+          .innerJoin("sets", "sets.id", "printings.setId")
+          .select([
+            imageId("ci").as("imageId"),
+            "cards.name",
+            "sets.slug as setSlug",
+            "printings.publicCode",
+            "printings.language",
+            "cards.type as cardType",
+            "printings.artVariant",
+            "printingImages.createdAt",
+          ])
+          .where("printingImages.face", "=", "front")
+          .where("printingImages.isActive", "=", true)
+          .where(sql`${imageId("ci")}`, "is not", null)
+          // Printings can share one image file; the bank must carry each
+          // render exactly once (duplicate keys would crowd the verification
+          // shortlist). The printing id breaks ties deterministically.
+          .distinctOn(imageId("ci"))
+          .orderBy(imageId("ci"))
+          .orderBy("printings.id")
+          .execute() as Promise<ScanReferenceRow[]>
+      );
     },
 
     /** @returns The image_files.id of a cover image per set (first available printing image). */

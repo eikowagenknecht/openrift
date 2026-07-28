@@ -30,14 +30,13 @@ let cached: Promise<LoadedScanBank> | null = null;
  *
  * @returns The decoded bank, cached for the lifetime of the page.
  */
-export async function loadScanBank(): Promise<LoadedScanBank> {
+export async function loadScanBank(bankUrl: string, labelsUrl: string): Promise<LoadedScanBank> {
   cached ??= (async () => {
-    const [bankResponse, labelResponse] = await Promise.all([
-      fetch("/scan-embed-bank.bin"),
-      fetch("/scan-labels.json"),
-    ]);
+    const [bankResponse, labelResponse] = await Promise.all([fetch(bankUrl), fetch(labelsUrl)]);
     if (!bankResponse.ok) {
-      throw new Error("scan-embed-bank.bin is missing. Run: bun scripts/scan/export-index.ts");
+      throw new Error(
+        `could not load the scan bank from ${bankUrl} (in dev, run: bun scripts/scan/export-index.ts)`,
+      );
     }
     const buffer = await bankResponse.arrayBuffer();
     const labels = labelResponse.ok

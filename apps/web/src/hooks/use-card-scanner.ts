@@ -219,6 +219,7 @@ let cvProgressListener: ((loaded: number, total: number) => void) | null = null;
  * @returns The initialised OpenCV module.
  */
 async function loadOpenCv(
+  scriptUrl: string,
   onProgress?: (loaded: number, total: number) => void,
 ): Promise<OpenCvLike & OrbCvLike> {
   if (onProgress) {
@@ -227,9 +228,9 @@ async function loadOpenCv(
   /* oxlint-disable promise/prefer-catch, promise/always-return, promise/avoid-new -- adapting a script tag and a foreign thenable; every path settles */
   cvCached ??= (async () => {
     const source = await fetchWithProgress(
-      "/scan-opencv.js",
+      scriptUrl,
       (loaded, total) => cvProgressListener?.(loaded, total),
-      "scan-opencv.js is missing. Run: bun scripts/scan/export-index.ts",
+      `could not load OpenCV from ${scriptUrl} (in dev, run: bun scripts/scan/export-index.ts)`,
     );
     const url = URL.createObjectURL(new Blob([source], { type: "text/javascript" }));
     try {
@@ -339,7 +340,19 @@ async function fetchReference(key: string): Promise<RgbaImage | null> {
  *
  * @returns Refs to attach to the video and overlay elements, plus live readout and controls.
  */
-export function useCardScanner(loaded: LoadedScanBank | null, settings: ScannerSettings) {
+/** Where the engine's downloadable assets live (from the serving manifest,
+ * or the dev export fallback). Null while the manifest is still resolving —
+ * the heavyweight downloads wait for it. */
+export interface ScanEngineAssets {
+  encoderUrl: string;
+  opencvUrl: string;
+}
+
+export function useCardScanner(
+  loaded: LoadedScanBank | null,
+  settings: ScannerSettings,
+  assets: ScanEngineAssets | null,
+) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
   const workCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -388,18 +401,24 @@ export function useCardScanner(loaded: LoadedScanBank | null, settings: ScannerS
   const [embedMsPerImage, setEmbedMsPerImage] = useState(0);
   const [engineProgress, setEngineProgress] = useState<EngineProgress>(INITIAL_ENGINE_PROGRESS);
 
+  // Primitive deps: the assets object's identity is render-derived, and an
+  // identity change mid-download would run the cleanup and orphan the load.
+  const opencvUrl = assets?.opencvUrl ?? null;
+  const encoderUrl = assets?.encoderUrl ?? null;
+
   // Loaded only when asked for, and only on this route: the build is around ten
   // megabytes, which has no business in the main bundle.
   useEffect(() => {
-    if (cvRef.current) {
+    if (cvRef.current || opencvUrl === null) {
       return;
     }
+    const url = opencvUrl;
     let cancelled = false;
     async function loadCv(): Promise<void> {
       let cv: (OpenCvLike & OrbCvLike) | null = null;
       let message: string | null = null;
       try {
-        cv = await loadOpenCv((loadedBytes, totalBytes) => {
+        cv = await loadOpenCv(url, (loadedBytes, totalBytes) => {
           if (!cancelled) {
             setEngineProgress((previous) => ({
               ...previous,
@@ -429,20 +448,21 @@ export function useCardScanner(loaded: LoadedScanBank | null, settings: ScannerS
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [opencvUrl]);
 
-  // The encoder download is around forty megabytes, so it starts immediately on
-  // mount rather than on the first Start press.
+  // The encoder download starts as soon as the manifest names it rather than
+  // on the first Start press — it is the biggest asset.
   useEffect(() => {
-    if (embedderRef.current) {
+    if (embedderRef.current || encoderUrl === null) {
       return;
     }
+    const url = encoderUrl;
     let cancelled = false;
     async function loadEncoder(): Promise<void> {
       let embedder: CardEmbedder | null = null;
       let message: string | null = null;
       try {
-        embedder = await loadScanEmbedder((loadedBytes, totalBytes) => {
+        embedder = await loadScanEmbedder(url, (loadedBytes, totalBytes) => {
           if (!cancelled) {
             setEngineProgress((previous) => ({
               ...previous,
@@ -473,7 +493,7 @@ export function useCardScanner(loaded: LoadedScanBank | null, settings: ScannerS
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [encoderUrl]);
 
   // Mirrored into a ref so the frame loop always reads current settings without
   // being torn down and restarted. Writing it in an effect rather than during

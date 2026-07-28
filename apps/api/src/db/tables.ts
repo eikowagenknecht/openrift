@@ -1721,6 +1721,28 @@ interface JobRunsTable {
   noop: ColumnType<boolean | null, boolean | null | undefined, boolean | null>;
 }
 
+/**
+ * Singleton metadata row (id = 1) for the scanner's embedding bank.
+ *
+ * The bank and labels are content-hashed files under `media/scan/` written by
+ * the rebuild job; this row records the current generation for the public
+ * manifest endpoint. `encoderTag` names the encoder file the bank was built
+ * with — bank and browser encoder must always match. `watermark` is the
+ * newest printing-image creation time included in the bank.
+ */
+export interface ScanIndexTable {
+  id: number;
+  formatVersion: number;
+  bankHash: string;
+  entryCount: number;
+  encoderTag: string;
+  watermark: ColumnType<Date | null, Date | null | undefined, Date | null>;
+  builtAt: ColumnType<Date, Date | undefined, Date>;
+  durationMs: number;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
 // ─── Junction tables (migration 059) ─────────────────────────────────────────
 
 interface CardDomainsTable {
@@ -1936,6 +1958,9 @@ export interface Database {
 
   // Job runs (migration 101)
   jobRuns: JobRunsTable;
+
+  // Scanner embedding bank metadata (migration 213)
+  scanIndex: ScanIndexTable;
 
   // Materialized views (migration 085)
   mvLatestPrintingPrices: MvLatestPrintingPricesView;

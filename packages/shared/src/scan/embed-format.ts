@@ -13,7 +13,12 @@ import type { EmbedBank } from "./embed";
 import { EMBED_DIM } from "./embed";
 
 const MAGIC = 0x52_46_45_42; // "RFEB"
-const VERSION = 1;
+/**
+ * Serialization version, also recorded next to server-built banks so an
+ * engine-version bump is detectable without decoding the file.
+ */
+export const EMBED_BANK_VERSION = 1;
+const VERSION = EMBED_BANK_VERSION;
 
 const F32_SCRATCH = new Float32Array(1);
 const U32_SCRATCH = new Uint32Array(F32_SCRATCH.buffer);

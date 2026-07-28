@@ -1,6 +1,7 @@
 import { imageUrl } from "@openrift/shared";
 import { CameraIcon, CameraOffIcon, CheckIcon, LoaderIcon, RotateCcwIcon } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { PageDescription } from "@/components/layout/page-top-bar";
@@ -23,6 +24,8 @@ import type {
   ScannerSettings,
 } from "@/hooks/use-card-scanner";
 import { DEFAULT_SCANNER_SETTINGS, useCardScanner } from "@/hooks/use-card-scanner";
+import type { ScanAssets } from "@/hooks/use-scan-serving";
+import { useLatestScanBankRun, useRebuildScanBank, useScanAssets } from "@/hooks/use-scan-serving";
 import type { LoadedScanBank } from "@/lib/scan-bank";
 import { describeKey, loadScanBank } from "@/lib/scan-bank";
 
@@ -263,6 +266,60 @@ function EngineCard({ settings, onChange }: EngineCardProps) {
   );
 }
 
+function ServingCard({ assets }: { assets: ScanAssets | null }) {
+  const rebuild = useRebuildScanBank();
+  const latestRun = useLatestScanBankRun();
+  const running = rebuild.isPending || latestRun.data?.status === "running";
+
+  async function handleRebuild() {
+    let started: Awaited<ReturnType<typeof rebuild.mutateAsync>>;
+    try {
+      started = await rebuild.mutateAsync();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn't start the rebuild");
+      return;
+    }
+    if (started.status === "already_running") {
+      toast.info("A rebuild is already running");
+    } else {
+      toast.success("Bank rebuild started");
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Serving</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        {assets === null && <p className="text-muted-foreground">Resolving the manifest…</p>}
+        {assets?.source === "dev" && (
+          <p className="text-muted-foreground">
+            No server bank yet — assets come from the dev export. Rebuild to publish the first
+            generation (the encoder file must exist under media/scan first).
+          </p>
+        )}
+        {assets?.source === "manifest" && (
+          <p className="text-muted-foreground tabular-nums">
+            Server bank <code className="bg-muted rounded px-1">{assets.bankHash}</code> ·{" "}
+            {assets.entryCount} entries
+            {assets.builtAt ? ` · built ${new Date(assets.builtAt).toLocaleString()}` : ""}
+          </p>
+        )}
+        {latestRun.data?.status === "failed" && (
+          <p className="text-destructive">Last rebuild failed: {latestRun.data.errorMessage}</p>
+        )}
+        <div>
+          <Button onClick={handleRebuild} disabled={running} variant="secondary">
+            {running ? <LoaderIcon className="animate-spin" /> : <RotateCcwIcon />}
+            Rebuild bank
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function ScanTestPage() {
   const [loaded, setLoaded] = useState<LoadedScanBank | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -277,11 +334,19 @@ export function ScanTestPage() {
     setCameraAvailable(navigator.mediaDevices?.getUserMedia !== undefined);
   }, []);
 
+  const assets = useScanAssets();
+  // Primitive deps: the assets object is re-derived per render, and an
+  // identity change mid-download would cancel the in-flight load.
+  const bankUrl = assets?.bankUrl ?? null;
+  const labelsUrl = assets?.labelsUrl ?? null;
   useEffect(() => {
+    if (bankUrl === null || labelsUrl === null) {
+      return;
+    }
     let cancelled = false;
     async function load() {
       try {
-        const result = await loadScanBank();
+        const result = await loadScanBank(bankUrl as string, labelsUrl as string);
         if (!cancelled) {
           setLoaded(result);
         }
@@ -295,7 +360,7 @@ export function ScanTestPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [bankUrl, labelsUrl]);
 
   // Destructured before any JSX: member access on the hook's return object
   // during render makes the React Compiler bail with a refs-during-render
@@ -315,7 +380,7 @@ export function ScanTestPage() {
     stop,
     capture,
     clearHistory,
-  } = useCardScanner(loaded, settings);
+  } = useCardScanner(loaded, settings, assets);
 
   const ready = loaded !== null && cvReady && embedderReady;
   // Lock ~ 3 agreeing frames at ~2.5x the per-image encoder cost each; see
@@ -450,6 +515,7 @@ export function ScanTestPage() {
           <div className="flex flex-col gap-4">
             <LiveFrameCard readout={readout} loaded={loaded} active={active} />
             <EngineCard settings={settings} onChange={setSettings} />
+            <ServingCard assets={assets} />
           </div>
         </div>
       </div>
