@@ -4,6 +4,7 @@ import { buildSnapshot, CatalogCache, representativePrinting } from "./catalog-c
 import {
   makeCard,
   makeCatalogResponse,
+  makeInitResponse,
   makePricesResponse,
   makePrinting,
 } from "./test/factories.js";
@@ -13,6 +14,7 @@ describe("buildSnapshot", () => {
     const snapshot = buildSnapshot(
       makeCatalogResponse([makeCard({ id: "c1" })], [makePrinting({ id: "p1", cardId: "c1" })]),
       makePricesResponse(),
+      makeInitResponse(),
     );
     expect(snapshot.cards.map((c) => c.id)).toEqual(["c1"]);
     expect(snapshot.printingsByCardId.get("c1")?.map((p) => p.id)).toEqual(["p1"]);
@@ -28,6 +30,7 @@ describe("buildSnapshot", () => {
         ],
       ),
       makePricesResponse(),
+      makeInitResponse(),
     );
     expect(snapshot.printingsByCardId.get("c1")?.map((p) => p.id)).toEqual(["p1", "p2"]);
   });
@@ -36,14 +39,30 @@ describe("buildSnapshot", () => {
     const snapshot = buildSnapshot(
       makeCatalogResponse([makeCard()], [makePrinting()]),
       makePricesResponse({ "printing-1": { tcgplayer: 452 } }),
+      makeInitResponse(),
     );
     expect(snapshot.setsById.get("set-1")?.name).toBe("Origins");
     expect(snapshot.prices["printing-1"]).toEqual({ tcgplayer: 452 });
     expect(snapshot.currencies.tcgplayer).toBe("USD");
   });
 
+  it("builds slug → label maps from the init enums", () => {
+    const snapshot = buildSnapshot(
+      makeCatalogResponse([makeCard()], [makePrinting()]),
+      makePricesResponse(),
+      makeInitResponse(),
+    );
+    expect(snapshot.labels.cardTypes.unit).toBe("Unit");
+    expect(snapshot.labels.superTypes.champion).toBe("Champion");
+    expect(snapshot.labels.domains.chaos).toBe("Chaos");
+  });
+
   it("handles an empty catalog", () => {
-    const snapshot = buildSnapshot(makeCatalogResponse([], [], []), makePricesResponse());
+    const snapshot = buildSnapshot(
+      makeCatalogResponse([], [], []),
+      makePricesResponse(),
+      makeInitResponse(),
+    );
     expect(snapshot.cards).toEqual([]);
     expect(snapshot.printingsByCardId.size).toBe(0);
   });
@@ -60,6 +79,7 @@ describe("representativePrinting", () => {
         ],
       ),
       makePricesResponse(),
+      makeInitResponse(),
     );
     expect(representativePrinting(snapshot, "c1")?.id).toBe("p2");
   });
@@ -79,6 +99,7 @@ describe("representativePrinting", () => {
         ],
       ),
       makePricesResponse(),
+      makeInitResponse(),
     );
     expect(representativePrinting(snapshot, "c1")?.id).toBe("p1");
   });
@@ -87,6 +108,7 @@ describe("representativePrinting", () => {
     const snapshot = buildSnapshot(
       makeCatalogResponse([makeCard({ id: "c1" })], []),
       makePricesResponse(),
+      makeInitResponse(),
     );
     expect(representativePrinting(snapshot, "c1")).toBeUndefined();
   });
@@ -96,6 +118,7 @@ describe("CatalogCache", () => {
   it("starts without a snapshot and exposes one after refresh", async () => {
     const cache = new CatalogCache({
       fetchCatalog: () => Promise.resolve(makeCatalogResponse([makeCard()], [makePrinting()])),
+      fetchInit: () => Promise.resolve(makeInitResponse()),
       fetchPrices: () => Promise.resolve(makePricesResponse()),
     });
     expect(cache.snapshot).toBeNull();
@@ -112,6 +135,7 @@ describe("CatalogCache", () => {
           ? Promise.resolve(makeCatalogResponse([makeCard()], [makePrinting()]))
           : Promise.reject(new Error("api down"));
       },
+      fetchInit: () => Promise.resolve(makeInitResponse()),
       fetchPrices: () => Promise.resolve(makePricesResponse()),
     });
     await cache.refresh();

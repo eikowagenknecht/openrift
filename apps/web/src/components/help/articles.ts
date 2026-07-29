@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   ArrowRightLeftIcon,
   BookOpenIcon,
+  BotIcon,
   HeartIcon,
   LayersIcon,
   LibraryIcon,
@@ -120,6 +121,18 @@ export const helpArticles = new Map<string, HelpArticle>([
         "Print proxy PDFs from your decks for playtesting, with card images or text placeholders.",
       icon: PrinterIcon,
       component: () => import("./articles/proxy-printing"),
+    },
+  ],
+  [
+    "discord-bot",
+    {
+      slug: "discord-bot",
+      title: "Discord Bot",
+      description:
+        "Add the OpenRift bot to your Discord server to look up cards, prices, and printings right from chat.",
+      icon: BotIcon,
+      component: () => import("./articles/discord-bot"),
+      featureFlag: "help-discord-bot",
     },
   ],
 ]);

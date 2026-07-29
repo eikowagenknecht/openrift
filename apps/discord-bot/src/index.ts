@@ -10,6 +10,7 @@ const env = readBotEnv();
 const api = createApiClients(env.apiUrl);
 const cache = new CatalogCache({
   fetchCatalog: () => api.catalog.catalog({}),
+  fetchInit: () => api.init.get(),
   fetchPrices: () => api.prices.prices(),
 });
 

@@ -8,6 +8,7 @@
     "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=lcov",
     "test:watch": "vitest",
     "dev": "bun --env-file=../../.env --watch src/index.ts",
+    "dev:prod": "API_INTERNAL_URL=https://openrift.app SITE_URL=https://openrift.app bun --env-file=../../.env --watch src/index.ts",
     "start": "bun --env-file=../../.env src/index.ts",
     "build": "tsgo",
     "typecheck": "tsgo --noEmit"

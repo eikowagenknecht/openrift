@@ -2,7 +2,7 @@ import type { Marketplace, MarketplaceInfoResponse } from "@openrift/shared";
 import { imageUrl, MARKETPLACE_LINKS } from "@openrift/shared";
 import type { APIEmbed } from "discord.js";
 
-import type { CatalogCard, CatalogPrinting, CatalogSnapshot } from "./catalog-cache.js";
+import type { CatalogCard, CatalogPrinting, CatalogSnapshot, EnumLabels } from "./catalog-cache.js";
 
 /** The brand green also used by the changelog webhook embeds. */
 const EMBED_COLOR = 0x24_70_5f;
@@ -31,15 +31,20 @@ export function formatCents(cents: number, currency: "USD" | "EUR"): string {
 
 /**
  * The compact stat line under the card name: super types + types, domains,
- * and whichever of energy/might/power the card has.
+ * and whichever of energy/might/power the card has. The catalog stores enum
+ * slugs; display labels come from the init endpoint's enum rows (bare lookups
+ * — a missing label means a data bug and should surface, not be masked).
  *
  * @returns The description string for the embed.
  */
-export function describeCard(card: CatalogCard): string {
-  const typeLine = [...card.superTypes, ...card.types].join(" ");
+export function describeCard(card: CatalogCard, labels: EnumLabels): string {
+  const typeLine = [
+    ...card.superTypes.map((slug) => labels.superTypes[slug]),
+    ...card.types.map((slug) => labels.cardTypes[slug]),
+  ].join(" ");
   const parts = [typeLine];
   if (card.domains.length > 0) {
-    parts.push(card.domains.join(" / "));
+    parts.push(card.domains.map((slug) => labels.domains[slug]).join(" / "));
   }
   if (card.energy !== null) {
     parts.push(`Energy ${card.energy}`);
@@ -105,7 +110,7 @@ export function buildCardEmbed(input: CardEmbedInput): APIEmbed {
   return {
     title: card.name,
     url: `${siteUrl}/cards/${card.slug}`,
-    description: describeCard(card),
+    description: describeCard(card, snapshot.labels),
     color: EMBED_COLOR,
     ...(frontImageId ? { image: { url: `${siteUrl}${imageUrl(frontImageId, "full")}` } } : {}),
     ...(fields.length > 0 ? { fields } : {}),

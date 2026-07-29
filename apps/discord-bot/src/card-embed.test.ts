@@ -5,6 +5,7 @@ import { buildSnapshot } from "./catalog-cache.js";
 import {
   makeCard,
   makeCatalogResponse,
+  makeInitResponse,
   makePricesResponse,
   makePrinting,
 } from "./test/factories.js";
@@ -12,8 +13,14 @@ import {
 const SITE = "https://openrift.example";
 
 function snapshotWithPrices(prices = makePricesResponse()) {
-  return buildSnapshot(makeCatalogResponse([makeCard()], [makePrinting()]), prices);
+  return buildSnapshot(
+    makeCatalogResponse([makeCard()], [makePrinting()]),
+    prices,
+    makeInitResponse(),
+  );
 }
+
+const LABELS = snapshotWithPrices().labels;
 
 describe("formatCents", () => {
   it("formats USD cents", () => {
@@ -26,17 +33,23 @@ describe("formatCents", () => {
 });
 
 describe("describeCard", () => {
-  it("combines type line, domains, and stats", () => {
-    expect(describeCard(makeCard())).toBe("Champion Unit · Chaos · Energy 5 · Might 5");
+  it("renders display labels for the catalog's type and domain slugs", () => {
+    expect(describeCard(makeCard(), LABELS)).toBe("Champion Unit · Chaos · Energy 5 · Might 5");
   });
 
   it("omits null stats and empty domains", () => {
     const card = makeCard({ superTypes: [], domains: [], might: null, energy: null, power: null });
-    expect(describeCard(card)).toBe("Unit");
+    expect(describeCard(card, LABELS)).toBe("Unit");
   });
 
   it("includes power when present", () => {
-    expect(describeCard(makeCard({ power: 2 }))).toContain("Power 2");
+    expect(describeCard(makeCard({ power: 2 }), LABELS)).toContain("Power 2");
+  });
+
+  it("joins multiple domains with their labels", () => {
+    expect(describeCard(makeCard({ domains: ["chaos", "fury"] }), LABELS)).toContain(
+      "Chaos / Fury",
+    );
   });
 });
 

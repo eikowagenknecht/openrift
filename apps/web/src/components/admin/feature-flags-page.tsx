@@ -71,6 +71,10 @@ const KNOWN_FLAGS: KnownFlag[] = [
     description: "Show the How to Play Riftbound help article",
   },
   {
+    key: "help-discord-bot",
+    description: "Show the Discord Bot help article",
+  },
+  {
     key: "developers",
     description: "Show the public API docs page (/developers), its footer link, and sitemap entry",
   },

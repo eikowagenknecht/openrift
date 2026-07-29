@@ -13,9 +13,9 @@ import { buildCardEmbed } from "./card-embed.js";
 import type { CardIndex } from "./card-search.js";
 import { buildCardIndex, findCard, searchCards } from "./card-search.js";
 import type { CatalogCache, CatalogCard } from "./catalog-cache.js";
-import { representativePrinting } from "./catalog-cache.js";
 import type { BotEnv } from "./env.js";
 import { extractCardReferences } from "./message-scan.js";
+import { printingChoices, resolvePrinting } from "./printing-choice.js";
 
 const CARD_COMMAND = {
   name: "card",
@@ -26,6 +26,13 @@ const CARD_COMMAND = {
       name: "name",
       description: "The card name",
       required: true,
+      autocomplete: true,
+    },
+    {
+      type: ApplicationCommandOptionType.String,
+      name: "printing",
+      description: "A specific printing (defaults to the main one)",
+      required: false,
       autocomplete: true,
     },
   ],
@@ -46,7 +53,7 @@ function indexFor(cache: CatalogCache): CardIndex | null {
     return null;
   }
   if (cachedIndex?.snapshot !== snapshot) {
-    cachedIndex = { snapshot, index: buildCardIndex(snapshot.cards) };
+    cachedIndex = { snapshot, index: buildCardIndex(snapshot.cards, snapshot.printingsByCardId) };
   }
   return cachedIndex.index;
 }
@@ -67,20 +74,31 @@ async function marketplaceInfoFor(
   }
 }
 
-async function embedForCard(ctx: BotContext, card: CatalogCard) {
+async function embedForCard(ctx: BotContext, card: CatalogCard, printingInput?: string) {
   const snapshot = ctx.cache.snapshot;
   if (!snapshot) {
     return null;
   }
-  const printing = representativePrinting(snapshot, card.id);
+  const printing = resolvePrinting(snapshot, card, printingInput);
   const marketplaceInfo = await marketplaceInfoFor(ctx.api, printing?.id);
   return buildCardEmbed({ card, printing, snapshot, marketplaceInfo, siteUrl: ctx.env.siteUrl });
 }
 
 async function handleAutocomplete(ctx: BotContext, interaction: AutocompleteInteraction) {
   const index = indexFor(ctx.cache);
-  const query = interaction.options.getFocused();
-  const cards = index ? searchCards(index, query, 25) : [];
+  const focused = interaction.options.getFocused(true);
+
+  if (focused.name === "printing") {
+    const snapshot = ctx.cache.snapshot;
+    const nameInput = interaction.options.getString("name") ?? "";
+    const card = index && nameInput ? findCard(index, nameInput) : undefined;
+    await interaction.respond(
+      snapshot && card ? printingChoices(snapshot, card, focused.value) : [],
+    );
+    return;
+  }
+
+  const cards = index ? searchCards(index, focused.value, 25) : [];
   await interaction.respond(
     cards.map((card) => ({ name: card.name.slice(0, 100), value: card.slug.slice(0, 100) })),
   );
@@ -98,7 +116,10 @@ async function handleCardCommand(ctx: BotContext, interaction: ChatInputCommandI
     return;
   }
   await interaction.deferReply();
-  const embed = await embedForCard(ctx, card);
+  // With no explicit printing option, the name query itself is the hint: a
+  // code-typed lookup (`/card name:ogn202`) shows that exact printing, while
+  // a plain name falls through to the default printing inside resolvePrinting.
+  const embed = await embedForCard(ctx, card, interaction.options.getString("printing") ?? query);
   if (!embed) {
     await interaction.editReply("Card data is still loading, try again in a moment.");
     return;
@@ -114,17 +135,21 @@ async function handleMessage(ctx: BotContext, message: Message) {
   if (!index) {
     return;
   }
-  const cards: CatalogCard[] = [];
-  for (const name of extractCardReferences(message.content)) {
-    const card = findCard(index, name);
-    if (card && !cards.some((c) => c.id === card.id)) {
-      cards.push(card);
+  const matches: { card: CatalogCard; reference: string }[] = [];
+  for (const reference of extractCardReferences(message.content)) {
+    const card = findCard(index, reference);
+    if (card && !matches.some((match) => match.card.id === card.id)) {
+      matches.push({ card, reference });
     }
   }
-  if (cards.length === 0) {
+  if (matches.length === 0) {
     return;
   }
-  const maybeEmbeds = await Promise.all(cards.map((card) => embedForCard(ctx, card)));
+  // The reference doubles as the printing hint so [[OGN-202]] shows that
+  // printing; plain names fall through to the default inside resolvePrinting.
+  const maybeEmbeds = await Promise.all(
+    matches.map((match) => embedForCard(ctx, match.card, match.reference)),
+  );
   const embeds = maybeEmbeds.filter((embed) => embed !== null);
   if (embeds.length > 0) {
     await message.reply({ embeds, allowedMentions: { repliedUser: false } });

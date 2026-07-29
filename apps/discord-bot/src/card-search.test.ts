@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { buildCardIndex, findCard, searchCards } from "./card-search.js";
-import { makeCard } from "./test/factories.js";
+import type { CatalogCard, CatalogPrinting } from "./catalog-cache.js";
+import { makeCard, makePrinting } from "./test/factories.js";
 
 const cards = [
   makeCard({ id: "c1", slug: "jinx-rebel", name: "Jinx, Rebel" }),
@@ -11,16 +12,41 @@ const cards = [
   makeCard({ id: "c5", slug: "viktor", name: "Viktor" }),
 ];
 
-const index = buildCardIndex(cards);
+const printingsByCardId = new Map<string, CatalogPrinting[]>([
+  [
+    "c1",
+    [makePrinting({ id: "p1", cardId: "c1", shortCode: "OGN-202", publicCode: "OGN-202/298" })],
+  ],
+  [
+    "c5",
+    [makePrinting({ id: "p5", cardId: "c5", shortCode: "OGN-045", publicCode: "OGN-045/298" })],
+  ],
+]);
+
+function indexFor(list: CatalogCard[] = cards) {
+  return buildCardIndex(list, printingsByCardId);
+}
+
+const index = indexFor();
 
 describe("searchCards", () => {
   it("puts an exact match before prefix and substring matches", () => {
     const results = searchCards(
-      buildCardIndex([...cards, makeCard({ id: "c6", slug: "jinx", name: "Jinx" })]),
+      indexFor([...cards, makeCard({ id: "c6", slug: "jinx", name: "Jinx" })]),
       "jinx",
       10,
     );
     expect(results[0]?.name).toBe("Jinx");
+  });
+
+  it("matches printing short codes and public codes, dashes optional", () => {
+    expect(searchCards(index, "OGN-202", 10).map((c) => c.id)).toEqual(["c1"]);
+    expect(searchCards(index, "ogn202", 10).map((c) => c.id)).toEqual(["c1"]);
+    expect(searchCards(index, "ogn202298", 10).map((c) => c.id)).toEqual(["c1"]);
+  });
+
+  it("ranks code prefix matches after name prefix matches", () => {
+    expect(searchCards(index, "ogn", 10).map((c) => c.id)).toEqual(["c1", "c5"]);
   });
 
   it("puts prefix matches before substring matches", () => {

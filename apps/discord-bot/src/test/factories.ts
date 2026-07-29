@@ -1,4 +1,9 @@
-import type { CatalogResponse, CatalogSetResponse, PricesResponse } from "@openrift/shared";
+import type {
+  CatalogResponse,
+  CatalogSetResponse,
+  InitResponse,
+  PricesResponse,
+} from "@openrift/shared";
 
 import type { CatalogCard, CatalogPrinting } from "../catalog-cache.js";
 
@@ -8,10 +13,10 @@ export function makeCard(overrides: Partial<CatalogCard> = {}): CatalogCard {
     id: "card-1",
     slug: "jinx-rebel",
     name: "Jinx, Rebel",
-    type: "Unit",
-    types: ["Unit"],
-    superTypes: ["Champion"],
-    domains: ["Chaos"],
+    type: "unit",
+    types: ["unit"],
+    superTypes: ["champion"],
+    domains: ["chaos"],
     might: 5,
     energy: 5,
     power: null,
@@ -79,6 +84,39 @@ export function makeCatalogResponse(
     printings: Object.fromEntries(printings.map(({ id, ...printing }) => [id, printing])),
     totalCopies: printings.length,
     customTagAssignments: {},
+  };
+}
+
+/** @returns An InitResponse whose enum rows cover the slugs the card factory uses. */
+export function makeInitResponse(): InitResponse {
+  return {
+    enums: {
+      cardTypes: [
+        { slug: "unit", label: "Unit", sortOrder: 1 },
+        { slug: "spell", label: "Spell", sortOrder: 2 },
+      ],
+      rarities: [],
+      domains: [
+        { slug: "chaos", label: "Chaos", sortOrder: 1, color: "#b8336a" },
+        { slug: "fury", label: "Fury", sortOrder: 2, color: "#c23c2a" },
+      ],
+      superTypes: [{ slug: "champion", label: "Champion", sortOrder: 1 }],
+      finishes: [],
+      artVariants: [],
+      cardSizes: [],
+      deckFormats: [],
+      deckZones: [],
+      conditions: [],
+      graders: [],
+      languages: [],
+      markers: [],
+    },
+    keywords: {},
+    distributionChannels: [],
+    customTags: [],
+    championIdentifierTags: [],
+    tagCategories: [],
+    tagCategoryMap: {},
   };
 }
 

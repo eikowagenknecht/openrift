@@ -3,11 +3,19 @@ import type {
   CatalogResponseCardValue,
   CatalogResponsePrintingValue,
   CatalogSetResponse,
+  InitResponse,
   PricesResponse,
 } from "@openrift/shared";
 
 export type CatalogCard = CatalogResponseCardValue & { id: string };
 export type CatalogPrinting = CatalogResponsePrintingValue & { id: string };
+
+/** Slug → display label maps for the enum groups the embed's stat line uses. */
+export interface EnumLabels {
+  cardTypes: Record<string, string>;
+  superTypes: Record<string, string>;
+  domains: Record<string, string>;
+}
 
 export interface CatalogSnapshot {
   cards: CatalogCard[];
@@ -16,11 +24,17 @@ export interface CatalogSnapshot {
   setsById: Map<string, CatalogSetResponse>;
   prices: PricesResponse["prices"];
   currencies: PricesResponse["currencies"];
+  labels: EnumLabels;
 }
 
 interface CatalogFetchers {
   fetchCatalog: () => Promise<CatalogResponse>;
+  fetchInit: () => Promise<InitResponse>;
   fetchPrices: () => Promise<PricesResponse>;
+}
+
+function labelMap(rows: readonly { slug: string; label: string }[]): Record<string, string> {
+  return Object.fromEntries(rows.map((row) => [row.slug, row.label]));
 }
 
 /**
@@ -29,7 +43,11 @@ interface CatalogFetchers {
  *
  * @returns The assembled snapshot.
  */
-export function buildSnapshot(catalog: CatalogResponse, prices: PricesResponse): CatalogSnapshot {
+export function buildSnapshot(
+  catalog: CatalogResponse,
+  prices: PricesResponse,
+  init: InitResponse,
+): CatalogSnapshot {
   const cards = Object.entries(catalog.cards).map(([id, card]) => ({ id, ...card }));
   const printingsByCardId = new Map<string, CatalogPrinting[]>();
   for (const [id, printing] of Object.entries(catalog.printings)) {
@@ -46,6 +64,11 @@ export function buildSnapshot(catalog: CatalogResponse, prices: PricesResponse):
     setsById: new Map(catalog.sets.map((set) => [set.id, set])),
     prices: prices.prices,
     currencies: prices.currencies,
+    labels: {
+      cardTypes: labelMap(init.enums.cardTypes),
+      superTypes: labelMap(init.enums.superTypes),
+      domains: labelMap(init.enums.domains),
+    },
   };
 }
 
@@ -89,10 +112,11 @@ export class CatalogCache {
    * leaves the bot without data.
    */
   async refresh(): Promise<void> {
-    const [catalog, prices] = await Promise.all([
+    const [catalog, prices, init] = await Promise.all([
       this.#fetchers.fetchCatalog(),
       this.#fetchers.fetchPrices(),
+      this.#fetchers.fetchInit(),
     ]);
-    this.#snapshot = buildSnapshot(catalog, prices);
+    this.#snapshot = buildSnapshot(catalog, prices, init);
   }
 }
