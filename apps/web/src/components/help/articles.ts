@@ -10,6 +10,7 @@ import {
   ScaleIcon,
   SwordsIcon,
   UsersIcon,
+  WebhookIcon,
 } from "lucide-react";
 import type { ComponentType } from "react";
 
@@ -133,6 +134,17 @@ export const helpArticles = new Map<string, HelpArticle>([
       icon: BotIcon,
       component: () => import("./articles/discord-bot"),
       featureFlag: "help-discord-bot",
+    },
+  ],
+  [
+    "tournament-decklist-api",
+    {
+      slug: "tournament-decklist-api",
+      title: "Tournament Decklist API",
+      description:
+        "Push entrant decklists from your registration system into a tournament's deck check: API keys, the payload, claim links, and limits.",
+      icon: WebhookIcon,
+      component: () => import("./articles/tournament-decklist-api"),
     },
   ],
 ]);

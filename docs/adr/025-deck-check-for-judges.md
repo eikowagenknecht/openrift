@@ -5,6 +5,12 @@ date: 2026-06-10
 
 # ADR-025: Deck Check for Tournament Judges
 
+> **Amended 2026-07-29.** Later ADRs superseded several decisions below. The record stands as written; the deltas:
+>
+> - **Ownership and access** ([ADR-033](033-unified-tournaments.md)): deck-check events became the deck-submission module of the unified `tournaments` entity, hosted by a user or an organization and only optionally linked to a friend group. The `judge` friend-group role was dropped; judging is per-tournament `tournament_staff`, and org owners/managers inherit organizer authority. Push keys are host-scoped (`deck_check_keys.host_*`), minted on the profile or organization page, no longer per group. `deck_check_events` was dropped into `tournaments`, entry identity (player name, Riot ID, claim columns) moved to `tournament_participants`, and the separate `archived` status folded into `completed`.
+> - **Ingest contract** ([ADR-026](026-player-self-service-for-deck-checks.md), [ADR-033](033-unified-tournaments.md)): the target field is `tournamentId` (was `eventId`); `playerEmail` was removed together with the email auto-match (migration 176), players link through the per-entry claim links returned in the push response; `publishOptOut` became the granular `allowNameSharing` / `allowRiotIdSharing` (migration 153) and `allowDeckPublishing` (migration 156) flags; external ids with the reserved `openrift:` prefix are rejected.
+> - **Check lifecycle** ([ADR-027](027-deck-check-entry-states.md)): the single `check_status` verdict became the `state` machine (`editable` / `submitted` / `approved` / `checked` / `withdrawn`) plus `review_outcome`; "a stale check never passes a changed deck" survives as state regression to `submitted` with the stored diff.
+
 ## Context and Problem Statement
 
 External tournament organizers collect entrant decklists through their own systems (the reference integration is a WordPress plugin under `data/decklist-code`, but the feature must not be specific to it). On tournament day a judge has to physically verify each player's unsorted deck against the list they submitted: every card present, in the right zone, at the right count. Today that check happens on paper or inside the organizer's own tooling, with no card images and no link to a real catalog.
@@ -125,6 +131,8 @@ Authorization: Bearer <group API key>
   ]
 }
 ```
+
+_Update: this example predates the amendments listed at the top. Current pushes address `tournamentId`, carry no `playerEmail`, and use the three `allow*` consent flags instead of `publishOptOut`; the live payload example is in the Tournament Decklist API help article and on each tournament's Deck check tab._
 
 Upsert semantics:
 

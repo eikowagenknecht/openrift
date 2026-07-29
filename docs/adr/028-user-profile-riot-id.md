@@ -47,7 +47,7 @@ We add a free-text Riot ID on the profile now (option 2). Waiting (option 1) blo
 - **RSO / verified linking.** Blocked on Riot's production-key and RSO approvals; separate ADR when granted.
 - **Riot ID on other surfaces.** No display on shares, trades, or group rosters; the deck-check pipeline is the only consumer until something else earns it.
 - **Backfill of existing entries.** Past entries keep whatever the provider or judge recorded.
-- **Riot ID as a match key.** Auto-linking entries by Riot ID would let an unverified string claim someone else's entry; linking stays on verified email or judge action (ADR-026).
+- **Riot ID as a match key.** Auto-linking entries by Riot ID would let an unverified string claim someone else's entry; linking stays on verified email or judge action (ADR-026). _Update ([ADR-033](033-unified-tournaments.md)): the email auto-match is gone too; linking is claim links or judge action. Riot ID still links nothing._
 
 ## Confirmation
 

@@ -8,6 +8,7 @@
 
 ### Other
 
+- feat(Tournaments): **Decklist API help article** — a new help article explains how registration websites push entrant decklists into a tournament's deck check, from API keys to player claim links.
 - feat(Cards): **Cleaner card labels** — the row below each card drops the type icons, shows proper rarity names on hover, and only shows the foil sparkle on commons and uncommons, where foil is a premium variant.
 - fix(Cards): **Search inside the More filters** — typing in a filter's search box under More did nothing because the menu grabbed the keystrokes, the text now lands in the box.
 - fix(Collection): **Library stays open while you switch** — the "show whole library" button no longer switches itself off every time you move to another collection or list.

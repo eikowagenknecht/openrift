@@ -96,6 +96,16 @@ function DevelopersPage() {
         schemas.
       </p>
 
+      <h2>Sending tournament decklists</h2>
+      <p>
+        The one write endpoint is <code>POST /api/v1/ingest/deck-check</code>: it lets a
+        registration website or organizer tool push entrant decklists into a tournament&apos;s deck
+        check, so judges can verify decks in OpenRift and players can view their own submitted list.
+        Unlike the read API it requires an API key, minted by the tournament&apos;s host. The{" "}
+        <a href="/help/tournament-decklist-api">Tournament Decklist API</a> help article covers how
+        keys are issued, the payload, push semantics, claim links, and rate limits.
+      </p>
+
       <h2>Caching and ETags</h2>
       <p>
         Responses are cacheable. Catalog-style endpoints (catalog, cards, prices, sets, rules) are

@@ -12,6 +12,11 @@ date: 2026-06-12
 >
 > The PII boundary is unchanged and still the point: the read is keyed on the caller's own participant link, so a tournament-addressed request can only ever return the caller's own entry.
 
+> **Amended 2026-07-29.** Two more deltas, both older than the note above but never recorded here:
+>
+> - **Editing** was superseded by [ADR-027](027-deck-check-entry-states.md): the "edit gate: reuse re-import invalidation" decision (entries are now editable only in the `editable` lifecycle state) and edit-takeover (`list_owner` and `provider_push_ignored_at` were dropped; provider pushes always win). The reserved `openrift:` namespace stays.
+> - **Claim links** now land at `/tournaments/claim/<token>` (ADR-033 moved participant flows under `/tournaments`), and the ingest field is `tournamentId`, not `eventId`. The examples below show the original shapes.
+
 ## Context and Problem Statement
 
 ADR-025 built deck checks as a judge-only tool: an organizer pushes entrant decklists into a group over a machine API, and a team of judges verifies them. Entrants are free-text identity with no `users` link, lists arrive only over the ingest API, and nothing about a check is visible outside the judging team. ADR-025 deliberately deferred three things to keep that first version tight: player accounts / a claim flow, a submission flow inside OpenRift, and any non-judge visibility of entrant lists.
@@ -167,7 +172,7 @@ The `deck_check_entry_cards` table is unchanged; a self-submitted or player-edit
 - **Localized card-name matching for self-submission.** Inherited from ADR-025: English canonical names only. A deck built in OpenRift sidesteps this, but a pasted code does not.
 - **Submission without a link.** Discovery of open events without the organizer sharing a token (for example a public "events accepting submissions" list) is out of scope; the token is the capability.
 - **Orthogonal access reused elsewhere.** The "scoped by ownership, independent of group role" pattern introduced here is not generalized to other group resources in this ADR.
-- **Claim-token rotation.** A `claim_token` cannot be regenerated to invalidate a leaked unclaimed link in v1 (unlike `submission_token`). The remedy for a bad bind is the existing judge unlink plus `claim_blocked_at`. Per-entry rotation, surfaced in the judge UI, is a later add if leaked links prove to be a problem in practice. (Amendment: Claim Tokens.)
+- **Claim-token rotation.** A `claim_token` cannot be regenerated to invalidate a leaked unclaimed link in v1 (unlike `submission_token`). The remedy for a bad bind is the existing judge unlink plus `claim_blocked_at`. Per-entry rotation, surfaced in the judge UI, is a later add if leaked links prove to be a problem in practice. (Amendment: Claim Tokens.) _Update (ADR-033): built as the reissue action, which unclaims the participant, clears the block, and mints a fresh token._
 
 ## Confirmation
 
@@ -241,6 +246,8 @@ ADR-025's push response returned counts only. It now also returns a per-entry ar
   ],
 }
 ```
+
+_Update (ADR-033): the field is now `tournamentId` and claim URLs land at `/tournaments/claim/<token>`. The `entriesIgnored` count that edit-takeover added is deprecated (always 0 since ADR-027) but still returned so existing integrations keep parsing._
 
 This is additive and backward-compatible: a provider that ignores the new field keeps working. It is the second change to ADR-025's ingest contract, after the `openrift:` rejection. Building an absolute `claimUrl` requires `SITE_URL` in the API config (the web app already reads it, the API does not yet), kept an env var rather than hardcoded.
 
