@@ -222,6 +222,97 @@ describe("normalizeNameForMatching", () => {
   it("handles mixed case with numbers", () => {
     expect(normalizeNameForMatching("Unit-42X")).toBe("unit42x");
   });
+
+  // The ASCII-only `[^a-z0-9]` form emptied every one of these, and because the
+  // result is a grouping key, all of them collided into a single bucket — the
+  // admin candidates list once showed seven unrelated legends as one row.
+  describe("non-Latin scripts", () => {
+    it("keeps a CJK name instead of emptying it", () => {
+      expect(normalizeNameForMatching("影流之主")).toBe("影流之主");
+    });
+
+    it("keeps Japanese kana and drops the ideographic comma", () => {
+      expect(normalizeNameForMatching("ゼド、影の主")).toBe("ゼド影の主");
+    });
+
+    it("keeps Korean hangul", () => {
+      expect(normalizeNameForMatching("한글 카드")).toBe("한글카드");
+    });
+
+    it("keeps Cyrillic", () => {
+      expect(normalizeNameForMatching("Владыка Теней")).toBe("владыкатеней");
+    });
+
+    it("keeps Greek", () => {
+      expect(normalizeNameForMatching("Άρχοντας")).toBe("άρχοντας");
+    });
+
+    it("gives distinct keys to distinct non-Latin names", () => {
+      // The property that actually matters: no silent collision.
+      const names = ["影流之主", "祖安狂人", "德玛西亚之力", "Владыка Теней", "Άρχοντας"];
+      const keys = names.map((n) => normalizeNameForMatching(n));
+      expect(new Set(keys).size).toBe(names.length);
+      expect(keys).not.toContain("");
+    });
+
+    it("does not fold Cyrillic short-i onto i", () => {
+      // NFKD would decompose й to и + breve and merge these two distinct
+      // names. Accents are deliberately not folded for exactly this reason.
+      expect(normalizeNameForMatching("Тений")).not.toBe(normalizeNameForMatching("Тени"));
+    });
+  });
+
+  describe("mixed script", () => {
+    it("keeps both halves of a mixed CJK/Latin name", () => {
+      expect(normalizeNameForMatching("黯荧岛Dark Glow")).toBe("黯荧岛darkglow");
+    });
+
+    it("keeps an accented Latin letter rather than deleting it", () => {
+      expect(normalizeNameForMatching("Autel d'unité")).toBe("auteldunité");
+    });
+  });
+
+  describe("names with no letters or digits", () => {
+    it("still returns empty for punctuation-only input", () => {
+      expect(normalizeNameForMatching("!?!")).toBe("");
+    });
+
+    it("returns empty for symbol-only input", () => {
+      expect(normalizeNameForMatching("★☆")).toBe("");
+      expect(normalizeNameForMatching("🎴")).toBe("");
+    });
+  });
+
+  // `\p{N}` would keep these; PostgreSQL's `[[:alnum:]]` drops them. The class
+  // is narrowed to `\p{Nd}` + `\p{Nl}` so the TS and SQL keys stay identical.
+  describe("Postgres [[:alnum:]] parity", () => {
+    it("drops other-number characters", () => {
+      expect(normalizeNameForMatching("½ half")).toBe("half");
+      expect(normalizeNameForMatching("¾ x ² y ① z ⅓")).toBe("xyz");
+    });
+
+    it("keeps decimal digits from other scripts", () => {
+      expect(normalizeNameForMatching("٣٤٥ arabic")).toBe("٣٤٥arabic");
+    });
+
+    it("keeps letter-number characters", () => {
+      expect(normalizeNameForMatching("Ⅻ roman")).toBe("ⅻroman");
+    });
+
+    it("removes the combining mark that lowercasing a dotted I introduces", () => {
+      // "İ".toLowerCase() is "i" + U+0307, and the strip has to take the mark
+      // off. This is why both sides lowercase *before* stripping.
+      expect(normalizeNameForMatching("İstanbul")).toBe("istanbul");
+    });
+  });
+
+  it("is idempotent", () => {
+    for (const input of ["Kai'Sa, Survivor", "影流之主", "黯荧岛Dark Glow", "Владыка Теней"]) {
+      expect(normalizeNameForMatching(normalizeNameForMatching(input))).toBe(
+        normalizeNameForMatching(input),
+      );
+    }
+  });
 });
 
 describe("straightenApostrophes", () => {

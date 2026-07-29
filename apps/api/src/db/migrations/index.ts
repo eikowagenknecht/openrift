@@ -159,6 +159,7 @@ import * as m210 from "./210-2v2-ban-format.js";
 import * as m211 from "./211-product-set.js";
 import * as m212 from "./212-2v2-team-tournaments.js";
 import * as m213 from "./213-scan-index.js";
+import * as m214 from "./214-unicode-norm-name.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -377,4 +378,5 @@ export const migrations: Record<string, Migration> = {
   "211-product-set": m211,
   "212-2v2-team-tournaments": m212,
   "213-scan-index": m213,
+  "214-unicode-norm-name": m214,
 };

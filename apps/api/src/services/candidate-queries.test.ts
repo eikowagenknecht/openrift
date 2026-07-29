@@ -151,6 +151,92 @@ describe("buildCandidateCardList", () => {
     expect(result[0].normalizedName).toBe("newcard");
   });
 
+  it("keeps non-Latin candidate names in separate rows", async () => {
+    // Regression: `[^a-z0-9]` normalized every CJK name to "", so all seven of
+    // these landed in one bucket and the admin list rendered them as a single
+    // card. The normalizer now preserves the script, so each keeps its own key.
+    const cjk = [
+      { name: "影流之主", normName: "影流之主", shortCode: "VEN-189*" },
+      { name: "沙漠皇帝", normName: "沙漠皇帝", shortCode: "VEN-191*" },
+      { name: "德玛西亚之力", normName: "德玛西亚之力", shortCode: "VEN-193*" },
+      { name: "祖安狂人", normName: "祖安狂人", shortCode: "VEN-197*" },
+    ];
+    const repo = createMockRepo({
+      listCardsForSourceList: vi.fn().mockResolvedValue([]),
+      listCandidateCardsForSourceList: vi.fn().mockResolvedValue(
+        cjk.map((c, i) => ({
+          id: `cc-${i}`,
+          normName: c.normName,
+          name: c.name,
+          provider: "gallery",
+          checkedAt: null,
+        })),
+      ),
+      listPrintingsForSourceList: vi.fn().mockResolvedValue([]),
+      listCandidatePrintingsForSourceList: vi.fn().mockResolvedValue([]),
+      listAliasesForSourceList: vi.fn().mockResolvedValue([]),
+    });
+
+    const result = await buildCandidateCardList(repo, new Set(["gallery"]));
+
+    expect(result).toHaveLength(cjk.length);
+    expect(result.map((r) => r.name).toSorted()).toEqual(cjk.map((c) => c.name).toSorted());
+    for (const row of result) {
+      expect(row.candidateCount).toBe(1);
+      expect(row.normalizedName).not.toBe("");
+    }
+  });
+
+  it("does not merge distinct names that both normalize to empty", async () => {
+    // A name with no letters or digits at all still normalizes to "". Grouping
+    // on that key would collapse unrelated rows, so they group by raw name.
+    const repo = createMockRepo({
+      listCardsForSourceList: vi.fn().mockResolvedValue([]),
+      listCandidateCardsForSourceList: vi.fn().mockResolvedValue([
+        { id: "cc-1", normName: "", name: "!?!", provider: "gallery", checkedAt: null },
+        { id: "cc-2", normName: "", name: "★☆", provider: "gallery", checkedAt: null },
+      ]),
+      listPrintingsForSourceList: vi.fn().mockResolvedValue([]),
+      listCandidatePrintingsForSourceList: vi.fn().mockResolvedValue([]),
+      listAliasesForSourceList: vi.fn().mockResolvedValue([]),
+    });
+
+    const result = await buildCandidateCardList(repo, new Set(["gallery"]));
+
+    expect(result).toHaveLength(2);
+    expect(result.map((r) => r.name).toSorted()).toEqual(["!?!", "★☆"]);
+    // The response still reports the real (empty) key so the client can
+    // suppress the link and accept/assign controls that need one.
+    for (const row of result) {
+      expect(row.normalizedName).toBe("");
+      expect(row.candidateCount).toBe(1);
+    }
+  });
+
+  it("still groups same-name candidates from different providers", async () => {
+    const repo = createMockRepo({
+      listCardsForSourceList: vi.fn().mockResolvedValue([]),
+      listCandidateCardsForSourceList: vi.fn().mockResolvedValue([
+        {
+          id: "cc-1",
+          normName: "影流之主",
+          name: "影流之主",
+          provider: "gallery",
+          checkedAt: null,
+        },
+        { id: "cc-2", normName: "影流之主", name: "影流之主", provider: "ocr", checkedAt: null },
+      ]),
+      listPrintingsForSourceList: vi.fn().mockResolvedValue([]),
+      listCandidatePrintingsForSourceList: vi.fn().mockResolvedValue([]),
+      listAliasesForSourceList: vi.fn().mockResolvedValue([]),
+    });
+
+    const result = await buildCandidateCardList(repo, new Set(["gallery"]));
+
+    expect(result).toHaveLength(1);
+    expect(result[0].candidateCount).toBe(2);
+  });
+
   it("counts unchecked printings across a candidate group", async () => {
     const repo = createMockRepo({
       listCardsForSourceList: vi

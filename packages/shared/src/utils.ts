@@ -71,15 +71,46 @@ export function formatPrintingLabel(
 }
 
 /**
+ * Letters and digits of any script. Deliberately `\p{Nd}` + `\p{Nl}` rather
+ * than the broader `\p{N}`: PostgreSQL's `[[:alnum:]]` keeps decimal digits
+ * (`٣`) and letter-numbers (`Ⅻ`) but drops other-numbers (`½`, `²`, `①`), and
+ * the two definitions have to agree character for character — see
+ * {@link normalizeNameForMatching}.
+ */
+const NAME_MATCH_KEEP = /[^\p{L}\p{Nd}\p{Nl}]/gu;
+
+/**
  * Normalize a card/product name for matching.
- * Strips all non-alphanumeric characters **and spaces**, producing a
- * spaceless lowercase slug so that names like "Kai'Sa, Survivor" / "KaiSa
- * Survivor" and "Mega-Mech" / "Mega Mech" all compare equal.
+ * Strips whitespace, punctuation and symbols, producing a spaceless lowercase
+ * key so that names like "Kai'Sa, Survivor" / "KaiSa Survivor" and "Mega-Mech"
+ * / "Mega Mech" all compare equal.
  *
- * @returns A lowercased alphanumeric-only slug (e.g. "kaisasurvivor").
+ * **Letters are kept whatever their script.** An earlier `[^a-z0-9]` form
+ * deleted every non-Latin character, so a name written entirely in Chinese,
+ * Japanese, Korean, Cyrillic or Greek normalized to `""` — and because this
+ * value is used as a grouping and matching key, every such name silently
+ * collided into a single bucket. Accents are *not* folded (`é` stays `é`):
+ * NFKD folding would merge letters that are genuinely distinct in some
+ * scripts (Cyrillic `й` decomposes to `и`), reintroducing the same class of
+ * collision this function exists to avoid.
+ *
+ * **This is duplicated in SQL and the two must not drift.** The Postgres
+ * mirror is `regexp_replace(lower(name), '[^[:alnum:]]', '', 'g')`, used by
+ * the `cards_set_norm_name()`, `candidate_cards_set_norm_name()` and
+ * `marketplace_product_compute_norm_name()` trigger functions. `lower()` is
+ * applied *before* the strip on both sides, because casing a character can
+ * introduce a combining mark (`İ` → `i` + U+0307) that the strip must then
+ * remove. Any change here needs a matching migration and a backfill.
+ *
+ * A name with no letters or digits at all (`"!?!"`) still normalizes to `""`.
+ * That is unavoidable for a content-derived key, so callers must not group or
+ * build links on an empty result — see `buildCandidateCardSummaries`.
+ *
+ * @returns A lowercased letters-and-digits-only key (e.g. "kaisasurvivor"),
+ * or `""` when the name contains no letters or digits.
  */
 export function normalizeNameForMatching(name: string): string {
-  return name.toLowerCase().replaceAll(/[^a-z0-9]/gu, "");
+  return name.toLowerCase().replaceAll(NAME_MATCH_KEEP, "");
 }
 
 /**

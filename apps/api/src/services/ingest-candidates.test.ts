@@ -349,6 +349,62 @@ describe("ingestCandidates", () => {
     expect(insertCall.printingId).toBe("printing-uuid");
   });
 
+  it("does not resolve a card when the name normalizes to nothing", async () => {
+    // A name with no letters or digits normalizes to "". That key identifies
+    // nothing, so it must not match a card that also normalized to "" —
+    // otherwise unrelated candidates get silently linked to one another.
+    const repos = createMockRepos({
+      allCardNorms: vi.fn().mockResolvedValue([{ normName: "", id: "unrelated-card-uuid" }]),
+      allPrintingKeys: vi.fn().mockResolvedValue([
+        {
+          shortCode: "OGN-001",
+          finish: "normal",
+          markerSlugs: [],
+          id: "printing-uuid",
+          language: "EN",
+        },
+      ]),
+    });
+    const transact = mockTransact(repos);
+    const card = makeCard({
+      name: "!?!",
+      printings: [makePrinting({ rarity: "common", finish: "normal" })],
+    });
+    const result = await ingestCandidates(transact, "gallery", [card]);
+
+    expect(result.newPrintings).toBe(1);
+    const insertCall = (repos.ingest as any).insertCandidatePrinting.mock.calls[0][0];
+    expect(insertCall.printingId).toBeNull();
+  });
+
+  it("resolves a card whose name is written in a non-Latin script", async () => {
+    // Before the normalizer preserved non-Latin letters this key was "", so
+    // the candidate never linked to its accepted printing and sat in the
+    // review queue forever even though the printing already existed.
+    const repos = createMockRepos({
+      allCardNorms: vi.fn().mockResolvedValue([{ normName: "影流之主", id: "card-uuid" }]),
+      allPrintingKeys: vi.fn().mockResolvedValue([
+        {
+          shortCode: "OGN-001",
+          finish: "normal",
+          markerSlugs: [],
+          id: "printing-uuid",
+          language: "EN",
+        },
+      ]),
+    });
+    const transact = mockTransact(repos);
+    const card = makeCard({
+      name: "影流之主",
+      printings: [makePrinting({ rarity: "common", finish: "normal" })],
+    });
+    const result = await ingestCandidates(transact, "gallery", [card]);
+
+    expect(result.newPrintings).toBe(1);
+    const insertCall = (repos.ingest as any).insertCandidatePrinting.mock.calls[0][0];
+    expect(insertCall.printingId).toBe("printing-uuid");
+  });
+
   it("resolves card via alias when direct normName does not match", async () => {
     const repos = createMockRepos({
       allCardNameAliases: vi

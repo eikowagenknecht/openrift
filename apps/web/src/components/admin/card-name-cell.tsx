@@ -28,21 +28,39 @@ export function CardNameCell({
       ? extractCardIdFromShortCode(row.stagingShortCodes[0])
       : null;
 
+  // A name with no letters or digits at all normalizes to "". That is the
+  // `$name` path param for the unmatched-card route and the lookup key for
+  // link/accept, so with an empty value every one of those affordances is a
+  // dead end. Render the row as plain text instead — the reviewer can still
+  // see it and fix the name at the source.
+  const hasLookupKey = row.normalizedName !== "";
+  const linkable = Boolean(row.cardSlug) || hasLookupKey;
+
+  const label = (
+    <>
+      {(row.cardSlug || suggestedCardId) && (
+        <span className={row.cardSlug ? "text-muted-foreground" : "text-muted-foreground/40"}>
+          {row.cardSlug ?? suggestedCardId}
+        </span>
+      )}{" "}
+      {row.name}
+    </>
+  );
+
   return (
     <>
-      <Link
-        to={row.cardSlug ? "/admin/cards/$cardSlug" : "/admin/cards/new/$name"}
-        params={row.cardSlug ? { cardSlug: row.cardSlug } : { name: row.normalizedName }}
-        className="font-medium hover:underline"
-      >
-        {(row.cardSlug || suggestedCardId) && (
-          <span className={row.cardSlug ? "text-muted-foreground" : "text-muted-foreground/40"}>
-            {row.cardSlug ?? suggestedCardId}
-          </span>
-        )}{" "}
-        {row.name}
-      </Link>
-      {isAdmin && !row.cardSlug && row.suggestedCardSlug && (
+      {linkable ? (
+        <Link
+          to={row.cardSlug ? "/admin/cards/$cardSlug" : "/admin/cards/new/$name"}
+          params={row.cardSlug ? { cardSlug: row.cardSlug } : { name: row.normalizedName }}
+          className="font-medium hover:underline"
+        >
+          {label}
+        </Link>
+      ) : (
+        <span className="font-medium">{label}</span>
+      )}
+      {isAdmin && !row.cardSlug && hasLookupKey && row.suggestedCardSlug && (
         <Button
           variant="outline"
           className="ml-2"
@@ -58,7 +76,7 @@ export function CardNameCell({
           {row.suggestedCardSlug}
         </Button>
       )}
-      {isAdmin && !row.cardSlug && row.hasFavorite && (
+      {isAdmin && !row.cardSlug && hasLookupKey && row.hasFavorite && (
         <Button
           variant="outline"
           className="ml-2"
@@ -73,7 +91,7 @@ export function CardNameCell({
           Accept
         </Button>
       )}
-      {isAdmin && !row.cardSlug && allCards && (
+      {isAdmin && !row.cardSlug && hasLookupKey && allCards && (
         <AssignButton normalizedName={row.normalizedName} allCards={allCards} linkCard={linkCard} />
       )}
     </>

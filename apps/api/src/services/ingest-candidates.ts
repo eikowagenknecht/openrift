@@ -420,9 +420,13 @@ export async function ingestCandidates(
         newCards++;
       }
 
-      // Resolve card by norm_name from pre-fetched maps
+      // Resolve card by norm_name from pre-fetched maps. An empty key means the
+      // name held no letters or digits at all, so it identifies nothing —
+      // resolving on it would link this candidate to whichever unrelated card
+      // normalized the same way.
       const normName = normalizeNameForMatching(card.name);
-      const effectiveCardId = cardByNorm.get(normName) ?? aliasByNorm.get(normName) ?? null;
+      const effectiveCardId =
+        normName === "" ? null : (cardByNorm.get(normName) ?? aliasByNorm.get(normName) ?? null);
 
       for (const p of card.printings) {
         // Validate printing data against DB CHECK constraints (using normalized values)

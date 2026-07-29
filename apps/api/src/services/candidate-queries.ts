@@ -169,12 +169,20 @@ export async function buildCandidateCardList(
   // Candidate cards from different imports share a normName —
   // e.g. { "fireball" → [cc from gallery, cc from ocr] }
   // cc is an object in the shape: { id, name, normName, provider, checkedAt, ... }
+  //
+  // A name made only of punctuation or symbols normalizes to `""`, which as a
+  // grouping key would merge every such candidate into one row (that is how a
+  // single row once held seven unrelated legends). Those rows are unmatchable
+  // — there is no key to look a card up by — so they are grouped by raw name
+  // instead and surfaced individually. The `\u0000` prefix cannot collide with
+  // a real normName, which only ever holds letters and digits.
   const ccGroupsByNormName = new Map<string, typeof candidateCards>();
   for (const cc of candidateCards) {
-    let arr = ccGroupsByNormName.get(cc.normName);
+    const groupKey = cc.normName === "" ? `\u0000name:${cc.name}` : cc.normName;
+    let arr = ccGroupsByNormName.get(groupKey);
     if (!arr) {
       arr = [];
-      ccGroupsByNormName.set(cc.normName, arr);
+      ccGroupsByNormName.set(groupKey, arr);
     }
     arr.push(cc);
   }
@@ -324,7 +332,12 @@ export async function buildCandidateCardList(
   }
 
   // Candidate cards that didn't match any card — these need a card to be created or linked
-  for (const [normName, group] of ccGroupsByNormName) {
+  for (const group of ccGroupsByNormName.values()) {
+    // Not the map key — punctuation-only names are keyed by raw name so they
+    // stay separate rows, but the response still carries their real (empty)
+    // normalizedName, which the client uses to suppress the accept/link
+    // affordances that need a lookup key.
+    const normName = group[0].normName;
     results.push({
       cardSlug: null,
       name: group[0].name,

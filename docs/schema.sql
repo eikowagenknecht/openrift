@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict d3rqK6JX2BnxxT4tIFlpa8Q2vXvLSoywsgaK6oBEwW0jPH1j7BvUuRbIb19oVf3
+\restrict TD4PhGDLhoJ5IFr3kvlJFCcdH6boiaTWZZfFx0MEvLUuPMGK6DTaALZ5su9ev4W
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -75,7 +75,7 @@ CREATE FUNCTION public.candidate_cards_set_norm_name() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
     BEGIN
-      NEW.norm_name := lower(regexp_replace(NEW.name, '[^a-zA-Z0-9]', '', 'g'));
+      NEW.norm_name := regexp_replace(lower(NEW.name), '[^[:alnum:]]', '', 'g');
       RETURN NEW;
     END;
     $$;
@@ -104,7 +104,7 @@ CREATE FUNCTION public.cards_set_norm_name() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
     BEGIN
-      NEW.norm_name := lower(regexp_replace(NEW.name, '[^a-zA-Z0-9]', '', 'g'));
+      NEW.norm_name := regexp_replace(lower(NEW.name), '[^[:alnum:]]', '', 'g');
       RETURN NEW;
     END;
     $$;
@@ -117,7 +117,7 @@ CREATE FUNCTION public.cards_set_norm_name() RETURNS trigger
 CREATE FUNCTION public.marketplace_product_compute_norm_name(product_name text) RETURNS text
     LANGUAGE sql IMMUTABLE
     AS $$
-      SELECT lower(regexp_replace(product_name, '[^a-zA-Z0-9]', '', 'g'))
+      SELECT regexp_replace(lower(product_name), '[^[:alnum:]]', '', 'g')
     $$;
 
 
@@ -2167,6 +2167,25 @@ CREATE TABLE public.rules (
 
 
 --
+-- Name: scan_index; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.scan_index (
+    id integer NOT NULL,
+    format_version integer NOT NULL,
+    bank_hash text NOT NULL,
+    entry_count integer NOT NULL,
+    encoder_tag text NOT NULL,
+    watermark timestamp with time zone,
+    built_at timestamp with time zone DEFAULT now() NOT NULL,
+    duration_ms integer NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_scan_index_singleton CHECK ((id = 1))
+);
+
+
+--
 -- Name: sessions; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -3261,6 +3280,14 @@ ALTER TABLE ONLY public.rules
 
 ALTER TABLE ONLY public.rules
     ADD CONSTRAINT rules_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: scan_index scan_index_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.scan_index
+    ADD CONSTRAINT scan_index_pkey PRIMARY KEY (id);
 
 
 --
@@ -4796,6 +4823,13 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.provider_settings FOR 
 
 
 --
+-- Name: scan_index trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.scan_index FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
 -- Name: sessions trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -6035,5 +6069,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict d3rqK6JX2BnxxT4tIFlpa8Q2vXvLSoywsgaK6oBEwW0jPH1j7BvUuRbIb19oVf3
+\unrestrict TD4PhGDLhoJ5IFr3kvlJFCcdH6boiaTWZZfFx0MEvLUuPMGK6DTaALZ5su9ev4W
 

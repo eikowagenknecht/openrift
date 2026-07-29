@@ -228,8 +228,10 @@ export function ingestUserSubmission(
       linkOverrideRows.map((row) => [`${row.externalId}:${row.finish}`, row.printingId]),
     );
 
+    // An empty key identifies nothing — see the note in ingest-candidates.ts.
     const normName = normalizeNameForMatching(card.name);
-    const effectiveCardId = cardByNorm.get(normName) ?? aliasByNorm.get(normName) ?? null;
+    const effectiveCardId =
+      normName === "" ? null : (cardByNorm.get(normName) ?? aliasByNorm.get(normName) ?? null);
 
     // ── Insert the candidate card + printings ────────────────────────────────
     const cardInsert: Insertable<CandidateCardsTable> = {

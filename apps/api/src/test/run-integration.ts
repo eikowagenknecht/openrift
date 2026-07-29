@@ -34,6 +34,7 @@ const PARALLEL_FILES = [
   "src/auth-rate-limit.integration.test.ts",
   "src/authorization.integration.test.ts",
   "src/db/card-type-triggers.integration.test.ts",
+  "src/db/norm-name-parity.integration.test.ts",
   // Authenticated routes
   "src/routes/authenticated/collections.integration.test.ts",
   "src/routes/authenticated/collections-reset.integration.test.ts",
