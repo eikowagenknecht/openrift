@@ -41,6 +41,7 @@ import type {
   clearRehostedResponseSchema,
   lowResImageEntrySchema,
   lowResImagesResponseSchema,
+  missingImageCardSchema,
   rehostResultSchema,
   rehostStatusSchema,
   unrehostImagesInputSchema,
@@ -202,6 +203,8 @@ export type BrokenImagesResponse = z.infer<typeof brokenImagesResponseSchema>;
 export type LowResImageEntry = z.infer<typeof lowResImageEntrySchema>;
 
 export type LowResImagesResponse = z.infer<typeof lowResImagesResponseSchema>;
+
+export type MissingImageCard = z.infer<typeof missingImageCardSchema>;
 
 // ── Price refresh response types ────────────────────────────────────────────
 

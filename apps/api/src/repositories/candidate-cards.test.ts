@@ -35,9 +35,22 @@ describe("candidateCardsRepo", () => {
     expect(await candidateCardsRepo(db).listPrintingsForSourceList()).toHaveLength(1);
   });
 
-  it("listCardsWithMissingImages returns cards", async () => {
-    const db = createMockDb([{ cardId: "c-1", slug: "OGS-001", name: "Annie" }]);
-    expect(await candidateCardsRepo(db).listCardsWithMissingImages()).toHaveLength(1);
+  it("listCardsWithMissingImages groups the per-language rows by card", async () => {
+    const db = createMockDb([
+      { cardId: "c-1", slug: "OGS-001", name: "Annie", language: "EN", count: 1 },
+      { cardId: "c-1", slug: "OGS-001", name: "Annie", language: "DE", count: 2 },
+    ]);
+    expect(await candidateCardsRepo(db).listCardsWithMissingImages()).toEqual([
+      {
+        cardId: "c-1",
+        slug: "OGS-001",
+        name: "Annie",
+        byLanguage: [
+          { language: "EN", count: 1 },
+          { language: "DE", count: 2 },
+        ],
+      },
+    ]);
   });
 
   it("listCandidatePrintingsForSourceList returns candidate printings", async () => {

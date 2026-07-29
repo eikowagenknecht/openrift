@@ -130,6 +130,7 @@ export type {
   MarketplaceAssignmentResponse,
   MarketplaceGroupKind,
   MarketplaceGroupResponse,
+  MissingImageCard,
   JobRunsListResponse,
   JobRunStartedResponse,
   JobRunView,

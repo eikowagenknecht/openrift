@@ -431,8 +431,21 @@ describe("GET /api/admin/v1/missing-images", () => {
 
   it("returns 200 with cards with missing images", async () => {
     const cards = [
-      { cardId: "card-1", slug: "fire-dragon", name: "Fire Dragon" },
-      { cardId: "card-2", slug: "ice-elemental", name: "Ice Elemental" },
+      {
+        cardId: "card-1",
+        slug: "fire-dragon",
+        name: "Fire Dragon",
+        byLanguage: [
+          { language: "EN", count: 1 },
+          { language: "DE", count: 2 },
+        ],
+      },
+      {
+        cardId: "card-2",
+        slug: "ice-elemental",
+        name: "Ice Elemental",
+        byLanguage: [{ language: "DE", count: 1 }],
+      },
     ];
     mockCandidateCards.listCardsWithMissingImages.mockResolvedValue(cards);
 

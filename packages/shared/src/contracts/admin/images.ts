@@ -86,6 +86,16 @@ export const unrehostImagesInputSchema = z
   .object({ imageIds: z.array(z.uuid()).min(1).max(1000) })
   .openapi("UnrehostImagesRequest");
 
+export const missingImageCardSchema = z
+  .object({
+    cardId: z.string(),
+    slug: z.string(),
+    name: z.string(),
+    /** Printings without an active front image, counted per language code. */
+    byLanguage: z.array(z.object({ language: z.string(), count: z.number() })),
+  })
+  .openapi("MissingImageCard");
+
 const migrateResultSchema = z.object({
   scanned: z.number(),
   moved: z.number(),
@@ -164,7 +174,7 @@ export const adminImagesContract = {
     .output(lowResImagesResponseSchema),
   missingImages: authedRoute
     .route({ method: "GET", path: `${BASE}/missing-images`, tags: [TAG] })
-    .output(z.array(z.object({ cardId: z.string(), slug: z.string(), name: z.string() }))),
+    .output(z.array(missingImageCardSchema)),
   migrateDirectories: authedRoute
     .route({ method: "POST", path: `${BASE}/migrate-directories`, tags: [TAG] })
     .output(migrateResultSchema),

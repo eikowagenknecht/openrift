@@ -262,6 +262,11 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
     // Annie's card should appear since her printing now lacks an active front image
     const annie = result.find((r) => r.cardId === SEED_CARD_ANNIE_ID);
     expect(annie).toBeDefined();
+    // …with the deactivated EN printing counted under its own language
+    expect(annie?.byLanguage).toContainEqual(
+      expect.objectContaining({ language: "EN", count: expect.any(Number) }),
+    );
+    expect(annie?.byLanguage.find((e) => e.language === "EN")?.count).toBeGreaterThan(0);
 
     // Restore the image
     await db

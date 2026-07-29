@@ -1,4 +1,4 @@
-import type { CardFace, ProviderStatsResponse } from "@openrift/shared";
+import type { CardFace, MissingImageCard, ProviderStatsResponse } from "@openrift/shared";
 import type { ExpressionBuilder, Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
@@ -212,12 +212,22 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns Cards where at least one printing has no active front-face image. */
-    listCardsWithMissingImages(): Promise<{ cardId: string; slug: string; name: string }[]> {
-      return db
+    /**
+     * Cards where at least one printing has no active front-face image, with the
+     * number of such printings broken down per language.
+     * @returns One entry per card, each carrying its per-language missing counts.
+     */
+    async listCardsWithMissingImages(): Promise<MissingImageCard[]> {
+      const rows = await db
         .selectFrom("printings as p")
         .innerJoin("cards as c", "c.id", "p.cardId")
-        .select(["p.cardId", "c.slug", "c.name"])
+        .select((eb) => [
+          "p.cardId",
+          "c.slug",
+          "c.name",
+          "p.language",
+          eb.cast<number>(eb.fn.countAll(), "integer").as("count"),
+        ])
         .where((eb) =>
           eb.not(
             eb.exists(
@@ -230,9 +240,23 @@ export function candidateCardsRepo(db: Kysely<Database>) {
             ),
           ),
         )
-        .groupBy(["p.cardId", "c.slug", "c.name"])
+        .groupBy(["p.cardId", "c.slug", "c.name", "p.language"])
         .orderBy("c.name")
+        .orderBy("p.language")
         .execute();
+
+      const cards = new Map<string, MissingImageCard>();
+      for (const row of rows) {
+        const card = cards.get(row.cardId) ?? {
+          cardId: row.cardId,
+          slug: row.slug,
+          name: row.name,
+          byLanguage: [],
+        };
+        card.byLanguage.push({ language: row.language, count: Number(row.count) });
+        cards.set(row.cardId, card);
+      }
+      return [...cards.values()];
     },
 
     /** @returns All candidate printings with fields needed for the card source list, sorted deterministically. */

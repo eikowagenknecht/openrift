@@ -6,9 +6,12 @@ import { useState } from "react";
 
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { ConfirmClearButton } from "@/components/admin/confirm-clear-button";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Pressable } from "@/components/ui/pressable";
 import { Progress } from "@/components/ui/progress";
+import { useLanguageList } from "@/hooks/use-enums";
 import { useLatestJobRunByKind } from "@/hooks/use-job-runs";
 import {
   useBrokenImages,
@@ -23,6 +26,10 @@ import {
   useRehostStatus,
   useUnrehostImages,
 } from "@/hooks/use-rehost";
+import {
+  filterMissingImagesByLanguage,
+  summarizeMissingImagesByLanguage,
+} from "@/lib/missing-images";
 
 const REGENERATE_KIND = "images.regenerate";
 
@@ -400,24 +407,59 @@ function ManageSection() {
 
 function MissingImagesSection() {
   const { data: cards } = useMissingImages();
+  const languageList = useLanguageList();
+  const [language, setLanguage] = useState<string | null>(null);
 
   if (!cards || cards.length === 0) {
     return null;
   }
+
+  const summaries = summarizeMissingImagesByLanguage(
+    cards,
+    languageList.map((entry) => entry.code),
+  );
+  const shown = filterMissingImagesByLanguage(cards, language);
 
   return (
     <Card>
       <CardHeader className="pb-3">
         <CardTitle>Missing Images</CardTitle>
         <CardDescription>
-          {cards.length} {cards.length === 1 ? "card has" : "cards have"} printings without an
-          active front-face image.
+          {shown.length} {shown.length === 1 ? "card has" : "cards have"} printings without an
+          active front-face image
+          {language === null ? "" : ` in ${language}`}. The badge on each card counts its missing
+          printings per language.
         </CardDescription>
+        <div className="flex flex-wrap gap-1.5 pt-2">
+          <Badge
+            variant={language === null ? "default" : "outline"}
+            className="cursor-pointer"
+            render={<Pressable onClick={() => setLanguage(null)} />}
+          >
+            All {cards.length}
+          </Badge>
+          {summaries.map((summary) => (
+            <Badge
+              key={summary.language}
+              variant={language === summary.language ? "default" : "outline"}
+              className="cursor-pointer"
+              render={
+                <Pressable
+                  onClick={() =>
+                    setLanguage(language === summary.language ? null : summary.language)
+                  }
+                />
+              }
+            >
+              {summary.language} {summary.cards}
+            </Badge>
+          ))}
+        </div>
       </CardHeader>
       <CardContent className="pt-0">
         <ul className="space-y-1 text-sm">
-          {cards.map((card) => (
-            <li key={card.cardId}>
+          {shown.map((card) => (
+            <li key={card.cardId} className="flex flex-wrap items-center gap-1.5">
               <Link
                 to="/admin/cards/$cardSlug"
                 params={{ cardSlug: card.slug }}
@@ -425,6 +467,11 @@ function MissingImagesSection() {
               >
                 <span className="text-muted-foreground/60">{card.slug}</span> {card.name}
               </Link>
+              {card.byLanguage.map((entry) => (
+                <Badge key={entry.language} variant="muted">
+                  {entry.language} {entry.count}
+                </Badge>
+              ))}
             </li>
           ))}
         </ul>

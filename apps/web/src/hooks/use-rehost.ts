@@ -1,6 +1,7 @@
 import type {
   BrokenImagesResponse,
   LowResImagesResponse,
+  MissingImageCard,
   RegenerateImagesKickoffResponse,
   RehostImageResponse,
   RehostStatusResponse,
@@ -36,12 +37,6 @@ const fetchLowResImagesFn = createServerFn({ method: "GET" })
     ({ context }): Promise<LowResImagesResponse> =>
       apiOrpcClient(adminImagesContract, context.cookie).lowResImages(),
   );
-
-interface MissingImageCard {
-  cardId: string;
-  slug: string;
-  name: string;
-}
 
 const fetchMissingImagesFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
