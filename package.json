@@ -58,11 +58,11 @@
     "lcov-result-merger": "6.0.0",
     "lefthook": "2.1.10",
     "onnxruntime-node": "1.27.0",
-    "oxfmt": "0.60.0",
-    "oxlint": "1.75.0",
+    "oxfmt": "0.61.0",
+    "oxlint": "1.76.0",
     "sharp": "0.35.3",
     "syncpack": "15.3.2",
-    "turbo": "2.10.6"
+    "turbo": "2.10.7"
   },
   "overrides": {
     "//": "Patch vulnerable transitive deps. Run `bun audit` after removing any to check if still needed.",
