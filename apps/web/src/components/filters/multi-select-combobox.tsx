@@ -588,7 +588,17 @@ export function MultiSelectCombobox({
       {/* Override the default w-(--anchor-width) so the popup grows to fit
           its widest item (e.g. long breadcrumbs), capped at 90vw on narrow
           screens with an 18rem floor so the search input stays usable. */}
-      <ComboboxContent className={cn(NEUTRAL_HOVER_SCOPE, "w-max max-w-[90vw] min-w-72")}>
+      <ComboboxContent
+        className={cn(NEUTRAL_HOVER_SCOPE, "w-max max-w-[90vw] min-w-72")}
+        // The popup portals out of the DOM but stays a React child of whatever
+        // hosts the trigger, so keystrokes still bubble to that ancestor — and
+        // in the compact bar's "More" menu (triggerStyle="menu") the menu's
+        // typeahead claims every character key and preventDefaults it, leaving
+        // the search field permanently empty. The popup owns its own keyboard
+        // handling, so nothing above it needs these keys: stop them here, after
+        // the combobox's own handlers on this element have run.
+        onKeyDown={(event) => event.stopPropagation()}
+      >
         {/* Home/End (including Shift+Home/End) belong to the search text field,
             not the option list. The combobox's list-navigation layer otherwise
             claims them without honouring Shift, swallowing text selection.

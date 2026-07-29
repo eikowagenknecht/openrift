@@ -2,6 +2,13 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
 import { MultiSelectCombobox } from "./multi-select-combobox";
 
 // A single available option (Unlimited) standing in for a collection that now
@@ -156,5 +163,64 @@ describe("MultiSelectCombobox cycling rows", () => {
     await user.click(await screen.findByRole("option", { name: "ogn" }));
 
     expect(onCycle).toHaveBeenCalledExactlyOnceWith("ogn");
+  });
+});
+
+// The compact bar's "More" menu hosts these dropdowns as menu rows, so the
+// combobox popup is a React child of the menu popup even though it portals
+// elsewhere in the DOM. The menu's typeahead sees every bubbled keystroke.
+const MARKER_OPTIONS = [
+  { value: "promo", label: "Promo" },
+  { value: "judge", label: "Judge" },
+] as const;
+
+function renderInMenu() {
+  const onCycle = vi.fn();
+  render(
+    <DropdownMenu>
+      <DropdownMenuTrigger>More</DropdownMenuTrigger>
+      <DropdownMenuContent>
+        <DropdownMenuItem>Banned</DropdownMenuItem>
+        <MultiSelectCombobox
+          triggerStyle="menu"
+          label="Markers"
+          searchPlaceholder="Search markers…"
+          options={MARKER_OPTIONS}
+          selected={[]}
+          excluded={[]}
+          onCycle={onCycle}
+        />
+      </DropdownMenuContent>
+    </DropdownMenu>,
+  );
+  return { onCycle };
+}
+
+describe("MultiSelectCombobox inside a dropdown menu", () => {
+  it("types the search query into the combobox input, not the menu's typeahead", async () => {
+    const user = userEvent.setup();
+    renderInMenu();
+
+    await user.click(screen.getByRole("button", { name: "More" }));
+    await user.click(await screen.findByText("Markers"));
+
+    const input = await screen.findByPlaceholderText("Search markers…");
+    await user.type(input, "promo");
+
+    expect(input).toHaveValue("promo");
+    expect(screen.queryByRole("option", { name: /Judge/u })).not.toBeInTheDocument();
+  });
+
+  it("still navigates and picks a row with the keyboard", async () => {
+    const user = userEvent.setup();
+    const { onCycle } = renderInMenu();
+
+    await user.click(screen.getByRole("button", { name: "More" }));
+    await user.click(await screen.findByText("Markers"));
+    await screen.findByPlaceholderText("Search markers…");
+
+    await user.keyboard("{ArrowDown}{Enter}");
+
+    expect(onCycle).toHaveBeenCalledExactlyOnceWith("promo");
   });
 });

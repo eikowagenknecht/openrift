@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-07-29
+
+### Other
+
+- fix(Cards): **Search inside the More filters** — typing in a filter's search box under More did nothing because the menu grabbed the keystrokes, the text now lands in the box.
+
 ## 2026-07-28
 
 ### Highlights
