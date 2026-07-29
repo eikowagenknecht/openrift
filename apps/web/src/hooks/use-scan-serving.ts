@@ -30,7 +30,7 @@ export interface ScanAssets {
 }
 
 /** The dev-export fallback: files written by `bun scripts/scan/export-index.ts`. */
-export const DEV_SCAN_ASSETS: ScanAssets = {
+const DEV_SCAN_ASSETS: ScanAssets = {
   source: "dev",
   bankUrl: "/scan-embed-bank.bin",
   labelsUrl: "/scan-labels.json",

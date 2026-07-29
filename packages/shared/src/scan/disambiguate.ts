@@ -37,7 +37,7 @@ export interface TextBand {
  * text, collector code), inside the border. The fallback when the card type
  * is unknown.
  */
-export const TEXT_REGION: TextBand = { x0: 0.05, y0: ART_PORTRAIT.y1, x1: 0.95, y1: 0.96 };
+const TEXT_REGION: TextBand = { x0: 0.05, y0: ART_PORTRAIT.y1, x1: 0.95, y1: 0.96 };
 
 /**
  * Name-bar bands per card type, measured 2026-07-27 from one render per type
@@ -72,7 +72,7 @@ export function textBandForType(cardType?: string): TextBand {
  * promo variants — exactly the printings the name band cannot tell apart —
  * and nothing else.
  */
-export const CODE_BAND: TextBand = { x0: 0.03, y0: 0.935, x1: 0.34, y1: 0.985 };
+const CODE_BAND: TextBand = { x0: 0.03, y0: 0.935, x1: 0.34, y1: 0.985 };
 
 /** Signature raster width; height follows the band's aspect. */
 export const SIGNATURE_WIDTH = 128;
@@ -437,14 +437,14 @@ export function discriminativeMargin(
  * has to be refused outright, while every healthy frame that day scored
  * 0.75+.
  */
-export const NAME_MIN_SCORE = 0.55;
+const NAME_MIN_SCORE = 0.55;
 
 /**
  * Weakest-margin floor for a name-band pick. From the same phone runs: every
  * correct pick carried >=0.215, the one observed wrong pick on a
  * then-uncorrupted frame 0.116.
  */
-export const NAME_MIN_MARGIN = 0.15;
+const NAME_MIN_MARGIN = 0.15;
 
 /**
  * Whole-strip correlation floor for the code strip — a garbage detector
@@ -454,7 +454,7 @@ export const NAME_MIN_MARGIN = 0.15;
  * (binder distances). Pending phone validation like the name band's floor
  * got.
  */
-export const CODE_MIN_SCORE = 0.55;
+const CODE_MIN_SCORE = 0.55;
 
 /**
  * Weakest-margin floor for a code-strip pick. Probe on ideal render data
@@ -462,7 +462,7 @@ export const CODE_MIN_SCORE = 0.55;
  * even at 2px misalignment, wrong side never above -0.16. Pending phone
  * validation.
  */
-export const CODE_MIN_MARGIN = 0.15;
+const CODE_MIN_MARGIN = 0.15;
 
 /** A tournament winner: the picked key and the evidence behind it. */
 export interface PrintingPick {

@@ -1730,7 +1730,7 @@ interface JobRunsTable {
  * with — bank and browser encoder must always match. `watermark` is the
  * newest printing-image creation time included in the bank.
  */
-export interface ScanIndexTable {
+interface ScanIndexTable {
   id: number;
   formatVersion: number;
   bankHash: string;

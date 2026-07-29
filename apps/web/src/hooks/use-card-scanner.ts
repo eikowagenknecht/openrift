@@ -31,7 +31,7 @@ import {
  * devices too slow to scan continuously. `pan` is the free-form mode for
  * panning over a binder page or spread-out cards.
  */
-export type ScannerMode = "single" | "capture" | "pan";
+type ScannerMode = "single" | "capture" | "pan";
 
 export interface ScannerSettings {
   mode: ScannerMode;

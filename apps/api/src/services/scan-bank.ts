@@ -26,7 +26,7 @@ type ScanIndexRepo = ReturnType<typeof scanIndexRepo>;
 export const REBUILD_SCAN_BANK_KIND = "scan.rebuild_bank";
 
 /** Where the scanner's served artifacts live (nginx serves /media/ as-is). */
-export const SCAN_MEDIA_DIR = join(MEDIA_DIR, "scan");
+const SCAN_MEDIA_DIR = join(MEDIA_DIR, "scan");
 
 /** Renders embedded per encoder call; above this the gain flattens. */
 const BUILD_BATCH = 8;
