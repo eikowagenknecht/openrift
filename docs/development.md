@@ -24,7 +24,7 @@ bun db:migrate
 bun dev
 ```
 
-The frontend is available at `http://localhost:5173` (TanStack Start dev server with SSR). The API runs at `http://localhost:3000`. Server functions call the API directly at `localhost:3000`. Only `/api/auth/*` is proxied through the dev server (needed for OAuth redirects and cookie setting).
+The frontend is available at `https://localhost:5173` (TanStack Start dev server with SSR). The certificate is self-signed, so the browser warns once. The API runs at `http://localhost:3000`. Server functions call the API directly at `localhost:3000`. Only `/api/auth/*` is proxied through the dev server (needed for OAuth redirects and cookie setting).
 
 ## Running Individual Apps
 
@@ -32,7 +32,15 @@ The frontend is available at `http://localhost:5173` (TanStack Start dev server 
 bun dev:web    # Vite dev server only (apps/web)
 bun dev:api    # Hono API server only (apps/api)
 bun dev        # All apps + shared type checking in parallel
+bun dev:http   # Same as `bun dev`, but plain http (no self-signed cert)
 ```
+
+`bun dev` serves the web app over HTTPS with a self-signed certificate, because
+the card scanner's camera needs a secure context. It also sends the
+cross-origin isolation headers (COOP/COEP) that unlock SharedArrayBuffer for
+the scanner's multi-threaded WASM encoder. COEP blocks cross-origin
+subresources that don't send CORP/CORS headers, so use `bun dev:http` for flows
+that trip over that or over the self-signed cert (curl checks, e2e).
 
 ## Database
 

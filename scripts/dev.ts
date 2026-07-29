@@ -47,9 +47,11 @@ async function findFreePort(preferred: number): Promise<number> {
 const apiPort = await findFreePort(API_DEFAULT_PORT);
 const webPort = await findFreePort(WEB_DEFAULT_PORT);
 
-// DEV_HTTPS makes vite serve TLS with a self-signed cert (`bun run dev:https`),
-// which the camera-based admin scan page needs on real phones. The api stays
-// plain http; only the browser-facing origin needs the secure context.
+// DEV_HTTPS makes vite serve TLS with a self-signed cert. `bun run dev` sets it,
+// so the default dev origin is a secure context (the camera-based admin scan
+// page needs one on real phones). `bun run dev:http` leaves it unset for flows
+// that can't take a self-signed cert. The api stays plain http either way; only
+// the browser-facing origin needs the secure context.
 const webScheme = process.env.DEV_HTTPS ? "https" : "http";
 console.log(`\n  web → ${webScheme}://localhost:${webPort}\n  api → http://localhost:${apiPort}\n`);
 
