@@ -290,13 +290,16 @@ export function printingImagesRepo(db: Kysely<Database>) {
 
     /**
      * List all rehosted image files.
+     * @param scansOnly When true, only images with `needs_trim` set — the
+     *   scanned uploads whose variants the crop/contrast pipeline touches.
      * @returns Images with their current rehosted URL.
      */
-    listAllRehosted() {
+    listAllRehosted(scansOnly = false) {
       return db
         .selectFrom("imageFiles as imgf")
         .select(["imgf.id as imageId", "imgf.rehostedUrl"])
         .where("imgf.rehostedUrl", "is not", null)
+        .$if(scansOnly, (qb) => qb.where("imgf.needsTrim", "=", true))
         .orderBy("imgf.id")
         .execute() as Promise<{ imageId: string; rehostedUrl: string }[]>;
     },

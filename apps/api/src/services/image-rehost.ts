@@ -207,6 +207,175 @@ function isValidVariantSuffix(file: string): boolean {
   return SIZES.some((size) => file.endsWith(`-${size.suffix}.webp`));
 }
 
+/**
+ * Greyscale luminance below which a pixel counts as card content when
+ * analyzing a scan. Equivalent to the previous `trim` threshold of 100
+ * against a white background (255 - 100 = 155): the scanner halo line
+ * (~178) and paper background stay above it, card borders and art fall
+ * below it.
+ */
+const SCAN_CONTENT_LUMINANCE = 155;
+
+/** A scan's darkest 0.5th percentile is never mapped from deeper than this,
+ * so art without true black is not over-stretched. */
+const SCAN_BLACK_POINT_CAP = 40;
+
+/** A scan's 99.5th percentile is never mapped from brighter than this, so
+ * dark art without true white is not blown out. */
+const SCAN_WHITE_POINT_FLOOR = 220;
+
+/** Pixel box compatible with sharp's `extract`. */
+export interface ScanCropBox {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * Fraction of the box's crossing dimension a row/column must cover with card
+ * pixels to count as a full card edge during tightening. High enough to cut
+ * skew wedges (a 3px-tilted edge's transition rows sit around 80%), low
+ * enough that the rounded-corner rows of a straight card (~92%) survive.
+ */
+const SCAN_EDGE_COVERAGE = 0.85;
+
+/**
+ * Find the card's bounding box in a greyscale scan by row/column projection:
+ * a row or column counts as content only when it has enough dark pixels.
+ * This replaces sharp's all-or-nothing `trim`, where a single dark dust
+ * speck on the scanner glass pins the box and leaves a wide white margin.
+ *
+ * Each edge is then tightened inward to the first row/column that is mostly
+ * (`SCAN_EDGE_COVERAGE`) card: cards never sit perfectly straight on the
+ * glass, and a sub-degree tilt leaves a bright wedge a few px deep along one
+ * half of an edge. Tightening is capped at ~0.7% of the dimension so a card
+ * whose edge art is genuinely bright can't lose more than a sliver.
+ * @returns The detected box, or `null` when the scan holds no content or
+ *   the buffer doesn't match the given dimensions.
+ */
+export function computeScanCropBox(
+  grey: Uint8Array,
+  width: number,
+  height: number,
+): ScanCropBox | null {
+  if (width <= 0 || height <= 0 || grey.length < width * height) {
+    return null;
+  }
+  // Dust specks are a handful of pixels; a card edge crosses ~75% of the
+  // scan. 0.5% of the crossing dimension cleanly separates the two.
+  const minRowDark = Math.max(4, Math.round(width * 0.005));
+  const minColDark = Math.max(4, Math.round(height * 0.005));
+
+  const rowCounts: number[] = Array.from({ length: height }, () => 0);
+  const colCounts: number[] = Array.from({ length: width }, () => 0);
+  for (let y = 0; y < height; y++) {
+    const rowStart = y * width;
+    for (let x = 0; x < width; x++) {
+      if (grey[rowStart + x] < SCAN_CONTENT_LUMINANCE) {
+        rowCounts[y]++;
+        colCounts[x]++;
+      }
+    }
+  }
+
+  let top = 0;
+  while (top < height && rowCounts[top] < minRowDark) {
+    top++;
+  }
+  if (top === height) {
+    return null;
+  }
+  let bottom = height - 1;
+  while (bottom > top && rowCounts[bottom] < minRowDark) {
+    bottom--;
+  }
+  let left = 0;
+  while (left < width && colCounts[left] < minColDark) {
+    left++;
+  }
+  if (left === width) {
+    return null;
+  }
+  let right = width - 1;
+  while (right > left && colCounts[right] < minColDark) {
+    right--;
+  }
+
+  const boxWidth = right - left + 1;
+  const boxHeight = bottom - top + 1;
+  const minRowFull = Math.round(boxWidth * SCAN_EDGE_COVERAGE);
+  const minColFull = Math.round(boxHeight * SCAN_EDGE_COVERAGE);
+  const maxTightenY = Math.max(4, Math.round(boxHeight * 0.007));
+  const maxTightenX = Math.max(4, Math.round(boxWidth * 0.007));
+  let steps = 0;
+  while (steps < maxTightenY && top < bottom && rowCounts[top] < minRowFull) {
+    top++;
+    steps++;
+  }
+  steps = 0;
+  while (steps < maxTightenY && bottom > top && rowCounts[bottom] < minRowFull) {
+    bottom--;
+    steps++;
+  }
+  steps = 0;
+  while (steps < maxTightenX && left < right && colCounts[left] < minColFull) {
+    left++;
+    steps++;
+  }
+  steps = 0;
+  while (steps < maxTightenX && right > left && colCounts[right] < minColFull) {
+    right--;
+    steps++;
+  }
+  return { left, top, width: right - left + 1, height: bottom - top + 1 };
+}
+
+/**
+ * Measure a scan's black/white points inside the card box and derive the
+ * capped auto-levels stretch. Scanners lift true black to ~15–40 and pull
+ * highlights down to ~230–250, which reads as a washed-out, hazy card. The
+ * caps keep the stretch self-limiting: a well-exposed scan measures black ≈
+ * 0 / white ≈ 255 and the correction converges to a no-op, so re-running it
+ * is always safe.
+ * @returns `multiply`/`offset` factors for sharp's `linear`, or `null` when
+ *   the correction would be a no-op or the measurement is degenerate.
+ */
+export function computeScanLevels(
+  grey: Uint8Array,
+  width: number,
+  box: ScanCropBox,
+): { multiply: number; offset: number } | null {
+  const total = box.width * box.height;
+  if (total <= 0 || grey.length < (box.top + box.height - 1) * width + box.left + box.width) {
+    return null;
+  }
+  const hist: number[] = Array.from({ length: 256 }, () => 0);
+  for (let y = box.top; y < box.top + box.height; y++) {
+    const rowStart = y * width;
+    for (let x = box.left; x < box.left + box.width; x++) {
+      hist[grey[rowStart + x]]++;
+    }
+  }
+  const percentile = (p: number): number => {
+    let acc = 0;
+    for (let i = 0; i < 256; i++) {
+      acc += hist[i];
+      if (acc / total >= p) {
+        return i;
+      }
+    }
+    return 255;
+  };
+  const black = Math.min(percentile(0.005), SCAN_BLACK_POINT_CAP);
+  const white = Math.max(percentile(0.995), SCAN_WHITE_POINT_FLOOR);
+  if ((black <= 0 && white >= 255) || white <= black) {
+    return null;
+  }
+  const multiply = 255 / (white - black);
+  return { multiply, offset: -black * multiply };
+}
+
 async function generateWebpVariants(
   io: Io,
   buffer: Buffer,
@@ -214,10 +383,11 @@ async function generateWebpVariants(
   fileBase: string,
   rotation: number,
   /**
-   * When true, trim white scanner margins and apply a 1px shave before
-   * resizing. False preserves the image edge-to-edge — required for digital
-   * images where the card already fills the frame. The `-orig` file is never
-   * touched regardless of this flag.
+   * When true, crop white scanner margins to the detected card box (plus a
+   * 1px shave) and apply the capped auto-levels contrast correction before
+   * resizing. False preserves the image edge-to-edge and untouched —
+   * required for digital images where the card already fills the frame. The
+   * `-orig` file is never touched regardless of this flag.
    */
   needsTrim: boolean,
   /** When true, variants already on disk are kept as-is. */
@@ -238,15 +408,6 @@ async function generateWebpVariants(
     }
   }
 
-  const meta = await io.sharp(buffer).metadata();
-  const rawWidth = meta.width ?? 0;
-  const rawHeight = meta.height ?? 0;
-  // 90° and 270° rotations swap width and height — measure orientation post-rotation
-  // so short-edge capping stays orientation-aware after rotate.
-  const swap = rotation === 90 || rotation === 270;
-  const preTrimWidth = swap ? rawHeight : rawWidth;
-  const preTrimHeight = swap ? rawWidth : rawHeight;
-
   let prepped = io.sharp(buffer);
   if (rotation !== 0) {
     prepped = prepped.rotate(rotation);
@@ -257,38 +418,51 @@ async function generateWebpVariants(
   let preppedHeight: number;
 
   if (needsTrim) {
-    // Threshold 100 (not 60) absorbs the scanner halo line ~60px outside the
-    // card. That halo sits around RGB 178 vs ~255 background — delta 77,
-    // enough to defeat threshold 60 and leave a visible white strip after
-    // trim. 100 covers it without over-cropping the card edge.
-    const { data: trimmedData, info: trimInfo } = await prepped
-      .trim({ background: "white", threshold: 100 })
+    // One greyscale decode of the rotated scan feeds both the projection
+    // crop and the auto-levels measurement.
+    const { data: grey, info: greyInfo } = await prepped
+      .clone()
+      .greyscale()
+      .raw()
       .toBuffer({ resolveWithObject: true });
 
-    // When trim actually cropped something, shave 1 extra px off each side to
-    // absorb any leftover scanner halo. Skip when trim was a no-op so already-
-    // edge-to-edge art isn't nibbled.
-    const wasTrimmed = trimInfo.width < preTrimWidth || trimInfo.height < preTrimHeight;
-    preppedBuffer = trimmedData;
-    preppedWidth = trimInfo.width;
-    preppedHeight = trimInfo.height;
-    if (wasTrimmed && preppedWidth > 2 && preppedHeight > 2) {
-      preppedBuffer = await io
-        .sharp(trimmedData)
-        .extract({
-          left: 1,
-          top: 1,
-          width: preppedWidth - 2,
-          height: preppedHeight - 2,
-        })
-        .toBuffer();
-      preppedWidth -= 2;
-      preppedHeight -= 2;
+    preppedWidth = greyInfo.width;
+    preppedHeight = greyInfo.height;
+    const box = computeScanCropBox(grey, greyInfo.width, greyInfo.height);
+    const wasCropped = box !== null && (box.width < greyInfo.width || box.height < greyInfo.height);
+    if (box && wasCropped && box.width > 4 && box.height > 4) {
+      // Shave 2 extra px off each side to absorb leftover scanner halo and
+      // the last transition rows of a slightly tilted edge. Skipped when
+      // detection was a no-op so already-edge-to-edge art isn't nibbled.
+      const shaved = {
+        left: box.left + 2,
+        top: box.top + 2,
+        width: box.width - 4,
+        height: box.height - 4,
+      };
+      prepped = prepped.extract(shaved);
+      preppedWidth = shaved.width;
+      preppedHeight = shaved.height;
     }
-  } else {
+    const levels = computeScanLevels(
+      grey,
+      greyInfo.width,
+      box ?? { left: 0, top: 0, width: greyInfo.width, height: greyInfo.height },
+    );
+    if (levels) {
+      prepped = prepped.linear(levels.multiply, levels.offset);
+    }
     preppedBuffer = await prepped.toBuffer();
-    preppedWidth = preTrimWidth;
-    preppedHeight = preTrimHeight;
+  } else {
+    const meta = await io.sharp(buffer).metadata();
+    const rawWidth = meta.width ?? 0;
+    const rawHeight = meta.height ?? 0;
+    // 90° and 270° rotations swap width and height — measure orientation
+    // post-rotation so short-edge capping stays orientation-aware after rotate.
+    const swap = rotation === 90 || rotation === 270;
+    preppedBuffer = await prepped.toBuffer();
+    preppedWidth = swap ? rawHeight : rawWidth;
+    preppedHeight = swap ? rawWidth : rawHeight;
   }
 
   const isLandscape = preppedWidth > preppedHeight;
@@ -702,6 +876,10 @@ interface RunRegenerateJobOptions {
   /** When set, resume from this prior checkpoint's snapshot + counters. */
   resumeFrom?: { runId: string; checkpoint: RegenerateImagesCheckpoint };
   skipExisting?: boolean;
+  /** When true, snapshot only scans (`needs_trim` images) instead of the
+   * whole catalog — the only images whose variants the crop/contrast
+   * pipeline changes. Ignored on resume (the snapshot is carried over). */
+  scansOnly?: boolean;
 }
 
 /**
@@ -747,7 +925,7 @@ export async function runRegenerateImagesJob(
       skipExisting,
     };
   } else {
-    const snapshot = await printingImages.listAllRehosted();
+    const snapshot = await printingImages.listAllRehosted(options.scansOnly ?? false);
     checkpoint = {
       snapshot,
       totalFiles: snapshot.length,

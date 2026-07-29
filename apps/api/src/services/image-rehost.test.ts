@@ -14,6 +14,8 @@ import {
   CARD_MEDIA_DIR,
   cleanupOrphanedFiles,
   clearAllRehosted,
+  computeScanCropBox,
+  computeScanLevels,
   deleteRehostFiles,
   downloadImage,
   findBrokenImages,
@@ -51,8 +53,9 @@ const mockFetch = vi.fn(() =>
 // custom `sharp` via `customIo` to simulate landscape or specific metadata.
 let mockSharpMetadata: { width: number; height: number } = { width: 600, height: 850 };
 // When non-null, `toBuffer({ resolveWithObject: true })` returns this as the
-// info object. Leave null to return post-rotation metadata dims (trim no-op).
-let mockTrimInfo: { width: number; height: number } | null = null;
+// greyscale-analysis buffer for the scan path. Leave null to return a tiny
+// buffer that fails the dimension guards (analysis becomes a no-op).
+let mockGreyData: Buffer | null = null;
 let mockRotation = 0;
 const mockSharpInstance: any = {};
 mockSharpInstance.resize = vi.fn(() => mockSharpInstance);
@@ -60,21 +63,46 @@ mockSharpInstance.rotate = vi.fn((r: number) => {
   mockRotation = r;
   return mockSharpInstance;
 });
-mockSharpInstance.trim = vi.fn(() => mockSharpInstance);
+mockSharpInstance.clone = vi.fn(() => mockSharpInstance);
+mockSharpInstance.greyscale = vi.fn(() => mockSharpInstance);
+mockSharpInstance.raw = vi.fn(() => mockSharpInstance);
+mockSharpInstance.linear = vi.fn(() => mockSharpInstance);
 mockSharpInstance.extract = vi.fn(() => mockSharpInstance);
 mockSharpInstance.webp = () => mockSharpInstance;
 mockSharpInstance.toBuffer = (opts?: { resolveWithObject?: boolean }) => {
   if (opts?.resolveWithObject) {
     const swap = mockRotation === 90 || mockRotation === 270;
-    const info = mockTrimInfo ?? {
+    const info = {
       width: swap ? mockSharpMetadata.height : mockSharpMetadata.width,
       height: swap ? mockSharpMetadata.width : mockSharpMetadata.height,
     };
-    return Promise.resolve({ data: Buffer.from("trimmed"), info });
+    return Promise.resolve({ data: mockGreyData ?? Buffer.from("grey"), info });
   }
   return Promise.resolve(Buffer.from("webp"));
 };
 mockSharpInstance.metadata = () => Promise.resolve(mockSharpMetadata);
+
+/**
+ * Build a synthetic greyscale scan: white background with an optional darker
+ * rectangle (the "card") of the given luminance value.
+ * @returns Raw single-channel buffer of `width * height` pixels.
+ */
+function greyScan(
+  width: number,
+  height: number,
+  card?: { left: number; top: number; width: number; height: number },
+  value = 30,
+): Buffer {
+  const buf = Buffer.alloc(width * height, 255);
+  if (card) {
+    for (let y = card.top; y < card.top + card.height; y++) {
+      for (let x = card.left; x < card.left + card.width; x++) {
+        buf[y * width + x] = value;
+      }
+    }
+  }
+  return buf;
+}
 
 const mockIo: Io = {
   fs: {
@@ -143,10 +171,13 @@ beforeEach(() => {
   mockStat.mockReset().mockResolvedValue({ size: 1024 });
   mockSharpInstance.resize.mockClear();
   mockSharpInstance.rotate.mockClear();
-  mockSharpInstance.trim.mockClear();
+  mockSharpInstance.clone.mockClear();
+  mockSharpInstance.greyscale.mockClear();
+  mockSharpInstance.raw.mockClear();
+  mockSharpInstance.linear.mockClear();
   mockSharpInstance.extract.mockClear();
   mockSharpMetadata = { width: 600, height: 850 };
-  mockTrimInfo = null;
+  mockGreyData = null;
   mockRotation = 0;
   mockFetch
     .mockReset()
@@ -409,49 +440,57 @@ describe("processAndSave", () => {
     expect(mockSharpInstance.resize).toHaveBeenCalledWith(null, 800, { withoutEnlargement: true });
   });
 
-  it("trims white borders at threshold 100 when needsTrim=true", async () => {
+  it("crops scans to the detected card box with a 2px shave when needsTrim=true", async () => {
+    // 600x850 scan, card at (100,50)-(499,749), plus a dust speck near the
+    // left edge that must NOT drag the box out (the old sharp trim did).
+    mockGreyData = greyScan(600, 850, { left: 100, top: 50, width: 400, height: 700 });
+    mockGreyData[300 * 600 + 5] = 0;
+
     await processAndSave(mockIo, Buffer.from("p"), ".png", "/tmp/out", "trim-1", 0, true);
 
-    // Trim runs once, then variants reuse the prepped buffer.
-    expect(mockSharpInstance.trim).toHaveBeenCalledTimes(1);
-    expect(mockSharpInstance.trim).toHaveBeenCalledWith({ background: "white", threshold: 100 });
+    expect(mockSharpInstance.extract).toHaveBeenCalledTimes(1);
+    expect(mockSharpInstance.extract).toHaveBeenCalledWith({
+      left: 102,
+      top: 52,
+      width: 396,
+      height: 696,
+    });
   });
 
-  it("does not call trim when needsTrim=false", async () => {
+  it("applies the capped auto-levels stretch to scans", async () => {
+    // Card interior is uniform luminance 30 → black point 30, white point
+    // floored at 220 → multiply 255/190, offset -30*multiply.
+    mockGreyData = greyScan(600, 850, { left: 100, top: 50, width: 400, height: 700 });
+
+    await processAndSave(mockIo, Buffer.from("p"), ".png", "/tmp/out", "levels-1", 0, true);
+
+    const multiply = 255 / 190;
+    expect(mockSharpInstance.linear).toHaveBeenCalledTimes(1);
+    expect(mockSharpInstance.linear).toHaveBeenCalledWith(multiply, -30 * multiply);
+  });
+
+  it("does not analyze or crop when needsTrim=false", async () => {
     // Default for digital images — the -orig must round-trip into variants
-    // without any cropping. Important: trim must not run at all, so a card
-    // with a pure-white border doesn't accidentally get its border eaten.
+    // without any cropping or tone change, so a card with a pure-white
+    // border doesn't accidentally get its border eaten.
     await processAndSave(mockIo, Buffer.from("d"), ".png", "/tmp/out", "digital-1", 0, false);
-    expect(mockSharpInstance.trim).not.toHaveBeenCalled();
+    expect(mockSharpInstance.greyscale).not.toHaveBeenCalled();
     expect(mockSharpInstance.extract).not.toHaveBeenCalled();
+    expect(mockSharpInstance.linear).not.toHaveBeenCalled();
   });
 
   it("preserves the -orig buffer regardless of needsTrim", async () => {
     const buf = Buffer.from("orig-bytes");
     await processAndSave(mockIo, buf, ".png", "/tmp/out", "orig-check", 0, true);
-    // The orig write receives the untouched input buffer, not the trimmed one.
+    // The orig write receives the untouched input buffer, not the cropped one.
     expect(mockWriteFile).toHaveBeenCalledWith("/tmp/out/orig-check-orig.png", buf);
   });
 
-  it("shaves 1 extra px off each side when trim actually cropped", async () => {
+  it("skips the crop when the card already fills the scan", async () => {
     mockSharpMetadata = { width: 600, height: 900 };
-    // Simulate a scan with a 10px white border on each side → trim reduces to 580x880.
-    mockTrimInfo = { width: 580, height: 880 };
+    // Edge-to-edge card → detection is a no-op → no extract, no 1px shave.
+    mockGreyData = greyScan(600, 900, { left: 0, top: 0, width: 600, height: 900 });
 
-    await processAndSave(mockIo, Buffer.from("b"), ".png", "/tmp/out", "bordered-1", 0, true);
-
-    expect(mockSharpInstance.extract).toHaveBeenCalledTimes(1);
-    expect(mockSharpInstance.extract).toHaveBeenCalledWith({
-      left: 1,
-      top: 1,
-      width: 578,
-      height: 878,
-    });
-  });
-
-  it("skips the extra 1px shave when trim was a no-op", async () => {
-    mockSharpMetadata = { width: 600, height: 900 };
-    // mockTrimInfo stays null → post-rotation dims unchanged → wasTrimmed=false.
     await processAndSave(mockIo, Buffer.from("e"), ".png", "/tmp/out", "edge-1", 0, true);
 
     expect(mockSharpInstance.extract).not.toHaveBeenCalled();
@@ -465,6 +504,140 @@ describe("processAndSave", () => {
 
     expect(mockUnlink).toHaveBeenCalledWith("/tmp/out/card-001-orig.png");
     expect(mockWriteFile).toHaveBeenCalledWith("/tmp/out/card-001-orig.webp", expect.any(Buffer));
+  });
+});
+
+describe("computeScanCropBox", () => {
+  it("finds the card's bounding box in a white scan", () => {
+    const grey = greyScan(200, 300, { left: 40, top: 30, width: 100, height: 200 });
+    expect(computeScanCropBox(grey, 200, 300)).toEqual({
+      left: 40,
+      top: 30,
+      width: 100,
+      height: 200,
+    });
+  });
+
+  it("ignores isolated dust specks outside the card", () => {
+    // Regression: a single dark pixel far left of the card used to pin
+    // sharp's trim and leave a ~400px white margin on real scans.
+    const grey = greyScan(200, 300, { left: 40, top: 30, width: 100, height: 200 });
+    grey[150 * 200 + 5] = 0; // dust at (5, 150)
+    grey[295 * 200 + 90] = 0; // dust below the card at (90, 295)
+    expect(computeScanCropBox(grey, 200, 300)).toEqual({
+      left: 40,
+      top: 30,
+      width: 100,
+      height: 200,
+    });
+  });
+
+  it("returns the full frame for an edge-to-edge card", () => {
+    const grey = greyScan(200, 300, { left: 0, top: 0, width: 200, height: 300 });
+    expect(computeScanCropBox(grey, 200, 300)).toEqual({
+      left: 0,
+      top: 0,
+      width: 200,
+      height: 300,
+    });
+  });
+
+  it("returns null for a blank scan", () => {
+    expect(computeScanCropBox(greyScan(200, 300), 200, 300)).toBeNull();
+  });
+
+  it("returns null when the buffer doesn't match the dimensions", () => {
+    expect(computeScanCropBox(Buffer.from("tiny"), 200, 300)).toBeNull();
+  });
+
+  it("tightens away the shallow wedge a slightly tilted card leaves", () => {
+    // Card body at rows 30..229; below it a 4-row "wedge" where only the
+    // right half is still card (a tilted bottom edge). The wedge rows pass
+    // the coarse threshold but sit under 85% coverage, so the bottom edge
+    // tightens to the card body.
+    const grey = greyScan(200, 300, { left: 40, top: 30, width: 100, height: 200 });
+    for (let y = 230; y < 234; y++) {
+      for (let x = 90; x < 140; x++) {
+        grey[y * 200 + x] = 30;
+      }
+    }
+    expect(computeScanCropBox(grey, 200, 300)).toEqual({
+      left: 40,
+      top: 30,
+      width: 100,
+      height: 200,
+    });
+  });
+
+  it("caps edge tightening so bright-edged art only loses a sliver", () => {
+    // A 30-row region below the card body where only 40% of the width is
+    // dark — like a card whose bottom-edge art is mostly bright. Tightening
+    // wants to remove it all but must stop after max(4, 0.7%) = 4 rows.
+    const grey = greyScan(200, 300, { left: 40, top: 30, width: 100, height: 200 });
+    for (let y = 230; y < 260; y++) {
+      for (let x = 40; x < 80; x++) {
+        grey[y * 200 + x] = 30;
+      }
+    }
+    expect(computeScanCropBox(grey, 200, 300)).toEqual({
+      left: 40,
+      top: 30,
+      width: 100,
+      height: 226,
+    });
+  });
+});
+
+describe("computeScanLevels", () => {
+  const fullBox = { left: 0, top: 0, width: 200, height: 300 };
+
+  it("stretches a lifted black point back to 0", () => {
+    // Uniform luminance 30 → black 30, white floored at 220.
+    const grey = greyScan(200, 300, fullBox, 30);
+    const multiply = 255 / (220 - 30);
+    expect(computeScanLevels(grey, 200, fullBox)).toEqual({
+      multiply,
+      offset: -30 * multiply,
+    });
+  });
+
+  it("caps the black point so dark art is not over-stretched", () => {
+    // Uniform luminance 90: without the cap the stretch would map 90 → 0.
+    const grey = greyScan(200, 300, fullBox, 90);
+    const multiply = 255 / (220 - 40);
+    expect(computeScanLevels(grey, 200, fullBox)).toEqual({
+      multiply,
+      offset: -40 * multiply,
+    });
+  });
+
+  it("returns null when the scan already spans full range", () => {
+    const grey = greyScan(200, 300, fullBox, 0);
+    // Make the top half true white so both percentiles sit at the extremes.
+    grey.fill(255, 0, 200 * 150);
+    expect(computeScanLevels(grey, 200, fullBox)).toBeNull();
+  });
+
+  it("measures only inside the box", () => {
+    // Dark field outside the box must not drag the black point below the
+    // box interior's 30.
+    const grey = Buffer.alloc(200 * 300, 0);
+    const box = { left: 50, top: 50, width: 100, height: 100 };
+    for (let y = box.top; y < box.top + box.height; y++) {
+      for (let x = box.left; x < box.left + box.width; x++) {
+        grey[y * 200 + x] = 30;
+      }
+    }
+    const multiply = 255 / (220 - 30);
+    expect(computeScanLevels(grey, 200, box)).toEqual({
+      multiply,
+      offset: -30 * multiply,
+    });
+  });
+
+  it("returns null for a degenerate box", () => {
+    const grey = greyScan(200, 300);
+    expect(computeScanLevels(grey, 200, { left: 0, top: 0, width: 0, height: 0 })).toBeNull();
   });
 });
 
@@ -832,10 +1005,11 @@ describe("regenerateImagesBatch", () => {
     mockReaddir.mockImplementation(async () => ["card-trim-orig.png"]);
     await regenerateImagesBatch(mockIo, repo, [snap("card-trim")]);
 
-    expect(mockSharpInstance.trim).toHaveBeenCalledWith({ background: "white", threshold: 100 });
+    // The greyscale analysis pass only runs for scans (needsTrim=true).
+    expect(mockSharpInstance.greyscale).toHaveBeenCalled();
   });
 
-  it("skips trim when needsTrim is false in the settings map", async () => {
+  it("skips the scan analysis when needsTrim is false in the settings map", async () => {
     const repo = makeMockRepo({});
     repo.getRotationsAndTrimByIds = vi.fn(() =>
       Promise.resolve(new Map([["card-keep", { rotation: 0, needsTrim: false }]])),
@@ -843,7 +1017,7 @@ describe("regenerateImagesBatch", () => {
     mockReaddir.mockImplementation(async () => ["card-keep-orig.png"]);
     await regenerateImagesBatch(mockIo, repo, [snap("card-keep")]);
 
-    expect(mockSharpInstance.trim).not.toHaveBeenCalled();
+    expect(mockSharpInstance.greyscale).not.toHaveBeenCalled();
   });
 
   it("defaults to needsTrim=false when the settings map lacks an entry", async () => {
@@ -855,7 +1029,7 @@ describe("regenerateImagesBatch", () => {
     mockReaddir.mockImplementation(async () => ["card-orphan-orig.png"]);
     await regenerateImagesBatch(mockIo, repo, [snap("card-orphan")]);
 
-    expect(mockSharpInstance.trim).not.toHaveBeenCalled();
+    expect(mockSharpInstance.greyscale).not.toHaveBeenCalled();
   });
 });
 
@@ -926,6 +1100,24 @@ describe("runRegenerateImagesJob", () => {
     expect(result.resumedFromRunId).toBeNull();
     // 12 / batch_size 10 = 2 batches; plus the initial snapshot write = 3.
     expect(fake.repo.updateResult).toHaveBeenCalledTimes(3);
+    // Default: whole catalog, not just scans.
+    expect(printingImages.listAllRehosted).toHaveBeenCalledWith(false);
+  });
+
+  it("snapshots only scans when scansOnly is set", async () => {
+    const ids = [snap("scan-001")];
+    const printingImages = makeMockRepo({ rehosted: ids });
+    mockReaddir.mockImplementation(async () => ids.map((s) => `${s.imageId}-orig.png`));
+    const fake = makeFakeJobRunsRepo();
+
+    const result = await runRegenerateImagesJob(
+      { io: mockIo, printingImages, jobRuns: fake.repo, log: noopLog },
+      "run-scans",
+      { scansOnly: true },
+    );
+
+    expect(printingImages.listAllRehosted).toHaveBeenCalledWith(true);
+    expect(result.totalFiles).toBe(1);
   });
 
   it("resumes from a prior checkpoint and skips already-processed entries", async () => {
@@ -1306,7 +1498,7 @@ describe("rehostSingleImage", () => {
     );
   });
 
-  it("propagates needsTrim from the image_file row to the trim step", async () => {
+  it("propagates needsTrim from the image_file row to the scan analysis", async () => {
     const repo = {
       getForRehost: vi.fn(async () => ({
         originalUrl: "https://example.com/img.png",
@@ -1319,7 +1511,7 @@ describe("rehostSingleImage", () => {
 
     await rehostSingleImage(mockIo, repo, "img-uuid");
 
-    expect(mockSharpInstance.trim).toHaveBeenCalledWith({ background: "white", threshold: 100 });
+    expect(mockSharpInstance.greyscale).toHaveBeenCalled();
   });
 
   it("swallows download errors silently", async () => {

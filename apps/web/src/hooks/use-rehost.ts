@@ -53,15 +53,18 @@ const rehostImagesBatchFn = createServerFn({ method: "POST" })
   );
 
 const regenerateImagesKickoffFn = createServerFn({ method: "POST" })
-  .validator((input: { skipExisting?: boolean; reset?: boolean }) => input)
+  .validator((input: { skipExisting?: boolean; reset?: boolean; scansOnly?: boolean }) => input)
   .middleware([withCookies])
   .handler(({ context, data }): Promise<RegenerateImagesKickoffResponse> => {
-    const query: { skipExisting?: "true"; reset?: "true" } = {};
+    const query: { skipExisting?: "true"; reset?: "true"; scansOnly?: "true" } = {};
     if (data.skipExisting) {
       query.skipExisting = "true";
     }
     if (data.reset) {
       query.reset = "true";
+    }
+    if (data.scansOnly) {
+      query.scansOnly = "true";
     }
     return apiOrpcClient(adminImagesContract, context.cookie).regenerate({ query });
   });
@@ -195,7 +198,7 @@ export function useUnrehostImages() {
 export function useRegenerateImages() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: { skipExisting?: boolean; reset?: boolean } = {}) =>
+    mutationFn: (input: { skipExisting?: boolean; reset?: boolean; scansOnly?: boolean } = {}) =>
       regenerateImagesKickoffFn({ data: input }),
     onSuccess: () => {
       void queryClient.invalidateQueries({

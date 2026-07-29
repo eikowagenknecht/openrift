@@ -5,6 +5,7 @@
 ### Highlights
 
 - feat(Cards): **Real artwork for missing images** — printings without a scanned image now show the standard printing's artwork, labeled as placeholder art with badges for anything the borrowed image doesn't show (language, promo stamp, signature).
+- fix(Cards): **Sharper scanned card images** — scans now crop tightly to the card (dust on the scanner glass no longer leaves wide white margins) and get a contrast fix that restores true blacks on washed-out scans.
 
 ### Other
 

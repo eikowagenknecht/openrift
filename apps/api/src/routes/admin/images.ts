@@ -41,12 +41,14 @@ export const adminImagesRouter = {
   regenerate: os.regenerate.handler(async ({ input, context }) => {
     const repos = context.repos;
     const io = context.io;
-    const { reset, skipExisting } = input.query;
+    const { reset, skipExisting, scansOnly } = input.query;
 
     // Auto-resume from the most recent failed run with a valid checkpoint
-    // that still has work left, unless ?reset=true was passed.
+    // that still has work left, unless ?reset=true was passed. A scans-only
+    // request never resumes: the prior checkpoint's snapshot may span the
+    // whole catalog, which is exactly what the caller asked to avoid.
     let resumeFrom: { runId: string; checkpoint: RegenerateImagesCheckpoint } | undefined;
-    if (!reset) {
+    if (!reset && !scansOnly) {
       const prior = await repos.jobRuns.findLatestForResume(REGENERATE_IMAGES_KIND);
       if (
         prior?.status === "failed" &&
@@ -65,7 +67,7 @@ export const adminImagesRouter = {
         runRegenerateImagesJob(
           { io, printingImages: repos.printingImages, jobRuns: repos.jobRuns, log },
           runId,
-          { resumeFrom, skipExisting: skipExisting ?? false },
+          { resumeFrom, skipExisting: skipExisting ?? false, scansOnly: scansOnly ?? false },
         ),
       // Persist the final checkpoint as the run's `result` so the admin UI can
       // show counts + per-image errors after the job finishes. Drop the

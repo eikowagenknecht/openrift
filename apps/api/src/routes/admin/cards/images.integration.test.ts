@@ -21,7 +21,10 @@ const mockSharpPipeline = {
   resize: () => mockSharpPipeline,
   webp: () => mockSharpPipeline,
   rotate: () => mockSharpPipeline,
-  trim: () => mockSharpPipeline,
+  clone: () => mockSharpPipeline,
+  greyscale: () => mockSharpPipeline,
+  raw: () => mockSharpPipeline,
+  linear: () => mockSharpPipeline,
   extract: () => mockSharpPipeline,
   toBuffer: async (opts?: { resolveWithObject?: boolean }) =>
     opts?.resolveWithObject

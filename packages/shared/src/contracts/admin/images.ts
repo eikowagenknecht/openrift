@@ -142,6 +142,10 @@ export const adminImagesContract = {
             .enum(["true", "false"])
             .optional()
             .transform((v) => v === "true"),
+          scansOnly: z
+            .enum(["true", "false"])
+            .optional()
+            .transform((v) => v === "true"),
         }),
       }),
     )

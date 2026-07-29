@@ -287,6 +287,13 @@ function ManageSection() {
           <Button
             variant="outline"
             disabled={anyPending || !status.disk.totalBytes}
+            onClick={() => regenMutation.mutate({ scansOnly: true })}
+          >
+            Regenerate scans
+          </Button>
+          <Button
+            variant="outline"
+            disabled={anyPending || !status.disk.totalBytes}
             onClick={() => regenMutation.mutate({})}
           >
             {regenRunning ? (
