@@ -29,7 +29,7 @@ export interface CardCellProps {
 
   /** Content rendered below the meta-label row (e.g. marker chips on /promos). */
   belowLabel?: ReactNode;
-  /** Content overlaid on the card image area (e.g. SuggestImageOverlay). */
+  /** Content overlaid on the card image area, outside the dimmable image layer. */
   imageOverlay?: ReactNode;
   /**
    * Absolutely-positioned overlay rendered as a sibling of the thumbnail

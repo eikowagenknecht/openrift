@@ -8,7 +8,6 @@ import { CardCell } from "@/components/cards/card-cell";
 import { CardCountStrip } from "@/components/cards/card-count-strip";
 import { OwnedCollectionsPopover } from "@/components/cards/card-detail/owned-collections-popover";
 import type { CardThumbnailDisplay } from "@/components/cards/card-thumbnail";
-import { SuggestImageOverlay } from "@/components/cards/suggest-image-overlay";
 import { useOwnedCountsForPrintings } from "@/hooks/use-owned-count";
 import { dispatchRowClick, dispatchSiblingClick } from "@/stores/card-row-actions-store";
 import { useGridFocusStore } from "@/stores/grid-focus-store";
@@ -129,7 +128,6 @@ export const BrowserCardCell = memo(function BrowserCardCell({
       priceRange={priceRange}
       dimmed={showStrip && cardTotal === 0}
       strip={strip}
-      imageOverlay={<SuggestImageOverlay printing={printing} />}
     />
   );
 });

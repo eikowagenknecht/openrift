@@ -1,19 +1,24 @@
-import type { CardBan, CardType, Rarity } from "@openrift/shared";
+import type { CardBan, Rarity } from "@openrift/shared";
+import { LOW_RARITIES, WellKnown } from "@openrift/shared";
 import { InfoIcon, TriangleAlertIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { FinishIcon } from "@/components/cards/finish-icon";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { getFilterIconPath, getTypeIconPaths } from "@/lib/icons";
+import { getFilterIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 interface CardMetaLabelProps {
   shortCode: string;
   name: string;
-  types: CardType[];
-  superTypes: string[];
   rarity: Rarity;
-  /** Finish slug — renders a per-finish icon when it's foil/metal/metal-deluxe. */
+  /** Tooltip title for the rarity icon (the human-readable rarity label). */
+  rarityTitle?: string;
+  /**
+   * Finish slug — renders a per-finish icon when it's foil/metal/metal-deluxe.
+   * The foil icon is suppressed at always-foil rarities (everything above
+   * uncommon), where foil is the plain version and the icon would be noise.
+   */
   finish?: string;
   /** Tooltip title for the finish icon (usually the human-readable finish label). */
   finishTitle?: string;
@@ -33,16 +38,14 @@ interface CardMetaLabelProps {
 }
 
 /**
- * Card metadata label — shortcode, name, type + rarity icons.
- * Extracted from CardThumbnail so it can be reused in admin views.
+ * Card metadata label — shortcode, name, rarity icon and printing flags.
  * @returns The label element.
  */
 export function CardMetaLabel({
   shortCode,
   name,
-  types,
-  superTypes,
   rarity,
+  rarityTitle,
   finish,
   finishTitle,
   oversized,
@@ -53,10 +56,9 @@ export function CardMetaLabel({
   className,
   price,
 }: CardMetaLabelProps) {
-  const typeText = types.join(" ");
-  const typeLabel = superTypes.length > 0 ? `${superTypes.join(" ")} ${typeText}` : typeText;
-  const typeIconPaths = getTypeIconPaths(types, superTypes);
   const rarityIconPath = getFilterIconPath("rarities", rarity);
+  const showFinishIcon =
+    finish !== undefined && (finish !== WellKnown.finish.FOIL || LOW_RARITIES.has(rarity));
 
   return (
     // ⚠ space-y-0.5 and py-0.5 are mirrored as META_LINE_GAP / META_LABEL_PY in card-grid-constants.ts — update both together
@@ -70,26 +72,17 @@ export function CardMetaLabel({
       <div className="text-muted-foreground flex min-h-4 items-center justify-between gap-1 text-xs">
         <span className="truncate font-medium">{shortCode}</span>
         <span className="flex shrink-0 items-center gap-1">
-          {typeIconPaths.map((path) => (
-            <img
-              key={path}
-              src={path}
-              alt={typeLabel}
-              title={typeLabel}
-              className="size-3.5 brightness-0 dark:invert"
-            />
-          ))}
           {rarityIconPath && (
             <img
               src={rarityIconPath}
-              alt={rarity}
-              title={rarity}
+              alt={rarityTitle ?? rarity}
+              title={rarityTitle ?? rarity}
               width={28}
               height={28}
               className="size-3.5"
             />
           )}
-          {finish && <FinishIcon finish={finish} title={finishTitle} />}
+          {showFinishIcon && finish && <FinishIcon finish={finish} title={finishTitle} />}
           {oversized && (
             <span
               title={sizeLabel}

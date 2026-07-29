@@ -2,8 +2,13 @@
 
 ## 2026-07-29
 
+### Highlights
+
+- feat(Cards): **Real artwork for missing images** — printings without a scanned image now show the standard printing's artwork, labeled as placeholder art with badges for anything the borrowed image doesn't show (language, promo stamp, signature).
+
 ### Other
 
+- feat(Cards): **Cleaner card labels** — the row below each card drops the type icons, shows proper rarity names on hover, and only shows the foil sparkle on commons and uncommons, where foil is a premium variant.
 - fix(Cards): **Search inside the More filters** — typing in a filter's search box under More did nothing because the menu grabbed the keystrokes, the text now lands in the box.
 - fix(Collection): **Library stays open while you switch** — the "show whole library" button no longer switches itself off every time you move to another collection or list.
 

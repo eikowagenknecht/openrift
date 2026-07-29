@@ -61,7 +61,10 @@ vi.mock("@/components/cards/card-cell", () => ({
 const { CollectionGridCell } = await import("./collection-grid-cell");
 
 const collectionId = "col-1";
-const display = {} as CardThumbnailDisplay;
+// Only getFallbackArt is real: the cell calls it to decide whether to render
+// the standalone suggest-image pill; the thumbnail tree consuming the rest of
+// the bundle is mocked out above.
+const display = { getFallbackArt: () => null } as unknown as CardThumbnailDisplay;
 
 function renderCell(props: { dataView: "cards" | "printings"; siblings: Printing[] | undefined }) {
   return render(

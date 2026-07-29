@@ -2,6 +2,7 @@ import type { CardErrata, Marketplace, Printing, TimeRange } from "@openrift/sha
 import {
   ALL_MARKETPLACES,
   EUR_MARKETPLACES,
+  findStandardArtFallback,
   getOrientation,
   imageUrl,
   isBaseBanFormat,
@@ -30,8 +31,10 @@ import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { PricingSection } from "@/components/cards/card-detail/pricing";
 import { CardPlaceholderImage } from "@/components/cards/card-placeholder-image";
 import { CardText } from "@/components/cards/card-text";
+import { FallbackArtBadges } from "@/components/cards/fallback-art-badges";
 import { FinishIcon, hasFinishIcon } from "@/components/cards/finish-icon";
 import { TIME_RANGES } from "@/components/cards/price-history-chart-constants";
+import { SuggestImageNotice } from "@/components/cards/suggest-image-notice";
 import { Heading } from "@/components/heading";
 import { LanguageChip } from "@/components/language-chip";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -117,8 +120,8 @@ function CardDetailPage() {
   const isLandscape = getOrientation(card.types) === "landscape";
   const heroWidth = isLandscape ? 558 : 400;
   const heroHeight = isLandscape ? 400 : 558;
-  // Rendered when the printing has no image, and as the fallback when the
-  // hero image fails to load — both cases look identical.
+  // End of the hero's image chain: printing image → standard-art fallback →
+  // this drawn placeholder.
   const heroPlaceholder = (
     <CardPlaceholderImage
       name={card.name}
@@ -138,6 +141,30 @@ function CardDetailPage() {
       artist={selectedPrinting.artist}
       className="w-full rounded-xl"
     />
+  );
+
+  // Substitute artwork (same-language standard printing, else EN) shown when
+  // the selected printing has no image or its image fails to load. The nested
+  // ImgWithFallback keeps the drawn placeholder as the chain's last resort.
+  const heroFallbackArt = findStandardArtFallback(selectedPrinting, printings);
+  const heroFallback = heroFallbackArt ? (
+    <div className="relative">
+      <ImgWithFallback
+        src={imageUrl(heroFallbackArt.image.imageId, "400w")}
+        srcSet={`${imageUrl(heroFallbackArt.image.imageId, "400w")} 400w, ${imageUrl(heroFallbackArt.image.imageId, "full")} 800w`}
+        sizes="(min-width: 768px) 320px, 100vw"
+        width={heroWidth}
+        height={heroHeight}
+        fetchPriority="high"
+        alt={legendDisplayName(card)}
+        className="w-full rounded-xl"
+        fallback={heroPlaceholder}
+      />
+      <FallbackArtBadges printing={selectedPrinting} artPrinting={heroFallbackArt.printing} />
+      <SuggestImageNotice printing={selectedPrinting} />
+    </div>
+  ) : (
+    heroPlaceholder
   );
 
   // Info table rows: printing-specific on the left, card-level on the right.
@@ -290,10 +317,10 @@ function CardDetailPage() {
               fetchPriority="high"
               alt={legendDisplayName(card)}
               className="w-full rounded-xl"
-              fallback={heroPlaceholder}
+              fallback={heroFallback}
             />
           ) : (
-            heroPlaceholder
+            heroFallback
           )}
         </div>
 

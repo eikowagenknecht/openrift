@@ -14,7 +14,8 @@ export {
 } from "./filters.js";
 export type { SortCardsOptions } from "./filters.js";
 
-export { isStandardPrinting } from "./standard.js";
+export { findStandardArtFallback, isStandardPrinting } from "./standard.js";
+export type { StandardArtFallback } from "./standard.js";
 
 export { effectiveTournamentState } from "./tournament-lifecycle.js";
 export type { EffectiveTournamentState } from "./tournament-lifecycle.js";

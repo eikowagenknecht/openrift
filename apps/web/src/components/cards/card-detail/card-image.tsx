@@ -3,7 +3,10 @@ import { imageUrl, legendDisplayName } from "@openrift/shared";
 import { useState } from "react";
 
 import { CardPlaceholderImage } from "@/components/cards/card-placeholder-image";
+import { FallbackArtBadges } from "@/components/cards/fallback-art-badges";
 import { FoilOverlay } from "@/components/cards/foil-overlay";
+import { SuggestImageNotice } from "@/components/cards/suggest-image-notice";
+import { useStandardArtFallback } from "@/hooks/use-standard-art-fallback";
 import { LANDSCAPE_ROTATION_STYLE, needsCssRotation } from "@/lib/images";
 import { cn } from "@/lib/utils";
 
@@ -23,23 +26,40 @@ export function CardImage({
   showShimmer: boolean;
 }) {
   const { card } = printing;
+  const getFallbackArt = useStandardArtFallback();
   const frontImage = printing.images[0] ?? null;
   const [imgLoaded, setImgLoaded] = useState(false);
-  // A failed load (missing on the server, network error) falls back to the
-  // placeholder below. Keyed by URL so a different printing's image on a
-  // reused instance gets a fresh attempt.
-  const [failedUrl, setFailedUrl] = useState<string | null>(null);
-  const src = showImages && frontImage ? imageUrl(frontImage.imageId, "400w") : null;
-  const artSrc = src === failedUrl ? null : src;
+  // Failed loads (missing on the server, network error) accumulate here so the
+  // chain can advance: printing image → standard-art fallback → placeholder.
+  // Keyed by URL so a different printing's image on a reused instance gets a
+  // fresh attempt.
+  const [failedUrls, setFailedUrls] = useState<readonly string[]>([]);
+  const markFailed = (url: string) =>
+    setFailedUrls((prev) => (prev.includes(url) ? prev : [...prev, url]));
+  const primarySrc = showImages && frontImage ? imageUrl(frontImage.imageId, "400w") : null;
+  const fallback = showImages ? getFallbackArt(printing) : null;
+  const fallbackSrc = fallback === null ? null : imageUrl(fallback.image.imageId, "400w");
+  // The image actually shown: the printing's own, else the standard printing's
+  // artwork (marked by the FallbackArtBadges row), else null → drawn placeholder.
+  // A `const` so the narrowed type survives into the onLoad/onError closures
+  // below. `artSource` is the printing the art was borrowed from, non-null
+  // exactly when the art is a substitute.
+  const shown =
+    frontImage && primarySrc !== null && !failedUrls.includes(primarySrc)
+      ? { imageId: frontImage.imageId, src: primarySrc, artSource: null }
+      : fallback && fallbackSrc !== null && !failedUrls.includes(fallbackSrc)
+        ? { imageId: fallback.image.imageId, src: fallbackSrc, artSource: fallback.printing }
+        : null;
   // The pane is SSR'd, so the browser can finish the fetch before hydration
   // attaches the load/error listeners. Cover both outcomes via ref: a broken
   // image reports `complete` with naturalWidth 0.
+  const shownSrc = shown?.src;
   const coverCachedResult = (node: HTMLImageElement | null) => {
-    if (node?.complete) {
+    if (node?.complete && shownSrc !== undefined) {
       if (node.naturalWidth > 0) {
         setImgLoaded(true);
       } else {
-        setFailedUrl(artSrc);
+        markFailed(shownSrc);
       }
     }
   };
@@ -63,7 +83,7 @@ export function CardImage({
         }}
       >
         <div className="relative overflow-hidden" style={{ borderRadius: "inherit" }}>
-          {artSrc && frontImage ? (
+          {shown ? (
             <>
               <div className="aspect-card" />
               {needsCssRotation(orientation) ? (
@@ -76,8 +96,8 @@ export function CardImage({
                 >
                   <img
                     ref={coverCachedResult}
-                    src={artSrc}
-                    srcSet={`${imageUrl(frontImage.imageId, "400w")} 400w, ${imageUrl(frontImage.imageId, "full")} 800w`}
+                    src={shown.src}
+                    srcSet={`${imageUrl(shown.imageId, "400w")} 400w, ${imageUrl(shown.imageId, "full")} 800w`}
                     sizes="(min-width: 768px) 376px, 100vw"
                     width={558}
                     height={400}
@@ -85,14 +105,14 @@ export function CardImage({
                     alt={legendDisplayName(card)}
                     className="size-full object-cover"
                     onLoad={() => setImgLoaded(true)}
-                    onError={() => setFailedUrl(artSrc)}
+                    onError={() => markFailed(shown.src)}
                   />
                 </div>
               ) : (
                 <img
                   ref={coverCachedResult}
-                  src={artSrc}
-                  srcSet={`${imageUrl(frontImage.imageId, "400w")} 400w, ${imageUrl(frontImage.imageId, "full")} 800w`}
+                  src={shown.src}
+                  srcSet={`${imageUrl(shown.imageId, "400w")} 400w, ${imageUrl(shown.imageId, "full")} 800w`}
                   sizes="(min-width: 768px) 376px, 100vw"
                   width={400}
                   height={558}
@@ -103,8 +123,11 @@ export function CardImage({
                     imgLoaded ? "opacity-100" : "opacity-0",
                   )}
                   onLoad={() => setImgLoaded(true)}
-                  onError={() => setFailedUrl(artSrc)}
+                  onError={() => markFailed(shown.src)}
                 />
+              )}
+              {shown.artSource !== null && (
+                <FallbackArtBadges printing={printing} artPrinting={shown.artSource} />
               )}
             </>
           ) : (
@@ -126,6 +149,7 @@ export function CardImage({
               artist={printing.artist}
             />
           )}
+          <SuggestImageNotice printing={printing} />
         </div>
         {showFoil && <FoilOverlay active shimmer={showShimmer} />}
         {!printing.setReleased && (

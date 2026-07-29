@@ -23,7 +23,6 @@ import {
 import type { CardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { CardThumbnail, useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { StaticCountTableActions } from "@/components/cards/static-count-table-actions";
-import { SuggestImageOverlay } from "@/components/cards/suggest-image-overlay";
 import type { PageTocItem } from "@/components/layout/page-toc";
 import { PageToc } from "@/components/layout/page-toc";
 import {
@@ -952,7 +951,6 @@ function LeafSection({
                 display={display}
                 sizes={PROMOS_CARD_SIZES}
                 belowLabel={<MarkerChips printing={printing} />}
-                imageOverlay={<SuggestImageOverlay printing={printing} />}
                 aboveCard={ownedCounts ? <CardCountStrip count={ownedCount} /> : undefined}
                 dimmed={ownedCounts ? ownedCount === 0 : undefined}
               />
@@ -1004,7 +1002,6 @@ function FlatSection({
                 display={display}
                 sizes={PROMOS_CARD_SIZES}
                 belowLabel={<MarkerChips printing={printing} />}
-                imageOverlay={<SuggestImageOverlay printing={printing} />}
                 aboveCard={ownedCounts ? <CardCountStrip count={ownedCount} /> : undefined}
                 dimmed={ownedCounts ? ownedCount === 0 : undefined}
               />
@@ -1143,7 +1140,6 @@ function CompactBranchGrid({
                 display={display}
                 sizes={PROMOS_CARD_SIZES}
                 belowLabel={<MarkerChips printing={printing} />}
-                imageOverlay={<SuggestImageOverlay printing={printing} />}
                 aboveCard={ownedCounts ? <CardCountStrip count={ownedCount} /> : undefined}
                 dimmed={ownedCounts ? ownedCount === 0 : undefined}
               />

@@ -1,12 +1,20 @@
 import { imageUrl } from "@openrift/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render } from "@testing-library/react";
-import type { PropsWithChildren } from "react";
-import { describe, expect, it } from "vitest";
+import type { PropsWithChildren, ReactNode } from "react";
+import { describe, expect, it, vi } from "vitest";
 
 import { stubPrinting } from "@/test/factories";
 
 import { CardImage } from "./card-image";
+
+// The suggest-image notice renders a router Link; there is no router in these
+// tests, so swap it for a plain styled span.
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({ children, className }: { children: ReactNode; className?: string }) => (
+    <span className={className}>{children}</span>
+  ),
+}));
 
 function makeWrapper() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });

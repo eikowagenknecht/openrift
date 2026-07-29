@@ -1,13 +1,21 @@
-import type { Printing } from "@openrift/shared";
+import type { Printing, StandardArtFallback } from "@openrift/shared";
 import { EMPTY_PRICE_LOOKUP } from "@openrift/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render } from "@testing-library/react";
-import type { PropsWithChildren } from "react";
+import type { PropsWithChildren, ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { CardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { CardThumbnail } from "@/components/cards/card-thumbnail";
 import { stubPrinting } from "@/test/factories";
+
+// The fallback-art overlay renders the "Suggest image" Link; there is no
+// router in these tests, so swap it for a plain styled span.
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({ children, className }: { children: ReactNode; className?: string }) => (
+    <span className={className}>{children}</span>
+  ),
+}));
 
 // CardPlaceholderImage reads domain colors through a suspense query, so tests
 // that render placeholder art need a QueryClient with the init data seeded.
@@ -41,9 +49,11 @@ const baseDisplay: CardThumbnailDisplay = {
   domainColors: {},
   finishLabels: {},
   sizeLabels: {},
+  rarityLabels: {},
   prices: EMPTY_PRICE_LOOKUP,
   favoriteMarketplace: "cardtrader",
   compactFmt: String,
+  getFallbackArt: () => null,
 };
 
 function makePrintingWithImage(slug: string): Printing {
@@ -255,6 +265,152 @@ describe("CardThumbnail image error fallback", () => {
     expect(placeholder?.closest('[aria-hidden="true"]')).not.toBeNull();
     // The front card's image is untouched by the sibling's failure.
     expect(container.querySelector('img[src*="RB1-001-image"]')).not.toBeNull();
+  });
+});
+
+describe("CardThumbnail standard-art fallback", () => {
+  function fallbackTo(imageId: string, language: string): StandardArtFallback {
+    const image = { face: "front" as const, imageId };
+    const printing = stubPrinting({ language, images: [image] });
+    return { printing, image };
+  }
+  it("shows the fallback art with the centered notice instead of placeholder art", () => {
+    const printing = stubPrinting({ card: { slug: "RB1-040" }, images: [] });
+    const { container } = render(
+      <CardThumbnail
+        printing={printing}
+        onClick={() => {}}
+        showImages
+        display={{ ...baseDisplay, getFallbackArt: () => fallbackTo("fallback-image-id", "EN") }}
+      />,
+      { wrapper: makeWrapper() },
+    );
+    expect(container.querySelector('img[src*="fallback-image-id"]')).not.toBeNull();
+    expect(container.querySelector('[role="img"]')).toBeNull();
+    expect(container.textContent).toContain("Placeholder");
+    expect(container.textContent).toContain("(suggest image)");
+    // Same-language borrow: no language badge.
+    expect(container.textContent).not.toContain("EN");
+  });
+
+  it("adds a language badge when the borrowed art crossed languages", () => {
+    const printing = stubPrinting({ card: { slug: "RB1-045" }, images: [], language: "SC" });
+    const { container } = render(
+      <CardThumbnail
+        printing={printing}
+        onClick={() => {}}
+        showImages
+        display={{ ...baseDisplay, getFallbackArt: () => fallbackTo("fallback-image-id", "EN") }}
+      />,
+      { wrapper: makeWrapper() },
+    );
+    expect(container.textContent).toContain("EN");
+  });
+
+  it("adds a badge per property the shown art doesn't depict (markers, signed)", () => {
+    const printing = stubPrinting({
+      card: { slug: "RB1-046" },
+      images: [],
+      markers: [{ id: "m1", slug: "promo", label: "Promo", description: null }],
+      isSigned: true,
+    });
+    const { container } = render(
+      <CardThumbnail
+        printing={printing}
+        onClick={() => {}}
+        showImages
+        display={{ ...baseDisplay, getFallbackArt: () => fallbackTo("fallback-image-id", "EN") }}
+      />,
+      { wrapper: makeWrapper() },
+    );
+    expect(container.textContent).toContain("Promo");
+    expect(container.textContent).toContain("Signed");
+  });
+
+  it("keeps the drawn placeholder (with the notice) when no fallback art resolves", () => {
+    const printing = stubPrinting({ card: { slug: "RB1-041" }, images: [] });
+    const { container } = render(
+      <CardThumbnail printing={printing} onClick={() => {}} showImages display={baseDisplay} />,
+      { wrapper: makeWrapper() },
+    );
+    expect(container.querySelector('[role="img"]')).not.toBeNull();
+    // The wording holds for the drawn placeholder too, so the notice stays.
+    expect(container.textContent).toContain("(suggest image)");
+  });
+
+  it("keeps the notice outside the dimmed image layer on unowned cards", () => {
+    const printing = stubPrinting({ card: { slug: "RB1-047" }, images: [] });
+    const { container } = render(
+      <CardThumbnail
+        printing={printing}
+        onClick={() => {}}
+        showImages
+        dimmed
+        display={{ ...baseDisplay, getFallbackArt: () => fallbackTo("fallback-image-id", "EN") }}
+      />,
+      { wrapper: makeWrapper() },
+    );
+    const notice = container.querySelector('a, [class*="pointer-events-auto"]');
+    expect(notice).not.toBeNull();
+    // The unowned dim lives on the image section; the notice must not sit
+    // inside that opacity-50 subtree.
+    expect(notice?.closest(".opacity-50")).toBeNull();
+  });
+
+  it("advances from a failed printing image to the fallback art", () => {
+    const printing = makePrintingWithImage("RB1-042");
+    const { container } = render(
+      <CardThumbnail
+        printing={printing}
+        onClick={() => {}}
+        showImages
+        display={{ ...baseDisplay, getFallbackArt: () => fallbackTo("fallback-image-id", "EN") }}
+      />,
+      { wrapper: makeWrapper() },
+    );
+    const img = container.querySelector('img[src*="RB1-042"]');
+    if (!img) {
+      throw new Error("front image not found");
+    }
+    fireEvent.error(img);
+    expect(container.querySelector('img[src*="fallback-image-id"]')).not.toBeNull();
+    expect(container.querySelector('[role="img"]')).toBeNull();
+  });
+
+  it("falls back to placeholder art when the fallback image also fails to load", () => {
+    const printing = stubPrinting({ card: { slug: "RB1-043" }, images: [] });
+    const { container } = render(
+      <CardThumbnail
+        printing={printing}
+        onClick={() => {}}
+        showImages
+        display={{ ...baseDisplay, getFallbackArt: () => fallbackTo("fallback-image-id", "EN") }}
+      />,
+      { wrapper: makeWrapper() },
+    );
+    const img = container.querySelector('img[src*="fallback-image-id"]');
+    if (!img) {
+      throw new Error("fallback image not found");
+    }
+    fireEvent.error(img);
+    expect(container.querySelector('[role="img"]')).not.toBeNull();
+    expect(container.querySelector('img[src*="fallback-image-id"]')).toBeNull();
+  });
+
+  it("does not resolve fallback art when images are hidden", () => {
+    const printing = stubPrinting({ card: { slug: "RB1-044" }, images: [] });
+    const getFallbackArt = vi.fn(() => fallbackTo("fallback-image-id", "EN"));
+    const { container } = render(
+      <CardThumbnail
+        printing={printing}
+        onClick={() => {}}
+        showImages={false}
+        display={{ ...baseDisplay, getFallbackArt }}
+      />,
+      { wrapper: makeWrapper() },
+    );
+    expect(getFallbackArt).not.toHaveBeenCalled();
+    expect(container.querySelector('[role="img"]')).not.toBeNull();
   });
 });
 

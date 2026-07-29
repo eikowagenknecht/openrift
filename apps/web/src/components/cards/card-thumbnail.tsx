@@ -13,8 +13,10 @@ import { memo, useEffect, useRef, useState } from "react";
 import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { CardMetaLabel } from "@/components/cards/card-meta-label";
 import { CardPlaceholderImage } from "@/components/cards/card-placeholder-image";
+import { FallbackArtBadges } from "@/components/cards/fallback-art-badges";
 import { FinishIcon } from "@/components/cards/finish-icon";
 import { FoilOverlay } from "@/components/cards/foil-overlay";
+import { SuggestImageNotice } from "@/components/cards/suggest-image-notice";
 import { Pressable } from "@/components/ui/pressable";
 import { useCardTilt } from "@/hooks/use-card-tilt";
 import { useCoarsePointer } from "@/hooks/use-coarse-pointer";
@@ -23,6 +25,8 @@ import { useEnumOrders } from "@/hooks/use-enums";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { usePrices } from "@/hooks/use-prices";
+import type { GetStandardArtFallback } from "@/hooks/use-standard-art-fallback";
+import { useStandardArtFallback } from "@/hooks/use-standard-art-fallback";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { compactFormatterForMarketplace, priceColorClass } from "@/lib/format";
 import { LANDSCAPE_ROTATION_STYLE, needsCssRotation } from "@/lib/images";
@@ -44,9 +48,16 @@ export interface CardThumbnailDisplay {
   domainColors: Record<string, string>;
   finishLabels: Record<string, string>;
   sizeLabels: Record<string, string>;
+  rarityLabels: Record<string, string>;
   prices: PriceLookup;
   favoriteMarketplace: Marketplace;
   compactFmt: (n: number) => string;
+  /**
+   * Resolves substitute artwork (the standard printing's image, same language
+   * else EN) for printings without a loadable image of their own. See
+   * {@link useStandardArtFallback}.
+   */
+  getFallbackArt: GetStandardArtFallback;
 }
 
 /**
@@ -77,6 +88,7 @@ export function useCardThumbnailDisplay(): CardThumbnailDisplay {
   const domainColors = useDomainColors();
   const { labels } = useEnumOrders();
   const prices = usePrices();
+  const getFallbackArt = useStandardArtFallback();
   const favoriteMarketplace = marketplaceOrder[0] ?? "cardtrader";
   return {
     fancyFan,
@@ -86,9 +98,11 @@ export function useCardThumbnailDisplay(): CardThumbnailDisplay {
     domainColors,
     finishLabels: labels.finishes,
     sizeLabels: labels.cardSizes,
+    rarityLabels: labels.rarities,
     prices,
     favoriteMarketplace,
     compactFmt: compactFormatterForMarketplace(favoriteMarketplace),
+    getFallbackArt,
   };
 }
 
@@ -108,6 +122,16 @@ const PROMO_MARKER_SLUG = "promo";
  */
 function promoMarkerLabel(printing: Printing): string | undefined {
   return printing.markers.find((m) => m.slug === PROMO_MARKER_SLUG)?.label;
+}
+
+/**
+ * Full responsive ladder for a card image, so the browser can pick a smaller
+ * variant for tight cells (DPR-1 phones, dense desktop grids) without
+ * sacrificing sharpness on larger ones.
+ * @returns The srcSet string covering every generated size.
+ */
+function cardSrcSet(imageId: string): string {
+  return `${imageUrl(imageId, "120w")} 120w, ${imageUrl(imageId, "240w")} 240w, ${imageUrl(imageId, "400w")} 400w, ${imageUrl(imageId, "full")} 800w`;
 }
 
 const TILT_STYLE = {
@@ -268,6 +292,7 @@ function CardImageContent({
   promoLabel,
   card,
   showFoil,
+  fallbackArt,
 }: {
   thumbnailUrl: string | null;
   srcSet: string | undefined;
@@ -296,12 +321,26 @@ function CardImageContent({
     flavorText?: string | null;
   };
   showFoil: boolean;
+  /**
+   * Substitute artwork tried before the drawn placeholder. `overlay` is the
+   * pre-composed {@link FallbackArtBadges} row marking what the borrowed art
+   * doesn't depict.
+   */
+  fallbackArt: { imageId: string; overlay: ReactNode } | null;
 }) {
-  // A failed load (missing on the server, network error) falls back to the
-  // placeholder below. Keyed by URL so a changed image on a reused instance
-  // gets a fresh attempt.
-  const [failedUrl, setFailedUrl] = useState<string | null>(null);
-  const artUrl = thumbnailUrl === failedUrl ? null : thumbnailUrl;
+  // Failed loads (missing on the server, network error) accumulate here so the
+  // chain can advance: printing image → standard-art fallback → placeholder.
+  // Keyed by URL so a changed image on a reused instance gets a fresh attempt.
+  const [failedUrls, setFailedUrls] = useState<readonly string[]>([]);
+  const markFailed = (url: string) =>
+    setFailedUrls((prev) => (prev.includes(url) ? prev : [...prev, url]));
+  const artUrl = thumbnailUrl !== null && !failedUrls.includes(thumbnailUrl) ? thumbnailUrl : null;
+  const fallbackCandidate =
+    fallbackArt === null ? null : { ...fallbackArt, url: imageUrl(fallbackArt.imageId, "400w") };
+  const shownFallback =
+    artUrl === null && fallbackCandidate !== null && !failedUrls.includes(fallbackCandidate.url)
+      ? fallbackCandidate
+      : null;
   return (
     <>
       {artUrl ? (
@@ -314,10 +353,27 @@ function CardImageContent({
           loading={priority ? "eager" : "lazy"}
           fetchPriority={priority ? "high" : undefined}
           onLoad={onImgLoad}
-          onError={() => setFailedUrl(artUrl)}
+          onError={() => markFailed(artUrl)}
           loaded={imgLoaded}
           spacerClassName="bg-muted/40"
         />
+      ) : shownFallback ? (
+        <>
+          <CardArtImage
+            thumbnailUrl={shownFallback.url}
+            srcSet={cardSrcSet(shownFallback.imageId)}
+            sizes={sizes}
+            alt={alt}
+            rotated={rotated}
+            loading={priority ? "eager" : "lazy"}
+            fetchPriority={priority ? "high" : undefined}
+            onLoad={onImgLoad}
+            onError={() => markFailed(shownFallback.url)}
+            loaded={imgLoaded}
+            spacerClassName="bg-muted/40"
+          />
+          {shownFallback.overlay}
+        </>
       ) : (
         <CardPlaceholderImage
           name={card.name}
@@ -520,13 +576,19 @@ export const CardThumbnail = memo(function CardThumbnail({
   // cascade into re-creating the `<CardImageContent>` JSX on every render.
   const orientation = getOrientation(printing.card.types);
   const thumbnailUrl = showImages && frontImage ? imageUrl(frontImage.imageId, "400w") : null;
-  // Full ladder so the browser can pick a smaller variant for tight cells
-  // (DPR-1 phones, dense desktop grids) without sacrificing sharpness on
-  // larger ones.
-  const srcSet =
-    showImages && frontImage
-      ? `${imageUrl(frontImage.imageId, "120w")} 120w, ${imageUrl(frontImage.imageId, "240w")} 240w, ${imageUrl(frontImage.imageId, "400w")} 400w, ${imageUrl(frontImage.imageId, "full")} 800w`
-      : undefined;
+  const srcSet = showImages && frontImage ? cardSrcSet(frontImage.imageId) : undefined;
+  // Resolved for every cell (cheap map lookup + small scan) because the image
+  // chain also falls back on runtime load errors, not just missing images.
+  const standardArtFallback = showImages ? display.getFallbackArt(printing) : null;
+  const fallbackArt =
+    standardArtFallback === null
+      ? null
+      : {
+          imageId: standardArtFallback.image.imageId,
+          overlay: (
+            <FallbackArtBadges printing={printing} artPrinting={standardArtFallback.printing} />
+          ),
+        };
   const rotated = needsCssRotation(orientation);
   // Priority images are LCP candidates the SSR shell already painted via
   // <FirstRowPreview>'s real <img> tags, so the browser has them cached.
@@ -543,12 +605,14 @@ export const CardThumbnail = memo(function CardThumbnail({
     domainColors,
     finishLabels,
     sizeLabels,
+    rarityLabels,
     prices,
     favoriteMarketplace,
   } = display;
   const favoritePrice = prices.get(printing.id, favoriteMarketplace);
   const isFoilCard = printing.finish === WellKnown.finish.FOIL;
   const finishTitle = finishLabels[printing.finish] ?? printing.finish;
+  const rarityTitle = rarityLabels[printing.rarity] ?? printing.rarity;
   const isOversized = printing.size !== WellKnown.cardSize.STANDARD;
   const sizeLabel = sizeLabels[printing.size] ?? printing.size;
   const tiltEnabled = cardTilt && !coarsePointer;
@@ -645,10 +709,7 @@ export const CardThumbnail = memo(function CardThumbnail({
         const siblingImageId =
           showSiblingFaces && showImages ? (sibling.images[0]?.imageId ?? null) : null;
         const siblingSrc = siblingImageId === null ? null : imageUrl(siblingImageId, "400w");
-        const siblingSrcSet =
-          siblingImageId === null
-            ? undefined
-            : `${imageUrl(siblingImageId, "120w")} 120w, ${imageUrl(siblingImageId, "240w")} 240w, ${imageUrl(siblingImageId, "400w")} 400w, ${imageUrl(siblingImageId, "full")} 800w`;
+        const siblingSrcSet = siblingImageId === null ? undefined : cardSrcSet(siblingImageId);
         const siblingSizes = cardWidth ? `${Math.round(cardWidth - 12)}px` : sizesOverride;
         // Imageless (and failed-image) printings get the same placeholder art
         // the front card uses, so the fan doesn't open onto bare gray
@@ -761,6 +822,7 @@ export const CardThumbnail = memo(function CardThumbnail({
             promoLabel={promoMarkerLabel(printing)}
             card={card}
             showFoil={isFoilCard && gridFoil}
+            fallbackArt={fallbackArt}
           />
         </div>
         {banDim}
@@ -803,9 +865,8 @@ export const CardThumbnail = memo(function CardThumbnail({
       <CardMetaLabel
         shortCode={printing.shortCode}
         name={displayName}
-        types={card.types}
-        superTypes={card.superTypes}
         rarity={printing.rarity}
+        rarityTitle={rarityTitle}
         finish={printing.finish}
         finishTitle={finishTitle}
         oversized={isOversized}
@@ -869,6 +930,9 @@ export const CardThumbnail = memo(function CardThumbnail({
           {imageSection}
         </Pressable>
         {imageOverlay}
+        {/* Sibling of the image (not inside it) so the unowned opacity-50 dim
+            on imageSection never greys the notice out. */}
+        <SuggestImageNotice printing={printing} />
       </div>
       {labelSection}
       {belowLabel}
