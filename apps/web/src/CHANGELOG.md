@@ -5,6 +5,7 @@
 ### Other
 
 - fix(Cards): **Search inside the More filters** — typing in a filter's search box under More did nothing because the menu grabbed the keystrokes, the text now lands in the box.
+- fix(Collection): **Library stays open while you switch** — the "show whole library" button no longer switches itself off every time you move to another collection or list.
 
 ## 2026-07-28
 

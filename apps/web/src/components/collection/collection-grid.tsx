@@ -67,6 +67,7 @@ import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/rout
 import { useAddModeStore } from "@/stores/add-mode-store";
 import type { CollectionContextAction } from "@/stores/card-row-actions-store";
 import { useDisplayStore } from "@/stores/display-store";
+import { useLibraryToggle } from "@/stores/library-toggle-store";
 import { useOnboardingStore } from "@/stores/onboarding-store";
 import { useSelectionStore } from "@/stores/selection-store";
 import { useSiblingOverrideStore } from "@/stores/sibling-override-store";
@@ -101,10 +102,11 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   // ── Mode state ──────────────────────────────────────────────────────
   // `showLibrary` widens the grid from "cards in this collection" to "every
   // card in the catalog", with unowned cards rendered as a + affordance only.
-  // Per-session local state so a fresh page load always starts in the
-  // collection-only view; the toggle never persists.
+  // Per-session state (see library-toggle-store): it survives collection
+  // switches so browsing the library isn't interrupted, but a fresh page load
+  // always starts in the collection-only view; the toggle never persists.
   const [selectMode, setSelectMode] = useState(false);
-  const [showLibrary, setShowLibrary] = useState(false);
+  const [showLibrary, setShowLibrary] = useLibraryToggle("collection");
   const mode = selectMode ? "select" : "browse";
 
   // ── Filter state (active in all modes) ──────────────────────────────
@@ -322,12 +324,13 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
 
   // Switching collections drops any in-progress selection — a selected
   // copy from the previous collection wouldn't be visible in the new grid,
-  // and the floating action bar would operate on invisible rows. The
-  // library toggle is per-session by design, so it resets too. Sibling
+  // and the floating action bar would operate on invisible rows. Sibling
   // overrides also reset because pinned variants are scoped to this view.
+  // The library toggle deliberately does NOT reset: someone adding cards to
+  // several collections in a row would otherwise have to turn it back on
+  // after every switch.
   useEffect(() => {
     setSelectMode(false);
-    setShowLibrary(false);
     // Re-arm the auto-library one-shot so an empty target collection opens in
     // library mode again after a switch.
     setAutoLibraryApplied(false);

@@ -10,7 +10,7 @@ import {
   Trash2Icon,
   UploadIcon,
 } from "lucide-react";
-import { use, useEffect, useState } from "react";
+import { use, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 
@@ -45,6 +45,7 @@ import {
 } from "@/hooks/use-lists";
 import { cn } from "@/lib/utils";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
+import { useLibraryToggle } from "@/stores/library-toggle-store";
 
 interface ListPageProps {
   listId: string;
@@ -76,15 +77,11 @@ export function ListPage({ listId }: ListPageProps) {
   // so the user can add cards. Copy-kind lists can't add via the catalog (a
   // "copy" only exists inside a collection; the float-bar / sidebar DnD are
   // the canonical paths), so the toggle is hidden for them.
-  const [showLibrary, setShowLibrary] = useState(false);
+  // The value lives in library-toggle-store, so it survives switching lists
+  // (adding cards to several lists in a row shouldn't mean turning the
+  // library back on each time) but still starts off on a fresh page load.
+  const [showLibrary, setShowLibrary] = useLibraryToggle("list");
   const showLibraryActive = showLibrary && data.list.kind !== "copy";
-
-  // Switching lists resets the toggle so the user doesn't land in library
-  // view on the new list by surprise. Mirrors the same reset the collection
-  // grid does on collectionId change.
-  useEffect(() => {
-    setShowLibrary(false);
-  }, [listId]);
 
   const handleDelete = () => {
     deleteList.mutate(listId, {
