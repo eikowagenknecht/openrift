@@ -20,6 +20,8 @@ import { buildCardIndex, findCard, searchCards } from "./card-search.js";
 import type { CatalogCache, CatalogCard } from "./catalog-cache.js";
 import { buildDeckEmbed, deckImportUrl, fetchDeckImage, resolveDeckEntries } from "./deck-embed.js";
 import type { BotEnv } from "./env.js";
+import type { GlyphEmojis } from "./glyph-emoji.js";
+import { fetchGlyphEmojis, NO_GLYPH_EMOJIS } from "./glyph-emoji.js";
 import { extractCardReferences } from "./message-scan.js";
 import { printingChoices, resolvePrinting } from "./printing-choice.js";
 import { buildRuleEmbed } from "./rule-embed.js";
@@ -88,6 +90,9 @@ interface BotContext {
   rules: RulesCache;
 }
 
+/** Glyph emojis of the logged-in application, resolved once on ready; empty until then. */
+let glyphEmojis: GlyphEmojis = NO_GLYPH_EMOJIS;
+
 /** Search index rebuilt lazily per snapshot, so refreshes stay cheap until a lookup happens. */
 let cachedIndex: { snapshot: unknown; index: CardIndex } | null = null;
 
@@ -139,7 +144,14 @@ async function embedForCard(ctx: BotContext, card: CatalogCard, printingInput?: 
   }
   const printing = resolvePrinting(snapshot, card, printingInput);
   const marketplaceInfo = await marketplaceInfoFor(ctx.api, printing?.id);
-  return buildCardEmbed({ card, printing, snapshot, marketplaceInfo, siteUrl: ctx.env.siteUrl });
+  return buildCardEmbed({
+    card,
+    printing,
+    snapshot,
+    marketplaceInfo,
+    emojis: glyphEmojis,
+    siteUrl: ctx.env.siteUrl,
+  });
 }
 
 async function handleAutocomplete(ctx: BotContext, interaction: AutocompleteInteraction) {
@@ -335,6 +347,14 @@ export function createBot(ctx: BotContext): Client {
       await readyClient.application.commands.set([CARD_COMMAND, DECK_COMMAND, RULE_COMMAND]);
     } catch (error) {
       console.error("Failed to register slash commands", error);
+    }
+    // Card text renders glyphs as the app's own emojis; a failed fetch (or an
+    // app they were never uploaded to) just falls back to plain words.
+    try {
+      glyphEmojis = await fetchGlyphEmojis(readyClient);
+      console.log(`Glyph emojis loaded: ${glyphEmojis.size}`);
+    } catch (error) {
+      console.error("Failed to load glyph emojis, card text will use plain words", error);
     }
   });
 

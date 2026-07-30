@@ -11,7 +11,9 @@ The card entry points also accept printing codes (`OGN-202`, `ogn202`, `OGN-202/
 
 Each `printing` choice reads `public code · set · variant`, where the variant part comes from `formatPrintingVariantLabelParts` in `packages/shared` — the same helper behind the site's printing picker. It names only what tells a printing from its siblings (language, art variant, finish, size, signature, markers), so a standard and a foil print of one card no longer read identically, and typing "foil" narrows the list. The embed footer carries the same label, so the reply says which printing it is showing. Two exceptions to the shared rules: a language is shown for any non-English printing (the bot has no other language cue), and the plain print of a card with several printings is spelled out as "Standard" so it pairs visibly with its labeled siblings.
 
-Card lookups reply with an embed: the card name linking to its OpenRift card page, a compact stat line, the front image of the card's canonical printing, and the latest price per marketplace. A printing without an image of its own borrows the standard printing's artwork (same language, else EN) like the site's card browser, with the differences noted under the stat line (e.g. "Standard-printing artwork shown (differs: EN, Promo)"). Price links go to the marketplace product page and carry the affiliate tag where the marketplace has one (TCGplayer partner redirect, CardTrader share code); when no product mapping exists they fall back to a marketplace search for the card name.
+Card lookups reply with an embed: the card name linking to its OpenRift card page, a compact stat line, the card's text, the front image of the card's canonical printing, and the latest price per marketplace.
+
+The text blocks mirror the site's card panel: rules text, effect text (with the might bonus that shares its box), and flavor text, each as its own embed field above the prices. Errata replace the printed rules and effect text, with a one-line credit naming the source and month, linked when the errata has a source URL (the original printed text stays off the embed — it lives behind a disclosure on the site). Card-text markup is rendered, not shown raw: `[Reaction]` keyword chips become inline code (the closest Discord has to the site's chip; a chip carrying a glyph, like `[Repeat :rb_energy_2:]`, breaks around it, since a code span would print the emoji literally), `_(reminder text)_` stays italic, the `[>]` chip-shape markers are dropped, and `:rb_might:`-style glyphs become the application's custom emojis (see below) or, when those aren't uploaded, plain words like "Might" and "1 energy". A printing without an image of its own borrows the standard printing's artwork (same language, else EN) like the site's card browser, with the differences noted under the stat line (e.g. "Standard-printing artwork shown (differs: EN, Promo)"). Price links go to the marketplace product page and carry the affiliate tag where the marketplace has one (TCGplayer partner redirect, CardTrader share code); when no product mapping exists they fall back to a marketplace search for the card name.
 
 ## How it works
 
@@ -22,6 +24,7 @@ The bot has no database access and no exposed ports. It reads everything from th
 - Per lookup it fetches `GET /api/v1/prices/marketplace-info` for the card's representative printing to resolve marketplace product ids. A failed lookup degrades to search links, never an error.
 - `/deck` decodes the code locally with the shared `parsePiltoverDeckCode` (from `@openrift/shared`, the same parser the site's deck import uses), resolves short codes against the catalog snapshot, and infers zones with the shared `inferZone`. The deck image comes from `POST /api/v1/decks/image` (the public from-cards renderer) and is attached to the reply; a failed render just drops the image, never the reply. Invalid codes get an ephemeral reply, so failed attempts don't clutter the channel.
 - Embed image URLs and card links are built from `SITE_URL`, so prod and preview each link to their own domain.
+- On login it reads the application's `rb_`-prefixed emojis once and keeps them in memory for card-text rendering. A failed fetch is logged and the text falls back to words.
 
 A failed catalog refresh keeps the previous snapshot. If the catalog can't be fetched at startup (API still booting), the bot retries every 15 seconds before logging in to Discord.
 
@@ -40,6 +43,18 @@ A failed catalog refresh keeps the previous snapshot. If the catalog can't be fe
    The permissions value covers View Channels, Send Messages, Send Messages in Threads, Embed Links, and Read Message History.
 
 The slash commands register themselves globally on every startup — no separate registration step. First-time global registration can take a few minutes to show up in clients.
+
+### Glyph emojis (one-time per application)
+
+Card text uses glyphs (`:rb_might:`, `:rb_energy_2:`, `:rb_rune_fury:`). The bot renders them as **application-owned emojis**, which work in every server the app is in without uploading anything per guild. Upload them once per application (prod and dev have separate tokens, so run it once with each):
+
+```bash
+bun run discord:emojis              # uses DISCORD_BOT_TOKEN from .env
+bun run discord:emojis -- --dry-run # render only, no upload — checks the artwork
+bun run discord:emojis -- --force   # replace the ones already uploaded
+```
+
+The script rasterizes the site's own glyph SVGs (`apps/web/public/images/glyphs`) at 128px and draws one badge per energy cost, then uploads each as `rb_<glyph>`. The two monochrome glyphs (might, exhaust) get a dark outline so they read on both Discord themes. The bot reads the set on startup (`Glyph emojis loaded: N` in the logs); anything missing falls back to plain words, so a skipped upload degrades the text instead of breaking it.
 
 ## Running it
 

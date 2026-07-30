@@ -1,8 +1,11 @@
 import type { Marketplace, MarketplaceInfoResponse } from "@openrift/shared";
 import { findStandardArtFallback, imageUrl, MARKETPLACE_LINKS, WellKnown } from "@openrift/shared";
-import type { APIEmbed } from "discord.js";
+import type { APIEmbed, APIEmbedField } from "discord.js";
 
+import { formatCardText } from "./card-text.js";
 import type { CatalogCard, CatalogPrinting, CatalogSnapshot, EnumLabels } from "./catalog-cache.js";
+import type { GlyphEmojis } from "./glyph-emoji.js";
+import { NO_GLYPH_EMOJIS } from "./glyph-emoji.js";
 import { printingVariantParts } from "./printing-choice.js";
 
 /** The brand green also used by the changelog webhook embeds. */
@@ -11,12 +14,17 @@ export const EMBED_COLOR = 0x24_70_5f;
 /** Marketplaces in the order the site's price section shows them. */
 const MARKETPLACE_ORDER: readonly Marketplace[] = ["tcgplayer", "cardmarket", "cardtrader"];
 
+/** Discord's per-field value cap. */
+const FIELD_LIMIT = 1024;
+
 export interface CardEmbedInput {
   card: CatalogCard;
   printing: CatalogPrinting | undefined;
   snapshot: CatalogSnapshot;
   /** Per-marketplace product availability for the printing; optional so a failed lookup degrades to search links. */
   marketplaceInfo?: MarketplaceInfoResponse["infos"][string];
+  /** Glyph token → custom emoji mention; defaults to none, which renders glyphs as words. */
+  emojis?: GlyphEmojis;
   siteUrl: string;
 }
 
@@ -164,10 +172,80 @@ function printingFooter(printing: CatalogPrinting, snapshot: CatalogSnapshot): s
   return parts.join(" · ");
 }
 
+function truncate(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
+}
+
+/**
+ * The one-line errata credit under a corrected text block, mirroring the
+ * site's `ErrataNotice` header: the source (linked when it has a URL) and the
+ * effective month. The original printed text stays off the embed — it lives
+ * behind a disclosure on the site, and the embed has no disclosures.
+ *
+ * @returns The credit line.
+ */
+function errataNote(errata: NonNullable<CatalogCard["errata"]>): string {
+  const label = errata.effectiveDate
+    ? `${errata.source}, ${errata.effectiveDate.slice(0, 7)}`
+    : errata.source;
+  return `*Errata (${errata.sourceUrl ? `[${label}](${errata.sourceUrl})` : label})*`;
+}
+
+/**
+ * The card's text blocks, in the order the site's card panel stacks them:
+ * rules text, effect text (with the might bonus that shares its box), and
+ * flavor text. Errata replace the printed rules and effect text, as on the
+ * site, with a credit line when they differ from what was printed.
+ *
+ * @returns Zero to three full-width embed fields.
+ */
+export function cardTextFields(
+  card: CatalogCard,
+  printing: CatalogPrinting | undefined,
+  emojis: GlyphEmojis,
+): APIEmbedField[] {
+  const fields: APIEmbedField[] = [];
+  const { errata } = card;
+
+  const rulesText = errata?.correctedRulesText ?? printing?.printedRulesText;
+  if (rulesText) {
+    const corrected =
+      Boolean(errata?.correctedRulesText) && rulesText !== printing?.printedRulesText;
+    const value = [
+      formatCardText(rulesText, emojis),
+      ...(corrected && errata ? [errataNote(errata)] : []),
+    ].join("\n");
+    fields.push({ name: "Rules text", value: truncate(value, FIELD_LIMIT) });
+  }
+
+  const effectText = errata?.correctedEffectText ?? printing?.printedEffectText;
+  const mightBonus = card.mightBonus !== null && card.mightBonus > 0 ? card.mightBonus : null;
+  if (effectText || mightBonus !== null) {
+    const corrected =
+      Boolean(errata?.correctedEffectText) && effectText !== printing?.printedEffectText;
+    const value = [
+      ...(effectText ? [formatCardText(effectText, emojis)] : []),
+      ...(corrected && errata ? [errataNote(errata)] : []),
+      ...(mightBonus === null ? [] : [`**Might bonus** +${mightBonus}`]),
+    ].join("\n");
+    fields.push({ name: "Effect text", value: truncate(value, FIELD_LIMIT) });
+  }
+
+  if (printing?.flavorText) {
+    fields.push({
+      name: "Flavor text",
+      value: truncate(`*${printing.flavorText}*`, FIELD_LIMIT),
+    });
+  }
+
+  return fields;
+}
+
 /**
  * Builds the reply embed for a card: name linking to its OpenRift page, the
- * stat line, the front image, and one inline price field per marketplace that
- * has a price for the representative printing.
+ * stat line, the card's rules / effect / flavor text, the front image, and one
+ * inline price field per marketplace that has a price for the representative
+ * printing.
  *
  * @returns A plain APIEmbed ready to send.
  */
@@ -176,7 +254,7 @@ export function buildCardEmbed(input: CardEmbedInput): APIEmbed {
   const { imageId, fallbackNote } = resolveEmbedArt(card, printing, snapshot);
   const priceMap = printing ? snapshot.prices[printing.id] : undefined;
 
-  const fields = MARKETPLACE_ORDER.flatMap((marketplace) => {
+  const priceFields = MARKETPLACE_ORDER.flatMap((marketplace) => {
     const cents = priceMap?.[marketplace];
     if (cents === undefined) {
       return [];
@@ -191,6 +269,13 @@ export function buildCardEmbed(input: CardEmbedInput): APIEmbed {
       },
     ];
   });
+
+  // Text first, then the prices: the price fields are inline, so they pack
+  // into one row under the full-width text blocks.
+  const fields = [
+    ...cardTextFields(card, printing, input.emojis ?? NO_GLYPH_EMOJIS),
+    ...priceFields,
+  ];
 
   const statLine = describeCard(card, snapshot.labels);
   return {

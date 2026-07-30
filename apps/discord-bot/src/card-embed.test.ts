@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { buildCardEmbed, describeCard, fallbackArtDifferences, formatCents } from "./card-embed.js";
+import {
+  buildCardEmbed,
+  cardTextFields,
+  describeCard,
+  fallbackArtDifferences,
+  formatCents,
+} from "./card-embed.js";
 import { buildSnapshot } from "./catalog-cache.js";
 import {
   makeCard,
@@ -81,6 +87,81 @@ describe("fallbackArtDifferences", () => {
   });
 });
 
+describe("cardTextFields", () => {
+  const ERRATA = {
+    correctedRulesText: "Draw 2.",
+    correctedEffectText: null,
+    source: "Origins Card Errata",
+    sourceUrl: "https://riftbound.example/errata",
+    effectiveDate: "2025-10-21",
+  };
+
+  it("stacks rules, effect, and flavor text the way the card panel does", () => {
+    const fields = cardTextFields(
+      makeCard(),
+      makePrinting({
+        printedRulesText: "Draw 1.",
+        printedEffectText: "I have +2 :rb_might:.",
+        flavorText: "Bang bang!",
+      }),
+      new Map(),
+    );
+    expect(fields).toEqual([
+      { name: "Rules text", value: "Draw 1." },
+      { name: "Effect text", value: "I have +2 Might." },
+      { name: "Flavor text", value: "*Bang bang!*" },
+    ]);
+  });
+
+  it("renders glyphs with the app's emojis when it has them", () => {
+    const fields = cardTextFields(
+      makeCard(),
+      makePrinting({ printedRulesText: "Pay :rb_energy_1:." }),
+      new Map([["energy_1", "<:rb_energy_1:2>"]]),
+    );
+    expect(fields[0]?.value).toBe("Pay <:rb_energy_1:2>.");
+  });
+
+  it("shows the errata text with a linked credit instead of the printed text", () => {
+    const fields = cardTextFields(
+      makeCard({ errata: ERRATA }),
+      makePrinting({ printedRulesText: "Draw 1." }),
+      new Map(),
+    );
+    expect(fields[0]?.value).toBe(
+      "Draw 2.\n*Errata ([Origins Card Errata, 2025-10](https://riftbound.example/errata))*",
+    );
+  });
+
+  it("omits the credit when the errata matches what was printed", () => {
+    const fields = cardTextFields(
+      makeCard({ errata: ERRATA }),
+      makePrinting({ printedRulesText: "Draw 2." }),
+      new Map(),
+    );
+    expect(fields[0]?.value).toBe("Draw 2.");
+  });
+
+  it("puts the might bonus in the effect field, as the panel does", () => {
+    const fields = cardTextFields(makeCard({ mightBonus: 2 }), makePrinting(), new Map());
+    expect(fields).toEqual([{ name: "Effect text", value: "**Might bonus** +2" }]);
+  });
+
+  it("returns nothing for a card with no text and no printing", () => {
+    expect(cardTextFields(makeCard(), undefined, new Map())).toEqual([]);
+  });
+
+  it("truncates a text block past Discord's field limit", () => {
+    const fields = cardTextFields(
+      makeCard(),
+      makePrinting({ printedRulesText: "a".repeat(1200) }),
+      new Map(),
+    );
+    expect(fields[0]?.value).toHaveLength(1024);
+    expect(fields[0]?.value.endsWith("…")).toBe(true);
+  });
+});
+
 describe("buildCardEmbed", () => {
   it("links the title to the card page and embeds the front image", () => {
     const snapshot = snapshotWithPrices();
@@ -94,6 +175,22 @@ describe("buildCardEmbed", () => {
     expect(embed.url).toBe(`${SITE}/cards/jinx-rebel`);
     expect(embed.image?.url).toBe(`${SITE}/media/cards/aa/0197f00d00aa-full.webp`);
     expect(embed.footer?.text).toBe("OGN-202/298 · Origins");
+  });
+
+  it("puts the card text above the price fields", () => {
+    const snapshot = buildSnapshot(
+      makeCatalogResponse([makeCard()], [makePrinting({ printedRulesText: "Draw 1." })]),
+      makePricesResponse({ "printing-1": { tcgplayer: 452 } }),
+      makeInitResponse(),
+    );
+    const embed = buildCardEmbed({
+      card: snapshot.cards[0]!,
+      printing: snapshot.printingsByCardId.get("card-1")![0],
+      snapshot,
+      siteUrl: SITE,
+    });
+    expect(embed.fields?.map((f) => f.name)).toEqual(["Rules text", "TCGplayer"]);
+    expect(embed.fields?.[0]?.inline).toBeUndefined();
   });
 
   it("names the variant in the footer when the card has same-code siblings", () => {

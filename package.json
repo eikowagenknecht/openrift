@@ -26,6 +26,7 @@
     "make-admin": "bun run --cwd packages/shared make-admin --",
     "dev:api": "bun --env-file=.env --watch apps/api/src/index.ts | bunx pino-pretty",
     "discord": "bun run --cwd apps/discord-bot dev:prod",
+    "discord:emojis": "bun --env-file=.env scripts/upload-discord-emojis.ts",
     "routes:generate": "bun run --cwd apps/web routes:generate",
     "start": "turbo run build && (bun run --cwd apps/api start & PORT=5174 bun run --cwd apps/web start & bun scripts/local-proxy.ts & wait)",
     "test": "turbo run test",
