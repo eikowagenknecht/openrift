@@ -14,6 +14,9 @@ import {
 } from "lucide-react";
 import type { ComponentType } from "react";
 
+import type { FeatureFlags } from "@/lib/feature-flags";
+import { featureEnabled } from "@/lib/feature-flags";
+
 export interface HelpArticle {
   slug: string;
   title: string;
@@ -150,3 +153,17 @@ export const helpArticles = new Map<string, HelpArticle>([
 ]);
 
 export const helpArticleList = [...helpArticles.values()];
+
+/**
+ * The articles a visitor may see: unflagged ones always, flagged ones only
+ * once their flag is on. Every surface that lists articles (the index, the FAQ
+ * structured data) must go through this — filtering on the presence of
+ * `featureFlag` alone hides an article even after its flag ships.
+ *
+ * @returns The visible articles, in declaration order.
+ */
+export function visibleHelpArticles(flags: FeatureFlags): HelpArticle[] {
+  return helpArticleList.filter(
+    (article) => !article.featureFlag || featureEnabled(flags, article.featureFlag),
+  );
+}

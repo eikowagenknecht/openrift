@@ -1,11 +1,24 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { helpArticleList } from "@/components/help/articles";
+import { visibleHelpArticles } from "@/components/help/articles";
+import type { FeatureFlags } from "@/lib/feature-flags";
+import { featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { faqPageJsonLd, seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 
 export const Route = createFileRoute("/_app/help")({
-  head: () => ({
+  loader: async ({ context }) => {
+    const flags = (await context.queryClient.ensureQueryData(
+      featureFlagsQueryOptions,
+    )) as FeatureFlags;
+    return {
+      articles: visibleHelpArticles(flags).map(({ title, description }) => ({
+        title,
+        description,
+      })),
+    };
+  },
+  head: ({ loaderData }) => ({
     ...seoHead({
       siteUrl: getSiteUrl(),
       title: "Help",
@@ -15,9 +28,7 @@ export const Route = createFileRoute("/_app/help")({
     }),
     scripts: [
       faqPageJsonLd(
-        helpArticleList
-          .filter((a) => !a.featureFlag)
-          .map((a) => ({ question: a.title, answer: a.description })),
+        (loaderData?.articles ?? []).map((a) => ({ question: a.title, answer: a.description })),
       ),
     ],
   }),

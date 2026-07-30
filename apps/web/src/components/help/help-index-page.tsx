@@ -1,16 +1,21 @@
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { siDiscord } from "simple-icons";
 
 import { Heading } from "@/components/heading";
 import { CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CardLink } from "@/components/ui/card-link";
+import type { FeatureFlags } from "@/lib/feature-flags";
+import { featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { SOCIAL_LINKS } from "@/lib/social-links";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 
-import { helpArticleList } from "./articles";
+import { visibleHelpArticles } from "./articles";
 
 export function HelpIndexPage() {
-  const articles = helpArticleList.filter((article) => !article.featureFlag);
+  // Prefetched in the root loader, so this resolves without an SSR waterfall.
+  const { data: flags } = useSuspenseQuery(featureFlagsQueryOptions);
+  const articles = visibleHelpArticles(flags as FeatureFlags);
 
   return (
     <div className={cn("mx-auto w-full max-w-2xl flex-1", PAGE_PADDING)}>

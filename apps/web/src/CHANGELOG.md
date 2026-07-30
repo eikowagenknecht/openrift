@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-07-30
+
+### Other
+
+- fix(App): **Missing help articles** — articles kept behind a feature flag never appeared in the Help Center index, even once the flag was switched on.
+
 ## 2026-07-29
 
 ### Highlights
