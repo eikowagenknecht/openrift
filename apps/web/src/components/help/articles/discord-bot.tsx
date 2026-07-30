@@ -1,4 +1,10 @@
-import { BookOpenTextIcon, CoinsIcon, MessageSquareTextIcon, SlashSquareIcon } from "lucide-react";
+import {
+  BookOpenTextIcon,
+  CoinsIcon,
+  LayoutGridIcon,
+  MessageSquareTextIcon,
+  SlashSquareIcon,
+} from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Heading } from "@/components/heading";
@@ -10,10 +16,10 @@ export default function DiscordBotArticle() {
   return (
     <div className="space-y-8">
       <p className="text-muted-foreground">
-        The OpenRift bot brings card and rules lookups into your Discord server. Ask for any card
-        and it replies with the card image, current prices, and a link to the full card page, right
-        where you&apos;re already talking about your next deck. Rules questions get the exact rule
-        quoted in chat.
+        The OpenRift bot brings card lookups, deck codes, and rules into your Discord server. Ask
+        for any card and it replies with the card image, current prices, and a link to the full card
+        page, right where you&apos;re already talking about your next deck. Deck codes unfurl into a
+        full decklist, and rules questions get the exact rule quoted in chat.
       </p>
 
       {/* Adding the bot */}
@@ -70,6 +76,28 @@ export default function DiscordBotArticle() {
         <p className="text-muted-foreground mt-3">
           Card numbers work too: <InlineCode>/card OGN-202</InlineCode> (or just{" "}
           <InlineCode>ogn202</InlineCode>) jumps straight to that exact printing.
+        </p>
+      </section>
+
+      {/* Deck codes */}
+      <section>
+        <Heading className="mb-2">Share a deck with /deck</Heading>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <OptionCard
+            icon={<SlashSquareIcon className="size-4" />}
+            title="Paste a deck code"
+            description="Type /deck and paste a deck code from an OpenRift deck's share dialog or from Piltover Archive. The reply names the deck after its Legend and lists every card grouped by zone."
+          />
+          <OptionCard
+            icon={<LayoutGridIcon className="size-4" />}
+            title="Deck image and one-click import"
+            description="The reply includes a rendered image of the whole deck and an Open in OpenRift button that loads the code straight into the deck importer."
+          />
+        </div>
+        <p className="text-muted-foreground mt-3">
+          Cards that aren&apos;t in the catalog yet are listed at the end of the decklist instead of
+          being dropped silently. If the code doesn&apos;t decode, only you see the reply, so a typo
+          never clutters the channel.
         </p>
       </section>
 
