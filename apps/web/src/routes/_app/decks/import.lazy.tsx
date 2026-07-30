@@ -20,7 +20,7 @@ import {
   XCircleIcon,
 } from "lucide-react";
 import type { RefObject } from "react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Heading } from "@/components/heading";
@@ -205,7 +205,7 @@ const IMPORT_DESCRIPTIONS: Record<DeckImportMode, React.ReactNode> = {
 function DeckImportPage() {
   // Auth-optional (ADR-035): logged out, an import creates a browser-local deck.
   const userId = useUserId();
-  const { replaceDeckId } = Route.useSearch();
+  const { replaceDeckId, code: prefillCode } = Route.useSearch();
   const { allPrintings } = useCards();
   const { zoneOrder, zoneLabels } = useZoneOrder();
   const { formats: deckFormats, labels: deckFormatLabels } = useDeckFormatList();
@@ -358,6 +358,24 @@ function DeckImportPage() {
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) =>
     handleImportFileUpload(event, fileRef, setRawText, handleParse);
+
+  // Deep links (e.g. the Discord bot's "Open in OpenRift" button) land with
+  // ?code=<deck code>. Parse it as a deck code right away so the preview is
+  // ready without a manual Parse click; an invalid code stays on the input
+  // step with the code prefilled and the warning shown. The catalog behind
+  // finishParse is suspense-loaded, so it is ready on first render.
+  const autoParsedRef = useRef(false);
+  useEffect(() => {
+    if (!prefillCode || autoParsedRef.current) {
+      return;
+    }
+    autoParsedRef.current = true;
+    setRawText(prefillCode);
+    setSourceNote("deck code from the link");
+    const { entries, warnings } = parseDeckImportData(prefillCode, "piltover");
+    finishParse(entries, warnings);
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- one-shot on mount; the ref guard keeps re-runs out
+  }, [prefillCode]);
 
   const handleResolve = (index: number, card: ResolvedCard) => {
     setMatchedEntries((prev) =>

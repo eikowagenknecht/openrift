@@ -80,6 +80,9 @@ export { RIOT_ID_FORMAT_MESSAGE, validateRiotId } from "./riot-id.js";
 export type { SourceSlot } from "./zone-inference.js";
 export { inferZone } from "./zone-inference.js";
 
+export type { DeckCodeParseResult, DeckImportEntry } from "./deck-code.js";
+export { isDeckCode, parsePiltoverDeckCode } from "./deck-code.js";
+
 export {
   isAlwaysFoilRarity,
   isBaseBanFormat,

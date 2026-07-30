@@ -9,16 +9,23 @@ import { isLocalDeckId } from "@/stores/local-decks-store";
 
 interface DeckImportSearch {
   replaceDeckId?: string;
+  /** A deck code to prefill and auto-parse, for deep links (e.g. the Discord bot). */
+  code?: string;
 }
 
 export const Route = createFileRoute("/_app/decks/import")({
   ssr: "data-only",
   validateSearch: (search: Record<string, unknown>): DeckImportSearch => {
-    const value = search.replaceDeckId;
-    if (typeof value === "string" && value.length > 0) {
-      return { replaceDeckId: value };
+    const result: DeckImportSearch = {};
+    const replaceDeckId = search.replaceDeckId;
+    if (typeof replaceDeckId === "string" && replaceDeckId.length > 0) {
+      result.replaceDeckId = replaceDeckId;
     }
-    return {};
+    const code = search.code;
+    if (typeof code === "string" && code.length > 0) {
+      result.code = code;
+    }
+    return result;
   },
   loaderDeps: ({ search }) => ({ replaceDeckId: search.replaceDeckId }),
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Import Deck", noIndex: true }),

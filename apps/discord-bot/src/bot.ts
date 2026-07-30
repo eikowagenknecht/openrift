@@ -1,7 +1,12 @@
 import type { MarketplaceInfoResponse } from "@openrift/shared";
+import { parsePiltoverDeckCode } from "@openrift/shared";
 import type { AutocompleteInteraction, ChatInputCommandInteraction, Message } from "discord.js";
 import {
+  ActionRowBuilder,
   ApplicationCommandOptionType,
+  AttachmentBuilder,
+  ButtonBuilder,
+  ButtonStyle,
   Client,
   Events,
   GatewayIntentBits,
@@ -13,6 +18,7 @@ import { buildCardEmbed } from "./card-embed.js";
 import type { CardIndex } from "./card-search.js";
 import { buildCardIndex, findCard, searchCards } from "./card-search.js";
 import type { CatalogCache, CatalogCard } from "./catalog-cache.js";
+import { buildDeckEmbed, deckImportUrl, fetchDeckImage, resolveDeckEntries } from "./deck-embed.js";
 import type { BotEnv } from "./env.js";
 import { extractCardReferences } from "./message-scan.js";
 import { printingChoices, resolvePrinting } from "./printing-choice.js";
@@ -34,6 +40,19 @@ const CARD_COMMAND = {
       description: "A specific printing (defaults to the main one)",
       required: false,
       autocomplete: true,
+    },
+  ],
+} as const;
+
+const DECK_COMMAND = {
+  name: "deck",
+  description: "Unfurl a Riftbound deck code: decklist, deck image, and an OpenRift import link",
+  options: [
+    {
+      type: ApplicationCommandOptionType.String,
+      name: "code",
+      description: "A deck code (from Piltover Archive or an OpenRift deck's share dialog)",
+      required: true,
     },
   ],
 } as const;
@@ -127,6 +146,55 @@ async function handleCardCommand(ctx: BotContext, interaction: ChatInputCommandI
   await interaction.editReply({ embeds: [embed] });
 }
 
+async function handleDeckCommand(ctx: BotContext, interaction: ChatInputCommandInteraction) {
+  const snapshot = ctx.cache.snapshot;
+  if (!snapshot) {
+    await interaction.reply({
+      content: "Card data is still loading, try again in a moment.",
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+  const code = interaction.options.getString("code", true).trim();
+  const { entries } = parsePiltoverDeckCode(code);
+  if (entries.length === 0) {
+    await interaction.reply({
+      content: "That doesn't look like a valid deck code.",
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+  const deck = resolveDeckEntries(snapshot, entries);
+  if (deck.rows.length === 0) {
+    await interaction.reply({
+      content: "That deck code decoded, but none of its cards are in the catalog yet.",
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+  // Defer: the image render below is a real API round trip.
+  await interaction.deferReply();
+  const image = await fetchDeckImage(ctx.env.apiUrl, deck);
+  const imageAttachmentName = image ? "deck.png" : undefined;
+  const embed = buildDeckEmbed({
+    deck,
+    code,
+    snapshot,
+    siteUrl: ctx.env.siteUrl,
+    imageAttachmentName,
+  });
+  // A real link button under the embed — the title link alone is easy to miss.
+  const openButton = new ButtonBuilder()
+    .setStyle(ButtonStyle.Link)
+    .setLabel("Open in OpenRift")
+    .setURL(deckImportUrl(ctx.env.siteUrl, code));
+  await interaction.editReply({
+    embeds: [embed],
+    components: [new ActionRowBuilder<ButtonBuilder>().addComponents(openButton)],
+    files: image ? [new AttachmentBuilder(Buffer.from(image), { name: "deck.png" })] : [],
+  });
+}
+
 async function handleMessage(ctx: BotContext, message: Message) {
   if (message.author.bot || !message.content.includes("[[")) {
     return;
@@ -176,7 +244,7 @@ export function createBot(ctx: BotContext): Client {
   client.once(Events.ClientReady, async (readyClient) => {
     console.log(`Logged in as ${readyClient.user.tag}`);
     try {
-      await readyClient.application.commands.set([CARD_COMMAND]);
+      await readyClient.application.commands.set([CARD_COMMAND, DECK_COMMAND]);
     } catch (error) {
       console.error("Failed to register slash commands", error);
     }
@@ -191,6 +259,11 @@ export function createBot(ctx: BotContext): Client {
         interaction.commandName === CARD_COMMAND.name
       ) {
         await handleCardCommand(ctx, interaction);
+      } else if (
+        interaction.isChatInputCommand() &&
+        interaction.commandName === DECK_COMMAND.name
+      ) {
+        await handleDeckCommand(ctx, interaction);
       }
     } catch (error) {
       console.error("Interaction handling failed", error);

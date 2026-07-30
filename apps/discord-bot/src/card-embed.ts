@@ -1,11 +1,11 @@
 import type { Marketplace, MarketplaceInfoResponse } from "@openrift/shared";
-import { imageUrl, MARKETPLACE_LINKS } from "@openrift/shared";
+import { findStandardArtFallback, imageUrl, MARKETPLACE_LINKS, WellKnown } from "@openrift/shared";
 import type { APIEmbed } from "discord.js";
 
 import type { CatalogCard, CatalogPrinting, CatalogSnapshot, EnumLabels } from "./catalog-cache.js";
 
 /** The brand green also used by the changelog webhook embeds. */
-const EMBED_COLOR = 0x24_70_5f;
+export const EMBED_COLOR = 0x24_70_5f;
 
 /** Marketplaces in the order the site's price section shows them. */
 const MARKETPLACE_ORDER: readonly Marketplace[] = ["tcgplayer", "cardmarket", "cardtrader"];
@@ -79,6 +79,73 @@ function priceLink(
 }
 
 /**
+ * The properties the requested printing has that substitute artwork doesn't,
+ * mirroring the site's `FallbackArtBadges`: the art's language when it
+ * differs, each marker, a non-normal art variant, a signature, and a metal
+ * finish.
+ *
+ * @returns The difference tags, in the site's badge order.
+ */
+export function fallbackArtDifferences(
+  printing: CatalogPrinting,
+  artPrinting: CatalogPrinting,
+  labels: EnumLabels,
+): string[] {
+  const tags: string[] = [];
+  if (printing.language !== artPrinting.language) {
+    tags.push(artPrinting.language);
+  }
+  for (const marker of printing.markers) {
+    tags.push(marker.label);
+  }
+  const artVariant = printing.artVariant || WellKnown.artVariant.NORMAL;
+  if (artVariant !== WellKnown.artVariant.NORMAL) {
+    tags.push(labels.artVariants[artVariant]);
+  }
+  if (printing.isSigned) {
+    tags.push("Signed");
+  }
+  if (
+    printing.finish === WellKnown.finish.METAL ||
+    printing.finish === WellKnown.finish.METAL_DELUXE
+  ) {
+    tags.push(labels.finishes[printing.finish]);
+  }
+  return tags;
+}
+
+/**
+ * Picks the embed image for a printing: its own front image, or — like the
+ * site's card browser — the standard printing's artwork (same language, else
+ * EN) when the printing has no image of its own, with the differences noted.
+ *
+ * @returns The image id to show (undefined when nothing has an image) and the
+ * fallback note for the description (undefined when no substitution happened).
+ */
+function resolveEmbedArt(
+  card: CatalogCard,
+  printing: CatalogPrinting | undefined,
+  snapshot: CatalogSnapshot,
+): { imageId?: string; fallbackNote?: string } {
+  const ownImage = printing?.images.find((image) => image.face === "front");
+  if (!printing || ownImage) {
+    return { imageId: ownImage?.imageId };
+  }
+  const fallback = findStandardArtFallback(printing, snapshot.printingsByCardId.get(card.id) ?? []);
+  if (!fallback) {
+    return {};
+  }
+  const tags = fallbackArtDifferences(printing, fallback.printing, snapshot.labels);
+  return {
+    imageId: fallback.image.imageId,
+    fallbackNote:
+      tags.length > 0
+        ? `*Standard-printing artwork shown (differs: ${tags.join(", ")})*`
+        : "*Standard-printing artwork shown*",
+  };
+}
+
+/**
  * Builds the reply embed for a card: name linking to its OpenRift page, the
  * stat line, the front image, and one inline price field per marketplace that
  * has a price for the representative printing.
@@ -87,7 +154,7 @@ function priceLink(
  */
 export function buildCardEmbed(input: CardEmbedInput): APIEmbed {
   const { card, printing, snapshot, siteUrl } = input;
-  const frontImageId = printing?.images.find((image) => image.face === "front")?.imageId;
+  const { imageId, fallbackNote } = resolveEmbedArt(card, printing, snapshot);
   const set = printing ? snapshot.setsById.get(printing.setId) : undefined;
   const priceMap = printing ? snapshot.prices[printing.id] : undefined;
 
@@ -107,12 +174,13 @@ export function buildCardEmbed(input: CardEmbedInput): APIEmbed {
     ];
   });
 
+  const statLine = describeCard(card, snapshot.labels);
   return {
     title: card.name,
     url: `${siteUrl}/cards/${card.slug}`,
-    description: describeCard(card, snapshot.labels),
+    description: fallbackNote ? `${statLine}\n${fallbackNote}` : statLine,
     color: EMBED_COLOR,
-    ...(frontImageId ? { image: { url: `${siteUrl}${imageUrl(frontImageId, "full")}` } } : {}),
+    ...(imageId ? { image: { url: `${siteUrl}${imageUrl(imageId, "full")}` } } : {}),
     ...(fields.length > 0 ? { fields } : {}),
     ...(printing
       ? { footer: { text: set ? `${printing.publicCode} · ${set.name}` : printing.publicCode } }

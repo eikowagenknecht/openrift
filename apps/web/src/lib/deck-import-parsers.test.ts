@@ -20,102 +20,33 @@ import { getDeckFromCode } from "@piltoverarchive/riftbound-deck-codes";
 const mockGetDeckFromCode = vi.mocked(getDeckFromCode);
 
 describe("parseDeckImportData — piltover format", () => {
-  it("does not double-count the chosen champion", () => {
-    mockGetDeckFromCode.mockReturnValue({
-      mainDeck: [
-        { cardCode: "OGN-007", count: 3 },
-        { cardCode: "OGN-001", count: 3 },
-      ],
-      sideboard: [],
-      chosenChampion: "OGN-007",
-    });
-
-    const { entries } = parseDeckImportData("FAKECODE", "piltover");
-
-    // Champion card: 2 in mainDeck + 1 in chosenChampion = 3 total (not 4)
-    const championMain = entries.find(
-      (entry) => entry.shortCode === "OGN-007" && entry.sourceSlot === "mainDeck",
-    );
-    const championEntry = entries.find(
-      (entry) => entry.shortCode === "OGN-007" && entry.sourceSlot === "chosenChampion",
-    );
-    expect(championMain?.quantity).toBe(2);
-    expect(championMain?.explicitZone).toBeUndefined();
-    expect(championEntry?.quantity).toBe(1);
-    expect(championEntry?.explicitZone).toBe("champion");
-
-    // Non-champion card is unaffected
-    const normalCard = entries.find(
-      (entry) => entry.shortCode === "OGN-001" && entry.sourceSlot === "mainDeck",
-    );
-    expect(normalCard?.quantity).toBe(3);
-  });
-
-  it("omits the mainDeck entry when champion has only 1 copy", () => {
-    mockGetDeckFromCode.mockReturnValue({
-      mainDeck: [
-        { cardCode: "OGN-007", count: 1 },
-        { cardCode: "OGN-001", count: 3 },
-      ],
-      sideboard: [],
-      chosenChampion: "OGN-007",
-    });
-
-    const { entries } = parseDeckImportData("FAKECODE", "piltover");
-
-    // Only the chosenChampion entry should exist — no mainDeck entry with 0 copies
-    const championMain = entries.find(
-      (entry) => entry.shortCode === "OGN-007" && entry.sourceSlot === "mainDeck",
-    );
-    const championEntry = entries.find(
-      (entry) => entry.shortCode === "OGN-007" && entry.sourceSlot === "chosenChampion",
-    );
-    expect(championMain).toBeUndefined();
-    expect(championEntry?.quantity).toBe(1);
-    expect(championEntry?.explicitZone).toBe("champion");
-  });
-
-  it("consolidates duplicate mainDeck entries and subtracts 1 for champion", () => {
-    // The library can return the same card at different count levels
-    mockGetDeckFromCode.mockReturnValue({
-      mainDeck: [
-        { cardCode: "OGN-007", count: 2 },
-        { cardCode: "OGN-007", count: 1 },
-      ],
-      sideboard: [],
-      chosenChampion: "OGN-007",
-    });
-
-    const { entries } = parseDeckImportData("FAKECODE", "piltover");
-
-    // Consolidated total is 3, minus 1 for champion = 2 in a single main entry
-    const mainEntries = entries.filter(
-      (entry) => entry.shortCode === "OGN-007" && entry.sourceSlot === "mainDeck",
-    );
-    expect(mainEntries).toHaveLength(1);
-    expect(mainEntries[0].quantity).toBe(2);
-
-    const championEntry = entries.find(
-      (entry) => entry.shortCode === "OGN-007" && entry.sourceSlot === "chosenChampion",
-    );
-    expect(championEntry?.quantity).toBe(1);
-    expect(championEntry?.explicitZone).toBe("champion");
-  });
-
-  it("handles decks with no chosen champion", () => {
+  // Piltover parsing itself (champion split, consolidation, case retry) is
+  // covered in packages/shared/src/deck-code.test.ts — this only checks the
+  // format switch delegates to the shared parser.
+  it("delegates to the shared piltover parser", () => {
     mockGetDeckFromCode.mockReturnValue({
       mainDeck: [{ cardCode: "OGN-001", count: 3 }],
-      sideboard: [{ cardCode: "OGN-002", count: 1 }],
+      sideboard: [],
       chosenChampion: undefined,
     });
 
-    const { entries } = parseDeckImportData("FAKECODE", "piltover");
+    const { entries, warnings } = parseDeckImportData("FAKECODE", "piltover");
 
-    expect(entries).toHaveLength(2);
-    expect(entries[0]?.quantity).toBe(3);
-    expect(entries[0]?.sourceSlot).toBe("mainDeck");
-    expect(entries[1]?.quantity).toBe(1);
-    expect(entries[1]?.sourceSlot).toBe("sideboard");
+    expect(warnings).toHaveLength(0);
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({
+      shortCode: "OGN-001",
+      quantity: 3,
+      sourceSlot: "mainDeck",
+    });
+  });
+
+  it("surfaces the shared parser's invalid-code warning", () => {
+    mockValidCode("FAKECODE");
+    const { entries, warnings } = parseDeckImportData("nonsense", "piltover");
+
+    expect(entries).toHaveLength(0);
+    expect(warnings).toEqual(["Invalid Piltover Archive deck code."]);
   });
 });
 
@@ -423,29 +354,6 @@ describe("extractDeckFromUrl", () => {
     expect(extractDeckFromUrl("https://example.com/deckbuilding/page")).toEqual({
       kind: "url-no-deck",
     });
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Piltover parsing of flexible-case codes
-// ---------------------------------------------------------------------------
-
-describe("parseDeckImportData — lowercased piltover codes", () => {
-  it("retries a failing code uppercased", () => {
-    mockValidCode("FAKECODE");
-    const { entries, warnings } = parseDeckImportData("fakecode", "piltover");
-
-    expect(warnings).toHaveLength(0);
-    expect(entries).toHaveLength(1);
-    expect(entries[0].shortCode).toBe("OGN-001");
-  });
-
-  it("still reports an invalid code after both attempts fail", () => {
-    mockValidCode("FAKECODE");
-    const { entries, warnings } = parseDeckImportData("nonsense", "piltover");
-
-    expect(entries).toHaveLength(0);
-    expect(warnings).toEqual(["Invalid Piltover Archive deck code."]);
   });
 });
 

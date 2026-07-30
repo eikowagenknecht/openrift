@@ -1,27 +1,16 @@
-import type { DeckZone, PublicDeckCardResponse, SourceSlot } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
-import { getDeckFromCode } from "@piltoverarchive/riftbound-deck-codes";
+import type {
+  DeckCodeParseResult,
+  DeckImportEntry,
+  DeckZone,
+  PublicDeckCardResponse,
+  SourceSlot,
+} from "@openrift/shared";
+import { isDeckCode, parsePiltoverDeckCode, WellKnown } from "@openrift/shared";
 
-/** A single entry produced by any deck format parser. */
-export interface DeckImportEntry {
-  /** Short code from the source (e.g. "OGN-001"). Present for Piltover/TTS formats. */
-  shortCode?: string;
-  /** Card name from the source. Present for text format. */
-  cardName?: string;
-  /** How many copies. */
-  quantity: number;
-  /** Source slot from the external format, used for zone inference. */
-  sourceSlot: SourceSlot;
-  /** Explicit zone override (text format provides zones directly). */
-  explicitZone?: DeckZone;
-  /** Pass-through of interesting fields for display. */
-  rawFields: Record<string, string>;
-}
+export type { DeckImportEntry } from "@openrift/shared";
 
-interface DeckParseResult {
-  entries: DeckImportEntry[];
-  warnings: string[];
-}
+/** Every format parser returns the shared parse-result shape. */
+type DeckParseResult = DeckCodeParseResult;
 
 export type DeckImportFormat = "piltover" | "text" | "tts";
 
@@ -46,82 +35,6 @@ export function parseDeckImportData(code: string, format: DeckImportFormat): Dec
       return parseTTSFormat(trimmed);
     }
   }
-}
-
-// ---------------------------------------------------------------------------
-// Piltover Archive deck code
-// ---------------------------------------------------------------------------
-
-/**
- * Decodes a deck code, retrying with the uppercased input when the raw string
- * fails — codes are base32 and users occasionally paste them lowercased.
- * @returns The decoded deck, or null when neither variant decodes.
- */
-function decodeDeckCodeFlexible(code: string): ReturnType<typeof getDeckFromCode> | null {
-  try {
-    return getDeckFromCode(code);
-  } catch {
-    const upper = code.toUpperCase();
-    if (upper === code) {
-      return null;
-    }
-    try {
-      return getDeckFromCode(upper);
-    } catch {
-      return null;
-    }
-  }
-}
-
-function parsePiltoverDeckCode(code: string): DeckParseResult {
-  const warnings: string[] = [];
-
-  const decoded = decodeDeckCodeFlexible(code);
-  if (!decoded) {
-    return { entries: [], warnings: ["Invalid Piltover Archive deck code."] };
-  }
-  const entries: DeckImportEntry[] = [];
-
-  // The library can return the same card multiple times in mainDeck with
-  // different counts. Consolidate by card code first, then subtract 1 for
-  // the chosen champion so we don't double-count.
-  const mainDeckTotals = new Map<string, number>();
-  for (const card of decoded.mainDeck) {
-    mainDeckTotals.set(card.cardCode, (mainDeckTotals.get(card.cardCode) ?? 0) + card.count);
-  }
-
-  for (const [cardCode, total] of mainDeckTotals) {
-    const quantity = decoded.chosenChampion === cardCode ? total - 1 : total;
-    if (quantity > 0) {
-      entries.push({
-        shortCode: cardCode,
-        quantity,
-        sourceSlot: "mainDeck",
-        rawFields: { "Source Code": cardCode, Slot: "Main Deck" },
-      });
-    }
-  }
-
-  for (const card of decoded.sideboard) {
-    entries.push({
-      shortCode: card.cardCode,
-      quantity: card.count,
-      sourceSlot: "sideboard",
-      rawFields: { "Source Code": card.cardCode, Slot: "Sideboard" },
-    });
-  }
-
-  if (decoded.chosenChampion) {
-    entries.push({
-      shortCode: decoded.chosenChampion,
-      quantity: 1,
-      sourceSlot: "chosenChampion",
-      explicitZone: WellKnown.deckZone.CHAMPION,
-      rawFields: { "Source Code": decoded.chosenChampion, Slot: "Chosen Champion" },
-    });
-  }
-
-  return { entries, warnings };
 }
 
 // ---------------------------------------------------------------------------
@@ -303,24 +216,8 @@ export type DeckImportUrlSniff =
 /** Deck share path on any host: /decks/share/{token}. Tokens are 12-char alphanumeric today; accept a lenient range so rotations of the scheme keep matching. */
 const SHARE_TOKEN_PATH = /\/decks\/share\/(?<token>[A-Za-z0-9]{6,64})\/?$/u;
 
-/**
- * Charset pre-filter for deck-code candidates: base32 (A–Z and 2–7, optional
- * padding), at least 12 chars. Lowercase is allowed here because
- * `decodeDeckCodeFlexible` retries uppercased. This only gates which strings
- * are worth attempting to decode — the decoder has the final say.
- */
-const DECK_CODE_CANDIDATE = /^[A-Za-z2-7]{12,}={0,7}$/u;
-
 /** A whole-input token in TTS shape: SET-NNN with an optional art-variant suffix. */
 const TTS_TOKEN = /^[A-Z]+-\d+(?:-\d+)?$/u;
-
-/**
- * Attempts to decode a candidate string as a Piltover deck code.
- * @returns True when the candidate decodes to a deck.
- */
-function isDeckCode(candidate: string): boolean {
-  return DECK_CODE_CANDIDATE.test(candidate) && decodeDeckCodeFlexible(candidate) !== null;
-}
 
 /**
  * Parses input that looks like a URL. Accepts full http(s) URLs as well as

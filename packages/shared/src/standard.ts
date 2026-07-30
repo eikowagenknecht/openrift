@@ -2,6 +2,20 @@ import type { Printing, PrintingImage } from "./types/index.js";
 import { LOW_RARITIES, WellKnown } from "./well-known.js";
 
 /**
+ * The printing fields the standard check inspects. A structural subset of
+ * {@link Printing} so wire-shaped printings (e.g. the Discord bot's catalog
+ * snapshot) qualify without the enriched `card` / set fields.
+ */
+type StandardCheckFields = Pick<
+  Printing,
+  "artVariant" | "isSigned" | "markers" | "finish" | "rarity"
+>;
+
+/** The additional fields the art-fallback search needs on each candidate. */
+type FallbackCandidateFields = StandardCheckFields &
+  Pick<Printing, "id" | "cardId" | "language" | "canonicalRank" | "images">;
+
+/**
  * A "standard" printing is the plain collectible version of a card — the one a
  * player reaches for by default. It excludes every premium, promotional, or
  * collector treatment. Used by dynamic list rules (ADR-034) and the card
@@ -19,7 +33,7 @@ import { LOW_RARITIES, WellKnown } from "./well-known.js";
  *
  * @returns True when the printing is the standard version of its card.
  */
-export function isStandardPrinting(printing: Printing): boolean {
+export function isStandardPrinting(printing: StandardCheckFields): boolean {
   if ((printing.artVariant || WellKnown.artVariant.NORMAL) !== WellKnown.artVariant.NORMAL) {
     return false;
   }
@@ -39,9 +53,9 @@ export function isStandardPrinting(printing: Printing): boolean {
   return finish === WellKnown.finish.NORMAL || finish === WellKnown.finish.FOIL;
 }
 
-export interface StandardArtFallback {
+export interface StandardArtFallback<T = Printing> {
   /** The standard printing whose artwork substitutes for the missing image. */
-  printing: Printing;
+  printing: T;
   /** That printing's front-face image. */
   image: PrintingImage;
 }
@@ -60,10 +74,10 @@ export interface StandardArtFallback {
  * @returns The fallback printing and its front image, or null when no standard
  * printing with a front image exists in the printing's language or EN.
  */
-export function findStandardArtFallback(
-  printing: Printing,
-  candidates: readonly Printing[],
-): StandardArtFallback | null {
+export function findStandardArtFallback<T extends FallbackCandidateFields>(
+  printing: T,
+  candidates: readonly T[],
+): StandardArtFallback<T> | null {
   const ranked = candidates
     .filter((c) => c.id !== printing.id && c.cardId === printing.cardId && isStandardPrinting(c))
     .toSorted((a, b) => a.canonicalRank - b.canonicalRank);

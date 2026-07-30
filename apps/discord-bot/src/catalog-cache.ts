@@ -10,11 +10,14 @@ import type {
 export type CatalogCard = CatalogResponseCardValue & { id: string };
 export type CatalogPrinting = CatalogResponsePrintingValue & { id: string };
 
-/** Slug → display label maps for the enum groups the embed's stat line uses. */
+/** Slug → display label maps for the enum groups the embeds use. */
 export interface EnumLabels {
   cardTypes: Record<string, string>;
   superTypes: Record<string, string>;
   domains: Record<string, string>;
+  deckZones: Record<string, string>;
+  artVariants: Record<string, string>;
+  finishes: Record<string, string>;
 }
 
 export interface CatalogSnapshot {
@@ -25,6 +28,8 @@ export interface CatalogSnapshot {
   prices: PricesResponse["prices"];
   currencies: PricesResponse["currencies"];
   labels: EnumLabels;
+  /** Deck zone slugs in display order (from the init enums). */
+  zoneOrder: string[];
 }
 
 interface CatalogFetchers {
@@ -68,7 +73,13 @@ export function buildSnapshot(
       cardTypes: labelMap(init.enums.cardTypes),
       superTypes: labelMap(init.enums.superTypes),
       domains: labelMap(init.enums.domains),
+      deckZones: labelMap(init.enums.deckZones),
+      artVariants: labelMap(init.enums.artVariants),
+      finishes: labelMap(init.enums.finishes),
     },
+    zoneOrder: init.enums.deckZones
+      .toSorted((a, b) => a.sortOrder - b.sortOrder)
+      .map((row) => row.slug),
   };
 }
 

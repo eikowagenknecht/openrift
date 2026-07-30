@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildCardEmbed, describeCard, formatCents } from "./card-embed.js";
+import { buildCardEmbed, describeCard, fallbackArtDifferences, formatCents } from "./card-embed.js";
 import { buildSnapshot } from "./catalog-cache.js";
 import {
   makeCard,
@@ -49,6 +49,34 @@ describe("describeCard", () => {
   it("joins multiple domains with their labels", () => {
     expect(describeCard(makeCard({ domains: ["chaos", "fury"] }), LABELS)).toContain(
       "Chaos / Fury",
+    );
+  });
+});
+
+describe("fallbackArtDifferences", () => {
+  it("mirrors the site's badge order: language, markers, art variant, signed, finish", () => {
+    const printing = makePrinting({
+      id: "p-noimg",
+      images: [],
+      language: "DE",
+      markers: [{ id: "m1", slug: "promo", label: "Promo", description: null }],
+      artVariant: "altart",
+      isSigned: true,
+      finish: "metal",
+    });
+    const artPrinting = makePrinting();
+    expect(fallbackArtDifferences(printing, artPrinting, LABELS)).toEqual([
+      "EN",
+      "Promo",
+      "Alt Art",
+      "Signed",
+      "Metal",
+    ]);
+  });
+
+  it("returns no tags when the printings only differ by image", () => {
+    expect(fallbackArtDifferences(makePrinting({ images: [] }), makePrinting(), LABELS)).toEqual(
+      [],
     );
   });
 });
@@ -113,6 +141,67 @@ describe("buildCardEmbed", () => {
       siteUrl: SITE,
     });
     expect(embed.fields?.[0]?.value).toContain("Products/Search?searchString=Jinx%2C%20Rebel");
+  });
+
+  it("shows standard-printing artwork for a printing without an image", () => {
+    const snapshot = buildSnapshot(
+      makeCatalogResponse(
+        [makeCard()],
+        [
+          makePrinting({ id: "p-standard", canonicalRank: 1 }),
+          makePrinting({ id: "p-noimg", canonicalRank: 2, images: [], isSigned: true }),
+        ],
+      ),
+      makePricesResponse(),
+      makeInitResponse(),
+    );
+    const embed = buildCardEmbed({
+      card: snapshot.cards[0]!,
+      printing: snapshot.printingsByCardId.get("card-1")!.find((p) => p.id === "p-noimg"),
+      snapshot,
+      siteUrl: SITE,
+    });
+    expect(embed.image?.url).toBe(`${SITE}/media/cards/aa/0197f00d00aa-full.webp`);
+    expect(embed.description).toContain("*Standard-printing artwork shown (differs: Signed)*");
+  });
+
+  it("notes the substitution without tags when nothing differs", () => {
+    const snapshot = buildSnapshot(
+      makeCatalogResponse(
+        [makeCard()],
+        [
+          makePrinting({ id: "p-standard", canonicalRank: 1 }),
+          makePrinting({ id: "p-noimg", canonicalRank: 2, images: [] }),
+        ],
+      ),
+      makePricesResponse(),
+      makeInitResponse(),
+    );
+    const embed = buildCardEmbed({
+      card: snapshot.cards[0]!,
+      printing: snapshot.printingsByCardId.get("card-1")!.find((p) => p.id === "p-noimg"),
+      snapshot,
+      siteUrl: SITE,
+    });
+    expect(embed.image?.url).toBe(`${SITE}/media/cards/aa/0197f00d00aa-full.webp`);
+    expect(embed.description).toContain("*Standard-printing artwork shown*");
+    expect(embed.description).not.toContain("differs");
+  });
+
+  it("omits image and note when no standard printing has an image", () => {
+    const snapshot = buildSnapshot(
+      makeCatalogResponse([makeCard()], [makePrinting({ id: "p-noimg", images: [] })]),
+      makePricesResponse(),
+      makeInitResponse(),
+    );
+    const embed = buildCardEmbed({
+      card: snapshot.cards[0]!,
+      printing: snapshot.printingsByCardId.get("card-1")![0],
+      snapshot,
+      siteUrl: SITE,
+    });
+    expect(embed.image).toBeUndefined();
+    expect(embed.description).not.toContain("artwork");
   });
 
   it("omits price fields, image, and footer when data is missing", () => {
