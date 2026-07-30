@@ -96,6 +96,25 @@ describe("buildCardEmbed", () => {
     expect(embed.footer?.text).toBe("OGN-202/298 · Origins");
   });
 
+  it("names the variant in the footer when the card has same-code siblings", () => {
+    const snapshot = buildSnapshot(
+      makeCatalogResponse(
+        [makeCard()],
+        [
+          makePrinting({ id: "printing-1", canonicalRank: 1 }),
+          makePrinting({ id: "printing-2", canonicalRank: 2, finish: "foil" }),
+        ],
+      ),
+      makePricesResponse(),
+      makeInitResponse(),
+    );
+    const printings = snapshot.printingsByCardId.get("card-1")!;
+    const footer = (printing: (typeof printings)[number]) =>
+      buildCardEmbed({ card: snapshot.cards[0]!, printing, snapshot, siteUrl: SITE }).footer?.text;
+    expect(footer(printings[0]!)).toBe("OGN-202/298 · Origins · Standard");
+    expect(footer(printings[1]!)).toBe("OGN-202/298 · Origins · Foil");
+  });
+
   it("adds one inline price field per priced marketplace, in site order", () => {
     const snapshot = snapshotWithPrices(
       makePricesResponse({ "printing-1": { cardmarket: 380, tcgplayer: 452 } }),

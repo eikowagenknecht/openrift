@@ -8,6 +8,8 @@
 
 The card entry points also accept printing codes (`OGN-202`, `ogn202`, `OGN-202/298`) through the same `squashForSearch` folding as the site's search — a code lookup shows that exact printing instead of the default one.
 
+Each `printing` choice reads `public code · set · variant`, where the variant part comes from `formatPrintingVariantLabelParts` in `packages/shared` — the same helper behind the site's printing picker. It names only what tells a printing from its siblings (language, art variant, finish, size, signature, markers), so a standard and a foil print of one card no longer read identically, and typing "foil" narrows the list. The embed footer carries the same label, so the reply says which printing it is showing. Two exceptions to the shared rules: a language is shown for any non-English printing (the bot has no other language cue), and the plain print of a card with several printings is spelled out as "Standard" so it pairs visibly with its labeled siblings.
+
 Card lookups reply with an embed: the card name linking to its OpenRift card page, a compact stat line, the front image of the card's canonical printing, and the latest price per marketplace. A printing without an image of its own borrows the standard printing's artwork (same language, else EN) like the site's card browser, with the differences noted under the stat line (e.g. "Standard-printing artwork shown (differs: EN, Promo)"). Price links go to the marketplace product page and carry the affiliate tag where the marketplace has one (TCGplayer partner redirect, CardTrader share code); when no product mapping exists they fall back to a marketplace search for the card name.
 
 ## How it works

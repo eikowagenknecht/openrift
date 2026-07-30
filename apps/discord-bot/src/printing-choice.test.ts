@@ -46,12 +46,24 @@ function defaultPrintings() {
   ];
 }
 
+/**
+ * A card printed standard and foil in one set: same public code, same set.
+ *
+ * @returns The two printings, standard first.
+ */
+function finishPrintings() {
+  return [
+    makePrinting({ id: "p1", cardId: "c1", canonicalRank: 1, finish: "normal" }),
+    makePrinting({ id: "p2", cardId: "c1", canonicalRank: 2, finish: "foil" }),
+  ];
+}
+
 describe("printingChoices", () => {
   it("lists the default printing first, marked as default, with printing ids as values", () => {
     const choices = printingChoices(snapshotWith(), card, "");
     expect(choices.map((c) => c.value)).toEqual(["p1", "p2", "p3"]);
-    expect(choices[0]?.name).toBe("OGN-202/298 · Origins (default)");
-    expect(choices[1]?.name).toBe("SFB-011/120 · Spirit Blossom");
+    expect(choices[0]?.name).toBe("OGN-202/298 · Origins · EN (default)");
+    expect(choices[1]?.name).toBe("SFB-011/120 · Spirit Blossom · EN");
   });
 
   it("appends the language for non-EN printings", () => {
@@ -59,9 +71,56 @@ describe("printingChoices", () => {
     expect(choices[2]?.name).toBe("OGN-202/298 · Origins · DE");
   });
 
+  it("labels the language even when every printing shares a non-EN one", () => {
+    const printings = [
+      makePrinting({ id: "p1", cardId: "c1", canonicalRank: 1, language: "DE" }),
+      makePrinting({ id: "p2", cardId: "c1", canonicalRank: 2, language: "DE", setId: "set-2" }),
+    ];
+    const names = printingChoices(snapshotWith(printings), card, "").map((c) => c.name);
+    expect(names[0]).toBe("OGN-202/298 · Origins · DE (default)");
+  });
+
+  it("tells a foil printing from its standard twin in the same set", () => {
+    const names = printingChoices(snapshotWith(finishPrintings()), card, "").map((c) => c.name);
+    expect(names).toEqual([
+      "OGN-202/298 · Origins · Standard (default)",
+      "OGN-202/298 · Origins · Foil",
+    ]);
+  });
+
+  it("names the other variant attributes the site's picker names", () => {
+    const printings = [
+      makePrinting({ id: "p1", cardId: "c1", canonicalRank: 1 }),
+      makePrinting({
+        id: "p2",
+        cardId: "c1",
+        canonicalRank: 2,
+        artVariant: "altart",
+        isSigned: true,
+        size: "oversized",
+        markers: [{ id: "m1", slug: "promo", label: "Promo", description: null }],
+      }),
+    ];
+    const names = printingChoices(snapshotWith(printings), card, "").map((c) => c.name);
+    expect(names[1]).toBe("OGN-202/298 · Origins · Alt Art · Oversized · Signed · Promo");
+  });
+
+  it("omits the variant label for a card with a single plain printing", () => {
+    const printings = [makePrinting({ id: "p1", cardId: "c1", canonicalRank: 1 })];
+    expect(printingChoices(snapshotWith(printings), card, "")[0]?.name).toBe(
+      "OGN-202/298 · Origins (default)",
+    );
+  });
+
   it("filters by the typed text against code and set name", () => {
     expect(printingChoices(snapshotWith(), card, "blossom").map((c) => c.value)).toEqual(["p2"]);
     expect(printingChoices(snapshotWith(), card, "sfb-011").map((c) => c.value)).toEqual(["p2"]);
+  });
+
+  it("filters by a variant attribute now that the label carries it", () => {
+    expect(
+      printingChoices(snapshotWith(finishPrintings()), card, "foil").map((c) => c.value),
+    ).toEqual(["p2"]);
   });
 
   it("returns empty for a card without printings", () => {

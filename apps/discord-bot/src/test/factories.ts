@@ -114,7 +114,10 @@ export function makeInitResponse(): InitResponse {
         { slug: "normal", label: "Normal", sortOrder: 1 },
         { slug: "altart", label: "Alt Art", sortOrder: 2 },
       ],
-      cardSizes: [],
+      cardSizes: [
+        { slug: "standard", label: "Standard", sortOrder: 1 },
+        { slug: "oversized", label: "Oversized", sortOrder: 2 },
+      ],
       deckFormats: [],
       deckZones: [
         { slug: "legend", label: "Legend", sortOrder: 1 },

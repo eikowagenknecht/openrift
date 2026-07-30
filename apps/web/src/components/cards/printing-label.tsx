@@ -1,9 +1,10 @@
 import type { Printing } from "@openrift/shared";
+import { formatPrintingVariantLabelParts } from "@openrift/shared";
 import type { ReactNode } from "react";
 
 import { LanguageChip } from "@/components/language-chip";
 import { useEnumOrders } from "@/hooks/use-enums";
-import { formatImportPrintingLabelParts, formatPrintingLabelParts } from "@/lib/format";
+import { formatImportPrintingLabelParts } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 interface LabelPiece {
@@ -38,7 +39,7 @@ function DottedLabel({ pieces, className }: { pieces: LabelPiece[]; className?: 
 }
 
 /**
- * Display form of {@link formatPrintingLabel}: the language renders as a colored
+ * Display form of {@link formatPrintingVariantLabel}: the language renders as a colored
  * chip instead of a `[XX]` tag. The chip is always the first entry of the row,
  * so an optional `code` slot (the shortcode, rendered by the caller so it can
  * carry a link) lands after the chip, then the remaining variant labels. Falls
@@ -61,7 +62,7 @@ export function PrintingVariantLabel({
   className?: string;
 }): ReactNode {
   const { labels } = useEnumOrders();
-  const { language, rest } = formatPrintingLabelParts(printing, siblings, labels);
+  const { language, rest } = formatPrintingVariantLabelParts(printing, siblings, labels);
   const isPlain = !language && rest.length === 0;
   // No code slot and nothing to distinguish: the bare fallback word.
   if (isPlain && code === undefined) {

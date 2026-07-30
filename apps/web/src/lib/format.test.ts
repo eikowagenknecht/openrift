@@ -10,8 +10,6 @@ import {
   formatPrice,
   formatPriceCompact,
   formatPriceEur,
-  formatPrintingLabel,
-  formatPrintingLabelParts,
   formatPublicCode,
   priceColorClass,
 } from "./format";
@@ -83,32 +81,6 @@ function stub(overrides: Partial<Printing> = {}): Printing {
 // ---------------------------------------------------------------------------
 // formatCardId
 // ---------------------------------------------------------------------------
-
-describe("formatPrintingLabel", () => {
-  it('returns "Standard" when nothing distinguishes the printing', () => {
-    expect(formatPrintingLabel(stub(), undefined, TEST_LABELS)).toBe("Standard");
-  });
-
-  it("labels an oversized printing even without a standard sibling", () => {
-    expect(formatPrintingLabel(stub({ size: "oversized" }), undefined, TEST_LABELS)).toBe(
-      "Oversized",
-    );
-  });
-
-  it("distinguishes an oversized printing from its identical-art standard twin", () => {
-    const standard = stub({ size: "standard" });
-    const oversized = stub({ size: "oversized" });
-    const siblings = [standard, oversized];
-    expect(formatPrintingLabel(standard, siblings, TEST_LABELS)).toBe("Standard");
-    expect(formatPrintingLabel(oversized, siblings, TEST_LABELS)).toBe("Oversized");
-  });
-
-  it("combines size with other distinguishing attributes", () => {
-    const oversizedFoil = stub({ size: "oversized", finish: "foil" });
-    const siblings = [stub({ finish: "normal" }), oversizedFoil];
-    expect(formatPrintingLabel(oversizedFoil, siblings, TEST_LABELS)).toBe("Foil · Oversized");
-  });
-});
 
 describe("formatCardId", () => {
   it("returns the source id", () => {
@@ -222,135 +194,6 @@ describe("formatPriceCompact", () => {
     expect(formatPriceCompact(9999)).toBe("$10k");
     expect(formatPriceCompact(10_000)).toBe("$10k");
     expect(formatPriceCompact(25_000)).toBe("$25k");
-  });
-});
-
-// ---------------------------------------------------------------------------
-// formatPrintingLabel
-// ---------------------------------------------------------------------------
-
-describe("formatPrintingLabel", () => {
-  it("shows non-normal attributes when no siblings provided", () => {
-    const p = stub({
-      artVariant: "altart",
-      finish: "foil",
-      isSigned: true,
-      markers: [{ id: "1", slug: "promo", label: "Promo", description: null }],
-    });
-    expect(formatPrintingLabel(p, undefined, TEST_LABELS)).toBe("Alt Art · Foil · Signed · Promo");
-  });
-
-  it('returns "Standard" when all attributes are normal defaults', () => {
-    expect(formatPrintingLabel(stub(), undefined, TEST_LABELS)).toBe("Standard");
-  });
-
-  it("uses the label map for custom finish slugs", () => {
-    const p = stub({ finish: "metal" as Printing["finish"] });
-    const labels: EnumLabels = {
-      ...TEST_LABELS,
-      finishes: { ...TEST_LABELS.finishes, metal: "Metal" },
-    };
-    expect(formatPrintingLabel(p, undefined, labels)).toBe("Metal");
-  });
-
-  it("omits attributes shared by all siblings", () => {
-    const base = { finish: "foil" as const };
-    const p = stub({ ...base, artVariant: "altart" });
-    const siblings = [p, stub({ ...base, artVariant: "normal" })];
-    expect(formatPrintingLabel(p, siblings, TEST_LABELS)).toBe("Alt Art");
-  });
-
-  it("includes attributes that differ among siblings", () => {
-    const markers = [{ id: "1", slug: "promo", label: "Promo", description: null }];
-    const p = stub({ isSigned: true, markers });
-    const siblings = [p, stub({ isSigned: false, markers })];
-    expect(formatPrintingLabel(p, siblings, TEST_LABELS)).toBe("Signed");
-  });
-
-  it("joins multiple distinguishing attributes with ·", () => {
-    const p = stub({ artVariant: "altart", isSigned: true });
-    const siblings = [p, stub()];
-    expect(formatPrintingLabel(p, siblings, TEST_LABELS)).toBe("Alt Art · Signed");
-  });
-
-  it("tags every row with [XX] when language varies, including English", () => {
-    const en = stub({ language: "EN" });
-    const sc = stub({ language: "SC" });
-    const siblings = [en, sc];
-    expect(formatPrintingLabel(en, siblings, TEST_LABELS)).toBe("[EN]");
-    expect(formatPrintingLabel(sc, siblings, TEST_LABELS)).toBe("[SC]");
-  });
-
-  it("puts the language tag before other distinguishing attributes", () => {
-    const p = stub({ language: "SC", artVariant: "altart", isSigned: true });
-    const siblings = [p, stub({ language: "EN" })];
-    expect(formatPrintingLabel(p, siblings, TEST_LABELS)).toBe("[SC] · Alt Art · Signed");
-  });
-
-  it("omits the language tag when every sibling shares the language", () => {
-    const p = stub({ language: "EN", artVariant: "altart" });
-    const siblings = [p, stub({ language: "EN" })];
-    expect(formatPrintingLabel(p, siblings, TEST_LABELS)).toBe("Alt Art");
-  });
-
-  it("omits the language tag when no siblings are provided", () => {
-    expect(formatPrintingLabel(stub({ language: "SC" }), undefined, TEST_LABELS)).toBe("Standard");
-  });
-
-  it("labels a non-normal art variant even when it is the only sibling", () => {
-    const p = stub({ artVariant: "altart" });
-    expect(formatPrintingLabel(p, [p], TEST_LABELS)).toBe("Alt Art");
-  });
-
-  it("labels a non-normal art variant when every sibling shares it", () => {
-    const p = stub({ artVariant: "altart" });
-    const siblings = [p, stub({ artVariant: "altart", isSigned: true })];
-    expect(formatPrintingLabel(p, siblings, TEST_LABELS)).toBe("Alt Art");
-  });
-});
-
-// ---------------------------------------------------------------------------
-// formatPrintingLabelParts
-// ---------------------------------------------------------------------------
-
-describe("formatPrintingLabelParts", () => {
-  it("returns no language and no rest for a standard printing without siblings", () => {
-    expect(formatPrintingLabelParts(stub(), undefined, TEST_LABELS)).toEqual({
-      language: null,
-      rest: [],
-    });
-  });
-
-  it("surfaces the language code (not a [XX] tag) when siblings differ", () => {
-    const en = stub({ language: "EN" });
-    const sc = stub({ language: "SC" });
-    const siblings = [en, sc];
-    expect(formatPrintingLabelParts(sc, siblings, TEST_LABELS)).toEqual({
-      language: "SC",
-      rest: [],
-    });
-    expect(formatPrintingLabelParts(en, siblings, TEST_LABELS)).toEqual({
-      language: "EN",
-      rest: [],
-    });
-  });
-
-  it("keeps the language separate from the non-language attribute labels", () => {
-    const p = stub({ language: "SC", artVariant: "altart", isSigned: true });
-    const siblings = [p, stub({ language: "EN" })];
-    expect(formatPrintingLabelParts(p, siblings, TEST_LABELS)).toEqual({
-      language: "SC",
-      rest: ["Alt Art", "Signed"],
-    });
-  });
-
-  it("omits the language when every sibling shares it", () => {
-    const p = stub({ language: "EN", artVariant: "altart" });
-    const siblings = [p, stub({ language: "EN" })];
-    expect(formatPrintingLabelParts(p, siblings, TEST_LABELS)).toEqual({
-      language: null,
-      rest: ["Alt Art"],
-    });
   });
 });
 

@@ -5,19 +5,22 @@ import type {
   CatalogSetResponse,
   InitResponse,
   PricesResponse,
+  VariantLabelEnumLabels,
 } from "@openrift/shared";
 
 export type CatalogCard = CatalogResponseCardValue & { id: string };
 export type CatalogPrinting = CatalogResponsePrintingValue & { id: string };
 
-/** Slug → display label maps for the enum groups the embeds use. */
-export interface EnumLabels {
+/**
+ * Slug → display label maps for the enum groups the embeds use. Extends the
+ * shared variant-label groups so a printing's distinguishing attributes can be
+ * named with `formatPrintingVariantLabel`, exactly as the site names them.
+ */
+export interface EnumLabels extends VariantLabelEnumLabels {
   cardTypes: Record<string, string>;
   superTypes: Record<string, string>;
   domains: Record<string, string>;
   deckZones: Record<string, string>;
-  artVariants: Record<string, string>;
-  finishes: Record<string, string>;
 }
 
 export interface CatalogSnapshot {
@@ -76,6 +79,7 @@ export function buildSnapshot(
       deckZones: labelMap(init.enums.deckZones),
       artVariants: labelMap(init.enums.artVariants),
       finishes: labelMap(init.enums.finishes),
+      cardSizes: labelMap(init.enums.cardSizes),
     },
     zoneOrder: init.enums.deckZones
       .toSorted((a, b) => a.sortOrder - b.sortOrder)

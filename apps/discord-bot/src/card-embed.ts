@@ -3,6 +3,7 @@ import { findStandardArtFallback, imageUrl, MARKETPLACE_LINKS, WellKnown } from 
 import type { APIEmbed } from "discord.js";
 
 import type { CatalogCard, CatalogPrinting, CatalogSnapshot, EnumLabels } from "./catalog-cache.js";
+import { printingVariantParts } from "./printing-choice.js";
 
 /** The brand green also used by the changelog webhook embeds. */
 export const EMBED_COLOR = 0x24_70_5f;
@@ -146,6 +147,24 @@ function resolveEmbedArt(
 }
 
 /**
+ * The embed footer for a printing: public code, set name, and the variant
+ * attributes that tell it from the card's other printings, so the reply says
+ * which of several same-code printings it is showing.
+ *
+ * @returns The footer text.
+ */
+function printingFooter(printing: CatalogPrinting, snapshot: CatalogSnapshot): string {
+  const set = snapshot.setsById.get(printing.setId);
+  const siblings = snapshot.printingsByCardId.get(printing.cardId) ?? [];
+  const parts = [printing.publicCode];
+  if (set) {
+    parts.push(set.name);
+  }
+  parts.push(...printingVariantParts(snapshot, printing, siblings));
+  return parts.join(" · ");
+}
+
+/**
  * Builds the reply embed for a card: name linking to its OpenRift page, the
  * stat line, the front image, and one inline price field per marketplace that
  * has a price for the representative printing.
@@ -155,7 +174,6 @@ function resolveEmbedArt(
 export function buildCardEmbed(input: CardEmbedInput): APIEmbed {
   const { card, printing, snapshot, siteUrl } = input;
   const { imageId, fallbackNote } = resolveEmbedArt(card, printing, snapshot);
-  const set = printing ? snapshot.setsById.get(printing.setId) : undefined;
   const priceMap = printing ? snapshot.prices[printing.id] : undefined;
 
   const fields = MARKETPLACE_ORDER.flatMap((marketplace) => {
@@ -182,8 +200,6 @@ export function buildCardEmbed(input: CardEmbedInput): APIEmbed {
     color: EMBED_COLOR,
     ...(imageId ? { image: { url: `${siteUrl}${imageUrl(imageId, "full")}` } } : {}),
     ...(fields.length > 0 ? { fields } : {}),
-    ...(printing
-      ? { footer: { text: set ? `${printing.publicCode} · ${set.name}` : printing.publicCode } }
-      : {}),
+    ...(printing ? { footer: { text: printingFooter(printing, snapshot) } } : {}),
   };
 }

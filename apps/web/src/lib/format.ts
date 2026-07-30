@@ -1,78 +1,7 @@
 import type { Marketplace, Printing } from "@openrift/shared";
-import { EUR_MARKETPLACES, WellKnown } from "@openrift/shared";
+import { EUR_MARKETPLACES, formatPrintingVariantLabelParts, WellKnown } from "@openrift/shared";
 
 import type { EnumLabels } from "@/hooks/use-enums";
-
-/**
- * A printing's distinguishing attributes split so the language can render as a
- * chip instead of a `[XX]` tag. `language` is the code to show (or null when it
- * shouldn't be shown — English, or when all siblings share it); `rest` holds the
- * non-language attribute labels (art variant, finish, size, signed, markers).
- */
-export interface PrintingLabelParts {
-  language: string | null;
-  rest: string[];
-}
-
-/**
- * Splits a printing's distinguishing attributes into the language code and the
- * remaining attribute labels. The rules match {@link formatPrintingLabel}: a
- * language is shown only when siblings differ in language; a non-normal art
- * variant and oversized are always labeled; finish / signed / markers are
- * omitted when shared by all siblings.
- * @returns The language code (or null) and the ordered non-language labels.
- */
-export function formatPrintingLabelParts(
-  printing: Printing,
-  siblings: Printing[] | undefined,
-  labels: EnumLabels,
-): PrintingLabelParts {
-  const allSame = (fn: (c: Printing) => unknown) =>
-    siblings ? siblings.every((s) => fn(s) === fn(printing)) : false;
-
-  const language = siblings && !allSame((c) => c.language) ? printing.language : null;
-  const rest: string[] = [];
-  if (printing.artVariant !== WellKnown.artVariant.NORMAL) {
-    rest.push(labels.artVariants[printing.artVariant]);
-  }
-  if (printing.finish !== WellKnown.finish.NORMAL && !allSame((c) => c.finish)) {
-    rest.push(labels.finishes[printing.finish]);
-  }
-  // Oversized is always labeled when present (like art variant): the larger
-  // print carries meaning even without a standard counterpart in the list.
-  if (printing.size !== "standard") {
-    rest.push(labels.cardSizes[printing.size]);
-  }
-  if (printing.isSigned && !allSame((c) => c.isSigned)) {
-    rest.push("Signed");
-  }
-  if (printing.markers.length > 0 && !allSame((c) => c.markers.map((m) => m.slug).join("+"))) {
-    rest.push(printing.markers.map((m) => m.label).join(" + "));
-  }
-  return { language, rest };
-}
-
-/**
- * Human-readable label for a printing's distinguishing attributes.
- * Omits "Normal" defaults. Most attributes are also omitted when shared by all
- * siblings, but a non-normal art variant is always labeled — the alt-art status
- * carries meaning even without a normal counterpart in the list. When language
- * varies among siblings, every row gets a `[XX]` tag (including English) so the
- * pairing reads symmetrically rather than leaving default rows blank.
- *
- * String form for value/search/aria uses; for display prefer the
- * `PrintingVariantLabel` component, which renders the language as a chip.
- * @returns A label like "[EN] · Alt Art", or "Standard" when no distinguishing attributes.
- */
-export function formatPrintingLabel(
-  printing: Printing,
-  siblings: Printing[] | undefined,
-  labels: EnumLabels,
-): string {
-  const { language, rest } = formatPrintingLabelParts(printing, siblings, labels);
-  const parts = language ? [`[${language}]`, ...rest] : rest;
-  return parts.length > 0 ? parts.join(" · ") : "Standard";
-}
 
 export function formatCardId(printing: Printing): string {
   return printing.shortCode;
@@ -100,7 +29,7 @@ export function formatImportPrintingLabelParts(
   printing: Printing,
   labels: EnumLabels,
 ): ImportPrintingLabelParts {
-  const { rest } = formatPrintingLabelParts(printing, undefined, labels);
+  const { rest } = formatPrintingVariantLabelParts(printing, undefined, labels);
   return {
     code: formatCardId(printing),
     language: printing.language === WellKnown.language.EN ? null : printing.language,

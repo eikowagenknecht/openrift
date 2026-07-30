@@ -52,6 +52,13 @@ export {
 
 export { foldForSearch, squashForSearch } from "./search-fold.js";
 
+export { formatPrintingVariantLabel, formatPrintingVariantLabelParts } from "./printing-label.js";
+export type {
+  PrintingVariantLabelParts,
+  VariantLabelEnumLabels,
+  VariantLabelPrinting,
+} from "./printing-label.js";
+
 export {
   extractCardIdFromShortCode,
   formatPrintingLabel,

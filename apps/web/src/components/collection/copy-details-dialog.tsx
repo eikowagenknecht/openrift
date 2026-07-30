@@ -135,7 +135,7 @@ export function CopyDetailsDialog({
 
 /**
  * The distinct printings among a tile's copies, deduped by printing id, used as
- * the `siblings` list for `formatPrintingLabel`. Deduping to the printings
+ * the `siblings` list for `formatPrintingVariantLabel`. Deduping to the printings
  * actually on screen means the label only calls out attributes that differ
  * across these copies — a tile whose copies all share one printing stays
  * "Standard" rather than spelling out attributes no sibling contradicts.

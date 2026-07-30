@@ -1,4 +1,4 @@
-import { foldForSearch, squashForSearch } from "@openrift/shared";
+import { foldForSearch, formatPrintingVariantLabelParts, squashForSearch } from "@openrift/shared";
 
 import type { CatalogCard, CatalogPrinting, CatalogSnapshot } from "./catalog-cache.js";
 import { representativePrinting } from "./catalog-cache.js";
@@ -27,9 +27,45 @@ function orderedPrintings(snapshot: CatalogSnapshot, card: CatalogCard): Catalog
   return [fallback, ...printings.filter((printing) => printing.id !== fallback.id)];
 }
 
+/**
+ * The attributes that tell a printing apart from the card's other printings —
+ * language, art variant, finish, size, signature, markers — named by the same
+ * shared helper the site's printing picker uses. Without them a standard and a
+ * foil print read identically, since they share a public code and a set.
+ *
+ * @returns The label pieces, in the site's order; empty for a lone printing
+ * with nothing to distinguish.
+ */
+export function printingVariantParts(
+  snapshot: CatalogSnapshot,
+  printing: CatalogPrinting,
+  siblings: CatalogPrinting[],
+): string[] {
+  const { language, rest } = formatPrintingVariantLabelParts(printing, siblings, snapshot.labels);
+  // The shared helper only surfaces a language when the siblings disagree; a
+  // card printed solely in one non-English language still says so here, since
+  // the bot carries no other language cue.
+  const shown = language ?? (printing.language === "EN" ? null : printing.language);
+  const parts = shown ? [shown, ...rest] : [...rest];
+  // Nothing distinguishing but siblings to tell it from: say "Standard" so the
+  // plain print pairs visibly with its labeled siblings, as the site's picker
+  // does. A lone printing needs no such contrast.
+  if (parts.length === 0 && siblings.length > 1) {
+    parts.push("Standard");
+  }
+  return parts;
+}
+
+/**
+ * One autocomplete line for a printing: public code, set name, then its
+ * distinguishing variant attributes.
+ *
+ * @returns The choice label, truncated to Discord's 100-character limit.
+ */
 function printingLabel(
   snapshot: CatalogSnapshot,
   printing: CatalogPrinting,
+  siblings: CatalogPrinting[],
   isDefault: boolean,
 ): string {
   const set = snapshot.setsById.get(printing.setId);
@@ -37,9 +73,7 @@ function printingLabel(
   if (set) {
     parts.push(set.name);
   }
-  if (printing.language !== "EN") {
-    parts.push(printing.language);
-  }
+  parts.push(...printingVariantParts(snapshot, printing, siblings));
   const label = parts.join(" · ");
   return (isDefault ? `${label} (default)` : label).slice(0, 100);
 }
@@ -47,7 +81,9 @@ function printingLabel(
 /**
  * Autocomplete choices for a card's printings: the default printing first
  * (marked as such), filtered by the user's typed text against the choice
- * label, capped at Discord's 25-choice limit. Values are printing ids.
+ * label, capped at Discord's 25-choice limit. Values are printing ids. Since
+ * the label carries the variant attributes, typing "foil" narrows the list to
+ * the foil prints.
  *
  * @returns The matching choices, default first.
  */
@@ -59,7 +95,7 @@ export function printingChoices(
   const printings = orderedPrintings(snapshot, card);
   const folded = foldForSearch(query);
   const choices = printings.map((printing, index) => ({
-    name: printingLabel(snapshot, printing, index === 0),
+    name: printingLabel(snapshot, printing, printings, index === 0),
     value: printing.id,
   }));
   const filtered = folded
