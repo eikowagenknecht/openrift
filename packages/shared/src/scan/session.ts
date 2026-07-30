@@ -76,6 +76,11 @@ export interface ScanSessionDeps {
    * discards the frame and retries the fetch on a later one.
    */
   fetchReference: (key: string) => Promise<RgbaImage | null>;
+  /**
+   * The encoder's input side length. An encoder property, so it travels with
+   * `embedder`; defaults to MobileCLIP's 256.
+   */
+  embedImageSize?: number;
 }
 
 export interface ScanSessionOptions {
@@ -116,6 +121,15 @@ export interface ScanSessionOptions {
    * gate otherwise pays the full rotation search on half its frames.
    */
   rotationFallbackDistance: number;
+  /**
+   * Restrict the rotation fallback to the preferred rotation's 180-degree
+   * partner. Sound only in guide mode against a canonical bank (see
+   * `decodeEmbedBank`'s canonical flag): the guide rules out the
+   * foreshortening aspect flip, and the canonical bank rules out the quarter
+   * turn. Cuts a slow device's battlefield discovery from 4 encoder passes to
+   * at most 2. Never enable for pan sessions or native banks.
+   */
+  rotationPairOnly: boolean;
   /** Absolute inlier floor for a frame winner. */
   minInliers: number;
   /** The winner must beat its best different-artwork rival by this factor. */
@@ -151,6 +165,7 @@ export const DEFAULT_SESSION_OPTIONS: ScanSessionOptions = {
   // settings.
   rotationMinFocus: 40,
   rotationFallbackDistance: 0.35,
+  rotationPairOnly: false,
   guideFor: null,
   minInliers: 11,
   margin: 1.5,
@@ -299,7 +314,8 @@ export function createScanSession(
   const referenceCache = new Map<string, OrbFeatures | null>();
   // Reused across frames: the four-rotation staging tensor is ~3 MB, and
   // reallocating it per candidate churns the GC on phones.
-  const embedInput = new Float32Array(4 * 3 * EMBED_IMAGE_SIZE * EMBED_IMAGE_SIZE);
+  const embedImageSize = deps.embedImageSize ?? EMBED_IMAGE_SIZE;
+  const embedInput = new Float32Array(4 * 3 * embedImageSize * embedImageSize);
   // Where the last verified winner sat, steering candidate order (see
   // prioritizeTracked). Never cleared: a stale anchor stops matching anything
   // by IoU and the order falls back to detector score on its own.
@@ -455,6 +471,8 @@ export function createScanSession(
         focus >= opts.rotationMinFocus,
         lastWinnerRotation,
         embedInput,
+        embedImageSize,
+        opts.rotationPairOnly,
       );
       if (ranked.length > 0 && (!best || ranked[0].distance < best.ranked[0].distance)) {
         best = { candidate, ranked, card, focus };

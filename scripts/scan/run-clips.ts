@@ -11,7 +11,14 @@
  * Usage: bun scripts/scan/run-clips.ts [--clip binder-page] [--verbose]
  *        [--art-crop] [--mask-frame] [--min-sightings N] [--top-k N]
  *        [--tries N] [--margin M] [--lock-run N] [--lock-gap N] [--force-bank]
- *        [--confident-distance D]
+ *        [--confident-distance D] [--rotation-min-focus N]
+ *        [--rotation-fallback-distance D] [--pair-only]
+ *
+ * --pair-only restricts the rotation fallback to the 180-degree partner and is
+ * only sound against a canonical bank (SCAN_CANONICAL_BANK=1) with an encoder
+ * trained --canonical. The clips are pan footage, where pair-only measurably
+ * loses stacked battlefields (verdict.log 2026-07-30) — it exists here for
+ * experiments, not as a recommended bench configuration.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -30,7 +37,7 @@ import {
   createScanSession,
 } from "../../packages/shared/src/scan/index.js";
 import { describe, loadCatalog } from "./catalog";
-import { loadEmbedBank, nodeEmbedder } from "./embed-bank";
+import { EMBED_SIZE, loadEmbedBank, nodeEmbedder } from "./embed-bank";
 import { listReferenceImages, loadImage } from "./lib";
 
 const CLIPS = "/home/eiko/repos/openrift/data/image-recognition-test/clips/full";
@@ -86,6 +93,7 @@ async function runClip(
       labelOf: (key) => describe(catalog, key),
       cardTypeOf: (key) => catalog.get(key)?.cardType,
       publicCodeOf: (key) => catalog.get(key)?.publicCode,
+      embedImageSize: EMBED_SIZE,
       fetchReference: async (key) => {
         const file = referenceFiles.get(key);
         return file ? await loadImage(file) : null;
@@ -105,6 +113,7 @@ async function runClip(
         argValue("--rotation-fallback-distance") ??
           DEFAULT_SESSION_OPTIONS.rotationFallbackDistance,
       ),
+      rotationPairOnly: process.argv.includes("--pair-only"),
       margin: acceptMargin,
       maskReferenceFrame: maskFrame,
       accept: acceptOptions,

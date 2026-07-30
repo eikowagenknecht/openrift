@@ -59,4 +59,24 @@ describe("embed bank round trip", () => {
   it("rejects foreign buffers", () => {
     expect(() => decodeEmbedBank(new ArrayBuffer(16))).toThrow("not an embedding bank");
   });
+
+  it("round-trips the canonical flag", () => {
+    expect(decodeEmbedBank(encodeEmbedBank(bank, artKeyOf)).canonical).toBe(false);
+    expect(decodeEmbedBank(encodeEmbedBank(bank, artKeyOf, true)).canonical).toBe(true);
+  });
+
+  it("still decodes version-1 banks as native orientation", () => {
+    // A version-2 buffer with the version field patched down and the flags
+    // word cut out is exactly the version-1 layout.
+    const v2 = encodeEmbedBank(bank, artKeyOf, true);
+    const v1 = new Uint8Array(v2.byteLength - 2);
+    v1.set(new Uint8Array(v2, 0, 12), 0);
+    v1.set(new Uint8Array(v2, 14), 12);
+    new DataView(v1.buffer).setUint16(4, 1, true);
+
+    const decoded = decodeEmbedBank(v1.buffer);
+    expect(decoded.canonical).toBe(false);
+    expect(decoded.bank.keys).toEqual(bank.keys);
+    expect(decoded.artKeys.get("key-b")).toBe("art-key-b");
+  });
 });

@@ -15,6 +15,12 @@ export interface LoadedScanBank {
   artKeys: Map<string, string>;
   labels: Record<string, CardLabel>;
   bytes: number;
+  /**
+   * The bank was built in the canonical frame (landscape references rotated
+   * 90 degrees left). Guide-mode sessions may then use the pair-only rotation
+   * search; native banks must keep the full search.
+   */
+  canonical: boolean;
 }
 
 let cached: Promise<LoadedScanBank> | null = null;
@@ -42,8 +48,8 @@ export async function loadScanBank(bankUrl: string, labelsUrl: string): Promise<
     const labels = labelResponse.ok
       ? ((await labelResponse.json()) as Record<string, CardLabel>)
       : {};
-    const { bank, artKeys } = decodeEmbedBank(buffer);
-    return { bank, artKeys, labels, bytes: buffer.byteLength };
+    const { bank, artKeys, canonical } = decodeEmbedBank(buffer);
+    return { bank, artKeys, labels, bytes: buffer.byteLength, canonical };
   })();
   try {
     return await cached;

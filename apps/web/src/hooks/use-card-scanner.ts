@@ -19,6 +19,7 @@ import type { LoadedScanBank } from "@/lib/scan-bank";
 import { describeKey } from "@/lib/scan-bank";
 import {
   SLOW_DEVICE_EMBED_MS,
+  embedderImageSize,
   loadScanEmbedder,
   measuredEmbedMsPerImage,
 } from "@/lib/scan-embedder";
@@ -553,6 +554,7 @@ export function useCardScanner(
         labelOf: (key) => describeKey(loaded.labels, key),
         cardTypeOf: (key) => loaded.labels[key]?.type,
         publicCodeOf: (key) => loaded.labels[key]?.code,
+        embedImageSize: embedderImageSize(),
         fetchReference,
       },
       {
@@ -564,6 +566,14 @@ export function useCardScanner(
             ? Math.min(1, settingsRef.current.candidatesToTry)
             : settingsRef.current.candidatesToTry,
         confidentDistance: settingsRef.current.confidentDistance,
+        // Guide-mode pair-only rotation search, only when the served bank was
+        // built in the canonical frame: a battlefield placed in the guide then
+        // matches at 0 or 180 degrees, so discovery costs at most 2 encoder
+        // passes instead of 4 (the difference between ~2 s and ~10 s per tap
+        // on a Pixel-1-class device). Pan keeps the full search: steep
+        // foreshortening can flip a card's projected aspect into the other
+        // pair (measured on the battlefields clip, 2026-07-30).
+        rotationPairOnly: single && loaded.canonical,
         ...(single
           ? {
               guideFor: guideQuadFor,
@@ -789,7 +799,14 @@ export function useCardScanner(
     if (!track) {
       return;
     }
-    const lockSeconds = (track.lockedAt ?? track.runStartSeconds) - track.runStartSeconds;
+    // A capture-mode lock comes from exactly one deliberate tap, so elapsed
+    // run time is always 0.00s; the number that means something there is how
+    // long the tap took to process.
+    const tapped = settingsRef.current.mode === "capture";
+    const lockSeconds = tapped
+      ? outcome.timings.total / 1000
+      : (track.lockedAt ?? track.runStartSeconds) - track.runStartSeconds;
+    const framesToLock = tapped ? 1 : (track.framesToLock ?? 0);
     locksRef.current = [
       {
         key: track.key,
@@ -797,13 +814,13 @@ export function useCardScanner(
         label: track.label,
         at: Date.now(),
         lockSeconds,
-        framesToLock: track.framesToLock ?? 0,
+        framesToLock,
         inliers: outcome.winner === null ? 0 : outcome.winner.inliers,
       },
       ...locksRef.current,
     ].slice(0, 30);
     console.log(
-      `[scan] LOCK ${track.label} (${track.key}) after ${track.framesToLock ?? 0} frames, ${lockSeconds.toFixed(2)}s`,
+      `[scan] LOCK ${track.label} (${track.key}) after ${framesToLock} frames, ${lockSeconds.toFixed(2)}s`,
     );
     // A short buzz marks the lock moment, so on a phone the eyes can stay on
     // the cards instead of the lock list.

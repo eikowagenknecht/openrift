@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import type { CardEmbedder, EmbedBank } from "./embed";
-import { EMBED_DIM, normalizeEmbeddings, rankCardEmbedding, rankEmbedBank } from "./embed";
+import {
+  EMBED_DIM,
+  EMBED_IMAGE_SIZE,
+  embedImageSizeOf,
+  normalizeEmbeddings,
+  rankCardEmbedding,
+  rankEmbedBank,
+} from "./embed";
 import { rotateRgbaCw } from "./image";
 import type { RgbaImage } from "./types";
 
@@ -134,12 +141,48 @@ describe("rankCardEmbedding", () => {
     expect(ranked[0].rotation).toBe(0);
   });
 
+  it("falls back to only the 180-degree partner in pair-only mode", async () => {
+    // Preferred rotation 1 misses; the single-slot fallback is rotation 3.
+    const { embedder, calls } = embedderOf([[axis(2)], [axis(1)]]);
+    const ranked = await rankCardEmbedding(
+      card,
+      "card",
+      embedder,
+      bank,
+      2,
+      0.3,
+      0,
+      true,
+      1,
+      undefined,
+      undefined,
+      true,
+    );
+    expect(calls).toEqual([1, 1]);
+    expect(ranked[0].key).toBe("b");
+    expect(ranked[0].rotation).toBe(3);
+  });
+
   it("embeds all four rotations in one batch when the gate is disabled", async () => {
     const { embedder, calls } = embedderOf([[axis(0), axis(2), axis(3), axis(4)]]);
     const ranked = await rankCardEmbedding(card, "card", embedder, bank, 1, -1);
     expect(calls).toEqual([4]);
     expect(ranked[0].key).toBe("a");
     expect(ranked[0].rotation).toBe(0);
+  });
+});
+
+describe("embedImageSizeOf", () => {
+  it("reads the trailing spatial dimension of a declared shape", () => {
+    expect(embedImageSizeOf(["batch", 3, 192, 192])).toBe(192);
+    expect(embedImageSizeOf(["batch_size", 3, 256, 256])).toBe(256);
+  });
+
+  it("falls back to the MobileCLIP size for missing or symbolic dims", () => {
+    expect(embedImageSizeOf(undefined)).toBe(EMBED_IMAGE_SIZE);
+    expect(embedImageSizeOf([])).toBe(EMBED_IMAGE_SIZE);
+    expect(embedImageSizeOf(["batch", 3, "height", "width"])).toBe(EMBED_IMAGE_SIZE);
+    expect(embedImageSizeOf(["batch", 3, 192, 0])).toBe(EMBED_IMAGE_SIZE);
   });
 });
 

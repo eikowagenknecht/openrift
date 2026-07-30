@@ -18,7 +18,7 @@ import path from "node:path";
 
 import { encodeEmbedBank } from "../../packages/shared/src/scan/index.js";
 import { loadCatalog } from "./catalog";
-import { MODEL_FILE, loadEmbedBank } from "./embed-bank";
+import { CANONICAL_BANK, MODEL_FILE, loadEmbedBank } from "./embed-bank";
 import { REPO_ROOT } from "./lib";
 
 const BANK_OUTPUT = path.join(REPO_ROOT, "apps/web/public/scan-embed-bank.bin");
@@ -34,7 +34,7 @@ const OPENCV_OUTPUT = path.join(REPO_ROOT, "apps/web/public/scan-opencv.js");
 const catalog = loadCatalog();
 
 const bank = await loadEmbedBank("card", process.argv.includes("--force-bank"));
-const bankBuffer = encodeEmbedBank(bank, (key) => catalog.get(key)?.artKey ?? key);
+const bankBuffer = encodeEmbedBank(bank, (key) => catalog.get(key)?.artKey ?? key, CANONICAL_BANK);
 await fs.promises.mkdir(path.dirname(BANK_OUTPUT), { recursive: true });
 await fs.promises.writeFile(BANK_OUTPUT, Buffer.from(bankBuffer));
 

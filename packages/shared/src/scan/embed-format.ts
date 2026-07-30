@@ -10,15 +10,24 @@
  * browser should not need a second download to know the grouping.
  */
 import type { EmbedBank } from "./embed";
-import { EMBED_DIM } from "./embed";
 
 const MAGIC = 0x52_46_45_42; // "RFEB"
 /**
  * Serialization version, also recorded next to server-built banks so an
  * engine-version bump is detectable without decoding the file.
+ *
+ * Version 2 adds a flags word after the header; version 1 banks (no flags,
+ * native orientation) still decode.
  */
-export const EMBED_BANK_VERSION = 1;
+export const EMBED_BANK_VERSION = 2;
 const VERSION = EMBED_BANK_VERSION;
+/**
+ * Flags bit 0: the bank's landscape references were rotated 90 degrees left
+ * into the rectifier's portrait frame at build time (and the encoder was
+ * trained on that frame). Guide-mode sessions may then restrict the rotation
+ * search to the 180-degree pair; against a native bank they must not.
+ */
+const FLAG_CANONICAL = 1;
 
 const F32_SCRATCH = new Float32Array(1);
 const U32_SCRATCH = new Uint32Array(F32_SCRATCH.buffer);
@@ -72,14 +81,21 @@ function fromHalf(half: number): number {
 /**
  * Serialise a bank with its artwork grouping.
  *
+ * @param canonical The bank was built in the canonical frame (landscape
+ *   references rotated 90 degrees left); recorded in the container so the
+ *   client knows whether the pair-only rotation search is sound.
  * @returns A self-contained buffer that {@link decodeEmbedBank} can restore.
  */
-export function encodeEmbedBank(bank: EmbedBank, artKeyOf: (key: string) => string): ArrayBuffer {
+export function encodeEmbedBank(
+  bank: EmbedBank,
+  artKeyOf: (key: string) => string,
+  canonical = false,
+): ArrayBuffer {
   const encoder = new TextEncoder();
   const keyBytes = bank.keys.map((key) => encoder.encode(key));
   const artBytes = bank.keys.map((key) => encoder.encode(artKeyOf(key)));
 
-  let size = 4 + 2 + 2 + 4;
+  let size = 4 + 2 + 2 + 4 + 2;
   for (const [i] of bank.keys.entries()) {
     // Lengths are stored as one byte each; a longer key would silently corrupt
     // the container.
@@ -88,7 +104,11 @@ export function encodeEmbedBank(bank: EmbedBank, artKeyOf: (key: string) => stri
     }
     size += 1 + keyBytes[i].length + 1 + artBytes[i].length;
   }
-  size += bank.keys.length * EMBED_DIM * 2;
+  const dim = bank.keys.length > 0 ? bank.vectors.length / bank.keys.length : 0;
+  if (!Number.isInteger(dim)) {
+    throw new TypeError("embed bank vectors are not a whole number of rows");
+  }
+  size += bank.keys.length * dim * 2;
 
   const buffer = new ArrayBuffer(size);
   const view = new DataView(buffer);
@@ -99,10 +119,12 @@ export function encodeEmbedBank(bank: EmbedBank, artKeyOf: (key: string) => stri
   offset += 4;
   view.setUint16(offset, VERSION, true);
   offset += 2;
-  view.setUint16(offset, EMBED_DIM, true);
+  view.setUint16(offset, dim, true);
   offset += 2;
   view.setUint32(offset, bank.keys.length, true);
   offset += 4;
+  view.setUint16(offset, canonical ? FLAG_CANONICAL : 0, true);
+  offset += 2;
 
   for (const [i] of bank.keys.entries()) {
     view.setUint8(offset, keyBytes[i].length);
@@ -115,7 +137,7 @@ export function encodeEmbedBank(bank: EmbedBank, artKeyOf: (key: string) => stri
     offset += artBytes[i].length;
   }
 
-  for (let i = 0; i < bank.keys.length * EMBED_DIM; i++) {
+  for (let i = 0; i < bank.keys.length * dim; i++) {
     view.setUint16(offset, toHalf(bank.vectors[i]), true);
     offset += 2;
   }
@@ -126,11 +148,13 @@ export function encodeEmbedBank(bank: EmbedBank, artKeyOf: (key: string) => stri
 /**
  * Restore a serialised bank.
  *
- * @returns The bank with Float32 vectors, plus each key's artwork key.
+ * @returns The bank with Float32 vectors, each key's artwork key, and whether
+ *   the bank was built in the canonical frame (version 1 banks are native).
  */
 export function decodeEmbedBank(buffer: ArrayBuffer): {
   bank: EmbedBank;
   artKeys: Map<string, string>;
+  canonical: boolean;
 } {
   const view = new DataView(buffer);
   const decoder = new TextDecoder();
@@ -141,17 +165,22 @@ export function decodeEmbedBank(buffer: ArrayBuffer): {
   }
   offset += 4;
   const version = view.getUint16(offset, true);
-  if (version !== VERSION) {
+  if (version !== 1 && version !== VERSION) {
     throw new Error(`unsupported embedding bank version ${version}`);
   }
   offset += 2;
   const dim = view.getUint16(offset, true);
-  if (dim !== EMBED_DIM) {
-    throw new Error(`unexpected embedding dimension ${dim}`);
+  if (dim === 0) {
+    throw new Error("embedding bank has zero dimension");
   }
   offset += 2;
   const count = view.getUint32(offset, true);
   offset += 4;
+  let canonical = false;
+  if (version >= 2) {
+    canonical = (view.getUint16(offset, true) & FLAG_CANONICAL) !== 0;
+    offset += 2;
+  }
 
   const keys: string[] = [];
   const artKeys = new Map<string, string>();
@@ -168,11 +197,11 @@ export function decodeEmbedBank(buffer: ArrayBuffer): {
     artKeys.set(key, artKey);
   }
 
-  const vectors = new Float32Array(count * EMBED_DIM);
+  const vectors = new Float32Array(count * dim);
   for (let i = 0; i < vectors.length; i++) {
     vectors[i] = fromHalf(view.getUint16(offset, true));
     offset += 2;
   }
 
-  return { bank: { keys, vectors }, artKeys };
+  return { bank: { keys, vectors }, artKeys, canonical };
 }

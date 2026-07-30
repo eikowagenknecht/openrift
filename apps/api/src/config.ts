@@ -89,6 +89,11 @@ export function createConfig(env: Record<string, string | undefined>) {
     scan: {
       encoderFile: env.SCAN_ENCODER_FILE ?? "scan-encoder-fp16-v1.onnx",
       opencvFile: env.SCAN_OPENCV_FILE ?? "scan-opencv-v1.js",
+      // Build banks in the canonical frame (landscape renders rotated 90
+      // degrees left). Must be flipped together with an encoder trained on
+      // that frame — the flag is baked into the bank file, and clients enable
+      // the guide-mode pair-only search from it.
+      canonicalBank: env.SCAN_BANK_CANONICAL === "1",
     },
   } as const;
 }

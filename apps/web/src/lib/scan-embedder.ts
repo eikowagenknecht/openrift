@@ -1,5 +1,5 @@
 import type { CardEmbedder } from "@openrift/shared/scan";
-import { EMBED_IMAGE_SIZE } from "@openrift/shared/scan";
+import { EMBED_IMAGE_SIZE, embedImageSizeOf } from "@openrift/shared/scan";
 // The ONNX runtime loads its WASM binary at runtime from a URL. Importing the
 // file through Vite gives it a hashed asset URL so it is cached and versioned
 // with the bundle instead of needing a copy in public/.
@@ -15,6 +15,9 @@ let cached: Promise<CardEmbedder> | null = null;
 let progressListener: ((loaded: number, total: number) => void) | null = null;
 // Steady-state encoder cost from the init self-bench. Zero until measured.
 let embedMsPerImage = 0;
+// The loaded model's declared input side. MobileCLIP's 256 until a session
+// exists; the custom encoder declares 192.
+let embedInputSize = EMBED_IMAGE_SIZE;
 
 /**
  * Encoder cost above which a device counts as too slow for live scanning.
@@ -36,6 +39,18 @@ export const SLOW_DEVICE_EMBED_MS = 250;
  */
 export function measuredEmbedMsPerImage(): number {
   return embedMsPerImage;
+}
+
+/**
+ * The encoder's input side length, read off the loaded model's own input
+ * metadata, so serving a different encoder never needs a config change.
+ *
+ * @returns The declared side, or MobileCLIP's 256 before the embedder has
+ *   loaded (callers pass it to `createScanSession` after `loadScanEmbedder`
+ *   resolves, when it is authoritative).
+ */
+export function embedderImageSize(): number {
+  return embedInputSize;
 }
 
 /**
@@ -87,6 +102,10 @@ export async function loadScanEmbedder(
       // creates 4x cheaper with identical measured inference speed.
       graphOptimizationLevel: "basic",
     });
+    const inputMeta = session.inputMetadata[0];
+    embedInputSize = embedImageSizeOf(inputMeta?.isTensor ? inputMeta.shape : undefined);
+    const size = embedInputSize;
+    console.log(`[scan] encoder input ${size}px`);
 
     // Self-benchmark: a small warmup batch, then one timed batch — enough to
     // estimate the per-image encoder cost that drives the slow-device
@@ -100,15 +119,10 @@ export async function loadScanEmbedder(
     const warmupBatch = 2;
     const benchBatch = 4;
     for (const batch of [warmupBatch, benchBatch, 1]) {
-      const benchInput = new Float32Array(batch * 3 * EMBED_IMAGE_SIZE * EMBED_IMAGE_SIZE);
+      const benchInput = new Float32Array(batch * 3 * size * size);
       const benchStart = performance.now();
       await session.run({
-        pixel_values: new ort.Tensor("float32", benchInput, [
-          batch,
-          3,
-          EMBED_IMAGE_SIZE,
-          EMBED_IMAGE_SIZE,
-        ]),
+        pixel_values: new ort.Tensor("float32", benchInput, [batch, 3, size, size]),
       });
       const elapsed = performance.now() - benchStart;
       if (batch === benchBatch) {
@@ -125,14 +139,9 @@ export async function loadScanEmbedder(
       // tensor via postMessage transfer, which detaches the underlying
       // ArrayBuffer — a subarray view would hand over (and kill) the session's
       // reusable staging buffer on the first frame.
-      const slice = pixels.slice(0, count * 3 * EMBED_IMAGE_SIZE * EMBED_IMAGE_SIZE);
+      const slice = pixels.slice(0, count * 3 * size * size);
       const output = await session.run({
-        pixel_values: new ort.Tensor("float32", slice, [
-          count,
-          3,
-          EMBED_IMAGE_SIZE,
-          EMBED_IMAGE_SIZE,
-        ]),
+        pixel_values: new ort.Tensor("float32", slice, [count, 3, size, size]),
       });
       return output.image_embeds.data as Float32Array;
     };

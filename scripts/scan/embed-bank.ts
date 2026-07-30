@@ -23,6 +23,7 @@ import {
   EMBED_IMAGE_SIZE,
   normalizeEmbeddings,
   preprocessCardInto,
+  rotateRgbaCw,
 } from "../../packages/shared/src/scan/index.js";
 import { CACHE_DIR, DATA_DIR, listReferenceImages, loadImage, mapConcurrent } from "./lib";
 
@@ -32,12 +33,26 @@ const MODEL_DIR = path.join(DATA_DIR, "models/mobileclip-s0");
  * always match). */
 export const MODEL_FILE = process.env.SCAN_ENCODER ?? path.join(MODEL_DIR, "vision_model.onnx");
 const MODEL_TAG = process.env.SCAN_ENCODER ? `-${path.basename(MODEL_FILE, ".onnx")}` : "";
+/** Encoder input side; SCAN_EMBED_SIZE overrides for non-MobileCLIP encoders. */
+export const EMBED_SIZE = Number(process.env.SCAN_EMBED_SIZE ?? EMBED_IMAGE_SIZE);
+/**
+ * SCAN_CANONICAL_BANK=1 embeds landscape renders rotated 90 degrees left (the
+ * way players place battlefields), so bank and rectified query share one
+ * portrait frame and a match differs by at most 180 degrees. Must pair with an
+ * encoder trained --canonical; benched via --pair-only.
+ */
+export const CANONICAL_BANK = process.env.SCAN_CANONICAL_BANK === "1";
 
 /** References embedded per `session.run`. Above this the gain flattens and the staging tensor gets large. */
 const BUILD_BATCH = 8;
 
 function cacheFile(kind: EmbedKind, extension: string): string {
-  return path.join(CACHE_DIR, `embed-bank-${kind}${MODEL_TAG}-v1.${extension}`);
+  const sizeTag = EMBED_SIZE === EMBED_IMAGE_SIZE ? "" : `-${EMBED_SIZE}`;
+  const canonTag = CANONICAL_BANK ? "-canon" : "";
+  return path.join(
+    CACHE_DIR,
+    `embed-bank-${kind}${MODEL_TAG}${sizeTag}${canonTag}-v1.${extension}`,
+  );
 }
 
 let sessionPromise: Promise<ort.InferenceSession> | null = null;
@@ -68,9 +83,9 @@ export const nodeEmbedder: CardEmbedder = async (pixels, count) => {
   const session = await encoder();
   // The staging tensor is sized for a full batch; a short final chunk must be
   // handed over trimmed or the shape and the data length disagree.
-  const slice = pixels.subarray(0, count * 3 * EMBED_IMAGE_SIZE * EMBED_IMAGE_SIZE);
+  const slice = pixels.subarray(0, count * 3 * EMBED_SIZE * EMBED_SIZE);
   const output = await session.run({
-    pixel_values: new ort.Tensor("float32", slice, [count, 3, EMBED_IMAGE_SIZE, EMBED_IMAGE_SIZE]),
+    pixel_values: new ort.Tensor("float32", slice, [count, 3, EMBED_SIZE, EMBED_SIZE]),
   });
   return output.image_embeds.data as Float32Array;
 };
@@ -88,35 +103,42 @@ export async function loadEmbedBank(kind: EmbedKind, force = false): Promise<Emb
   const binary = cacheFile(kind, "bin");
   if (!force && fs.existsSync(meta) && fs.existsSync(binary)) {
     const parsed = JSON.parse(fs.readFileSync(meta, "utf-8")) as { keys: string[]; dim: number };
-    if (parsed.dim === EMBED_DIM) {
-      const raw = fs.readFileSync(binary);
-      const vectors = new Float32Array(
-        raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength),
-      );
-      if (vectors.length === parsed.keys.length * EMBED_DIM) {
-        return { keys: parsed.keys, vectors };
-      }
+    const raw = fs.readFileSync(binary);
+    const vectors = new Float32Array(
+      raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength),
+    );
+    if (vectors.length === parsed.keys.length * parsed.dim) {
+      return { keys: parsed.keys, vectors };
     }
   }
 
   const refs = listReferenceImages();
-  const vectors = new Float32Array(refs.length * EMBED_DIM);
-  const input = new Float32Array(BUILD_BATCH * 3 * EMBED_IMAGE_SIZE * EMBED_IMAGE_SIZE);
+  const chunks: Float32Array[][] = [];
+  const input = new Float32Array(BUILD_BATCH * 3 * EMBED_SIZE * EMBED_SIZE);
   for (let start = 0; start < refs.length; start += BUILD_BATCH) {
     const chunk = refs.slice(start, start + BUILD_BATCH);
     const images = await mapConcurrent(chunk, 4, (ref) => loadImage(ref.file));
     for (const [slot, image] of images.entries()) {
-      preprocessCardInto(image, kind, input, slot);
+      // 90 degrees left = three clockwise quarter turns; matches the
+      // trainer's Image.Transpose.ROTATE_90.
+      const oriented =
+        CANONICAL_BANK && image.width > image.height
+          ? rotateRgbaCw(rotateRgbaCw(rotateRgbaCw(image)))
+          : image;
+      preprocessCardInto(oriented, kind, input, slot, EMBED_SIZE);
     }
-    const embedded = normalizeEmbeddings(await nodeEmbedder(input, chunk.length), chunk.length);
-    for (const [slot, vector] of embedded.entries()) {
-      vectors.set(vector, (start + slot) * EMBED_DIM);
-    }
+    chunks.push(normalizeEmbeddings(await nodeEmbedder(input, chunk.length), chunk.length));
+  }
+  const flat = chunks.flat();
+  const dim = flat[0]?.length ?? EMBED_DIM;
+  const vectors = new Float32Array(refs.length * dim);
+  for (const [i, vector] of flat.entries()) {
+    vectors.set(vector, i * dim);
   }
 
   const keys = refs.map((ref) => ref.key);
   fs.mkdirSync(CACHE_DIR, { recursive: true });
-  fs.writeFileSync(meta, JSON.stringify({ keys, dim: EMBED_DIM }));
+  fs.writeFileSync(meta, JSON.stringify({ keys, dim }));
   fs.writeFileSync(binary, Buffer.from(vectors.buffer, 0, vectors.byteLength));
   return { keys, vectors };
 }

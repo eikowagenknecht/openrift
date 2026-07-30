@@ -27,6 +27,24 @@ export const EMBED_DIM = 512;
 export type CardEmbedder = (pixels: Float32Array, count: number) => Promise<Float32Array>;
 
 /**
+ * The input side length an ONNX encoder declares for its NCHW pixel input.
+ *
+ * Both onnxruntime backends expose the model's input shapes as
+ * `session.inputMetadata`; the spatial dims are fixed numbers while the batch
+ * dim is a symbolic string. Reading the size off the model keeps every
+ * consumer (bank build, browser session) agreeing with the file actually
+ * served, with nothing to configure or drift.
+ *
+ * @param shape The declared shape of the pixel input, `[batch, 3, H, W]`.
+ * @returns The trailing spatial dimension, or MobileCLIP's 256 when the model
+ *   does not declare a fixed one.
+ */
+export function embedImageSizeOf(shape: readonly unknown[] | undefined): number {
+  const side = shape?.at(-1);
+  return typeof side === "number" && Number.isInteger(side) && side > 0 ? side : EMBED_IMAGE_SIZE;
+}
+
+/**
  * What part of the card gets embedded. `card` is the whole rectification; `art`
  * is a fixed window over the artwork, cutting the frame, name bar and text box
  * that every card shares.
@@ -151,19 +169,20 @@ export function preprocessCardInto(
   kind: EmbedKind,
   out: Float32Array,
   slot: number,
+  imageSize = EMBED_IMAGE_SIZE,
 ): void {
   const { x, y, width, height } = region(image, kind);
-  const horizontal = triangleTaps(width, EMBED_IMAGE_SIZE);
-  const vertical = triangleTaps(height, EMBED_IMAGE_SIZE);
+  const horizontal = triangleTaps(width, imageSize);
+  const vertical = triangleTaps(height, imageSize);
 
-  if (rowsScratch.length < EMBED_IMAGE_SIZE * height * 3) {
-    rowsScratch = new Float32Array(EMBED_IMAGE_SIZE * height * 3);
+  if (rowsScratch.length < imageSize * height * 3) {
+    rowsScratch = new Float32Array(imageSize * height * 3);
   }
   const rows = rowsScratch;
   for (let row = 0; row < height; row++) {
     const source = ((y + row) * image.width + x) * 4;
-    const target = row * EMBED_IMAGE_SIZE * 3;
-    for (let column = 0; column < EMBED_IMAGE_SIZE; column++) {
+    const target = row * imageSize * 3;
+    for (let column = 0; column < imageSize; column++) {
       const start = horizontal.starts[column];
       const base = column * horizontal.taps;
       let r = 0;
@@ -185,20 +204,20 @@ export function preprocessCardInto(
     }
   }
 
-  const plane = EMBED_IMAGE_SIZE * EMBED_IMAGE_SIZE;
+  const plane = imageSize * imageSize;
   const slotBase = slot * 3 * plane;
   out.fill(0, slotBase, slotBase + 3 * plane);
-  for (let row = 0; row < EMBED_IMAGE_SIZE; row++) {
+  for (let row = 0; row < imageSize; row++) {
     const start = vertical.starts[row];
     const base = row * vertical.taps;
-    const target = slotBase + row * EMBED_IMAGE_SIZE;
+    const target = slotBase + row * imageSize;
     for (let tap = 0; tap < vertical.taps; tap++) {
       const weight = vertical.weights[base + tap];
       if (weight === 0) {
         continue;
       }
-      const source = (start + tap) * EMBED_IMAGE_SIZE * 3;
-      for (let column = 0; column < EMBED_IMAGE_SIZE; column++) {
+      const source = (start + tap) * imageSize * 3;
+      for (let column = 0; column < imageSize; column++) {
         const pixel = source + column * 3;
         out[target + column] += weight * rows[pixel];
         out[target + plane + column] += weight * rows[pixel + 1];
@@ -209,22 +228,25 @@ export function preprocessCardInto(
 }
 
 /**
- * L2-normalize each `EMBED_DIM`-wide row of a raw encoder output.
+ * L2-normalize each row of a raw encoder output. The row width is inferred
+ * from the output length, so encoders with other embedding dimensions work
+ * unchanged.
  *
  * Normalising here is what lets ranking be a plain dot product.
  *
  * @returns One vector per row.
  */
 export function normalizeEmbeddings(raw: Float32Array, count: number): Float32Array[] {
+  const dim = raw.length / count;
   const out: Float32Array[] = [];
   for (let slot = 0; slot < count; slot++) {
-    const vector = raw.slice(slot * EMBED_DIM, (slot + 1) * EMBED_DIM);
+    const vector = raw.slice(slot * dim, (slot + 1) * dim);
     let norm = 0;
     for (const value of vector) {
       norm += value * value;
     }
     norm = Math.sqrt(norm) || 1;
-    for (let i = 0; i < EMBED_DIM; i++) {
+    for (let i = 0; i < dim; i++) {
       vector[i] /= norm;
     }
     out.push(vector);
@@ -247,11 +269,12 @@ export async function embedCardRotations(
   kind: EmbedKind,
   embedder: CardEmbedder,
   scratch?: Float32Array,
+  imageSize = EMBED_IMAGE_SIZE,
 ): Promise<Float32Array[]> {
-  const input = scratch ?? new Float32Array(4 * 3 * EMBED_IMAGE_SIZE * EMBED_IMAGE_SIZE);
+  const input = scratch ?? new Float32Array(4 * 3 * imageSize * imageSize);
   let rotated = image;
   for (let rotation = 0; rotation < 4; rotation++) {
-    preprocessCardInto(rotated, kind, input, rotation);
+    preprocessCardInto(rotated, kind, input, rotation, imageSize);
     rotated = rotateRgbaCw(rotated);
   }
   return normalizeEmbeddings(await embedder(input, 4), 4);
@@ -281,6 +304,14 @@ export async function embedCardRotations(
  *   rotation that last won, so a sideways card (battlefields) pays the full
  *   rotation search only on discovery, not on every steady frame.
  * @param scratch Optional reusable staging tensor of at least four slots.
+ * @param pairOnly Restrict the fallback to the preferred rotation's 180-degree
+ *   partner. Sound only when the bank is canonical (landscape references
+ *   rotated 90 degrees left at build, encoder trained on that frame) AND the
+ *   card's projected footprint orientation is trustworthy — guide mode, where
+ *   the user aims straight on. Pan frames can foreshorten a card past the
+ *   aspect flip (~44 degrees), which lands content in the other pair, so pan
+ *   keeps the full search (measured: pair-only in pan loses stacked
+ *   battlefields and is net slower, 2026-07-30).
  * @returns The `topK` nearest references, nearest first.
  */
 export async function rankCardEmbedding(
@@ -294,11 +325,17 @@ export async function rankCardEmbedding(
   allowRotationFallback = true,
   preferredRotation = 0,
   scratch?: Float32Array,
+  imageSize = EMBED_IMAGE_SIZE,
+  pairOnly = false,
 ): Promise<RankedEmbed[]> {
   if (confidentDistance < 0) {
-    return rankEmbedBank(bank, await embedCardRotations(card, kind, embedder, scratch), topK);
+    return rankEmbedBank(
+      bank,
+      await embedCardRotations(card, kind, embedder, scratch, imageSize),
+      topK,
+    );
   }
-  const input = scratch ?? new Float32Array(4 * 3 * EMBED_IMAGE_SIZE * EMBED_IMAGE_SIZE);
+  const input = scratch ?? new Float32Array(4 * 3 * imageSize * imageSize);
   // Rotations are materialised lazily: the common confident-upright frame must
   // not pay three quarter-turn copies it never embeds.
   const rotationCache: RgbaImage[] = [card];
@@ -308,7 +345,7 @@ export async function rankCardEmbedding(
     }
     return rotationCache[rotation];
   };
-  preprocessCardInto(rotationAt(preferredRotation), kind, input, 0);
+  preprocessCardInto(rotationAt(preferredRotation), kind, input, 0, imageSize);
   const first = normalizeEmbeddings(await embedder(input, 1), 1);
   const ranked = rankEmbedBank(bank, first, topK, [preferredRotation]);
   if (ranked.length > 0 && ranked[0].distance <= confidentDistance) {
@@ -322,11 +359,13 @@ export async function rankCardEmbedding(
     // shortlist stands and feature verification decides.
     return ranked;
   }
-  const others = [0, 1, 2, 3].filter((rotation) => rotation !== preferredRotation);
+  const others = pairOnly
+    ? [(preferredRotation + 2) % 4]
+    : [0, 1, 2, 3].filter((rotation) => rotation !== preferredRotation);
   for (const [slot, rotation] of others.entries()) {
-    preprocessCardInto(rotationAt(rotation), kind, input, slot);
+    preprocessCardInto(rotationAt(rotation), kind, input, slot, imageSize);
   }
-  const rest = normalizeEmbeddings(await embedder(input, 3), 3);
+  const rest = normalizeEmbeddings(await embedder(input, others.length), others.length);
   return rankEmbedBank(bank, [first[0], ...rest], topK, [preferredRotation, ...others]);
 }
 
@@ -345,13 +384,14 @@ export function rankEmbedBank(
   rotations?: readonly number[],
 ): RankedEmbed[] {
   const ranked: RankedEmbed[] = [];
+  const dim = bank.keys.length > 0 ? bank.vectors.length / bank.keys.length : 0;
   for (let entry = 0; entry < bank.keys.length; entry++) {
-    const base = entry * EMBED_DIM;
+    const base = entry * dim;
     let best = -2;
     let bestRotation = 0;
     for (const [slot, query] of queryEmbeddings.entries()) {
       let cosine = 0;
-      for (let i = 0; i < EMBED_DIM; i++) {
+      for (let i = 0; i < dim; i++) {
         cosine += bank.vectors[base + i] * query[i];
       }
       if (cosine > best) {

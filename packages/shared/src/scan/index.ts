@@ -21,6 +21,7 @@ export {
   EMBED_DIM,
   EMBED_IMAGE_SIZE,
   embedCardRotations,
+  embedImageSizeOf,
   normalizeEmbeddings,
   preprocessCardInto,
   rankEmbedBank,

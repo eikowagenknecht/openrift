@@ -7,11 +7,11 @@ import type { Logger } from "@openrift/shared/logger";
 import type { EmbedBank, RgbaImage } from "@openrift/shared/scan";
 import {
   EMBED_BANK_VERSION,
-  EMBED_DIM,
-  EMBED_IMAGE_SIZE,
+  embedImageSizeOf,
   encodeEmbedBank,
   normalizeEmbeddings,
   preprocessCardInto,
+  rotateRgbaCw,
 } from "@openrift/shared/scan";
 
 import type { Io } from "../io.js";
@@ -45,6 +45,13 @@ interface ScanBankDeps {
   log: Logger;
   /** Filename of the encoder under media/scan (config.scan.encoderFile). */
   encoderFile: string;
+  /**
+   * Embed landscape renders rotated 90 degrees left into the canonical
+   * portrait frame (config.scan.canonicalBank). Only sound with an encoder
+   * trained on that frame; the flag is recorded in the bank file so clients
+   * know whether the guide-mode pair-only rotation search applies.
+   */
+  canonical: boolean;
 }
 
 /**
@@ -94,7 +101,7 @@ function renderPath(imageId: string): string {
  */
 export async function rebuildScanBank(deps: ScanBankDeps): Promise<ScanBankBuildResult> {
   const startedAt = Date.now();
-  const { repos, io, log, encoderFile } = deps;
+  const { repos, io, log, encoderFile, canonical } = deps;
 
   const encoderPath = join(SCAN_MEDIA_DIR, encoderFile);
   await io.fs.stat(encoderPath).catch(() => {
@@ -110,6 +117,10 @@ export async function rebuildScanBank(deps: ScanBankDeps): Promise<ScanBankBuild
   // native runtime; only the rebuild pays for it.
   const ort = await import("onnxruntime-node");
   const session = await ort.InferenceSession.create(encoderPath);
+  // The encoder's input side comes from the model file itself, so a smaller
+  // custom encoder ships by replacing the file — no config to keep in sync.
+  const inputMeta = session.inputMetadata[0];
+  const imageSize = embedImageSizeOf(inputMeta?.isTensor ? inputMeta.shape : undefined);
 
   const keys: string[] = [];
   const labels: Record<string, { name: string; code: string; language: string; type: string }> = {};
@@ -118,7 +129,7 @@ export async function rebuildScanBank(deps: ScanBankDeps): Promise<ScanBankBuild
   let skipped = 0;
   let watermark: Date | null = null;
 
-  const staging = new Float32Array(BUILD_BATCH * 3 * EMBED_IMAGE_SIZE * EMBED_IMAGE_SIZE);
+  const staging = new Float32Array(BUILD_BATCH * 3 * imageSize * imageSize);
   let batch: ScanReferenceRow[] = [];
 
   const flush = async (): Promise<void> => {
@@ -128,8 +139,8 @@ export async function rebuildScanBank(deps: ScanBankDeps): Promise<ScanBankBuild
     const output = await session.run({
       pixel_values: new ort.Tensor(
         "float32",
-        staging.subarray(0, batch.length * 3 * EMBED_IMAGE_SIZE * EMBED_IMAGE_SIZE),
-        [batch.length, 3, EMBED_IMAGE_SIZE, EMBED_IMAGE_SIZE],
+        staging.subarray(0, batch.length * 3 * imageSize * imageSize),
+        [batch.length, 3, imageSize, imageSize],
       ),
     });
     const embedded = normalizeEmbeddings(
@@ -163,7 +174,12 @@ export async function rebuildScanBank(deps: ScanBankDeps): Promise<ScanBankBuild
       skipped++;
       continue;
     }
-    preprocessCardInto(image, "card", staging, batch.length);
+    if (canonical && image.width > image.height) {
+      // 90 degrees left = three clockwise quarter turns; matches the
+      // trainer's Image.Transpose.ROTATE_90 and the bench's bank build.
+      image = rotateRgbaCw(rotateRgbaCw(rotateRgbaCw(image)));
+    }
+    preprocessCardInto(image, "card", staging, batch.length, imageSize);
     batch.push(row);
     if (batch.length === BUILD_BATCH) {
       await flush();
@@ -180,7 +196,9 @@ export async function rebuildScanBank(deps: ScanBankDeps): Promise<ScanBankBuild
     keys,
     vectors: concat(vectors),
   };
-  const bankBuffer = Buffer.from(encodeEmbedBank(bank, (key) => artKeys.get(key) ?? key));
+  const bankBuffer = Buffer.from(
+    encodeEmbedBank(bank, (key) => artKeys.get(key) ?? key, canonical),
+  );
   const labelsBuffer = Buffer.from(`${JSON.stringify(labels)}\n`);
   const bankHash = createHash("sha256")
     .update(bankBuffer)
@@ -225,14 +243,17 @@ export function labelsFileName(hash: string): string {
 }
 
 /**
- * Concatenate per-image vectors into one bank buffer.
+ * Concatenate per-image vectors into one bank buffer. The row width comes
+ * from the vectors themselves, so encoders with other embedding dimensions
+ * pack unchanged.
  *
  * @returns The packed vectors.
  */
 function concat(vectors: readonly Float32Array[]): Float32Array {
-  const out = new Float32Array(vectors.length * EMBED_DIM);
+  const dim = vectors[0]?.length ?? 0;
+  const out = new Float32Array(vectors.length * dim);
   for (const [i, vector] of vectors.entries()) {
-    out.set(vector, i * EMBED_DIM);
+    out.set(vector, i * dim);
   }
   return out;
 }
