@@ -3,9 +3,11 @@ import type {
   CatalogSetResponse,
   InitResponse,
   PricesResponse,
+  RuleResponse,
 } from "@openrift/shared";
 
 import type { CatalogCard, CatalogPrinting } from "../catalog-cache.js";
+import type { RulesSnapshot } from "../rules-cache.js";
 
 /** @returns A catalog card with sensible defaults, overridable per test. */
 export function makeCard(overrides: Partial<CatalogCard> = {}): CatalogCard {
@@ -146,5 +148,40 @@ export function makePricesResponse(prices: PricesResponse["prices"] = {}): Price
   return {
     prices,
     currencies: { tcgplayer: "USD", cardmarket: "EUR", cardtrader: "EUR" },
+  };
+}
+
+/** @returns A rule row with sensible defaults, overridable per test. */
+export function makeRule(overrides: Partial<RuleResponse> & { ruleNumber: string }): RuleResponse {
+  return {
+    id: overrides.ruleNumber,
+    kind: "core",
+    version: "2026-07-16",
+    sortOrder: 0,
+    depth: overrides.ruleNumber.split(".").length - 1,
+    ruleType: "text",
+    content: "Rule text.",
+    changeType: "added",
+    ...overrides,
+  };
+}
+
+/**
+ * Assembles a rules snapshot from plain rule rows; the tournament rows get
+ * their kind stamped so tests only vary the fields they care about.
+ *
+ * @returns A rules snapshot with the given core and tournament rules.
+ */
+export function makeRulesSnapshot(
+  core: RuleResponse[],
+  tournament: RuleResponse[] = [],
+): RulesSnapshot {
+  return {
+    core: { kind: "core", version: "2026-07-16", rules: core },
+    tournament: {
+      kind: "tournament",
+      version: "2026-05-01",
+      rules: tournament.map((rule) => ({ ...rule, kind: "tournament" as const })),
+    },
   };
 }

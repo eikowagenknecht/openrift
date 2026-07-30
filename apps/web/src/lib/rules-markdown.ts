@@ -1,3 +1,4 @@
+import { RULE_REFERENCE_REGEX } from "@openrift/shared";
 import { fromMarkdown } from "mdast-util-from-markdown";
 
 /** Minimal MDAST shape used by the remark passes in the rules pipeline. */
@@ -16,18 +17,6 @@ export interface HastNode {
   properties?: Record<string, unknown>;
   children?: HastNode[];
 }
-
-// Rule references inside rule body text. Three forms:
-//   - "rule N" / "Rule N" / "rules N" → same-page anchor (#rule-N)
-//   - bare "N.M…" with at least one dot, starting at 3 digits → same-page anchor
-//   - "CR N" → cross-link to the core rules page
-//
-// The number's tail is constrained: digits, optional `.digit` segments,
-// optional single `.letter` segment, optional final `.digit`. This keeps
-// matches from bleeding into the next sentence (e.g. "rule 540.4.b. Continue"
-// matches "540.4.b", not "540.4.b.C…").
-export const RULE_REFERENCE_REGEX =
-  /(?:\b(?<keyword>[Rr]ules?|CR)\s+(?<dotted>\d+(?:\.\d+)*(?:\.[a-z](?:\.\d+)?)?)|\b(?<bare>\d{3}(?:\.\d+)+(?:\.[a-z](?:\.\d+)?)?))/gu;
 
 function splitTextOnRuleReferences(text: string): MdNode[] {
   const result: MdNode[] = [];

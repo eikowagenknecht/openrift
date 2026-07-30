@@ -22,6 +22,16 @@ import { buildDeckEmbed, deckImportUrl, fetchDeckImage, resolveDeckEntries } fro
 import type { BotEnv } from "./env.js";
 import { extractCardReferences } from "./message-scan.js";
 import { printingChoices, resolvePrinting } from "./printing-choice.js";
+import { buildRuleEmbed } from "./rule-embed.js";
+import type { IndexedRule, RuleIndex } from "./rule-search.js";
+import {
+  buildRuleIndex,
+  findRule,
+  isRuleCitation,
+  ruleChoice,
+  searchRules,
+} from "./rule-search.js";
+import type { RulesCache } from "./rules-cache.js";
 
 const CARD_COMMAND = {
   name: "card",
@@ -57,10 +67,25 @@ const DECK_COMMAND = {
   ],
 } as const;
 
+const RULE_COMMAND = {
+  name: "rule",
+  description: "Look up a Riftbound rule: core (CR) or tournament (TR), by number or keyword",
+  options: [
+    {
+      type: ApplicationCommandOptionType.String,
+      name: "query",
+      description: "A rule number (CR 103.1, TR 202), a game term (stun), or search text",
+      required: true,
+      autocomplete: true,
+    },
+  ],
+} as const;
+
 interface BotContext {
   env: BotEnv;
   api: ApiClients;
   cache: CatalogCache;
+  rules: RulesCache;
 }
 
 /** Search index rebuilt lazily per snapshot, so refreshes stay cheap until a lookup happens. */
@@ -75,6 +100,20 @@ function indexFor(cache: CatalogCache): CardIndex | null {
     cachedIndex = { snapshot, index: buildCardIndex(snapshot.cards, snapshot.printingsByCardId) };
   }
   return cachedIndex.index;
+}
+
+/** Same lazy-per-snapshot pattern as the card index, for the rules. */
+let cachedRuleIndex: { snapshot: unknown; index: RuleIndex } | null = null;
+
+function ruleIndexFor(cache: RulesCache): RuleIndex | null {
+  const snapshot = cache.snapshot;
+  if (!snapshot) {
+    return null;
+  }
+  if (cachedRuleIndex?.snapshot !== snapshot) {
+    cachedRuleIndex = { snapshot, index: buildRuleIndex(snapshot) };
+  }
+  return cachedRuleIndex.index;
 }
 
 async function marketplaceInfoFor(
@@ -121,6 +160,37 @@ async function handleAutocomplete(ctx: BotContext, interaction: AutocompleteInte
   await interaction.respond(
     cards.map((card) => ({ name: card.name.slice(0, 100), value: card.slug.slice(0, 100) })),
   );
+}
+
+async function handleRuleAutocomplete(ctx: BotContext, interaction: AutocompleteInteraction) {
+  const index = ruleIndexFor(ctx.rules);
+  const focused = interaction.options.getFocused();
+  const entries = index ? searchRules(index, focused, 25) : [];
+  await interaction.respond(entries.map((entry) => ruleChoice(entry)));
+}
+
+async function handleRuleCommand(ctx: BotContext, interaction: ChatInputCommandInteraction) {
+  const index = ruleIndexFor(ctx.rules);
+  const query = interaction.options.getString("query", true);
+  const entry = index ? findRule(index, query) : undefined;
+  if (!index) {
+    await interaction.reply({
+      content: "Rules data is still loading, try again in a moment.",
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+  if (!entry) {
+    await interaction.reply({
+      content: `No rule found matching “${query}”.`,
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+  // No API round trip needed — the embed is built from the cached snapshot.
+  await interaction.reply({
+    embeds: [buildRuleEmbed({ entry, index, siteUrl: ctx.env.siteUrl })],
+  });
 }
 
 async function handleCardCommand(ctx: BotContext, interaction: ChatInputCommandInteraction) {
@@ -195,28 +265,46 @@ async function handleDeckCommand(ctx: BotContext, interaction: ChatInputCommandI
   });
 }
 
+type MessageMatch =
+  | { type: "card"; card: CatalogCard; reference: string }
+  | { type: "rule"; entry: IndexedRule };
+
 async function handleMessage(ctx: BotContext, message: Message) {
   if (message.author.bot || !message.content.includes("[[")) {
     return;
   }
-  const index = indexFor(ctx.cache);
-  if (!index) {
-    return;
-  }
-  const matches: { card: CatalogCard; reference: string }[] = [];
+  const cardIndex = indexFor(ctx.cache);
+  const ruleIndex = ruleIndexFor(ctx.rules);
+  const matches: MessageMatch[] = [];
   for (const reference of extractCardReferences(message.content)) {
-    const card = findCard(index, reference);
-    if (card && !matches.some((match) => match.card.id === card.id)) {
-      matches.push({ card, reference });
+    // Citation-shaped references ([[cr 103.1]], [[tr202]], bare [[103.1]])
+    // resolve as rules; everything else stays a card lookup.
+    if (isRuleCitation(reference)) {
+      const entry = ruleIndex ? findRule(ruleIndex, reference) : undefined;
+      if (entry && !matches.some((match) => match.type === "rule" && match.entry === entry)) {
+        matches.push({ type: "rule", entry });
+      }
+      continue;
+    }
+    const card = cardIndex ? findCard(cardIndex, reference) : undefined;
+    if (card && !matches.some((match) => match.type === "card" && match.card.id === card.id)) {
+      matches.push({ type: "card", card, reference });
     }
   }
   if (matches.length === 0) {
     return;
   }
-  // The reference doubles as the printing hint so [[OGN-202]] shows that
-  // printing; plain names fall through to the default inside resolvePrinting.
+  // For cards, the reference doubles as the printing hint so [[OGN-202]]
+  // shows that printing; plain names fall through to the default inside
+  // resolvePrinting.
   const maybeEmbeds = await Promise.all(
-    matches.map((match) => embedForCard(ctx, match.card, match.reference)),
+    matches.map((match) =>
+      match.type === "card"
+        ? embedForCard(ctx, match.card, match.reference)
+        : (ruleIndex &&
+            buildRuleEmbed({ entry: match.entry, index: ruleIndex, siteUrl: ctx.env.siteUrl })) ||
+          null,
+    ),
   );
   const embeds = maybeEmbeds.filter((embed) => embed !== null);
   if (embeds.length > 0) {
@@ -225,7 +313,7 @@ async function handleMessage(ctx: BotContext, message: Message) {
 }
 
 /**
- * Wires up the Discord client: registers the `/card` command on ready and
+ * Wires up the Discord client: registers the slash commands on ready and
  * handles slash commands, autocomplete, and `[[card name]]` message scans.
  * Handler failures are logged, never thrown — one bad lookup must not take
  * down the gateway connection.
@@ -244,7 +332,7 @@ export function createBot(ctx: BotContext): Client {
   client.once(Events.ClientReady, async (readyClient) => {
     console.log(`Logged in as ${readyClient.user.tag}`);
     try {
-      await readyClient.application.commands.set([CARD_COMMAND, DECK_COMMAND]);
+      await readyClient.application.commands.set([CARD_COMMAND, DECK_COMMAND, RULE_COMMAND]);
     } catch (error) {
       console.error("Failed to register slash commands", error);
     }
@@ -254,6 +342,8 @@ export function createBot(ctx: BotContext): Client {
     try {
       if (interaction.isAutocomplete() && interaction.commandName === CARD_COMMAND.name) {
         await handleAutocomplete(ctx, interaction);
+      } else if (interaction.isAutocomplete() && interaction.commandName === RULE_COMMAND.name) {
+        await handleRuleAutocomplete(ctx, interaction);
       } else if (
         interaction.isChatInputCommand() &&
         interaction.commandName === CARD_COMMAND.name
@@ -264,6 +354,11 @@ export function createBot(ctx: BotContext): Client {
         interaction.commandName === DECK_COMMAND.name
       ) {
         await handleDeckCommand(ctx, interaction);
+      } else if (
+        interaction.isChatInputCommand() &&
+        interaction.commandName === RULE_COMMAND.name
+      ) {
+        await handleRuleCommand(ctx, interaction);
       }
     } catch (error) {
       console.error("Interaction handling failed", error);

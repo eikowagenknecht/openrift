@@ -130,7 +130,12 @@ export {
   SELF_SUBMIT_EXTERNAL_ID_PREFIX,
 } from "./deck-check.js";
 
-export { compareRuleNumbers } from "./rules.js";
+export {
+  buildTermAnchors,
+  compareRuleNumbers,
+  formatRuleNumber,
+  RULE_REFERENCE_REGEX,
+} from "./rules.js";
 
 export type { CopyMetadata } from "./copy-metadata.js";
 export {

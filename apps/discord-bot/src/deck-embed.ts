@@ -6,7 +6,7 @@ import { EMBED_COLOR } from "./card-embed.js";
 import type { CatalogCard, CatalogPrinting, CatalogSnapshot } from "./catalog-cache.js";
 
 /** One deck entry resolved against the catalog snapshot. */
-export interface ResolvedDeckRow {
+interface ResolvedDeckRow {
   entry: DeckImportEntry;
   card: CatalogCard;
   /** The exact printing the entry's short code names. */

@@ -1,4 +1,4 @@
-import { CoinsIcon, MessageSquareTextIcon, SlashSquareIcon } from "lucide-react";
+import { BookOpenTextIcon, CoinsIcon, MessageSquareTextIcon, SlashSquareIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Heading } from "@/components/heading";
@@ -10,9 +10,10 @@ export default function DiscordBotArticle() {
   return (
     <div className="space-y-8">
       <p className="text-muted-foreground">
-        The OpenRift bot brings card lookups into your Discord server. Ask for any card and it
-        replies with the card image, current prices, and a link to the full card page, right where
-        you&apos;re already talking about your next deck.
+        The OpenRift bot brings card and rules lookups into your Discord server. Ask for any card
+        and it replies with the card image, current prices, and a link to the full card page, right
+        where you&apos;re already talking about your next deck. Rules questions get the exact rule
+        quoted in chat.
       </p>
 
       {/* Adding the bot */}
@@ -69,6 +70,30 @@ export default function DiscordBotArticle() {
         <p className="text-muted-foreground mt-3">
           Card numbers work too: <InlineCode>/card OGN-202</InlineCode> (or just{" "}
           <InlineCode>ogn202</InlineCode>) jumps straight to that exact printing.
+        </p>
+      </section>
+
+      {/* Rules lookup */}
+      <section>
+        <Heading className="mb-2">Quote a rule with /rule</Heading>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <OptionCard
+            icon={<SlashSquareIcon className="size-4" />}
+            title="By number or keyword"
+            description="Type /rule with a rule number like CR 103.1 or a game term like stun. Suggestions show the start of each rule so you can pick the right one, and plain words search the full rules text."
+          />
+          <OptionCard
+            icon={<BookOpenTextIcon className="size-4" />}
+            title="Core and tournament rules"
+            description="CR stands for the core rules, TR for the tournament rules. A plain number checks both, core rules first."
+          />
+        </div>
+        <p className="text-muted-foreground mt-3">
+          The reply quotes the rule together with its sub-rules and links straight to that spot in
+          the rules on OpenRift, so settling a mid-game dispute takes one message. Rules also work
+          inline: mention <InlineCode>[[CR 103.1]]</InlineCode> or just{" "}
+          <InlineCode>[[103.1]]</InlineCode> in a normal message and the bot quotes the rule, same
+          as with cards.
         </p>
       </section>
 

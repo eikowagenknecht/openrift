@@ -2,6 +2,7 @@ import { createApiClients } from "./api-client.js";
 import { createBot } from "./bot.js";
 import { CatalogCache } from "./catalog-cache.js";
 import { readBotEnv } from "./env.js";
+import { RulesCache } from "./rules-cache.js";
 
 const REFRESH_INTERVAL_MS = 30 * 60 * 1000;
 const STARTUP_RETRY_MS = 15 * 1000;
@@ -13,18 +14,27 @@ const cache = new CatalogCache({
   fetchInit: () => api.init.get(),
   fetchPrices: () => api.prices.prices(),
 });
+const rules = new RulesCache({
+  fetchRules: (kind) => api.rules.list({ kind }),
+});
 
 // The API container may still be booting when the bot starts (compose gates on
-// its healthcheck, but a fresh deploy can race); retry until the catalog loads.
-while (cache.snapshot === null) {
+// its healthcheck, but a fresh deploy can race); retry until both caches load.
+while (cache.snapshot === null || rules.snapshot === null) {
   try {
-    await cache.refresh();
+    await Promise.all([
+      cache.snapshot === null ? cache.refresh() : undefined,
+      rules.snapshot === null ? rules.refresh() : undefined,
+    ]);
   } catch (error) {
-    console.error(`Catalog fetch failed, retrying in ${STARTUP_RETRY_MS / 1000}s`, error);
+    console.error(`Startup fetch failed, retrying in ${STARTUP_RETRY_MS / 1000}s`, error);
     await Bun.sleep(STARTUP_RETRY_MS);
   }
 }
-console.log(`Catalog loaded: ${cache.snapshot.cards.length} cards`);
+console.log(
+  `Catalog loaded: ${cache.snapshot.cards.length} cards; rules loaded: ` +
+    `${rules.snapshot.core.rules.length} core, ${rules.snapshot.tournament.rules.length} tournament`,
+);
 
 async function refreshSafely(): Promise<void> {
   try {
@@ -32,11 +42,16 @@ async function refreshSafely(): Promise<void> {
   } catch (error) {
     console.error("Catalog refresh failed, keeping previous snapshot", error);
   }
+  try {
+    await rules.refresh();
+  } catch (error) {
+    console.error("Rules refresh failed, keeping previous snapshot", error);
+  }
 }
 
 setInterval(() => void refreshSafely(), REFRESH_INTERVAL_MS);
 
-const client = createBot({ env, api, cache });
+const client = createBot({ env, api, cache, rules });
 
 async function shutdown(signal: string): Promise<void> {
   console.log(`Received ${signal}, shutting down`);

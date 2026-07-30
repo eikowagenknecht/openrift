@@ -1,7 +1,7 @@
 import type { RuleChangesResponse, RuleResponse } from "@openrift/shared";
-import { compareRuleNumbers } from "@openrift/shared";
+import { compareRuleNumbers, RULE_REFERENCE_REGEX } from "@openrift/shared";
 
-import { hasVisibleRuleChanges, RULE_REFERENCE_REGEX } from "@/lib/rules-markdown";
+import { hasVisibleRuleChanges } from "@/lib/rules-markdown";
 
 export type ChangeKind = "new" | "changed" | "moved" | "replaced" | "removed";
 

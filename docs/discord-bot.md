@@ -1,10 +1,11 @@
 # Discord Bot
 
-`apps/discord-bot` is a small stateless Discord bot that answers card-name lookups and unfurls deck codes. It supports three entry points:
+`apps/discord-bot` is a small stateless Discord bot that answers card-name lookups, unfurls deck codes, and quotes rules. It supports four entry points:
 
 - **`/card name:<card> [printing:<printing>]`** — slash command with autocomplete over all card names; the optional `printing` option autocompletes the chosen card's printings (default first) for when you want a specific set, variant, or language
-- **`[[card name]]`** — inline references in normal messages (up to 3 per message)
+- **`[[card name]]`** — inline references in normal messages (up to 3 per message, cards and rules combined). Citation-shaped contents (`[[cr 103.1]]`, `[[tr202]]`, bare `[[103.1]]`) resolve as rule references instead of card names and reply with the same embed `/rule` produces; number-shaped content can't collide with card names or printing codes, which start with letters
 - **`/deck code:<deck code>`** — decodes a Piltover Archive deck code into a decklist embed: the deck grouped by zone (titled after its Legend), a rendered deck image, and an "Open in OpenRift" link button to `/decks/import?code=…` so anyone can import it in one click
+- **`/rule query:<query>`** — quotes a rule from the core rules (`CR`) or tournament rules (`TR`). One autocompleted input accepts a citation (`CR 103.1`, `tr202`, dots optional: `103.1a`), a game term (`stun`, resolved through the same term anchors the site's rules pages use for auto-linking), or free text (every word must match). Autocomplete entries are labeled `CR 103.2 — <start of the rule text>` and round-trip the bare citation as the value
 
 The card entry points also accept printing codes (`OGN-202`, `ogn202`, `OGN-202/298`) through the same `squashForSearch` folding as the site's search — a code lookup shows that exact printing instead of the default one.
 
@@ -17,6 +18,7 @@ Card lookups reply with an embed: the card name linking to its OpenRift card pag
 The bot has no database access and no exposed ports. It reads everything from the public API over the internal Docker network (`API_INTERNAL_URL`, `http://api:3000` in compose):
 
 - On startup it fetches `GET /api/v1/catalog` and `GET /api/v1/prices` into memory and refreshes both every 30 minutes. Card-name matching runs against this in-memory snapshot using the same `foldForSearch` folding as the site, so apostrophes and typographic punctuation never decide a match.
+- The latest core and tournament rules come from `GET /api/v1/rules` into a second cache (`RulesCache`) on the same startup-retry and 30-minute refresh cadence, kept separate so a rules fetch problem never blocks card lookups. There is no server-side rules search; `/rule` queries run against the in-memory snapshot, like the site's client-side rules search.
 - Per lookup it fetches `GET /api/v1/prices/marketplace-info` for the card's representative printing to resolve marketplace product ids. A failed lookup degrades to search links, never an error.
 - `/deck` decodes the code locally with the shared `parsePiltoverDeckCode` (from `@openrift/shared`, the same parser the site's deck import uses), resolves short codes against the catalog snapshot, and infers zones with the shared `inferZone`. The deck image comes from `POST /api/v1/decks/image` (the public from-cards renderer) and is attached to the reply; a failed render just drops the image, never the reply. Invalid codes get an ephemeral reply, so failed attempts don't clutter the channel.
 - Embed image URLs and card links are built from `SITE_URL`, so prod and preview each link to their own domain.
@@ -37,7 +39,7 @@ A failed catalog refresh keeps the previous snapshot. If the catalog can't be fe
 
    The permissions value covers View Channels, Send Messages, Send Messages in Threads, Embed Links, and Read Message History.
 
-The `/card` command registers itself globally on every startup — no separate registration step. First-time global registration can take a few minutes to show up in clients.
+The slash commands register themselves globally on every startup — no separate registration step. First-time global registration can take a few minutes to show up in clients.
 
 ## Running it
 
@@ -60,7 +62,8 @@ The `openrift-bot` image is built and pushed by the same bake pipeline as api/we
 
 ## Behavior details
 
-- `[[card name]]` replies never ping the message author, and unmatched names are skipped silently (no "not found" noise in channels). If nothing matches, the bot stays quiet.
+- `[[card name]]` replies never ping the message author, and unmatched names are skipped silently (no "not found" noise in channels). If nothing matches, the bot stays quiet. Rule citations in brackets behave the same: `[[cr 999]]` with no matching rule is simply ignored.
 - `/card` with no match replies ephemerally, so failed lookups don't clutter the channel.
 - References per message are capped at 3, deduped case-insensitively.
 - Prices shown are for the card's representative printing (first canonical-rank printing with a front image), in each marketplace's own currency (TCGplayer USD, Cardmarket/CardTrader EUR). The `/card printing` option overrides this; it accepts the autocompleted choice, a short code (`OGN-202`), or a public code (`OGN-202/298`), and anything unrecognized quietly falls back to the default printing.
+- `/rule` replies with an embed titled by the citation (`CR 103.2`, or `CR 119 — Game Objects` for a section heading) linking to the rule's anchor on the site's kind-level rules page (`/rules/core#rule-…`, which redirects to the latest version). The description quotes the whole block in full — never truncated prose: an optional context line (the section heading directly above the block plus bare ancestor numbers, e.g. `Game Objects › 120 › 120.1`; omitted when no heading applies), the rule text, and every descendant rule verbatim as a nested markdown list indented by depth (for a heading: the section's rules). `rule N` / `540.4.b` / `CR N` references are linkified (same matching as the site, via the shared `RULE_REFERENCE_REGEX`). When the 4096-char embed budget runs out, sub-rules are dropped whole with a closing `…and N more on OpenRift` line — never cut mid-sentence. The footer names the ruleset and version. A bare number like `103` matches both rulesets, core ranked first; no match replies ephemerally.

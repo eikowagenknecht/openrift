@@ -4,6 +4,8 @@ import { initContract } from "@openrift/shared/contracts/init";
 import type { InitContract } from "@openrift/shared/contracts/init";
 import { pricesContract } from "@openrift/shared/contracts/prices";
 import type { PricesContract } from "@openrift/shared/contracts/prices";
+import { rulesContract } from "@openrift/shared/contracts/rules";
+import type { RulesContract } from "@openrift/shared/contracts/rules";
 import { createORPCClient } from "@orpc/client";
 import type { ContractRouterClient } from "@orpc/contract";
 import { OpenAPILink } from "@orpc/openapi-client/fetch";
@@ -12,6 +14,7 @@ export interface ApiClients {
   catalog: ContractRouterClient<CatalogContract>;
   init: ContractRouterClient<InitContract>;
   prices: ContractRouterClient<PricesContract>;
+  rules: ContractRouterClient<RulesContract>;
 }
 
 /**
@@ -26,5 +29,6 @@ export function createApiClients(apiUrl: string): ApiClients {
     catalog: createORPCClient(new OpenAPILink(catalogContract, { url: apiUrl })),
     init: createORPCClient(new OpenAPILink(initContract, { url: apiUrl })),
     prices: createORPCClient(new OpenAPILink(pricesContract, { url: apiUrl })),
+    rules: createORPCClient(new OpenAPILink(rulesContract, { url: apiUrl })),
   };
 }
