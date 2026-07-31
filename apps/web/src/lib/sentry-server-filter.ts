@@ -1,28 +1,33 @@
 /**
  * `beforeSend` filter for the SSR Sentry client (see instrument.server.mjs):
- * drops the expected 401 from a user-scoped server function — the caller's
- * session cookie expired or was revoked, an expected lifecycle state, not a
- * server bug. The client reacts by refetching the session and redirecting to
- * /login (see lib/query-client.ts + the `_authenticated` layout), so the
- * unhandled throw crossing the server-fn boundary is pure noise here.
+ * drops expected 4xx outcomes from a server function. A server function calls
+ * the API through the oRPC client, which rethrows whatever the API answered, so
+ * a routine "tournament not found" (404) or "host or staff only" (403) crosses
+ * the server-fn boundary as an unhandled throw and TanStack Start's
+ * auto-instrumentation reports it. None of those are server bugs: the route
+ * loader catches them and renders a not-found / redirects to /login, and the
+ * API decided the outcome deliberately.
  *
- * Matched structurally on `status === 401` — mirroring `isSessionExpiredError`
- * in lib/server-fns/api-error.ts — so it covers BOTH error shapes the app
- * produces: the raw-fetch ApiError (`name: "ApiError"`) and oRPC's ORPCError
- * from the migrated endpoints (which keeps `name: "Error"`). Anything else
- * (403, 5xx, parse failures) still reports.
+ * This mirrors `isServerFault` in apps/api/src/orpc/error-reporting-interceptor.ts,
+ * which already keeps the same 4xx out of the API's own Sentry project. Keying
+ * off `status` (not the error class or its message) covers BOTH error shapes the
+ * app produces — the raw-fetch ApiError (`name: "ApiError"`) and oRPC's
+ * ORPCError (which keeps `name: "Error"` and a human message like "Entry not
+ * found", so no `ignoreErrors` pattern can catch it) — and it needs no upkeep as
+ * endpoints gain new messages. Genuine faults (5xx, output-validation failures,
+ * parse errors, anything without a 4xx status) still report.
  * @returns The event, or null to drop it.
  */
-export function dropExpiredSessionEvents<EventT>(
+export function dropExpectedClientErrors<EventT>(
   event: EventT,
   hint?: { originalException?: unknown },
 ): EventT | null {
   const exception = hint?.originalException;
-  if (
-    typeof exception === "object" &&
-    exception !== null &&
-    (exception as { status?: unknown }).status === 401
-  ) {
+  if (typeof exception !== "object" || exception === null) {
+    return event;
+  }
+  const status = (exception as { status?: unknown }).status;
+  if (typeof status === "number" && status >= 400 && status < 500) {
     return null;
   }
   return event;

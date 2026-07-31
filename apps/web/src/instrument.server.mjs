@@ -18,7 +18,7 @@ import { parseAppEnv } from "@openrift/shared/app-env";
 import { trace } from "@opentelemetry/api";
 import * as Sentry from "@sentry/tanstackstart-react";
 
-import { dropExpiredSessionEvents } from "./lib/sentry-server-filter";
+import { dropExpectedClientErrors } from "./lib/sentry-server-filter";
 
 // Skip in local dev — keeps stray dev events out of the shared openrift-ssr
 // project. Preview deployments still report (APP_ENV === "preview").
@@ -30,6 +30,8 @@ if (dsn && appEnv !== "development") {
     environment: appEnv,
     release: process.env.COMMIT_HASH,
     tracesSampleRate: 0.1,
+    // These are message-matched because they carry no HTTP status; everything
+    // that does (the API's expected 4xx) is dropped structurally in beforeSend.
     // NOT_FOUND: sentinel errors thrown by server functions (e.g. use-card-detail,
     // use-decks) when the API returns 404. Route loaders catch these and call
     // notFound(), but TanStack Start's auto-instrumentation reports them before
@@ -47,7 +49,7 @@ if (dsn && appEnv !== "development") {
       /^AbortError: The connection was closed/u,
       /^Server function (?:info not found|module not resolved)/u,
     ],
-    beforeSend: dropExpiredSessionEvents,
+    beforeSend: dropExpectedClientErrors,
     initialScope: { tags: { service: "web-ssr" } },
   });
 

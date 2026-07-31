@@ -1,5 +1,5 @@
 import type { Logger } from "@openrift/shared/logger";
-import { ORPCError } from "@orpc/server";
+import { ORPCError, ValidationError } from "@orpc/server";
 import * as Sentry from "@sentry/bun";
 
 import { AppError } from "../errors.js";
@@ -27,6 +27,31 @@ function isServerFault(error: unknown): boolean {
 }
 
 /**
+ * The field paths a schema rejected, as `path: message` strings.
+ *
+ * oRPC wraps a failed output validation in an `INTERNAL_SERVER_ERROR` whose
+ * message is the bare "Output validation failed" and whose `cause` holds the
+ * per-issue detail. Without this, both the Sentry event and the log line say
+ * only "Output validation failed" — enough to know an endpoint 500s, not enough
+ * to know which field did it, which is how OPENRIFT-API-B sat undiagnosable for
+ * a month. Only the path and the schema's own message are lifted out;
+ * `cause.data` (the whole rejected payload, i.e. the caller's data) is
+ * deliberately left behind.
+ * @returns The issue summaries, or undefined when the error carries none.
+ */
+function validationIssueSummary(error: unknown): string[] | undefined {
+  if (!(error instanceof ORPCError) || !(error.cause instanceof ValidationError)) {
+    return undefined;
+  }
+  return error.cause.issues.map((issue) => {
+    const path = (issue.path ?? [])
+      .map((segment) => String(typeof segment === "object" ? segment.key : segment))
+      .join(".");
+    return path === "" ? issue.message : `${path}: ${issue.message}`;
+  });
+}
+
+/**
  * Production error interceptor for the single oRPC handler. oRPC catches every
  * handler throw and encodes it into a `Response`, so it never reaches Hono's
  * `app.onError` — which means the Sentry capture + structured error log that
@@ -48,8 +73,12 @@ export function makeReportingErrorInterceptor(log: Logger) {
           return await options.next();
         } catch (error) {
           if (isServerFault(error)) {
-            Sentry.captureException(error, { tags: { source: "orpc" } });
-            log.error({ err: error }, "oRPC handler error");
+            const validationIssues = validationIssueSummary(error);
+            Sentry.captureException(error, {
+              tags: { source: "orpc" },
+              extra: validationIssues ? { validationIssues } : undefined,
+            });
+            log.error({ err: error, validationIssues }, "oRPC handler error");
           }
           throw error;
         }

@@ -95,6 +95,50 @@ describe("GET /api/v1/preferences", () => {
     expect(json.languages).toEqual(["en", "de"]);
     expect(json.completionScope).toEqual({ sets: ["set-a"], promos: "exclude", signed: true });
   });
+
+  // Regression for OPENRIFT-API-B: a stored value the response schema rejects
+  // (written before an enum narrowed, say) used to reach oRPC's output
+  // validation and 500 the whole response. The web loads preferences on every
+  // page, so that bricked the app for the affected user. Drop the key instead.
+  it("drops a stored value the response schema rejects and keeps the rest", async () => {
+    mockRepo.getByUserId.mockResolvedValue({
+      userId: USER_ID,
+      data: { theme: "solarized", showImages: false, defaultCurrency: "GBP" },
+    });
+    const res = await app.request("/api/v1/preferences");
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json).toEqual({ showImages: false });
+  });
+
+  it("drops a nested value the response schema rejects", async () => {
+    mockRepo.getByUserId.mockResolvedValue({
+      userId: USER_ID,
+      data: { completionScope: { promos: "sometimes" }, languages: ["en"] },
+    });
+    const res = await app.request("/api/v1/preferences");
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json).toEqual({ languages: ["en"] });
+  });
+
+  it("returns empty object when the stored blob is not an object", async () => {
+    // parseData in the repo JSON.parses the JSONB column; a double-encoded row
+    // yields a string, not the object the Kysely types promise.
+    mockRepo.getByUserId.mockResolvedValue({ userId: USER_ID, data: '{"showImages":true}' });
+    const res = await app.request("/api/v1/preferences");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({});
+  });
+
+  it("does not leak undocumented stored keys", async () => {
+    mockRepo.getByUserId.mockResolvedValue({
+      userId: USER_ID,
+      data: { showImages: true, hiddenFilterSections: ["sets"] },
+    });
+    const res = await app.request("/api/v1/preferences");
+    expect(await res.json()).toEqual({ showImages: true });
+  });
 });
 
 describe("PATCH /api/v1/preferences", () => {
