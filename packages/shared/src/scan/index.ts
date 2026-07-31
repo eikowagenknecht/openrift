@@ -50,12 +50,19 @@ export {
 export type { OrbCvLike, OrbFeatures, OrbVerdict } from "./orb";
 export { describeOrb, releaseOrb, verifyOrb } from "./orb";
 
-export type { FrameOutcome, ScanSession, ScanSessionDeps, ScanSessionOptions } from "./session";
+export type {
+  EncoderGates,
+  FrameOutcome,
+  ScanSession,
+  ScanSessionDeps,
+  ScanSessionOptions,
+} from "./session";
 export {
   DEFAULT_SESSION_OPTIONS,
   SESSION_UNWARP_HEIGHT,
   SESSION_UNWARP_WIDTH,
   createScanSession,
+  gatesForEmbedDim,
   mergeCandidates,
 } from "./session";
 

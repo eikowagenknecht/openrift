@@ -55,3 +55,4 @@ apps/web/public/scan-embed-bank.bin
 apps/web/public/scan-labels.json
 apps/web/public/scan-encoder.onnx
 apps/web/public/scan-opencv.js
+apps/web/public/scan-opencv.wasm

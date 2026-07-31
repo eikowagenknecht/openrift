@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { mergeCandidates, prioritizeTracked } from "./session";
+import {
+  DEFAULT_SESSION_OPTIONS,
+  gatesForEmbedDim,
+  mergeCandidates,
+  prioritizeTracked,
+} from "./session";
 import type { CardCandidate, Quad } from "./types";
 
 /**
@@ -69,5 +74,24 @@ describe("prioritizeTracked", () => {
       far,
       farther,
     ]);
+  });
+});
+
+describe("gatesForEmbedDim", () => {
+  it("returns the custom-encoder calibration for 256-dimensional banks", () => {
+    const gates = gatesForEmbedDim(256);
+    expect(gates.confidentDistance).toBe(0.35);
+    expect(gates.rotationFallbackDistance).toBe(0.42);
+    // The 0.457 rotation-discovery floor caps the slow-device value too.
+    expect(gates.slowRotationFallbackDistance).toBeLessThan(0.457);
+  });
+
+  it("returns the MobileCLIP clip calibration for every other dimension", () => {
+    for (const dim of [512, 0, 384]) {
+      const gates = gatesForEmbedDim(dim);
+      expect(gates.confidentDistance).toBe(DEFAULT_SESSION_OPTIONS.confidentDistance);
+      expect(gates.rotationFallbackDistance).toBe(DEFAULT_SESSION_OPTIONS.rotationFallbackDistance);
+      expect(gates.slowRotationFallbackDistance).toBe(0.45);
+    }
   });
 });

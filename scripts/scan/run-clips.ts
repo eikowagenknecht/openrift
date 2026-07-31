@@ -23,8 +23,6 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import cvModule from "@techstark/opencv-js";
-
 import type {
   EmbedBank,
   EmbedKind,
@@ -35,10 +33,11 @@ import type {
 import {
   DEFAULT_SESSION_OPTIONS,
   createScanSession,
+  gatesForEmbedDim,
 } from "../../packages/shared/src/scan/index.js";
 import { describe, loadCatalog } from "./catalog";
 import { EMBED_SIZE, loadEmbedBank, nodeEmbedder } from "./embed-bank";
-import { listReferenceImages, loadImage } from "./lib";
+import { REPO_ROOT, listReferenceImages, loadImage } from "./lib";
 
 const CLIPS = "/home/eiko/repos/openrift/data/image-recognition-test/clips/full";
 
@@ -79,6 +78,9 @@ async function runClip(
 
   const referenceFiles = new Map(listReferenceImages().map((r) => [r.key, r.file]));
 
+  // Distance gates default per encoder; the bank's dimension says which
+  // encoder built it (session.ts gatesForEmbedDim).
+  const gates = gatesForEmbedDim(bank.keys.length > 0 ? bank.vectors.length / bank.keys.length : 0);
   const acceptMargin = Number(argValue("--margin") ?? DEFAULT_SESSION_OPTIONS.margin);
   const acceptOptions = {
     lockRun: Number(argValue("--lock-run") ?? DEFAULT_SESSION_OPTIONS.accept.lockRun),
@@ -103,15 +105,12 @@ async function runClip(
       embedKind,
       topK: Number(argValue("--top-k") ?? DEFAULT_SESSION_OPTIONS.topK),
       candidatesToTry: Number(argValue("--tries") ?? DEFAULT_SESSION_OPTIONS.candidatesToTry),
-      confidentDistance: Number(
-        argValue("--confident-distance") ?? DEFAULT_SESSION_OPTIONS.confidentDistance,
-      ),
+      confidentDistance: Number(argValue("--confident-distance") ?? gates.confidentDistance),
       rotationMinFocus: Number(
         argValue("--rotation-min-focus") ?? DEFAULT_SESSION_OPTIONS.rotationMinFocus,
       ),
       rotationFallbackDistance: Number(
-        argValue("--rotation-fallback-distance") ??
-          DEFAULT_SESSION_OPTIONS.rotationFallbackDistance,
+        argValue("--rotation-fallback-distance") ?? gates.rotationFallbackDistance,
       ),
       rotationPairOnly: process.argv.includes("--pair-only"),
       margin: acceptMargin,
@@ -247,6 +246,26 @@ async function main(cv: OpenCvLike & OrbCvLike): Promise<void> {
     await runClip(cv, clip, catalog, verbose, embedKind, bank, maskFrame);
   }
 }
+
+// The trimmed custom build (scripts/scan/build-opencv.sh) is what the page
+// serves, so the bench prefers it; the npm dist remains the fallback so a
+// fresh checkout can bench without a docker build. Printed, so a result is
+// never silently attributed to the wrong binary.
+//
+// require, NOT dynamic import: Bun's `await import()` interop adopts the
+// emscripten export — for the npm dist a booby-trapped thenable whose adoption
+// spins the microtask queue at 100% CPU forever (measured: 9 h with zero
+// output, 2026-07-31). require hands back module.exports untouched; the one
+// manual `then` below is the only safe way to unwrap it. The static
+// `import cvModule from ...` this replaced was equally safe but cannot be
+// made conditional.
+const customOpenCv = path.join(REPO_ROOT, "data/image-recognition-test/models/opencv/opencv.js");
+const useCustomOpenCv = fs.existsSync(customOpenCv);
+process.stdout.write(
+  `opencv: ${useCustomOpenCv ? "custom trimmed build" : "@techstark/opencv-js dist"}\n`,
+);
+// oxlint-disable-next-line import/no-commonjs, typescript/no-require-imports -- see the require-not-import note above
+const cvModule = useCustomOpenCv ? require(customOpenCv) : require("@techstark/opencv-js");
 
 // Under Bun, awaiting the emscripten module deadlocks; calling its `then` at
 // the top level resolves normally.

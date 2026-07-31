@@ -10,7 +10,12 @@ import type {
   RgbaImage,
   ScanSession,
 } from "@openrift/shared/scan";
-import { CARD_ASPECT, DEFAULT_SESSION_OPTIONS, createScanSession } from "@openrift/shared/scan";
+import {
+  CARD_ASPECT,
+  DEFAULT_SESSION_OPTIONS,
+  createScanSession,
+  gatesForEmbedDim,
+} from "@openrift/shared/scan";
 import { useEffect, useRef, useState } from "react";
 
 import { cameraErrorMessage } from "@/lib/camera-error";
@@ -40,11 +45,6 @@ export interface ScannerSettings {
   processingSize: number;
   /** Detector proposals rectified and embedded per frame. */
   candidatesToTry: number;
-  /**
-   * Staged-embedding gate (see `ScanSessionOptions.confidentDistance`).
-   * Negative runs the ungated four-rotation embedding of every candidate.
-   */
-  confidentDistance: number;
 }
 
 /**
@@ -58,11 +58,21 @@ export const DEFAULT_SCANNER_SETTINGS: ScannerSettings = {
   mode: "single",
   processingSize: 848,
   candidatesToTry: DEFAULT_SESSION_OPTIONS.candidatesToTry,
-  confidentDistance: DEFAULT_SESSION_OPTIONS.confidentDistance,
 };
 
 /** Verification shortlist in single-card mode; pan mode keeps the calibrated 8. */
 const SINGLE_MODE_TOP_K = 4;
+
+/**
+ * Verification shortlist under the slow-device profile: each shortlist entry
+ * costs a full ORB match (the dominant per-frame cost on old silicon), and
+ * the margin rule's protective rival is virtually always the nearest
+ * embedding neighbour. Benched 2026-07-31 on the custom stack at top-K 2 in
+ * pan, a strictly harder setting than the guide modes this applies to: locks
+ * unchanged-or-better on all three clips, zero refusals, zero false locks,
+ * frame time roughly halved.
+ */
+const SLOW_DEVICE_TOP_K = 2;
 
 /**
  * The guide rect in frame coordinates: a centered portrait card outline.
@@ -212,11 +222,20 @@ let cvProgressListener: ((loaded: number, total: number) => void) | null = null;
  *
  * Loaded as a plain classic script (`/scan-opencv.js`, written next to the
  * bank by `export-index.ts`), NOT as a module import: vite's dep-optimized
- * ESM wrapping of the 10.8 MB emscripten UMD spins the main thread forever
- * during evaluation, in every engine tested, while the raw script evaluates
- * in well under a second. Fetched to a blob first so the download can report
+ * ESM wrapping of the emscripten UMD spins the main thread forever during
+ * evaluation, in every engine tested, while the raw script evaluates in well
+ * under a second. Fetched to a blob first so the download can report
  * progress; a script tag exposes none. Kept at module level because the React
  * Compiler cannot lower a dynamic loader inside a hook.
+ *
+ * The custom trimmed build (scripts/scan/build-opencv.sh) splits the glue
+ * from the wasm so browsers can cache the compiled machine code. The glue
+ * resolves the wasm relative to its script URL — a blob: URL here — so a
+ * `locateFile` override on the global `Module` (captured synchronously at
+ * script evaluation) points it at the real file, which by convention sits
+ * next to the .js with the same name and a .wasm extension. A single-file
+ * build (the pre-trim serving) never consults `locateFile`, so the override
+ * is compatible with both.
  *
  * @returns The initialised OpenCV module.
  */
@@ -234,7 +253,13 @@ async function loadOpenCv(
       (loaded, total) => cvProgressListener?.(loaded, total),
       `could not load OpenCV from ${scriptUrl} (in dev, run: bun scripts/scan/export-index.ts)`,
     );
+    const wasmUrl = scriptUrl.replace(/\.js$/u, ".wasm");
     const url = URL.createObjectURL(new Blob([source], { type: "text/javascript" }));
+    const globalScope = globalThis as { Module?: unknown };
+    const previousModule = globalScope.Module;
+    globalScope.Module = {
+      locateFile: (file: string) => (file.endsWith(".wasm") ? wasmUrl : file),
+    };
     try {
       await new Promise<void>((resolve, reject) => {
         const script = document.createElement("script");
@@ -249,6 +274,9 @@ async function loadOpenCv(
       });
     } finally {
       URL.revokeObjectURL(url);
+      // The factory captured the Module object during evaluation; the global
+      // slot can be handed back before the wasm finishes initialising.
+      globalScope.Module = previousModule;
     }
     // The emscripten export is a thenable rather than a real promise, and it
     // must never be resolved through a promise as-is: promise adoption calls
@@ -545,6 +573,11 @@ export function useCardScanner(
     if (slowDevice) {
       console.log(`[scan] slow-device profile (${measuredEmbedMsPerImage().toFixed(0)}ms/image)`);
     }
+    // Distance gates are calibrated per encoder; the served bank's dimension
+    // says which encoder produced it.
+    const gates = gatesForEmbedDim(
+      loaded.bank.keys.length > 0 ? loaded.bank.vectors.length / loaded.bank.keys.length : 0,
+    );
     return createScanSession(
       {
         cv,
@@ -565,7 +598,8 @@ export function useCardScanner(
           slowDevice && single
             ? Math.min(1, settingsRef.current.candidatesToTry)
             : settingsRef.current.candidatesToTry,
-        confidentDistance: settingsRef.current.confidentDistance,
+        confidentDistance: gates.confidentDistance,
+        rotationFallbackDistance: gates.rotationFallbackDistance,
         // Guide-mode pair-only rotation search, only when the served bank was
         // built in the canonical frame: a battlefield placed in the guide then
         // matches at 0 or 180 degrees, so discovery costs at most 2 encoder
@@ -577,7 +611,7 @@ export function useCardScanner(
         ...(single
           ? {
               guideFor: guideQuadFor,
-              topK: SINGLE_MODE_TOP_K,
+              topK: slowDevice ? SLOW_DEVICE_TOP_K : SINGLE_MODE_TOP_K,
               // One card by premise and ORB margin still gates every frame; a
               // 3-frame run shaves ~200 ms off each lock. Pan keeps the
               // clip-calibrated 4 (a 3-frame burst once false-locked there).
@@ -589,7 +623,9 @@ export function useCardScanner(
                 ...DEFAULT_SESSION_OPTIONS.accept,
                 lockRun: settingsRef.current.mode === "capture" ? 1 : 3,
               },
-              ...(slowDevice ? { rotationFallbackDistance: 0.45 } : {}),
+              ...(slowDevice
+                ? { rotationFallbackDistance: gates.slowRotationFallbackDistance }
+                : {}),
             }
           : {}),
       },
@@ -1008,7 +1044,6 @@ export function useCardScanner(
     setActive(true);
     console.log(
       `[scan] START mode ${settingsRef.current.mode} processingSize ${settingsRef.current.processingSize} candidatesToTry ${settingsRef.current.candidatesToTry}` +
-        ` confidentDistance ${settingsRef.current.confidentDistance}` +
         ` video ${video?.videoWidth ?? 0}x${video?.videoHeight ?? 0}`,
     );
 

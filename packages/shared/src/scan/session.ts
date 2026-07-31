@@ -173,6 +173,48 @@ export const DEFAULT_SESSION_OPTIONS: ScanSessionOptions = {
   accept: { lockRun: 4, maxGapFrames: 6 },
 };
 
+/** Distance gates whose calibrated values depend on which encoder is loaded. */
+export interface EncoderGates {
+  confidentDistance: number;
+  rotationFallbackDistance: number;
+  /**
+   * Rotation-fallback bound under the slow-device profile, where each skipped
+   * speculative pass matters more than marginal rotation recall.
+   */
+  slowRotationFallbackDistance: number;
+}
+
+/**
+ * The calibrated distance gates for the encoder behind a bank, keyed by
+ * embedding dimension — the one encoder property a loaded bank exposes.
+ * MobileCLIP-S0 embeds at 512, the custom MobileNetV3 ArcFace encoder at 256;
+ * should a future encoder collide on dimension, the bank format's flags word
+ * is the place to make this explicit.
+ *
+ * Custom-encoder values benched 2026-07-30: confident 0.35, rotation fallback
+ * 0.42 (0.45 benched clean, 0.42 keeps margin under the 0.457
+ * rotation-discovery floor — which is also why its slow-device value cannot
+ * rise the way MobileCLIP's does). MobileCLIP values are the 2026-07 clip
+ * calibration in {@link DEFAULT_SESSION_OPTIONS}, slow-device fallback 0.45
+ * measured 2026-07-27.
+ *
+ * @returns The gates for sessions ranking against that bank.
+ */
+export function gatesForEmbedDim(dim: number): EncoderGates {
+  if (dim === 256) {
+    return {
+      confidentDistance: 0.35,
+      rotationFallbackDistance: 0.42,
+      slowRotationFallbackDistance: 0.42,
+    };
+  }
+  return {
+    confidentDistance: DEFAULT_SESSION_OPTIONS.confidentDistance,
+    rotationFallbackDistance: DEFAULT_SESSION_OPTIONS.rotationFallbackDistance,
+    slowRotationFallbackDistance: 0.45,
+  };
+}
+
 export interface FrameOutcome {
   candidate: CardCandidate | null;
   /** Embedding shortlist for the settled candidate, nearest first. */

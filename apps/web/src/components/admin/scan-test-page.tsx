@@ -324,6 +324,9 @@ export function ScanTestPage() {
   const [loaded, setLoaded] = useState<LoadedScanBank | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [settings, setSettings] = useState<ScannerSettings>(DEFAULT_SCANNER_SETTINGS);
+  // True once the user has picked a mode themselves; the slow-device
+  // auto-switch below must never fight an explicit choice.
+  const [modeChosen, setModeChosen] = useState(false);
   // A live feed needs a secure context. Over a plain LAN dev server there is no
   // camera API at all, and saying so beats an unexplained failure. Resolved in
   // an effect because the route is server-rendered: reading navigator during
@@ -387,6 +390,25 @@ export function ScanTestPage() {
   // SLOW_DEVICE_EMBED_MS for the measurements behind the factor.
   const predictedLockSeconds = Math.ceil((embedMsPerImage * 7.5) / 1000);
 
+  // Tap-to-scan IS the slow-device path: once the encoder self-bench says
+  // live scanning would crawl, flip the default mode over instead of only
+  // asking the user to. The measurement lands during engine init, before the
+  // camera can start, and an explicit mode choice is never overridden.
+  useEffect(() => {
+    if (deviceTooSlow && !modeChosen) {
+      setSettings((previous) =>
+        previous.mode === "single" ? { ...previous, mode: "capture" } : previous,
+      );
+    }
+  }, [deviceTooSlow, modeChosen]);
+
+  function handleSettingsChange(next: ScannerSettings): void {
+    if (next.mode !== settings.mode) {
+      setModeChosen(true);
+    }
+    setSettings(next);
+  }
+
   function handleStart() {
     void start();
   }
@@ -416,8 +438,18 @@ export function ScanTestPage() {
               <p className="font-medium">This device is too slow for live scanning.</p>
               <p className="text-muted-foreground mt-2">
                 Recognising a card live would take roughly {predictedLockSeconds} seconds instead of
-                under one. Switch the mode to <strong>tap to scan</strong>: aim with the guide as
-                usual and each tap scans one frame.
+                under one
+                {settings.mode === "capture" ? (
+                  <>
+                    , so the mode is set to <strong>tap to scan</strong>: aim with the guide as
+                    usual and each tap scans one frame.
+                  </>
+                ) : (
+                  <>
+                    . Switch the mode to <strong>tap to scan</strong>: aim with the guide as usual
+                    and each tap scans one frame.
+                  </>
+                )}
               </p>
             </CardContent>
           </Card>
@@ -514,7 +546,7 @@ export function ScanTestPage() {
 
           <div className="flex flex-col gap-4">
             <LiveFrameCard readout={readout} loaded={loaded} active={active} />
-            <EngineCard settings={settings} onChange={setSettings} />
+            <EngineCard settings={settings} onChange={handleSettingsChange} />
             <ServingCard assets={assets} />
           </div>
         </div>
