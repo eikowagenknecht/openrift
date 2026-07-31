@@ -33,6 +33,7 @@ export type {
   ProductsTable,
   // Friend groups (migration 134, 141)
   FriendGroupCollectionSharesTable,
+  FriendGroupDiscordLinksTable,
   FriendGroupInviteDirection,
   FriendGroupInvitesTable,
   FriendGroupListSharesTable,

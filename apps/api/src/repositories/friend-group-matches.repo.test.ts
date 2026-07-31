@@ -1002,6 +1002,86 @@ describe("giverPrintingSupply", () => {
   });
 });
 
+describe("tradelistHoldersForCard (Discord bot lookup)", () => {
+  const scope = { groupId: "g", cardId: "crd-1" };
+
+  /**
+   * Two sellers offering the card manually: Alice with two copies, Bob with
+   * one. Queue order for the resolver: trade shares → entries → copy meta →
+   * users.
+   * @returns Per-table FIFO queues for {@link makeDb}.
+   */
+  function holderQueues() {
+    return {
+      friendGroupListShares: [
+        [
+          tradeShare(),
+          tradeShare({ listId: "lst-t2", listName: "Bob's binder", ownerUserId: "bob" }),
+        ],
+      ],
+      listEntries: [
+        [
+          supplyEntry(),
+          supplyEntry({ id: "e-t2", copyId: "cp-2" }),
+          supplyEntry({ id: "e-t3", listId: "lst-t2", copyId: "cp-3" }),
+        ],
+      ],
+      copies: [[copyRow(), copyRow({ id: "cp-2" }), copyRow({ id: "cp-3" })]],
+      users: [[userRow(), userRow({ id: "bob", name: "Bob", email: "b@x.com" })]],
+    };
+  }
+
+  it("aggregates copies per owner, most copies first", async () => {
+    const repo = friendGroupMatchesRepo(makeDb(holderQueues()), PROVIDERS);
+    expect(await repo.tradelistHoldersForCard(scope)).toEqual([
+      { userId: "seller", userName: "Alice", quantity: 2 },
+      { userId: "bob", userName: "Bob", quantity: 1 },
+    ]);
+  });
+
+  it("applies the supply exclusions (reserved, loaned, altered)", async () => {
+    const queues = holderQueues();
+    queues.copies = [
+      [
+        copyRow({ reserved: true }),
+        copyRow({ id: "cp-2", loaned: true }),
+        copyRow({ id: "cp-3", isAltered: true }),
+      ],
+    ];
+    const repo = friendGroupMatchesRepo(makeDb(queues), PROVIDERS);
+    expect(await repo.tradelistHoldersForCard(scope)).toEqual([]);
+  });
+
+  it("ignores copies of other cards", async () => {
+    const queues = holderQueues();
+    queues.copies = [
+      [
+        copyRow(),
+        copyRow({ id: "cp-2", cardId: "crd-2" }),
+        copyRow({ id: "cp-3", cardId: "crd-2" }),
+      ],
+    ];
+    const repo = friendGroupMatchesRepo(makeDb(queues), PROVIDERS);
+    expect(await repo.tradelistHoldersForCard(scope)).toEqual([
+      { userId: "seller", userName: "Alice", quantity: 1 },
+    ]);
+  });
+
+  it("counts a copy shared via two lists once", async () => {
+    const queues = holderQueues();
+    queues.friendGroupListShares = [
+      [tradeShare(), tradeShare({ listId: "lst-t2", listName: "Dupes" })],
+    ];
+    queues.listEntries = [[supplyEntry(), supplyEntry({ id: "e-dup", listId: "lst-t2" })]];
+    queues.copies = [[copyRow()]];
+    queues.users = [[userRow()]];
+    const repo = friendGroupMatchesRepo(makeDb(queues), PROVIDERS);
+    expect(await repo.tradelistHoldersForCard(scope)).toEqual([
+      { userId: "seller", userName: "Alice", quantity: 1 },
+    ]);
+  });
+});
+
 // Keep the rule fixtures honest against the schema (a typo'd rule would silently
 // produce no entries and pass with `toHaveLength(0)` elsewhere).
 const _typecheckRules: ListRule[] = [

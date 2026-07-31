@@ -74,6 +74,7 @@ import { publicCollectionsRouter } from "../routes/public/collections.js";
 import { deckCheckClaimRouter } from "../routes/public/deck-check-claim.js";
 import { deckCheckIngestRouter } from "../routes/public/deck-check-ingest.js";
 import { publicDecksRouter } from "../routes/public/decks.js";
+import { discordBotRouter } from "../routes/public/discord-bot.js";
 import { featureFlagsRouter } from "../routes/public/feature-flags.js";
 import { initRouter } from "../routes/public/init.js";
 import { landingSummaryRouter } from "../routes/public/landing-summary.js";
@@ -167,6 +168,7 @@ const apiRouter = {
   deckCheckClaimRouter,
   deckCheckIngestRouter,
   publicDecksRouter,
+  discordBotRouter,
   featureFlagsRouter,
   initRouter,
   landingSummaryRouter,

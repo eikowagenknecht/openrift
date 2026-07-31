@@ -97,6 +97,7 @@ const PARALLEL_FILES = [
   "src/repositories/copies.integration.test.ts",
   "src/repositories/decks.integration.test.ts",
   "src/repositories/feature-flags.integration.test.ts",
+  "src/repositories/friend-group-discord-links.integration.test.ts",
   "src/repositories/friend-groups.integration.test.ts",
   "src/repositories/health.integration.test.ts",
   "src/repositories/ignored-candidates.integration.test.ts",

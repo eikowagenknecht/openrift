@@ -6,6 +6,7 @@ import { formatCardText } from "./card-text.js";
 import type { CatalogCard, CatalogPrinting, CatalogSnapshot, EnumLabels } from "./catalog-cache.js";
 import type { GlyphEmojis } from "./glyph-emoji.js";
 import { NO_GLYPH_EMOJIS } from "./glyph-emoji.js";
+import type { TradelistHolders } from "./group-tradelists.js";
 import { printingVariantParts } from "./printing-choice.js";
 
 /** The brand green also used by the changelog webhook embeds. */
@@ -26,6 +27,34 @@ export interface CardEmbedInput {
   /** Glyph token → custom emoji mention; defaults to none, which renders glyphs as words. */
   emojis?: GlyphEmojis;
   siteUrl: string;
+  /** Members of the guild's linked group offering the card on a shared tradelist. */
+  tradelists?: TradelistHolders | null;
+}
+
+/** Holders named per embed field before collapsing into "…and N more". */
+const MAX_TRADELIST_HOLDERS = 5;
+
+/**
+ * The "who has this on a tradelist" field for a card mentioned in a linked
+ * guild. Display names and counts only — the API already projects away
+ * everything else (conditions, notes, prices).
+ *
+ * @returns The embed field, or null when there is nothing to show.
+ */
+function tradelistField(tradelists: TradelistHolders | null | undefined): APIEmbedField | null {
+  if (!tradelists || tradelists.holders.length === 0) {
+    return null;
+  }
+  const shown = tradelists.holders.slice(0, MAX_TRADELIST_HOLDERS);
+  const lines = shown.map((holder) => `${holder.userName ?? "Unknown user"} · ${holder.quantity}×`);
+  const hidden = tradelists.holders.length - shown.length;
+  if (hidden > 0) {
+    lines.push(`…and ${hidden} more`);
+  }
+  return {
+    name: tradelists.groupName ? `On tradelists in ${tradelists.groupName}` : "On tradelists",
+    value: truncate(lines.join("\n"), FIELD_LIMIT),
+  };
 }
 
 /**
@@ -270,10 +299,12 @@ export function buildCardEmbed(input: CardEmbedInput): APIEmbed {
     ];
   });
 
-  // Text first, then the prices: the price fields are inline, so they pack
-  // into one row under the full-width text blocks.
+  // Text first, then tradelists, then the prices: the price fields are
+  // inline, so they pack into one row under the full-width blocks.
+  const holdersField = tradelistField(input.tradelists);
   const fields = [
     ...cardTextFields(card, printing, input.emojis ?? NO_GLYPH_EMOJIS),
+    ...(holdersField ? [holdersField] : []),
     ...priceFields,
   ];
 

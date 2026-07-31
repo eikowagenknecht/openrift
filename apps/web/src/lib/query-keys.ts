@@ -152,6 +152,8 @@ export const queryKeys = {
       ["friend-groups", userId, slug, "lists", listId] as const,
     sharedCollection: (userId: string, slug: string, collectionId: string) =>
       ["friend-groups", userId, slug, "collections", collectionId] as const,
+    discordLinks: (userId: string, slug: string) =>
+      ["friend-groups", userId, slug, "discord-links"] as const,
   },
   podTournaments: {
     all: (userId: string) => ["pod-tournaments", userId] as const,

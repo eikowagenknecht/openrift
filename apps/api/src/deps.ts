@@ -29,6 +29,7 @@ import { domainsRepo } from "./repositories/domains.js";
 import { enumsRepo } from "./repositories/enums.js";
 import { featureFlagsRepo } from "./repositories/feature-flags.js";
 import { finishesRepo } from "./repositories/finishes.js";
+import { friendGroupDiscordLinksRepo } from "./repositories/friend-group-discord-links.js";
 import { friendGroupMatchesRepo } from "./repositories/friend-group-matches.js";
 import { friendGroupsRepo } from "./repositories/friend-groups.js";
 import { healthRepo } from "./repositories/health.js";
@@ -123,6 +124,7 @@ export interface Repos {
   featureFlags: ReturnType<typeof featureFlagsRepo>;
   finishes: ReturnType<typeof finishesRepo>;
   friendGroups: ReturnType<typeof friendGroupsRepo>;
+  friendGroupDiscordLinks: ReturnType<typeof friendGroupDiscordLinksRepo>;
   friendGroupMatches: ReturnType<typeof friendGroupMatchesRepo>;
   userContactMethods: ReturnType<typeof userContactMethodsRepo>;
   organizations: ReturnType<typeof organizationsRepo>;
@@ -261,6 +263,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     featureFlags: featureFlagsRepo(db),
     finishes: finishesRepo(db),
     friendGroups: friendGroupsRepo(db),
+    friendGroupDiscordLinks: friendGroupDiscordLinksRepo(db),
     // ADR-034: dynamic lists participate in matching — same providers as `lists`.
     friendGroupMatches: friendGroupMatchesRepo(db, {
       assembleCatalog,

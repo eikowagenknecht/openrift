@@ -162,6 +162,7 @@ import * as m213 from "./213-scan-index.js";
 import * as m214 from "./214-unicode-norm-name.js";
 import * as m215 from "./215-materialize-canonical-rank.js";
 import * as m216 from "./216-price-history-autovacuum.js";
+import * as m217 from "./217-friend-group-discord-links.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -383,4 +384,5 @@ export const migrations: Record<string, Migration> = {
   "214-unicode-norm-name": m214,
   "215-materialize-canonical-rank": m215,
   "216-price-history-autovacuum": m216,
+  "217-friend-group-discord-links": m217,
 };

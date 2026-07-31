@@ -5,6 +5,12 @@ export interface BotEnv {
   apiUrl: string;
   /** Public site origin used for card links and embed image URLs. */
   siteUrl: string;
+  /**
+   * Shared service secret for the API's privileged bot endpoints (group
+   * linking, tradelist lookups). Null disables those features: /link isn't
+   * registered and card replies carry no tradelist info.
+   */
+  apiSecret: string | null;
 }
 
 /**
@@ -24,5 +30,6 @@ export function readBotEnv(env: Record<string, string | undefined> = process.env
     token,
     apiUrl: env.API_INTERNAL_URL ?? "http://localhost:3000",
     siteUrl: env.SITE_URL ?? "http://localhost:5173",
+    apiSecret: env.DISCORD_BOT_API_SECRET ?? null,
   };
 }

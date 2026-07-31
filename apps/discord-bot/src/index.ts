@@ -8,7 +8,7 @@ const REFRESH_INTERVAL_MS = 30 * 60 * 1000;
 const STARTUP_RETRY_MS = 15 * 1000;
 
 const env = readBotEnv();
-const api = createApiClients(env.apiUrl);
+const api = createApiClients(env.apiUrl, env.apiSecret);
 const cache = new CatalogCache({
   fetchCatalog: () => api.catalog.catalog({}),
   fetchInit: () => api.init.get(),

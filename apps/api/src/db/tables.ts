@@ -767,6 +767,26 @@ export interface FriendGroupCollectionSharesTable {
   sharedAt: ColumnType<Date, Date | undefined, Date>;
 }
 
+/**
+ * A Discord server linked to a friend group (migration 217). Pending rows
+ * carry a one-time `code` (guild fields null); redeeming the code via the
+ * bot's /link command sets `guildId`/`guildName`/`linkedAt` and clears the
+ * code. CHECK: exactly one of `guildId` / `code` is set.
+ */
+export interface FriendGroupDiscordLinksTable {
+  id: Generated<string>;
+  groupId: string;
+  /** Discord guild snowflake; unique where not null. */
+  guildId: string | null;
+  guildName: string | null;
+  /** One-time link code; unique where not null; requires codeExpiresAt. */
+  code: string | null;
+  codeExpiresAt: Date | null;
+  createdByUserId: string | null;
+  createdAt: CreatedAt;
+  linkedAt: Date | null;
+}
+
 // ─── Organizations (migration 166, ADR-033) ──────────────────────────────────
 // A first-class tournament host alongside users (a local game store, a league).
 // Admin-provisioned. `organization_members` carries org-level authority; both
@@ -1832,6 +1852,7 @@ export interface Database {
   friendGroups: FriendGroupsTable;
   friendGroupMembers: FriendGroupMembersTable;
   friendGroupInvites: FriendGroupInvitesTable;
+  friendGroupDiscordLinks: FriendGroupDiscordLinksTable;
   friendGroupListShares: FriendGroupListSharesTable;
   friendGroupCollectionShares: FriendGroupCollectionSharesTable;
 

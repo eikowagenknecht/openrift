@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict A7NaogPpO40dtxqVfTz2mEVXmbDegb7K01L3I2cvceO53XxXwBWqFxmpjeLkraU
+\restrict 9NgZ51tlqCuIeJech1V46lbXSuIMnFLaYSabkIFA03JWSEFIqe6n5im45Kns6hd
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1311,6 +1311,26 @@ CREATE TABLE public.friend_group_collection_shares (
     collection_id uuid NOT NULL,
     user_id text NOT NULL,
     shared_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: friend_group_discord_links; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.friend_group_discord_links (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    group_id uuid NOT NULL,
+    guild_id text,
+    guild_name text,
+    code text,
+    code_expires_at timestamp with time zone,
+    created_by_user_id text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    linked_at timestamp with time zone,
+    CONSTRAINT chk_fg_discord_links_linked_at CHECK (((guild_id IS NULL) = (linked_at IS NULL))),
+    CONSTRAINT chk_fg_discord_links_pending_expiry CHECK (((code IS NULL) OR (code_expires_at IS NOT NULL))),
+    CONSTRAINT chk_fg_discord_links_state CHECK (((guild_id IS NULL) <> (code IS NULL)))
 );
 
 
@@ -2888,6 +2908,14 @@ ALTER TABLE ONLY public.friend_group_collection_shares
 
 
 --
+-- Name: friend_group_discord_links friend_group_discord_links_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.friend_group_discord_links
+    ADD CONSTRAINT friend_group_discord_links_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: friend_group_invites friend_group_invites_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3891,6 +3919,13 @@ CREATE INDEX idx_distribution_channels_parent_id ON public.distribution_channels
 
 
 --
+-- Name: idx_fg_discord_links_group; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fg_discord_links_group ON public.friend_group_discord_links USING btree (group_id);
+
+
+--
 -- Name: idx_friend_group_collection_shares_collection; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4322,6 +4357,20 @@ CREATE UNIQUE INDEX uq_collections_user_inbox ON public.collections USING btree 
 --
 
 CREATE UNIQUE INDEX uq_deck_cards ON public.deck_cards USING btree (deck_id, card_id, zone, preferred_printing_id) NULLS NOT DISTINCT;
+
+
+--
+-- Name: uq_fg_discord_links_code; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_fg_discord_links_code ON public.friend_group_discord_links USING btree (code) WHERE (code IS NOT NULL);
+
+
+--
+-- Name: uq_fg_discord_links_guild; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_fg_discord_links_guild ON public.friend_group_discord_links USING btree (guild_id) WHERE (guild_id IS NOT NULL);
 
 
 --
@@ -5574,6 +5623,22 @@ ALTER TABLE ONLY public.printings
 
 
 --
+-- Name: friend_group_discord_links friend_group_discord_links_created_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.friend_group_discord_links
+    ADD CONSTRAINT friend_group_discord_links_created_by_user_id_fkey FOREIGN KEY (created_by_user_id) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: friend_group_discord_links friend_group_discord_links_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.friend_group_discord_links
+    ADD CONSTRAINT friend_group_discord_links_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.friend_groups(id) ON DELETE CASCADE;
+
+
+--
 -- Name: friend_group_invites friend_group_invites_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6089,5 +6154,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict A7NaogPpO40dtxqVfTz2mEVXmbDegb7K01L3I2cvceO53XxXwBWqFxmpjeLkraU
+\unrestrict 9NgZ51tlqCuIeJech1V46lbXSuIMnFLaYSabkIFA03JWSEFIqe6n5im45Kns6hd
 

@@ -8,6 +8,7 @@ import type {
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   BookOpenIcon,
+  BotIcon,
   CheckIcon,
   CopyIcon,
   CrownIcon,
@@ -53,10 +54,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { useContactMethods } from "@/hooks/use-contact-methods";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import {
+  useCreateFriendGroupDiscordLinkCode,
   useDeleteFriendGroup,
+  useDeleteFriendGroupDiscordLink,
   useDisableFriendGroupCode,
   useEnableFriendGroupCode,
   useFriendGroupDetail,
+  useFriendGroupDiscordLinks,
   useFriendGroupShareableCollections,
   useFriendGroupShareableLists,
   useLeaveFriendGroup,
@@ -70,6 +74,7 @@ import {
   useUpdateGroupContactReveal,
 } from "@/hooks/use-friend-groups";
 import { useRequiredUserId } from "@/lib/auth-session";
+import { formatAbsoluteDate } from "@/lib/format-date";
 import { getSiteUrl } from "@/lib/site-config";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 
@@ -114,6 +119,7 @@ export function FriendGroupManagePage({ slug }: FriendGroupManagePageProps) {
         <Heading level={1}>Manage {data.group.name}</Heading>
 
         {isAdmin(viewerRole) ? <AdminSettings data={data} slug={slug} /> : null}
+        {isAdmin(viewerRole) ? <DiscordPanel slug={slug} /> : null}
         <ContactSharingPanel data={data} slug={slug} />
         <ShareableListsPanel slug={slug} />
         <ShareableCollectionsPanel slug={slug} />
@@ -387,6 +393,109 @@ function AdminSettings({ data, slug }: { data: FriendGroupDetailResponse; slug: 
         <Separator />
 
         <InviteByEmailForm slug={slug} />
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * Admin-only Discord linking: generate a one-time code, redeem it with the
+ * bot's /link command in the server, and the bot may answer card mentions
+ * there with who has the card on a tradelist shared with this group. While a
+ * code is outstanding the links list polls, so the redeem shows up without a
+ * reload.
+ * @returns The Discord bot card.
+ */
+function DiscordPanel({ slug }: { slug: string }) {
+  const createCode = useCreateFriendGroupDiscordLinkCode();
+  const removeLink = useDeleteFriendGroupDiscordLink();
+  const [pending, setPending] = useState<{
+    code: string;
+    knownLinkIds: string[];
+  } | null>(null);
+  const { copied, copy } = useCopyToClipboard();
+
+  const { data } = useFriendGroupDiscordLinks(slug, {
+    refetchInterval: pending === null ? undefined : 5000,
+  });
+  const redeemed =
+    pending !== null && data.items.some((item) => !pending.knownLinkIds.includes(item.id));
+
+  async function handleGenerate() {
+    const result = await createCode.mutateAsync(slug);
+    setPending({ code: result.code, knownLinkIds: data.items.map((item) => item.id) });
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <BotIcon className="size-4" />
+          Discord bot
+        </CardTitle>
+        <CardDescription>
+          Link a Discord server so the OpenRift bot can answer card mentions there with who has the
+          card on a tradelist shared with this group. Anyone who can read the linked server will see
+          those names and counts.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        {data.items.map((item) => (
+          <div key={item.id} className="flex items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="font-medium">{item.guildName ?? `Server ${item.guildId}`}</span>
+              <span className="text-muted-foreground text-sm">
+                linked {formatAbsoluteDate(item.linkedAt)}
+              </span>
+            </div>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => removeLink.mutate({ slug, linkId: item.id })}
+              disabled={removeLink.isPending}
+            >
+              <Trash2Icon className="size-4" />
+              Unlink
+            </Button>
+          </div>
+        ))}
+        {data.items.length === 0 ? (
+          <p className="text-muted-foreground text-sm">No server linked yet.</p>
+        ) : null}
+        {pending === null ? (
+          <div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleGenerate}
+              disabled={createCode.isPending}
+            >
+              Generate link code
+            </Button>
+          </div>
+        ) : redeemed ? (
+          <p className="text-sm">Server linked. Card mentions there now include tradelists.</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <p className="text-muted-foreground text-sm">
+              In your Discord server, run this command within 15 minutes (you need the Manage Server
+              permission there):
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <code className="bg-muted rounded px-2 py-1 font-mono text-sm">
+                /link code:{pending.code}
+              </code>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => void copy(`/link code:${pending.code}`)}
+              >
+                {copied ? <CheckIcon className="size-4" /> : <CopyIcon className="size-4" />}
+                {copied ? "Copied" : "Copy"}
+              </Button>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

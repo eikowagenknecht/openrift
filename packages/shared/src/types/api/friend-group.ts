@@ -5,6 +5,9 @@ import type {
   friendGroupCollectionCoverSchema,
   friendGroupCollectionShareResponseSchema,
   friendGroupDetailResponseSchema,
+  friendGroupDiscordLinkCodeResponseSchema,
+  friendGroupDiscordLinkResponseSchema,
+  friendGroupDiscordLinksResponseSchema,
   friendGroupJoinPreviewResponseSchema,
   friendGroupListResponseSchema,
   friendGroupMatchesResponseSchema,
@@ -85,6 +88,14 @@ export type FriendGroupMatchRow = z.infer<typeof friendGroupMatchRowSchema>;
 export type FriendGroupMatchesResponse = z.infer<typeof friendGroupMatchesResponseSchema>;
 
 export type FriendGroupMemberDetailResponse = z.infer<typeof friendGroupMemberDetailResponseSchema>;
+
+export type FriendGroupDiscordLinkResponse = z.infer<typeof friendGroupDiscordLinkResponseSchema>;
+
+export type FriendGroupDiscordLinksResponse = z.infer<typeof friendGroupDiscordLinksResponseSchema>;
+
+export type FriendGroupDiscordLinkCodeResponse = z.infer<
+  typeof friendGroupDiscordLinkCodeResponseSchema
+>;
 
 /**
  * One entry in a group's activity feed. A discriminated union over `kind`;

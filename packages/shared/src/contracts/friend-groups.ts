@@ -100,6 +100,35 @@ export const friendGroupSlugAndCollectionIdParamSchema = z.object({
   collectionId: z.uuid(),
 });
 
+export const friendGroupSlugAndLinkIdParamSchema = z.object({
+  slug: friendGroupSlugSchema,
+  linkId: z.uuid(),
+});
+
+/** A Discord server linked to the group via the bot's /link command. */
+export const friendGroupDiscordLinkResponseSchema = z
+  .object({
+    id: z.string(),
+    guildId: z.string(),
+    guildName: z.string().nullable(),
+    linkedAt: z.string(),
+  })
+  .openapi("FriendGroupDiscordLinkResponse");
+
+export const friendGroupDiscordLinksResponseSchema = z
+  .object({
+    items: z.array(friendGroupDiscordLinkResponseSchema),
+  })
+  .openapi("FriendGroupDiscordLinksResponse");
+
+/** A one-time code to be redeemed with the bot's /link command in Discord. */
+export const friendGroupDiscordLinkCodeResponseSchema = z
+  .object({
+    code: z.string(),
+    expiresAt: z.string(),
+  })
+  .openapi("FriendGroupDiscordLinkCodeResponse");
+
 export const effectiveTradePreferenceSchema = z
   .object({
     pricePref: tradePricePrefResponseSchema.nullable(),
@@ -464,8 +493,10 @@ const FG = "/api/v1/friend-groups";
  * BAD_REQUEST (self-kick) + CONFLICT (cannot kick owner); `shareList`,
  * `unshareList`, `getSharedList` → NOT_FOUND (group or list);
  * `shareCollection`, `unshareCollection`, `getSharedCollection` → NOT_FOUND
- * (group or collection). The static single-segment paths
- * (pending-*-count, preview, join) take precedence over `{slug}`.
+ * (group or collection); `createDiscordLinkCode`, `listDiscordLinks` →
+ * NOT_FOUND (group); `deleteDiscordLink` → NOT_FOUND (group or link). The
+ * static single-segment paths (pending-*-count, preview, join) take
+ * precedence over `{slug}`.
  *
  * `update` uses the detailed input structure because the path `slug`
  * (current) and the optional body `slug` (rename target) would otherwise
@@ -661,6 +692,27 @@ export const friendGroupsContract = {
     .input(friendGroupSlugParamSchema)
     .errors({ NOT_FOUND: { message: "Group not found" } })
     .output(friendGroupActivityResponseSchema),
+  // Discord linking (admin+): generating a code and unlinking are the group's
+  // consent surface for the bot's group-scoped replies in that server.
+  createDiscordLinkCode: authedRoute
+    .route({ method: "POST", path: `${FG}/{slug}/discord-links/code`, tags: [TAG] })
+    .input(friendGroupSlugParamSchema)
+    .errors({ NOT_FOUND: { message: "Group not found" } })
+    .output(friendGroupDiscordLinkCodeResponseSchema),
+  listDiscordLinks: authedRoute
+    .route({ method: "GET", path: `${FG}/{slug}/discord-links`, tags: [TAG] })
+    .input(friendGroupSlugParamSchema)
+    .errors({ NOT_FOUND: { message: "Group not found" } })
+    .output(friendGroupDiscordLinksResponseSchema),
+  deleteDiscordLink: authedRoute
+    .route({
+      method: "DELETE",
+      path: `${FG}/{slug}/discord-links/{linkId}`,
+      tags: [TAG],
+      successStatus: 204,
+    })
+    .errors({ NOT_FOUND: { message: "Group or link not found" } })
+    .input(friendGroupSlugAndLinkIdParamSchema),
 };
 
 export type FriendGroupsContract = typeof friendGroupsContract;

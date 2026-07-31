@@ -193,6 +193,60 @@ describe("buildCardEmbed", () => {
     expect(embed.fields?.[0]?.inline).toBeUndefined();
   });
 
+  it("slots the tradelist field between the card text and the prices", () => {
+    const snapshot = buildSnapshot(
+      makeCatalogResponse([makeCard()], [makePrinting({ printedRulesText: "Draw 1." })]),
+      makePricesResponse({ "printing-1": { tcgplayer: 452 } }),
+      makeInitResponse(),
+    );
+    const embed = buildCardEmbed({
+      card: snapshot.cards[0]!,
+      printing: snapshot.printingsByCardId.get("card-1")![0],
+      snapshot,
+      siteUrl: SITE,
+      tradelists: {
+        groupName: "Summoner Skirmish",
+        holders: [
+          { userName: "Alice", quantity: 2 },
+          { userName: null, quantity: 1 },
+        ],
+      },
+    });
+    expect(embed.fields?.map((f) => f.name)).toEqual([
+      "Rules text",
+      "On tradelists in Summoner Skirmish",
+      "TCGplayer",
+    ]);
+    expect(embed.fields?.[1]?.value).toBe("Alice · 2×\nUnknown user · 1×");
+  });
+
+  it("collapses long holder lists and omits the field when there is nothing to show", () => {
+    const snapshot = snapshotWithPrices();
+    const base = {
+      card: snapshot.cards[0]!,
+      printing: snapshot.printingsByCardId.get("card-1")![0],
+      snapshot,
+      siteUrl: SITE,
+    };
+    const many = buildCardEmbed({
+      ...base,
+      tradelists: {
+        groupName: null,
+        holders: Array.from({ length: 7 }, (_, i) => ({ userName: `U${i}`, quantity: 1 })),
+      },
+    });
+    const field = many.fields?.find((f) => f.name === "On tradelists");
+    expect(field?.value.endsWith("…and 2 more")).toBe(true);
+
+    const withoutHolders = buildCardEmbed({
+      ...base,
+      tradelists: { groupName: "Empty", holders: [] },
+    });
+    expect(withoutHolders.fields?.some((f) => f.name.startsWith("On tradelists")) ?? false).toBe(
+      false,
+    );
+  });
+
   it("names the variant in the footer when the card has same-code siblings", () => {
     const snapshot = buildSnapshot(
       makeCatalogResponse(

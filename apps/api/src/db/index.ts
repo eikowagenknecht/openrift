@@ -32,6 +32,7 @@ export type {
   ListsTable,
   ProductsTable,
   FriendGroupCollectionSharesTable,
+  FriendGroupDiscordLinksTable,
   FriendGroupInviteDirection,
   FriendGroupInvitesTable,
   FriendGroupListSharesTable,

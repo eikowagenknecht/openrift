@@ -146,6 +146,21 @@ export function friendGroupMatchesRepo(db: Kysely<Database>, providers?: ListRul
     },
 
     /**
+     * Every member offering a given card on a tradelist shared with the group
+     * — the Discord bot's "who has this?" view. Same supply path as matching
+     * (`buildSupply`), so reserved/loaned/altered copies and rule-derived
+     * offers behave exactly like the in-app Trades pages. Not viewer-centric:
+     * the group's link to a Discord server is the consent that scopes it.
+     * @returns One row per offering member, most copies first.
+     */
+    tradelistHoldersForCard(scope: {
+      groupId: string;
+      cardId: string;
+    }): Promise<TradelistHolderRow[]> {
+      return resolveTradelistHoldersForCard(db, providers, scope);
+    },
+
+    /**
      * The viewer's *incoming* matches (others have what the viewer wants),
      * deduped to one row per (counterparty, printing) and dated by the latest
      * contributing timestamp. Newest first.
@@ -961,6 +976,112 @@ async function resolveGiverPrintingSupply(
     return meta !== undefined && meta.printingId === scope.printingId && !meta.altered;
   });
   return { unreservedCopyIds: [...unreserved], hasAny };
+}
+
+/** One member's offered copies of a card, aggregated for the bot reply. */
+export interface TradelistHolderRow {
+  userId: string;
+  userName: string | null;
+  quantity: number;
+}
+
+/**
+ * Aggregates the group's shared-tradelist supply of one card per owner. Mirrors
+ * `resolveGiverPrintingSupply` (manual + rule entries through `buildSupply`),
+ * but spans all owners and keys on the card, deduping copies that appear on
+ * several shared lists.
+ * @returns One row per member offering the card, most copies first.
+ */
+async function resolveTradelistHoldersForCard(
+  db: Kysely<Database>,
+  providers: ListRuleProviders | undefined,
+  scope: { groupId: string; cardId: string },
+): Promise<TradelistHolderRow[]> {
+  const tradeLists = await loadSharedLists(db, scope.groupId, "trade");
+  if (tradeLists.length === 0) {
+    return [];
+  }
+
+  const hasRules = tradeLists.some((list) => list.rules.length > 0);
+  const ruleCatalog = hasRules && providers ? await providers.assembleCatalog() : null;
+  const enumOrders = hasRules && providers ? await providers.enumOrders() : undefined;
+  const ownedCopiesByOwner = new Map<string, OwnedCopyRow[]>();
+  if (hasRules && providers) {
+    const ruleOwners = new Set(
+      tradeLists.filter((list) => list.rules.length > 0).map((list) => list.ownerUserId),
+    );
+    for (const ownerId of ruleOwners) {
+      ownedCopiesByOwner.set(ownerId, await providers.ownedCopies(ownerId));
+    }
+  }
+
+  const manualByList = await loadManualEntries(
+    db,
+    tradeLists.map((list) => list.listId),
+  );
+  const ruleByList = new Map<string, ReturnType<typeof evaluateListRules>>();
+  const allCopyIds = new Set<string>();
+  for (const list of tradeLists) {
+    for (const entry of manualByList.get(list.listId) ?? []) {
+      if (entry.copyId) {
+        allCopyIds.add(entry.copyId);
+      }
+    }
+    if (list.rules.length > 0 && providers) {
+      const ruleEntries = evaluateListRules(
+        list.rules,
+        "copy",
+        {
+          catalog: ruleCatalog?.printings ?? [],
+          ownedCopies: ownedCopiesByOwner.get(list.ownerUserId) ?? [],
+          customTagAssignments: ruleCatalog?.customTagAssignments,
+          enumOrders,
+        },
+        list.ruleCombine,
+      );
+      ruleByList.set(list.listId, ruleEntries);
+      for (const entry of ruleEntries) {
+        if (entry.copyId) {
+          allCopyIds.add(entry.copyId);
+        }
+      }
+    }
+  }
+  const copyMeta = await loadCopyMeta(db, [...allCopyIds]);
+
+  const copiesByOwner = new Map<string, Set<string>>();
+  for (const list of tradeLists) {
+    for (const entry of buildSupply(
+      list,
+      manualByList.get(list.listId) ?? [],
+      ruleByList.get(list.listId) ?? [],
+      copyMeta,
+    )) {
+      if (entry.cardId !== scope.cardId) {
+        continue;
+      }
+      const owned = copiesByOwner.get(entry.ownerUserId);
+      if (owned) {
+        owned.add(entry.copyId);
+      } else {
+        copiesByOwner.set(entry.ownerUserId, new Set([entry.copyId]));
+      }
+    }
+  }
+
+  const users = await loadUsers(db, [...copiesByOwner.keys()]);
+  return [...copiesByOwner]
+    .map(([userId, copyIds]) => ({
+      userId,
+      userName: users.get(userId)?.name ?? null,
+      quantity: copyIds.size,
+    }))
+    .sort((first, second) => {
+      const byQuantity = second.quantity - first.quantity;
+      return byQuantity === 0
+        ? (first.userName ?? "").localeCompare(second.userName ?? "")
+        : byQuantity;
+    });
 }
 
 function maxDate(dates: (Date | null | undefined)[]): Date {

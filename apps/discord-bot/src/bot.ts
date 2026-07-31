@@ -1,5 +1,6 @@
 import type { MarketplaceInfoResponse } from "@openrift/shared";
 import { parsePiltoverDeckCode } from "@openrift/shared";
+import { isDefinedError, safe } from "@orpc/client";
 import type { AutocompleteInteraction, ChatInputCommandInteraction, Message } from "discord.js";
 import {
   ActionRowBuilder,
@@ -11,6 +12,7 @@ import {
   Events,
   GatewayIntentBits,
   MessageFlags,
+  PermissionFlagsBits,
 } from "discord.js";
 
 import type { ApiClients } from "./api-client.js";
@@ -22,6 +24,7 @@ import { buildDeckEmbed, deckImportUrl, fetchDeckImage, resolveDeckEntries } fro
 import type { BotEnv } from "./env.js";
 import type { GlyphEmojis } from "./glyph-emoji.js";
 import { fetchGlyphEmojis, NO_GLYPH_EMOJIS } from "./glyph-emoji.js";
+import { fetchTradelistHolders } from "./group-tradelists.js";
 import { extractCardReferences } from "./message-scan.js";
 import { printingChoices, resolvePrinting } from "./printing-choice.js";
 import { buildRuleEmbed } from "./rule-embed.js";
@@ -67,6 +70,22 @@ const DECK_COMMAND = {
       required: true,
     },
   ],
+} as const;
+
+const LINK_COMMAND = {
+  name: "link",
+  description: "Link this server to an OpenRift group so card mentions show group tradelists",
+  options: [
+    {
+      type: ApplicationCommandOptionType.String,
+      name: "code",
+      description: "One-time link code from the group's Manage page on OpenRift",
+      required: true,
+    },
+  ],
+  // Server managers only — linking decides what the bot reveals here.
+  default_member_permissions: PermissionFlagsBits.ManageGuild.toString(),
+  dm_permission: false,
 } as const;
 
 const RULE_COMMAND = {
@@ -137,13 +156,21 @@ async function marketplaceInfoFor(
   }
 }
 
-async function embedForCard(ctx: BotContext, card: CatalogCard, printingInput?: string) {
+async function embedForCard(
+  ctx: BotContext,
+  card: CatalogCard,
+  printingInput?: string,
+  guildId?: string | null,
+) {
   const snapshot = ctx.cache.snapshot;
   if (!snapshot) {
     return null;
   }
   const printing = resolvePrinting(snapshot, card, printingInput);
-  const marketplaceInfo = await marketplaceInfoFor(ctx.api, printing?.id);
+  const [marketplaceInfo, tradelists] = await Promise.all([
+    marketplaceInfoFor(ctx.api, printing?.id),
+    fetchTradelistHolders(ctx.api, guildId, card.id),
+  ]);
   return buildCardEmbed({
     card,
     printing,
@@ -151,6 +178,7 @@ async function embedForCard(ctx: BotContext, card: CatalogCard, printingInput?: 
     marketplaceInfo,
     emojis: glyphEmojis,
     siteUrl: ctx.env.siteUrl,
+    tradelists,
   });
 }
 
@@ -220,12 +248,57 @@ async function handleCardCommand(ctx: BotContext, interaction: ChatInputCommandI
   // With no explicit printing option, the name query itself is the hint: a
   // code-typed lookup (`/card name:ogn202`) shows that exact printing, while
   // a plain name falls through to the default printing inside resolvePrinting.
-  const embed = await embedForCard(ctx, card, interaction.options.getString("printing") ?? query);
+  const embed = await embedForCard(
+    ctx,
+    card,
+    interaction.options.getString("printing") ?? query,
+    interaction.guildId,
+  );
   if (!embed) {
     await interaction.editReply("Card data is still loading, try again in a moment.");
     return;
   }
   await interaction.editReply({ embeds: [embed] });
+}
+
+/**
+ * The /link command: redeems a one-time code from a group's Manage page,
+ * binding this guild to that group. Restricted to members with Manage Server
+ * (see LINK_COMMAND); failures stay ephemeral, the success confirmation is
+ * public so the channel sees the server got linked.
+ */
+async function handleLinkCommand(ctx: BotContext, interaction: ChatInputCommandInteraction) {
+  const api = ctx.api.discordBot;
+  if (!api || !interaction.inGuild()) {
+    await interaction.reply({
+      content: "Linking only works in a server, and needs the bot's group features enabled.",
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+  const code = interaction.options.getString("code", true).trim();
+  const { error, data } = await safe(
+    api.redeemLink({
+      code,
+      guildId: interaction.guildId,
+      guildName: interaction.guild?.name ?? null,
+    }),
+  );
+  if (error) {
+    const content =
+      isDefinedError(error) && error.code === "NOT_FOUND"
+        ? "That code isn't valid (anymore). Generate a fresh one on the group's Manage page."
+        : isDefinedError(error) && error.code === "CONFLICT"
+          ? "This server is already linked to a different OpenRift group. Unlink it there first."
+          : "Linking failed, try again in a moment.";
+    await interaction.reply({ content, flags: MessageFlags.Ephemeral });
+    return;
+  }
+  await interaction.reply({
+    content:
+      `Linked this server to the OpenRift group **${data.groupName}**. ` +
+      "Card mentions here now show who has the card on a tradelist shared with the group.",
+  });
 }
 
 async function handleDeckCommand(ctx: BotContext, interaction: ChatInputCommandInteraction) {
@@ -312,7 +385,7 @@ async function handleMessage(ctx: BotContext, message: Message) {
   const maybeEmbeds = await Promise.all(
     matches.map((match) =>
       match.type === "card"
-        ? embedForCard(ctx, match.card, match.reference)
+        ? embedForCard(ctx, match.card, match.reference, message.guildId)
         : (ruleIndex &&
             buildRuleEmbed({ entry: match.entry, index: ruleIndex, siteUrl: ctx.env.siteUrl })) ||
           null,
@@ -344,7 +417,14 @@ export function createBot(ctx: BotContext): Client {
   client.once(Events.ClientReady, async (readyClient) => {
     console.log(`Logged in as ${readyClient.user.tag}`);
     try {
-      await readyClient.application.commands.set([CARD_COMMAND, DECK_COMMAND, RULE_COMMAND]);
+      // /link only exists when the group features are configured — an
+      // unregistered command beats one that can only apologize.
+      await readyClient.application.commands.set([
+        CARD_COMMAND,
+        DECK_COMMAND,
+        RULE_COMMAND,
+        ...(ctx.api.discordBot ? [LINK_COMMAND] : []),
+      ]);
     } catch (error) {
       console.error("Failed to register slash commands", error);
     }
@@ -379,6 +459,11 @@ export function createBot(ctx: BotContext): Client {
         interaction.commandName === RULE_COMMAND.name
       ) {
         await handleRuleCommand(ctx, interaction);
+      } else if (
+        interaction.isChatInputCommand() &&
+        interaction.commandName === LINK_COMMAND.name
+      ) {
+        await handleLinkCommand(ctx, interaction);
       }
     } catch (error) {
       console.error("Interaction handling failed", error);

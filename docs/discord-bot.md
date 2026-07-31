@@ -1,10 +1,11 @@
 # Discord Bot
 
-`apps/discord-bot` is a small stateless Discord bot that answers card-name lookups, unfurls deck codes, and quotes rules. It supports four entry points:
+`apps/discord-bot` is a small stateless Discord bot that answers card-name lookups, unfurls deck codes, and quotes rules. It supports five entry points:
 
 - **`/card name:<card> [printing:<printing>]`** — slash command with autocomplete over all card names; the optional `printing` option autocompletes the chosen card's printings (default first) for when you want a specific set, variant, or language
 - **`[[card name]]`** — inline references in normal messages (up to 3 per message, cards and rules combined). Citation-shaped contents (`[[cr 103.1]]`, `[[tr202]]`, bare `[[103.1]]`) resolve as rule references instead of card names and reply with the same embed `/rule` produces; number-shaped content can't collide with card names or printing codes, which start with letters
 - **`/deck code:<deck code>`** — decodes a Piltover Archive deck code into a decklist embed: the deck grouped by zone (titled after its Legend), a rendered deck image, and an "Open in OpenRift" link button to `/decks/import?code=…` so anyone can import it in one click
+- **`/link code:<code>`** — links the Discord server to a friend group (see "Group tradelists" below). Only registered when `DISCORD_BOT_API_SECRET` is configured, and only usable by members with the Manage Server permission
 - **`/rule query:<query>`** — quotes a rule from the core rules (`CR`) or tournament rules (`TR`). One autocompleted input accepts a citation (`CR 103.1`, `tr202`, dots optional: `103.1a`), a game term (`stun`, resolved through the same term anchors the site's rules pages use for auto-linking), or free text (every word must match). Autocomplete entries are labeled `CR 103.2 — <start of the rule text>` and round-trip the bare citation as the value
 
 The card entry points also accept printing codes (`OGN-202`, `ogn202`, `OGN-202/298`) through the same `squashForSearch` folding as the site's search — a code lookup shows that exact printing instead of the default one.
@@ -15,9 +16,17 @@ Card lookups reply with an embed: the card name linking to its OpenRift card pag
 
 The text blocks mirror the site's card panel: rules text, effect text (with the might bonus that shares its box), and flavor text, each as its own embed field above the prices. Errata replace the printed rules and effect text, with a one-line credit naming the source and month, linked when the errata has a source URL (the original printed text stays off the embed — it lives behind a disclosure on the site). Card-text markup is rendered, not shown raw: `[Reaction]` keyword chips become inline code (the closest Discord has to the site's chip; a chip carrying a glyph, like `[Repeat :rb_energy_2:]`, breaks around it, since a code span would print the emoji literally), `_(reminder text)_` stays italic, the `[>]` chip-shape markers are dropped, and `:rb_might:`-style glyphs become the application's custom emojis (see below) or, when those aren't uploaded, plain words like "Might" and "1 energy". A printing without an image of its own borrows the standard printing's artwork (same language, else EN) like the site's card browser, with the differences noted under the stat line (e.g. "Standard-printing artwork shown (differs: EN, Promo)"). Price links go to the marketplace product page and carry the affiliate tag where the marketplace has one (TCGplayer partner redirect, CardTrader share code); when no product mapping exists they fall back to a marketplace search for the card name.
 
+## Group tradelists
+
+A friend group can link a Discord server to itself, after which card lookups in that server (both `[[name]]` mentions and `/card`) carry an extra "On tradelists in \<group\>" embed field naming the members who offer the card on a tradelist shared with the group, with their copy counts. The supply is computed by the same path as the in-app Trades pages (`tradelistHoldersForCard` in `friend-group-matches.ts`), so reserved, loaned, and altered copies are excluded and dynamic trade rules participate. Only display names and counts leave the API — no account ids, conditions, notes, or pricing preferences.
+
+Linking is double-consent: a group admin generates a one-time code (15-minute TTL) in the group's Manage page, and someone with Manage Server permission redeems it with `/link code:<code>` in the server. Linking is the group's consent that shared-tradelist contents may be named in that server — everyone who can read the channel sees the replies, member or not. Unlinking happens on the Manage page. One group per guild; a group can link several servers.
+
+The bot authenticates these privileged reads with `DISCORD_BOT_API_SECRET`, a shared service secret between the API and the bot (see `.env.example`; compose passes it to both containers). When it is unset, the API's `/api/v1/discord-bot/*` endpoints refuse every call, the bot skips the lookups, and `/link` is not registered. There is no per-guild caching in the bot — every card lookup in a guild is one internal API round trip, and any failure just drops the field from the reply.
+
 ## How it works
 
-The bot has no database access and no exposed ports. It reads everything from the public API over the internal Docker network (`API_INTERNAL_URL`, `http://api:3000` in compose):
+The bot has no database access and no exposed ports. It reads everything from the API over the internal Docker network (`API_INTERNAL_URL`, `http://api:3000` in compose):
 
 - On startup it fetches `GET /api/v1/catalog` and `GET /api/v1/prices` into memory and refreshes both every 30 minutes. Card-name matching runs against this in-memory snapshot using the same `foldForSearch` folding as the site, so apostrophes and typographic punctuation never decide a match.
 - The latest core and tournament rules come from `GET /api/v1/rules` into a second cache (`RulesCache`) on the same startup-retry and 30-minute refresh cadence, kept separate so a rules fetch problem never blocks card lookups. There is no server-side rules search; `/rule` queries run against the in-memory snapshot, like the site's client-side rules search.

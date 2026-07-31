@@ -1,6 +1,8 @@
 import type {
   FriendGroupActivityResponse,
   FriendGroupDetailResponse,
+  FriendGroupDiscordLinkCodeResponse,
+  FriendGroupDiscordLinksResponse,
   FriendGroupJoinPreviewResponse,
   FriendGroupListResponse,
   FriendGroupMatchesResponse,
@@ -697,5 +699,61 @@ export function useUnshareCollectionFromFriendGroup() {
       queryKeys.friendGroups.shareableCollections(userId, variables.slug),
       queryKeys.collections.groupShares(userId, variables.collectionId),
     ],
+  });
+}
+
+// ── Discord links (admin) ───────────────────────────────────────────────────
+
+const fetchDiscordLinks = createServerFn({ method: "GET" })
+  .validator((input: string) => input)
+  .middleware([withCookies])
+  .handler(
+    ({ context, data: slug }): Promise<FriendGroupDiscordLinksResponse> =>
+      apiOrpcClient(friendGroupsContract, context.cookie).listDiscordLinks({ slug }),
+  );
+
+const createDiscordLinkCodeFn = createServerFn({ method: "POST" })
+  .validator((input: string) => input)
+  .middleware([withCookies])
+  .handler(
+    ({ context, data: slug }): Promise<FriendGroupDiscordLinkCodeResponse> =>
+      apiOrpcClient(friendGroupsContract, context.cookie).createDiscordLinkCode({ slug }),
+  );
+
+const deleteDiscordLinkFn = createServerFn({ method: "POST" })
+  .validator((input: { slug: string; linkId: string }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    await apiOrpcClient(friendGroupsContract, context.cookie).deleteDiscordLink(data);
+  });
+
+/**
+ * The group's linked Discord servers (admin-only endpoint). Pass a
+ * `refetchInterval` while a link code is outstanding so the panel notices the
+ * redeem happening over in Discord without a manual reload.
+ * @returns The suspense query for the group's Discord links.
+ */
+export function useFriendGroupDiscordLinks(slug: string, opts?: { refetchInterval?: number }) {
+  const userId = useRequiredUserId();
+  return useSuspenseQuery({
+    queryKey: queryKeys.friendGroups.discordLinks(userId, slug),
+    queryFn: () => fetchDiscordLinks({ data: slug }),
+    refetchInterval: opts?.refetchInterval,
+  });
+}
+
+export function useCreateFriendGroupDiscordLinkCode() {
+  const userId = useRequiredUserId();
+  return useMutationWithInvalidation<FriendGroupDiscordLinkCodeResponse, string>({
+    mutationFn: (slug) => createDiscordLinkCodeFn({ data: slug }),
+    invalidates: (slug) => [queryKeys.friendGroups.discordLinks(userId, slug)],
+  });
+}
+
+export function useDeleteFriendGroupDiscordLink() {
+  const userId = useRequiredUserId();
+  return useMutationWithInvalidation<unknown, { slug: string; linkId: string }>({
+    mutationFn: (data) => deleteDiscordLinkFn({ data }),
+    invalidates: (variables) => [queryKeys.friendGroups.discordLinks(userId, variables.slug)],
   });
 }

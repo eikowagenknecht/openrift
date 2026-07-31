@@ -81,6 +81,10 @@ export function createConfig(env: Record<string, string | undefined>) {
       changelog: env.DISCORD_WEBHOOK_CHANGELOG ?? null,
     },
 
+    // Shared service secret authenticating the first-party Discord bot's
+    // privileged endpoints (group lookups). Unset disables them entirely.
+    discordBotApiSecret: env.DISCORD_BOT_API_SECRET ?? null,
+
     changelogPath: env.CHANGELOG_PATH || "apps/web/src/CHANGELOG.md",
 
     // Filenames under media/scan/ of the engine-versioned scanner assets.
