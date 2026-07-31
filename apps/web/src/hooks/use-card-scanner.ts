@@ -956,6 +956,7 @@ export function useCardScanner(
     }
 
     const rankedTop = outcome.ranked[0];
+    let aimAgeSeconds = 0;
     if (rankedTop) {
       const topArt = loaded?.artKeys.get(rankedTop.key) ?? rankedTop.key;
       const nowMs = performance.now();
@@ -965,6 +966,7 @@ export function useCardScanner(
       } else {
         streak.lastSeen = nowMs;
       }
+      aimAgeSeconds = (nowMs - (aimSinceRef.current.get(topArt)?.since ?? nowMs)) / 1000;
     }
 
     noteLock(outcome);
@@ -986,8 +988,11 @@ export function useCardScanner(
     // phone runs can be watched from the dev-server log.
     const timings = outcome.timings;
     const top = outcome.ranked[0];
+    // The aim age exposes the streak the LOCK line's aim-to-lock is read
+    // from; a lock reporting less than the ages printed just before it means
+    // the streak was lost, and the frame it reset on names the cause.
     const topPart = top
-      ? ` top ${top.key} d${top.distance.toFixed(3)} r${top.rotation}`
+      ? ` top ${top.key} d${top.distance.toFixed(3)} r${top.rotation} aim ${aimAgeSeconds.toFixed(1)}s`
       : " no-candidate";
     const winnerPart = outcome.winner
       ? ` winner ${outcome.winner.key} inliers ${outcome.winner.inliers} rival ${outcome.winner.rivalInliers}`
