@@ -59,10 +59,12 @@ export type {
 } from "./session";
 export {
   DEFAULT_SESSION_OPTIONS,
+  IDLE_AFTER_NO_WINNER_FRAMES,
   SESSION_UNWARP_HEIGHT,
   SESSION_UNWARP_WIDTH,
   createScanSession,
   gatesForEmbedDim,
+  idleBackoffActive,
   mergeCandidates,
 } from "./session";
 

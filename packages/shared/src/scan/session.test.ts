@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   DEFAULT_SESSION_OPTIONS,
+  IDLE_AFTER_NO_WINNER_FRAMES,
   gatesForEmbedDim,
+  idleBackoffActive,
   mergeCandidates,
   prioritizeTracked,
 } from "./session";
@@ -98,5 +100,19 @@ describe("gatesForEmbedDim", () => {
       // recall there (singles 4/5, binder 8/9, benched 2026-07-31).
       expect(gates.topK).toBe(DEFAULT_SESSION_OPTIONS.topK);
     }
+  });
+});
+
+describe("idleBackoffActive", () => {
+  it("engages only after the streak threshold in guide sessions", () => {
+    expect(idleBackoffActive(IDLE_AFTER_NO_WINNER_FRAMES - 1, true)).toBe(false);
+    expect(idleBackoffActive(IDLE_AFTER_NO_WINNER_FRAMES, true)).toBe(true);
+    expect(idleBackoffActive(IDLE_AFTER_NO_WINNER_FRAMES + 10, true)).toBe(true);
+  });
+
+  it("never engages for pan sessions", () => {
+    // Pan candidates are different physical cards; trimming them is a recall
+    // loss, not a saving (the battlefields clip locks through exactly those).
+    expect(idleBackoffActive(IDLE_AFTER_NO_WINNER_FRAMES * 3, false)).toBe(false);
   });
 });

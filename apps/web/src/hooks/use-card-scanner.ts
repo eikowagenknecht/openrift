@@ -13,6 +13,7 @@ import type {
 import {
   CARD_ASPECT,
   DEFAULT_SESSION_OPTIONS,
+  IDLE_AFTER_NO_WINNER_FRAMES,
   createScanSession,
   gatesForEmbedDim,
 } from "@openrift/shared/scan";
@@ -69,6 +70,19 @@ export const DEFAULT_SCANNER_SETTINGS: ScannerSettings = {
  */
 const SINGLE_MODE_TOP_K = 4;
 const SLOW_DEVICE_TOP_K = 2;
+
+/**
+ * Extra wait between guide-mode frames while the session is in idle backoff
+ * AND frames are still expensive: a throttling phone gains nothing from
+ * grinding aiming frames back to back — it just stays hot (measured
+ * 0.8-1.7 s/frame on a hot Pixel 1, 2026-07-31). The wait applies only after
+ * {@link IDLE_AFTER_NO_WINNER_FRAMES} winner-less frames and only when the
+ * last frame ran over {@link IDLE_PACE_MIN_FRAME_MS}, so fast devices (and
+ * cool ones) never pace; the worst case is one delayed reaction to a card
+ * entering the guide.
+ */
+const IDLE_PACE_DELAY_MS = 300;
+const IDLE_PACE_MIN_FRAME_MS = 400;
 
 /**
  * The guide rect in frame coordinates: a centered portrait card outline.
@@ -396,6 +410,12 @@ export function useCardScanner(
   const settingsRef = useRef(settings);
   const lastPublishRef = useRef(0);
   const frameTimesRef = useRef<number[]>([]);
+  // Winner-less streak and last frame cost, mirroring the session's idle
+  // backoff so the loop can also pace its frame rate down (see
+  // IDLE_PACE_DELAY_MS). The gate ref holds the session's plausible-distance
+  // bound, set where the session is created.
+  const idlePaceRef = useRef({ streak: 0, lastTotalMs: 0 });
+  const idleGateRef = useRef(DEFAULT_SESSION_OPTIONS.rotationFallbackDistance);
   // Quarter turns applied to grabbed frames so matching runs on upright
   // content. Android can hand over a camera buffer rotated relative to the
   // display (orientation state at track start), and users place cards
@@ -574,6 +594,7 @@ export function useCardScanner(
     const gates = gatesForEmbedDim(
       loaded.bank.keys.length > 0 ? loaded.bank.vectors.length / loaded.bank.keys.length : 0,
     );
+    idleGateRef.current = gates.rotationFallbackDistance;
     return createScanSession(
       {
         cv,
@@ -920,6 +941,17 @@ export function useCardScanner(
     notePrinting(outcome);
     noteWinnerRotation(outcome);
 
+    // Same reset rule as the session's idle backoff: a verified winner or a
+    // plausible ranking ends the streak, so pacing lifts on the same frame
+    // the full search returns.
+    const topDistance = outcome.ranked[0]?.distance;
+    const plausible =
+      outcome.winner !== null || (topDistance !== undefined && topDistance <= idleGateRef.current);
+    idlePaceRef.current = {
+      streak: plausible ? 0 : idlePaceRef.current.streak + 1,
+      lastTotalMs: outcome.timings.total,
+    };
+
     // Dev diagnostic: the devtools vite plugin pipes this to the terminal, so
     // phone runs can be watched from the dev-server log.
     const timings = outcome.timings;
@@ -1073,16 +1105,26 @@ export function useCardScanner(
       }
       const inFlight = runFrame();
       frameInFlightRef.current = inFlight;
-      /* oxlint-disable promise/prefer-await-to-then, promise/prefer-catch -- the rAF loop is callback-shaped; a rejected frame must not kill it */
-      inFlight.then(
-        () => requestAnimationFrame(loop),
-        (frameError: unknown) => {
-          setError(errorMessage(frameError, "Frame processing failed"));
+      const scheduleNext = () => {
+        const pace = idlePaceRef.current;
+        const paced =
+          settingsRef.current.mode !== "pan" &&
+          pace.streak >= IDLE_AFTER_NO_WINNER_FRAMES &&
+          pace.lastTotalMs > IDLE_PACE_MIN_FRAME_MS;
+        if (paced) {
+          setTimeout(() => requestAnimationFrame(loop), IDLE_PACE_DELAY_MS);
+        } else {
           requestAnimationFrame(loop);
-        },
-      );
+        }
+      };
+      /* oxlint-disable promise/prefer-await-to-then, promise/prefer-catch -- the rAF loop is callback-shaped; a rejected frame must not kill it */
+      inFlight.then(scheduleNext, (frameError: unknown) => {
+        setError(errorMessage(frameError, "Frame processing failed"));
+        scheduleNext();
+      });
       /* oxlint-enable promise/prefer-await-to-then, promise/prefer-catch */
     };
+    idlePaceRef.current = { streak: 0, lastTotalMs: 0 };
     requestAnimationFrame(loop);
     startingRef.current = false;
   }

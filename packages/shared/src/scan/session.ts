@@ -306,6 +306,31 @@ export function mergeCandidates(candidates: readonly CardCandidate[]): CardCandi
 /** Overlap with the previous winner that counts as "the same card, still aimed at". */
 const TRACK_IOU = 0.4;
 
+/**
+ * Winner-less guide-mode frames before the session enters idle backoff.
+ *
+ * Aiming frames are the expensive ones on a throttling phone: nothing clears
+ * the staged early-exit, so every frame pays the full candidate x rotation
+ * search (measured 0.8-1.7 s/frame on a hot Pixel 1, 2026-07-31, against
+ * ~0.15 s once a card is steady). In idle backoff the frame embeds only the
+ * top candidate upright — in the guide that candidate is the aimed card, so
+ * a card entering the guide is still seen immediately, and the first
+ * plausible ranking or verified winner restores the full search on the next
+ * frame. Never applies to pan sessions: there, extra candidates are other
+ * physical cards, and the battlefields clip locks through exactly those.
+ */
+export const IDLE_AFTER_NO_WINNER_FRAMES = 5;
+
+/**
+ * Whether a guide session with this many winner-less frames should back off.
+ *
+ * @returns True once the streak crosses {@link IDLE_AFTER_NO_WINNER_FRAMES}
+ *   in a guide session; pan sessions never back off.
+ */
+export function idleBackoffActive(noWinnerStreak: number, hasGuide: boolean): boolean {
+  return hasGuide && noWinnerStreak >= IDLE_AFTER_NO_WINNER_FRAMES;
+}
+
 /** Least overlap with the guide rect for a proposal to count as the placed card. */
 const GUIDE_MIN_IOU = 0.3;
 
@@ -378,6 +403,9 @@ export function createScanSession(
   // Which rotation last won, embedded first on later frames so a sideways
   // card (battlefields) pays the full rotation search only on discovery.
   let lastWinnerRotation = 0;
+  // Consecutive frames without a verified winner or plausible ranking; drives
+  // the guide-mode idle backoff (see idleBackoffActive).
+  let noWinnerStreak = 0;
   // Band signatures of reference renders, for printing disambiguation.
   // Null marks a reference that has none (missing render, landscape card).
   const printingSignatureCache = new Map<string, PrintingSignature | null>();
@@ -497,9 +525,10 @@ export function createScanSession(
       card: RgbaImage;
       focus: number;
     } | null = null;
+    const idle = idleBackoffActive(noWinnerStreak, guide !== null);
     for (const candidate of prioritizeTracked(candidates, lastWinnerQuad ?? guide).slice(
       0,
-      opts.candidatesToTry,
+      idle ? 1 : opts.candidatesToTry,
     )) {
       const card = unwarpCard(
         frame,
@@ -523,7 +552,9 @@ export function createScanSession(
         opts.topK,
         opts.confidentDistance,
         opts.rotationFallbackDistance,
-        focus >= opts.rotationMinFocus,
+        // Idle backoff embeds upright only; the frame that breaks the streak
+        // gets the rotation search back.
+        !idle && focus >= opts.rotationMinFocus,
         lastWinnerRotation,
         embedInput,
         embedImageSize,
@@ -543,7 +574,15 @@ export function createScanSession(
     }
     const embedMs = now() - embedStartedAt;
 
+    // A plausible ranking already ends the idle streak: the full search must
+    // be back BEFORE verification succeeds, or a card whose first frame needs
+    // the rotation search could never produce the winner that resets it.
+    if (best && best.ranked[0].distance <= opts.rotationFallbackDistance) {
+      noWinnerStreak = 0;
+    }
+
     if (!best) {
+      noWinnerStreak++;
       return {
         ...EMPTY_OUTCOME,
         timings: { detect: detectMs, embed: embedMs, verify: 0, total: now() - startedAt },
@@ -616,7 +655,11 @@ export function createScanSession(
 
     const decision = pickFrameWinner(verdicts, opts.minInliers, opts.margin);
     let locked: ArtTrack | null = null;
+    if (!decision.winner && best.ranked[0].distance > opts.rotationFallbackDistance) {
+      noWinnerStreak++;
+    }
     if (decision.winner) {
+      noWinnerStreak = 0;
       lastWinnerQuad = best.candidate.quad;
       const winnerKey = decision.winner.key;
       lastWinnerRotation =
