@@ -384,6 +384,72 @@ function copyKeepComparator(
 }
 
 /**
+ * The printing ids a rule set can ever consult from the owner's collection.
+ *
+ * Only two places read `ctx.ownedCopies`: {@link ownedCountsByPrinting} (for
+ * `netOwned` wish rules) and {@link tradeRulePools} (trade supply). Both then
+ * discard every copy whose printing isn't in the rule's matched set, and that
+ * set comes from the catalog alone — no rule's match depends on what is owned.
+ * So the caller can compute this first and load only the copies that can
+ * survive the filter, instead of the owner's entire collection.
+ *
+ * Derived by calling the very same helpers the evaluator uses
+ * ({@link filterCards}, {@link wishRuleTargets}) so the two cannot drift: a
+ * printing this omits is a printing the evaluator would have discarded.
+ *
+ * Rules that never read copies (plain wish rules) contribute nothing, so an
+ * empty result means no copy is needed at all.
+ *
+ * @param rules The list's rules.
+ * @param listKind The list's kind, which decides whether wish targets are keyed by printing or card.
+ * @param ctx Catalog and custom-tag assignments — `ownedCopies` is deliberately not required.
+ * @returns The printing ids worth loading copies for.
+ */
+export function ownedCopyPrintingScope(
+  rules: readonly ListRule[],
+  listKind: ListKind,
+  ctx: RuleEvalContext,
+): string[] {
+  const scope = new Set<string>();
+  const addAll = (sets: Iterable<Set<string>>) => {
+    for (const set of sets) {
+      for (const id of set) {
+        scope.add(id);
+      }
+    }
+  };
+  for (const rule of rules) {
+    if (rule.kind === "trade") {
+      for (const printing of filterCards(ctx.catalog, rule.filter, {
+        customTagAssignments: ctx.customTagAssignments,
+      })) {
+        scope.add(printing.id);
+      }
+      continue;
+    }
+    if (!rule.netOwned) {
+      continue;
+    }
+    const { targets, matchedPrintings, netPrintings } = wishRuleTargets(rule, listKind, ctx);
+    if (listKind === "printing") {
+      // Keyed by printing: `ownedByPrinting.get(key)` reads the target ids
+      // directly, and `matchedPrintings` is empty on this branch.
+      for (const id of targets.keys()) {
+        scope.add(id);
+      }
+      continue;
+    }
+    // Keyed by card: the netting pool is what gets counted. `netPrintings` is
+    // the relaxed superset when `countSpecialVersions` widens it, and is the
+    // same map as `matchedPrintings` otherwise — union both so neither branch
+    // can be missed.
+    addAll(netPrintings.values());
+    addAll(matchedPrintings.values());
+  }
+  return [...scope];
+}
+
+/**
  * One trade rule's candidate copies grouped per the rule's `keepPer` (per card
  * by default, per printing when set) and ordered keep-first: the nicer printing
  * first (standard-vs-special → rarity → finish → markers → art → signed, per

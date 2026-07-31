@@ -28,7 +28,12 @@ export type {
   RuleEvalContext,
   VirtualEntry,
 } from "./list-rule-eval.js";
-export { evaluateListRule, evaluateListRules, expandList } from "./list-rule-eval.js";
+export {
+  evaluateListRule,
+  evaluateListRules,
+  expandList,
+  ownedCopyPrintingScope,
+} from "./list-rule-eval.js";
 
 export { CONTACT_METHOD_LABELS, formatContactMethodsSummary } from "./contact-methods.js";
 

@@ -97,7 +97,7 @@ const mockTransact = vi.fn(
   ) => cb({ candidateMutations: mockTrxMut, printingImages: {} }),
 );
 const mockSets = { getBySlug: vi.fn() };
-const mockRefreshCardAggregates = vi.fn();
+const mockRefreshCatalogViews = vi.fn();
 const mockCandidateCards = {};
 
 // ---------------------------------------------------------------------------
@@ -122,7 +122,7 @@ app.use("*", async (c, next) => {
     printingImages: {},
     markers: { listBySlugs: vi.fn(async () => []), setForPrinting: vi.fn() },
     providerSettings: { favoriteProviders: vi.fn().mockResolvedValue(new Set(["gallery"])) },
-    catalog: { refreshCardAggregates: mockRefreshCardAggregates },
+    catalog: { refreshCatalogViews: mockRefreshCatalogViews, refreshCanonicalRank: vi.fn() },
     sets: mockSets,
     distributionChannels: { listBySlugs: vi.fn(async () => []), setForPrinting: vi.fn() },
     printingEvents: { recordNewPrinting: vi.fn(), recordPrintingChange: vi.fn() },

@@ -513,32 +513,45 @@ export function copiesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Every copy in the user's own (personal) collections, with the metadata a
+     * Copies in the user's own (personal) collections, with the metadata a
      * dynamic trade rule needs (ADR-034): the underlying card and whether the
      * copy is pinned to a live trade. Group-owned copies are excluded — a trade
      * list trades only what the user personally owns (mirrors the
      * `personalOnly` add path).
-     * @returns One {@link OwnedCopyRow} per personally-owned copy.
+     *
+     * `printingIds` narrows the read to the printings a rule set can actually
+     * consult (`ownedCopyPrintingScope`). Without it this loads the owner's
+     * *entire* collection on every rule expansion, which for a large collection
+     * is tens of thousands of rows marshalled to be mostly discarded. An empty
+     * array means the rules need no copies at all, so no query is issued.
+     *
+     * @param userId The owner whose personal collections to read.
+     * @param printingIds Optional printing allowlist; omit to load everything.
+     * @returns One {@link OwnedCopyRow} per matching personally-owned copy.
      */
-    ownedRowsForUser(userId: string): Promise<OwnedCopyRow[]> {
-      return (
-        db
-          .selectFrom("copies as cp")
-          .innerJoin("collections as col", "col.id", "cp.collectionId")
-          .innerJoin("printings as p", "p.id", "cp.printingId")
-          // A copy is pinned to at most one live trade (UNIQUE copy_id), so this
-          // join can't multiply rows. Its presence means the copy is reserved.
-          .leftJoin("cardTradeCopies as ctc", "ctc.copyId", "cp.id")
-          .select([
-            "cp.id as copyId",
-            "cp.printingId as printingId",
-            "p.cardId as cardId",
-            "cp.collectionId as collectionId",
-            sql<boolean>`(ctc.copy_id is not null)`.as("reserved"),
-          ])
-          .where("col.userId", "=", userId)
-          .execute()
-      );
+    ownedRowsForUser(userId: string, printingIds?: readonly string[]): Promise<OwnedCopyRow[]> {
+      if (printingIds?.length === 0) {
+        return Promise.resolve([]);
+      }
+      let query = db
+        .selectFrom("copies as cp")
+        .innerJoin("collections as col", "col.id", "cp.collectionId")
+        .innerJoin("printings as p", "p.id", "cp.printingId")
+        // A copy is pinned to at most one live trade (UNIQUE copy_id), so this
+        // join can't multiply rows. Its presence means the copy is reserved.
+        .leftJoin("cardTradeCopies as ctc", "ctc.copyId", "cp.id")
+        .select([
+          "cp.id as copyId",
+          "cp.printingId as printingId",
+          "p.cardId as cardId",
+          "cp.collectionId as collectionId",
+          sql<boolean>`(ctc.copy_id is not null)`.as("reserved"),
+        ])
+        .where("col.userId", "=", userId);
+      if (printingIds !== undefined) {
+        query = query.where("cp.printingId", "in", printingIds);
+      }
+      return query.execute();
     },
 
     /**

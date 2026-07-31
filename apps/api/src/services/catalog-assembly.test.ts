@@ -1,14 +1,14 @@
 import type { Printing } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
-import { createCatalogPrintingsCache } from "./catalog-assembly.js";
+import { createContentAddressedCache } from "./catalog-assembly.js";
 
 const printing = (id: string): Printing => ({ id }) as unknown as Printing;
 
-describe("createCatalogPrintingsCache", () => {
+describe("createContentAddressedCache", () => {
   it("assembles once and reuses the memo while the version is unchanged", async () => {
     let assembleCalls = 0;
-    const cache = createCatalogPrintingsCache(
+    const cache = createContentAddressedCache(
       async () => {
         assembleCalls += 1;
         return [printing(`p${assembleCalls}`)];
@@ -27,7 +27,7 @@ describe("createCatalogPrintingsCache", () => {
   it("reassembles immediately when the version token rolls", async () => {
     let assembleCalls = 0;
     let version = "v1";
-    const cache = createCatalogPrintingsCache(
+    const cache = createContentAddressedCache(
       async () => {
         assembleCalls += 1;
         return [printing(`p${assembleCalls}`)];
@@ -46,7 +46,7 @@ describe("createCatalogPrintingsCache", () => {
   it("a burst on a new version triggers a single shared assembly", async () => {
     let assembleCalls = 0;
     let probeCalls = 0;
-    const cache = createCatalogPrintingsCache(
+    const cache = createContentAddressedCache(
       async () => {
         assembleCalls += 1;
         return [printing("p")];
@@ -68,7 +68,7 @@ describe("createCatalogPrintingsCache", () => {
 
   it("does not cache a rejected assembly — the next call retries", async () => {
     let assembleCalls = 0;
-    const cache = createCatalogPrintingsCache(
+    const cache = createContentAddressedCache(
       async () => {
         assembleCalls += 1;
         if (assembleCalls === 1) {
@@ -89,7 +89,7 @@ describe("createCatalogPrintingsCache", () => {
   it("serves the last good catalog when a probe transiently fails", async () => {
     let assembleCalls = 0;
     let probeShouldFail = false;
-    const cache = createCatalogPrintingsCache(
+    const cache = createContentAddressedCache(
       async () => {
         assembleCalls += 1;
         return [printing("cached")];
@@ -111,7 +111,7 @@ describe("createCatalogPrintingsCache", () => {
   });
 
   it("propagates the probe error when there is no cached catalog yet", async () => {
-    const cache = createCatalogPrintingsCache(
+    const cache = createContentAddressedCache(
       async () => [printing("never")],
       async () => {
         throw new Error("probe down");

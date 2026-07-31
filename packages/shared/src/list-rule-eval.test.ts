@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { evaluateListRule, evaluateListRules, expandList } from "./list-rule-eval.js";
+import {
+  evaluateListRule,
+  evaluateListRules,
+  expandList,
+  ownedCopyPrintingScope,
+} from "./list-rule-eval.js";
 import type {
   ExpandedEntry,
   ManualEntryRow,
@@ -1231,4 +1236,110 @@ describe("ruleQuantitySchema — bounds", () => {
   it("rejects an unknown mode", () => {
     expect(ruleQuantitySchema.safeParse({ mode: "ratio", n: 1 }).success).toBe(false);
   });
+});
+
+describe("ownedCopyPrintingScope", () => {
+  const catalog = [
+    makePrinting("p1", "c1", { finish: "normal" }),
+    makePrinting("p2", "c1", { finish: "foil" }),
+    makePrinting("p3", "c2", { finish: "normal" }),
+  ];
+
+  it("a trade rule scopes to exactly the printings its filter matches", () => {
+    const rule: ListRule = {
+      kind: "trade",
+      filter: filters({ finishes: ["foil"] }),
+      collectionIds: null,
+      keepPerCard: { mode: "fixed", n: 0 },
+      excludeCopyIds: [],
+    };
+    expect(ownedCopyPrintingScope([rule], "card", { catalog }).toSorted()).toEqual(["p2"]);
+  });
+
+  it("a plain wish rule needs no copies at all", () => {
+    const rule: ListRule = {
+      kind: "wish",
+      filter: filters(),
+      quantity: { mode: "fixed", n: 1 },
+      excludeIds: [],
+    };
+    expect(ownedCopyPrintingScope([rule], "card", { catalog })).toEqual([]);
+  });
+
+  it("a netOwned wish rule scopes to its netting pool", () => {
+    const rule: ListRule = {
+      kind: "wish",
+      filter: filters({ finishes: ["normal"] }),
+      quantity: { mode: "playset", multiplier: 1 },
+      excludeIds: [],
+      netOwned: true,
+    };
+    expect(ownedCopyPrintingScope([rule], "card", { catalog }).toSorted()).toEqual(["p1", "p3"]);
+    expect(ownedCopyPrintingScope([rule], "printing", { catalog }).toSorted()).toEqual([
+      "p1",
+      "p3",
+    ]);
+  });
+
+  it("unions the scope across several rules", () => {
+    const rules: ListRule[] = [
+      {
+        kind: "trade",
+        filter: filters({ finishes: ["foil"] }),
+        collectionIds: null,
+        keepPerCard: { mode: "fixed", n: 0 },
+        excludeCopyIds: [],
+      },
+      {
+        kind: "wish",
+        filter: filters({ sets: ["set-alpha"], finishes: ["normal"] }),
+        quantity: { mode: "playset", multiplier: 1 },
+        excludeIds: [],
+        netOwned: true,
+      },
+    ];
+    expect(ownedCopyPrintingScope(rules, "card", { catalog }).toSorted()).toEqual([
+      "p1",
+      "p2",
+      "p3",
+    ]);
+  });
+
+  // The property the narrowing rests on: dropping the out-of-scope copies must
+  // not change what the evaluator produces.
+  it.each([["card" as const], ["printing" as const]])(
+    "evaluating with only in-scope copies matches the full set (%s kind)",
+    (listKind) => {
+      const rules: ListRule[] = [
+        {
+          kind: "trade",
+          filter: filters({ finishes: ["foil"] }),
+          collectionIds: null,
+          keepPerCard: { mode: "fixed", n: 0 },
+          excludeCopyIds: [],
+        },
+        {
+          kind: "wish",
+          filter: filters({ finishes: ["normal"] }),
+          quantity: { mode: "playset", multiplier: 1 },
+          excludeIds: [],
+          netOwned: true,
+        },
+      ];
+      const allCopies = [
+        ownedCopy({ copyId: "x1", printingId: "p1", cardId: "c1" }),
+        ownedCopy({ copyId: "x2", printingId: "p2", cardId: "c1" }),
+        ownedCopy({ copyId: "x3", printingId: "p3", cardId: "c2" }),
+        // Not reachable by either rule's filter — must be droppable.
+        ownedCopy({ copyId: "x4", printingId: "p-unmatched", cardId: "c9" }),
+      ];
+      const scope = new Set(ownedCopyPrintingScope(rules, listKind, { catalog }));
+      const narrowed = allCopies.filter((copy) => scope.has(copy.printingId));
+
+      expect(narrowed.length).toBeLessThan(allCopies.length);
+      expect(evaluateListRules(rules, listKind, { catalog, ownedCopies: narrowed })).toEqual(
+        evaluateListRules(rules, listKind, { catalog, ownedCopies: allCopies }),
+      );
+    },
+  );
 });

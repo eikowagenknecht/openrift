@@ -273,6 +273,9 @@ export async function bootstrapSeededTestDb(
       console.log("Refreshing materialized views...");
       await sql`REFRESH MATERIALIZED VIEW mv_card_aggregates`;
       await sql`REFRESH MATERIALIZED VIEW mv_latest_printing_prices`;
+      // Without this every seeded printing falls back to the sentinel rank and
+      // `printings_ordered` returns them in arbitrary order (migration 215).
+      await sql`REFRESH MATERIALIZED VIEW mv_printings_canonical_rank`;
     }
     await sql.end();
 

@@ -773,5 +773,37 @@ export function catalogRepo(db: Kysely<Database>) {
     async refreshCardAggregates(): Promise<void> {
       await sql`REFRESH MATERIALIZED VIEW CONCURRENTLY mv_card_aggregates`.execute(db);
     },
+
+    /**
+     * Refresh `mv_printings_canonical_rank`, which backs the
+     * `printings_ordered` view's `canonical_rank` (migration 215).
+     *
+     * Must run after anything that changes the ranking: printings themselves,
+     * or the `sort_order` of sets / finishes / card_sizes / languages /
+     * markers. Until it does, a new printing coalesces to the largest int and
+     * sorts last rather than disappearing, so a missed refresh delays ordering
+     * instead of hiding cards.
+     *
+     * @returns void
+     */
+    async refreshCanonicalRank(): Promise<void> {
+      await sql`REFRESH MATERIALIZED VIEW CONCURRENTLY mv_printings_canonical_rank`.execute(db);
+    },
+
+    /**
+     * Refresh every materialized view derived from the card/printing catalog.
+     * Card and printing mutations invalidate both of them, so they refresh
+     * together rather than leaving callers to remember the pair.
+     *
+     * @returns void
+     */
+    async refreshCatalogViews(): Promise<void> {
+      // Not `this.refresh…()`: instrumentRepo rebinds these methods onto a new
+      // object, so a `this` reference here would not survive the wrapping.
+      await Promise.all([
+        sql`REFRESH MATERIALIZED VIEW CONCURRENTLY mv_card_aggregates`.execute(db),
+        sql`REFRESH MATERIALIZED VIEW CONCURRENTLY mv_printings_canonical_rank`.execute(db),
+      ]);
+    },
   };
 }

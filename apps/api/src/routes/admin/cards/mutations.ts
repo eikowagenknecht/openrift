@@ -260,7 +260,7 @@ export const adminCardMutationsRouter = {
     const { candidateMutations } = context.repos;
     const before = await candidateMutations.getCardById(input.cardId);
     await deleteCard(context.transact, context.io, { candidateMutations }, input.cardId);
-    await context.repos.catalog.refreshCardAggregates();
+    await context.repos.catalog.refreshCatalogViews();
 
     await recordAdminEvent(context.repos, context.userId, {
       action: "card.delete",
@@ -449,13 +449,13 @@ export const adminCardMutationsRouter = {
     // Domains and superTypes are stored in junction tables, not on the cards row
     if (field === "domains") {
       await mut.replaceCardDomainsById(cardId, finalValue as string[]);
-      await context.repos.catalog.refreshCardAggregates();
+      await context.repos.catalog.refreshCatalogViews();
       await auditEvent();
       return;
     }
     if (field === "superTypes") {
       await mut.replaceCardSuperTypesById(cardId, finalValue as string[]);
-      await context.repos.catalog.refreshCardAggregates();
+      await context.repos.catalog.refreshCatalogViews();
       await auditEvent();
       return;
     }
@@ -476,7 +476,7 @@ export const adminCardMutationsRouter = {
         }
         throw error;
       }
-      await context.repos.catalog.refreshCardAggregates();
+      await context.repos.catalog.refreshCatalogViews();
       await auditEvent();
       return;
     }
@@ -680,7 +680,7 @@ export const adminCardMutationsRouter = {
       );
     });
 
-    await context.repos.catalog.refreshCardAggregates();
+    await context.repos.catalog.refreshCatalogViews();
 
     await recordAdminEvent(context.repos, context.userId, {
       action: "card.accept-new",
@@ -719,7 +719,7 @@ export const adminCardMutationsRouter = {
       favoriteProviders,
     );
 
-    await context.repos.catalog.refreshCardAggregates();
+    await context.repos.catalog.refreshCatalogViews();
 
     await recordAdminEvent(context.repos, context.userId, {
       action: "card.accept-favorites",
@@ -837,6 +837,10 @@ export const adminCardMutationsRouter = {
       newValues: { printingFields, candidatePrintingIds },
     });
 
+    // A brand-new printing has no rank row yet, so it would sort last until the
+    // next refresh (migration 215).
+    await context.repos.catalog.refreshCanonicalRank();
+
     return { printingId };
   }),
 
@@ -854,7 +858,7 @@ export const adminCardMutationsRouter = {
       );
     });
 
-    await context.repos.catalog.refreshCardAggregates();
+    await context.repos.catalog.refreshCatalogViews();
 
     await recordAdminEvent(context.repos, context.userId, {
       action: "card.create",
@@ -891,6 +895,10 @@ export const adminCardMutationsRouter = {
       cardSlug: card?.slug ?? null,
       newValues: printingFields,
     });
+
+    // A brand-new printing has no rank row yet, so it would sort last until the
+    // next refresh (migration 215).
+    await context.repos.catalog.refreshCanonicalRank();
 
     return { printingId };
   }),

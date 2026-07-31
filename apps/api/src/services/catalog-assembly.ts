@@ -164,7 +164,7 @@ export async function assembleRuleCatalog(repos: Repos): Promise<RuleCatalog> {
  *
  * @returns A zero-arg loader serving the memoized value for the live version.
  */
-export function createCatalogPrintingsCache<T>(
+export function createContentAddressedCache<T>(
   load: () => Promise<T>,
   getVersion: () => Promise<string>,
 ): () => Promise<T> {

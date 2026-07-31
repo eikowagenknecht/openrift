@@ -117,4 +117,27 @@ describe("copiesRepo", () => {
       { cardId: "c-1", printingId: "p-1", count: 2 },
     ]);
   });
+
+  it("ownedRowsForUser returns the owner's copies", async () => {
+    const rows = [
+      { copyId: "cp-1", printingId: "p-1", cardId: "c-1", collectionId: "col-1", reserved: false },
+    ];
+    const db = createMockDb(rows);
+    expect(await copiesRepo(db).ownedRowsForUser("u1")).toEqual(rows);
+  });
+
+  it("ownedRowsForUser narrows to the given printings", async () => {
+    const rows = [
+      { copyId: "cp-1", printingId: "p-1", cardId: "c-1", collectionId: "col-1", reserved: false },
+    ];
+    const db = createMockDb(rows);
+    expect(await copiesRepo(db).ownedRowsForUser("u1", ["p-1"])).toEqual(rows);
+  });
+
+  it("ownedRowsForUser short-circuits on an empty printing scope without querying", async () => {
+    // A rule set that can consult no printing needs no copies at all: the mock
+    // would return a row if the query ran, so an empty result proves it did not.
+    const db = createMockDb([{ copyId: "cp-1" }]);
+    expect(await copiesRepo(db).ownedRowsForUser("u1", [])).toEqual([]);
+  });
 });

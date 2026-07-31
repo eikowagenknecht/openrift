@@ -30,6 +30,8 @@ export const adminFinishesRouter = {
       unknownLabel: "finish slugs",
     });
     await repo.reorder(slugs);
+    // finish.sort_order feeds canonical_rank (migration 215).
+    await context.repos.catalog.refreshCanonicalRank();
   }),
 
   create: os.create.handler(async ({ input, context }) => {

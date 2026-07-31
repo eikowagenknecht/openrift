@@ -66,6 +66,6 @@ export const adminOperationsRouter = {
 
   refreshMatviews: os.refreshMatviews.handler(async ({ context }): Promise<void> => {
     const { marketplace, catalog } = context.repos;
-    await Promise.all([marketplace.refreshLatestPrices(), catalog.refreshCardAggregates()]);
+    await Promise.all([marketplace.refreshLatestPrices(), catalog.refreshCatalogViews()]);
   }),
 };

@@ -44,11 +44,20 @@ export function marketplaceMappingRepo(db: Db) {
      * mapped printings in a given marketplace. The SKU key on
      * `marketplace_products` is `(marketplace, external_id, finish, language)`
      * — one externalId can resolve to multiple SKUs (e.g. CM's normal/foil
-     * variants), and each one has its own price history. DISTINCT ON has to
-     * include the full SKU tuple, otherwise the surviving row's finish is
-     * arbitrary when timestamps tie and the lookup map silently picks the
-     * wrong price for finishes that share an externalId.
-     * @returns One row per distinct (printingId, externalId, finish, language), newest first.
+     * variants), and each one has its own price history, so the result key has
+     * to carry the full SKU tuple. Because that key is UNIQUE per marketplace
+     * (`marketplace_products_sku_key`) and `(marketplaceProductId, printingId)`
+     * is UNIQUE on the variants table, one row per (variant, product) pair is
+     * exactly one row per SKU tuple.
+     *
+     * `marketplace_product_prices` is a history table keyed
+     * `(marketplaceProductId, recordedAt)`. Joining it wholesale and reducing
+     * with DISTINCT ON made Postgres sort every historical row for every
+     * matched product just to keep the newest of each group, so the cost grew
+     * with retained history (~830ms per marketplace in prod). The lateral
+     * picks the newest row per product straight off that primary key instead,
+     * so only one price row per product is ever read.
+     * @returns One row per distinct (printingId, externalId, finish, language), each carrying that SKU's newest price.
      */
     pricesByMarketplace(marketplace: string, printingIds: string[]) {
       if (printingIds.length === 0) {
@@ -57,7 +66,27 @@ export function marketplaceMappingRepo(db: Db) {
       return db
         .selectFrom("marketplaceProductVariants as mpv")
         .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
-        .innerJoin("marketplaceProductPrices as pp", "pp.marketplaceProductId", "mp.id")
+        .innerJoinLateral(
+          (eb) =>
+            eb
+              .selectFrom("marketplaceProductPrices as p")
+              .select([
+                "p.marketCents",
+                "p.lowCents",
+                "p.midCents",
+                "p.highCents",
+                "p.trendCents",
+                "p.avg1Cents",
+                "p.avg7Cents",
+                "p.avg30Cents",
+                "p.recordedAt",
+              ])
+              .whereRef("p.marketplaceProductId", "=", "mp.id")
+              .orderBy("p.recordedAt", "desc")
+              .limit(1)
+              .as("pp"),
+          (join) => join.onTrue(),
+        )
         .select([
           "mpv.printingId as printingId",
           "mp.externalId as externalId",
@@ -76,12 +105,10 @@ export function marketplaceMappingRepo(db: Db) {
         ])
         .where("mp.marketplace", "=", marketplace)
         .where("mpv.printingId", "in", printingIds)
-        .distinctOn(["mpv.printingId", "mp.externalId", "mp.finish", "mp.language"])
         .orderBy("mpv.printingId")
         .orderBy("mp.externalId")
         .orderBy("mp.finish")
         .orderBy("mp.language")
-        .orderBy("pp.recordedAt", "desc")
         .execute();
     },
 

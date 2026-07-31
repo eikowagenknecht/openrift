@@ -110,5 +110,7 @@ export const adminCatalogRouter = {
     }
 
     await setsRepo.reorder(ids);
+    // set.sort_order feeds canonical_rank (migration 215).
+    await context.repos.catalog.refreshCanonicalRank();
   }),
 };

@@ -2,6 +2,7 @@ import {
   evaluateListRules,
   expandList,
   hydrateListRules,
+  ownedCopyPrintingScope,
   resolveEffectiveTradePreference,
 } from "@openrift/shared";
 import type {
@@ -647,16 +648,28 @@ async function runMatchQuery(
   // and for wish rules that net against what's owned ("only what I'm missing").
   const ownedCopiesByOwner = new Map<string, OwnedCopyRow[]>();
   if (providers) {
-    const ruleOwners = new Set<string>();
+    // Per owner, the printings any of *their* rule-bearing lists can consult.
+    // Unioned across that owner's lists so one read still covers them all, but
+    // bounded by the rules instead of pulling the whole collection.
+    const scopeByOwner = new Map<string, Set<string>>();
     for (const list of [...scopedSupply, ...scopedDemand]) {
       if (
-        list.rules.some((rule) => rule.kind === "trade" || (rule.kind === "wish" && rule.netOwned))
+        !list.rules.some((rule) => rule.kind === "trade" || (rule.kind === "wish" && rule.netOwned))
       ) {
-        ruleOwners.add(list.ownerUserId);
+        continue;
       }
+      const listKind = list.kind === "printing" ? "printing" : "card";
+      const printingScope = scopeByOwner.get(list.ownerUserId) ?? new Set<string>();
+      for (const id of ownedCopyPrintingScope(list.rules, listKind, {
+        catalog,
+        customTagAssignments,
+      })) {
+        printingScope.add(id);
+      }
+      scopeByOwner.set(list.ownerUserId, printingScope);
     }
-    for (const ownerId of ruleOwners) {
-      ownedCopiesByOwner.set(ownerId, await providers.ownedCopies(ownerId));
+    for (const [ownerId, printingScope] of scopeByOwner) {
+      ownedCopiesByOwner.set(ownerId, await providers.ownedCopies(ownerId, [...printingScope]));
     }
   }
 
@@ -873,9 +886,24 @@ async function resolveGiverPrintingSupply(
   // rules offer owned copies). Both are lazy — skipped when no list has rules.
   const hasRules = tradeLists.some((list) => list.rules.length > 0);
   const ruleCatalog = hasRules && providers ? await providers.assembleCatalog() : null;
+  // Narrowed to what these trade lists can consult, unioned across them.
+  const giverScope = new Set<string>();
+  for (const list of tradeLists) {
+    for (const id of ownedCopyPrintingScope(
+      list.rules,
+      list.kind === "printing" ? "printing" : "card",
+      {
+        catalog: ruleCatalog?.printings ?? [],
+        customTagAssignments: ruleCatalog?.customTagAssignments,
+      },
+    )) {
+      giverScope.add(id);
+    }
+  }
   const evalContext = {
     catalog: ruleCatalog?.printings ?? [],
-    ownedCopies: hasRules && providers ? await providers.ownedCopies(scope.giverUserId) : [],
+    ownedCopies:
+      hasRules && providers ? await providers.ownedCopies(scope.giverUserId, [...giverScope]) : [],
     customTagAssignments: ruleCatalog?.customTagAssignments,
     // Trade lists: keep the nicer copies, offer the plainer — same order the
     // owner's list page uses, so surfaced and matched copies never diverge.

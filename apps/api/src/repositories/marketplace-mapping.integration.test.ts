@@ -146,4 +146,106 @@ describe.skipIf(!ctx)("marketplaceMappingRepo (integration)", () => {
 
     expect(enRows).toHaveLength(1);
   });
+
+  describe("pricesByMarketplace", () => {
+    // Own externalIds so these never collide with the upsert tests above on
+    // the `(marketplace, external_id, finish, language)` SKU key. The shared
+    // afterAll deletes the products, and prices cascade from there.
+    const historyExternalId = 872_480;
+    const twoFinishExternalId = 872_481;
+    const pricelessExternalId = 872_482;
+
+    async function insertProduct(opts: {
+      externalId: number;
+      finish: string;
+      printingId: string;
+    }): Promise<string> {
+      const product = await db
+        .insertInto("marketplaceProducts")
+        .values({
+          marketplace,
+          externalId: opts.externalId,
+          groupId,
+          productName: "Priced Product",
+          finish: opts.finish,
+          language: "EN",
+        })
+        .returning("id")
+        .executeTakeFirstOrThrow();
+      await db
+        .insertInto("marketplaceProductVariants")
+        .values({ marketplaceProductId: product.id, printingId: opts.printingId })
+        .execute();
+      return product.id;
+    }
+
+    async function insertPrice(productId: string, recordedAt: Date, marketCents: number) {
+      await db
+        .insertInto("marketplaceProductPrices")
+        .values({ marketplaceProductId: productId, recordedAt, marketCents })
+        .execute();
+    }
+
+    it("returns only the newest price row per product, not the whole history", async () => {
+      const productId = await insertProduct({
+        externalId: historyExternalId,
+        finish: "normal",
+        printingId: enPrintingId,
+      });
+      // Deliberately inserted out of order so a query that leaned on physical
+      // row order rather than recorded_at would pick the wrong one.
+      await insertPrice(productId, new Date("2026-01-02T00:00:00Z"), 200);
+      await insertPrice(productId, new Date("2026-01-03T00:00:00Z"), 300);
+      await insertPrice(productId, new Date("2026-01-01T00:00:00Z"), 100);
+
+      const rows = await repo.pricesByMarketplace(marketplace, [enPrintingId]);
+      const mine = rows.filter((r) => r.externalId === historyExternalId);
+
+      expect(mine).toHaveLength(1);
+      expect(mine[0].marketCents).toBe(300);
+      expect(mine[0].recordedAt).toEqual(new Date("2026-01-03T00:00:00Z"));
+    });
+
+    it("keeps each finish's own price when two SKUs share an externalId on one printing", async () => {
+      const normalId = await insertProduct({
+        externalId: twoFinishExternalId,
+        finish: "normal",
+        printingId: scPrintingId,
+      });
+      const foilId = await insertProduct({
+        externalId: twoFinishExternalId,
+        finish: "foil",
+        printingId: scPrintingId,
+      });
+      // The foil row is the newer of the two. Collapsing the SKU tuple would
+      // let it overwrite the normal finish's price.
+      await insertPrice(normalId, new Date("2026-01-01T00:00:00Z"), 500);
+      await insertPrice(foilId, new Date("2026-02-01T00:00:00Z"), 900);
+
+      const rows = await repo.pricesByMarketplace(marketplace, [scPrintingId]);
+      const mine = rows.filter((r) => r.externalId === twoFinishExternalId);
+
+      expect(mine).toHaveLength(2);
+      expect(mine.map((r) => [r.finish, r.marketCents])).toEqual([
+        ["foil", 900],
+        ["normal", 500],
+      ]);
+    });
+
+    it("omits products that have no price rows at all", async () => {
+      await insertProduct({
+        externalId: pricelessExternalId,
+        finish: "normal",
+        printingId: enPrintingId,
+      });
+
+      const rows = await repo.pricesByMarketplace(marketplace, [enPrintingId]);
+
+      expect(rows.some((r) => r.externalId === pricelessExternalId)).toBe(false);
+    });
+
+    it("short-circuits to an empty result for an empty printing list", async () => {
+      expect(await repo.pricesByMarketplace(marketplace, [])).toEqual([]);
+    });
+  });
 });

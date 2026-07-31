@@ -75,7 +75,7 @@ import {
   setTradeQuantity,
   skipTradeSync,
 } from "./services/card-trades.js";
-import { assembleRuleCatalog, createCatalogPrintingsCache } from "./services/catalog-assembly.js";
+import { assembleRuleCatalog, createContentAddressedCache } from "./services/catalog-assembly.js";
 import { clearCollection, deleteCollection, resetCollections } from "./services/collections.js";
 import { addCopies, disposeCopies, moveCopies, updateCopies } from "./services/copies.js";
 import { logEvents } from "./services/event-logger.js";
@@ -200,10 +200,35 @@ export function createRepos(db: Kysely<Database>): Repos {
   // including the uncached anonymous public-share read — collapse onto a single
   // DB build that is reused until an admin edit rolls the version, then rebuilt
   // immediately. Reads stay both cheap and always fresh.
-  const assembleCatalog = createCatalogPrintingsCache(
+  const assembleCatalog = createContentAddressedCache(
     () => assembleRuleCatalog(createRepos(db)),
     () => catalogRepo(db).catalogContentVersion(),
   );
+
+  // The thirteen reference tables hold ~71 rows between them and change only on
+  // an admin edit, but `all()` spent thirteen round trips re-reading them on
+  // every /init and deck read. Memoized on the same content-addressed helper, so
+  // an edit still shows up on the next read. One shared instance — a fresh
+  // `enumsRepo(db)` per call site would each get their own empty memo.
+  const enums = enumsRepo(db);
+  const loadEnums = createContentAddressedCache(
+    () => enums.all(),
+    () => enums.contentVersion(),
+  );
+  const cachedEnums = {
+    ...enums,
+    all: loadEnums,
+    // Derived from the same memo rather than three more slug-only reads: `all()`
+    // already orders each of these by sortOrder, which is what this returns.
+    keepPriorityOrders: async () => {
+      const rows = await loadEnums();
+      return {
+        finishes: rows.finishes.map((row) => row.slug),
+        rarities: rows.rarities.map((row) => row.slug),
+        artVariants: rows.artVariants.map((row) => row.slug),
+      };
+    },
+  };
 
   // Each repo is wrapped via instrumentRepo so every method opens an OTel
   // span named `repo.<name>.<method>`, parenting the Kysely `db.query`
@@ -232,7 +257,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     deckZones: deckZonesRepo(db),
     decks: decksRepo(db),
     domains: domainsRepo(db),
-    enums: enumsRepo(db),
+    enums: cachedEnums,
     featureFlags: featureFlagsRepo(db),
     finishes: finishesRepo(db),
     friendGroups: friendGroupsRepo(db),
@@ -240,7 +265,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     friendGroupMatches: friendGroupMatchesRepo(db, {
       assembleCatalog,
       ownedCopies: (ownerId) => copiesRepo(db).ownedRowsForUser(ownerId),
-      enumOrders: () => enumsRepo(db).keepPriorityOrders(),
+      enumOrders: () => cachedEnums.keepPriorityOrders(),
     }),
     userContactMethods: userContactMethodsRepo(db),
     organizations: organizationsRepo(db),
@@ -258,7 +283,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     lists: listsRepo(db, {
       assembleCatalog,
       ownedCopies: (ownerId) => copiesRepo(db).ownedRowsForUser(ownerId),
-      enumOrders: () => enumsRepo(db).keepPriorityOrders(),
+      enumOrders: () => cachedEnums.keepPriorityOrders(),
     }),
     loans: loansRepo(db),
     marketplace: marketplaceRepo(db),

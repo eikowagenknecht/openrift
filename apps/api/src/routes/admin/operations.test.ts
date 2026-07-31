@@ -61,7 +61,7 @@ app.use("*", async (c, next) => {
   c.set("repos", {
     marketplaceAdmin: mockMktAdmin,
     marketplace: mockMarketplace,
-    catalog: { refreshCardAggregates: vi.fn() },
+    catalog: { refreshCatalogViews: vi.fn() },
     jobRuns: mockJobRuns,
   } as never);
   await next();

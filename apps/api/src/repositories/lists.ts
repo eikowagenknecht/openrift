@@ -1,4 +1,9 @@
-import { evaluateListRules, expandList, hydrateListRules } from "@openrift/shared";
+import {
+  evaluateListRules,
+  expandList,
+  hydrateListRules,
+  ownedCopyPrintingScope,
+} from "@openrift/shared";
 import type {
   EntrySource,
   Finish,
@@ -33,8 +38,14 @@ export interface ListRuleProviders {
     printings: Printing[];
     customTagAssignments: Record<string, readonly string[]>;
   }>;
-  /** The given user's personally-owned copies (trade-rule source). */
-  ownedCopies: (ownerId: string) => Promise<OwnedCopyRow[]>;
+  /**
+   * The given user's personally-owned copies (trade-rule source), narrowed to
+   * `printingIds` — the printings the rules can actually consult
+   * (`ownedCopyPrintingScope`). Omitting the argument loads the whole
+   * collection, which is only correct when the caller has no rule set to
+   * narrow by.
+   */
+  ownedCopies: (ownerId: string, printingIds?: readonly string[]) => Promise<OwnedCopyRow[]>;
   /**
    * Reference orders (finish / rarity / art-variant) a trade rule uses to keep
    * the nicer copies and offer the plainer ones. Only fetched for trade rules.
@@ -975,7 +986,15 @@ async function expandAndEnrich(
   const needsCopies = rules.some(
     (rule) => rule.kind === "trade" || (rule.kind === "wish" && rule.netOwned),
   );
-  const ownedCopies = needsCopies ? await providers.ownedCopies(listRow.userId) : [];
+  // Only load the copies the rules can actually consult. Computed from the
+  // catalog alone (no rule's match depends on what is owned), so this is a pure
+  // narrowing of the same result set — see `ownedCopyPrintingScope`.
+  const ownedCopies = needsCopies
+    ? await providers.ownedCopies(
+        listRow.userId,
+        ownedCopyPrintingScope(rules, kind, { catalog, customTagAssignments }),
+      )
+    : [];
   // Trade rules rank owned copies by niceness (keep the nicer, offer the plainer);
   // wish rules don't, so only pay for the reference orders on a trade rule.
   const needsKeepOrder = rules.some((rule) => rule.kind === "trade");

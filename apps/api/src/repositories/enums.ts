@@ -1,5 +1,6 @@
 import type { KeepPriorityOrders } from "@openrift/shared";
 import type { Kysely, Selectable } from "kysely";
+import { sql } from "kysely";
 
 import type {
   Database,
@@ -39,9 +40,45 @@ export function enumsRepo(db: Kysely<Database>) {
 
   return {
     /**
+     * A token that changes whenever any reference table's *content* changes.
+     *
+     * Only `languages` and `markers` carry `updated_at`, so this hashes each
+     * table's whole row set (`t::text` captures every column, including ones
+     * added later) rather than probing timestamps. All thirteen tables hold ~71
+     * rows between them, so the digest is far cheaper than the thirteen round
+     * trips it lets a caller skip — and unlike a TTL it has no staleness
+     * window, so an admin edit is visible on the next read.
+     *
+     * @returns An opaque version token for the reference-table content.
+     */
+    async contentVersion(): Promise<string> {
+      const digest = (table: string) =>
+        sql`coalesce((SELECT md5(string_agg(t::text, ',' ORDER BY t::text)) FROM ${sql.raw(table)} t), '')`;
+      const tables = [
+        "card_types",
+        "super_types",
+        "finishes",
+        "art_variants",
+        "card_sizes",
+        "deck_formats",
+        "deck_zones",
+        "conditions",
+        "graders",
+        "rarities",
+        "domains",
+        "languages",
+        "markers",
+      ];
+      const result = await sql<{ token: string }>`SELECT ${sql.join(
+        tables.map((t) => digest(t)),
+        sql` || '|' || `,
+      )} AS token`.execute(db);
+      return result.rows[0]?.token ?? "";
+    },
+
+    /**
      * The reference orders a trade rule needs to rank owned copies by niceness
      * (ADR-034): finish / rarity / art-variant slugs in ascending sort order.
-     * Cheaper than {@link all} — three small slug-only reads.
      * @returns Slug arrays keyed by dimension, premium last.
      */
     async keepPriorityOrders(): Promise<KeepPriorityOrders> {

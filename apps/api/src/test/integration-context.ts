@@ -186,6 +186,16 @@ export async function refreshCardAggregates(db: Db): Promise<void> {
 }
 
 /**
+ * Refresh `mv_printings_canonical_rank` (migration 215). Test files that insert
+ * their own printings must call this before asserting on `printings_ordered`
+ * order — an unranked printing coalesces to the sentinel and sorts last.
+ * @returns A promise that resolves when the refresh completes.
+ */
+export async function refreshCanonicalRank(db: Db): Promise<void> {
+  await sql`REFRESH MATERIALIZED VIEW CONCURRENTLY mv_printings_canonical_rank`.execute(db);
+}
+
+/**
  * Mirror `cards.type` into the `card_card_types` junction (ADR-037) for any
  * card missing junction rows. Test files that insert cards directly (instead
  * of going through the repos, which write both) must call this before anything

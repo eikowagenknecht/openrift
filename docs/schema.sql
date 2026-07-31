@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict TD4PhGDLhoJ5IFr3kvlJFCcdH6boiaTWZZfFx0MEvLUuPMGK6DTaALZ5su9ev4W
+\restrict A7NaogPpO40dtxqVfTz2mEVXmbDegb7K01L3I2cvceO53XxXwBWqFxmpjeLkraU
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1737,7 +1737,8 @@ CREATE TABLE public.marketplace_product_prices (
     CONSTRAINT chk_marketplace_product_prices_mid_cents_non_negative CHECK ((mid_cents >= 0)),
     CONSTRAINT chk_marketplace_product_prices_trend_cents_non_negative CHECK ((trend_cents >= 0)),
     CONSTRAINT chk_marketplace_product_prices_zero_low_cents_non_negative CHECK ((zero_low_cents >= 0))
-);
+)
+WITH (autovacuum_analyze_scale_factor='0.02', autovacuum_analyze_threshold='5000');
 
 
 --
@@ -1815,6 +1816,81 @@ CREATE MATERIALIZED VIEW public.mv_latest_printing_prices AS
             ELSE COALESCE(pp.market_cents, pp.low_cents)
         END IS NOT NULL)
   ORDER BY mpv.printing_id, mp.marketplace, (pp.zero_low_cents IS NULL), pp.recorded_at DESC
+  WITH NO DATA;
+
+
+--
+-- Name: printings; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.printings (
+    short_code text NOT NULL,
+    rarity text NOT NULL,
+    art_variant text NOT NULL,
+    is_signed boolean DEFAULT false NOT NULL,
+    finish text NOT NULL,
+    artist text NOT NULL,
+    public_code text NOT NULL,
+    printed_rules_text text,
+    printed_effect_text text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    flavor_text text,
+    id uuid DEFAULT uuidv7() NOT NULL,
+    card_id uuid NOT NULL,
+    set_id uuid NOT NULL,
+    comment text,
+    language text DEFAULT 'EN'::text NOT NULL,
+    printed_name text,
+    marker_slugs text[] DEFAULT '{}'::text[] NOT NULL,
+    printed_year smallint,
+    size text DEFAULT 'standard'::text NOT NULL,
+    CONSTRAINT chk_printings_artist_not_empty CHECK ((artist <> ''::text)),
+    CONSTRAINT chk_printings_no_empty_comment CHECK ((comment <> ''::text)),
+    CONSTRAINT chk_printings_no_empty_flavor_text CHECK ((flavor_text <> ''::text)),
+    CONSTRAINT chk_printings_no_empty_printed_effect_text CHECK ((printed_effect_text <> ''::text)),
+    CONSTRAINT chk_printings_no_empty_printed_name CHECK ((printed_name <> ''::text)),
+    CONSTRAINT chk_printings_no_empty_printed_rules_text CHECK ((printed_rules_text <> ''::text)),
+    CONSTRAINT chk_printings_public_code_not_empty CHECK ((public_code <> ''::text)),
+    CONSTRAINT chk_printings_short_code_not_empty CHECK ((short_code <> ''::text))
+);
+
+
+--
+-- Name: sets; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.sets (
+    name text NOT NULL,
+    printed_total integer,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    sort_order integer DEFAULT 0 NOT NULL,
+    released_at date,
+    slug text NOT NULL,
+    id uuid DEFAULT uuidv7() NOT NULL,
+    set_type public.set_type DEFAULT 'main'::public.set_type NOT NULL,
+    released boolean DEFAULT true NOT NULL,
+    CONSTRAINT chk_sets_name_not_empty CHECK ((name <> ''::text)),
+    CONSTRAINT chk_sets_printed_total_non_negative CHECK ((printed_total >= 0)),
+    CONSTRAINT chk_sets_slug_not_empty CHECK ((slug <> ''::text))
+);
+
+
+--
+-- Name: mv_printings_canonical_rank; Type: MATERIALIZED VIEW; Schema: public; Owner: -
+--
+
+CREATE MATERIALIZED VIEW public.mv_printings_canonical_rank AS
+ SELECT p.id AS printing_id,
+    (row_number() OVER (ORDER BY l.sort_order, s.sort_order, p.short_code, (array_length(p.marker_slugs, 1) IS NOT NULL), COALESCE(( SELECT min(m.sort_order) AS min
+           FROM public.markers m
+          WHERE (m.slug = ANY (p.marker_slugs))), 0), f.sort_order, cs.sort_order))::integer AS canonical_rank
+   FROM ((((public.printings p
+     JOIN public.sets s ON ((s.id = p.set_id)))
+     JOIN public.finishes f ON ((f.slug = p.finish)))
+     JOIN public.card_sizes cs ON ((cs.slug = p.size)))
+     JOIN public.languages l ON ((l.code = p.language)))
   WITH NO DATA;
 
 
@@ -1977,64 +2053,6 @@ CREATE TABLE public.printing_markers (
 
 
 --
--- Name: printings; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.printings (
-    short_code text NOT NULL,
-    rarity text NOT NULL,
-    art_variant text NOT NULL,
-    is_signed boolean DEFAULT false NOT NULL,
-    finish text NOT NULL,
-    artist text NOT NULL,
-    public_code text NOT NULL,
-    printed_rules_text text,
-    printed_effect_text text,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    flavor_text text,
-    id uuid DEFAULT uuidv7() NOT NULL,
-    card_id uuid NOT NULL,
-    set_id uuid NOT NULL,
-    comment text,
-    language text DEFAULT 'EN'::text NOT NULL,
-    printed_name text,
-    marker_slugs text[] DEFAULT '{}'::text[] NOT NULL,
-    printed_year smallint,
-    size text DEFAULT 'standard'::text NOT NULL,
-    CONSTRAINT chk_printings_artist_not_empty CHECK ((artist <> ''::text)),
-    CONSTRAINT chk_printings_no_empty_comment CHECK ((comment <> ''::text)),
-    CONSTRAINT chk_printings_no_empty_flavor_text CHECK ((flavor_text <> ''::text)),
-    CONSTRAINT chk_printings_no_empty_printed_effect_text CHECK ((printed_effect_text <> ''::text)),
-    CONSTRAINT chk_printings_no_empty_printed_name CHECK ((printed_name <> ''::text)),
-    CONSTRAINT chk_printings_no_empty_printed_rules_text CHECK ((printed_rules_text <> ''::text)),
-    CONSTRAINT chk_printings_public_code_not_empty CHECK ((public_code <> ''::text)),
-    CONSTRAINT chk_printings_short_code_not_empty CHECK ((short_code <> ''::text))
-);
-
-
---
--- Name: sets; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.sets (
-    name text NOT NULL,
-    printed_total integer,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    sort_order integer DEFAULT 0 NOT NULL,
-    released_at date,
-    slug text NOT NULL,
-    id uuid DEFAULT uuidv7() NOT NULL,
-    set_type public.set_type DEFAULT 'main'::public.set_type NOT NULL,
-    released boolean DEFAULT true NOT NULL,
-    CONSTRAINT chk_sets_name_not_empty CHECK ((name <> ''::text)),
-    CONSTRAINT chk_sets_printed_total_non_negative CHECK ((printed_total >= 0)),
-    CONSTRAINT chk_sets_slug_not_empty CHECK ((slug <> ''::text))
-);
-
-
---
 -- Name: printings_ordered; Type: VIEW; Schema: public; Owner: -
 --
 
@@ -2060,14 +2078,9 @@ CREATE VIEW public.printings_ordered AS
     p.marker_slugs,
     p.printed_year,
     p.size,
-    (row_number() OVER (ORDER BY l.sort_order, s.sort_order, p.short_code, (array_length(p.marker_slugs, 1) IS NOT NULL), COALESCE(( SELECT min(m.sort_order) AS min
-           FROM public.markers m
-          WHERE (m.slug = ANY (p.marker_slugs))), 0), f.sort_order, cs.sort_order))::integer AS canonical_rank
-   FROM ((((public.printings p
-     JOIN public.sets s ON ((s.id = p.set_id)))
-     JOIN public.finishes f ON ((f.slug = p.finish)))
-     JOIN public.card_sizes cs ON ((cs.slug = p.size)))
-     JOIN public.languages l ON ((l.code = p.language)));
+    COALESCE(r.canonical_rank, 2147483647) AS canonical_rank
+   FROM (public.printings p
+     LEFT JOIN public.mv_printings_canonical_rank r ON ((r.printing_id = p.id)));
 
 
 --
@@ -4036,6 +4049,13 @@ CREATE UNIQUE INDEX idx_mv_card_aggregates_pk ON public.mv_card_aggregates USING
 --
 
 CREATE UNIQUE INDEX idx_mv_latest_printing_prices_pk ON public.mv_latest_printing_prices USING btree (printing_id, marketplace);
+
+
+--
+-- Name: idx_mv_printings_canonical_rank_pk; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_mv_printings_canonical_rank_pk ON public.mv_printings_canonical_rank USING btree (printing_id);
 
 
 --
@@ -6069,5 +6089,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict TD4PhGDLhoJ5IFr3kvlJFCcdH6boiaTWZZfFx0MEvLUuPMGK6DTaALZ5su9ev4W
+\unrestrict A7NaogPpO40dtxqVfTz2mEVXmbDegb7K01L3I2cvceO53XxXwBWqFxmpjeLkraU
 
