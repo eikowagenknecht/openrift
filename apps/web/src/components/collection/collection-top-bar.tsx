@@ -1,9 +1,11 @@
+import { Link } from "@tanstack/react-router";
 import {
   CheckIcon,
   CheckSquareIcon,
   EllipsisVerticalIcon,
   LayersIcon,
   PencilIcon,
+  ScanLineIcon,
   Share2Icon,
   SquarePlusIcon,
   Trash2Icon,
@@ -25,6 +27,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 
 interface CollectionTopBarProps {
   title: string;
@@ -81,6 +84,7 @@ export function CollectionTopBar({
   onShare,
   onToggleDeckbuilding,
 }: CollectionTopBarProps) {
+  const scannerEnabled = useFeatureEnabled("scanner");
   return (
     <PageTopBar>
       <div className="flex min-w-0 flex-1 items-baseline gap-2">
@@ -95,6 +99,21 @@ export function CollectionTopBar({
 
       <PageTopBarActions>
         <div className="flex items-center gap-2">
+          {scannerEnabled && addTarget && mode === "browse" && (
+            <>
+              <PageTopBarIconButton
+                render={<Link to="/collections/scan" />}
+                aria-label="Scan cards"
+                className="sm:hidden"
+              >
+                <ScanLineIcon className="size-4" />
+              </PageTopBarIconButton>
+              <PageTopBarButton render={<Link to="/collections/scan" />} className="hidden sm:flex">
+                <ScanLineIcon className="size-4" />
+                Scan
+              </PageTopBarButton>
+            </>
+          )}
           {addTarget && hasCards && (
             <>
               <PageTopBarIconButton

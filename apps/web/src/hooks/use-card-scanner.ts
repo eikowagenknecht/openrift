@@ -118,12 +118,30 @@ export interface LockedCard {
   key: string;
   artKey: string;
   label: string;
+  /**
+   * The disambiguation stage settled on one printing. False for foils and
+   * unsplittable variants — and for every single-render artwork, where the
+   * stage has nothing to run on; callers widen those to the artwork's
+   * candidate printings themselves.
+   */
+  resolved: boolean;
   /** Wall-clock time of the lock. */
   at: number;
   /** Seconds from the start of the run of agreeing frames to the lock. */
   lockSeconds: number;
   framesToLock: number;
   inliers: number;
+}
+
+/**
+ * Lock lifecycle callbacks for the scanning UI. Held in a ref, so consumers
+ * may pass fresh closures every render without restarting the frame loop.
+ */
+export interface ScannerEvents {
+  /** A new lock, after any lock-frame disambiguation ran. */
+  onLock?: (lock: LockedCard) => void;
+  /** A follow-up frame resolved an earlier lock's printing. */
+  onLockResolved?: (update: { artKey: string; key: string; label: string }) => void;
 }
 
 /** Download state of one big engine resource, for the loading screen. */
@@ -156,6 +174,13 @@ export interface ScannerReadout {
   rivalInliers: number;
   /** True when the frame cleared the inlier floor but not the margin. */
   refused: boolean;
+  /**
+   * Highest inlier count on the last frame's verified shortlist, winner or
+   * not. On a winner-less frame, values just under the 11-inlier floor mean
+   * "card seen, verification barely failing" — the almost-there band the
+   * hold-steady cue reads.
+   */
+  bestInliers: number;
   focus: number;
   /** Pipeline frames processed in the last second. */
   fps: number;
@@ -173,6 +198,7 @@ const EMPTY_READOUT: ScannerReadout = {
   winnerInliers: 0,
   rivalInliers: 0,
   refused: false,
+  bestInliers: 0,
   focus: 0,
   fps: 0,
   detectMs: 0,
@@ -399,6 +425,7 @@ export function useCardScanner(
   loaded: LoadedScanBank | null,
   settings: ScannerSettings,
   assets: ScanEngineAssets | null,
+  events?: ScannerEvents,
 ) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
@@ -415,6 +442,7 @@ export function useCardScanner(
   const sessionStartRef = useRef(0);
   const locksRef = useRef<LockedCard[]>([]);
   const settingsRef = useRef(settings);
+  const eventsRef = useRef(events);
   const lastPublishRef = useRef(0);
   const frameTimesRef = useRef<number[]>([]);
   // Winner-less streak and last frame cost, mirroring the session's idle
@@ -558,6 +586,12 @@ export function useCardScanner(
   useEffect(() => {
     settingsRef.current = settings;
   }, [settings]);
+
+  // Same treatment for the lock callbacks: consumers pass fresh closures per
+  // render, and the loop must always call the latest without restarting.
+  useEffect(() => {
+    eventsRef.current = events;
+  }, [events]);
 
   // When the page goes away: stop the camera (or it stays on after
   // navigating elsewhere) and release the session's OpenCV allocations after
@@ -850,6 +884,7 @@ export function useCardScanner(
       winnerInliers: outcome.winner === null ? 0 : outcome.winner.inliers,
       rivalInliers: outcome.winner === null ? 0 : outcome.winner.rivalInliers,
       refused: outcome.refused,
+      bestInliers: outcome.bestInliers,
       focus: outcome.focus,
       fps: frameTimesRef.current.length,
       detectMs: outcome.timings.detect,
@@ -873,18 +908,17 @@ export function useCardScanner(
       ? outcome.timings.total / 1000
       : (track.lockedAt ?? track.runStartSeconds) - track.runStartSeconds;
     const framesToLock = tapped ? 1 : (track.framesToLock ?? 0);
-    locksRef.current = [
-      {
-        key: track.key,
-        artKey: track.artKey,
-        label: track.label,
-        at: Date.now(),
-        lockSeconds,
-        framesToLock,
-        inliers: outcome.winner === null ? 0 : outcome.winner.inliers,
-      },
-      ...locksRef.current,
-    ].slice(0, 30);
+    const lock: LockedCard = {
+      key: track.key,
+      artKey: track.artKey,
+      label: track.label,
+      resolved: track.printingResolved,
+      at: Date.now(),
+      lockSeconds,
+      framesToLock,
+      inliers: outcome.winner === null ? 0 : outcome.winner.inliers,
+    };
+    locksRef.current = [lock, ...locksRef.current].slice(0, 30);
     // Wall time since this artwork's top-ranked streak began — the number the
     // user actually experiences, unlike lockSeconds which starts at the first
     // VERIFIED frame and hides any seen-but-unverifiable stretch before it.
@@ -898,6 +932,7 @@ export function useCardScanner(
     // A short buzz marks the lock moment, so on a phone the eyes can stay on
     // the cards instead of the lock list.
     navigator.vibrate?.(50);
+    eventsRef.current?.onLock?.(lock);
   }
 
   function notePrinting(outcome: FrameOutcome) {
@@ -926,8 +961,18 @@ export function useCardScanner(
       return;
     }
     const refreshed = [...locksRef.current];
-    refreshed[index] = { ...refreshed[index], key: update.key, label: update.label };
+    refreshed[index] = {
+      ...refreshed[index],
+      key: update.key,
+      label: update.label,
+      resolved: true,
+    };
     locksRef.current = refreshed;
+    eventsRef.current?.onLockResolved?.({
+      artKey: update.artKey,
+      key: update.key,
+      label: update.label,
+    });
   }
 
   async function runFrame(): Promise<void> {
