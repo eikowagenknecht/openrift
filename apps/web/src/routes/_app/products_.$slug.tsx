@@ -5,7 +5,7 @@ import { NotFoundFallback, RouteErrorFallback } from "@/components/error-message
 import { Skeleton } from "@/components/ui/skeleton";
 import { productDetailQueryOptions } from "@/hooks/use-products";
 import { filterSearchSchema } from "@/lib/search-schemas";
-import { seoHead } from "@/lib/seo";
+import { breadcrumbJsonLd, collectionPageJsonLd, seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 import { cn, CONTAINER_WIDTH, PAGE_PADDING } from "@/lib/utils";
 
@@ -19,14 +19,36 @@ export const Route = createFileRoute("/_app/products_/$slug")({
       return seoHead({ siteUrl, title: "Product", path, unlisted: true });
     }
     const { product } = data;
-    return seoHead({
-      siteUrl,
-      title: product.name,
-      description:
-        product.description ??
-        `Every card in ${product.name}, a fixed-content Riftbound product (${product.cardTotal} cards).`,
-      path,
-    });
+    const description =
+      product.description ??
+      `Every card in ${product.name}, a fixed-content Riftbound product (${product.cardTotal} cards).`;
+    const head = seoHead({ siteUrl, title: product.name, description, path });
+
+    // One ItemList entry per unique card, in the payload's canonical printing
+    // order (the product's natural reading order), matching the set page.
+    const seenCardIds = new Set<string>();
+    const items: { name: string; url: string }[] = [];
+    for (const printing of data.printings) {
+      if (seenCardIds.has(printing.cardId)) {
+        continue;
+      }
+      seenCardIds.add(printing.cardId);
+      const card = data.cards[printing.cardId];
+      if (card) {
+        items.push({ name: card.name, url: `/cards/${card.slug}` });
+      }
+    }
+
+    return {
+      ...head,
+      scripts: [
+        collectionPageJsonLd({ siteUrl, name: product.name, description, path, items }),
+        breadcrumbJsonLd(siteUrl, [
+          { name: "Products", path: "/products" },
+          { name: product.name, path },
+        ]),
+      ],
+    };
   },
   loader: async ({ context, params }): Promise<ProductDetailResponse> => {
     try {

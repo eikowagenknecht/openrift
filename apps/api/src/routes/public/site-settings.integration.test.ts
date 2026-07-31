@@ -66,6 +66,22 @@ describe.skipIf(!ctx)("Site Settings route (integration)", () => {
     expect(res.headers.get("Cache-Control")).toBe("public, max-age=60, stale-while-revalidate=300");
   });
 
+  // RFC 9110: HEAD answers with the headers a GET would send and no body.
+  // oRPC matches on the declared method, so HEAD used to miss every route and
+  // fall through to the JSON-404 handler.
+  it("answers HEAD with the GET's status and headers, and no body", async () => {
+    const get = await app.fetch(req("GET", "/site-settings"));
+    const head = await app.fetch(req("HEAD", "/site-settings"));
+
+    expect(head.status).toBe(200);
+    expect(head.status).toBe(get.status);
+    expect(head.headers.get("Cache-Control")).toBe(
+      "public, max-age=60, stale-while-revalidate=300",
+    );
+    expect(head.headers.get("Content-Type")).toBe(get.headers.get("Content-Type"));
+    expect(await head.text()).toBe("");
+  });
+
   it("returns a JSON content type", async () => {
     const res = await app.fetch(req("GET", "/site-settings"));
     expect(res.headers.get("Content-Type")).toContain("application/json");

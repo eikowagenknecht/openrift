@@ -13,13 +13,15 @@ export const sitemapDataResponseSchema = z
   .object({
     cards: z.array(sitemapEntrySchema),
     sets: z.array(sitemapEntrySchema),
+    products: z.array(sitemapEntrySchema),
   })
   .openapi("SitemapDataResponse");
 
 /**
  * oRPC contract for the public sitemap-data endpoint.
- * `GET /api/v1/sitemap-data` — all card + set slugs with `updatedAt` for the
- * web's sitemap generator. Edge-cached (ETag via the mount's `etag()`).
+ * `GET /api/v1/sitemap-data` — all card, set, and product slugs with
+ * `updatedAt` for the web's sitemap generator. Edge-cached (ETag via the
+ * mount's `etag()`).
  */
 export const sitemapContract = {
   get: oc

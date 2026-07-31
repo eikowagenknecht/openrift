@@ -153,6 +153,15 @@ describe("onError handler", () => {
     expect(json.code).toBe("NOT_FOUND");
     expect(json.error).toBe("Not found");
   });
+
+  // The catch-all replays a HEAD as a GET so it can match oRPC's GET routes.
+  // A path that matches nothing must still 404 rather than being swallowed.
+  it("still 404s a HEAD on an unmatched API route", async () => {
+    const res = await app.fetch(
+      new Request("http://localhost/api/v1/does-not-exist", { method: "HEAD" }),
+    );
+    expect(res.status).toBe(404);
+  });
 });
 
 describe("onError handler (production)", () => {

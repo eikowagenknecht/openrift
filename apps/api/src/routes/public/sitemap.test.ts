@@ -10,10 +10,15 @@ const mockCatalogRepo = {
   allSetSitemapEntries: vi.fn(() => Promise.resolve([] as object[])),
 };
 
+const mockProductsRepo = {
+  allSitemapEntries: vi.fn(() => Promise.resolve([] as object[])),
+};
+
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("repos", {
     catalog: mockCatalogRepo,
+    products: mockProductsRepo,
     // oxlint-disable-next-line no-explicit-any -- test mock doesn't match full Repos type
   } as any);
   await next();
@@ -25,12 +30,15 @@ describe("GET /api/v1/sitemap-data", () => {
     vi.resetAllMocks();
   });
 
-  it("returns 200 with card and set sitemap entries", async () => {
+  it("returns 200 with card, set, and product sitemap entries", async () => {
     mockCatalogRepo.allCardSitemapEntries.mockResolvedValue([
       { slug: "jinx-rebel", updatedAt: "2026-04-01T12:00:00.000Z" },
     ]);
     mockCatalogRepo.allSetSitemapEntries.mockResolvedValue([
       { slug: "origins", updatedAt: "2026-03-01T12:00:00.000Z" },
+    ]);
+    mockProductsRepo.allSitemapEntries.mockResolvedValue([
+      { slug: "origins-proving-grounds", updatedAt: "2026-02-01T12:00:00.000Z" },
     ]);
 
     const res = await app.request("/api/v1/sitemap-data");
@@ -38,18 +46,24 @@ describe("GET /api/v1/sitemap-data", () => {
     const json = await res.json();
     expect(json.cards).toEqual([{ slug: "jinx-rebel", updatedAt: "2026-04-01T12:00:00.000Z" }]);
     expect(json.sets).toEqual([{ slug: "origins", updatedAt: "2026-03-01T12:00:00.000Z" }]);
+    expect(json.products).toEqual([
+      { slug: "origins-proving-grounds", updatedAt: "2026-02-01T12:00:00.000Z" },
+    ]);
     expect(mockCatalogRepo.allCardSitemapEntries).toHaveBeenCalledTimes(1);
     expect(mockCatalogRepo.allSetSitemapEntries).toHaveBeenCalledTimes(1);
+    expect(mockProductsRepo.allSitemapEntries).toHaveBeenCalledTimes(1);
   });
 
   it("returns empty arrays when there are no entries", async () => {
     mockCatalogRepo.allCardSitemapEntries.mockResolvedValue([]);
     mockCatalogRepo.allSetSitemapEntries.mockResolvedValue([]);
+    mockProductsRepo.allSitemapEntries.mockResolvedValue([]);
 
     const res = await app.request("/api/v1/sitemap-data");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.cards).toEqual([]);
     expect(json.sets).toEqual([]);
+    expect(json.products).toEqual([]);
   });
 });

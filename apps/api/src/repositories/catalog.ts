@@ -555,6 +555,19 @@ export function catalogRepo(db: Kysely<Database>) {
         .execute();
     },
 
+    /** @returns Printings matching the given IDs, in canonical order. */
+    printingsByIds(ids: string[]): Promise<CatalogPrintingRow[]> {
+      if (ids.length === 0) {
+        return Promise.resolve([]);
+      }
+      return db
+        .selectFrom("printingsOrdered")
+        .select(PRINTING_VIEW_COLUMNS)
+        .where("printingsOrdered.id", "in", ids)
+        .orderBy("printingsOrdered.canonicalRank")
+        .execute();
+    },
+
     /** @returns Cards matching the given IDs. */
     cardsByIds(ids: string[]): Promise<CatalogCardRow[]> {
       if (ids.length === 0) {

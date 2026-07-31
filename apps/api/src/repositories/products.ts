@@ -70,6 +70,12 @@ export function productsRepo(db: Kysely<Database>) {
       return withCounts().where("p.slug", "=", slug).executeTakeFirst();
     },
 
+    /** @returns All product sitemap entries (slug + updatedAt). */
+    async allSitemapEntries(): Promise<{ slug: string; updatedAt: string }[]> {
+      const rows = await db.selectFrom("products").select(["slug", "updatedAt"]).execute();
+      return rows.map((row) => ({ slug: row.slug, updatedAt: row.updatedAt.toISOString() }));
+    },
+
     /** @returns The product with content counts, or undefined. */
     getByIdWithCounts(id: string): Promise<ProductWithCounts | undefined> {
       return withCounts().where("p.id", "=", id).executeTakeFirst();

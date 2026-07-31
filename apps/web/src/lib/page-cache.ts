@@ -24,7 +24,15 @@ const PRELOAD_LINKS = [
 // Adding a path here makes its HTML edge-cached, which means it must also be
 // purged on deploy: keep the prefix list in deploy.sh.example's
 // purge_cloudflare_cache() in sync with these two lists.
-const EXACT_PATHS = new Set(["/", "/cards", "/sets", "/rules", "/privacy-policy", "/promos"]);
+const EXACT_PATHS = new Set([
+  "/",
+  "/cards",
+  "/sets",
+  "/rules",
+  "/privacy-policy",
+  "/promos",
+  "/products",
+]);
 // `/rules/` covers the versioned ruleset documents (`/rules/core/2026-07-16`).
 // They are published, dated snapshots — identical for every visitor and frozen
 // once released — but were missing here, so they fell through to
@@ -32,7 +40,7 @@ const EXACT_PATHS = new Set(["/", "/cards", "/sets", "/rules", "/privacy-policy"
 // the full document (~4 MB of HTML) at origin and re-sent ~410 KB gzipped, on
 // the single heaviest page in the app. The deploy purge already lists a
 // `/rules` prefix, which covers these too.
-const PREFIX_PATHS = ["/cards/", "/sets/", "/rules/", "/decks/share/", "/promos/"];
+const PREFIX_PATHS = ["/cards/", "/sets/", "/rules/", "/decks/share/", "/promos/", "/products/"];
 
 function isCacheablePublicPath(pathname: string): boolean {
   if (EXACT_PATHS.has(pathname)) {

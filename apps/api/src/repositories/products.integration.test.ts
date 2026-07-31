@@ -392,4 +392,24 @@ describe.skipIf(!ctx)("products repo set grouping (integration)", () => {
     const cleared = await repos.products.getByIdWithCounts(productId);
     expect(cleared).toMatchObject({ setId: null, setSlug: null, setName: null });
   });
+
+  it("returns slug + ISO updatedAt for every product in the sitemap feed", async () => {
+    const productId = await makeProduct("Sitemap Kit", null);
+    const created = await repos.products.getByIdWithCounts(productId);
+
+    const entries = await repos.products.allSitemapEntries();
+    const mine = entries.find((entry) => entry.slug === created?.slug);
+
+    expect(mine).toBeDefined();
+    expect(mine?.updatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/u);
+    // Every catalogued product belongs in the sitemap: no draft/publish gate,
+    // so each fixture product created above has an entry.
+    const slugs = new Set(entries.map((entry) => entry.slug));
+    const fixtures = await Promise.all(
+      productIds.map((id) => repos.products.getByIdWithCounts(id)),
+    );
+    for (const fixture of fixtures) {
+      expect(slugs.has(fixture?.slug ?? "")).toBe(true);
+    }
+  });
 });

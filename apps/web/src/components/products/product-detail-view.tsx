@@ -25,6 +25,7 @@ import {
 } from "@/components/layout/page-top-bar";
 import { MarkdownText } from "@/components/markdown-text";
 import { ProductAddDialog } from "@/components/products/product-add-dialog";
+import { ProductContentsPreview } from "@/components/products/product-contents-preview";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { useCardData } from "@/hooks/use-card-data";
@@ -36,6 +37,7 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { usePrices } from "@/hooks/use-prices";
+import type { EnrichedProductDetail } from "@/hooks/use-products";
 import { useSession } from "@/lib/auth-session";
 import { filterPrintingsByLanguages } from "@/lib/filter-printings-by-languages";
 import { formatterForMarketplace } from "@/lib/format";
@@ -76,7 +78,7 @@ const PRODUCT_HIDDEN_FILTER_SECTIONS_AUTHED: ReadonlySet<string> = new Set([
 ]);
 
 interface ProductDetailViewProps {
-  data: ProductDetailResponse;
+  data: EnrichedProductDetail;
   search: FilterSearch;
 }
 
@@ -180,22 +182,58 @@ function ProductValue({ contents }: { contents: ProductDetailResponse["contents"
   );
 }
 
-function ProductDetailBody({ data }: { data: ProductDetailResponse }) {
+/**
+ * Deduplicates the product's printings by card, keeping the payload's
+ * canonical order. The preview shows one cell per card, like the grid's
+ * "cards" view, so reprints inside a kit don't render twice.
+ *
+ * @returns One printing per distinct card.
+ */
+function uniqueByCard(printings: readonly Printing[]): Printing[] {
+  const seen = new Set<string>();
+  const unique: Printing[] = [];
+  for (const printing of printings) {
+    if (seen.has(printing.cardId)) {
+      continue;
+    }
+    seen.add(printing.cardId);
+    unique.push(printing);
+  }
+  return unique;
+}
+
+function ProductDetailBody({ data }: { data: EnrichedProductDetail }) {
   const hydrated = useHydrated();
-  // Pre-hydration the top bar already shows name + description (SSR-visible).
-  // The grid needs the client-only catalog plus display/filter stores.
+  const quantityByPrintingId: Record<string, number> = {};
+  for (const content of data.contents) {
+    quantityByPrintingId[content.printingId] = content.quantity;
+  }
+  // The live grid is virtualized and renders nothing server-side, so the
+  // served HTML gets a plain non-virtualized pass over the same cards. It
+  // doubles as the Suspense fallback: the page never drops back to a spinner
+  // once the contents have painted.
+  const preview = (
+    <ProductContentsPreview
+      printings={uniqueByCard(data.printings)}
+      quantityByPrintingId={quantityByPrintingId}
+    />
+  );
   if (!hydrated) {
-    return null;
+    return preview;
   }
   return (
-    <Suspense fallback={<p className="text-muted-foreground py-3 text-sm">Loading cards…</p>}>
+    <Suspense fallback={preview}>
       <ProductDetailGrid data={data} />
     </Suspense>
   );
 }
 
-function ProductDetailGrid({ data }: { data: ProductDetailResponse }) {
-  const { printingsById, sets, printingsByCardId: catalogAllPrintingsByCardId } = useCards();
+function ProductDetailGrid({ data }: { data: EnrichedProductDetail }) {
+  const { printingsById, sets } = data;
+  // The detail pane lists every printing of the clicked card from the global
+  // catalog, not just the ones in this product, so it still reads the client
+  // catalog. It only opens post-hydration, where that fetch is already warm.
+  const { printingsByCardId: catalogAllPrintingsByCardId } = useCards();
   const display = useCardThumbnailDisplay();
   const showImages = useDisplayStore((state) => state.showImages);
   const channels = useChannelRegistry();

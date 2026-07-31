@@ -77,6 +77,7 @@ const STATIC_PAGES: StaticPage[] = [
   { path: "/", priority: "1.0", changefreq: "weekly" },
   { path: "/cards", priority: "0.8", changefreq: "weekly" },
   { path: "/sets", priority: "0.7", changefreq: "weekly" },
+  { path: "/products", priority: "0.7", changefreq: "weekly" },
   // /promos always 302s to the EN page, so list the redirect target — sitemaps
   // should carry the final canonical URL (same rationale as the rules kinds).
   { path: "/promos/EN", priority: "0.6", changefreq: "weekly" },
@@ -151,6 +152,12 @@ async function generateSitemap(): Promise<string> {
     const lastmod = entry.updatedAt.slice(0, 10);
     urls.push(
       `  <url><loc>${siteUrl}/sets/${entry.slug}</loc><lastmod>${lastmod}</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>`,
+    );
+  }
+  for (const entry of data.products) {
+    const lastmod = entry.updatedAt.slice(0, 10);
+    urls.push(
+      `  <url><loc>${siteUrl}/products/${entry.slug}</loc><lastmod>${lastmod}</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>`,
     );
   }
 

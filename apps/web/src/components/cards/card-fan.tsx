@@ -108,6 +108,12 @@ interface CardFanProps {
   size?: "sm" | "lg";
   /** `bottom` bleeds off the band's bottom edge; `center` floats mid-band. */
   anchor?: "bottom" | "center";
+  /**
+   * Loads the fan eagerly at high fetch priority. Set it on the fans that are
+   * above the fold (the first row of tiles) — a lazy fan there is the page's
+   * LCP element and the lazy attribute delays it by a full round trip.
+   */
+  priority?: boolean;
 }
 
 /**
@@ -116,7 +122,7 @@ interface CardFanProps {
  *
  * @returns The fanned card images.
  */
-export function CardFan({ covers, size = "sm", anchor = "bottom" }: CardFanProps) {
+export function CardFan({ covers, size = "sm", anchor = "bottom", priority }: CardFanProps) {
   const spec = FAN_SPECS[size];
   const layout = spec.layouts[Math.min(covers.length, spec.layouts.length - 1)];
   const variant = size === "lg" ? "400w" : "240w";
@@ -127,7 +133,8 @@ export function CardFan({ covers, size = "sm", anchor = "bottom" }: CardFanProps
           key={cover.key}
           {...coverSources(cover, spec.cardWidth, variant)}
           alt=""
-          loading="lazy"
+          loading={priority ? "eager" : "lazy"}
+          fetchPriority={priority ? "high" : undefined}
           className={cn("ring-foreground/20 object-cover shadow-md ring-1", fanCardClass(anchor))}
           style={{
             ...fanCardStyle(layout[index], spec.cardWidth, anchor),

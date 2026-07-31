@@ -106,7 +106,7 @@ purge_cloudflare_cache() {
       "https://api.cloudflare.com/client/v4/zones/${zone}/purge_cache" \
       -H "Authorization: Bearer ${token}" \
       -H "Content-Type: application/json" \
-      --data "{\"prefixes\":[\"${host}/api/\",\"${host}/cards\",\"${host}/sets\",\"${host}/rules\",\"${host}/privacy-policy\",\"${host}/promos\",\"${host}/decks/share/\"]}" \
+      --data "{\"prefixes\":[\"${host}/api/\",\"${host}/cards\",\"${host}/sets\",\"${host}/rules\",\"${host}/privacy-policy\",\"${host}/promos\",\"${host}/products\",\"${host}/decks/share/\"]}" \
       -o /dev/null || ok=0
   curl -fsS -X POST \
       "https://api.cloudflare.com/client/v4/zones/${zone}/purge_cache" \

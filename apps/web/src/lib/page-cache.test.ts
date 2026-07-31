@@ -54,6 +54,28 @@ describe("applyPageCacheControl", () => {
     expect(versioned.headers.get("Cache-Control")).toBe(PUBLIC);
   });
 
+  it("caches the products index and product detail pages", () => {
+    const index = applyPageCacheControl(getRequest("/products"), htmlResponse());
+    const detail = applyPageCacheControl(
+      getRequest("/products/origins-proving-grounds"),
+      htmlResponse(),
+    );
+    expect(index.headers.get("Cache-Control")).toBe(PUBLIC);
+    expect(detail.headers.get("Cache-Control")).toBe(PUBLIC);
+  });
+
+  it("keeps product pages private for logged-in users", () => {
+    // The product page renders an "Add to collection" action for signed-in
+    // viewers, so a cached anonymous shell must never reach them.
+    const result = applyPageCacheControl(
+      getRequest("/products/origins-proving-grounds", {
+        cookie: "better-auth.session_token=abc",
+      }),
+      htmlResponse(),
+    );
+    expect(result.headers.get("Cache-Control")).toBe(PRIVATE);
+  });
+
   it("still caches the /rules index itself", () => {
     const index = applyPageCacheControl(getRequest("/rules"), htmlResponse());
     expect(index.headers.get("Cache-Control")).toBe(PUBLIC);

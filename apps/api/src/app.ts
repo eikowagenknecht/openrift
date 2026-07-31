@@ -449,17 +449,38 @@ export function createApp(deps: AppDeps) {
   // procedure's meta.
   app.all("/api/*", async (c, next) => {
     const apiContext = buildApiContext(c);
-    const { matched, response } = await apiHandler.handle(c.req.raw, { context: apiContext });
+    // oRPC matches on the contract's declared method, so a HEAD never matches a
+    // GET route and used to fall through to the JSON-404 handler. RFC 9110
+    // defines HEAD as GET without a body, so run it as a GET and drop the body.
+    // This was invisible in production: the CDN answers HEAD from its stored
+    // GET for every cached read, so only the reads it hadn't cached — and any
+    // direct origin check — saw the 404.
+    const isHead = c.req.method === "HEAD";
+    const request = isHead
+      ? new Request(c.req.raw.url, { method: "GET", headers: c.req.raw.headers })
+      : c.req.raw;
+    const { matched, response } = await apiHandler.handle(request, { context: apiContext });
     if (!matched || !response) {
       return next();
     }
-    // Only successful GET reads are cacheable. The method guard keeps a private
+    // Only successful safe reads are cacheable. The method guard keeps a private
     // mutation that shares a cacheable prefix (e.g. POST /decks/share/{token}/clone
     // under the public /decks/share/ read) from ever being labelled `public`.
-    if (response.ok && c.req.method === "GET" && apiContext.cacheControl) {
+    if (response.ok && (c.req.method === "GET" || isHead) && apiContext.cacheControl) {
       response.headers.set("Cache-Control", apiContext.cacheControl);
     }
-    return response;
+    if (!isHead) {
+      return response;
+    }
+    // Headers (including Content-Length) describe what the GET would return,
+    // which is what HEAD must report. Cancel the unread body so the stream
+    // isn't left dangling.
+    void response.body?.cancel();
+    return new Response(null, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+    });
   });
 
   return app;

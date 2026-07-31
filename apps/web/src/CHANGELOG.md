@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-07-31
+
+### Highlights
+
+- feat(Products): **Product pages load instantly** — a product's card list now arrives with the page instead of appearing once the card data finishes loading, and repeat visits are served from cache.
+
 ## 2026-07-30
 
 ### Other

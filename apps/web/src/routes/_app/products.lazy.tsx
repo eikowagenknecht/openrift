@@ -20,6 +20,7 @@ import { useSession } from "@/lib/auth-session";
 import { groupProductsBySet } from "@/lib/group-products-by-set";
 import { markdownTeaser } from "@/lib/markdown-teaser";
 import { formatProductCounts } from "@/lib/product-counts";
+import { PRODUCTS_DESCRIPTION } from "@/routes/_app/products";
 
 export const Route = createLazyFileRoute("/_app/products")({
   component: ProductsIndexPage,
@@ -31,7 +32,14 @@ export const Route = createLazyFileRoute("/_app/products")({
  *
  * @returns The fan band element.
  */
-function ProductCoverFan({ coverCards }: { coverCards: ProductCoverCard[] }) {
+function ProductCoverFan({
+  coverCards,
+  priority,
+}: {
+  coverCards: ProductCoverCard[];
+  /** Loads this fan eagerly — set on the first row, which carries the LCP. */
+  priority?: boolean;
+}) {
   // overflow-hidden crops the fan's bottom bleed at the band edge, so the
   // rotated card corners never paint over the name below.
   return (
@@ -41,6 +49,7 @@ function ProductCoverFan({ coverCards }: { coverCards: ProductCoverCard[] }) {
       ) : (
         <CardFan
           covers={coverCards.map((cover) => ({ key: cover.printingId, imageId: cover.imageId }))}
+          priority={priority}
         />
       )}
     </CoverBand>
@@ -48,16 +57,31 @@ function ProductCoverFan({ coverCards }: { coverCards: ProductCoverCard[] }) {
 }
 
 /** @returns One product tile: cover fan, name, description teaser, counts. */
-function ProductTile({ product }: { product: ProductSummary }) {
+function ProductTile({
+  product,
+  titleAs,
+  priority,
+}: {
+  product: ProductSummary;
+  /**
+   * Heading tag for the product name. Products nest under a set heading when
+   * the page groups by set, so they are h3 there and h2 on the flat layout.
+   * The visual size stays level 2 either way.
+   */
+  titleAs: "h2" | "h3";
+  priority?: boolean;
+}) {
   const teaser = markdownTeaser(product.description);
   return (
     <CardLink
       render={<Link to="/products/$slug" params={{ slug: product.slug }} />}
       className="flex-col gap-0 py-0"
     >
-      <ProductCoverFan coverCards={product.coverCards} />
+      <ProductCoverFan coverCards={product.coverCards} priority={priority} />
       <div className="flex min-w-0 flex-1 flex-col gap-1 p-4">
-        <Heading className="truncate">{product.name}</Heading>
+        <Heading as={titleAs} className="truncate">
+          {product.name}
+        </Heading>
         {teaser && <p className="text-muted-foreground line-clamp-2 text-sm">{teaser}</p>}
         <p className="text-muted-foreground mt-auto pt-1 text-sm">
           {formatProductCounts(product.cardTotal, product.printingCount)}
@@ -100,21 +124,34 @@ function ProductGroupHeading({ set }: { set: ProductSet | null }) {
   );
 }
 
+/** Tiles in the first grid row (sm:grid-cols-2), which load their art eagerly. */
+const EAGER_TILE_COUNT = 2;
+
 function ProductGrid({
   products,
   onAdd,
+  titleAs,
+  eager,
 }: {
   products: ProductSummary[];
   /** Renders a quick-add overlay per tile when set (viewer is signed in). */
   onAdd?: (product: ProductSummary) => void;
+  /** Heading tag for the tile names — see {@link ProductTile}. */
+  titleAs: "h2" | "h3";
+  /** Whether this is the first group on the page, so its first row is above the fold. */
+  eager?: boolean;
 }) {
   return (
     <ul className="grid gap-4 sm:grid-cols-2">
-      {products.map((product) => (
+      {products.map((product, index) => (
         // relative hosts the quick-add overlay as a sibling of the tile
         // link, so the button never nests inside the anchor.
         <li key={product.id} className="relative">
-          <ProductTile product={product} />
+          <ProductTile
+            product={product}
+            titleAs={titleAs}
+            priority={eager && index < EAGER_TILE_COUNT}
+          />
           {onAdd && (
             <Button
               variant="secondary"
@@ -160,16 +197,19 @@ function ProductsIndexPage() {
         </PageTopBar>
       </PageTopBarSticky>
       <div className="px-safe mx-auto w-full max-w-4xl pt-3 pb-6">
-        <PageDescription className="pb-4">
-          Full card lists for official Riftbound products.
-        </PageDescription>
+        <PageDescription className="pb-4">{PRODUCTS_DESCRIPTION}</PageDescription>
         {products.length === 0 ? (
           <ProductsEmptyState />
         ) : (
           groups.map((group, index) => (
             <section key={group.key} className={index > 0 ? "mt-8" : undefined}>
               {showHeadings && <ProductGroupHeading set={group.set} />}
-              <ProductGrid products={group.products} onAdd={handleAdd} />
+              <ProductGrid
+                products={group.products}
+                onAdd={handleAdd}
+                titleAs={showHeadings ? "h3" : "h2"}
+                eager={index === 0}
+              />
             </section>
           ))
         )}

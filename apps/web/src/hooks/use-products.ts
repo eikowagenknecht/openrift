@@ -1,3 +1,4 @@
+import type { Printing } from "@openrift/shared";
 import type { ProductDetailResponse, ProductsListResponse } from "@openrift/shared/contracts";
 import { adminProductsContract, productsContract } from "@openrift/shared/contracts";
 import { isDefinedError, safe } from "@orpc/client";
@@ -49,11 +50,55 @@ const fetchProductDetail = createServerFn({ method: "GET" })
     return data;
   });
 
+/** A product detail payload with its printings joined to cards and sets. */
+export interface EnrichedProductDetail {
+  product: ProductDetailResponse["product"];
+  contents: ProductDetailResponse["contents"];
+  sets: ProductDetailResponse["sets"];
+  /** The product's printings, in the payload's canonical order. */
+  printings: Printing[];
+  /** Same printings keyed by id, for resolving `contents` quantities. */
+  printingsById: Record<string, Printing>;
+}
+
+/**
+ * Joins the inlined cards and sets onto the wire printings, the same shape
+ * `enrichSetDetail` produces. Doing it here (rather than against the global
+ * catalog) is what lets the product page render server-side.
+ *
+ * @returns The payload with `Printing` objects ready for the grid.
+ */
+function enrichProductDetail(response: ProductDetailResponse): EnrichedProductDetail {
+  const setById = new Map(response.sets.map((set) => [set.id, set]));
+  const printings: Printing[] = [];
+  const printingsById: Record<string, Printing> = {};
+  for (const wire of response.printings) {
+    const set = setById.get(wire.setId);
+    const card = response.cards[wire.cardId];
+    // A printing whose set or card is missing can't be rendered; the catalogue
+    // guarantees both, so this only guards against a partial payload.
+    if (!set || !card) {
+      continue;
+    }
+    const printing: Printing = { ...wire, setSlug: set.slug, setReleased: set.released, card };
+    printings.push(printing);
+    printingsById[printing.id] = printing;
+  }
+  return {
+    product: response.product,
+    contents: response.contents,
+    sets: response.sets,
+    printings,
+    printingsById,
+  };
+}
+
 export function productDetailQueryOptions(slug: string) {
   return queryOptions({
     queryKey: queryKeys.products.detail(slug),
     queryFn: () => fetchProductDetail({ data: slug }),
     staleTime: 5 * 60 * 1000,
+    select: enrichProductDetail,
   });
 }
 

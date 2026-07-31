@@ -5,6 +5,11 @@ import { implement } from "@orpc/server";
 import { requireUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import { assertFound } from "../../utils/assertions.js";
+import {
+  buildCardsResponse,
+  buildPrintingsResponse,
+  loadMarkerAndChannelMaps,
+} from "../../utils/printing-response.js";
 import { toCoverCards, toProductSummary } from "../../utils/product-response.js";
 
 const os = implement(productsContract).$context<ApiContext>().use(requireUser);
@@ -27,12 +32,37 @@ export const productsRouter = {
   }),
 
   get: os.get.handler(async ({ context, input }): Promise<ProductDetailResponse> => {
-    const product = await context.repos.products.getBySlugWithCounts(input.slug);
+    const repos = context.repos;
+    const product = await repos.products.getBySlugWithCounts(input.slug);
     assertFound(product, "Product not found");
     const [contents, covers] = await Promise.all([
-      context.repos.products.contents(product.id),
-      context.repos.products.coverCards([product.id]),
+      repos.products.contents(product.id),
+      repos.products.coverCards([product.id]),
     ]);
-    return { product: toProductSummary(product, toCoverCards(covers)), contents };
+
+    // Inline the catalog slice behind the contents so the page server-renders
+    // from this response alone (same shape as the set detail read).
+    const printingIds = contents.map((content) => content.printingId);
+    const [printingRows, imageRows] = await Promise.all([
+      repos.catalog.printingsByIds(printingIds),
+      repos.catalog.printingImagesByPrintingIds(printingIds),
+    ]);
+    const cardIds = [...new Set(printingRows.map((row) => row.cardId))];
+    const [cardRows, banRows, errataRows, markerChannelMaps, sets] = await Promise.all([
+      repos.catalog.cardsByIds(cardIds),
+      repos.catalog.cardBansByCardIds(cardIds),
+      repos.catalog.cardErrataByCardIds(cardIds),
+      loadMarkerAndChannelMaps(repos, printingIds),
+      repos.catalog.sets(),
+    ]);
+    const { markerBySlug, channelsByPrinting } = markerChannelMaps;
+
+    return {
+      product: toProductSummary(product, toCoverCards(covers)),
+      contents,
+      cards: buildCardsResponse(cardRows, banRows, errataRows),
+      printings: buildPrintingsResponse(printingRows, imageRows, markerBySlug, channelsByPrinting),
+      sets,
+    };
   }),
 };

@@ -1,4 +1,9 @@
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
+import {
+  catalogCardResponseSchema,
+  catalogPrintingResponseSchema,
+  catalogSetResponseSchema,
+} from "@openrift/shared/response-schemas";
 import { isoDateTime } from "@openrift/shared/schemas";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
@@ -70,14 +75,28 @@ export const productDetailResponseSchema = z
   .object({
     product: productSummarySchema,
     contents: z.array(productContentSchema),
+    /**
+     * The cards behind `contents`, keyed by card id. Inlined (like the set
+     * detail payload) so the page renders server-side from its own response
+     * instead of waiting on the client-only catalog fetch.
+     */
+    cards: z.record(z.string(), catalogCardResponseSchema),
+    /** The product's printings in canonical order. */
+    printings: z.array(catalogPrintingResponseSchema),
+    /**
+     * Set metadata for the printings above. A product's contents can span sets
+     * (promo inserts, cross-set kits), so this is the catalogue's set list
+     * rather than the product's own set.
+     */
+    sets: z.array(catalogSetResponseSchema),
   })
   .openapi("ProductDetailResponse");
 
 /**
  * oRPC contract for the public preconstructed-product catalog (ADR-015).
  * Products are catalog data: public the moment they exist, no drafts. The
- * detail payload carries printing ids + quantities; clients resolve printings
- * against the catalog like the shared-collection page does.
+ * detail payload inlines the cards and printings behind its contents, the same
+ * shape the set detail read uses, so the page is server-renderable.
  */
 export const productsContract = {
   list: oc
