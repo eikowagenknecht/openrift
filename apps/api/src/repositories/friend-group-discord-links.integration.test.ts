@@ -31,6 +31,9 @@ describe.skipIf(!ctx)("friendGroupDiscordLinksRepo (integration)", () => {
     return `fgdl-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6).toString(36)}`;
   }
 
+  // Group ids are uuidv7, so their leading hex digits are the millisecond
+  // timestamp: every group created in the same ~65s window shares a prefix.
+  // Codes and guild ids must be derived from the whole id to stay unique.
   async function createGroup() {
     const group = await groups.createWithOwner(
       { slug: uniqueSlug(), name: "Test Group", description: null, code: null },
@@ -49,13 +52,13 @@ describe.skipIf(!ctx)("friendGroupDiscordLinksRepo (integration)", () => {
     await repo.createPendingLink({
       groupId: group.id,
       createdByUserId: OWNER_ID,
-      code: `code-${group.id.slice(0, 8)}`,
+      code: `code-${group.id}`,
       codeExpiresAt: futureExpiry(),
     });
 
     const result = await repo.redeemCode({
-      code: `code-${group.id.slice(0, 8)}`,
-      guildId: `guild-${group.id.slice(0, 8)}`,
+      code: `code-${group.id}`,
+      guildId: `guild-${group.id}`,
       guildName: "Our TCG Server",
     });
     expect(result.status).toBe("linked");
@@ -63,14 +66,14 @@ describe.skipIf(!ctx)("friendGroupDiscordLinksRepo (integration)", () => {
     const links = await repo.listLinks(group.id);
     expect(links).toHaveLength(1);
     expect(links[0]).toMatchObject({
-      guildId: `guild-${group.id.slice(0, 8)}`,
+      guildId: `guild-${group.id}`,
       guildName: "Our TCG Server",
       code: null,
       codeExpiresAt: null,
     });
     expect(links[0].linkedAt).not.toBeNull();
 
-    const found = await repo.findByGuildId(`guild-${group.id.slice(0, 8)}`);
+    const found = await repo.findByGuildId(`guild-${group.id}`);
     expect(found).toMatchObject({ groupId: group.id, groupName: "Test Group" });
   });
 
@@ -79,12 +82,12 @@ describe.skipIf(!ctx)("friendGroupDiscordLinksRepo (integration)", () => {
     await repo.createPendingLink({
       groupId: group.id,
       createdByUserId: OWNER_ID,
-      code: `expired-${group.id.slice(0, 8)}`,
+      code: `expired-${group.id}`,
       codeExpiresAt: new Date(Date.now() - 1000),
     });
     expect(
       await repo.redeemCode({
-        code: `expired-${group.id.slice(0, 8)}`,
+        code: `expired-${group.id}`,
         guildId: "guild-x",
         guildName: null,
       }),
@@ -99,25 +102,25 @@ describe.skipIf(!ctx)("friendGroupDiscordLinksRepo (integration)", () => {
     await repo.createPendingLink({
       groupId: group.id,
       createdByUserId: OWNER_ID,
-      code: `first-${group.id.slice(0, 8)}`,
+      code: `first-${group.id}`,
       codeExpiresAt: futureExpiry(),
     });
     await repo.createPendingLink({
       groupId: group.id,
       createdByUserId: OWNER_ID,
-      code: `second-${group.id.slice(0, 8)}`,
+      code: `second-${group.id}`,
       codeExpiresAt: futureExpiry(),
     });
     expect(
       await repo.redeemCode({
-        code: `first-${group.id.slice(0, 8)}`,
+        code: `first-${group.id}`,
         guildId: "guild-y",
         guildName: null,
       }),
     ).toEqual({ status: "unknown-code" });
     const result = await repo.redeemCode({
-      code: `second-${group.id.slice(0, 8)}`,
-      guildId: `guild-${group.id.slice(0, 8)}`,
+      code: `second-${group.id}`,
+      guildId: `guild-${group.id}`,
       guildName: null,
     });
     expect(result.status).toBe("linked");
@@ -126,36 +129,36 @@ describe.skipIf(!ctx)("friendGroupDiscordLinksRepo (integration)", () => {
   it("conflicts when the guild is already linked to another group, allows idempotent re-link", async () => {
     const groupA = await createGroup();
     const groupB = await createGroup();
-    const guildId = `guild-${groupA.id.slice(0, 8)}`;
+    const guildId = `guild-${groupA.id}`;
 
     await repo.createPendingLink({
       groupId: groupA.id,
       createdByUserId: OWNER_ID,
-      code: `a-${groupA.id.slice(0, 8)}`,
+      code: `a-${groupA.id}`,
       codeExpiresAt: futureExpiry(),
     });
-    await repo.redeemCode({ code: `a-${groupA.id.slice(0, 8)}`, guildId, guildName: "Old name" });
+    await repo.redeemCode({ code: `a-${groupA.id}`, guildId, guildName: "Old name" });
 
     // Another group's code for the same guild: conflict, code stays unspent.
     await repo.createPendingLink({
       groupId: groupB.id,
       createdByUserId: OWNER_ID,
-      code: `b-${groupB.id.slice(0, 8)}`,
+      code: `b-${groupB.id}`,
       codeExpiresAt: futureExpiry(),
     });
-    expect(
-      await repo.redeemCode({ code: `b-${groupB.id.slice(0, 8)}`, guildId, guildName: null }),
-    ).toEqual({ status: "guild-taken" });
+    expect(await repo.redeemCode({ code: `b-${groupB.id}`, guildId, guildName: null })).toEqual({
+      status: "guild-taken",
+    });
 
     // Same group re-links the same guild: existing link kept, name refreshed.
     await repo.createPendingLink({
       groupId: groupA.id,
       createdByUserId: OWNER_ID,
-      code: `a2-${groupA.id.slice(0, 8)}`,
+      code: `a2-${groupA.id}`,
       codeExpiresAt: futureExpiry(),
     });
     const relink = await repo.redeemCode({
-      code: `a2-${groupA.id.slice(0, 8)}`,
+      code: `a2-${groupA.id}`,
       guildId,
       guildName: "New name",
     });
@@ -171,12 +174,12 @@ describe.skipIf(!ctx)("friendGroupDiscordLinksRepo (integration)", () => {
     await repo.createPendingLink({
       groupId: groupA.id,
       createdByUserId: OWNER_ID,
-      code: `del-${groupA.id.slice(0, 8)}`,
+      code: `del-${groupA.id}`,
       codeExpiresAt: futureExpiry(),
     });
     const redeemed = await repo.redeemCode({
-      code: `del-${groupA.id.slice(0, 8)}`,
-      guildId: `guild-${groupA.id.slice(0, 8)}`,
+      code: `del-${groupA.id}`,
+      guildId: `guild-${groupA.id}`,
       guildName: null,
     });
     if (redeemed.status !== "linked") {
@@ -185,7 +188,7 @@ describe.skipIf(!ctx)("friendGroupDiscordLinksRepo (integration)", () => {
 
     expect(await repo.deleteLink(groupB.id, redeemed.link.id)).toBe(false);
     expect(await repo.deleteLink(groupA.id, redeemed.link.id)).toBe(true);
-    expect(await repo.findByGuildId(`guild-${groupA.id.slice(0, 8)}`)).toBeUndefined();
+    expect(await repo.findByGuildId(`guild-${groupA.id}`)).toBeUndefined();
   });
 
   it("cascades links away with the group", async () => {
@@ -193,15 +196,15 @@ describe.skipIf(!ctx)("friendGroupDiscordLinksRepo (integration)", () => {
     await repo.createPendingLink({
       groupId: group.id,
       createdByUserId: OWNER_ID,
-      code: `casc-${group.id.slice(0, 8)}`,
+      code: `casc-${group.id}`,
       codeExpiresAt: futureExpiry(),
     });
     await repo.redeemCode({
-      code: `casc-${group.id.slice(0, 8)}`,
-      guildId: `guild-casc-${group.id.slice(0, 8)}`,
+      code: `casc-${group.id}`,
+      guildId: `guild-casc-${group.id}`,
       guildName: null,
     });
     await db.deleteFrom("friendGroups").where("id", "=", group.id).execute();
-    expect(await repo.findByGuildId(`guild-casc-${group.id.slice(0, 8)}`)).toBeUndefined();
+    expect(await repo.findByGuildId(`guild-casc-${group.id}`)).toBeUndefined();
   });
 });

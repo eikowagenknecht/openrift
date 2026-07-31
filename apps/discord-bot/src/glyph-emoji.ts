@@ -4,7 +4,7 @@ import type { Client } from "discord.js";
 export type GlyphEmojis = ReadonlyMap<string, string>;
 
 /** Namespace prefix on the uploaded emoji names, so `might` can't collide with an unrelated app emoji. */
-export const GLYPH_EMOJI_PREFIX = "rb_";
+const GLYPH_EMOJI_PREFIX = "rb_";
 
 /** Used before the first fetch and whenever the app has no emojis uploaded. */
 export const NO_GLYPH_EMOJIS: GlyphEmojis = new Map();
