@@ -85,6 +85,13 @@ const IDLE_PACE_DELAY_MS = 300;
 const IDLE_PACE_MIN_FRAME_MS = 400;
 
 /**
+ * A gap in an artwork's top-ranked streak longer than this restarts its
+ * aim-to-lock clock: the user evidently aimed away and came back, and the
+ * diagnostic should time the current attempt, not the whole session.
+ */
+const AIM_STREAK_GAP_MS = 3000;
+
+/**
  * The guide rect in frame coordinates: a centered portrait card outline.
  *
  * @returns The quad, clockwise from the top-left corner.
@@ -416,6 +423,10 @@ export function useCardScanner(
   // bound, set where the session is created.
   const idlePaceRef = useRef({ streak: 0, lastTotalMs: 0 });
   const idleGateRef = useRef(DEFAULT_SESSION_OPTIONS.rotationFallbackDistance);
+  // When each artwork's current top-ranked streak began, for the aim-to-lock
+  // diagnostic: lockSeconds times only the verified run, while the user feels
+  // the whole stretch from aiming to the lock buzz.
+  const aimSinceRef = useRef(new Map<string, { since: number; lastSeen: number }>());
   // Quarter turns applied to grabbed frames so matching runs on upright
   // content. Android can hand over a camera buffer rotated relative to the
   // display (orientation state at track start), and users place cards
@@ -874,8 +885,15 @@ export function useCardScanner(
       },
       ...locksRef.current,
     ].slice(0, 30);
+    // Wall time since this artwork's top-ranked streak began — the number the
+    // user actually experiences, unlike lockSeconds which starts at the first
+    // VERIFIED frame and hides any seen-but-unverifiable stretch before it.
+    const aimed = aimSinceRef.current.get(track.artKey);
+    const aimSeconds = aimed ? (performance.now() - aimed.since) / 1000 : null;
+    aimSinceRef.current.delete(track.artKey);
+    const aimPart = aimSeconds === null ? "" : `, aim-to-lock ${aimSeconds.toFixed(2)}s`;
     console.log(
-      `[scan] LOCK ${track.label} (${track.key}) after ${framesToLock} frames, ${lockSeconds.toFixed(2)}s`,
+      `[scan] LOCK ${track.label} (${track.key}) after ${framesToLock} frames, ${lockSeconds.toFixed(2)}s${aimPart}`,
     );
     // A short buzz marks the lock moment, so on a phone the eyes can stay on
     // the cards instead of the lock list.
@@ -937,6 +955,18 @@ export function useCardScanner(
       return;
     }
 
+    const rankedTop = outcome.ranked[0];
+    if (rankedTop) {
+      const topArt = loaded?.artKeys.get(rankedTop.key) ?? rankedTop.key;
+      const nowMs = performance.now();
+      const streak = aimSinceRef.current.get(topArt);
+      if (!streak || nowMs - streak.lastSeen > AIM_STREAK_GAP_MS) {
+        aimSinceRef.current.set(topArt, { since: nowMs, lastSeen: nowMs });
+      } else {
+        streak.lastSeen = nowMs;
+      }
+    }
+
     noteLock(outcome);
     notePrinting(outcome);
     noteWinnerRotation(outcome);
@@ -961,9 +991,11 @@ export function useCardScanner(
       : " no-candidate";
     const winnerPart = outcome.winner
       ? ` winner ${outcome.winner.key} inliers ${outcome.winner.inliers} rival ${outcome.winner.rivalInliers}`
-      : outcome.refused
-        ? " refused"
-        : "";
+      : `${outcome.refused ? " refused" : ""}${
+          // How close a failing frame came to the 11-inlier floor; the gap
+          // between "almost verified" and "hopeless" is the diagnostic.
+          outcome.bestInliers > 0 ? ` best-inliers ${outcome.bestInliers}` : ""
+        }`;
     console.log(
       `[scan] #${frameIndexRef.current - 1} ${timings.total.toFixed(0)}ms (detect ${timings.detect.toFixed(0)}, embed ${timings.embed.toFixed(0)}, verify ${timings.verify.toFixed(0)}) focus ${outcome.focus.toFixed(0)}${topPart}${winnerPart}`,
     );
@@ -1125,6 +1157,7 @@ export function useCardScanner(
       /* oxlint-enable promise/prefer-await-to-then, promise/prefer-catch */
     };
     idlePaceRef.current = { streak: 0, lastTotalMs: 0 };
+    aimSinceRef.current.clear();
     requestAnimationFrame(loop);
     startingRef.current = false;
   }
@@ -1168,6 +1201,7 @@ export function useCardScanner(
   function clearHistory() {
     locksRef.current = [];
     frameTimesRef.current = [];
+    aimSinceRef.current.clear();
     setReadout({ ...EMPTY_READOUT });
   }
 

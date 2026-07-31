@@ -235,6 +235,13 @@ export interface FrameOutcome {
   winner: FrameWinner | null;
   /** True when a candidate cleared the inlier floor but not the margin. */
   refused: boolean;
+  /**
+   * Highest inlier count on the verified shortlist, winner or not. On a
+   * winner-less frame this says how close verification came to the floor —
+   * the difference between "card seen but two inliers short" and "nothing
+   * remotely verifiable", which no other field distinguishes.
+   */
+  bestInliers: number;
   /** The track this very frame locked, if any. */
   locked: ArtTrack | null;
   /**
@@ -277,6 +284,7 @@ const EMPTY_OUTCOME = {
   refused: false,
   locked: null,
   focus: 0,
+  bestInliers: 0,
 };
 
 /**
@@ -696,6 +704,7 @@ export function createScanSession(
       ranked: best.ranked,
       winner: decision.winner,
       refused: decision.refused,
+      bestInliers: verdicts.reduce((most, verdict) => Math.max(most, verdict.inliers), 0),
       locked,
       printingScores: printing?.scores,
       printingMargin: printing?.margin,
