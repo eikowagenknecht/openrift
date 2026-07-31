@@ -84,6 +84,8 @@ describe("gatesForEmbedDim", () => {
     expect(gates.rotationFallbackDistance).toBe(0.42);
     // The 0.457 rotation-discovery floor caps the slow-device value too.
     expect(gates.slowRotationFallbackDistance).toBeLessThan(0.457);
+    // Benched 2026-07-31: strictly better than 8 on all three clips.
+    expect(gates.topK).toBe(2);
   });
 
   it("returns the MobileCLIP clip calibration for every other dimension", () => {
@@ -92,6 +94,9 @@ describe("gatesForEmbedDim", () => {
       expect(gates.confidentDistance).toBe(DEFAULT_SESSION_OPTIONS.confidentDistance);
       expect(gates.rotationFallbackDistance).toBe(DEFAULT_SESSION_OPTIONS.rotationFallbackDistance);
       expect(gates.slowRotationFallbackDistance).toBe(0.45);
+      // MobileCLIP's shortlist must stay deep: top-K 2 measurably loses
+      // recall there (singles 4/5, binder 8/9, benched 2026-07-31).
+      expect(gates.topK).toBe(DEFAULT_SESSION_OPTIONS.topK);
     }
   });
 });

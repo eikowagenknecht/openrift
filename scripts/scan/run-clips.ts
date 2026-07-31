@@ -103,7 +103,7 @@ async function runClip(
     },
     {
       embedKind,
-      topK: Number(argValue("--top-k") ?? DEFAULT_SESSION_OPTIONS.topK),
+      topK: Number(argValue("--top-k") ?? gates.topK),
       candidatesToTry: Number(argValue("--tries") ?? DEFAULT_SESSION_OPTIONS.candidatesToTry),
       confidentDistance: Number(argValue("--confident-distance") ?? gates.confidentDistance),
       rotationMinFocus: Number(

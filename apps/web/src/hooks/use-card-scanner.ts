@@ -60,18 +60,14 @@ export const DEFAULT_SCANNER_SETTINGS: ScannerSettings = {
   candidatesToTry: DEFAULT_SESSION_OPTIONS.candidatesToTry,
 };
 
-/** Verification shortlist in single-card mode; pan mode keeps the calibrated 8. */
-const SINGLE_MODE_TOP_K = 4;
-
 /**
- * Verification shortlist under the slow-device profile: each shortlist entry
- * costs a full ORB match (the dominant per-frame cost on old silicon), and
- * the margin rule's protective rival is virtually always the nearest
- * embedding neighbour. Benched 2026-07-31 on the custom stack at top-K 2 in
- * pan, a strictly harder setting than the guide modes this applies to: locks
- * unchanged-or-better on all three clips, zero refusals, zero false locks,
- * frame time roughly halved.
+ * Shortlist caps applied on top of the per-encoder `gates.topK` (which is the
+ * real default — 2 for the custom encoder, 8 for MobileCLIP; see
+ * `gatesForEmbedDim`). They only bite for encoders whose gates ask for more:
+ * single-card mode never needs a deep rival list, and on slow silicon each
+ * shortlist entry is a full ORB match, the dominant per-frame cost.
  */
+const SINGLE_MODE_TOP_K = 4;
 const SLOW_DEVICE_TOP_K = 2;
 
 /**
@@ -600,6 +596,9 @@ export function useCardScanner(
             : settingsRef.current.candidatesToTry,
         confidentDistance: gates.confidentDistance,
         rotationFallbackDistance: gates.rotationFallbackDistance,
+        topK: single
+          ? Math.min(gates.topK, slowDevice ? SLOW_DEVICE_TOP_K : SINGLE_MODE_TOP_K)
+          : gates.topK,
         // Guide-mode pair-only rotation search, only when the served bank was
         // built in the canonical frame: a battlefield placed in the guide then
         // matches at 0 or 180 degrees, so discovery costs at most 2 encoder
@@ -611,7 +610,6 @@ export function useCardScanner(
         ...(single
           ? {
               guideFor: guideQuadFor,
-              topK: slowDevice ? SLOW_DEVICE_TOP_K : SINGLE_MODE_TOP_K,
               // One card by premise and ORB margin still gates every frame; a
               // 3-frame run shaves ~200 ms off each lock. Pan keeps the
               // clip-calibrated 4 (a 3-frame burst once false-locked there).

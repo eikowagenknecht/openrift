@@ -173,7 +173,8 @@ export const DEFAULT_SESSION_OPTIONS: ScanSessionOptions = {
   accept: { lockRun: 4, maxGapFrames: 6 },
 };
 
-/** Distance gates whose calibrated values depend on which encoder is loaded. */
+/** Per-encoder session tuning: values whose calibration depends on which
+ * encoder produced the loaded bank. */
 export interface EncoderGates {
   confidentDistance: number;
   rotationFallbackDistance: number;
@@ -182,23 +183,33 @@ export interface EncoderGates {
    * speculative pass matters more than marginal rotation recall.
    */
   slowRotationFallbackDistance: number;
+  /**
+   * Verification shortlist depth. Each entry costs a full ORB match — the
+   * dominant per-frame cost — so this is the number to shrink when an
+   * encoder's ranking is trustworthy enough.
+   */
+  topK: number;
 }
 
 /**
- * The calibrated distance gates for the encoder behind a bank, keyed by
+ * The calibrated per-encoder tuning for the encoder behind a bank, keyed by
  * embedding dimension — the one encoder property a loaded bank exposes.
  * MobileCLIP-S0 embeds at 512, the custom MobileNetV3 ArcFace encoder at 256;
  * should a future encoder collide on dimension, the bank format's flags word
  * is the place to make this explicit.
  *
- * Custom-encoder values benched 2026-07-30: confident 0.35, rotation fallback
- * 0.42 (0.45 benched clean, 0.42 keeps margin under the 0.457
+ * Custom-encoder values benched 2026-07-30/31: confident 0.35, rotation
+ * fallback 0.42 (0.45 benched clean, 0.42 keeps margin under the 0.457
  * rotation-discovery floor — which is also why its slow-device value cannot
- * rise the way MobileCLIP's does). MobileCLIP values are the 2026-07 clip
- * calibration in {@link DEFAULT_SESSION_OPTIONS}, slow-device fallback 0.45
- * measured 2026-07-27.
+ * rise the way MobileCLIP's does), top-K 2 (benched strictly better than 8
+ * even in pan: singles 5/5 where 8 refused Calm into a near-miss, zero
+ * refusals, zero false locks, half the frame time). MobileCLIP keeps the
+ * 2026-07 clip calibration in {@link DEFAULT_SESSION_OPTIONS} with
+ * slow-device fallback 0.45: its top-K 2 was benched 2026-07-31 and LOSES
+ * recall (singles 4/5, binder 8/9 — Calm and Garen gone), so its shortlist
+ * must stay deep.
  *
- * @returns The gates for sessions ranking against that bank.
+ * @returns The tuning for sessions ranking against that bank.
  */
 export function gatesForEmbedDim(dim: number): EncoderGates {
   if (dim === 256) {
@@ -206,12 +217,14 @@ export function gatesForEmbedDim(dim: number): EncoderGates {
       confidentDistance: 0.35,
       rotationFallbackDistance: 0.42,
       slowRotationFallbackDistance: 0.42,
+      topK: 2,
     };
   }
   return {
     confidentDistance: DEFAULT_SESSION_OPTIONS.confidentDistance,
     rotationFallbackDistance: DEFAULT_SESSION_OPTIONS.rotationFallbackDistance,
     slowRotationFallbackDistance: 0.45,
+    topK: DEFAULT_SESSION_OPTIONS.topK,
   };
 }
 
