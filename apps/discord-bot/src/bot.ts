@@ -1,7 +1,12 @@
 import type { MarketplaceInfoResponse } from "@openrift/shared";
 import { parsePiltoverDeckCode } from "@openrift/shared";
 import { isDefinedError, safe } from "@orpc/client";
-import type { AutocompleteInteraction, ChatInputCommandInteraction, Message } from "discord.js";
+import type {
+  AutocompleteInteraction,
+  ButtonInteraction,
+  ChatInputCommandInteraction,
+  Message,
+} from "discord.js";
 import {
   ActionRowBuilder,
   ApplicationCommandOptionType,
@@ -16,6 +21,12 @@ import {
 } from "discord.js";
 
 import type { ApiClients } from "./api-client.js";
+import {
+  buildCardDetailsEmbed,
+  detailsCustomId,
+  detailsLabel,
+  parseDetailsCustomId,
+} from "./card-details.js";
 import { buildCardEmbed } from "./card-embed.js";
 import type { CardIndex } from "./card-search.js";
 import { buildCardIndex, findCard, searchCards } from "./card-search.js";
@@ -156,6 +167,12 @@ async function marketplaceInfoFor(
   }
 }
 
+/**
+ * Builds a card reply: the embed plus the id of the printing it settled on, so
+ * the caller's Details button can ask for that same printing.
+ *
+ * @returns The embed and printing id, or null while the catalog is loading.
+ */
 async function embedForCard(
   ctx: BotContext,
   card: CatalogCard,
@@ -171,14 +188,64 @@ async function embedForCard(
     marketplaceInfoFor(ctx.api, printing?.id),
     fetchTradelistHolders(ctx.api, guildId, card.id),
   ]);
-  return buildCardEmbed({
+  const embed = buildCardEmbed({
     card,
     printing,
     snapshot,
     marketplaceInfo,
-    emojis: glyphEmojis,
     siteUrl: ctx.env.siteUrl,
     tradelists,
+  });
+  return { embed, printingId: printing?.id };
+}
+
+/**
+ * The Details button under a card reply: the stat line and card text are left
+ * off the embed because they are printed on the artwork, and this opens them
+ * on demand, ephemerally.
+ *
+ * @returns The button, ready to put in an action row.
+ */
+function detailsButton(card: CatalogCard, printingId: string | undefined, multiple: boolean) {
+  return new ButtonBuilder()
+    .setStyle(ButtonStyle.Secondary)
+    .setCustomId(detailsCustomId(card.id, printingId))
+    .setLabel(detailsLabel(card.name, multiple));
+}
+
+/**
+ * Answers a Details button click with an ephemeral card-details embed. The
+ * button carries the card and printing ids, so a click still works after a
+ * catalog refresh or a bot restart — only a card that left the catalog fails.
+ */
+async function handleDetailsButton(ctx: BotContext, interaction: ButtonInteraction) {
+  const parsed = parseDetailsCustomId(interaction.customId);
+  if (!parsed) {
+    return;
+  }
+  const snapshot = ctx.cache.snapshot;
+  const card = snapshot?.cards.find((entry) => entry.id === parsed.cardId);
+  if (!snapshot || !card) {
+    await interaction.reply({
+      content: "That card isn't in the catalog anymore, look it up again.",
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+  const printing = parsed.printingId
+    ? snapshot.printingsByCardId.get(card.id)?.find((entry) => entry.id === parsed.printingId)
+    : undefined;
+  await interaction.reply({
+    embeds: [
+      buildCardDetailsEmbed({
+        card,
+        printing,
+        snapshot,
+        emojis: glyphEmojis,
+        siteUrl: ctx.env.siteUrl,
+      }),
+    ],
+    flags: MessageFlags.Ephemeral,
   });
 }
 
@@ -248,17 +315,24 @@ async function handleCardCommand(ctx: BotContext, interaction: ChatInputCommandI
   // With no explicit printing option, the name query itself is the hint: a
   // code-typed lookup (`/card name:ogn202`) shows that exact printing, while
   // a plain name falls through to the default printing inside resolvePrinting.
-  const embed = await embedForCard(
+  const reply = await embedForCard(
     ctx,
     card,
     interaction.options.getString("printing") ?? query,
     interaction.guildId,
   );
-  if (!embed) {
+  if (!reply) {
     await interaction.editReply("Card data is still loading, try again in a moment.");
     return;
   }
-  await interaction.editReply({ embeds: [embed] });
+  await interaction.editReply({
+    embeds: [reply.embed],
+    components: [
+      new ActionRowBuilder<ButtonBuilder>().addComponents(
+        detailsButton(card, reply.printingId, false),
+      ),
+    ],
+  });
 }
 
 /**
@@ -382,19 +456,37 @@ async function handleMessage(ctx: BotContext, message: Message) {
   // For cards, the reference doubles as the printing hint so [[OGN-202]]
   // shows that printing; plain names fall through to the default inside
   // resolvePrinting.
-  const maybeEmbeds = await Promise.all(
-    matches.map((match) =>
-      match.type === "card"
-        ? embedForCard(ctx, match.card, match.reference, message.guildId)
-        : (ruleIndex &&
-            buildRuleEmbed({ entry: match.entry, index: ruleIndex, siteUrl: ctx.env.siteUrl })) ||
-          null,
-    ),
+  const replies = await Promise.all(
+    matches.map(async (match) => {
+      if (match.type === "card") {
+        const reply = await embedForCard(ctx, match.card, match.reference, message.guildId);
+        return reply && { ...reply, card: match.card };
+      }
+      const embed =
+        ruleIndex &&
+        buildRuleEmbed({ entry: match.entry, index: ruleIndex, siteUrl: ctx.env.siteUrl });
+      return embed && { embed, card: null, printingId: undefined };
+    }),
   );
-  const embeds = maybeEmbeds.filter((embed) => embed !== null);
-  if (embeds.length > 0) {
-    await message.reply({ embeds, allowedMentions: { repliedUser: false } });
+  const resolved = replies.filter((reply) => reply !== null);
+  if (resolved.length === 0) {
+    return;
   }
+  // Buttons attach to the message, not to an embed, so a reply covering
+  // several mentions carries one labelled button per card.
+  const cards = resolved.flatMap((result) =>
+    result.card ? [{ card: result.card, printingId: result.printingId }] : [],
+  );
+  const buttons = cards.map((entry) =>
+    detailsButton(entry.card, entry.printingId, cards.length > 1),
+  );
+  await message.reply({
+    embeds: resolved.map((result) => result.embed),
+    ...(buttons.length > 0
+      ? { components: [new ActionRowBuilder<ButtonBuilder>().addComponents(...buttons)] }
+      : {}),
+    allowedMentions: { repliedUser: false },
+  });
 }
 
 /**
@@ -440,7 +532,9 @@ export function createBot(ctx: BotContext): Client {
 
   client.on(Events.InteractionCreate, async (interaction) => {
     try {
-      if (interaction.isAutocomplete() && interaction.commandName === CARD_COMMAND.name) {
+      if (interaction.isButton()) {
+        await handleDetailsButton(ctx, interaction);
+      } else if (interaction.isAutocomplete() && interaction.commandName === CARD_COMMAND.name) {
         await handleAutocomplete(ctx, interaction);
       } else if (interaction.isAutocomplete() && interaction.commandName === RULE_COMMAND.name) {
         await handleRuleAutocomplete(ctx, interaction);

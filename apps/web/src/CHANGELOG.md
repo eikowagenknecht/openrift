@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-08-02
+
+### Other
+
+- feat(App): **Shorter Discord card replies** — a card lookup now shows the image and prices, with the stats and rules text behind a Details button, and flags a ban or errata right away.
+
 ## 2026-08-01
 
 ### Highlights

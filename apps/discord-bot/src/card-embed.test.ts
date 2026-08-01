@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildCardEmbed,
   cardTextFields,
+  cardWarnings,
   describeCard,
   fallbackArtDifferences,
   formatCents,
@@ -96,7 +97,7 @@ describe("cardTextFields", () => {
     effectiveDate: "2025-10-21",
   };
 
-  it("stacks rules, effect, and flavor text the way the card panel does", () => {
+  it("stacks rules and effect text the way the card panel does, without the flavor text", () => {
     const fields = cardTextFields(
       makeCard(),
       makePrinting({
@@ -109,8 +110,13 @@ describe("cardTextFields", () => {
     expect(fields).toEqual([
       { name: "Rules text", value: "Draw 1." },
       { name: "Effect text", value: "I have +2 Might." },
-      { name: "Flavor text", value: "*Bang bang!*" },
     ]);
+  });
+
+  it("returns nothing for a card whose only text is flavor text", () => {
+    expect(
+      cardTextFields(makeCard(), makePrinting({ flavorText: "Bang bang!" }), new Map()),
+    ).toEqual([]);
   });
 
   it("renders glyphs with the app's emojis when it has them", () => {
@@ -177,9 +183,12 @@ describe("buildCardEmbed", () => {
     expect(embed.footer?.text).toBe("OGN-202/298 · Origins");
   });
 
-  it("puts the card text above the price fields", () => {
+  it("leaves the stat line and the card text to the details, keeping the embed compact", () => {
     const snapshot = buildSnapshot(
-      makeCatalogResponse([makeCard()], [makePrinting({ printedRulesText: "Draw 1." })]),
+      makeCatalogResponse(
+        [makeCard()],
+        [makePrinting({ printedRulesText: "Draw 1.", flavorText: "Bang bang!" })],
+      ),
       makePricesResponse({ "printing-1": { tcgplayer: 452 } }),
       makeInitResponse(),
     );
@@ -189,11 +198,73 @@ describe("buildCardEmbed", () => {
       snapshot,
       siteUrl: SITE,
     });
-    expect(embed.fields?.map((f) => f.name)).toEqual(["Rules text", "TCGplayer"]);
-    expect(embed.fields?.[0]?.inline).toBeUndefined();
+    expect(embed.fields?.map((f) => f.name)).toEqual(["TCGplayer"]);
+    expect(embed.description).toBeUndefined();
   });
 
-  it("slots the tradelist field between the card text and the prices", () => {
+  it("keeps the ban and errata warnings above the fold, since the artwork can't show them", () => {
+    const snapshot = buildSnapshot(
+      makeCatalogResponse(
+        [
+          makeCard({
+            bans: [
+              {
+                formatId: "f1",
+                formatName: "Standard",
+                bannedAt: "2026-01-05",
+                reason: "Too fast",
+              },
+            ],
+            errata: {
+              correctedRulesText: "Draw 2.",
+              correctedEffectText: null,
+              source: "Origins Card Errata",
+              sourceUrl: "https://riftbound.example/errata",
+              effectiveDate: "2025-10-21",
+            },
+          }),
+        ],
+        [makePrinting({ printedRulesText: "Draw 1." })],
+      ),
+      makePricesResponse(),
+      makeInitResponse(),
+    );
+    const embed = buildCardEmbed({
+      card: snapshot.cards[0]!,
+      printing: snapshot.printingsByCardId.get("card-1")![0],
+      snapshot,
+      siteUrl: SITE,
+    });
+    expect(embed.description).toBe(
+      "🚫 **Banned** in Standard\n" +
+        "⚠️ **Errata** ([Origins Card Errata, 2025-10](https://riftbound.example/errata))",
+    );
+  });
+
+  it("names every format a card is banned in", () => {
+    const card = makeCard({
+      bans: [
+        { formatId: "f1", formatName: "Standard", bannedAt: "2026-01-05", reason: null },
+        { formatId: "f2", formatName: "Ranked", bannedAt: "2026-02-01", reason: null },
+      ],
+    });
+    expect(cardWarnings(card)).toEqual(["🚫 **Banned** in Standard, Ranked"]);
+  });
+
+  it("keeps the errata warning unlinked when the errata has no source URL", () => {
+    const card = makeCard({
+      errata: {
+        correctedRulesText: "Draw 2.",
+        correctedEffectText: null,
+        source: "Origins Card Errata",
+        sourceUrl: null,
+        effectiveDate: null,
+      },
+    });
+    expect(cardWarnings(card)).toEqual(["⚠️ **Errata** (Origins Card Errata)"]);
+  });
+
+  it("puts the tradelist field above the prices", () => {
     const snapshot = buildSnapshot(
       makeCatalogResponse([makeCard()], [makePrinting({ printedRulesText: "Draw 1." })]),
       makePricesResponse({ "printing-1": { tcgplayer: 452 } }),
@@ -221,11 +292,10 @@ describe("buildCardEmbed", () => {
       },
     });
     expect(embed.fields?.map((f) => f.name)).toEqual([
-      "Rules text",
       "On tradelists in Summoner Skirmish",
       "TCGplayer",
     ]);
-    expect(embed.fields?.[1]?.value).toBe(
+    expect(embed.fields?.[0]?.value).toBe(
       [
         "Alice · 2×",
         "-# OGN-202/298 2× (Binder)",
@@ -443,8 +513,7 @@ describe("buildCardEmbed", () => {
       siteUrl: SITE,
     });
     expect(embed.image?.url).toBe(`${SITE}/media/cards/aa/0197f00d00aa-full.webp`);
-    expect(embed.description).toContain("*Standard-printing artwork shown*");
-    expect(embed.description).not.toContain("differs");
+    expect(embed.description).toBe("*Standard-printing artwork shown*");
   });
 
   it("omits image and note when no standard printing has an image", () => {
@@ -460,7 +529,7 @@ describe("buildCardEmbed", () => {
       siteUrl: SITE,
     });
     expect(embed.image).toBeUndefined();
-    expect(embed.description).not.toContain("artwork");
+    expect(embed.description).toBeUndefined();
   });
 
   it("omits price fields, image, and footer when data is missing", () => {

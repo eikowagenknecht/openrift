@@ -5,7 +5,6 @@ import type { APIEmbed, APIEmbedField } from "discord.js";
 import { formatCardText } from "./card-text.js";
 import type { CatalogCard, CatalogPrinting, CatalogSnapshot, EnumLabels } from "./catalog-cache.js";
 import type { GlyphEmojis } from "./glyph-emoji.js";
-import { NO_GLYPH_EMOJIS } from "./glyph-emoji.js";
 import type { TradelistHolderPrinting, TradelistHolders } from "./group-tradelists.js";
 import { printingVariantParts } from "./printing-choice.js";
 
@@ -16,7 +15,7 @@ export const EMBED_COLOR = 0x24_70_5f;
 const MARKETPLACE_ORDER: readonly Marketplace[] = ["tcgplayer", "cardmarket", "cardtrader"];
 
 /** Discord's per-field value cap. */
-const FIELD_LIMIT = 1024;
+export const FIELD_LIMIT = 1024;
 
 export interface CardEmbedInput {
   card: CatalogCard;
@@ -24,8 +23,6 @@ export interface CardEmbedInput {
   snapshot: CatalogSnapshot;
   /** Per-marketplace product availability for the printing; optional so a failed lookup degrades to search links. */
   marketplaceInfo?: MarketplaceInfoResponse["infos"][string];
-  /** Glyph token → custom emoji mention; defaults to none, which renders glyphs as words. */
-  emojis?: GlyphEmojis;
   siteUrl: string;
   /** Members of the guild's linked group offering the card on a shared tradelist. */
   tradelists?: TradelistHolders | null;
@@ -249,7 +246,7 @@ function resolveEmbedArt(
  *
  * @returns The footer text.
  */
-function printingFooter(printing: CatalogPrinting, snapshot: CatalogSnapshot): string {
+export function printingFooter(printing: CatalogPrinting, snapshot: CatalogSnapshot): string {
   const set = snapshot.setsById.get(printing.setId);
   const siblings = snapshot.printingsByCardId.get(printing.cardId) ?? [];
   const parts = [printing.publicCode];
@@ -260,32 +257,62 @@ function printingFooter(printing: CatalogPrinting, snapshot: CatalogSnapshot): s
   return parts.join(" · ");
 }
 
-function truncate(text: string, max: number): string {
+export function truncate(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
 }
 
 /**
- * The one-line errata credit under a corrected text block, mirroring the
- * site's `ErrataNotice` header: the source (linked when it has a URL) and the
- * effective month. The original printed text stays off the embed — it lives
- * behind a disclosure on the site, and the embed has no disclosures.
+ * The errata's source and effective month, mirroring the site's `ErrataNotice`
+ * header and linked when the errata has a source URL.
+ *
+ * @returns The credit, without surrounding markup.
+ */
+function errataCredit(errata: NonNullable<CatalogCard["errata"]>): string {
+  const label = errata.effectiveDate
+    ? `${errata.source}, ${errata.effectiveDate.slice(0, 7)}`
+    : errata.source;
+  return errata.sourceUrl ? `[${label}](${errata.sourceUrl})` : label;
+}
+
+/**
+ * The one-line errata credit under a corrected text block. The original
+ * printed text stays off the embed — it lives behind a disclosure on the site,
+ * and the embed has no disclosures.
  *
  * @returns The credit line.
  */
 function errataNote(errata: NonNullable<CatalogCard["errata"]>): string {
-  const label = errata.effectiveDate
-    ? `${errata.source}, ${errata.effectiveDate.slice(0, 7)}`
-    : errata.source;
-  return `*Errata (${errata.sourceUrl ? `[${label}](${errata.sourceUrl})` : label})*`;
+  return `*Errata (${errataCredit(errata)})*`;
+}
+
+/**
+ * The lines that have to stay above the fold, because they are the two things
+ * the artwork cannot tell you: the card is banned somewhere, or its printed
+ * text has been erratated and the image is therefore wrong. Everything else
+ * about a card is legible on the image itself and lives behind the Details
+ * button.
+ *
+ * @returns Zero to two description lines.
+ */
+export function cardWarnings(card: CatalogCard): string[] {
+  const lines: string[] = [];
+  if (card.bans.length > 0) {
+    lines.push(`🚫 **Banned** in ${card.bans.map((ban) => ban.formatName).join(", ")}`);
+  }
+  if (card.errata) {
+    lines.push(`⚠️ **Errata** (${errataCredit(card.errata)})`);
+  }
+  return lines;
 }
 
 /**
  * The card's text blocks, in the order the site's card panel stacks them:
- * rules text, effect text (with the might bonus that shares its box), and
- * flavor text. Errata replace the printed rules and effect text, as on the
- * site, with a credit line when they differ from what was printed.
+ * rules text, then effect text (with the might bonus that shares its box).
+ * Errata replace the printed rules and effect text, as on the site, with a
+ * credit line when they differ from what was printed. Flavor text is not
+ * included — it is printed on the artwork and never decides anything.
  *
- * @returns Zero to three full-width embed fields.
+ * @returns Zero to two full-width embed fields.
  */
 export function cardTextFields(
   card: CatalogCard,
@@ -319,21 +346,17 @@ export function cardTextFields(
     fields.push({ name: "Effect text", value: truncate(value, FIELD_LIMIT) });
   }
 
-  if (printing?.flavorText) {
-    fields.push({
-      name: "Flavor text",
-      value: truncate(`*${printing.flavorText}*`, FIELD_LIMIT),
-    });
-  }
-
   return fields;
 }
 
 /**
  * Builds the reply embed for a card: name linking to its OpenRift page, the
- * stat line, the card's rules / effect / flavor text, the front image, and one
- * inline price field per marketplace that has a price for the representative
- * printing.
+ * front image, and one inline price field per marketplace that has a price for
+ * the representative printing. The stat line and the card's text are not here
+ * — they are printed on the artwork, so they live behind the Details button
+ * (see `buildCardDetailsEmbed`) and the reply stays one screenful. Only what
+ * the image cannot say stays above the fold: bans, errata, and the note that a
+ * substitute artwork is being shown.
  *
  * @returns A plain APIEmbed ready to send.
  */
@@ -358,20 +381,16 @@ export function buildCardEmbed(input: CardEmbedInput): APIEmbed {
     ];
   });
 
-  // Text first, then tradelists, then the prices: the price fields are
-  // inline, so they pack into one row under the full-width blocks.
+  // Tradelists first, then the prices: the price fields are inline, so they
+  // pack into one row under the full-width holders block.
   const holdersField = tradelistField(input.tradelists, snapshot, card);
-  const fields = [
-    ...cardTextFields(card, printing, input.emojis ?? NO_GLYPH_EMOJIS),
-    ...(holdersField ? [holdersField] : []),
-    ...priceFields,
-  ];
+  const fields = [...(holdersField ? [holdersField] : []), ...priceFields];
 
-  const statLine = describeCard(card, snapshot.labels);
+  const lines = [...cardWarnings(card), ...(fallbackNote ? [fallbackNote] : [])];
   return {
     title: card.name,
     url: `${siteUrl}/cards/${card.slug}`,
-    description: fallbackNote ? `${statLine}\n${fallbackNote}` : statLine,
+    ...(lines.length > 0 ? { description: lines.join("\n") } : {}),
     color: EMBED_COLOR,
     ...(imageId ? { image: { url: `${siteUrl}${imageUrl(imageId, "full")}` } } : {}),
     ...(fields.length > 0 ? { fields } : {}),
