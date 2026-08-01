@@ -461,6 +461,7 @@ export type AdminEventAction =
   | "candidate-printing.delete"
   | "candidate-printing.copy"
   | "candidate-printing.link"
+  | "candidate-printing.relink"
   | "candidate-printing.ignore"
   | "candidate-printing.unignore"
   | "candidate-card.ignore"

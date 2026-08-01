@@ -137,6 +137,7 @@ export function buildPrintingGroups(
     return {
       candidates,
       expectedPrintingId: g.expectedPrintingId,
+      suggestedPrintingId: g.suggestedPrintingId,
       groupKey: candidates[0]?.id ?? `${g.expectedPrintingId}-${index}`,
     };
   });

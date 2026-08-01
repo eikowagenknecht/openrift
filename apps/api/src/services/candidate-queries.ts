@@ -424,6 +424,11 @@ export async function buildExport(repo: Repo) {
         // they must survive an export → re-import cycle. Previously omitted.
         language: p.language,
         printed_name: p.printedName,
+        // Exported so the private candidate generators can use this document as
+        // the canonical printing reference (finish enrichment keys on
+        // short_code + language + markers).
+        marker_slugs: p.markerSlugs,
+        size: p.size,
       })),
     };
   });
@@ -561,6 +566,37 @@ async function buildDetailResponse(
     arr.push(cp);
   }
 
+  // Closest accepted printing for a candidate group whose exact expected id
+  // has no counterpart: same short code (case-insensitive) and language, then
+  // ranked by finish match, marker-set distance, and canonical order. Lets the
+  // UI offer a one-click link for near-misses (marker or finish drift, e.g. a
+  // source reporting `promo` where the catalogue says `launch-exclusive`).
+  function findSuggestedPrinting(
+    mcShortCode: string,
+    finish: string,
+    markerSlugs: string[],
+    language: string | null,
+  ): string | null {
+    const wantedCode = mcShortCode.toUpperCase();
+    const wantedLanguage = language ?? WellKnown.language.EN;
+    const wantedMarkers = new Set(markerSlugs);
+    let best: { id: string; score: number; rank: number } | null = null;
+    for (const p of formattedPrintings) {
+      if (p.shortCode.toUpperCase() !== wantedCode || p.language !== wantedLanguage) {
+        continue;
+      }
+      const markerDistance =
+        p.markerSlugs.filter((s) => !wantedMarkers.has(s)).length +
+        markerSlugs.filter((s) => !p.markerSlugs.includes(s)).length;
+      // Finish mismatch outweighs any realistic marker distance.
+      const score = (p.finish === finish ? 0 : 100) + markerDistance;
+      if (!best || score < best.score || (score === best.score && p.canonicalRank < best.rank)) {
+        best = { id: p.id, score, rank: p.canonicalRank };
+      }
+    }
+    return best?.id ?? null;
+  }
+
   // Build one group per distinct printing variant — the UI shows these as rows
   // the admin can accept as new printings or match to existing ones
   const filteredGroups: CandidatePrintingGroupResponse[] = [];
@@ -580,6 +616,12 @@ async function buildDetailResponse(
         language,
       ),
       language,
+      suggestedPrintingId: findSuggestedPrinting(
+        mcShortCode,
+        finish,
+        first.markerSlugs ?? [],
+        language,
+      ),
     });
   }
 

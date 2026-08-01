@@ -74,4 +74,85 @@ describe("NewPrintingGroupCard", () => {
 
     expect(spreadsheetProps.costKeywords).toEqual(["Empower"]);
   });
+
+  // The server suggests the closest accepted printing when no existing printing
+  // matches the group's expected id exactly (marker/finish/case drift). The
+  // header then offers a one-click assign labelled with the target so the admin
+  // sees what they would link to.
+  it("offers a one-click assign to the suggested printing when no exact match exists", () => {
+    const onLink = vi.fn();
+    const suggestedGroup = {
+      groupKey: "g1",
+      expectedPrintingId: "OGN-066:promo:foil",
+      suggestedPrintingId: "p-le",
+      candidates: [{ id: "cp-1" }, { id: "cp-2" }],
+    } as unknown as PrintingGroup & { groupKey: string };
+    const existing = [
+      { id: "p-le", expectedPrintingId: "OGN-066:launch-exclusive:foil" },
+    ] as never[];
+
+    const { getByText } = render(
+      <NewPrintingGroupCard
+        group={suggestedGroup}
+        existingPrintings={existing}
+        providerLabels={{}}
+        providerNames={{}}
+        providerSettings={[]}
+        setTotals={{}}
+        setReleaseYears={{}}
+        isExpanded={false}
+        onToggle={noop}
+        onAccept={noop}
+        onLink={onLink}
+        onCopy={noop}
+        onDelete={noop}
+        onIgnore={noop}
+        isAccepting={false}
+        isAdmin
+        printingFields={[]}
+        invalidates={[]}
+      />,
+    );
+
+    getByText("Assign all to OGN-066:launch-exclusive:foil").click();
+    expect(onLink).toHaveBeenCalledWith("p-le", ["cp-1", "cp-2"]);
+  });
+
+  it("keeps the exact-match assign button when the expected id matches an existing printing", () => {
+    const exactGroup = {
+      groupKey: "g1",
+      expectedPrintingId: "OGN-066::foil",
+      // The server still fills the suggestion (it prefers the exact match);
+      // the exact button must win so only one assign action renders.
+      suggestedPrintingId: "p-exact",
+      candidates: [],
+    } as unknown as PrintingGroup & { groupKey: string };
+    const existing = [{ id: "p-exact", expectedPrintingId: "OGN-066::foil" }] as never[];
+
+    const { getByText, queryByText } = render(
+      <NewPrintingGroupCard
+        group={exactGroup}
+        existingPrintings={existing}
+        providerLabels={{}}
+        providerNames={{}}
+        providerSettings={[]}
+        setTotals={{}}
+        setReleaseYears={{}}
+        isExpanded={false}
+        onToggle={noop}
+        onAccept={noop}
+        onLink={noop}
+        onCopy={noop}
+        onDelete={noop}
+        onIgnore={noop}
+        isAccepting={false}
+        isAdmin
+        printingFields={[]}
+        invalidates={[]}
+      />,
+    );
+
+    expect(getByText("Assign all to existing")).toBeTruthy();
+    expect(queryByText(/Assign all to OGN-066/u)).toBeNull();
+  });
 });

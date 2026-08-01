@@ -774,6 +774,55 @@ describe("buildExport", () => {
     expect(result[0].printings[0].extra_data).toBeNull();
   });
 
+  it("exports marker_slugs and size for the canonical reference", async () => {
+    const repo = createMockRepo({
+      exportCards: vi.fn().mockResolvedValue([
+        {
+          id: "card-1",
+          slug: "OGN-066",
+          name: "Ahri",
+          type: "unit",
+          types: ["unit"],
+          superTypes: [],
+          domains: ["calm"],
+          might: 3,
+          energy: 2,
+          power: null,
+          mightBonus: null,
+          tags: [],
+        },
+      ]),
+      exportPrintings: vi.fn().mockResolvedValue([
+        {
+          id: "p-1",
+          cardId: "card-1",
+          shortCode: "OGN-066",
+          setSlug: "ogn",
+          setName: "Origins",
+          rarity: "rare",
+          artVariant: "normal",
+          isSigned: false,
+          markerSlugs: ["launch-exclusive"],
+          size: "standard",
+          finish: "foil",
+          artist: "Jane Doe",
+          publicCode: "066",
+          printedRulesText: null,
+          printedEffectText: null,
+          flavorText: null,
+          originalUrl: null,
+          rehostedUrl: null,
+          imageId: null,
+        },
+      ]),
+    });
+
+    const result = await buildExport(repo);
+
+    expect(result[0].printings[0].marker_slugs).toEqual(["launch-exclusive"]);
+    expect(result[0].printings[0].size).toBe("standard");
+  });
+
   it("prefers originalUrl over rehostedUrl for image_url", async () => {
     const repo = createMockRepo({
       exportCards: vi.fn().mockResolvedValue([
@@ -1439,6 +1488,114 @@ describe("buildCardDetail", () => {
     expect(result.candidatePrintingGroups).toHaveLength(1);
     expect(result.candidatePrintingGroups[0].shortCodes).toEqual(["cp-1", "cp-2"]);
     expect(result.candidatePrintingGroups[0].expectedPrintingId).toBe("OGN-001::normal");
+    // No accepted printings in this setup, so there is nothing to suggest.
+    expect(result.candidatePrintingGroups[0].suggestedPrintingId).toBeNull();
+  });
+
+  it("suggests the closest accepted printing for near-miss groups", async () => {
+    const candidateCard = {
+      id: "cc-1",
+      provider: "riftcore",
+      name: "X",
+      type: null,
+      superTypes: [],
+      domains: [],
+      might: null,
+      energy: null,
+      power: null,
+      mightBonus: null,
+      rulesText: null,
+      effectText: null,
+      tags: [],
+      shortCode: null,
+      externalId: "ext",
+      extraData: null,
+      checkedAt: null,
+    };
+    const makeCandidatePrinting = (overrides: Record<string, unknown>) => ({
+      id: "cp-1",
+      candidateCardId: "cc-1",
+      printingId: null,
+      shortCode: "OGN-066",
+      setId: "s1",
+      setName: "S",
+      rarity: "rare",
+      artVariant: "normal",
+      isSigned: false,
+      markerSlugs: [],
+      finish: "foil",
+      artist: "A",
+      publicCode: "066",
+      printedRulesText: null,
+      printedEffectText: null,
+      imageUrl: null,
+      flavorText: null,
+      externalId: "ext-p1",
+      extraData: null,
+      checkedAt: null,
+      ...overrides,
+    });
+    const makeAcceptedPrinting = (overrides: Record<string, unknown>) => ({
+      id: "p-plain",
+      cardId: "card-1",
+      setId: "set-uuid-1",
+      shortCode: "OGN-066",
+      rarity: "rare",
+      artVariant: "normal",
+      isSigned: false,
+      markerSlugs: [],
+      finish: "foil",
+      language: "EN",
+      artist: "A",
+      publicCode: "066",
+      printedRulesText: null,
+      printedEffectText: null,
+      flavorText: null,
+      comment: null,
+      canonicalRank: 1,
+      ...overrides,
+    });
+    const repo = createMockRepo({
+      cardForDetailBySlug: vi.fn().mockResolvedValue(matchedCard),
+      cardNameAliases: vi.fn().mockResolvedValue([{ normName: "x" }]),
+      candidateCardsForDetail: vi.fn().mockResolvedValue([candidateCard]),
+      candidatePrintingsForDetail: vi.fn().mockResolvedValue([
+        // Marker drift: source says promo, catalogue has {} and {launch-exclusive}.
+        makeCandidatePrinting({ id: "cp-1", externalId: "ext-p1", markerSlugs: ["promo"] }),
+        // Case drift + finish drift: lowercased code, normal where only foil exists.
+        makeCandidatePrinting({
+          id: "cp-2",
+          externalId: "ext-p2",
+          shortCode: "ogn-066",
+          finish: "normal",
+          rarity: null,
+        }),
+        // No counterpart at all.
+        makeCandidatePrinting({ id: "cp-3", externalId: "ext-p3", shortCode: "OGN-999" }),
+      ]),
+      printingsForDetail: vi.fn().mockResolvedValue([
+        makeAcceptedPrinting({ id: "p-plain", canonicalRank: 1 }),
+        makeAcceptedPrinting({
+          id: "p-le",
+          markerSlugs: ["launch-exclusive"],
+          canonicalRank: 2,
+        }),
+      ]),
+      setInfoByIds: vi
+        .fn()
+        .mockResolvedValue([{ id: "set-uuid-1", slug: "ogn", name: "Origins", printedTotal: 298 }]),
+    });
+
+    const result = await buildCardDetail(repo, mpRepo(), "x");
+
+    const bySuggestion = new Map(
+      result.candidatePrintingGroups.map((g) => [g.shortCodes[0], g.suggestedPrintingId]),
+    );
+    // {promo} is 1 marker away from {} but 2 away from {launch-exclusive}.
+    expect(bySuggestion.get("cp-1")).toBe("p-plain");
+    // Code matches case-insensitively; finish mismatch still yields the foil.
+    expect(bySuggestion.get("cp-2")).toBe("p-plain");
+    expect(bySuggestion.get("cp-3")).toBeNull();
   });
 
   it("excludes linked candidate printings from grouping", async () => {

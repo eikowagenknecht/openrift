@@ -247,6 +247,12 @@ export function NewPrintingGroupCard({
 
   // custom: find existing printing whose expectedPrintingId matches the guessed ID so we can offer a quick "assign all" action
   const matchingExisting = existingPrintings.find((p) => p.expectedPrintingId === guessedId);
+  // No exact match: fall back to the server-side suggestion (same code +
+  // language, markers/finish may drift). Shown with the target's label so the
+  // admin sees what they'd be linking to before clicking.
+  const suggestedExisting = matchingExisting
+    ? undefined
+    : existingPrintings.find((p) => p.id === group.suggestedPrintingId);
 
   return (
     <div className="overflow-hidden rounded-md border border-dashed">
@@ -298,6 +304,22 @@ export function NewPrintingGroupCard({
             >
               <ArrowRightIcon className="mr-1 size-3.5" />
               Assign all to existing
+            </Button>
+          )}
+          {/* custom: near-miss suggestion — same code + language but marker/finish drift; outline styling signals it needs a look before clicking */}
+          {isAdmin && suggestedExisting && (
+            <Button
+              variant="outline"
+              disabled={isLinking}
+              onClick={() =>
+                onLink(
+                  suggestedExisting.id,
+                  group.candidates.map((s) => s.id),
+                )
+              }
+            >
+              <ArrowRightIcon className="mr-1 size-3.5" />
+              Assign all to {suggestedExisting.expectedPrintingId}
             </Button>
           )}
           <Button

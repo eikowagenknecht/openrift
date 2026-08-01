@@ -24,6 +24,7 @@ import {
   updatePrintingMarkers,
 } from "../../../services/printing-admin.js";
 import { recordAdminEvent } from "../../../services/record-admin-event.js";
+import { relinkCandidatePrintings } from "../../../services/relink-candidates.js";
 import { assertDeleted, assertFound, assertUpdated } from "../../../utils/assertions.js";
 
 const os = implement(adminCardMutationsContract).$context<ApiContext>().use(requireAuthedUser);
@@ -768,6 +769,24 @@ export const adminCardMutationsRouter = {
       newValues: { printingsCreated: result.printingsCreated, skipped: result.skipped.length },
     });
 
+    if (result.printingsCreated > 0) {
+      // Same reason as the single acceptPrinting handler: candidates from other
+      // providers were keyed before these printings existed.
+      await relinkCandidatePrintings(context.repos);
+    }
+
+    return result;
+  }),
+
+  relinkCandidatePrintings: os.relinkCandidatePrintings.handler(async ({ context }) => {
+    const result = await relinkCandidatePrintings(context.repos);
+
+    await recordAdminEvent(context.repos, context.userId, {
+      action: "candidate-printing.relink",
+      entityType: "candidate-printing",
+      newValues: { examined: result.examined, linked: result.linked },
+    });
+
     return result;
   }),
 
@@ -840,6 +859,11 @@ export const adminCardMutationsRouter = {
     // A brand-new printing has no rank row yet, so it would sort last until the
     // next refresh (migration 215).
     await context.repos.catalog.refreshCanonicalRank();
+
+    // Other providers' candidates for this printing were uploaded before it
+    // existed, so their ingest-time key resolution missed it. Re-resolve now so
+    // they leave the "new printing" list on the very next refetch.
+    await relinkCandidatePrintings(context.repos);
 
     return { printingId };
   }),

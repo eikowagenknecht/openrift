@@ -99,6 +99,10 @@ export const candidatePrintingGroupResponseSchema = z
     shortCodes: z.array(z.string()),
     expectedPrintingId: z.string(),
     language: z.string().nullable(),
+    /** Closest accepted printing (same code + language, markers/finish may
+     * differ) — the UI's fallback for the one-click link when no exact
+     * expected-id match exists. Null when nothing plausible exists. */
+    suggestedPrintingId: z.string().nullable(),
   })
   .openapi("CandidatePrintingGroupResponse");
 

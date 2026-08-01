@@ -241,9 +241,10 @@ export type UploadCandidatesBody = z.input<typeof uploadCandidatesSchema>;
 // single literal schema can't serve both (the upload side is lenient + value-
 // validated for untrusted input; this side is a strict emit of trusted DB rows),
 // so the guarantee that they line up is enforced by a round-trip integration
-// test rather than shared object identity. `marker_slugs` /
-// `distribution_channel_slugs` are admin-curated and not exported (optional
-// here); every other field round-trips.
+// test rather than shared object identity. `distribution_channel_slugs` is
+// admin-curated and not exported (optional here); every other field
+// round-trips, including `marker_slugs` and `size` (the private candidate
+// generators read this export as the canonical printing reference).
 const candidateExportCardSchema = z.object({
   name: z.string(),
   types: z.array(z.string()),
@@ -281,6 +282,7 @@ const candidateExportPrintingSchema = z.object({
   printed_name: z.string().nullable(),
   marker_slugs: z.array(z.string()).optional(),
   distribution_channel_slugs: z.array(z.string()).optional(),
+  size: z.string().optional(),
 });
 
 export const candidateExportDocumentSchema = z.array(
@@ -438,6 +440,13 @@ export const adminCardMutationsContract = {
         printingId: z.string().nullable(),
       }),
     ),
+  relinkCandidatePrintings: authedRoute
+    .route({
+      method: "POST",
+      path: `${CARDS}/candidate-printings/relink`,
+      tags: [TAG],
+    })
+    .output(z.object({ examined: z.number(), linked: z.number() })),
   renameCard: authedRoute
     .route({ method: "POST", path: `${CARDS}/{cardId}/rename`, tags: [TAG], successStatus: 204 })
     .errors({

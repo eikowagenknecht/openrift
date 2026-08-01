@@ -7,6 +7,7 @@ import {
   DownloadIcon,
   EyeIcon,
   EyeOffIcon,
+  Link2Icon,
   ListChecksIcon,
   LoaderIcon,
   StarIcon,
@@ -33,7 +34,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useCheckProvider, useDeleteProvider } from "@/hooks/use-admin-card-mutations";
+import {
+  useCheckProvider,
+  useDeleteProvider,
+  useRelinkCandidatePrintings,
+} from "@/hooks/use-admin-card-mutations";
 import { useProviderNames, useProviderStats } from "@/hooks/use-admin-card-queries";
 import type { UploadCandidatesBody } from "@/hooks/use-admin-image-mutations";
 import { useUploadCandidates } from "@/hooks/use-admin-image-mutations";
@@ -333,6 +338,7 @@ export function CandidateUploadPage() {
           )}
         </CardContent>
       </Card>
+      <RelinkCandidatesCard />
       <ExportCardsCard />
       {providerNames.length > 0 && (
         <ManageProvidersCard providerNames={providerNames} providerStats={providerStats} />
@@ -521,6 +527,50 @@ function DiffTable({
         </table>
       </div>
     </div>
+  );
+}
+
+function RelinkCandidatesCard() {
+  const relink = useRelinkCandidatePrintings();
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Link2Icon className="size-5 shrink-0" />
+          Relink Candidates
+        </CardTitle>
+        <CardDescription>
+          Re-match all unlinked candidate printings against the current catalogue. Uploads only link
+          at upload time, so printings accepted since a provider&apos;s last upload leave matching
+          candidates stranded as &quot;new&quot; until this runs (it also runs automatically after
+          each accepted printing).
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Button disabled={relink.isPending} onClick={() => relink.mutate()}>
+          {relink.isPending ? (
+            <>
+              <LoaderIcon className="size-4 animate-spin" />
+              Relinking...
+            </>
+          ) : (
+            "Relink Now"
+          )}
+        </Button>
+        {relink.isSuccess && (
+          <p className="text-muted-foreground mt-2 text-sm">
+            Linked {relink.data.linked} of {relink.data.examined} unlinked candidate printings.
+          </p>
+        )}
+        {relink.isError && (
+          <p className="mt-2 flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+            <XIcon className="size-4" />
+            {relink.error.message}
+          </p>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

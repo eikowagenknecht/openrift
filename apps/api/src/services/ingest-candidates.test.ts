@@ -349,6 +349,58 @@ describe("ingestCandidates", () => {
     expect(insertCall.printingId).toBe("printing-uuid");
   });
 
+  it("resolves printingId when the source omits rarity", async () => {
+    // Rarity is not part of the composite key; requiring it left sources that
+    // report finish but no rarity permanently unlinked.
+    const repos = createMockRepos({
+      allCardNorms: vi.fn().mockResolvedValue([{ normName: "fireball", id: "card-uuid" }]),
+      allPrintingKeys: vi.fn().mockResolvedValue([
+        {
+          shortCode: "OGN-001",
+          finish: "normal",
+          markerSlugs: [],
+          id: "printing-uuid",
+          language: "EN",
+        },
+      ]),
+    });
+    const transact = mockTransact(repos);
+    const card = makeCard({
+      printings: [makePrinting({ rarity: null, finish: "normal" })],
+    });
+    const result = await ingestCandidates(transact, "gallery", [card]);
+
+    expect(result.newPrintings).toBe(1);
+    const insertCall = (repos.ingest as any).insertCandidatePrinting.mock.calls[0][0];
+    expect(insertCall.printingId).toBe("printing-uuid");
+  });
+
+  it("resolves printingId case-insensitively on short code", async () => {
+    // Sources drift on casing ("VEN-sp3" vs "VEN-SP3"); both sides of the key
+    // are uppercased so they still link.
+    const repos = createMockRepos({
+      allCardNorms: vi.fn().mockResolvedValue([{ normName: "fireball", id: "card-uuid" }]),
+      allPrintingKeys: vi.fn().mockResolvedValue([
+        {
+          shortCode: "VEN-SP3",
+          finish: "foil",
+          markerSlugs: [],
+          id: "printing-uuid",
+          language: "EN",
+        },
+      ]),
+    });
+    const transact = mockTransact(repos);
+    const card = makeCard({
+      printings: [makePrinting({ short_code: "VEN-sp3", rarity: "epic", finish: "foil" })],
+    });
+    const result = await ingestCandidates(transact, "gallery", [card]);
+
+    expect(result.newPrintings).toBe(1);
+    const insertCall = (repos.ingest as any).insertCandidatePrinting.mock.calls[0][0];
+    expect(insertCall.printingId).toBe("printing-uuid");
+  });
+
   it("does not resolve a card when the name normalizes to nothing", async () => {
     // A name with no letters or digits normalizes to "". That key identifies
     // nothing, so it must not match a card that also normalized to "" —

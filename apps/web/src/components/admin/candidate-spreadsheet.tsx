@@ -205,6 +205,9 @@ export function buildCandidatePrintingFields(
 export interface PrintingGroup {
   candidates: CandidatePrintingResponse[];
   expectedPrintingId: string;
+  /** Server-computed closest accepted printing (same code + language, markers/
+   * finish may differ); backs the one-click assign when no exact match exists. */
+  suggestedPrintingId: string | null;
 }
 
 // -- Spreadsheet component ----------------------------------------------------

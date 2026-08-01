@@ -47,8 +47,12 @@ const sampleExport = [
         // The fields a prior export silently dropped — they must round-trip.
         language: "SC",
         printed_name: "遗弃",
-        // marker_slugs / distribution_channel_slugs are admin-curated and
-        // deliberately absent from the export (optional in the document schema).
+        // Exported since the private generators use this document as the
+        // canonical printing reference (finish/marker enrichment).
+        marker_slugs: ["launch-exclusive"],
+        size: "standard",
+        // distribution_channel_slugs stays admin-curated and absent from the
+        // export (optional in the document schema).
       },
     ],
   },

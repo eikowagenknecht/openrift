@@ -547,6 +547,25 @@ export function useCheckProvider() {
   });
 }
 
+const relinkCandidatePrintingsFn = createServerFn({ method: "POST" })
+  .middleware([withCookies])
+  .handler(
+    ({ context }): Promise<{ examined: number; linked: number }> =>
+      apiOrpcClient(adminCardMutationsContract, context.cookie).relinkCandidatePrintings(),
+  );
+
+/**
+ * Re-runs ingest key resolution for all unlinked candidate printings, linking
+ * any that match a printing accepted after their provider's last upload.
+ * @returns Mutation with `{ examined, linked }` result.
+ */
+export function useRelinkCandidatePrintings() {
+  return useMutationWithInvalidation({
+    mutationFn: () => relinkCandidatePrintingsFn(),
+    invalidates: [queryKeys.admin.cards.all],
+  });
+}
+
 export const acceptFavoritePrintingsFn = createServerFn({ method: "POST" })
   .validator((input: string) => input)
   .middleware([withCookies])

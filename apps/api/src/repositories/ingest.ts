@@ -68,6 +68,39 @@ export function ingestRepo(db: Db) {
       return rows.map((row) => ({ ...row, extraData: parseJsonb(row.extraData) }));
     },
 
+    /**
+     * All candidate printings not yet linked to an accepted printing, joined
+     * with their candidate card's name so the relink pass can resolve the card
+     * by normalized name the same way ingest does.
+     * @returns Unlinked candidate printing rows with the owning card name.
+     */
+    allUnlinkedCandidatePrintings(): Promise<
+      {
+        id: string;
+        shortCode: string;
+        finish: string | null;
+        markerSlugs: string[];
+        language: string | null;
+        externalId: string;
+        cardName: string;
+      }[]
+    > {
+      return db
+        .selectFrom("candidatePrintings as cp")
+        .innerJoin("candidateCards as cc", "cc.id", "cp.candidateCardId")
+        .select([
+          "cp.id",
+          "cp.shortCode",
+          "cp.finish",
+          "cp.markerSlugs",
+          "cp.language",
+          "cp.externalId",
+          "cc.name as cardName",
+        ])
+        .where("cp.printingId", "is", null)
+        .execute();
+    },
+
     /** @returns Ignored candidate card external IDs for a provider. */
     ignoredCandidateCards(provider: string): Promise<{ externalId: string }[]> {
       return db

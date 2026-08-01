@@ -9,6 +9,7 @@ import {
   deletePrinting,
   updatePrintingMarkers,
 } from "../../../services/printing-admin.js";
+import { relinkCandidatePrintings } from "../../../services/relink-candidates.js";
 import { registerRouterForTest } from "../../../test/mount-router.js";
 import type { Variables } from "../../../types.js";
 import { adminCardMutationsRouter } from "./mutations";
@@ -24,6 +25,9 @@ vi.mock("../../../services/accept-gallery.js", () => ({ acceptFavoriteNewCard: v
 vi.mock("../../../services/accept-favorite-printings.js", () => ({
   acceptFavoritePrintingsForCard: vi.fn(),
 }));
+vi.mock("../../../services/relink-candidates.js", () => ({
+  relinkCandidatePrintings: vi.fn(),
+}));
 
 vi.mock("@openrift/shared", async (importOriginal) => ({
   ...(await importOriginal()),
@@ -36,6 +40,7 @@ const mockUpdatePrintingMarkers = vi.mocked(updatePrintingMarkers);
 const mockAcceptPrinting = vi.mocked(acceptPrinting);
 const mockAcceptFavoriteNewCard = vi.mocked(acceptFavoriteNewCard);
 const mockAcceptFavoritePrintingsForCard = vi.mocked(acceptFavoritePrintingsForCard);
+const mockRelinkCandidatePrintings = vi.mocked(relinkCandidatePrintings);
 const mockFixTypography = vi.mocked(fixTypography);
 const mockAppendSetTotal = vi.mocked(appendSetTotal);
 
@@ -1094,6 +1099,25 @@ describe("POST /cards/:cardId/accept-printing", () => {
       ["cp-1", "cp-2"],
       mockIo,
     );
+    // Other providers' candidates keyed before this printing existed get
+    // re-resolved right away.
+    expect(mockRelinkCandidatePrintings).toHaveBeenCalled();
+  });
+});
+
+describe("POST /cards/candidate-printings/relink", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns the relink result", async () => {
+    mockRelinkCandidatePrintings.mockResolvedValue({ examined: 10, linked: 4 });
+
+    const res = await app.request("/api/admin/v1/cards/candidate-printings/relink", {
+      method: "POST",
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ examined: 10, linked: 4 });
   });
 });
 
