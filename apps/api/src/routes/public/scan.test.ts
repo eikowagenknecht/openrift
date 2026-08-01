@@ -10,7 +10,7 @@ const mockScanIndex = {
 };
 
 const mockConfig = {
-  scan: { encoderFile: "scan-encoder-fp16-v1.onnx", opencvFile: "scan-opencv-v1.js" },
+  scan: { encoderFile: "scan-encoder-v2.onnx", opencvFile: "scan-opencv-v1.js" },
 };
 
 const app = new Hono<{ Variables: Variables }>();
@@ -39,7 +39,7 @@ describe("GET /api/v1/scan/manifest", () => {
       builtAt: null,
       bankUrl: null,
       labelsUrl: null,
-      encoderUrl: "/media/scan/scan-encoder-fp16-v1.onnx",
+      encoderUrl: "/media/scan/scan-encoder-v2.onnx",
       opencvUrl: "/media/scan/scan-opencv-v1.js",
     });
   });
@@ -49,7 +49,7 @@ describe("GET /api/v1/scan/manifest", () => {
       formatVersion: 1,
       bankHash: "511b47521ffca52a",
       entryCount: 2670,
-      encoderTag: "scan-encoder-fp16-v1.onnx",
+      encoderTag: "scan-encoder-v2.onnx",
       watermark: new Date("2026-07-28T10:00:00.000Z"),
       builtAt: new Date("2026-07-28T11:36:00.000Z"),
       durationMs: 60_151,
@@ -65,7 +65,7 @@ describe("GET /api/v1/scan/manifest", () => {
       builtAt: "2026-07-28T11:36:00.000Z",
       bankUrl: "/media/scan/scan-bank-511b47521ffca52a.bin",
       labelsUrl: "/media/scan/scan-labels-511b47521ffca52a.json",
-      encoderUrl: "/media/scan/scan-encoder-fp16-v1.onnx",
+      encoderUrl: "/media/scan/scan-encoder-v2.onnx",
       opencvUrl: "/media/scan/scan-opencv-v1.js",
     });
   });

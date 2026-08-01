@@ -29,7 +29,6 @@ export const adminScanRouter = {
           io,
           log,
           encoderFile: config.scan.encoderFile,
-          canonical: config.scan.canonicalBank,
         }),
       { summarize: (result) => result },
     );

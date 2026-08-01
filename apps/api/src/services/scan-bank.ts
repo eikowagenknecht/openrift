@@ -45,13 +45,6 @@ interface ScanBankDeps {
   log: Logger;
   /** Filename of the encoder under media/scan (config.scan.encoderFile). */
   encoderFile: string;
-  /**
-   * Embed landscape renders rotated 90 degrees left into the canonical
-   * portrait frame (config.scan.canonicalBank). Only sound with an encoder
-   * trained on that frame; the flag is recorded in the bank file so clients
-   * know whether the guide-mode pair-only rotation search applies.
-   */
-  canonical: boolean;
 }
 
 /**
@@ -97,11 +90,16 @@ function renderPath(imageId: string): string {
  * in the API between rebuilds. The previous generation's files are kept (a
  * client may hold its manifest mid-download); anything older is pruned.
  *
+ * Renders are embedded in the canonical frame (landscape rotated 90 degrees
+ * left, the way players place battlefields), which is how every encoder we
+ * serve is trained. Swapping in an encoder trained on the native frame would
+ * degrade battlefield matching and needs this builder changed with it.
+ *
  * @returns Counts and the new generation's hash for the job summary.
  */
 export async function rebuildScanBank(deps: ScanBankDeps): Promise<ScanBankBuildResult> {
   const startedAt = Date.now();
-  const { repos, io, log, encoderFile, canonical } = deps;
+  const { repos, io, log, encoderFile } = deps;
 
   const encoderPath = join(SCAN_MEDIA_DIR, encoderFile);
   await io.fs.stat(encoderPath).catch(() => {
@@ -174,7 +172,7 @@ export async function rebuildScanBank(deps: ScanBankDeps): Promise<ScanBankBuild
       skipped++;
       continue;
     }
-    if (canonical && image.width > image.height) {
+    if (image.width > image.height) {
       // 90 degrees left = three clockwise quarter turns; matches the
       // trainer's Image.Transpose.ROTATE_90 and the bench's bank build.
       image = rotateRgbaCw(rotateRgbaCw(rotateRgbaCw(image)));
@@ -196,9 +194,12 @@ export async function rebuildScanBank(deps: ScanBankDeps): Promise<ScanBankBuild
     keys,
     vectors: concat(vectors),
   };
-  const bankBuffer = Buffer.from(
-    encodeEmbedBank(bank, (key) => artKeys.get(key) ?? key, canonical),
-  );
+  // Banks are always built in the canonical frame, so the flag is constant
+  // here. It still travels in the file: the format keeps it because v1 banks
+  // decode as native, and the browser gates its guide-mode pair-only rotation
+  // search on what the loaded bank reports rather than on a build-time
+  // assumption.
+  const bankBuffer = Buffer.from(encodeEmbedBank(bank, (key) => artKeys.get(key) ?? key, true));
   const labelsBuffer = Buffer.from(`${JSON.stringify(labels)}\n`);
   const bankHash = createHash("sha256")
     .update(bankBuffer)

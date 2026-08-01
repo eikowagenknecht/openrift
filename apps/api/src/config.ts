@@ -91,13 +91,8 @@ export function createConfig(env: Record<string, string | undefined>) {
     // They are uploaded once per engine version (never committed) with a
     // version in the name, because nginx serves /media/ as immutable.
     scan: {
-      encoderFile: env.SCAN_ENCODER_FILE ?? "scan-encoder-fp16-v1.onnx",
+      encoderFile: env.SCAN_ENCODER_FILE ?? "scan-encoder-v2.onnx",
       opencvFile: env.SCAN_OPENCV_FILE ?? "scan-opencv-v1.js",
-      // Build banks in the canonical frame (landscape renders rotated 90
-      // degrees left). Must be flipped together with an encoder trained on
-      // that frame — the flag is baked into the bank file, and clients enable
-      // the guide-mode pair-only search from it.
-      canonicalBank: env.SCAN_BANK_CANONICAL === "1",
     },
   } as const;
 }
