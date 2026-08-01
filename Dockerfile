@@ -39,11 +39,16 @@ RUN --mount=type=secret,id=sentry_auth_token \
     bun run build
 
 # ─── Stage 2: API (server + migrations + cron) ───────────────────────────────
-FROM oven/bun:1.3.14-alpine AS api
+# Debian (glibc), not alpine: onnxruntime-node (scan bank) ships glibc-only
+# binaries — on musl they fail at load with a missing ld-linux-x86-64.so.2
+FROM oven/bun:1.3.14 AS api
+
+# wget for the compose healthcheck (busybox provided it on alpine; debian slim has neither wget nor curl)
+RUN apt-get update && apt-get install -y --no-install-recommends wget && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Install dependencies natively on alpine so native addons (sharp) get musl binaries
+# Install dependencies natively in this stage so native addons (sharp, onnxruntime) get matching binaries
 COPY --from=build /app/bun.lock /app/package.json ./
 COPY --from=build /app/apps/api/package.json apps/api/
 COPY --from=build /app/apps/discord-bot/package.json apps/discord-bot/
