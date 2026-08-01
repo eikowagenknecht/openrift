@@ -993,18 +993,36 @@ async function resolveGiverPrintingSupply(
   return { unreservedCopyIds: [...unreserved], hasAny };
 }
 
+/** Copies of one printing an owner offers, plus the lists they came from. */
+interface PrintingSupplyBucket {
+  copyIds: Set<string>;
+  listNames: Set<string>;
+}
+
+/** One printing's share of a member's offered copies of a card. */
+export interface TradelistHolderPrintingRow {
+  printingId: string;
+  quantity: number;
+  /** The shared lists those copies sit on, alphabetical. */
+  listNames: string[];
+}
+
 /** One member's offered copies of a card, aggregated for the bot reply. */
 export interface TradelistHolderRow {
   userId: string;
   userName: string | null;
   quantity: number;
+  /** The same copies split by printing, most copies first. */
+  printings: TradelistHolderPrintingRow[];
 }
 
 /**
  * Aggregates the group's shared-tradelist supply of one card per owner. Mirrors
  * `resolveGiverPrintingSupply` (manual + rule entries through `buildSupply`),
  * but spans all owners and keys on the card, deduping copies that appear on
- * several shared lists.
+ * several shared lists. Copies stay split by printing so the caller can tell an
+ * alt art from the standard print; the owner total is their sum, which is exact
+ * because a copy belongs to exactly one printing.
  * @returns One row per member offering the card, most copies first.
  */
 async function resolveTradelistHoldersForCard(
@@ -1068,7 +1086,7 @@ async function resolveTradelistHoldersForCard(
   }
   const copyMeta = await loadCopyMeta(db, [...allCopyIds]);
 
-  const copiesByOwner = new Map<string, Set<string>>();
+  const printingsByOwner = new Map<string, Map<string, PrintingSupplyBucket>>();
   for (const list of tradeLists) {
     for (const entry of buildSupply(
       list,
@@ -1079,22 +1097,41 @@ async function resolveTradelistHoldersForCard(
       if (entry.cardId !== scope.cardId) {
         continue;
       }
-      const owned = copiesByOwner.get(entry.ownerUserId);
-      if (owned) {
-        owned.add(entry.copyId);
-      } else {
-        copiesByOwner.set(entry.ownerUserId, new Set([entry.copyId]));
+      let byPrinting = printingsByOwner.get(entry.ownerUserId);
+      if (!byPrinting) {
+        byPrinting = new Map();
+        printingsByOwner.set(entry.ownerUserId, byPrinting);
       }
+      let bucket = byPrinting.get(entry.printingId);
+      if (!bucket) {
+        bucket = { copyIds: new Set(), listNames: new Set() };
+        byPrinting.set(entry.printingId, bucket);
+      }
+      bucket.copyIds.add(entry.copyId);
+      bucket.listNames.add(entry.sellListName);
     }
   }
 
-  const users = await loadUsers(db, [...copiesByOwner.keys()]);
-  return [...copiesByOwner]
-    .map(([userId, copyIds]) => ({
-      userId,
-      userName: users.get(userId)?.name ?? null,
-      quantity: copyIds.size,
-    }))
+  const users = await loadUsers(db, [...printingsByOwner.keys()]);
+  return [...printingsByOwner]
+    .map(([userId, byPrinting]) => {
+      const printings = [...byPrinting]
+        .map(([printingId, bucket]) => ({
+          printingId,
+          quantity: bucket.copyIds.size,
+          listNames: [...bucket.listNames].sort((first, second) => first.localeCompare(second)),
+        }))
+        .sort(
+          (first, second) =>
+            second.quantity - first.quantity || first.printingId.localeCompare(second.printingId),
+        );
+      return {
+        userId,
+        userName: users.get(userId)?.name ?? null,
+        quantity: printings.reduce((total, printing) => total + printing.quantity, 0),
+        printings,
+      };
+    })
     .sort((first, second) => {
       const byQuantity = second.quantity - first.quantity;
       return byQuantity === 0

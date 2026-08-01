@@ -6,7 +6,7 @@ import { formatCardText } from "./card-text.js";
 import type { CatalogCard, CatalogPrinting, CatalogSnapshot, EnumLabels } from "./catalog-cache.js";
 import type { GlyphEmojis } from "./glyph-emoji.js";
 import { NO_GLYPH_EMOJIS } from "./glyph-emoji.js";
-import type { TradelistHolders } from "./group-tradelists.js";
+import type { TradelistHolderPrinting, TradelistHolders } from "./group-tradelists.js";
 import { printingVariantParts } from "./printing-choice.js";
 
 /** The brand green also used by the changelog webhook embeds. */
@@ -34,19 +34,78 @@ export interface CardEmbedInput {
 /** Holders named per embed field before collapsing into "…and N more". */
 const MAX_TRADELIST_HOLDERS = 5;
 
+/** Printings named per holder before collapsing into "+N more". */
+const MAX_TRADELIST_PRINTINGS = 5;
+
+/**
+ * The breakdown line under one holder: which printings the copies are, how
+ * many of each, and the shared lists they sit on. Printings run in the card's
+ * canonical order (the order the site and the /card autocomplete use), and a
+ * public code repeated from the previous entry is dropped, so a card's
+ * standard and alt art prints read as `OGN-202 Standard 1× · Alt art 1×`.
+ *
+ * @returns The subtext line, or null when there is nothing to break down.
+ */
+function printingBreakdown(
+  printings: TradelistHolderPrinting[],
+  snapshot: CatalogSnapshot,
+  card: CatalogCard,
+): string | null {
+  if (printings.length === 0) {
+    return null;
+  }
+  const siblings = snapshot.printingsByCardId.get(card.id) ?? [];
+  const byId = new Map(siblings.map((printing) => [printing.id, printing]));
+  const rank = new Map(siblings.map((printing, index) => [printing.id, index]));
+  // A printing the cached catalog hasn't seen yet sorts last rather than
+  // dropping out — the count is still real supply.
+  const ordered = printings.toSorted(
+    (first, second) =>
+      (rank.get(first.printingId) ?? siblings.length) -
+      (rank.get(second.printingId) ?? siblings.length),
+  );
+  const shown = ordered.slice(0, MAX_TRADELIST_PRINTINGS);
+  let previousCode: string | null = null;
+  const parts = shown.map((entry) => {
+    const printing = byId.get(entry.printingId);
+    let label = "Unknown printing";
+    if (printing) {
+      const variant = printingVariantParts(snapshot, printing, siblings);
+      const code = printing.publicCode === previousCode ? null : printing.publicCode;
+      label = [code, ...variant].filter((part) => part !== null).join(" ") || printing.publicCode;
+      previousCode = printing.publicCode;
+    }
+    const lists = entry.listNames.length > 0 ? ` (${entry.listNames.join(", ")})` : "";
+    return `${label} ${entry.quantity}×${lists}`;
+  });
+  const hidden = ordered.length - shown.length;
+  if (hidden > 0) {
+    parts.push(`+${hidden} more`);
+  }
+  return `-# ${parts.join(" · ")}`;
+}
+
 /**
  * The "who has this on a tradelist" field for a card mentioned in a linked
- * guild. Display names and counts only — the API already projects away
- * everything else (conditions, notes, prices).
+ * guild. Display names, per-printing counts and list names only — the API
+ * already projects away everything else (conditions, notes, prices).
  *
  * @returns The embed field, or null when there is nothing to show.
  */
-function tradelistField(tradelists: TradelistHolders | null | undefined): APIEmbedField | null {
+function tradelistField(
+  tradelists: TradelistHolders | null | undefined,
+  snapshot: CatalogSnapshot,
+  card: CatalogCard,
+): APIEmbedField | null {
   if (!tradelists || tradelists.holders.length === 0) {
     return null;
   }
   const shown = tradelists.holders.slice(0, MAX_TRADELIST_HOLDERS);
-  const lines = shown.map((holder) => `${holder.userName ?? "Unknown user"} · ${holder.quantity}×`);
+  const lines = shown.flatMap((holder) => {
+    const breakdown = printingBreakdown(holder.printings, snapshot, card);
+    const header = `${holder.userName ?? "Unknown user"} · ${holder.quantity}×`;
+    return breakdown ? [header, breakdown] : [header];
+  });
   const hidden = tradelists.holders.length - shown.length;
   if (hidden > 0) {
     lines.push(`…and ${hidden} more`);
@@ -301,7 +360,7 @@ export function buildCardEmbed(input: CardEmbedInput): APIEmbed {
 
   // Text first, then tradelists, then the prices: the price fields are
   // inline, so they pack into one row under the full-width blocks.
-  const holdersField = tradelistField(input.tradelists);
+  const holdersField = tradelistField(input.tradelists, snapshot, card);
   const fields = [
     ...cardTextFields(card, printing, input.emojis ?? NO_GLYPH_EMOJIS),
     ...(holdersField ? [holdersField] : []),

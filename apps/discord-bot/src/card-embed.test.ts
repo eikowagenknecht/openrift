@@ -207,8 +207,16 @@ describe("buildCardEmbed", () => {
       tradelists: {
         groupName: "Summoner Skirmish",
         holders: [
-          { userName: "Alice", quantity: 2 },
-          { userName: null, quantity: 1 },
+          {
+            userName: "Alice",
+            quantity: 2,
+            printings: [{ printingId: "printing-1", quantity: 2, listNames: ["Binder"] }],
+          },
+          {
+            userName: null,
+            quantity: 1,
+            printings: [{ printingId: "printing-1", quantity: 1, listNames: ["Binder", "Trades"] }],
+          },
         ],
       },
     });
@@ -217,7 +225,84 @@ describe("buildCardEmbed", () => {
       "On tradelists in Summoner Skirmish",
       "TCGplayer",
     ]);
-    expect(embed.fields?.[1]?.value).toBe("Alice · 2×\nUnknown user · 1×");
+    expect(embed.fields?.[1]?.value).toBe(
+      [
+        "Alice · 2×",
+        "-# OGN-202/298 2× (Binder)",
+        "Unknown user · 1×",
+        "-# OGN-202/298 1× (Binder, Trades)",
+      ].join("\n"),
+    );
+  });
+
+  it("names each printing in the holder breakdown, dropping a repeated code", () => {
+    const snapshot = buildSnapshot(
+      makeCatalogResponse(
+        [makeCard()],
+        [
+          makePrinting({ id: "printing-1", canonicalRank: 1 }),
+          makePrinting({ id: "printing-2", canonicalRank: 2, artVariant: "altart" }),
+        ],
+      ),
+      makePricesResponse(),
+      makeInitResponse(),
+    );
+    const embed = buildCardEmbed({
+      card: snapshot.cards[0]!,
+      printing: snapshot.printingsByCardId.get("card-1")![0],
+      snapshot,
+      siteUrl: SITE,
+      tradelists: {
+        groupName: "Summoner Skirmish",
+        holders: [
+          {
+            userName: "Thogrim",
+            quantity: 2,
+            // Deliberately out of canonical order: the breakdown re-sorts.
+            printings: [
+              { printingId: "printing-2", quantity: 1, listNames: ["Trades"] },
+              { printingId: "printing-1", quantity: 1, listNames: ["Binder"] },
+            ],
+          },
+        ],
+      },
+    });
+    const field = embed.fields?.find((f) => f.name.startsWith("On tradelists"));
+    expect(field?.value).toBe(
+      "Thogrim · 2×\n-# OGN-202/298 Standard 1× (Binder) · Alt Art 1× (Trades)",
+    );
+  });
+
+  it("keeps an unknown printing in the breakdown and caps long ones", () => {
+    const snapshot = snapshotWithPrices();
+    const embed = buildCardEmbed({
+      card: snapshot.cards[0]!,
+      printing: snapshot.printingsByCardId.get("card-1")![0],
+      snapshot,
+      siteUrl: SITE,
+      tradelists: {
+        groupName: null,
+        holders: [
+          {
+            userName: "Thogrim",
+            quantity: 7,
+            printings: [
+              { printingId: "printing-1", quantity: 1, listNames: ["Binder"] },
+              ...Array.from({ length: 6 }, (_, index) => ({
+                printingId: `printing-unknown-${index}`,
+                quantity: 1,
+                listNames: [],
+              })),
+            ],
+          },
+        ],
+      },
+    });
+    const field = embed.fields?.find((f) => f.name === "On tradelists");
+    expect(field?.value).toBe(
+      "Thogrim · 7×\n-# OGN-202/298 1× (Binder) · Unknown printing 1× · " +
+        "Unknown printing 1× · Unknown printing 1× · Unknown printing 1× · +2 more",
+    );
   });
 
   it("collapses long holder lists and omits the field when there is nothing to show", () => {
@@ -232,7 +317,11 @@ describe("buildCardEmbed", () => {
       ...base,
       tradelists: {
         groupName: null,
-        holders: Array.from({ length: 7 }, (_, i) => ({ userName: `U${i}`, quantity: 1 })),
+        holders: Array.from({ length: 7 }, (_, i) => ({
+          userName: `U${i}`,
+          quantity: 1,
+          printings: [{ printingId: "printing-1", quantity: 1, listNames: ["Binder"] }],
+        })),
       },
     });
     const field = many.fields?.find((f) => f.name === "On tradelists");

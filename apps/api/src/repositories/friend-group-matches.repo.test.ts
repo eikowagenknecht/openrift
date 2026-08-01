@@ -1112,8 +1112,49 @@ describe("tradelistHoldersForCard (Discord bot lookup)", () => {
   it("aggregates copies per owner, most copies first", async () => {
     const repo = friendGroupMatchesRepo(makeDb(holderQueues()), PROVIDERS);
     expect(await repo.tradelistHoldersForCard(scope)).toEqual([
-      { userId: "seller", userName: "Alice", quantity: 2 },
-      { userId: "bob", userName: "Bob", quantity: 1 },
+      {
+        userId: "seller",
+        userName: "Alice",
+        quantity: 2,
+        printings: [{ printingId: "prt-1", quantity: 2, listNames: ["Binder"] }],
+      },
+      {
+        userId: "bob",
+        userName: "Bob",
+        quantity: 1,
+        printings: [{ printingId: "prt-1", quantity: 1, listNames: ["Bob's binder"] }],
+      },
+    ]);
+  });
+
+  it("splits an owner's copies by printing, most copies first", async () => {
+    const queues = holderQueues();
+    queues.friendGroupListShares = [
+      [tradeShare(), tradeShare({ listId: "lst-t2", listName: "Trades" })],
+    ];
+    queues.listEntries = [
+      [
+        supplyEntry(),
+        supplyEntry({ id: "e-t2", copyId: "cp-2" }),
+        supplyEntry({ id: "e-t3", listId: "lst-t2", copyId: "cp-3" }),
+      ],
+    ];
+    // cp-3 is the alt art, and it sits on the second list.
+    queues.copies = [
+      [copyRow(), copyRow({ id: "cp-2" }), copyRow({ id: "cp-3", printingId: "prt-2" })],
+    ];
+    queues.users = [[userRow()]];
+    const repo = friendGroupMatchesRepo(makeDb(queues), PROVIDERS);
+    expect(await repo.tradelistHoldersForCard(scope)).toEqual([
+      {
+        userId: "seller",
+        userName: "Alice",
+        quantity: 3,
+        printings: [
+          { printingId: "prt-1", quantity: 2, listNames: ["Binder"] },
+          { printingId: "prt-2", quantity: 1, listNames: ["Trades"] },
+        ],
+      },
     ]);
   });
 
@@ -1141,11 +1182,16 @@ describe("tradelistHoldersForCard (Discord bot lookup)", () => {
     ];
     const repo = friendGroupMatchesRepo(makeDb(queues), PROVIDERS);
     expect(await repo.tradelistHoldersForCard(scope)).toEqual([
-      { userId: "seller", userName: "Alice", quantity: 1 },
+      {
+        userId: "seller",
+        userName: "Alice",
+        quantity: 1,
+        printings: [{ printingId: "prt-1", quantity: 1, listNames: ["Binder"] }],
+      },
     ]);
   });
 
-  it("counts a copy shared via two lists once", async () => {
+  it("counts a copy shared via two lists once, naming both lists", async () => {
     const queues = holderQueues();
     queues.friendGroupListShares = [
       [tradeShare(), tradeShare({ listId: "lst-t2", listName: "Dupes" })],
@@ -1155,7 +1201,12 @@ describe("tradelistHoldersForCard (Discord bot lookup)", () => {
     queues.users = [[userRow()]];
     const repo = friendGroupMatchesRepo(makeDb(queues), PROVIDERS);
     expect(await repo.tradelistHoldersForCard(scope)).toEqual([
-      { userId: "seller", userName: "Alice", quantity: 1 },
+      {
+        userId: "seller",
+        userName: "Alice",
+        quantity: 1,
+        printings: [{ printingId: "prt-1", quantity: 1, listNames: ["Binder", "Dupes"] }],
+      },
     ]);
   });
 });

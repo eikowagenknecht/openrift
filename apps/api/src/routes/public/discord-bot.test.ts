@@ -44,6 +44,8 @@ appWithoutSecret.use("*", async (c, next) => {
 registerRouterForTest(appWithoutSecret, discordBotRouter);
 
 const CARD_ID = "a0000000-0001-4000-a000-000000000001";
+const PRINTING_ID = "a0000000-0002-4000-a000-000000000001";
+const ALT_PRINTING_ID = "a0000000-0002-4000-a000-000000000002";
 
 function redeem(body: unknown, headers: Record<string, string> = {}) {
   return app.request("/api/v1/discord-bot/links", {
@@ -155,15 +157,28 @@ describe("GET /api/v1/discord-bot/guilds/{guildId}/cards/{cardId}/tradelist-hold
     expect(mockMatchesRepo.tradelistHoldersForCard).not.toHaveBeenCalled();
   });
 
-  it("projects holders down to name and quantity (no user ids)", async () => {
+  it("projects holders down to name, quantity and printings (no user ids)", async () => {
     mockLinksRepo.findByGuildId.mockResolvedValue({
       groupId: "g1",
       groupSlug: "summoners",
       groupName: "Summoner Skirmish",
     });
     mockMatchesRepo.tradelistHoldersForCard.mockResolvedValue([
-      { userId: "u1", userName: "Alice", quantity: 2 },
-      { userId: "u2", userName: null, quantity: 1 },
+      {
+        userId: "u1",
+        userName: "Alice",
+        quantity: 2,
+        printings: [
+          { printingId: PRINTING_ID, quantity: 1, listNames: ["Binder"] },
+          { printingId: ALT_PRINTING_ID, quantity: 1, listNames: ["Trades"] },
+        ],
+      },
+      {
+        userId: "u2",
+        userName: null,
+        quantity: 1,
+        printings: [{ printingId: PRINTING_ID, quantity: 1, listNames: ["Binder"] }],
+      },
     ]);
     const response = await holders(AUTH);
     expect(response.status).toBe(200);
@@ -171,8 +186,19 @@ describe("GET /api/v1/discord-bot/guilds/{guildId}/cards/{cardId}/tradelist-hold
       linked: true,
       groupName: "Summoner Skirmish",
       holders: [
-        { userName: "Alice", quantity: 2 },
-        { userName: null, quantity: 1 },
+        {
+          userName: "Alice",
+          quantity: 2,
+          printings: [
+            { printingId: PRINTING_ID, quantity: 1, listNames: ["Binder"] },
+            { printingId: ALT_PRINTING_ID, quantity: 1, listNames: ["Trades"] },
+          ],
+        },
+        {
+          userName: null,
+          quantity: 1,
+          printings: [{ printingId: PRINTING_ID, quantity: 1, listNames: ["Binder"] }],
+        },
       ],
     });
     expect(mockMatchesRepo.tradelistHoldersForCard).toHaveBeenCalledWith({

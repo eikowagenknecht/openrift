@@ -9,7 +9,13 @@ function clientsWith(
   return { discordBot: { tradelistHolders } } as unknown as ApiClients;
 }
 
-const HOLDERS = [{ userName: "Alice", quantity: 2 }];
+const HOLDERS = [
+  {
+    userName: "Alice",
+    quantity: 2,
+    printings: [{ printingId: "printing-1", quantity: 2, listNames: ["Binder"] }],
+  },
+];
 
 describe("fetchTradelistHolders", () => {
   it("returns the holders for a linked guild", async () => {

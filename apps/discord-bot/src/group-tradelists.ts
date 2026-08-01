@@ -1,9 +1,20 @@
 import type { ApiClients } from "./api-client.js";
 
+/** One holder's copies of a single printing, with the lists they sit on. */
+export interface TradelistHolderPrinting {
+  printingId: string;
+  quantity: number;
+  listNames: string[];
+}
+
 /** Tradelist info for a card in one guild's linked group, ready for the embed. */
 export interface TradelistHolders {
   groupName: string | null;
-  holders: { userName: string | null; quantity: number }[];
+  holders: {
+    userName: string | null;
+    quantity: number;
+    printings: TradelistHolderPrinting[];
+  }[];
 }
 
 /**

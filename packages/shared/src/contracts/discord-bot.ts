@@ -18,11 +18,22 @@ export const discordBotRedeemLinkResponseSchema = z
   })
   .openapi("DiscordBotRedeemLinkResponse");
 
+export const discordBotTradelistHolderPrintingSchema = z
+  .object({
+    printingId: z.uuid(),
+    quantity: z.number().int().positive(),
+    /** Names of the shared lists the copies sit on, alphabetical. */
+    listNames: z.array(z.string()),
+  })
+  .openapi("DiscordBotTradelistHolderPrinting");
+
 export const discordBotTradelistHolderSchema = z
   .object({
     /** Display name only — the bot never sees account ids. */
     userName: z.string().nullable(),
     quantity: z.number().int().positive(),
+    /** The same copies split by printing, most copies first. */
+    printings: z.array(discordBotTradelistHolderPrintingSchema),
   })
   .openapi("DiscordBotTradelistHolder");
 

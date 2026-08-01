@@ -39,8 +39,9 @@ const os = implement(discordBotContract).$context<ApiContext>().use(requireUser)
  * oRPC implementation of the first-party Discord bot's privileged reads. Both
  * are `meta: "bearer"` procedures gated by {@link requireBotSecret}; the
  * guild→group link table (migration 217) provides the actual scoping. The
- * holders response deliberately carries display names and counts only — no
- * account ids, copy conditions, notes, or pricing preferences leave the API.
+ * holders response deliberately carries display names, per-printing counts and
+ * the names of the shared lists only — no account ids, copy conditions, notes,
+ * or pricing preferences leave the API.
  */
 export const discordBotRouter = {
   redeemLink: os.redeemLink.handler(
@@ -82,6 +83,7 @@ export const discordBotRouter = {
         holders: holders.map((holder) => ({
           userName: holder.userName,
           quantity: holder.quantity,
+          printings: holder.printings,
         })),
       };
     },
