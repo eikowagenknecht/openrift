@@ -171,3 +171,23 @@ export function observeWinner(
   }
   return null;
 }
+
+/**
+ * Break the live runs of already-locked tracks so the next agreeing run can
+ * lock again. The session calls this once the guide has visibly lost its card
+ * (see the session's absent-frame streak): a second copy of the same printing
+ * swapped in faster than the gap tolerance then starts a fresh run instead of
+ * silently extending the locked one, so back-to-back copies count twice.
+ * Unlocked tracks are left alone — their gap tolerance exists so mid-aim blur
+ * does not restart the lock clock, and this must not undo that.
+ *
+ * @returns Nothing; the affected tracks are reset in place.
+ */
+export function rearmLockedTracks(state: AcceptState): void {
+  for (const track of state.values()) {
+    if (track.lockedAt !== null) {
+      track.runLength = 0;
+      track.lastFrame = Number.NEGATIVE_INFINITY;
+    }
+  }
+}

@@ -20,6 +20,10 @@ interface ScanPrintingPickerProps {
   onPick: (printing: Printing) => void;
   /** Dismissed without a pick: the lock is discarded (rescan to retry). */
   onDismiss: () => void;
+  /** Dialog heading; defaults to the unresolved-lock copy. */
+  title?: string;
+  /** Dialog body copy; defaults to the unresolved-lock explanation. */
+  description?: string;
 }
 
 /**
@@ -30,7 +34,13 @@ interface ScanPrintingPickerProps {
  *
  * @returns The picker dialog (a drawer on phones).
  */
-export function ScanPrintingPicker({ request, onPick, onDismiss }: ScanPrintingPickerProps) {
+export function ScanPrintingPicker({
+  request,
+  onPick,
+  onDismiss,
+  title = "Which printing is this?",
+  description,
+}: ScanPrintingPickerProps) {
   const isMobile = useIsMobile();
   const open = request !== null;
 
@@ -65,10 +75,11 @@ export function ScanPrintingPicker({ request, onPick, onDismiss }: ScanPrintingP
     </div>
   );
 
-  const title = "Which printing is this?";
-  const description = request
-    ? `${request.label.split(" (")[0]} matched, but the exact printing needs your eyes (foils always do). Dismiss to skip this card.`
-    : "";
+  const resolvedDescription =
+    description ??
+    (request
+      ? `${request.label.split(" (")[0]} matched, but the exact printing needs your eyes (foils always do). Dismiss to skip this card.`
+      : "");
 
   if (isMobile) {
     return (
@@ -76,7 +87,7 @@ export function ScanPrintingPicker({ request, onPick, onDismiss }: ScanPrintingP
         <DrawerContent>
           <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
             <DrawerTitle>{title}</DrawerTitle>
-            <DrawerDescription>{description}</DrawerDescription>
+            <DrawerDescription>{resolvedDescription}</DrawerDescription>
             <div className="min-h-0 overflow-y-auto">{body}</div>
           </div>
         </DrawerContent>
@@ -88,7 +99,7 @@ export function ScanPrintingPicker({ request, onPick, onDismiss }: ScanPrintingP
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogTitle>{title}</DialogTitle>
-        <DialogDescription>{description}</DialogDescription>
+        <DialogDescription>{resolvedDescription}</DialogDescription>
         <div className="max-h-96 overflow-y-auto">{body}</div>
       </DialogContent>
     </Dialog>

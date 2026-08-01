@@ -1,6 +1,6 @@
 import type { Printing } from "@openrift/shared";
 import { imageUrl, legendDisplayName } from "@openrift/shared";
-import { MinusIcon, SparklesIcon } from "lucide-react";
+import { ArrowLeftRightIcon, MinusIcon, PlusIcon, SparklesIcon } from "lucide-react";
 
 import { PrintingVariantLabel } from "@/components/cards/printing-label";
 import { Button } from "@/components/ui/button";
@@ -16,8 +16,12 @@ interface ScanSessionTrayProps {
   index: ScanPrintingIndex | null;
   /** Move one copy of the row's printing to the given finish sibling. */
   onSwitchFinish: (row: ScanSessionRow, sibling: Printing) => void;
+  /** Add one more copy of the row's printing without rescanning. */
+  onAddOne: (row: ScanSessionRow) => void;
   /** Remove one copy of the row's printing from the collection. */
   onRemoveOne: (row: ScanSessionRow) => void;
+  /** Open the printing swap for the row (all printings of that card). */
+  onChangePrinting: (row: ScanSessionRow) => void;
 }
 
 /**
@@ -27,7 +31,13 @@ interface ScanSessionTrayProps {
  *
  * @returns The tray, or a hint while the session is still empty.
  */
-export function ScanSessionTray({ index, onSwitchFinish, onRemoveOne }: ScanSessionTrayProps) {
+export function ScanSessionTray({
+  index,
+  onSwitchFinish,
+  onAddOne,
+  onRemoveOne,
+  onChangePrinting,
+}: ScanSessionTrayProps) {
   const rows = useScanSessionStore((state) => state.rows);
   const { labels } = useEnumOrders();
 
@@ -88,6 +98,22 @@ export function ScanSessionTray({ index, onSwitchFinish, onRemoveOne }: ScanSess
                   {labels.finishes[sibling.finish]}
                 </Button>
               ))}
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                onClick={() => onChangePrinting(row)}
+                aria-label={`Change the printing of ${legendDisplayName(printing.card)}`}
+              >
+                <ArrowLeftRightIcon className="size-4" />
+              </Button>
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                onClick={() => onAddOne(row)}
+                aria-label={`Add another ${legendDisplayName(printing.card)}`}
+              >
+                <PlusIcon className="size-4" />
+              </Button>
               <Button
                 size="icon-sm"
                 variant="ghost"

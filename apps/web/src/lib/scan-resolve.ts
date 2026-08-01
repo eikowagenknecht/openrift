@@ -46,16 +46,16 @@ export function buildScanPrintingIndex(
 }
 
 /**
- * Everything that distinguishes two printings of one render EXCEPT the
- * finish. Printings sharing a variant key differ only in finish, which no
- * scan can tell apart — the user decides that one.
+ * Everything that distinguishes two printings of one render EXCEPT the finish
+ * and the language. The language-preference shortcut auto-picks between
+ * printings sharing this key: they are the same physical variant printed in
+ * several languages, so the user's stated card language decides.
  *
- * @returns A grouping key over the non-finish printing identity.
+ * @returns A grouping key over the non-finish, non-language printing identity.
  */
-function variantKeyOf(printing: Printing): string {
+function languageAgnosticKeyOf(printing: Printing): string {
   return [
     printing.shortCode,
-    printing.language,
     printing.artVariant,
     printing.size,
     printing.isSigned ? "signed" : "",
@@ -64,6 +64,17 @@ function variantKeyOf(printing: Printing): string {
       .toSorted()
       .join("+"),
   ].join("|");
+}
+
+/**
+ * Everything that distinguishes two printings of one render EXCEPT the
+ * finish. Printings sharing a variant key differ only in finish, which no
+ * scan can tell apart — the user decides that one.
+ *
+ * @returns A grouping key over the non-finish printing identity.
+ */
+function variantKeyOf(printing: Printing): string {
+  return [printing.language, languageAgnosticKeyOf(printing)].join("|");
 }
 
 /**
@@ -106,14 +117,20 @@ export type LockResolution =
  * languages — and every single-render artwork, whose disambiguation stage
  * never runs) widens to every render of the locked artwork. Either way, if
  * the candidates differ only by finish the normal one auto-adds (tray switch
- * for the rest); any deeper ambiguity (languages, oversized reprints, signed
- * variants on a shared render) goes to the picker.
+ * for the rest). When they differ only by language on top of that and the
+ * caller states a preferred card language, that language auto-adds too — the
+ * engine's language read abstains on blur and glare, and a collection that is
+ * all one language should not pay a picker for every abstention (the tray's
+ * change-printing control fixes the rare exception). Any deeper ambiguity
+ * (oversized reprints, signed variants on a shared render) goes to the
+ * picker.
  *
  * @returns The resolution the page acts on.
  */
 export function resolveLock(
   lock: { key: string; artKey: string; resolved: boolean },
   index: ScanPrintingIndex,
+  preferredLanguage?: string,
 ): LockResolution {
   const keys = lock.resolved ? [lock.key] : (index.keysByArtKey.get(lock.artKey) ?? [lock.key]);
   const candidates = [
@@ -126,7 +143,16 @@ export function resolveLock(
   if (candidates.length === 0) {
     return { kind: "unknown" };
   }
-  const groups = Map.groupBy(candidates, variantKeyOf);
+  let groups = Map.groupBy(candidates, variantKeyOf);
+  if (groups.size > 1 && preferredLanguage !== undefined) {
+    const agnosticGroups = Map.groupBy(candidates, languageAgnosticKeyOf);
+    const preferred = candidates.filter((printing) => printing.language === preferredLanguage);
+    // Only the language (and finish) separates the candidates, and the
+    // preferred language is among them — that is the user's answer.
+    if (agnosticGroups.size === 1 && preferred.length > 0) {
+      groups = Map.groupBy(preferred, variantKeyOf);
+    }
+  }
   if (groups.size > 1) {
     // More than finish separates the candidates — the scan cannot know which
     // physical variant is in hand.
@@ -169,7 +195,7 @@ export function finishSiblingsOf(printing: Printing, index: ScanPrintingIndex): 
  *
  * @returns The candidates, sorted for display.
  */
-function sortForPicker(candidates: readonly Printing[]): Printing[] {
+export function sortForPicker(candidates: readonly Printing[]): Printing[] {
   const unique = [...new Map(candidates.map((printing) => [printing.id, printing])).values()];
   return unique.toSorted(
     (a, b) =>

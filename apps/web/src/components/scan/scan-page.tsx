@@ -1,11 +1,17 @@
 import type { Printing } from "@openrift/shared";
 import { legendDisplayName } from "@openrift/shared";
-import { CameraIcon, CameraOffIcon, Volume2Icon, VolumeXIcon } from "lucide-react";
+import {
+  CameraIcon,
+  CameraOffIcon,
+  ScanSearchIcon,
+  Volume2Icon,
+  VolumeXIcon,
+  XIcon,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import {
-  PageDescription,
   PageTopBar,
   PageTopBarActions,
   PageTopBarBack,
@@ -13,6 +19,8 @@ import {
   PageTopBarSticky,
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
+import type { IdentifyCandidate } from "@/components/scan/scan-identify-sheet";
+import { ScanIdentifySheet } from "@/components/scan/scan-identify-sheet";
 import { ScanLoadRow } from "@/components/scan/scan-load-row";
 import type { PickerRequest } from "@/components/scan/scan-printing-picker";
 import { ScanPrintingPicker } from "@/components/scan/scan-printing-picker";
@@ -31,11 +39,12 @@ import { DEFAULT_SCANNER_SETTINGS, useCardScanner } from "@/hooks/use-card-scann
 import { useCards } from "@/hooks/use-cards";
 import { useCollections } from "@/hooks/use-collections";
 import { useBatchedAddCopies, useDisposeCopies } from "@/hooks/use-copies";
+import { useLanguageLabels } from "@/hooks/use-enums";
 import { useScanAssets } from "@/hooks/use-scan-serving";
 import type { LoadedScanBank } from "@/lib/scan-bank";
-import { loadScanBank } from "@/lib/scan-bank";
+import { describeKey, loadScanBank } from "@/lib/scan-bank";
 import { playLockTick } from "@/lib/scan-feedback";
-import { buildScanPrintingIndex, resolveLock } from "@/lib/scan-resolve";
+import { buildScanPrintingIndex, resolveLock, sortForPicker } from "@/lib/scan-resolve";
 import { isTempCopyId } from "@/lib/temp-copy-id";
 import { useScanPrefsStore } from "@/stores/scan-prefs-store";
 import type { ScanSessionRow } from "@/stores/scan-session-store";
@@ -48,6 +57,14 @@ import { useScanSessionStore } from "@/stores/scan-session-store";
  */
 const HOLD_STEADY_MIN_INLIERS = 6;
 const HOLD_STEADY_MAX_INLIERS = 10;
+
+/**
+ * How long one artwork must top the plausible ranking without a lock before
+ * the "Is it X?" suggestion chip offers it. Long enough that a normal lock
+ * (well under a second on a healthy aim) never sees the chip, short enough
+ * that a stuck scan gets its escape hatch before frustration.
+ */
+const AIM_SUGGEST_SECONDS = 3;
 
 /**
  * The scanning page: aim a card in the guide, and every confident lock is
@@ -66,6 +83,9 @@ export function ScanPage() {
   const setMuted = useScanPrefsStore((state) => state.setMuted);
   const storedTargetId = useScanPrefsStore((state) => state.targetCollectionId);
   const setStoredTargetId = useScanPrefsStore((state) => state.setTargetCollectionId);
+  const cardLanguage = useScanPrefsStore((state) => state.cardLanguage);
+  const setCardLanguage = useScanPrefsStore((state) => state.setCardLanguage);
+  const languageLabels = useLanguageLabels();
 
   // The stored target may have been deleted since the last session; fall back
   // to the inbox, which every account has.
@@ -78,6 +98,14 @@ export function ScanPage() {
     value: collection.id,
     label: collection.name,
   }));
+
+  // The catalog's printing languages, for the card-language preference. The
+  // stored value is kept selectable even if no printing carries it (yet).
+  const languageItems = [
+    ...new Set([...allPrintings.map((printing) => printing.language), cardLanguage]),
+  ]
+    .toSorted()
+    .map((code) => ({ value: code, label: languageLabels[code] ?? code }));
 
   // A scan session is one page visit: the tray is a log of what THIS sitting
   // added, so a leftover from an earlier visit must not linger.
@@ -144,11 +172,11 @@ export function ScanPage() {
     }
   }
 
-  function handleLock(lock: LockedCard) {
+  function handleLock(lock: Pick<LockedCard, "key" | "artKey" | "label" | "resolved">) {
     if (!index) {
       return;
     }
-    const resolution = resolveLock(lock, index);
+    const resolution = resolveLock(lock, index, cardLanguage);
     if (resolution.kind === "unknown") {
       toast.error(`${lock.label} is not in the catalog yet`);
       return;
@@ -181,6 +209,7 @@ export function ScanPage() {
     const resolution = resolveLock(
       { key: update.key, artKey: update.artKey, resolved: true },
       index,
+      cardLanguage,
     );
     if (resolution.kind !== "auto") {
       return;
@@ -223,8 +252,90 @@ export function ScanPage() {
     }
   }, [deviceTooSlow]);
 
+  // The manual identify sheet and the automatic "Is it X?" chip both funnel
+  // into handleLock with an unresolved lock, so the language preference, the
+  // finish default and the printing picker all apply exactly as for a real
+  // lock.
+  const [identifyCandidates, setIdentifyCandidates] = useState<IdentifyCandidate[] | null>(null);
+  const [dismissedSuggestion, setDismissedSuggestion] = useState<string | null>(null);
+
+  const aim = readout.aim;
+  const dismissalStale =
+    aim !== null && dismissedSuggestion !== null && aim.artKey !== dismissedSuggestion;
+  useEffect(() => {
+    // A dismissal holds only while the same artwork stays aimed at; once the
+    // user aims at something else, the dismissed card may suggest again later.
+    if (dismissalStale) {
+      setDismissedSuggestion(null);
+    }
+  }, [dismissalStale]);
+
+  const suggestion =
+    active &&
+    aim !== null &&
+    aim.seconds >= AIM_SUGGEST_SECONDS &&
+    readout.winnerKey === null &&
+    aim.artKey !== dismissedSuggestion &&
+    identifyCandidates === null
+      ? aim
+      : null;
+  const suggestionLabel = suggestion && loaded ? describeKey(loaded.labels, suggestion.key) : null;
+
+  function handleSuggestionAdd() {
+    if (!suggestion || !suggestionLabel) {
+      return;
+    }
+    // One tap adds one copy; the dismissal stops the chip from immediately
+    // re-offering the card still sitting in the guide.
+    setDismissedSuggestion(suggestion.artKey);
+    handleLock({
+      key: suggestion.key,
+      artKey: suggestion.artKey,
+      label: suggestionLabel,
+      resolved: false,
+    });
+  }
+
+  function handleSuggestionDismiss() {
+    if (suggestion) {
+      setDismissedSuggestion(suggestion.artKey);
+    }
+  }
+
+  function handleIdentifyNow() {
+    if (!loaded) {
+      return;
+    }
+    const seen = new Set<string>();
+    const candidates: IdentifyCandidate[] = [];
+    for (const entry of readout.ranked) {
+      const artKey = loaded.artKeys.get(entry.key) ?? entry.key;
+      if (seen.has(artKey)) {
+        continue;
+      }
+      seen.add(artKey);
+      candidates.push({ key: entry.key, artKey, label: describeKey(loaded.labels, entry.key) });
+    }
+    if (candidates.length === 0) {
+      toast.info("Nothing recognisable in the frame yet, aim at a card first");
+      return;
+    }
+    setIdentifyCandidates(candidates.slice(0, 4));
+  }
+
+  function handleIdentifyPick(candidate: IdentifyCandidate) {
+    setIdentifyCandidates(null);
+    handleLock({
+      key: candidate.key,
+      artKey: candidate.artKey,
+      label: candidate.label,
+      resolved: false,
+    });
+  }
+
   const holdSteady =
     active &&
+    suggestion === null &&
     readout.winnerKey === null &&
     readout.bestInliers >= HOLD_STEADY_MIN_INLIERS &&
     readout.bestInliers <= HOLD_STEADY_MAX_INLIERS;
@@ -259,19 +370,44 @@ export function ScanPage() {
     }
   }
 
-  async function handleSwitchFinish(row: ScanSessionRow, sibling: Printing) {
+  async function handleSwitchPrinting(row: ScanSessionRow, to: Printing) {
     const copyId = row.copyIds.findLast((id) => !isTempCopyId(id));
     if (!copyId) {
       toast.info("Still saving that card, try again in a moment");
       return;
     }
     useScanSessionStore.getState().removeCopy(row.printing.id, copyId);
-    void addPrinting(sibling);
+    void addPrinting(to);
     try {
       await disposeCopies.mutateAsync({ copyIds: [copyId] });
     } catch {
       useScanSessionStore.getState().recordConfirmed(row.printing, copyId);
     }
+  }
+
+  function handleAddOne(row: ScanSessionRow) {
+    void addPrinting(row.printing);
+  }
+
+  // The row whose printing is being swapped via the full printing picker.
+  const [swapRow, setSwapRow] = useState<ScanSessionRow | null>(null);
+  const swapRequest: PickerRequest | null = swapRow
+    ? {
+        artKey: "",
+        label: legendDisplayName(swapRow.printing.card),
+        candidates: sortForPicker(
+          allPrintings.filter((printing) => printing.cardId === swapRow.printing.cardId),
+        ),
+      }
+    : null;
+
+  function handleSwapPick(printing: Printing) {
+    const row = swapRow;
+    setSwapRow(null);
+    if (!row || printing.id === row.printing.id) {
+      return;
+    }
+    void handleSwitchPrinting(row, printing);
   }
 
   function handleStart() {
@@ -322,11 +458,6 @@ export function ScanPage() {
       </PageTopBarSticky>
 
       <div className="px-safe mx-auto w-full max-w-4xl px-4 pt-3 pb-12">
-        <PageDescription>
-          Hold a card in the frame and it lands in {target ? `"${target.name}"` : "your collection"}{" "}
-          the moment it is recognised. Foils and look-alike printings ask before adding.
-        </PageDescription>
-
         {deviceTooSlow && (
           <Card className="mt-4 border-amber-500">
             <CardContent className="pt-6">
@@ -361,6 +492,23 @@ export function ScanPage() {
                 Almost — hold steady
               </p>
             )}
+            {suggestion !== null && suggestionLabel !== null && (
+              <div className="absolute bottom-4 left-1/2 flex max-w-[90%] -translate-x-1/2 items-center gap-1.5 rounded-full bg-black/70 py-1 pr-1 pl-3 text-sm text-white">
+                <span className="truncate">Is it {suggestionLabel.split(" (")[0]}?</span>
+                <Button size="sm" onClick={handleSuggestionAdd}>
+                  Add
+                </Button>
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  className="text-white hover:bg-white/20 hover:text-white"
+                  onClick={handleSuggestionDismiss}
+                  aria-label="Dismiss suggestion"
+                >
+                  <XIcon className="size-4" />
+                </Button>
+              </div>
+            )}
             {!active && (
               <div className="text-muted-foreground absolute inset-0 grid place-items-center px-6 text-center">
                 {ready ? (
@@ -389,6 +537,10 @@ export function ScanPage() {
                     Scan card
                   </Button>
                 )}
+                <Button onClick={handleIdentifyNow} variant="secondary">
+                  <ScanSearchIcon />
+                  Identify now
+                </Button>
                 <Button onClick={handleStop} variant="secondary">
                   <CameraOffIcon />
                   Stop
@@ -400,6 +552,29 @@ export function ScanPage() {
                 Start camera
               </Button>
             )}
+            <div className="ml-auto flex items-center gap-2">
+              <span className="text-muted-foreground text-sm">Card language</span>
+              <Select
+                items={languageItems}
+                value={cardLanguage}
+                onValueChange={(value) => {
+                  if (value) {
+                    setCardLanguage(value);
+                  }
+                }}
+              >
+                <SelectTrigger aria-label="Card language">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {languageItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {scanError && <p className="text-destructive">{scanError}</p>}
@@ -412,8 +587,10 @@ export function ScanPage() {
           <div className="mt-2">
             <ScanSessionTray
               index={index}
-              onSwitchFinish={handleSwitchFinish}
+              onSwitchFinish={handleSwitchPrinting}
+              onAddOne={handleAddOne}
               onRemoveOne={handleRemoveOne}
+              onChangePrinting={setSwapRow}
             />
           </div>
         </div>
@@ -423,6 +600,22 @@ export function ScanPage() {
         request={pickerQueue[0] ?? null}
         onPick={handlePick}
         onDismiss={handlePickerDismiss}
+      />
+      <ScanPrintingPicker
+        request={swapRequest}
+        onPick={handleSwapPick}
+        onDismiss={() => setSwapRow(null)}
+        title="Switch to another printing"
+        description={
+          swapRow
+            ? `Move one scanned ${legendDisplayName(swapRow.printing.card)} to a different printing of the same card.`
+            : ""
+        }
+      />
+      <ScanIdentifySheet
+        candidates={identifyCandidates}
+        onPick={handleIdentifyPick}
+        onDismiss={() => setIdentifyCandidates(null)}
       />
     </>
   );

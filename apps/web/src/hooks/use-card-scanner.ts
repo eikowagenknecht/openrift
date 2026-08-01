@@ -189,6 +189,15 @@ export interface ScannerReadout {
   verifyMs: number;
   totalMs: number;
   locks: LockedCard[];
+  /**
+   * The artwork the user is currently aiming at, when the top-ranked
+   * candidate is at least plausible: its best bank key and how long its
+   * top-ranked streak has run. Null while nothing in frame ranks plausibly.
+   * This is what the page's "Is it X?" suggestion and the identify-now
+   * candidates are allowed to trust — raw `ranked` entries include far
+   * matches of an empty guide.
+   */
+  aim: { artKey: string; key: string; seconds: number } | null;
 }
 
 const EMPTY_READOUT: ScannerReadout = {
@@ -206,6 +215,7 @@ const EMPTY_READOUT: ScannerReadout = {
   verifyMs: 0,
   totalMs: 0,
   locks: [],
+  aim: null,
 };
 
 /**
@@ -691,11 +701,15 @@ export function useCardScanner(
               // Capture mode locks on a single verified tap: each tap is a
               // deliberate aimed shot, the inlier floor and rival margin
               // still gate it, and a wrong tap is retaken — requiring three
-              // taps per card would defeat the mode.
-              accept: {
-                ...DEFAULT_SESSION_OPTIONS.accept,
-                lockRun: settingsRef.current.mode === "capture" ? 1 : 3,
-              },
+              // taps per card would defeat the mode. Its zero gap makes every
+              // tap its own run, so tapping again after swapping in a second
+              // copy of the same card locks again (frames only advance per
+              // tap there, so the live-mode gap tolerance would otherwise
+              // swallow the second copy).
+              accept:
+                settingsRef.current.mode === "capture"
+                  ? { lockRun: 1, maxGapFrames: 0 }
+                  : { ...DEFAULT_SESSION_OPTIONS.accept, lockRun: 3 },
               ...(slowDevice
                 ? { rotationFallbackDistance: gates.slowRotationFallbackDistance }
                 : {}),
@@ -872,7 +886,7 @@ export function useCardScanner(
     strokeQuad(context, mapped(candidate.quad), color, dashed);
   }
 
-  function publish(outcome: FrameOutcome, force: boolean) {
+  function publish(outcome: FrameOutcome, aim: ScannerReadout["aim"], force: boolean) {
     const now = performance.now();
     frameTimesRef.current.push(now);
     while (frameTimesRef.current.length > 0 && now - frameTimesRef.current[0] > 1000) {
@@ -901,6 +915,7 @@ export function useCardScanner(
       verifyMs: outcome.timings.verify,
       totalMs: outcome.timings.total,
       locks: locksRef.current,
+      aim,
     });
   }
 
@@ -1011,6 +1026,7 @@ export function useCardScanner(
 
     const rankedTop = outcome.ranked[0];
     let aimAgeSeconds = 0;
+    let aim: ScannerReadout["aim"] = null;
     if (rankedTop) {
       const topArt = loaded?.artKeys.get(rankedTop.key) ?? rankedTop.key;
       const nowMs = performance.now();
@@ -1021,6 +1037,11 @@ export function useCardScanner(
         streak.lastSeen = nowMs;
       }
       aimAgeSeconds = (nowMs - (aimSinceRef.current.get(topArt)?.since ?? nowMs)) / 1000;
+      // Plausibility-gated: an empty guide still ranks SOMETHING first, but
+      // far — surfacing that as "aiming at X" would suggest junk.
+      if (rankedTop.distance <= idleGateRef.current) {
+        aim = { artKey: topArt, key: rankedTop.key, seconds: aimAgeSeconds };
+      }
     }
 
     noteLock(outcome);
@@ -1072,7 +1093,7 @@ export function useCardScanner(
       turns,
       outcome.winner === null && !outcome.refused,
     );
-    publish(outcome, outcome.locked !== null);
+    publish(outcome, aim, outcome.locked !== null);
   }
 
   async function start() {

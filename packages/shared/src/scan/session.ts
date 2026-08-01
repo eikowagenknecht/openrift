@@ -17,7 +17,7 @@ import type {
   FrameWinner,
   VerifiedCandidate,
 } from "./accept";
-import { observeWinner, pickFrameWinner } from "./accept";
+import { observeWinner, pickFrameWinner, rearmLockedTracks } from "./accept";
 import type { OpenCvLike } from "./detect-cv";
 import { detectCardsWithCv } from "./detect-cv";
 import type { PrintingScore, PrintingSignature } from "./disambiguate";
@@ -359,6 +359,17 @@ export function idleBackoffActive(noWinnerStreak: number, hasGuide: boolean): bo
 const GUIDE_MIN_IOU = 0.3;
 
 /**
+ * Consecutive card-absent guide frames before locked tracks re-arm (see
+ * {@link rearmLockedTracks}). A frame counts as absent when no detector
+ * proposal overlapped the guide AND nothing in it ranked plausibly — a card
+ * that defeats the detectors (glare, low contrast) still rides the guide
+ * fallback and ranks, so a held card never reads as absent. Two frames rather
+ * than one so a single mid-hold detector dropout (a hand jiggle blurring one
+ * frame) cannot re-arm and double-count the card still sitting there.
+ */
+export const ABSENT_FRAMES_TO_REARM = 2;
+
+/**
  * The guide rect itself as a rectification candidate, for frames where no
  * detector proposal overlaps it.
  *
@@ -430,6 +441,10 @@ export function createScanSession(
   // Consecutive frames without a verified winner or plausible ranking; drives
   // the guide-mode idle backoff (see idleBackoffActive).
   let noWinnerStreak = 0;
+  // Consecutive guide frames with no detector proposal and no plausible
+  // ranking — the card has visibly left the guide. Drives the locked-track
+  // re-arm (see ABSENT_FRAMES_TO_REARM).
+  let absentStreak = 0;
   // Band signatures of reference renders, for printing disambiguation.
   // Null marks a reference that has none (missing render, landscape card).
   const printingSignatureCache = new Map<string, PrintingSignature | null>();
@@ -536,10 +551,14 @@ export function createScanSession(
     const gray = toGray(frame);
     let candidates = mergeCandidates([...detectCardsWithCv(deps.cv, gray), ...fitCardRects(gray)]);
     const guide = opts.guideFor ? opts.guideFor(frame.width, frame.height) : null;
+    // No detector proposal near the guide — half of the card-absent signal
+    // (recorded before the guide fallback below repopulates the list).
+    let guideEmpty = false;
     if (guide) {
       candidates = candidates.filter(
         (candidate) => quadIou(candidate.quad, guide) >= GUIDE_MIN_IOU,
       );
+      guideEmpty = candidates.length === 0;
       if (candidates.length === 0) {
         // No proposal near the guide: try the guide itself, so a card that
         // defeats both detectors (glare, low contrast) still gets embedded.
@@ -614,8 +633,19 @@ export function createScanSession(
     // A plausible ranking already ends the idle streak: the full search must
     // be back BEFORE verification succeeds, or a card whose first frame needs
     // the rotation search could never produce the winner that resets it.
-    if (best && best.ranked[0].distance <= opts.rotationFallbackDistance) {
+    const plausible = best !== null && best.ranked[0].distance <= opts.rotationFallbackDistance;
+    if (plausible) {
       noWinnerStreak = 0;
+      absentStreak = 0;
+    } else if (guideEmpty) {
+      // Nothing detected in the guide and nothing ranking plausibly: the card
+      // has left. Junk frames mid-swap (a hand, a card at a steep angle) may
+      // still yield proposals, so they neither extend nor reset the streak —
+      // only a recognisable card resets it.
+      absentStreak++;
+      if (absentStreak >= ABSENT_FRAMES_TO_REARM) {
+        rearmLockedTracks(state);
+      }
     }
 
     if (!best) {
@@ -697,6 +727,7 @@ export function createScanSession(
     }
     if (decision.winner) {
       noWinnerStreak = 0;
+      absentStreak = 0;
       lastWinnerQuad = best.candidate.quad;
       const winnerKey = decision.winner.key;
       lastWinnerRotation =

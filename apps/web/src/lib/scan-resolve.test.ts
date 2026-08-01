@@ -117,6 +117,97 @@ describe("resolveLock", () => {
     }
   });
 
+  it("resolves a language-only ambiguity to the preferred language", () => {
+    const shared = { shortCode: "OGN-006", cardId: "card-6" };
+    const en = withImage(stubPrinting({ id: "p-en", language: "EN", ...shared }), "img-en");
+    const sc = withImage(stubPrinting({ id: "p-sc", language: "SC", ...shared }), "img-sc");
+    const index = buildScanPrintingIndex(
+      [en, sc],
+      stubBank({ "img-en": "art-1", "img-sc": "art-1" }),
+    );
+    const resolution = resolveLock(lock("img-en", false), index, "EN");
+    expect(resolution.kind).toBe("auto");
+    if (resolution.kind === "auto") {
+      expect(resolution.printing.id).toBe("p-en");
+    }
+  });
+
+  it("keeps the finish default and siblings within the preferred language", () => {
+    const shared = { shortCode: "OGN-007", cardId: "card-7" };
+    const enFoil = withImage(
+      stubPrinting({ id: "p-en-foil", finish: "foil", language: "EN", ...shared }),
+      "img-en",
+    );
+    const enNormal = withImage(
+      stubPrinting({ id: "p-en-normal", finish: "normal", language: "EN", ...shared }),
+      "img-en",
+    );
+    const sc = withImage(
+      stubPrinting({ id: "p-sc", finish: "normal", language: "SC", ...shared }),
+      "img-sc",
+    );
+    const index = buildScanPrintingIndex(
+      [enFoil, enNormal, sc],
+      stubBank({ "img-en": "art-1", "img-sc": "art-1" }),
+    );
+    const resolution = resolveLock(lock("img-en", false), index, "EN");
+    expect(resolution.kind).toBe("auto");
+    if (resolution.kind === "auto") {
+      expect(resolution.printing.id).toBe("p-en-normal");
+      expect(resolution.finishSiblings.map((sibling) => sibling.id)).toEqual(["p-en-foil"]);
+    }
+  });
+
+  it("still asks when the preferred language is not among the candidates", () => {
+    const shared = { shortCode: "OGN-008", cardId: "card-8" };
+    const sc = withImage(stubPrinting({ id: "p-sc", language: "SC", ...shared }), "img-sc");
+    const de = withImage(stubPrinting({ id: "p-de", language: "DE", ...shared }), "img-de");
+    const index = buildScanPrintingIndex(
+      [sc, de],
+      stubBank({ "img-sc": "art-1", "img-de": "art-1" }),
+    );
+    expect(resolveLock(lock("img-sc", false), index, "EN").kind).toBe("picker");
+  });
+
+  it("still asks when more than the language separates the candidates", () => {
+    // Same card in two languages AND two sets: the preference answers the
+    // language but not the set, so the picker must still open.
+    const en = withImage(
+      stubPrinting({ id: "p-en", language: "EN", shortCode: "OGN-009", cardId: "card-9" }),
+      "img-en",
+    );
+    const enAlt = withImage(
+      stubPrinting({ id: "p-en-alt", language: "EN", shortCode: "ALT-009", cardId: "card-9" }),
+      "img-en",
+    );
+    const sc = withImage(
+      stubPrinting({ id: "p-sc", language: "SC", shortCode: "OGN-009", cardId: "card-9" }),
+      "img-sc",
+    );
+    const index = buildScanPrintingIndex(
+      [en, enAlt, sc],
+      stubBank({ "img-en": "art-1", "img-sc": "art-1" }),
+    );
+    expect(resolveLock(lock("img-en", false), index, "EN").kind).toBe("picker");
+  });
+
+  it("does not shortcut a resolved lock that already names one printing", () => {
+    // The engine READ the language off the card; the preference must never
+    // override pixel evidence (a real SC card in an EN collection).
+    const shared = { shortCode: "OGN-010", cardId: "card-10" };
+    const sc = withImage(stubPrinting({ id: "p-sc", language: "SC", ...shared }), "img-sc");
+    const en = withImage(stubPrinting({ id: "p-en", language: "EN", ...shared }), "img-en");
+    const index = buildScanPrintingIndex(
+      [sc, en],
+      stubBank({ "img-sc": "art-1", "img-en": "art-1" }),
+    );
+    const resolution = resolveLock(lock("img-sc", true), index, "EN");
+    expect(resolution.kind).toBe("auto");
+    if (resolution.kind === "auto") {
+      expect(resolution.printing.id).toBe("p-sc");
+    }
+  });
+
   it("auto-adds an unresolved lock whose artwork has only one printing anyway", () => {
     const only = withImage(stubPrinting({ id: "p1" }), "img-a");
     const index = buildScanPrintingIndex([only], stubBank({ "img-a": "art-1" }));

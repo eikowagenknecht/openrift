@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { AcceptState, VerifiedCandidate } from "./accept";
-import { observeWinner, pickFrameWinner } from "./accept";
+import { observeWinner, pickFrameWinner, rearmLockedTracks } from "./accept";
 
 const OPTIONS = { lockRun: 3, maxGapFrames: 6 };
 
@@ -116,6 +116,44 @@ describe("observeWinner", () => {
     expect(relocked?.artKey).toBe("artA");
     expect(relocked?.framesToLock).toBe(2);
     expect(relocked?.lockedAt).toBeCloseTo(3.5);
+  });
+
+  it("locks a quickly swapped second copy after a re-arm", () => {
+    const state: AcceptState = new Map();
+    observeWinner(state, 0, 0, winner("a", "artA"), "A", OPTIONS);
+    observeWinner(state, 1, 0, winner("a", "artA"), "A", OPTIONS);
+    expect(observeWinner(state, 2, 0.1, winner("a", "artA"), "A", OPTIONS)).not.toBeNull();
+    // The swap is faster than the gap tolerance: without the re-arm these
+    // frames would extend the locked run and the second copy would be lost.
+    rearmLockedTracks(state);
+    observeWinner(state, 4, 0.2, winner("a", "artA"), "A", OPTIONS);
+    observeWinner(state, 5, 0.2, winner("a", "artA"), "A", OPTIONS);
+    const relocked = observeWinner(state, 6, 0.3, winner("a", "artA"), "A", OPTIONS);
+    expect(relocked?.artKey).toBe("artA");
+    expect(relocked?.framesToLock).toBe(2);
+  });
+
+  it("re-arm leaves an unlocked mid-run track untouched", () => {
+    const state: AcceptState = new Map();
+    observeWinner(state, 0, 0, winner("a", "artA"), "A", OPTIONS);
+    observeWinner(state, 1, 0, winner("a", "artA"), "A", OPTIONS);
+    // Two wins in, not locked yet: a detector dropout must not restart the
+    // lock clock — the gap tolerance covers mid-aim blur.
+    rearmLockedTracks(state);
+    const locked = observeWinner(state, 2, 0.1, winner("a", "artA"), "A", OPTIONS);
+    expect(locked?.artKey).toBe("artA");
+  });
+
+  it("re-arm does not fire a lock without a fresh run", () => {
+    const state: AcceptState = new Map();
+    observeWinner(state, 0, 0, winner("a", "artA"), "A", OPTIONS);
+    observeWinner(state, 1, 0, winner("a", "artA"), "A", OPTIONS);
+    expect(observeWinner(state, 2, 0.1, winner("a", "artA"), "A", OPTIONS)).not.toBeNull();
+    rearmLockedTracks(state);
+    // One agreeing frame is not a run; the same held card must not re-count
+    // off a single post-re-arm win.
+    expect(observeWinner(state, 4, 0.2, winner("a", "artA"), "A", OPTIONS)).toBeNull();
+    expect(observeWinner(state, 5, 0.2, winner("a", "artA"), "A", OPTIONS)).toBeNull();
   });
 
   it("measures lock latency from the run that locked, not the first sighting", () => {
