@@ -18,7 +18,9 @@
 
 html,
 body {
-  overscroll-behavior-y: none;
+  /* No `overscroll-behavior-y: none` here on purpose: it also kills the
+   * browser's native pull-to-refresh, which users kept reaching for. The
+   * rubber-band bounce it suppressed is a much smaller cost. */
   /* Disable browser scroll anchoring on the window scroll root. Every card
    * surface is window-virtualized (useWindowVirtualizer), and the browser's
    * automatic scroll adjustment fights the virtualizer's own position

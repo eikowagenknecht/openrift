@@ -8,7 +8,6 @@ import { hydrateRoot } from "react-dom/client";
 
 import { bufferHydrationError } from "./lib/hydration-error-buffer";
 import type { HydrationErrorPhase } from "./lib/hydration-error-buffer";
-import { preventIOSOverscroll } from "./lib/ios-overscroll-prevention";
 import { initStaleBundleWatcher, initVisibilityVersionCheck } from "./lib/stale-bundle";
 import { initChunkErrorReloader, reloadIfUncaughtBareThrow } from "./lib/stale-bundle-reload";
 
@@ -76,7 +75,6 @@ function reportHydrationError(
 // Sentry client init happens inside getRouter() in router.ts, gated on !isServer.
 // That lets Sentry.tanstackRouterBrowserTracingIntegration() receive the router
 // instance, which is needed for route-named transactions and navigation spans.
-preventIOSOverscroll();
 // Recover from deploys: detect bundle-vs-API build mismatch and dead-chunk
 // fetches, reload once per session. Wraps window.fetch before hydrateRoot so
 // the very first API calls (during route loaders) are covered.
