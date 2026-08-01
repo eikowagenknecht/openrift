@@ -20,6 +20,8 @@ import {
 import { useEffect, useRef, useState } from "react";
 
 import { cameraErrorMessage } from "@/lib/camera-error";
+import type { CameraInfo } from "@/lib/camera-info";
+import { readCameraInfo } from "@/lib/camera-info";
 import { fetchWithProgress } from "@/lib/fetch-progress";
 import type { LoadedScanBank } from "@/lib/scan-bank";
 import { describeKey } from "@/lib/scan-bank";
@@ -495,6 +497,10 @@ export function useCardScanner(
   const [active, setActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [readout, setReadout] = useState<ScannerReadout>(EMPTY_READOUT);
+  // What the browser reported about the track the last start opened. Kept past
+  // stop() on purpose: it is a snapshot, not live state, and reading it off a
+  // phone is easier with the camera (and its battery drain) switched off.
+  const [cameraInfo, setCameraInfo] = useState<CameraInfo | null>(null);
   const cvRef = useRef<(OpenCvLike & OrbCvLike) | null>(null);
   const [cvReady, setCvReady] = useState(false);
   const embedderRef = useRef<CardEmbedder | null>(null);
@@ -1240,6 +1246,16 @@ export function useCardScanner(
     aimSinceRef.current.clear();
     requestAnimationFrame(loop);
     startingRef.current = false;
+
+    // Read last, so enumerateDevices never delays the first frame. Only
+    // meaningful once the track is producing: width and height read as 0
+    // before then, and device labels stay empty until the camera permission
+    // this stream just obtained. Never rejects, so it needs no guard of its
+    // own, and the loop is already running so an early return is safe here.
+    const info = await readCameraInfo(stream);
+    if (generation === runGenerationRef.current) {
+      setCameraInfo(info);
+    }
   }
 
   /**
@@ -1298,6 +1314,8 @@ export function useCardScanner(
     active,
     error,
     readout,
+    /** What the browser reported about the last opened camera track. */
+    cameraInfo,
     start,
     stop,
     capture,

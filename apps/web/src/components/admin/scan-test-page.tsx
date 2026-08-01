@@ -1,6 +1,6 @@
 import { imageUrl } from "@openrift/shared";
 import { CameraIcon, CameraOffIcon, LoaderIcon, RotateCcwIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
@@ -21,6 +21,7 @@ import type { LockedCard, ScannerReadout, ScannerSettings } from "@/hooks/use-ca
 import { DEFAULT_SCANNER_SETTINGS, useCardScanner } from "@/hooks/use-card-scanner";
 import type { ScanAssets } from "@/hooks/use-scan-serving";
 import { useLatestScanBankRun, useRebuildScanBank, useScanAssets } from "@/hooks/use-scan-serving";
+import type { CameraInfo, CameraInfoEntry } from "@/lib/camera-info";
 import type { LoadedScanBank } from "@/lib/scan-bank";
 import { describeKey, loadScanBank } from "@/lib/scan-bank";
 
@@ -127,6 +128,94 @@ function LiveFrameCard({ readout, loaded, active }: LiveFrameCardProps) {
             quad: aspect {readout.candidate.aspect.toFixed(2)} · area{" "}
             {(readout.candidate.areaFraction * 100).toFixed(0)}%
           </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function CameraInfoRows({ entries }: { entries: CameraInfoEntry[] }) {
+  return (
+    <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1">
+      {entries.map(([key, value]) => (
+        <Fragment key={key}>
+          <dt className="text-muted-foreground">{key}</dt>
+          <dd className="break-words tabular-nums">{value}</dd>
+        </Fragment>
+      ))}
+    </dl>
+  );
+}
+
+/**
+ * What the browser reported about the camera track the scanner opened.
+ *
+ * The scanner asks for `facingMode: environment` and accepts whatever comes
+ * back, which on a multi-camera phone may be the ultra-wide rather than the
+ * main lens. This is the panel that says which one it was, and whether the
+ * device exposes a zoom knob at all, so lens choice can be measured before
+ * anything automates it.
+ *
+ * @returns The diagnostics card.
+ */
+function CameraCard({ info, active }: { info: CameraInfo | null; active: boolean }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Camera</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        {info === null ? (
+          <p className="text-muted-foreground">
+            Start the camera to see which lens the browser picked and what it can do.
+          </p>
+        ) : (
+          <>
+            <div className="flex flex-col gap-1">
+              <p className="font-medium break-words">{info.label ?? "Unnamed track"}</p>
+              {!active && (
+                <p className="text-muted-foreground">From the last session, camera is off.</p>
+              )}
+            </div>
+
+            {info.settings.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <p className="font-medium">Settings</p>
+                <CameraInfoRows entries={info.settings} />
+              </div>
+            )}
+
+            <div className="flex flex-col gap-2">
+              <p className="font-medium">Capabilities</p>
+              {!info.capabilitiesSupported && (
+                <p className="text-muted-foreground">
+                  This browser does not expose getCapabilities, so zoom and focus cannot be read or
+                  controlled here.
+                </p>
+              )}
+              {info.capabilitiesSupported && info.capabilities.length === 0 && (
+                <p className="text-muted-foreground">The track reported no capabilities.</p>
+              )}
+              {info.capabilities.length > 0 && <CameraInfoRows entries={info.capabilities} />}
+            </div>
+
+            {info.devices.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <p className="font-medium">Video inputs ({info.devices.length})</p>
+                <ul className="flex flex-col gap-1">
+                  {info.devices.map((device) => (
+                    <li key={device.deviceId} className="break-words">
+                      {device.label === "" ? (
+                        <span className="text-muted-foreground">Unnamed</span>
+                      ) : (
+                        device.label
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </>
         )}
       </CardContent>
     </Card>
@@ -330,6 +419,7 @@ export function ScanTestPage() {
     engineProgress,
     error: scanError,
     readout,
+    cameraInfo,
     start,
     stop,
     capture,
@@ -497,6 +587,7 @@ export function ScanTestPage() {
 
           <div className="flex flex-col gap-4">
             <LiveFrameCard readout={readout} loaded={loaded} active={active} />
+            <CameraCard info={cameraInfo} active={active} />
             <EngineCard settings={settings} onChange={handleSettingsChange} />
             <ServingCard assets={assets} />
           </div>
