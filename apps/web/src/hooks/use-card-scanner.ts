@@ -12,9 +12,9 @@ import type {
   ScanSession,
 } from "@openrift/shared/scan";
 import {
-  CARD_ASPECT,
   DEFAULT_SESSION_OPTIONS,
   IDLE_AFTER_NO_WINNER_FRAMES,
+  centeredGuideQuad,
   createScanSession,
   gatesForEmbedDim,
 } from "@openrift/shared/scan";
@@ -119,25 +119,9 @@ const AIM_STREAK_GAP_MS = 3000;
 
 /**
  * The guide rect in frame coordinates: a centered portrait card outline.
- *
- * @returns The quad, clockwise from the top-left corner.
+ * Defined in the engine so the offline bench anchors on the same rect.
  */
-function guideQuadFor(width: number, height: number): Quad {
-  let cardHeight = 0.7 * height;
-  let cardWidth = cardHeight * CARD_ASPECT;
-  if (cardWidth > 0.9 * width) {
-    cardWidth = 0.9 * width;
-    cardHeight = cardWidth / CARD_ASPECT;
-  }
-  const left = (width - cardWidth) / 2;
-  const top = (height - cardHeight) / 2;
-  return [
-    { x: left, y: top },
-    { x: left + cardWidth, y: top },
-    { x: left + cardWidth, y: top + cardHeight },
-    { x: left, y: top + cardHeight },
-  ];
-}
+const guideQuadFor = centeredGuideQuad;
 
 /** A card the accept layer locked, with the numbers the phone bar is judged on. */
 export interface LockedCard {

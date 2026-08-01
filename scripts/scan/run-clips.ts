@@ -12,7 +12,14 @@
  *        [--art-crop] [--mask-frame] [--min-sightings N] [--top-k N]
  *        [--tries N] [--margin M] [--lock-run N] [--lock-gap N] [--force-bank]
  *        [--confident-distance D] [--rotation-min-focus N]
- *        [--rotation-fallback-distance D] [--pair-only]
+ *        [--rotation-fallback-distance D] [--pair-only] [--guide]
+ *
+ * --guide anchors detection to the same centered rect the single-card modes
+ * draw in the app (`centeredGuideQuad`). Off by default, so the bench keeps
+ * measuring the pan pipeline; pair it with --top-k 4 --lock-run 3 --pair-only
+ * to reproduce what the web hook configures for single mode. The placement
+ * report is printed either way, and guide-free it says how many frames the
+ * guide filter would have thrown away.
  *
  * --pair-only restricts the rotation fallback to the 180-degree partner and is
  * only sound against a canonical bank (SCAN_CANONICAL_BANK=1) with an encoder
@@ -28,12 +35,16 @@ import type {
   EmbedKind,
   OpenCvLike,
   OrbCvLike,
+  Quad,
   ScanSession,
 } from "../../packages/shared/src/scan/index.js";
 import {
   DEFAULT_SESSION_OPTIONS,
+  GUIDE_MIN_IOU,
+  centeredGuideQuad,
   createScanSession,
   gatesForEmbedDim,
+  quadIou,
 } from "../../packages/shared/src/scan/index.js";
 import { describe, loadCatalog } from "./catalog";
 import { EMBED_SIZE, loadEmbedBank, nodeEmbedder } from "./embed-bank";
@@ -46,6 +57,10 @@ const EXPECTED: Record<string, number> = {
   "double-sleved-single-cards": 5,
   "binder-page": 9,
   "carelessly-stacking-battlefields": 12,
+  // Stand footage: a phone fixed above a 3D-printed light box, cards dropped
+  // in by hand. Two artworks (Baccai Sandspinner, Blade Twirler), each placed
+  // and swapped several times, none of them deliberately aimed.
+  "3d-print-scanner": 2,
 };
 
 function argValue(flag: string): string | undefined {
@@ -61,6 +76,103 @@ interface Sighting {
   bestScore: number;
 }
 
+/**
+ * How the settled candidates sat relative to the guide rect, whether or not
+ * the guide was actually in play.
+ *
+ * The bench runs guide-free by default, so this is what says whether turning
+ * the guide on would have thrown the real card away: `belowMinIou` counts the
+ * frames whose candidate the guide filter would have dropped.
+ */
+interface PlacementStats {
+  frames: number;
+  /** IoU-with-guide buckets, in {@link IOU_BUCKETS} order. */
+  buckets: number[];
+  belowMinIou: number;
+  /** Frames whose candidate was exactly the guide rect (guide-mode fallback). */
+  guideFallback: number;
+  iouSum: number;
+  containmentSum: number;
+}
+
+const IOU_BUCKETS = [0.1, 0.2, 0.3, 0.5, 0.7];
+
+function createPlacementStats(): PlacementStats {
+  return {
+    frames: 0,
+    buckets: Array.from({ length: IOU_BUCKETS.length + 1 }, () => 0),
+    belowMinIou: 0,
+    guideFallback: 0,
+    iouSum: 0,
+    containmentSum: 0,
+  };
+}
+
+/**
+ * Absolute shoelace area of a quad.
+ *
+ * @returns The area in the quad's own coordinate space.
+ */
+function quadArea(quad: Quad): number {
+  let sum = 0;
+  for (const [index, point] of quad.entries()) {
+    const next = quad[(index + 1) % quad.length];
+    sum += point.x * next.y - next.x * point.y;
+  }
+  return Math.abs(sum) / 2;
+}
+
+/**
+ * Fold one frame's settled candidate into the placement stats.
+ *
+ * Containment (intersection over candidate area) is recovered from the IoU
+ * and the two areas rather than re-clipping the polygons: for
+ * `iou = i / (a + b - i)` the intersection is `iou * (a + b) / (1 + iou)`.
+ *
+ * @returns Nothing; the stats are updated in place.
+ */
+function recordPlacement(stats: PlacementStats, quad: Quad, width: number, height: number): void {
+  const guide = centeredGuideQuad(width, height);
+  const iou = quadIou(quad, guide);
+  const candidateArea = quadArea(quad);
+  const guideArea = quadArea(guide);
+  const intersection = (iou * (candidateArea + guideArea)) / (1 + iou);
+
+  stats.frames++;
+  stats.iouSum += iou;
+  stats.containmentSum += candidateArea > 0 ? intersection / candidateArea : 0;
+  if (iou < GUIDE_MIN_IOU) {
+    stats.belowMinIou++;
+  }
+  if (quad.every((point, index) => point.x === guide[index].x && point.y === guide[index].y)) {
+    stats.guideFallback++;
+  }
+  const bucket = IOU_BUCKETS.findIndex((edge) => iou < edge);
+  stats.buckets[bucket === -1 ? IOU_BUCKETS.length : bucket]++;
+}
+
+/**
+ * Render the placement stats as two report lines.
+ *
+ * @returns The lines, or an empty string when no frame settled a candidate.
+ */
+function formatPlacement(stats: PlacementStats): string {
+  if (stats.frames === 0) {
+    return "";
+  }
+  const labels = ["<0.1", "0.1-0.2", "0.2-0.3", "0.3-0.5", "0.5-0.7", ">=0.7"];
+  const histogram = stats.buckets.map((count, index) => `${labels[index]}: ${count}`).join("  ");
+  const share = ((stats.belowMinIou / stats.frames) * 100).toFixed(0);
+  return (
+    `  placement vs guide (${stats.frames} frames with a candidate): ` +
+    `mean IoU ${(stats.iouSum / stats.frames).toFixed(2)}, ` +
+    `mean containment ${(stats.containmentSum / stats.frames).toFixed(2)}, ` +
+    `${stats.belowMinIou} below the ${GUIDE_MIN_IOU} filter (${share}%), ` +
+    `${stats.guideFallback} guide-fallback frames\n` +
+    `    IoU histogram: ${histogram}\n`
+  );
+}
+
 async function runClip(
   cv: OpenCvLike & OrbCvLike,
   clip: string,
@@ -69,6 +181,7 @@ async function runClip(
   embedKind: EmbedKind,
   bank: EmbedBank,
   maskFrame: boolean,
+  guided: boolean,
 ): Promise<void> {
   const dir = path.join(CLIPS, clip);
   const frames = fs
@@ -118,12 +231,14 @@ async function runClip(
       margin: acceptMargin,
       maskReferenceFrame: maskFrame,
       accept: acceptOptions,
+      ...(guided ? { guideFor: centeredGuideQuad } : {}),
     },
   );
 
   const sightings = new Map<string, Sighting>();
   let refusedFrames = 0;
   let totalMs = 0;
+  const placement = createPlacementStats();
 
   for (const [i, file] of frames.entries()) {
     const image = await loadImage(path.join(dir, file));
@@ -132,6 +247,9 @@ async function runClip(
     const outcome = await session.processFrame(image, i, i / 30, () => performance.now());
     if (outcome.refused) {
       refusedFrames++;
+    }
+    if (outcome.candidate) {
+      recordPlacement(placement, outcome.candidate.quad, image.width, image.height);
     }
     if (outcome.winner) {
       record(sightings, catalog, outcome.winner.key, i / 30, outcome.winner.inliers, verbose);
@@ -162,9 +280,11 @@ async function runClip(
   const artworks = new Set(distinct.map((s) => catalog.get(s.key)?.artKey ?? s.key));
   const expected = EXPECTED[clip] ?? 0;
   process.stdout.write(
-    `\n${clip}: ${frames.length} frames, ${(totalMs / frames.length).toFixed(0)}ms/frame\n` +
+    `\n${clip}: ${frames.length} frames, ${(totalMs / frames.length).toFixed(0)}ms/frame` +
+      `${guided ? " (guide mode)" : ""}\n` +
       `  ${artworks.size} distinct cards recognised at >=${MIN_SIGHTINGS} sightings ` +
-      `(clip contains ${expected})\n  persistence curve: ${curve}\n`,
+      `(clip contains ${expected})\n  persistence curve: ${curve}\n` +
+      `${formatPlacement(placement)}`,
   );
   for (const sighting of distinct) {
     process.stdout.write(
@@ -239,13 +359,14 @@ async function main(cv: OpenCvLike & OrbCvLike): Promise<void> {
   const verbose = process.argv.includes("--verbose");
   const embedKind: EmbedKind = process.argv.includes("--art-crop") ? "art" : "card";
   const maskFrame = process.argv.includes("--mask-frame");
+  const guided = process.argv.includes("--guide");
   const bank = await loadEmbedBank(embedKind, process.argv.includes("--force-bank"));
 
   for (const clip of Object.keys(EXPECTED)) {
     if (only && clip !== only) {
       continue;
     }
-    await runClip(cv, clip, catalog, verbose, embedKind, bank, maskFrame);
+    await runClip(cv, clip, catalog, verbose, embedKind, bank, maskFrame, guided);
   }
 }
 

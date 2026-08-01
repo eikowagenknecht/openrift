@@ -60,9 +60,11 @@ export type {
 } from "./session";
 export {
   DEFAULT_SESSION_OPTIONS,
+  GUIDE_MIN_IOU,
   IDLE_AFTER_NO_WINNER_FRAMES,
   SESSION_UNWARP_HEIGHT,
   SESSION_UNWARP_WIDTH,
+  centeredGuideQuad,
   createScanSession,
   gatesForEmbedDim,
   idleBackoffActive,

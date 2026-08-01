@@ -35,6 +35,7 @@ import { focusScore, rotateRgbaCw, toGray } from "./image";
 import type { OrbCvLike, OrbFeatures } from "./orb";
 import { describeOrb, releaseOrb, verifyOrb } from "./orb";
 import type { CardCandidate, Quad, RgbaImage } from "./types";
+import { CARD_ASPECT } from "./types";
 import { unwarpCard } from "./unwarp";
 
 /** Rectification size shared by the embedding and the feature stage. */
@@ -356,7 +357,35 @@ export function idleBackoffActive(noWinnerStreak: number, hasGuide: boolean): bo
 }
 
 /** Least overlap with the guide rect for a proposal to count as the placed card. */
-const GUIDE_MIN_IOU = 0.3;
+export const GUIDE_MIN_IOU = 0.3;
+
+/**
+ * The guide rect the single-card modes draw and anchor detection to: a
+ * centered, card-shaped outline at 0.7 of the frame height, capped at 0.9 of
+ * its width so a portrait frame keeps a margin on both sides.
+ *
+ * Shared rather than owned by the web hook so the offline bench anchors on the
+ * exact rect the app draws. A bench measuring a guide the product does not
+ * have would report placement tolerances nobody experiences.
+ *
+ * @returns The guide quad, clockwise from the top-left corner.
+ */
+export function centeredGuideQuad(width: number, height: number): Quad {
+  let cardHeight = 0.7 * height;
+  let cardWidth = cardHeight * CARD_ASPECT;
+  if (cardWidth > 0.9 * width) {
+    cardWidth = 0.9 * width;
+    cardHeight = cardWidth / CARD_ASPECT;
+  }
+  const left = (width - cardWidth) / 2;
+  const top = (height - cardHeight) / 2;
+  return [
+    { x: left, y: top },
+    { x: left + cardWidth, y: top },
+    { x: left + cardWidth, y: top + cardHeight },
+    { x: left, y: top + cardHeight },
+  ];
+}
 
 /**
  * Consecutive card-absent guide frames before locked tracks re-arm (see

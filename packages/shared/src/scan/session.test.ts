@@ -3,11 +3,13 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_SESSION_OPTIONS,
   IDLE_AFTER_NO_WINNER_FRAMES,
+  centeredGuideQuad,
   gatesForEmbedDim,
   idleBackoffActive,
   mergeCandidates,
   prioritizeTracked,
 } from "./session";
+import { CARD_ASPECT } from "./types";
 import type { CardCandidate, Quad } from "./types";
 
 /**
@@ -114,5 +116,36 @@ describe("idleBackoffActive", () => {
     // Pan candidates are different physical cards; trimming them is a recall
     // loss, not a saving (the battlefields clip locks through exactly those).
     expect(idleBackoffActive(IDLE_AFTER_NO_WINNER_FRAMES * 3, false)).toBe(false);
+  });
+});
+
+describe("centeredGuideQuad", () => {
+  it("centers a card-proportioned rect at 0.7 of the frame height", () => {
+    const [topLeft, topRight, bottomRight] = centeredGuideQuad(1000, 800);
+    const height = bottomRight.y - topRight.y;
+    const width = topRight.x - topLeft.x;
+    expect(height).toBeCloseTo(560);
+    expect(width / height).toBeCloseTo(CARD_ASPECT);
+    // Centered: equal margin on both axes.
+    expect(topLeft.x).toBeCloseTo(1000 - topRight.x);
+    expect(topLeft.y).toBeCloseTo(800 - bottomRight.y);
+  });
+
+  it("falls back to 0.9 of the width on a narrow portrait frame", () => {
+    // 0.7 * 848 = 594 tall wants 425 of width, more than 0.9 * 464 = 418, so
+    // the width cap decides and the height follows from it. This is the phone
+    // case: without the cap the guide would run off both sides.
+    const [topLeft, topRight, bottomRight] = centeredGuideQuad(464, 848);
+    const width = topRight.x - topLeft.x;
+    expect(width).toBeCloseTo(0.9 * 464);
+    expect(bottomRight.y - topRight.y).toBeCloseTo(width / CARD_ASPECT);
+  });
+
+  it("returns its corners clockwise from the top left", () => {
+    const quad = centeredGuideQuad(1000, 800);
+    expect(quad[0].x).toBeLessThan(quad[1].x);
+    expect(quad[1].y).toBeLessThan(quad[2].y);
+    expect(quad[3].x).toBeLessThan(quad[2].x);
+    expect(quad[0].y).toBeLessThan(quad[3].y);
   });
 });
