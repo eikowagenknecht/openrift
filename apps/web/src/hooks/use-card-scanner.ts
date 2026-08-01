@@ -267,22 +267,29 @@ let cvProgressListener: ((loaded: number, total: number) => void) | null = null;
  * bank by `export-index.ts`), NOT as a module import: vite's dep-optimized
  * ESM wrapping of the emscripten UMD spins the main thread forever during
  * evaluation, in every engine tested, while the raw script evaluates in well
- * under a second. Fetched to a blob first so the download can report
- * progress; a script tag exposes none. Kept at module level because the React
- * Compiler cannot lower a dynamic loader inside a hook.
+ * under a second. Kept at module level because the React Compiler cannot
+ * lower a dynamic loader inside a hook.
+ *
+ * Downloaded through `fetchWithProgress` first so the load can report bytes
+ * (a script tag exposes none), then evaluated by pointing the tag at that
+ * same URL: media assets are served immutable, so the tag's request is a
+ * cache hit rather than a second download, and the fetched bytes are dropped.
+ * Handing the tag a `blob:` URL built from them would save the re-request,
+ * but a blob script needs `blob:` in the CSP's `script-src`, which the served
+ * policy (nginx/web.conf) deliberately does not carry.
  *
  * The custom trimmed build (scripts/scan/build-opencv.sh) splits the glue
  * from the wasm so browsers can cache the compiled machine code. The glue
- * resolves the wasm relative to its script URL — a blob: URL here — so a
- * `locateFile` override on the global `Module` (captured synchronously at
- * script evaluation) points it at the real file, which by convention sits
- * next to the .js with the same name and a .wasm extension. A single-file
- * build (the pre-trim serving) never consults `locateFile`, so the override
- * is compatible with both.
+ * asks for the wasm under its build-time name (`opencv_js.wasm`) while we
+ * serve it renamed beside the script, so a `locateFile` override on the
+ * global `Module` (captured synchronously at script evaluation) points it at
+ * the real file, which by convention sits next to the .js with the same name
+ * and a .wasm extension. A single-file build (the pre-trim serving) never
+ * consults `locateFile`, so the override is compatible with both.
  *
  * @returns The initialised OpenCV module.
  */
-async function loadOpenCv(
+export async function loadOpenCv(
   scriptUrl: string,
   onProgress?: (loaded: number, total: number) => void,
 ): Promise<OpenCvLike & OrbCvLike> {
@@ -291,13 +298,14 @@ async function loadOpenCv(
   }
   /* oxlint-disable promise/prefer-catch, promise/always-return, promise/avoid-new -- adapting a script tag and a foreign thenable; every path settles */
   cvCached ??= (async () => {
-    const source = await fetchWithProgress(
+    // The bytes are only a progress signal: the script tag below asks for the
+    // same URL and the browser answers it from cache.
+    await fetchWithProgress(
       scriptUrl,
       (loaded, total) => cvProgressListener?.(loaded, total),
       `could not load OpenCV from ${scriptUrl} (in dev, run: bun scripts/scan/export-index.ts)`,
     );
     const wasmUrl = scriptUrl.replace(/\.js$/u, ".wasm");
-    const url = URL.createObjectURL(new Blob([source], { type: "text/javascript" }));
     const globalScope = globalThis as { Module?: unknown };
     const previousModule = globalScope.Module;
     globalScope.Module = {
@@ -306,7 +314,7 @@ async function loadOpenCv(
     try {
       await new Promise<void>((resolve, reject) => {
         const script = document.createElement("script");
-        script.src = url;
+        script.src = scriptUrl;
         script.addEventListener("load", () => resolve(), { once: true });
         script.addEventListener(
           "error",
@@ -316,7 +324,6 @@ async function loadOpenCv(
         document.head.append(script);
       });
     } finally {
-      URL.revokeObjectURL(url);
       // The factory captured the Module object during evaluation; the global
       // slot can be handed back before the wasm finishes initialising.
       globalScope.Module = previousModule;
