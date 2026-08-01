@@ -20,6 +20,7 @@ import {
 } from "@openrift/shared/scan";
 import { useEffect, useRef, useState } from "react";
 
+import { isOverconstrainedError, scannerVideoConstraints } from "@/lib/camera-constraints";
 import { cameraErrorMessage } from "@/lib/camera-error";
 import type { CameraInfo } from "@/lib/camera-info";
 import { readCameraInfo } from "@/lib/camera-info";
@@ -1416,21 +1417,39 @@ export function useCardScanner(
     winnerRotationStreakRef.current = { rotation: 0, count: 0 };
     rotationAdoptionArmedRef.current = true;
 
-    // The try blocks hold nothing but the awaited call: the React Compiler
-    // bails out of the whole hook on a `finally` clause or on conditionals and
-    // loops inside try/catch, so all control flow lives between them and the
-    // starting flag is cleared on every exit path by hand.
-    let stream: MediaStream;
+    // Built before the try block, because the try blocks hold nothing but the
+    // awaited call: the React Compiler bails out of the whole hook on a
+    // `finally` clause or on conditionals and loops inside try/catch, so all
+    // control flow lives between them and the starting flag is cleared on
+    // every exit path by hand.
+    const capFrameRate = measuredEmbedMsPerImage() > SLOW_DEVICE_EMBED_MS;
+    let stream: MediaStream | null = null;
+    let cameraFailure: unknown = null;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: "environment" },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-        },
+        video: scannerVideoConstraints(capFrameRate),
       });
     } catch (cameraError) {
-      setError(cameraErrorMessage(cameraError, "Could not open the camera"));
+      cameraFailure = cameraError;
+    }
+
+    // The frame rate cap is a hard max, so a camera whose only mode runs above
+    // it would refuse to open at all — on exactly the slow devices the cap is
+    // meant to help. Retrying uncapped costs one extra call in a case that
+    // should never happen, and turns a dead camera into a merely hot one.
+    if (stream === null && capFrameRate && isOverconstrainedError(cameraFailure)) {
+      console.log("[scan] no camera mode under the frame rate cap, retrying uncapped");
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: scannerVideoConstraints(false),
+        });
+      } catch (retryError) {
+        cameraFailure = retryError;
+      }
+    }
+
+    if (stream === null) {
+      setError(cameraErrorMessage(cameraFailure, "Could not open the camera"));
       startingRef.current = false;
       return;
     }
