@@ -649,6 +649,8 @@ export function useCardScanner(
         labelOf: (key) => describeKey(loaded.labels, key),
         cardTypeOf: (key) => loaded.labels[key]?.type,
         publicCodeOf: (key) => loaded.labels[key]?.code,
+        markersOf: (key) => loaded.labels[key]?.markers ?? undefined,
+        languageOf: (key) => loaded.labels[key]?.language,
         embedImageSize: embedderImageSize(),
         fetchReference,
       },

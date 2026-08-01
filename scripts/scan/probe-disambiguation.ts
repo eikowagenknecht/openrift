@@ -167,3 +167,104 @@ console.log(`code discriminative, correct side, 2px shift  ${summary(codeCorrect
 console.log(`code discriminative, wrong side, 1px shift    ${summary(codeWrongMargin1)}`);
 console.log(`code whole-strip floor, self 1px shift        ${summary(codeFloorSelf1)}`);
 console.log(`code whole-strip floor, wrong code            ${summary(codeFloorWrong)}`);
+
+// Stamp band: a dedicated pass over every artwork group holding a
+// marker-differing same-code pair (the pairs the name band and code strip are
+// both structurally blind to). Same-marker pairs double as the
+// false-evidence check, mirroring the code strip's same-code check.
+const stampCorrectMargin1: number[] = [];
+const stampCorrectMargin2: number[] = [];
+const stampWrongMargin1: number[] = [];
+const stampFloorSelf1: number[] = [];
+const stampFloorWrong: number[] = [];
+const stampSameMarkerEvidence: number[] = [];
+let stampSameMarkerPairs = 0;
+let stampDiffMarkerPairs = 0;
+let stampDiffMarkerNull = 0;
+let stampGroupsProbed = 0;
+
+for (const [, keys] of groups) {
+  if (keys.length < 2) {
+    continue;
+  }
+  const entries = keys.flatMap((key) => {
+    const entry = catalog.get(key);
+    const file = files.get(key);
+    return entry && file ? [{ entry, file }] : [];
+  });
+  const hasStampPair = entries.some((a) =>
+    entries.some(
+      (b) =>
+        a !== b &&
+        a.entry.publicCode === b.entry.publicCode &&
+        a.entry.language === b.entry.language &&
+        a.entry.markers !== null &&
+        b.entry.markers !== null &&
+        a.entry.markers !== b.entry.markers,
+    ),
+  );
+  if (!hasStampPair) {
+    continue;
+  }
+  const signatures: { markers: string; stamp: GrayImage }[] = [];
+  for (const { entry, file } of entries.slice(0, 4)) {
+    if (entry.markers === null) {
+      continue;
+    }
+    const s = printingSignature(await loadImage(file), textBandForType(entry.cardType));
+    if (s?.stamp) {
+      signatures.push({ markers: entry.markers, stamp: s.stamp });
+    }
+  }
+  if (signatures.length < 2) {
+    continue;
+  }
+  stampGroupsProbed++;
+  for (let i = 0; i < signatures.length; i++) {
+    for (let j = i + 1; j < signatures.length; j++) {
+      const left = signatures[i];
+      const right = signatures[j];
+      const query1 = shifted(left.stamp, 1, 1);
+      const margin = discriminativeMargin(query1, left.stamp, right.stamp);
+      // The stage's gate: only plain-versus-marked pairs are stamp signal.
+      // Equal-marker pairs AND differently-marked pairs (art stamps) land in
+      // the false-evidence bucket the gate must exclude.
+      if ((left.markers === "") === (right.markers === "")) {
+        stampSameMarkerPairs++;
+        if (margin !== null) {
+          stampSameMarkerEvidence.push(margin);
+        }
+        continue;
+      }
+      stampDiffMarkerPairs++;
+      if (margin === null) {
+        stampDiffMarkerNull++;
+        continue;
+      }
+      stampCorrectMargin1.push(margin);
+      const margin2 = discriminativeMargin(shifted(left.stamp, 2, 2), left.stamp, right.stamp);
+      if (margin2 !== null) {
+        stampCorrectMargin2.push(margin2);
+      }
+      const wrong = discriminativeMargin(query1, right.stamp, left.stamp);
+      if (wrong !== null) {
+        stampWrongMargin1.push(wrong);
+      }
+      stampFloorSelf1.push(bestShiftCorrelation(query1, left.stamp).score);
+      stampFloorWrong.push(bestShiftCorrelation(query1, right.stamp).score);
+    }
+  }
+}
+
+console.log(`stamp groups probed: ${stampGroupsProbed}`);
+console.log(
+  `stamp same-marker pairs: ${stampSameMarkerPairs}, false evidence ${summary(stampSameMarkerEvidence)}`,
+);
+console.log(
+  `stamp diff-marker pairs: ${stampDiffMarkerPairs}, no-evidence (null): ${stampDiffMarkerNull}`,
+);
+console.log(`stamp discriminative, correct side, 1px shift ${summary(stampCorrectMargin1)}`);
+console.log(`stamp discriminative, correct side, 2px shift ${summary(stampCorrectMargin2)}`);
+console.log(`stamp discriminative, wrong side, 1px shift   ${summary(stampWrongMargin1)}`);
+console.log(`stamp whole-band floor, self 1px shift        ${summary(stampFloorSelf1)}`);
+console.log(`stamp whole-band floor, wrong variant         ${summary(stampFloorWrong)}`);

@@ -7,17 +7,19 @@
  * renders text. Instead the query card's bands are correlated against the
  * same bands cropped from each candidate printing's reference render — glyph
  * differences dominate the comparison, while the shared frame pixels
- * contribute equally to every candidate and cancel out of the ranking. Two
+ * contribute equally to every candidate and cancel out of the ranking. Three
  * bands, staged (`resolvePrinting`): the name band carries the language
  * (Latin vs Han above all), the collector-code strip carries set, number and
  * promo variant — which is exactly what the name band cannot see, and vice
- * versa (codes are identical across languages). The stage runs after an
- * artwork lock, over the handful of printings in that artwork group, and
- * abstains rather than guesses: a pick needs an absolute correlation floor, a
- * clear margin on the pixels where the candidates actually disagree, and (for
- * the code strip) catalogue confirmation that the pair's printed codes
- * differ; otherwise the caller keeps the embedding's printing key and the UI
- * picker decides.
+ * versa (codes are identical across languages) — and the stamp band carries
+ * the promo/marker stamp for variants whose printed code does not change
+ * (measured 2026-08-01: the standard stamp sits bottom-center on unit, spell
+ * and gear alike). The stage runs after an artwork lock, over the handful of
+ * printings in that artwork group, and abstains rather than guesses: a pick
+ * needs an absolute correlation floor, a clear margin on the pixels where the
+ * candidates actually disagree, and (for the code strip and stamp band)
+ * catalogue confirmation that the pair actually differs there; otherwise the
+ * caller keeps the embedding's printing key and the UI picker decides.
  */
 import { ART_PORTRAIT } from "./art-window";
 import { downscaleGray, toGray } from "./image";
@@ -74,6 +76,18 @@ export function textBandForType(cardType?: string): TextBand {
  */
 const CODE_BAND: TextBand = { x0: 0.03, y0: 0.935, x1: 0.34, y1: 0.985 };
 
+/**
+ * The promo/marker stamp band (bottom-center, above the legal line), in
+ * fractions of the card size. Measured 2026-08-01 by diffing the renders of
+ * same-set/same-code printing pairs whose marker sets differ: the stamp blob
+ * lands at x 0.46-0.54, y 0.91-0.97 on every unit, spell and gear pair
+ * measured (~30 clean pairs); the band adds slack for the shift search.
+ * Special stamps printed on the artwork (summoner, judge, origins placements
+ * vary per card) are deliberately not covered: most carry a `-P` collector
+ * code the code strip separates, and the rest abstain to the picker.
+ */
+const STAMP_BAND: TextBand = { x0: 0.42, y0: 0.885, x1: 0.58, y1: 0.985 };
+
 /** Signature raster width; height follows the band's aspect. */
 export const SIGNATURE_WIDTH = 128;
 
@@ -83,6 +97,13 @@ export const SIGNATURE_WIDTH = 128;
  * and `downscaleGray` cannot upscale.
  */
 export const CODE_SIGNATURE_WIDTH = 96;
+
+/**
+ * Stamp-band raster width. The band is only ~64 source pixels wide in the
+ * 400w renders and ~61 in the rectified query, and `downscaleGray` cannot
+ * upscale, so the raster must stay under both.
+ */
+export const STAMP_SIGNATURE_WIDTH = 48;
 
 export interface PrintingScore {
   key: string;
@@ -190,13 +211,40 @@ export function codeStripSignature(card: RgbaImage): GrayImage | null {
   return normalizeSignature(downscaleGray(crop, CODE_SIGNATURE_WIDTH, height));
 }
 
-/** Both comparison bands of one card image, rastered for correlation. */
+/**
+ * The stamp-band signature of an upright portrait card image.
+ *
+ * @returns The grayscale signature, or null for landscape images and for
+ *   sources too small to raster the band without upscaling.
+ */
+export function stampBandSignature(card: RgbaImage): GrayImage | null {
+  if (card.width >= card.height) {
+    return null;
+  }
+  const crop = cropGray(toGray(card), STAMP_BAND);
+  if (crop.width < STAMP_SIGNATURE_WIDTH) {
+    return null;
+  }
+  const height = Math.max(
+    16,
+    Math.min(44, Math.round((STAMP_SIGNATURE_WIDTH * crop.height) / crop.width)),
+  );
+  if (crop.height < height) {
+    return null;
+  }
+  return normalizeSignature(downscaleGray(crop, STAMP_SIGNATURE_WIDTH, height));
+}
+
+/** The comparison bands of one card image, rastered for correlation. */
 export interface PrintingSignature {
   /** Name-band signature — carries the language glyphs. */
   name: GrayImage;
   /** Code-strip signature — carries set code and collector number. Null when
    * the source is too small for the strip to survive rastering. */
   code: GrayImage | null;
+  /** Stamp-band signature — carries the bottom-center promo/marker stamp.
+   * Null when the source is too small for the band to survive rastering. */
+  stamp: GrayImage | null;
 }
 
 /**
@@ -215,7 +263,7 @@ export function printingSignature(
   if (!name) {
     return null;
   }
-  return { name, code: codeStripSignature(card) };
+  return { name, code: codeStripSignature(card), stamp: stampBandSignature(card) };
 }
 
 /**
@@ -464,6 +512,25 @@ const CODE_MIN_SCORE = 0.55;
  */
 const CODE_MIN_MARGIN = 0.15;
 
+/**
+ * Whole-band correlation floor for the stamp band. Like the code strip's, a
+ * garbage detector only: a wrong-variant reference still whole-correlates up
+ * to 0.90 against an ideally-aligned query (probe 2026-08-01), so the floor
+ * cannot discriminate; it refuses blurred or mis-rectified crops. Pending
+ * phone validation like the name band's floor got.
+ */
+const STAMP_MIN_SCORE = 0.55;
+
+/**
+ * Weakest-margin floor for a stamp-band pick. Probe on render pairs whose
+ * marker sets genuinely differ (2026-08-01, 177 evaluable pairs): correct
+ * side 0.475-1.54 even at 2px misalignment, wrong side never above -0.339.
+ * Same-marker pairs produced false margins up to 1.67 from render provenance
+ * alone, which is why the marker gate excludes them a priori rather than
+ * letting any threshold sort them out.
+ */
+const STAMP_MIN_MARGIN = 0.15;
+
 /** A tournament winner: the picked key and the evidence behind it. */
 export interface PrintingPick {
   key: string;
@@ -559,19 +626,20 @@ export function runPrintingTournament(
 
 /** A staged-tournament resolution, recording which band decided. */
 export interface PrintingResolution extends PrintingPick {
-  via: "name" | "code";
+  via: "name" | "code" | "stamp";
 }
 
 /**
  * Resolve a printing by staged tournament: the name band first (language
  * glyphs — the phone-calibrated stage), then the code strip within whatever
  * the name band could not separate (set/number/promo variants share their
- * name band). The code strip also decides alone when the name band is
- * structurally blind to the whole group — a same-language reprint group has
- * identical name bands — but never when name evidence exists and is merely
- * weak or conflicting: collector codes are identical across languages, so on
- * a corrupt frame the code strip cannot rule out the losing language and
- * must not pick one.
+ * name band), then the stamp band within what the code strip could not
+ * separate either (marker variants whose printed code does not change). The
+ * later stages also decide alone when the name band is structurally blind to
+ * the whole group — a same-language reprint group has identical name bands —
+ * but never when name evidence exists and is merely weak or conflicting:
+ * codes and stamps are identical across languages, so on a corrupt frame
+ * they cannot rule out the losing language and must not pick one.
  *
  * @param codeOf The printed collector code of a candidate, from the
  *   catalogue. The code stage only evaluates pairs whose codes are known to
@@ -579,19 +647,47 @@ export interface PrintingResolution extends PrintingPick {
  *   definition, and comparing its pixels anyway measures render provenance,
  *   not the card (see `runPrintingTournament`'s `indistinct`). Without this
  *   the code stage is skipped entirely.
+ * @param markerKeyOf The serialized marker set of a candidate ("" for no
+ *   markers), from the catalogue; undefined when unknown or when the
+ *   printings behind the key disagree. Gates the stamp stage: only
+ *   plain-versus-marked pairs carry stamp evidence, because only that
+ *   contrast prints in the bottom-center band — two differently-marked
+ *   variants differ by art-placed stamps outside it (measured 2026-08-01:
+ *   ungated, the summoner/champion+summoner render pairs turned band
+ *   provenance into two wrong picks). Without it the stamp stage is skipped.
+ * @param languageOf The printed language of a candidate, from the catalogue.
+ *   Pairs with known-equal languages carry no name-band evidence by
+ *   definition — their name bands print identical glyphs, so any margin
+ *   between their renders is provenance noise (measured 2026-08-01: on
+ *   reduced-detail queries, ungated same-language marker pairs produced 40
+ *   false name picks across the render set). Unknown languages stay
+ *   evaluable — the name stage must keep working without metadata.
  * @returns The resolution, or null to abstain. `indistinguishable` is the
- *   residual equivalence class neither band separated.
+ *   residual equivalence class no band separated.
  */
 export function resolvePrinting(
   query: PrintingSignature,
   signatures: ReadonlyMap<string, PrintingSignature | null>,
   codeOf?: (key: string) => string | undefined,
+  markerKeyOf?: (key: string) => string | undefined,
+  languageOf?: (key: string) => string | undefined,
 ): PrintingResolution | null {
   const nameSignatures = new Map<string, GrayImage | null>();
   for (const [key, signature] of signatures) {
     nameSignatures.set(key, signature?.name ?? null);
   }
-  const name = runPrintingTournament(query.name, nameSignatures, NAME_MIN_SCORE, NAME_MIN_MARGIN);
+  const name = runPrintingTournament(
+    query.name,
+    nameSignatures,
+    NAME_MIN_SCORE,
+    NAME_MIN_MARGIN,
+    languageOf &&
+      ((a, b) => {
+        const languageA = languageOf(a);
+        const languageB = languageOf(b);
+        return languageA !== undefined && languageB !== undefined && languageA === languageB;
+      }),
+  );
   let candidates: string[];
   if (name.pick) {
     if (name.pick.indistinguishable.length === 0) {
@@ -621,6 +717,35 @@ export function resolvePrinting(
     );
     if (code.pick) {
       return { ...code.pick, via: "code" };
+    }
+  }
+  if (query.stamp && markerKeyOf) {
+    const stampSignatures = new Map<string, GrayImage | null>();
+    for (const key of candidates) {
+      stampSignatures.set(key, signatures.get(key)?.stamp ?? null);
+    }
+    const stamp = runPrintingTournament(
+      query.stamp,
+      stampSignatures,
+      STAMP_MIN_SCORE,
+      STAMP_MIN_MARGIN,
+      (a, b) => {
+        const markersA = markerKeyOf(a);
+        const markersB = markerKeyOf(b);
+        if (markersA === undefined || markersB === undefined) {
+          return true;
+        }
+        // Only the plain-versus-marked contrast is stamp evidence: the
+        // standard stamp prints bottom-center on the marked variant. A pair
+        // of two differently-marked variants differs by art-placed stamps
+        // outside the band, and evaluating it anyway turns band provenance
+        // into a wrong pick (Rengar/Lillia summoner vs champion+summoner,
+        // measured 2026-08-01).
+        return (markersA === "") === (markersB === "");
+      },
+    );
+    if (stamp.pick) {
+      return { ...stamp.pick, via: "stamp" };
     }
   }
   return name.pick ? { ...name.pick, via: "name" } : null;

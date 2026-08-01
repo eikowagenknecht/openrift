@@ -70,6 +70,22 @@ export interface ScanSessionDeps {
    */
   publicCodeOf?: (key: string) => string | undefined;
   /**
+   * Serialized marker set for a key (e.g. "promo", "" for no markers),
+   * letting the disambiguation stamp stage know which printing pairs
+   * actually differ on the stamp band. Return undefined when the printings
+   * behind the key disagree on markers (one render serving stamped and
+   * unstamped printings carries no stamp evidence — and must also never be
+   * auto-resolved to). Optional; without it the stamp stage is skipped.
+   */
+  markersOf?: (key: string) => string | undefined;
+  /**
+   * Printed language for a key (e.g. "EN"). Pairs with known-equal
+   * languages carry no name-band evidence — their glyphs are identical, so
+   * any render difference there is provenance noise (see resolvePrinting).
+   * Optional; without it the name stage evaluates every pair as before.
+   */
+  languageOf?: (key: string) => string | undefined;
+  /**
    * Load a reference render for feature verification. Return null only when
    * the render definitively does not exist (the miss is cached for the whole
    * session); throw for transient failures such as a dropped connection, which
@@ -253,7 +269,7 @@ export interface FrameOutcome {
   /** The discriminative tournament's weakest pairwise margin when it picked. */
   printingMargin?: number;
   /** Which band decided the pick: the name band or the code strip. */
-  printingVia?: "name" | "code";
+  printingVia?: "name" | "code" | "stamp";
   /**
    * The track disambiguation ran for this frame (the lock frame, or a
    * follow-up winner frame retrying an unresolved lock), with its current key
@@ -434,7 +450,9 @@ export function createScanSession(
     track: ArtTrack,
     card: RgbaImage,
     rotation: number,
-  ): Promise<{ scores: PrintingScore[]; margin?: number; via?: "name" | "code" } | undefined> {
+  ): Promise<
+    { scores: PrintingScore[]; margin?: number; via?: "name" | "code" | "stamp" } | undefined
+  > {
     const keys = deps.bank.keys.filter((key) => deps.artKeyOf(key) === track.artKey);
     const uniqueKeys = [...new Set(keys)];
     if (uniqueKeys.length < 2) {
@@ -473,7 +491,13 @@ export function createScanSession(
       }
     }
     scores.sort((a, b) => b.score - a.score);
-    const picked = resolvePrinting(query, signatures, deps.publicCodeOf);
+    const picked = resolvePrinting(
+      query,
+      signatures,
+      deps.publicCodeOf,
+      deps.markersOf,
+      deps.languageOf,
+    );
     if (picked !== null) {
       // Agreement is class-level: duplicate renders of one printing are
       // interchangeable pick targets, and requiring the exact same key would
@@ -483,11 +507,16 @@ export function createScanSession(
       const streak = vote && pickedClass.has(vote.key) ? vote.streak + 1 : 1;
       printingVotes.set(track.artKey, { key: picked.key, streak });
       // Resolving means naming one printing, so the residual class must
-      // agree on the label: distinct-label survivors (variants neither band
-      // separated, e.g. stamp-only promos) stay unresolved for the UI picker
-      // rather than being guessed between.
+      // agree on the resolution identity. The label alone is not enough:
+      // same-code marker variants share their label (`name [code lang]`),
+      // so a stamped and an unstamped survivor look unanimous by label and
+      // would be guessed between — the marker key has to agree too (with
+      // undefined, a mixed-marker render, never matching a defined set).
       const pickedLabel = deps.labelOf(picked.key);
-      const unanimous = picked.indistinguishable.every((key) => deps.labelOf(key) === pickedLabel);
+      const pickedMarkers = deps.markersOf?.(picked.key);
+      const unanimous = picked.indistinguishable.every(
+        (key) => deps.labelOf(key) === pickedLabel && deps.markersOf?.(key) === pickedMarkers,
+      );
       if (streak >= 2 && unanimous) {
         track.key = picked.key;
         track.label = pickedLabel;
@@ -687,7 +716,9 @@ export function createScanSession(
     // frames of a locked-but-unresolved track: a fast lock can land on a
     // blurry or glary frame whose text band carries no signal, and the next
     // sharp frame is a fraction of a second away with signatures cached.
-    let printing: { scores: PrintingScore[]; margin?: number; via?: "name" | "code" } | undefined;
+    let printing:
+      | { scores: PrintingScore[]; margin?: number; via?: "name" | "code" | "stamp" }
+      | undefined;
     let printingTrack: ArtTrack | null = locked;
     if (!printingTrack && decision.winner) {
       const track = state.get(decision.winner.artKey);

@@ -54,6 +54,14 @@ export interface ScanReferenceRow {
   cardType: string;
   artVariant: string | null;
   createdAt: Date;
+  /**
+   * Min/max serialized marker set over every active front printing sharing
+   * this image. Equal means the image's marker set is unanimous; a mismatch
+   * means one render serves stamped and unstamped printings and carries no
+   * stamp evidence for the scanner's disambiguation.
+   */
+  markersMin: string;
+  markersMax: string;
 }
 
 /**
@@ -638,6 +646,15 @@ export function catalogRepo(db: Kysely<Database>) {
             "cards.type as cardType",
             "printings.artVariant",
             "printingImages.createdAt",
+            // Window aggregates run before distinctOn collapses the shared
+            // images, so min/max span every printing sharing the render;
+            // equal min and max means the image's marker set is unanimous.
+            sql<string>`min(array_to_string(printings.marker_slugs, '+')) over (partition by ${imageId("ci")})`.as(
+              "markersMin",
+            ),
+            sql<string>`max(array_to_string(printings.marker_slugs, '+')) over (partition by ${imageId("ci")})`.as(
+              "markersMax",
+            ),
           ])
           .where("printingImages.face", "=", "front")
           .where("printingImages.isActive", "=", true)

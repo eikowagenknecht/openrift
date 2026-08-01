@@ -7,6 +7,7 @@ import ortWasmMjsUrl from "onnxruntime-web/ort-wasm-simd-threaded.mjs?url";
 import ortWasmUrl from "onnxruntime-web/ort-wasm-simd-threaded.wasm?url";
 
 import { fetchWithProgress } from "@/lib/fetch-progress";
+import { encoderCreateRetryable, encoderStartErrorMessage } from "@/lib/scan-encoder-error";
 
 let cached: Promise<CardEmbedder> | null = null;
 // Single slot, latest caller wins: the load runs once per page, but the hook
@@ -30,6 +31,12 @@ let embedInputSize = EMBED_IMAGE_SIZE;
  * the engine's slow-device profile.
  */
 export const SLOW_DEVICE_EMBED_MS = 250;
+
+/**
+ * Pause before the single session-create retry, giving the browser a moment
+ * to reclaim the failed attempt's allocations before trying again.
+ */
+const CREATE_RETRY_DELAY_MS = 1000;
 
 /**
  * The measured per-image encoder cost on this device, from the init
@@ -89,19 +96,55 @@ export async function loadScanEmbedder(
         ` crossOriginIsolated ${globalThis.crossOriginIsolated === true}`,
     );
 
-    const model = await fetchWithProgress(
-      modelUrl,
-      (loaded, total) => progressListener?.(loaded, total),
-      `could not load the encoder from ${modelUrl} (in dev, run: bun scripts/scan/export-index.ts)`,
-    );
-    const session = await ort.InferenceSession.create(model, {
-      executionProviders: ["wasm"],
-      // "basic" instead of the default "all": full graph optimization of the
-      // fp16 model costs 3x fp32's create time (409 vs 137 ms on a desktop,
-      // long enough to look like a hang on a 2016 phone) while "basic"
-      // creates 4x cheaper with identical measured inference speed.
-      graphOptimizationLevel: "basic",
-    });
+    // The model buffer is deliberately never held in a variable: the create
+    // call transfers it to the proxy worker (detaching it on this thread), and
+    // an inline temporary keeps the failed-create copy collectable instead of
+    // pinned in this closure scope alongside ort's own copy — under iOS tab
+    // pressure that double residency is what tips init into OOM.
+    const fetchModel = () =>
+      fetchWithProgress(
+        modelUrl,
+        (loaded, total) => progressListener?.(loaded, total),
+        `could not load the encoder from ${modelUrl} (in dev, run: bun scripts/scan/export-index.ts)`,
+      );
+    const createEncoderSession = async () =>
+      ort.InferenceSession.create(await fetchModel(), {
+        executionProviders: ["wasm"],
+        // "basic" instead of the default "all": full graph optimization of the
+        // fp16 model costs 3x fp32's create time (409 vs 137 ms on a desktop,
+        // long enough to look like a hang on a 2016 phone) while "basic"
+        // creates 4x cheaper with identical measured inference speed.
+        graphOptimizationLevel: "basic",
+      });
+
+    let session: Awaited<ReturnType<typeof createEncoderSession>>;
+    try {
+      session = await createEncoderSession();
+    } catch (createError) {
+      if (!encoderCreateRetryable(createError)) {
+        // Backend init failed and ort marked it aborted for the rest of this
+        // page's life — a retry would fast-fail with the same error, so tell
+        // the user the one thing that works instead.
+        console.error("[scan] encoder start failed (backend aborted)", createError);
+        throw new Error(encoderStartErrorMessage(createError, "Could not start the encoder"));
+      }
+      // The backend is alive, so the failure was loading the model into the
+      // session — under transient tab memory pressure a second attempt often
+      // succeeds once the first buffer has been collected. One retry, after a
+      // breath; the re-fetch is needed because the failed attempt's transfer
+      // detached the first buffer (and it is usually served from HTTP cache).
+      console.warn("[scan] encoder create failed, retrying once", createError);
+      // oxlint-disable-next-line promise/avoid-new -- delay primitive
+      await new Promise((resolve) => {
+        setTimeout(resolve, CREATE_RETRY_DELAY_MS);
+      });
+      try {
+        session = await createEncoderSession();
+      } catch (retryError) {
+        console.error("[scan] encoder start failed after retry", retryError);
+        throw new Error(encoderStartErrorMessage(retryError, "Could not start the encoder"));
+      }
+    }
     const inputMeta = session.inputMetadata[0];
     embedInputSize = embedImageSizeOf(inputMeta?.isTensor ? inputMeta.shape : undefined);
     const size = embedInputSize;

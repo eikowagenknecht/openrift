@@ -95,6 +95,8 @@ async function runClip(
       labelOf: (key) => describe(catalog, key),
       cardTypeOf: (key) => catalog.get(key)?.cardType,
       publicCodeOf: (key) => catalog.get(key)?.publicCode,
+      markersOf: (key) => catalog.get(key)?.markers ?? undefined,
+      languageOf: (key) => catalog.get(key)?.language,
       embedImageSize: EMBED_SIZE,
       fetchReference: async (key) => {
         const file = referenceFiles.get(key);

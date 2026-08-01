@@ -52,7 +52,10 @@ await fs.promises.writeFile(BANK_OUTPUT, Buffer.from(bankBuffer));
 
 // A small side table so the page can name what it matched without hitting the
 // API. Only the fields the page displays.
-const labels: Record<string, { name: string; code: string; language: string; type?: string }> = {};
+const labels: Record<
+  string,
+  { name: string; code: string; language: string; type?: string; markers?: string | null }
+> = {};
 for (const key of bank.keys) {
   const identity = catalog.get(key);
   if (identity) {
@@ -61,6 +64,7 @@ for (const key of bank.keys) {
       code: identity.publicCode,
       language: identity.language,
       type: identity.cardType,
+      markers: identity.markers,
     };
   }
 }

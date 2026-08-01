@@ -7,6 +7,12 @@ export interface CardLabel {
   language: string;
   /** cards.type — selects the measured text band for printing disambiguation. */
   type?: string;
+  /**
+   * Serialized marker set ("promo", "" for none) — gates the stamp stage of
+   * printing disambiguation. Null (or absent, in labels predating the field)
+   * when unknown or when the printings sharing this render disagree.
+   */
+  markers?: string | null;
 }
 
 export interface LoadedScanBank {

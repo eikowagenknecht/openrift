@@ -43,6 +43,7 @@ export {
   printingSignature,
   resolvePrinting,
   runPrintingTournament,
+  stampBandSignature,
   textBandForType,
   textRegionSignature,
 } from "./disambiguate";

@@ -23,6 +23,13 @@ export interface CardIdentity {
   language: string;
   /** cards.type — selects the measured text band for printing disambiguation. */
   cardType: string;
+  /**
+   * Serialized marker set ("promo", "judge+promo", "" for none) — gates the
+   * stamp stage of printing disambiguation. Null when the printings sharing
+   * this image disagree on markers (one render serving stamped and unstamped
+   * printings carries no stamp evidence).
+   */
+  markers: string | null;
   /** Distinct artwork identity: same value means the images should look alike. */
   artKey: string;
 }
@@ -36,7 +43,8 @@ const QUERY = `
          p.public_code as public_code,
          p.language as language,
          c.type as card_type,
-         p.art_variant as art_variant
+         p.art_variant as art_variant,
+         array_to_string(p.marker_slugs, '+') as markers
   from printing_images pi
   join printings p on p.id = pi.printing_id
   join cards c on c.id = p.card_id
@@ -52,8 +60,9 @@ const QUERY = `
 export function loadCatalog(refresh = false): Map<string, CardIdentity> {
   if (!refresh && fs.existsSync(CACHE_FILE)) {
     const cached = JSON.parse(fs.readFileSync(CACHE_FILE, "utf-8")) as CardIdentity[];
-    // A cache written before cardType existed refreshes itself once.
-    if (cached.length === 0 || cached[0].cardType !== undefined) {
+    // A cache written before cardType or markers existed refreshes itself
+    // once (markers is null-able, so presence is the check, not the value).
+    if (cached.length === 0 || (cached[0].cardType !== undefined && "markers" in cached[0])) {
       return new Map(cached.map((c) => [c.key, c]));
     }
   }
@@ -65,28 +74,37 @@ export function loadCatalog(refresh = false): Map<string, CardIdentity> {
   );
 
   const identities: CardIdentity[] = [];
-  const seen = new Set<string>();
+  const byKey = new Map<string, CardIdentity>();
   for (const line of raw.split("\n")) {
     const parts = line.split("");
-    if (parts.length < 7) {
+    if (parts.length < 8) {
       continue;
     }
-    const [key, name, setSlug, publicCode, language, cardType, artVariant] = parts;
-    if (seen.has(key)) {
+    const [key, name, setSlug, publicCode, language, cardType, artVariant, markers] = parts;
+    const existing = byKey.get(key);
+    if (existing) {
+      // One image can serve several printings. The first row stays the
+      // identity, but a marker disagreement voids the image's marker set: a
+      // shared render carries no stamp evidence either way.
+      if (existing.markers !== markers) {
+        existing.markers = null;
+      }
       continue;
     }
-    seen.add(key);
-    identities.push({
+    const identity: CardIdentity = {
       key,
       name,
       setSlug,
       publicCode,
       language,
       cardType,
+      markers,
       // Language is deliberately excluded: two prints of one artwork differ only
       // in their text, which is what makes them hard to separate visually.
       artKey: `${setSlug}|${name}|${artVariant}`,
-    });
+    };
+    byKey.set(key, identity);
+    identities.push(identity);
   }
 
   fs.mkdirSync(path.dirname(CACHE_FILE), { recursive: true });

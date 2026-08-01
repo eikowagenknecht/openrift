@@ -4,6 +4,7 @@ import type { PrintingSignature } from "./disambiguate";
 import {
   CODE_SIGNATURE_WIDTH,
   SIGNATURE_WIDTH,
+  STAMP_SIGNATURE_WIDTH,
   bestShiftCorrelation,
   codeStripSignature,
   correlateSignatures,
@@ -11,6 +12,7 @@ import {
   printingSignature,
   resolvePrinting,
   runPrintingTournament,
+  stampBandSignature,
   textRegionSignature,
 } from "./disambiguate";
 import type { GrayImage, RgbaImage } from "./types";
@@ -149,14 +151,38 @@ describe("codeStripSignature", () => {
   });
 });
 
+describe("stampBandSignature", () => {
+  it("produces a signature at full query resolution", () => {
+    const signature = stampBandSignature(fullSizeCard(1));
+    expect(signature?.width).toBe(STAMP_SIGNATURE_WIDTH);
+    expect(signature?.height).toBeGreaterThanOrEqual(16);
+    expect(signature?.height).toBeLessThanOrEqual(44);
+  });
+
+  it("abstains when the band would need upscaling", () => {
+    expect(stampBandSignature(cardWithTextPattern(1))).toBeNull();
+  });
+
+  it("abstains on landscape images", () => {
+    const landscape: RgbaImage = {
+      data: new Uint8ClampedArray(528 * 384 * 4),
+      width: 528,
+      height: 384,
+    };
+    expect(stampBandSignature(landscape)).toBeNull();
+  });
+});
+
 describe("printingSignature", () => {
-  it("carries both bands at full resolution and only the name band below it", () => {
+  it("carries all bands at full resolution and only the name band below it", () => {
     const full = printingSignature(fullSizeCard(1));
     expect(full?.name).toBeTruthy();
     expect(full?.code).toBeTruthy();
+    expect(full?.stamp).toBeTruthy();
     const small = printingSignature(cardWithTextPattern(1));
     expect(small?.name).toBeTruthy();
     expect(small?.code).toBeNull();
+    expect(small?.stamp).toBeNull();
   });
 });
 
@@ -256,14 +282,20 @@ describe("resolvePrinting", () => {
   const nameSc = bandWithStamp(SIGNATURE_WIDTH, 36, 9);
   const codeOgn = bandWithStamp(CODE_SIGNATURE_WIDTH, 21, 2);
   const codeUnl = bandWithStamp(CODE_SIGNATURE_WIDTH, 21, 7);
+  const stampPlain = bandWithStamp(STAMP_SIGNATURE_WIDTH, 30, 4);
+  const stampPromo = bandWithStamp(STAMP_SIGNATURE_WIDTH, 30, 11);
 
   /**
-   * Bundle two band signatures into a printing signature.
+   * Bundle band signatures into a printing signature.
    *
    * @returns The signature struct.
    */
-  function bands(name: GrayImage, code: GrayImage | null): PrintingSignature {
-    return { name, code };
+  function bands(
+    name: GrayImage,
+    code: GrayImage | null,
+    stamp: GrayImage | null = null,
+  ): PrintingSignature {
+    return { name, code, stamp };
   }
 
   /**
@@ -373,6 +405,176 @@ describe("resolvePrinting", () => {
         ["en-unl", bands(nameEn, codeUnl)],
       ]),
       codeOf,
+    );
+    expect(resolution).toBeNull();
+  });
+
+  /**
+   * A marker lookup for the stamp-stage tests: keys ending in "-promo" carry
+   * the promo marker, "-mixed" renders serve disagreeing printings (unknown),
+   * everything else is unstamped.
+   *
+   * @returns The serialized marker set, or undefined for mixed renders.
+   */
+  function markerKeyOf(key: string): string | undefined {
+    if (key.endsWith("-mixed")) {
+      return undefined;
+    }
+    return key.endsWith("-promo") ? "promo" : "";
+  }
+
+  it("resolves a same-code marker pair through the stamp band", () => {
+    // Name band identical (same language) and codes equal, so the first two
+    // stages are structurally blind; only the stamp band separates the pair.
+    const resolution = resolvePrinting(
+      bands(shifted(nameEn, 1), shifted(codeOgn, 1), shifted(stampPromo, 1)),
+      new Map([
+        ["en-base", bands(nameEn, codeOgn, stampPlain)],
+        ["en-promo", bands(nameEn, codeOgn, stampPromo)],
+      ]),
+      () => "shared-code",
+      markerKeyOf,
+    );
+    expect(resolution?.key).toBe("en-promo");
+    expect(resolution?.via).toBe("stamp");
+  });
+
+  it("resolves through the stamp band within the name band's class", () => {
+    const resolution = resolvePrinting(
+      bands(shifted(nameEn, 1), shifted(codeOgn, 1), shifted(stampPlain, 1)),
+      new Map([
+        ["en-base", bands(nameEn, codeOgn, stampPlain)],
+        ["en-promo", bands(nameEn, codeOgn, stampPromo)],
+        ["sc-base", bands(nameSc, codeOgn, stampPlain)],
+      ]),
+      () => "shared-code",
+      markerKeyOf,
+    );
+    expect(resolution?.key).toBe("en-base");
+    expect(resolution?.via).toBe("stamp");
+  });
+
+  it("never compares stamps of printings sharing a marker set", () => {
+    // Two renders of one unstamped printing with provenance differences in
+    // the stamp band: the marker gate must refuse to see evidence there.
+    const resolution = resolvePrinting(
+      bands(shifted(nameEn, 1), shifted(codeOgn, 1), shifted(stampPlain, 1)),
+      new Map([
+        ["en-base", bands(nameEn, codeOgn, stampPlain)],
+        ["en-other", bands(nameEn, codeOgn, stampPromo)],
+      ]),
+      () => "shared-code",
+      () => "",
+    );
+    expect(resolution).toBeNull();
+  });
+
+  it("treats a mixed-marker render as carrying no stamp evidence", () => {
+    const resolution = resolvePrinting(
+      bands(shifted(nameEn, 1), shifted(codeOgn, 1), shifted(stampPromo, 1)),
+      new Map([
+        ["en-mixed", bands(nameEn, codeOgn, stampPlain)],
+        ["en-promo", bands(nameEn, codeOgn, stampPromo)],
+      ]),
+      () => "shared-code",
+      markerKeyOf,
+    );
+    expect(resolution).toBeNull();
+  });
+
+  it("skips the stamp stage without a marker lookup", () => {
+    const resolution = resolvePrinting(
+      bands(shifted(nameEn, 1), shifted(codeOgn, 1), shifted(stampPromo, 1)),
+      new Map([
+        ["en-base", bands(nameEn, codeOgn, stampPlain)],
+        ["en-promo", bands(nameEn, codeOgn, stampPromo)],
+      ]),
+      () => "shared-code",
+    );
+    expect(resolution).toBeNull();
+  });
+
+  it("never compares stamps of two differently-marked variants", () => {
+    // Both variants carry art-placed stamps (summoner vs champion+summoner):
+    // their bottom-center bands differ only by provenance, and the gate must
+    // not let that decide.
+    const resolution = resolvePrinting(
+      bands(shifted(nameEn, 1), shifted(codeOgn, 1), shifted(stampPromo, 1)),
+      new Map([
+        ["en-summoner", bands(nameEn, codeOgn, stampPromo)],
+        ["en-champion", bands(nameEn, codeOgn, stampPlain)],
+      ]),
+      () => "shared-code",
+      (key) => (key.endsWith("-summoner") ? "summoner" : "champion+summoner"),
+    );
+    expect(resolution).toBeNull();
+  });
+
+  it("treats known-equal languages as carrying no name evidence", () => {
+    // Two same-language renders whose name bands differ by provenance (the
+    // pixels differ, the printed glyphs do not): with the language gate the
+    // name stage abstains and the stamp band decides; ungated, provenance
+    // would fabricate a name pick.
+    const provenanceA = bandWithStamp(SIGNATURE_WIDTH, 36, 1);
+    const provenanceB = bandWithStamp(SIGNATURE_WIDTH, 36, 5);
+    const resolution = resolvePrinting(
+      bands(shifted(provenanceA, 1), null, shifted(stampPromo, 1)),
+      new Map([
+        ["en-base", bands(provenanceB, null, stampPlain)],
+        ["en-promo", bands(provenanceA, null, stampPromo)],
+      ]),
+      undefined,
+      markerKeyOf,
+      () => "EN",
+    );
+    expect(resolution?.key).toBe("en-promo");
+    expect(resolution?.via).toBe("stamp");
+  });
+
+  it("still separates languages when the language lookup is present", () => {
+    const resolution = resolvePrinting(
+      bands(shifted(nameEn, 1), null, null),
+      new Map([
+        ["en-ogn", bands(nameEn, null, null)],
+        ["sc-ogn", bands(nameSc, null, null)],
+      ]),
+      undefined,
+      undefined,
+      (key) => (key.startsWith("en-") ? "EN" : "SC"),
+    );
+    expect(resolution?.key).toBe("en-ogn");
+    expect(resolution?.via).toBe("name");
+  });
+
+  it("prefers code evidence over the stamp band when codes differ", () => {
+    const resolution = resolvePrinting(
+      bands(shifted(nameEn, 1), shifted(codeUnl, 1), shifted(stampPromo, 1)),
+      new Map([
+        ["en-ogn", bands(nameEn, codeOgn, stampPlain)],
+        ["en-unl-promo", bands(nameEn, codeUnl, stampPromo)],
+      ]),
+      codeOf,
+      markerKeyOf,
+    );
+    expect(resolution?.key).toBe("en-unl-promo");
+    expect(resolution?.via).toBe("code");
+  });
+
+  it("does not let the stamp band decide when name evidence exists but is ambiguous", () => {
+    // Mirror of the code-strip rule: stamps are language-identical, so on a
+    // corrupt name frame the stamp band cannot rule out the losing language.
+    const between = bandWithStamp(SIGNATURE_WIDTH, 36, 0);
+    for (let i = 0; i < between.data.length; i++) {
+      between.data[i] = Math.round((nameEn.data[i] + nameSc.data[i]) / 2);
+    }
+    const resolution = resolvePrinting(
+      bands(between, null, shifted(stampPromo, 1)),
+      new Map([
+        ["en-promo", bands(nameEn, null, stampPromo)],
+        ["sc-base", bands(nameSc, null, stampPlain)],
+      ]),
+      undefined,
+      markerKeyOf,
     );
     expect(resolution).toBeNull();
   });

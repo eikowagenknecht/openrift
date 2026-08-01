@@ -121,7 +121,10 @@ export async function rebuildScanBank(deps: ScanBankDeps): Promise<ScanBankBuild
   const imageSize = embedImageSizeOf(inputMeta?.isTensor ? inputMeta.shape : undefined);
 
   const keys: string[] = [];
-  const labels: Record<string, { name: string; code: string; language: string; type: string }> = {};
+  const labels: Record<
+    string,
+    { name: string; code: string; language: string; type: string; markers: string | null }
+  > = {};
   const artKeys = new Map<string, string>();
   const vectors: Float32Array[] = [];
   let skipped = 0;
@@ -152,6 +155,9 @@ export async function rebuildScanBank(deps: ScanBankDeps): Promise<ScanBankBuild
         code: row.publicCode,
         language: row.language,
         type: row.cardType,
+        // Null when the render serves printings with differing marker sets:
+        // such an image carries no stamp evidence for disambiguation.
+        markers: row.markersMin === row.markersMax ? row.markersMin : null,
       };
       // Language deliberately excluded, and null variants collapse to the
       // empty string to match the dev catalogue's artwork grouping exactly.
