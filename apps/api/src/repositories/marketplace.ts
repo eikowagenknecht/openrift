@@ -57,6 +57,27 @@ export function marketplaceRepo(db: Kysely<Database>) {
     },
 
     /**
+     * Cheap content token over {@link latestPrices}, for the content-addressed
+     * price memo in `createRepos` (dynamic list rules that filter on price).
+     * Hashes the materialized view itself — not the base snapshot tables — so
+     * the token rolls exactly when {@link refreshLatestPrices} publishes new
+     * data. A base-table probe would roll mid-pipeline (inserts land before
+     * the refresh), caching the old view under the new token and then serving
+     * it stale after the refresh until the next pipeline run.
+     *
+     * @returns An opaque token that changes iff the served price map changes.
+     */
+    async latestPricesContentVersion(): Promise<string> {
+      const result = await sql<{ token: string }>`
+        SELECT
+          coalesce(count(*)::text, '0') || '|' ||
+          coalesce(md5(string_agg(printing_id::text || ':' || marketplace || ':' || headline_cents::text, ',' ORDER BY printing_id, marketplace)), '') AS token
+        FROM mv_latest_printing_prices
+      `.execute(db);
+      return result.rows[0]?.token ?? "";
+    },
+
+    /**
      * Latest headline price per marketplace for a subset of printings.
      *
      * Same data as {@link latestPrices} but filtered to the given printing IDs.

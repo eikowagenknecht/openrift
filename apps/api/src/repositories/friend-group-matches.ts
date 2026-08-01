@@ -4,6 +4,7 @@ import {
   hydrateListRules,
   ownedCopyPrintingScope,
   resolveEffectiveTradePreference,
+  ruleFiltersOnPrice,
 } from "@openrift/shared";
 import type {
   Currency,
@@ -659,6 +660,13 @@ async function runMatchQuery(
     );
   const enumOrders = needsKeepOrder ? await providers.enumOrders() : undefined;
 
+  // Price-bounded rules resolve latest prices during matching. Loaded before
+  // the copy scopes below so scope and evaluation see the same prices.
+  const needsPrices =
+    providers !== undefined &&
+    [...scopedSupply, ...scopedDemand].some((list) => list.rules.some(ruleFiltersOnPrice));
+  const priceLookup = needsPrices ? await providers.priceLookup() : undefined;
+
   // Owner copies, loaded once per distinct owner. Needed for trade-rule supply
   // and for wish rules that net against what's owned ("only what I'm missing").
   const ownedCopiesByOwner = new Map<string, OwnedCopyRow[]>();
@@ -678,6 +686,7 @@ async function runMatchQuery(
       for (const id of ownedCopyPrintingScope(list.rules, listKind, {
         catalog,
         customTagAssignments,
+        priceLookup,
       })) {
         printingScope.add(id);
       }
@@ -704,6 +713,7 @@ async function runMatchQuery(
     ownedCopies: ownedCopiesByOwner.get(ownerUserId) ?? [],
     customTagAssignments,
     enumOrders,
+    priceLookup,
   });
 
   // Evaluate each ruled supply list's copies exactly once, then reuse the result
@@ -901,6 +911,9 @@ async function resolveGiverPrintingSupply(
   // rules offer owned copies). Both are lazy — skipped when no list has rules.
   const hasRules = tradeLists.some((list) => list.rules.length > 0);
   const ruleCatalog = hasRules && providers ? await providers.assembleCatalog() : null;
+  const needsPrices =
+    providers !== undefined && tradeLists.some((list) => list.rules.some(ruleFiltersOnPrice));
+  const priceLookup = needsPrices ? await providers.priceLookup() : undefined;
   // Narrowed to what these trade lists can consult, unioned across them.
   const giverScope = new Set<string>();
   for (const list of tradeLists) {
@@ -910,6 +923,7 @@ async function resolveGiverPrintingSupply(
       {
         catalog: ruleCatalog?.printings ?? [],
         customTagAssignments: ruleCatalog?.customTagAssignments,
+        priceLookup,
       },
     )) {
       giverScope.add(id);
@@ -923,6 +937,7 @@ async function resolveGiverPrintingSupply(
     // Trade lists: keep the nicer copies, offer the plainer — same order the
     // owner's list page uses, so surfaced and matched copies never diverge.
     enumOrders: hasRules && providers ? await providers.enumOrders() : undefined,
+    priceLookup,
   };
 
   const manualByList = await loadManualEntries(
@@ -1005,6 +1020,9 @@ async function resolveTradelistHoldersForCard(
   const hasRules = tradeLists.some((list) => list.rules.length > 0);
   const ruleCatalog = hasRules && providers ? await providers.assembleCatalog() : null;
   const enumOrders = hasRules && providers ? await providers.enumOrders() : undefined;
+  const needsPrices =
+    providers !== undefined && tradeLists.some((list) => list.rules.some(ruleFiltersOnPrice));
+  const priceLookup = needsPrices ? await providers.priceLookup() : undefined;
   const ownedCopiesByOwner = new Map<string, OwnedCopyRow[]>();
   if (hasRules && providers) {
     const ruleOwners = new Set(
@@ -1036,6 +1054,7 @@ async function resolveTradelistHoldersForCard(
           ownedCopies: ownedCopiesByOwner.get(list.ownerUserId) ?? [],
           customTagAssignments: ruleCatalog?.customTagAssignments,
           enumOrders,
+          priceLookup,
         },
         list.ruleCombine,
       );

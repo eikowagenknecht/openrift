@@ -3,6 +3,7 @@ import {
   expandList,
   hydrateListRules,
   ownedCopyPrintingScope,
+  ruleFiltersOnPrice,
 } from "@openrift/shared";
 import type {
   EntrySource,
@@ -14,6 +15,7 @@ import type {
   ListRules,
   ManualEntryRow,
   OwnedCopyRow,
+  PriceLookup,
   Printing,
   Rarity,
   TradePreference,
@@ -51,6 +53,13 @@ export interface ListRuleProviders {
    * the nicer copies and offer the plainer ones. Only fetched for trade rules.
    */
   enumOrders: () => Promise<KeepPriorityOrders>;
+  /**
+   * Latest-price lookup (major currency units) for rules whose filter carries
+   * a price bound (`ruleFiltersOnPrice`). Only invoked for such rules; wired
+   * to a content-addressed memo in `createRepos` so the uncached public-share
+   * read never pays the full price-map load.
+   */
+  priceLookup: () => Promise<PriceLookup>;
 }
 
 const EMPTY_TRADE_PREFERENCE: TradePreference = {
@@ -981,6 +990,12 @@ async function expandAndEnrich(
   }
 
   const { printings: catalog, customTagAssignments } = await providers.assembleCatalog();
+  // Price-bounded rules resolve each printing's latest price during matching.
+  // Loaded before the copy scope below — the scope must see the same prices as
+  // the evaluation, or copy loading would drift from what the rules match.
+  const priceLookup = rules.some((rule) => ruleFiltersOnPrice(rule))
+    ? await providers.priceLookup()
+    : undefined;
   // Trade rules need the owner's copies for supply; wish rules need them too when
   // netting against what's owned ("only what I'm missing", ADR-034).
   const needsCopies = rules.some(
@@ -992,7 +1007,7 @@ async function expandAndEnrich(
   const ownedCopies = needsCopies
     ? await providers.ownedCopies(
         listRow.userId,
-        ownedCopyPrintingScope(rules, kind, { catalog, customTagAssignments }),
+        ownedCopyPrintingScope(rules, kind, { catalog, customTagAssignments, priceLookup }),
       )
     : [];
   // Trade rules rank owned copies by niceness (keep the nicer, offer the plainer);
@@ -1007,6 +1022,7 @@ async function expandAndEnrich(
       ownedCopies,
       customTagAssignments,
       enumOrders,
+      priceLookup,
     },
     listRow.ruleCombine,
   );

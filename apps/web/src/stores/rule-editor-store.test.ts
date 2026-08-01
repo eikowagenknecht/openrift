@@ -11,6 +11,7 @@ import { serializeRules, useRuleEditorStore } from "./rule-editor-store";
 function draft(overrides: Partial<DraftRule> = {}): DraftRule {
   return {
     filter: EMPTY_CARD_FILTERS,
+    priceMarketplace: null,
     quantity: { mode: "fixed", n: 1 },
     keepPerCard: { mode: "fixed", n: 0 },
     keepPer: "card",
@@ -343,5 +344,41 @@ describe("useRuleEditorStore", () => {
     expect(useRuleEditorStore.getState().rules[1]?.excludeIds).toEqual(["a"]);
     useRuleEditorStore.getState().toggleExcludeId(1, "a");
     expect(useRuleEditorStore.getState().rules[1]?.excludeIds).toEqual([]);
+  });
+
+  it("setPriceMarketplace targets one rule and round-trips through load", () => {
+    const store = useRuleEditorStore.getState();
+    store.addRule();
+    store.addRule();
+    store.setPriceMarketplace(1, "cardmarket");
+    expect(useRuleEditorStore.getState().rules[0]?.priceMarketplace).toBeNull();
+    expect(useRuleEditorStore.getState().rules[1]?.priceMarketplace).toBe("cardmarket");
+
+    useRuleEditorStore.getState().load([
+      {
+        kind: "wish",
+        filter: { ...EMPTY_CARD_FILTERS, price: { min: 2, max: null } },
+        priceMarketplace: "tcgplayer",
+        quantity: { mode: "fixed", n: 1 },
+        excludeIds: [],
+      },
+    ]);
+    expect(useRuleEditorStore.getState().rules[0]?.priceMarketplace).toBe("tcgplayer");
+  });
+
+  it("serializeRules emits priceMarketplace only while a price bound is set", () => {
+    // With a bound, the marketplace travels with the rule (the numbers are in
+    // its currency); without one, an inert leftover marketplace is dropped so
+    // the saved rule stays schema-clean.
+    const bounded = draft({
+      filter: { ...EMPTY_CARD_FILTERS, price: { min: null, max: 5 } },
+      priceMarketplace: "cardmarket",
+    });
+    expect(serializeRules([bounded], "card")[0]?.priceMarketplace).toBe("cardmarket");
+    expect(serializeRules([bounded], "copy")[0]?.priceMarketplace).toBe("cardmarket");
+
+    const unbounded = draft({ priceMarketplace: "cardmarket" });
+    expect(serializeRules([unbounded], "card")[0]?.priceMarketplace).toBeUndefined();
+    expect(serializeRules([unbounded], "copy")[0]?.priceMarketplace).toBeUndefined();
   });
 });

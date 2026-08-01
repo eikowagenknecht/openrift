@@ -1,6 +1,18 @@
+import { z } from "zod";
+
 import type { Currency } from "./api/trade-preferences.js";
 
-export type Marketplace = "tcgplayer" | "cardmarket" | "cardtrader";
+/**
+ * The set of supported price marketplaces, as a Zod enum. Canonical home —
+ * re-exported from `schemas.ts` for the write-side preference schema and the
+ * admin price/operations contracts, and used directly by the dynamic list-rule
+ * schema (`types/list-rule.ts`), so the enum is defined once. It lives here
+ * (not in `schemas.ts`) because `schemas.ts` imports from `types/`, and a
+ * definition there would cycle.
+ */
+export const marketplaceEnum = z.enum(["tcgplayer", "cardmarket", "cardtrader"]);
+
+export type Marketplace = z.infer<typeof marketplaceEnum>;
 
 export const ALL_MARKETPLACES: readonly Marketplace[] = ["cardtrader", "tcgplayer", "cardmarket"];
 

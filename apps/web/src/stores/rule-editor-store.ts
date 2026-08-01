@@ -3,6 +3,7 @@ import type {
   ListKind,
   ListRule,
   ListRuleCombine,
+  Marketplace,
   RuleQuantity,
   TradeKeepPer,
 } from "@openrift/shared";
@@ -18,6 +19,12 @@ import { create } from "zustand";
 export interface DraftRule {
   /** The predicate. Shared with the card browser's filter language. */
   filter: CardFilters;
+  /**
+   * The marketplace backing the filter's price range (each quotes its own
+   * currency). null until the price criterion is used; serialization emits it
+   * only while the filter actually carries a price bound.
+   */
+  priceMarketplace: Marketplace | null;
   /** Card/printing lists: desired quantity per matched card/printing. */
   quantity: RuleQuantity;
   /** Copy lists: copies held back per card/printing; the surplus lands on the list. */
@@ -60,6 +67,7 @@ export interface RuleEditorState {
   addDrafts: (drafts: DraftRule[]) => void;
   removeRule: (index: number) => void;
   setFilter: (index: number, filter: CardFilters) => void;
+  setPriceMarketplace: (index: number, priceMarketplace: Marketplace | null) => void;
   setQuantity: (index: number, quantity: RuleQuantity) => void;
   setKeepPerCard: (index: number, keepPerCard: RuleQuantity) => void;
   setKeepPer: (index: number, keepPer: TradeKeepPer) => void;
@@ -87,6 +95,7 @@ const DEFAULT_KEEP: RuleQuantity = { mode: "fixed", n: 0 };
 export function emptyDraft(languages: string[] = []): DraftRule {
   return {
     filter: languages.length > 0 ? { ...EMPTY_CARD_FILTERS, languages } : EMPTY_CARD_FILTERS,
+    priceMarketplace: null,
     quantity: DEFAULT_QUANTITY,
     keepPerCard: DEFAULT_KEEP,
     keepPer: "card",
@@ -104,6 +113,7 @@ function draftFromRule(rule: ListRule): DraftRule {
     return {
       ...emptyDraft(),
       filter: rule.filter,
+      priceMarketplace: rule.priceMarketplace ?? null,
       quantity: rule.quantity,
       excludeIds: rule.excludeIds,
       netOwned: rule.netOwned ?? false,
@@ -113,6 +123,7 @@ function draftFromRule(rule: ListRule): DraftRule {
   return {
     ...emptyDraft(),
     filter: rule.filter,
+    priceMarketplace: rule.priceMarketplace ?? null,
     keepPerCard: rule.keepPerCard,
     keepPer: rule.keepPer ?? "card",
     collectionIds: rule.collectionIds,
@@ -129,26 +140,31 @@ function draftFromRule(rule: ListRule): DraftRule {
  * @returns The list's rules in storage shape.
  */
 export function serializeRules(rules: DraftRule[], kind: ListKind): ListRule[] {
-  return rules.map(
-    (rule): ListRule =>
-      ruleKindForListKind(kind) === "wish"
-        ? {
-            kind: "wish",
-            filter: rule.filter,
-            quantity: rule.quantity,
-            excludeIds: rule.excludeIds,
-            netOwned: rule.netOwned,
-            countSpecialVersions: rule.countSpecialVersions,
-          }
-        : {
-            kind: "trade",
-            filter: rule.filter,
-            collectionIds: rule.collectionIds,
-            keepPerCard: rule.keepPerCard,
-            keepPer: rule.keepPer,
-            excludeCopyIds: rule.excludeCopyIds,
-          },
-  );
+  return rules.map((rule): ListRule => {
+    // Only meaningful (and only schema-valid alongside a bound) while the
+    // filter carries a price bound; an inert leftover marketplace is dropped.
+    const priceBound = rule.filter.price.min !== null || rule.filter.price.max !== null;
+    const priceMarketplace = priceBound ? (rule.priceMarketplace ?? undefined) : undefined;
+    return ruleKindForListKind(kind) === "wish"
+      ? {
+          kind: "wish",
+          filter: rule.filter,
+          priceMarketplace,
+          quantity: rule.quantity,
+          excludeIds: rule.excludeIds,
+          netOwned: rule.netOwned,
+          countSpecialVersions: rule.countSpecialVersions,
+        }
+      : {
+          kind: "trade",
+          filter: rule.filter,
+          priceMarketplace,
+          collectionIds: rule.collectionIds,
+          keepPerCard: rule.keepPerCard,
+          keepPer: rule.keepPer,
+          excludeCopyIds: rule.excludeCopyIds,
+        };
+  });
 }
 
 /**
@@ -181,6 +197,11 @@ export const useRuleEditorStore = create<RuleEditorState>()((set, get) => ({
 
   setFilter: (index, filter) =>
     set((state) => ({ rules: patchRule(state.rules, index, (rule) => ({ ...rule, filter })) })),
+
+  setPriceMarketplace: (index, priceMarketplace) =>
+    set((state) => ({
+      rules: patchRule(state.rules, index, (rule) => ({ ...rule, priceMarketplace })),
+    })),
 
   setQuantity: (index, quantity) =>
     set((state) => ({ rules: patchRule(state.rules, index, (rule) => ({ ...rule, quantity })) })),

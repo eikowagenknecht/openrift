@@ -5,6 +5,7 @@
 ### Highlights
 
 - feat(Collection): **Dynamic rules for organize lists** — organize lists now take the same filter-driven rules wish and trade lists have, so a list can fill itself with every card matching a filter, or every matching copy in your collection.
+- feat(Collection): **Price filters in dynamic rules** — list rules can now match by market price on a marketplace you pick (for example, offer every card worth 5 or more).
 
 ### Other
 

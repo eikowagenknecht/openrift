@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-import type { CardFilters } from "./search.js";
+import { marketplaceEnum } from "./pricing.js";
+import type { CardFilters, FilterRange } from "./search.js";
 import { cardFiltersSchema, EMPTY_CARD_FILTERS } from "./search.js";
 
 /**
@@ -29,6 +30,16 @@ export type RuleQuantity = z.infer<typeof ruleQuantitySchema>;
 export const wishRuleSchema = z.object({
   kind: z.literal("wish"),
   filter: cardFiltersSchema,
+  /**
+   * The marketplace whose latest price the filter's `price` range reads. Each
+   * marketplace quotes its own currency (TCGplayer USD, Cardmarket/CardTrader
+   * EUR), so the range's numbers are meaningless without it. Persisted on the
+   * rule — never resolved from a viewer preference — so evaluation is
+   * deterministic for the matcher and share viewers. Required whenever the
+   * filter carries a price bound (enforced on {@link listRulesSchema}); inert
+   * otherwise.
+   */
+  priceMarketplace: marketplaceEnum.optional(),
   /** Desired quantity per matched card/printing. */
   quantity: ruleQuantitySchema,
   /** card_ids (list.kind=card) or printing_ids (list.kind=printing) to drop. */
@@ -72,6 +83,8 @@ export type TradeKeepPer = z.infer<typeof tradeKeepPerSchema>;
 export const tradeRuleSchema = z.object({
   kind: z.literal("trade"),
   filter: cardFiltersSchema,
+  /** See {@link wishRuleSchema}: the marketplace backing the filter's price range. */
+  priceMarketplace: marketplaceEnum.optional(),
   /** null = all owned collections; else restrict the source to these collection ids. */
   collectionIds: z.array(z.string()).nullable(),
   /** Keep N per card/printing, trade the rest. `{ mode: "fixed", n: 0 }` = trade all. */
@@ -100,6 +113,19 @@ export type ListRule = z.infer<typeof listRuleSchema>;
  */
 export function ruleKindForListKind(kind: "card" | "printing" | "copy"): ListRule["kind"] {
   return kind === "copy" ? "trade" : "wish";
+}
+
+/**
+ * Whether a rule's filter carries a price bound (min or max). Such a rule needs
+ * a price lookup (and its persisted `priceMarketplace`) at evaluation time;
+ * callers use this to skip loading prices for rule sets that never read them.
+ * The filter is read defensively — a rule persisted before the price dimension
+ * existed may lack the key until `normalizeListRules` backfills it.
+ * @returns True when the rule filters on price.
+ */
+export function ruleFiltersOnPrice(rule: ListRule): boolean {
+  const price: FilterRange | undefined = rule.filter.price;
+  return price !== undefined && (price.min !== null || price.max !== null);
 }
 
 /** Combine modes for card/printing lists: how overlapping rules reconcile a quantity. */
@@ -164,7 +190,21 @@ export const MAX_LIST_RULES = 10;
  */
 export const listRulesSchema = z
   .array(listRuleSchema)
-  .max(MAX_LIST_RULES, { message: `A list can carry at most ${MAX_LIST_RULES} dynamic rules` });
+  .max(MAX_LIST_RULES, { message: `A list can carry at most ${MAX_LIST_RULES} dynamic rules` })
+  // A price bound is a number in some marketplace's currency — without the
+  // marketplace persisted alongside it, evaluation would have to guess (and
+  // different viewers would guess differently). Reject at the write boundary.
+  .superRefine((rules, ctx) => {
+    rules.forEach((rule, index) => {
+      if (ruleFiltersOnPrice(rule) && rule.priceMarketplace === undefined) {
+        ctx.addIssue({
+          code: "custom",
+          message: "A rule filtering on price must name its marketplace",
+          path: [index, "priceMarketplace"],
+        });
+      }
+    });
+  });
 export type ListRules = z.infer<typeof listRulesSchema>;
 
 /**

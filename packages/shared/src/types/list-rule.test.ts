@@ -77,6 +77,12 @@ describe("hydrateListRules", () => {
     const hydrated = hydrateListRules([staleTradeRule()] as unknown as ListRules);
     expect(hydrated[0].filter.keywordsExclude).toEqual([]);
   });
+
+  it("carries priceMarketplace through the round trip", () => {
+    const rule = { ...staleTradeRule(), priceMarketplace: "cardmarket" };
+    const hydrated = hydrateListRules(JSON.stringify([rule]));
+    expect(hydrated[0].priceMarketplace).toBe("cardmarket");
+  });
 });
 
 // ADR-034 amendment 4: kind, not intent, decides a rule's shape and combine

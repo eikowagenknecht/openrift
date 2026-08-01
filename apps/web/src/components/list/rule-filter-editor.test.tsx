@@ -31,9 +31,55 @@ vi.mock("@openrift/shared", async (importOriginal) => {
   return { ...actual, getAvailableFilters: () => AVAILABLE };
 });
 
+// Full printing shape: the price row's skipped-count pass runs the real
+// `filterCards` over these, which reads card stats, bans, and printing facets.
+const printing = (id: string, language: string) => ({
+  id,
+  cardId: `card-${id}`,
+  shortCode: id,
+  setId: "set-1",
+  setSlug: "origins",
+  setReleased: true,
+  rarity: "common",
+  artVariant: "normal",
+  isSigned: false,
+  markers: [],
+  distributionChannels: [],
+  finish: "normal",
+  size: "standard",
+  images: [],
+  artist: "Artist",
+  publicCode: "PUB",
+  printedRulesText: null,
+  printedEffectText: null,
+  flavorText: null,
+  printedName: null,
+  printedYear: null,
+  comment: null,
+  language,
+  canonicalRank: 0,
+  card: {
+    slug: `card-${id}`,
+    name: `Card ${id}`,
+    type: "unit",
+    types: ["unit"],
+    superTypes: [],
+    domains: ["fury"],
+    energy: 1,
+    might: 1,
+    power: 1,
+    keywords: [],
+    tags: [],
+    mightBonus: 0,
+    maxCopiesOverride: null,
+    errata: null,
+    bans: [],
+  },
+});
+
 vi.mock("@/hooks/use-cards", () => ({
   useCards: () => ({
-    allPrintings: [{ language: "en" }, { language: "de" }],
+    allPrintings: [printing("p1", "en"), printing("p2", "de")],
     sets: [{ slug: "origins", name: "Origins" }],
   }),
 }));
@@ -54,6 +100,14 @@ vi.mock("@/hooks/use-enums", () => ({
   useLanguageLabels: () => ({ en: "English", de: "German" }),
 }));
 
+vi.mock("@/hooks/use-prices", () => ({
+  usePrices: () => ({ get: () => undefined, has: () => false }),
+}));
+
+vi.mock("@/hooks/use-custom-tag-assignments", () => ({
+  useCustomTagAssignments: () => ({}),
+}));
+
 const { RuleFilterEditor } = await import("./rule-filter-editor");
 
 describe("RuleFilterEditor presence folding", () => {
@@ -63,7 +117,14 @@ describe("RuleFilterEditor presence folding", () => {
 
   it("offers each dimension in the Add filter menu, not a standalone 'Has any …' entry", async () => {
     const user = userEvent.setup();
-    render(<RuleFilterEditor value={EMPTY_CARD_FILTERS} onChange={() => {}} />);
+    render(
+      <RuleFilterEditor
+        value={EMPTY_CARD_FILTERS}
+        onChange={() => {}}
+        priceMarketplace={null}
+        onPriceMarketplaceChange={() => {}}
+      />,
+    );
 
     await user.click(screen.getByRole("button", { name: /add filter/iu }));
 
@@ -76,9 +137,63 @@ describe("RuleFilterEditor presence folding", () => {
 
   it("shows the parent dimension row when only its presence is set", () => {
     const value: CardFilters = { ...EMPTY_CARD_FILTERS, presence: { markers: "any" } };
-    render(<RuleFilterEditor value={value} onChange={() => {}} />);
+    render(
+      <RuleFilterEditor
+        value={value}
+        onChange={() => {}}
+        priceMarketplace={null}
+        onPriceMarketplaceChange={() => {}}
+      />,
+    );
 
     expect(screen.getByRole("button", { name: "Remove Markers filter" })).toBeInTheDocument();
+  });
+
+  it("offers a Price criterion whose first bound persists the default marketplace", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const onPriceMarketplaceChange = vi.fn();
+    render(
+      <RuleFilterEditor
+        value={EMPTY_CARD_FILTERS}
+        onChange={onChange}
+        priceMarketplace={null}
+        onPriceMarketplaceChange={onPriceMarketplaceChange}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /add filter/iu }));
+    await user.click(await screen.findByRole("menuitem", { name: "Price" }));
+
+    // The row carries the bounds, the marketplace picker, and the volatility note.
+    expect(screen.getByLabelText("Price marketplace")).toBeInTheDocument();
+    expect(
+      screen.getByText(/cards can join or leave this list on their own/iu),
+    ).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("Minimum price"), "2");
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ price: { min: 2, max: null } }),
+    );
+    // Setting a bound pins the displayed default so the saved rule never
+    // depends on a viewer preference (default order starts with CardTrader).
+    expect(onPriceMarketplaceChange).toHaveBeenCalledWith("cardtrader");
+  });
+
+  it("shows the Price row when the filter carries a bound", () => {
+    const value: CardFilters = { ...EMPTY_CARD_FILTERS, price: { min: null, max: 5 } };
+    render(
+      <RuleFilterEditor
+        value={value}
+        onChange={() => {}}
+        priceMarketplace="cardmarket"
+        onPriceMarketplaceChange={() => {}}
+      />,
+    );
+
+    expect(screen.getByLabelText("Maximum price")).toHaveValue(5);
+    expect(screen.getByRole("button", { name: "Remove Price filter" })).toBeInTheDocument();
   });
 
   it("clears include, exclude, and presence together in a single change on remove", async () => {
@@ -89,7 +204,14 @@ describe("RuleFilterEditor presence folding", () => {
       markerSlugs: ["promo"],
       presence: { markers: "any" },
     };
-    render(<RuleFilterEditor value={value} onChange={onChange} />);
+    render(
+      <RuleFilterEditor
+        value={value}
+        onChange={onChange}
+        priceMarketplace={null}
+        onPriceMarketplaceChange={() => {}}
+      />,
+    );
 
     await user.click(screen.getByRole("button", { name: "Remove Markers filter" }));
 

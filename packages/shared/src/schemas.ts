@@ -177,15 +177,12 @@ export const createListEntrySchema = z.object(listEntryInputShape).refine(oneLis
   message: "Exactly one of cardId, printingId, or copyId must be provided",
 });
 
-/**
- * The set of supported price marketplaces, as a Zod enum. Canonical home —
- * shared by the write-side preference schema below and the admin
- * price/operations contracts
- * (`contracts/admin/{operations,staging-card-overrides,unified-mappings,ignored-products}.ts`),
- * so the enum is defined once. (`ALL_MARKETPLACES` in `types/pricing.ts` is the
- * plain-array counterpart for non-Zod consumers.)
- */
-export const marketplaceEnum = z.enum(["tcgplayer", "cardmarket", "cardtrader"]);
+// The set of supported price marketplaces, as a Zod enum. Re-exported for the
+// write-side preference schema below and the admin price/operations contracts
+// (`contracts/admin/{operations,staging-card-overrides,unified-mappings,ignored-products}.ts`).
+// Canonically defined in `types/pricing.ts` (next to `ALL_MARKETPLACES` and the
+// `Marketplace` type) so the list-rule schema can use it without an import cycle.
+export { marketplaceEnum } from "./types/pricing.js";
 
 // ---------------------------------------------------------------------------
 // Friend groups (ADR-013)

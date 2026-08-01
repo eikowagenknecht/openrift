@@ -1,9 +1,10 @@
-import { EMPTY_CARD_FILTERS } from "@openrift/shared";
+import { EMPTY_CARD_FILTERS, EMPTY_PRICE_LOOKUP } from "@openrift/shared";
 import type {
   CardFilters,
   KeepPriorityOrders,
   ListRule,
   OwnedCopyRow,
+  PriceLookup,
   Printing,
 } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
@@ -67,6 +68,7 @@ const PROVIDERS: ListRuleProviders = {
   assembleCatalog: () => Promise.resolve({ printings: [], customTagAssignments: {} }),
   ownedCopies: () => Promise.resolve([]),
   enumOrders: () => Promise.resolve(EMPTY_KEEP_ORDERS),
+  priceLookup: () => Promise.resolve(EMPTY_PRICE_LOOKUP),
 };
 
 /**
@@ -79,6 +81,7 @@ function providersWith(opts: {
   owned?: Record<string, OwnedCopyRow[]>;
   customTagAssignments?: Record<string, readonly string[]>;
   enumOrders?: KeepPriorityOrders;
+  priceLookup?: PriceLookup;
 }): ListRuleProviders {
   return {
     assembleCatalog: () =>
@@ -88,6 +91,7 @@ function providersWith(opts: {
       }),
     ownedCopies: (ownerId) => Promise.resolve(opts.owned?.[ownerId] ?? []),
     enumOrders: () => Promise.resolve(opts.enumOrders ?? EMPTY_KEEP_ORDERS),
+    priceLookup: () => Promise.resolve(opts.priceLookup ?? EMPTY_PRICE_LOOKUP),
   };
 }
 
@@ -670,6 +674,80 @@ describe("friendGroupMatchesRepo — dynamic rules (ADR-034)", () => {
       buyEntryId: "e-w",
       cardId: "crd-1",
     });
+  });
+
+  it("applies a trade rule's price bound through the providers' price lookup", async () => {
+    // Seller auto-offers everything worth at least 5 on Cardmarket. prt-1
+    // quotes 7 (offered), prt-2 quotes 2 (kept), prt-3 has no price (skipped).
+    const priceLookup: PriceLookup = {
+      get: (printingId, marketplace) =>
+        marketplace === "cardmarket" ? { "prt-1": 7, "prt-2": 2 }[printingId] : undefined,
+      has: (printingId) => printingId === "prt-1" || printingId === "prt-2",
+    };
+    const queues = {
+      friendGroupListShares: [
+        [
+          tradeShare({
+            ownerUserId: "seller",
+            rules: [
+              {
+                kind: "trade",
+                filter: filters({ price: { min: 5, max: null } }),
+                priceMarketplace: "cardmarket",
+                collectionIds: null,
+                keepPerCard: { mode: "fixed", n: 0 },
+                excludeCopyIds: [],
+              },
+            ],
+          }),
+        ],
+        [wishShare({ ownerUserId: "viewer" })],
+      ],
+      // The viewer wants all three cards, so only the price bound decides
+      // which of the seller's copies surface as matches.
+      listEntries: [
+        [],
+        [
+          demandEntry({ id: "e-w1", cardId: "crd-1" }),
+          demandEntry({ id: "e-w2", cardId: "crd-2" }),
+          demandEntry({ id: "e-w3", cardId: "crd-3" }),
+        ],
+      ],
+      copies: [
+        [
+          copyRow({ id: "cp-own-1", printingId: "prt-1", cardId: "crd-1" }),
+          copyRow({ id: "cp-own-2", printingId: "prt-2", cardId: "crd-2" }),
+          copyRow({ id: "cp-own-3", printingId: "prt-3", cardId: "crd-3" }),
+        ],
+      ],
+      users: [[userRow({ id: "seller", name: "Alice", email: "a@x.com" })]],
+      printings: [
+        [
+          printingRow({ id: "prt-1", cardName: "Annie, Fiery" }),
+          printingRow({ id: "prt-2", cardName: "Braum, Steadfast" }),
+          printingRow({ id: "prt-3", cardName: "Caitlyn, Precise" }),
+        ],
+      ],
+    };
+    const providers = providersWith({
+      catalog: [
+        makeCatalogPrinting("prt-1", "crd-1"),
+        makeCatalogPrinting("prt-2", "crd-2"),
+        makeCatalogPrinting("prt-3", "crd-3"),
+      ],
+      owned: {
+        seller: [
+          ownedCopy({ copyId: "cp-own-1", printingId: "prt-1", cardId: "crd-1" }),
+          ownedCopy({ copyId: "cp-own-2", printingId: "prt-2", cardId: "crd-2" }),
+          ownedCopy({ copyId: "cp-own-3", printingId: "prt-3", cardId: "crd-3" }),
+        ],
+      },
+      priceLookup,
+    });
+    const repo = friendGroupMatchesRepo(makeDb(queues), providers);
+    const rows = await repo.othersHaveYourWants({ groupId: "g", viewerUserId: "viewer" });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ copyId: "cp-own-1", cardId: "crd-1" });
   });
 
   it("nets owned copies out of a netOwned wish rule (cards at target produce no demand)", async () => {

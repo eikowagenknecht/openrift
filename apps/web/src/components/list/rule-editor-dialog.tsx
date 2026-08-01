@@ -4,6 +4,7 @@ import type {
   ListKind,
   ListRule,
   ListRuleCombine,
+  Marketplace,
   OwnedCopyRow,
   Printing,
   RuleQuantity,
@@ -54,6 +55,7 @@ import { useEnumOrders } from "@/hooks/use-enums";
 import { initQueryOptions } from "@/hooks/use-init";
 import { useUpdateList } from "@/hooks/use-lists";
 import { useOwnedCount } from "@/hooks/use-owned-count";
+import { pricesQueryOptions, usePrices } from "@/hooks/use-prices";
 import { useRequiredUserId } from "@/lib/auth-session";
 import { catalogQueryOptions } from "@/lib/catalog-query";
 import { collectionsQueryOptions } from "@/lib/collections-query";
@@ -119,6 +121,7 @@ export function RuleEditorDialog({
     load(currentRules, currentRuleCombine);
     void queryClient.ensureQueryData(catalogQueryOptions);
     void queryClient.ensureQueryData(initQueryOptions);
+    void queryClient.ensureQueryData(pricesQueryOptions);
     return () => reset();
   }, [open, currentRules, currentRuleCombine, load, reset, queryClient]);
 
@@ -365,11 +368,13 @@ function CopyRuleEditor({
 
   // Serialize from the reactive `rules` value (see CardRuleEditor).
   const serialized = serializeRules(rules, kind);
+  const priceLookup = usePrices();
   const ctx = {
     catalog: allPrintings,
     ownedCopies: copies ? ownedCopiesFromCopyList(copies, printingsById) : [],
     customTagAssignments,
     enumOrders,
+    priceLookup,
   };
   // Per-rule: copies each rule offers on its own. Combined: the deduped offer set
   // under the combine mode. Undefined/null while copies load, so the UI shows no
@@ -433,7 +438,8 @@ function CardRuleEditor({
   // which reads `get()`) so the React Compiler sees the filter contents as a
   // dependency and recomputes on every edit.
   const serialized = serializeRules(rules, kind);
-  const ctx = { catalog: allPrintings, ownedCopies, customTagAssignments };
+  const priceLookup = usePrices();
+  const ctx = { catalog: allPrintings, ownedCopies, customTagAssignments, priceLookup };
   // Per-rule: what each rule matches on its own (owned-netting applied per rule).
   const perRuleCounts = serialized.map((rule) => evaluateListRule(rule, kind, ctx).length);
   // Combined: the deduped union across every rule under the combine mode — the
@@ -541,6 +547,7 @@ function RuleFields({
   const isCopy = wording.isCopy;
   const rule = useRuleEditorStore((state) => state.rules[index]);
   const setFilter = useRuleEditorStore((state) => state.setFilter);
+  const setPriceMarketplace = useRuleEditorStore((state) => state.setPriceMarketplace);
   const setQuantity = useRuleEditorStore((state) => state.setQuantity);
   const setKeepPerCard = useRuleEditorStore((state) => state.setKeepPerCard);
   const setKeepPer = useRuleEditorStore((state) => state.setKeepPer);
@@ -554,7 +561,12 @@ function RuleFields({
 
   return (
     <>
-      <RuleFilterEditor value={rule.filter} onChange={(next) => setFilter(index, next)} />
+      <RuleFilterEditor
+        value={rule.filter}
+        onChange={(next) => setFilter(index, next)}
+        priceMarketplace={rule.priceMarketplace}
+        onPriceMarketplaceChange={(next: Marketplace) => setPriceMarketplace(index, next)}
+      />
 
       {isCopy && (
         <FilterRow label="Collections">

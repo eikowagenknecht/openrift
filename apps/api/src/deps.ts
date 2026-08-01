@@ -1,3 +1,5 @@
+import { priceLookupFromMap } from "@openrift/shared";
+import type { Marketplace, PriceMap } from "@openrift/shared";
 import type { Kysely } from "kysely";
 
 import type { Database } from "./db/index.js";
@@ -232,6 +234,25 @@ export function createRepos(db: Kysely<Database>): Repos {
     },
   };
 
+  // Latest prices for dynamic list rules that bound on price (ADR-034), on the
+  // same content-addressed memo pattern as the catalog: rule expansion runs
+  // inline on every read of such a list (including the uncached anonymous
+  // public-share path), and this keeps those reads from re-loading the full
+  // price map. The token rolls when `refreshLatestPrices` publishes new data
+  // (see `latestPricesContentVersion`), so filters follow the price crons with
+  // no staleness window.
+  const rulePriceLookup = createContentAddressedCache(
+    async () => {
+      const rows = await marketplaceRepo(db).latestPrices();
+      const map: PriceMap = {};
+      for (const row of rows) {
+        (map[row.printingId] ??= {})[row.marketplace as Marketplace] = row.marketCents;
+      }
+      return priceLookupFromMap(map);
+    },
+    () => marketplaceRepo(db).latestPricesContentVersion(),
+  );
+
   // Each repo is wrapped via instrumentRepo so every method opens an OTel
   // span named `repo.<name>.<method>`, parenting the Kysely `db.query`
   // spans for clean repo-method attribution in traces.
@@ -267,8 +288,9 @@ export function createRepos(db: Kysely<Database>): Repos {
     // ADR-034: dynamic lists participate in matching — same providers as `lists`.
     friendGroupMatches: friendGroupMatchesRepo(db, {
       assembleCatalog,
-      ownedCopies: (ownerId) => copiesRepo(db).ownedRowsForUser(ownerId),
+      ownedCopies: (ownerId, printingIds) => copiesRepo(db).ownedRowsForUser(ownerId, printingIds),
       enumOrders: () => cachedEnums.keepPriorityOrders(),
+      priceLookup: rulePriceLookup,
     }),
     userContactMethods: userContactMethodsRepo(db),
     organizations: organizationsRepo(db),
@@ -285,8 +307,9 @@ export function createRepos(db: Kysely<Database>): Repos {
     // call (owner-specific, not cacheable across users).
     lists: listsRepo(db, {
       assembleCatalog,
-      ownedCopies: (ownerId) => copiesRepo(db).ownedRowsForUser(ownerId),
+      ownedCopies: (ownerId, printingIds) => copiesRepo(db).ownedRowsForUser(ownerId, printingIds),
       enumOrders: () => cachedEnums.keepPriorityOrders(),
+      priceLookup: rulePriceLookup,
     }),
     loans: loansRepo(db),
     marketplace: marketplaceRepo(db),

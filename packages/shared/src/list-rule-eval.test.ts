@@ -12,6 +12,7 @@ import type {
   OwnedCopyRow,
   VirtualEntry,
 } from "./list-rule-eval.js";
+import { priceLookupFromMap } from "./price-lookup.js";
 import {
   EMPTY_CARD_FILTERS,
   listRulesSchema,
@@ -1342,4 +1343,114 @@ describe("ownedCopyPrintingScope", () => {
       );
     },
   );
+});
+
+describe("price-bounded rules (priceMarketplace + priceLookup)", () => {
+  // Wire map holds integer cents; the lookup serves major units (1.50, 7, 9).
+  const priceLookup = priceLookupFromMap({
+    p1: { cardmarket: 150, tcgplayer: 900 },
+    p2: { cardmarket: 700 },
+    // p3 has no price on any marketplace.
+  });
+  const catalog = [makePrinting("p1", "c1"), makePrinting("p2", "c1"), makePrinting("p3", "c2")];
+
+  const wishUnder = (max: number, priceMarketplace: ListRule["priceMarketplace"]): ListRule => ({
+    kind: "wish",
+    filter: filters({ price: { min: null, max } }),
+    priceMarketplace,
+    quantity: { mode: "fixed", n: 1 },
+    excludeIds: [],
+  });
+
+  it("bounds against the rule's own marketplace, skipping price-less printings", () => {
+    const out = evaluateListRule(wishUnder(5, "cardmarket"), "printing", { catalog, priceLookup });
+    // p1 (1.50) passes, p2 (7) exceeds the max, p3 has no price at all.
+    expect(out.map((e) => e.printingId)).toEqual(["p1"]);
+  });
+
+  it("the same bound reads a different quote on a different marketplace", () => {
+    const out = evaluateListRule(wishUnder(5, "tcgplayer"), "printing", { catalog, priceLookup });
+    // p1 is 9 on TCGplayer, so nothing passes.
+    expect(out).toEqual([]);
+  });
+
+  it("without a lookup in context, a bounded rule matches no priced printing", () => {
+    expect(evaluateListRule(wishUnder(5, "cardmarket"), "printing", { catalog })).toEqual([]);
+  });
+
+  it("a trade rule offers only copies whose printing passes the bound", () => {
+    const rule: ListRule = {
+      kind: "trade",
+      filter: filters({ price: { min: 2, max: null } }),
+      priceMarketplace: "cardmarket",
+      collectionIds: null,
+      keepPerCard: { mode: "fixed", n: 0 },
+      excludeCopyIds: [],
+    };
+    const ownedCopies = [
+      ownedCopy({ copyId: "x1", printingId: "p1", cardId: "c1" }),
+      ownedCopy({ copyId: "x2", printingId: "p2", cardId: "c1" }),
+      ownedCopy({ copyId: "x3", printingId: "p3", cardId: "c2" }),
+    ];
+    const out = evaluateListRule(rule, "copy", { catalog, ownedCopies, priceLookup });
+    // Only p2 (7 ≥ 2) passes; p1 is below the min and p3 is price-less.
+    expect(out.map((e) => e.copyId)).toEqual(["x2"]);
+  });
+
+  it("ownedCopyPrintingScope applies the same price bound as evaluation", () => {
+    const rule: ListRule = {
+      kind: "trade",
+      filter: filters({ price: { min: null, max: 5 } }),
+      priceMarketplace: "cardmarket",
+      collectionIds: null,
+      keepPerCard: { mode: "fixed", n: 0 },
+      excludeCopyIds: [],
+    };
+    expect(ownedCopyPrintingScope([rule], "card", { catalog, priceLookup })).toEqual(["p1"]);
+    // Without prices the scope collapses like the evaluation does — the two
+    // must never drift, or copy loading would miss what the rules match.
+    expect(ownedCopyPrintingScope([rule], "card", { catalog })).toEqual([]);
+  });
+});
+
+describe("listRulesSchema — price marketplace requirement", () => {
+  const boundedWish = {
+    kind: "wish",
+    filter: { ...EMPTY_CARD_FILTERS, price: { min: 1, max: null } },
+    quantity: { mode: "fixed", n: 1 },
+    excludeIds: [],
+  };
+
+  it("rejects a price bound without a marketplace", () => {
+    expect(listRulesSchema.safeParse([boundedWish]).success).toBe(false);
+  });
+
+  it("accepts a price bound with a marketplace", () => {
+    const rule = { ...boundedWish, priceMarketplace: "cardmarket" };
+    expect(listRulesSchema.safeParse([rule]).success).toBe(true);
+  });
+
+  it("rejects an unknown marketplace", () => {
+    const rule = { ...boundedWish, priceMarketplace: "ebay" };
+    expect(listRulesSchema.safeParse([rule]).success).toBe(false);
+  });
+
+  it("accepts a marketplace without a bound (inert leftover)", () => {
+    const rule = { ...boundedWish, filter: EMPTY_CARD_FILTERS, priceMarketplace: "tcgplayer" };
+    expect(listRulesSchema.safeParse([rule]).success).toBe(true);
+  });
+
+  it("applies the same requirement to trade rules", () => {
+    const boundedTrade = {
+      kind: "trade",
+      filter: { ...EMPTY_CARD_FILTERS, price: { min: null, max: 5 } },
+      collectionIds: null,
+      keepPerCard: { mode: "fixed", n: 0 },
+      excludeCopyIds: [],
+    };
+    expect(listRulesSchema.safeParse([boundedTrade]).success).toBe(false);
+    expect(
+      listRulesSchema.safeParse([{ ...boundedTrade, priceMarketplace: "cardtrader" }]).success,
+    ).toBe(true);
+  });
 });

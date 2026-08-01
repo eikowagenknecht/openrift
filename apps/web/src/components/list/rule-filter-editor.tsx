@@ -1,5 +1,11 @@
-import type { CardFilters, PresenceDimension, PresenceState } from "@openrift/shared";
-import { getAvailableFilters } from "@openrift/shared";
+import type {
+  CardFilters,
+  FilterRange,
+  Marketplace,
+  PresenceDimension,
+  PresenceState,
+} from "@openrift/shared";
+import { filterCards, getAvailableFilters } from "@openrift/shared";
 import { InfoIcon, PlusIcon, XIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
@@ -16,11 +22,22 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCards } from "@/hooks/use-cards";
+import { useCustomTagAssignments } from "@/hooks/use-custom-tag-assignments";
 import { useCustomTagList, useEnumOrders, useLanguageLabels } from "@/hooks/use-enums";
+import { usePrices } from "@/hooks/use-prices";
 import { cycleIncludeExclude } from "@/lib/filter-cycle";
 import { PRESENCE_LABELS, presenceToFlagState } from "@/lib/presence-filter";
+import { useDisplayStore } from "@/stores/display-store";
 
 /**
  * Makes the `button`-style combobox trigger match the SelectTrigger on the other
@@ -33,6 +50,16 @@ export const CONTROL_WIDTH =
 
 const STANDARD_HINT =
   "The most basic printing of a card: normal art, no signature or promo stamp, with commons and uncommons unfoiled and rarer cards foiled.";
+
+const PRICE_HINT =
+  "Compares each printing's latest market price on the marketplace you pick. Leave min or max empty for an open end.";
+
+/** Marketplace picker options, currency spelled out (each quotes its own). */
+const PRICE_MARKETPLACE_OPTIONS: { value: Marketplace; label: string }[] = [
+  { value: "cardtrader", label: "CardTrader (EUR)" },
+  { value: "tcgplayer", label: "TCGplayer (USD)" },
+  { value: "cardmarket", label: "Cardmarket (EUR)" },
+];
 
 /**
  * One form row: title on the left, control on the right (mirrors the Enable-rule
@@ -134,14 +161,26 @@ interface DimEntry {
 export function RuleFilterEditor({
   value,
   onChange,
+  priceMarketplace,
+  onPriceMarketplaceChange,
 }: {
   value: CardFilters;
   onChange: (next: CardFilters) => void;
+  /** The rule's persisted price marketplace; null until the price criterion is used. */
+  priceMarketplace: Marketplace | null;
+  onPriceMarketplaceChange: (marketplace: Marketplace) => void;
 }) {
   const { allPrintings, sets } = useCards();
   const { orders, labels } = useEnumOrders();
   const languageLabels = useLanguageLabels();
   const { all: customTags } = useCustomTagList();
+  const prices = usePrices();
+  const customTagAssignments = useCustomTagAssignments();
+  // The marketplace shown before the user has picked one: their favorite from
+  // the display preferences (same resolution as the card thumbnails). Setting
+  // a price bound persists it, so the saved rule never depends on preferences.
+  const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
+  const shownMarketplace = priceMarketplace ?? marketplaceOrder[0] ?? "cardtrader";
   const available = getAvailableFilters(allPrintings, { orders, sets });
 
   // Dimensions the user explicitly added but hasn't given a value yet. They
@@ -327,6 +366,104 @@ export function RuleFilterEditor({
     };
   };
 
+  const priceActive = value.price.min !== null || value.price.max !== null;
+  // Matched printings the price bound silently drops because the chosen
+  // marketplace has no price for them — surfaced under the row so "no price =
+  // skipped" never reads as a bug. Only computed while a bound is set (it is
+  // a full-catalog pass).
+  const pricelessMatchCount = priceActive
+    ? filterCards(
+        allPrintings,
+        { ...value, price: { min: null, max: null } },
+        { customTagAssignments },
+      ).filter((printing) => prices.get(printing.id, shownMarketplace) === undefined).length
+    : 0;
+
+  // Writing a bound persists the displayed marketplace: the saved rule must
+  // carry the marketplace its numbers are quoted in, not a viewer preference.
+  const patchPrice = (price: FilterRange) => {
+    patch({ price });
+    if (priceMarketplace === null) {
+      onPriceMarketplaceChange(shownMarketplace);
+    }
+  };
+
+  const priceBoundInput = (bound: "min" | "max") => (
+    <Input
+      type="number"
+      inputMode="decimal"
+      min={0}
+      step="0.01"
+      className="h-8 w-20"
+      placeholder={bound === "min" ? "Min" : "Max"}
+      aria-label={bound === "min" ? "Minimum price" : "Maximum price"}
+      value={value.price[bound] ?? ""}
+      onChange={(event) => {
+        // oxlint-disable-next-line unicorn/prefer-number-coercion -- lenient parse of an input value; Number("") is 0, not the intended "no bound"
+        const parsed = Number.parseFloat(event.target.value);
+        patchPrice({
+          ...value.price,
+          [bound]: Number.isNaN(parsed) ? null : Math.max(0, parsed),
+        });
+      }}
+    />
+  );
+
+  const priceEntry: DimEntry = {
+    key: "price",
+    label: "Price",
+    group: "printing",
+    available: true,
+    active: priceActive,
+    node: (
+      <div key="price" className="flex flex-col gap-3">
+        <FilterRow
+          label="Price"
+          hint={PRICE_HINT}
+          onRemove={() => {
+            patch({ price: { min: null, max: null } });
+            setAdded((current) => current.filter((entry) => entry !== "price"));
+          }}
+        >
+          <div className="flex items-center gap-1">
+            {priceBoundInput("min")}
+            <span className="text-muted-foreground" aria-hidden>
+              –
+            </span>
+            {priceBoundInput("max")}
+          </div>
+        </FilterRow>
+        <FilterRow label="Marketplace">
+          <Select
+            items={PRICE_MARKETPLACE_OPTIONS}
+            value={shownMarketplace}
+            onValueChange={(next) => onPriceMarketplaceChange(next as Marketplace)}
+          >
+            <SelectTrigger className={CONTROL_WIDTH} aria-label="Price marketplace">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {PRICE_MARKETPLACE_OPTIONS.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </FilterRow>
+        <p className="text-muted-foreground -mt-1 text-sm">
+          Market prices move daily, so cards can join or leave this list on their own.
+          {pricelessMatchCount > 0 &&
+            ` ${pricelessMatchCount} matching ${
+              pricelessMatchCount === 1 ? "printing has" : "printings have"
+            } no price there and ${pricelessMatchCount === 1 ? "is" : "are"} skipped.`}
+        </p>
+      </div>
+    ),
+  };
+
   const searchEntry: DimEntry = {
     key: "search",
     label: "Search",
@@ -482,6 +619,7 @@ export function RuleFilterEditor({
       "distributionChannels",
     ),
     flag("signed", "Signed", "Signed", "isSigned", "printing", available.hasSigned),
+    priceEntry,
   ];
 
   const addedSet = new Set(added);

@@ -8,6 +8,7 @@ import type {
   ListKind,
   ListRule,
   ListRuleCombine,
+  PriceLookup,
   Printing,
   RuleQuantity,
   TradePreference,
@@ -95,6 +96,36 @@ export interface RuleEvalContext {
    * (it never computes the trade copy split).
    */
   enumOrders?: KeepPriorityOrders;
+  /**
+   * Latest-price lookup (major currency units), required for any rule whose
+   * filter carries a price bound (`ruleFiltersOnPrice`). Each rule resolves
+   * prices against its own persisted `priceMarketplace`, so two rules can
+   * bound prices on different marketplaces. Without the lookup a price-bounded
+   * rule matches no priced printing (same as `filterCards` without `getPrice`).
+   * Note this makes such rules time-varying: their output shifts as prices
+   * refresh, unlike the keep/offer ranking above, which deliberately never
+   * reads prices.
+   */
+  priceLookup?: PriceLookup;
+}
+
+/**
+ * Per-rule price resolver for `filterCards`: reads the context's lookup at the
+ * rule's persisted marketplace. Undefined when the rule names no marketplace or
+ * the context carries no prices — `filterCards` then treats every printing as
+ * price-less (a price-bounded filter only matches via the "None" sentinel).
+ * @returns The resolver, or undefined when prices can't be resolved.
+ */
+function rulePriceResolver(
+  rule: ListRule,
+  ctx: RuleEvalContext,
+): ((printing: Printing) => number | undefined) | undefined {
+  const { priceLookup } = ctx;
+  const marketplace = rule.priceMarketplace;
+  if (!priceLookup || marketplace === undefined) {
+    return undefined;
+  }
+  return (printing) => priceLookup.get(printing.id, marketplace);
 }
 
 /**
@@ -168,6 +199,7 @@ function wishRuleTargets(
 ): WishRuleTargets {
   const matched = filterCards(ctx.catalog, rule.filter, {
     customTagAssignments: ctx.customTagAssignments,
+    getPrice: rulePriceResolver(rule, ctx),
   });
   const excluded = new Set(rule.excludeIds);
   const targets = new Map<string, number>();
@@ -205,7 +237,7 @@ function wishRuleTargets(
   const relaxed = filterCards(
     ctx.catalog,
     { ...rule.filter, isStandard: null },
-    { customTagAssignments: ctx.customTagAssignments },
+    { customTagAssignments: ctx.customTagAssignments, getPrice: rulePriceResolver(rule, ctx) },
   );
   const netPrintings = new Map<string, Set<string>>();
   for (const printing of relaxed) {
@@ -422,6 +454,7 @@ export function ownedCopyPrintingScope(
     if (rule.kind === "trade") {
       for (const printing of filterCards(ctx.catalog, rule.filter, {
         customTagAssignments: ctx.customTagAssignments,
+        getPrice: rulePriceResolver(rule, ctx),
       })) {
         scope.add(printing.id);
       }
@@ -466,6 +499,7 @@ function tradeRulePools(
   const passing = new Set(
     filterCards(ctx.catalog, rule.filter, {
       customTagAssignments: ctx.customTagAssignments,
+      getPrice: rulePriceResolver(rule, ctx),
     }).map((printing) => printing.id),
   );
   const excludedCopies = new Set(rule.excludeCopyIds);
