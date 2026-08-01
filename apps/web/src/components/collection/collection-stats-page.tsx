@@ -3,7 +3,6 @@ import type { CompletionScopePreference, Domain } from "@openrift/shared";
 import { WellKnown, getAvailableFilters } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import {
-  ArrowDownIcon,
   ArrowUpIcon,
   ChartBarIcon,
   CoinsIcon,
@@ -568,86 +567,80 @@ function TypeDistributionChart({ data }: { data: { type: string; total: number }
   return <DistributionDonut data={chartData} config={config} />;
 }
 
-// ── Price Extremes ────────────────────────────────────────────────────────
+// ── Most Expensive Printings ──────────────────────────────────────────────
 
-function PriceExtremes({
-  cheapest,
-  mostExpensive,
+/** Printings shown before the user asks for more. */
+const COLLAPSED_EXPENSIVE_PRINTINGS = 2;
+
+function MostExpensivePrintings({
+  printings,
   formatPrice,
 }: {
-  cheapest: PricedCard | null;
-  mostExpensive: PricedCard | null;
+  printings: PricedCard[];
   formatPrice: (value?: number | null) => string;
 }) {
-  if (!cheapest && !mostExpensive) {
+  const [expanded, setExpanded] = useState(false);
+
+  if (printings.length === 0) {
     return null;
   }
 
+  const visible = expanded ? printings : printings.slice(0, COLLAPSED_EXPENSIVE_PRINTINGS);
+
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      {cheapest && (
-        <CardLink render={<Link to="/cards/$cardSlug" params={{ cardSlug: cheapest.cardSlug }} />}>
-          <CardHeader>
-            <CardTitle className="text-muted-foreground flex items-center gap-1.5">
-              <ArrowDownIcon className="size-4" />
-              Cheapest Printing
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex items-center gap-3">
-            {cheapest.thumbnail && (
-              <HoverCard>
-                <HoverCardTrigger render={<span />}>
-                  <CardArtThumb src={cheapest.thumbnail} className="h-32" />
-                </HoverCardTrigger>
-                {cheapest.fullImage && (
-                  <HoverCardContent side="right" className="w-auto p-1">
-                    <img src={cheapest.fullImage} alt="" className="h-80 w-auto rounded" />
-                  </HoverCardContent>
-                )}
-              </HoverCard>
-            )}
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium">{cheapest.name}</p>
-              <p className="text-muted-foreground text-xs tabular-nums">
-                {formatPrice(cheapest.price)}
-              </p>
-            </div>
-          </CardContent>
-        </CardLink>
-      )}
-      {mostExpensive && (
-        <CardLink
-          render={<Link to="/cards/$cardSlug" params={{ cardSlug: mostExpensive.cardSlug }} />}
-        >
-          <CardHeader>
-            <CardTitle className="text-muted-foreground flex items-center gap-1.5">
-              <ArrowUpIcon className="size-4" />
-              Most Expensive Printing
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex items-center gap-3">
-            {mostExpensive.thumbnail && (
-              <HoverCard>
-                <HoverCardTrigger render={<span />}>
-                  <CardArtThumb src={mostExpensive.thumbnail} className="h-32" />
-                </HoverCardTrigger>
-                {mostExpensive.fullImage && (
-                  <HoverCardContent side="left" className="w-auto p-1">
-                    <img src={mostExpensive.fullImage} alt="" className="h-80 w-auto rounded" />
-                  </HoverCardContent>
-                )}
-              </HoverCard>
-            )}
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium">{mostExpensive.name}</p>
-              <p className="text-muted-foreground text-xs tabular-nums">
-                {formatPrice(mostExpensive.price)}
-              </p>
-            </div>
-          </CardContent>
-        </CardLink>
-      )}
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-1.5">
+          <ArrowUpIcon className="size-4" />
+          Most Expensive Printings
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {visible.map((printing, index) => (
+            <Link
+              key={printing.printingId}
+              to="/cards/$cardSlug"
+              params={{ cardSlug: printing.cardSlug }}
+              className="hover:bg-muted/60 focus-visible:ring-ring/50 flex items-center gap-3 rounded-md p-2 no-underline transition-colors outline-none focus-visible:ring-2"
+            >
+              <span className="text-muted-foreground w-5 shrink-0 text-right tabular-nums">
+                {index + 1}
+              </span>
+              {printing.thumbnail && (
+                <HoverCard>
+                  <HoverCardTrigger render={<span />}>
+                    <CardArtThumb src={printing.thumbnail} className="h-32" />
+                  </HoverCardTrigger>
+                  {printing.fullImage && (
+                    <HoverCardContent side="right" className="w-auto p-1">
+                      <img src={printing.fullImage} alt="" className="h-80 w-auto rounded" />
+                    </HoverCardContent>
+                  )}
+                </HoverCard>
+              )}
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium">{printing.name}</p>
+                <p className="text-muted-foreground text-xs tabular-nums">
+                  {formatPrice(printing.price)}
+                </p>
+              </div>
+            </Link>
+          ))}
+        </div>
+        {printings.length > COLLAPSED_EXPENSIVE_PRINTINGS && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setExpanded(!expanded);
+            }}
+          >
+            {expanded ? "Show less" : `Show more (${printings.length})`}
+          </Button>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -883,9 +876,8 @@ export function CollectionStatsPage() {
                   </CardContent>
                 </Card>
               </div>
-              <PriceExtremes
-                cheapest={stats.cheapestPrinting}
-                mostExpensive={stats.mostExpensivePrinting}
+              <MostExpensivePrintings
+                printings={stats.mostExpensivePrintings}
                 formatPrice={stats.formatPrice}
               />
 

@@ -10,6 +10,7 @@
 
 ### Other
 
+- feat(Collection): **Top ten priciest cards** — collection stats now list your most valuable printings instead of a single one, showing two with a button to reveal ten, and the cheapest-printing tile is gone.
 - fix(Collection): **Language filter now reachable** — a collection holding only cards in languages you haven't enabled looked empty with no filter to clear, so the Language filter now lists any language it's narrowing by.
 
 ## 2026-07-31

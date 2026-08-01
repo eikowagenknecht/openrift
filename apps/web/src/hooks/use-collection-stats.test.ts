@@ -6,6 +6,7 @@ import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { resetIdCounter, stubPriceLookup, stubPrinting } from "@/test/factories";
 
 import {
+  MAX_EXPENSIVE_PRINTINGS,
   computeCollectionStats,
   computeCompletion,
   excludeUnreleasedSets,
@@ -144,6 +145,56 @@ describe("computeCollectionStats", () => {
 
     expect(stats.estimatedValue).toBeCloseTo(21);
     expect(stats.unpricedCount).toBe(0);
+  });
+
+  it("ranks the priciest printings descending and caps the list", () => {
+    const stacks = Array.from({ length: MAX_EXPENSIVE_PRINTINGS + 3 }, (_, index) =>
+      stubStack({ card: { slug: `card-${index}` } }),
+    );
+    const prices = stubPriceLookup(
+      Object.fromEntries(
+        stacks.map((stack, index) => [stack.printingId, { tcgplayer: index + 1 }]),
+      ),
+    );
+
+    const stats = computeCollectionStats({
+      stacks,
+      totalCopies: stacks.length,
+      sets: [],
+      prices,
+      marketplace: "tcgplayer",
+      orders: ORDERS,
+    });
+
+    expect(stats.mostExpensivePrintings).toHaveLength(MAX_EXPENSIVE_PRINTINGS);
+    expect(stats.mostExpensivePrintings[0]?.price).toBe(stacks.length);
+    expect(stats.mostExpensivePrintings.at(-1)?.price).toBe(
+      stacks.length - MAX_EXPENSIVE_PRINTINGS + 1,
+    );
+  });
+
+  it("omits unpriced and zero-priced printings from the expensive list", () => {
+    const priced = stubStack({ card: { slug: "fireball" } });
+    const free = stubStack({ card: { slug: "icebolt" } });
+    const unpriced = stubStack({ card: { slug: "shockbolt" } });
+
+    const prices = stubPriceLookup({
+      [priced.printingId]: { tcgplayer: 4 },
+      [free.printingId]: { tcgplayer: 0 },
+    });
+
+    const stats = computeCollectionStats({
+      stacks: [priced, free, unpriced],
+      totalCopies: 3,
+      sets: [],
+      prices,
+      marketplace: "tcgplayer",
+      orders: ORDERS,
+    });
+
+    expect(stats.mostExpensivePrintings).toHaveLength(1);
+    expect(stats.mostExpensivePrintings[0]?.cardSlug).toBe("fireball");
+    expect(stats.unpricedCount).toBe(1);
   });
 
   it("counts multi-domain cards toward each domain", () => {

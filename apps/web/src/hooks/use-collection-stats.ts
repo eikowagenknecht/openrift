@@ -43,6 +43,9 @@ export interface CompletionEntry {
   setType?: "main" | "supplemental";
 }
 
+/** How many of the priciest printings the stats page can reveal. */
+export const MAX_EXPENSIVE_PRINTINGS = 10;
+
 export interface PricedCard {
   name: string;
   printingId: string;
@@ -62,8 +65,8 @@ export interface CollectionStats {
   unpricedCount: number;
   completionPercent: number;
   totalCardsInGame: number;
-  cheapestPrinting: PricedCard | null;
-  mostExpensivePrinting: PricedCard | null;
+  /** Priciest owned printings, descending, capped at {@link MAX_EXPENSIVE_PRINTINGS}. */
+  mostExpensivePrintings: PricedCard[];
   domainDistribution: DomainCount[];
   rarityDistribution: RarityCount[];
   energyCurve: EnergyCostCount[];
@@ -347,8 +350,7 @@ export function computeCollectionStats(input: ComputeInput): Omit<CollectionStat
   const uniquePrintingIds = new Set<string>();
   let estimatedValue = 0;
   let unpricedCount = 0;
-  let cheapestPrinting: PricedCard | null = null;
-  let mostExpensivePrinting: PricedCard | null = null;
+  const pricedStacks: { stack: StackedEntry; price: number }[] = [];
 
   for (const stack of stacks) {
     uniqueCardSlugs.add(stack.printing.card.slug);
@@ -358,33 +360,28 @@ export function computeCollectionStats(input: ComputeInput): Omit<CollectionStat
       unpricedCount += stack.copyIds.length;
     } else {
       estimatedValue += price * stack.copyIds.length;
-      const firstImageId = stack.printing.images[0]?.imageId;
-      const thumbnail = firstImageId ? imageUrl(firstImageId, "400w") : undefined;
-      const fullImage = firstImageId ? imageUrl(firstImageId, "full") : undefined;
-      if (price > 0 && (cheapestPrinting === null || price < cheapestPrinting.price)) {
-        cheapestPrinting = {
-          name: stack.printing.card.name,
-          printingId: stack.printingId,
-          price,
-          setSlug: stack.printing.setSlug,
-          cardSlug: stack.printing.card.slug,
-          thumbnail,
-          fullImage,
-        };
-      }
-      if (mostExpensivePrinting === null || price > mostExpensivePrinting.price) {
-        mostExpensivePrinting = {
-          name: stack.printing.card.name,
-          printingId: stack.printingId,
-          price,
-          setSlug: stack.printing.setSlug,
-          cardSlug: stack.printing.card.slug,
-          thumbnail,
-          fullImage,
-        };
+      if (price > 0) {
+        pricedStacks.push({ stack, price });
       }
     }
   }
+
+  // Image URLs are only built for the handful of printings we actually show.
+  const mostExpensivePrintings: PricedCard[] = pricedStacks
+    .toSorted((a, b) => b.price - a.price)
+    .slice(0, MAX_EXPENSIVE_PRINTINGS)
+    .map(({ stack, price }) => {
+      const firstImageId = stack.printing.images[0]?.imageId;
+      return {
+        name: stack.printing.card.name,
+        printingId: stack.printingId,
+        price,
+        setSlug: stack.printing.setSlug,
+        cardSlug: stack.printing.card.slug,
+        thumbnail: firstImageId ? imageUrl(firstImageId, "400w") : undefined,
+        fullImage: firstImageId ? imageUrl(firstImageId, "full") : undefined,
+      };
+    });
 
   const uniqueCards = uniqueCardSlugs.size;
   const uniquePrintings = uniquePrintingIds.size;
@@ -565,8 +562,7 @@ export function computeCollectionStats(input: ComputeInput): Omit<CollectionStat
     unpricedCount,
     completionPercent,
     totalCardsInGame,
-    cheapestPrinting,
-    mostExpensivePrinting,
+    mostExpensivePrintings,
     domainDistribution,
     rarityDistribution,
     energyCurve,
