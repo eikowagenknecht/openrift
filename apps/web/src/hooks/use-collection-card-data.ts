@@ -123,10 +123,23 @@ export function useCollectionCardData({
   );
 
   // Derived from the user's actual owned printings so the filter UI lists only
-  // languages present in this collection. When the user owns a single
-  // language, the Language section stays hidden (filter-panel threshold is
-  // length > 1).
-  const availableLanguages = [...new Set(collectionPrintings.map((p) => p.language))];
+  // languages present in this collection, UNIONED with whatever the active
+  // language filter references. The union half is what keeps the Language
+  // control reachable: the filter is auto-seeded from the user's preferred
+  // languages (see `useSeedLanguagesFromPrefs`), so a collection holding only
+  // non-preferred printings filters down to nothing while the control that
+  // would clear it stays hidden behind the length > 1 threshold — an empty
+  // grid with no way out, since `clearAllFilters` deliberately preserves
+  // language. Excluded languages count too: an exclusion is just as invisible
+  // and just as unremovable. Filter-referenced extras land after the owned
+  // ones, so the common case (no extras) keeps its existing order.
+  const availableLanguages = [
+    ...new Set([
+      ...collectionPrintings.map((p) => p.language),
+      ...filters.languages,
+      ...filters.languagesExclude,
+    ]),
+  ];
 
   // `useStackedCopies` returns printings in shortCode order (for the Copies
   // view). Pre-sort by (languageRank, canonicalRank) here so dedup/group

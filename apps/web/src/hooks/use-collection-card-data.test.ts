@@ -128,6 +128,61 @@ describe("useCollectionCardData", () => {
     expect([...result.current.availableLanguages].toSorted()).toEqual(["EN", "SC"]);
   });
 
+  it("includes filtered languages the collection doesn't stock in availableLanguages", () => {
+    // Regression: the Language control only renders above a length > 1
+    // threshold, so a collection holding a single non-preferred language
+    // reported just that one language and hid the control. The auto-seeded
+    // preference filter (EN here) then emptied the grid with no way to clear
+    // it, since clearAllFilters preserves language on purpose.
+    const sc = stubPrinting({ language: "SC" });
+    mockStacks.mockReturnValue({
+      stacks: [makeStack(sc)],
+      totalCopies: 1,
+      isReady: true,
+    });
+
+    const params = baseParams();
+    params.filters.languages = ["EN"];
+
+    const { result } = renderHook(() => useCollectionCardData(params));
+
+    expect(result.current.sortedCards).toHaveLength(0);
+    expect([...result.current.availableLanguages].toSorted()).toEqual(["EN", "SC"]);
+  });
+
+  it("includes excluded languages the collection doesn't stock in availableLanguages", () => {
+    const sc = stubPrinting({ language: "SC" });
+    mockStacks.mockReturnValue({
+      stacks: [makeStack(sc)],
+      totalCopies: 1,
+      isReady: true,
+    });
+
+    const params = baseParams();
+    params.filters.languagesExclude = ["EN"];
+
+    const { result } = renderHook(() => useCollectionCardData(params));
+
+    expect([...result.current.availableLanguages].toSorted()).toEqual(["EN", "SC"]);
+  });
+
+  it("lists owned languages before filter-only ones and never duplicates", () => {
+    const sc = stubPrinting({ language: "SC" });
+    const en = stubPrinting({ language: "EN" });
+    mockStacks.mockReturnValue({
+      stacks: [makeStack(sc), makeStack(en)],
+      totalCopies: 2,
+      isReady: true,
+    });
+
+    const params = baseParams();
+    params.filters.languages = ["EN", "JP"];
+
+    const { result } = renderHook(() => useCollectionCardData(params));
+
+    expect(result.current.availableLanguages).toEqual(["SC", "EN", "JP"]);
+  });
+
   it("returns printings in all owned languages when filters.languages is empty", () => {
     // Regression: the collection view previously auto-seeded the URL language
     // filter from the user's display-store preference, which silently hid

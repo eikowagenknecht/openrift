@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-08-01
+
+### Other
+
+- fix(Collection): **Language filter now reachable** — a collection holding only cards in languages you haven't enabled looked empty with no filter to clear, so the Language filter now lists any language it's narrowing by.
+
 ## 2026-07-31
 
 ### Highlights
