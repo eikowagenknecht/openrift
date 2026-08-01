@@ -131,16 +131,14 @@ export function ListPage({ listId }: ListPageProps) {
       onToggleSidebar={toggleSidebar}
       actions={
         <>
-          {data.list.intent !== "organize" && (
-            <PageTopBarButton
-              onClick={() => setRuleOpen(true)}
-              className={cn(activeRuleCount > 0 && "text-primary")}
-            >
-              <SparklesIcon className="size-4" />
-              {data.list.intent === "wish" ? "Dynamic rules" : "Dynamic rule"}
-              {data.list.intent === "wish" && activeRuleCount > 0 ? ` · ${activeRuleCount}` : null}
-            </PageTopBarButton>
-          )}
+          <PageTopBarButton
+            onClick={() => setRuleOpen(true)}
+            className={cn(activeRuleCount > 0 && "text-primary")}
+          >
+            <SparklesIcon className="size-4" />
+            Dynamic rules
+            {activeRuleCount > 0 ? ` · ${activeRuleCount}` : null}
+          </PageTopBarButton>
           <ListVisibilityButton
             listId={data.list.id}
             intent={data.list.intent}
@@ -264,7 +262,7 @@ export function ListPage({ listId }: ListPageProps) {
 
   // Mounted only while open so its catalog/collections queries are paid on
   // demand, not on every list view (ADR-034).
-  const ruleDialog = data.list.intent !== "organize" && ruleOpen && (
+  const ruleDialog = ruleOpen && (
     <RuleEditorDialog
       listId={listId}
       intent={data.list.intent}

@@ -365,8 +365,9 @@ describe("createListSchema", () => {
   });
 
   // Dynamic-rule refinements (ADR-034): each rule's discriminant must match the
-  // list intent, organize lists carry none, and the combine mode must belong to
-  // the intent (amendment 2).
+  // list *kind* (card/printing take `wish`, copy takes `trade`), and the combine
+  // mode must belong to the kind (amendment 2). Every intent may carry rules,
+  // organize included (amendment 4).
   const wishRuleDraft: ListRule = {
     kind: "wish",
     filter: EMPTY_CARD_FILTERS,
@@ -392,7 +393,7 @@ describe("createListSchema", () => {
     ).toBe(true);
   });
 
-  it("rejects a trade rule on a wish list (kind/intent mismatch)", () => {
+  it("rejects a trade rule on a wish list (shape/kind mismatch)", () => {
     expect(
       createListSchema.safeParse({
         name: "Bad",
@@ -403,12 +404,41 @@ describe("createListSchema", () => {
     ).toBe(false);
   });
 
-  it("rejects any rule on an organize list", () => {
+  it("accepts rules on an organize list, shaped by its kind", () => {
+    for (const kind of ["card", "printing"] as const) {
+      expect(
+        createListSchema.safeParse({
+          name: "Binder",
+          intent: "organize",
+          kind,
+          rules: [wishRuleDraft],
+        }).success,
+      ).toBe(true);
+    }
+    expect(
+      createListSchema.safeParse({
+        name: "Binder",
+        intent: "organize",
+        kind: "copy",
+        rules: [tradeRuleDraft],
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rejects a rule whose shape doesn't match the organize list's kind", () => {
     expect(
       createListSchema.safeParse({
         name: "Bad",
         intent: "organize",
         kind: "card",
+        rules: [tradeRuleDraft],
+      }).success,
+    ).toBe(false);
+    expect(
+      createListSchema.safeParse({
+        name: "Bad",
+        intent: "organize",
+        kind: "copy",
         rules: [wishRuleDraft],
       }).success,
     ).toBe(false);
@@ -425,7 +455,7 @@ describe("createListSchema", () => {
     ).toBe(true);
   });
 
-  it("accepts a combine mode matching the intent", () => {
+  it("accepts a combine mode matching the kind", () => {
     expect(
       createListSchema.safeParse({
         name: "Surplus",
@@ -446,7 +476,7 @@ describe("createListSchema", () => {
     ).toBe(true);
   });
 
-  it("rejects a combine mode from the other intent", () => {
+  it("rejects a combine mode from the other kind", () => {
     expect(
       createListSchema.safeParse({
         name: "Bad",
@@ -465,13 +495,29 @@ describe("createListSchema", () => {
     ).toBe(false);
   });
 
-  it("rejects any combine mode on an organize list", () => {
+  it("gates an organize list's combine mode on its kind, not its intent", () => {
+    expect(
+      createListSchema.safeParse({
+        name: "Binder",
+        intent: "organize",
+        kind: "card",
+        ruleCombine: "sum",
+      }).success,
+    ).toBe(true);
+    expect(
+      createListSchema.safeParse({
+        name: "Binder",
+        intent: "organize",
+        kind: "copy",
+        ruleCombine: "protect",
+      }).success,
+    ).toBe(true);
     expect(
       createListSchema.safeParse({
         name: "Bad",
         intent: "organize",
         kind: "card",
-        ruleCombine: "sum",
+        ruleCombine: "protect",
       }).success,
     ).toBe(false);
   });

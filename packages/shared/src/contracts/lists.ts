@@ -15,7 +15,8 @@ import {
   listRuleCombineSchema,
   listRulesSchema,
   oneListEntryTarget,
-  ruleCombineMatchesIntent,
+  ruleCombineMatchesKind,
+  ruleKindForListKind,
   tradePreferenceInputSchema,
   withParams,
 } from "@openrift/shared/schemas";
@@ -65,11 +66,11 @@ export const createListSchema = z
     kind: listKindSchema,
     tradeDefaults: tradePreferenceInputSchema.optional(),
     currency: currencySchema.nullable().optional(),
-    // Dynamic list rules (ADR-034). Only valid on wish/trade lists; each rule's
-    // discriminant must match the list intent (see refinements below).
+    // Dynamic list rules (ADR-034). Valid on every intent; each rule's
+    // discriminant must match the list kind (see refinements below).
     rules: listRulesSchema.optional(),
     // How several rules combine (ADR-034 amendment 2). null/absent = the
-    // intent's default (wish: sum, trade: protect).
+    // kind's default (card/printing: sum, copy: protect).
     ruleCombine: listRuleCombineSchema.nullable().optional(),
   })
   .refine((data) => isAllowedIntentKind(data.intent, data.kind), {
@@ -84,18 +85,19 @@ export const createListSchema = z
         (data.currency === undefined || data.currency === null)),
     { message: "organize lists cannot carry trade defaults or a currency" },
   )
-  .refine((data) => data.intent !== "organize" || (data.rules ?? []).length === 0, {
-    message: "organize lists cannot carry dynamic rules",
-  })
-  .refine((data) => (data.rules ?? []).every((rule) => rule.kind === data.intent), {
-    message: "rule kind must match the list intent",
-  })
+  // ADR-034 amendment 4: a rule's shape follows the list's kind, not its
+  // intent — card/printing lists take demand rules, copy lists supply rules —
+  // so organize lists carry rules too.
+  .refine(
+    (data) => (data.rules ?? []).every((rule) => rule.kind === ruleKindForListKind(data.kind)),
+    { message: "rule kind must match the list kind" },
+  )
   .refine(
     (data) =>
       data.ruleCombine === null ||
       data.ruleCombine === undefined ||
-      ruleCombineMatchesIntent(data.ruleCombine, data.intent),
-    { message: "rule combine mode must match the list intent" },
+      ruleCombineMatchesKind(data.ruleCombine, data.kind),
+    { message: "rule combine mode must match the list kind" },
   );
 
 export const updateListSchema = z.object({
@@ -103,10 +105,10 @@ export const updateListSchema = z.object({
   tradeDefaults: tradePreferenceInputSchema.optional(),
   currency: currencySchema.nullable().optional(),
   // Set/replace the dynamic rules (ADR-034). An empty array clears them. The
-  // route layer validates each rule's kind against the existing list's intent.
+  // route layer validates each rule's kind against the existing list's kind.
   rules: listRulesSchema.optional(),
   // Set/clear the combine mode (ADR-034 amendment 2). null = back to the
-  // intent's default. The route layer validates the mode against the intent.
+  // kind's default. The route layer validates the mode against the kind.
   ruleCombine: listRuleCombineSchema.nullable().optional(),
 });
 

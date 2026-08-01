@@ -34,6 +34,13 @@ This ADR was scoped in a question-driven design session with the product owner (
 > 1. **Acceptable printings in matching:** each rule-produced card entry carries the union of the contributing rules' matched printing ids (`VirtualEntry.acceptablePrintingIds`, surviving `expandList` on rule-only entries). The group matcher rejects a supply copy whose printing is outside the set. A manual entry on the same card lifts the restriction, so manual card wants keep matching any printing. Printing-kind demand is unaffected, its key is already exact.
 > 2. **Filter-aware netting:** `netOwned` subtracts only owned copies whose printing one of the `netOwned` rules matched, so an owned copy outside the filters (excluded art variant, other language) no longer fills the want. Printing-kind netting already keyed per printing and is unchanged.
 
+> **Amendment 4 (2026-08-01).** Organize lists carry rules too. The original "rules are allowed only on `wish` and `trade` lists" (§1 below) rested on the discriminant `kind: "wish" | "trade"` reading as an intent. It is not one: it names the rule's _shape_, and a shape follows the list's **kind**, not its intent. Card and printing lists take the demand shape (match the catalog, want N of each match); copy lists take the supply shape (select owned copies, hold back N per card, emit the surplus). `chk_lists_intent_kind` pins wish to card/printing and trade to copy, so for those two the kind-based rule is exactly the intent-based one it replaces, but organize lists span all three kinds and therefore already have a well-defined shape for each.
+>
+> 1. **Gate moved from intent to kind.** Migration 218 drops `chk_lists_rules_intent`; shape validation stays app-level. `ruleCombineMatchesIntent` → `ruleCombineMatchesKind`, `defaultRuleCombine(intent)` → `defaultRuleCombine(kind)`, plus a new `ruleKindForListKind(kind)` that the create schema and the PATCH route both validate against. The persisted `"wish"` / `"trade"` discriminant values are unchanged, so no data migration.
+> 2. **Nothing else moved.** The evaluator (`evaluateListRules`), `expandList`, and the repo expansion path already keyed off `listKind` and `rules.length`, never intent, so they needed no change. Organize lists don't enter trade matching, so §III is untouched.
+> 3. **Personal copies only.** An organize copy list may hold group-shared copies added by hand (`personalOnly = false` on the manual-add routes), but a rule only ever draws on the owner's own copies, exactly like a trade rule — `ownedRowsForUser` is the single copy source on both the server and the editor preview. Widening it would need a group-visibility-aware copy query and a separate decision about what the anonymous public-share path may expand, so it is deferred.
+> 4. **Wording, not math, differs per intent.** The keep/offer split has nothing to offer on an organize list, so the same control reads as "leave out the nicest N per card, include the rest" there (`apps/web/src/lib/rule-wording.ts` holds the per-intent copy, `rulePresetsFor` the per-intent presets). `keepPerCard: 0`, the default, includes every matching copy.
+
 ## Decision Drivers
 
 - All four use cases must be expressible. They span every `intent` × `kind` combo a list can take.
@@ -78,7 +85,7 @@ The existing `lists.intent` ∈ {wish, trade, organize} and `lists.kind` ∈ {ca
 | 3 one of every matching printing | wish + printing | demand: qty per printing               |
 | 4 surplus commons/uncommons      | trade + copy    | supply: copies beyond a keep-threshold |
 
-Rules are allowed only on `wish` and `trade` lists (not `organize`).
+Every intent may carry rules; the list's **kind** picks the shape (amendment 4). Card and printing lists take the demand shape, copy lists the supply shape, so an organize list of any kind is covered by the same two shapes the table above already uses.
 
 ### 2. Definition of a "standard" printing
 
@@ -253,7 +260,7 @@ export function expandList(
 
 ### II.5 API contract changes (`packages/shared/src/contracts/lists.ts`)
 
-- `createListSchema` + `updateListSchema`: add `rules: listRulesSchema.optional()` (defaults to `[]`). `listRulesSchema` itself caps the array at `MAX_LIST_RULES` (10). Each rule is a full-catalog `filterCards` pass at read time (incl. the anonymous public-share path), so the count is bounded. Further refinements: reject any rules when `intent === "organize"`; reject when any `rule.kind !== intent`; reject more than one rule when `intent === "trade"`.
+- `createListSchema` + `updateListSchema`: add `rules: listRulesSchema.optional()` (defaults to `[]`). `listRulesSchema` itself caps the array at `MAX_LIST_RULES` (10). Each rule is a full-catalog `filterCards` pass at read time (incl. the anonymous public-share path), so the count is bounded. Further refinements: reject when any `rule.kind !== ruleKindForListKind(kind)`, and when `ruleCombine` doesn't belong to the kind (amendments 2 and 4). The "no rules on organize" and "at most one trade rule" refinements the original draft called for are both gone (amendments 2 and 4).
 - `listResponseSchema`: keep `entryCount` as the manual count and add `hasRule: boolean` (true when the list carries any rules). (List summaries are NOT expanded, see II.7.)
 - `listDetailResponseSchema`: the `list` object gains `rules: ListRule[]` (so the editor can load them). `entries` are the expanded set.
 - `listEntryDetailResponseSchema`: `id` becomes nullable. Add `source: "manual" | "rule" | "both"`. Rule entries (`id: null`) are not individually editable/deletable. The UI offers only "exclude" on them.

@@ -32,7 +32,7 @@ describe("useRuleEditorStore", () => {
   it("starts with no rules", () => {
     const state = useRuleEditorStore.getState();
     expect(state.rules).toEqual([]);
-    expect(state.buildRules("wish")).toEqual([]);
+    expect(state.buildRules("card")).toEqual([]);
   });
 
   it("addRule appends a default draft; removeRule drops it", () => {
@@ -73,9 +73,17 @@ describe("useRuleEditorStore", () => {
     expect(useRuleEditorStore.getState().rules[1]?.filter).toEqual(EMPTY_CARD_FILTERS);
   });
 
-  it("buildRules returns an empty array for organize", () => {
-    useRuleEditorStore.getState().addRule();
-    expect(useRuleEditorStore.getState().buildRules("organize")).toEqual([]);
+  // ADR-034 amendment 4: the rule shape follows the list's kind, so a printing
+  // list serializes the demand shape exactly like a card list does, and an
+  // organize list of either kind gets the same shape as a wish list.
+  it("builds the demand shape for printing lists too", () => {
+    const store = useRuleEditorStore.getState();
+    store.addRule();
+    store.setQuantity(0, { mode: "fixed", n: 2 });
+    expect(useRuleEditorStore.getState().buildRules("printing")[0]).toMatchObject({
+      kind: "wish",
+      quantity: { mode: "fixed", n: 2 },
+    });
   });
 
   it("builds several wish rules from the drafts", () => {
@@ -90,7 +98,7 @@ describe("useRuleEditorStore", () => {
 
     store.setNetOwned(1, true);
 
-    const rules = useRuleEditorStore.getState().buildRules("wish");
+    const rules = useRuleEditorStore.getState().buildRules("card");
     expect(rules).toEqual([
       {
         kind: "wish",
@@ -117,7 +125,7 @@ describe("useRuleEditorStore", () => {
     store.setKeepPerCard(0, { mode: "playset", multiplier: 2 });
     store.setCollectionIds(0, ["col-1"]);
 
-    expect(useRuleEditorStore.getState().buildRules("trade")).toEqual([
+    expect(useRuleEditorStore.getState().buildRules("copy")).toEqual([
       {
         kind: "trade",
         filter: EMPTY_CARD_FILTERS,
@@ -140,7 +148,7 @@ describe("useRuleEditorStore", () => {
     };
     useRuleEditorStore.getState().load([rule]);
     expect(useRuleEditorStore.getState().rules[0]?.keepPer).toBe("printing");
-    expect(useRuleEditorStore.getState().buildRules("trade")[0]).toMatchObject({
+    expect(useRuleEditorStore.getState().buildRules("copy")[0]).toMatchObject({
       keepPer: "printing",
     });
 
@@ -217,7 +225,7 @@ describe("useRuleEditorStore", () => {
     ];
     useRuleEditorStore.getState().load(rules);
     expect(useRuleEditorStore.getState().rules[0]?.netOwned).toBe(true);
-    const built = useRuleEditorStore.getState().buildRules("wish")[0];
+    const built = useRuleEditorStore.getState().buildRules("card")[0];
     expect(built).toMatchObject({ kind: "wish", netOwned: true });
   });
 
@@ -234,7 +242,7 @@ describe("useRuleEditorStore", () => {
     ];
     useRuleEditorStore.getState().load(rules);
     expect(useRuleEditorStore.getState().rules[0]?.countSpecialVersions).toBe(true);
-    const built = useRuleEditorStore.getState().buildRules("wish")[0];
+    const built = useRuleEditorStore.getState().buildRules("card")[0];
     expect(built).toMatchObject({ kind: "wish", countSpecialVersions: true });
   });
 
@@ -312,7 +320,7 @@ describe("useRuleEditorStore", () => {
     // the store's `buildRules` (which reads `get()`), so editing a filter is
     // picked up immediately. This guards that the pure helper stays pure.
     const rules = [draft({ filter: { ...EMPTY_CARD_FILTERS, rarities: ["common"] } })];
-    expect(serializeRules(rules, "wish")).toEqual([
+    expect(serializeRules(rules, "card")).toEqual([
       {
         kind: "wish",
         filter: { ...EMPTY_CARD_FILTERS, rarities: ["common"] },
@@ -322,7 +330,6 @@ describe("useRuleEditorStore", () => {
         countSpecialVersions: false,
       },
     ]);
-    expect(serializeRules(rules, "organize")).toEqual([]);
     // The store stays empty — serializeRules read only its argument.
     expect(useRuleEditorStore.getState().rules).toEqual([]);
   });

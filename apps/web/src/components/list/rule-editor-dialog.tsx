@@ -58,7 +58,9 @@ import { useRequiredUserId } from "@/lib/auth-session";
 import { catalogQueryOptions } from "@/lib/catalog-query";
 import { collectionsQueryOptions } from "@/lib/collections-query";
 import { copiesQueryOptions } from "@/lib/copies-query";
-import { TRADE_RULE_PRESETS, WISH_RULE_PRESETS } from "@/lib/rule-presets";
+import { rulePresetsFor } from "@/lib/rule-presets";
+import type { RuleWording } from "@/lib/rule-wording";
+import { matchLabel, ruleCountLabel, ruleWording } from "@/lib/rule-wording";
 import { useDisplayStore } from "@/stores/display-store";
 import { serializeRules, useRuleEditorStore } from "@/stores/rule-editor-store";
 
@@ -67,7 +69,7 @@ interface RuleEditorDialogProps {
   intent: ListIntent;
   kind: ListKind;
   currentRules: ListRule[];
-  /** The saved combine mode; null = the intent's default (ADR-034 amendment 2). */
+  /** The saved combine mode; null = the kind's default (ADR-034 amendment 2). */
   currentRuleCombine: ListRuleCombine | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -76,10 +78,12 @@ interface RuleEditorDialogProps {
 /**
  * Editor for a list's dynamic rules (ADR-034). Each rule's predicate is the full
  * controlled {@link RuleFilterEditor} (the same facets as the card browser) plus
- * mode math (target quantity for wish, keep-threshold + collection scope for
- * trade). Wish and trade lists may both carry several rules (add/remove); with
- * two or more, a combine-mode select says how they reconcile. A live preview
- * counts the deduped wish matches.
+ * mode math: a target quantity on card/printing lists, a keep-threshold plus
+ * collection scope on copy lists. Which of the two appears follows the list's
+ * *kind*, so organize lists get an editor too (amendment 4); the surrounding
+ * copy follows the intent, via {@link ruleWording}. Every list may carry several
+ * rules (add/remove); with two or more, a combine-mode select says how they
+ * reconcile. A live preview counts the deduped matches.
  * @returns The dialog node.
  */
 export function RuleEditorDialog({
@@ -118,13 +122,13 @@ export function RuleEditorDialog({
     return () => reset();
   }, [open, currentRules, currentRuleCombine, load, reset, queryClient]);
 
-  const isTrade = intent === "trade";
+  const wording = ruleWording(intent, kind);
 
   const handleSave = () => {
     if (updateList.isPending) {
       return;
     }
-    const next = buildRules(intent);
+    const next = buildRules(kind);
     const ruleCombine = useRuleEditorStore.getState().ruleCombine;
     updateList.mutate(
       { listId, rules: next, ruleCombine },
@@ -144,15 +148,15 @@ export function RuleEditorDialog({
         <DialogForm onSubmit={handleSave}>
           <DialogHeader>
             <DialogTitle>Dynamic rules</DialogTitle>
-            <DialogDescription>
-              {isTrade
-                ? "Automatically offer copies in your collection that match these filters. Add more than one rule to combine them."
-                : "Automatically want every card that matches these filters. Add more than one rule to combine them."}
-            </DialogDescription>
+            <DialogDescription>{wording.description}</DialogDescription>
           </DialogHeader>
 
           <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
-            {isTrade ? <TradeRuleEditor kind={kind} /> : <WishRuleEditor kind={kind} />}
+            {wording.isCopy ? (
+              <CopyRuleEditor intent={intent} kind={kind} wording={wording} />
+            ) : (
+              <CardRuleEditor intent={intent} kind={kind} wording={wording} />
+            )}
           </Suspense>
 
           <DialogFooter>
@@ -177,24 +181,24 @@ export function RuleEditorDialog({
 /**
  * The shared rule-list shell: an empty-state hint with one-click presets (common
  * setups that seed editable drafts), one {@link RuleBlock} per draft rule, the
- * combine-mode select (once two rules exist), an optional footer (the wish
+ * combine-mode select (once two rules exist), an optional footer (the combined
  * preview), and an "Add rule" button that hides once the rule count reaches
  * `MAX_LIST_RULES` (each rule is a full-catalog pass at read time).
  * @returns The list shell node.
  */
 function RuleList({
+  intent,
   kind,
-  isTrade,
+  wording,
   collectionOptions,
-  emptyMessage,
   perRuleCounts,
   footer,
 }: {
+  intent: ListIntent;
   kind: ListKind;
-  isTrade: boolean;
+  wording: RuleWording;
   collectionOptions: { value: string; label: string }[];
-  emptyMessage: string;
-  /** Wish only: how many cards/printings each rule matches on its own (by index). */
+  /** How many cards/printings/copies each rule produces on its own (by index). */
   perRuleCounts?: number[];
   footer?: ReactNode;
 }) {
@@ -209,13 +213,13 @@ function RuleList({
   const mainSetSlugs = sets
     .filter((set) => set.setType === WellKnown.setType.MAIN)
     .map((set) => set.slug);
-  const presets = isTrade ? TRADE_RULE_PRESETS : WISH_RULE_PRESETS;
+  const presets = rulePresetsFor(intent, kind);
 
   return (
     <div className="flex flex-col gap-4">
       {rules.length === 0 && (
         <>
-          <p className="text-muted-foreground text-sm">{emptyMessage}</p>
+          <p className="text-muted-foreground text-sm">{wording.emptyMessage}</p>
           <div className="flex flex-col gap-2">
             {presets.map((preset) => (
               <Button
@@ -245,12 +249,12 @@ function RuleList({
           kind={kind}
           title={`Rule ${index + 1}`}
           matchCount={perRuleCounts?.[index]}
-          isTrade={isTrade}
+          wording={wording}
           collectionOptions={collectionOptions}
         />
       ))}
 
-      {rules.length >= 2 && <RuleCombineRow isTrade={isTrade} />}
+      {rules.length >= 2 && <RuleCombineRow kind={kind} wording={wording} />}
 
       {footer}
 
@@ -269,17 +273,6 @@ function RuleList({
   );
 }
 
-const WISH_COMBINE_OPTIONS = [
-  { value: "sum", label: "Add up the quantities" },
-  { value: "max", label: "Highest rule wins" },
-] as const;
-
-const TRADE_COMBINE_OPTIONS = [
-  { value: "protect", label: "Keep everything a rule keeps" },
-  { value: "count-sum", label: "Keep the totals added up" },
-  { value: "count-max", label: "Keep the highest total" },
-] as const;
-
 const KEEP_PER_OPTIONS = [
   { value: "card", label: "Card (all printings together)" },
   { value: "printing", label: "Printing (each separately)" },
@@ -287,17 +280,17 @@ const KEEP_PER_OPTIONS = [
 
 /**
  * The combine-mode select, shown once a list has two or more rules (ADR-034
- * amendment 2). Wish lists reconcile overlapping quantities (sum / max); trade
- * lists reconcile keep-per-card splits (protect / count-sum / count-max). The
- * store's `null` renders as the intent's default so the select never looks
- * unset.
+ * amendment 2). Card/printing lists reconcile overlapping quantities (sum /
+ * max); copy lists reconcile keep-per-card splits (protect / count-sum /
+ * count-max). The store's `null` renders as the kind's default so the select
+ * never looks unset.
  * @returns The combine row node.
  */
-function RuleCombineRow({ isTrade }: { isTrade: boolean }) {
+function RuleCombineRow({ kind, wording }: { kind: ListKind; wording: RuleWording }) {
   const ruleCombine = useRuleEditorStore((state) => state.ruleCombine);
   const setRuleCombine = useRuleEditorStore((state) => state.setRuleCombine);
-  const options = isTrade ? TRADE_COMBINE_OPTIONS : WISH_COMBINE_OPTIONS;
-  const value = ruleCombine ?? defaultRuleCombine(isTrade ? "trade" : "wish");
+  const options = wording.combineOptions;
+  const value = ruleCombine ?? defaultRuleCombine(kind);
 
   return (
     <>
@@ -321,29 +314,31 @@ function RuleCombineRow({ isTrade }: { isTrade: boolean }) {
           </SelectContent>
         </Select>
       </FilterRow>
-      <p className="text-muted-foreground -mt-3 text-sm">
-        {isTrade
-          ? value === "protect"
-            ? "A copy is only offered when every rule that matches it agrees to offer it."
-            : value === "count-sum"
-              ? "Adds up the keep counts per card (or printing) and keeps your best copies up to that total."
-              : "Uses the highest keep count per card (or printing) and keeps your best copies up to it."
-          : value === "sum"
-            ? "A card matched by several rules is wanted once per rule, added together."
-            : "A card matched by several rules is wanted as much as the most demanding rule."}
-      </p>
+      <p className="text-muted-foreground -mt-3 text-sm">{wording.combineHint(value)}</p>
     </>
   );
 }
 
 /**
- * Trade-list rule editor: the shared {@link RuleList} with the trade-only
- * collection scope. Several rules combine per the list's mode (ADR-034
- * amendment 2). Each block shows how many copies that rule offers; a footer
- * shows the combined total once two rules exist.
- * @returns The trade editor node.
+ * Copy-list rule editor (trade and organize lists of kind copy): the shared
+ * {@link RuleList} with the copy-only collection scope. Several rules combine
+ * per the list's mode (ADR-034 amendment 2). Each block shows how many copies
+ * that rule produces; a footer shows the combined total once two rules exist.
+ *
+ * Both intents draw on the owner's *personal* copies only, mirroring the
+ * server's `ownedRowsForUser`. An organize list may hold group-shared copies
+ * added by hand, but a rule never produces one (ADR-034 amendment 4).
+ * @returns The copy editor node.
  */
-function TradeRuleEditor({ kind }: { kind: ListKind }) {
+function CopyRuleEditor({
+  intent,
+  kind,
+  wording,
+}: {
+  intent: ListIntent;
+  kind: ListKind;
+  wording: RuleWording;
+}) {
   const userId = useRequiredUserId();
   const { data: collections } = useSuspenseQuery(collectionsQueryOptions(userId));
   const { allPrintings, printingsById } = useCards();
@@ -368,8 +363,8 @@ function TradeRuleEditor({ kind }: { kind: ListKind }) {
     enabled: rules.length > 0,
   });
 
-  // Serialize from the reactive `rules` value (see WishRuleEditor).
-  const serialized = serializeRules(rules, "trade");
+  // Serialize from the reactive `rules` value (see CardRuleEditor).
+  const serialized = serializeRules(rules, kind);
   const ctx = {
     catalog: allPrintings,
     ownedCopies: copies ? ownedCopiesFromCopyList(copies, printingsById) : [],
@@ -389,10 +384,10 @@ function TradeRuleEditor({ kind }: { kind: ListKind }) {
 
   return (
     <RuleList
+      intent={intent}
       kind={kind}
-      isTrade
+      wording={wording}
       collectionOptions={collectionOptions}
-      emptyMessage="No rule yet. Add one to automatically offer copies in your collection that match a filter."
       perRuleCounts={perRuleCounts}
       footer={
         rules.length >= 2 && previewCount !== null ? (
@@ -406,14 +401,22 @@ function TradeRuleEditor({ kind }: { kind: ListKind }) {
 }
 
 /**
- * Wish-list rule editor: zero or more rules, each its own block, plus an
- * "Add rule" button. Each block shows how many cards/printings that rule matches
- * on its own; once two rules exist, a footer shows the combined total after they
- * merge (which, under sum or netting, need not equal the sum of the per-rule
- * counts).
- * @returns The wish editor node.
+ * Card/printing-list rule editor (wish and organize lists of kind card or
+ * printing): zero or more rules, each its own block, plus an "Add rule" button.
+ * Each block shows how many cards/printings that rule matches on its own; once
+ * two rules exist, a footer shows the combined total after they merge (which,
+ * under sum or netting, need not equal the sum of the per-rule counts).
+ * @returns The card editor node.
  */
-function WishRuleEditor({ kind }: { kind: ListKind }) {
+function CardRuleEditor({
+  intent,
+  kind,
+  wording,
+}: {
+  intent: ListIntent;
+  kind: ListKind;
+  wording: RuleWording;
+}) {
   const { allPrintings, printingsById } = useCards();
   const customTagAssignments = useCustomTagAssignments();
   const rules = useRuleEditorStore((state) => state.rules);
@@ -429,7 +432,7 @@ function WishRuleEditor({ kind }: { kind: ListKind }) {
   // Serialize from the reactive `rules` value (not the store's `buildRules`,
   // which reads `get()`) so the React Compiler sees the filter contents as a
   // dependency and recomputes on every edit.
-  const serialized = serializeRules(rules, "wish");
+  const serialized = serializeRules(rules, kind);
   const ctx = { catalog: allPrintings, ownedCopies, customTagAssignments };
   // Per-rule: what each rule matches on its own (owned-netting applied per rule).
   const perRuleCounts = serialized.map((rule) => evaluateListRule(rule, kind, ctx).length);
@@ -446,10 +449,10 @@ function WishRuleEditor({ kind }: { kind: ListKind }) {
 
   return (
     <RuleList
+      intent={intent}
       kind={kind}
-      isTrade={false}
+      wording={wording}
       collectionOptions={[]}
-      emptyMessage="No rules yet. Add one to automatically want every card that matches a filter."
       perRuleCounts={perRuleCounts}
       footer={
         rules.length >= 2 && previewCount !== null ? (
@@ -464,43 +467,10 @@ function WishRuleEditor({ kind }: { kind: ListKind }) {
 }
 
 /**
- * Pluralized rule-count label, e.g. "42 cards" / "1 printing" / "3 copies".
- * Wish counts are cards/printings; trade counts are copies.
- * @returns The count with its pluralized noun.
- */
-function matchLabel(count: number, kind: ListKind): string {
-  const [one, many] =
-    kind === "card"
-      ? ["card", "cards"]
-      : kind === "printing"
-        ? ["printing", "printings"]
-        : ["copy", "copies"];
-  return `${count} ${count === 1 ? one : many}`;
-}
-
-/**
- * The per-rule count phrase next to the rule title. Trade rules offer copies;
- * a wish rule with "Only what I'm missing" on shows a post-netting shortfall,
- * so its verb is "missing" rather than "matches" — the number shrinks as owned
- * copies fill wants, which "matches" would misrepresent.
- * @returns The verb + count phrase, e.g. "matches 42 cards" / "missing 3 cards".
- */
-export function ruleCountLabel(
-  count: number,
-  kind: ListKind,
-  { isTrade, netOwned }: { isTrade: boolean; netOwned: boolean },
-): string {
-  const verb = isTrade ? "offers" : netOwned ? "missing" : "matches";
-  return `${verb} ${matchLabel(count, kind)}`;
-}
-
-/**
  * One rule, rendered as a bordered block with a remove button and the full facet
- * editor + quantity control. Shared by the wish and trade editors; `title` is the
- * header label ("Rule 1", "Rule 2", …). `matchCount` shows how many
- * cards/printings a wish rule matches — or, with "Only what I'm missing" on,
- * is still missing — on its own (copies offered for a trade rule), next to
- * the title.
+ * editor + quantity control. Shared by both editors; `title` is the header label
+ * ("Rule 1", "Rule 2", …). `matchCount` shows what the rule produces on its own,
+ * phrased by {@link ruleCountLabel}, next to the title.
  * @returns The block node.
  */
 function RuleBlock({
@@ -508,14 +478,14 @@ function RuleBlock({
   kind,
   title,
   matchCount,
-  isTrade,
+  wording,
   collectionOptions,
 }: {
   index: number;
   kind: ListKind;
   title: string;
   matchCount?: number;
-  isTrade: boolean;
+  wording: RuleWording;
   collectionOptions: { value: string; label: string }[];
 }) {
   const removeRule = useRuleEditorStore((state) => state.removeRule);
@@ -528,7 +498,7 @@ function RuleBlock({
           <span className="text-sm font-medium">{title}</span>
           {matchCount !== undefined && (
             <span className="text-muted-foreground text-xs">
-              {ruleCountLabel(matchCount, kind, { isTrade, netOwned })}
+              {ruleCountLabel(matchCount, kind, wording, netOwned)}
             </span>
           )}
         </div>
@@ -545,7 +515,7 @@ function RuleBlock({
       <RuleFields
         index={index}
         kind={kind}
-        isTrade={isTrade}
+        wording={wording}
         collectionOptions={collectionOptions}
       />
     </div>
@@ -553,21 +523,22 @@ function RuleBlock({
 }
 
 /**
- * The shared per-rule fields: the facet editor, the trade-only collection scope,
+ * The shared per-rule fields: the facet editor, the copy-only collection scope,
  * and the quantity / keep-per-card control. Reads and writes its rule by index.
  * @returns The fields node.
  */
 function RuleFields({
   index,
   kind,
-  isTrade,
+  wording,
   collectionOptions,
 }: {
   index: number;
   kind: ListKind;
-  isTrade: boolean;
+  wording: RuleWording;
   collectionOptions: { value: string; label: string }[];
 }) {
+  const isCopy = wording.isCopy;
   const rule = useRuleEditorStore((state) => state.rules[index]);
   const setFilter = useRuleEditorStore((state) => state.setFilter);
   const setQuantity = useRuleEditorStore((state) => state.setQuantity);
@@ -585,7 +556,7 @@ function RuleFields({
     <>
       <RuleFilterEditor value={rule.filter} onChange={(next) => setFilter(index, next)} />
 
-      {isTrade && (
+      {isCopy && (
         <FilterRow label="Collections">
           <MultiSelectCombobox
             triggerStyle="button"
@@ -599,14 +570,14 @@ function RuleFields({
         </FilterRow>
       )}
 
-      {isTrade && (
-        <FilterRow label="Keep counts per">
+      {isCopy && (
+        <FilterRow label={wording.groupLabel}>
           <Select
             items={KEEP_PER_OPTIONS}
             value={rule.keepPer}
             onValueChange={(next) => setKeepPer(index, next as TradeKeepPer)}
           >
-            <SelectTrigger className={CONTROL_WIDTH} aria-label="Keep counts per">
+            <SelectTrigger className={CONTROL_WIDTH} aria-label={wording.groupLabel}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -622,31 +593,15 @@ function RuleFields({
         </FilterRow>
       )}
 
-      <FilterRow
-        label={
-          isTrade
-            ? rule.keepPer === "printing"
-              ? "Keep per printing"
-              : "Keep per card"
-            : "Want quantity"
-        }
-      >
+      <FilterRow label={wording.quantityLabel(rule.keepPer)}>
         <QuantityControl
-          value={isTrade ? rule.keepPerCard : rule.quantity}
-          onChange={(next) => (isTrade ? setKeepPerCard(index, next) : setQuantity(index, next))}
+          value={isCopy ? rule.keepPerCard : rule.quantity}
+          onChange={(next) => (isCopy ? setKeepPerCard(index, next) : setQuantity(index, next))}
         />
       </FilterRow>
-      <p className="text-muted-foreground -mt-1 text-sm">
-        {isTrade
-          ? rule.keepPer === "printing"
-            ? "Keep this many of each printing, and offer the rest. 0 trades all."
-            : "Keep this many per card, counted across all its printings, and offer the rest. 0 trades all."
-          : kind === "card"
-            ? "How many of each matched card you want."
-            : "How many of each matched printing you want."}
-      </p>
+      <p className="text-muted-foreground -mt-1 text-sm">{wording.quantityHint(rule.keepPer)}</p>
 
-      {!isTrade && (
+      {!isCopy && (
         <FilterRow
           label="Only what I'm missing"
           hint="Subtract the copies you already own, so the list shows only the shortfall toward the quantity above. Anything you already have enough of drops off."
@@ -659,7 +614,7 @@ function RuleFields({
         </FilterRow>
       )}
 
-      {!isTrade && kind === "card" && rule.netOwned && rule.filter.isStandard === true && (
+      {!isCopy && kind === "card" && rule.netOwned && rule.filter.isStandard === true && (
         <FilterRow
           label="Count special versions"
           hint="Alt arts, foils, signed and promo copies you own also fill the missing count. The list still only asks for standard printings."
@@ -675,7 +630,7 @@ function RuleFields({
       <RuleExclusions
         index={index}
         kind={kind}
-        isTrade={isTrade}
+        isCopy={isCopy}
         excludeIds={rule.excludeIds}
         excludeCopyIds={rule.excludeCopyIds}
       />
@@ -685,7 +640,7 @@ function RuleFields({
 
 /**
  * A single removable exclusion chip: the resolved label plus an "X" that puts the
- * card/copy back on the list. Shared by the wish and trade exclusion rows.
+ * card/copy back on the list. Shared by both exclusion rows.
  * @returns The chip node.
  */
 function ExclusionChip({ label, onRemove }: { label: string; onRemove: () => void }) {
@@ -705,32 +660,33 @@ function ExclusionChip({ label, onRemove }: { label: string; onRemove: () => voi
 
 /**
  * The rule's current manual exclusions, shown as removable chips so the user can
- * put a card back after excluding it from the list (ADR-034 §V). Wish lists name
- * each excluded card/printing from the catalog; trade lists exclude individual
- * physical copies, resolved to their card through {@link TradeCopyExclusions}.
+ * put a card back after excluding it from the list (ADR-034 §V). Card/printing
+ * lists name each excluded card/printing from the catalog; copy lists exclude
+ * individual physical copies, resolved to their card through
+ * {@link CopyExclusions}.
  * @returns The exclusions row, or null when there are none.
  */
 function RuleExclusions({
   index,
   kind,
-  isTrade,
+  isCopy,
   excludeIds,
   excludeCopyIds,
 }: {
   index: number;
   kind: ListKind;
-  isTrade: boolean;
+  isCopy: boolean;
   excludeIds: string[];
   excludeCopyIds: string[];
 }) {
   const { printingsById, printingsByCardId } = useCards();
   const toggleExcludeId = useRuleEditorStore((state) => state.toggleExcludeId);
 
-  if (isTrade) {
+  if (isCopy) {
     if (excludeCopyIds.length === 0) {
       return null;
     }
-    return <TradeCopyExclusions index={index} copyIds={excludeCopyIds} />;
+    return <CopyExclusions index={index} copyIds={excludeCopyIds} />;
   }
 
   if (excludeIds.length === 0) {
@@ -755,13 +711,13 @@ function RuleExclusions({
 }
 
 /**
- * A trade rule's excluded physical copies, one removable chip each so the user
+ * A copy rule's excluded physical copies, one removable chip each so the user
  * can put a single copy back without clearing the rest (ADR-034 §V). Each copy id
  * resolves to its printing through the viewer's collection, so the chip names the
  * card; a copy that has since left the collection falls back to a generic label.
  * @returns The exclusions row.
  */
-function TradeCopyExclusions({ index, copyIds }: { index: number; copyIds: string[] }) {
+function CopyExclusions({ index, copyIds }: { index: number; copyIds: string[] }) {
   const userId = useRequiredUserId();
   const { data: copies } = useSuspenseQuery(copiesQueryOptions(userId));
   const { printingsById } = useCards();
@@ -823,12 +779,13 @@ function ownedCopiesFromCounts(
 }
 
 /**
- * Maps the owner's real copies to the {@link OwnedCopyRow}s a trade rule
- * evaluates, for the offered-copies preview. Personal copies only
- * (`groupId === null`), mirroring the server's `ownedRowsForUser` — a trade list
- * offers only what you personally own. `cardId` comes from the catalog; a copy
- * whose printing isn't in the catalog is skipped. `reserved` is irrelevant to
- * the offered *count* (reserved copies are still offered), so it's left false.
+ * Maps the owner's real copies to the {@link OwnedCopyRow}s a copy rule
+ * evaluates, for the produced-copies preview. Personal copies only
+ * (`groupId === null`), mirroring the server's `ownedRowsForUser`: a rule draws
+ * only on what you personally own, on trade and organize lists alike.
+ * `cardId` comes from the catalog; a copy whose printing isn't in the catalog is
+ * skipped. `reserved` is irrelevant to the *count* (reserved copies still
+ * appear), so it's left false.
  * @returns One owned-copy row per previewable personal copy.
  */
 function ownedCopiesFromCopyList(

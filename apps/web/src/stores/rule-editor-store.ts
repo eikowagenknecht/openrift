@@ -1,53 +1,54 @@
 import type {
   CardFilters,
-  ListIntent,
+  ListKind,
   ListRule,
   ListRuleCombine,
   RuleQuantity,
   TradeKeepPer,
 } from "@openrift/shared";
-import { EMPTY_CARD_FILTERS } from "@openrift/shared";
+import { EMPTY_CARD_FILTERS, ruleKindForListKind } from "@openrift/shared";
 import { create } from "zustand";
 
 /**
- * One rule's draft state. A wish rule uses `filter` + `quantity` + `excludeIds`;
- * a trade rule uses `filter` + `keepPerCard` + `collectionIds` + `excludeCopyIds`.
- * Both shapes are kept so a row can switch intent context without losing data.
+ * One rule's draft state. A demand rule (card/printing lists) uses `filter` +
+ * `quantity` + `excludeIds`; a supply rule (copy lists) uses `filter` +
+ * `keepPerCard` + `collectionIds` + `excludeCopyIds`. Both shapes are kept so a
+ * row can switch context without losing data.
  */
 export interface DraftRule {
   /** The predicate. Shared with the card browser's filter language. */
   filter: CardFilters;
-  /** Wish lists: desired quantity per matched card/printing. */
+  /** Card/printing lists: desired quantity per matched card/printing. */
   quantity: RuleQuantity;
-  /** Trade lists: copies kept per card/printing; the surplus is offered. */
+  /** Copy lists: copies held back per card/printing; the surplus lands on the list. */
   keepPerCard: RuleQuantity;
-  /** Trade lists: what the keep count groups by (card pools all printings). */
+  /** Copy lists: what the keep count groups by (card pools all printings). */
   keepPer: TradeKeepPer;
-  /** Trade lists: restrict the source collections; null = all owned. */
+  /** Copy lists: restrict the source collections; null = all owned. */
   collectionIds: string[] | null;
-  /** Wish lists: card/printing ids to drop from the result. */
+  /** Card/printing lists: card/printing ids to drop from the result. */
   excludeIds: string[];
-  /** Trade lists: copy ids to never offer. */
+  /** Copy lists: copy ids to always leave off. */
   excludeCopyIds: string[];
-  /** Wish lists: subtract owned copies and want only the shortfall (ADR-034). */
+  /** Card/printing lists: subtract owned copies and keep only the shortfall (ADR-034). */
   netOwned: boolean;
-  /** Wish lists (card kind + netOwned): owned special versions also fill the shortfall. */
+  /** Card lists (with netOwned): owned special versions also fill the shortfall. */
   countSpecialVersions: boolean;
 }
 
 /**
  * Draft state for the dynamic list-rule editor (ADR-034). One list is edited at
- * a time; wish and trade lists may both carry several rules, combined per the
- * list's mode. `load` seeds the drafts from the list's saved rules + combine
- * mode, the setters mutate one rule by index, and `buildRules` serializes the
- * drafts back to {@link ListRule}s for the PATCH.
+ * a time; every list may carry several rules, combined per the list's mode.
+ * `load` seeds the drafts from the list's saved rules + combine mode, the
+ * setters mutate one rule by index, and `buildRules` serializes the drafts back
+ * to {@link ListRule}s for the PATCH.
  */
 export interface RuleEditorState {
   /** The list's draft rules. Empty = no dynamic rules. */
   rules: DraftRule[];
   /**
-   * How several rules combine (ADR-034 amendment 2). null = the intent's
-   * default (wish: sum, trade: protect).
+   * How several rules combine (ADR-034 amendment 2). null = the kind's default
+   * (card/printing: sum, copy: protect).
    */
   ruleCombine: ListRuleCombine | null;
 
@@ -69,11 +70,10 @@ export interface RuleEditorState {
   toggleExcludeCopyId: (index: number, copyId: string) => void;
   reset: () => void;
   /**
-   * Serializes the drafts to {@link ListRule}s for the given intent. Returns an
-   * empty array for `organize` (never rule-able).
+   * Serializes the drafts to {@link ListRule}s for the given list kind.
    * @returns The list's rules in storage shape.
    */
-  buildRules: (intent: ListIntent) => ListRule[];
+  buildRules: (kind: ListKind) => ListRule[];
 }
 
 const DEFAULT_QUANTITY: RuleQuantity = { mode: "fixed", n: 1 };
@@ -121,19 +121,17 @@ function draftFromRule(rule: ListRule): DraftRule {
 }
 
 /**
- * Serializes draft rules to {@link ListRule}s for the given intent. Pure — takes
- * the rules explicitly so callers can pass a reactive value (the live preview)
- * rather than reaching into the store via `get()`, which the React Compiler can't
- * see as a dependency. Returns an empty array for `organize` (never rule-able).
+ * Serializes draft rules to {@link ListRule}s for the given list kind. Pure —
+ * takes the rules explicitly so callers can pass a reactive value (the live
+ * preview) rather than reaching into the store via `get()`, which the React
+ * Compiler can't see as a dependency. The rule shape follows the list's kind,
+ * not its intent, so this covers organize lists too (ADR-034 amendment 4).
  * @returns The list's rules in storage shape.
  */
-export function serializeRules(rules: DraftRule[], intent: ListIntent): ListRule[] {
-  if (intent === "organize") {
-    return [];
-  }
+export function serializeRules(rules: DraftRule[], kind: ListKind): ListRule[] {
   return rules.map(
     (rule): ListRule =>
-      intent === "wish"
+      ruleKindForListKind(kind) === "wish"
         ? {
             kind: "wish",
             filter: rule.filter,
@@ -234,5 +232,5 @@ export const useRuleEditorStore = create<RuleEditorState>()((set, get) => ({
 
   reset: () => set({ rules: [], ruleCombine: null }),
 
-  buildRules: (intent) => serializeRules(get().rules, intent),
+  buildRules: (kind) => serializeRules(get().rules, kind),
 }));

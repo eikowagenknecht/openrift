@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { hydrateListRules, listRulesSchema, normalizeListRules } from "./list-rule";
+import {
+  defaultRuleCombine,
+  hydrateListRules,
+  listRulesSchema,
+  normalizeListRules,
+  ruleCombineMatchesKind,
+  ruleKindForListKind,
+  TRADE_RULE_COMBINES,
+  WISH_RULE_COMBINES,
+} from "./list-rule";
 import type { ListRules } from "./list-rule";
 import { EMPTY_CARD_FILTERS } from "./search";
 
@@ -67,5 +76,59 @@ describe("hydrateListRules", () => {
   it("normalizes an already-parsed value", () => {
     const hydrated = hydrateListRules([staleTradeRule()] as unknown as ListRules);
     expect(hydrated[0].filter.keywordsExclude).toEqual([]);
+  });
+});
+
+// ADR-034 amendment 4: kind, not intent, decides a rule's shape and combine
+// modes — which is what lets organize lists carry rules at all.
+describe("ruleKindForListKind", () => {
+  it("gives copy lists the supply shape and the rest the demand shape", () => {
+    expect(ruleKindForListKind("copy")).toBe("trade");
+    expect(ruleKindForListKind("card")).toBe("wish");
+    expect(ruleKindForListKind("printing")).toBe("wish");
+  });
+
+  it("agrees with the intent it replaced for every pre-existing combo", () => {
+    // chk_lists_intent_kind pins wish to card/printing and trade to copy, so
+    // the kind-based rule is exactly the old intent-based one on old data.
+    expect(ruleKindForListKind("card")).toBe("wish");
+    expect(ruleKindForListKind("printing")).toBe("wish");
+    expect(ruleKindForListKind("copy")).toBe("trade");
+  });
+});
+
+describe("defaultRuleCombine", () => {
+  it("defaults copy lists to protect and card/printing lists to sum", () => {
+    expect(defaultRuleCombine("copy")).toBe("protect");
+    expect(defaultRuleCombine("card")).toBe("sum");
+    expect(defaultRuleCombine("printing")).toBe("sum");
+  });
+
+  it("returns a mode that is itself valid for the kind", () => {
+    for (const kind of ["card", "printing", "copy"] as const) {
+      expect(ruleCombineMatchesKind(defaultRuleCombine(kind), kind)).toBe(true);
+    }
+  });
+});
+
+describe("ruleCombineMatchesKind", () => {
+  it("accepts every quantity mode on card/printing lists and rejects the copy ones", () => {
+    for (const kind of ["card", "printing"] as const) {
+      for (const combine of WISH_RULE_COMBINES) {
+        expect(ruleCombineMatchesKind(combine, kind)).toBe(true);
+      }
+      for (const combine of TRADE_RULE_COMBINES) {
+        expect(ruleCombineMatchesKind(combine, kind)).toBe(false);
+      }
+    }
+  });
+
+  it("accepts every keep/offer mode on copy lists and rejects the quantity ones", () => {
+    for (const combine of TRADE_RULE_COMBINES) {
+      expect(ruleCombineMatchesKind(combine, "copy")).toBe(true);
+    }
+    for (const combine of WISH_RULE_COMBINES) {
+      expect(ruleCombineMatchesKind(combine, "copy")).toBe(false);
+    }
   });
 });

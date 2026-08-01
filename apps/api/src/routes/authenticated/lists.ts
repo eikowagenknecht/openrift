@@ -1,4 +1,4 @@
-import { ERROR_CODES, ruleCombineMatchesIntent } from "@openrift/shared";
+import { ERROR_CODES, ruleCombineMatchesKind, ruleKindForListKind } from "@openrift/shared";
 import type {
   ListBulkAddResponse,
   ListDetailResponse,
@@ -54,11 +54,11 @@ export const listsRouter = {
       defaultPriceAbsoluteCents: tradeDefaults?.priceAbsoluteCents ?? null,
       defaultTradeType: tradeDefaults?.tradeType ?? null,
       currency: supportsPrefs ? (input.currency ?? null) : null,
-      // ADR-034: rules are only valid on wish/trade lists, each rule's kind and
-      // the combine mode must match the intent — all enforced by
-      // createListSchema's refinements.
-      rules: supportsPrefs ? (input.rules ?? []) : [],
-      ruleCombine: supportsPrefs ? (input.ruleCombine ?? null) : null,
+      // ADR-034: every intent may carry rules; each rule's kind and the combine
+      // mode must match the list *kind* — both enforced by createListSchema's
+      // refinements (amendment 4).
+      rules: input.rules ?? [],
+      ruleCombine: input.ruleCombine ?? null,
     });
     // Group visibility is opt-in (ADR-013): a new list is private and the owner
     // shares it with specific groups from the create dialog or the manage page.
@@ -109,30 +109,25 @@ export const listsRouter = {
     if (supportsPrefs && input.currency !== undefined) {
       updates.currency = input.currency;
     }
-    // ADR-034: validate the rules against the (immutable) list intent. The
-    // create schema can self-check (it has the intent); update can't, so the
-    // route gates it here. An empty array clears all rules.
+    // ADR-034: validate the rules against the (immutable) list kind — the rule
+    // shape follows kind, not intent, so organize lists carry rules too
+    // (amendment 4). The create schema can self-check (it has the kind); update
+    // can't, so the route gates it here. An empty array clears all rules.
     if (input.rules !== undefined) {
-      if (!supportsPrefs && input.rules.length > 0) {
-        throw new AppError(400, ERROR_CODES.BAD_REQUEST, "organize lists cannot carry rules");
-      }
-      if (input.rules.some((rule) => rule.kind !== existing.intent)) {
-        throw new AppError(400, ERROR_CODES.BAD_REQUEST, "rule kind must match the list intent");
+      if (input.rules.some((rule) => rule.kind !== ruleKindForListKind(existing.kind))) {
+        throw new AppError(400, ERROR_CODES.BAD_REQUEST, "rule kind must match the list kind");
       }
       updates.rules = input.rules;
     }
-    // ADR-034 amendment 2: the combine mode must belong to the list intent
-    // (same update-can't-self-check reasoning as rules). null = back to the
-    // intent's default.
+    // ADR-034 amendment 2: the combine mode must belong to the list kind (same
+    // update-can't-self-check reasoning as rules). null = back to the kind's
+    // default.
     if (input.ruleCombine !== undefined) {
-      if (
-        input.ruleCombine !== null &&
-        !ruleCombineMatchesIntent(input.ruleCombine, existing.intent)
-      ) {
+      if (input.ruleCombine !== null && !ruleCombineMatchesKind(input.ruleCombine, existing.kind)) {
         throw new AppError(
           400,
           ERROR_CODES.BAD_REQUEST,
-          "rule combine mode must match the list intent",
+          "rule combine mode must match the list kind",
         );
       }
       updates.ruleCombine = input.ruleCombine;

@@ -345,18 +345,25 @@ describe("PATCH /api/v1/lists/:id", () => {
   });
 
   // ADR-034 amendment 2: several trade rules are accepted (the old one-rule
-  // cap is gone) and the combine mode is validated against the intent.
+  // cap is gone) and the combine mode is validated against the list.
+  const tradeRule = {
+    kind: "trade",
+    filter: {},
+    collectionIds: null,
+    keepPerCard: { mode: "fixed", n: 1 },
+    excludeCopyIds: [],
+  };
+  const wishRule = {
+    kind: "wish",
+    filter: {},
+    quantity: { mode: "fixed", n: 1 },
+    excludeIds: [],
+  };
+
   it("accepts several rules on a trade list", async () => {
     const tradeList = { ...dbList, intent: "trade" as const, kind: "copy" as const };
     mockListsRepo.getByIdForUser.mockResolvedValue(tradeList);
     mockListsRepo.update.mockResolvedValue(tradeList);
-    const tradeRule = {
-      kind: "trade",
-      filter: {},
-      collectionIds: null,
-      keepPerCard: { mode: "fixed", n: 1 },
-      excludeCopyIds: [],
-    };
     const res = await app.request(`/api/v1/lists/${LIST_ID}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
@@ -365,7 +372,45 @@ describe("PATCH /api/v1/lists/:id", () => {
     expect(res.status).toBe(200);
   });
 
-  it("persists a combine mode matching the intent", async () => {
+  // ADR-034 amendment 4: an organize list carries rules too, shaped by its kind.
+  it("accepts rules on an organize list, shaped by its kind", async () => {
+    const organizeCopy = { ...dbList, intent: "organize" as const, kind: "copy" as const };
+    mockListsRepo.getByIdForUser.mockResolvedValue(organizeCopy);
+    mockListsRepo.update.mockResolvedValue(organizeCopy);
+    const res = await app.request(`/api/v1/lists/${LIST_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ rules: [tradeRule], ruleCombine: "count-sum" }),
+    });
+    expect(res.status).toBe(200);
+    // The filter comes back with every dimension backfilled by the schema, so
+    // assert the parts the route itself decides.
+    expect(mockListsRepo.update).toHaveBeenCalledWith(
+      LIST_ID,
+      USER_ID,
+      expect.objectContaining({
+        rules: [expect.objectContaining({ kind: "trade", keepPerCard: { mode: "fixed", n: 1 } })],
+        ruleCombine: "count-sum",
+      }),
+    );
+  });
+
+  it("rejects a rule whose shape doesn't match the organize list's kind", async () => {
+    mockListsRepo.getByIdForUser.mockResolvedValue({
+      ...dbList,
+      intent: "organize" as const,
+      kind: "copy" as const,
+    });
+    const res = await app.request(`/api/v1/lists/${LIST_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ rules: [wishRule] }),
+    });
+    expect(res.status).toBe(400);
+    expect(mockListsRepo.update).not.toHaveBeenCalled();
+  });
+
+  it("persists a combine mode matching the list kind", async () => {
     mockListsRepo.update.mockResolvedValue(dbList);
     const res = await app.request(`/api/v1/lists/${LIST_ID}`, {
       method: "PATCH",
@@ -376,7 +421,7 @@ describe("PATCH /api/v1/lists/:id", () => {
     expect(mockListsRepo.update).toHaveBeenCalledWith(LIST_ID, USER_ID, { ruleCombine: "max" });
   });
 
-  it("rejects a combine mode from the other intent with 400", async () => {
+  it("rejects a combine mode from the other kind with 400", async () => {
     const res = await app.request(`/api/v1/lists/${LIST_ID}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },

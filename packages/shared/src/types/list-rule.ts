@@ -16,9 +16,15 @@ export const ruleQuantitySchema = z.discriminatedUnion("mode", [
 export type RuleQuantity = z.infer<typeof ruleQuantitySchema>;
 
 /**
- * Demand rule for wish lists (intent = wish, kind = card | printing). Matches
- * the catalog with `filter`, then wants `quantity` of every matched card or
- * printing except the manually excluded ids.
+ * Demand rule for card/printing lists (kind = card | printing, so wish or
+ * organize). Matches the catalog with `filter`, then puts `quantity` of every
+ * matched card or printing on the list except the manually excluded ids.
+ *
+ * The `wish` discriminant names the rule's *shape*, not the list's intent: a
+ * card/printing list carries this shape whether it is a wish list ("I want
+ * these") or an organize list ("keep track of these"). It predates organize
+ * lists carrying rules at all (ADR-034 amendment 4) and is kept so persisted
+ * rules stay readable without a data migration.
  */
 export const wishRuleSchema = z.object({
   kind: z.literal("wish"),
@@ -55,9 +61,13 @@ export const tradeKeepPerSchema = z.enum(["card", "printing"]);
 export type TradeKeepPer = z.infer<typeof tradeKeepPerSchema>;
 
 /**
- * Supply rule for trade lists (intent = trade, kind = copy). Selects the
- * owner's copies whose printing matches `filter`, keeps `keepPerCard` per
- * card (or per printing, see `keepPer`), and offers the surplus for trade.
+ * Supply rule for copy lists (kind = copy, so trade or organize). Selects the
+ * owner's copies whose printing matches `filter`, holds back `keepPerCard` per
+ * card (or per printing, see `keepPer`), and emits the surplus — offered for
+ * trade on a trade list, simply listed on an organize list.
+ *
+ * As with {@link wishRuleSchema}, the `trade` discriminant names the rule's
+ * shape, not the list's intent (ADR-034 amendment 4).
  */
 export const tradeRuleSchema = z.object({
   kind: z.literal("trade"),
@@ -79,23 +89,36 @@ export type TradeRule = z.infer<typeof tradeRuleSchema>;
 export const listRuleSchema = z.discriminatedUnion("kind", [wishRuleSchema, tradeRuleSchema]);
 export type ListRule = z.infer<typeof listRuleSchema>;
 
-/** Combine modes for wish lists: how overlapping rules reconcile a quantity. */
+/**
+ * The rule shape a list of the given kind carries (ADR-034 amendment 4). A
+ * rule's shape follows the list's *kind*, not its intent: card/printing lists
+ * take the demand shape (`wish`), copy lists the supply shape (`trade`). For
+ * wish and trade lists the two are interchangeable — `chk_lists_intent_kind`
+ * pins wish to card/printing and trade to copy — but organize lists span all
+ * three kinds, so kind is the durable discriminator.
+ * @returns The rule discriminant valid on a list of this kind.
+ */
+export function ruleKindForListKind(kind: "card" | "printing" | "copy"): ListRule["kind"] {
+  return kind === "copy" ? "trade" : "wish";
+}
+
+/** Combine modes for card/printing lists: how overlapping rules reconcile a quantity. */
 export const WISH_RULE_COMBINES = ["sum", "max"] as const;
-/** Combine modes for trade lists: how overlapping rules reconcile keep-per-card. */
+/** Combine modes for copy lists: how overlapping rules reconcile keep-per-card. */
 export const TRADE_RULE_COMBINES = ["protect", "count-sum", "count-max"] as const;
 
 /**
  * How a list combines the output of several rules (ADR-034 amendment 2).
- * Wish (card/printing quantities):
- * - `sum` (default): each matching rule adds its want; two reasons, two counts.
+ * Card/printing quantities:
+ * - `sum` (default): each matching rule adds its count; two reasons, two counts.
  * - `max`: the most demanding rule wins; overlapping rules never double-count.
- * Trade (copy keep/offer splits):
- * - `protect` (default): a copy is offered only when every rule matching it
- *   agreed to offer it — no rule's kept copy is ever listed.
+ * Copy keep/offer splits:
+ * - `protect` (default): a copy is emitted only when every rule matching it
+ *   agreed to emit it — no rule's held-back copy ever reaches the list.
  * - `count-sum` / `count-max`: combine the rules' keep counts (sum or max)
  *   within each grouping (per-card rules per card, per-printing rules per
- *   printing), keep the nicest that-many across the union of matched copies,
- *   offer the rest. A copy kept by either grouping stays kept.
+ *   printing), hold back the nicest that-many across the union of matched
+ *   copies, emit the rest. A copy held back by either grouping stays held back.
  */
 export const listRuleCombineSchema = z.enum([...WISH_RULE_COMBINES, ...TRADE_RULE_COMBINES]);
 export type ListRuleCombine = z.infer<typeof listRuleCombineSchema>;
@@ -103,32 +126,27 @@ export type WishRuleCombine = (typeof WISH_RULE_COMBINES)[number];
 export type TradeRuleCombine = (typeof TRADE_RULE_COMBINES)[number];
 
 /**
- * The default combine mode per list intent: wish lists sum overlapping rules,
- * trade lists protect every rule's kept copies. A persisted `null` means this
- * default, so lists created before the setting existed follow it too.
- * @returns The intent's default combine mode.
+ * The default combine mode per list kind: card/printing lists sum overlapping
+ * rules, copy lists protect every rule's held-back copies. A persisted `null`
+ * means this default, so lists created before the setting existed follow it too.
+ * @returns The kind's default combine mode.
  */
-export function defaultRuleCombine(intent: "wish" | "trade"): ListRuleCombine {
-  return intent === "wish" ? "sum" : "protect";
+export function defaultRuleCombine(kind: "card" | "printing" | "copy"): ListRuleCombine {
+  return kind === "copy" ? "protect" : "sum";
 }
 
 /**
- * Whether a combine mode belongs to the given list intent (wish modes on wish
- * lists, trade modes on trade lists). Write-boundary validation companion to
- * {@link listRuleCombineSchema}.
- * @returns True when the mode is valid for the intent.
+ * Whether a combine mode belongs to the given list kind (quantity modes on
+ * card/printing lists, keep/offer modes on copy lists). Write-boundary
+ * validation companion to {@link listRuleCombineSchema}.
+ * @returns True when the mode is valid for the kind.
  */
-export function ruleCombineMatchesIntent(
+export function ruleCombineMatchesKind(
   combine: ListRuleCombine,
-  intent: "wish" | "trade" | "organize",
+  kind: "card" | "printing" | "copy",
 ): boolean {
-  if (intent === "wish") {
-    return (WISH_RULE_COMBINES as readonly string[]).includes(combine);
-  }
-  if (intent === "trade") {
-    return (TRADE_RULE_COMBINES as readonly string[]).includes(combine);
-  }
-  return false;
+  const allowed: readonly string[] = kind === "copy" ? TRADE_RULE_COMBINES : WISH_RULE_COMBINES;
+  return allowed.includes(combine);
 }
 
 /**
@@ -139,10 +157,10 @@ export function ruleCombineMatchesIntent(
 export const MAX_LIST_RULES = 10;
 
 /**
- * A list's full set of dynamic rules (ADR-034). Wish and trade lists may both
- * carry several (up to {@link MAX_LIST_RULES}); overlapping outputs combine per
- * the list's {@link ListRuleCombine} mode in `evaluateListRules`, then merge
- * with manual entries via `expandList`.
+ * A list's full set of dynamic rules (ADR-034). Every intent may carry several
+ * (up to {@link MAX_LIST_RULES}); overlapping outputs combine per the list's
+ * {@link ListRuleCombine} mode in `evaluateListRules`, then merge with manual
+ * entries via `expandList`.
  */
 export const listRulesSchema = z
   .array(listRuleSchema)

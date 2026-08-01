@@ -1,3 +1,4 @@
+import type { ListIntent, ListKind } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
 
 import type { DraftRule } from "@/stores/rule-editor-store";
@@ -136,3 +137,71 @@ export const TRADE_RULE_PRESETS: RulePreset[] = [
     ],
   },
 ];
+
+/** Presets offered on organize lists of card/printing kind (ADR-034 amendment 4). */
+export const ORGANIZE_CARD_RULE_PRESETS: RulePreset[] = [
+  {
+    id: "organize-everything",
+    label: "Everything in the catalog",
+    description: "Puts every card on the list. Narrow it down with the filters below.",
+    build: (ctx) => [
+      {
+        ...emptyDraft(ctx?.languages),
+        quantity: { mode: "fixed", n: 1 },
+      },
+    ],
+  },
+  {
+    id: "organize-missing",
+    label: "Only what I'm missing",
+    description: "Puts every card you don't own yet on the list, and drops each one as you get it.",
+    build: (ctx) => [
+      {
+        ...emptyDraft(ctx?.languages),
+        quantity: { mode: "fixed", n: 1 },
+        netOwned: true,
+      },
+    ],
+  },
+];
+
+/** Presets offered on organize lists of copy kind (ADR-034 amendment 4). */
+export const ORGANIZE_COPY_RULE_PRESETS: RulePreset[] = [
+  {
+    id: "organize-all-copies",
+    label: "Every copy I own",
+    description: "Puts every copy in your collection on the list, filters permitting.",
+    build: (ctx) => [
+      {
+        ...emptyDraft(ctx?.languages),
+        keepPerCard: { mode: "fixed", n: 0 },
+        keepPer: "card",
+      },
+    ],
+  },
+  {
+    id: "organize-duplicates",
+    label: "Duplicates only",
+    description: "Leaves out your nicest copy of each card and lists the spares.",
+    build: (ctx) => [
+      {
+        ...emptyDraft(ctx?.languages),
+        keepPerCard: { mode: "fixed", n: 1 },
+        keepPer: "card",
+      },
+    ],
+  },
+];
+
+/**
+ * The presets to offer in a list's rule editor. Kind decides the rule shape and
+ * intent the phrasing, exactly as {@link import("./rule-wording").ruleWording}
+ * does for the surrounding copy.
+ * @returns The preset buttons for this list's empty state.
+ */
+export function rulePresetsFor(intent: ListIntent, kind: ListKind): RulePreset[] {
+  if (intent === "organize") {
+    return kind === "copy" ? ORGANIZE_COPY_RULE_PRESETS : ORGANIZE_CARD_RULE_PRESETS;
+  }
+  return kind === "copy" ? TRADE_RULE_PRESETS : WISH_RULE_PRESETS;
+}

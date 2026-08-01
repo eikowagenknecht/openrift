@@ -10,7 +10,8 @@ export {
   listRuleCombineSchema,
   listRuleSchema,
   listRulesSchema,
-  ruleCombineMatchesIntent,
+  ruleCombineMatchesKind,
+  ruleKindForListKind,
 } from "./types/list-rule.js";
 
 export const listEntryFieldRules = {

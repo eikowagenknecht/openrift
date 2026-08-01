@@ -2,6 +2,10 @@
 
 ## 2026-08-01
 
+### Highlights
+
+- feat(Collection): **Dynamic rules for organize lists** — organize lists now take the same filter-driven rules wish and trade lists have, so a list can fill itself with every card matching a filter, or every matching copy in your collection.
+
 ### Other
 
 - fix(Collection): **Language filter now reachable** — a collection holding only cards in languages you haven't enabled looked empty with no filter to clear, so the Language filter now lists any language it's narrowing by.

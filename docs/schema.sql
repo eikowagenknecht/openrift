@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 9NgZ51tlqCuIeJech1V46lbXSuIMnFLaYSabkIFA03JWSEFIqe6n5im45Kns6hd
+\restrict fc4QUhm49q6leMxbQUwyO3SzdRJdJAGVqhBjasvdboDtgn2vpAFMH2UQkDUAxCH
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1614,7 +1614,6 @@ CREATE TABLE public.lists (
     CONSTRAINT chk_lists_kind CHECK ((kind = ANY (ARRAY['card'::text, 'printing'::text, 'copy'::text]))),
     CONSTRAINT chk_lists_name_not_empty CHECK ((name <> ''::text)),
     CONSTRAINT chk_lists_prefs_only_on_trade_intents CHECK (((intent = ANY (ARRAY['wish'::text, 'trade'::text])) OR ((default_price_pref IS NULL) AND (default_price_absolute_cents IS NULL) AND (default_trade_type IS NULL) AND (currency IS NULL)))),
-    CONSTRAINT chk_lists_rules_intent CHECK (((jsonb_array_length(rules) = 0) OR (intent = ANY (ARRAY['wish'::text, 'trade'::text])))),
     CONSTRAINT lists_rule_combine_check CHECK ((rule_combine = ANY (ARRAY['sum'::text, 'max'::text, 'protect'::text, 'count-sum'::text, 'count-max'::text])))
 );
 
@@ -6154,5 +6153,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 9NgZ51tlqCuIeJech1V46lbXSuIMnFLaYSabkIFA03JWSEFIqe6n5im45Kns6hd
+\unrestrict fc4QUhm49q6leMxbQUwyO3SzdRJdJAGVqhBjasvdboDtgn2vpAFMH2UQkDUAxCH
 

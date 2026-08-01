@@ -3,34 +3,77 @@ import { describe, expect, it } from "vitest";
 
 import { serializeRules } from "@/stores/rule-editor-store";
 
-import { TRADE_RULE_PRESETS, WISH_RULE_PRESETS } from "./rule-presets";
+import {
+  ORGANIZE_CARD_RULE_PRESETS,
+  ORGANIZE_COPY_RULE_PRESETS,
+  rulePresetsFor,
+  TRADE_RULE_PRESETS,
+  WISH_RULE_PRESETS,
+} from "./rule-presets";
+
+const ALL_PRESETS = [
+  ...WISH_RULE_PRESETS,
+  ...TRADE_RULE_PRESETS,
+  ...ORGANIZE_CARD_RULE_PRESETS,
+  ...ORGANIZE_COPY_RULE_PRESETS,
+];
 
 describe("rule presets", () => {
-  it("has unique ids across both intents", () => {
-    const ids = [...WISH_RULE_PRESETS, ...TRADE_RULE_PRESETS].map((preset) => preset.id);
+  it("has unique ids across every intent", () => {
+    const ids = ALL_PRESETS.map((preset) => preset.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("every wish preset serializes to valid wish rules", () => {
-    for (const preset of WISH_RULE_PRESETS) {
-      const rules = serializeRules(preset.build(), "wish");
+  it("every card/printing preset serializes to valid demand rules", () => {
+    for (const preset of [...WISH_RULE_PRESETS, ...ORGANIZE_CARD_RULE_PRESETS]) {
+      const rules = serializeRules(preset.build(), "card");
       expect(rules.length).toBeGreaterThan(0);
       expect(() => listRulesSchema.parse(rules)).not.toThrow();
       expect(rules.every((rule) => rule.kind === "wish")).toBe(true);
     }
   });
 
-  it("every trade preset serializes to valid trade rules", () => {
-    for (const preset of TRADE_RULE_PRESETS) {
-      const rules = serializeRules(preset.build(), "trade");
+  it("every copy preset serializes to valid supply rules", () => {
+    for (const preset of [...TRADE_RULE_PRESETS, ...ORGANIZE_COPY_RULE_PRESETS]) {
+      const rules = serializeRules(preset.build(), "copy");
       expect(rules.length).toBeGreaterThan(0);
       expect(() => listRulesSchema.parse(rules)).not.toThrow();
       expect(rules.every((rule) => rule.kind === "trade")).toBe(true);
     }
   });
 
+  // ADR-034 amendment 4: presets follow kind for the shape and intent for the
+  // phrasing, so each of the four combinations gets its own set.
+  it("rulePresetsFor picks the set matching the list's intent and kind", () => {
+    expect(rulePresetsFor("wish", "card")).toBe(WISH_RULE_PRESETS);
+    expect(rulePresetsFor("wish", "printing")).toBe(WISH_RULE_PRESETS);
+    expect(rulePresetsFor("trade", "copy")).toBe(TRADE_RULE_PRESETS);
+    expect(rulePresetsFor("organize", "card")).toBe(ORGANIZE_CARD_RULE_PRESETS);
+    expect(rulePresetsFor("organize", "printing")).toBe(ORGANIZE_CARD_RULE_PRESETS);
+    expect(rulePresetsFor("organize", "copy")).toBe(ORGANIZE_COPY_RULE_PRESETS);
+  });
+
+  it("organize presets default to including everything that matches", () => {
+    const everything = ORGANIZE_CARD_RULE_PRESETS.find(
+      (preset) => preset.id === "organize-everything",
+    );
+    expect(everything?.build()[0]).toMatchObject({
+      quantity: { mode: "fixed", n: 1 },
+      netOwned: false,
+    });
+
+    const allCopies = ORGANIZE_COPY_RULE_PRESETS.find(
+      (preset) => preset.id === "organize-all-copies",
+    );
+    // Leave-out count 0 means no copy is held back.
+    expect(allCopies?.build()[0]).toMatchObject({
+      keepPerCard: { mode: "fixed", n: 0 },
+      keepPer: "card",
+    });
+  });
+
   it("seeds the language facet from the context languages, like a blank rule", () => {
-    for (const preset of [...WISH_RULE_PRESETS, ...TRADE_RULE_PRESETS]) {
+    for (const preset of ALL_PRESETS) {
       const [draft] = preset.build({ languages: ["DE", "EN"] });
       expect(draft?.filter.languages).toEqual(["DE", "EN"]);
       const [blank] = preset.build();
@@ -39,7 +82,7 @@ describe("rule presets", () => {
   });
 
   it("catalog-wide presets leave every other facet blank", () => {
-    for (const preset of [...WISH_RULE_PRESETS, ...TRADE_RULE_PRESETS]) {
+    for (const preset of ALL_PRESETS) {
       if (preset.id === "main-set-playsets") {
         continue;
       }
@@ -104,7 +147,7 @@ describe("rule presets", () => {
   });
 
   it("builds fresh drafts on every call (no shared references)", () => {
-    for (const preset of [...WISH_RULE_PRESETS, ...TRADE_RULE_PRESETS]) {
+    for (const preset of ALL_PRESETS) {
       const first = preset.build();
       const second = preset.build();
       expect(first).toEqual(second);
