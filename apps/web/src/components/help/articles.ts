@@ -136,7 +136,6 @@ export const helpArticles = new Map<string, HelpArticle>([
         "Add the OpenRift bot to your Discord server to look up cards, unfurl deck codes, and quote rules right from chat.",
       icon: BotIcon,
       component: () => import("./articles/discord-bot"),
-      featureFlag: "help-discord-bot",
     },
   ],
   [

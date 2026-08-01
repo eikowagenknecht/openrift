@@ -4,6 +4,7 @@
 
 ### Highlights
 
+- feat(App): **OpenRift Discord bot** — add the bot to your server to look up cards, unfurl deck codes, and quote rules right in chat, with setup steps in the Help Center.
 - feat(Collection): **Dynamic rules for organize lists** — organize lists now take the same filter-driven rules wish and trade lists have, so a list can fill itself with every card matching a filter, or every matching copy in your collection.
 - feat(Collection): **Price filters in dynamic rules** — list rules can now match by market price on a marketplace you pick (for example, offer every card worth 5 or more).
 

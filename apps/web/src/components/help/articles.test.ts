@@ -13,15 +13,19 @@ describe("visibleHelpArticles", () => {
   });
 
   it("hides a flagged article while its flag is off", () => {
-    const visible = visibleHelpArticles({ "help-discord-bot": false });
+    const visible = visibleHelpArticles({ "help-how-to-play": false });
 
-    expect(visible.map((article) => article.slug)).not.toContain("discord-bot");
+    expect(visible.map((article) => article.slug)).not.toContain("how-to-play");
   });
 
   it("shows a flagged article once its flag is on", () => {
-    const visible = visibleHelpArticles({ "help-discord-bot": true });
+    const visible = visibleHelpArticles({ "help-how-to-play": true });
 
-    expect(visible.map((article) => article.slug)).toContain("discord-bot");
+    expect(visible.map((article) => article.slug)).toContain("how-to-play");
+  });
+
+  it("shows the Discord bot article unconditionally now that its flag is gone", () => {
+    expect(visibleHelpArticles({}).map((article) => article.slug)).toContain("discord-bot");
   });
 
   it("treats a missing flag as off", () => {
