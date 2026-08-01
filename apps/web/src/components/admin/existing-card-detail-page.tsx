@@ -77,6 +77,9 @@ import {
 } from "@/hooks/use-admin-card-queries";
 import { useKeywordStyles } from "@/hooks/use-keyword-styles";
 import { useSets } from "@/hooks/use-sets";
+import { useUnifiedMappingsWhen } from "@/hooks/use-unified-mappings";
+import { selectAdminCardPrevNext } from "@/lib/admin-card-nav";
+import { ALL_ASSIGNABLE_SCOPE, buildPriceAssignBucketsBySlug } from "@/lib/marketplace-coverage";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 import {
@@ -195,12 +198,18 @@ export function ExistingCardDetailPage({
   focusFinish,
   focusLanguage,
   setSlug,
+  priceStatus,
+  priceScope,
 }: {
   identifier: string;
   focusMarketplace?: AdminMarketplaceName;
   focusFinish?: string;
   focusLanguage?: string;
   setSlug?: string;
+  /** Set when the visit started from the list page's prices-to-assign filter. */
+  priceStatus?: "prices-to-assign";
+  /** Source+language scope for that filter; absent means all assignable buckets. */
+  priceScope?: string;
 }) {
   const navigate = useNavigate();
   const cardId = identifier;
@@ -274,13 +283,46 @@ export function ExistingCardDetailPage({
   const pendingScrollTarget = useRef<string | null>(null);
   const focusHandledRef = useRef(false);
 
-  // --- Check all & next card ---
+  // --- Navigation scope ---
   // When a set filter is active, scope prev/next + check-all-and-next to cards
   // that have at least one accepted printing in that set — matching the list
   // page's filter so the navigation stays inside the set.
   const scopedCards = setSlug ? allCards.filter((c) => c.setSlugs.includes(setSlug)) : allCards;
   const scopedSlugs = setSlug ? new Set(scopedCards.map((c) => c.slug)) : null;
   const { fetchNext } = useNextUncheckedCard(identifier, scopedSlugs);
+
+  // The prices-to-assign filter composes with the set scope: prev/next then
+  // only visits cards that still have unassigned products in the active scope.
+  // The corpus query stays subscribed rather than read once, and the
+  // marketplace section invalidates it after every assignment, so a card drops
+  // out of the run the moment its last staged product is bound.
+  const priceFilterActive = priceStatus === "prices-to-assign";
+  const { data: unifiedMappings } = useUnifiedMappingsWhen(isAdmin && priceFilterActive);
+  const activePriceScope = priceFilterActive ? (priceScope ?? ALL_ASSIGNABLE_SCOPE) : null;
+  const assignBucketsBySlug = unifiedMappings
+    ? buildPriceAssignBucketsBySlug(unifiedMappings.groups)
+    : null;
+  // Position is resolved in the full set-scoped ordering, then the nearest
+  // matching card is found by scanning outward — so the buttons keep working
+  // after this card itself falls out of the filter. Until the corpus data
+  // lands, `assignBucketsBySlug` is null and this falls back to plain
+  // neighbours instead of flickering the buttons disabled.
+  const prevNextCards = selectAdminCardPrevNext(
+    scopedCards.map((c) => c.slug),
+    identifier,
+    activePriceScope,
+    assignBucketsBySlug,
+  );
+
+  // Search params carried through every navigation off this page, so the run
+  // keeps its filters and the list page shows the same view on the way back.
+  const navSearch = {
+    ...(setSlug ? { set: setSlug } : {}),
+    ...(priceFilterActive ? { status: "prices-to-assign" as const } : {}),
+    ...(priceFilterActive && priceScope ? { priceScope } : {}),
+  };
+
+  // --- Check all & next card ---
   const [isCheckingAll, setIsCheckingAll] = useState(false);
   // oxlint-disable-next-line no-empty-function -- default no-op until the effect below installs the real handler
   const checkAllAndNextRef = useRef<() => void>(() => {});
@@ -330,11 +372,6 @@ export function ExistingCardDetailPage({
       }
     }
 
-    // Precompute the ternaries outside the try so react-compiler doesn't flag
-    // conditional value blocks inside a try/catch statement.
-    const detailSearch = setSlug ? { set: setSlug } : {};
-    const listSearch = setSlug ? { set: setSlug } : {};
-
     setIsCheckingAll(true);
     try {
       await Promise.all(promises);
@@ -344,11 +381,11 @@ export function ExistingCardDetailPage({
         void navigate({
           to: "/admin/cards/$cardSlug",
           params: { cardSlug: nextSlug },
-          search: detailSearch,
+          search: navSearch,
         });
       } else {
         toast.success("All cards reviewed!");
-        void navigate({ to: "/admin/cards", search: listSearch });
+        void navigate({ to: "/admin/cards", search: navSearch });
       }
     } catch (error) {
       setIsCheckingAll(false);
@@ -360,22 +397,19 @@ export function ExistingCardDetailPage({
   useEffect(() => {
     checkAllAndNextRef.current = () => void handleCheckAllAndNext();
   });
+  // Same selection as the < / > buttons — both read `prevNextCards`, so the
+  // hotkeys can never drift from what the buttons do.
   useEffect(() => {
     prevNextRef.current = (dir) => {
-      const idx = scopedCards.findIndex((c) => c.slug === identifier);
-      let slug: string | null = null;
-      if (dir === "prev" && idx > 0) {
-        slug = scopedCards[idx - 1].slug;
-      } else if (dir === "next" && idx !== -1 && idx < scopedCards.length - 1) {
-        slug = scopedCards[idx + 1].slug;
+      const slug = dir === "prev" ? prevNextCards.prev : prevNextCards.next;
+      if (!slug) {
+        return;
       }
-      if (slug) {
-        void navigate({
-          to: "/admin/cards/$cardSlug",
-          params: { cardSlug: slug },
-          search: setSlug ? { set: setSlug } : {},
-        });
-      }
+      void navigate({
+        to: "/admin/cards/$cardSlug",
+        params: { cardSlug: slug },
+        search: navSearch,
+      });
     };
   });
 
@@ -525,18 +559,6 @@ export function ExistingCardDetailPage({
   const hasUnchecked =
     sources.some((s) => !s.checkedAt) || candidatePrintings.some((ps) => !ps.checkedAt);
 
-  // Used by the render for prev/next buttons. The hotkey equivalents live in
-  // the effect above, which recomputes navigation inline from `scopedCards` +
-  // `identifier`. When a set filter is active, `scopedCards` is already
-  // narrowed to cards with an accepted printing in that set.
-  const prevNextCards = (() => {
-    const idx = scopedCards.findIndex((c) => c.slug === identifier);
-    return {
-      prev: idx > 0 ? scopedCards[idx - 1].slug : null,
-      next: idx !== -1 && idx < scopedCards.length - 1 ? scopedCards[idx + 1].slug : null,
-    };
-  })();
-
   // Compute collapse/expand keys once for the toggle button
   const allPrintingKeys = [
     ...printings.map((p) => p.id),
@@ -560,7 +582,7 @@ export function ExistingCardDetailPage({
                 void navigate({
                   to: "/admin/cards/$cardSlug",
                   params: { cardSlug: prevNextCards.prev },
-                  search: setSlug ? { set: setSlug } : {},
+                  search: navSearch,
                 })
               }
             >
@@ -575,7 +597,7 @@ export function ExistingCardDetailPage({
                 void navigate({
                   to: "/admin/cards/$cardSlug",
                   params: { cardSlug: prevNextCards.next },
-                  search: setSlug ? { set: setSlug } : {},
+                  search: navSearch,
                 })
               }
             >
@@ -647,7 +669,7 @@ export function ExistingCardDetailPage({
                     ) {
                       deleteCardMutation.mutate(card.id, {
                         onSuccess: () => {
-                          void navigate({ to: "/admin/cards" });
+                          void navigate({ to: "/admin/cards", search: navSearch });
                         },
                       });
                     }
@@ -677,6 +699,7 @@ export function ExistingCardDetailPage({
                           void navigate({
                             to: "/admin/cards/$cardSlug",
                             params: { cardSlug: expectedCardId },
+                            search: navSearch,
                           });
                         },
                       },

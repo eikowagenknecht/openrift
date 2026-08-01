@@ -221,6 +221,27 @@ export function computePriceAssignBuckets(group: UnifiedMappingGroupResponse): P
 }
 
 /**
+ * Does a card have any unbound entry matching `scope`? The umbrella
+ * {@link ALL_ASSIGNABLE_SCOPE} counts only assignable buckets, so CardTrader
+ * entries for a language we don't stock printings of (e.g. French) drop out of
+ * the default count but stay reachable by selecting their scope explicitly.
+ *
+ * @returns True when at least one bucket matches the scope and still has unbound entries.
+ */
+export function bucketsMatchScope(
+  buckets: PriceAssignBucket[] | undefined,
+  scope: string,
+): boolean {
+  if (!buckets) {
+    return false;
+  }
+  if (scope === ALL_ASSIGNABLE_SCOPE) {
+    return buckets.some((bucket) => bucket.unbound > 0 && bucket.assignable);
+  }
+  return buckets.some((bucket) => bucketScopeKey(bucket) === scope && bucket.unbound > 0);
+}
+
+/**
  * Build a map from card slug to its prices-to-assign buckets.
  *
  * @returns A Map keyed by `cardSlug`; cards with no unbound entries get `[]`.

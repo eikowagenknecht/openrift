@@ -34,7 +34,12 @@ import {
   useAcceptFavoritePrintings,
 } from "@/hooks/use-admin-card-mutations";
 import { parseSortParam } from "@/lib/admin-cards-search";
-import { ALL_ASSIGNABLE_SCOPE, bucketScopeKey, scopeLabel } from "@/lib/marketplace-coverage";
+import {
+  ALL_ASSIGNABLE_SCOPE,
+  bucketScopeKey,
+  bucketsMatchScope,
+  scopeLabel,
+} from "@/lib/marketplace-coverage";
 import type {
   CardCoverage,
   DirectionCoverage,
@@ -268,8 +273,17 @@ const COLUMN_WIDTHS: Record<string, string> = {
 function buildColumns(
   coverageBySlug: Map<string, CardCoverage>,
   setSlug: string | undefined,
+  priceStatus: "prices-to-assign" | undefined,
+  priceScope: string | undefined,
   isAdmin: boolean,
 ): ColumnDef<Row>[] {
+  // Clicking a row starts an assigning run, so hand the detail page the same
+  // filter the list is showing — its prev/next then walks only these cards.
+  const detailSearch = {
+    ...(setSlug ? { set: setSlug } : {}),
+    ...(priceStatus ? { status: priceStatus } : {}),
+    ...(priceScope ? { priceScope } : {}),
+  };
   return [
     {
       id: "name",
@@ -285,7 +299,7 @@ function buildColumns(
             <Link
               to="/admin/cards/$cardSlug"
               params={{ cardSlug: slug }}
-              search={setSlug ? { set: setSlug } : {}}
+              search={detailSearch}
               className="font-medium hover:underline"
             >
               {r.name}
@@ -386,25 +400,23 @@ export function AcceptedCardsTable({
     }),
   });
 
-  const columns = buildColumns(coverageBySlug, setSlug, isAdmin);
+  const priceFilterActive = activeStatus === "prices-to-assign";
+  const columns = buildColumns(
+    coverageBySlug,
+    setSlug,
+    priceFilterActive ? "prices-to-assign" : undefined,
+    priceFilterActive && priceScope !== ALL_ASSIGNABLE_SCOPE ? priceScope : undefined,
+    isAdmin,
+  );
 
   const uncheckedCount = data.filter(
     (r) => r.uncheckedCardCount + r.uncheckedPrintingCount > 0,
   ).length;
 
-  // Does a card have any unbound entry matching the given scope? The umbrella
-  // "all" scope counts only assignable buckets, so CardTrader entries for a
-  // language we don't stock printings of (e.g. French) drop out of the default
-  // count but stay reachable by selecting their scope explicitly.
+  // Shared with the detail page's prev/next so a run started from this filter
+  // visits exactly the rows shown here.
   function matchesScope(slug: string | null, scope: string): boolean {
-    const buckets = slug ? assignBucketsBySlug.get(slug) : undefined;
-    if (!buckets) {
-      return false;
-    }
-    if (scope === ALL_ASSIGNABLE_SCOPE) {
-      return buckets.some((b) => b.unbound > 0 && b.assignable);
-    }
-    return buckets.some((b) => bucketScopeKey(b) === scope && b.unbound > 0);
+    return bucketsMatchScope(slug ? assignBucketsBySlug.get(slug) : undefined, scope);
   }
 
   // Scope options for the picker: the umbrella, then every (source, language)

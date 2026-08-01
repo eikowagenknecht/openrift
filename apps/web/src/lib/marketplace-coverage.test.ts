@@ -6,13 +6,16 @@ import type {
 import { describe, expect, it } from "vitest";
 
 import {
+  ALL_ASSIGNABLE_SCOPE,
   bucketScopeKey,
+  bucketsMatchScope,
   buildCoverageMapBySlug,
   buildPriceAssignBucketsBySlug,
   computeCardCoverage,
   computePriceAssignBuckets,
   scopeLabel,
 } from "./marketplace-coverage";
+import type { PriceAssignBucket } from "./marketplace-coverage";
 
 function printing(
   overrides: Partial<UnifiedMappingPrintingResponse> = {},
@@ -382,6 +385,44 @@ describe("buildPriceAssignBucketsBySlug", () => {
     ]);
     expect(map.get("fireball")).toHaveLength(1);
     expect(map.get("blizzard")).toEqual([]);
+  });
+});
+
+describe("bucketsMatchScope", () => {
+  const cmBucket: PriceAssignBucket = {
+    marketplace: "cardmarket",
+    language: null,
+    unbound: 1,
+    assignable: true,
+  };
+  const ctFrBucket: PriceAssignBucket = {
+    marketplace: "cardtrader",
+    language: "FR",
+    unbound: 2,
+    assignable: false,
+  };
+
+  it("is false for a card with no bucket data at all", () => {
+    expect(bucketsMatchScope(undefined, ALL_ASSIGNABLE_SCOPE)).toBe(false);
+  });
+
+  it("is false for a card with no unbound entries", () => {
+    expect(bucketsMatchScope([], ALL_ASSIGNABLE_SCOPE)).toBe(false);
+    expect(bucketsMatchScope([{ ...cmBucket, unbound: 0 }], ALL_ASSIGNABLE_SCOPE)).toBe(false);
+  });
+
+  it("counts only assignable buckets under the umbrella scope", () => {
+    expect(bucketsMatchScope([cmBucket], ALL_ASSIGNABLE_SCOPE)).toBe(true);
+    expect(bucketsMatchScope([ctFrBucket], ALL_ASSIGNABLE_SCOPE)).toBe(false);
+  });
+
+  it("counts an explicitly selected scope regardless of assignability", () => {
+    expect(bucketsMatchScope([ctFrBucket], "cardtrader:FR")).toBe(true);
+  });
+
+  it("ignores buckets belonging to another scope", () => {
+    expect(bucketsMatchScope([cmBucket], "tcgplayer")).toBe(false);
+    expect(bucketsMatchScope([ctFrBucket], "cardtrader:EN")).toBe(false);
   });
 });
 

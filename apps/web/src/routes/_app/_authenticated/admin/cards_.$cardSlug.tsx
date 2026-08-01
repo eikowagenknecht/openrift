@@ -19,6 +19,14 @@ interface CardDetailSearch {
   focusFinish?: string;
   focusLanguage?: string;
   set?: string;
+  /**
+   * Carried over from the list page's status filter so prev/next walks the same
+   * subset. Only "prices-to-assign" narrows navigation here — "unchecked"
+   * already has its own flow via "Check all & next".
+   */
+  status?: "prices-to-assign";
+  /** Source+language scope for `status=prices-to-assign`, e.g. "cardtrader:FR". */
+  priceScope?: string;
 }
 
 export const Route = createFileRoute("/_app/_authenticated/admin/cards_/$cardSlug")({
@@ -42,6 +50,14 @@ export const Route = createFileRoute("/_app/_authenticated/admin/cards_/$cardSlu
     }
     if (typeof search.set === "string" && search.set.length > 0) {
       result.set = search.set;
+    }
+    if (search.status === "prices-to-assign") {
+      result.status = "prices-to-assign";
+      // The scope only means anything alongside the filter it belongs to, and
+      // the umbrella scope is represented by an absent param.
+      if (typeof search.priceScope === "string" && search.priceScope.length > 0) {
+        result.priceScope = search.priceScope;
+      }
     }
     return result;
   },
