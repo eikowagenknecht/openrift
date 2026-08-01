@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 /** The language scans resolve to when only the language is ambiguous. */
-export const DEFAULT_SCAN_LANGUAGE = "EN";
+const DEFAULT_SCAN_LANGUAGE = "EN";
 
 interface ScanPrefsState {
   /** Silence the lock tick (vibration is unaffected). */

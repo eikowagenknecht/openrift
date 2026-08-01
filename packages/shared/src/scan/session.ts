@@ -367,7 +367,7 @@ const GUIDE_MIN_IOU = 0.3;
  * than one so a single mid-hold detector dropout (a hand jiggle blurring one
  * frame) cannot re-arm and double-count the card still sitting there.
  */
-export const ABSENT_FRAMES_TO_REARM = 2;
+const ABSENT_FRAMES_TO_REARM = 2;
 
 /**
  * The guide rect itself as a rectification candidate, for frames where no

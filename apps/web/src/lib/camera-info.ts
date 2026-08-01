@@ -16,7 +16,7 @@
  */
 
 /** One video input as `enumerateDevices` reported it. */
-export interface CameraDevice {
+interface CameraDevice {
   deviceId: string;
   /** Empty string until a camera permission has been granted. */
   label: string;
