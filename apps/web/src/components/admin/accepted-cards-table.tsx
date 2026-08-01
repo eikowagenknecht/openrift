@@ -325,30 +325,24 @@ function buildColumns(
       : []),
     {
       id: "candidatePrintings",
-      accessorFn: (r) => r.stagingShortCodes.length,
+      // Only favorite-source candidates are listed: with many sources enabled
+      // the non-favorite codes drown out the ones that are actually
+      // actionable (the accept button only ever takes favorites anyway).
+      accessorFn: (r) => r.favoriteStagingShortCodes.length,
       header: ({ column }) => <SortableHeader column={column} label="Candidate Printings" />,
       enableGlobalFilter: false,
       cell: ({ row }) => {
-        const codes = formatShortCodesArray(row.original.stagingShortCodes);
-        const favorites = new Set(formatShortCodesArray(row.original.favoriteStagingShortCodes));
+        const codes = formatShortCodesArray(row.original.favoriteStagingShortCodes);
         const favoriteCount = row.original.favoriteStagingShortCodes.length;
         return (
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span>
-              {codes.map((code, index) => {
-                const isFavorite = favorites.has(code);
-                return (
-                  <span
-                    key={`${code}-${index}`}
-                    className={isFavorite ? "text-foreground" : "text-muted-foreground/50 italic"}
-                  >
-                    {code}
-                    {index < codes.length - 1 && (
-                      <span className="text-muted-foreground/50">, </span>
-                    )}
-                  </span>
-                );
-              })}
+              {codes.map((code, index) => (
+                <span key={`${code}-${index}`}>
+                  {code}
+                  {index < codes.length - 1 && <span className="text-muted-foreground/50">, </span>}
+                </span>
+              ))}
             </span>
             {isAdmin && row.original.cardSlug && favoriteCount > 0 && (
               <AcceptFavoriteButton cardSlug={row.original.cardSlug} count={favoriteCount} />
@@ -554,7 +548,9 @@ export function AcceptedCardsTable({
       return (
         r.name.toLowerCase().includes(query) ||
         r.shortCodes.some((code) => code.toLowerCase().includes(query)) ||
-        r.stagingShortCodes.some((code) => code.toLowerCase().includes(query))
+        // Matches only what the Candidate Printings column shows, so a hit
+        // never lands on a row with an apparently empty column.
+        r.favoriteStagingShortCodes.some((code) => code.toLowerCase().includes(query))
       );
     },
   });
