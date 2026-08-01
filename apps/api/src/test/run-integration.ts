@@ -107,6 +107,7 @@ const PARALLEL_FILES = [
   "src/repositories/marketplace-admin.integration.test.ts",
   "src/repositories/marketplace-mapping.integration.test.ts",
   "src/repositories/marketplace.integration.test.ts",
+  "src/repositories/collection-value-history.integration.test.ts",
   "src/repositories/price-refresh.integration.test.ts",
   "src/repositories/printing-images.integration.test.ts",
   "src/repositories/products.integration.test.ts",

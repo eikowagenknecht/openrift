@@ -757,14 +757,35 @@ export interface CollectionStatsResult extends CollectionStats {
  * Computes collection statistics for a single collection or all collections.
  * @returns Full stats including hero metrics, completion breakdowns, and charts.
  */
-export function useCollectionStats(collectionId?: string): CollectionStatsResult {
-  const { stacks, totalCopies, isReady } = useStackedCopies(collectionId);
+/**
+ * Collection statistics for a scope.
+ *
+ * `scope` narrows every figure to the printings matching the page's active
+ * filters. Pass the same scope the rest of the page uses — the completion
+ * section, the cost-to-complete chart, and the value-over-time chart are all
+ * scoped, so leaving the hero stats unscoped made "Estimated Value" answer a
+ * different question from the chart sitting next to it, with nothing on screen
+ * saying so. Omit it for an unfiltered view.
+ *
+ * @returns Stats for the scoped subset, plus the data the page's other
+ *          sections derive their own views from.
+ */
+export function useCollectionStats(
+  collectionId?: string,
+  scope?: CompletionScopePreference,
+): CollectionStatsResult {
+  const { stacks: allStacks, isReady } = useStackedCopies(collectionId);
   const { allPrintings } = useCards();
   const { data: setList } = useSuspenseQuery(publicSetListQueryOptions);
   const prices = usePrices();
   const { orders } = useEnumOrders();
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
   const marketplace = marketplaceOrder[0] ?? "cardtrader";
+
+  const stacks = scope ? filterStacksByScope(allStacks, scope) : allStacks;
+  // Recomputed rather than taken from useStackedCopies, which counts every
+  // copy in the collection regardless of scope.
+  const totalCopies = stacks.reduce((sum, stack) => sum + stack.copyIds.length, 0);
 
   const { sets, printings } = excludeUnreleasedSets({
     sets: setList.sets,

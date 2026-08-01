@@ -11,6 +11,7 @@ import {
   computeCompletion,
   excludeUnreleasedSets,
   filterByScope,
+  filterStacksByScope,
   matchesScope,
 } from "./use-collection-stats";
 
@@ -537,6 +538,57 @@ describe("filterByScope", () => {
     });
     expect(result).toHaveLength(1);
     expect(result[0]).toBe(enNormal);
+  });
+});
+
+describe("filterStacksByScope", () => {
+  it("returns all stacks when scope is empty", () => {
+    const stacks = [stubStack({ language: "EN" }), stubStack({ language: "JA" })];
+    expect(filterStacksByScope(stacks, {})).toHaveLength(2);
+  });
+
+  it("keeps only stacks whose printing matches", () => {
+    const en = stubStack({ language: "EN" });
+    const ja = stubStack({ language: "JA" });
+    const result = filterStacksByScope([en, ja], { languages: ["EN"] });
+    expect(result).toEqual([en]);
+  });
+
+  it("combines multiple scope filters", () => {
+    const enNormal = stubStack({ language: "EN", finish: "normal" });
+    const enFoil = stubStack({ language: "EN", finish: "foil" });
+    const jaNormal = stubStack({ language: "JA", finish: "normal" });
+    const result = filterStacksByScope([enNormal, enFoil, jaNormal], {
+      languages: ["EN"],
+      finishes: ["normal"],
+    });
+    expect(result).toEqual([enNormal]);
+  });
+
+  it("narrows estimated value to the scope, matching the value chart", () => {
+    // The chart on the stats page applies the page's scope server-side. The
+    // hero stats have to run their totals over the same subset or the two
+    // figures disagree with nothing on screen explaining why.
+    const en = stubStack({ language: "EN", copyCount: 2 });
+    const ja = stubStack({ language: "JA", copyCount: 3 });
+    const prices = stubPriceLookup({
+      [en.printingId]: { tcgplayer: 5 },
+      [ja.printingId]: { tcgplayer: 100 },
+    });
+
+    const scoped = filterStacksByScope([en, ja], { languages: ["EN"] });
+    const stats = computeCollectionStats({
+      stacks: scoped,
+      totalCopies: scoped.reduce((sum, stack) => sum + stack.copyIds.length, 0),
+      sets: [],
+      prices,
+      marketplace: "tcgplayer",
+      orders: ORDERS,
+    });
+
+    expect(stats.estimatedValue).toBe(10);
+    expect(stats.totalCopies).toBe(2);
+    expect(stats.uniquePrintings).toBe(1);
   });
 });
 

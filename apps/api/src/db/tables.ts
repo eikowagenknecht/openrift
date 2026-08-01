@@ -1792,6 +1792,14 @@ interface MvLatestPrintingPricesView {
   headlineCents: number;
 }
 
+/** Per-day headline price per printing (migration 219). `day` is a date. */
+interface MvDailyPrintingPricesView {
+  printingId: string;
+  marketplace: string;
+  day: string;
+  headlineCents: number;
+}
+
 interface MvCardAggregatesView {
   cardId: string;
   domains: string[];
@@ -1986,6 +1994,7 @@ export interface Database {
 
   // Materialized views (migration 085)
   mvLatestPrintingPrices: MvLatestPrintingPricesView;
+  mvDailyPrintingPrices: MvDailyPrintingPricesView;
   mvCardAggregates: MvCardAggregatesView;
 
   // Views (migration 096)

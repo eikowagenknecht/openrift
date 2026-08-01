@@ -45,9 +45,11 @@ export async function deleteCollection(
       );
     }
 
-    // Let the FK's ON DELETE SET NULL handle existing events. The check
-    // constraint allows rows with a name snapshot but no collection id, so
-    // historical events stay readable as "moved from <deleted collection>".
+    // Existing events keep both the id and the name snapshot: migration 220
+    // dropped the FKs so deleting a collection no longer reaches back and
+    // erases them. History stays readable as "moved from <deleted
+    // collection>", and the value-over-time replay can still tell whether an
+    // event crossed the boundary of the collection being charted.
     await trxRepos.collections.deleteByIdForUser(collectionId, userId);
   });
 }

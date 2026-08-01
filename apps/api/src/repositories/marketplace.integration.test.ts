@@ -152,7 +152,9 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
       { productId: tcgProductId, recordedAt: snap2At },
     );
 
-    // Refresh the MV so latestPrices() sees the new rows
+    // Refresh the MVs so latestPrices() sees the new rows. Daily first — the
+    // latest view is defined over it (migration 219).
+    await sql`REFRESH MATERIALIZED VIEW mv_daily_printing_prices`.execute(db);
     await sql`REFRESH MATERIALIZED VIEW mv_latest_printing_prices`.execute(db);
 
     const snaps = await repo.snapshots(tcgVariantId, null);

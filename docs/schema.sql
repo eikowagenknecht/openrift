@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict fc4QUhm49q6leMxbQUwyO3SzdRJdJAGVqhBjasvdboDtgn2vpAFMH2UQkDUAxCH
+\restrict cisCe6OMJtpQhksXeVHDUspgacTOcNcrK5Ik3wpB0rIzUaQ09KkndhScBMxmE1L
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1814,27 +1814,69 @@ CREATE MATERIALIZED VIEW public.mv_card_aggregates AS
 
 
 --
+-- Name: mv_daily_printing_prices; Type: MATERIALIZED VIEW; Schema: public; Owner: -
+--
+
+CREATE MATERIALIZED VIEW public.mv_daily_printing_prices AS
+ WITH daily_sku AS (
+         SELECT DISTINCT ON (pp.marketplace_product_id, ((date_trunc('day'::text, pp.recorded_at))::date)) pp.marketplace_product_id,
+            mp.marketplace,
+            (date_trunc('day'::text, pp.recorded_at))::date AS day,
+            pp.zero_low_cents,
+            pp.low_cents,
+            pp.market_cents
+           FROM (public.marketplace_product_prices pp
+             JOIN public.marketplace_products mp ON ((mp.id = pp.marketplace_product_id)))
+          ORDER BY pp.marketplace_product_id, ((date_trunc('day'::text, pp.recorded_at))::date), (pp.zero_low_cents IS NULL), pp.recorded_at DESC
+        ), islands AS (
+         SELECT s.marketplace_product_id,
+            s.marketplace,
+            s.day,
+            s.zero_low_cents,
+            s.low_cents,
+            s.market_cents,
+            count(s.zero_low_cents) OVER (PARTITION BY s.marketplace_product_id ORDER BY s.day ROWS UNBOUNDED PRECEDING) AS zero_island
+           FROM daily_sku s
+        ), carried AS (
+         SELECT i.marketplace_product_id,
+            i.marketplace,
+            i.day,
+            i.low_cents,
+            i.market_cents,
+            first_value(i.zero_low_cents) OVER (PARTITION BY i.marketplace_product_id, i.zero_island ORDER BY i.day) AS zero_carried
+           FROM islands i
+        )
+ SELECT mpv.printing_id,
+    d.marketplace,
+    d.day,
+    min(
+        CASE
+            WHEN (d.marketplace = 'cardtrader'::text) THEN COALESCE(d.zero_carried, d.low_cents)
+            WHEN (d.marketplace = 'cardmarket'::text) THEN COALESCE(d.low_cents, d.market_cents)
+            ELSE COALESCE(d.market_cents, d.low_cents)
+        END) AS headline_cents
+   FROM (carried d
+     JOIN public.marketplace_product_variants mpv ON ((mpv.marketplace_product_id = d.marketplace_product_id)))
+  WHERE (
+        CASE
+            WHEN (d.marketplace = 'cardtrader'::text) THEN COALESCE(d.zero_carried, d.low_cents)
+            WHEN (d.marketplace = 'cardmarket'::text) THEN COALESCE(d.low_cents, d.market_cents)
+            ELSE COALESCE(d.market_cents, d.low_cents)
+        END IS NOT NULL)
+  GROUP BY mpv.printing_id, d.marketplace, d.day
+  WITH NO DATA;
+
+
+--
 -- Name: mv_latest_printing_prices; Type: MATERIALIZED VIEW; Schema: public; Owner: -
 --
 
 CREATE MATERIALIZED VIEW public.mv_latest_printing_prices AS
- SELECT DISTINCT ON (mpv.printing_id, mp.marketplace) mpv.printing_id,
-    mp.marketplace,
-        CASE
-            WHEN (mp.marketplace = 'cardtrader'::text) THEN COALESCE(pp.zero_low_cents, pp.low_cents)
-            WHEN (mp.marketplace = 'cardmarket'::text) THEN COALESCE(pp.low_cents, pp.market_cents)
-            ELSE COALESCE(pp.market_cents, pp.low_cents)
-        END AS headline_cents
-   FROM ((public.marketplace_product_variants mpv
-     JOIN public.marketplace_products mp ON ((mp.id = mpv.marketplace_product_id)))
-     JOIN public.marketplace_product_prices pp ON ((pp.marketplace_product_id = mp.id)))
-  WHERE (
-        CASE
-            WHEN (mp.marketplace = 'cardtrader'::text) THEN COALESCE(pp.zero_low_cents, pp.low_cents)
-            WHEN (mp.marketplace = 'cardmarket'::text) THEN COALESCE(pp.low_cents, pp.market_cents)
-            ELSE COALESCE(pp.market_cents, pp.low_cents)
-        END IS NOT NULL)
-  ORDER BY mpv.printing_id, mp.marketplace, (pp.zero_low_cents IS NULL), pp.recorded_at DESC
+ SELECT DISTINCT ON (printing_id, marketplace) printing_id,
+    marketplace,
+    headline_cents
+   FROM public.mv_daily_printing_prices d
+  ORDER BY printing_id, marketplace, day DESC
   WITH NO DATA;
 
 
@@ -4079,6 +4121,20 @@ CREATE UNIQUE INDEX idx_mv_card_aggregates_pk ON public.mv_card_aggregates USING
 
 
 --
+-- Name: idx_mv_daily_printing_prices_latest; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_mv_daily_printing_prices_latest ON public.mv_daily_printing_prices USING btree (marketplace, printing_id, day DESC);
+
+
+--
+-- Name: idx_mv_daily_printing_prices_pk; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_mv_daily_printing_prices_pk ON public.mv_daily_printing_prices USING btree (printing_id, marketplace, day);
+
+
+--
 -- Name: idx_mv_latest_printing_prices_pk; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5478,30 +5534,6 @@ ALTER TABLE ONLY public.collection_deckbuilding_prefs
 
 
 --
--- Name: collection_events fk_collection_events_copy; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.collection_events
-    ADD CONSTRAINT fk_collection_events_copy FOREIGN KEY (copy_id) REFERENCES public.copies(id) ON DELETE SET NULL;
-
-
---
--- Name: collection_events fk_collection_events_from_collection; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.collection_events
-    ADD CONSTRAINT fk_collection_events_from_collection FOREIGN KEY (from_collection_id) REFERENCES public.collections(id) ON DELETE SET NULL;
-
-
---
--- Name: collection_events fk_collection_events_to_collection; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.collection_events
-    ADD CONSTRAINT fk_collection_events_to_collection FOREIGN KEY (to_collection_id) REFERENCES public.collections(id) ON DELETE SET NULL;
-
-
---
 -- Name: copies fk_copies_collection; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6153,5 +6185,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict fc4QUhm49q6leMxbQUwyO3SzdRJdJAGVqhBjasvdboDtgn2vpAFMH2UQkDUAxCH
+\unrestrict cisCe6OMJtpQhksXeVHDUspgacTOcNcrK5Ik3wpB0rIzUaQ09KkndhScBMxmE1L
 

@@ -33,9 +33,12 @@ export interface CollectionValue {
 /**
  * Read-only queries for marketplace prices and snapshots.
  *
- * Price queries read from the `mv_latest_printing_prices` materialized view,
- * which must be refreshed after each price-refresh pipeline run (see
- * {@link refreshLatestPrices}).
+ * Price queries read from `mv_daily_printing_prices` and its latest-day
+ * derivative `mv_latest_printing_prices`, both refreshed after each
+ * price-refresh pipeline run (see {@link refreshLatestPrices}). The headline
+ * rule and the "cheapest bound SKU" aggregation live in the daily view, so
+ * every surface that prices a printing agrees by construction. Don't
+ * re-implement the headline CASE in a query here.
  *
  * @returns An object with marketplace query methods bound to the given `db`.
  */
@@ -281,12 +284,31 @@ export function marketplaceRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Collection value over time, computed from collection events and price snapshots.
+     * Collection value over time, computed from today's copies walked backwards
+     * through collection events.
      *
-     * Replays collection events to reconstruct the set of printings at each day,
-     * then multiplies by that day's prices to produce a time series.
+     * The replay is anchored to the present, not the past. Today's composition
+     * is not derived from event history — it is read from `copies`, the same
+     * rows {@link collectionValues} sums — and events are then undone day by
+     * day to reconstruct the past. This makes "the last point equals the Stats
+     * card" structural rather than a property that happens to hold when the
+     * event log is complete.
      *
-     * @returns Daily value points for charting.
+     * It is not complete. 6573 `removed` events across 8 accounts have no
+     * matching `added`, because event logging predates their copies and
+     * migration 139's backfill could only cover copies that still existed when
+     * it ran. A forward replay clamps per printing across all collections, so
+     * one of those orphan removals silently cancels a live copy of the same
+     * printing sitting in a different collection. Walking backwards, the same
+     * orphans only make historical days look slightly larger, which is honest:
+     * those copies did exist then.
+     *
+     * Errors therefore accumulate into the past rather than into the headline
+     * figure. A historical point reads "what I hold now, minus the events
+     * since" — identical to "what I held then" for an account with complete
+     * history, and closer to the truth than a forward replay for one without.
+     *
+     * @returns Daily value points for charting, oldest first.
      */
     async collectionValueTimeSeries(params: {
       userId: string;
@@ -297,16 +319,13 @@ export function marketplaceRepo(db: Kysely<Database>) {
     }): Promise<CollectionValueHistoryPoint[]> {
       const { userId, marketplace, collectionIds, cutoff, scope } = params;
 
-      // ── Query A: collection events with scope filters ──────────────────
-      // Build scope filter clauses. Each array filter uses a parameterized
-      // IN-list via sql.join to avoid SQL injection from user-provided values.
+      // Scope filter clauses on the printing itself. Both the event query and
+      // the anchor query below join printings/cards/sets under the same p/c/s
+      // aliases, so one fragment serves both — they must agree, or the anchor
+      // would count copies the walk never sees. Each array filter uses a
+      // parameterized IN-list via sql.join to avoid SQL injection from
+      // user-provided values.
       const scopeClauses: ReturnType<typeof sql>[] = [];
-      if (collectionIds) {
-        const ids = sql.join(collectionIds.map((id) => sql`${id}::uuid`));
-        scopeClauses.push(
-          sql`AND (ce.to_collection_id IN (${ids}) OR ce.from_collection_id IN (${ids}))`,
-        );
-      }
       if (scope.sets?.length) {
         const vals = sql.join(scope.sets.map((val) => sql`${val}`));
         scopeClauses.push(sql`AND s.slug IN (${vals})`);
@@ -366,11 +385,53 @@ export function marketplaceRepo(db: Kysely<Database>) {
 
       const scopeFragment = scopeClauses.length > 0 ? sql.join(scopeClauses, sql` `) : sql``;
 
+      // ── Query A: today's composition, the anchor ───────────────────────
+      // In all-collections mode this is personal copies only. Copies in a
+      // friend-group collection belong to the group, and `buildStacks` in the
+      // web app leaves them out of the aggregate the Stats card shows — the
+      // anchor has to draw the same line or the two figures disagree on day
+      // one. Scoped to explicit collection ids, every copy in them counts (a
+      // group collection is viewed via its own id).
+      const anchorCollectionClause = collectionIds
+        ? sql`cp.collection_id IN (${sql.join(collectionIds.map((id) => sql`${id}::uuid`))})`
+        : sql`col.user_id = ${userId} AND col.group_id IS NULL`;
+
+      const anchorRows = await sql<{ printingId: string; copies: number }>`
+        SELECT cp.printing_id AS "printingId", count(*)::int AS copies
+        FROM copies cp
+        INNER JOIN collections col ON col.id = cp.collection_id
+        INNER JOIN printings p ON p.id = cp.printing_id
+        INNER JOIN cards c ON c.id = p.card_id
+        INNER JOIN sets s ON s.id = p.set_id
+        WHERE ${anchorCollectionClause}
+          ${scopeFragment}
+        GROUP BY cp.printing_id
+      `.execute(db);
+
+      // ── Query B: events to undo, newest last ───────────────────────────
+      // Only events inside the window are needed. A forward replay had to read
+      // the user's entire history to build the pre-cutoff state; anchoring to
+      // the present means the 7d/30d/90d ranges never touch older rows.
+      //
+      // `fromIsGroup` / `toIsGroup` let all-collections mode keep the anchor's
+      // personal-only line while walking back: a move across the group
+      // boundary is a real entry or exit from the personal total, and an add
+      // straight into a group collection never belonged to it. Events written
+      // before migration 220 may have lost their collection id to the old
+      // ON DELETE SET NULL and read as non-group, which is right for every
+      // affected account — deleting a group collection is rarer still.
+      const windowStartDay = cutoff ? toDateString(cutoff) : null;
+      const windowClause = windowStartDay
+        ? sql`AND ce.created_at >= ${windowStartDay}::date`
+        : sql``;
+
       const events = await sql<{
         action: string;
         printingId: string;
         fromCollectionId: string | null;
         toCollectionId: string | null;
+        fromIsGroup: boolean;
+        toIsGroup: boolean;
         createdAt: Date;
       }>`
         SELECT
@@ -378,51 +439,53 @@ export function marketplaceRepo(db: Kysely<Database>) {
           ce.printing_id AS "printingId",
           ce.from_collection_id AS "fromCollectionId",
           ce.to_collection_id AS "toCollectionId",
+          (cf.group_id IS NOT NULL) AS "fromIsGroup",
+          (ctc.group_id IS NOT NULL) AS "toIsGroup",
           ce.created_at AS "createdAt"
         FROM collection_events ce
         INNER JOIN printings p ON p.id = ce.printing_id
         INNER JOIN cards c ON c.id = p.card_id
         INNER JOIN sets s ON s.id = p.set_id
+        LEFT JOIN collections cf ON cf.id = ce.from_collection_id
+        LEFT JOIN collections ctc ON ctc.id = ce.to_collection_id
         WHERE ce.user_id = ${userId}
+          ${windowClause}
           ${scopeFragment}
         ORDER BY ce.created_at ASC
       `.execute(db);
 
-      if (events.rows.length === 0) {
+      if (events.rows.length === 0 && anchorRows.rows.length === 0) {
         return [];
       }
 
-      // Collect unique printing IDs from events
-      const printingIds = [...new Set(events.rows.map((e) => e.printingId))];
+      // Prices are needed for anything held today and anything touched inside
+      // the window — a printing sold off mid-window is absent from the anchor
+      // but reappears as we walk back.
+      const printingIds = [
+        ...new Set([
+          ...anchorRows.rows.map((r) => r.printingId),
+          ...events.rows.map((e) => e.printingId),
+        ]),
+      ];
 
       // ── Query B: daily prices for those printings ──────────────────────
-      // Mirrors mv_latest_printing_prices' headline rule per marketplace but
-      // grouped by day instead of "latest overall". CardTrader prefers
-      // Zero-eligible pricing then overall-low; CardMarket prefers low then
-      // market (matches user-facing "buy from cheapest" intent); TCGplayer
-      // prefers market then low.
-      const headlineExpr =
-        marketplace === "cardtrader"
-          ? sql`COALESCE(pp.zero_low_cents, pp.low_cents)`
-          : marketplace === "cardmarket"
-            ? sql`COALESCE(pp.low_cents, pp.market_cents)`
-            : sql`COALESCE(pp.market_cents, pp.low_cents)`;
+      // Read straight from mv_daily_printing_prices (migration 219). The
+      // headline rule and the cheapest-bound-SKU aggregation live in the view,
+      // so the last point of this series and the Stats card's figure come from
+      // the same rows — mv_latest_printing_prices is that view's latest day.
+      // Do not reintroduce a hand-rolled headline CASE here.
       const dailyPrices = await sql<{
         printingId: string;
         day: string;
         headlineCents: number;
       }>`
-        SELECT DISTINCT ON (mpv.printing_id, day)
-          mpv.printing_id AS "printingId",
-          date_trunc('day', pp.recorded_at)::date::text AS day,
-          ${headlineExpr} AS "headlineCents"
-        FROM marketplace_product_variants mpv
-        JOIN marketplace_products mp ON mp.id = mpv.marketplace_product_id
-        JOIN marketplace_product_prices pp ON pp.marketplace_product_id = mp.id
-        WHERE mpv.printing_id IN (${sql.join(printingIds.map((id) => sql`${id}::uuid`))})
-          AND mp.marketplace = ${marketplace}
-          AND ${headlineExpr} IS NOT NULL
-        ORDER BY mpv.printing_id, day, pp.recorded_at DESC
+        SELECT
+          d.printing_id AS "printingId",
+          d.day::text AS day,
+          d.headline_cents AS "headlineCents"
+        FROM mv_daily_printing_prices d
+        WHERE d.printing_id IN (${sql.join(printingIds.map((id) => sql`${id}::uuid`))})
+          AND d.marketplace = ${marketplace}
       `.execute(db);
 
       // Build a lookup: printingId -> day -> headlineCents
@@ -436,48 +499,46 @@ export function marketplaceRepo(db: Kysely<Database>) {
         dayMap.set(row.day, row.headlineCents);
       }
 
-      // Sorted ascending list of snapshot days per printing — used to seed
-      // lastPriceByPrinting from the latest snapshot ≤ the day the printing
-      // enters composition. Without this, a printing whose only snapshots
-      // are older than the user's first `added` event for it contributes 0
-      // to the chart forever, even though the Stats card sees those prices
-      // via the materialized view.
+      // Snapshot days per printing, ascending. The walk visits days in
+      // descending order, so a per-printing cursor onto this array only ever
+      // moves left — the price for a day is the latest snapshot at or before
+      // it, same rule the Stats card gets from mv_latest_printing_prices.
       const sortedPriceDays = new Map<string, string[]>();
       for (const [printingId, dayMap] of priceMap) {
         sortedPriceDays.set(printingId, [...dayMap.keys()].toSorted());
       }
+      const priceCursor = new Map<string, number>();
 
       /**
-       * Latest snapshot price for `printingId` with snapshot day ≤ `dayStr`.
-       * @returns The price in cents, or undefined if no such snapshot exists.
+       * Price for `printingId` on `dayStr`, carried back from the latest
+       * snapshot at or before it. Only correct when called with a
+       * non-increasing `dayStr`, which the backward walk guarantees.
+       * @returns The price in cents, or undefined if no snapshot is that old.
        */
-      function latestPriceAtOrBefore(printingId: string, dayStr: string): number | undefined {
+      function priceOnDay(printingId: string, dayStr: string): number | undefined {
         const days = sortedPriceDays.get(printingId);
         if (!days || days.length === 0) {
           return undefined;
         }
-        let lo = 0;
-        let hi = days.length;
-        while (lo < hi) {
-          const mid = (lo + hi) >> 1;
-          if (days[mid] <= dayStr) {
-            lo = mid + 1;
-          } else {
-            hi = mid;
-          }
+        let idx = priceCursor.get(printingId) ?? days.length - 1;
+        while (idx >= 0 && days[idx] > dayStr) {
+          idx--;
         }
-        const idx = lo - 1;
+        priceCursor.set(printingId, idx);
         if (idx < 0) {
           return undefined;
         }
         return priceMap.get(printingId)?.get(days[idx]);
       }
 
-      // ── TypeScript replay ─────────────────────────────────────────────
-      // Determine the target collection set for filtering events
+      // ── Backward replay ───────────────────────────────────────────────
       const targetCollectionSet = collectionIds ? new Set(collectionIds) : null;
 
-      // Classify event as +1 or -1 relative to target collections
+      /**
+       * How much an event added to the tracked total when it happened. The
+       * walk subtracts this to step back over the event.
+       * @returns +1, -1, or 0.
+       */
       function eventDelta(event: (typeof events.rows)[0]): number {
         if (targetCollectionSet) {
           const toTarget = event.toCollectionId
@@ -503,121 +564,113 @@ export function marketplaceRepo(db: Kysely<Database>) {
           }
           return 0;
         }
-        // All collections mode
+        // All-collections mode tracks the personal total, so group
+        // collections sit outside it and crossing the boundary counts.
         if (event.action === "added") {
-          return 1;
+          return event.toIsGroup ? 0 : 1;
         }
         if (event.action === "removed") {
-          return -1;
+          return event.fromIsGroup ? 0 : -1;
         }
-        return 0; // moved between collections = no net change
-      }
-
-      // Determine date range
-      const startDate = cutoff
-        ? new Date(Math.max(cutoff.getTime(), events.rows[0].createdAt.getTime()))
-        : events.rows[0].createdAt;
-      const endDate = new Date();
-      const startDay = toDateString(startDate);
-      const endDay = toDateString(endDate);
-
-      // Replay all events, building daily snapshots
-      const composition = new Map<string, number>(); // printingId -> count
-      let eventIndex = 0;
-
-      // First, replay events before the start day to establish initial state
-      while (eventIndex < events.rows.length) {
-        const event = events.rows[eventIndex];
-        if (toDateString(event.createdAt) >= startDay) {
-          break;
-        }
-        const delta = eventDelta(event);
-        if (delta !== 0) {
-          const current = composition.get(event.printingId) ?? 0;
-          const newCount = current + delta;
-          if (newCount <= 0) {
-            composition.delete(event.printingId);
-          } else {
-            composition.set(event.printingId, newCount);
+        if (event.action === "moved") {
+          if (event.fromIsGroup && !event.toIsGroup) {
+            return 1;
+          }
+          if (!event.fromIsGroup && event.toIsGroup) {
+            return -1;
           }
         }
-        eventIndex++;
+        return 0;
       }
 
-      // Walk day by day from start to end
-      const series: CollectionValueHistoryPoint[] = [];
-      const currentDay = new Date(startDay);
-      const lastPriceByPrinting = new Map<string, number>(); // carry-forward prices
+      /** Steps the composition back over one event. @returns void */
+      function undo(event: (typeof events.rows)[0]): void {
+        const delta = eventDelta(event);
+        if (delta === 0) {
+          return;
+        }
+        const next = (composition.get(event.printingId) ?? 0) - delta;
+        if (next <= 0) {
+          composition.delete(event.printingId);
+        } else {
+          composition.set(event.printingId, next);
+        }
+      }
 
-      while (toDateString(currentDay) <= endDay) {
+      const endDay = toDateString(new Date());
+      // A requested range spans its whole window even with no events in it —
+      // a collection nobody touched for a month is a flat month, not a single
+      // point. Without a cutoff the series starts at the first event, or at
+      // today for a collection whose copies predate any logged event.
+      const startDay =
+        windowStartDay ??
+        (events.rows.length > 0 ? toDateString(events.rows[0].createdAt) : endDay);
+
+      // Seed from today's copies, then undo events newest-first.
+      const composition = new Map<string, number>(
+        anchorRows.rows.map((row) => [row.printingId, row.copies]),
+      );
+      let eventIndex = events.rows.length - 1;
+
+      // Events dated after today (clock skew, or a same-day event recorded in
+      // a later timezone) belong to no emitted point — undo them up front so
+      // they don't leak into today's figure.
+      while (eventIndex >= 0 && toDateString(events.rows[eventIndex].createdAt) > endDay) {
+        undo(events.rows[eventIndex]);
+        eventIndex--;
+      }
+
+      const reversed: CollectionValueHistoryPoint[] = [];
+      const currentDay = new Date(endDay);
+
+      while (toDateString(currentDay) >= startDay) {
         const dayStr = toDateString(currentDay);
 
-        // Apply events for this day
-        while (eventIndex < events.rows.length) {
-          const event = events.rows[eventIndex];
-          if (toDateString(event.createdAt) > dayStr) {
-            break;
-          }
-          const delta = eventDelta(event);
-          if (delta !== 0) {
-            const current = composition.get(event.printingId) ?? 0;
-            const newCount = current + delta;
-            if (newCount <= 0) {
-              composition.delete(event.printingId);
-            } else {
-              composition.set(event.printingId, newCount);
-            }
-          }
-          eventIndex++;
-        }
-
-        // Update carry-forward prices for this day. Printings already
-        // tracked get refreshed on any new same-day snapshot; printings
-        // newly in composition (no carry-forward yet) get seeded from the
-        // latest snapshot ≤ dayStr so that prices recorded before the
-        // first `added` event still count.
-        for (const printingId of composition.keys()) {
-          const dayPrice = priceMap.get(printingId)?.get(dayStr);
-          if (dayPrice !== undefined) {
-            lastPriceByPrinting.set(printingId, dayPrice);
-          } else if (!lastPriceByPrinting.has(printingId)) {
-            const seed = latestPriceAtOrBefore(printingId, dayStr);
-            if (seed !== undefined) {
-              lastPriceByPrinting.set(printingId, seed);
-            }
-          }
-        }
-
-        // Compute value
         let valueCents = 0;
         let copyCount = 0;
         for (const [printingId, count] of composition) {
-          const price = lastPriceByPrinting.get(printingId);
+          const price = priceOnDay(printingId, dayStr);
           if (price !== undefined) {
             valueCents += price * count;
           }
           copyCount += count;
         }
+        reversed.push({ date: dayStr, valueCents, copyCount });
 
-        // Only emit points once the collection has cards (skip days where
-        // all adds were cancelled by removes, e.g. early testing activity).
-        if (copyCount > 0 || series.length > 0) {
-          series.push({ date: dayStr, valueCents, copyCount });
+        // Step back over this day's events to reach the previous day.
+        while (eventIndex >= 0 && toDateString(events.rows[eventIndex].createdAt) === dayStr) {
+          undo(events.rows[eventIndex]);
+          eventIndex--;
         }
 
-        currentDay.setUTCDate(currentDay.getUTCDate() + 1);
+        currentDay.setUTCDate(currentDay.getUTCDate() - 1);
       }
 
-      return series;
+      const series = reversed.toReversed();
+
+      // Drop leading empty days: an account whose earliest activity cancelled
+      // out (adds undone by removes the same week, common in early testing)
+      // shouldn't open on a flat zero run.
+      let firstHeld = 0;
+      while (firstHeld < series.length && series[firstHeld].copyCount === 0) {
+        firstHeld++;
+      }
+      return series.slice(firstHeld);
     },
 
     /**
-     * Refresh the `mv_latest_printing_prices` materialized view.
-     * Uses CONCURRENTLY so reads aren't blocked during refresh.
+     * Refresh the price materialized views. Uses CONCURRENTLY so reads aren't
+     * blocked during refresh.
+     *
+     * Order matters: `mv_latest_printing_prices` is defined over
+     * `mv_daily_printing_prices`, so refreshing it reads whatever the daily
+     * view currently holds. Daily first, or the latest view republishes
+     * yesterday's data under today's content token.
      *
      * @returns void
      */
     async refreshLatestPrices(): Promise<void> {
+      await sql`REFRESH MATERIALIZED VIEW CONCURRENTLY mv_daily_printing_prices`.execute(db);
       await sql`REFRESH MATERIALIZED VIEW CONCURRENTLY mv_latest_printing_prices`.execute(db);
     },
   };

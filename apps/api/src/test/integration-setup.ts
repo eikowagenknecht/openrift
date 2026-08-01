@@ -272,6 +272,9 @@ export async function bootstrapSeededTestDb(
       // Migrations create the views before the seed data exists.
       console.log("Refreshing materialized views...");
       await sql`REFRESH MATERIALIZED VIEW mv_card_aggregates`;
+      // Daily before latest — the latest view is defined over the daily one
+      // (migration 219), so refreshing it first would publish an empty result.
+      await sql`REFRESH MATERIALIZED VIEW mv_daily_printing_prices`;
       await sql`REFRESH MATERIALIZED VIEW mv_latest_printing_prices`;
       // Without this every seeded printing falls back to the sentinel rank and
       // `printings_ordered` returns them in arbitrary order (migration 215).

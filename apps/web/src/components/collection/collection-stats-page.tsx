@@ -718,7 +718,8 @@ export function CollectionStatsPage() {
   const topBarSlot = use(TopBarSlotContext);
   const [collectionScope, setCollectionScope] = useState("all");
   const collectionId = collectionScope === "all" ? undefined : collectionScope;
-  const stats = useCollectionStats(collectionId);
+  const scope = useScopeFromFilters();
+  const stats = useCollectionStats(collectionId, scope);
   const priceHistoryEnabled = useFeatureEnabled("price-history");
   const { orders } = useEnumOrders();
 
@@ -726,7 +727,6 @@ export function CollectionStatsPage() {
   const [countMode, setCountMode] = useState<CompletionCountMode>("cards");
   const topLevelFilters = useDisplayStore((state) => state.topLevelFilters);
   const topLevelUnits = resolveTopLevelUnits(topLevelFilters);
-  const scope = useScopeFromFilters();
   const prices = usePrices();
 
   const slugToName = new Map(stats.sets.map((set) => [set.slug, set.name]));

@@ -248,6 +248,8 @@ if (ctx) {
   // GET /prices reads headline prices from the mv_latest_printing_prices
   // materialized view. The runner refreshes it during setup, before this
   // file seeds its prices at import time — so refresh again to surface them.
+  // Daily first: the latest view is defined over it (migration 219).
+  await sql`REFRESH MATERIALIZED VIEW mv_daily_printing_prices`.execute(db);
   await sql`REFRESH MATERIALIZED VIEW mv_latest_printing_prices`.execute(db);
 }
 
