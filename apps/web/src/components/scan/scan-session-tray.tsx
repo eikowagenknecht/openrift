@@ -1,7 +1,8 @@
 import type { Printing } from "@openrift/shared";
-import { imageUrl, legendDisplayName } from "@openrift/shared";
+import { WellKnown, imageUrl, legendDisplayName } from "@openrift/shared";
 import { ArrowLeftRightIcon, MinusIcon, PlusIcon, SparklesIcon } from "lucide-react";
 
+import { FoilOverlay } from "@/components/cards/foil-overlay";
 import { PrintingVariantLabel } from "@/components/cards/printing-label";
 import { Button } from "@/components/ui/button";
 import { useEnumOrders } from "@/hooks/use-enums";
@@ -62,13 +63,27 @@ export function ScanSessionTray({
         {newestFirst.map((row) => {
           const printing = row.printing;
           const siblings = index ? finishSiblingsOf(printing, index) : [];
+          const isFoil = printing.finish !== WellKnown.finish.NORMAL;
           return (
             <li key={printing.id} className="flex items-center gap-3">
-              <img
-                src={imageUrl(printing.images[0]?.imageId ?? "", "120w")}
-                alt=""
-                className="h-14 w-10 shrink-0 rounded object-cover"
-              />
+              {/* Radius and clipping stay on this wrapper; the foil overlay's
+                  3D transform lives two levels in. Combining them on one
+                  element mis-sizes the overlay in Firefox. */}
+              <span
+                className={cn(
+                  "relative block h-14 w-10 shrink-0 overflow-hidden rounded",
+                  isFoil && "ring-1 ring-amber-400/60",
+                )}
+              >
+                <img
+                  src={imageUrl(printing.images[0]?.imageId ?? "", "120w")}
+                  alt=""
+                  className="size-full object-cover"
+                />
+                {/* Static rainbow, never the shimmer keyframe — the camera
+                    pipeline needs every frame of CPU it can get. */}
+                {isFoil && <FoilOverlay active shimmer={false} />}
+              </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-medium">
                   {legendDisplayName(printing.card)}
@@ -84,20 +99,25 @@ export function ScanSessionTray({
                   <PrintingVariantLabel printing={printing} siblings={siblings} />
                 </span>
               </span>
-              {siblings.map((sibling) => (
-                <Button
-                  key={sibling.id}
-                  size="sm"
-                  variant={printing.finish === "normal" ? "outline" : "secondary"}
-                  onClick={() => onSwitchFinish(row, sibling)}
-                  aria-label={`Mark one ${legendDisplayName(printing.card)} as ${labels.finishes[sibling.finish]}`}
-                >
-                  <SparklesIcon
-                    className={cn("size-4", printing.finish !== "normal" && "text-amber-500")}
-                  />
-                  {labels.finishes[sibling.finish]}
-                </Button>
-              ))}
+              {siblings.map((sibling) => {
+                const toFoil = sibling.finish !== WellKnown.finish.NORMAL;
+                return (
+                  <Button
+                    key={sibling.id}
+                    size="sm"
+                    variant={isFoil ? "secondary" : "outline"}
+                    // The button that makes a card foil carries the same amber
+                    // cue as a foil thumbnail. A rainbow wash sat over the
+                    // label and cost it contrast, so the ring gets it instead.
+                    className={cn(toFoil && "ring-1 ring-amber-400/60")}
+                    onClick={() => onSwitchFinish(row, sibling)}
+                    aria-label={`Mark one ${legendDisplayName(printing.card)} as ${labels.finishes[sibling.finish]}`}
+                  >
+                    <SparklesIcon className={cn("size-4", toFoil && "text-amber-500")} />
+                    {labels.finishes[sibling.finish]}
+                  </Button>
+                );
+              })}
               <Button
                 size="icon-sm"
                 variant="ghost"

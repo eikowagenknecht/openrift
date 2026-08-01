@@ -1,5 +1,5 @@
 import type { Printing } from "@openrift/shared";
-import { legendDisplayName } from "@openrift/shared";
+import { getOrientation, legendDisplayName } from "@openrift/shared";
 import {
   CameraIcon,
   CameraOffIcon,
@@ -8,7 +8,7 @@ import {
   VolumeXIcon,
   XIcon,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -19,12 +19,16 @@ import {
   PageTopBarSticky,
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
+import type { ScanFlight } from "@/components/scan/scan-flight-layer";
+import { ScanFlightLayer } from "@/components/scan/scan-flight-layer";
+import { ScanGhostPreview } from "@/components/scan/scan-ghost-preview";
 import type { IdentifyCandidate } from "@/components/scan/scan-identify-sheet";
 import { ScanIdentifySheet } from "@/components/scan/scan-identify-sheet";
 import { ScanLoadRow } from "@/components/scan/scan-load-row";
 import type { PickerRequest } from "@/components/scan/scan-printing-picker";
 import { ScanPrintingPicker } from "@/components/scan/scan-printing-picker";
 import { ScanSessionTray } from "@/components/scan/scan-session-tray";
+import { ScanStage } from "@/components/scan/scan-stage";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -40,23 +44,21 @@ import { useCards } from "@/hooks/use-cards";
 import { useCollections } from "@/hooks/use-collections";
 import { useBatchedAddCopies, useDisposeCopies } from "@/hooks/use-copies";
 import { useLanguageLabels } from "@/hooks/use-enums";
+import { useScanLayout } from "@/hooks/use-scan-layout";
 import { useScanAssets } from "@/hooks/use-scan-serving";
+import type { AimHint } from "@/lib/scan-aim-hint";
+import { createAimHintSmoother, deriveAimHint } from "@/lib/scan-aim-hint";
 import type { LoadedScanBank } from "@/lib/scan-bank";
 import { describeKey, loadScanBank } from "@/lib/scan-bank";
+import { ghostConfidence } from "@/lib/scan-confidence";
 import { playLockTick } from "@/lib/scan-feedback";
+import { guideRectIn, snapshotVideoRect } from "@/lib/scan-flight";
 import { buildScanPrintingIndex, resolveLock, sortForPicker } from "@/lib/scan-resolve";
 import { isTempCopyId } from "@/lib/temp-copy-id";
+import { cn } from "@/lib/utils";
 import { useScanPrefsStore } from "@/stores/scan-prefs-store";
 import type { ScanSessionRow } from "@/stores/scan-session-store";
 import { useScanSessionStore } from "@/stores/scan-session-store";
-
-/**
- * The almost-there band of {@link ScannerReadout.bestInliers}: verification
- * ran but finished just under the 11-inlier accept floor, which on a phone
- * almost always means slight blur or glare — one steadier frame away.
- */
-const HOLD_STEADY_MIN_INLIERS = 6;
-const HOLD_STEADY_MAX_INLIERS = 10;
 
 /**
  * How long one artwork must top the plausible ranking without a lock before
@@ -157,6 +159,10 @@ export function ScanPage() {
   const batchedAdd = useBatchedAddCopies();
   const disposeCopies = useDisposeCopies();
 
+  // Locked cards in flight to the tray, and the counter that keys them.
+  const [flights, setFlights] = useState<ScanFlight[]>([]);
+  const flightSeqRef = useRef(0);
+
   async function addPrinting(printing: Printing) {
     if (!targetId) {
       return;
@@ -192,7 +198,47 @@ export function ScanPage() {
       ]);
       return;
     }
+    // Only an auto-resolved lock flies: a picker lock does not reach the tray
+    // until the user answers it, by which time the card has left the guide and
+    // a snapshot would show the next one.
+    launchFlight();
     void addPrinting(resolution.printing);
+  }
+
+  /**
+   * Send a snapshot of whatever is in the guide right now flying into the
+   * tray. Decoration only — a missing video, an unmeasurable box or a tainted
+   * canvas all just mean no flight, never a failed add.
+   *
+   * @returns Nothing; the flight is queued as state.
+   */
+  function launchFlight() {
+    const video = videoRef.current;
+    if (!video) {
+      return;
+    }
+    const box = video.getBoundingClientRect();
+    const guide = guideRectIn({ width: box.width, height: box.height });
+    const image = snapshotVideoRect(video, guide);
+    if (image === null) {
+      return;
+    }
+    flightSeqRef.current += 1;
+    const flight: ScanFlight = {
+      id: `flight-${flightSeqRef.current}`,
+      image,
+      source: {
+        x: box.left + guide.x,
+        y: box.top + guide.y,
+        width: guide.width,
+        height: guide.height,
+      },
+    };
+    setFlights((current) => [...current, flight]);
+  }
+
+  function handleFlightEnd(id: string) {
+    setFlights((current) => current.filter((flight) => flight.id !== id));
   }
 
   function handleLockResolved(update: { artKey: string; key: string; label: string }) {
@@ -241,6 +287,31 @@ export function ScanPage() {
   });
 
   const ready = loaded !== null && cvReady && embedderReady;
+
+  // Aim coaching. The engine already knows why a scan is stalling — the card
+  // is too small, the frame is soft, verification is a couple of inliers
+  // short — and until now none of it reached the user. One line at a time,
+  // smoothed so a single unlucky frame never flashes a message.
+  const [aimHint, setAimHint] = useState<AimHint | null>(null);
+  const aimHintSmootherRef = useRef(createAimHintSmoother());
+  useEffect(() => {
+    if (!active) {
+      aimHintSmootherRef.current.reset();
+      setAimHint(null);
+      return;
+    }
+    const derived = deriveAimHint({
+      active: true,
+      hasCandidate: readout.candidate !== null,
+      candidateAreaFraction: readout.candidateAreaFraction,
+      bestInliers: readout.bestInliers,
+      focus: readout.focus,
+      topDistance: readout.ranked[0]?.distance,
+      refused: readout.refused,
+      isWinner: readout.winnerKey !== null,
+    });
+    setAimHint(aimHintSmootherRef.current.update(derived, performance.now()));
+  }, [active, readout]);
 
   // Tap-to-scan IS the slow-device path (see the admin harness). This page
   // has no mode selector, so the auto-switch is the only mode change.
@@ -333,12 +404,19 @@ export function ScanPage() {
     });
   }
 
-  const holdSteady =
-    active &&
-    suggestion === null &&
-    readout.winnerKey === null &&
-    readout.bestInliers >= HOLD_STEADY_MIN_INLIERS &&
-    readout.bestInliers <= HOLD_STEADY_MAX_INLIERS;
+  // The "Is it X?" chip is an escape hatch for a scan that is not converging,
+  // so it takes the spot; coaching is what plays while things are still going
+  // well.
+  const shownHint = suggestion === null ? aimHint : null;
+
+  // The artwork the engine is closing in on, shown as a converging ghost so
+  // the lock never arrives out of nowhere. Bank keys are image ids, so the aim
+  // key addresses the art directly; the printing lookup is only needed to know
+  // whether the art is a landscape battlefield.
+  const ghostImageId = active && suggestion === null ? (readout.aim?.key ?? null) : null;
+  const ghostPrinting = ghostImageId ? index?.byImageId.get(ghostImageId)?.[0] : undefined;
+  const ghostLandscape =
+    ghostPrinting !== undefined && getOrientation(ghostPrinting.card.types) === "landscape";
 
   function handlePick(printing: Printing) {
     setPickerQueue((queue) => queue.slice(1));
@@ -420,181 +498,264 @@ export function ScanPage() {
     void capture();
   }
 
+  // On a phone the card in the guide is what needs the pixels, so once the
+  // camera is running the page hands the whole viewport to the viewfinder and
+  // floats its chrome over the picture. Before that the normal page layout
+  // stays: the user keeps the header, the loading rows and the way back out.
+  const layout = useScanLayout();
+  const immersive = layout !== "boxed" && active;
+  const trayAnchorRef = useRef<HTMLDivElement>(null);
+
+  // Hides the app header and stops the page scrolling under the viewfinder;
+  // the matching rules live in index.css. Cleared on unmount as well as when
+  // the camera stops, so leaving the page mid-scan cannot strand the document
+  // in the immersive state.
+  useEffect(() => {
+    if (!immersive) {
+      return;
+    }
+    document.documentElement.dataset.scanImmersive = "";
+    return () => {
+      delete document.documentElement.dataset.scanImmersive;
+    };
+  }, [immersive]);
+
+  // Secondary controls sit on top of a live camera image, which can be any
+  // brightness in either theme — so they carry their own dark plate instead of
+  // trusting the surface tokens.
+  const overVideo = immersive
+    ? "border-white/20 bg-black/60 text-white hover:bg-black/70 hover:text-white"
+    : "";
+
+  const notices = (
+    <>
+      {deviceTooSlow && (
+        <Card className="mt-4 border-amber-500">
+          <CardContent className="pt-6">
+            <p className="font-medium">This device is too slow for live scanning.</p>
+            <p className="text-muted-foreground mt-2">
+              Tap to scan instead: aim with the guide as usual, then tap <strong>Scan card</strong>{" "}
+              for each card.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {loadError && (
+        <Card className="border-destructive mt-4">
+          <CardContent className="pt-6">
+            <p className="font-medium">Scanning is not available right now.</p>
+            <p className="text-muted-foreground mt-2">{loadError}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {scanError && <p className="text-destructive mt-4">{scanError}</p>}
+
+      {cameraAvailable === false && (
+        <p className="text-muted-foreground mt-4">
+          The camera needs a secure connection, so scanning only works over https.
+        </p>
+      )}
+    </>
+  );
+
+  const viewfinder = (
+    <>
+      {/* oxlint-disable-next-line jsx-a11y/media-has-caption -- live camera preview, no audio track */}
+      <video ref={videoRef} className="h-full w-full object-cover" playsInline muted />
+      <canvas ref={overlayRef} className="pointer-events-none absolute inset-0 h-full w-full" />
+      <ScanGhostPreview
+        imageId={ghostImageId}
+        confidence={ghostConfidence(readout.bestInliers, readout.lockProgress)}
+        landscape={ghostLandscape}
+        // Immersive floats the target-collection row over the top of the
+        // picture, so the ghost drops below it instead of under the mute
+        // button.
+        className={cn("absolute right-4", immersive ? "top-20" : "top-4")}
+      />
+      {shownHint && (
+        <p
+          // Keyed on the kind so a changed line animates in rather than
+          // swapping text under the reader's eye.
+          key={shownHint.kind}
+          className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-3 py-1 text-sm text-white"
+        >
+          {shownHint.message}
+        </p>
+      )}
+      {suggestion !== null && suggestionLabel !== null && (
+        <div className="absolute bottom-4 left-1/2 flex max-w-[90%] -translate-x-1/2 items-center gap-1.5 rounded-full bg-black/70 py-1 pr-1 pl-3 text-sm text-white">
+          <span className="truncate">Is it {suggestionLabel.split(" (")[0]}?</span>
+          <Button size="sm" onClick={handleSuggestionAdd}>
+            Add
+          </Button>
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            className="text-white hover:bg-white/20 hover:text-white"
+            onClick={handleSuggestionDismiss}
+            aria-label="Dismiss suggestion"
+          >
+            <XIcon className="size-4" />
+          </Button>
+        </div>
+      )}
+      {!active && (
+        <div className="text-muted-foreground absolute inset-0 grid place-items-center px-6 text-center">
+          {ready ? (
+            "Ready — start the camera and aim a card at the frame."
+          ) : (
+            <div className="flex flex-col items-center gap-3">
+              <ScanLoadRow label="Card index" done={loaded !== null} />
+              <ScanLoadRow label="OpenCV" done={cvReady} progress={engineProgress.opencv} />
+              <ScanLoadRow
+                label="Recognition model"
+                done={embedderReady}
+                progress={engineProgress.encoder}
+              />
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  );
+
+  const targetSelect = (
+    <Select
+      items={targetItems}
+      value={targetId ?? ""}
+      onValueChange={(value) => {
+        if (value) {
+          setStoredTargetId(value);
+        }
+      }}
+    >
+      <SelectTrigger aria-label="Add scans to" className={cn("max-w-40 sm:max-w-56", overVideo)}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {targetItems.map((item) => (
+          <SelectItem key={item.value} value={item.value}>
+            {item.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+
+  const muteButton = (
+    <Button
+      size="icon"
+      variant="ghost"
+      className={overVideo}
+      onClick={() => setMuted(!muted)}
+      aria-label={muted ? "Unmute scan sounds" : "Mute scan sounds"}
+    >
+      {muted ? <VolumeXIcon className="size-4" /> : <Volume2Icon className="size-4" />}
+    </Button>
+  );
+
+  const chrome = (
+    <>
+      {targetSelect}
+      <div className="ml-auto">{muteButton}</div>
+    </>
+  );
+
+  const controls = (
+    <>
+      {active ? (
+        <>
+          {settings.mode === "capture" && (
+            <Button onClick={handleCapture} className={cn(!immersive && "flex-1 sm:flex-none")}>
+              <CameraIcon />
+              Scan card
+            </Button>
+          )}
+          <Button onClick={handleIdentifyNow} variant="secondary" className={overVideo}>
+            <ScanSearchIcon />
+            Identify now
+          </Button>
+          <Button onClick={handleStop} variant="secondary" className={overVideo}>
+            <CameraOffIcon />
+            Stop
+          </Button>
+        </>
+      ) : (
+        <Button onClick={handleStart} disabled={!ready || cameraAvailable !== true}>
+          <CameraIcon />
+          Start camera
+        </Button>
+      )}
+      <div className={cn("flex items-center gap-2", !immersive && "ml-auto")}>
+        {!immersive && <span className="text-muted-foreground text-sm">Card language</span>}
+        <Select
+          items={languageItems}
+          value={cardLanguage}
+          onValueChange={(value) => {
+            if (value) {
+              setCardLanguage(value);
+            }
+          }}
+        >
+          <SelectTrigger aria-label="Card language" className={overVideo}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {languageItems.map((item) => (
+              <SelectItem key={item.value} value={item.value}>
+                {item.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </>
+  );
+
+  const tray = (
+    <ScanSessionTray
+      index={index}
+      onSwitchFinish={handleSwitchPrinting}
+      onAddOne={handleAddOne}
+      onRemoveOne={handleRemoveOne}
+      onChangePrinting={setSwapRow}
+    />
+  );
+
   return (
     <>
-      <PageTopBarSticky maxWidth="4xl">
-        <PageTopBar>
-          <PageTopBarBack to="/collections" aria-label="Back to collections" />
-          <PageTopBarTitle>Scan cards</PageTopBarTitle>
-          <PageTopBarActions>
-            <Select
-              items={targetItems}
-              value={targetId ?? ""}
-              onValueChange={(value) => {
-                if (value) {
-                  setStoredTargetId(value);
-                }
-              }}
-            >
-              <SelectTrigger aria-label="Add scans to" className="max-w-40 sm:max-w-56">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {targetItems.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <PageTopBarIconButton
-              onClick={() => setMuted(!muted)}
-              aria-label={muted ? "Unmute scan sounds" : "Mute scan sounds"}
-            >
-              {muted ? <VolumeXIcon className="size-4" /> : <Volume2Icon className="size-4" />}
-            </PageTopBarIconButton>
-          </PageTopBarActions>
-        </PageTopBar>
-      </PageTopBarSticky>
-
-      <div className="px-safe mx-auto w-full max-w-4xl px-4 pt-3 pb-12">
-        {deviceTooSlow && (
-          <Card className="mt-4 border-amber-500">
-            <CardContent className="pt-6">
-              <p className="font-medium">This device is too slow for live scanning.</p>
-              <p className="text-muted-foreground mt-2">
-                Tap to scan instead: aim with the guide as usual, then tap{" "}
-                <strong>Scan card</strong> for each card.
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
-        {loadError && (
-          <Card className="border-destructive mt-4">
-            <CardContent className="pt-6">
-              <p className="font-medium">Scanning is not available right now.</p>
-              <p className="text-muted-foreground mt-2">{loadError}</p>
-            </CardContent>
-          </Card>
-        )}
-
-        <div className="mt-4 flex flex-col gap-3">
-          <div className="bg-muted relative aspect-3/4 overflow-hidden rounded-lg sm:aspect-video">
-            {/* oxlint-disable-next-line jsx-a11y/media-has-caption -- live camera preview, no audio track */}
-            <video ref={videoRef} className="h-full w-full object-cover" playsInline muted />
-            <canvas
-              ref={overlayRef}
-              className="pointer-events-none absolute inset-0 h-full w-full"
-            />
-            {holdSteady && (
-              <p className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-3 py-1 text-sm text-white">
-                Almost — hold steady
-              </p>
-            )}
-            {suggestion !== null && suggestionLabel !== null && (
-              <div className="absolute bottom-4 left-1/2 flex max-w-[90%] -translate-x-1/2 items-center gap-1.5 rounded-full bg-black/70 py-1 pr-1 pl-3 text-sm text-white">
-                <span className="truncate">Is it {suggestionLabel.split(" (")[0]}?</span>
-                <Button size="sm" onClick={handleSuggestionAdd}>
-                  Add
-                </Button>
-                <Button
-                  size="icon-sm"
-                  variant="ghost"
-                  className="text-white hover:bg-white/20 hover:text-white"
-                  onClick={handleSuggestionDismiss}
-                  aria-label="Dismiss suggestion"
-                >
-                  <XIcon className="size-4" />
-                </Button>
-              </div>
-            )}
-            {!active && (
-              <div className="text-muted-foreground absolute inset-0 grid place-items-center px-6 text-center">
-                {ready ? (
-                  "Ready — start the camera and aim a card at the frame."
-                ) : (
-                  <div className="flex flex-col items-center gap-3">
-                    <ScanLoadRow label="Card index" done={loaded !== null} />
-                    <ScanLoadRow label="OpenCV" done={cvReady} progress={engineProgress.opencv} />
-                    <ScanLoadRow
-                      label="Recognition model"
-                      done={embedderReady}
-                      progress={engineProgress.encoder}
-                    />
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {active ? (
-              <>
-                {settings.mode === "capture" && (
-                  <Button onClick={handleCapture} className="flex-1 sm:flex-none">
-                    <CameraIcon />
-                    Scan card
-                  </Button>
-                )}
-                <Button onClick={handleIdentifyNow} variant="secondary">
-                  <ScanSearchIcon />
-                  Identify now
-                </Button>
-                <Button onClick={handleStop} variant="secondary">
-                  <CameraOffIcon />
-                  Stop
-                </Button>
-              </>
-            ) : (
-              <Button onClick={handleStart} disabled={!ready || cameraAvailable !== true}>
-                <CameraIcon />
-                Start camera
-              </Button>
-            )}
-            <div className="ml-auto flex items-center gap-2">
-              <span className="text-muted-foreground text-sm">Card language</span>
-              <Select
-                items={languageItems}
-                value={cardLanguage}
-                onValueChange={(value) => {
-                  if (value) {
-                    setCardLanguage(value);
-                  }
-                }}
+      {!immersive && (
+        <PageTopBarSticky maxWidth="4xl">
+          <PageTopBar>
+            <PageTopBarBack to="/collections" aria-label="Back to collections" />
+            <PageTopBarTitle>Scan cards</PageTopBarTitle>
+            <PageTopBarActions>
+              {targetSelect}
+              <PageTopBarIconButton
+                onClick={() => setMuted(!muted)}
+                aria-label={muted ? "Unmute scan sounds" : "Mute scan sounds"}
               >
-                <SelectTrigger aria-label="Card language">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {languageItems.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+                {muted ? <VolumeXIcon className="size-4" /> : <Volume2Icon className="size-4" />}
+              </PageTopBarIconButton>
+            </PageTopBarActions>
+          </PageTopBar>
+        </PageTopBarSticky>
+      )}
 
-          {scanError && <p className="text-destructive">{scanError}</p>}
-          {cameraAvailable === false && (
-            <p className="text-muted-foreground">
-              The camera needs a secure connection, so scanning only works over https.
-            </p>
-          )}
+      <ScanStage
+        layout={layout}
+        immersive={immersive}
+        viewfinder={viewfinder}
+        chrome={chrome}
+        controls={controls}
+        notices={notices}
+        tray={tray}
+        trayAnchorRef={trayAnchorRef}
+      />
 
-          <div className="mt-2">
-            <ScanSessionTray
-              index={index}
-              onSwitchFinish={handleSwitchPrinting}
-              onAddOne={handleAddOne}
-              onRemoveOne={handleRemoveOne}
-              onChangePrinting={setSwapRow}
-            />
-          </div>
-        </div>
-      </div>
+      <ScanFlightLayer flights={flights} targetRef={trayAnchorRef} onFlightEnd={handleFlightEnd} />
 
       <ScanPrintingPicker
         request={pickerQueue[0] ?? null}

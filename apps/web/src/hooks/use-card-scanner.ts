@@ -5,6 +5,7 @@ import type {
   FrameOutcome,
   OpenCvLike,
   OrbCvLike,
+  Point,
   Quad,
   RankedEmbed,
   RgbaImage,
@@ -23,6 +24,7 @@ import { cameraErrorMessage } from "@/lib/camera-error";
 import type { CameraInfo } from "@/lib/camera-info";
 import { readCameraInfo } from "@/lib/camera-info";
 import { fetchWithProgress } from "@/lib/fetch-progress";
+import { areaFractionOfGuide } from "@/lib/scan-aim-hint";
 import type { LoadedScanBank } from "@/lib/scan-bank";
 import { describeKey } from "@/lib/scan-bank";
 import {
@@ -31,6 +33,27 @@ import {
   loadScanEmbedder,
   measuredEmbedMsPerImage,
 } from "@/lib/scan-embedder";
+import type { ReticleGrade } from "@/lib/scan-overlay";
+import {
+  BRACKET_FRACTION,
+  GUIDE_COLOR,
+  RETICLE_COLORS,
+  RING_EASE,
+  RING_SNAP,
+  boundsOfQuad,
+  bracketSegments,
+  coverMapping,
+  gradeReticle,
+  lockRingDash,
+  lockRingFraction,
+  mapQuad,
+  reticleLineWidth,
+  ringRadiusFor,
+  roundedRectPerimeter,
+  shouldDrawLockRing,
+  stepQuadToward,
+  stepToward,
+} from "@/lib/scan-overlay";
 
 /**
  * `single` asks the user to place one card in a drawn guide rect: detection is
@@ -200,6 +223,24 @@ export interface ScannerReadout {
    * matches of an empty guide.
    */
   aim: { artKey: string; key: string; seconds: number } | null;
+  /**
+   * How far the current front-runner is through its run of agreeing frames:
+   * `runLength` of the `lockRun` frames a lock needs, clamped to it. Zero
+   * whenever the last frame produced no winner, so a broken run reads as lost
+   * progress rather than a stuck bar. `lockRun` is 0 before the first frame of
+   * a run, and 1 in capture mode, where a tap either locks or does not — the
+   * overlay draws no progress ring for either.
+   */
+  lockProgress: { runLength: number; lockRun: number };
+  /**
+   * How much of the guide rect the settled candidate covers, as an area
+   * ratio: about 1 when the card fills the guide, well under it when the card
+   * is too far away. Computed here because the quads are in processing-frame
+   * pixels and only this hook knows the frame's dimensions. Zero on a frame
+   * with no candidate. Always measured against the guide rect, even in pan
+   * mode, which draws none.
+   */
+  candidateAreaFraction: number;
 }
 
 const EMPTY_READOUT: ScannerReadout = {
@@ -218,36 +259,251 @@ const EMPTY_READOUT: ScannerReadout = {
   totalMs: 0,
   locks: [],
   aim: null,
+  lockProgress: { runLength: 0, lockRun: 0 },
+  candidateAreaFraction: 0,
 };
 
 /**
- * Outline a detected card on a 2D context.
+ * Agreeing frames a mode needs before it locks. The session is configured
+ * with exactly these in {@link useCardScanner}'s `createSession`; the overlay
+ * reads them to scale its progress ring.
  *
- * @returns Nothing; the context is drawn on directly.
+ * @returns The mode's lock run.
  */
-function strokeQuad(
+function lockRunForMode(mode: ScannerMode): number {
+  if (mode === "capture") {
+    return 1;
+  }
+  if (mode === "single") {
+    return 3;
+  }
+  return DEFAULT_SESSION_OPTIONS.accept.lockRun;
+}
+
+/**
+ * What the last processed frame told the overlay to aim at. Written once per
+ * pipeline frame, read by the paint loop on every animation frame — the two
+ * run at completely different rates, and this ref is the whole handover.
+ *
+ * Quads stay in rotated-frame pixels rather than canvas pixels so a resize
+ * between processed frames re-maps correctly instead of leaving the reticle
+ * behind at the old scale.
+ */
+interface OverlayTarget {
+  /** Detector proposal, null when the frame settled on nothing. */
+  quad: Quad | null;
+  /** The guide rect, null in pan mode, which has none. */
+  guide: Quad | null;
+  frameWidth: number;
+  frameHeight: number;
+  turns: number;
+  grade: ReticleGrade;
+  /** Unverified guess: dashed, so it never reads as a recognised card. */
+  dashed: boolean;
+  focus: number;
+  /** Lock-run progress as a fraction of the run needed to lock. */
+  lockFraction: number;
+  lockRun: number;
+}
+
+/**
+ * The eased state the paint loop carries between animation frames. Every
+ * point object is allocated once and mutated in place: this runs at display
+ * rate over a live camera preview, so the loop allocates nothing per frame.
+ */
+interface OverlayDrawState {
+  /** Drawn corners, in canvas pixels, chasing {@link OverlayDrawState.mapped}. */
+  points: Point[];
+  /** The current target, mapped into canvas pixels. */
+  mapped: Point[];
+  /** The guide rect, mapped into canvas pixels. */
+  guide: Point[];
+  /** False until a target lands, so the reticle appears in place rather than
+   * sliding in from wherever the last run left it. */
+  shown: boolean;
+  /** Eased lock-ring fill. */
+  ring: number;
+  /** The target the canvas currently shows, and whether the easing has caught
+   * up with it. A settled scene repaints nothing at all — on the phones where
+   * the pipeline already saturates the CPU, an idle guide must not also cost a
+   * full canvas clear sixty times a second. */
+  painted: OverlayTarget | null;
+  settled: boolean;
+}
+
+/**
+ * A fresh draw state, with its point objects allocated up front.
+ *
+ * @returns The state, with nothing shown yet.
+ */
+function createDrawState(): OverlayDrawState {
+  const corners = () => [
+    { x: 0, y: 0 },
+    { x: 0, y: 0 },
+    { x: 0, y: 0 },
+    { x: 0, y: 0 },
+  ];
+  return {
+    points: corners(),
+    mapped: corners(),
+    guide: corners(),
+    shown: false,
+    ring: 0,
+    painted: null,
+    settled: false,
+  };
+}
+
+/**
+ * Match the overlay canvas to the box the video occupies.
+ *
+ * The only layout read in the whole overlay path: the paint loop never
+ * measures, it reads the canvas's own width and height attributes.
+ *
+ * @returns Nothing; the canvas is resized when the box changed.
+ */
+function syncOverlaySize(canvas: HTMLCanvasElement, video: HTMLVideoElement): void {
+  const rect = video.getBoundingClientRect();
+  const width = Math.round(rect.width);
+  const height = Math.round(rect.height);
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
+  }
+}
+
+/**
+ * Trace a rounded rectangle clockwise from the top edge's midpoint.
+ *
+ * The start point is what makes the lock ring readable: a dashed stroke fills
+ * from there, so progress grows symmetrically out of the top of the guide
+ * instead of out of a corner. Built from `arcTo` rather than `roundRect`,
+ * which only reaches back to Safari 16.4, the exact browser floor.
+ *
+ * @returns Nothing; the path is left current on the context.
+ */
+function traceRoundedRect(
   context: CanvasRenderingContext2D,
-  quad: Quad | undefined,
-  color: string,
-  dashed = false,
+  rect: { x: number; y: number; width: number; height: number },
+  radius: number,
 ): void {
-  if (!quad) {
+  const { x, y, width, height } = rect;
+  const right = x + width;
+  const bottom = y + height;
+  const midX = x + width / 2;
+  context.beginPath();
+  context.moveTo(midX, y);
+  context.lineTo(right - radius, y);
+  context.arcTo(right, y, right, y + radius, radius);
+  context.lineTo(right, bottom - radius);
+  context.arcTo(right, bottom, right - radius, bottom, radius);
+  context.lineTo(x + radius, bottom);
+  context.arcTo(x, bottom, x, bottom - radius, radius);
+  context.lineTo(x, y + radius);
+  context.arcTo(x, y, x + radius, y, radius);
+  context.lineTo(midX, y);
+}
+
+/**
+ * Paint one animation frame of the overlay: the faint guide outline, the lock
+ * ring, and the tracking corner brackets.
+ *
+ * @returns Nothing; the canvas is drawn on directly.
+ */
+function paintOverlay(
+  canvas: HTMLCanvasElement,
+  context: CanvasRenderingContext2D,
+  target: OverlayTarget | null,
+  state: OverlayDrawState,
+): void {
+  // Nothing moved and nothing new landed: what is on the canvas is already
+  // right, so the cheapest frame is the one that does not paint.
+  if (target === state.painted && state.settled) {
     return;
   }
-  context.beginPath();
-  for (const [i, point] of quad.entries()) {
-    if (i === 0) {
-      context.moveTo(point.x, point.y);
+  state.painted = target;
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  if (!target) {
+    state.shown = false;
+    state.ring = 0;
+    state.settled = true;
+    return;
+  }
+  const mapping = coverMapping(
+    target.frameWidth,
+    target.frameHeight,
+    target.turns,
+    canvas.width,
+    canvas.height,
+  );
+
+  // The guide is a hint, not a verdict: barely there, so the brackets carry
+  // every bit of the emphasis.
+  if (target.guide) {
+    mapQuad(target.guide, mapping, state.guide);
+    context.beginPath();
+    context.moveTo(state.guide[0].x, state.guide[0].y);
+    for (let index = 1; index < state.guide.length; index++) {
+      context.lineTo(state.guide[index].x, state.guide[index].y);
+    }
+    context.closePath();
+    context.lineWidth = 2;
+    context.lineCap = "butt";
+    context.strokeStyle = GUIDE_COLOR;
+    context.stroke();
+  }
+
+  // With no candidate the brackets sit on the guide itself, so the reticle is
+  // always somewhere sensible and never blinks in and out between frames.
+  const source = target.quad ?? target.guide;
+  let settled = true;
+  if (source) {
+    mapQuad(source, mapping, state.mapped);
+    if (state.shown) {
+      settled = stepQuadToward(state.points, state.mapped);
     } else {
-      context.lineTo(point.x, point.y);
+      for (const [index, point] of state.points.entries()) {
+        point.x = state.mapped[index].x;
+        point.y = state.mapped[index].y;
+      }
+      state.shown = true;
+    }
+  } else {
+    state.shown = false;
+  }
+
+  state.ring = stepToward(state.ring, target.lockFraction, RING_EASE, RING_SNAP);
+  state.settled = settled && state.ring === target.lockFraction;
+  // Around the guide when there is one; in pan mode the tracked card is the
+  // only fixed thing on screen, so the ring rides it instead.
+  const ringQuad = target.guide ? state.guide : state.shown ? state.points : null;
+  if (ringQuad && shouldDrawLockRing(state.ring, target.lockRun)) {
+    const rect = boundsOfQuad(ringQuad);
+    const radius = ringRadiusFor(rect.width, rect.height);
+    const perimeter = roundedRectPerimeter(rect.width, rect.height, radius);
+    if (perimeter > 0) {
+      traceRoundedRect(context, rect, radius);
+      context.setLineDash(lockRingDash(perimeter, state.ring));
+      context.lineWidth = 4;
+      context.lineCap = "round";
+      context.strokeStyle = RETICLE_COLORS.locked;
+      context.stroke();
+      context.setLineDash([]);
     }
   }
-  context.closePath();
-  context.lineWidth = 3;
-  context.strokeStyle = color;
-  // The dashed stroke is the debug view: an unverified detector guess, drawn
-  // so the pipeline's search is visible but clearly not a recognised card.
-  context.setLineDash(dashed ? [8, 6] : []);
+
+  if (!state.shown) {
+    return;
+  }
+  context.lineWidth = reticleLineWidth(target.focus);
+  context.lineCap = "round";
+  context.strokeStyle = target.grade.color;
+  context.setLineDash(target.dashed ? [10, 7] : []);
+  context.beginPath();
+  for (const leg of bracketSegments(state.points, BRACKET_FRACTION)) {
+    context.moveTo(leg.ax, leg.ay);
+    context.lineTo(leg.bx, leg.by);
+  }
   context.stroke();
   context.setLineDash([]);
 }
@@ -493,6 +749,10 @@ export function useCardScanner(
   // spin flips the processed dimensions, thrashing the only-ever-growing
   // OpenCV heap until the tab dies (observed on a Pixel 1, 2026-07-27).
   const rotationAdoptionArmedRef = useRef(true);
+  // The overlay's two halves: what the last processed frame decided, and the
+  // eased state the animation-frame painter carries between repaints.
+  const overlayTargetRef = useRef<OverlayTarget | null>(null);
+  const overlayDrawRef = useRef<OverlayDrawState>(createDrawState());
 
   const [active, setActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -602,6 +862,31 @@ export function useCardScanner(
       cancelled = true;
     };
   }, [encoderUrl]);
+
+  // The overlay canvas follows the video's box, which changes on rotation and
+  // on any layout shift. Handled here rather than in the paint loop: measuring
+  // the video every animation frame is exactly the layout thrash the split
+  // between pipeline cadence and paint cadence exists to avoid.
+  useEffect(() => {
+    const resize = () => {
+      const canvas = overlayRef.current;
+      const video = videoRef.current;
+      if (canvas && video) {
+        syncOverlaySize(canvas, video);
+      }
+      // Resizing a canvas clears it, and the new box maps the same frame to
+      // different pixels: the painter has to redraw, and the reticle snaps to
+      // the new mapping rather than sliding across the screen.
+      overlayDrawRef.current.settled = false;
+      overlayDrawRef.current.shown = false;
+    };
+    globalThis.addEventListener("resize", resize);
+    globalThis.addEventListener("orientationchange", resize);
+    return () => {
+      globalThis.removeEventListener("resize", resize);
+      globalThis.removeEventListener("orientationchange", resize);
+    };
+  }, []);
 
   // Mirrored into a ref so the frame loop always reads current settings without
   // being torn down and restarted. Writing it in an effect rather than during
@@ -714,8 +999,8 @@ export function useCardScanner(
               // swallow the second copy).
               accept:
                 settingsRef.current.mode === "capture"
-                  ? { lockRun: 1, maxGapFrames: 0 }
-                  : { ...DEFAULT_SESSION_OPTIONS.accept, lockRun: 3 },
+                  ? { lockRun: lockRunForMode("capture"), maxGapFrames: 0 }
+                  : { ...DEFAULT_SESSION_OPTIONS.accept, lockRun: lockRunForMode("single") },
               ...(slowDevice
                 ? { rotationFallbackDistance: gates.slowRotationFallbackDistance }
                 : {}),
@@ -775,30 +1060,6 @@ export function useCardScanner(
   }
 
   /**
-   * Map a point from rotated-frame coordinates back to the unrotated frame
-   * the video element displays.
-   *
-   * @returns The point in display-frame coordinates.
-   */
-  function unrotatePoint(
-    point: { x: number; y: number },
-    rotatedWidth: number,
-    rotatedHeight: number,
-    turns: number,
-  ): { x: number; y: number } {
-    if (turns === 1) {
-      return { x: point.y, y: rotatedWidth - point.x };
-    }
-    if (turns === 2) {
-      return { x: rotatedWidth - point.x, y: rotatedHeight - point.y };
-    }
-    if (turns === 3) {
-      return { x: rotatedHeight - point.y, y: point.x };
-    }
-    return point;
-  }
-
-  /**
    * Adopt a frame rotation when verified winners persistently report one.
    *
    * @returns Nothing; the adopted turns apply from the next grabbed frame.
@@ -841,58 +1102,54 @@ export function useCardScanner(
     }
   }
 
-  function drawOverlay(
+  /**
+   * Hand the last processed frame to the paint loop. Nothing is drawn here:
+   * the pipeline lands 5-15 times a second, far too rarely for its own cadence
+   * to look like tracking, so the animation-frame painter owns the canvas and
+   * this only ever updates what it is aiming at.
+   *
+   * @returns Nothing; the target is stored for the paint loop.
+   */
+  function updateOverlayTarget(
     candidate: CardCandidate | null,
-    color: string,
+    grade: ReticleGrade,
     frameWidth: number,
     frameHeight: number,
     turns: number,
-    dashed = false,
-  ) {
+    focus: number,
+    runLength: number,
+    lockRun: number,
+  ): void {
     const canvas = overlayRef.current;
     const video = videoRef.current;
     if (!canvas || !video) {
       return;
     }
-    const rect = video.getBoundingClientRect();
-    if (canvas.width !== Math.round(rect.width) || canvas.height !== Math.round(rect.height)) {
-      canvas.width = Math.round(rect.width);
-      canvas.height = Math.round(rect.height);
-    }
-    const context = canvas.getContext("2d");
-    if (!context) {
-      return;
-    }
-    context.clearRect(0, 0, canvas.width, canvas.height);
-
-    // The video is rendered with object-fit: cover, so the displayed area is a
-    // centre crop of the frame; the overlay has to match that mapping or the
-    // outline drifts away from the card. Quads live in rotated-frame
-    // coordinates, so they map back through the frame rotation first.
-    const displayWidth = turns % 2 === 1 ? frameHeight : frameWidth;
-    const displayHeight = turns % 2 === 1 ? frameWidth : frameHeight;
-    const scale = Math.max(canvas.width / displayWidth, canvas.height / displayHeight);
-    const offsetX = (canvas.width - displayWidth * scale) / 2;
-    const offsetY = (canvas.height - displayHeight * scale) / 2;
-    const mapped = (quad: Quad) =>
-      quad.map((point) => {
-        const display = unrotatePoint(point, frameWidth, frameHeight, turns);
-        return {
-          x: display.x * scale + offsetX,
-          y: display.y * scale + offsetY,
-        };
-      }) as unknown as Quad;
-
-    if (settingsRef.current.mode !== "pan") {
-      strokeQuad(context, mapped(guideQuadFor(frameWidth, frameHeight)), "rgba(255,255,255,0.6)");
-    }
-    if (!candidate) {
-      return;
-    }
-    strokeQuad(context, mapped(candidate.quad), color, dashed);
+    // The one layout read of the overlay path, deliberately on the pipeline's
+    // cadence rather than the painter's.
+    syncOverlaySize(canvas, video);
+    overlayTargetRef.current = {
+      quad: candidate?.quad ?? null,
+      guide: settingsRef.current.mode === "pan" ? null : guideQuadFor(frameWidth, frameHeight),
+      frameWidth,
+      frameHeight,
+      turns,
+      grade,
+      dashed: grade.state === "seeking",
+      focus,
+      lockFraction: lockRingFraction(runLength, lockRun),
+      lockRun,
+    };
   }
 
-  function publish(outcome: FrameOutcome, aim: ScannerReadout["aim"], force: boolean) {
+  function publish(
+    outcome: FrameOutcome,
+    aim: ScannerReadout["aim"],
+    runLength: number,
+    lockRun: number,
+    candidateAreaFraction: number,
+    force: boolean,
+  ) {
     const now = performance.now();
     frameTimesRef.current.push(now);
     while (frameTimesRef.current.length > 0 && now - frameTimesRef.current[0] > 1000) {
@@ -922,6 +1179,8 @@ export function useCardScanner(
       totalMs: outcome.timings.total,
       locks: locksRef.current,
       aim,
+      lockProgress: { runLength, lockRun },
+      candidateAreaFraction,
     });
   }
 
@@ -1086,20 +1345,39 @@ export function useCardScanner(
       `[scan] #${frameIndexRef.current - 1} ${timings.total.toFixed(0)}ms (detect ${timings.detect.toFixed(0)}, embed ${timings.embed.toFixed(0)}, verify ${timings.verify.toFixed(0)}) focus ${outcome.focus.toFixed(0)}${topPart}${winnerPart}`,
     );
 
-    const color = outcome.winner
-      ? "rgba(74, 222, 128, 0.95)"
-      : outcome.refused
-        ? "rgba(251, 191, 36, 0.95)"
-        : "rgba(148, 163, 184, 0.9)";
-    drawOverlay(
+    // How far the frame's winner is through the run it needs to lock. Read off
+    // the accept layer's own track, so the ring can only ever show what the
+    // session would actually lock on; a winner-less frame is no progress at
+    // all, and the ring bleeds back down.
+    const lockRun = lockRunForMode(settingsRef.current.mode);
+    const winnerTrack = outcome.winner ? session.state.get(outcome.winner.artKey) : undefined;
+    const runLength = winnerTrack ? Math.min(winnerTrack.runLength, lockRun) : 0;
+
+    const grade = gradeReticle({
+      hasCandidate: outcome.candidate !== null,
+      bestInliers: outcome.bestInliers,
+      refused: outcome.refused,
+      isWinner: outcome.winner !== null,
+    });
+    // How much of the guide the settled candidate fills — the framing signal
+    // the page coaches from. Measured on the same candidate the reticle
+    // grades, and in the same frame coordinates the quads live in, which is
+    // why it cannot be derived outside this hook.
+    const areaFraction =
+      outcome.candidate === null
+        ? 0
+        : areaFractionOfGuide(outcome.candidate.quad, guideQuadFor(frame.width, frame.height));
+    updateOverlayTarget(
       outcome.candidate,
-      color,
+      grade,
       frame.width,
       frame.height,
       turns,
-      outcome.winner === null && !outcome.refused,
+      outcome.focus,
+      runLength,
+      lockRun,
     );
-    publish(outcome, aim, outcome.locked !== null);
+    publish(outcome, aim, runLength, lockRun, areaFraction, outcome.locked !== null);
   }
 
   async function start() {
@@ -1196,20 +1474,50 @@ export function useCardScanner(
     );
 
     capturingRef.current = false;
-    if (settingsRef.current.mode === "capture" && video) {
-      // Camera on, guide drawn, pipeline idle: frames run one at a time when
-      // capture() is tapped.
+
+    // The overlay repaints every animation frame for as long as this run
+    // lasts, easing the drawn corners toward whatever the last processed frame
+    // decided. Declared as a const for the same reason as the frame loop
+    // below: a hook-level function that references itself by name makes the
+    // React Compiler bail out of the whole hook. The generation check is what
+    // keeps a stopped run's painter from surviving into the next one.
+    overlayTargetRef.current = null;
+    overlayDrawRef.current = createDrawState();
+    const paint = () => {
+      if (generation !== runGenerationRef.current) {
+        return;
+      }
+      const canvas = overlayRef.current;
+      const context = canvas === null ? null : canvas.getContext("2d");
+      if (canvas && context) {
+        paintOverlay(canvas, context, overlayTargetRef.current, overlayDrawRef.current);
+      }
+      requestAnimationFrame(paint);
+    };
+    requestAnimationFrame(paint);
+
+    // Put the guide on screen before the first processed frame lands — in
+    // capture mode that is until the first tap, which would otherwise face a
+    // bare camera preview.
+    if (video && settingsRef.current.mode !== "pan") {
       const scale = Math.min(
         1,
         settingsRef.current.processingSize / Math.max(video.videoWidth, video.videoHeight),
       );
-      drawOverlay(
+      updateOverlayTarget(
         null,
-        "",
+        gradeReticle({ hasCandidate: false, bestInliers: 0, refused: false, isWinner: false }),
         Math.round(video.videoWidth * scale),
         Math.round(video.videoHeight * scale),
         0,
+        0,
+        0,
+        lockRunForMode(settingsRef.current.mode),
       );
+    }
+    if (settingsRef.current.mode === "capture") {
+      // Camera on, guide drawn, pipeline idle: frames run one at a time when
+      // capture() is tapped.
       startingRef.current = false;
       return;
     }
@@ -1283,6 +1591,10 @@ export function useCardScanner(
     runningRef.current = false;
     capturingRef.current = false;
     setActive(false);
+    // The bumped generation has already ended the paint loop, so the canvas
+    // has to be cleared here; dropping the target keeps a restart from
+    // painting the old run's geometry before its first frame lands.
+    overlayTargetRef.current = null;
     const canvas = overlayRef.current;
     canvas?.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height);
     for (const track of streamRef.current?.getTracks() ?? []) {

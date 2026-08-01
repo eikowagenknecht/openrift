@@ -525,6 +525,13 @@ html.hide-scrollbar::-webkit-scrollbar {
   padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
 }
 
+/* Top inset for chrome that floats over a full-bleed surface (the scanning
+   viewfinder), where nothing above it already absorbs the notch the way the
+   app header does. Same 0.75rem floor as the other side variants. */
+@utility pt-safe {
+  padding-top: max(0.75rem, env(safe-area-inset-top, 0px));
+}
+
 /* Negative horizontal margin that exactly cancels a `px-safe` parent gutter, so
    a full-bleed background (sticky toolbar blur) reaches the physical edge. Pair
    with `px-safe` to re-inset the content. Matches `-mx-3` on non-notched
@@ -580,4 +587,20 @@ html.hide-scrollbar::-webkit-scrollbar {
   &:hover::after {
     opacity: 1;
   }
+}
+
+/* The scanning page goes full-bleed on phones once the camera is running: the
+   viewfinder takes the whole viewport and its own chrome floats over the
+   picture. The app header would otherwise sit on top of the camera image (it is
+   sticky at z-50), and the page behind the viewfinder must not scroll under a
+   finger aiming at a card. The page sets the attribute for exactly as long as
+   it is immersive, so nothing here leaks to other routes. */
+html[data-scan-immersive] [data-app-header] {
+  display: none;
+}
+
+html[data-scan-immersive],
+html[data-scan-immersive] body {
+  overflow: hidden;
+  overscroll-behavior: none;
 }
