@@ -321,8 +321,8 @@ function OverrideUserCell({ row }: AdminCellSlotProps<OverrideRow>) {
   }
   return (
     <span className="text-sm">
-      {row.userEmail}
-      {row.userName ? <span className="text-muted-foreground ml-1">({row.userName})</span> : null}
+      {row.userName ?? row.userEmail}
+      {row.userName ? <span className="text-muted-foreground ml-1">({row.userEmail})</span> : null}
     </span>
   );
 }
@@ -355,10 +355,12 @@ function OverrideStatusCell({ row }: AdminCellSlotProps<OverrideRow>) {
 
 function OverrideUserAddSelect({ draft, setDraft }: AdminDraftSlotProps<OverrideDraft>) {
   const { data: usersData } = useAdminUsers();
-  const users = usersData.users.toSorted((a, b) => a.email.localeCompare(b.email));
+  const users = usersData.users.toSorted((a, b) =>
+    (a.name ?? a.email).localeCompare(b.name ?? b.email),
+  );
   const userItems = users.map((u) => ({
     value: u.id,
-    label: u.name ? `${u.email} (${u.name})` : u.email,
+    label: u.name ? `${u.name} (${u.email})` : u.email,
   }));
   if (!draft || !setDraft) {
     return null;
@@ -436,7 +438,7 @@ function OverrideStatusAddCell({ draft, setDraft }: AdminDraftSlotProps<Override
 const overrideColumns: AdminColumnDef<OverrideRow, OverrideDraft>[] = [
   {
     header: "User",
-    sortValue: (r) => r.userEmail,
+    sortValue: (r) => r.userName ?? r.userEmail,
     cell: <OverrideUserCell />,
     addCell: <OverrideUserAddSelect />,
   },
@@ -465,6 +467,7 @@ function OverridesSection() {
       columns={overrideColumns}
       data={data.overrides}
       getRowKey={(r) => `${r.userId}-${r.flagKey}`}
+      defaultSort={{ column: "User", direction: "asc" }}
       emptyText="No per-user overrides."
       toolbar={
         <p className="text-muted-foreground text-sm">
