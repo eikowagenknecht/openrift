@@ -7,7 +7,7 @@ import type {
 } from "@openrift/shared";
 import { ALL_MARKETPLACES, CURRENCIES, PALETTES, RENAMED_LANGUAGES } from "@openrift/shared";
 
-import type { DisplayOverrides } from "@/stores/display-store";
+import type { DisplayMode, DisplayOverrides } from "@/stores/display-store";
 
 const VALID_MARKETPLACES = new Set<string>(ALL_MARKETPLACES);
 const VALID_THEMES = new Set<string>(["light", "dark", "auto"]);
@@ -152,7 +152,75 @@ export function sanitizePalette(value: unknown): Palette | null {
   return null;
 }
 
+// ── Persisted-blob migrations ───────────────────────────────────────────────
+//
+// These read straight off a persisted localStorage/cookie blob rather than off
+// a typed state object, because a zustand `merge` is the only shape-migration
+// hook the stores have (an explicit persist `version` would make an older
+// bundle discard a newer blob outright). They live here so the migration
+// ladders are reachable from a test.
+
+/**
+ * Reads the persisted card-count overlay flag, migrating the legacy
+ * `catalogMode` tri-state that preceded it: "off" meant no overlay, while
+ * "count" and "add" both surfaced counts.
+ * @param data Raw persisted blob, any shape.
+ * @param fallback Value to keep when the blob carries neither key.
+ * @returns Whether catalog cards show owned counts.
+ */
+export function sanitizeCardsShowCounts(data: unknown, fallback: boolean): boolean {
+  const record = asRecord(data);
+  if (typeof record.cardsShowCounts === "boolean") {
+    return record.cardsShowCounts;
+  }
+  const legacy = record.catalogMode;
+  if (legacy === "off") {
+    return false;
+  }
+  if (legacy === "count" || legacy === "add") {
+    return true;
+  }
+  return fallback;
+}
+
+/**
+ * Reads the persisted grid/table choice, rejecting anything outside the union.
+ * @param data Raw persisted blob, any shape.
+ * @param fallback Value to keep when the blob carries no valid mode.
+ * @returns The stored display mode.
+ */
+export function sanitizeDisplayMode(data: unknown, fallback: DisplayMode): DisplayMode {
+  const raw = asRecord(data).displayMode;
+  return raw === "grid" || raw === "table" ? raw : fallback;
+}
+
+/**
+ * Reads the persisted filter-bar expansion flag.
+ * @param data Raw persisted blob, any shape.
+ * @param fallback Value to keep when the blob carries no boolean.
+ * @returns Whether the filter bar starts expanded.
+ */
+export function sanitizeFiltersExpanded(data: unknown, fallback: boolean): boolean {
+  const raw = asRecord(data).filtersExpanded;
+  return typeof raw === "boolean" ? raw : fallback;
+}
+
+/**
+ * Reads the persisted theme preference, migrating the legacy `theme` key that
+ * held it before the store split stored preference from resolved theme.
+ * @param data Raw persisted blob, any shape.
+ * @returns The theme preference, or null for auto/default.
+ */
+export function sanitizeThemePreference(data: unknown): Theme | null {
+  const record = asRecord(data);
+  return sanitizeTheme(record.preference === undefined ? record.theme : record.preference);
+}
+
 // ── Internal helpers ────────────────────────────────────────────────────────
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
+}
 
 function nullOverrides(): DisplayOverrides {
   return {

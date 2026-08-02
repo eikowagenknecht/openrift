@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 import { cookieStorage } from "@/lib/cookie-storage";
+import { sanitizeThemePreference } from "@/lib/sanitize-preferences";
 
 type ResolvedTheme = "light" | "dark";
 
@@ -77,13 +78,7 @@ export const useThemeStore = create<ThemeState>()(
         }
       },
       merge: (persisted, current) => {
-        const record =
-          typeof persisted === "object" && persisted !== null
-            ? (persisted as Record<string, unknown>)
-            : {};
-        // Migrate legacy `theme` key to `preference`
-        const raw = record.preference === undefined ? record.theme : record.preference;
-        const preference = raw === "light" || raw === "dark" || raw === "auto" ? raw : null;
+        const preference = sanitizeThemePreference(persisted);
         return {
           ...current,
           preference,

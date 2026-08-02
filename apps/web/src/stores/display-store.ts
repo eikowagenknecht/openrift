@@ -8,7 +8,15 @@ import { PREFERENCE_DEFAULTS } from "@openrift/shared";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-import { sanitizeOverrides } from "@/lib/sanitize-preferences";
+import {
+  sanitizeCardsShowCounts,
+  sanitizeDisplayMode,
+  sanitizeFiltersExpanded,
+  sanitizeOverrides,
+} from "@/lib/sanitize-preferences";
+
+/** Whether the card browser renders a grid of cards or a table of rows. */
+export type DisplayMode = "grid" | "table";
 
 // ── Override types (nullable — null means "use default") ────────────────────
 
@@ -121,7 +129,7 @@ interface DisplayState {
   setFiltersExpanded: (value: boolean) => void;
   cardsShowCounts: boolean;
   toggleCardsShowCounts: () => void;
-  displayMode: "grid" | "table";
+  displayMode: DisplayMode;
   setDisplayMode: (value: "grid" | "table") => void;
 
   // Layout state (derived from viewport, not persisted)
@@ -279,30 +287,9 @@ export const useDisplayStore = create<DisplayState>()(
           overrides: safe.overrides,
           ...resolveAll(safe.overrides),
           maxColumns: safe.maxColumns ?? current.maxColumns,
-          filtersExpanded:
-            typeof (persisted as Record<string, unknown>)?.filtersExpanded === "boolean"
-              ? ((persisted as Record<string, unknown>).filtersExpanded as boolean)
-              : current.filtersExpanded,
-          cardsShowCounts: (() => {
-            const raw = (persisted as Record<string, unknown>)?.cardsShowCounts;
-            if (typeof raw === "boolean") {
-              return raw;
-            }
-            // Migrate legacy catalogMode: "off" mapped to no overlay; "count"
-            // and "add" both surfaced counts, so both end up true.
-            const legacy = (persisted as Record<string, unknown>)?.catalogMode;
-            if (legacy === "off") {
-              return false;
-            }
-            if (legacy === "count" || legacy === "add") {
-              return true;
-            }
-            return current.cardsShowCounts;
-          })(),
-          displayMode: (() => {
-            const raw = (persisted as Record<string, unknown>)?.displayMode;
-            return raw === "grid" || raw === "table" ? raw : current.displayMode;
-          })(),
+          filtersExpanded: sanitizeFiltersExpanded(persisted, current.filtersExpanded),
+          cardsShowCounts: sanitizeCardsShowCounts(persisted, current.cardsShowCounts),
+          displayMode: sanitizeDisplayMode(persisted, current.displayMode),
         };
       },
     },
