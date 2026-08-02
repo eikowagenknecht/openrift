@@ -33,7 +33,7 @@ describe("useCopyToClipboard", () => {
 
   it("clears the copied flag after the reset delay", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    const { result } = renderHook(() => useCopyToClipboard(1500));
+    const { result } = renderHook(() => useCopyToClipboard());
 
     await act(async () => {
       await result.current.copy("link");
@@ -53,7 +53,7 @@ describe("useCopyToClipboard", () => {
 
   it("restarts the window when copied again before it elapses", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    const { result } = renderHook(() => useCopyToClipboard(1500));
+    const { result } = renderHook(() => useCopyToClipboard());
 
     await act(async () => {
       await result.current.copy("link");
@@ -101,11 +101,59 @@ describe("useCopyToClipboard", () => {
     expect(outcome).toBe(true);
   });
 
+  it("clears the flag immediately on reset", async () => {
+    const { result } = renderHook(() => useCopyToClipboard());
+
+    await act(async () => {
+      await result.current.copy("link");
+    });
+    expect(result.current.copied).toBe(true);
+
+    act(() => {
+      result.current.reset();
+    });
+    expect(result.current.copied).toBe(false);
+  });
+
+  it("cancels the pending window on reset so it cannot re-clear later", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { result } = renderHook(() => useCopyToClipboard());
+
+    await act(async () => {
+      await result.current.copy("link");
+    });
+    act(() => {
+      result.current.reset();
+    });
+
+    // Copy again inside the first window: the cancelled timer must not fire and
+    // clear this second confirmation early.
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
+    });
+    await act(async () => {
+      await result.current.copy("link");
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(500);
+    });
+    expect(result.current.copied).toBe(true);
+  });
+
+  it("is a no-op when nothing was copied", () => {
+    const { result } = renderHook(() => useCopyToClipboard());
+
+    act(() => {
+      result.current.reset();
+    });
+    expect(result.current.copied).toBe(false);
+  });
+
   it("does not update state after unmount", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const errors: unknown[] = [];
     const spy = vi.spyOn(console, "error").mockImplementation((...args) => errors.push(args));
-    const { result, unmount } = renderHook(() => useCopyToClipboard(1500));
+    const { result, unmount } = renderHook(() => useCopyToClipboard());
 
     await act(async () => {
       await result.current.copy("link");

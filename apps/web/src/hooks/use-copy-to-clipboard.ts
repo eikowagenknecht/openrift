@@ -4,10 +4,15 @@ import { useEffect, useRef, useState } from "react";
 const RESET_DELAY_MS = 1500;
 
 interface UseCopyToClipboard {
-  /** True for `resetDelayMs` after a successful copy. */
+  /** True for `RESET_DELAY_MS` after a successful copy. */
   copied: boolean;
   /** Writes `text` to the clipboard. Resolves false when the write was denied. */
   copy: (text: string) => Promise<boolean>;
+  /**
+   * Clears the confirmation immediately. For surfaces that outlive the window,
+   * like a dialog reopened with a different value before the timer elapsed.
+   */
+  reset: () => void;
 }
 
 /**
@@ -19,20 +24,20 @@ interface UseCopyToClipboard {
  * every place this is used, so a failed write is a non-event rather than
  * something worth interrupting the user over.
  *
- * @returns The `copied` flag and a `copy` function.
+ * @returns The `copied` flag, a `copy` function and a `reset` function.
  */
-export function useCopyToClipboard(resetDelayMs: number = RESET_DELAY_MS): UseCopyToClipboard {
+export function useCopyToClipboard(): UseCopyToClipboard {
   const [copied, setCopied] = useState(false);
   const timer = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
 
-  useEffect(
-    () => () => {
-      if (timer.current !== null) {
-        globalThis.clearTimeout(timer.current);
-      }
-    },
-    [],
-  );
+  const clearTimer = () => {
+    if (timer.current !== null) {
+      globalThis.clearTimeout(timer.current);
+      timer.current = null;
+    }
+  };
+
+  useEffect(() => clearTimer, []);
 
   const copy = async (text: string): Promise<boolean> => {
     try {
@@ -44,12 +49,15 @@ export function useCopyToClipboard(resetDelayMs: number = RESET_DELAY_MS): UseCo
     setCopied(true);
     // Restart the window on a repeat copy so the confirmation always lasts the
     // full delay from the most recent click.
-    if (timer.current !== null) {
-      globalThis.clearTimeout(timer.current);
-    }
-    timer.current = globalThis.setTimeout(() => setCopied(false), resetDelayMs);
+    clearTimer();
+    timer.current = globalThis.setTimeout(() => setCopied(false), RESET_DELAY_MS);
     return true;
   };
 
-  return { copied, copy };
+  const reset = () => {
+    clearTimer();
+    setCopied(false);
+  };
+
+  return { copied, copy, reset };
 }

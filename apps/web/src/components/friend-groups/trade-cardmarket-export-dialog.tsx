@@ -1,6 +1,5 @@
 import type { CardTradeResponse } from "@openrift/shared";
 import { CheckIcon, CopyIcon } from "lucide-react";
-import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useCards } from "@/hooks/use-cards";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { formatCardmarketWants } from "@/lib/list-export";
 
 interface TradeCardmarketExportDialogProps {
@@ -28,22 +28,14 @@ interface TradeCardmarketExportDialogProps {
  * @returns The labeled textarea block, or null when the direction is empty.
  */
 function DirectionBlock({ heading, text }: { heading: string; text: string }) {
-  const [copied, setCopied] = useState(false);
+  const { copied, copy } = useCopyToClipboard();
 
   if (text.length === 0) {
     return null;
   }
 
-  const handleCopy = async () => {
-    try {
-      // Use \r\n so line breaks survive iOS Safari's clipboard.
-      await navigator.clipboard.writeText(text.replaceAll("\n", "\r\n"));
-      setCopied(true);
-      globalThis.setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // Ignore clipboard errors — the user can still select the text manually.
-    }
-  };
+  // Use \r\n so line breaks survive iOS Safari's clipboard.
+  const handleCopy = () => void copy(text.replaceAll("\n", "\r\n"));
 
   const lineCount = text.split("\n").length;
 

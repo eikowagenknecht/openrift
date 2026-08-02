@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { useDeckCards } from "@/hooks/use-deck-builder";
 import { useEncodeDeckCards, useExportDeck } from "@/hooks/use-decks";
 import { useSession } from "@/lib/auth-session";
@@ -155,7 +156,7 @@ export function DeckExportDialog({
   const localDeckFormat = useLocalDecksStore((state) =>
     isLocal ? state.decks[deckId]?.format : undefined,
   );
-  const [copied, setCopied] = useState(false);
+  const { copied, copy, reset: resetCopied } = useCopyToClipboard();
   const [downloadingImage, setDownloadingImage] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [tab, setTab] = useState<ExportTab>("text");
@@ -179,7 +180,7 @@ export function DeckExportDialog({
       encodeDeck.reset();
       setTab("text");
       setFormats({});
-      setCopied(false);
+      resetCopied();
       setDownloadingImage(false);
       return;
     }
@@ -221,7 +222,7 @@ export function DeckExportDialog({
 
   const handleTabChange = (newTab: ExportTab) => {
     setTab(newTab);
-    setCopied(false);
+    resetCopied();
   };
 
   const currentFormat = tab === "registration" || tab === "image" ? {} : (formats[tab] ?? {});
@@ -229,15 +230,12 @@ export function DeckExportDialog({
   const currentLoading = currentFormat.loading ?? false;
   const currentError = currentFormat.error ?? false;
 
-  const handleCopy = async () => {
+  const handleCopy = () => {
     if (!currentData?.code) {
       return;
     }
     // Use \r\n so line breaks survive iOS Safari's clipboard
-    const text = currentData.code.replaceAll("\n", "\r\n");
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    void copy(currentData.code.replaceAll("\n", "\r\n"));
   };
 
   const handleGenerateRegistration = async () => {

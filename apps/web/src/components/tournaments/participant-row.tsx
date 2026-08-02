@@ -30,6 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { UserAvatar } from "@/components/user-avatar";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { useRegionLabel } from "@/hooks/use-region-label";
 import { getSiteUrl } from "@/lib/site-config";
 import { PARTICIPANT_STATUS_LABEL } from "@/lib/tournament-display";
@@ -62,12 +63,6 @@ export function participantMissesRegion(
   regionsEnabled: boolean,
 ): boolean {
   return regionsEnabled && participant.status === "active" && participant.region === null;
-}
-
-/** Copies the participant's claim link so the host can hand it to the player. */
-async function copyClaimLink(token: string): Promise<void> {
-  await navigator.clipboard.writeText(`${getSiteUrl()}/tournaments/claim/${token}`);
-  toast.success("Claim link copied");
 }
 
 function statusBadgeVariant(status: TournamentParticipantResponse["status"]) {
@@ -122,6 +117,7 @@ export function ParticipantRow({
   onRemove,
 }: ParticipantRowProps) {
   const regionLabel = useRegionLabel();
+  const { copy } = useCopyToClipboard();
   const missesRegion = participantMissesRegion(participant, regionsEnabled);
   const target: ParticipantTarget = {
     participantId: participant.id,
@@ -307,10 +303,16 @@ export function ParticipantRow({
                 </DropdownMenuItem>
               ) : participant.claimToken ? (
                 <DropdownMenuItem
-                  onClick={() => {
+                  onClick={async () => {
                     const token = participant.claimToken;
-                    if (token) {
-                      void copyClaimLink(token);
+                    if (!token) {
+                      return;
+                    }
+                    // Built from the env-backed origin, never a hardcoded site URL.
+                    if (await copy(`${getSiteUrl()}/tournaments/claim/${token}`)) {
+                      toast.success("Claim link copied");
+                    } else {
+                      toast.error("Could not copy the claim link");
                     }
                   }}
                 >

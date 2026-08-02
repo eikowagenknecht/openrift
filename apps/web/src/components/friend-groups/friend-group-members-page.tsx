@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { UserAvatar } from "@/components/user-avatar";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import {
   useAcceptFriendGroupInvite,
   useDeclineFriendGroupInvite,
@@ -201,6 +202,7 @@ function PendingRequestsBand({
 export function MembersInviteAction({ slug }: { slug: string }) {
   const { data } = useFriendGroupDetail(slug);
   const navigate = useNavigate();
+  const { copy } = useCopyToClipboard();
   if (!isAdmin(data.viewerRole ?? "member")) {
     return null;
   }
@@ -217,10 +219,11 @@ export function MembersInviteAction({ slug }: { slug: string }) {
     <PageTopBarPrimaryButton
       onClick={async () => {
         const joinUrl = `${getSiteUrl()}/groups/join?code=${encodeURIComponent(code)}`;
-        try {
-          await navigator.clipboard.writeText(joinUrl);
+        if (await copy(joinUrl)) {
           toast.success("Invite link copied. Send it to whoever you want to join");
-        } catch {
+        } else {
+          // No clipboard (denied, insecure context): hand the code over on the
+          // Manage page instead, where it is on screen and selectable.
           void navigate({ to: "/groups/$slug/manage", params: { slug } });
         }
       }}

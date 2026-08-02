@@ -193,6 +193,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { UserAvatar } from "@/components/user-avatar";
 import { UserAvatarStack } from "@/components/user-avatar-stack";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { useCssVars } from "@/hooks/use-css-vars";
 import {
   formatSpecLine,
@@ -527,12 +528,16 @@ const TYPE_TIERS: readonly { role: string; cls: string; note?: string }[] = [
 // `fg` is set, the tile shows an "Aa" sample in that color (the token's
 // paired foreground); line/chart tokens omit it.
 function ColorTokenTile({ token, fg, value }: { token: string; fg?: string; value?: string }) {
+  const { copy } = useCopyToClipboard();
   return (
     <Pressable
       className="group flex min-w-0 flex-col gap-1 text-left"
       onClick={async () => {
-        await navigator.clipboard.writeText(`var(${token})`);
-        toast.success(`Copied var(${token})`);
+        if (await copy(`var(${token})`)) {
+          toast.success(`Copied var(${token})`);
+        } else {
+          toast.error("Could not copy the token");
+        }
       }}
     >
       <span

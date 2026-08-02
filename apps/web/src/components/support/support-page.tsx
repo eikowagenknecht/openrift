@@ -1,5 +1,5 @@
 import { CopyIcon, HeartIcon } from "lucide-react";
-import { Suspense, useState } from "react";
+import { Suspense } from "react";
 import { siDiscord, siGithub, siGithubsponsors, siKofi, siX } from "simple-icons";
 
 import { CardText } from "@/components/cards/card-text";
@@ -7,6 +7,7 @@ import { Heading } from "@/components/heading";
 import { MarketplaceLink } from "@/components/marketplace-link";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { getFilterIconPath } from "@/lib/icons";
 import { getSiteUrl } from "@/lib/site-config";
@@ -112,15 +113,11 @@ function ShareButton({
 }
 
 function CopyButton({ text, label, icon }: { text: string; label: string; icon: React.ReactNode }) {
-  const [copied, setCopied] = useState(false);
+  const { copied, copy } = useCopyToClipboard();
 
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return <ShareButton label={copied ? "Copied!" : label} icon={icon} onClick={handleCopy} />;
+  return (
+    <ShareButton label={copied ? "Copied!" : label} icon={icon} onClick={() => void copy(text)} />
+  );
 }
 
 export function SupportPage() {

@@ -46,6 +46,7 @@ import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { Pressable } from "@/components/ui/pressable";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useEffectiveLanguageOrder } from "@/hooks/use-effective-language-order";
 import { useEnumOrders, useLanguageLabels } from "@/hooks/use-enums";
@@ -1021,7 +1022,7 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
 }
 
 function ShareLinkButton({ cardName }: { cardName: string }) {
-  const [copied, setCopied] = useState(false);
+  const { copied, copy } = useCopyToClipboard();
 
   const handleShare = async () => {
     if (typeof globalThis === "undefined" || !globalThis.location) {
@@ -1045,12 +1046,9 @@ function ShareLinkButton({ cardName }: { cardName: string }) {
       }
     }
 
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
+    if (await copy(url)) {
       toast.success("Link copied");
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
+    } else {
       toast.error("Could not copy link");
     }
   };

@@ -48,6 +48,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { UserAvatar } from "@/components/user-avatar";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import {
   useAddTournamentStaff,
   useRemoveTournamentStaff,
@@ -266,6 +267,7 @@ function StaffInviteRow({
   token: string | null;
 }) {
   const setInvite = useSetTournamentStaffInvite();
+  const { copy } = useCopyToClipboard();
   const [disableOpen, setDisableOpen] = useState(false);
   const roleLabel = STAFF_ROLE_LABEL[staffRole];
   const roleNoun = staffRole === "judge" ? "a judge" : "an organizer";
@@ -308,8 +310,11 @@ function StaffInviteRow({
               variant="secondary"
               aria-label={`Copy ${roleLabel.toLowerCase()} invite link`}
               onClick={async () => {
-                await navigator.clipboard.writeText(url);
-                toast.success("Link copied");
+                if (await copy(url)) {
+                  toast.success("Link copied");
+                } else {
+                  toast.error("Could not copy the link");
+                }
               }}
             >
               Copy

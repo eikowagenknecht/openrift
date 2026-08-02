@@ -18,6 +18,7 @@ import {
 import { DialogForm } from "@/components/ui/dialog-form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import {
   useMintMyDeckCheckKey,
   useMintOrgDeckCheckKey,
@@ -391,24 +392,23 @@ function RenameKeyDialog({
 }
 
 function MintedKeyDialog({ token, onClose }: { token: string | null; onClose: () => void }) {
-  const [copied, setCopied] = useState(false);
+  const { copied, copy, reset } = useCopyToClipboard();
 
   return (
     <Dialog
       open={token !== null}
       onOpenChange={(open) => {
         if (!open) {
-          setCopied(false);
+          reset();
           onClose();
         }
       }}
     >
       <DialogContent>
         <DialogForm
-          onSubmit={async () => {
+          onSubmit={() => {
             if (token) {
-              await navigator.clipboard.writeText(token);
-              setCopied(true);
+              void copy(token);
             }
           }}
         >

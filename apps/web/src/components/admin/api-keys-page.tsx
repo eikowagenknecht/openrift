@@ -63,7 +63,7 @@ function keyDate(value: Date | string | null): string {
 function CreatedKeyDialog({ createdKey, onClose }: { createdKey: string; onClose: () => void }) {
   // A secret, not a share link, so this stays a plain copy button rather than a
   // ShareLinkRow — the key must never end up in a QR.
-  const { copied: justCopied, copy } = useCopyToClipboard(2000);
+  const { copied: justCopied, copy } = useCopyToClipboard();
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>

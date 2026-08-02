@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useCards } from "@/hooks/use-cards";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import type { CsvExportFormat } from "@/lib/csv-export";
 import { CSV_EXPORT_FORMATS, csvExportFilename, downloadCSV } from "@/lib/csv-export";
 import {
@@ -67,21 +68,12 @@ export function ListExportDialog({
 }
 
 function TextExport({ entries }: { entries: readonly ListEntryDetailResponse[] }) {
-  const [copied, setCopied] = useState(false);
+  const { copied, copy } = useCopyToClipboard();
 
   const code = formatCardListAsDeckText(entries);
 
-  const handleCopy = async () => {
-    // Use \r\n so line breaks survive iOS Safari's clipboard.
-    const text = code.replaceAll("\n", "\r\n");
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      globalThis.setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // Ignore clipboard errors — user can still select the text manually.
-    }
-  };
+  // Use \r\n so line breaks survive iOS Safari's clipboard.
+  const handleCopy = () => void copy(code.replaceAll("\n", "\r\n"));
 
   return (
     <DialogForm onSubmit={handleCopy}>
@@ -176,7 +168,7 @@ function CsvExport({
  * @returns The wants block, or null when the list has no entries.
  */
 function CardmarketBlock({ entries }: { entries: readonly ListEntryDetailResponse[] }) {
-  const [copied, setCopied] = useState(false);
+  const { copied, copy } = useCopyToClipboard();
 
   const text = formatCardmarketWants(
     entries.map((entry) => ({ name: entry.cardName, quantity: entry.quantity })),
@@ -186,16 +178,8 @@ function CardmarketBlock({ entries }: { entries: readonly ListEntryDetailRespons
     return null;
   }
 
-  const handleCopy = async () => {
-    try {
-      // Use \r\n so line breaks survive iOS Safari's clipboard.
-      await navigator.clipboard.writeText(text.replaceAll("\n", "\r\n"));
-      setCopied(true);
-      globalThis.setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // Ignore clipboard errors — user can still select the text manually.
-    }
-  };
+  // Use \r\n so line breaks survive iOS Safari's clipboard.
+  const handleCopy = () => void copy(text.replaceAll("\n", "\r\n"));
 
   const lineCount = text.split("\n").length;
 

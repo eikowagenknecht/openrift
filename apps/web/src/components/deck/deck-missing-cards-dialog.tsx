@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import type { CardOwnership } from "@/hooks/use-deck-ownership";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useMarketplaceInfo } from "@/hooks/use-marketplace-info";
@@ -100,14 +101,10 @@ function CardIdentity({
  * @returns The copy button.
  */
 function CopyTextButton({ label, getText }: { label: string; getText: () => string }) {
-  const [copied, setCopied] = useState(false);
+  const { copied, copy } = useCopyToClipboard();
 
-  const handleCopy = async () => {
-    // Use \r\n so line breaks survive iOS Safari's clipboard
-    await navigator.clipboard.writeText(getText().replaceAll("\n", "\r\n"));
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  // Use \r\n so line breaks survive iOS Safari's clipboard
+  const handleCopy = () => void copy(getText().replaceAll("\n", "\r\n"));
 
   return (
     <Button variant="outline" size="sm" onClick={handleCopy}>

@@ -1,9 +1,9 @@
 import { CONTACT_METHOD_LABELS } from "@openrift/shared";
 import type { ContactMethod, ContactMethodType } from "@openrift/shared";
 import { CheckIcon, CopyIcon, LinkIcon, MailIcon, PhoneIcon, UserIcon } from "lucide-react";
-import { useState } from "react";
 import { siDiscord, siSignal, siTelegram, siWhatsapp } from "simple-icons";
 
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { cn } from "@/lib/utils";
 
 interface BrandIcon {
@@ -63,7 +63,7 @@ function ContactGlyph({ type }: { type: ContactMethodType }) {
 }
 
 function ContactChip({ method }: { method: ContactMethod }) {
-  const [copied, setCopied] = useState(false);
+  const { copied, copy } = useCopyToClipboard();
   const label = CONTACT_METHOD_LABELS[method.type];
   const href = contactHref(method);
   const chipClass =
@@ -96,11 +96,7 @@ function ContactChip({ method }: { method: ContactMethod }) {
       type="button"
       className={cn(chipClass, "hover:text-foreground transition-colors")}
       title={`Copy ${label}: ${method.value}`}
-      onClick={async () => {
-        await navigator.clipboard.writeText(method.value);
-        setCopied(true);
-        globalThis.setTimeout(() => setCopied(false), 1500);
-      }}
+      onClick={() => void copy(method.value)}
     >
       <ContactGlyph type={method.type} />
       <span className="truncate">{method.value}</span>
