@@ -43,10 +43,11 @@ export function ScanLoadRow({ label, done, progress }: ScanLoadRowProps) {
         ) : (
           <LoaderIcon className="size-4 shrink-0 animate-spin" />
         )}
-        <span className="text-foreground flex-1 text-left">{label}</span>
-        {detail !== null && (
-          <span className="text-muted-foreground text-sm tabular-nums">{detail}</span>
-        )}
+        {/* Colours are inherited, not pinned: these rows also run on the dark
+            plate of the pre-start panel, where `text-foreground` would be
+            invisible in the light theme. */}
+        <span className="flex-1 text-left">{label}</span>
+        {detail !== null && <span className="text-sm tabular-nums opacity-70">{detail}</span>}
       </div>
       {percent !== null && <Progress value={percent} className="mt-1.5" />}
     </div>

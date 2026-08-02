@@ -24,11 +24,11 @@ import { ScanFlightLayer } from "@/components/scan/scan-flight-layer";
 import { ScanGhostPreview } from "@/components/scan/scan-ghost-preview";
 import type { IdentifyCandidate } from "@/components/scan/scan-identify-sheet";
 import { ScanIdentifySheet } from "@/components/scan/scan-identify-sheet";
-import { ScanLoadRow } from "@/components/scan/scan-load-row";
 import type { PickerRequest } from "@/components/scan/scan-printing-picker";
 import { ScanPrintingPicker } from "@/components/scan/scan-printing-picker";
 import { ScanSessionTray } from "@/components/scan/scan-session-tray";
 import { ScanStage } from "@/components/scan/scan-stage";
+import { ScanStartPanel } from "@/components/scan/scan-start-panel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -639,21 +639,15 @@ export function ScanPage() {
         </div>
       )}
       {!active && (
-        <div className="text-muted-foreground absolute inset-0 grid place-items-center px-6 text-center">
-          {ready ? (
-            "Ready — start the camera and aim a card at the frame."
-          ) : (
-            <div className="flex flex-col items-center gap-3">
-              <ScanLoadRow label="Card index" done={loaded !== null} />
-              <ScanLoadRow label="OpenCV" done={cvReady} progress={engineProgress.opencv} />
-              <ScanLoadRow
-                label="Recognition model"
-                done={embedderReady}
-                progress={engineProgress.encoder}
-              />
-            </div>
-          )}
-        </div>
+        <ScanStartPanel
+          ready={ready}
+          cameraAvailable={cameraAvailable}
+          bankLoaded={loaded !== null}
+          cvReady={cvReady}
+          embedderReady={embedderReady}
+          engineProgress={engineProgress}
+          onStart={handleStart}
+        />
       )}
     </>
   );
@@ -700,9 +694,11 @@ export function ScanPage() {
     </>
   );
 
+  // Starting the camera is the pre-start panel's own call to action, so this
+  // row carries nothing but the card language until the camera is running.
   const controls = (
     <>
-      {active ? (
+      {active && (
         <>
           {settings.mode === "capture" && (
             <Button onClick={handleCapture} className={cn(!immersive && "flex-1 sm:flex-none")}>
@@ -719,13 +715,8 @@ export function ScanPage() {
             Stop
           </Button>
         </>
-      ) : (
-        <Button onClick={handleStart} disabled={!ready || cameraAvailable !== true}>
-          <CameraIcon />
-          Start camera
-        </Button>
       )}
-      <div className={cn("flex items-center gap-2", !immersive && "ml-auto")}>
+      <div className={cn("flex items-center gap-2", active && !immersive && "ml-auto")}>
         {!immersive && <span className="text-muted-foreground text-sm">Card language</span>}
         <Select
           items={languageItems}
