@@ -21,7 +21,7 @@ import type {
   SessionKind,
 } from "@/workers/scan-worker";
 
-export interface ScanWorkerReady {
+interface ScanWorkerReady {
   embedMsPerImage: number;
   embedImageSize: number;
   canonical: boolean;

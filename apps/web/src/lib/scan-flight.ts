@@ -9,7 +9,7 @@ export interface FlightRect {
 }
 
 /** One end of a flight, expressed as values `element.animate()` can consume. */
-export interface FlightTransform {
+interface FlightTransform {
   translateX: number;
   translateY: number;
   scale: number;
@@ -34,9 +34,9 @@ export const FLIGHT_MAX_DURATION_MS = 520;
 export const FLIGHT_FULL_DISTANCE_PX = 900;
 
 /** Long side of a snapshot in pixels — big enough to read, small enough to keep. */
-export const SNAPSHOT_LONG_SIDE_PX = 200;
+const SNAPSHOT_LONG_SIDE_PX = 200;
 /** JPEG quality for snapshots. */
-export const SNAPSHOT_QUALITY = 0.7;
+const SNAPSHOT_QUALITY = 0.7;
 
 /**
  * Coerces a possibly-missing or non-finite measurement to a usable number.

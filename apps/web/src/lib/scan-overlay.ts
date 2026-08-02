@@ -33,10 +33,10 @@ export const HOLD_STEADY_MAX_INLIERS = 10;
  * teleports; 0.25 catches up in about four frames, fast enough that the
  * brackets still read as tracking the card rather than trailing it.
  */
-export const RETICLE_EASE = 0.25;
+const RETICLE_EASE = 0.25;
 
 /** Sub-pixel remainder that is snapped rather than eased forever. */
-export const RETICLE_SNAP_PX = 0.5;
+const RETICLE_SNAP_PX = 0.5;
 
 /** The lock ring fills more slowly than the reticle tracks: it is a progress
  * bar, and a run that breaks should visibly bleed back rather than blink out. */

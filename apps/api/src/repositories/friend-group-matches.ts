@@ -1000,7 +1000,7 @@ interface PrintingSupplyBucket {
 }
 
 /** One printing's share of a member's offered copies of a card. */
-export interface TradelistHolderPrintingRow {
+interface TradelistHolderPrintingRow {
   printingId: string;
   quantity: number;
   /** The shared lists those copies sit on, alphabetical. */
