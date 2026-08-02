@@ -2,7 +2,6 @@ import type {
   PublicTournamentJoinResponse,
   PublicTournamentLandingResponse,
   TournamentStaffInviteLandingResponse,
-  TournamentStatus,
 } from "@openrift/shared";
 import { publicTournamentsContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
@@ -147,7 +146,7 @@ export const publicTournamentsRouter = {
       // `addParticipant` and pod `submitResult` guards; `selfRegistration` off is
       // a host-toggled policy gate (403), kept distinct so the client can tell
       // "tournament is over" from "sign-ups aren't open".
-      const status = tournament.status as TournamentStatus;
+      const status = tournament.status;
       if (status === "completed" || status === "cancelled") {
         throw errors.CONFLICT({ message: "This tournament is no longer accepting entries" });
       }

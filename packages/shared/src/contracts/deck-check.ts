@@ -99,7 +99,7 @@ const deckCheckEventStatusSchema = z.enum(["active", "archived"]);
 
 const deckCheckEntrySourceSchema = z.enum(["api", "manual", "self"]);
 
-const deckCheckClaimSourceSchema = z.enum(["judge_manual", "self_submit", "claim_link"]);
+export const deckCheckClaimSourceSchema = z.enum(["judge_manual", "self_submit", "claim_link"]);
 
 export const deckCheckEventSummaryResponseSchema = z
   .object({

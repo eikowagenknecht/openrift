@@ -1,8 +1,8 @@
+import type { JobTrigger } from "@openrift/shared";
 import type { Logger } from "@openrift/shared/logger";
 import { context, SpanStatusCode, trace } from "@opentelemetry/api";
 import * as Sentry from "@sentry/bun";
 
-import type { JobTrigger } from "../db/index.js";
 import type { Repos } from "../deps.js";
 
 const tracer = trace.getTracer("openrift-api/jobs");

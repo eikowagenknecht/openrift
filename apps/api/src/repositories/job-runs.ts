@@ -1,8 +1,9 @@
+import type { JobStatus, JobTrigger } from "@openrift/shared";
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
 import { parseJsonb } from "../db/helpers.js";
-import type { Database, JobStatus, JobTrigger } from "../db/index.js";
+import type { Database } from "../db/index.js";
 
 export interface JobRun {
   id: string;

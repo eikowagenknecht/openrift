@@ -3,6 +3,7 @@ import {
   deckCheckEntryStateSchema,
   deckCheckReviewOutcomeSchema,
   podTournamentDetailResponseSchema,
+  TOURNAMENT_STATUSES,
 } from "@openrift/shared/response-schemas";
 import {
   friendGroupSlugParamSchema,
@@ -18,15 +19,15 @@ extendZodWithOpenApi(z);
 
 // ─── Enums ─────────────────────────────────────────────────────────────────
 
-const tournamentStatusSchema = z.enum(["setup", "running", "completed", "cancelled"]);
-const tournamentPairingStyleSchema = z.enum(["none", "pod", "swiss"]);
-const tournamentPlayModeSchema = z.enum(["1v1", "2v2"]);
-const tournamentMatchFormatSchema = z.enum(["bo1", "bo3"]);
-const tournamentDeckSubmissionSchema = z.enum(["none", "optional", "required"]);
-const tournamentDeckPhaseSchema = z.enum(["open", "closed", "locked"]);
-const tournamentListLockModeSchema = z.enum(["on_submit", "at_deadline"]);
-const tournamentStaffRoleSchema = z.enum(["organizer", "judge"]);
-const tournamentParticipantStatusSchema = z.enum([
+export const tournamentStatusSchema = z.enum(TOURNAMENT_STATUSES);
+export const tournamentPairingStyleSchema = z.enum(["none", "pod", "swiss"]);
+export const tournamentPlayModeSchema = z.enum(["1v1", "2v2"]);
+export const tournamentMatchFormatSchema = z.enum(["bo1", "bo3"]);
+export const tournamentDeckSubmissionSchema = z.enum(["none", "optional", "required"]);
+export const tournamentDeckPhaseSchema = z.enum(["open", "closed", "locked"]);
+export const tournamentListLockModeSchema = z.enum(["on_submit", "at_deadline"]);
+export const tournamentStaffRoleSchema = z.enum(["organizer", "judge"]);
+export const tournamentParticipantStatusSchema = z.enum([
   "requested",
   "invited",
   "active",
@@ -34,7 +35,7 @@ const tournamentParticipantStatusSchema = z.enum([
   "no_show",
 ]);
 const tournamentViewerRoleSchema = z.enum(["host", "organizer", "judge", "participant"]);
-const scoringSchemeSchema = z.enum(["standard", "three_pod_reduced"]);
+export const scoringSchemeSchema = z.enum(["standard", "three_pod_reduced"]);
 
 // ─── Response schemas ──────────────────────────────────────────────────────
 

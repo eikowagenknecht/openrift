@@ -1,6 +1,8 @@
 import { keepPreviousData } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 
+import type { JobRunsQueryParams } from "./use-job-runs";
+
 vi.mock("@tanstack/react-start", () => ({
   createServerFn: () => {
     const chain = {
@@ -17,7 +19,12 @@ const { adminJobRunsQueryOptions, JOB_RUNS_PAGE_SIZE } = await import("./use-job
 
 describe("adminJobRunsQueryOptions", () => {
   it("encodes the page and filters into the query key", () => {
-    const params = { page: 3, kind: "images.regenerate", trigger: "cron", status: "failed" };
+    const params = {
+      page: 3,
+      kind: "images.regenerate",
+      trigger: "cron",
+      status: "failed",
+    } satisfies JobRunsQueryParams;
     expect(adminJobRunsQueryOptions(params).queryKey).toEqual([
       "admin",
       "job-runs",

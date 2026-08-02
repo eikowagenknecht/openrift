@@ -14,7 +14,14 @@ import type {
 } from "@openrift/shared/response-schemas";
 import type { z } from "zod";
 
-export type PodTournamentStatus = "setup" | "running" | "completed";
+import type { TournamentStatus } from "./tournament.js";
+
+/**
+ * The pod engine reads the umbrella's own `tournaments.status`, so the pod
+ * surface sees the same four values — a cancelled tournament still resolves
+ * through `runState` and the public report token (ADR-033).
+ */
+export type PodTournamentStatus = TournamentStatus;
 export type PodScoringScheme = "standard" | "three_pod_reduced";
 export type PodRoundStatus = "reporting" | "finalized";
 export type PodResultStatus = "pending" | "reported";

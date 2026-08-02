@@ -135,9 +135,13 @@ export type {
   MarketplaceGroupKind,
   MarketplaceGroupResponse,
   MissingImageCard,
+  JobRunActivity,
   JobRunsListResponse,
+  JobRunsQuery,
   JobRunStartedResponse,
   JobRunView,
+  JobStatus,
+  JobTrigger,
   PriceRefreshResponse,
   PriceRefreshUpsertCounts,
   CandidatePrintingGroupResponse,
@@ -201,7 +205,9 @@ export {
 
 export type {
   RuleChangesResponse,
+  RuleChangeType,
   RuleKind,
+  RuleType,
   RuleResponse,
   RulesListResponse,
   RuleVersionResponse,

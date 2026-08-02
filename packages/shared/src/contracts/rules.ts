@@ -4,7 +4,16 @@ import { z } from "zod";
 
 extendZodWithOpenApi(z);
 
-export const ruleKindSchema = z.enum(["core", "tournament"]);
+/** Which rulebook a rule belongs to. Mirrors the `rules.kind` CHECK. */
+export const RULE_KINDS = ["core", "tournament"] as const;
+/** A rule's role in the document outline. Mirrors the `rules.rule_type` CHECK. */
+export const RULE_TYPES = ["title", "subtitle", "text"] as const;
+/** How a rule differs from the previous version. Mirrors the `rules.change_type` CHECK. */
+export const RULE_CHANGE_TYPES = ["added", "modified", "removed"] as const;
+
+export const ruleKindSchema = z.enum(RULE_KINDS);
+export const ruleTypeSchema = z.enum(RULE_TYPES);
+export const ruleChangeTypeSchema = z.enum(RULE_CHANGE_TYPES);
 
 export const ruleResponseSchema = z.object({
   id: z.string().openapi({ example: "019cfc3b-0369-7000-8000-000000000100" }),
@@ -13,11 +22,11 @@ export const ruleResponseSchema = z.object({
   ruleNumber: z.string().openapi({ example: "3.4.1" }),
   sortOrder: z.number().openapi({ example: 120 }),
   depth: z.number().openapi({ example: 2 }),
-  ruleType: z.enum(["title", "subtitle", "text"]),
+  ruleType: ruleTypeSchema,
   content: z.string().openapi({
     example: "A player loses the game if they would draw a card from an empty deck.",
   }),
-  changeType: z.enum(["added", "modified", "removed"]),
+  changeType: ruleChangeTypeSchema,
 });
 
 export const ruleVersionResponseSchema = z.object({
@@ -46,8 +55,6 @@ export const ruleVersionsListResponseSchema = z
   .object({ versions: z.array(ruleVersionResponseSchema) })
   .openapi("RuleVersionsListResponse");
 
-const ruleKindEnum = z.enum(["core", "tournament"]);
-
 /**
  * oRPC contract for the public rules endpoints.
  *
@@ -61,12 +68,12 @@ export const rulesContract = {
   list: oc
     .route({ method: "GET", path: "/api/v1/rules", tags: ["Rules"] })
     .meta({ auth: "public", cache: "long", etag: true })
-    .input(z.object({ kind: ruleKindEnum, version: z.string().optional() }))
+    .input(z.object({ kind: ruleKindSchema, version: z.string().optional() }))
     .output(rulesListResponseSchema),
   versions: oc
     .route({ method: "GET", path: "/api/v1/rules/versions", tags: ["Rules"] })
     .meta({ auth: "public", cache: "long", etag: true })
-    .input(z.object({ kind: ruleKindEnum.optional() }))
+    .input(z.object({ kind: ruleKindSchema.optional() }))
     .output(ruleVersionsListResponseSchema),
 };
 

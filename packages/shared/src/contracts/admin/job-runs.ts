@@ -5,8 +5,16 @@ import { authedRoute } from "../_base.js";
 
 const TAG = "Admin";
 
-const triggerEnum = z.enum(["cron", "admin", "api"]);
-const statusEnum = z.enum(["running", "succeeded", "failed"]);
+/** What started a job run. Mirrors the `job_runs.trigger` CHECK. */
+export const JOB_TRIGGERS = ["cron", "admin", "api"] as const;
+/** Lifecycle of a job run. Mirrors the `job_runs.status` CHECK. */
+export const JOB_STATUSES = ["running", "succeeded", "failed"] as const;
+/** Derived filter over `job_runs.noop`, not a stored column. */
+export const JOB_RUN_ACTIVITIES = ["did-work", "noop"] as const;
+
+const triggerEnum = z.enum(JOB_TRIGGERS);
+const statusEnum = z.enum(JOB_STATUSES);
+const activityEnum = z.enum(JOB_RUN_ACTIVITIES);
 
 const jobRunViewSchema = z.object({
   id: z.uuid(),
@@ -36,7 +44,7 @@ const jobRunsQuerySchema = z.object({
   trigger: triggerEnum.optional(),
   status: statusEnum.optional(),
   /** "did-work" keeps only runs that did something, "noop" only the idle ones. */
-  activity: z.enum(["did-work", "noop"]).optional(),
+  activity: activityEnum.optional(),
   page: z.coerce.number().int().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(200).optional(),
 });
@@ -57,3 +65,7 @@ export const adminJobRunsContract = {
 export type AdminJobRunsContract = typeof adminJobRunsContract;
 export type JobRunsListResponse = z.infer<typeof jobRunsListResponseSchema>;
 export type JobRunView = z.infer<typeof jobRunViewSchema>;
+export type JobRunsQuery = z.infer<typeof jobRunsQuerySchema>;
+export type JobTrigger = (typeof JOB_TRIGGERS)[number];
+export type JobStatus = (typeof JOB_STATUSES)[number];
+export type JobRunActivity = (typeof JOB_RUN_ACTIVITIES)[number];

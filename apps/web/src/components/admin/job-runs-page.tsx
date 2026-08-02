@@ -1,3 +1,5 @@
+import type { JobRunActivity } from "@openrift/shared/contracts";
+import { JOB_RUN_ACTIVITIES, JOB_STATUSES, JOB_TRIGGERS } from "@openrift/shared/contracts";
 import {
   ChevronDownIcon,
   ChevronLeftIcon,
@@ -39,6 +41,40 @@ import { cn } from "@/lib/utils";
 const CANCELLABLE_KINDS = new Set<string>(["images.regenerate"]);
 
 const ANY = "__any";
+
+/** Labels for the activity filter, whose values are not display-ready. */
+const ACTIVITY_LABELS: Record<JobRunActivity, string> = {
+  "did-work": "did work",
+  noop: "no-op",
+};
+
+const TRIGGER_OPTIONS = [
+  { value: ANY, label: "All triggers" },
+  ...JOB_TRIGGERS.map((trigger) => ({ value: trigger, label: trigger })),
+];
+
+const STATUS_OPTIONS = [
+  { value: ANY, label: "All statuses" },
+  ...JOB_STATUSES.map((status) => ({ value: status, label: status })),
+];
+
+const ACTIVITY_OPTIONS = [
+  { value: ANY, label: "All activity" },
+  ...JOB_RUN_ACTIVITIES.map((activity) => ({
+    value: activity,
+    label: ACTIVITY_LABELS[activity],
+  })),
+];
+
+/**
+ * Narrows a filter's raw select value to the contract's union. The {@link ANY}
+ * sentinel is absent from every value set, so "no filter" and "not a known
+ * value" collapse into the same `undefined` with no cast.
+ * @returns The matching union member, or undefined when the filter is off.
+ */
+function filterValue<T extends string>(values: readonly T[], value: string): T | undefined {
+  return values.find((candidate) => candidate === value);
+}
 
 function TriggerBadge({ trigger }: { trigger: JobRunView["trigger"] }) {
   return (
@@ -99,9 +135,9 @@ export function JobRunsPage() {
   const { data, refetch, isFetching, dataUpdatedAt } = useAdminJobRuns({
     page,
     kind: kindFilter === ANY ? undefined : kindFilter,
-    trigger: triggerFilter === ANY ? undefined : triggerFilter,
-    status: statusFilter === ANY ? undefined : statusFilter,
-    activity: activityFilter === ANY ? undefined : activityFilter,
+    trigger: filterValue(JOB_TRIGGERS, triggerFilter),
+    status: filterValue(JOB_STATUSES, statusFilter),
+    activity: filterValue(JOB_RUN_ACTIVITIES, activityFilter),
   });
 
   useEffect(() => {
@@ -173,33 +209,19 @@ export function JobRunsPage() {
           value={triggerFilter}
           onChange={(value) => changeFilter(setTriggerFilter, value)}
           width="w-36"
-          options={[
-            { value: ANY, label: "All triggers" },
-            { value: "cron", label: "cron" },
-            { value: "admin", label: "admin" },
-            { value: "api", label: "api" },
-          ]}
+          options={TRIGGER_OPTIONS}
         />
         <FilterSelect
           value={statusFilter}
           onChange={(value) => changeFilter(setStatusFilter, value)}
           width="w-36"
-          options={[
-            { value: ANY, label: "All statuses" },
-            { value: "running", label: "running" },
-            { value: "succeeded", label: "succeeded" },
-            { value: "failed", label: "failed" },
-          ]}
+          options={STATUS_OPTIONS}
         />
         <FilterSelect
           value={activityFilter}
           onChange={(value) => changeFilter(setActivityFilter, value)}
           width="w-36"
-          options={[
-            { value: ANY, label: "All activity" },
-            { value: "did-work", label: "did work" },
-            { value: "noop", label: "no-op" },
-          ]}
+          options={ACTIVITY_OPTIONS}
         />
       </div>
 

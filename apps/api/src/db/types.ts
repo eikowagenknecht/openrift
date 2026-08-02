@@ -34,11 +34,9 @@ export type {
   // Friend groups (migration 134, 141)
   FriendGroupCollectionSharesTable,
   FriendGroupDiscordLinksTable,
-  FriendGroupInviteDirection,
   FriendGroupInvitesTable,
   FriendGroupListSharesTable,
   FriendGroupMembersTable,
-  FriendGroupRole,
   FriendGroupsTable,
   // Organizations + tournaments umbrella (migration 166/167, ADR-033)
   OrganizationsTable,
@@ -61,7 +59,4 @@ export type {
   MarkersTable,
   RaritiesTable,
   ReferenceTable,
-  // Job runs (migration 101)
-  JobStatus,
-  JobTrigger,
 } from "./tables.js";

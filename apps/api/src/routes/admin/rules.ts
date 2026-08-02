@@ -1,5 +1,5 @@
 import { ERROR_CODES } from "@openrift/shared";
-import type { RuleKind } from "@openrift/shared";
+import type { RuleChangeType, RuleKind, RuleType } from "@openrift/shared";
 import { adminRulesContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
@@ -13,7 +13,7 @@ const os = implement(adminRulesContract).$context<ApiContext>().use(requireAuthe
 
 interface ParsedRule {
   ruleNumber: string;
-  ruleType: "title" | "subtitle" | "text";
+  ruleType: RuleType;
   content: string;
   depth: number;
   sortOrder: number;
@@ -140,14 +140,14 @@ export const adminRulesRouter = {
     // Compute change types
     const newRuleNumbers = new Set(parsed.map((r) => r.ruleNumber));
     const rulesWithChanges: {
-      kind: typeof body.kind;
+      kind: RuleKind;
       version: string;
       ruleNumber: string;
       sortOrder: number;
       depth: number;
-      ruleType: string;
+      ruleType: RuleType;
       content: string;
-      changeType: string;
+      changeType: RuleChangeType;
     }[] = [];
 
     let added = 0;

@@ -8,7 +8,7 @@ const TAG = "Admin - Distribution Channels";
 
 const DC = "/api/admin/v1/distribution-channels";
 
-const channelKindEnum = z.enum(["event", "product"]);
+export const channelKindEnum = z.enum(["event", "product"]);
 
 export const channelSchema = z.object({
   id: z.string(),

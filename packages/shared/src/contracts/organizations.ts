@@ -16,7 +16,7 @@ const orgSlugSchema = z
   );
 const orgNameSchema = z.string().min(1).max(120);
 const orgDescriptionSchema = z.string().max(4000).nullable();
-const organizationRoleSchema = z.enum(["owner", "manager", "judge"]);
+export const organizationRoleSchema = z.enum(["owner", "manager", "judge"]);
 
 export const organizationResponseSchema = z
   .object({

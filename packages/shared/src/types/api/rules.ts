@@ -1,13 +1,20 @@
 import type {
+  ruleChangeTypeSchema,
   ruleChangesResponseSchema,
+  ruleKindSchema,
   ruleResponseSchema,
+  ruleTypeSchema,
   ruleVersionResponseSchema,
   ruleVersionsListResponseSchema,
   rulesListResponseSchema,
 } from "@openrift/shared/contracts/rules";
 import type { z } from "zod";
 
-export type RuleKind = "core" | "tournament";
+export type RuleKind = z.infer<typeof ruleKindSchema>;
+
+export type RuleType = z.infer<typeof ruleTypeSchema>;
+
+export type RuleChangeType = z.infer<typeof ruleChangeTypeSchema>;
 
 export type RuleResponse = z.infer<typeof ruleResponseSchema>;
 

@@ -68,9 +68,11 @@ export const updateDeckCardsSchema = z.object({
     .max(500),
 });
 
+export const deckMatchupSwapDirectionSchema = z.enum(["in", "out"]);
+
 const deckMatchupSwapSchema = z.object({
   cardId: z.uuid(),
-  direction: z.enum(["in", "out"]),
+  direction: deckMatchupSwapDirectionSchema,
   quantity: z.number().int().positive().max(99),
 });
 

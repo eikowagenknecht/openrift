@@ -10,6 +10,7 @@ import type {
   TournamentHostType,
   TournamentParticipantStatus,
   TournamentPlayMode,
+  TournamentStatus,
 } from "@openrift/shared";
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
@@ -209,7 +210,7 @@ function tournamentToEvent(row: Selectable<TournamentsTable>): DeckCheckEvent {
  * archived and refuses pushes.
  * @returns The deck-check event status for a tournament's DB status.
  */
-export function eventStatusForTournamentStatus(status: string): "active" | "archived" {
+export function eventStatusForTournamentStatus(status: TournamentStatus): "active" | "archived" {
   return status === "completed" || status === "cancelled" ? "archived" : "active";
 }
 

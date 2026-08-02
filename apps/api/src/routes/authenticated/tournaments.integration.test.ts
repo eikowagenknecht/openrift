@@ -711,7 +711,7 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       // Same for a cancelled tournament.
       await host.db
         .updateTable("tournaments")
-        .set({ status: "cancelled" as unknown as "completed" })
+        .set({ status: "cancelled" })
         .where("id", "=", closedId)
         .execute();
       const onCancelled = await host.app.fetch(

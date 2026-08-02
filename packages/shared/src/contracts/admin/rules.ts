@@ -2,14 +2,13 @@ import { withParams } from "@openrift/shared/schemas";
 import { z } from "zod";
 
 import { authedRoute } from "../_base.js";
+import { ruleKindSchema } from "../rules.js";
 
 const TAG = "Admin - Rules";
 
 const RULES = "/api/admin/v1/rules";
 
-const ruleKindEnum = z.enum(["core", "tournament"]);
-
-const versionParamSchema = z.object({ kind: ruleKindEnum, version: z.string() });
+const versionParamSchema = z.object({ kind: ruleKindSchema, version: z.string() });
 
 /**
  * oRPC contract for the admin rules management (mounted under
@@ -30,7 +29,7 @@ export const adminRulesContract = {
     })
     .input(
       z.object({
-        kind: ruleKindEnum,
+        kind: ruleKindSchema,
         version: z.string().min(1),
         comments: z.string().nullable().optional(),
         content: z.string().min(1),
@@ -38,7 +37,7 @@ export const adminRulesContract = {
     )
     .output(
       z.object({
-        kind: ruleKindEnum,
+        kind: ruleKindSchema,
         version: z.string(),
         rulesCount: z.number(),
         added: z.number(),
@@ -59,7 +58,9 @@ export const adminRulesContract = {
     .route({ method: "PATCH", path: `${RULES}/{kind}/versions/{version}`, tags: [TAG] })
     .errors({ NOT_FOUND: { message: "Rules version not found" } })
     .input(withParams(versionParamSchema, { comments: z.string().nullable() }))
-    .output(z.object({ kind: ruleKindEnum, version: z.string(), comments: z.string().nullable() })),
+    .output(
+      z.object({ kind: ruleKindSchema, version: z.string(), comments: z.string().nullable() }),
+    ),
 };
 
 export type AdminRulesContract = typeof adminRulesContract;

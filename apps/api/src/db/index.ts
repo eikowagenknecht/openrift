@@ -33,11 +33,9 @@ export type {
   ProductsTable,
   FriendGroupCollectionSharesTable,
   FriendGroupDiscordLinksTable,
-  FriendGroupInviteDirection,
   FriendGroupInvitesTable,
   FriendGroupListSharesTable,
   FriendGroupMembersTable,
-  FriendGroupRole,
   FriendGroupsTable,
   OrganizationsTable,
   OrganizationMembersTable,
@@ -53,6 +51,4 @@ export type {
   UserPreferencesTable,
   RaritiesTable,
   ReferenceTable,
-  JobStatus,
-  JobTrigger,
 } from "./types.js";

@@ -7,7 +7,7 @@ const TAG = "Admin - Site Settings";
 
 const SS = "/api/admin/v1/site-settings";
 
-const scopeEnum = z.enum(["web", "api"]);
+export const scopeEnum = z.enum(["web", "api"]);
 
 export const siteSettingSchema = z.object({
   key: z.string(),

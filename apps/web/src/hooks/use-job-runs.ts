@@ -1,4 +1,10 @@
-import type { JobRunsListResponse, JobRunView } from "@openrift/shared/contracts";
+import type {
+  JobRunActivity,
+  JobRunsListResponse,
+  JobRunView,
+  JobStatus,
+  JobTrigger,
+} from "@openrift/shared/contracts";
 import { adminJobRunsContract } from "@openrift/shared/contracts";
 import { keepPreviousData, queryOptions, useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
@@ -14,10 +20,10 @@ export const JOB_RUNS_PAGE_SIZE = 50;
 export interface JobRunsQueryParams {
   page: number;
   kind?: string;
-  trigger?: string;
-  status?: string;
-  /** "did-work" | "noop" — filters by whether a run did anything. */
-  activity?: string;
+  trigger?: JobTrigger;
+  status?: JobStatus;
+  /** Filters by whether a run did anything. */
+  activity?: JobRunActivity;
 }
 
 const fetchJobRuns = createServerFn({ method: "GET" })
@@ -29,9 +35,9 @@ const fetchJobRuns = createServerFn({ method: "GET" })
         page: data.page,
         limit: JOB_RUNS_PAGE_SIZE,
         kind: data.kind,
-        trigger: data.trigger as "cron" | "admin" | "api" | undefined,
-        status: data.status as "running" | "succeeded" | "failed" | undefined,
-        activity: data.activity as "did-work" | "noop" | undefined,
+        trigger: data.trigger,
+        status: data.status,
+        activity: data.activity,
       }),
   );
 

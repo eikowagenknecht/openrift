@@ -1,6 +1,5 @@
 import type {
   PodScoringScheme,
-  PodTournamentStatus,
   TournamentClaimSource,
   TournamentDeckPhase,
   TournamentDeckSubmission,
@@ -22,14 +21,6 @@ import { generateShareToken } from "../utils/share-token.js";
 
 export type Tournament = Selectable<TournamentsTable>;
 export type TournamentParticipant = Selectable<TournamentParticipantsTable>;
-
-// The DB CHECKs permit the full umbrella lifecycle, but the Kysely Insertable
-// type for tournaments is intentionally narrowed to the pod subset (see
-// tables.ts). Cast the wide ADR-033 statuses through `unknown` so writes
-// compile without touching the generated table types.
-function asTournamentStatus(status: TournamentStatus): PodTournamentStatus {
-  return status as unknown as PodTournamentStatus;
-}
 
 /**
  * Normalizes a raw tournament row so `allowedSets` is always a parsed array (or
@@ -731,7 +722,7 @@ export function tournamentsRepo(db: Kysely<Database>) {
         .insertInto("tournaments")
         .values({
           ...rest,
-          ...(status === undefined ? {} : { status: asTournamentStatus(status) }),
+          ...(status === undefined ? {} : { status }),
           allowedSets: allowedSets === undefined ? undefined : JSON.stringify(allowedSets),
         })
         .returningAll()
@@ -746,7 +737,7 @@ export function tournamentsRepo(db: Kysely<Database>) {
         .updateTable("tournaments")
         .set({
           ...rest,
-          ...(status === undefined ? {} : { status: asTournamentStatus(status) }),
+          ...(status === undefined ? {} : { status }),
           ...(allowedSets === undefined ? {} : { allowedSets: JSON.stringify(allowedSets) }),
           updatedAt: new Date(),
         })

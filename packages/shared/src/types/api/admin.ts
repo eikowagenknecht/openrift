@@ -71,7 +71,14 @@ import type {
 import type { adminUserSchema } from "../../contracts/admin/users.js";
 import type { marketplaceEnum } from "../../schemas.js";
 
-export type { JobRunView, JobRunsListResponse } from "../../contracts/admin/job-runs.js";
+export type {
+  JobRunActivity,
+  JobRunsListResponse,
+  JobRunsQuery,
+  JobRunView,
+  JobStatus,
+  JobTrigger,
+} from "../../contracts/admin/job-runs.js";
 
 export type CandidateCardResponse = z.infer<typeof candidateCardResponseSchema>;
 

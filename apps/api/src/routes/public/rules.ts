@@ -1,7 +1,9 @@
 import type {
+  RuleChangeType,
   RuleKind,
   RuleResponse,
   RulesListResponse,
+  RuleType,
   RuleVersionResponse,
   RuleVersionsListResponse,
 } from "@openrift/shared";
@@ -17,25 +19,25 @@ import type { ApiContext } from "../../orpc/context.js";
  */
 function toRuleResponse(row: {
   id: string;
-  kind: string;
+  kind: RuleKind;
   version: string;
   ruleNumber: string;
   sortOrder: number;
   depth: number;
-  ruleType: string;
+  ruleType: RuleType;
   content: string;
-  changeType: string;
+  changeType: RuleChangeType;
 }): RuleResponse {
   return {
     id: row.id,
-    kind: row.kind as RuleKind,
+    kind: row.kind,
     version: row.version,
     ruleNumber: row.ruleNumber,
     sortOrder: row.sortOrder,
     depth: row.depth,
-    ruleType: row.ruleType as RuleResponse["ruleType"],
+    ruleType: row.ruleType,
     content: row.content,
-    changeType: row.changeType as RuleResponse["changeType"],
+    changeType: row.changeType,
   };
 }
 

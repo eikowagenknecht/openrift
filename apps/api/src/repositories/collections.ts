@@ -1,7 +1,8 @@
+import type { FriendGroupRole } from "@openrift/shared";
 import type { Kysely, Selectable, Updateable } from "kysely";
 import { sql } from "kysely";
 
-import type { CollectionsTable, CopiesTable, Database, FriendGroupRole } from "../db/index.js";
+import type { CollectionsTable, CopiesTable, Database } from "../db/index.js";
 
 interface CollectionWithCount extends Selectable<CollectionsTable> {
   copyCount: number;

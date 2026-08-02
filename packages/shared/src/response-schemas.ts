@@ -454,9 +454,16 @@ export const contactMethodSchema = z
 
 // ── Pod tournaments (ADR-022) ────────────────────────────────────────────────
 
-export const podTournamentStatusSchema = z
-  .enum(["setup", "running", "completed"])
-  .openapi("PodTournamentStatus");
+/**
+ * The umbrella tournament lifecycle, and the single owner of these four values.
+ * The DB CHECK on `tournaments.status` permits exactly this set.
+ */
+export const TOURNAMENT_STATUSES = ["setup", "running", "completed", "cancelled"] as const;
+
+// The pod engine reads the same `tournaments.status` column, so it carries the
+// same four values (ADR-033). Kept as its own OpenAPI component because the pod
+// response schemas reference it by that name.
+export const podTournamentStatusSchema = z.enum(TOURNAMENT_STATUSES).openapi("PodTournamentStatus");
 export const podScoringSchemeSchema = z.enum(["standard", "three_pod_reduced"]);
 export const podPlayerStatusSchema = z.enum(["active", "dropped"]);
 export const podPairingStyleSchema = z.enum(["none", "pod", "swiss"]);
@@ -510,11 +517,14 @@ export const podPenaltyViewSchema = z.object({
   repeatedRegion: z.number(),
 });
 
+export const podResultStatusSchema = z.enum(["pending", "reported"]);
+export const podRoundStatusSchema = z.enum(["reporting", "finalized"]);
+
 export const podResponseSchema = z.object({
   id: z.string(),
   podNumber: z.number().int().positive(),
   size: z.union([z.literal(2), z.literal(3), z.literal(4)]),
-  resultStatus: z.enum(["pending", "reported"]),
+  resultStatus: podResultStatusSchema,
   members: z.array(podMemberResponseSchema),
   penalty: podPenaltyViewSchema.nullable(),
 });
@@ -527,7 +537,7 @@ export const podByeResponseSchema = z.object({
 export const podRoundResponseSchema = z.object({
   id: z.string(),
   roundNumber: z.number().int().positive(),
-  status: z.enum(["reporting", "finalized"]),
+  status: podRoundStatusSchema,
   pairingStrategy: z.string().nullable(),
   penaltyTotal: z.number().nullable(),
   createdAt: z.string(),
@@ -613,7 +623,7 @@ export const deckCheckEntryStateSchema = z.enum([
   "withdrawn",
 ]);
 export const deckCheckReviewOutcomeSchema = z.enum(["ok", "issue"]);
-const deckCheckMatchStatusSchema = z.enum(["matched", "ambiguous", "unmatched"]);
+export const deckCheckMatchStatusSchema = z.enum(["matched", "ambiguous", "unmatched"]);
 
 export const deckCheckEntryCardResponseSchema = z.object({
   id: z.string(),

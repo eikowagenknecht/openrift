@@ -11,23 +11,34 @@ import type {
   ArtVariant,
   CardFace,
   CardSize,
+  CardTradeInitiator,
+  CardTradeStatus,
   CardType,
   ContactMethodType,
   CopyLink,
+  Currency,
   DeckFormat,
   DeckFormatConfig,
   DeckZone,
   Finish,
+  FriendGroupInviteDirection,
+  FriendGroupRole,
+  JobStatus,
+  JobTrigger,
   ListIntent,
   ListKind,
   ListRuleCombine,
   ListRules,
+  LoanStatus,
+  MarketplaceGroupKind,
   OrganizationRole,
   PodResultStatus,
   PodRoundStatus,
   PodScoringScheme,
-  PodTournamentStatus,
   Rarity,
+  RuleChangeType,
+  RuleKind,
+  RuleType,
   TournamentClaimSource,
   TournamentDeckPhase,
   TournamentDeckSubmission,
@@ -38,6 +49,9 @@ import type {
   TournamentParticipantStatus,
   TournamentPlayMode,
   TournamentStaffRole,
+  TournamentStatus,
+  TradePricePref,
+  TradeType,
   UserPreferencesResponse,
 } from "@openrift/shared/types";
 import type { ColumnType, Generated } from "kysely";
@@ -164,8 +178,6 @@ export interface PrintingsTable {
 }
 
 // ─── Unified marketplace pricing (migration 022) ────────────────────────────
-
-export type MarketplaceGroupKind = "basic" | "special";
 
 interface MarketplaceGroupsTable {
   id: Generated<string>;
@@ -629,10 +641,6 @@ export interface DeckMatchupSwapsTable {
  * CHECK: intent ∈ ('wish','trade','organize'); kind ∈ ('card','printing','copy');
  * intent × kind matches one of the six allowed combos; name <> ''.
  */
-type TradePricePref = "cm_lowest" | "tcg_lowest" | "ct_zero" | "absolute";
-type TradeType = "cards" | "money" | "both";
-type Currency = "EUR" | "USD";
-
 export interface ListsTable {
   id: Generated<string>;
   userId: string;
@@ -695,10 +703,6 @@ export interface ListEntriesTable {
 }
 
 // ─── Friend groups (migration 134, ADR-013) ──────────────────────────────────
-
-// ADR-033 retired the `judge` role: judging now lives in tournament_staff.
-export type FriendGroupRole = "owner" | "admin" | "member";
-export type FriendGroupInviteDirection = "invite" | "request";
 
 export interface FriendGroupsTable {
   id: Generated<string>;
@@ -836,9 +840,8 @@ export interface TournamentsTable {
 
   /** CHECK: length 1..120 */
   name: string;
-  // CHECK permits 'cancelled' too (ADR-033); the TS type widens to
-  // TournamentStatus in Phase 4 when the unified UI handles cancellation.
-  status: Generated<PodTournamentStatus>;
+  /** CHECK: IN ('setup', 'running', 'completed', 'cancelled') */
+  status: Generated<TournamentStatus>;
   /** When the tournament takes place. Defaults to now() for non-wizard create paths. */
   startsAt: Generated<Date>;
   /** Optional end instant: a set value pins a multi-day close or an early finish. */
@@ -1099,11 +1102,6 @@ export interface DeckCheckKeysTable {
 
 // ─── Card trades (migration 143, ADR-019) ────────────────────────────────────
 
-/** Who started the trade. The party who must accept is always the non-initiator. */
-type CardTradeInitiator = "giver" | "receiver";
-
-type CardTradeStatus = "pending" | "reserved" | "completed" | "declined" | "cancelled" | "expired";
-
 export interface CardTradesTable {
   id: Generated<string>;
   groupId: string;
@@ -1158,8 +1156,6 @@ interface CardTradeCopiesTable {
 }
 
 // ─── Loans (migration 195, ADR-039) ──────────────────────────────────────────
-
-type LoanStatus = "active" | "returned" | "written_off";
 
 export interface LoansTable {
   id: Generated<string>;
@@ -1662,7 +1658,7 @@ export interface CardBansTable {
 
 interface RuleVersionsTable {
   /** CHECK: IN ('core', 'tournament') */
-  kind: string;
+  kind: RuleKind;
   version: string;
   comments: string | null;
   importedAt: ColumnType<Date, Date | undefined, Date>;
@@ -1671,7 +1667,7 @@ interface RuleVersionsTable {
 interface RulesTable {
   id: Generated<string>;
   /** CHECK: IN ('core', 'tournament') */
-  kind: string;
+  kind: RuleKind;
   version: string;
   /** CHECK: <> '' */
   ruleNumber: string;
@@ -1679,10 +1675,10 @@ interface RulesTable {
   /** CHECK: 0–3 */
   depth: number;
   /** CHECK: IN ('title', 'subtitle', 'text') */
-  ruleType: string;
+  ruleType: RuleType;
   content: string;
   /** CHECK: IN ('added', 'modified', 'removed') */
-  changeType: string;
+  changeType: RuleChangeType;
   createdAt: CreatedAt;
 }
 
@@ -1724,9 +1720,6 @@ interface PrintingEventsTable {
 }
 
 // ─── Job runs (migration 101) ────────────────────────────────────────────────
-
-export type JobTrigger = "cron" | "admin" | "api";
-export type JobStatus = "running" | "succeeded" | "failed";
 
 interface JobRunsTable {
   id: Generated<string>;

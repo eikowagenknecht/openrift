@@ -8,9 +8,11 @@ const TAG = "Admin - Operations";
 
 const PE = "/api/admin/v1/printing-events";
 
+export const printingEventStatusSchema = z.enum(["pending", "sent", "failed"]);
+
 const printingEventViewSchema = z.object({
   id: z.uuid(),
-  status: z.enum(["pending", "sent", "failed"]),
+  status: printingEventStatusSchema,
   retryCount: z.number(),
   printingId: z.string(),
   cardName: z.string().nullable(),

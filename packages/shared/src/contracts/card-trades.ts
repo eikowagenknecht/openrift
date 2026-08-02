@@ -18,6 +18,9 @@ export const CARD_TRADE_STATUSES = [
 
 const cardTradeStatusSchema = z.enum(CARD_TRADE_STATUSES);
 
+/** Trade sides. Also the `card_trades.initiator` vocabulary. */
+export const cardTradeSideSchema = z.enum(["giver", "receiver"]);
+
 /**
  * Create a trade from a match row. `role` is the *caller's* side: `receiver`
  * is the "I want this card" request (giver = counterparty), `giver` is the
@@ -26,7 +29,7 @@ const cardTradeStatusSchema = z.enum(CARD_TRADE_STATUSES);
 export const createCardTradeSchema = z.object({
   groupSlug: friendGroupSlugSchema,
   counterpartyUserId: z.string().min(1),
-  role: z.enum(["giver", "receiver"]),
+  role: cardTradeSideSchema,
   printingId: z.uuid(),
   quantity: z.number().int().min(1),
 });
@@ -65,8 +68,8 @@ export const cardTradeResponseSchema = z
     id: z.string(),
     groupId: z.string(),
     groupSlug: z.string(),
-    role: z.enum(["giver", "receiver"]),
-    initiator: z.enum(["giver", "receiver"]),
+    role: cardTradeSideSchema,
+    initiator: cardTradeSideSchema,
     counterparty: cardTradeCounterpartySchema,
     printingId: z.string(),
     cardId: z.string(),

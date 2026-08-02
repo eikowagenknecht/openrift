@@ -1,4 +1,4 @@
-import type { RuleKind } from "@openrift/shared";
+import type { RuleChangeType, RuleKind, RuleType } from "@openrift/shared";
 import { compareRuleNumbers } from "@openrift/shared";
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
@@ -167,9 +167,9 @@ export function rulesRepo(db: Kysely<Database>) {
         ruleNumber: string;
         sortOrder: number;
         depth: number;
-        ruleType: string;
+        ruleType: RuleType;
         content: string;
-        changeType: string;
+        changeType: RuleChangeType;
       }[],
     ) {
       if (rules.length === 0) {

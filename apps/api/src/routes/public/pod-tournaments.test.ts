@@ -108,6 +108,21 @@ describe("GET /api/v1/pod-tournaments/report/:token", () => {
     expect(json.canSubmit).toBe(true);
   });
 
+  // Regression: the column was typed to the three pod statuses while the CHECK
+  // and the cancel endpoint both allow 'cancelled', so a cancelled tournament
+  // failed oRPC output validation and 500'd every follower's report link.
+  it("serves the report for a cancelled tournament", async () => {
+    mockPodTournamentsRepo.findByShareToken.mockResolvedValue({
+      ...dbTournament,
+      status: "cancelled",
+    });
+
+    const res = await app.request(`/api/v1/pod-tournaments/report/${TOKEN}`);
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.status).toBe("cancelled");
+  });
+
   it("marks the report follow-only (canSubmit false) when reached via the follow token", async () => {
     mockPodTournamentsRepo.findByShareToken.mockResolvedValue(dbTournament);
 

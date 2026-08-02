@@ -138,7 +138,15 @@ export const effectiveTradePreferenceSchema = z
   })
   .openapi("EffectiveTradePreference");
 
-const friendGroupRoleSchema = z.enum(["owner", "admin", "member"]).openapi("FriendGroupRole");
+export const friendGroupRoleSchema = z
+  .enum(["owner", "admin", "member"])
+  .openapi("FriendGroupRole");
+
+/**
+ * Which way a pending membership row points: the group invited the user, or
+ * the user asked to join. Owns the `friend_group_invites.direction` vocabulary.
+ */
+export const friendGroupInviteDirectionSchema = z.enum(["invite", "request"]);
 
 export const friendGroupResponseSchema = z
   .object({

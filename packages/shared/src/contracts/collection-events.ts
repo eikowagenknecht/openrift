@@ -16,7 +16,7 @@ export const collectionEventsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional(),
 });
 
-const activityActionSchema = z.enum(["added", "removed", "moved"]);
+export const activityActionSchema = z.enum(["added", "removed", "moved"]);
 
 export const collectionEventResponseSchema = z
   .object({

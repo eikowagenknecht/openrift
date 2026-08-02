@@ -11,6 +11,7 @@ const STATUS_LABEL: Record<PodTournamentStatus, string> = {
   setup: "Not started",
   running: "In progress",
   completed: "Completed",
+  cancelled: "Cancelled",
 };
 
 export type ReportTab = "rounds" | "standings";

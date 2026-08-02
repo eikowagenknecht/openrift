@@ -1,15 +1,13 @@
-import type { ContactMethod } from "@openrift/shared";
+import type { ContactMethod, FriendGroupInviteDirection, FriendGroupRole } from "@openrift/shared";
 import { sql } from "kysely";
 import type { Insertable, Kysely, Selectable, Updateable } from "kysely";
 
 import type {
   Database,
   FriendGroupCollectionSharesTable,
-  FriendGroupInviteDirection,
   FriendGroupInvitesTable,
   FriendGroupListSharesTable,
   FriendGroupMembersTable,
-  FriendGroupRole,
   FriendGroupsTable,
 } from "../db/index.js";
 

@@ -33,13 +33,14 @@ import type {
   tournamentSummaryResponseSchema,
   tournamentWinnerSchema,
 } from "@openrift/shared/contracts/tournaments";
+import type { TOURNAMENT_STATUSES } from "@openrift/shared/response-schemas";
 import type { z } from "zod";
 
 /** Exactly one of a user or an organization hosts a tournament. */
 export type TournamentHostType = "user" | "organization";
 
 /** Lifecycle, orthogonal to the deck phase. `cancelled` locks it read-only. */
-export type TournamentStatus = "setup" | "running" | "completed" | "cancelled";
+export type TournamentStatus = (typeof TOURNAMENT_STATUSES)[number];
 
 /**
  * The pairing engine. `none` = no rounds or pairings (a roster/schedule-only or

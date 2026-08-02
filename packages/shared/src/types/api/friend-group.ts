@@ -8,6 +8,7 @@ import type {
   friendGroupDiscordLinkCodeResponseSchema,
   friendGroupDiscordLinkResponseSchema,
   friendGroupDiscordLinksResponseSchema,
+  friendGroupInviteDirectionSchema,
   friendGroupJoinPreviewResponseSchema,
   friendGroupListResponseSchema,
   friendGroupMatchesResponseSchema,
@@ -19,6 +20,7 @@ import type {
   friendGroupPendingRequestsCountResponseSchema,
   friendGroupRequestResponseSchema,
   friendGroupResponseSchema,
+  friendGroupRoleSchema,
   friendGroupShareableCollectionResponseSchema,
   friendGroupShareableCollectionsResponseSchema,
   friendGroupShareableListResponseSchema,
@@ -32,8 +34,8 @@ import type { listGroupSharesResponseSchema } from "@openrift/shared/contracts/l
 import type { z } from "zod";
 
 // ADR-033 retired the `judge` role: judging now lives in tournament_staff.
-export type FriendGroupRole = "owner" | "admin" | "member";
-export type FriendGroupInviteDirection = "invite" | "request";
+export type FriendGroupRole = z.infer<typeof friendGroupRoleSchema>;
+export type FriendGroupInviteDirection = z.infer<typeof friendGroupInviteDirectionSchema>;
 
 export type FriendGroupResponse = z.infer<typeof friendGroupResponseSchema>;
 

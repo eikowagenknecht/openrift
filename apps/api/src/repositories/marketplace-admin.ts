@@ -1,8 +1,8 @@
+import type { MarketplaceGroupKind } from "@openrift/shared";
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
 import type { Database } from "../db/index.js";
-import type { MarketplaceGroupKind } from "../db/tables.js";
 
 /** Listing row for a level-2 ignored product. */
 interface IgnoredProductRow {

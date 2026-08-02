@@ -211,7 +211,7 @@ async function requireHost(repos: Repos, tournament: Tournament, userId: string)
  * open so hosts can still add late walk-ins.
  */
 function assertParticipantsOpen(tournament: Tournament): void {
-  const status = tournament.status as TournamentStatus;
+  const status = tournament.status;
   if (status === "completed" || status === "cancelled") {
     throw new AppError(
       409,
@@ -928,7 +928,7 @@ export const tournamentsRouter = {
     const { id, ...patch } = input;
     const tournament = await loadTournament(repos, id);
     await requireManage(repos, tournament, userId);
-    const currentStatus = tournament.status as TournamentStatus;
+    const currentStatus = tournament.status;
     if (currentStatus === "cancelled") {
       throw new AppError(409, ERROR_CODES.CONFLICT, "A cancelled tournament cannot be edited");
     }
