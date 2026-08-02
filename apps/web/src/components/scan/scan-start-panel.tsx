@@ -2,7 +2,7 @@ import { CameraIcon, LayersIcon, ScanSquareIcon, SunIcon } from "lucide-react";
 
 import { ScanLoadRow } from "@/components/scan/scan-load-row";
 import { Button } from "@/components/ui/button";
-import type { EngineProgress } from "@/hooks/use-card-scanner";
+import type { EngineProgress } from "@/hooks/use-scan-engine";
 import { cn } from "@/lib/utils";
 
 /**

@@ -1,9 +1,6 @@
 import type {
   CardCandidate,
-  CardEmbedder,
   FrameOutcome,
-  OpenCvLike,
-  OrbCvLike,
   PlacementDetector,
   RankedEmbed,
   RgbaImage,
@@ -18,23 +15,20 @@ import {
 } from "@openrift/shared/scan";
 import { useEffect, useRef, useState } from "react";
 
-import { isOverconstrainedError, scannerVideoConstraints } from "@/lib/camera-constraints";
 import { cameraErrorMessage } from "@/lib/camera-error";
 import type { CameraInfo } from "@/lib/camera-info";
 import { readCameraInfo } from "@/lib/camera-info";
 import { areaFractionOfGuide } from "@/lib/scan-aim-hint";
 import type { LoadedScanBank } from "@/lib/scan-bank";
 import { describeKey } from "@/lib/scan-bank";
+import { acquireScannerStream } from "@/lib/scan-camera";
 import { catchUpVerdict, createCatchUpQueue, shouldRunCatchUp } from "@/lib/scan-catchup";
 import {
   SLOW_DEVICE_EMBED_MS,
   embedderImageSize,
-  loadScanEmbedder,
   measuredEmbedMsPerImage,
 } from "@/lib/scan-embedder";
 import { guideRectIn, snapshotVideoRect } from "@/lib/scan-flight";
-import { loadOpenCv } from "@/lib/scan-opencv";
-import { ORT_WASM_PATHS } from "@/lib/scan-ort-assets";
 import type { ReticleGrade } from "@/lib/scan-overlay";
 import { gradeReticle, lockRingFraction } from "@/lib/scan-overlay";
 import type { OverlayTarget } from "@/lib/scan-overlay-paint";
@@ -47,9 +41,10 @@ import {
   lockRunForMode,
   scanSessionPlans,
 } from "@/lib/scan-session";
-import type { ScanWorkerClient } from "@/lib/scan-worker-client";
-import { createScanWorkerClient } from "@/lib/scan-worker-client";
 import type { ScanWorkerOutcome, SessionKind } from "@/workers/scan-worker";
+
+import type { ScanEngineAssets } from "./use-scan-engine";
+import { errorMessage, useScanEngine } from "./use-scan-engine";
 
 export interface ScannerSettings {
   mode: ScannerMode;
@@ -95,31 +90,6 @@ const IDLE_PACE_MIN_FRAME_MS = 400;
  * to a 16x22 thumbnail anyway.
  */
 const WATCH_LONG_SIDE = 128;
-
-/**
- * Search param that runs the pipeline in a worker instead of in the page.
- *
- * Opt-in on purpose. The move is a large one (OpenCV, the encoder and both
- * sessions all live on the other side) and the parts of it that can only fail
- * in a real browser are exactly the parts a bench cannot reach: evaluating the
- * emscripten glue without a script tag, onnxruntime inside a worker, and the
- * wasm heap on a phone. Same shape as the existing `?ortThreads` and
- * `?ortProxy` knobs, so it can be A/B'd on a phone without a rebuild.
- */
-const WORKER_PARAM = "scanWorker";
-
-/**
- * Whether this page asked for the worker pipeline.
- *
- * @returns True when `?scanWorker=1` is set and workers exist at all.
- */
-function workerRequested(): boolean {
-  if (typeof Worker === "undefined") {
-    return false;
-  }
-  const params = new URLSearchParams(globalThis.location?.search ?? "");
-  return params.get(WORKER_PARAM) === "1";
-}
 
 /**
  * How long the watcher's "the guide is changing" verdict is trusted.
@@ -188,26 +158,6 @@ export interface ScannerEvents {
   /** A follow-up frame resolved an earlier lock's printing. */
   onLockResolved?: (update: { artKey: string; key: string; label: string }) => void;
 }
-
-/** Download state of one big engine resource, for the loading screen. */
-export interface ResourceProgress {
-  /** Bytes received so far. */
-  loaded: number;
-  /** Bytes expected, 0 when the server did not say. */
-  total: number;
-  /** True once the resource is fully initialised, not merely downloaded. */
-  ready: boolean;
-}
-
-export interface EngineProgress {
-  opencv: ResourceProgress;
-  encoder: ResourceProgress;
-}
-
-const INITIAL_ENGINE_PROGRESS: EngineProgress = {
-  opencv: { loaded: 0, total: 0, ready: false },
-  encoder: { loaded: 0, total: 0, ready: false },
-};
 
 export interface ScannerReadout {
   /** Best detector proposal of the last processed frame. */
@@ -314,33 +264,6 @@ const EMPTY_READOUT: ScannerReadout = {
 };
 
 /**
- * Message for a thrown value.
- *
- * Kept out of the catch blocks themselves: the React Compiler cannot lower a
- * conditional inside a try/catch and bails out of the whole hook when it finds
- * one.
- *
- * @returns The error's message, or the fallback for a non-Error throw.
- */
-function errorMessage(thrown: unknown, fallback: string): string {
-  if (thrown instanceof Error) {
-    return thrown.message;
-  }
-  return fallback;
-}
-
-/** Where the engine's downloadable assets live (from the serving manifest,
- * or the dev export fallback). Null while the manifest is still resolving —
- * the heavyweight downloads wait for it. */
-export interface ScanEngineAssets {
-  encoderUrl: string;
-  opencvUrl: string;
-  /** Bank and labels, for the worker path: it loads its own copy. */
-  bankUrl?: string;
-  labelsUrl?: string;
-}
-
-/**
  * Drive the camera and run every frame through the shared scan session.
  *
  * The camera preview renders at native framerate on its own; the pipeline runs
@@ -420,9 +343,6 @@ export function useCardScanner(
   // corrupt the run of whatever card is in the guide now.
   const catchUpQueueRef = useRef(createCatchUpQueue());
   const catchUpSessionRef = useRef<ScanSession | null>(null);
-  // The worker path, when this session is running one. Null means the pipeline
-  // runs in the page, which is still the default (see WORKER_PARAM).
-  const workerRef = useRef<ScanWorkerClient | null>(null);
   const catchUpBusyRef = useRef(false);
   const [catchUpPending, setCatchUpPending] = useState<UnidentifiedCard[]>([]);
   // The frame the last placement settled on, held until that placement either
@@ -442,180 +362,11 @@ export function useCardScanner(
   // stop() on purpose: it is a snapshot, not live state, and reading it off a
   // phone is easier with the camera (and its battery drain) switched off.
   const [cameraInfo, setCameraInfo] = useState<CameraInfo | null>(null);
-  const cvRef = useRef<(OpenCvLike & OrbCvLike) | null>(null);
-  const [cvReady, setCvReady] = useState(false);
-  const embedderRef = useRef<CardEmbedder | null>(null);
-  const [embedderReady, setEmbedderReady] = useState(false);
-  // The init self-bench's per-image encoder cost, for the too-slow notice.
-  const [embedMsPerImage, setEmbedMsPerImage] = useState(0);
-  const [engineProgress, setEngineProgress] = useState<EngineProgress>(INITIAL_ENGINE_PROGRESS);
 
-  // Primitive deps: the assets object's identity is render-derived, and an
-  // identity change mid-download would run the cleanup and orphan the load.
-  const opencvUrl = assets?.opencvUrl ?? null;
-  const encoderUrl = assets?.encoderUrl ?? null;
-
-  // The worker owns the engine when this page asked for it: one loader, on the
-  // other side, instead of two here. Everything the page still needs from the
-  // engine (readiness, the encoder's measured cost) comes back over messages.
-  const bankUrl = assets?.bankUrl ?? null;
-  const labelsUrl = assets?.labelsUrl ?? null;
-  useEffect(() => {
-    if (
-      !workerRequested() ||
-      workerRef.current ||
-      opencvUrl === null ||
-      encoderUrl === null ||
-      bankUrl === null ||
-      labelsUrl === null
-    ) {
-      return;
-    }
-    let client: ScanWorkerClient | null = null;
-    let cancelled = false;
-    try {
-      client = createScanWorkerClient((asset, loadedBytes, totalBytes) => {
-        if (!cancelled) {
-          setEngineProgress((previous) => ({
-            ...previous,
-            [asset]: { loaded: loadedBytes, total: totalBytes, ready: false },
-          }));
-        }
-      });
-    } catch (workerError) {
-      // The page keeps its in-page path: a browser that will not make the
-      // worker still scans, it just scans on the main thread.
-      console.log(`[scan] worker unavailable, staying in-page: ${String(workerError)}`);
-      return;
-    }
-    workerRef.current = client;
-    const started = client;
-    async function init(): Promise<void> {
-      try {
-        const ready = await started.init({
-          opencvUrl: opencvUrl as string,
-          encoderUrl: encoderUrl as string,
-          bankUrl: bankUrl as string,
-          labelsUrl: labelsUrl as string,
-        });
-        if (cancelled) {
-          return;
-        }
-        console.log(
-          `[scan] worker ready: ${ready.embedMsPerImage.toFixed(0)}ms/image, input ${ready.embedImageSize}`,
-        );
-        setEmbedMsPerImage(ready.embedMsPerImage);
-        setCvReady(true);
-        setEmbedderReady(true);
-        setEngineProgress((previous) => ({
-          opencv: { ...previous.opencv, ready: true },
-          encoder: { ...previous.encoder, ready: true },
-        }));
-      } catch (initError) {
-        if (cancelled) {
-          return;
-        }
-        // Falling back mid-session would mean downloading everything again on
-        // the main thread; saying so plainly beats a silent half-speed page.
-        workerRef.current = null;
-        started.terminate();
-        setError(errorMessage(initError, "The scanning engine failed to start"));
-      }
-    }
-    void init();
-    return () => {
-      cancelled = true;
-    };
-  }, [opencvUrl, encoderUrl, bankUrl, labelsUrl]);
-
-  // Loaded only when asked for, and only on this route: the build is around ten
-  // megabytes, which has no business in the main bundle.
-  useEffect(() => {
-    if (workerRequested() || cvRef.current || opencvUrl === null) {
-      return;
-    }
-    const url = opencvUrl;
-    let cancelled = false;
-    async function loadCv(): Promise<void> {
-      let cv: (OpenCvLike & OrbCvLike) | null = null;
-      let message: string | null = null;
-      try {
-        cv = await loadOpenCv(url, (loadedBytes, totalBytes) => {
-          if (!cancelled) {
-            setEngineProgress((previous) => ({
-              ...previous,
-              opencv: { loaded: loadedBytes, total: totalBytes, ready: false },
-            }));
-          }
-        });
-      } catch (loadError) {
-        message = errorMessage(loadError, "Could not load OpenCV");
-      }
-      if (cancelled) {
-        return;
-      }
-      if (cv) {
-        cvRef.current = cv;
-        setCvReady(true);
-        setEngineProgress((previous) => ({
-          ...previous,
-          opencv: { ...previous.opencv, ready: true },
-        }));
-      }
-      if (message !== null) {
-        setError(message);
-      }
-    }
-    void loadCv();
-    return () => {
-      cancelled = true;
-    };
-  }, [opencvUrl]);
-
-  // The encoder download starts as soon as the manifest names it rather than
-  // on the first Start press — it is the biggest asset.
-  useEffect(() => {
-    if (workerRequested() || embedderRef.current || encoderUrl === null) {
-      return;
-    }
-    const url = encoderUrl;
-    let cancelled = false;
-    async function loadEncoder(): Promise<void> {
-      let embedder: CardEmbedder | null = null;
-      let message: string | null = null;
-      try {
-        embedder = await loadScanEmbedder(url, ORT_WASM_PATHS, (loadedBytes, totalBytes) => {
-          if (!cancelled) {
-            setEngineProgress((previous) => ({
-              ...previous,
-              encoder: { loaded: loadedBytes, total: totalBytes, ready: false },
-            }));
-          }
-        });
-      } catch (loadError) {
-        message = errorMessage(loadError, "Could not load the encoder model");
-      }
-      if (cancelled) {
-        return;
-      }
-      if (embedder) {
-        embedderRef.current = embedder;
-        setEmbedMsPerImage(measuredEmbedMsPerImage());
-        setEmbedderReady(true);
-        setEngineProgress((previous) => ({
-          ...previous,
-          encoder: { ...previous.encoder, ready: true },
-        }));
-      }
-      if (message !== null) {
-        setError(message);
-      }
-    }
-    void loadEncoder();
-    return () => {
-      cancelled = true;
-    };
-  }, [encoderUrl]);
+  // The engine's loaders live in their own hook; the refs it returns are
+  // written only there, this hook only ever reads them.
+  const { cvRef, embedderRef, workerRef, cvReady, embedderReady, embedMsPerImage, engineProgress } =
+    useScanEngine(assets, setError);
 
   // The overlay canvas follows the video's box, which changes on rotation and
   // on any layout shift. Handled here rather than in the paint loop: measuring
@@ -669,11 +420,8 @@ export function useCardScanner(
       const inFlight = frameInFlightRef.current;
       const session = sessionRef.current;
       const catchUpSession = catchUpSessionRef.current;
-      const worker = workerRef.current;
       sessionRef.current = null;
       catchUpSessionRef.current = null;
-      workerRef.current = null;
-      worker?.terminate();
       // oxlint-disable-next-line promise/prefer-await-to-then, promise/always-return -- a cleanup cannot await, and releasing returns nothing
       void Promise.resolve(inFlight).then(() => {
         session?.release();
@@ -1414,39 +1162,17 @@ export function useCardScanner(
     winnerRotationStreakRef.current = { rotation: 0, count: 0 };
     rotationAdoptionArmedRef.current = true;
 
-    // Built before the try block, because the try blocks hold nothing but the
-    // awaited call: the React Compiler bails out of the whole hook on a
-    // `finally` clause or on conditionals and loops inside try/catch, so all
-    // control flow lives between them and the starting flag is cleared on
-    // every exit path by hand.
+    // The camera open (and its overconstrained retry) lives in scan-camera.ts,
+    // outside this compiled hook. The try block that remains below holds
+    // nothing but the awaited play() call: the React Compiler bails out of the
+    // whole hook on a `finally` clause or on conditionals and loops inside
+    // try/catch, so all control flow lives between the try blocks and the
+    // starting flag is cleared on every exit path by hand.
     const capFrameRate = measuredEmbedMsPerImage() > SLOW_DEVICE_EMBED_MS;
-    let stream: MediaStream | null = null;
-    let cameraFailure: unknown = null;
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: scannerVideoConstraints(capFrameRate),
-      });
-    } catch (cameraError) {
-      cameraFailure = cameraError;
-    }
-
-    // The frame rate cap is a hard max, so a camera whose only mode runs above
-    // it would refuse to open at all — on exactly the slow devices the cap is
-    // meant to help. Retrying uncapped costs one extra call in a case that
-    // should never happen, and turns a dead camera into a merely hot one.
-    if (stream === null && capFrameRate && isOverconstrainedError(cameraFailure)) {
-      console.log("[scan] no camera mode under the frame rate cap, retrying uncapped");
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: scannerVideoConstraints(false),
-        });
-      } catch (retryError) {
-        cameraFailure = retryError;
-      }
-    }
-
+    const acquired = await acquireScannerStream(capFrameRate);
+    const stream = acquired.stream;
     if (stream === null) {
-      setError(cameraErrorMessage(cameraFailure, "Could not open the camera"));
+      setError(cameraErrorMessage(acquired.failure, "Could not open the camera"));
       startingRef.current = false;
       return;
     }
