@@ -145,8 +145,11 @@ describe.skipIf(!ctx)("setsRepo (integration)", () => {
     const sets = await repo.listAll();
     const a = sets.find((s) => s.id === idA);
     const b = sets.find((s) => s.id === idB);
-    expect(b!.sortOrder).toBe(1);
-    expect(a!.sortOrder).toBe(2);
+    // Positions are 0-based, matching reorderBySortOrder and every other
+    // taxonomy. Sets used to write i + 1 before they moved onto the shared
+    // helper; nothing reads sort_order except as an ORDER BY term.
+    expect(b!.sortOrder).toBe(0);
+    expect(a!.sortOrder).toBe(1);
   });
 
   it("reorder with empty array is a no-op", async () => {
