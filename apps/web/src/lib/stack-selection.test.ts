@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isStackSelected, resolveContextActionTarget } from "./stack-selection";
+import { computeShiftRange, isStackSelected, resolveContextActionTarget } from "./stack-selection";
 
 describe("isStackSelected", () => {
   describe("stacked (cards / printings view)", () => {
@@ -42,6 +42,88 @@ describe("isStackSelected", () => {
     it("ignores the copyIds list in copies view", () => {
       expect(isStackSelected(false, "c1", ["c2", "c3"], new Set(["c1"]))).toBe(true);
     });
+  });
+});
+
+describe("computeShiftRange", () => {
+  const items = [{ id: "a" }, { id: "b" }, { id: "c" }, { id: "d" }];
+  const selfId = (item: { id: string }) => [item.id];
+
+  it("walks forward from the anchor to the clicked tile, inclusive", () => {
+    expect(
+      computeShiftRange({ items, lastSelectedItemId: "b", itemId: "d", idsForItem: selfId }),
+    ).toEqual(["b", "c", "d"]);
+  });
+
+  it("walks backward when the clicked tile precedes the anchor", () => {
+    // Display order, not click order — a backward drag yields the same ids.
+    expect(
+      computeShiftRange({ items, lastSelectedItemId: "d", itemId: "b", idsForItem: selfId }),
+    ).toEqual(["b", "c", "d"]);
+  });
+
+  it("returns just the tile when the anchor is the clicked tile", () => {
+    expect(
+      computeShiftRange({ items, lastSelectedItemId: "c", itemId: "c", idsForItem: selfId }),
+    ).toEqual(["c"]);
+  });
+
+  it("returns null when nothing was clicked before", () => {
+    expect(
+      computeShiftRange({ items, lastSelectedItemId: null, itemId: "c", idsForItem: selfId }),
+    ).toBeNull();
+  });
+
+  it("returns null when the anchor is no longer in items (filtered away)", () => {
+    expect(
+      computeShiftRange({ items, lastSelectedItemId: "gone", itemId: "c", idsForItem: selfId }),
+    ).toBeNull();
+  });
+
+  it("returns null when the clicked tile is not in items", () => {
+    expect(
+      computeShiftRange({ items, lastSelectedItemId: "a", itemId: "gone", idsForItem: selfId }),
+    ).toBeNull();
+  });
+
+  it("returns null for an empty item list", () => {
+    expect(
+      computeShiftRange({ items: [], lastSelectedItemId: "a", itemId: "b", idsForItem: selfId }),
+    ).toBeNull();
+  });
+
+  it("accumulates every id a stacked tile stands for", () => {
+    // The /collections case: one tile in cards view covers all the card's copies.
+    const copies: Record<string, string[]> = { a: ["c1", "c2"], b: ["c3"], c: ["c4", "c5"] };
+    expect(
+      computeShiftRange({
+        items,
+        lastSelectedItemId: "a",
+        itemId: "c",
+        idsForItem: (item) => copies[item.id] ?? [],
+      }),
+    ).toEqual(["c1", "c2", "c3", "c4", "c5"]);
+  });
+
+  it("skips tiles that map to no selectable id", () => {
+    // The list case: rule-derived entries (null id, ADR-034) drop out of the
+    // range without breaking the walk across them.
+    expect(
+      computeShiftRange({
+        items,
+        lastSelectedItemId: "a",
+        itemId: "d",
+        idsForItem: (item) => (item.id === "b" || item.id === "c" ? [] : [item.id]),
+      }),
+    ).toEqual(["a", "d"]);
+  });
+
+  it("returns an empty range when no tile in it is selectable", () => {
+    // Distinct from null: the anchor was valid, so the caller extends rather
+    // than falling back to a single toggle.
+    expect(
+      computeShiftRange({ items, lastSelectedItemId: "a", itemId: "c", idsForItem: () => [] }),
+    ).toEqual([]);
   });
 });
 

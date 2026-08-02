@@ -24,7 +24,7 @@ import { useUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
 import type { RuleExcludeTarget } from "@/lib/rule-exclude";
 import { excludeEntryFromRules } from "@/lib/rule-exclude";
-import { resolveContextActionTarget } from "@/lib/stack-selection";
+import { computeShiftRange, resolveContextActionTarget } from "@/lib/stack-selection";
 import type { ListBulkAction } from "@/stores/card-row-actions-store";
 import { useCardRowActionsStore } from "@/stores/card-row-actions-store";
 import { useGridFocusStore } from "@/stores/grid-focus-store";
@@ -245,25 +245,23 @@ export function useListEntryBrowserSelection({
     if (!targetEntry) {
       return;
     }
-    const lastId = getLastSelectedItemId();
-    const startIdx = lastId === null ? -1 : items.findIndex((item) => item.id === lastId);
-    const endIdx = items.findIndex((item) => item.id === itemId);
-    if (startIdx === -1 || endIdx === -1) {
+    const rangeIds = computeShiftRange({
+      items,
+      lastSelectedItemId: getLastSelectedItemId(),
+      itemId,
+      idsForItem: (rangeItem) => {
+        // Rule-derived entries (null id, ADR-034) aren't selectable.
+        const rangeEntry = entryByItemId.get(rangeItem.id);
+        return rangeEntry && rangeEntry.id !== null ? [rangeEntry.id] : [];
+      },
+    });
+    if (rangeIds === null) {
       // Rule-derived entries (null id, ADR-034) aren't selectable.
       if (targetEntry.id !== null) {
         toggleSelect(targetEntry.id);
         setLastSelectedItemId(itemId);
       }
       return;
-    }
-    const lo = Math.min(startIdx, endIdx);
-    const hi = Math.max(startIdx, endIdx);
-    const rangeIds: string[] = [];
-    for (let idx = lo; idx <= hi; idx++) {
-      const rangeEntry = entryByItemId.get(items[idx].id);
-      if (rangeEntry && rangeEntry.id !== null) {
-        rangeIds.push(rangeEntry.id);
-      }
     }
     addToSelection(rangeIds);
     setLastSelectedItemId(itemId);

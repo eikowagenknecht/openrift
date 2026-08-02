@@ -23,6 +23,44 @@ export function isStackSelected(
   return copyIds.length > 0 && copyIds.every((id) => selected.has(id));
 }
 
+/**
+ * Walks the display-order range between the last-clicked tile and the
+ * shift-clicked one, accumulating the selectable ids each tile stands for.
+ *
+ * Shared by the /collections grid (where one tile can stand for many copy ids)
+ * and the list-entry browser (one tile = one entry id); the per-tile mapping is
+ * the only thing that differs, so callers pass it as `idsForItem`.
+ *
+ * A null return means there is no range to extend — either nothing was clicked
+ * before, or the anchor is no longer in `items` (it was filtered or paged
+ * away). Callers fall back to toggling the clicked tile on its own.
+ *
+ * @returns The ids to add to the selection, or null when the caller should toggle the single clicked tile instead.
+ */
+export function computeShiftRange<T extends { id: string }>(params: {
+  items: readonly T[];
+  /** The anchor tile, from `getLastSelectedItemId()`. */
+  lastSelectedItemId: string | null;
+  /** The shift-clicked tile. */
+  itemId: string;
+  idsForItem: (item: T) => readonly string[];
+}): string[] | null {
+  const { items, lastSelectedItemId, itemId, idsForItem } = params;
+  const startIdx =
+    lastSelectedItemId === null ? -1 : items.findIndex((item) => item.id === lastSelectedItemId);
+  const endIdx = items.findIndex((item) => item.id === itemId);
+  if (startIdx === -1 || endIdx === -1) {
+    return null;
+  }
+  const lo = Math.min(startIdx, endIdx);
+  const hi = Math.max(startIdx, endIdx);
+  const rangeIds: string[] = [];
+  for (let idx = lo; idx <= hi; idx++) {
+    rangeIds.push(...idsForItem(items[idx]));
+  }
+  return rangeIds;
+}
+
 export interface ContextActionTarget {
   /** Copy IDs the action should operate on. */
   copyIds: string[];

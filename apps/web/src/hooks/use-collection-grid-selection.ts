@@ -12,7 +12,7 @@ import { buildOnDecrement } from "@/components/collection/route-decrement";
 import type { useQuickAddActions } from "@/hooks/use-quick-add-actions";
 import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { cardsViewTileKey, splitsCardIntoTiles } from "@/lib/card-tiles";
-import { resolveContextActionTarget } from "@/lib/stack-selection";
+import { computeShiftRange, resolveContextActionTarget } from "@/lib/stack-selection";
 import { useAddModeStore } from "@/stores/add-mode-store";
 import type { VariantPopoverIntent } from "@/stores/add-mode-store";
 import type { CollectionContextAction } from "@/stores/card-row-actions-store";
@@ -177,46 +177,32 @@ export function useCollectionGridSelection({
     }
   };
 
+  // Shift-click range select. In stacked views a tile stands for every copy of
+  // the card (scoped to the tile when split by set / rarity), so the range
+  // accumulates copy ids; in copies view the tile is the copy.
   const shiftSelectRange = (itemId: string) => {
-    const lastId = getLastSelectedItemId();
-    if (lastId === null) {
-      const stack = stackByItemId.get(itemId);
-      if (stack) {
-        toggleStackForItem(itemId, stack);
-        setLastSelectedItemId(itemId);
-      }
-      return;
-    }
-    const startIdx = items.findIndex((i) => i.id === lastId);
-    const endIdx = items.findIndex((i) => i.id === itemId);
-    if (startIdx === -1 || endIdx === -1) {
-      const stack = stackByItemId.get(itemId);
-      if (stack) {
-        toggleStackForItem(itemId, stack);
-        setLastSelectedItemId(itemId);
-      }
-      return;
-    }
-    const lo = Math.min(startIdx, endIdx);
-    const hi = Math.max(startIdx, endIdx);
-    const rangeIds: string[] = [];
-    for (let idx = lo; idx <= hi; idx++) {
-      const rangeItem = items[idx];
-      if (stacked) {
-        const rangeCardCopyIds = allCopyIdsByTile.get(
-          cardsViewTileKey(rangeItem.printing, tileGroupBy),
-        );
-        if (rangeCardCopyIds) {
-          rangeIds.push(...rangeCardCopyIds);
-        } else {
-          const rangeStack = stackByItemId.get(rangeItem.id);
-          if (rangeStack) {
-            rangeIds.push(...rangeStack.copyIds);
-          }
+    const rangeIds = computeShiftRange({
+      items,
+      lastSelectedItemId: getLastSelectedItemId(),
+      itemId,
+      idsForItem: (rangeItem) => {
+        if (!stacked) {
+          return [rangeItem.id];
         }
-      } else {
-        rangeIds.push(rangeItem.id);
+        return (
+          allCopyIdsByTile.get(cardsViewTileKey(rangeItem.printing, tileGroupBy)) ??
+          stackByItemId.get(rangeItem.id)?.copyIds ??
+          []
+        );
+      },
+    });
+    if (rangeIds === null) {
+      const stack = stackByItemId.get(itemId);
+      if (stack) {
+        toggleStackForItem(itemId, stack);
+        setLastSelectedItemId(itemId);
       }
+      return;
     }
     addToSelection(rangeIds);
     setLastSelectedItemId(itemId);
