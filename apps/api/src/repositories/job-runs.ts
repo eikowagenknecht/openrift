@@ -1,6 +1,7 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
+import { parseJsonb } from "../db/helpers.js";
 import type { Database, JobStatus, JobTrigger } from "../db/index.js";
 
 export interface JobRun {
@@ -12,22 +13,13 @@ export interface JobRun {
   finishedAt: Date | null;
   durationMs: number | null;
   errorMessage: string | null;
+  /** Every row in this table was written via JSON.stringify, so it is stored
+   *  with `jsonb_typeof = 'string'` on top of the usual driver behaviour —
+   *  reads go through `parseJsonb` either way. */
   result: unknown;
   /** Activity axis for a succeeded run: true = no work done, false = did work,
    *  null = unclassified (failures, unclassified jobs, pre-migration rows). */
   noop: boolean | null;
-}
-
-/** postgres.js under Bun returns jsonb columns as a JSON-encoded string instead
- *  of a parsed object (it doesn't register a parser for OID 3802). All existing
- *  rows in this table were also written via JSON.stringify, so they're stored
- *  with `jsonb_typeof = 'string'`. Either way, normalise to the parsed value.
- *  @returns The parsed value, or null if the input was null/undefined. */
-function parseResult(value: unknown): unknown {
-  if (value === null || value === undefined) {
-    return null;
-  }
-  return typeof value === "string" ? JSON.parse(value) : value;
 }
 
 /**
@@ -115,7 +107,7 @@ export function jobRunsRepo(db: Kysely<Database>) {
         .select("result")
         .where("id", "=", id)
         .executeTakeFirst();
-      return parseResult(row?.result);
+      return parseJsonb(row?.result);
     },
 
     /**
@@ -161,7 +153,7 @@ export function jobRunsRepo(db: Kysely<Database>) {
       if (!row) {
         return null;
       }
-      return { ...row, result: parseResult(row.result) } as JobRun;
+      return { ...row, result: parseJsonb(row.result) } as JobRun;
     },
 
     /**
@@ -189,7 +181,7 @@ export function jobRunsRepo(db: Kysely<Database>) {
         q = q.where("kind", "=", params.kind);
       }
       const rows = await q.execute();
-      return rows.map((row) => ({ ...row, result: parseResult(row.result) }) as JobRun);
+      return rows.map((row) => ({ ...row, result: parseJsonb(row.result) }) as JobRun);
     },
 
     /**
@@ -252,7 +244,7 @@ export function jobRunsRepo(db: Kysely<Database>) {
         countQuery.executeTakeFirstOrThrow(),
       ]);
       return {
-        rows: rows.map((row) => ({ ...row, result: parseResult(row.result) }) as JobRun),
+        rows: rows.map((row) => ({ ...row, result: parseJsonb(row.result) }) as JobRun),
         total: Number(countRow.total),
       };
     },
@@ -289,7 +281,7 @@ export function jobRunsRepo(db: Kysely<Database>) {
       `.execute(db);
       const out: Record<string, JobRun> = {};
       for (const row of rows.rows) {
-        out[row.kind] = { ...row, result: parseResult(row.result) };
+        out[row.kind] = { ...row, result: parseJsonb(row.result) };
       }
       return out;
     },

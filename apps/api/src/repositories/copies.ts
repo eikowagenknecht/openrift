@@ -2,6 +2,7 @@ import type { CopyLink, OwnedCopyRow } from "@openrift/shared";
 import type { Insertable, Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
+import { parseJsonbRequired } from "../db/helpers.js";
 import type { CopiesTable, Database } from "../db/index.js";
 import { keysetCursorPredicate, requireFrontImage, selectCopyWithCard } from "./query-helpers.js";
 
@@ -44,16 +45,9 @@ const COPY_METADATA_COLUMNS = [
   "cp.links",
 ] as const;
 
-/** postgres.js under Bun returns jsonb columns as a string instead of a parsed
- *  array. This helper normalises `links` so callers always get an array.
- *  @returns the parsed links array */
-function parseLinks(links: CopyLink[] | string): CopyLink[] {
-  return typeof links === "string" ? (JSON.parse(links) as CopyLink[]) : links;
-}
-
 /** @returns The row with its `links` jsonb normalised to a parsed array. */
 function withParsedLinks<T extends { links: CopyLink[] | string }>(row: T): T {
-  return { ...row, links: parseLinks(row.links) };
+  return { ...row, links: parseJsonbRequired<CopyLink[]>(row.links) };
 }
 
 /** Default page size, and hard maximum, for cursor-paginated copy listings. */

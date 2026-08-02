@@ -30,3 +30,12 @@ export function parseJsonb<T>(value: T | string | null): T | null {
   }
   return (typeof value === "string" ? JSON.parse(value) : value) as T;
 }
+
+/**
+ * {@link parseJsonb} for a NOT NULL jsonb column, where the null branch is
+ * unreachable and a fallback value would only hide a schema change.
+ * @returns The parsed value, or the value unchanged when already parsed.
+ */
+export function parseJsonbRequired<T>(value: T | string): T {
+  return (typeof value === "string" ? JSON.parse(value) : value) as T;
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildDistinctWhere, parseJsonb } from "./helpers.js";
+import { buildDistinctWhere, parseJsonb, parseJsonbRequired } from "./helpers.js";
 
 describe("buildDistinctWhere", () => {
   it("builds a single-column DISTINCT check", () => {
@@ -30,5 +30,24 @@ describe("parseJsonb", () => {
 
   it("returns null for null", () => {
     expect(parseJsonb(null)).toBeNull();
+  });
+
+  it("returns null for undefined (a left-joined jsonb column)", () => {
+    expect(parseJsonb(undefined as unknown as null)).toBeNull();
+  });
+});
+
+describe("parseJsonbRequired", () => {
+  it("parses a raw JSON string as returned by postgres.js under Bun", () => {
+    expect(parseJsonbRequired<{ a: number }>('{"a":1}')).toEqual({ a: 1 });
+  });
+
+  it("returns an already-parsed object unchanged", () => {
+    const value = { a: 1 };
+    expect(parseJsonbRequired(value)).toBe(value);
+  });
+
+  it("parses JSON arrays", () => {
+    expect(parseJsonbRequired<string[]>('["x","y"]')).toEqual(["x", "y"]);
   });
 });

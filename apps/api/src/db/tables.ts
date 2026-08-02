@@ -540,9 +540,8 @@ export interface DecksTable {
    * - `custom-region`: `{"tagSlugs": ["<custom_tags.slug>", ...]}` (one or
    *   more region slugs, OR-matched at validation time) or NULL
    *
-   * Writes must be pre-stringified for postgres.js (Bun); reads return
-   * the parsed object via `parseFormatConfig`. This Select/Insert split
-   * mirrors `user_preferences.data`.
+   * Writes must be pre-stringified for postgres.js (Bun); reads go through
+   * `parseJsonb`. This Select/Insert split mirrors `user_preferences.data`.
    */
   formatConfig: ColumnType<DeckFormatConfig | null, string | null, string | null>;
   isWanted: boolean;

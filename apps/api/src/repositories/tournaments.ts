@@ -16,6 +16,7 @@ import type {
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
+import { parseJsonb } from "../db/helpers.js";
 import type { Database, TournamentParticipantsTable, TournamentsTable } from "../db/index.js";
 import { generateShareToken } from "../utils/share-token.js";
 
@@ -31,24 +32,16 @@ function asTournamentStatus(status: TournamentStatus): PodTournamentStatus {
 }
 
 /**
- * postgres.js can hand the `allowedSets` jsonb back as a string under Bun, so
- * the `string[] | null` Selectable type is a runtime lie. Parse defensively.
- * @returns The parsed set-slug array, or null when absent.
- */
-function parseAllowedSets(value: unknown): string[] | null {
-  if (value === null || value === undefined) {
-    return null;
-  }
-  return (typeof value === "string" ? JSON.parse(value) : value) as string[];
-}
-
-/**
  * Normalizes a raw tournament row so `allowedSets` is always a parsed array (or
- * null), regardless of how the driver hands the jsonb back.
+ * null), regardless of how the driver hands the jsonb back — the `string[] |
+ * null` Selectable type is a runtime lie under Bun.
  * @returns The row with `allowedSets` parsed.
  */
 function mapTournament<T extends Tournament>(row: T): T {
-  return { ...row, allowedSets: parseAllowedSets(row.allowedSets) };
+  return {
+    ...row,
+    allowedSets: parseJsonb<string[]>(row.allowedSets as string[] | string | null),
+  };
 }
 
 /** The full set of wizard-written columns for a new umbrella tournament. */

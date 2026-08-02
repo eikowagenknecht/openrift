@@ -12,7 +12,6 @@ import type {
 } from "../repositories/tournaments.js";
 import {
   moduleFlags,
-  parseAllowedSets,
   toOrganizationMember,
   toOrganizationResponse,
   toOrganizationSummary,
@@ -160,20 +159,5 @@ describe("moduleFlags", () => {
       deckSubmission: "none",
     } as unknown as Tournament);
     expect(flags).toEqual({ pairing: false, deckSubmission: false });
-  });
-});
-
-describe("parseAllowedSets", () => {
-  it("returns null for null and undefined", () => {
-    expect(parseAllowedSets(null)).toBeNull();
-    expect(parseAllowedSets(undefined)).toBeNull();
-  });
-
-  it("parses a JSON string (postgres.js hands jsonb back as a string under Bun)", () => {
-    expect(parseAllowedSets('["OGN","OGS"]')).toEqual(["OGN", "OGS"]);
-  });
-
-  it("passes an already-parsed array through unchanged", () => {
-    expect(parseAllowedSets(["OGN"])).toEqual(["OGN"]);
   });
 });

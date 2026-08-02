@@ -94,17 +94,3 @@ export function moduleFlags(tournament: Tournament): TournamentModuleFlags {
     deckSubmission: tournament.deckSubmission !== "none",
   };
 }
-
-/**
- * postgres.js returns jsonb as a string under Bun; parse it defensively.
- * @returns The set codes, or null.
- */
-export function parseAllowedSets(value: unknown): string[] | null {
-  if (value === null || value === undefined) {
-    return null;
-  }
-  if (typeof value === "string") {
-    return JSON.parse(value) as string[];
-  }
-  return value as string[];
-}

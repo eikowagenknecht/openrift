@@ -21,6 +21,7 @@ import type {
 } from "@openrift/shared";
 import type { Kysely, Selectable } from "kysely";
 
+import { parseJsonbRequired } from "../db/helpers.js";
 import type {
   Database,
   PodRoundsTable,
@@ -200,11 +201,6 @@ function tieBreakKey(id: string): number {
     hash = Math.imul(hash, 31) + (id.codePointAt(index) ?? 0);
   }
   return hash;
-}
-
-// jsonb can come back as a parsed object (postgres.js) or a string (Bun); normalize.
-function parseBreakdown(value: unknown): PodPenaltyBreakdown {
-  return (typeof value === "string" ? JSON.parse(value) : value) as PodPenaltyBreakdown;
 }
 
 /**
@@ -450,7 +446,9 @@ function toPodResponse(pod: Pod, memberRows: PodMemberRow[], scoring: PodScoring
           scoring,
         )
     : null;
-  const breakdown = parseBreakdown(pod.penaltyBreakdown);
+  const breakdown = parseJsonbRequired<PodPenaltyBreakdown>(
+    pod.penaltyBreakdown as PodPenaltyBreakdown | string,
+  );
   return {
     id: pod.id,
     podNumber: pod.podNumber,

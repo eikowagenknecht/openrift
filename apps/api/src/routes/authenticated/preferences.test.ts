@@ -123,8 +123,8 @@ describe("GET /api/v1/preferences", () => {
   });
 
   it("returns empty object when the stored blob is not an object", async () => {
-    // parseData in the repo JSON.parses the JSONB column; a double-encoded row
-    // yields a string, not the object the Kysely types promise.
+    // The repo JSON.parses the JSONB column; a double-encoded row yields a
+    // string, not the object the Kysely types promise.
     mockRepo.getByUserId.mockResolvedValue({ userId: USER_ID, data: '{"showImages":true}' });
     const res = await app.request("/api/v1/preferences");
     expect(res.status).toBe(200);

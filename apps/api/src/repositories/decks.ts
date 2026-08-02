@@ -10,34 +10,22 @@ import type {
 import type { DeleteResult, Kysely, Selectable, Updateable } from "kysely";
 import { sql } from "kysely";
 
+import { parseJsonb } from "../db/helpers.js";
 import type { CardsTable, Database, DeckCardsTable, DecksTable } from "../db/index.js";
-
-/**
- * postgres.js under Bun returns jsonb columns as raw JSON strings rather
- * than parsed objects (mirrors the helpers in user-preferences and
- * printing-events). The shape is enforced by `validateFormatConfig` at the
- * write boundary, so the parsed cast is safe at read time.
- *
- * @returns The parsed config object, or null if the column was NULL.
- */
-function parseFormatConfig(value: DeckFormatConfig | string | null): DeckFormatConfig | null {
-  if (value === null) {
-    return null;
-  }
-  if (typeof value === "string") {
-    return JSON.parse(value) as DeckFormatConfig;
-  }
-  return value;
-}
 
 function serializeFormatConfig(value: DeckFormatConfig | null): string | null {
   return value === null ? null : JSON.stringify(value);
 }
 
+/**
+ * The stored shape is enforced by `validateFormatConfig` at the write boundary,
+ * so the cast {@link parseJsonb} performs is safe at read time.
+ * @returns The row with `formatConfig` parsed, or null if the column was NULL.
+ */
 function withParsedFormatConfig<T extends { formatConfig: DeckFormatConfig | string | null }>(
   row: T,
 ): T & { formatConfig: DeckFormatConfig | null } {
-  return { ...row, formatConfig: parseFormatConfig(row.formatConfig) };
+  return { ...row, formatConfig: parseJsonb<DeckFormatConfig>(row.formatConfig) };
 }
 
 /**
@@ -150,7 +138,7 @@ export function decksRepo(db: Kysely<Database>) {
         .values({ ...values, formatConfig: serializeFormatConfig(values.formatConfig) })
         .returningAll()
         .executeTakeFirstOrThrow();
-      return { ...row, formatConfig: parseFormatConfig(row.formatConfig) };
+      return { ...row, formatConfig: parseJsonb<DeckFormatConfig>(row.formatConfig) };
     },
 
     /** @returns The updated deck row, or `undefined` if not found. */
@@ -174,7 +162,7 @@ export function decksRepo(db: Kysely<Database>) {
       if (!row) {
         return undefined;
       }
-      return { ...row, formatConfig: parseFormatConfig(row.formatConfig) };
+      return { ...row, formatConfig: parseJsonb<DeckFormatConfig>(row.formatConfig) };
     },
 
     /** @returns Delete result -- check `numDeletedRows` to verify the row existed. */
@@ -335,7 +323,7 @@ export function decksRepo(db: Kysely<Database>) {
             // to the same region without forcing the user to re-pick.
             // Re-encode through serialize to handle the raw-string shape
             // postgres.js returns for jsonb reads.
-            formatConfig: serializeFormatConfig(parseFormatConfig(source.formatConfig)),
+            formatConfig: serializeFormatConfig(parseJsonb<DeckFormatConfig>(source.formatConfig)),
             isWanted: source.isWanted,
             isPublic: false,
           })
@@ -492,7 +480,7 @@ export function decksRepo(db: Kysely<Database>) {
             name: `Copy of ${source.name}`,
             description: source.description,
             format: source.format,
-            formatConfig: serializeFormatConfig(parseFormatConfig(source.formatConfig)),
+            formatConfig: serializeFormatConfig(parseJsonb<DeckFormatConfig>(source.formatConfig)),
             isWanted: false,
             isPublic: false,
           })

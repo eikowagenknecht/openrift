@@ -24,16 +24,12 @@ import {
 } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
+import { parseJsonb } from "../../db/helpers.js";
 import type { Repos } from "../../deps.js";
 import { AppError } from "../../errors.js";
 import { gravatarHashForEmail } from "../../lib/gravatar.js";
 import { loadGroupForMember } from "../../lib/group-access.js";
-import {
-  moduleFlags,
-  parseAllowedSets,
-  toParticipant,
-  toStaffMember,
-} from "../../lib/tournament-presenters.js";
+import { moduleFlags, toParticipant, toStaffMember } from "../../lib/tournament-presenters.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import { scoringOf } from "../../repositories/pod-tournaments.js";
@@ -489,7 +485,7 @@ async function buildDetail(
       : null,
     listLockMode: tournament.listLockMode,
     deckFormat: tournament.deckFormat,
-    allowedSets: parseAllowedSets(tournament.allowedSets),
+    allowedSets: parseJsonb<string[]>(tournament.allowedSets as string[] | string | null),
     selfRegistration: tournament.selfRegistration,
     reportToken,
     followToken,

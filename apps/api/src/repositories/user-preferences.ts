@@ -2,6 +2,7 @@ import type { EmailNotificationPreference, UserPreferencesResponse } from "@open
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
+import { parseJsonbRequired } from "../db/helpers.js";
 import type { Database, UserPreferencesTable } from "../db/index.js";
 
 /** A verified-email user who has opted into the daily match digest (ADR-030). */
@@ -26,13 +27,6 @@ export type PartialPreferences = {
     : UserPreferencesResponse[K] | null;
 };
 
-/** postgres.js under Bun returns jsonb columns as a string instead of a parsed
- *  object. This helper normalises the value so callers always get an object.
- *  @returns the parsed preferences object */
-function parseData(data: UserPreferencesResponse | string): UserPreferencesResponse {
-  return typeof data === "string" ? (JSON.parse(data) as UserPreferencesResponse) : data;
-}
-
 export function userPreferencesRepo(db: Kysely<Database>) {
   return {
     async getByUserId(userId: string): Promise<Selectable<UserPreferencesTable> | undefined> {
@@ -44,7 +38,7 @@ export function userPreferencesRepo(db: Kysely<Database>) {
       if (!row) {
         return undefined;
       }
-      return { ...row, data: parseData(row.data) };
+      return { ...row, data: parseJsonbRequired<UserPreferencesResponse>(row.data) };
     },
 
     async upsert(userId: string, incoming: PartialPreferences): Promise<UserPreferencesResponse> {
@@ -73,13 +67,14 @@ export function userPreferencesRepo(db: Kysely<Database>) {
         .returningAll()
         .executeTakeFirstOrThrow();
 
-      return parseData(row.data);
+      return parseJsonbRequired<UserPreferencesResponse>(row.data);
     },
 
     /**
      * Verified-email users who have opted into the daily match digest (ADR-030).
      * The JSONB blob is double-encoded (a jsonb string scalar of the serialized
-     * object — see {@link parseData}), so the predicate unwraps it with
+     * object, which is why reads go through `parseJsonbRequired`), so the
+     * predicate unwraps it with
      * `data #>> '{}'` before drilling into `emailNotifications.tradeMatches`.
      * @returns Opted-in recipients with their email + name.
      */
@@ -119,7 +114,10 @@ export function userPreferencesRepo(db: Kysely<Database>) {
       if (row === undefined) {
         return undefined;
       }
-      const data = row.data === null || row.data === undefined ? {} : parseData(row.data);
+      const data =
+        row.data === null || row.data === undefined
+          ? {}
+          : parseJsonbRequired<UserPreferencesResponse>(row.data);
       return {
         email: row.email,
         emailVerified: row.emailVerified,

@@ -9,6 +9,9 @@ const DECK = {
   name: "Aggro",
   description: null,
   format: "constructed",
+  // A `selectAll()` row always carries the column, and the repo normalises an
+  // absent/NULL jsonb to null.
+  formatConfig: null,
   isWanted: false,
   isPublic: false,
   createdAt: new Date(),

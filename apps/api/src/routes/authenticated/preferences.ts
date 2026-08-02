@@ -27,8 +27,9 @@ const preferenceFields = Object.entries(userPreferencesResponseSchema.shape);
  * @returns The user preferences in the {@link UserPreferencesResponse} shape.
  */
 function toUserPreferences(data: UserPreferencesResponse, userId: string): UserPreferencesResponse {
-  // Defensive: `data` is whatever the JSONB column held (see parseData in the
-  // repo), which the Kysely types promise is an object but the database does not.
+  // Defensive: `data` is whatever the JSONB column held (the repo runs it
+  // through parseJsonbRequired), which the Kysely types promise is an object
+  // but the database does not.
   if (typeof data !== "object" || data === null) {
     log.warn({ userId, type: typeof data }, "stored preferences are not an object");
     return {};
