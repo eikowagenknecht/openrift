@@ -30,9 +30,13 @@ interface ScanSessionTrayProps {
   /** Open the printing swap for the row (all printings of that card). */
   onChangePrinting: (row: ScanSessionRow) => void;
   /**
-   * Cards the scanner watched land in the guide and could not identify. Shown
-   * so a short count is something the user can see and act on, rather than a
-   * silent shortfall they only notice later against the physical pile.
+   * Cards the scanner watched land in the guide and could not identify, since
+   * the last card it did. Shown so a short count is something the user can see
+   * and act on, rather than a silent shortfall they only notice later against
+   * the physical pile.
+   *
+   * Deliberately not a session total: see `missedSinceNamed` in
+   * use-card-scanner and `createPlacementTally`.
    */
   missedPlacements?: number;
   /**
@@ -267,7 +271,12 @@ function TrayRow({
  * scanner can detect but not fix, so it says so plainly and tells the user the
  * one thing that helps.
  *
- * @returns The line, or nothing when every placement was counted.
+ * It clears itself as soon as the scanner names another card, because by then
+ * the advice has landed and the user has moved on. A running session total
+ * would keep pointing at cards they can no longer pick out of the pile, and
+ * rescanning one that was in fact counted adds it twice.
+ *
+ * @returns The line, or nothing when nothing has been missed lately.
  */
 function MissedLine({ count }: { count: number }) {
   if (count <= 0) {

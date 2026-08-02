@@ -39,6 +39,7 @@ import type { ReticleGrade } from "@/lib/scan-overlay";
 import { gradeReticle, lockRingFraction } from "@/lib/scan-overlay";
 import type { OverlayTarget } from "@/lib/scan-overlay-paint";
 import { createDrawState, paintOverlay, syncOverlaySize } from "@/lib/scan-overlay-paint";
+import { createPlacementTally } from "@/lib/scan-placement-counts";
 import type { ScanSessionPlan, ScannerMode } from "@/lib/scan-session";
 import {
   createConfiguredScanSession,
@@ -119,19 +120,6 @@ function workerRequested(): boolean {
   const params = new URLSearchParams(globalThis.location?.search ?? "");
   return params.get(WORKER_PARAM) === "1";
 }
-
-/**
- * How long a card may sit in the guide unrecognised before it counts as a
- * miss.
- *
- * Real locks land well inside this: 0.5-0.6 s upright on a healthy phone, and
- * 3.2 s was the worst measured case (a low-texture card whose frames hover at
- * the inlier floor, 2026-07-31 session log). Waiting 4 s means a slow lock is
- * never called a miss, at the cost of the warning arriving a beat late, which
- * is the right way round: a wrong "not recognised" line would send the user
- * back to a card that was in fact counted.
- */
-const MISS_GRACE_MS = 4000;
 
 /**
  * How long the watcher's "the guide is changing" verdict is trusted.
@@ -281,11 +269,18 @@ export interface ScannerReadout {
    */
   placements: number;
   /**
-   * Placements that produced no lock: cards the user laid down and the
-   * session did not count. The page turns these into something the user can
-   * act on instead of a silently short number.
+   * Placements that produced no lock across the whole session, cards a second
+   * look later recovered excluded: how short this session came out. The
+   * diagnostic number, for the admin readout.
    */
   missedPlacements: number;
+  /**
+   * Placements that produced no lock since the scanner last named a card. The
+   * user-facing number, because the tray's line is coaching ("slow down")
+   * rather than a ledger, and a card missed twenty cards ago is one nobody
+   * remembers. Naming a card clears it.
+   */
+  missedSinceNamed: number;
   /**
    * The guide is changing right now (a card landing, a hand passing). Frames
    * are not processed while this holds, so the page shows it rather than
@@ -314,6 +309,7 @@ const EMPTY_READOUT: ScannerReadout = {
   candidateAreaFraction: 0,
   placements: 0,
   missedPlacements: 0,
+  missedSinceNamed: 0,
   settling: false,
 };
 
@@ -413,13 +409,7 @@ export function useCardScanner(
   // (see packages/shared/src/scan/placement.ts).
   const watchCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const placementRef = useRef<PlacementDetector | null>(null);
-  const placementCountsRef = useRef({
-    placements: 0,
-    missed: 0,
-    lockedSincePlacement: true,
-    /** When the placement still waiting for a lock landed. */
-    pendingSince: 0,
-  });
+  const placementTallyRef = useRef(createPlacementTally());
   const settlingRef = useRef({ disturbed: false, at: 0 });
   // Whether the last processed frame had something plausible in the guide, so
   // the catch-up pass can tell "between cards" from "mid-scan".
@@ -841,15 +831,13 @@ export function useCardScanner(
       toGray({ data: pixels.data, width, height }),
       guideQuadFor(width, height),
     );
-    const counts = placementCountsRef.current;
+    const tally = placementTallyRef.current;
     // A card that came to rest and was never identified is counted here rather
     // than when the next one arrives, so the last card of a session is not
     // silently forgiven.
     const now = performance.now();
     settlingRef.current = { disturbed: signal.disturbed, at: now };
-    if (!counts.lockedSincePlacement && now - counts.pendingSince > MISS_GRACE_MS) {
-      counts.missed++;
-      counts.lockedSincePlacement = true;
+    if (tally.takeMiss(now)) {
       // The card is gone from the guide by now, but the frame it settled on is
       // still here. Recognising it costs a frame slot the live pass did not
       // have and now does.
@@ -868,9 +856,7 @@ export function useCardScanner(
     if (!signal.placed) {
       return;
     }
-    counts.placements++;
-    counts.lockedSincePlacement = false;
-    counts.pendingSince = now;
+    tally.notePlacement(now);
     // The settle frame is the sharpest view of this card there will be: the
     // motion has stopped and the next thing to happen is the card leaving.
     const frame = grabFrame(video, frameTurnsRef.current);
@@ -1005,8 +991,9 @@ export function useCardScanner(
       aim,
       lockProgress: { runLength, lockRun },
       candidateAreaFraction,
-      placements: placementCountsRef.current.placements,
-      missedPlacements: placementCountsRef.current.missed,
+      placements: placementTallyRef.current.placements(),
+      missedPlacements: placementTallyRef.current.missedTotal(),
+      missedSinceNamed: placementTallyRef.current.missedSinceNamed(),
       settling: settlingRef.current.disturbed,
     });
   }
@@ -1036,8 +1023,11 @@ export function useCardScanner(
     };
     locksRef.current = [lock, ...locksRef.current].slice(0, 30);
     // This placement produced a card, so it is not one of the misses and its
-    // held frame has nothing left to prove.
-    placementCountsRef.current.lockedSincePlacement = true;
+    // held frame has nothing left to prove. It also ends whatever bad patch
+    // came before it: the tray's "not recognised" line is there to tell the
+    // user to slow down, and a card the scanner just named says the slowing
+    // down worked.
+    placementTallyRef.current.noteNamed();
     pendingFrameRef.current = null;
     // Wall time since this artwork's top-ranked streak began — the number the
     // user actually experiences, unlike lockSeconds which starts at the first
@@ -1195,6 +1185,12 @@ export function useCardScanner(
     }
     if (verdict === "add" && outcome.winner) {
       const winner = outcome.winner;
+      // This card was counted as a miss when its grace window ran out, and the
+      // second look has just named it, so the count no longer describes it.
+      // One off rather than a reset: the catch-up pass runs in the quiet after
+      // a burst, and the other cards of that burst may still be genuinely
+      // unaccounted for.
+      placementTallyRef.current.noteRecovered();
       // Reported like any other lock, so the page's resolve, picker and tray
       // behave identically to a card the live pass caught.
       eventsRef.current?.onLock?.({
@@ -1501,12 +1497,7 @@ export function useCardScanner(
     // frame callback where that exists, so it samples every delivered frame
     // rather than whatever the render loop happens to line up with.
     placementRef.current = createPlacementDetector();
-    placementCountsRef.current = {
-      placements: 0,
-      missed: 0,
-      lockedSincePlacement: true,
-      pendingSince: 0,
-    };
+    placementTallyRef.current = createPlacementTally();
     settlingRef.current = { disturbed: false, at: 0 };
     if (video && settingsRef.current.mode !== "pan") {
       const watched = video;

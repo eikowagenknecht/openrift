@@ -749,7 +749,7 @@ export function ScanPage() {
       onAddOne={handleAddOne}
       onRemoveOne={handleRemoveOne}
       onChangePrinting={setSwapRow}
-      missedPlacements={readout.missedPlacements}
+      missedPlacements={readout.missedSinceNamed}
       unidentified={unidentified}
       onIdentifyMissed={handleIdentifyMissed}
       onDismissMissed={dismissUnidentified}
