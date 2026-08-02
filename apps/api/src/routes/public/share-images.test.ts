@@ -1,3 +1,4 @@
+import { ERROR_CODES } from "@openrift/shared";
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -5,6 +6,7 @@ import { AppError } from "../../errors.js";
 import type * as DeckImageModule from "../../services/deck-image.js";
 import { renderDeckImage } from "../../services/deck-image.js";
 import { renderShareImage } from "../../services/share-image.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { publicShareImagesRoute } from "./share-images";
 
@@ -453,6 +455,12 @@ describe("POST /api/v1/decks/image", () => {
 
     expect(res.status).toBe(413);
     expect(renderDeckMock).not.toHaveBeenCalled();
+    // Rejecting through `onError` must still produce the standard envelope,
+    // not a hand-built body — this route's other errors all carry `error`.
+    expect(await readJson(res)).toStrictEqual({
+      error: "Render payload exceeds 256 KB",
+      code: ERROR_CODES.PAYLOAD_TOO_LARGE,
+    });
   });
 
   it("rate-limits repeated renders from one IP with 429", async () => {

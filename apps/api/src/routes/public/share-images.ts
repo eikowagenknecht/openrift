@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { rateLimiter } from "hono-rate-limiter";
 import { bodyLimit } from "hono/body-limit";
 
+import { AppError } from "../../errors.js";
 import {
   buildDeckImageCards,
   buildDeckImageCardsFromRefs,
@@ -67,10 +68,14 @@ const renderRateLimit = rateLimiter<{ Variables: Variables }>({
   keyGenerator: (c) => c.req.header("x-real-ip") ?? "unknown",
 });
 
+// Throwing (rather than returning a hand-built body) routes the rejection
+// through `app.onError`, so an over-cap render answers with the same
+// `ApiErrorResponse` envelope as every other error on this plain-Hono route.
 const renderBodyLimit = bodyLimit({
   maxSize: RENDER_MAX_BODY_BYTES,
-  onError: (c) =>
-    c.json({ code: ERROR_CODES.PAYLOAD_TOO_LARGE, message: "Render payload exceeds 256 KB" }, 413),
+  onError: () => {
+    throw new AppError(413, ERROR_CODES.PAYLOAD_TOO_LARGE, "Render payload exceeds 256 KB");
+  },
 });
 
 /** @returns A PNG response with the immutable share-image cache headers. */

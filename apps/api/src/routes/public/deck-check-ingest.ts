@@ -12,6 +12,7 @@ import { bodyLimit } from "hono/body-limit";
 import { AppError } from "../../errors.js";
 import { requireUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
+import { orpcErrorResponse } from "../../orpc/error-body.js";
 import { ingestDeckCheckPush } from "../../services/deck-check-ingest.js";
 import type { Variables } from "../../types.js";
 
@@ -80,8 +81,10 @@ export function mountDeckCheckIngestMiddleware(app: Hono<{ Variables: Variables 
     "/api/v1/ingest/deck-check",
     bodyLimit({
       maxSize: MAX_BODY_BYTES,
-      onError: (c) =>
-        c.json({ code: ERROR_CODES.PAYLOAD_TOO_LARGE, message: "Push exceeds 1 MB" }, 413),
+      // The limit rejects before the oRPC catch-all runs, so the body is built
+      // here rather than thrown as an AppError — providers get the same
+      // envelope for the 413 as for this endpoint's other errors.
+      onError: (c) => orpcErrorResponse(c, ERROR_CODES.PAYLOAD_TOO_LARGE, "Push exceeds 1 MB"),
     }),
   );
 }

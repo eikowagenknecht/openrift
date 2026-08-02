@@ -6,6 +6,7 @@ import { bodyLimit } from "hono/body-limit";
 
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
+import { orpcErrorResponse } from "../../orpc/error-body.js";
 import {
   buildUserSubmissionCard,
   formatSubmissionDateStamp,
@@ -62,8 +63,11 @@ export function mountCardSubmissionsMiddleware(app: Hono<{ Variables: Variables 
     "/api/v1/card-submissions",
     bodyLimit({
       maxSize: MAX_BODY_BYTES,
+      // The limit rejects before the oRPC catch-all runs, so the body is built
+      // here rather than thrown as an AppError — the client gets the same
+      // envelope for the 413 as for this endpoint's other errors.
       onError: (c) =>
-        c.json({ code: ERROR_CODES.PAYLOAD_TOO_LARGE, message: "Submission exceeds 256 KB" }, 413),
+        orpcErrorResponse(c, ERROR_CODES.PAYLOAD_TOO_LARGE, "Submission exceeds 256 KB"),
     }),
   );
 }
