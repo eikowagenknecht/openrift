@@ -14,7 +14,13 @@ export type {
   FrameWinner,
   VerifiedCandidate,
 } from "./accept";
-export { observeWinner, pickFrameWinner } from "./accept";
+export {
+  MAX_FRAME_WEIGHT,
+  frameWeight,
+  observeWinner,
+  pickFrameWinner,
+  rearmLockedTracks,
+} from "./accept";
 
 export type { CardEmbedder, EmbedBank, EmbedKind, RankedEmbed } from "./embed";
 export {
@@ -47,6 +53,16 @@ export {
   textBandForType,
   textRegionSignature,
 } from "./disambiguate";
+
+export type { PlacementDetector, PlacementOptions, PlacementSignal } from "./placement";
+export {
+  DEFAULT_PLACEMENT_OPTIONS,
+  PLACEMENT_SIGNATURE_HEIGHT,
+  PLACEMENT_SIGNATURE_WIDTH,
+  createPlacementDetector,
+  placementSignature,
+  signatureDelta,
+} from "./placement";
 
 export type { OrbCvLike, OrbFeatures, OrbVerdict } from "./orb";
 export { describeOrb, releaseOrb, verifyOrb } from "./orb";

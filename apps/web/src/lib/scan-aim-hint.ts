@@ -14,6 +14,7 @@ interface AimPoint {
 
 /** Every coaching state the ladder can produce. */
 export type AimHintKind =
+  | "settling"
   | "no-card"
   | "too-far"
   | "too-close"
@@ -33,6 +34,7 @@ export interface AimHint {
  * length on a phone while both hands hold a card.
  */
 export const AIM_HINT_MESSAGES: Record<AimHintKind, string> = {
+  settling: "Hold it there",
   "no-card": "Place a card in the frame",
   "too-far": "Move closer",
   "too-close": "Move back a bit",
@@ -115,6 +117,12 @@ export interface AimHintInput {
   isWinner: boolean;
   /** Override for {@link PLAUSIBLE_DISTANCE} when the encoder's gate is known. */
   plausibleDistance?: number;
+  /**
+   * The placement watcher says the guide is changing right now. Frames are
+   * not processed while this holds, so every other reading below is from
+   * whatever was in the guide before the card moved.
+   */
+  settling?: boolean;
 }
 
 /**
@@ -156,6 +164,8 @@ export function areaFractionOfGuide(
  *
  * 1. Camera off or a winner on screen: nothing to say. A lock is its own
  *    feedback and must not be talked over.
+ * 1b. The guide is still changing: nothing else on this frame is current, and
+ *    the one useful instruction is to let the card come to rest.
  * 2. Nothing detected: no other reading means anything without a candidate.
  * 3. Framing (too small, too large) before image quality: a card that fills a
  *    fifth of the guide is upsampled before it is embedded, so its focus score
@@ -180,6 +190,9 @@ export function areaFractionOfGuide(
 export function deriveAimHint(input: AimHintInput): AimHint | null {
   if (!input.active || input.isWinner) {
     return null;
+  }
+  if (input.settling) {
+    return hint("settling");
   }
   if (!input.hasCandidate) {
     return hint("no-card");

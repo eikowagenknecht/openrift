@@ -5,6 +5,7 @@ import type {
   FrameOutcome,
   OpenCvLike,
   OrbCvLike,
+  PlacementDetector,
   Point,
   Quad,
   RankedEmbed,
@@ -15,8 +16,10 @@ import {
   DEFAULT_SESSION_OPTIONS,
   IDLE_AFTER_NO_WINNER_FRAMES,
   centeredGuideQuad,
+  createPlacementDetector,
   createScanSession,
   gatesForEmbedDim,
+  toGray,
 } from "@openrift/shared/scan";
 import { useEffect, useRef, useState } from "react";
 
@@ -28,12 +31,15 @@ import { fetchWithProgress } from "@/lib/fetch-progress";
 import { areaFractionOfGuide } from "@/lib/scan-aim-hint";
 import type { LoadedScanBank } from "@/lib/scan-bank";
 import { describeKey } from "@/lib/scan-bank";
+import { catchUpVerdict, createCatchUpQueue, shouldRunCatchUp } from "@/lib/scan-catchup";
 import {
   SLOW_DEVICE_EMBED_MS,
   embedderImageSize,
   loadScanEmbedder,
   measuredEmbedMsPerImage,
 } from "@/lib/scan-embedder";
+import { guideRectIn, snapshotVideoRect } from "@/lib/scan-flight";
+import { ORT_WASM_PATHS } from "@/lib/scan-ort-assets";
 import type { ReticleGrade } from "@/lib/scan-overlay";
 import {
   BRACKET_FRACTION,
@@ -55,6 +61,13 @@ import {
   stepQuadToward,
   stepToward,
 } from "@/lib/scan-overlay";
+import type { ScanWorkerClient } from "@/lib/scan-worker-client";
+import { createScanWorkerClient } from "@/lib/scan-worker-client";
+import type {
+  ScanWorkerOutcome,
+  ScanWorkerSessionOptions,
+  SessionKind,
+} from "@/workers/scan-worker";
 
 /**
  * `single` asks the user to place one card in a drawn guide rect: detection is
@@ -111,6 +124,66 @@ const IDLE_PACE_DELAY_MS = 300;
 const IDLE_PACE_MIN_FRAME_MS = 400;
 
 /**
+ * Long side the placement watcher scales the camera frame to.
+ *
+ * This runs on every camera frame, not every processed one, so it has to be
+ * far cheaper than the pipeline: at 128 pixels the draw and read cost a
+ * fraction of a millisecond, against the tens of milliseconds a processed
+ * frame costs. It only ever feeds `createPlacementDetector`, which reduces it
+ * to a 16x22 thumbnail anyway.
+ */
+const WATCH_LONG_SIDE = 128;
+
+/**
+ * Search param that runs the pipeline in a worker instead of in the page.
+ *
+ * Opt-in on purpose. The move is a large one (OpenCV, the encoder and both
+ * sessions all live on the other side) and the parts of it that can only fail
+ * in a real browser are exactly the parts a bench cannot reach: evaluating the
+ * emscripten glue without a script tag, onnxruntime inside a worker, and the
+ * wasm heap on a phone. Same shape as the existing `?ortThreads` and
+ * `?ortProxy` knobs, so it can be A/B'd on a phone without a rebuild.
+ */
+const WORKER_PARAM = "scanWorker";
+
+/**
+ * Whether this page asked for the worker pipeline.
+ *
+ * @returns True when `?scanWorker=1` is set and workers exist at all.
+ */
+function workerRequested(): boolean {
+  if (typeof Worker === "undefined") {
+    return false;
+  }
+  const params = new URLSearchParams(globalThis.location?.search ?? "");
+  return params.get(WORKER_PARAM) === "1";
+}
+
+/**
+ * How long a card may sit in the guide unrecognised before it counts as a
+ * miss.
+ *
+ * Real locks land well inside this: 0.5-0.6 s upright on a healthy phone, and
+ * 3.2 s was the worst measured case (a low-texture card whose frames hover at
+ * the inlier floor, 2026-07-31 session log). Waiting 4 s means a slow lock is
+ * never called a miss, at the cost of the warning arriving a beat late, which
+ * is the right way round: a wrong "not recognised" line would send the user
+ * back to a card that was in fact counted.
+ */
+const MISS_GRACE_MS = 4000;
+
+/**
+ * How long the watcher's "the guide is changing" verdict is trusted.
+ *
+ * The verdict skips pipeline frames, so a watcher that stops firing (a stalled
+ * video element, a browser that hands out `requestVideoFrameCallback` and then
+ * goes quiet) would otherwise freeze scanning altogether. Past this the
+ * pipeline runs anyway: a wasted blurred frame costs one frame slot, a frozen
+ * scanner costs the session.
+ */
+const SETTLE_TRUST_MS = 500;
+
+/**
  * A gap in an artwork's top-ranked streak longer than this restarts its
  * aim-to-lock clock: the user evidently aimed away and came back, and the
  * diagnostic should time the current attempt, not the whole session.
@@ -122,6 +195,19 @@ const AIM_STREAK_GAP_MS = 3000;
  * Defined in the engine so the offline bench anchors on the same rect.
  */
 const guideQuadFor = centeredGuideQuad;
+
+/**
+ * A card the placement detector watched land that nothing could identify, kept
+ * with the picture of the moment it settled so the user can say what it was.
+ */
+export interface UnidentifiedCard {
+  id: string;
+  /** A small JPEG data URL of the card as it lay in the guide. */
+  thumbnail: string | null;
+  /** Best guesses from the second look, nearest first; may be empty. */
+  candidates: { key: string; artKey: string }[];
+  at: number;
+}
 
 /** A card the accept layer locked, with the numbers the phone bar is judged on. */
 export interface LockedCard {
@@ -226,6 +312,25 @@ export interface ScannerReadout {
    * mode, which draws none.
    */
   candidateAreaFraction: number;
+  /**
+   * Cards seen to land in the guide this session, counted by the placement
+   * detector rather than by recognition. Every physical card that comes to
+   * rest bumps this, whether or not it was identified, so the page can say
+   * how many cards went past and how many of them were counted.
+   */
+  placements: number;
+  /**
+   * Placements that produced no lock: cards the user laid down and the
+   * session did not count. The page turns these into something the user can
+   * act on instead of a silently short number.
+   */
+  missedPlacements: number;
+  /**
+   * The guide is changing right now (a card landing, a hand passing). Frames
+   * are not processed while this holds, so the page shows it rather than
+   * leaving the reticle looking stuck.
+   */
+  settling: boolean;
 }
 
 const EMPTY_READOUT: ScannerReadout = {
@@ -246,6 +351,9 @@ const EMPTY_READOUT: ScannerReadout = {
   aim: null,
   lockProgress: { runLength: 0, lockRun: 0 },
   candidateAreaFraction: 0,
+  placements: 0,
+  missedPlacements: 0,
+  settling: false,
 };
 
 /**
@@ -679,6 +787,9 @@ async function fetchReference(key: string): Promise<RgbaImage | null> {
 export interface ScanEngineAssets {
   encoderUrl: string;
   opencvUrl: string;
+  /** Bank and labels, for the worker path: it loads its own copy. */
+  bankUrl?: string;
+  labelsUrl?: string;
 }
 
 export function useCardScanner(
@@ -734,6 +845,39 @@ export function useCardScanner(
   // spin flips the processed dimensions, thrashing the only-ever-growing
   // OpenCV heap until the tab dies (observed on a Pixel 1, 2026-07-27).
   const rotationAdoptionArmedRef = useRef(true);
+  // The placement watcher: a second, far cheaper eye on the camera that runs
+  // on every frame the browser delivers rather than on every frame the
+  // pipeline manages to process. It is what makes repeated copies countable
+  // (see packages/shared/src/scan/placement.ts).
+  const watchCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const placementRef = useRef<PlacementDetector | null>(null);
+  const placementCountsRef = useRef({
+    placements: 0,
+    missed: 0,
+    lockedSincePlacement: true,
+    /** When the placement still waiting for a lock landed. */
+    pendingSince: 0,
+  });
+  const settlingRef = useRef({ disturbed: false, at: 0 });
+  // Whether the last processed frame had something plausible in the guide, so
+  // the catch-up pass can tell "between cards" from "mid-scan".
+  const cardInGuideRef = useRef(false);
+  // Frames from placements nothing identified, waiting for a quiet moment.
+  // The session they are replayed through is a second, never-locking one: a
+  // single frame cannot earn a run, and feeding it to the live session would
+  // corrupt the run of whatever card is in the guide now.
+  const catchUpQueueRef = useRef(createCatchUpQueue());
+  const catchUpSessionRef = useRef<ScanSession | null>(null);
+  // The worker path, when this session is running one. Null means the pipeline
+  // runs in the page, which is still the default (see WORKER_PARAM).
+  const workerRef = useRef<ScanWorkerClient | null>(null);
+  const catchUpBusyRef = useRef(false);
+  const [catchUpPending, setCatchUpPending] = useState<UnidentifiedCard[]>([]);
+  // The frame the last placement settled on, held until that placement either
+  // produces a lock or is written off as a miss.
+  const pendingFrameRef = useRef<{ frame: RgbaImage; thumbnail: string | null } | null>(null);
+  const catchUpSeqRef = useRef(0);
+
   // The overlay's two halves: what the last processed frame decided, and the
   // eased state the animation-frame painter carries between repaints.
   const overlayTargetRef = useRef<OverlayTarget | null>(null);
@@ -759,10 +903,83 @@ export function useCardScanner(
   const opencvUrl = assets?.opencvUrl ?? null;
   const encoderUrl = assets?.encoderUrl ?? null;
 
+  // The worker owns the engine when this page asked for it: one loader, on the
+  // other side, instead of two here. Everything the page still needs from the
+  // engine (readiness, the encoder's measured cost) comes back over messages.
+  const bankUrl = assets?.bankUrl ?? null;
+  const labelsUrl = assets?.labelsUrl ?? null;
+  useEffect(() => {
+    if (
+      !workerRequested() ||
+      workerRef.current ||
+      opencvUrl === null ||
+      encoderUrl === null ||
+      bankUrl === null ||
+      labelsUrl === null
+    ) {
+      return;
+    }
+    let client: ScanWorkerClient | null = null;
+    let cancelled = false;
+    try {
+      client = createScanWorkerClient((asset, loadedBytes, totalBytes) => {
+        if (!cancelled) {
+          setEngineProgress((previous) => ({
+            ...previous,
+            [asset]: { loaded: loadedBytes, total: totalBytes, ready: false },
+          }));
+        }
+      });
+    } catch (workerError) {
+      // The page keeps its in-page path: a browser that will not make the
+      // worker still scans, it just scans on the main thread.
+      console.log(`[scan] worker unavailable, staying in-page: ${String(workerError)}`);
+      return;
+    }
+    workerRef.current = client;
+    const started = client;
+    async function init(): Promise<void> {
+      try {
+        const ready = await started.init({
+          opencvUrl: opencvUrl as string,
+          encoderUrl: encoderUrl as string,
+          bankUrl: bankUrl as string,
+          labelsUrl: labelsUrl as string,
+        });
+        if (cancelled) {
+          return;
+        }
+        console.log(
+          `[scan] worker ready: ${ready.embedMsPerImage.toFixed(0)}ms/image, input ${ready.embedImageSize}`,
+        );
+        setEmbedMsPerImage(ready.embedMsPerImage);
+        setCvReady(true);
+        setEmbedderReady(true);
+        setEngineProgress((previous) => ({
+          opencv: { ...previous.opencv, ready: true },
+          encoder: { ...previous.encoder, ready: true },
+        }));
+      } catch (initError) {
+        if (cancelled) {
+          return;
+        }
+        // Falling back mid-session would mean downloading everything again on
+        // the main thread; saying so plainly beats a silent half-speed page.
+        workerRef.current = null;
+        started.terminate();
+        setError(errorMessage(initError, "The scanning engine failed to start"));
+      }
+    }
+    void init();
+    return () => {
+      cancelled = true;
+    };
+  }, [opencvUrl, encoderUrl, bankUrl, labelsUrl]);
+
   // Loaded only when asked for, and only on this route: the build is around ten
   // megabytes, which has no business in the main bundle.
   useEffect(() => {
-    if (cvRef.current || opencvUrl === null) {
+    if (workerRequested() || cvRef.current || opencvUrl === null) {
       return;
     }
     const url = opencvUrl;
@@ -806,7 +1023,7 @@ export function useCardScanner(
   // The encoder download starts as soon as the manifest names it rather than
   // on the first Start press — it is the biggest asset.
   useEffect(() => {
-    if (embedderRef.current || encoderUrl === null) {
+    if (workerRequested() || embedderRef.current || encoderUrl === null) {
       return;
     }
     const url = encoderUrl;
@@ -815,7 +1032,7 @@ export function useCardScanner(
       let embedder: CardEmbedder | null = null;
       let message: string | null = null;
       try {
-        embedder = await loadScanEmbedder(url, (loadedBytes, totalBytes) => {
+        embedder = await loadScanEmbedder(url, ORT_WASM_PATHS, (loadedBytes, totalBytes) => {
           if (!cancelled) {
             setEngineProgress((previous) => ({
               ...previous,
@@ -899,12 +1116,125 @@ export function useCardScanner(
       streamRef.current = null;
       const inFlight = frameInFlightRef.current;
       const session = sessionRef.current;
+      const catchUpSession = catchUpSessionRef.current;
+      const worker = workerRef.current;
       sessionRef.current = null;
-      // oxlint-disable-next-line promise/prefer-await-to-then -- a cleanup cannot await
-      void Promise.resolve(inFlight).then(() => session?.release());
+      catchUpSessionRef.current = null;
+      workerRef.current = null;
+      worker?.terminate();
+      // oxlint-disable-next-line promise/prefer-await-to-then, promise/always-return -- a cleanup cannot await, and releasing returns nothing
+      void Promise.resolve(inFlight).then(() => {
+        session?.release();
+        catchUpSession?.release();
+        return null;
+      });
     },
     [],
   );
+
+  /**
+   * A second session for the catch-up pass, sharing the engine but not the
+   * accept state.
+   *
+   * `lockRun` is set past any run a single frame could reach, so this session
+   * never locks and never disambiguates: `runCatchUp` reads the frame winner
+   * and decides for itself. Guide-anchored like the live one, because the
+   * frames it replays were captured through the same guide.
+   *
+   * @returns The session, or null before the engine has loaded.
+   */
+  function createCatchUpSession(): ScanSession | null {
+    const cv = cvRef.current;
+    const embedder = embedderRef.current;
+    if (!cv || !embedder || !loaded) {
+      return null;
+    }
+    const gates = gatesForEmbedDim(
+      loaded.bank.keys.length > 0 ? loaded.bank.vectors.length / loaded.bank.keys.length : 0,
+    );
+    return createScanSession(
+      {
+        cv,
+        embedder,
+        bank: loaded.bank,
+        artKeyOf: (key) => loaded.artKeys.get(key) ?? key,
+        labelOf: (key) => describeKey(loaded.labels, key),
+        cardTypeOf: (key) => loaded.labels[key]?.type,
+        publicCodeOf: (key) => loaded.labels[key]?.code,
+        markersOf: (key) => loaded.labels[key]?.markers ?? undefined,
+        languageOf: (key) => loaded.labels[key]?.language,
+        embedImageSize: embedderImageSize(),
+        fetchReference,
+      },
+      {
+        candidatesToTry: settingsRef.current.candidatesToTry,
+        confidentDistance: gates.confidentDistance,
+        rotationFallbackDistance: gates.rotationFallbackDistance,
+        topK: Math.min(gates.topK, SINGLE_MODE_TOP_K),
+        rotationPairOnly: loaded.canonical,
+        guideFor: guideQuadFor,
+        accept: { lockRun: Number.POSITIVE_INFINITY, maxGapFrames: 0 },
+      },
+    );
+  }
+
+  /**
+   * The two sessions' options as plain data, for the worker to rebuild.
+   *
+   * Mirrors `createSession` and `createCatchUpSession` exactly; the only thing
+   * that cannot cross is the guide rect, which travels as a flag.
+   *
+   * @returns The pair, or null before the bank has loaded.
+   */
+  function workerSessionOptions(): {
+    live: ScanWorkerSessionOptions;
+    catchUp: ScanWorkerSessionOptions;
+  } | null {
+    if (!loaded) {
+      return null;
+    }
+    const gates = gatesForEmbedDim(
+      loaded.bank.keys.length > 0 ? loaded.bank.vectors.length / loaded.bank.keys.length : 0,
+    );
+    const slowDevice = embedMsPerImage > SLOW_DEVICE_EMBED_MS;
+    const single = settingsRef.current.mode !== "pan";
+    const shared = {
+      confidentDistance: gates.confidentDistance,
+      rotationFallbackDistance:
+        single && slowDevice ? gates.slowRotationFallbackDistance : gates.rotationFallbackDistance,
+      rotationPairOnly: single && loaded.canonical,
+    };
+    return {
+      live: {
+        ...shared,
+        guide: single,
+        candidatesToTry:
+          slowDevice && single
+            ? Math.min(1, settingsRef.current.candidatesToTry)
+            : settingsRef.current.candidatesToTry,
+        topK: single
+          ? Math.min(gates.topK, slowDevice ? SLOW_DEVICE_TOP_K : SINGLE_MODE_TOP_K)
+          : gates.topK,
+        accept:
+          settingsRef.current.mode === "capture"
+            ? { lockRun: lockRunForMode("capture"), maxGapFrames: 0 }
+            : {
+                ...DEFAULT_SESSION_OPTIONS.accept,
+                lockRun: lockRunForMode(settingsRef.current.mode),
+                weighted: single,
+                relockOnlyAfterRearm: settingsRef.current.mode === "single",
+              },
+      },
+      catchUp: {
+        ...shared,
+        guide: true,
+        candidatesToTry: settingsRef.current.candidatesToTry,
+        topK: Math.min(gates.topK, SINGLE_MODE_TOP_K),
+        rotationPairOnly: loaded.canonical,
+        accept: { lockRun: Number.POSITIVE_INFINITY, maxGapFrames: 0 },
+      },
+    };
+  }
 
   function createSession(): ScanSession | null {
     const cv = cvRef.current;
@@ -985,7 +1315,21 @@ export function useCardScanner(
               accept:
                 settingsRef.current.mode === "capture"
                   ? { lockRun: lockRunForMode("capture"), maxGapFrames: 0 }
-                  : { ...DEFAULT_SESSION_OPTIONS.accept, lockRun: lockRunForMode("single") },
+                  : {
+                      ...DEFAULT_SESSION_OPTIONS.accept,
+                      lockRun: lockRunForMode("single"),
+                      // A clean frame is worth more than a marginal one, so a
+                      // card the matcher is sure about locks in two frames
+                      // instead of three.
+                      weighted: true,
+                      // Counting is the placement detector's job: a locked
+                      // card may only lock again once the watcher has seen
+                      // the guide change. Without this the number of copies
+                      // counted drifts with the device's frame rate (see
+                      // AcceptOptions.relockOnlyAfterRearm). Capture mode is
+                      // exempt: there the tap is the user saying "count this".
+                      relockOnlyAfterRearm: true,
+                    },
               ...(slowDevice
                 ? { rotationFallbackDistance: gates.slowRotationFallbackDistance }
                 : {}),
@@ -1042,6 +1386,91 @@ export function useCardScanner(
     context.restore();
     const data = context.getImageData(0, 0, rotatedWidth, rotatedHeight);
     return { data: data.data, width: rotatedWidth, height: rotatedHeight };
+  }
+
+  /**
+   * Fold one camera frame into the placement detector.
+   *
+   * Deliberately independent of the pipeline: a card dealt onto a pile is in
+   * motion for a third of a second and at rest for a second, and a phone that
+   * processes five frames a second can easily spend that whole second inside
+   * two frames. Sampling the change signal at camera rate is what turns "the
+   * pile looks the same as it did" into "a card just landed".
+   *
+   * @returns Nothing; the detector's state and the session are updated.
+   */
+  function watchPlacement(video: HTMLVideoElement): void {
+    const detector = placementRef.current;
+    const { videoWidth, videoHeight } = video;
+    if (!detector || videoWidth === 0 || videoHeight === 0) {
+      return;
+    }
+    const scale = Math.min(1, WATCH_LONG_SIDE / Math.max(videoWidth, videoHeight));
+    const width = Math.max(1, Math.round(videoWidth * scale));
+    const height = Math.max(1, Math.round(videoHeight * scale));
+
+    // Written long-hand: the React Compiler cannot lower `??=`.
+    if (!watchCanvasRef.current) {
+      watchCanvasRef.current = document.createElement("canvas");
+    }
+    const canvas = watchCanvasRef.current;
+    if (canvas.width !== width || canvas.height !== height) {
+      canvas.width = width;
+      canvas.height = height;
+    }
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context) {
+      return;
+    }
+    context.drawImage(video, 0, 0, width, height);
+    const pixels = context.getImageData(0, 0, width, height);
+    // The watcher runs in the camera's own frame; the pipeline's rotation
+    // compensation does not apply and does not matter, since the detector
+    // only ever compares one frame against the previous one.
+    const signal = detector.observe(
+      toGray({ data: pixels.data, width, height }),
+      guideQuadFor(width, height),
+    );
+    const counts = placementCountsRef.current;
+    // A card that came to rest and was never identified is counted here rather
+    // than when the next one arrives, so the last card of a session is not
+    // silently forgiven.
+    const now = performance.now();
+    settlingRef.current = { disturbed: signal.disturbed, at: now };
+    if (!counts.lockedSincePlacement && now - counts.pendingSince > MISS_GRACE_MS) {
+      counts.missed++;
+      counts.lockedSincePlacement = true;
+      // The card is gone from the guide by now, but the frame it settled on is
+      // still here. Recognising it costs a frame slot the live pass did not
+      // have and now does.
+      const pending = pendingFrameRef.current;
+      pendingFrameRef.current = null;
+      if (pending) {
+        catchUpSeqRef.current += 1;
+        catchUpQueueRef.current.push({
+          id: `catchup-${catchUpSeqRef.current}`,
+          frame: pending.frame,
+          thumbnail: pending.thumbnail,
+          at: now,
+        });
+      }
+    }
+    if (!signal.placed) {
+      return;
+    }
+    counts.placements++;
+    counts.lockedSincePlacement = false;
+    counts.pendingSince = now;
+    // The settle frame is the sharpest view of this card there will be: the
+    // motion has stopped and the next thing to happen is the card leaving.
+    const frame = grabFrame(video, frameTurnsRef.current);
+    pendingFrameRef.current = frame
+      ? {
+          frame,
+          thumbnail: snapshotVideoRect(video, guideRectIn(video.getBoundingClientRect())),
+        }
+      : null;
+    rearmEngine();
   }
 
   /**
@@ -1166,6 +1595,9 @@ export function useCardScanner(
       aim,
       lockProgress: { runLength, lockRun },
       candidateAreaFraction,
+      placements: placementCountsRef.current.placements,
+      missedPlacements: placementCountsRef.current.missed,
+      settling: settlingRef.current.disturbed,
     });
   }
 
@@ -1193,6 +1625,10 @@ export function useCardScanner(
       inliers: outcome.winner === null ? 0 : outcome.winner.inliers,
     };
     locksRef.current = [lock, ...locksRef.current].slice(0, 30);
+    // This placement produced a card, so it is not one of the misses and its
+    // held frame has nothing left to prove.
+    placementCountsRef.current.lockedSincePlacement = true;
+    pendingFrameRef.current = null;
     // Wall time since this artwork's top-ranked streak began — the number the
     // user actually experiences, unlike lockSeconds which starts at the first
     // VERIFIED frame and hides any seen-but-unverifiable stretch before it.
@@ -1249,10 +1685,157 @@ export function useCardScanner(
     });
   }
 
+  /**
+   * Give one queued frame a second look.
+   *
+   * Runs through its own session so the live one's runs stay intact, and that
+   * session never locks: a lone frame has no run behind it, so the decision is
+   * made here from the frame's own evidence (see `catchUpVerdict`). A card the
+   * frame proves outright is reported as a lock, exactly as if the live pass
+   * had caught it; anything weaker becomes a card the user can identify, with
+   * the picture attached.
+   *
+   * @returns Nothing; the result is reported through the lock event or the
+   *   unidentified list.
+   */
+  /**
+   * Run one frame through whichever engine this session is using.
+   *
+   * The worker path owns the sessions and answers with the run state the
+   * overlay needs; the in-page path reads it off the session it holds. Frames
+   * handed to the worker are transferred, so the buffer must not be touched
+   * after this call either way.
+   *
+   * @returns The frame's outcome and the winning artwork's run, or null when
+   *   there is no engine to run it on.
+   */
+  async function processFrameVia(
+    kind: SessionKind,
+    frame: RgbaImage,
+    index: number,
+    seconds: number,
+  ): Promise<ScanWorkerOutcome | null> {
+    const client = workerRef.current;
+    if (client) {
+      return await client.processFrame(kind, frame, index, seconds);
+    }
+    const session = kind === "live" ? sessionRef.current : catchUpSessionRef.current;
+    if (!session) {
+      return null;
+    }
+    const outcome = await session.processFrame(frame, index, seconds, () => performance.now());
+    const track = outcome.winner ? session.state.get(outcome.winner.artKey) : undefined;
+    return {
+      outcome,
+      run: track ? { length: track.runLength, weight: track.runWeight } : null,
+    };
+  }
+
+  /**
+   * Let locked cards lock again, on whichever engine is running.
+   *
+   * @returns Nothing.
+   */
+  function rearmEngine(): void {
+    if (workerRef.current) {
+      workerRef.current.rearm();
+      return;
+    }
+    sessionRef.current?.rearm();
+  }
+
+  async function runCatchUp(): Promise<void> {
+    const entry = catchUpQueueRef.current.take();
+    if (!entry) {
+      return;
+    }
+    catchUpBusyRef.current = true;
+    const generation = runGenerationRef.current;
+    // The optional access lives outside the try on purpose: the React Compiler
+    // cannot lower a conditional inside one and bails out of the whole hook.
+    let result: ScanWorkerOutcome | null = null;
+    try {
+      result = await processFrameVia(
+        "catchUp",
+        entry.frame,
+        catchUpSeqRef.current,
+        (performance.now() - sessionStartRef.current) / 1000,
+      );
+    } catch (catchUpError) {
+      // A failed second look is not worth surfacing: the card is already
+      // counted as a miss, and the live pass must not be interrupted.
+      console.log(`[scan] catch-up failed: ${errorMessage(catchUpError, "unknown")}`);
+    }
+    const outcome = result === null ? null : result.outcome;
+    catchUpBusyRef.current = false;
+    if (generation !== runGenerationRef.current || !outcome) {
+      return;
+    }
+    const verdict = catchUpVerdict(
+      outcome.winner,
+      DEFAULT_SESSION_OPTIONS.minInliers,
+      DEFAULT_SESSION_OPTIONS.margin,
+    );
+    console.log(
+      `[scan] catch-up ${entry.id}: ${verdict}` +
+        `${outcome.winner ? ` ${outcome.winner.key} inliers ${outcome.winner.inliers} vs rival ${outcome.winner.rivalInliers}` : " nothing verified"}`,
+    );
+    if (verdict === "discard") {
+      return;
+    }
+    if (verdict === "add" && outcome.winner) {
+      const winner = outcome.winner;
+      // Reported like any other lock, so the page's resolve, picker and tray
+      // behave identically to a card the live pass caught.
+      eventsRef.current?.onLock?.({
+        key: winner.key,
+        artKey: winner.artKey,
+        label: describeKey(loaded?.labels ?? {}, winner.key),
+        resolved: false,
+        at: Date.now(),
+        lockSeconds: outcome.timings.total / 1000,
+        framesToLock: 1,
+        inliers: winner.inliers,
+      });
+      return;
+    }
+    const seen = new Set<string>();
+    const candidates: UnidentifiedCard["candidates"] = [];
+    for (const ranked of outcome.ranked) {
+      const artKey = loaded?.artKeys.get(ranked.key) ?? ranked.key;
+      if (seen.has(artKey)) {
+        continue;
+      }
+      seen.add(artKey);
+      candidates.push({ key: ranked.key, artKey });
+    }
+    setCatchUpPending((current) => [
+      ...current,
+      {
+        id: entry.id,
+        thumbnail: entry.thumbnail,
+        candidates: candidates.slice(0, 4),
+        at: entry.at,
+      },
+    ]);
+  }
+
   async function runFrame(): Promise<void> {
     const video = videoRef.current;
-    const session = sessionRef.current;
-    if (!video || !session) {
+    if (!video || (!sessionRef.current && !workerRef.current)) {
+      return;
+    }
+    // Mid-swap frames are motion-blurred, half-occluded, or showing two cards
+    // at once. Nothing good comes of recognising them, and on a phone a frame
+    // slot is the scarcest resource there is, so the watcher's verdict decides
+    // whether this one is worth the pipeline. Capture mode is exempt: a tap
+    // is a deliberate shot and must always run.
+    const settling = settlingRef.current;
+    if (
+      settling.disturbed &&
+      performance.now() - settling.at < SETTLE_TRUST_MS &&
+      !capturingRef.current
+    ) {
       return;
     }
     const turns = frameTurnsRef.current;
@@ -1262,12 +1845,16 @@ export function useCardScanner(
     }
 
     const generation = runGenerationRef.current;
-    const outcome = await session.processFrame(
+    const result = await processFrameVia(
+      "live",
       frame,
       frameIndexRef.current++,
       (performance.now() - sessionStartRef.current) / 1000,
-      () => performance.now(),
     );
+    if (!result) {
+      return;
+    }
+    const outcome = result.outcome;
     if (generation !== runGenerationRef.current) {
       // Stop was pressed while this frame was in flight; a stale outcome must
       // not repaint the overlay or report a lock into the stopped run.
@@ -1275,6 +1862,9 @@ export function useCardScanner(
     }
 
     const rankedTop = outcome.ranked[0];
+    cardInGuideRef.current =
+      outcome.winner !== null ||
+      (rankedTop !== undefined && rankedTop.distance <= idleGateRef.current);
     let aimAgeSeconds = 0;
     let aim: ScannerReadout["aim"] = null;
     if (rankedTop) {
@@ -1335,8 +1925,10 @@ export function useCardScanner(
     // session would actually lock on; a winner-less frame is no progress at
     // all, and the ring bleeds back down.
     const lockRun = lockRunForMode(settingsRef.current.mode);
-    const winnerTrack = outcome.winner ? session.state.get(outcome.winner.artKey) : undefined;
-    const runLength = winnerTrack ? Math.min(winnerTrack.runLength, lockRun) : 0;
+    // Weighted runs are what the accept layer scores, so the ring follows the
+    // same number: a run of two strong frames is genuinely further along than
+    // two marginal ones, and the ring should say so.
+    const runLength = result.run ? Math.min(result.run.weight, lockRun) : 0;
 
     const grade = gradeReticle({
       hasCandidate: outcome.candidate !== null,
@@ -1387,8 +1979,19 @@ export function useCardScanner(
     // wait it out before replacing the session.
     await Promise.resolve(frameInFlightRef.current);
     sessionRef.current?.release();
-    sessionRef.current = createSession();
-    if (!sessionRef.current) {
+    catchUpSessionRef.current?.release();
+    const workerOptions = workerRef.current ? workerSessionOptions() : null;
+    if (workerRef.current && workerOptions) {
+      workerRef.current.create(workerOptions.live, workerOptions.catchUp);
+    } else {
+      sessionRef.current = createSession();
+      catchUpSessionRef.current = createCatchUpSession();
+    }
+    catchUpQueueRef.current.clear();
+    catchUpBusyRef.current = false;
+    pendingFrameRef.current = null;
+    setCatchUpPending([]);
+    if (!sessionRef.current && !workerRef.current) {
       setError("The engine is still loading, try again in a moment.");
       startingRef.current = false;
       return;
@@ -1478,6 +2081,39 @@ export function useCardScanner(
 
     capturingRef.current = false;
 
+    // The placement watcher runs for the whole session, in both guide modes:
+    // the live session counts copies from it, and capture mode uses it to know
+    // when the card under the lens has changed. Driven by the camera's own
+    // frame callback where that exists, so it samples every delivered frame
+    // rather than whatever the render loop happens to line up with.
+    placementRef.current = createPlacementDetector();
+    placementCountsRef.current = {
+      placements: 0,
+      missed: 0,
+      lockedSincePlacement: true,
+      pendingSince: 0,
+    };
+    settlingRef.current = { disturbed: false, at: 0 };
+    if (video && settingsRef.current.mode !== "pan") {
+      const watched = video;
+      const watch = () => {
+        if (generation !== runGenerationRef.current) {
+          return;
+        }
+        watchPlacement(watched);
+        if (watched.requestVideoFrameCallback) {
+          watched.requestVideoFrameCallback(watch);
+        } else {
+          requestAnimationFrame(watch);
+        }
+      };
+      if (watched.requestVideoFrameCallback) {
+        watched.requestVideoFrameCallback(watch);
+      } else {
+        requestAnimationFrame(watch);
+      }
+    }
+
     // The overlay repaints every animation frame for as long as this run
     // lasts, easing the drawn corners toward whatever the last processed frame
     // decided. Declared as a const for the same reason as the frame loop
@@ -1532,7 +2168,17 @@ export function useCardScanner(
       if (!runningRef.current) {
         return;
       }
-      const inFlight = runFrame();
+      // A quiet guide is when the second look is free: live scanning always
+      // wins the frame slot, since the card in front of the camera now is the
+      // one the user is waiting on.
+      const inFlight = shouldRunCatchUp({
+        queued: catchUpQueueRef.current.size(),
+        settling: settlingRef.current.disturbed,
+        cardInGuide: cardInGuideRef.current,
+        busy: catchUpBusyRef.current,
+      })
+        ? runCatchUp()
+        : runFrame();
       frameInFlightRef.current = inFlight;
       const scheduleNext = () => {
         const pace = idlePaceRef.current;
@@ -1635,5 +2281,15 @@ export function useCardScanner(
     stop,
     capture,
     clearHistory,
+    /**
+     * Cards the placement watcher saw land that neither the live pass nor the
+     * second look could name. Each carries the picture of the moment it
+     * settled and the best guesses, for the page to offer as a pick.
+     */
+    unidentified: catchUpPending,
+    /** Forget one unidentified card, once the user has answered or dismissed it. */
+    dismissUnidentified: (id: string) => {
+      setCatchUpPending((current) => current.filter((card) => card.id !== id));
+    },
   };
 }

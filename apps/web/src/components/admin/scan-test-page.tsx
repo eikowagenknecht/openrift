@@ -565,7 +565,13 @@ export function ScanTestPage() {
                 <span className="text-muted-foreground ml-auto tabular-nums">
                   {readout.fps} fps · {readout.totalMs.toFixed(0)}ms (detect{" "}
                   {readout.detectMs.toFixed(0)}, embed {readout.embedMs.toFixed(0)}, verify{" "}
-                  {readout.verifyMs.toFixed(0)}) · focus {readout.focus.toFixed(0)}
+                  {readout.verifyMs.toFixed(0)}) · focus {readout.focus.toFixed(0)} ·{" "}
+                  {/* Placements against locks: the throughput number for a
+                      stack session, where the failure mode is a card counted
+                      once too few rather than a wrong card. */}
+                  {readout.placements} placed
+                  {readout.missedPlacements > 0 && ` (${readout.missedPlacements} uncounted)`}
+                  {readout.settling && " · settling"}
                 </span>
               )}
             </div>

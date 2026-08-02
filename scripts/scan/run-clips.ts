@@ -13,55 +13,78 @@
  *        [--tries N] [--margin M] [--lock-run N] [--lock-gap N] [--force-bank]
  *        [--confident-distance D] [--rotation-min-focus N]
  *        [--rotation-fallback-distance D] [--pair-only] [--guide]
+ *        [--no-rearm] [--no-skip-disturbed] [--no-weighted]
+ *        [--no-relock-gate] [--drop-to N] [--trace]
  *
  * --guide anchors detection to the same centered rect the single-card modes
  * draw in the app (`centeredGuideQuad`). Off by default, so the bench keeps
- * measuring the pan pipeline; pair it with --top-k 4 --lock-run 3 --pair-only
- * to reproduce what the web hook configures for single mode. The placement
- * report is printed either way, and guide-free it says how many frames the
- * guide filter would have thrown away.
+ * measuring the pan pipeline; it also configures the rest of what the web
+ * hook sets for single mode (shortlist 4, 3-frame run, pair-only rotation
+ * against a canonical bank). The placement report is printed either way, and
+ * guide-free it says how many frames the guide filter would have thrown away.
  *
  * --pair-only restricts the rotation fallback to the 180-degree partner and is
  * only sound against a canonical bank (SCAN_CANONICAL_BANK=1) with an encoder
  * trained --canonical. The clips are pan footage, where pair-only measurably
  * loses stacked battlefields (verdict.log 2026-07-30) — it exists here for
  * experiments, not as a recommended bench configuration.
+ *
+ * Two scores, because the clips ask two different questions:
+ *
+ * - **Coverage** (every clip, always): how many of the distinct cards in the
+ *   clip were locked, against EXPECTED_CARDS.
+ * - **Throughput** (--guide, clips in EXPECTED_PLACEMENTS): how many of the
+ *   cards laid down were counted. The same artwork placed six times must lock
+ *   six times, so this one counts lock events, not distinct artworks.
+ *
+ * Under --guide the run also drives the placement detector on every frame, the
+ * way the phone drives it on every camera frame, which is what makes repeated
+ * copies countable at all. --no-rearm, --no-relock-gate and --no-weighted turn
+ * the individual parts off to reproduce the pre-2026-08-02 behaviour, and
+ * --drop-to N models a device that can only process N frames a second (the
+ * clips are 30 fps, phones manage 5-15).
  */
 import fs from "node:fs";
 import path from "node:path";
 
+// The web app's catch-up rule, shared so the bench scores the shipping
+// decision rather than a copy of it.
+import type { CatchUpVerdict } from "../../apps/web/src/lib/scan-catchup.js";
+import { catchUpVerdict } from "../../apps/web/src/lib/scan-catchup.js";
 import type {
   EmbedBank,
   EmbedKind,
   OpenCvLike,
   OrbCvLike,
   Quad,
+  RgbaImage,
   ScanSession,
 } from "../../packages/shared/src/scan/index.js";
 import {
   DEFAULT_SESSION_OPTIONS,
   GUIDE_MIN_IOU,
   centeredGuideQuad,
+  createPlacementDetector,
   createScanSession,
   gatesForEmbedDim,
   quadIou,
+  toGray,
 } from "../../packages/shared/src/scan/index.js";
 import { describe, loadCatalog } from "./catalog";
-import { EMBED_SIZE, loadEmbedBank, nodeEmbedder } from "./embed-bank";
-import { REPO_ROOT, listReferenceImages, loadImage } from "./lib";
+import { CANONICAL_BANK, EMBED_SIZE, loadEmbedBank, nodeEmbedder } from "./embed-bank";
+import {
+  CLIPS,
+  EXPECTED_CARDS,
+  EXPECTED_PLACEMENTS,
+  REPO_ROOT,
+  listReferenceImages,
+  loadImage,
+} from "./lib";
 
-const CLIPS = "/home/eiko/repos/openrift/data/image-recognition-test/clips/full";
-
-/** Distinct cards each clip contains, as counted by hand. */
-const EXPECTED: Record<string, number> = {
-  "double-sleved-single-cards": 5,
-  "binder-page": 9,
-  "carelessly-stacking-battlefields": 12,
-  // Stand footage: a phone fixed above a 3D-printed light box, cards dropped
-  // in by hand. Two artworks (Baccai Sandspinner, Blade Twirler), each placed
-  // and swapped several times, none of them deliberately aimed.
-  "3d-print-scanner": 2,
-};
+/** Shortlist cap the scanning page applies in single-card mode. */
+const SINGLE_MODE_TOP_K = 4;
+/** Agreeing frames a guide-mode lock needs, matching the page. */
+const GUIDE_LOCK_RUN = 3;
 
 function argValue(flag: string): string | undefined {
   const i = process.argv.indexOf(flag);
@@ -173,6 +196,70 @@ function formatPlacement(stats: PlacementStats): string {
   );
 }
 
+/**
+ * A second session for the catch-up pass: same engine, separate accept state,
+ * and a lock run no single frame can reach, so it only ever reports frame
+ * winners. Mirrors `createCatchUpSession` in the web hook.
+ *
+ * @returns The session; release it when the clip is done.
+ */
+function createCatchUpSession(
+  cv: OpenCvLike & OrbCvLike,
+  catalog: ReturnType<typeof loadCatalog>,
+  bank: EmbedBank,
+  gates: ReturnType<typeof gatesForEmbedDim>,
+  referenceFiles: Map<string, string>,
+): ScanSession {
+  return createScanSession(
+    {
+      cv,
+      embedder: nodeEmbedder,
+      bank,
+      artKeyOf: (key) => catalog.get(key)?.artKey ?? key,
+      labelOf: (key) => describe(catalog, key),
+      cardTypeOf: (key) => catalog.get(key)?.cardType,
+      publicCodeOf: (key) => catalog.get(key)?.publicCode,
+      markersOf: (key) => catalog.get(key)?.markers ?? undefined,
+      languageOf: (key) => catalog.get(key)?.language,
+      embedImageSize: EMBED_SIZE,
+      fetchReference: async (key) => {
+        const file = referenceFiles.get(key);
+        return file ? await loadImage(file) : null;
+      },
+    },
+    {
+      topK: Math.min(gates.topK, SINGLE_MODE_TOP_K),
+      confidentDistance: gates.confidentDistance,
+      rotationFallbackDistance: gates.rotationFallbackDistance,
+      rotationPairOnly: CANONICAL_BANK,
+      guideFor: centeredGuideQuad,
+      accept: { lockRun: Number.POSITIVE_INFINITY, maxGapFrames: 0 },
+    },
+  );
+}
+
+/**
+ * Re-recognise one held frame and say what should happen to it.
+ *
+ * @returns The catch-up verdict for the frame.
+ */
+async function secondLook(
+  session: ScanSession,
+  frame: RgbaImage,
+  frameIndex: number,
+  gates: ReturnType<typeof gatesForEmbedDim>,
+): Promise<CatchUpVerdict> {
+  void gates;
+  const outcome = await session.processFrame(frame, frameIndex, frameIndex / 30, () =>
+    performance.now(),
+  );
+  return catchUpVerdict(
+    outcome.winner,
+    DEFAULT_SESSION_OPTIONS.minInliers,
+    DEFAULT_SESSION_OPTIONS.margin,
+  );
+}
+
 async function runClip(
   cv: OpenCvLike & OrbCvLike,
   clip: string,
@@ -191,13 +278,23 @@ async function runClip(
 
   const referenceFiles = new Map(listReferenceImages().map((r) => [r.key, r.file]));
 
+  // The throughput score only means anything in guide mode, and only for a
+  // clip whose placements were counted by hand.
+  const counting = guided && clip in EXPECTED_PLACEMENTS;
+
   // Distance gates default per encoder; the bank's dimension says which
   // encoder built it (session.ts gatesForEmbedDim).
   const gates = gatesForEmbedDim(bank.keys.length > 0 ? bank.vectors.length / bank.keys.length : 0);
   const acceptMargin = Number(argValue("--margin") ?? DEFAULT_SESSION_OPTIONS.margin);
   const acceptOptions = {
-    lockRun: Number(argValue("--lock-run") ?? DEFAULT_SESSION_OPTIONS.accept.lockRun),
+    lockRun: Number(
+      argValue("--lock-run") ?? (guided ? GUIDE_LOCK_RUN : DEFAULT_SESSION_OPTIONS.accept.lockRun),
+    ),
     maxGapFrames: Number(argValue("--lock-gap") ?? DEFAULT_SESSION_OPTIONS.accept.maxGapFrames),
+    // Both are guide-mode behaviour: pan has no placement detector to gate a
+    // re-lock on, and its 4-frame run is what keeps false locks at zero.
+    weighted: guided && !process.argv.includes("--no-weighted"),
+    relockOnlyAfterRearm: guided && !process.argv.includes("--no-relock-gate"),
   };
   const session: ScanSession = createScanSession(
     {
@@ -218,7 +315,9 @@ async function runClip(
     },
     {
       embedKind,
-      topK: Number(argValue("--top-k") ?? gates.topK),
+      topK: Number(
+        argValue("--top-k") ?? (guided ? Math.min(gates.topK, SINGLE_MODE_TOP_K) : gates.topK),
+      ),
       candidatesToTry: Number(argValue("--tries") ?? DEFAULT_SESSION_OPTIONS.candidatesToTry),
       confidentDistance: Number(argValue("--confident-distance") ?? gates.confidentDistance),
       rotationMinFocus: Number(
@@ -227,7 +326,9 @@ async function runClip(
       rotationFallbackDistance: Number(
         argValue("--rotation-fallback-distance") ?? gates.rotationFallbackDistance,
       ),
-      rotationPairOnly: process.argv.includes("--pair-only"),
+      // The page pairs guide mode with a canonical bank; the bench knows the
+      // bank's frame from the env the cache was built under.
+      rotationPairOnly: process.argv.includes("--pair-only") || (guided && CANONICAL_BANK),
       margin: acceptMargin,
       maskReferenceFrame: maskFrame,
       accept: acceptOptions,
@@ -240,11 +341,104 @@ async function runClip(
   let totalMs = 0;
   const placement = createPlacementStats();
 
+  // The placement detector runs on every frame, the way the phone runs it on
+  // every camera frame: it is the cheap eye that has to out-sample the
+  // recognition pipeline, or a card dealt onto a pile is gone before anything
+  // notices the pile changed.
+  const trace = process.argv.includes("--trace");
+  const detector = createPlacementDetector();
+  const rearmOnPlacement = counting && !process.argv.includes("--no-rearm");
+  const skipDisturbed = counting && !process.argv.includes("--no-skip-disturbed");
+  // Frames a second the pipeline is allowed to process, against the clip's 30.
+  // Unset means "process every frame", which no phone can do.
+  const dropTo = argValue("--drop-to") ? Number(argValue("--drop-to")) : null;
+  const frameStride = dropTo ? Math.max(1, Math.round(30 / dropTo)) : 1;
+
+  let placements = 0;
+  let processed = 0;
+  let skipped = 0;
+  let lockEvents = 0;
+  const lockLog: string[] = [];
+  // Placements still waiting for something to lock; a placement that never
+  // does is a card the user put down and the session did not count.
+  let unlockedSincePlacement = 0;
+  let missedPlacements = 0;
+  let nextProcessableFrame = 0;
+  // The second look (see apps/web/src/lib/scan-catchup.ts): the frame each
+  // placement settled on, replayed through a never-locking session once the
+  // placement is written off. A single frame cannot earn a run, so the verdict
+  // comes from the frame's own evidence.
+  const catchUp = !process.argv.includes("--no-catch-up");
+  let pendingFrame: RgbaImage | null = null;
+  let recovered = 0;
+  let recoveredAsk = 0;
+  const catchUpSession: ScanSession | null =
+    counting && catchUp ? createCatchUpSession(cv, catalog, bank, gates, referenceFiles) : null;
+
   for (const [i, file] of frames.entries()) {
     const image = await loadImage(path.join(dir, file));
     const startedAt = performance.now();
 
-    const outcome = await session.processFrame(image, i, i / 30, () => performance.now());
+    let disturbed = false;
+    if (counting) {
+      const signal = detector.observe(toGray(image), centeredGuideQuad(image.width, image.height));
+      disturbed = signal.disturbed;
+      if (signal.placed) {
+        placements++;
+        if (unlockedSincePlacement > 0) {
+          missedPlacements++;
+          // The card is gone, but the frame it settled on is not: give it the
+          // frame slot the live pass never had.
+          if (catchUpSession && pendingFrame) {
+            const verdict = await secondLook(catchUpSession, pendingFrame, i, gates);
+            if (verdict === "add") {
+              recovered++;
+            } else if (verdict === "ask") {
+              recoveredAsk++;
+            }
+          }
+        }
+        unlockedSincePlacement = 1;
+        // The settle frame is the sharpest view of this card there will be.
+        pendingFrame = image;
+        if (rearmOnPlacement) {
+          session.rearm();
+        }
+      }
+    }
+
+    // A disturbed frame is mid-swap: motion-blurred, half-occluded, or showing
+    // two cards at once. Processing it buys nothing and costs a whole frame
+    // slot, which on a phone is the scarcest thing there is.
+    if (disturbed && skipDisturbed) {
+      skipped++;
+      totalMs += performance.now() - startedAt;
+      continue;
+    }
+    if (i < nextProcessableFrame) {
+      skipped++;
+      totalMs += performance.now() - startedAt;
+      continue;
+    }
+    nextProcessableFrame = i + frameStride;
+    processed++;
+
+    // The frame INDEX is the processed-frame counter, not the clip position:
+    // that is what the web hook passes, and `maxGapFrames` is counted in it.
+    // Feeding clip positions here would make a skipped frame widen every gap,
+    // so a budgeted run would break runs the phone would keep.
+    const outcome = await session.processFrame(image, processed - 1, i / 30, () =>
+      performance.now(),
+    );
+    if (trace) {
+      const top = outcome.ranked[0];
+      process.stdout.write(
+        `    #${String(i + 1).padStart(4)} ${outcome.timings.total.toFixed(0).padStart(4)}ms ` +
+          `focus ${outcome.focus.toFixed(0).padStart(4)} ` +
+          `${top ? `top ${describe(catalog, top.key).padEnd(44)} d${top.distance.toFixed(3)} r${top.rotation}` : "no-candidate".padEnd(58)} ` +
+          `${outcome.winner ? `WIN ${outcome.winner.inliers} vs ${outcome.winner.rivalInliers}` : `${outcome.refused ? "refused " : ""}best-inliers ${outcome.bestInliers}`}\n`,
+      );
+    }
     if (outcome.refused) {
       refusedFrames++;
     }
@@ -253,15 +447,34 @@ async function runClip(
     }
     if (outcome.winner) {
       record(sightings, catalog, outcome.winner.key, i / 30, outcome.winner.inliers, verbose);
-      if (verbose && outcome.locked) {
-        process.stdout.write(
-          `      LOCK ${outcome.locked.label} after ${String(outcome.locked.framesToLock)} frames, ` +
-            `inliers ${outcome.winner.inliers} vs rival ${outcome.winner.rivalInliers}\n`,
+      if (outcome.locked) {
+        lockEvents++;
+        unlockedSincePlacement = 0;
+        pendingFrame = null;
+        lockLog.push(
+          `    lock ${(i / 30).toFixed(1).padStart(5)}s  ${outcome.locked.label.padEnd(46)} ` +
+            `after ${String(outcome.locked.framesToLock).padStart(3)} frames, ` +
+            `inliers ${outcome.winner.inliers} vs rival ${outcome.winner.rivalInliers}`,
         );
+        if (verbose) {
+          process.stdout.write(`      LOCK ${lockLog.at(-1)?.trim() ?? ""}\n`);
+        }
       }
     }
     totalMs += performance.now() - startedAt;
   }
+  if (unlockedSincePlacement > 0) {
+    missedPlacements++;
+    if (catchUpSession && pendingFrame) {
+      const verdict = await secondLook(catchUpSession, pendingFrame, frames.length, gates);
+      if (verdict === "add") {
+        recovered++;
+      } else if (verdict === "ask") {
+        recoveredAsk++;
+      }
+    }
+  }
+  catchUpSession?.release();
 
   // Persistence view, kept for continuity with the audit-era numbers: how many
   // distinct artworks were seen at least N times, before the accept layer's
@@ -278,14 +491,33 @@ async function runClip(
     .join("  ");
   // The same artwork in two languages is one physical card, so collapse them.
   const artworks = new Set(distinct.map((s) => catalog.get(s.key)?.artKey ?? s.key));
-  const expected = EXPECTED[clip] ?? 0;
   process.stdout.write(
-    `\n${clip}: ${frames.length} frames, ${(totalMs / frames.length).toFixed(0)}ms/frame` +
-      `${guided ? " (guide mode)" : ""}\n` +
+    `\n${clip}: ${frames.length} frames` +
+      `${guided ? ` (guide mode), ${processed} processed, ${skipped} skipped` : ""}, ` +
+      `${(totalMs / Math.max(1, processed)).toFixed(0)}ms/processed frame\n` +
       `  ${artworks.size} distinct cards recognised at >=${MIN_SIGHTINGS} sightings ` +
-      `(clip contains ${expected})\n  persistence curve: ${curve}\n` +
+      `(clip contains ${EXPECTED_CARDS[clip] ?? 0})\n  persistence curve: ${curve}\n` +
       `${formatPlacement(placement)}`,
   );
+  if (counting) {
+    // The throughput score: cards laid down against cards counted. Locks, not
+    // distinct artworks — five copies of one card is five cards.
+    process.stdout.write(
+      `  SCORE ${lockEvents} counted / ${EXPECTED_PLACEMENTS[clip]} placed ` +
+        `(detector saw ${placements}, ${missedPlacements} placements went uncounted)\n` +
+        `  second look: ${recovered} recovered outright, ${recoveredAsk} left for the user` +
+        `${catchUp ? "" : " (OFF)"}\n` +
+        `  mode: guide, rearm ${rearmOnPlacement ? "on" : "OFF"}, ` +
+        `skip-disturbed ${skipDisturbed ? "on" : "OFF"}, ` +
+        `relock-gate ${acceptOptions.relockOnlyAfterRearm ? "on" : "OFF"}, ` +
+        `weighted ${acceptOptions.weighted ? "on" : "OFF"}` +
+        `${dropTo ? `, budget ${dropTo}fps (stride ${frameStride})` : ""}\n`,
+    );
+  } else if (clip in EXPECTED_PLACEMENTS) {
+    // The clip's placements were counted by hand, but this run cannot score
+    // them: without the guide there is nothing to watch for a card landing.
+    process.stdout.write("  (run with --guide to score how many cards were counted)\n");
+  }
   for (const sighting of distinct) {
     process.stdout.write(
       `    ${sighting.firstSeen.toFixed(1).padStart(5)}s  ${sighting.label.padEnd(46)} ` +
@@ -300,15 +532,11 @@ async function runClip(
     .toSorted((a, b) => (a.lockedAt ?? 0) - (b.lockedAt ?? 0));
   process.stdout.write(
     `  accept layer (margin ${acceptMargin}, run ${acceptOptions.lockRun}, ` +
-      `gap ${acceptOptions.maxGapFrames}): ${locked.length} locked, ` +
-      `${refusedFrames} frames refused\n`,
+      `gap ${acceptOptions.maxGapFrames}): ${lockEvents} lock events over ` +
+      `${locked.length} artworks, ${refusedFrames} frames refused\n`,
   );
-  for (const track of locked) {
-    process.stdout.write(
-      `    lock ${(track.lockedAt ?? 0).toFixed(1).padStart(5)}s  ` +
-        `${track.label.padEnd(46)} after ${String(track.framesToLock).padStart(3)} frames, ` +
-        `seen ${String(track.sightings).padStart(3)}x\n`,
-    );
+  for (const line of lockLog) {
+    process.stdout.write(`${line}\n`);
   }
   for (const track of [...session.state.values()].filter(
     (t) => t.lockedAt === null && t.sightings >= 3,
@@ -362,7 +590,7 @@ async function main(cv: OpenCvLike & OrbCvLike): Promise<void> {
   const guided = process.argv.includes("--guide");
   const bank = await loadEmbedBank(embedKind, process.argv.includes("--force-bank"));
 
-  for (const clip of Object.keys(EXPECTED)) {
+  for (const clip of Object.keys(EXPECTED_CARDS)) {
     if (only && clip !== only) {
       continue;
     }

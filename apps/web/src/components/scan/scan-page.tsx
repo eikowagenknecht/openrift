@@ -281,6 +281,8 @@ export function ScanPage() {
     start,
     stop,
     capture,
+    unidentified,
+    dismissUnidentified,
   } = useCardScanner(loaded, settings, assets, {
     onLock: handleLock,
     onLockResolved: handleLockResolved,
@@ -309,6 +311,7 @@ export function ScanPage() {
       topDistance: readout.ranked[0]?.distance,
       refused: readout.refused,
       isWinner: readout.winnerKey !== null,
+      settling: readout.settling,
     });
     setAimHint(aimHintSmootherRef.current.update(derived, performance.now()));
   }, [active, readout]);
@@ -394,14 +397,48 @@ export function ScanPage() {
     setIdentifyCandidates(candidates.slice(0, 4));
   }
 
+  // Which unidentified card the open identify sheet is answering, if any: the
+  // sheet is shared with the live "identify now" button, which answers no card.
+  const [answeringId, setAnsweringId] = useState<string | null>(null);
+
   function handleIdentifyPick(candidate: IdentifyCandidate) {
     setIdentifyCandidates(null);
+    if (answeringId !== null) {
+      dismissUnidentified(answeringId);
+      setAnsweringId(null);
+    }
     handleLock({
       key: candidate.key,
       artKey: candidate.artKey,
       label: candidate.label,
       resolved: false,
     });
+  }
+
+  /**
+   * Open the identify sheet for a card the scanner watched land but could not
+   * name, offering the second look's own best guesses.
+   *
+   * @returns Nothing; the sheet opens as state.
+   */
+  function handleIdentifyMissed(id: string) {
+    const card = unidentified.find((entry) => entry.id === id);
+    if (!card || !loaded) {
+      return;
+    }
+    if (card.candidates.length === 0) {
+      toast.info("Nothing recognisable in that frame, scan the card again");
+      dismissUnidentified(id);
+      return;
+    }
+    setAnsweringId(id);
+    setIdentifyCandidates(
+      card.candidates.map((candidate) => ({
+        key: candidate.key,
+        artKey: candidate.artKey,
+        label: describeKey(loaded.labels, candidate.key),
+      })),
+    );
   }
 
   // The "Is it X?" chip is an escape hatch for a scan that is not converging,
@@ -721,6 +758,10 @@ export function ScanPage() {
       onAddOne={handleAddOne}
       onRemoveOne={handleRemoveOne}
       onChangePrinting={setSwapRow}
+      missedPlacements={readout.missedPlacements}
+      unidentified={unidentified}
+      onIdentifyMissed={handleIdentifyMissed}
+      onDismissMissed={dismissUnidentified}
     />
   );
 
@@ -776,7 +817,10 @@ export function ScanPage() {
       <ScanIdentifySheet
         candidates={identifyCandidates}
         onPick={handleIdentifyPick}
-        onDismiss={() => setIdentifyCandidates(null)}
+        onDismiss={() => {
+          setIdentifyCandidates(null);
+          setAnsweringId(null);
+        }}
       />
     </>
   );

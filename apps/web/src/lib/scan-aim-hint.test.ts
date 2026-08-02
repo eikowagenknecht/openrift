@@ -126,6 +126,25 @@ describe("deriveAimHint", () => {
     expect(deriveAimHint(frame())).toBeNull();
   });
 
+  it("asks the user to let the card settle while the guide is still changing", () => {
+    expect(deriveAimHint(frame({ settling: true }))).toEqual({
+      kind: "settling",
+      message: AIM_HINT_MESSAGES.settling,
+    });
+  });
+
+  it("settling outranks the stale readings behind it", () => {
+    // Mid-swap the last processed frame is whatever was there before the card
+    // moved, so its framing and focus say nothing about now.
+    expect(
+      deriveAimHint(frame({ settling: true, hasCandidate: false, focus: 5, bestInliers: 0 }))?.kind,
+    ).toBe("settling");
+  });
+
+  it("still says nothing on a winner frame while settling", () => {
+    expect(deriveAimHint(frame({ settling: true, isWinner: true }))).toBeNull();
+  });
+
   it("asks for a card when nothing was detected", () => {
     expect(deriveAimHint(frame({ hasCandidate: false }))).toEqual({
       kind: "no-card",

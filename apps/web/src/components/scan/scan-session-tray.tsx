@@ -5,6 +5,8 @@ import { ArrowLeftRightIcon, MinusIcon, PlusIcon, SparklesIcon } from "lucide-re
 import { FoilOverlay } from "@/components/cards/foil-overlay";
 import { PrintingVariantLabel } from "@/components/cards/printing-label";
 import { Button } from "@/components/ui/button";
+import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
+import type { UnidentifiedCard } from "@/hooks/use-card-scanner";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { formatCardId } from "@/lib/format";
 import type { ScanPrintingIndex } from "@/lib/scan-resolve";
@@ -23,6 +25,22 @@ interface ScanSessionTrayProps {
   onRemoveOne: (row: ScanSessionRow) => void;
   /** Open the printing swap for the row (all printings of that card). */
   onChangePrinting: (row: ScanSessionRow) => void;
+  /**
+   * Cards the scanner watched land in the guide and could not identify. Shown
+   * so a short count is something the user can see and act on, rather than a
+   * silent shortfall they only notice later against the physical pile.
+   */
+  missedPlacements?: number;
+  /**
+   * Cards the scanner watched land and could not name, after the second look.
+   * Each carries the picture of how it lay, which is usually enough for the
+   * user to recognise it at a glance.
+   */
+  unidentified?: UnidentifiedCard[];
+  /** Open the identify picker for one of them. */
+  onIdentifyMissed?: (id: string) => void;
+  /** Forget one without answering. */
+  onDismissMissed?: (id: string) => void;
 }
 
 /**
@@ -38,16 +56,28 @@ export function ScanSessionTray({
   onAddOne,
   onRemoveOne,
   onChangePrinting,
+  missedPlacements = 0,
+  unidentified = [],
+  onIdentifyMissed,
+  onDismissMissed,
 }: ScanSessionTrayProps) {
   const rows = useScanSessionStore((state) => state.rows);
   const { labels } = useEnumOrders();
 
   if (rows.size === 0) {
     return (
-      <p className="text-muted-foreground">
-        Nothing scanned yet. Cards land in your collection the moment they are recognised, and show
-        up here so you can undo or mark a foil.
-      </p>
+      <div className="flex flex-col gap-2">
+        <p className="text-muted-foreground">
+          Nothing scanned yet. Cards land in your collection the moment they are recognised, and
+          show up here so you can undo or mark a foil.
+        </p>
+        <MissedLine count={missedPlacements} />
+        <UnidentifiedList
+          cards={unidentified}
+          onIdentify={onIdentifyMissed}
+          onDismiss={onDismissMissed}
+        />
+      </div>
     );
   }
 
@@ -59,6 +89,12 @@ export function ScanSessionTray({
       <p className="text-muted-foreground text-sm">
         {total} {total === 1 ? "card" : "cards"} added this session
       </p>
+      <MissedLine count={missedPlacements} />
+      <UnidentifiedList
+        cards={unidentified}
+        onIdentify={onIdentifyMissed}
+        onDismiss={onDismissMissed}
+      />
       <ul className="flex flex-col gap-2">
         {newestFirst.map((row) => {
           const printing = row.printing;
@@ -147,5 +183,75 @@ export function ScanSessionTray({
         })}
       </ul>
     </div>
+  );
+}
+
+/**
+ * The uncounted-placement line.
+ *
+ * A card the watcher saw land but nothing identified is the one failure the
+ * scanner can detect but not fix, so it says so plainly and tells the user the
+ * one thing that helps.
+ *
+ * @returns The line, or nothing when every placement was counted.
+ */
+function MissedLine({ count }: { count: number }) {
+  if (count <= 0) {
+    return null;
+  }
+  return (
+    <p className="text-sm text-amber-600 dark:text-amber-500">
+      {count} {count === 1 ? "card was" : "cards were"} not recognised. Scan{" "}
+      {count === 1 ? "it" : "them"} again, more slowly.
+    </p>
+  );
+}
+
+/**
+ * The cards the scanner watched land and could not name.
+ *
+ * Shown with the frame they settled on, because that picture is what turns an
+ * unhelpful "one card was missed" into something the user can answer in a
+ * second: they recognise the card at a glance and tap to say what it was.
+ *
+ * @returns The list, or nothing when every placement was identified.
+ */
+function UnidentifiedList({
+  cards,
+  onIdentify,
+  onDismiss,
+}: {
+  cards: UnidentifiedCard[];
+  onIdentify?: (id: string) => void;
+  onDismiss?: (id: string) => void;
+}) {
+  if (cards.length === 0) {
+    return null;
+  }
+  return (
+    <ul className="flex flex-col gap-2">
+      {cards.map((card) => (
+        <li key={card.id} className="flex items-center gap-3">
+          <span className="bg-muted block h-14 w-10 shrink-0 overflow-hidden rounded">
+            {card.thumbnail !== null && (
+              <img src={card.thumbnail} alt="" className="h-full w-full object-cover" />
+            )}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-medium">Not recognised</span>
+            <span className="text-muted-foreground block text-sm">
+              This card was scanned but not identified.
+            </span>
+          </span>
+          <Button size="sm" onClick={() => onIdentify?.(card.id)}>
+            Identify
+          </Button>
+          <ChipRemoveButton
+            aria-label="Dismiss unidentified card"
+            onClick={() => onDismiss?.(card.id)}
+          />
+        </li>
+      ))}
+    </ul>
   );
 }

@@ -1,13 +1,9 @@
 import type { CardEmbedder } from "@openrift/shared/scan";
 import { EMBED_IMAGE_SIZE, embedImageSizeOf } from "@openrift/shared/scan";
-// The ONNX runtime loads its WASM binary at runtime from a URL. Importing the
-// file through Vite gives it a hashed asset URL so it is cached and versioned
-// with the bundle instead of needing a copy in public/.
-import ortWasmMjsUrl from "onnxruntime-web/ort-wasm-simd-threaded.mjs?url";
-import ortWasmUrl from "onnxruntime-web/ort-wasm-simd-threaded.wasm?url";
 
 import { fetchWithProgress } from "@/lib/fetch-progress";
 import { encoderCreateRetryable, encoderStartErrorMessage } from "@/lib/scan-encoder-error";
+import type { OrtWasmPaths } from "@/lib/scan-ort-assets";
 
 let cached: Promise<CardEmbedder> | null = null;
 // Single slot, latest caller wins: the load runs once per page, but the hook
@@ -72,14 +68,22 @@ export function embedderImageSize(): number {
  */
 export async function loadScanEmbedder(
   modelUrl: string,
+  /**
+   * Where onnxruntime fetches its runtime from. Passed in rather than imported
+   * here: the scan worker imports this module, and a `?url` import inside a
+   * worker's graph gets inlined as base64 (see scan-ort-assets.ts).
+   */
+  wasmPaths: OrtWasmPaths,
   onProgress?: (loaded: number, total: number) => void,
+  /** Running inside the scan worker: skip ort's own proxy worker. */
+  inWorker = false,
 ): Promise<CardEmbedder> {
   if (onProgress) {
     progressListener = onProgress;
   }
   cached ??= (async () => {
     const ort = await import("onnxruntime-web/wasm");
-    ort.env.wasm.wasmPaths = { wasm: ortWasmUrl, mjs: ortWasmMjsUrl };
+    ort.env.wasm.wasmPaths = { wasm: wasmPaths.wasm, mjs: wasmPaths.mjs };
     // Keep inference off the main thread: without the proxy every forward pass
     // blocks the UI for its full duration (1-2 s per frame on a phone). Threads
     // only engage under cross-origin isolation (COOP/COEP, set by the dev
@@ -88,7 +92,10 @@ export async function loadScanEmbedder(
     // thread scaling can be measured on a phone without an edit-reload cycle.
     const params = new URLSearchParams(globalThis.location?.search ?? "");
     const threadsOverride = Number(params.get("ortThreads"));
-    ort.env.wasm.proxy = params.get("ortProxy") !== "0";
+    // The proxy exists to keep inference off the MAIN thread. Loaded inside
+    // the scan worker there is no main thread to protect, and proxying would
+    // put a nested worker between this one and the wasm for nothing.
+    ort.env.wasm.proxy = !inWorker && params.get("ortProxy") !== "0";
     ort.env.wasm.numThreads =
       threadsOverride > 0 ? threadsOverride : Math.min(4, navigator.hardwareConcurrency || 1);
     console.log(

@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import type { AcceptState, VerifiedCandidate } from "./accept";
-import { observeWinner, pickFrameWinner, rearmLockedTracks } from "./accept";
+import {
+  MAX_FRAME_WEIGHT,
+  frameWeight,
+  observeWinner,
+  pickFrameWinner,
+  rearmLockedTracks,
+} from "./accept";
 
 const OPTIONS = { lockRun: 3, maxGapFrames: 6 };
 
@@ -154,6 +160,49 @@ describe("observeWinner", () => {
     // off a single post-re-arm win.
     expect(observeWinner(state, 4, 0.2, winner("a", "artA"), "A", OPTIONS)).toBeNull();
     expect(observeWinner(state, 5, 0.2, winner("a", "artA"), "A", OPTIONS)).toBeNull();
+  });
+
+  it("counts a weighted run of strong frames as more than its frame count", () => {
+    const state: AcceptState = new Map();
+    const options = { ...OPTIONS, weighted: true };
+    const strong = { key: "a", artKey: "artA", inliers: 60, rivalInliers: 0 };
+    const weight = frameWeight(strong, 11, 1.5);
+    expect(weight).toBe(MAX_FRAME_WEIGHT);
+    expect(observeWinner(state, 0, 0, strong, "A", options, weight)).toBeNull();
+    // Two frames this good carry the evidence of three ordinary ones.
+    expect(observeWinner(state, 1, 0.03, strong, "A", options, weight)?.artKey).toBe("artA");
+  });
+
+  it("still needs the full run when the frames are marginal", () => {
+    const state: AcceptState = new Map();
+    const options = { ...OPTIONS, weighted: true };
+    const marginal = { key: "a", artKey: "artA", inliers: 11, rivalInliers: 7 };
+    const weight = frameWeight(marginal, 11, 1.5);
+    // Exactly on the inlier floor: the weakest frame the layer accepts, so it
+    // buys no shortcut at all.
+    expect(weight).toBe(1);
+    expect(observeWinner(state, 0, 0, marginal, "A", options, weight)).toBeNull();
+    expect(observeWinner(state, 1, 0.03, marginal, "A", options, weight)).toBeNull();
+    expect(observeWinner(state, 2, 0.06, marginal, "A", options, weight)?.artKey).toBe("artA");
+  });
+
+  it("under the re-lock gate a run break alone cannot count the card twice", () => {
+    const state: AcceptState = new Map();
+    const options = { ...OPTIONS, relockOnlyAfterRearm: true };
+    observeWinner(state, 0, 0, winner("a", "artA"), "A", options);
+    observeWinner(state, 1, 0, winner("a", "artA"), "A", options);
+    expect(observeWinner(state, 2, 0.1, winner("a", "artA"), "A", options)).not.toBeNull();
+    // The card never moved; the pipeline simply lost it for a while. Without
+    // the gate this starts a fresh run and counts the same card again, which
+    // is what made the count depend on how fast the device happened to run.
+    for (const frame of [100, 101, 102, 103]) {
+      expect(observeWinner(state, frame, frame / 30, winner("a", "artA"), "A", options)).toBeNull();
+    }
+    // Only a placement makes it countable again.
+    rearmLockedTracks(state);
+    observeWinner(state, 200, 6.6, winner("a", "artA"), "A", options);
+    observeWinner(state, 201, 6.7, winner("a", "artA"), "A", options);
+    expect(observeWinner(state, 202, 6.8, winner("a", "artA"), "A", options)?.artKey).toBe("artA");
   });
 
   it("measures lock latency from the run that locked, not the first sighting", () => {

@@ -17,7 +17,7 @@ import type {
   FrameWinner,
   VerifiedCandidate,
 } from "./accept";
-import { observeWinner, pickFrameWinner, rearmLockedTracks } from "./accept";
+import { frameWeight, observeWinner, pickFrameWinner, rearmLockedTracks } from "./accept";
 import type { OpenCvLike } from "./detect-cv";
 import { detectCardsWithCv } from "./detect-cv";
 import type { PrintingScore, PrintingSignature } from "./disambiguate";
@@ -290,6 +290,16 @@ export interface ScanSession {
   ) => Promise<FrameOutcome>;
   /** Accept-layer tracks, keyed by artwork. */
   state: AcceptState;
+  /**
+   * Let every locked track lock again: something the session cannot see from
+   * the frames it processes says the guide now holds a different card.
+   *
+   * The caller owns that signal because it has to be sampled far faster than
+   * frames can be recognised. `createPlacementDetector` is what produces it;
+   * see `placement.ts` for why counting copies needs a second, cheaper eye on
+   * the camera.
+   */
+  rearm: () => void;
   /** Free cached OpenCV allocations. */
   release: () => void;
 }
@@ -768,6 +778,7 @@ export function createScanSession(
         decision.winner,
         deps.labelOf(decision.winner.key),
         opts.accept,
+        opts.accept.weighted ? frameWeight(decision.winner, opts.minInliers, opts.margin) : 1,
       );
     }
     const verifyMs = now() - verifyStartedAt;
@@ -821,6 +832,15 @@ export function createScanSession(
   return {
     processFrame,
     state,
+    rearm: () => {
+      rearmLockedTracks(state);
+      // The tracked-candidate anchor still points at where the previous card
+      // lay, which is a stale ordering hint for the frames the new card's run
+      // starts from. The rotation hint is deliberately kept: cards dealt onto
+      // a pile land the same way up, and it only steers the search order.
+      lastWinnerQuad = null;
+      absentStreak = 0;
+    },
     release: () => {
       for (const cached of referenceCache.values()) {
         if (cached) {
