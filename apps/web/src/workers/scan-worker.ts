@@ -1,4 +1,3 @@
-import { imageUrl } from "@openrift/shared";
 import type {
   ArtTrack,
   CardEmbedder,
@@ -8,7 +7,6 @@ import type {
   RgbaImage,
   ScanSession,
 } from "@openrift/shared/scan";
-import { centeredGuideQuad, createScanSession } from "@openrift/shared/scan";
 
 /**
  * The scan pipeline, off the main thread.
@@ -29,10 +27,17 @@ import { centeredGuideQuad, createScanSession } from "@openrift/shared/scan";
  * The worker loads its own bank and labels rather than being handed them: they
  * come from immutable URLs, so the second request is a cache hit, and it keeps
  * the main thread's copy intact instead of detaching its buffers.
+ *
+ * Only the transport lives here. Loading the engine, decoding references and
+ * configuring sessions are the same modules the page uses (`scan-opencv.ts`,
+ * `scan-reference-image.ts`, `scan-session.ts`), so the two paths cannot drift
+ * into scanning differently.
  */
-import type { CardLabel } from "@/lib/scan-bank";
-import { describeKey, loadScanBank } from "@/lib/scan-bank";
-import { loadScanEmbedder } from "@/lib/scan-embedder";
+import { loadScanBank } from "@/lib/scan-bank";
+import { embedderImageSize, loadScanEmbedder, measuredEmbedMsPerImage } from "@/lib/scan-embedder";
+import { loadOpenCvInWorker } from "@/lib/scan-opencv";
+import type { ScanSessionPlan } from "@/lib/scan-session";
+import { createConfiguredScanSession } from "@/lib/scan-session";
 
 /** Session kinds the worker keeps: the live pass and the never-locking second look. */
 export type SessionKind = "live" | "catchUp";
@@ -47,29 +52,9 @@ export interface ScanWorkerInit {
   wasmPaths: { wasm: string };
 }
 
-/**
- * Session options as plain data. `guideFor` is a function on the engine's own
- * options, so it crosses as a flag and is resolved back to `centeredGuideQuad`
- * here.
- */
-export interface ScanWorkerSessionOptions {
-  guide: boolean;
-  candidatesToTry: number;
-  confidentDistance: number;
-  rotationFallbackDistance: number;
-  topK: number;
-  rotationPairOnly: boolean;
-  accept: {
-    lockRun: number;
-    maxGapFrames: number;
-    weighted?: boolean;
-    relockOnlyAfterRearm?: boolean;
-  };
-}
-
 export type ScanWorkerRequest =
   | ScanWorkerInit
-  | { type: "create"; live: ScanWorkerSessionOptions; catchUp: ScanWorkerSessionOptions }
+  | { type: "create"; live: ScanSessionPlan; catchUp: ScanSessionPlan }
   | {
       type: "frame";
       id: number;
@@ -115,163 +100,22 @@ const scope = globalThis as unknown as WorkerScope;
 
 let cv: (OpenCvLike & OrbCvLike) | null = null;
 let embedder: CardEmbedder | null = null;
-let labels: Record<string, CardLabel> = {};
-let artKeys = new Map<string, string>();
 let bank: Awaited<ReturnType<typeof loadScanBank>> | null = null;
 const sessions = new Map<SessionKind, ScanSession>();
-
-/**
- * Load the OpenCV build into the worker.
- *
- * A module worker has no `importScripts` and no script tag, and the emscripten
- * glue must never go through the bundler's ESM wrapping (it spins forever, see
- * the loader in use-card-scanner). Fetching the text and evaluating it is what
- * is left, and it is exactly what the node bench does through `require`. The
- * `locateFile` override is set on the global the factory captures during
- * evaluation, so the split build finds its wasm beside the glue.
- *
- * @returns The initialised OpenCV module.
- */
-async function loadOpenCvInWorker(
-  scriptUrl: string,
-  onProgress: (loaded: number, total: number) => void,
-): Promise<OpenCvLike & OrbCvLike> {
-  const response = await fetch(scriptUrl);
-  if (!response.ok) {
-    throw new Error(`could not load OpenCV from ${scriptUrl}`);
-  }
-  const total = Number(response.headers.get("content-length") ?? 0);
-  const reader = response.body?.getReader();
-  let source: string;
-  if (reader) {
-    const chunks: Uint8Array[] = [];
-    let loaded = 0;
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) {
-        break;
-      }
-      chunks.push(value);
-      loaded += value.length;
-      onProgress(loaded, total);
-    }
-    source = new TextDecoder().decode(
-      chunks.reduce((joined, chunk) => {
-        const next = new Uint8Array(joined.length + chunk.length);
-        next.set(joined);
-        next.set(chunk, joined.length);
-        return next;
-      }, new Uint8Array(0)),
-    );
-  } else {
-    source = await response.text();
-    onProgress(total, total);
-  }
-
-  const wasmUrl = scriptUrl.replace(/\.js$/u, ".wasm");
-  const globalScope = globalThis as unknown as { Module?: unknown; cv?: unknown };
-  globalScope.Module = {
-    locateFile: (file: string) => (file.endsWith(".wasm") ? wasmUrl : file),
-  };
-  // oxlint-disable-next-line no-new-func -- the emscripten UMD must be evaluated as a classic script; see the module comment
-  new Function(source)();
-  /* oxlint-disable promise/avoid-new, promise/prefer-catch, promise/always-return -- the emscripten export is a thenable, not a promise: it must be unwrapped by calling `then` directly, and the callback returns nothing */
-  return await new Promise<OpenCvLike & OrbCvLike>((resolve, reject) => {
-    const factory = globalScope.cv as {
-      then: (
-        fn: (value: OpenCvLike & OrbCvLike) => void,
-        onError: (error: unknown) => void,
-      ) => void;
-    };
-    // The export is a thenable, not a promise: resolving it through one calls
-    // `then` again with itself forever. Stripping `then` inside the callback
-    // makes it a plain object every later await can hold.
-    factory.then((ready) => {
-      delete (ready as { then?: unknown }).then;
-      resolve(ready);
-    }, reject);
-  });
-  /* oxlint-enable promise/avoid-new, promise/prefer-catch, promise/always-return */
-}
-
-// Reused across reference decodes; a canvas per card would churn memory.
-let referenceCanvas: OffscreenCanvas | null = null;
-
-/**
- * Fetch and decode a reference render, the worker's own copy of the main
- * thread's `fetchReference`.
- *
- * Transient failures throw so the session retries them: a cached transient
- * miss would silently remove the rival that refuses a wrong winner.
- *
- * @returns The decoded render, or null when it does not exist.
- */
-async function fetchReference(key: string): Promise<RgbaImage | null> {
-  const response = await fetch(imageUrl(key, "400w"));
-  if (response.status === 404) {
-    return null;
-  }
-  if (!response.ok) {
-    throw new Error(`reference fetch failed with status ${response.status}`);
-  }
-  let bitmap: ImageBitmap;
-  try {
-    bitmap = await createImageBitmap(await response.blob());
-  } catch {
-    return null;
-  }
-  if (!referenceCanvas) {
-    referenceCanvas = new OffscreenCanvas(bitmap.width, bitmap.height);
-  }
-  referenceCanvas.width = bitmap.width;
-  referenceCanvas.height = bitmap.height;
-  const context = referenceCanvas.getContext("2d", { willReadFrequently: true });
-  if (!context) {
-    bitmap.close();
-    return null;
-  }
-  // Transparent rounded corners onto mid grey, matching the bank build: white
-  // or black would inject an edge no photograph shows.
-  context.fillStyle = "rgb(128, 128, 128)";
-  context.fillRect(0, 0, referenceCanvas.width, referenceCanvas.height);
-  context.drawImage(bitmap, 0, 0);
-  bitmap.close();
-  const data = context.getImageData(0, 0, referenceCanvas.width, referenceCanvas.height);
-  return { data: data.data, width: referenceCanvas.width, height: referenceCanvas.height };
-}
 
 /**
  * Build one session over the loaded engine.
  *
  * @returns The session.
  */
-function buildSession(options: ScanWorkerSessionOptions, embedImageSize: number): ScanSession {
+function buildSession(plan: ScanSessionPlan): ScanSession {
   if (!cv || !embedder || !bank) {
     throw new Error("the engine is not loaded");
   }
-  return createScanSession(
-    {
-      cv,
-      embedder,
-      bank: bank.bank,
-      artKeyOf: (key) => artKeys.get(key) ?? key,
-      labelOf: (key) => describeKey(labels, key),
-      cardTypeOf: (key) => labels[key]?.type,
-      publicCodeOf: (key) => labels[key]?.code,
-      markersOf: (key) => labels[key]?.markers ?? undefined,
-      languageOf: (key) => labels[key]?.language,
-      embedImageSize,
-      fetchReference,
-    },
-    {
-      candidatesToTry: options.candidatesToTry,
-      confidentDistance: options.confidentDistance,
-      rotationFallbackDistance: options.rotationFallbackDistance,
-      topK: options.topK,
-      rotationPairOnly: options.rotationPairOnly,
-      accept: options.accept,
-      ...(options.guide ? { guideFor: centeredGuideQuad } : {}),
-    },
+  return createConfiguredScanSession(
+    { cv, embedder, embedImageSize: embedderImageSize() },
+    bank,
+    plan,
   );
 }
 
@@ -312,9 +156,6 @@ async function handle(request: ScanWorkerRequest): Promise<void> {
       cv = loadedCv;
       embedder = loadedEmbedder;
       bank = loadedBank;
-      labels = loadedBank.labels;
-      artKeys = loadedBank.artKeys;
-      const { embedderImageSize, measuredEmbedMsPerImage } = await import("@/lib/scan-embedder");
       post({
         type: "ready",
         embedMsPerImage: measuredEmbedMsPerImage(),
@@ -325,13 +166,12 @@ async function handle(request: ScanWorkerRequest): Promise<void> {
     }
 
     if (request.type === "create") {
-      const { embedderImageSize } = await import("@/lib/scan-embedder");
       for (const session of sessions.values()) {
         session.release();
       }
       sessions.clear();
-      sessions.set("live", buildSession(request.live, embedderImageSize()));
-      sessions.set("catchUp", buildSession(request.catchUp, embedderImageSize()));
+      sessions.set("live", buildSession(request.live));
+      sessions.set("catchUp", buildSession(request.catchUp));
       return;
     }
 

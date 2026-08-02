@@ -64,7 +64,7 @@ describe("loadOpenCv", () => {
   });
 
   it("evaluates the script from its own URL, not from a blob", async () => {
-    const { loadOpenCv } = await import("./use-card-scanner");
+    const { loadOpenCv } = await import("./scan-opencv");
 
     await loadOpenCv("/scan-opencv.js");
 
@@ -76,7 +76,7 @@ describe("loadOpenCv", () => {
   });
 
   it("points the wasm at the sibling file the script is served under", async () => {
-    const { loadOpenCv } = await import("./use-card-scanner");
+    const { loadOpenCv } = await import("./scan-opencv");
 
     await loadOpenCv("/media/scan/scan-opencv-v1.js");
 
@@ -86,7 +86,7 @@ describe("loadOpenCv", () => {
   });
 
   it("reports download progress", async () => {
-    const { loadOpenCv } = await import("./use-card-scanner");
+    const { loadOpenCv } = await import("./scan-opencv");
     const onProgress = vi.fn();
 
     await loadOpenCv("/scan-opencv.js", onProgress);
@@ -95,7 +95,7 @@ describe("loadOpenCv", () => {
   });
 
   it("resolves with the module the glue exports", async () => {
-    const { loadOpenCv } = await import("./use-card-scanner");
+    const { loadOpenCv } = await import("./scan-opencv");
 
     const cv = await loadOpenCv("/scan-opencv.js");
 
@@ -105,7 +105,7 @@ describe("loadOpenCv", () => {
   });
 
   it("loads once per page and retries after a failure", async () => {
-    const { loadOpenCv } = await import("./use-card-scanner");
+    const { loadOpenCv } = await import("./scan-opencv");
 
     respondWith = "error";
     await expect(loadOpenCv("/scan-opencv.js")).rejects.toThrow(
@@ -118,5 +118,72 @@ describe("loadOpenCv", () => {
 
     expect(fetchWithProgress).toHaveBeenCalledTimes(2);
     expect(appended).toHaveLength(2);
+  });
+});
+
+describe("loadOpenCvInWorker", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    fetchWithProgress.mockReset();
+  });
+
+  afterEach(() => {
+    delete (globalThis as { cv?: unknown }).cv;
+    delete (globalThis as { Module?: unknown }).Module;
+  });
+
+  /**
+   * Serve a script body as the downloaded OpenCV glue.
+   *
+   * @returns Nothing; the mocked download answers with these bytes.
+   */
+  function serveSource(source: string): void {
+    fetchWithProgress.mockImplementation(
+      (_url: string, onProgress?: (loaded: number, total: number) => void) => {
+        const bytes = new TextEncoder().encode(source);
+        onProgress?.(bytes.byteLength, bytes.byteLength);
+        return Promise.resolve(bytes.buffer);
+      },
+    );
+  }
+
+  it("evaluates the downloaded glue and unwraps the thenable it exports", async () => {
+    const { loadOpenCvInWorker } = await import("./scan-opencv");
+    // A module worker has neither a script tag nor importScripts, so the
+    // downloaded text is evaluated directly.
+    serveSource(
+      `globalThis.cv = { locate: globalThis.Module.locateFile("opencv_js.wasm"), then(resolve) { resolve(this); } };`,
+    );
+
+    const cv = (await loadOpenCvInWorker("/media/scan/scan-opencv-v1.js")) as unknown as {
+      locate: string;
+    };
+
+    expect(cv.locate).toBe("/media/scan/scan-opencv-v1.wasm");
+    expect("then" in cv).toBe(false);
+    // The factory captured the object during evaluation; the global slot is
+    // handed back either way.
+    expect((globalThis as { Module?: unknown }).Module).toBeUndefined();
+  });
+
+  it("reports download progress", async () => {
+    const { loadOpenCvInWorker } = await import("./scan-opencv");
+    serveSource(`globalThis.cv = { then(resolve) { resolve(this); } };`);
+    const onProgress = vi.fn();
+
+    await loadOpenCvInWorker("/scan-opencv.js", onProgress);
+
+    expect(onProgress).toHaveBeenCalled();
+  });
+
+  it("names the dev export script when the download fails", async () => {
+    const { loadOpenCvInWorker } = await import("./scan-opencv");
+    fetchWithProgress.mockImplementation((_url: string, _onProgress: unknown, hint: string) =>
+      Promise.reject(new Error(hint)),
+    );
+
+    await expect(loadOpenCvInWorker("/scan-opencv.js")).rejects.toThrow(
+      "bun scripts/scan/export-index.ts",
+    );
   });
 });

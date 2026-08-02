@@ -13,11 +13,11 @@
  * caller must not read the frame after handing it over.
  */
 import { ORT_WASM_PATHS } from "@/lib/scan-ort-assets";
+import type { ScanSessionPlan } from "@/lib/scan-session";
 import type {
   ScanWorkerOutcome,
   ScanWorkerRequest,
   ScanWorkerResponse,
-  ScanWorkerSessionOptions,
   SessionKind,
 } from "@/workers/scan-worker";
 
@@ -36,7 +36,7 @@ export interface ScanWorkerClient {
     labelsUrl: string;
   }) => Promise<ScanWorkerReady>;
   /** Replace both sessions. */
-  create: (live: ScanWorkerSessionOptions, catchUp: ScanWorkerSessionOptions) => void;
+  create: (live: ScanSessionPlan, catchUp: ScanSessionPlan) => void;
   /**
    * Run one frame. The frame's buffer is transferred and must not be touched
    * afterwards.

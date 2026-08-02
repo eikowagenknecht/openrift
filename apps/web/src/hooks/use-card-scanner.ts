@@ -1,4 +1,3 @@
-import { imageUrl } from "@openrift/shared";
 import type {
   CardCandidate,
   CardEmbedder,
@@ -6,8 +5,6 @@ import type {
   OpenCvLike,
   OrbCvLike,
   PlacementDetector,
-  Point,
-  Quad,
   RankedEmbed,
   RgbaImage,
   ScanSession,
@@ -17,8 +14,6 @@ import {
   IDLE_AFTER_NO_WINNER_FRAMES,
   centeredGuideQuad,
   createPlacementDetector,
-  createScanSession,
-  gatesForEmbedDim,
   toGray,
 } from "@openrift/shared/scan";
 import { useEffect, useRef, useState } from "react";
@@ -27,7 +22,6 @@ import { isOverconstrainedError, scannerVideoConstraints } from "@/lib/camera-co
 import { cameraErrorMessage } from "@/lib/camera-error";
 import type { CameraInfo } from "@/lib/camera-info";
 import { readCameraInfo } from "@/lib/camera-info";
-import { fetchWithProgress } from "@/lib/fetch-progress";
 import { areaFractionOfGuide } from "@/lib/scan-aim-hint";
 import type { LoadedScanBank } from "@/lib/scan-bank";
 import { describeKey } from "@/lib/scan-bank";
@@ -39,45 +33,22 @@ import {
   measuredEmbedMsPerImage,
 } from "@/lib/scan-embedder";
 import { guideRectIn, snapshotVideoRect } from "@/lib/scan-flight";
+import { loadOpenCv } from "@/lib/scan-opencv";
 import { ORT_WASM_PATHS } from "@/lib/scan-ort-assets";
 import type { ReticleGrade } from "@/lib/scan-overlay";
+import { gradeReticle, lockRingFraction } from "@/lib/scan-overlay";
+import type { OverlayTarget } from "@/lib/scan-overlay-paint";
+import { createDrawState, paintOverlay, syncOverlaySize } from "@/lib/scan-overlay-paint";
+import type { ScanSessionPlan, ScannerMode } from "@/lib/scan-session";
 import {
-  BRACKET_FRACTION,
-  GUIDE_COLOR,
-  RETICLE_COLORS,
-  RING_EASE,
-  RING_SNAP,
-  boundsOfQuad,
-  bracketSegments,
-  coverMapping,
-  gradeReticle,
-  lockRingDash,
-  lockRingFraction,
-  mapQuad,
-  reticleLineWidth,
-  ringRadiusFor,
-  roundedRectPerimeter,
-  shouldDrawLockRing,
-  stepQuadToward,
-  stepToward,
-} from "@/lib/scan-overlay";
+  createConfiguredScanSession,
+  gatesForBank,
+  lockRunForMode,
+  scanSessionPlans,
+} from "@/lib/scan-session";
 import type { ScanWorkerClient } from "@/lib/scan-worker-client";
 import { createScanWorkerClient } from "@/lib/scan-worker-client";
-import type {
-  ScanWorkerOutcome,
-  ScanWorkerSessionOptions,
-  SessionKind,
-} from "@/workers/scan-worker";
-
-/**
- * `single` asks the user to place one card in a drawn guide rect: detection is
- * anchored to the guide, junk elsewhere in frame is ignored, and the
- * verification shortlist is trimmed. `capture` is the same framing but the
- * pipeline only runs when `capture()` is tapped — one inference per shot, for
- * devices too slow to scan continuously. `pan` is the free-form mode for
- * panning over a binder page or spread-out cards.
- */
-type ScannerMode = "single" | "capture" | "pan";
+import type { ScanWorkerOutcome, SessionKind } from "@/workers/scan-worker";
 
 export interface ScannerSettings {
   mode: ScannerMode;
@@ -99,16 +70,6 @@ export const DEFAULT_SCANNER_SETTINGS: ScannerSettings = {
   processingSize: 848,
   candidatesToTry: DEFAULT_SESSION_OPTIONS.candidatesToTry,
 };
-
-/**
- * Shortlist caps applied on top of the per-encoder `gates.topK` (which is the
- * real default — 2 for the custom encoder, 8 for MobileCLIP; see
- * `gatesForEmbedDim`). They only bite for encoders whose gates ask for more:
- * single-card mode never needs a deep rival list, and on slow silicon each
- * shortlist entry is a full ORB match, the dominant per-frame cost.
- */
-const SINGLE_MODE_TOP_K = 4;
-const SLOW_DEVICE_TOP_K = 2;
 
 /**
  * Extra wait between guide-mode frames while the session is in idle backoff
@@ -357,251 +318,6 @@ const EMPTY_READOUT: ScannerReadout = {
 };
 
 /**
- * Agreeing frames a mode needs before it locks. The session is configured
- * with exactly these in {@link useCardScanner}'s `createSession`; the overlay
- * reads them to scale its progress ring.
- *
- * @returns The mode's lock run.
- */
-function lockRunForMode(mode: ScannerMode): number {
-  if (mode === "capture") {
-    return 1;
-  }
-  if (mode === "single") {
-    return 3;
-  }
-  return DEFAULT_SESSION_OPTIONS.accept.lockRun;
-}
-
-/**
- * What the last processed frame told the overlay to aim at. Written once per
- * pipeline frame, read by the paint loop on every animation frame — the two
- * run at completely different rates, and this ref is the whole handover.
- *
- * Quads stay in rotated-frame pixels rather than canvas pixels so a resize
- * between processed frames re-maps correctly instead of leaving the reticle
- * behind at the old scale.
- */
-interface OverlayTarget {
-  /** Detector proposal, null when the frame settled on nothing. */
-  quad: Quad | null;
-  /** The guide rect, null in pan mode, which has none. */
-  guide: Quad | null;
-  frameWidth: number;
-  frameHeight: number;
-  turns: number;
-  grade: ReticleGrade;
-  /** Unverified guess: dashed, so it never reads as a recognised card. */
-  dashed: boolean;
-  focus: number;
-  /** Lock-run progress as a fraction of the run needed to lock. */
-  lockFraction: number;
-  lockRun: number;
-}
-
-/**
- * The eased state the paint loop carries between animation frames. Every
- * point object is allocated once and mutated in place: this runs at display
- * rate over a live camera preview, so the loop allocates nothing per frame.
- */
-interface OverlayDrawState {
-  /** Drawn corners, in canvas pixels, chasing {@link OverlayDrawState.mapped}. */
-  points: Point[];
-  /** The current target, mapped into canvas pixels. */
-  mapped: Point[];
-  /** The guide rect, mapped into canvas pixels. */
-  guide: Point[];
-  /** False until a target lands, so the reticle appears in place rather than
-   * sliding in from wherever the last run left it. */
-  shown: boolean;
-  /** Eased lock-ring fill. */
-  ring: number;
-  /** The target the canvas currently shows, and whether the easing has caught
-   * up with it. A settled scene repaints nothing at all — on the phones where
-   * the pipeline already saturates the CPU, an idle guide must not also cost a
-   * full canvas clear sixty times a second. */
-  painted: OverlayTarget | null;
-  settled: boolean;
-}
-
-/**
- * A fresh draw state, with its point objects allocated up front.
- *
- * @returns The state, with nothing shown yet.
- */
-function createDrawState(): OverlayDrawState {
-  const corners = () => [
-    { x: 0, y: 0 },
-    { x: 0, y: 0 },
-    { x: 0, y: 0 },
-    { x: 0, y: 0 },
-  ];
-  return {
-    points: corners(),
-    mapped: corners(),
-    guide: corners(),
-    shown: false,
-    ring: 0,
-    painted: null,
-    settled: false,
-  };
-}
-
-/**
- * Match the overlay canvas to the box the video occupies.
- *
- * The only layout read in the whole overlay path: the paint loop never
- * measures, it reads the canvas's own width and height attributes.
- *
- * @returns Nothing; the canvas is resized when the box changed.
- */
-function syncOverlaySize(canvas: HTMLCanvasElement, video: HTMLVideoElement): void {
-  const rect = video.getBoundingClientRect();
-  const width = Math.round(rect.width);
-  const height = Math.round(rect.height);
-  if (canvas.width !== width || canvas.height !== height) {
-    canvas.width = width;
-    canvas.height = height;
-  }
-}
-
-/**
- * Trace a rounded rectangle clockwise from the top edge's midpoint.
- *
- * The start point is what makes the lock ring readable: a dashed stroke fills
- * from there, so progress grows symmetrically out of the top of the guide
- * instead of out of a corner. Built from `arcTo` rather than `roundRect`,
- * which only reaches back to Safari 16.4, the exact browser floor.
- *
- * @returns Nothing; the path is left current on the context.
- */
-function traceRoundedRect(
-  context: CanvasRenderingContext2D,
-  rect: { x: number; y: number; width: number; height: number },
-  radius: number,
-): void {
-  const { x, y, width, height } = rect;
-  const right = x + width;
-  const bottom = y + height;
-  const midX = x + width / 2;
-  context.beginPath();
-  context.moveTo(midX, y);
-  context.lineTo(right - radius, y);
-  context.arcTo(right, y, right, y + radius, radius);
-  context.lineTo(right, bottom - radius);
-  context.arcTo(right, bottom, right - radius, bottom, radius);
-  context.lineTo(x + radius, bottom);
-  context.arcTo(x, bottom, x, bottom - radius, radius);
-  context.lineTo(x, y + radius);
-  context.arcTo(x, y, x + radius, y, radius);
-  context.lineTo(midX, y);
-}
-
-/**
- * Paint one animation frame of the overlay: the faint guide outline, the lock
- * ring, and the tracking corner brackets.
- *
- * @returns Nothing; the canvas is drawn on directly.
- */
-function paintOverlay(
-  canvas: HTMLCanvasElement,
-  context: CanvasRenderingContext2D,
-  target: OverlayTarget | null,
-  state: OverlayDrawState,
-): void {
-  // Nothing moved and nothing new landed: what is on the canvas is already
-  // right, so the cheapest frame is the one that does not paint.
-  if (target === state.painted && state.settled) {
-    return;
-  }
-  state.painted = target;
-  context.clearRect(0, 0, canvas.width, canvas.height);
-  if (!target) {
-    state.shown = false;
-    state.ring = 0;
-    state.settled = true;
-    return;
-  }
-  const mapping = coverMapping(
-    target.frameWidth,
-    target.frameHeight,
-    target.turns,
-    canvas.width,
-    canvas.height,
-  );
-
-  // The guide is a hint, not a verdict: barely there, so the brackets carry
-  // every bit of the emphasis.
-  if (target.guide) {
-    mapQuad(target.guide, mapping, state.guide);
-    context.beginPath();
-    context.moveTo(state.guide[0].x, state.guide[0].y);
-    for (let index = 1; index < state.guide.length; index++) {
-      context.lineTo(state.guide[index].x, state.guide[index].y);
-    }
-    context.closePath();
-    context.lineWidth = 2;
-    context.lineCap = "butt";
-    context.strokeStyle = GUIDE_COLOR;
-    context.stroke();
-  }
-
-  // With no candidate the brackets sit on the guide itself, so the reticle is
-  // always somewhere sensible and never blinks in and out between frames.
-  const source = target.quad ?? target.guide;
-  let settled = true;
-  if (source) {
-    mapQuad(source, mapping, state.mapped);
-    if (state.shown) {
-      settled = stepQuadToward(state.points, state.mapped);
-    } else {
-      for (const [index, point] of state.points.entries()) {
-        point.x = state.mapped[index].x;
-        point.y = state.mapped[index].y;
-      }
-      state.shown = true;
-    }
-  } else {
-    state.shown = false;
-  }
-
-  state.ring = stepToward(state.ring, target.lockFraction, RING_EASE, RING_SNAP);
-  state.settled = settled && state.ring === target.lockFraction;
-  // Around the guide when there is one; in pan mode the tracked card is the
-  // only fixed thing on screen, so the ring rides it instead.
-  const ringQuad = target.guide ? state.guide : state.shown ? state.points : null;
-  if (ringQuad && shouldDrawLockRing(state.ring, target.lockRun)) {
-    const rect = boundsOfQuad(ringQuad);
-    const radius = ringRadiusFor(rect.width, rect.height);
-    const perimeter = roundedRectPerimeter(rect.width, rect.height, radius);
-    if (perimeter > 0) {
-      traceRoundedRect(context, rect, radius);
-      context.setLineDash(lockRingDash(perimeter, state.ring));
-      context.lineWidth = 4;
-      context.lineCap = "round";
-      context.strokeStyle = RETICLE_COLORS.locked;
-      context.stroke();
-      context.setLineDash([]);
-    }
-  }
-
-  if (!state.shown) {
-    return;
-  }
-  context.lineWidth = reticleLineWidth(target.focus);
-  context.lineCap = "round";
-  context.strokeStyle = target.grade.color;
-  context.setLineDash(target.dashed ? [10, 7] : []);
-  context.beginPath();
-  for (const leg of bracketSegments(state.points, BRACKET_FRACTION)) {
-    context.moveTo(leg.ax, leg.ay);
-    context.lineTo(leg.bx, leg.by);
-  }
-  context.stroke();
-  context.setLineDash([]);
-}
-
-/**
  * Message for a thrown value.
  *
  * Kept out of the catch blocks themselves: the React Compiler cannot lower a
@@ -617,170 +333,6 @@ function errorMessage(thrown: unknown, fallback: string): string {
   return fallback;
 }
 
-let cvCached: Promise<OpenCvLike & OrbCvLike> | null = null;
-// Single slot, latest caller wins — same reasoning as the encoder's listener.
-let cvProgressListener: ((loaded: number, total: number) => void) | null = null;
-
-/**
- * Load the OpenCV WASM build, once per page.
- *
- * Loaded as a plain classic script (`/scan-opencv.js`, written next to the
- * bank by `export-index.ts`), NOT as a module import: vite's dep-optimized
- * ESM wrapping of the emscripten UMD spins the main thread forever during
- * evaluation, in every engine tested, while the raw script evaluates in well
- * under a second. Kept at module level because the React Compiler cannot
- * lower a dynamic loader inside a hook.
- *
- * Downloaded through `fetchWithProgress` first so the load can report bytes
- * (a script tag exposes none), then evaluated by pointing the tag at that
- * same URL: media assets are served immutable, so the tag's request is a
- * cache hit rather than a second download, and the fetched bytes are dropped.
- * Handing the tag a `blob:` URL built from them would save the re-request,
- * but a blob script needs `blob:` in the CSP's `script-src`, which the served
- * policy (nginx/web.conf) deliberately does not carry.
- *
- * The custom trimmed build (scripts/scan/build-opencv.sh) splits the glue
- * from the wasm so browsers can cache the compiled machine code. The glue
- * asks for the wasm under its build-time name (`opencv_js.wasm`) while we
- * serve it renamed beside the script, so a `locateFile` override on the
- * global `Module` (captured synchronously at script evaluation) points it at
- * the real file, which by convention sits next to the .js with the same name
- * and a .wasm extension. A single-file build (the pre-trim serving) never
- * consults `locateFile`, so the override is compatible with both.
- *
- * @returns The initialised OpenCV module.
- */
-export async function loadOpenCv(
-  scriptUrl: string,
-  onProgress?: (loaded: number, total: number) => void,
-): Promise<OpenCvLike & OrbCvLike> {
-  if (onProgress) {
-    cvProgressListener = onProgress;
-  }
-  /* oxlint-disable promise/prefer-catch, promise/always-return, promise/avoid-new -- adapting a script tag and a foreign thenable; every path settles */
-  cvCached ??= (async () => {
-    // The bytes are only a progress signal: the script tag below asks for the
-    // same URL and the browser answers it from cache.
-    await fetchWithProgress(
-      scriptUrl,
-      (loaded, total) => cvProgressListener?.(loaded, total),
-      `could not load OpenCV from ${scriptUrl} (in dev, run: bun scripts/scan/export-index.ts)`,
-    );
-    const wasmUrl = scriptUrl.replace(/\.js$/u, ".wasm");
-    const globalScope = globalThis as { Module?: unknown };
-    const previousModule = globalScope.Module;
-    globalScope.Module = {
-      locateFile: (file: string) => (file.endsWith(".wasm") ? wasmUrl : file),
-    };
-    try {
-      await new Promise<void>((resolve, reject) => {
-        const script = document.createElement("script");
-        script.src = scriptUrl;
-        script.addEventListener("load", () => resolve(), { once: true });
-        script.addEventListener(
-          "error",
-          () => reject(new Error("The OpenCV script failed to evaluate")),
-          { once: true },
-        );
-        document.head.append(script);
-      });
-    } finally {
-      // The factory captured the Module object during evaluation; the global
-      // slot can be handed back before the wasm finishes initialising.
-      globalScope.Module = previousModule;
-    }
-    // The emscripten export is a thenable rather than a real promise, and it
-    // must never be resolved through a promise as-is: promise adoption calls
-    // its `then` again with the same thenable, forever, which starves the
-    // microtask queue. Stripping `then` inside the callback turns it into a
-    // plain object every later await can hold safely.
-    return await new Promise<OpenCvLike & OrbCvLike>((resolve, reject) => {
-      (
-        (globalThis as { cv?: unknown }).cv as {
-          then: (
-            fn: (value: OpenCvLike & OrbCvLike) => void,
-            onError: (error: unknown) => void,
-          ) => void;
-        }
-      ).then((cv) => {
-        delete (cv as { then?: unknown }).then;
-        resolve(cv);
-      }, reject);
-    });
-  })();
-  /* oxlint-enable promise/prefer-catch, promise/always-return, promise/avoid-new */
-  try {
-    return await cvCached;
-  } catch (error) {
-    // A failed download must not poison the page until reload: clear the slot
-    // so the next mount retries.
-    cvCached = null;
-    throw error;
-  }
-}
-
-// Reused across reference fetches; a new canvas per card would churn memory.
-let referenceCanvas: HTMLCanvasElement | null = null;
-
-/**
- * Fetch a reference render for feature verification.
- *
- * Transparent rounded corners are flattened onto mid grey, matching how the
- * bank references were decoded in the bench; a hard white or black corner
- * would inject an edge no photograph shows.
- *
- * Throws on transient failures (network errors, server errors): the session
- * caches null as "definitively missing" for its whole lifetime, and a cached
- * transient miss would silently remove the rival that refuses a wrong winner,
- * on every frame until restart.
- *
- * @returns The decoded render, or null when the render does not exist.
- */
-async function fetchReference(key: string): Promise<RgbaImage | null> {
-  const response = await fetch(imageUrl(key, "400w"));
-  if (response.status === 404) {
-    return null;
-  }
-  if (!response.ok) {
-    throw new Error(`reference fetch failed with status ${response.status}`);
-  }
-  const blob = await response.blob();
-  let bitmap: ImageBitmap;
-  try {
-    bitmap = await createImageBitmap(blob);
-  } catch {
-    // An undecodable asset will not improve on retry.
-    return null;
-  }
-  if (!referenceCanvas) {
-    referenceCanvas = document.createElement("canvas");
-  }
-  const canvas = referenceCanvas;
-  canvas.width = bitmap.width;
-  canvas.height = bitmap.height;
-  const context = canvas.getContext("2d", { willReadFrequently: true });
-  if (!context) {
-    bitmap.close();
-    return null;
-  }
-  context.fillStyle = "rgb(128, 128, 128)";
-  context.fillRect(0, 0, canvas.width, canvas.height);
-  context.drawImage(bitmap, 0, 0);
-  bitmap.close();
-  const data = context.getImageData(0, 0, canvas.width, canvas.height);
-  return { data: data.data, width: canvas.width, height: canvas.height };
-}
-
-/**
- * Drive the camera and run every frame through the shared scan session.
- *
- * The camera preview renders at native framerate on its own; the pipeline runs
- * behind it as fast as the device allows, one frame at a time. The loop stays
- * on the main thread for now — if the phone struggles it is already isolated
- * here and can move into a worker without touching the engine.
- *
- * @returns Refs to attach to the video and overlay elements, plus live readout and controls.
- */
 /** Where the engine's downloadable assets live (from the serving manifest,
  * or the dev export fallback). Null while the manifest is still resolving —
  * the heavyweight downloads wait for it. */
@@ -792,6 +344,16 @@ export interface ScanEngineAssets {
   labelsUrl?: string;
 }
 
+/**
+ * Drive the camera and run every frame through the shared scan session.
+ *
+ * The camera preview renders at native framerate on its own; the pipeline runs
+ * behind it as fast as the device allows, one frame at a time. The pipeline
+ * runs in the page by default and inside a worker when `?scanWorker=1` asks
+ * for it; both go through the same session configuration (`scan-session.ts`).
+ *
+ * @returns Refs to attach to the video and overlay elements, plus live readout and controls.
+ */
 export function useCardScanner(
   loaded: LoadedScanBank | null,
   settings: ScannerSettings,
@@ -881,7 +443,7 @@ export function useCardScanner(
   // The overlay's two halves: what the last processed frame decided, and the
   // eased state the animation-frame painter carries between repaints.
   const overlayTargetRef = useRef<OverlayTarget | null>(null);
-  const overlayDrawRef = useRef<OverlayDrawState>(createDrawState());
+  const overlayDrawRef = useRef(createDrawState());
 
   const [active, setActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1133,210 +695,58 @@ export function useCardScanner(
   );
 
   /**
-   * A second session for the catch-up pass, sharing the engine but not the
-   * accept state.
+   * Plan both sessions for the run that is starting.
    *
-   * `lockRun` is set past any run a single frame could reach, so this session
-   * never locks and never disambiguates: `runCatchUp` reads the frame winner
-   * and decides for itself. Guide-anchored like the live one, because the
-   * frames it replays were captured through the same guide.
+   * Shared by the in-page and the worker path: the plan is plain data, so the
+   * worker rebuilds the identical pair on its own side from the same
+   * description (see `scan-session.ts`).
    *
-   * @returns The session, or null before the engine has loaded.
+   * @param embedMs Measured per-image encoder cost on whichever thread owns
+   *   the encoder, which decides the slow-device profile.
+   * @returns The plans, or null before the bank has loaded.
    */
-  function createCatchUpSession(): ScanSession | null {
-    const cv = cvRef.current;
-    const embedder = embedderRef.current;
-    if (!cv || !embedder || !loaded) {
-      return null;
-    }
-    const gates = gatesForEmbedDim(
-      loaded.bank.keys.length > 0 ? loaded.bank.vectors.length / loaded.bank.keys.length : 0,
-    );
-    return createScanSession(
-      {
-        cv,
-        embedder,
-        bank: loaded.bank,
-        artKeyOf: (key) => loaded.artKeys.get(key) ?? key,
-        labelOf: (key) => describeKey(loaded.labels, key),
-        cardTypeOf: (key) => loaded.labels[key]?.type,
-        publicCodeOf: (key) => loaded.labels[key]?.code,
-        markersOf: (key) => loaded.labels[key]?.markers ?? undefined,
-        languageOf: (key) => loaded.labels[key]?.language,
-        embedImageSize: embedderImageSize(),
-        fetchReference,
-      },
-      {
-        candidatesToTry: settingsRef.current.candidatesToTry,
-        confidentDistance: gates.confidentDistance,
-        rotationFallbackDistance: gates.rotationFallbackDistance,
-        topK: Math.min(gates.topK, SINGLE_MODE_TOP_K),
-        rotationPairOnly: loaded.canonical,
-        guideFor: guideQuadFor,
-        accept: { lockRun: Number.POSITIVE_INFINITY, maxGapFrames: 0 },
-      },
-    );
-  }
-
-  /**
-   * The two sessions' options as plain data, for the worker to rebuild.
-   *
-   * Mirrors `createSession` and `createCatchUpSession` exactly; the only thing
-   * that cannot cross is the guide rect, which travels as a flag.
-   *
-   * @returns The pair, or null before the bank has loaded.
-   */
-  function workerSessionOptions(): {
-    live: ScanWorkerSessionOptions;
-    catchUp: ScanWorkerSessionOptions;
-  } | null {
+  function sessionPlans(
+    embedMs: number,
+  ): { live: ScanSessionPlan; catchUp: ScanSessionPlan } | null {
     if (!loaded) {
       return null;
     }
-    const gates = gatesForEmbedDim(
-      loaded.bank.keys.length > 0 ? loaded.bank.vectors.length / loaded.bank.keys.length : 0,
-    );
-    const slowDevice = embedMsPerImage > SLOW_DEVICE_EMBED_MS;
-    const single = settingsRef.current.mode !== "pan";
-    const shared = {
-      confidentDistance: gates.confidentDistance,
-      rotationFallbackDistance:
-        single && slowDevice ? gates.slowRotationFallbackDistance : gates.rotationFallbackDistance,
-      rotationPairOnly: single && loaded.canonical,
-    };
-    return {
-      live: {
-        ...shared,
-        guide: single,
-        candidatesToTry:
-          slowDevice && single
-            ? Math.min(1, settingsRef.current.candidatesToTry)
-            : settingsRef.current.candidatesToTry,
-        topK: single
-          ? Math.min(gates.topK, slowDevice ? SLOW_DEVICE_TOP_K : SINGLE_MODE_TOP_K)
-          : gates.topK,
-        accept:
-          settingsRef.current.mode === "capture"
-            ? { lockRun: lockRunForMode("capture"), maxGapFrames: 0 }
-            : {
-                ...DEFAULT_SESSION_OPTIONS.accept,
-                lockRun: lockRunForMode(settingsRef.current.mode),
-                weighted: single,
-                relockOnlyAfterRearm: settingsRef.current.mode === "single",
-              },
-      },
-      catchUp: {
-        ...shared,
-        guide: true,
-        candidatesToTry: settingsRef.current.candidatesToTry,
-        topK: Math.min(gates.topK, SINGLE_MODE_TOP_K),
-        rotationPairOnly: loaded.canonical,
-        accept: { lockRun: Number.POSITIVE_INFINITY, maxGapFrames: 0 },
-      },
-    };
+    // Distance gates are calibrated per encoder; the served bank's dimension
+    // says which encoder produced it.
+    const gates = gatesForBank(loaded.bank);
+    idleGateRef.current = gates.rotationFallbackDistance;
+    const slowDevice = embedMs > SLOW_DEVICE_EMBED_MS;
+    if (slowDevice) {
+      console.log(`[scan] slow-device profile (${embedMs.toFixed(0)}ms/image)`);
+    }
+    return scanSessionPlans({
+      mode: settingsRef.current.mode,
+      candidatesToTry: settingsRef.current.candidatesToTry,
+      slowDevice,
+      gates,
+      canonical: loaded.canonical,
+    });
   }
 
-  function createSession(): ScanSession | null {
+  /**
+   * Build the live pass and the catch-up pass in the page.
+   *
+   * @returns Both sessions, or null before the engine has loaded.
+   */
+  function createSessions(plans: { live: ScanSessionPlan; catchUp: ScanSessionPlan }): {
+    live: ScanSession;
+    catchUp: ScanSession;
+  } | null {
     const cv = cvRef.current;
     const embedder = embedderRef.current;
     if (!cv || !embedder || !loaded) {
       return null;
     }
-    // Slow-device profile, from the encoder self-bench (a Pixel 1 measures
-    // ~700 ms/image where an iPhone measures ~85): in guide mode every
-    // candidate is a crop of the same physical card, so trying 4 candidates
-    // and speculative rotation fallbacks means seconds of encoder time per
-    // frame on such a device. Two candidate tries and a fallback bound that
-    // only clearly-sideways content (~0.45+ upright) crosses keep the
-    // marginal-frame cost at one or two encoder passes. Pan mode and fast
-    // devices keep the clip-calibrated defaults.
-    const slowDevice = measuredEmbedMsPerImage() > SLOW_DEVICE_EMBED_MS;
-    // Capture mode shares the guide-anchored session; it only differs in who
-    // drives the frames.
-    const single = settingsRef.current.mode !== "pan";
-    if (slowDevice) {
-      console.log(`[scan] slow-device profile (${measuredEmbedMsPerImage().toFixed(0)}ms/image)`);
-    }
-    // Distance gates are calibrated per encoder; the served bank's dimension
-    // says which encoder produced it.
-    const gates = gatesForEmbedDim(
-      loaded.bank.keys.length > 0 ? loaded.bank.vectors.length / loaded.bank.keys.length : 0,
-    );
-    idleGateRef.current = gates.rotationFallbackDistance;
-    return createScanSession(
-      {
-        cv,
-        embedder,
-        bank: loaded.bank,
-        artKeyOf: (key) => loaded.artKeys.get(key) ?? key,
-        labelOf: (key) => describeKey(loaded.labels, key),
-        cardTypeOf: (key) => loaded.labels[key]?.type,
-        publicCodeOf: (key) => loaded.labels[key]?.code,
-        markersOf: (key) => loaded.labels[key]?.markers ?? undefined,
-        languageOf: (key) => loaded.labels[key]?.language,
-        embedImageSize: embedderImageSize(),
-        fetchReference,
-      },
-      {
-        // One try on slow devices: in guide mode the top-ordered candidate is
-        // the aimed card on nearly every frame, and each extra try is a full
-        // single-image inference (measured 3.5 s hot on a Pixel 1).
-        candidatesToTry:
-          slowDevice && single
-            ? Math.min(1, settingsRef.current.candidatesToTry)
-            : settingsRef.current.candidatesToTry,
-        confidentDistance: gates.confidentDistance,
-        rotationFallbackDistance: gates.rotationFallbackDistance,
-        topK: single
-          ? Math.min(gates.topK, slowDevice ? SLOW_DEVICE_TOP_K : SINGLE_MODE_TOP_K)
-          : gates.topK,
-        // Guide-mode pair-only rotation search, only when the served bank was
-        // built in the canonical frame: a battlefield placed in the guide then
-        // matches at 0 or 180 degrees, so discovery costs at most 2 encoder
-        // passes instead of 4 (the difference between ~2 s and ~10 s per tap
-        // on a Pixel-1-class device). Pan keeps the full search: steep
-        // foreshortening can flip a card's projected aspect into the other
-        // pair (measured on the battlefields clip, 2026-07-30).
-        rotationPairOnly: single && loaded.canonical,
-        ...(single
-          ? {
-              guideFor: guideQuadFor,
-              // One card by premise and ORB margin still gates every frame; a
-              // 3-frame run shaves ~200 ms off each lock. Pan keeps the
-              // clip-calibrated 4 (a 3-frame burst once false-locked there).
-              // Capture mode locks on a single verified tap: each tap is a
-              // deliberate aimed shot, the inlier floor and rival margin
-              // still gate it, and a wrong tap is retaken — requiring three
-              // taps per card would defeat the mode. Its zero gap makes every
-              // tap its own run, so tapping again after swapping in a second
-              // copy of the same card locks again (frames only advance per
-              // tap there, so the live-mode gap tolerance would otherwise
-              // swallow the second copy).
-              accept:
-                settingsRef.current.mode === "capture"
-                  ? { lockRun: lockRunForMode("capture"), maxGapFrames: 0 }
-                  : {
-                      ...DEFAULT_SESSION_OPTIONS.accept,
-                      lockRun: lockRunForMode("single"),
-                      // A clean frame is worth more than a marginal one, so a
-                      // card the matcher is sure about locks in two frames
-                      // instead of three.
-                      weighted: true,
-                      // Counting is the placement detector's job: a locked
-                      // card may only lock again once the watcher has seen
-                      // the guide change. Without this the number of copies
-                      // counted drifts with the device's frame rate (see
-                      // AcceptOptions.relockOnlyAfterRearm). Capture mode is
-                      // exempt: there the tap is the user saying "count this".
-                      relockOnlyAfterRearm: true,
-                    },
-              ...(slowDevice
-                ? { rotationFallbackDistance: gates.slowRotationFallbackDistance }
-                : {}),
-            }
-          : {}),
-      },
-    );
+    const engine = { cv, embedder, embedImageSize: embedderImageSize() };
+    return {
+      live: createConfiguredScanSession(engine, loaded, plans.live),
+      catchUp: createConfiguredScanSession(engine, loaded, plans.catchUp),
+    };
   }
 
   /**
@@ -1686,19 +1096,6 @@ export function useCardScanner(
   }
 
   /**
-   * Give one queued frame a second look.
-   *
-   * Runs through its own session so the live one's runs stay intact, and that
-   * session never locks: a lone frame has no run behind it, so the decision is
-   * made here from the frame's own evidence (see `catchUpVerdict`). A card the
-   * frame proves outright is reported as a lock, exactly as if the live pass
-   * had caught it; anything weaker becomes a card the user can identify, with
-   * the picture attached.
-   *
-   * @returns Nothing; the result is reported through the lock event or the
-   *   unidentified list.
-   */
-  /**
    * Run one frame through whichever engine this session is using.
    *
    * The worker path owns the sessions and answers with the run state the
@@ -1744,6 +1141,19 @@ export function useCardScanner(
     sessionRef.current?.rearm();
   }
 
+  /**
+   * Give one queued frame a second look.
+   *
+   * Runs through its own session so the live one's runs stay intact, and that
+   * session never locks: a lone frame has no run behind it, so the decision is
+   * made here from the frame's own evidence (see `catchUpVerdict`). A card the
+   * frame proves outright is reported as a lock, exactly as if the live pass
+   * had caught it; anything weaker becomes a card the user can identify, with
+   * the picture attached.
+   *
+   * @returns Nothing; the result is reported through the lock event or the
+   *   unidentified list.
+   */
   async function runCatchUp(): Promise<void> {
     const entry = catchUpQueueRef.current.take();
     if (!entry) {
@@ -1980,12 +1390,16 @@ export function useCardScanner(
     await Promise.resolve(frameInFlightRef.current);
     sessionRef.current?.release();
     catchUpSessionRef.current?.release();
-    const workerOptions = workerRef.current ? workerSessionOptions() : null;
-    if (workerRef.current && workerOptions) {
-      workerRef.current.create(workerOptions.live, workerOptions.catchUp);
+    // The worker measures the encoder on its own thread and reports the cost
+    // back; in-page the module-level self-bench holds it.
+    const worker = workerRef.current;
+    const plans = sessionPlans(worker ? embedMsPerImage : measuredEmbedMsPerImage());
+    if (worker && plans) {
+      worker.create(plans.live, plans.catchUp);
     } else {
-      sessionRef.current = createSession();
-      catchUpSessionRef.current = createCatchUpSession();
+      const sessions = plans ? createSessions(plans) : null;
+      sessionRef.current = sessions === null ? null : sessions.live;
+      catchUpSessionRef.current = sessions === null ? null : sessions.catchUp;
     }
     catchUpQueueRef.current.clear();
     catchUpBusyRef.current = false;
