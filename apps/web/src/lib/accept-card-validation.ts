@@ -4,8 +4,9 @@ import type { z } from "zod";
 
 /** Human labels for the card fields the accept-new-card schema validates, so a
  * failed check names the field the admin sees in the spreadsheet rather than the
- * raw schema key. */
-const FIELD_LABELS: Record<string, string> = {
+ * raw schema key. Keyed exhaustively off the schema, so a new field there is a
+ * compile error here rather than a message showing the raw key. */
+const FIELD_LABELS: Record<keyof AcceptNewCardBody["cardFields"], string> = {
   id: "Card ID",
   name: "Name",
   types: "Types",
@@ -69,8 +70,10 @@ export function describeAcceptCardFieldIssues(
     return [];
   }
   const lines = result.error.issues.map((issue) => {
+    // Zod issue paths are plain strings, so the label lookup stays a boundary
+    // read with a fallback to the raw key.
     const key = typeof issue.path[0] === "string" ? issue.path[0] : undefined;
-    const label = key ? (FIELD_LABELS[key] ?? key) : "Card";
+    const label = key ? (FIELD_LABELS[key as keyof typeof FIELD_LABELS] ?? key) : "Card";
     return `${label}: ${reasonFor(issue)}`;
   });
   return [...new Set(lines)];

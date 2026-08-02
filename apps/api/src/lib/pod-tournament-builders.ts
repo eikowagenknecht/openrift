@@ -2,15 +2,15 @@ import type { PodTournamentDetailResponse } from "@openrift/shared";
 
 import type { Repos } from "../deps.js";
 import { scoringOf } from "../repositories/pod-tournaments.js";
-import type { PodTournament } from "../repositories/pod-tournaments.js";
-import { loadPodTournament } from "./tournament-access.js";
+import type { Tournament } from "../repositories/tournaments.js";
+import { loadTournament } from "./tournament-access.js";
 import { toPodPlayer, toPodTournament } from "./tournament-presenters.js";
 
 /**
  * The pod-engine running surface (pairingStyle='pod'), kept apart from the
- * umbrella builders because it is keyed by the same tournament id but reads the
- * pod-shaped row: the engine pairs players into 3/4-player pods and derives
- * standings from finalized rounds via `repos.podTournaments`.
+ * umbrella builders because it reads a different slice of the same tournament
+ * row: the engine pairs players into 3/4-player pods and derives standings from
+ * finalized rounds via `repos.podTournaments`.
  */
 
 /**
@@ -21,7 +21,7 @@ import { toPodPlayer, toPodTournament } from "./tournament-presenters.js";
  */
 export async function buildPodRunDetail(
   repos: Repos,
-  tournament: PodTournament,
+  tournament: Tournament,
 ): Promise<PodTournamentDetailResponse> {
   const scoring = scoringOf(tournament);
   const [players, standings, rounds, openRound] = await Promise.all([
@@ -50,5 +50,5 @@ export async function podRunDetailById(
   repos: Repos,
   id: string,
 ): Promise<PodTournamentDetailResponse> {
-  return buildPodRunDetail(repos, await loadPodTournament(repos, id));
+  return buildPodRunDetail(repos, await loadTournament(repos, id));
 }

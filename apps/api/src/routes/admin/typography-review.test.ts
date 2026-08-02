@@ -19,7 +19,7 @@ const mockCatalog = {
 
 const mockMutations = {
   updateCardById: vi.fn(),
-  updatePrintingFieldById: vi.fn(),
+  updatePrintingById: vi.fn(),
 };
 
 const mockCardErrata = {
@@ -96,10 +96,8 @@ describe("GET /api/admin/v1/typography-review", () => {
     expect(res.status).toBe(200);
     const json = await readJson(res);
     expect(json.diffs).toContainEqual({
-      entity: "card",
-      id: CARD_ID,
+      target: { entity: "card", id: CARD_ID, field: "name" },
       name: "Jinx's Wrath",
-      field: "name",
       current: "Jinx's Wrath",
       proposed: "Jinx’s Wrath",
     });
@@ -111,10 +109,8 @@ describe("GET /api/admin/v1/typography-review", () => {
     const res = await app.request("/api/admin/v1/typography-review");
     const json = await readJson(res);
     expect(json.diffs).toContainEqual({
-      entity: "card",
-      id: CARD_ID,
+      target: { entity: "card", id: CARD_ID, field: "tags" },
       name: baseCard.name,
-      field: "tags",
       current: "Hero's Quest, Plain",
       proposed: "Hero’s Quest, Plain",
     });
@@ -127,10 +123,8 @@ describe("GET /api/admin/v1/typography-review", () => {
     const res = await app.request("/api/admin/v1/typography-review");
     const json = await readJson(res);
     expect(json.diffs).toContainEqual({
-      entity: "printing",
-      id: PRINTING_ID,
+      target: { entity: "printing", id: PRINTING_ID, field: "printedName" },
       name: baseCard.name,
-      field: "printedName",
       current: "Jinx's Wrath",
       proposed: "Jinx’s Wrath",
     });
@@ -155,9 +149,7 @@ describe("POST /api/admin/v1/typography-review/accept", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        entity: "card",
-        id: CARD_ID,
-        field: "name",
+        target: { entity: "card", id: CARD_ID, field: "name" },
         proposed: "Jinx’s Wrath",
       }),
     });
@@ -176,9 +168,7 @@ describe("POST /api/admin/v1/typography-review/accept", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        entity: "card",
-        id: CARD_ID,
-        field: "tags",
+        target: { entity: "card", id: CARD_ID, field: "tags" },
         proposed: "ignored-by-server",
       }),
     });
@@ -196,9 +186,7 @@ describe("POST /api/admin/v1/typography-review/accept", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        entity: "card",
-        id: CARD_ID,
-        field: "tags",
+        target: { entity: "card", id: CARD_ID, field: "tags" },
         proposed: "",
       }),
     });
@@ -222,9 +210,7 @@ describe("POST /api/admin/v1/typography-review/accept", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        entity: "card",
-        id: CARD_ID,
-        field: "correctedRulesText",
+        target: { entity: "card", id: CARD_ID, field: "correctedRulesText" },
         proposed: "new’",
       }),
     });
@@ -232,5 +218,57 @@ describe("POST /api/admin/v1/typography-review/accept", () => {
     expect(res.status).toBe(204);
     expect(mockCardErrata.upsert).toHaveBeenCalled();
     expect(mockMutations.updateCardById).not.toHaveBeenCalled();
+  });
+
+  it("writes a printing field through the typed printing update", async () => {
+    mockCatalog.printingById.mockResolvedValue(basePrinting);
+    mockMutations.updatePrintingById.mockResolvedValue(undefined);
+
+    const res = await app.request("/api/admin/v1/typography-review/accept", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        target: { entity: "printing", id: PRINTING_ID, field: "flavorText" },
+        proposed: "Jinx’s laugh",
+      }),
+    });
+
+    expect(res.status).toBe(204);
+    expect(mockMutations.updatePrintingById).toHaveBeenCalledWith(PRINTING_ID, {
+      flavorText: "Jinx’s laugh",
+    });
+  });
+
+  // Regression: `field` used to be a free `z.string()` forwarded straight into
+  // the printings SET clause, so any column (card_id, set_id, id) was writable
+  // and an unknown name surfaced as a Postgres 42703 500. The entity/field pair
+  // is now a discriminated union, so a mismatch is rejected before any query.
+  it("rejects a card field submitted against a printing", async () => {
+    const res = await app.request("/api/admin/v1/typography-review/accept", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        target: { entity: "printing", id: PRINTING_ID, field: "tags" },
+        proposed: "anything",
+      }),
+    });
+
+    expect(res.status).toBe(400);
+    expect(mockCatalog.printingById).not.toHaveBeenCalled();
+    expect(mockMutations.updatePrintingById).not.toHaveBeenCalled();
+  });
+
+  it("rejects an arbitrary printings column", async () => {
+    const res = await app.request("/api/admin/v1/typography-review/accept", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        target: { entity: "printing", id: PRINTING_ID, field: "cardId" },
+        proposed: "a0000000-0001-4000-a000-0000000000cc",
+      }),
+    });
+
+    expect(res.status).toBe(400);
+    expect(mockMutations.updatePrintingById).not.toHaveBeenCalled();
   });
 });

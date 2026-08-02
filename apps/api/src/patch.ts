@@ -6,11 +6,10 @@ import { AppError } from "./errors.js";
  * Maps request-body fields to columns of the update target `T`. Each value is
  * either a column name (`keyof T`) or a transform returning `[column, dbValue]`.
  * Constraining values to `keyof T` makes the writable-column set a compile-time
- * allowlist: a typo'd or non-existent column fails to compile. `T` defaults to
- * `Record<string, unknown>` for callers that have not yet adopted a typed
- * update target.
+ * allowlist: a typo'd or non-existent column fails to compile. `T` has no
+ * default — an untyped update target would make that allowlist vacuous.
  */
-export type FieldMapping<T = Record<string, unknown>> = Record<
+export type FieldMapping<T> = Record<
   string,
   (keyof T & string) | ((value: unknown) => [keyof T & string, unknown])
 >;
@@ -23,7 +22,7 @@ export type FieldMapping<T = Record<string, unknown>> = Record<
  * @throws {AppError} 400 if no fields are present.
  * @returns A partial of `T` containing only the mapped, present columns.
  */
-export function buildPatchUpdates<T = Record<string, unknown>>(
+export function buildPatchUpdates<T>(
   body: Record<string, unknown>,
   fieldMap: FieldMapping<T>,
 ): Partial<T> {

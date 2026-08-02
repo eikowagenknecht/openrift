@@ -72,9 +72,12 @@ describe.skipIf(!ctx)("tournament summary extras (integration)", () => {
 
   async function makeTournament(): Promise<string> {
     counter += 1;
-    const tournament = await repos.podTournaments.create({
+    const tournament = await repos.tournaments.create({
+      hostType: "user",
       hostUserId: OWNER_ID,
       name: `Extras Tournament ${counter}`,
+      pairingStyle: "pod",
+      deckSubmission: "none",
     });
     return tournament.id;
   }

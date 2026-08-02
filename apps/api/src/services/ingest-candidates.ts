@@ -1,8 +1,8 @@
 import type { DiffValue } from "@openrift/shared/response-schemas";
 import { emptyToNull } from "@openrift/shared/utils";
-import type { Insertable } from "kysely";
+import type { Insertable, Updateable } from "kysely";
 
-import type { CandidateCardsTable } from "../db/index.js";
+import type { CandidateCardsTable, CandidatePrintingsTable } from "../db/index.js";
 import type { Transact } from "../deps.js";
 import type { IngestCard } from "../routes/admin/cards/schemas.js";
 import {
@@ -392,7 +392,7 @@ export async function ingestCandidates(
               fields: pChangedFields,
             });
             printingUpdates++;
-            const cpUpdate: Record<string, unknown> = {
+            const cpUpdate: Updateable<CandidatePrintingsTable> = {
               ...printingFields,
               checkedAt: null,
             };

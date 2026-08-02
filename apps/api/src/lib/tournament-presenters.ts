@@ -15,7 +15,7 @@ import type {
   OrganizationMemberWithName,
   OrganizationSummary,
 } from "../repositories/organizations.js";
-import type { PodRosterPlayer, PodTournament } from "../repositories/pod-tournaments.js";
+import type { PodRosterPlayer } from "../repositories/pod-tournaments.js";
 import type {
   Tournament,
   TournamentParticipantWithUser,
@@ -106,7 +106,7 @@ export function moduleFlags(tournament: Tournament): TournamentModuleFlags {
 }
 
 /** @returns The pod-engine view of the tournament row. */
-export function toPodTournament(row: PodTournament): PodTournamentResponse {
+export function toPodTournament(row: Tournament): PodTournamentResponse {
   return {
     id: row.id,
     name: row.name,

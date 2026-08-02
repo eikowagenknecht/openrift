@@ -1,7 +1,10 @@
 import { ERROR_CODES, fixTypography } from "@openrift/shared";
+import type { TypographyTarget } from "@openrift/shared/contracts/admin/typography-review";
 import { adminTypographyReviewContract } from "@openrift/shared/contracts/admin/typography-review";
 import { implement } from "@orpc/server";
+import type { Updateable } from "kysely";
 
+import type { PrintingsTable } from "../../db/index.js";
 import { AppError } from "../../errors.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
@@ -9,32 +12,67 @@ import type { ApiContext } from "../../orpc/context.js";
 const os = implement(adminTypographyReviewContract).$context<ApiContext>().use(requireAuthedUser);
 
 interface TypographyDiff {
-  entity: "card" | "printing";
-  id: string;
+  target: TypographyTarget;
   name: string;
-  field: string;
   current: string;
   proposed: string;
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-interface TextFieldConfig {
-  field: string;
+type PrintingTarget = Extract<TypographyTarget, { entity: "printing" }>;
+
+interface TextFieldConfig<TField> {
+  field: TField;
   options?: { italicParens?: boolean; keywordGlyphs?: boolean };
 }
 
-const errataTextFields: TextFieldConfig[] = [
+const errataTextFields: TextFieldConfig<"correctedRulesText" | "correctedEffectText">[] = [
   { field: "correctedRulesText" },
   { field: "correctedEffectText" },
 ];
 
-const printingTextFields: TextFieldConfig[] = [
+const printingTextFields: TextFieldConfig<PrintingTarget["field"]>[] = [
   { field: "printedRulesText" },
   { field: "printedEffectText" },
   { field: "flavorText", options: { italicParens: false, keywordGlyphs: false } },
   { field: "printedName", options: { italicParens: false, keywordGlyphs: false } },
 ];
+
+/**
+ * Maps a reviewable printing field to a typed single-column update. Spelling the
+ * columns out (rather than a computed key) is what ties the contract enum to
+ * `printings`: a renamed column fails to compile here, and a field added to the
+ * contract trips the exhaustiveness check.
+ * @returns The update payload for that column.
+ */
+function printingUpdateFor(
+  field: PrintingTarget["field"],
+  proposed: string,
+): Updateable<PrintingsTable> {
+  switch (field) {
+    case "printedRulesText": {
+      return { printedRulesText: proposed };
+    }
+    case "printedEffectText": {
+      return { printedEffectText: proposed };
+    }
+    case "flavorText": {
+      return { flavorText: proposed };
+    }
+    case "printedName": {
+      return { printedName: proposed };
+    }
+    default: {
+      const unhandled: never = field;
+      throw new AppError(
+        400,
+        ERROR_CODES.VALIDATION_ERROR,
+        `Unsupported printing field: ${String(unhandled)}`,
+      );
+    }
+  }
+}
 
 // Names and tags are short labels — disable italic-parens/keyword-glyph rewrites.
 const labelTypographyOptions = { italicParens: false, keywordGlyphs: false };
@@ -61,10 +99,8 @@ export const adminTypographyReviewRouter = {
       const proposedName = fixTypography(card.name, labelTypographyOptions);
       if (proposedName !== card.name) {
         diffs.push({
-          entity: "card",
-          id: card.id,
+          target: { entity: "card", id: card.id, field: "name" },
           name: card.name,
-          field: "name",
           current: card.name,
           proposed: proposedName,
         });
@@ -73,10 +109,8 @@ export const adminTypographyReviewRouter = {
       const tagsChanged = proposedTags.some((tag, idx) => tag !== card.tags[idx]);
       if (tagsChanged) {
         diffs.push({
-          entity: "card",
-          id: card.id,
+          target: { entity: "card", id: card.id, field: "tags" },
           name: card.name,
-          field: "tags",
           current: card.tags.join(", "),
           proposed: proposedTags.join(", "),
         });
@@ -88,17 +122,15 @@ export const adminTypographyReviewRouter = {
     for (const errata of errataRows) {
       const cardName = cardNameById.get(errata.cardId) ?? "unknown";
       for (const { field, options } of errataTextFields) {
-        const current = errata[field as keyof typeof errata] as string | null;
+        const current = errata[field];
         if (current === null) {
           continue;
         }
         const proposed = fixTypography(current, { ...options, costKeywords });
         if (proposed !== current) {
           diffs.push({
-            entity: "card",
-            id: errata.cardId,
+            target: { entity: "card", id: errata.cardId, field },
             name: cardName,
-            field,
             current,
             proposed,
           });
@@ -109,17 +141,15 @@ export const adminTypographyReviewRouter = {
     const printings = await catalog.printings();
     for (const printing of printings) {
       for (const { field, options } of printingTextFields) {
-        const current = printing[field as keyof typeof printing] as string | null;
+        const current = printing[field];
         if (current === null) {
           continue;
         }
         const proposed = fixTypography(current, { ...options, costKeywords });
         if (proposed !== current) {
           diffs.push({
-            entity: "printing",
-            id: printing.id,
+            target: { entity: "printing", id: printing.id, field },
             name: cardNameById.get(printing.cardId) ?? printing.shortCode,
-            field,
             current,
             proposed,
           });
@@ -132,9 +162,10 @@ export const adminTypographyReviewRouter = {
 
   accept: os.accept.handler(async ({ input, context }): Promise<void> => {
     const { catalog, catalogMutations: mut, cardErrata } = context.repos;
-    const { entity, id, field, proposed } = input;
+    const { target, proposed } = input;
 
-    if (entity === "card") {
+    if (target.entity === "card") {
+      const { id, field } = target;
       // Card-level fields (name, tags) live on the card row itself; for tags we
       // re-derive the array from current DB state instead of parsing the joined
       // display string sent by the client.
@@ -144,15 +175,15 @@ export const adminTypographyReviewRouter = {
       }
       if (field === "tags") {
         const allCards = await catalog.cards();
-        const target = allCards.find((card) => card.id === id);
-        if (!target) {
+        const card = allCards.find((row) => row.id === id);
+        if (!card) {
           throw new AppError(404, ERROR_CODES.NOT_FOUND, "Card not found");
         }
-        await mut.updateCardById(id, { tags: fixTagList(target.tags) });
+        await mut.updateCardById(id, { tags: fixTagList(card.tags) });
         return;
       }
 
-      // Otherwise treat as errata text (correctedRulesText / correctedEffectText)
+      // The remaining two card fields are errata text, not card columns.
       const errata = await cardErrata.getByCardId(id);
       if (!errata) {
         throw new AppError(404, ERROR_CODES.NOT_FOUND, "Card errata not found");
@@ -162,15 +193,18 @@ export const adminTypographyReviewRouter = {
         effectiveDate: errata.effectiveDate
           ? errata.effectiveDate.toISOString().slice(0, 10)
           : null,
-        [field]: proposed,
+        ...(field === "correctedRulesText"
+          ? { correctedRulesText: proposed }
+          : { correctedEffectText: proposed }),
       });
       return;
     }
 
+    const { id, field } = target;
     const printing = await catalog.printingById(id);
     if (!printing) {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "Printing not found");
     }
-    await mut.updatePrintingFieldById(id, field, proposed);
+    await mut.updatePrintingById(id, printingUpdateFor(field, proposed));
   }),
 };

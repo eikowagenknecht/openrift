@@ -16,7 +16,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { CandidateSpreadsheet } from "@/components/admin/candidate-spreadsheet";
-import type { FieldDef } from "@/components/admin/candidate-spreadsheet";
+import type { FieldDef, NewCardFieldKey } from "@/components/admin/candidate-spreadsheet";
 import {
   buildPreseededActiveCard,
   buildPrintingGroups,
@@ -65,7 +65,7 @@ import { PERSISTENT_ERROR_TOAST } from "@/lib/toast";
 
 interface NewCardColumnActionsProps {
   row?: CandidateCardResponse | CandidatePrintingResponse;
-  candidateCardFields: FieldDef[];
+  newCardFields: FieldDef<NewCardFieldKey>[];
   setActiveCard: (updater: (prev: Record<string, unknown>) => Record<string, unknown>) => void;
   onIgnoreSource: (input: { provider: string; externalId: string }) => void;
   /** Ignoring is triage and stays full-admin; card-review grant holders only accept. */
@@ -74,7 +74,7 @@ interface NewCardColumnActionsProps {
 
 function NewCardColumnActions({
   row,
-  candidateCardFields,
+  newCardFields,
   setActiveCard,
   onIgnoreSource,
   isAdmin,
@@ -88,7 +88,7 @@ function NewCardColumnActions({
       <DropdownMenuItem
         onClick={() => {
           const record = row as unknown as Record<string, unknown>;
-          for (const field of candidateCardFields) {
+          for (const field of newCardFields) {
             if (field.readOnly) {
               continue;
             }
@@ -144,7 +144,7 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
   // --- Shared hooks ---
   const {
     providerSettings,
-    candidateCardFields,
+    newCardFields,
     printingSourceFields,
     checkCandidateCard,
     uncheckCandidateCard,
@@ -179,15 +179,11 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
     if (touched || !unmatchedData) {
       return;
     }
-    const seed = buildPreseededActiveCard(
-      unmatchedData.sources,
-      candidateCardFields,
-      providerSettings,
-    );
+    const seed = buildPreseededActiveCard(unmatchedData.sources, newCardFields, providerSettings);
     // Bail out when the seed is unchanged so an unstable dep reference can't spin
     // the effect into a render loop (React skips the update when we return `prev`).
     setActiveCard((prev) => (JSON.stringify(prev) === JSON.stringify(seed) ? prev : seed));
-  }, [touched, unmatchedData, candidateCardFields, providerSettings]);
+  }, [touched, unmatchedData, newCardFields, providerSettings]);
 
   // --- Loading state ---
   if (isLoading || !unmatchedData) {
@@ -284,7 +280,7 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
             : "Click a cell to select it for the new card. The Active column shows your selections."}
         </p>
         <CandidateSpreadsheet
-          fields={candidateCardFields}
+          fields={newCardFields}
           requiredKeys={["name", "types", "domains"]}
           activeRow={Object.keys(activeCard).length > 0 ? activeCard : null}
           candidateRows={sources}
@@ -315,7 +311,7 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
           }
           columnActions={
             <NewCardColumnActions
-              candidateCardFields={candidateCardFields}
+              newCardFields={newCardFields}
               setActiveCard={(updater) => {
                 setTouched(true);
                 setActiveCard(updater);

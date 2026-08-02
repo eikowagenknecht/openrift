@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { Repos } from "../deps.js";
 import { AppError } from "../errors.js";
-import type { PodTournament } from "../repositories/pod-tournaments.js";
+import type { Tournament } from "../repositories/tournaments.js";
 import { pairNextRound, submitPodPlayerResult, submitPodResult } from "./pod-pairing.js";
 
 const TOURNAMENT = {
@@ -18,14 +18,14 @@ const TOURNAMENT = {
   regionsEnabled: false,
   currentRound: 0,
   status: "setup",
-} as unknown as PodTournament;
+} as unknown as Tournament;
 
-const SWISS_TOURNAMENT = { ...TOURNAMENT, pairingStyle: "swiss" } as PodTournament;
+const SWISS_TOURNAMENT = { ...TOURNAMENT, pairingStyle: "swiss" } as Tournament;
 const TEAM_TOURNAMENT = {
   ...TOURNAMENT,
   pairingStyle: "swiss",
   playMode: "2v2",
-} as PodTournament;
+} as Tournament;
 
 function player(id: string, overrides: Partial<TeamSnapshotPlayer> = {}): TeamSnapshotPlayer {
   return {
@@ -51,7 +51,9 @@ function reposFor(createRound: () => Promise<unknown>): Repos {
       findOpenRound: vi.fn(async () => undefined),
       loadPairingSnapshot: vi.fn(async () => []),
       createRound: vi.fn(createRound),
-      update: vi.fn(async () => undefined),
+    },
+    tournaments: {
+      updateSettings: vi.fn(async () => undefined),
     },
   } as unknown as Repos;
 }
@@ -75,7 +77,9 @@ function reposWithSnapshot(players: TeamSnapshotPlayer[]) {
       findOpenRound: vi.fn(async () => undefined),
       loadPairingSnapshot: vi.fn(async () => players),
       createRound,
-      update: vi.fn(async () => undefined),
+    },
+    tournaments: {
+      updateSettings: vi.fn(async () => undefined),
     },
   } as unknown as Repos;
   return { repos, createRound };
@@ -183,7 +187,7 @@ describe("pairNextRound swiss auto-bye", () => {
 });
 
 describe("pairNextRound region guard", () => {
-  const REGION_TOURNAMENT = { ...SWISS_TOURNAMENT, regionsEnabled: true } as PodTournament;
+  const REGION_TOURNAMENT = { ...SWISS_TOURNAMENT, regionsEnabled: true } as Tournament;
 
   it("rejects pairing while a seated player has no region", async () => {
     const players = [player("a", { region: "noxus" }), player("b", { region: null })];

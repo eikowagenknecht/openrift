@@ -14,7 +14,11 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import type { FieldDef, PrintingGroup } from "@/components/admin/candidate-spreadsheet";
+import type {
+  CandidatePrintingFieldKey,
+  FieldDef,
+  PrintingGroup,
+} from "@/components/admin/candidate-spreadsheet";
 import { CandidateSpreadsheet } from "@/components/admin/candidate-spreadsheet";
 import {
   buildPreseededActivePrinting,
@@ -42,7 +46,7 @@ const REQUIRED_PRINTING_KEYS = [
 interface NewPrintingColumnActionsProps {
   row?: CandidateCardResponse | CandidatePrintingResponse;
   existingPrintings: AdminPrintingResponse[];
-  printingFields: FieldDef[];
+  printingFields: FieldDef<CandidatePrintingFieldKey>[];
   onLink: (printingId: string, candidatePrintingIds: string[]) => void;
   onCopy: (id: string, printingId: string) => void;
   onAcceptAllForRow: (rowId: string, values: Record<string, unknown>) => void;
@@ -141,7 +145,7 @@ export function NewPrintingGroupCard({
   onIgnore: (externalId: string, finish: string) => void;
   isAccepting: boolean;
   isLinking?: boolean;
-  printingFields: FieldDef[];
+  printingFields: FieldDef<CandidatePrintingFieldKey>[];
   costKeywords?: readonly string[];
   invalidates: readonly (readonly unknown[])[];
   /** Card-review grant holders keep the accept flow; check/assign/ignore/delete stay full-admin. */

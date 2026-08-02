@@ -1,3 +1,4 @@
+import type { TypographyTarget } from "@openrift/shared/contracts/admin/typography-review";
 import { CheckIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -57,7 +58,7 @@ function DiffComparison({ current, proposed }: { current: string; proposed: stri
   );
 }
 
-const fieldLabels: Record<string, string> = {
+const fieldLabels: Record<TypographyTarget["field"], string> = {
   correctedRulesText: "Errata Rules",
   correctedEffectText: "Errata Effect",
   printedRulesText: "Printed Rules",
@@ -96,26 +97,19 @@ export function TypographyReviewPage() {
 
       <div className="divide-y rounded-lg border">
         {data.diffs.map((diff) => {
-          const key = `${diff.entity}-${diff.id}-${diff.field}`;
+          const key = `${diff.target.entity}-${diff.target.id}-${diff.target.field}`;
           return (
             <div key={key} className="space-y-2 p-4">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <span className="font-medium">{diff.name}</span>
-                  <Badge variant="outline">{fieldLabels[diff.field] ?? diff.field}</Badge>
-                  <Badge variant="secondary">{diff.entity}</Badge>
+                  <Badge variant="outline">{fieldLabels[diff.target.field]}</Badge>
+                  <Badge variant="secondary">{diff.target.entity}</Badge>
                 </div>
                 <Button
                   variant="outline"
                   disabled={accept.isPending}
-                  onClick={() =>
-                    accept.mutate({
-                      entity: diff.entity,
-                      id: diff.id,
-                      field: diff.field,
-                      proposed: diff.proposed,
-                    })
-                  }
+                  onClick={() => accept.mutate({ target: diff.target, proposed: diff.proposed })}
                 >
                   <CheckIcon className="size-3.5" />
                   Accept

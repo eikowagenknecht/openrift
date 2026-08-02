@@ -1,4 +1,7 @@
-import type { TypographyReviewResponse } from "@openrift/shared/contracts/admin/typography-review";
+import type {
+  AcceptTypographyFixBody,
+  TypographyReviewResponse,
+} from "@openrift/shared/contracts/admin/typography-review";
 import { adminTypographyReviewContract } from "@openrift/shared/contracts/admin/typography-review";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
@@ -25,19 +28,14 @@ export function useTypographyReview() {
 }
 
 const acceptTypographyFixFn = createServerFn({ method: "POST" })
-  .validator(
-    (input: { entity: "card" | "printing"; id: string; field: string; proposed: string }) => input,
-  )
+  .validator((input: AcceptTypographyFixBody) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await apiOrpcClient(adminTypographyReviewContract, context.cookie).accept(data);
   });
 
 export function useAcceptTypographyFix() {
-  return useMutationWithInvalidation<
-    void,
-    { entity: "card" | "printing"; id: string; field: string; proposed: string }
-  >({
+  return useMutationWithInvalidation<void, AcceptTypographyFixBody>({
     mutationFn: async (variables) => {
       await acceptTypographyFixFn({ data: variables });
     },

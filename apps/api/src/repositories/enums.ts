@@ -15,6 +15,36 @@ type DomainRow = Selectable<DomainsTable>;
 type RarityRow = Selectable<RaritiesTable>;
 type MarkerRow = Selectable<MarkersTable>;
 
+/** A `languages` row remapped onto the standard slug/label enum shape. */
+interface LanguageEnumRow {
+  slug: string;
+  label: string;
+  color: string | null;
+  sortOrder: number;
+  isWellKnown: boolean;
+}
+
+/**
+ * Every reference table's rows, keyed by table name — the source of the /init
+ * `enums` payload. Spelled out per key rather than as a `Record<string, …>` so
+ * the route can map it onto the contract without casting.
+ */
+export interface AllEnumRows {
+  cardTypes: EnumRow[];
+  rarities: RarityRow[];
+  domains: DomainRow[];
+  superTypes: EnumRow[];
+  finishes: EnumRow[];
+  artVariants: EnumRow[];
+  cardSizes: EnumRow[];
+  deckFormats: EnumRow[];
+  deckZones: EnumRow[];
+  conditions: EnumRow[];
+  graders: EnumRow[];
+  languages: LanguageEnumRow[];
+  markers: MarkerRow[];
+}
+
 /**
  * Read-only queries for reference tables (enums backed by DB rows).
  *
@@ -95,7 +125,7 @@ export function enumsRepo(db: Kysely<Database>) {
     },
 
     /** @returns All rows from every reference table, keyed by table name. */
-    async all(): Promise<Record<string, (EnumRow | DomainRow | RarityRow | MarkerRow)[]>> {
+    async all(): Promise<AllEnumRows> {
       const [
         cardTypes,
         rarities,

@@ -25,10 +25,11 @@ export type TournamentParticipant = Selectable<TournamentParticipantsTable>;
 /**
  * Normalizes a raw tournament row so `allowedSets` is always a parsed array (or
  * null), regardless of how the driver hands the jsonb back — the `string[] |
- * null` Selectable type is a runtime lie under Bun.
+ * null` Selectable type is a runtime lie under Bun. Every read of a `tournaments`
+ * row must go through this, including the composite loader in the pod repo.
  * @returns The row with `allowedSets` parsed.
  */
-function mapTournament<T extends Tournament>(row: T): T {
+export function mapTournament<T extends Tournament>(row: T): T {
   return {
     ...row,
     allowedSets: parseJsonb<string[]>(row.allowedSets as string[] | string | null),
@@ -771,6 +772,49 @@ export function tournamentsRepo(db: Kysely<Database>) {
         .selectFrom("tournaments")
         .selectAll()
         .where("submissionToken", "=", token)
+        .executeTakeFirst();
+      return row && mapTournament(row);
+    },
+
+    /**
+     * Sets (rotate/enable) or clears (`null` disables) the participant report token.
+     * @returns The updated tournament, or undefined when it does not exist.
+     */
+    async setReportToken(id: string, token: string | null): Promise<Tournament | undefined> {
+      const row = await db
+        .updateTable("tournaments")
+        .set({ reportToken: token, updatedAt: new Date() })
+        .where("id", "=", id)
+        .returningAll()
+        .executeTakeFirst();
+      return row && mapTournament(row);
+    },
+
+    /**
+     * Sets (enable) or clears (`null` disables) the read-only follow-along token.
+     * @returns The updated tournament, or undefined when it does not exist.
+     */
+    async setFollowToken(id: string, token: string | null): Promise<Tournament | undefined> {
+      const row = await db
+        .updateTable("tournaments")
+        .set({ followToken: token, updatedAt: new Date() })
+        .where("id", "=", id)
+        .returningAll()
+        .executeTakeFirst();
+      return row && mapTournament(row);
+    },
+
+    /**
+     * Resolves a follow-along link by either the report (read+write) or the
+     * follow (read-only) token. The caller decides write permission by comparing
+     * the matched token against `reportToken`.
+     * @returns The tournament whose report or follow token matches, or undefined.
+     */
+    async findByShareToken(token: string): Promise<Tournament | undefined> {
+      const row = await db
+        .selectFrom("tournaments")
+        .selectAll()
+        .where((eb) => eb.or([eb("reportToken", "=", token), eb("followToken", "=", token)]))
         .executeTakeFirst();
       return row && mapTournament(row);
     },

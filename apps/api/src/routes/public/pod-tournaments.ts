@@ -6,7 +6,7 @@ import type { Repos } from "../../deps.js";
 import { requireUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import { scoringOf } from "../../repositories/pod-tournaments.js";
-import type { PodTournament } from "../../repositories/pod-tournaments.js";
+import type { Tournament } from "../../repositories/tournaments.js";
 import { submitPodPlayerResult, submitPodResult } from "../../services/pod-pairing.js";
 
 /**
@@ -16,7 +16,7 @@ import { submitPodPlayerResult, submitPodResult } from "../../services/pod-pairi
  */
 async function buildReport(
   repos: Repos,
-  tournament: PodTournament,
+  tournament: Tournament,
   canSubmit: boolean,
 ): Promise<PodReportResponse> {
   const scoring = scoringOf(tournament);
@@ -57,7 +57,7 @@ const os = implement(publicPodTournamentsContract).$context<ApiContext>().use(re
 export const publicPodTournamentsRouter = {
   report: os.report.handler(async ({ input, context, errors }): Promise<PodReportResponse> => {
     const repos = context.repos;
-    const tournament = await repos.podTournaments.findByShareToken(input.token);
+    const tournament = await repos.tournaments.findByShareToken(input.token);
     // The follow-along report is a pairing-engine surface (pods or Swiss). A
     // no-pairing tournament has no pairings or standings to show, so even with a
     // live token it is treated as not found rather than rendering an empty shell.
@@ -72,7 +72,7 @@ export const publicPodTournamentsRouter = {
   submitResult: os.submitResult.handler(
     async ({ input, context, errors }): Promise<PodReportResponse> => {
       const repos = context.repos;
-      const tournament = await repos.podTournaments.findByShareToken(input.token);
+      const tournament = await repos.tournaments.findByShareToken(input.token);
       if (!tournament || tournament.pairingStyle === "none") {
         throw errors.NOT_FOUND({ message: "Not found" });
       }
@@ -92,7 +92,7 @@ export const publicPodTournamentsRouter = {
   submitPlayerResult: os.submitPlayerResult.handler(
     async ({ input, context, errors }): Promise<PodReportResponse> => {
       const repos = context.repos;
-      const tournament = await repos.podTournaments.findByShareToken(input.token);
+      const tournament = await repos.tournaments.findByShareToken(input.token);
       // Both pairing engines seat players in pods, so per-player entry applies to
       // Swiss as much as to pods. Only a no-pairing tournament has nothing to
       // report against.

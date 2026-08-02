@@ -2,12 +2,13 @@ import type { AdminCardResponse, CandidateCardResponse } from "@openrift/shared"
 import { render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { FieldDef } from "@/components/admin/candidate-spreadsheet";
+import type { CandidateCardFieldKey, FieldDef } from "@/components/admin/candidate-spreadsheet";
 
 const captured = vi.hoisted(() => ({
   spreadsheet: null as {
     fields?: { key: string }[];
     candidateRows?: unknown[];
+    onCellClick?: (field: string, value: unknown, candidateId: string) => void;
     onCheck?: unknown;
     onUncheck?: unknown;
     columnActions?: React.ReactNode;
@@ -64,12 +65,11 @@ function stubSource(overrides: Partial<CandidateCardResponse> = {}): CandidateCa
   } as CandidateCardResponse;
 }
 
-const FIELDS: FieldDef[] = [
+const FIELDS: FieldDef<CandidateCardFieldKey>[] = [
   { key: "name", label: "Name" },
-  { key: "rulesText", label: "Rules" },
-  { key: "effectText", label: "Effect" },
   { key: "energy", label: "Energy" },
-] as FieldDef[];
+  { key: "externalId", label: "External ID", readOnly: true },
+];
 
 function renderSection(
   props: Partial<React.ComponentProps<typeof CardFieldsSection>> = {},
@@ -104,12 +104,32 @@ beforeEach(() => {
 });
 
 describe("CardFieldsSection", () => {
-  // Rules and effect text are edited in the card-text dialog, not the compare
-  // grid, so they must never reach the spreadsheet.
-  it("hides the long-text fields from the compare grid", () => {
+  it("shows every candidate-card field in the compare grid", () => {
     renderSection();
 
-    expect(captured.spreadsheet?.fields?.map((f) => f.key)).toEqual(["name", "energy"]);
+    expect(captured.spreadsheet?.fields?.map((f) => f.key)).toEqual([
+      "name",
+      "energy",
+      "externalId",
+    ]);
+  });
+
+  // Regression: the grid also carries read-only provider columns the accept
+  // endpoint's `field` enum does not list. Sending one gets a 400 per field, and
+  // "Accept all fields" used to do exactly that for `rulesText`/`effectText`.
+  it("skips grid columns the accept endpoint cannot write", () => {
+    renderSection();
+
+    captured.spreadsheet?.onCellClick?.("externalId", "x1", "cc1");
+    expect(captured.acceptCardField).not.toHaveBeenCalled();
+
+    captured.spreadsheet?.onCellClick?.("name", "Jinx", "cc1");
+    expect(captured.acceptCardField).toHaveBeenCalledWith({
+      cardId: card.id,
+      field: "name",
+      value: "Jinx",
+      source: "provider",
+    });
   });
 
   it("renders nothing below the heading while folded", () => {

@@ -5,6 +5,10 @@ import type {
   ProviderSettingResponse,
 } from "@openrift/shared";
 import { fixTypography } from "@openrift/shared";
+import type {
+  AcceptCardField,
+  AcceptPrintingField,
+} from "@openrift/shared/contracts/admin/card-mutations";
 import {
   ArrowRightLeftIcon,
   CheckIcon,
@@ -57,8 +61,8 @@ function toLabeledOptions(
   return slugs.map((slug) => ({ value: slug, label: labels[slug] ?? slug }));
 }
 
-export interface FieldDef {
-  key: string;
+export interface FieldDef<TKey extends string = string> {
+  key: TKey;
   label: string;
   readOnly?: boolean;
   type?: "boolean" | "number";
@@ -87,9 +91,18 @@ export interface FieldDef {
   iconCategory?: FilterCategory;
 }
 
+/**
+ * Keys the candidate-card grid can carry: every column the accept-field endpoint
+ * writes, plus the two read-only provider columns that are shown but never sent.
+ */
+export type CandidateCardFieldKey = AcceptCardField | "externalId" | "extraData";
+
 /** Build candidate card fields with enum options populated from the database.
  * @returns The field definitions for candidate cards. */
-export function buildCandidateCardFields(orders: EnumOrders, labels: EnumLabels): FieldDef[] {
+export function buildCandidateCardFields(
+  orders: EnumOrders,
+  labels: EnumLabels,
+): FieldDef<CandidateCardFieldKey>[] {
   return [
     { key: "externalId", label: "External ID", readOnly: true },
     { key: "energy", label: "Energy", type: "number" },
@@ -114,8 +127,6 @@ export function buildCandidateCardFields(orders: EnumOrders, labels: EnumLabels)
       labeledOptions: toLabeledOptions(orders.domains, labels.domains),
       array: true,
     },
-    { key: "rulesText", label: "Rules Text", multiline: true, richText: true },
-    { key: "effectText", label: "Effect Text", multiline: true, richText: true },
     { key: "mightBonus", label: "Might Bonus", type: "number" },
     { key: "tags", label: "Tags", array: true },
     // Card-only field (no candidate data): deck copy-limit override, 0 = unlimited.
@@ -124,6 +135,43 @@ export function buildCandidateCardFields(orders: EnumOrders, labels: EnumLabels)
     { key: "extraData", label: "Extra Data", readOnly: true, collapsible: true },
   ];
 }
+
+/**
+ * The provider's rules and effect text. Neither is a column on `cards` — card
+ * text lives on the printing (`printedRulesText`) and on the card's errata row —
+ * so the accept endpoints reject both keys. They stay out of
+ * {@link buildCandidateCardFields} and appear only on the new-card page, where
+ * the admin reads the source text while composing the card.
+ */
+const NEW_CARD_TEXT_FIELDS: FieldDef<"rulesText" | "effectText">[] = [
+  { key: "rulesText", label: "Rules Text", multiline: true, richText: true },
+  { key: "effectText", label: "Effect Text", multiline: true, richText: true },
+];
+
+/** Keys the new-card grid carries: the candidate-card keys plus the two text columns. */
+export type NewCardFieldKey = CandidateCardFieldKey | "rulesText" | "effectText";
+
+/** Build the new-card grid's fields: the candidate-card fields with the provider
+ * text columns spliced back in after `domains`, where they have always read.
+ * @returns The field definitions for the new-card page. */
+export function buildNewCardFields(
+  orders: EnumOrders,
+  labels: EnumLabels,
+): FieldDef<NewCardFieldKey>[] {
+  const fields: FieldDef<NewCardFieldKey>[] = buildCandidateCardFields(orders, labels);
+  const afterDomains = fields.findIndex((field) => field.key === "domains") + 1;
+  return fields.toSpliced(afterDomains, 0, ...NEW_CARD_TEXT_FIELDS);
+}
+
+/**
+ * Keys the candidate-printing grid can carry: every column the accept-printing-field
+ * endpoint writes, plus the read-only provider columns that are shown but never sent.
+ */
+export type CandidatePrintingFieldKey =
+  | AcceptPrintingField
+  | "externalId"
+  | "extraData"
+  | "imageUrl";
 
 /** Build candidate printing fields with marker + channel options populated from the database.
  * @returns The field definitions for candidate printings. */
@@ -134,7 +182,7 @@ export function buildCandidatePrintingFields(
   distributionChannels: readonly { value: string; label: string }[],
   artistSuggestions?: readonly string[],
   languages?: readonly { value: string; label: string }[],
-): FieldDef[] {
+): FieldDef<CandidatePrintingFieldKey>[] {
   return [
     { key: "externalId", label: "External ID", readOnly: true },
     { key: "setId", label: "Set", suffixKey: "setName" },
@@ -212,8 +260,8 @@ export interface PrintingGroup {
 
 // -- Spreadsheet component ----------------------------------------------------
 
-interface CandidateSpreadsheetProps {
-  fields: FieldDef[];
+interface CandidateSpreadsheetProps<TKey extends string = string> {
+  fields: FieldDef<TKey>[];
   activeRow: Record<string, unknown> | null;
   candidateRows: (CandidateCardResponse | CandidatePrintingResponse)[];
   /** Map from candidateCardId -> provider name (e.g. "gallery"), used to label columns. */
@@ -224,9 +272,9 @@ interface CandidateSpreadsheetProps {
   providerSettings?: ProviderSettingResponse[];
   /** Field keys that must be selected before the card can be accepted. */
   requiredKeys?: string[];
-  onCellClick?: (field: string, value: unknown, candidateId: string) => void;
+  onCellClick?: (field: TKey, value: unknown, candidateId: string) => void;
   /** Called to set or clear a value in the active column. Pass null to clear. */
-  onActiveChange?: (field: string, value: unknown | null) => void;
+  onActiveChange?: (field: TKey, value: unknown | null) => void;
   onCheck?: (candidateId: string) => void;
   onUncheck?: (candidateId: string) => void;
   /**
@@ -486,7 +534,7 @@ function TagChipCell({
   );
 }
 
-export function CandidateSpreadsheet({
+export function CandidateSpreadsheet<TKey extends string = string>({
   fields,
   activeRow,
   candidateRows,
@@ -505,7 +553,7 @@ export function CandidateSpreadsheet({
   activeImageUrl,
   costKeywords = [],
   activeColumnBadge,
-}: CandidateSpreadsheetProps) {
+}: CandidateSpreadsheetProps<TKey>) {
   const settingsMap = new Map(providerSettings?.map((s) => [s.provider, s]));
   const favoriteProviders = new Set(
     providerSettings?.filter((s) => s.isFavorite).map((s) => s.provider),
@@ -529,7 +577,7 @@ export function CandidateSpreadsheet({
 
   const hasCollapsible = fields.some((f) => f.collapsible);
 
-  function commitEdit(fieldKey: string, raw: string) {
+  function commitEdit(fieldKey: TKey, raw: string) {
     setEditingField(null);
     if (!onActiveChange) {
       return;

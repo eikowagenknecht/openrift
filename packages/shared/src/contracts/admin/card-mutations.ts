@@ -62,47 +62,53 @@ const patchCandidatePrintingFields = {
 export type PatchCandidatePrintingBody = z.infer<z.ZodObject<typeof patchCandidatePrintingFields>>;
 
 // accept-field bodies. `value` stays `unknown` on the wire; the API validates
-// it per-field against {card,printing}FieldRules at runtime. The `field` enums
-// ARE the allowlist of writable columns (mirrors apps/api cards/schemas).
+// it per-field against {card,printing}FieldRules at runtime. These two arrays
+// ARE the allowlist of writable columns (mirrors apps/api cards/schemas), so the
+// web field editor derives its own writable set from them rather than keeping a
+// parallel list — see `isAcceptCardField` / `isAcceptPrintingField` below.
+export const ACCEPT_CARD_FIELDS = [
+  "name",
+  "types",
+  "superTypes",
+  "domains",
+  "might",
+  "energy",
+  "power",
+  "mightBonus",
+  "tags",
+  "maxCopiesOverride",
+  "comment",
+] as const;
+
+export const ACCEPT_PRINTING_FIELDS = [
+  "shortCode",
+  "setId",
+  "rarity",
+  "artVariant",
+  "isSigned",
+  "markerSlugs",
+  "distributionChannelSlugs",
+  "finish",
+  "size",
+  "artist",
+  "publicCode",
+  "printedRulesText",
+  "printedEffectText",
+  "flavorText",
+  "language",
+  "printedName",
+  "printedYear",
+  "comment",
+] as const;
+
 const acceptCardFieldBodySchema = z.object({
-  field: z.enum([
-    "name",
-    "types",
-    "superTypes",
-    "domains",
-    "might",
-    "energy",
-    "power",
-    "mightBonus",
-    "tags",
-    "maxCopiesOverride",
-    "comment",
-  ]),
+  field: z.enum(ACCEPT_CARD_FIELDS),
   value: z.unknown(),
   source: z.enum(["provider", "manual"]).default("manual"),
 });
 
 const acceptPrintingFieldBodySchema = z.object({
-  field: z.enum([
-    "shortCode",
-    "setId",
-    "rarity",
-    "artVariant",
-    "isSigned",
-    "markerSlugs",
-    "distributionChannelSlugs",
-    "finish",
-    "size",
-    "artist",
-    "publicCode",
-    "printedRulesText",
-    "printedEffectText",
-    "flavorText",
-    "language",
-    "printedName",
-    "printedYear",
-    "comment",
-  ]),
+  field: z.enum(ACCEPT_PRINTING_FIELDS),
   value: z.unknown(),
   source: z.enum(["provider", "manual"]).default("manual"),
 });
@@ -110,6 +116,24 @@ const acceptPrintingFieldBodySchema = z.object({
 /** accept-field request bodies (no path param) — consumed by the web admin field editor. */
 export type AcceptCardFieldBody = z.infer<typeof acceptCardFieldBodySchema>;
 export type AcceptPrintingFieldBody = z.infer<typeof acceptPrintingFieldBodySchema>;
+
+/** A `cards` column the accept-field endpoint will write. */
+export type AcceptCardField = AcceptCardFieldBody["field"];
+/** A `printings` column the accept-printing-field endpoint will write. */
+export type AcceptPrintingField = AcceptPrintingFieldBody["field"];
+
+const acceptCardFieldSet: ReadonlySet<string> = new Set(ACCEPT_CARD_FIELDS);
+const acceptPrintingFieldSet: ReadonlySet<string> = new Set(ACCEPT_PRINTING_FIELDS);
+
+/** @returns Whether `key` names a card column the accept endpoint will write. */
+export function isAcceptCardField(key: string): key is AcceptCardField {
+  return acceptCardFieldSet.has(key);
+}
+
+/** @returns Whether `key` names a printing column the accept endpoint will write. */
+export function isAcceptPrintingField(key: string): key is AcceptPrintingField {
+  return acceptPrintingFieldSet.has(key);
+}
 
 // ── Create / accept composite schemas (mirror apps/api cards/schemas) ────────
 // `setFieldRules` lives in apps/api (only the API touches the `sets` table);

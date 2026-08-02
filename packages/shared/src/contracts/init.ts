@@ -16,13 +16,13 @@ export const keywordEntrySchema = z.object({
     .openapi({ example: { de: "Beschleunigen" } }),
 });
 
-const enumRowSchema = z.object({
+export const enumRowSchema = z.object({
   slug: z.string().openapi({ example: "Unit" }),
   label: z.string().openapi({ example: "Unit" }),
   sortOrder: z.number().openapi({ example: 1 }),
 });
 
-const coloredEnumRowSchema = enumRowSchema.extend({
+export const coloredEnumRowSchema = enumRowSchema.extend({
   color: z.string().nullable().openapi({ example: "#b8336a" }),
 });
 

@@ -15,7 +15,6 @@ import { buildPodRunDetail, podRunDetailById } from "../../lib/pod-tournament-bu
 import { generateShareToken } from "../../lib/share-token.js";
 import {
   loadParticipant,
-  loadPodTournament,
   loadTournament,
   requireHost,
   requireManage,
@@ -294,10 +293,10 @@ export const tournamentsRouter = {
     // the manage UI and any cached link honest).
     if (pairingChanging && patch.pairingStyle !== "pod" && patch.pairingStyle !== "swiss") {
       if (tournament.reportToken) {
-        await repos.podTournaments.setReportToken(id, null);
+        await repos.tournaments.setReportToken(id, null);
       }
       if (tournament.followToken) {
-        await repos.podTournaments.setFollowToken(id, null);
+        await repos.tournaments.setFollowToken(id, null);
       }
     }
     // Mint the share link the first time it's needed (self-registration opened
@@ -685,7 +684,7 @@ export const tournamentsRouter = {
     async ({ input, context }): Promise<PodTournamentDetailResponse> => {
       const repos = context.repos;
       const userId = context.userId;
-      const tournament = await loadPodTournament(repos, input.id);
+      const tournament = await loadTournament(repos, input.id);
       if (!(await repos.tournaments.hasRelationship(input.id, userId))) {
         throw new AppError(404, ERROR_CODES.NOT_FOUND, "Tournament not found");
       }
@@ -697,7 +696,7 @@ export const tournamentsRouter = {
     async ({ input, context }): Promise<PodTournamentDetailResponse> => {
       const repos = context.repos;
       const userId = context.userId;
-      const tournament = await loadPodTournament(repos, input.id);
+      const tournament = await loadTournament(repos, input.id);
       await requireManage(repos, tournament, userId);
       await pairNextRound(repos, tournament, input.byes);
       return podRunDetailById(repos, input.id);
@@ -708,7 +707,7 @@ export const tournamentsRouter = {
     async ({ input, context }): Promise<PodTournamentDetailResponse> => {
       const repos = context.repos;
       const userId = context.userId;
-      const tournament = await loadPodTournament(repos, input.id);
+      const tournament = await loadTournament(repos, input.id);
       await requireManage(repos, tournament, userId);
       await replaceRoundPairing(repos, tournament, input.roundNumber, input.pods, input.byes);
       return podRunDetailById(repos, input.id);
@@ -719,7 +718,7 @@ export const tournamentsRouter = {
     async ({ input, context }): Promise<PodTournamentDetailResponse> => {
       const repos = context.repos;
       const userId = context.userId;
-      const tournament = await loadPodTournament(repos, input.id);
+      const tournament = await loadTournament(repos, input.id);
       await requireManage(repos, tournament, userId);
       await rerollRoundEngine(repos, tournament, input.roundNumber);
       return podRunDetailById(repos, input.id);
@@ -730,7 +729,7 @@ export const tournamentsRouter = {
     async ({ input, context }): Promise<PodTournamentDetailResponse> => {
       const repos = context.repos;
       const userId = context.userId;
-      const tournament = await loadPodTournament(repos, input.id);
+      const tournament = await loadTournament(repos, input.id);
       await requireManage(repos, tournament, userId);
       await finalizeRoundEngine(repos, tournament, input.roundNumber);
       return podRunDetailById(repos, input.id);
@@ -741,7 +740,7 @@ export const tournamentsRouter = {
     async ({ input, context }): Promise<PodTournamentDetailResponse> => {
       const repos = context.repos;
       const userId = context.userId;
-      const tournament = await loadPodTournament(repos, input.id);
+      const tournament = await loadTournament(repos, input.id);
       await requireManage(repos, tournament, userId);
       await submitPodResult(repos, tournament.id, input.podId, input.results, {
         allowFinalized: true,
@@ -756,7 +755,7 @@ export const tournamentsRouter = {
       const userId = context.userId;
       const tournament = await loadTournament(repos, input.id);
       await requireManage(repos, tournament, userId);
-      await repos.podTournaments.setReportToken(tournament.id, generateShareToken());
+      await repos.tournaments.setReportToken(tournament.id, generateShareToken());
       return detailById(repos, input.id, userId);
     },
   ),
@@ -767,7 +766,7 @@ export const tournamentsRouter = {
       const userId = context.userId;
       const tournament = await loadTournament(repos, input.id);
       await requireManage(repos, tournament, userId);
-      await repos.podTournaments.setReportToken(tournament.id, null);
+      await repos.tournaments.setReportToken(tournament.id, null);
       return detailById(repos, input.id, userId);
     },
   ),
@@ -778,7 +777,7 @@ export const tournamentsRouter = {
       const userId = context.userId;
       const tournament = await loadTournament(repos, input.id);
       await requireManage(repos, tournament, userId);
-      await repos.podTournaments.setFollowToken(tournament.id, generateShareToken());
+      await repos.tournaments.setFollowToken(tournament.id, generateShareToken());
       return detailById(repos, input.id, userId);
     },
   ),
@@ -789,7 +788,7 @@ export const tournamentsRouter = {
       const userId = context.userId;
       const tournament = await loadTournament(repos, input.id);
       await requireManage(repos, tournament, userId);
-      await repos.podTournaments.setFollowToken(tournament.id, null);
+      await repos.tournaments.setFollowToken(tournament.id, null);
       return detailById(repos, input.id, userId);
     },
   ),

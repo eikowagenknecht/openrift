@@ -6,6 +6,7 @@ import type {
   CandidatePrintingResponse,
   ProviderSettingResponse,
 } from "@openrift/shared";
+import { isAcceptPrintingField } from "@openrift/shared/contracts/admin/card-mutations";
 import { Link } from "@tanstack/react-router";
 import {
   CheckCheckIcon,
@@ -17,7 +18,7 @@ import {
 } from "lucide-react";
 
 import { CandidateSpreadsheet } from "@/components/admin/candidate-spreadsheet";
-import type { FieldDef } from "@/components/admin/candidate-spreadsheet";
+import type { CandidatePrintingFieldKey, FieldDef } from "@/components/admin/candidate-spreadsheet";
 import {
   buildPrintingNormalizer,
   computePrintingMatchStatus,
@@ -103,7 +104,7 @@ interface PrintingReviewCardProps {
   sourceLabels: Record<string, string>;
   sourceNames: Record<string, string>;
   providerSettings: ProviderSettingResponse[];
-  printingSourceFields: FieldDef[];
+  printingSourceFields: FieldDef<CandidatePrintingFieldKey>[];
   setTotals: Record<string, number>;
   costKeywords: readonly string[];
   /** Query keys this row's mutations invalidate. */
@@ -294,6 +295,11 @@ export function PrintingReviewCard({
                 costKeywords,
               )}
               onCellClick={(field, value) => {
+                // externalId / extraData / imageUrl are read-only provider
+                // columns the accept endpoint does not take.
+                if (!isAcceptPrintingField(field)) {
+                  return;
+                }
                 acceptPrintingField.mutate({
                   printingId,
                   field,
@@ -302,7 +308,7 @@ export function PrintingReviewCard({
                 });
               }}
               onActiveChange={(field, value) => {
-                if (value === undefined) {
+                if (value === undefined || !isAcceptPrintingField(field)) {
                   return;
                 }
                 acceptPrintingField.mutate({ printingId, field, value });

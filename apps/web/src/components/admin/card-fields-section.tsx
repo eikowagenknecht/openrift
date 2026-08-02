@@ -4,10 +4,12 @@ import type {
   CandidatePrintingResponse,
   ProviderSettingResponse,
 } from "@openrift/shared";
+import type { AcceptCardField } from "@openrift/shared/contracts/admin/card-mutations";
+import { isAcceptCardField } from "@openrift/shared/contracts/admin/card-mutations";
 import { BanIcon, CheckCheckIcon, CopyCheckIcon } from "lucide-react";
 
 import { CandidateSpreadsheet } from "@/components/admin/candidate-spreadsheet";
-import type { FieldDef } from "@/components/admin/candidate-spreadsheet";
+import type { CandidateCardFieldKey, FieldDef } from "@/components/admin/candidate-spreadsheet";
 import { CardBanManager } from "@/components/admin/card-ban-manager";
 import { CardErrataManager } from "@/components/admin/card-errata-manager";
 import { Heading } from "@/components/heading";
@@ -21,16 +23,13 @@ import {
 } from "@/hooks/use-admin-card-mutations";
 import { useIgnoreCandidateCard } from "@/hooks/use-ignored-candidates";
 
-/** Rules and effect text live in the card-text editor, not the compare grid. */
-const HIDDEN_FIELD_KEYS = new Set(["rulesText", "effectText"]);
-
 interface CardSourceColumnActionsProps {
   row?: CandidateCardResponse | CandidatePrintingResponse;
   cardId: string;
-  candidateCardFields: FieldDef[];
+  candidateCardFields: FieldDef<CandidateCardFieldKey>[];
   onAcceptField: (input: {
     cardId: string;
-    field: string;
+    field: AcceptCardField;
     value: unknown;
     source?: "manual" | "provider";
   }) => void;
@@ -57,7 +56,10 @@ function CardSourceColumnActions({
         onClick={() => {
           const record = row as unknown as Record<string, unknown>;
           for (const field of candidateCardFields) {
-            if (field.readOnly) {
+            // The grid also carries read-only provider columns (externalId,
+            // extraData) that the accept endpoint does not take; the contract's
+            // own field list decides what is sendable.
+            if (!isAcceptCardField(field.key)) {
               continue;
             }
             const val = record[field.key];
@@ -91,7 +93,7 @@ interface CardFieldsSectionProps {
   card: AdminCardResponse;
   /** The card's candidate sources, one column each in the compare grid. */
   sources: CandidateCardResponse[];
-  candidateCardFields: FieldDef[];
+  candidateCardFields: FieldDef<CandidateCardFieldKey>[];
   providerSettings: ProviderSettingResponse[];
   expanded: boolean;
   onToggleExpanded: () => void;
@@ -153,16 +155,19 @@ export function CardFieldsSection({
       {expanded && (
         <>
           <CandidateSpreadsheet
-            fields={candidateCardFields.filter((f) => !HIDDEN_FIELD_KEYS.has(f.key))}
+            fields={candidateCardFields}
             requiredKeys={["name", "types", "domains"]}
             activeRow={{ ...card }}
             candidateRows={sources}
             providerSettings={providerSettings}
             onCellClick={(field, value) => {
+              if (!isAcceptCardField(field)) {
+                return;
+              }
               acceptCardField.mutate({ cardId: card.id, field, value, source: "provider" });
             }}
             onActiveChange={(field, value) => {
-              if (value === undefined) {
+              if (value === undefined || !isAcceptCardField(field)) {
                 return;
               }
               acceptCardField.mutate({ cardId: card.id, field, value });

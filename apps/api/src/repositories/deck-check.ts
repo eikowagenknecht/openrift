@@ -12,7 +12,7 @@ import type {
   TournamentPlayMode,
   TournamentStatus,
 } from "@openrift/shared";
-import type { Kysely, Selectable } from "kysely";
+import type { Kysely, Selectable, Updateable } from "kysely";
 import { sql } from "kysely";
 
 import { parseJsonb } from "../db/helpers.js";
@@ -20,6 +20,7 @@ import type {
   Database,
   DeckCheckEntriesTable,
   DeckCheckEntryCardsTable,
+  TournamentParticipantsTable,
   TournamentsTable,
 } from "../db/index.js";
 import { imageId, requireFrontImage } from "./query-helpers.js";
@@ -806,7 +807,7 @@ export function deckCheckRepo(db: Kysely<Database>) {
     ): Promise<DeckCheckEntry | undefined> {
       // Identity / claim columns moved to the participant (ADR-033); route them
       // there. The sharing-consent flags stay on the entry (see entryPatch).
-      const participantPatch: Record<string, unknown> = {};
+      const participantPatch: Updateable<TournamentParticipantsTable> = {};
       if (patch.playerName !== undefined) {
         participantPatch.displayName = patch.playerName;
       }

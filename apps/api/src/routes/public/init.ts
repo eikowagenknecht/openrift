@@ -8,6 +8,14 @@ import type { ApiContext } from "../../orpc/context.js";
 const os = implement(initContract).$context<ApiContext>().use(requireUser);
 
 /**
+ * Drops the internal `is_well_known` seeding flag from a batch of reference rows.
+ * @returns The rows without `isWellKnown`.
+ */
+function stripInternal<T extends { isWellKnown: boolean }>(rows: T[]): Omit<T, "isWellKnown">[] {
+  return rows.map(({ isWellKnown: _isWellKnown, ...rest }) => rest);
+}
+
+/**
  * Public init read.
  * `GET /api/v1/init` — enums + keywords + distribution channels + custom tags
  * in a single request.
@@ -60,18 +68,25 @@ export const initRouter = {
       }
     }
 
-    const strippedEnums = Object.fromEntries(
-      Object.entries(enumData).map(([key, rows]) => [
-        key,
-        rows.map((row) => {
-          const { isWellKnown: _isWellKnown, ...rest } = row as { isWellKnown?: boolean } & Record<
-            string,
-            unknown
-          >;
-          return rest;
-        }),
-      ]),
-    ) as unknown as InitResponse["enums"];
+    // `is_well_known` is an internal seeding flag; strip it from every row.
+    // Listing the keys (rather than folding over Object.entries) keeps the
+    // result checked against the contract's `enums` object instead of casting an
+    // index signature onto it, so a key added on either side fails to compile.
+    const strippedEnums: InitResponse["enums"] = {
+      cardTypes: stripInternal(enumData.cardTypes),
+      rarities: stripInternal(enumData.rarities),
+      domains: stripInternal(enumData.domains),
+      superTypes: stripInternal(enumData.superTypes),
+      finishes: stripInternal(enumData.finishes),
+      artVariants: stripInternal(enumData.artVariants),
+      cardSizes: stripInternal(enumData.cardSizes),
+      deckFormats: stripInternal(enumData.deckFormats),
+      deckZones: stripInternal(enumData.deckZones),
+      conditions: stripInternal(enumData.conditions),
+      graders: stripInternal(enumData.graders),
+      languages: stripInternal(enumData.languages),
+      markers: enumData.markers,
+    };
 
     const channelsResponse: DistributionChannel[] = channelRows.map((row) => ({
       id: row.id,

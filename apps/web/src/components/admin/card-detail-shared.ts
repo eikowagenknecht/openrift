@@ -8,10 +8,17 @@ import type {
 import { appendSetTotal, fixTypography } from "@openrift/shared";
 import { cardFieldsSchema } from "@openrift/shared/contracts/admin/card-mutations";
 
-import type { FieldDef, PrintingGroup } from "@/components/admin/candidate-spreadsheet";
+import type {
+  CandidateCardFieldKey,
+  CandidatePrintingFieldKey,
+  FieldDef,
+  NewCardFieldKey,
+  PrintingGroup,
+} from "@/components/admin/candidate-spreadsheet";
 import {
   buildCandidateCardFields,
   buildCandidatePrintingFields,
+  buildNewCardFields,
 } from "@/components/admin/candidate-spreadsheet";
 import {
   useCheckAllCandidatePrintings,
@@ -58,7 +65,7 @@ export function useCardDetailData(invalidates: readonly (readonly unknown[])[]) 
 
   const { data: artistSuggestions } = useDistinctArtists();
 
-  const printingSourceFields: FieldDef[] = buildCandidatePrintingFields(
+  const printingSourceFields: FieldDef<CandidatePrintingFieldKey>[] = buildCandidatePrintingFields(
     orders,
     labels,
     markers.map((m) => ({ value: m.slug, label: m.label })),
@@ -70,7 +77,13 @@ export function useCardDetailData(invalidates: readonly (readonly unknown[])[]) 
     })),
   );
 
-  const candidateCardFields: FieldDef[] = buildCandidateCardFields(orders, labels);
+  const candidateCardFields: FieldDef<CandidateCardFieldKey>[] = buildCandidateCardFields(
+    orders,
+    labels,
+  );
+  // The new-card page also shows the provider's rules/effect text; neither is a
+  // `cards` column, so they stay off `candidateCardFields`.
+  const newCardFields: FieldDef<NewCardFieldKey>[] = buildNewCardFields(orders, labels);
 
   const checkCandidateCard = useCheckCandidateCard(invalidates);
   const uncheckCandidateCard = useUncheckCandidateCard(invalidates);
@@ -84,6 +97,7 @@ export function useCardDetailData(invalidates: readonly (readonly unknown[])[]) 
     providerSettings,
     markers,
     candidateCardFields,
+    newCardFields,
     printingSourceFields,
     checkCandidateCard,
     uncheckCandidateCard,

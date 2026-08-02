@@ -267,8 +267,17 @@ export function catalogMutationsRepo(db: Kysely<Database>) {
       await db.updateTable("printings").set(updates).where("id", "=", id).execute();
     },
 
-    /** Update a single field on a printing by UUID. */
-    async updatePrintingFieldById(id: string, field: string, value: unknown): Promise<void> {
+    /**
+     * Update a single field on a printing by UUID. `field` is constrained to a
+     * real column so a caller's field allowlist is checked against `printings`
+     * at compile time; `value` stays `unknown` because callers validate it
+     * per-field against the shared field rules.
+     */
+    async updatePrintingFieldById(
+      id: string,
+      field: keyof Updateable<PrintingsTable> & string,
+      value: unknown,
+    ): Promise<void> {
       await db
         .updateTable("printings")
         .set({ [field]: value })

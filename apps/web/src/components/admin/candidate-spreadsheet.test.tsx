@@ -1,5 +1,6 @@
 import type { CandidatePrintingResponse, EnumOrders } from "@openrift/shared";
 import { fixTypography } from "@openrift/shared";
+import { isAcceptCardField } from "@openrift/shared/contracts/admin/card-mutations";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -7,7 +8,11 @@ import { describe, expect, it, vi } from "vitest";
 import type { EnumLabels } from "@/hooks/use-enums";
 
 import type { FieldDef } from "./candidate-spreadsheet";
-import { CandidateSpreadsheet, buildCandidateCardFields } from "./candidate-spreadsheet";
+import {
+  CandidateSpreadsheet,
+  buildCandidateCardFields,
+  buildNewCardFields,
+} from "./candidate-spreadsheet";
 
 const markerField: FieldDef = {
   key: "markerSlugs",
@@ -288,8 +293,37 @@ describe("buildCandidateCardFields", () => {
     const orders = { superTypes: [], cardTypes: [], domains: [] } as unknown as EnumOrders;
     const labels = { superTypes: {}, cardTypes: {}, domains: {} } as unknown as EnumLabels;
     const byKey = new Map(buildCandidateCardFields(orders, labels).map((f) => [f.key, f]));
-    for (const key of ["energy", "power", "might", "mightBonus"]) {
+    for (const key of ["energy", "power", "might", "mightBonus"] as const) {
       expect(byKey.get(key)?.type).toBe("number");
     }
+  });
+
+  // Regression: `rulesText` / `effectText` are not columns on `cards` (card text
+  // lives on the printing and on the errata row), so the accept-field endpoint
+  // rejects both. They used to sit in this list, and "Accept all fields" sent
+  // them and got a 400 for each.
+  it("omits the two text keys the accept-field endpoint cannot write", () => {
+    const orders = { superTypes: [], cardTypes: [], domains: [] } as unknown as EnumOrders;
+    const labels = { superTypes: {}, cardTypes: {}, domains: {} } as unknown as EnumLabels;
+    const keys = buildCandidateCardFields(orders, labels).map((f) => f.key);
+
+    expect(keys).not.toContain("rulesText");
+    expect(keys).not.toContain("effectText");
+    for (const key of keys) {
+      expect(key === "externalId" || key === "extraData" || isAcceptCardField(key)).toBe(true);
+    }
+  });
+});
+
+describe("buildNewCardFields", () => {
+  // The new-card page still shows the provider's text so the admin can read it
+  // while composing; it just never accepts either key onto a card.
+  it("adds the provider text columns back, right after domains", () => {
+    const orders = { superTypes: [], cardTypes: [], domains: [] } as unknown as EnumOrders;
+    const labels = { superTypes: {}, cardTypes: {}, domains: {} } as unknown as EnumLabels;
+    const keys = buildNewCardFields(orders, labels).map((f) => f.key);
+
+    expect(keys.indexOf("rulesText")).toBe(keys.indexOf("domains") + 1);
+    expect(keys.indexOf("effectText")).toBe(keys.indexOf("domains") + 2);
   });
 });

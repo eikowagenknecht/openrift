@@ -5,7 +5,9 @@ import { cardFieldRules, printingFieldRules } from "@openrift/shared/db-field-ru
 import { extractKeywords } from "@openrift/shared/keywords";
 import { normalizeNameForMatching } from "@openrift/shared/utils";
 import { implement } from "@orpc/server";
+import type { Updateable } from "kysely";
 
+import type { CandidatePrintingsTable } from "../../../db/index.js";
 import { AppError } from "../../../errors.js";
 import { assertDeleted, assertFound, assertUpdated } from "../../../lib/assertions.js";
 import { requireAuthedUser } from "../../../orpc/base.js";
@@ -97,15 +99,10 @@ export const adminCardMutationsRouter = {
       const scope = await reviewableProviderScope(context.adminAccess, providerSettings);
       await assertCandidatePrintingsInScope(candidateCards, [id], scope);
 
-      const allowedFields = ["artVariant", "isSigned", "finish", "setId", "shortCode", "rarity"];
-
-      const updates: Record<string, unknown> = {};
-      const bodyRecord = body as Record<string, unknown>;
-      for (const field of allowedFields) {
-        if (field in body) {
-          updates[field] = bodyRecord[field];
-        }
-      }
+      // The contract body IS the writable-column allowlist (zod drops anything
+      // else), so pass it through typed rather than re-listing the columns in a
+      // string loop the compiler cannot check against `candidate_printings`.
+      const updates: Updateable<CandidatePrintingsTable> = { ...body };
 
       if (Object.keys(updates).length === 0) {
         throw new AppError(400, ERROR_CODES.BAD_REQUEST, "No valid fields to update");

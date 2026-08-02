@@ -23,7 +23,8 @@ import { AppError } from "../errors.js";
 import { assertFound } from "../lib/assertions.js";
 import { isUniqueViolationOn } from "../lib/pg-errors.js";
 import { scoringOf } from "../repositories/pod-tournaments.js";
-import type { PodRound, PodTournament } from "../repositories/pod-tournaments.js";
+import type { PodRound } from "../repositories/pod-tournaments.js";
+import type { Tournament } from "../repositories/tournaments.js";
 
 /**
  * The 409 raised when a second pairing collides with an already-open round.
@@ -41,7 +42,7 @@ function roundAlreadyOpen(): AppError {
 const EMPTY_PAIRING: PairingResult = { pods: [], totalPenalty: 0, perPod: [], strategy: "random" };
 
 // The engine mode for a tournament's pairing style ('none' never reaches pairing).
-function pairingModeOf(tournament: PodTournament): PairingMode {
+function pairingModeOf(tournament: Tournament): PairingMode {
   return tournament.pairingStyle === "swiss" ? "swiss" : "pod";
 }
 
@@ -68,7 +69,7 @@ function pairingModeOf(tournament: PodTournament): PairingMode {
  */
 async function runPairing(
   repos: Repos,
-  tournament: PodTournament,
+  tournament: Tournament,
   roundNumber: number,
   byePlayerIds: string[],
 ): Promise<{ pairing: PairingResult; byePlayerIds: string[] }> {
@@ -210,7 +211,7 @@ function runTeamPairing(
  */
 export async function pairNextRound(
   repos: Repos,
-  tournament: PodTournament,
+  tournament: Tournament,
   byePlayerIds: string[] = [],
 ): Promise<PodRound> {
   const open = await repos.podTournaments.findOpenRound(tournament.id);
@@ -241,7 +242,7 @@ export async function pairNextRound(
     throw error;
   }
   if (tournament.status === "setup") {
-    await repos.podTournaments.update(tournament.id, { status: "running" });
+    await repos.tournaments.updateSettings(tournament.id, { status: "running" });
   }
   return round;
 }
@@ -258,7 +259,7 @@ export async function pairNextRound(
  */
 export async function rerollRound(
   repos: Repos,
-  tournament: PodTournament,
+  tournament: Tournament,
   roundNumber: number,
 ): Promise<PodRound> {
   const round = await repos.podTournaments.findRoundByNumber(tournament.id, roundNumber);
@@ -300,7 +301,7 @@ export async function rerollRound(
  */
 export async function replaceRoundPairing(
   repos: Repos,
-  tournament: PodTournament,
+  tournament: Tournament,
   roundNumber: number,
   pods: { size: 2 | 3 | 4; playerIds: string[] }[],
   byePlayerIds: string[],
@@ -441,7 +442,7 @@ function toPairingPlayer(snapshot: PodSnapshotPlayer): TeamSnapshotPlayer {
  */
 export async function finalizeRound(
   repos: Repos,
-  tournament: PodTournament,
+  tournament: Tournament,
   roundNumber: number,
 ): Promise<void> {
   const round = await repos.podTournaments.findRoundByNumber(tournament.id, roundNumber);

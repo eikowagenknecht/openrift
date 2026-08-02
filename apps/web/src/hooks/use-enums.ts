@@ -1,17 +1,14 @@
-import type { CustomTag, DeckZone, DistributionChannel, EnumOrders } from "@openrift/shared";
+import type {
+  ColoredEnumRow,
+  CustomTag,
+  DeckZone,
+  DistributionChannel,
+  EnumOrders,
+  EnumRow,
+} from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 
 import { initQueryOptions } from "@/hooks/use-init";
-
-interface EnumRow {
-  slug: string;
-  label: string;
-  sortOrder: number;
-}
-
-interface ColoredEnumRow extends EnumRow {
-  color: string | null;
-}
 
 /** Label lookup maps for enums that need display labels in the UI. */
 export interface EnumLabels {
@@ -26,16 +23,25 @@ export interface EnumLabels {
   graders: Record<string, string>;
 }
 
-function sorted(rows: EnumRow[]): EnumRow[] {
+// Generic over the row so a colored/described row keeps its extra fields
+// through the sort instead of being widened back to the base row.
+function sorted<T extends EnumRow>(rows: readonly T[]): T[] {
   return rows.toSorted((a, b) => a.sortOrder - b.sortOrder);
 }
 
-function slugs(rows: EnumRow[]): string[] {
+function slugs(rows: readonly EnumRow[]): string[] {
   return sorted(rows).map((row) => row.slug);
 }
 
-function labelMap(rows: EnumRow[]): Record<string, string> {
+function labelMap(rows: readonly EnumRow[]): Record<string, string> {
   return Object.fromEntries(sorted(rows).map((row) => [row.slug, row.label]));
+}
+
+/** @returns The slug → hex-color lookup for the rows that have a color set. */
+function colorMap(rows: readonly ColoredEnumRow[]): Record<string, string> {
+  return Object.fromEntries(
+    rows.flatMap((row) => (row.color === null ? [] : [[row.slug, row.color] as const])),
+  );
 }
 
 /**
@@ -78,11 +84,10 @@ export function useLanguageLabels(): Record<string, string> {
  */
 export function useLanguageList(): { code: string; name: string; color: string | null }[] {
   const { data } = useSuspenseQuery(initQueryOptions);
-  const rows = (data.enums.languages ?? []) as ColoredEnumRow[];
-  return sorted(rows).map((row) => ({
+  return sorted(data.enums.languages ?? []).map((row) => ({
     code: row.slug,
     name: row.label,
-    color: (row as ColoredEnumRow).color ?? null,
+    color: row.color,
   }));
 }
 
@@ -94,12 +99,7 @@ export function useLanguageList(): { code: string; name: string; color: string |
  */
 export function useLanguageColors(): Record<string, string> {
   const { data } = useSuspenseQuery(initQueryOptions);
-  const rows = (data.enums.languages ?? []) as ColoredEnumRow[];
-  return Object.fromEntries(
-    rows
-      .filter((row) => row.color !== null && row.color !== undefined)
-      .map((row) => [row.slug, row.color as string]),
-  );
+  return colorMap(data.enums.languages ?? []);
 }
 
 /**
@@ -234,9 +234,9 @@ export function useEnumOrders(): {
   rarityColors: Record<string, string>;
 } {
   const { data } = useSuspenseQuery(initQueryOptions);
-  const d = data.enums as Record<string, EnumRow[]>;
-  const domainRows = (d.domains ?? []) as ColoredEnumRow[];
-  const rarityRows = (d.rarities ?? []) as ColoredEnumRow[];
+  // Keep the contract's per-key typing: widening to an index signature turns a
+  // typo'd key into a silently empty label map instead of a compile error.
+  const d = data.enums;
   return {
     orders: {
       finishes: slugs(d.finishes ?? []),
@@ -258,15 +258,7 @@ export function useEnumOrders(): {
       conditions: labelMap(d.conditions ?? []),
       graders: labelMap(d.graders ?? []),
     },
-    domainColors: Object.fromEntries(
-      domainRows
-        .filter((row) => row.color !== null && row.color !== undefined)
-        .map((row) => [row.slug, row.color as string]),
-    ),
-    rarityColors: Object.fromEntries(
-      rarityRows
-        .filter((row) => row.color !== null && row.color !== undefined)
-        .map((row) => [row.slug, row.color as string]),
-    ),
+    domainColors: colorMap(d.domains ?? []),
+    rarityColors: colorMap(d.rarities ?? []),
   };
 }

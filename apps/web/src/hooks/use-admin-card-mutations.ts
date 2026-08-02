@@ -1,13 +1,15 @@
+import type {
+  AcceptCardField,
+  AcceptPrintingField,
+} from "@openrift/shared/contracts/admin/card-mutations";
 import { adminCardMutationsContract } from "@openrift/shared/contracts/admin/card-mutations";
 import { adminUnifiedMappingsContract } from "@openrift/shared/contracts/admin/unified-mappings";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import type {
-  AcceptCardFieldBody,
   AcceptNewCardBody,
   AcceptPrintingBody,
-  AcceptPrintingFieldBody,
   CreateCardBody,
   CreatePrintingBody,
   PatchCandidatePrintingBody,
@@ -17,8 +19,8 @@ import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 // Request bodies derived from the route schemas (api-types). Re-exported for the
-// admin field-editor callers, which cast their dynamic field maps to these
-// concrete shapes at the mutation boundary.
+// admin field-editor callers. The single-field accept mutations take the
+// contract's own `field` unions, so no call site casts a dynamic key any more.
 export type {
   AcceptNewCardBody,
   AcceptPrintingBody,
@@ -96,16 +98,18 @@ const renameCardFn = createServerFn({ method: "POST" })
 
 const acceptCardFieldFn = createServerFn({ method: "POST" })
   .validator(
-    (input: { cardId: string; field: string; value: unknown; source?: "provider" | "manual" }) =>
-      input,
+    (input: {
+      cardId: string;
+      field: AcceptCardField;
+      value: unknown;
+      source?: "provider" | "manual";
+    }) => input,
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    // The field-editor passes a dynamic string key; the enum is validated
-    // server-side, so cast at the boundary (matches api-types convention).
     await apiOrpcClient(adminCardMutationsContract, context.cookie).acceptField({
       cardId: data.cardId,
-      field: data.field as AcceptCardFieldBody["field"],
+      field: data.field,
       value: data.value,
       source: data.source,
     });
@@ -115,7 +119,7 @@ const acceptPrintingFieldFn = createServerFn({ method: "POST" })
   .validator(
     (input: {
       printingId: string;
-      field: string;
+      field: AcceptPrintingField;
       value: unknown;
       source?: "provider" | "manual";
     }) => input,
@@ -124,7 +128,7 @@ const acceptPrintingFieldFn = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     await apiOrpcClient(adminCardMutationsContract, context.cookie).acceptPrintingField({
       printingId: data.printingId,
-      field: data.field as AcceptPrintingFieldBody["field"],
+      field: data.field,
       value: data.value,
       source: data.source,
     });
@@ -340,7 +344,7 @@ export function useAcceptCardField(invalidates: Scope = defaultScope) {
       source = "manual",
     }: {
       cardId: string;
-      field: string;
+      field: AcceptCardField;
       value: unknown;
       source?: "provider" | "manual";
     }) => {
@@ -359,7 +363,7 @@ export function useAcceptPrintingField(invalidates: Scope = defaultScope) {
       source = "manual",
     }: {
       printingId: string;
-      field: string;
+      field: AcceptPrintingField;
       value: unknown;
       source?: "provider" | "manual";
     }) => {

@@ -3,7 +3,6 @@ import type { TournamentHostType } from "@openrift/shared";
 
 import type { Repos } from "../deps.js";
 import { AppError } from "../errors.js";
-import type { PodTournament } from "../repositories/pod-tournaments.js";
 import type { Tournament, TournamentParticipant } from "../repositories/tournaments.js";
 import { hasOrgRole, loadOrg, requireOrgRole } from "./org-access.js";
 
@@ -20,20 +19,6 @@ import { hasOrgRole, loadOrg, requireOrgRole } from "./org-access.js";
  */
 export async function loadTournament(repos: Repos, id: string): Promise<Tournament> {
   const tournament = await repos.tournaments.findById(id);
-  if (!tournament) {
-    throw new AppError(404, ERROR_CODES.NOT_FOUND, "Tournament not found");
-  }
-  return tournament;
-}
-
-/**
- * Loads the pod-engine view of the tournament (404 if missing). The engine
- * functions and the run-detail builder need the `PodTournament`-typed row from
- * the pod repo, not the unified `Tournament` row.
- * @returns The pod tournament row.
- */
-export async function loadPodTournament(repos: Repos, id: string): Promise<PodTournament> {
-  const tournament = await repos.podTournaments.findById(id);
   if (!tournament) {
     throw new AppError(404, ERROR_CODES.NOT_FOUND, "Tournament not found");
   }

@@ -16,7 +16,6 @@ import type {
   PodScoringScheme,
   PodSnapshotPlayer,
   PodStandingRow,
-  PodTournamentStatus,
   TournamentPlayMode,
 } from "@openrift/shared";
 import type { Kysely, Selectable } from "kysely";
@@ -27,10 +26,10 @@ import type {
   PodRoundsTable,
   PodsTable,
   TournamentParticipantsTable,
-  TournamentsTable,
 } from "../db/index.js";
+import type { Tournament } from "./tournaments.js";
+import { mapTournament } from "./tournaments.js";
 
-export type PodTournament = Selectable<TournamentsTable>;
 export type PodPlayer = Selectable<TournamentParticipantsTable>;
 /**
  * A participant on the competing roster (active or dropped). The umbrella
@@ -46,22 +45,11 @@ const ROSTER_STATUSES: readonly PodPlayerStatus[] = ["active", "dropped"];
 export type PodRound = Selectable<PodRoundsTable>;
 export type Pod = Selectable<PodsTable>;
 
-export interface PodTournamentSummary extends PodTournament {
-  playerCount: number;
-  activePlayerCount: number;
-  roundCount: number;
-}
-
-export interface NewPodTournament {
-  hostUserId: string;
-  name: string;
-}
-
 /** Pod context for a result submission: the pod, its round, owning tournament, and member ids. */
 export interface PodForResult {
   pod: Pod;
   round: PodRound;
-  tournament: PodTournament;
+  tournament: Tournament;
   memberPlayerIds: string[];
   /** Player id -> current team id, for the members that have one (2v2 play). */
   teamByPlayer: Map<string, string>;
@@ -94,7 +82,7 @@ export interface PodScoring {
  * @param tournament The tournament row.
  * @returns The scoring context for the derived reads.
  */
-export function scoringOf(tournament: PodTournament): PodScoring {
+export function scoringOf(tournament: Tournament): PodScoring {
   return {
     scheme: tournament.scoringScheme,
     byePoints: tournament.byePoints,
@@ -504,13 +492,18 @@ function toRoundResponse(
 }
 
 /**
- * Pod tournaments (ADR-022). Lean model: player aggregates and opponent history
- * are NOT stored; they are derived on read from the finalized rounds via
- * {@link foldFinalized}. Stored values are the raw facts (pod_members.placement)
- * and the engine's write-once outputs (round/pod penalties). Authorization is
- * the caller's job; the repo is naive.
+ * The pod-engine tables (ADR-022): rounds, pods, pod members, byes, and the
+ * roster/team side of `tournament_participants`. The `tournaments` row itself
+ * belongs to {@link import("./tournaments.js").tournamentsRepo} — there is one
+ * tournament row and one `Tournament` type, and this repo takes ids.
  *
- * @returns Pod-tournament query methods bound to `db`.
+ * Lean model: player aggregates and opponent history are NOT stored; they are
+ * derived on read from the finalized rounds via {@link foldFinalized}. Stored
+ * values are the raw facts (pod_members.placement) and the engine's write-once
+ * outputs (round/pod penalties). Authorization is the caller's job; the repo is
+ * naive.
+ *
+ * @returns Pod-engine query methods bound to `db`.
  */
 export function podTournamentsRepo(db: Kysely<Database>) {
   function loadFinalizedRows(tournamentId: string): Promise<FinalizedMemberRow[]> {
@@ -621,118 +614,6 @@ export function podTournamentsRepo(db: Kysely<Database>) {
   }
 
   return {
-    // ── Tournaments ────────────────────────────────────────────────────────
-    /** @returns Owner's tournaments, newest first, with derived counts. */
-    async listForOwner(hostUserId: string): Promise<PodTournamentSummary[]> {
-      const rows = await db
-        .selectFrom("tournaments as t")
-        .selectAll("t")
-        .select((eb) => [
-          eb
-            .selectFrom("tournamentParticipants as p")
-            .select(eb.fn.countAll<number>().as("c"))
-            .whereRef("p.tournamentId", "=", "t.id")
-            .as("playerCount"),
-          eb
-            .selectFrom("tournamentParticipants as p")
-            .select(eb.fn.countAll<number>().as("c"))
-            .whereRef("p.tournamentId", "=", "t.id")
-            .where("p.status", "=", "active")
-            .as("activePlayerCount"),
-          eb
-            .selectFrom("podRounds as r")
-            .select(eb.fn.countAll<number>().as("c"))
-            .whereRef("r.tournamentId", "=", "t.id")
-            .as("roundCount"),
-        ])
-        .where("t.hostUserId", "=", hostUserId)
-        .orderBy("t.createdAt", "desc")
-        .execute();
-      return rows.map((row) => ({
-        ...row,
-        playerCount: Number(row.playerCount ?? 0),
-        activePlayerCount: Number(row.activePlayerCount ?? 0),
-        roundCount: Number(row.roundCount ?? 0),
-      }));
-    },
-
-    /** @returns The tournament, or `undefined` if no tournament has that id. */
-    findById(id: string): Promise<PodTournament | undefined> {
-      return db.selectFrom("tournaments").selectAll().where("id", "=", id).executeTakeFirst();
-    },
-
-    /**
-     * Resolves a follow-along link by either the report (read+write) or the
-     * follow (read-only) token. The caller decides write permission by comparing
-     * the matched token against `reportToken`.
-     * @returns The tournament whose report or follow token matches, or `undefined`.
-     */
-    findByShareToken(token: string): Promise<PodTournament | undefined> {
-      return db
-        .selectFrom("tournaments")
-        .selectAll()
-        .where((eb) => eb.or([eb("reportToken", "=", token), eb("followToken", "=", token)]))
-        .executeTakeFirst();
-    },
-
-    /** @returns The created tournament row (a user-hosted pod tournament). */
-    create(values: NewPodTournament): Promise<PodTournament> {
-      return db
-        .insertInto("tournaments")
-        .values({ hostType: "user", hostUserId: values.hostUserId, name: values.name })
-        .returningAll()
-        .executeTakeFirstOrThrow();
-    },
-
-    /** @returns The updated tournament, or `undefined` if it was not found. */
-    update(
-      id: string,
-      patch: {
-        name?: string;
-        status?: PodTournamentStatus;
-        currentRound?: number;
-        scoringScheme?: PodScoringScheme;
-        byePoints?: number;
-      },
-    ): Promise<PodTournament | undefined> {
-      return db
-        .updateTable("tournaments")
-        .set(patch)
-        .where("id", "=", id)
-        .returningAll()
-        .executeTakeFirst();
-    },
-
-    async deleteById(id: string): Promise<void> {
-      await db.deleteFrom("tournaments").where("id", "=", id).execute();
-    },
-
-    /**
-     * Sets (rotate/enable) or clears (`null` disables) the participant report token.
-     * @returns The updated tournament, or `undefined` if it was not found.
-     */
-    setReportToken(id: string, token: string | null): Promise<PodTournament | undefined> {
-      return db
-        .updateTable("tournaments")
-        .set({ reportToken: token })
-        .where("id", "=", id)
-        .returningAll()
-        .executeTakeFirst();
-    },
-
-    /**
-     * Sets (enable) or clears (`null` disables) the read-only follow-along token.
-     * @returns The updated tournament, or `undefined` if it was not found.
-     */
-    setFollowToken(id: string, token: string | null): Promise<PodTournament | undefined> {
-      return db
-        .updateTable("tournaments")
-        .set({ followToken: token })
-        .where("id", "=", id)
-        .returningAll()
-        .executeTakeFirst();
-    },
-
     // ── Players ────────────────────────────────────────────────────────────
     listPlayers(tournamentId: string): Promise<PodRosterPlayer[]> {
       return db
@@ -971,12 +852,12 @@ export function podTournamentsRepo(db: Kysely<Database>) {
       if (!round) {
         return undefined;
       }
-      const tournament = await db
+      const tournamentRow = await db
         .selectFrom("tournaments")
         .selectAll()
         .where("id", "=", round.tournamentId)
         .executeTakeFirst();
-      if (!tournament) {
+      if (!tournamentRow) {
         return undefined;
       }
       const memberRows = await db
@@ -988,7 +869,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
       return {
         pod,
         round,
-        tournament,
+        tournament: mapTournament(tournamentRow),
         memberPlayerIds: memberRows.map((row) => row.playerId),
         teamByPlayer: new Map(
           memberRows.flatMap((row) =>
