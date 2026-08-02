@@ -25,6 +25,11 @@ import { toast } from "sonner";
 
 import { Heading } from "@/components/heading";
 import { ImportCatalogSearch } from "@/components/import/import-catalog-search";
+import {
+  ImportStatusBadges,
+  ImportToVerifyNote,
+  ImportTroubleNote,
+} from "@/components/import/import-preview-chrome";
 import { ImportRowRawFields, ImportRowShell } from "@/components/import/import-row-shell";
 import {
   SectionHeader,
@@ -45,7 +50,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DialogForm } from "@/components/ui/dialog-form";
 import { Input } from "@/components/ui/input";
@@ -860,37 +864,16 @@ function PreviewStep({
 
       {/* Summary + deck options + import button */}
       <div className="bg-muted/50 space-y-4 rounded-md border p-4">
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          <Badge variant="success">{readyCount} ready</Badge>
-          {toVerifyCount > 0 && <Badge variant="warning">{toVerifyCount} to verify</Badge>}
-          {needsAttentionCount > 0 && (
-            <Badge variant="destructive">{needsAttentionCount} need attention</Badge>
-          )}
-          {skippedCount > 0 && <Badge variant="ghost">{skippedCount} skipped</Badge>}
-        </div>
+        <ImportStatusBadges
+          readyCount={readyCount}
+          toVerifyCount={toVerifyCount}
+          needsAttentionCount={needsAttentionCount}
+          skippedCount={skippedCount}
+        />
 
-        {toVerifyCount > 0 && (
-          <p className="text-muted-foreground text-sm">
-            We picked a best guess for {toVerifyCount} {toVerifyCount === 1 ? "card" : "cards"}{" "}
-            (marked <span className="text-amber-600 dark:text-amber-400">to verify</span>). They
-            will import as-is, so open each one to confirm the card if it matters.
-          </p>
-        )}
+        <ImportToVerifyNote count={toVerifyCount} target="card" />
 
-        {needsAttentionCount > 0 && (
-          <p className="text-muted-foreground text-sm">
-            Having trouble importing?{" "}
-            <a
-              href={SOCIAL_LINKS.githubIssues}
-              target="_blank"
-              rel="noreferrer"
-              className="text-foreground underline"
-            >
-              Open a GitHub issue
-            </a>{" "}
-            and we&apos;ll take a look.
-          </p>
-        )}
+        <ImportTroubleNote needsAttentionCount={needsAttentionCount} />
 
         <div className="flex flex-wrap items-end gap-3">
           {!isReplaceMode && (

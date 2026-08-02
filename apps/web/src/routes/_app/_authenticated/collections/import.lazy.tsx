@@ -2,20 +2,21 @@ import type { Printing } from "@openrift/shared";
 import { sortCards } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 import { createLazyFileRoute } from "@tanstack/react-router";
-import {
-  CheckCircle2Icon,
-  ChevronRightIcon,
-  DownloadIcon,
-  FileUpIcon,
-  Loader2Icon,
-  UploadIcon,
-} from "lucide-react";
+import { DownloadIcon, FileUpIcon, Loader2Icon, UploadIcon } from "lucide-react";
 import { use, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 
 import { Heading } from "@/components/heading";
 import { ImportEntryRow } from "@/components/import/import-entry-row";
+import type { ImportInputStepProps } from "@/components/import/import-input-step-props";
+import {
+  ImportExactMatchesDisclosure,
+  ImportParseErrorDetails,
+  ImportStatusBadges,
+  ImportToVerifyNote,
+  ImportTroubleNote,
+} from "@/components/import/import-preview-chrome";
 import { PageTopBar, PageTopBarTitle } from "@/components/layout/page-top-bar";
 import {
   SectionHeader,
@@ -31,7 +32,6 @@ import {
   AlertDialogDescription,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -56,6 +56,7 @@ import type { CsvExportFormat } from "@/lib/csv-export";
 import { CSV_EXPORT_FORMATS, csvExportFilename, downloadCSV } from "@/lib/csv-export";
 import type { MatchedEntry } from "@/lib/import-matcher";
 import { isReplaceableTarget, LIST_TARGET_PREFIX } from "@/lib/import-replace";
+import { partitionMatchedEntries } from "@/lib/import-summary";
 import { SOCIAL_LINKS } from "@/lib/social-links";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 
@@ -298,14 +299,7 @@ function InputStep({
   onFileUpload,
   fileRef,
   parseErrors,
-}: {
-  rawText: string;
-  onTextChange: (text: string) => void;
-  onParse: (text: string) => void;
-  onFileUpload: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  fileRef: React.RefObject<HTMLInputElement | null>;
-  parseErrors: string[];
-}) {
+}: ImportInputStepProps) {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
@@ -490,15 +484,7 @@ function PreviewStep({
       ? "copy"
       : "copies";
 
-  const problematicEntries: { entry: MatchedEntry; index: number }[] = [];
-  const exactEntries: { entry: MatchedEntry; index: number }[] = [];
-  for (const [index, entry] of matchedEntries.entries()) {
-    if (entry.status === "exact") {
-      exactEntries.push({ entry, index });
-    } else {
-      problematicEntries.push({ entry, index });
-    }
-  }
+  const { problematicEntries, exactEntries } = partitionMatchedEntries(matchedEntries);
 
   const renderRow = ({ entry, index }: { entry: MatchedEntry; index: number }) => (
     <ImportEntryRow
@@ -540,68 +526,25 @@ function PreviewStep({
       )}
 
       {/* Parse errors — rows that couldn't be recognized at all */}
-      {parseErrors.length > 0 && (
-        <details className="rounded-md border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950">
-          <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-amber-800 dark:text-amber-300">
-            {parseErrors.length} {parseErrors.length === 1 ? "row" : "rows"} could not be recognized
-          </summary>
-          <div className="border-t border-amber-200 px-3 py-2 dark:border-amber-900">
-            {parseErrors.map((error) => (
-              <p key={error} className="text-sm text-amber-700 dark:text-amber-400">
-                {error}
-              </p>
-            ))}
-          </div>
-        </details>
-      )}
+      <ImportParseErrorDetails errors={parseErrors} unit="row" />
 
       {/* Exact matches — folded by default so attention stays on what needs action */}
-      {exactEntries.length > 0 && (
-        <details className="group rounded-md border">
-          <summary className="text-muted-foreground hover:text-foreground flex cursor-pointer items-center gap-2 px-4 py-2.5 text-sm">
-            <ChevronRightIcon className="size-4 transition-transform group-open:rotate-90" />
-            <CheckCircle2Icon className="size-4 text-emerald-600 dark:text-emerald-400" />
-            <span>{exactEntries.length} matched exactly</span>
-          </summary>
-          <div className="divide-border divide-y border-t">
-            {exactEntries.map((item) => renderRow(item))}
-          </div>
-        </details>
-      )}
+      <ImportExactMatchesDisclosure count={exactEntries.length}>
+        {exactEntries.map((item) => renderRow(item))}
+      </ImportExactMatchesDisclosure>
 
       {/* Summary + target collection + import button */}
       <div className="bg-muted/50 space-y-4 rounded-md border p-4">
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          <Badge variant="success">{readyCount} ready</Badge>
-          {toVerifyCount > 0 && <Badge variant="warning">{toVerifyCount} to verify</Badge>}
-          {needsAttentionCount > 0 && (
-            <Badge variant="destructive">{needsAttentionCount} need attention</Badge>
-          )}
-          {skippedCount > 0 && <Badge variant="ghost">{skippedCount} skipped</Badge>}
-        </div>
+        <ImportStatusBadges
+          readyCount={readyCount}
+          toVerifyCount={toVerifyCount}
+          needsAttentionCount={needsAttentionCount}
+          skippedCount={skippedCount}
+        />
 
-        {toVerifyCount > 0 && (
-          <p className="text-muted-foreground text-sm">
-            We picked a best guess for {toVerifyCount} {toVerifyCount === 1 ? "card" : "cards"}{" "}
-            (marked <span className="text-amber-600 dark:text-amber-400">to verify</span>). They
-            will import as-is, so open each one to confirm the printing if it matters.
-          </p>
-        )}
+        <ImportToVerifyNote count={toVerifyCount} target="printing" />
 
-        {needsAttentionCount > 0 && (
-          <p className="text-muted-foreground text-sm">
-            Having trouble importing?{" "}
-            <a
-              href={SOCIAL_LINKS.githubIssues}
-              target="_blank"
-              rel="noreferrer"
-              className="text-foreground underline"
-            >
-              Open a GitHub issue
-            </a>{" "}
-            and we&apos;ll take a look.
-          </p>
-        )}
+        <ImportTroubleNote needsAttentionCount={needsAttentionCount} />
 
         <div className="flex flex-wrap items-end gap-3">
           <Select

@@ -3,7 +3,12 @@ import { describe, expect, it } from "vitest";
 
 import type { MatchStatus, MatchedEntry } from "./import-matcher";
 import type { ImportEntry } from "./import-parsers";
-import { classifyBucket, getImportBucket, summarizeMatchedEntries } from "./import-summary";
+import {
+  classifyBucket,
+  getImportBucket,
+  partitionMatchedEntries,
+  summarizeMatchedEntries,
+} from "./import-summary";
 
 const STUB_PRINTING = { id: "p1", shortCode: "OGS-001" } as Printing;
 
@@ -59,6 +64,37 @@ describe("getImportBucket", () => {
 
   it("classifies an unresolved match as need-attention", () => {
     expect(getImportBucket(makeMatched("unresolved", false))).toBe("need-attention");
+  });
+});
+
+describe("partitionMatchedEntries", () => {
+  it("splits exact matches from everything else, keeping original indices", () => {
+    const entries = [
+      makeMatched("needs-review", true),
+      makeMatched("exact", true),
+      makeMatched("unresolved", false),
+      makeMatched("exact", false),
+    ];
+    const { problematicEntries, exactEntries } = partitionMatchedEntries(entries);
+
+    expect(problematicEntries.map((item) => item.index)).toEqual([0, 2]);
+    expect(exactEntries.map((item) => item.index)).toEqual([1, 3]);
+    expect(problematicEntries[0]?.entry).toBe(entries[0]);
+    expect(exactEntries[0]?.entry).toBe(entries[1]);
+  });
+
+  it("returns empty groups for no entries", () => {
+    expect(partitionMatchedEntries([])).toEqual({ problematicEntries: [], exactEntries: [] });
+  });
+
+  it("puts every entry in one group when all share a status", () => {
+    const allExact = [makeMatched("exact", true), makeMatched("exact", true)];
+    expect(partitionMatchedEntries(allExact).problematicEntries).toEqual([]);
+    expect(partitionMatchedEntries(allExact).exactEntries).toHaveLength(2);
+
+    const noneExact = [makeMatched("unresolved", false)];
+    expect(partitionMatchedEntries(noneExact).exactEntries).toEqual([]);
+    expect(partitionMatchedEntries(noneExact).problematicEntries).toHaveLength(1);
   });
 });
 

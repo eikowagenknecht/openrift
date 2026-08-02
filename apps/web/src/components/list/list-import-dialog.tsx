@@ -1,16 +1,15 @@
 import type { Printing } from "@openrift/shared";
-import {
-  CheckCircle2Icon,
-  ChevronRightIcon,
-  FileUpIcon,
-  Loader2Icon,
-  UploadIcon,
-} from "lucide-react";
+import { FileUpIcon, Loader2Icon, UploadIcon } from "lucide-react";
 import { useEffect } from "react";
 
 import { ImportEntryRow } from "@/components/import/import-entry-row";
+import type { ImportInputStepProps } from "@/components/import/import-input-step-props";
+import {
+  ImportExactMatchesDisclosure,
+  ImportParseErrorDetails,
+  ImportStatusBadges,
+} from "@/components/import/import-preview-chrome";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -25,6 +24,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { ImportableListKind } from "@/hooks/use-list-import-flow";
 import { useListImportFlow } from "@/hooks/use-list-import-flow";
 import type { MatchedEntry } from "@/lib/import-matcher";
+import { partitionMatchedEntries } from "@/lib/import-summary";
 
 interface ListImportDialogProps {
   listId: string;
@@ -108,14 +108,7 @@ function InputStep({
   onFileUpload,
   fileRef,
   parseErrors,
-}: {
-  rawText: string;
-  onTextChange: (text: string) => void;
-  onParse: (text: string) => void;
-  onFileUpload: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  fileRef: React.RefObject<HTMLInputElement | null>;
-  parseErrors: string[];
-}) {
+}: ImportInputStepProps) {
   return (
     <DialogForm onSubmit={() => onParse(rawText)}>
       <div className="flex min-w-0 flex-col gap-3">
@@ -199,15 +192,7 @@ function PreviewStep({
   onImport: () => void;
   onBack: () => void;
 }) {
-  const problematicEntries: { entry: MatchedEntry; index: number }[] = [];
-  const exactEntries: { entry: MatchedEntry; index: number }[] = [];
-  for (const [index, entry] of matchedEntries.entries()) {
-    if (entry.status === "exact") {
-      exactEntries.push({ entry, index });
-    } else {
-      problematicEntries.push({ entry, index });
-    }
-  }
+  const { problematicEntries, exactEntries } = partitionMatchedEntries(matchedEntries);
 
   const renderRow = ({ entry, index }: { entry: MatchedEntry; index: number }) => (
     <ImportEntryRow
@@ -243,43 +228,19 @@ function PreviewStep({
           </div>
         )}
 
-        {parseErrors.length > 0 && (
-          <details className="rounded-md border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950">
-            <summary className="cursor-pointer px-3 py-2 font-medium text-amber-800 dark:text-amber-300">
-              {parseErrors.length} line{parseErrors.length === 1 ? "" : "s"} couldn&apos;t be read
-            </summary>
-            <div className="border-t border-amber-200 px-3 py-2 dark:border-amber-900">
-              {parseErrors.map((error) => (
-                <p key={error} className="text-amber-700 dark:text-amber-400">
-                  {error}
-                </p>
-              ))}
-            </div>
-          </details>
-        )}
+        <ImportParseErrorDetails errors={parseErrors} unit="line" />
 
-        {exactEntries.length > 0 && (
-          <details className="group rounded-md border">
-            <summary className="text-muted-foreground hover:text-foreground flex cursor-pointer items-center gap-2 px-4 py-2.5">
-              <ChevronRightIcon className="size-4 transition-transform group-open:rotate-90" />
-              <CheckCircle2Icon className="size-4 text-emerald-600 dark:text-emerald-400" />
-              <span>{exactEntries.length} matched exactly</span>
-            </summary>
-            <div className="divide-border divide-y border-t">
-              {exactEntries.map((item) => renderRow(item))}
-            </div>
-          </details>
-        )}
+        <ImportExactMatchesDisclosure count={exactEntries.length}>
+          {exactEntries.map((item) => renderRow(item))}
+        </ImportExactMatchesDisclosure>
 
         <div className="bg-muted/50 flex flex-wrap items-center justify-between gap-3 rounded-md border p-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="success">{readyCount} ready</Badge>
-            {toVerifyCount > 0 && <Badge variant="warning">{toVerifyCount} to verify</Badge>}
-            {needsAttentionCount > 0 && (
-              <Badge variant="destructive">{needsAttentionCount} need attention</Badge>
-            )}
-            {skippedCount > 0 && <Badge variant="ghost">{skippedCount} skipped</Badge>}
-          </div>
+          <ImportStatusBadges
+            readyCount={readyCount}
+            toVerifyCount={toVerifyCount}
+            needsAttentionCount={needsAttentionCount}
+            skippedCount={skippedCount}
+          />
 
           <Button type="submit" disabled={importableCount === 0 || isImporting}>
             {isImporting ? (

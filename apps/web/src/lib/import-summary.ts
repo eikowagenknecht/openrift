@@ -41,6 +41,37 @@ export function getImportBucket(entry: MatchedEntry): ImportBucket {
   return classifyBucket(entry.status, entry.resolvedPrinting !== null);
 }
 
+/** A matched entry paired with its position in the parsed list. */
+export interface IndexedMatchedEntry {
+  entry: MatchedEntry;
+  index: number;
+}
+
+/**
+ * Splits matched entries into the two groups the preview renders separately:
+ * exact matches, which fold away, and everything else, which stays visible
+ * because it may need action. Indices are the original positions, since every
+ * row callback (skip, resolve, expand) addresses entries by index.
+ * @returns The problematic and exact entries, each in original order.
+ */
+export function partitionMatchedEntries(entries: readonly MatchedEntry[]): {
+  problematicEntries: IndexedMatchedEntry[];
+  exactEntries: IndexedMatchedEntry[];
+} {
+  const problematicEntries: IndexedMatchedEntry[] = [];
+  const exactEntries: IndexedMatchedEntry[] = [];
+
+  for (const [index, entry] of entries.entries()) {
+    if (entry.status === "exact") {
+      exactEntries.push({ entry, index });
+    } else {
+      problematicEntries.push({ entry, index });
+    }
+  }
+
+  return { problematicEntries, exactEntries };
+}
+
 /** Aggregate counts driving the import preview's summary badges and button. */
 export interface ImportSummary {
   /** Exact matches. */
