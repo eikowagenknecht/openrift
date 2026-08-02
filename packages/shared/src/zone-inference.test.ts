@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { inferZone } from "./zone-inference.js";
+import { inferZone, sourceSlotForZone } from "./zone-inference.js";
 
 describe("inferZone", () => {
   it("maps chosenChampion to champion zone regardless of card type", () => {
@@ -53,5 +53,23 @@ describe("inferZone", () => {
 
   it("maps Other type from mainDeck to main zone", () => {
     expect(inferZone(["other"], [], "mainDeck")).toBe("main");
+  });
+});
+
+describe("sourceSlotForZone", () => {
+  it("maps the two zones that have their own slot", () => {
+    expect(sourceSlotForZone("champion")).toBe("chosenChampion");
+    expect(sourceSlotForZone("sideboard")).toBe("sideboard");
+  });
+
+  it("maps every other zone to the main deck", () => {
+    for (const zone of ["main", "legend", "runes", "battlefield", "overflow"] as const) {
+      expect(sourceSlotForZone(zone)).toBe("mainDeck");
+    }
+  });
+
+  it("round-trips through inferZone for the slot-carrying zones", () => {
+    expect(inferZone(["unit"], [], sourceSlotForZone("champion"))).toBe("champion");
+    expect(inferZone(["unit"], [], sourceSlotForZone("sideboard"))).toBe("sideboard");
   });
 });

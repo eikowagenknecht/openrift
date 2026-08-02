@@ -1,12 +1,13 @@
+import {
+  encodeText,
+  encodeTTS,
+  isPiltoverEncodable,
+  piltoverCodec,
+} from "@openrift/shared/deck-codecs";
+import type { DeckCodecCard, DeckCodeFormat, EncodeResult } from "@openrift/shared/deck-codecs";
 import type { CardType, DeckZone, Domain, SuperType } from "@openrift/shared/types";
 
 import type { canonicalPrintingsRepo } from "../../repositories/canonical-printings.js";
-import { encodeText, encodeTTS, piltoverCodec } from "./index.js";
-import { isPiltoverEncodable } from "./piltover.js";
-import type { DeckCodecCard, EncodeResult } from "./types.js";
-
-/** Deck-code formats the codecs can produce. */
-export type DeckCodeFormat = "piltover" | "text" | "tts";
 
 /**
  * The minimal per-card input the codecs need: identity + zone + quantity, plus

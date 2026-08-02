@@ -3,6 +3,7 @@ import { isAlwaysFoilRarity, WellKnown } from "@openrift/shared";
 
 import { conditionSlugFromSource } from "@/lib/condition-codes";
 import { parseCSV, parseCSVWithHeaders } from "@/lib/csv";
+import { languageCodeFromSource } from "@/lib/language-names";
 
 /**
  * Per-copy metadata carried by an import entry (ADR-038). Applied to every
@@ -60,43 +61,6 @@ function buildRawFields(fields: Record<string, string | undefined>): Record<stri
     }
   }
   return result;
-}
-
-/**
- * Maps a human-readable language name (as used in CSV exports) to the
- * two-letter code used internally (e.g. "English" → "EN").
- *
- * Traditional Chinese has no code in the catalog, so it stays unrecognized
- * rather than folding into `SC` — a traditional card imported as Simplified
- * would be silently mislabelled.
- * @returns The two-letter code, or undefined if unrecognized.
- */
-function normalizeLanguage(language: string | undefined): string | undefined {
-  if (!language) {
-    return undefined;
-  }
-  const trimmed = language.trim().toLowerCase();
-  switch (trimmed) {
-    case "en":
-    case "english": {
-      return WellKnown.language.EN;
-    }
-    case "fr":
-    case "french":
-    case "français": {
-      return "FR";
-    }
-    // "zh" covers CSVs exported before the SC rename.
-    case "zh":
-    case "sc":
-    case "chinese":
-    case "chinese (simplified)": {
-      return WellKnown.language.SC;
-    }
-    default: {
-      return undefined;
-    }
-  }
 }
 
 /** A recognized CSV export format. */
@@ -264,7 +228,7 @@ function parsePiltoverArchive(text: string): ParseResult {
       cardName,
       sourceCode: parsed?.shortCode ?? variantNumber,
       isPromo: parsed?.promoSuffix ? true : undefined,
-      language: normalizeLanguage(record["Language"]),
+      language: languageCodeFromSource(record["Language"]),
       metadata: condition ? { condition } : undefined,
       rawFields,
     };
@@ -766,7 +730,7 @@ function parseRiftMana(text: string): ParseResult {
 
     const rarity = record["Rarity"]?.trim() ?? "";
     const alwaysFoil = isAlwaysFoilRarity(rarity);
-    const language = normalizeLanguage(record["Language"]);
+    const language = languageCodeFromSource(record["Language"]);
 
     const baseRawFields: Record<string, string | undefined> = {
       "Source Code": cardId,

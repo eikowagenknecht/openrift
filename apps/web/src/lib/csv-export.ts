@@ -3,6 +3,7 @@ import { isAlwaysFoilRarity, straightenApostrophes, WellKnown } from "@openrift/
 
 import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { conditionShortCode, piltoverConditionCode } from "@/lib/condition-codes";
+import { languageNameForCode } from "@/lib/language-names";
 
 const HEADERS = [
   "Card ID",
@@ -275,14 +276,6 @@ const RIFTMANA_HEADERS = [
   "Language",
 ] as const;
 
-// RiftMana CSVs carry full language names, not our catalog codes. Unknown
-// codes pass through unchanged; the importer's normalizeLanguage reads both.
-const RIFTMANA_LANGUAGE_NAMES: Record<string, string> = {
-  EN: "English",
-  FR: "French",
-  SC: "Chinese (Simplified)",
-};
-
 /**
  * Encodes per-condition counts as a RiftMana condition cell (e.g. "NM:2;LP:1").
  * Copies without a recorded condition (including graded ones) are left out —
@@ -358,7 +351,7 @@ export function generateRiftManaCSV(
         set: titleCaseSlug(printing.setSlug),
         color: printing.card.domains.join(" / "),
         rarity: titleCaseSlug(printing.rarity),
-        language: RIFTMANA_LANGUAGE_NAMES[printing.language] ?? printing.language,
+        language: languageNameForCode(printing.language),
         normalQty: 0,
         foilQty: 0,
         normalGroups: [],

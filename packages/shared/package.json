@@ -15,6 +15,7 @@
     "./utils": "./src/utils.ts",
     "./keywords": "./src/keywords.ts",
     "./scan": "./src/scan/index.ts",
+    "./deck-codecs": "./src/deck-codecs/index.ts",
     "./types": "./src/types/index.ts",
     "./logger": "./src/logger.ts"
   },

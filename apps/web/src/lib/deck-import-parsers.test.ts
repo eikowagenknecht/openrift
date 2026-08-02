@@ -19,10 +19,11 @@ import { getDeckFromCode } from "@piltoverarchive/riftbound-deck-codes";
 
 const mockGetDeckFromCode = vi.mocked(getDeckFromCode);
 
-describe("parseDeckImportData — piltover format", () => {
-  // Piltover parsing itself (champion split, consolidation, case retry) is
-  // covered in packages/shared/src/deck-code.test.ts — this only checks the
-  // format switch delegates to the shared parser.
+// Each format's parser lives next to its encoder in
+// packages/shared/src/deck-codecs, tested there against real encoder output.
+// What this file owns is the web-only chrome: format sniffing, URL extraction,
+// and turning a resolved shared deck into import entries.
+describe("parseDeckImportData", () => {
   it("delegates to the shared piltover parser", () => {
     mockGetDeckFromCode.mockReturnValue({
       mainDeck: [{ cardCode: "OGN-001", count: 3 }],
@@ -47,143 +48,6 @@ describe("parseDeckImportData — piltover format", () => {
 
     expect(entries).toHaveLength(0);
     expect(warnings).toEqual(["Invalid Piltover Archive deck code."]);
-  });
-});
-
-describe("parseDeckImportData — tts format", () => {
-  it("strips the art-variant suffix from short codes", () => {
-    const input = "OGN-269-1 OGN-240-1 OGN-240-1 OGN-240-1";
-    const { entries } = parseDeckImportData(input, "tts");
-
-    const ogn269 = entries.find((entry) => entry.shortCode === "OGN-269");
-    const ogn240 = entries.find(
-      (entry) => entry.shortCode === "OGN-240" && entry.sourceSlot === "mainDeck",
-    );
-    expect(ogn269?.quantity).toBe(1);
-    expect(ogn240?.quantity).toBe(2);
-  });
-
-  it("handles codes without a variant suffix", () => {
-    const input = "OGN-001 OGN-002 OGN-002";
-    const { entries } = parseDeckImportData(input, "tts");
-
-    expect(entries.find((entry) => entry.shortCode === "OGN-001")?.quantity).toBe(1);
-    expect(
-      entries.find((entry) => entry.shortCode === "OGN-002" && entry.sourceSlot === "mainDeck"),
-    ).toBeDefined();
-  });
-
-  it("assigns position 1 as chosenChampion", () => {
-    const input = "OGN-001-1 OGN-002-1 OGN-003-1";
-    const { entries } = parseDeckImportData(input, "tts");
-
-    const champion = entries.find((entry) => entry.sourceSlot === "chosenChampion");
-    expect(champion?.shortCode).toBe("OGN-002");
-    expect(champion?.quantity).toBe(1);
-    expect(champion?.explicitZone).toBe("champion");
-  });
-
-  it("assigns positions 56+ as sideboard", () => {
-    const mainTokens = Array.from(
-      { length: 56 },
-      (_, index) => `TST-${String(index).padStart(3, "0")}-1`,
-    );
-    const sideboardTokens = ["SB-001-1", "SB-002-1"];
-    const input = [...mainTokens, ...sideboardTokens].join(" ");
-
-    const { entries } = parseDeckImportData(input, "tts");
-
-    const sideboardEntries = entries.filter((entry) => entry.sourceSlot === "sideboard");
-    expect(sideboardEntries).toHaveLength(2);
-    expect(sideboardEntries.find((entry) => entry.shortCode === "SB-001")).toBeDefined();
-    expect(sideboardEntries.find((entry) => entry.shortCode === "SB-002")).toBeDefined();
-  });
-});
-
-describe("parseDeckImportData — text format", () => {
-  it("does not set explicitZone when no zone headers are present", () => {
-    const input = "3 Iron Ballista\n2 Fury Rune";
-    const { entries } = parseDeckImportData(input, "text");
-
-    expect(entries).toHaveLength(2);
-    expect(entries[0].explicitZone).toBeUndefined();
-    expect(entries[1].explicitZone).toBeUndefined();
-    expect(entries[0].sourceSlot).toBe("mainDeck");
-    expect(entries[1].sourceSlot).toBe("mainDeck");
-  });
-
-  it("sets explicitZone when zone headers are present", () => {
-    const input = "Legend:\n1 Kai'Sa\n\nRunes:\n5 Fury Rune";
-    const { entries } = parseDeckImportData(input, "text");
-
-    expect(entries).toHaveLength(2);
-    expect(entries[0].explicitZone).toBe("legend");
-    expect(entries[1].explicitZone).toBe("runes");
-  });
-
-  it("sets explicitZone only after a zone header is seen", () => {
-    const input = "3 Iron Ballista\n\nSideboard:\n2 Cleave";
-    const { entries } = parseDeckImportData(input, "text");
-
-    expect(entries).toHaveLength(2);
-    expect(entries[0].explicitZone).toBeUndefined();
-    expect(entries[0].sourceSlot).toBe("mainDeck");
-    expect(entries[1].explicitZone).toBe("sideboard");
-    expect(entries[1].sourceSlot).toBe("sideboard");
-  });
-
-  it("uses correct sourceSlot for explicit zones", () => {
-    const input = "Champion:\n1 Ekko";
-    const { entries } = parseDeckImportData(input, "text");
-
-    expect(entries[0].sourceSlot).toBe("chosenChampion");
-    expect(entries[0].explicitZone).toBe("champion");
-  });
-
-  it("recognizes 'Rune Pool:' as the runes zone (riftdecks.com format)", () => {
-    const input = "Rune Pool:\n5 Body Rune\n7 Order Rune";
-    const { entries, warnings } = parseDeckImportData(input, "text");
-
-    expect(warnings).toHaveLength(0);
-    expect(entries).toHaveLength(2);
-    expect(entries[0].explicitZone).toBe("runes");
-    expect(entries[1].explicitZone).toBe("runes");
-  });
-
-  it("recognizes 'Main Deck:' (with space) as the main zone", () => {
-    const input = "Main Deck:\n3 Iron Ballista";
-    const { entries, warnings } = parseDeckImportData(input, "text");
-
-    expect(warnings).toHaveLength(0);
-    expect(entries[0].explicitZone).toBe("main");
-  });
-
-  it("treats a bare line with no leading count as quantity 1", () => {
-    const input = "Iron Ballista\n3 Fury Rune\nBrazen Buccaneer";
-    const { entries, warnings } = parseDeckImportData(input, "text");
-
-    expect(warnings).toEqual([]);
-    expect(entries).toHaveLength(3);
-    expect(entries[0].quantity).toBe(1);
-    expect(entries[0].cardName).toBe("Iron Ballista");
-    expect(entries[1].quantity).toBe(3);
-    expect(entries[1].cardName).toBe("Fury Rune");
-    expect(entries[2].quantity).toBe(1);
-    expect(entries[2].cardName).toBe("Brazen Buccaneer");
-  });
-
-  it("warns and clears the zone on unknown header so cards fall back to type inference", () => {
-    // Reproduces the riftdecks.com bug: an unknown 'Rune Pool:' header used to
-    // make the rune cards inherit the prior 'Battlefields:' zone silently.
-    const input = "Battlefields:\n1 Sunken Temple\n\nMystery Zone:\n5 Body Rune";
-    const { entries, warnings } = parseDeckImportData(input, "text");
-
-    expect(warnings).toContain("Unknown zone header: Mystery Zone:");
-    expect(entries).toHaveLength(2);
-    expect(entries[0].explicitZone).toBe("battlefield");
-    // Card after the unknown header should NOT inherit 'battlefield'
-    expect(entries[1].explicitZone).toBeUndefined();
-    expect(entries[1].sourceSlot).toBe("mainDeck");
   });
 });
 
@@ -424,6 +288,6 @@ describe("entriesFromSharedDeck", () => {
   it("carries display raw fields for the preview row", () => {
     const entries = entriesFromSharedDeck([publicDeckCard({ zone: "battlefield" })]);
 
-    expect(entries[0].rawFields).toEqual({ Name: "Iron Ballista", Zone: "Battlefield" });
+    expect(entries[0].rawFields).toEqual({ Name: "Iron Ballista", Zone: "Battlefields" });
   });
 });

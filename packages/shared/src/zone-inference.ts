@@ -38,3 +38,25 @@ export function inferZone(
 
   return WellKnown.deckZone.MAIN;
 }
+
+/** The source slot each zone maps back to, used when a zone is already known. */
+const ZONE_TO_SOURCE_SLOT: Record<DeckZone, SourceSlot> = {
+  main: "mainDeck",
+  legend: "mainDeck",
+  champion: "chosenChampion",
+  runes: "mainDeck",
+  battlefield: "mainDeck",
+  sideboard: "sideboard",
+  overflow: "mainDeck",
+};
+
+/**
+ * The source slot a card in this zone would have occupied in an external
+ * format. The inverse of {@link inferZone}, for import paths that already know
+ * the zone (an explicit text-format header, a resolved shared deck) but still
+ * hand entries to the shared slot-driven pipeline.
+ * @returns The matching source slot.
+ */
+export function sourceSlotForZone(zone: DeckZone): SourceSlot {
+  return ZONE_TO_SOURCE_SLOT[zone];
+}

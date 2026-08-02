@@ -1,7 +1,7 @@
-import { WellKnown } from "@openrift/shared";
 import { getCodeFromDeck } from "@piltoverarchive/riftbound-deck-codes";
 import type { Card as PiltoverCard } from "@piltoverarchive/riftbound-deck-codes";
 
+import { WellKnown } from "../well-known.js";
 import type { DeckCodec, DeckCodecCard, EncodeResult } from "./types.js";
 
 // Probe results per short code. The candidate space is the card catalog, so

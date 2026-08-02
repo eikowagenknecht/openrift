@@ -1,4 +1,7 @@
-import type { CardType, DeckZone, Domain, SuperType } from "@openrift/shared/types";
+import type { CardType, DeckZone, Domain, SuperType } from "../types/enums.js";
+
+/** Deck interchange formats the codecs can produce and read back. */
+export type DeckCodeFormat = "piltover" | "text" | "tts";
 
 /** A card entry with both its UUID and short code resolved. */
 export interface DeckCodecCard {

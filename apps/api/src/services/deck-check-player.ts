@@ -6,6 +6,7 @@ import {
   ERROR_CODES,
   inferZone,
   mapSectionToZone,
+  parsePiltoverDeckCode,
   SELF_SUBMIT_EXTERNAL_ID_PREFIX,
   WellKnown,
 } from "@openrift/shared";
@@ -13,10 +14,8 @@ import type {
   CardType,
   DeckCheckCardLine,
   DeckCheckClaimResultResponse,
-  SourceSlot,
   SuperType,
 } from "@openrift/shared";
-import { getDeckFromCode } from "@piltoverarchive/riftbound-deck-codes";
 
 import type { Repos } from "../deps.js";
 import { AppError } from "../errors.js";
@@ -230,60 +229,35 @@ async function linesFromOwnDeck(
  * @returns The decoded card lines.
  */
 async function linesFromDeckCode(repos: Repos, deckCode: string): Promise<DeckCheckCardLine[]> {
-  let decoded: ReturnType<typeof getDeckFromCode>;
-  try {
-    decoded = getDeckFromCode(deckCode.trim());
-  } catch {
-    throw new AppError(422, ERROR_CODES.VALIDATION_ERROR, "The deck code could not be read");
+  // parsePiltoverDeckCode owns the decode and the champion split (the encoder
+  // counts the chosen champion inside mainDeck, since it is a marker rather
+  // than an extra slot), so this only maps its entries onto catalog cards.
+  const { entries, warnings } = parsePiltoverDeckCode(deckCode.trim());
+  if (entries.length === 0) {
+    // The parser warns only when the code itself failed to decode. A code that
+    // decodes cleanly to nothing comes back with no entries and no warnings.
+    throw new AppError(
+      422,
+      ERROR_CODES.VALIDATION_ERROR,
+      warnings.length > 0 ? "The deck code could not be read" : "The deck code contains no cards",
+    );
   }
 
-  const shortCodes = [
-    ...decoded.mainDeck.map((card) => card.cardCode),
-    ...decoded.sideboard.map((card) => card.cardCode),
-    ...(decoded.chosenChampion ? [decoded.chosenChampion] : []),
-  ];
+  const shortCodes = entries.flatMap((entry) => (entry.shortCode ? [entry.shortCode] : []));
   const cardsByShortCode = await repos.deckCheck.getCardsByShortCodes(shortCodes);
 
-  const lines: DeckCheckCardLine[] = [];
-  const pushLine = (cardCode: string, count: number, slot: SourceSlot): void => {
-    if (count <= 0) {
-      return;
-    }
-    const card = cardsByShortCode.get(cardCode);
+  return entries.map((entry) => {
+    const shortCode = entry.shortCode ?? "";
+    const card = cardsByShortCode.get(shortCode);
     if (!card) {
-      lines.push({ name: cardCode, zone: WellKnown.deckZone.MAIN, quantity: count });
-      return;
+      return { name: shortCode, zone: WellKnown.deckZone.MAIN, quantity: entry.quantity };
     }
-    lines.push({
+    return {
       name: card.name,
-      zone: inferZone(card.types as CardType[], [], slot),
-      quantity: count,
-    });
-  };
-
-  // The encoder counts the chosen champion inside mainDeck (it is a marker,
-  // not an extra slot), so the decode splits one copy back out.
-  let championToSplit = decoded.chosenChampion ?? null;
-  for (const card of decoded.mainDeck) {
-    if (championToSplit !== null && card.cardCode === championToSplit) {
-      pushLine(card.cardCode, 1, "chosenChampion");
-      pushLine(card.cardCode, card.count - 1, "mainDeck");
-      championToSplit = null;
-      continue;
-    }
-    pushLine(card.cardCode, card.count, "mainDeck");
-  }
-  if (championToSplit !== null) {
-    pushLine(championToSplit, 1, "chosenChampion");
-  }
-  for (const card of decoded.sideboard) {
-    pushLine(card.cardCode, card.count, "sideboard");
-  }
-
-  if (lines.length === 0) {
-    throw new AppError(422, ERROR_CODES.VALIDATION_ERROR, "The deck code contains no cards");
-  }
-  return lines;
+      zone: inferZone(card.types as CardType[], [], entry.sourceSlot),
+      quantity: entry.quantity,
+    };
+  });
 }
 
 /**

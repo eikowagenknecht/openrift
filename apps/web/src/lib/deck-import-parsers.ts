@@ -1,204 +1,15 @@
-import type {
-  DeckCodeParseResult,
-  DeckImportEntry,
-  DeckZone,
-  PublicDeckCardResponse,
-  SourceSlot,
-} from "@openrift/shared";
-import { isDeckCode, parsePiltoverDeckCode, WellKnown } from "@openrift/shared";
+import type { DeckImportEntry, PublicDeckCardResponse } from "@openrift/shared";
+import { isDeckCode, sourceSlotForZone, ZONE_LABELS } from "@openrift/shared";
+import type { DeckCodeFormat } from "@openrift/shared/deck-codecs";
 
 export type { DeckImportEntry } from "@openrift/shared";
-
-/** Every format parser returns the shared parse-result shape. */
-type DeckParseResult = DeckCodeParseResult;
-
-export type DeckImportFormat = "piltover" | "text" | "tts";
+export { parseDeckImportData } from "@openrift/shared/deck-codecs";
 
 /**
- * Parses a deck code/text in the given format into import entries.
- * @returns Parsed entries and any warnings.
+ * The formats the import page offers. Each one's parser lives next to its
+ * encoder in `@openrift/shared/deck-codecs`.
  */
-export function parseDeckImportData(code: string, format: DeckImportFormat): DeckParseResult {
-  const trimmed = code.trim();
-  if (trimmed.length === 0) {
-    return { entries: [], warnings: ["No data provided."] };
-  }
-
-  switch (format) {
-    case "piltover": {
-      return parsePiltoverDeckCode(trimmed);
-    }
-    case "text": {
-      return parseTextFormat(trimmed);
-    }
-    case "tts": {
-      return parseTTSFormat(trimmed);
-    }
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Text format
-// ---------------------------------------------------------------------------
-
-/** Reverse map from zone label to DeckZone. */
-const LABEL_TO_ZONE: Record<string, DeckZone> = {
-  legend: WellKnown.deckZone.LEGEND,
-  champion: WellKnown.deckZone.CHAMPION,
-  maindeck: WellKnown.deckZone.MAIN,
-  "main deck": WellKnown.deckZone.MAIN,
-  main: WellKnown.deckZone.MAIN,
-  battlefields: WellKnown.deckZone.BATTLEFIELD,
-  battlefield: WellKnown.deckZone.BATTLEFIELD,
-  runes: WellKnown.deckZone.RUNES,
-  "rune pool": WellKnown.deckZone.RUNES,
-  sideboard: WellKnown.deckZone.SIDEBOARD,
-  overflow: WellKnown.deckZone.OVERFLOW,
-};
-
-/** Maps explicit zones to the SourceSlot used for fallback zone inference. */
-const ZONE_TO_SOURCE_SLOT: Record<DeckZone, SourceSlot> = {
-  main: "mainDeck",
-  legend: "mainDeck",
-  champion: "chosenChampion",
-  runes: "mainDeck",
-  battlefield: "mainDeck",
-  sideboard: "sideboard",
-  overflow: "mainDeck",
-};
-
-const ZONE_DISPLAY_LABELS: Record<DeckZone, string> = {
-  legend: "Legend",
-  champion: "Champion",
-  main: "Main Deck",
-  battlefield: "Battlefield",
-  runes: "Runes",
-  sideboard: "Sideboard",
-  overflow: "Overflow",
-};
-
-function parseTextFormat(code: string): DeckParseResult {
-  const warnings: string[] = [];
-  const entries: DeckImportEntry[] = [];
-  // undefined until the user provides an explicit zone header
-  let currentZone: DeckZone | undefined;
-
-  for (const rawLine of code.split("\n")) {
-    const line = rawLine.trim();
-    if (line === "") {
-      continue;
-    }
-
-    // Check for zone header (e.g. "MainDeck:" or "Legend:")
-    if (line.endsWith(":")) {
-      const label = line.slice(0, -1).toLowerCase();
-      const zone = LABEL_TO_ZONE[label];
-      if (zone) {
-        currentZone = zone;
-      } else {
-        // Unknown header — clear the current zone so subsequent cards fall back
-        // to type-based inference instead of silently inheriting the prior zone.
-        currentZone = undefined;
-        warnings.push(`Unknown zone header: ${line}`);
-      }
-      continue;
-    }
-
-    // Parse card line: "{quantity} {card name}". A bare line with no leading
-    // count is treated as quantity 1 so users can paste plain name lists
-    // without prefixing every row.
-    const match = line.match(/^(?<quantity>\d+)\s+(?<name>.+)$/u);
-    const effectiveZone = currentZone ?? WellKnown.deckZone.MAIN;
-    const quantity = match ? Number(match[1]) : 1;
-    const cardName = match ? match[2].trim() : line;
-    entries.push({
-      cardName,
-      quantity,
-      sourceSlot: ZONE_TO_SOURCE_SLOT[effectiveZone],
-      // Only set explicitZone when a zone header was provided by the user.
-      // Without it, inferZone() assigns the correct zone based on card type.
-      explicitZone: currentZone,
-      rawFields: { Name: cardName, Zone: ZONE_DISPLAY_LABELS[effectiveZone] },
-    });
-  }
-
-  return { entries, warnings };
-}
-
-// ---------------------------------------------------------------------------
-// TTS format (space-separated short codes)
-// ---------------------------------------------------------------------------
-
-/**
- * Strips the trailing art-variant suffix (e.g. "-1") from a TTS short code.
- * TTS exports codes like "OGN-269-1" but the catalog uses "OGN-269".
- * @returns The short code without the variant suffix.
- */
-function stripTTSVariant(token: string): string {
-  // Match SET-NNN-V where V is the variant number
-  const match = token.match(/^(?<base>[A-Z]+-\d+)-\d+$/u);
-  return match ? match[1] : token;
-}
-
-/** TTS positional boundaries (constructed deck: 1+1+39+3+12 = 56 before sideboard). */
-const TTS_SIDEBOARD_START = 56;
-
-/**
- * Infers the TTS source slot from positional index.
- * Order: legend (0), chosen champion (1), main deck (2-40),
- * battlefields (41-43), runes (44-55), sideboard (56+).
- * @returns The inferred source slot.
- */
-function ttsSourceSlot(index: number): SourceSlot {
-  if (index === 1) {
-    return "chosenChampion";
-  }
-  if (index >= TTS_SIDEBOARD_START) {
-    return "sideboard";
-  }
-  return "mainDeck";
-}
-
-const TTS_SLOT_LABELS: Record<SourceSlot, string> = {
-  mainDeck: "Main Deck",
-  chosenChampion: "Chosen Champion",
-  sideboard: "Sideboard",
-};
-
-function parseTTSFormat(code: string): DeckParseResult {
-  const warnings: string[] = [];
-  const tokens = code.split(/\s+/u).filter((token) => token !== "");
-
-  // Build entries preserving positional source slot, then group by shortCode + slot
-  const grouped = new Map<
-    string,
-    { shortCode: string; sourceSlot: SourceSlot; quantity: number }
-  >();
-
-  for (let index = 0; index < tokens.length; index++) {
-    const shortCode = stripTTSVariant(tokens[index]);
-    const sourceSlot = ttsSourceSlot(index);
-    const key = `${shortCode}::${sourceSlot}`;
-    const existing = grouped.get(key);
-    if (existing) {
-      existing.quantity += 1;
-    } else {
-      grouped.set(key, { shortCode, sourceSlot, quantity: 1 });
-    }
-  }
-
-  const entries: DeckImportEntry[] = [...grouped.values()].map(
-    ({ shortCode, sourceSlot, quantity }) => ({
-      shortCode,
-      quantity,
-      sourceSlot,
-      explicitZone: sourceSlot === "chosenChampion" ? WellKnown.deckZone.CHAMPION : undefined,
-      rawFields: { "Source Code": shortCode, Slot: TTS_SLOT_LABELS[sourceSlot] },
-    }),
-  );
-
-  return { entries, warnings };
-}
+export type DeckImportFormat = DeckCodeFormat;
 
 // ---------------------------------------------------------------------------
 // Format sniffing (auto-detection)
@@ -320,8 +131,8 @@ export function entriesFromSharedDeck(cards: PublicDeckCardResponse[]): DeckImpo
     shortCode: card.shortCode ?? undefined,
     cardName: card.cardName,
     quantity: card.quantity,
-    sourceSlot: ZONE_TO_SOURCE_SLOT[card.zone],
+    sourceSlot: sourceSlotForZone(card.zone),
     explicitZone: card.zone,
-    rawFields: { Name: card.cardName, Zone: ZONE_DISPLAY_LABELS[card.zone] },
+    rawFields: { Name: card.cardName, Zone: ZONE_LABELS[card.zone] },
   }));
 }
