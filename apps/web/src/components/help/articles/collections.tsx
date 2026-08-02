@@ -13,9 +13,8 @@ import {
 } from "lucide-react";
 
 import { Heading } from "@/components/heading";
+import { FeatureCard } from "@/components/help/article-cards";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Kbd } from "@/components/ui/kbd";
 import { cn } from "@/lib/utils";
 
 export default function CollectionsArticle() {
@@ -262,31 +261,6 @@ function SidebarItem({
         {count}
       </span>
     </div>
-  );
-}
-
-function FeatureCard({
-  icon,
-  title,
-  shortcut,
-  description,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  shortcut?: string;
-  description: string;
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <span className="text-primary">{icon}</span>
-          {title}
-          {shortcut && <Kbd className="px-1.5">{shortcut}</Kbd>}
-        </CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-    </Card>
   );
 }
 

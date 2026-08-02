@@ -8,8 +8,8 @@ import {
 import type { ReactNode } from "react";
 
 import { Heading } from "@/components/heading";
+import { FeatureCard, StepRow } from "@/components/help/article-cards";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 import { SOCIAL_LINKS } from "@/lib/social-links";
 
 export default function DiscordBotArticle() {
@@ -62,12 +62,12 @@ export default function DiscordBotArticle() {
       <section>
         <Heading className="mb-2">Look up a card with /card</Heading>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <OptionCard
+          <FeatureCard
             icon={<SlashSquareIcon className="size-4" />}
             title="Card name with suggestions"
             description="Type /card and start writing a name. Suggestions narrow as you type, and spelling details like apostrophes don't matter."
           />
-          <OptionCard
+          <FeatureCard
             icon={<MessageSquareTextIcon className="size-4" />}
             title="Pick a printing (optional)"
             description="The printing box suggests every version of the chosen card, with the standard one marked as default. Pick one to see a specific set, art, or language."
@@ -83,12 +83,12 @@ export default function DiscordBotArticle() {
       <section>
         <Heading className="mb-2">Share a deck with /deck</Heading>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <OptionCard
+          <FeatureCard
             icon={<SlashSquareIcon className="size-4" />}
             title="Paste a deck code"
             description="Type /deck and paste a deck code from an OpenRift deck's share dialog or from Piltover Archive. The reply names the deck after its Legend and lists every card grouped by zone."
           />
-          <OptionCard
+          <FeatureCard
             icon={<LayoutGridIcon className="size-4" />}
             title="Deck image and one-click import"
             description="The reply includes a rendered image of the whole deck and an Open in OpenRift button that loads the code straight into the deck importer."
@@ -105,12 +105,12 @@ export default function DiscordBotArticle() {
       <section>
         <Heading className="mb-2">Quote a rule with /rule</Heading>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <OptionCard
+          <FeatureCard
             icon={<SlashSquareIcon className="size-4" />}
             title="By number or keyword"
             description="Type /rule with a rule number like CR 103.1 or a game term like stun. Suggestions show the start of each rule so you can pick the right one, and plain words search the full rules text."
           />
-          <OptionCard
+          <FeatureCard
             icon={<BookOpenTextIcon className="size-4" />}
             title="Core and tournament rules"
             description="CR stands for the core rules, TR for the tournament rules. A plain number checks both, core rules first."
@@ -152,50 +152,4 @@ export default function DiscordBotArticle() {
 
 function InlineCode({ children }: { children: ReactNode }) {
   return <code className="bg-muted rounded px-1 py-0.5 font-mono text-sm">{children}</code>;
-}
-
-function StepRow({
-  step,
-  title,
-  description,
-}: {
-  step: number;
-  title: string;
-  description: string;
-}) {
-  return (
-    <Card>
-      <CardContent className="flex gap-3">
-        <span className="bg-primary/10 text-primary flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold">
-          {step}
-        </span>
-        <div className="flex flex-col gap-1">
-          <CardTitle>{title}</CardTitle>
-          <CardDescription>{description}</CardDescription>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function OptionCard({
-  icon,
-  title,
-  description,
-}: {
-  icon: ReactNode;
-  title: string;
-  description: string;
-}) {
-  return (
-    <Card>
-      <CardContent className="flex gap-3">
-        <span className="text-primary mt-0.5 shrink-0">{icon}</span>
-        <div className="flex flex-col gap-1">
-          <CardTitle>{title}</CardTitle>
-          <CardDescription>{description}</CardDescription>
-        </div>
-      </CardContent>
-    </Card>
-  );
 }

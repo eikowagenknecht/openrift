@@ -11,8 +11,8 @@ import {
 } from "lucide-react";
 
 import { Heading } from "@/components/heading";
+import { FeatureCard, StepRow } from "@/components/help/article-cards";
 import { DefinitionList, DefinitionRow } from "@/components/help/definition-list";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function ListsArticle() {
   return (
@@ -281,51 +281,5 @@ export default function ListsArticle() {
         </p>
       </section>
     </div>
-  );
-}
-
-function StepRow({
-  step,
-  title,
-  description,
-}: {
-  step: number;
-  title: string;
-  description: string;
-}) {
-  return (
-    <Card>
-      <CardContent className="flex gap-3">
-        <span className="bg-primary/10 text-primary flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold">
-          {step}
-        </span>
-        <div className="flex flex-col gap-1">
-          <CardTitle>{title}</CardTitle>
-          <CardDescription>{description}</CardDescription>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function FeatureCard({
-  icon,
-  title,
-  description,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: React.ReactNode;
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <span className="text-primary">{icon}</span>
-          {title}
-        </CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-    </Card>
   );
 }

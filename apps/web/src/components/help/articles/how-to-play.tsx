@@ -1,9 +1,10 @@
 import { CoinsIcon, FlagIcon, SwordIcon, TimerIcon, TrophyIcon, ZapIcon } from "lucide-react";
 
 import { Heading } from "@/components/heading";
+import { FeatureCard, StepRow, ZoneCard } from "@/components/help/article-cards";
 import { DefinitionList, DefinitionRow } from "@/components/help/definition-list";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 
 export default function HowToPlayArticle() {
   return (
@@ -266,78 +267,6 @@ export default function HowToPlayArticle() {
         </ul>
       </section>
     </div>
-  );
-}
-
-function ZoneCard({
-  name,
-  count,
-  description,
-  color,
-}: {
-  name: string;
-  count: string;
-  description: string;
-  color: string;
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <span className={color}>{name}</span>
-          <span className="bg-muted text-muted-foreground text-2xs rounded-full px-1.5 tabular-nums">
-            {count}
-          </span>
-        </CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-    </Card>
-  );
-}
-
-function StepRow({
-  step,
-  title,
-  description,
-}: {
-  step: number;
-  title: string;
-  description: string;
-}) {
-  return (
-    <Card>
-      <CardContent className="flex gap-3">
-        <span className="bg-primary/10 text-primary flex size-6 shrink-0 items-center justify-center rounded-full text-sm font-semibold">
-          {step}
-        </span>
-        <div className="flex flex-col gap-1">
-          <CardTitle>{title}</CardTitle>
-          <CardDescription>{description}</CardDescription>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function FeatureCard({
-  icon,
-  title,
-  description,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <span className="text-primary">{icon}</span>
-          {title}
-        </CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-    </Card>
   );
 }
 

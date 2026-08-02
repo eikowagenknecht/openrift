@@ -1,8 +1,8 @@
 import { ImageIcon, InfoIcon, RulerIcon, ScissorsIcon, ShieldCheckIcon } from "lucide-react";
 
 import { Heading } from "@/components/heading";
+import { FeatureCard, StepRow } from "@/components/help/article-cards";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function ProxyPrintingArticle() {
   return (
@@ -56,22 +56,22 @@ export default function ProxyPrintingArticle() {
         <Heading className="mb-2">Export options</Heading>
 
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <OptionCard
+          <FeatureCard
             icon={<ImageIcon className="size-4" />}
             title="Render mode"
             description="Card images shows the actual card art. Text placeholders shows a simplified card with name, stats, and rules text, which can be easier to read during playtesting."
           />
-          <OptionCard
+          <FeatureCard
             icon={<RulerIcon className="size-4" />}
             title="Page size"
             description="Choose A4 (210 × 297 mm) or US Letter (8.5 × 11 in). Cards are centered on the page regardless of size."
           />
-          <OptionCard
+          <FeatureCard
             icon={<ScissorsIcon className="size-4" />}
             title="Cut lines"
             description="Adds light gray lines along the edges of each card to guide you when cutting. Helpful if you're not using a paper cutter."
           />
-          <OptionCard
+          <FeatureCard
             icon={<ShieldCheckIcon className="size-4" />}
             title="Proxy watermark"
             description="Stamps each card with a small 'PROXY' badge so they can't be mistaken for real cards. Enabled by default."
@@ -119,51 +119,5 @@ export default function ProxyPrintingArticle() {
         </p>
       </section>
     </div>
-  );
-}
-
-function StepRow({
-  step,
-  title,
-  description,
-}: {
-  step: number;
-  title: string;
-  description: string;
-}) {
-  return (
-    <Card>
-      <CardContent className="flex gap-3">
-        <span className="bg-primary/10 text-primary flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold">
-          {step}
-        </span>
-        <div className="flex flex-col gap-1">
-          <CardTitle>{title}</CardTitle>
-          <CardDescription>{description}</CardDescription>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function OptionCard({
-  icon,
-  title,
-  description,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <span className="text-primary">{icon}</span>
-          {title}
-        </CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-    </Card>
   );
 }

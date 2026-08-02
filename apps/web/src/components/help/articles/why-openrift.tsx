@@ -14,9 +14,9 @@ import {
 import { useState } from "react";
 
 import { Heading } from "@/components/heading";
+import { FeatureCard } from "@/components/help/article-cards";
 import { DefinitionList, DefinitionRow } from "@/components/help/definition-list";
 import { Button } from "@/components/ui/button";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SOCIAL_LINKS } from "@/lib/social-links";
 import { cn } from "@/lib/utils";
 
@@ -109,12 +109,14 @@ export default function WhyOpenRiftArticle() {
           capture:
         </p>
         <div className="grid gap-3 sm:grid-cols-2">
-          <GapCard
+          <FeatureCard
+            variant="dashed"
             icon={<SproutIcon className="size-4" />}
             title="New kid on the block"
             description="OpenRift is new and small. Most Riftbound players are on Piltover Archive today, and that's earned. The upside of being early here: your feature request isn't one voice among thousands. It gets read, and if it fits, it shapes the roadmap."
           />
-          <GapCard
+          <FeatureCard
+            variant="dashed"
             icon={<HammerIcon className="size-4" />}
             title="Less time in the wild"
             description="More than 5,500 automated tests and daily use keep the quality up, but years of real users find edge cases no test suite does. If you hit one, tell me: fixes ship fast."
@@ -332,50 +334,6 @@ export default function WhyOpenRiftArticle() {
         </DefinitionList>
       </section>
     </div>
-  );
-}
-
-function FeatureCard({
-  icon,
-  title,
-  description,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: React.ReactNode;
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <span className="text-primary">{icon}</span>
-          {title}
-        </CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-    </Card>
-  );
-}
-
-function GapCard({
-  icon,
-  title,
-  description,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: React.ReactNode;
-}) {
-  return (
-    <Card className="border border-dashed ring-0">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <span className="text-muted-foreground">{icon}</span>
-          {title}
-        </CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-    </Card>
   );
 }
 
