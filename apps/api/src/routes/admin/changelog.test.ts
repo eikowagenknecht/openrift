@@ -12,15 +12,15 @@ vi.mock("../../services/changelog-discord.js", () => ({
   postChangelogToDiscord: vi.fn(),
 }));
 vi.mock("../../services/run-job.js", () => ({
-  runJob: vi.fn(),
+  runJobOutcome: vi.fn(),
 }));
 
 // eslint-disable-next-line import/first -- imported after vi.mock so the mocks apply.
-import { runJob } from "../../services/run-job.js";
+import { runJobOutcome } from "../../services/run-job.js";
 // eslint-disable-next-line import/first
 import { adminChangelogRouter } from "./changelog";
 
-const runJobMock = vi.mocked(runJob);
+const runJobMock = vi.mocked(runJobOutcome);
 
 const mockJobRuns = {
   findLatestForResume: vi.fn(),
@@ -50,7 +50,7 @@ describe("POST /changelog/post", () => {
   });
 
   it("returns posted=true with the count when entries were posted", async () => {
-    runJobMock.mockResolvedValue({ posted: 2 } as never);
+    runJobMock.mockResolvedValue({ status: "succeeded", result: { posted: 2 } } as never);
 
     const res = await app.request("/api/admin/v1/changelog/post", { method: "POST" });
     expect(res.status).toBe(200);
@@ -59,10 +59,28 @@ describe("POST /changelog/post", () => {
   });
 
   it("returns posted=false with count 0 when nothing was posted", async () => {
-    runJobMock.mockResolvedValue({ posted: 0 } as never);
+    runJobMock.mockResolvedValue({ status: "succeeded", result: { posted: 0 } } as never);
 
     const res = await app.request("/api/admin/v1/changelog/post", { method: "POST" });
     expect(res.status).toBe(200);
     expect(await readJson(res)).toEqual({ posted: false, count: 0 });
+  });
+
+  it("500s with the job's message when the post failed, rather than a 200 no-op", async () => {
+    runJobMock.mockResolvedValue({ status: "failed", message: "Discord 503" } as never);
+
+    const res = await app.request("/api/admin/v1/changelog/post", { method: "POST" });
+    expect(res.status).toBe(500);
+    expect(await readJson(res)).toMatchObject({ message: "Changelog post failed: Discord 503" });
+  });
+
+  it("409s when a changelog post is already running", async () => {
+    runJobMock.mockResolvedValue({ status: "already_running", runId: "run-1" } as never);
+
+    const res = await app.request("/api/admin/v1/changelog/post", { method: "POST" });
+    expect(res.status).toBe(409);
+    expect(await readJson(res)).toMatchObject({
+      message: expect.stringContaining("already running"),
+    });
   });
 });
