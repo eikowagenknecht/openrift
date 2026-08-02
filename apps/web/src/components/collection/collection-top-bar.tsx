@@ -1,11 +1,11 @@
 import { Link } from "@tanstack/react-router";
 import {
+  CameraIcon,
   CheckIcon,
   CheckSquareIcon,
   EllipsisVerticalIcon,
   LayersIcon,
   PencilIcon,
-  ScanLineIcon,
   Share2Icon,
   SquarePlusIcon,
   Trash2Icon,
@@ -106,10 +106,10 @@ export function CollectionTopBar({
                 aria-label="Scan cards"
                 className="sm:hidden"
               >
-                <ScanLineIcon className="size-4" />
+                <CameraIcon className="size-4" />
               </PageTopBarIconButton>
               <PageTopBarButton render={<Link to="/collections/scan" />} className="hidden sm:flex">
-                <ScanLineIcon className="size-4" />
+                <CameraIcon className="size-4" />
                 Scan
               </PageTopBarButton>
             </>

@@ -1,4 +1,4 @@
-import { CameraIcon, LayersIcon, ScanIcon, SunIcon } from "lucide-react";
+import { CameraIcon, LayersIcon, ScanSquareIcon, SunIcon } from "lucide-react";
 
 import { ScanLoadRow } from "@/components/scan/scan-load-row";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ const BRACKET_SIZE = "18%";
 /** Pre-flight advice the live coaching cannot give before the camera runs. */
 const TIPS = [
   { icon: SunIcon, label: "Good light" },
-  { icon: ScanIcon, label: "Fill the frame" },
+  { icon: ScanSquareIcon, label: "Fill the frame" },
   { icon: LayersIcon, label: "One card at a time" },
 ];
 
