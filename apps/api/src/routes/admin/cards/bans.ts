@@ -51,7 +51,7 @@ export const adminCardBansRouter = {
     const row = await cardBans.create({ cardId: id, formatId, bannedAt, reason: reason ?? null });
 
     // catalog.cardById only returns the id — fetch name/slug for the label
-    const cardDetails = await context.repos.candidateMutations.getCardById(id);
+    const cardDetails = await context.repos.catalogMutations.getCardById(id);
     await recordAdminEvent(context.repos, context.userId, {
       action: "ban.add",
       entityType: "ban",

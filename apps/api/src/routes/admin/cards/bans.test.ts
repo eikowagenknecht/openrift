@@ -21,7 +21,7 @@ const mockCatalog = {
 };
 
 // ban.add fetches name/slug for the audit label; audit inserts land here.
-const mockCandidateMutations = { getCardById: vi.fn() };
+const mockCatalogMutations = { getCardById: vi.fn() };
 const mockAdminEvents = { insert: vi.fn() };
 
 // Mount the oRPC router directly (without the requireAdmin gate).
@@ -30,7 +30,7 @@ app.use("*", async (c, next) => {
   c.set("repos", {
     cardBans: mockCardBans,
     catalog: mockCatalog,
-    candidateMutations: mockCandidateMutations,
+    catalogMutations: mockCatalogMutations,
     adminEvents: mockAdminEvents,
   } as never);
   c.set("user", { id: "a0000000-0001-4000-a000-000000000001" } as never);
@@ -241,7 +241,7 @@ describe("audit events", () => {
     mockCatalog.cardById.mockResolvedValue({ id: CARD_ID });
     mockCardBans.findActiveBan.mockResolvedValue(null);
     mockCardBans.create.mockResolvedValue(banRow);
-    mockCandidateMutations.getCardById.mockResolvedValue({
+    mockCatalogMutations.getCardById.mockResolvedValue({
       id: CARD_ID,
       name: "Fireball",
       slug: "fireball",

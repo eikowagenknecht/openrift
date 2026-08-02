@@ -43,15 +43,15 @@ function createMockMut(overrides: {
 }) {
   return {
     getCardsBySlugs: vi.fn().mockResolvedValue(overrides.cards ?? []),
-    getErrataByCardIds: vi.fn().mockResolvedValue(overrides.errata ?? []),
+    getByCardIds: vi.fn().mockResolvedValue(overrides.errata ?? []),
     getPrintingTextsByCardIds: vi.fn().mockResolvedValue(overrides.printingTexts ?? []),
-    upsertCardErrata: vi.fn().mockResolvedValue(undefined),
+    upsert: vi.fn().mockResolvedValue(undefined),
     updateCardById: vi.fn().mockResolvedValue(undefined),
   };
 }
 
 function createMockRepos(mut: ReturnType<typeof createMockMut>): Repos {
-  return { candidateMutations: mut } as unknown as Repos;
+  return { catalogMutations: mut, cardErrata: mut } as unknown as Repos;
 }
 
 function makeEntry(overrides: Partial<UploadErrataEntry> = {}): UploadErrataEntry {
@@ -89,7 +89,7 @@ describe("importErrata", () => {
     expect(result.matchesPrintedCount).toBe(0);
     expect(result.errors).toEqual([]);
     expect(mut.getCardsBySlugs).not.toHaveBeenCalled();
-    expect(mut.upsertCardErrata).not.toHaveBeenCalled();
+    expect(mut.upsert).not.toHaveBeenCalled();
   });
 
   // ── Unknown slug ────────────────────────────────────────────────────────
@@ -105,7 +105,7 @@ describe("importErrata", () => {
 
     expect(result.errors).toEqual(['Unknown card slug: "does-not-exist"']);
     expect(result.newCount).toBe(0);
-    expect(mut.upsertCardErrata).not.toHaveBeenCalled();
+    expect(mut.upsert).not.toHaveBeenCalled();
     expect(mut.updateCardById).not.toHaveBeenCalled();
   });
 
@@ -126,8 +126,8 @@ describe("importErrata", () => {
     expect(result.newCount).toBe(1);
     expect(result.updatedCount).toBe(0);
     expect(result.newEntries).toEqual([{ cardSlug: "jinx-rebel", cardName: "Jinx, Rebel" }]);
-    expect(mut.upsertCardErrata).toHaveBeenCalledTimes(1);
-    expect(mut.upsertCardErrata).toHaveBeenCalledWith("card-1", {
+    expect(mut.upsert).toHaveBeenCalledTimes(1);
+    expect(mut.upsert).toHaveBeenCalledWith("card-1", {
       correctedRulesText: "Deal 4 damage.",
       correctedEffectText: null,
       source: "Riftbound Origins Errata",
@@ -165,7 +165,7 @@ describe("importErrata", () => {
     expect(result.updatedEntries).toHaveLength(1);
     const fields = result.updatedEntries[0].fields.map((f) => f.field).sort();
     expect(fields).toEqual(["correctedRulesText", "effectiveDate", "source", "sourceUrl"]);
-    expect(mut.upsertCardErrata).toHaveBeenCalledTimes(1);
+    expect(mut.upsert).toHaveBeenCalledTimes(1);
   });
 
   // ── Unchanged entry ─────────────────────────────────────────────────────
@@ -196,7 +196,7 @@ describe("importErrata", () => {
     expect(result.newCount).toBe(0);
     expect(result.updatedCount).toBe(0);
     // Unchanged entries are skipped — no write.
-    expect(mut.upsertCardErrata).not.toHaveBeenCalled();
+    expect(mut.upsert).not.toHaveBeenCalled();
   });
 
   // ── Matches printed text ────────────────────────────────────────────────
@@ -219,7 +219,7 @@ describe("importErrata", () => {
       { cardSlug: "jinx-rebel", cardName: "Jinx, Rebel" },
     ]);
     expect(result.newCount).toBe(0);
-    expect(mut.upsertCardErrata).not.toHaveBeenCalled();
+    expect(mut.upsert).not.toHaveBeenCalled();
   });
 
   it("does NOT flag as matches-printed when any printing still has old text", async () => {
@@ -237,7 +237,7 @@ describe("importErrata", () => {
 
     expect(result.matchesPrintedCount).toBe(0);
     expect(result.newCount).toBe(1);
-    expect(mut.upsertCardErrata).toHaveBeenCalledTimes(1);
+    expect(mut.upsert).toHaveBeenCalledTimes(1);
   });
 
   // ── Dry run ─────────────────────────────────────────────────────────────
@@ -256,7 +256,7 @@ describe("importErrata", () => {
 
     expect(result.dryRun).toBe(true);
     expect(result.newCount).toBe(1);
-    expect(mut.upsertCardErrata).not.toHaveBeenCalled();
+    expect(mut.upsert).not.toHaveBeenCalled();
     expect(mut.updateCardById).not.toHaveBeenCalled();
   });
 

@@ -20,7 +20,9 @@ function makeRepos({
         allPrintingKeys: vi.fn().mockResolvedValue(printingKeys),
         allPrintingLinkOverrides: vi.fn().mockResolvedValue(overrides),
       },
-      candidateMutations: { linkCandidatePrintings },
+      candidateCards: {
+        linkCandidatePrintings,
+      },
     } as never,
     linkCandidatePrintings,
   };

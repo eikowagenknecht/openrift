@@ -14,9 +14,11 @@ describe("createRepos", () => {
     const expectedKeys = [
       "collectionEvents",
       "admins",
-      "candidateMutations",
       "candidateCards",
+      "cardErrata",
       "catalog",
+      "catalogDeleteGuards",
+      "catalogMutations",
       "collections",
       "copies",
       "decks",

@@ -4,10 +4,12 @@ import type { ArtVariant, CardSize, Finish, Rarity } from "@openrift/shared/type
 import type { Transact } from "../deps.js";
 import { AppError } from "../errors.js";
 import type { Io } from "../io.js";
+import type { candidateCardsRepo } from "../repositories/candidate-cards.js";
 import type {
-  candidateMutationsRepo,
+  catalogDeleteGuardsRepo,
   PrintingDeleteBlockers,
-} from "../repositories/candidate-mutations.js";
+} from "../repositories/catalog-delete-guards.js";
+import type { catalogMutationsRepo } from "../repositories/catalog-mutations.js";
 import type { distributionChannelsRepo } from "../repositories/distribution-channels.js";
 import type { markersRepo } from "../repositories/markers.js";
 import type { printingEventsRepo } from "../repositories/printing-events.js";
@@ -17,7 +19,9 @@ import { rehostSingleImage } from "./images/jobs.js";
 import { deleteRehostFiles } from "./images/variants.js";
 import { recordNewPrintingEvent } from "./record-printing-event.js";
 
-type CandidateMutationsRepo = ReturnType<typeof candidateMutationsRepo>;
+type CatalogMutationsRepo = ReturnType<typeof catalogMutationsRepo>;
+type CandidateCardsRepo = ReturnType<typeof candidateCardsRepo>;
+type CatalogDeleteGuardsRepo = ReturnType<typeof catalogDeleteGuardsRepo>;
 type PrintingEventsRepo = ReturnType<typeof printingEventsRepo>;
 type PrintingImagesRepo = ReturnType<typeof printingImagesRepo>;
 type MarkersRepo = ReturnType<typeof markersRepo>;
@@ -39,7 +43,7 @@ export async function updatePrintingMarkers(
   newSlugs: readonly string[],
 ): Promise<void> {
   await transact(async (trxRepos) => {
-    const printing = await trxRepos.candidateMutations.getPrintingById(printingId);
+    const printing = await trxRepos.catalogMutations.getPrintingById(printingId);
     assertFound(printing, "Printing not found");
 
     if (newSlugs.length === 0) {
@@ -70,13 +74,13 @@ export async function updatePrintingMarkers(
  */
 export async function updatePrintingDistributionChannels(
   repos: {
-    candidateMutations: CandidateMutationsRepo;
+    catalogMutations: CatalogMutationsRepo;
     distributionChannels: DistributionChannelsRepo;
   },
   printingId: string,
   newSlugs: readonly string[],
 ): Promise<void> {
-  const printing = await repos.candidateMutations.getPrintingById(printingId);
+  const printing = await repos.catalogMutations.getPrintingById(printingId);
   assertFound(printing, "Printing not found");
 
   if (newSlugs.length === 0) {
@@ -110,13 +114,13 @@ export async function updatePrintingDistributionChannels(
  * @returns Image file IDs that may be orphaned once the transaction commits.
  */
 export async function deletePrintingRows(
-  trxMut: CandidateMutationsRepo,
+  trxRepos: { catalogMutations: CatalogMutationsRepo; candidateCards: CandidateCardsRepo },
   printingId: string,
 ): Promise<string[]> {
-  await trxMut.unlinkCandidatePrintingsByPrintingId(printingId);
-  const images = await trxMut.deletePrintingImagesByPrintingId(printingId);
-  await trxMut.deletePrintingLinkOverridesById(printingId);
-  await trxMut.deletePrintingById(printingId);
+  await trxRepos.candidateCards.unlinkCandidatePrintingsByPrintingId(printingId);
+  const images = await trxRepos.catalogMutations.deletePrintingImagesByPrintingId(printingId);
+  await trxRepos.candidateCards.deletePrintingLinkOverridesById(printingId);
+  await trxRepos.catalogMutations.deletePrintingById(printingId);
   return images.map((img) => img.imageFileId);
 }
 
@@ -128,7 +132,7 @@ export async function deletePrintingRows(
  */
 export async function cleanupOrphanedImageFiles(
   io: Io,
-  mut: CandidateMutationsRepo,
+  mut: CatalogMutationsRepo,
   imageFileIds: string[],
 ): Promise<void> {
   for (const imageFileId of imageFileIds) {
@@ -186,27 +190,26 @@ function throwIfPrintingBlocked(blockers: PrintingDeleteBlockers): void {
 export async function deletePrinting(
   transact: Transact,
   io: Io,
-  repos: { candidateMutations: CandidateMutationsRepo },
+  repos: { catalogMutations: CatalogMutationsRepo; catalogDeleteGuards: CatalogDeleteGuardsRepo },
   printingId: string,
 ): Promise<void> {
-  const mut = repos.candidateMutations;
+  const mut = repos.catalogMutations;
+  const guards = repos.catalogDeleteGuards;
 
   const printing = await mut.getPrintingById(printingId);
   assertFound(printing, "Printing not found");
 
-  throwIfPrintingBlocked(await mut.countPrintingDeleteBlockers(printing.id));
+  throwIfPrintingBlocked(await guards.countForPrinting(printing.id));
 
   let deletedImageFileIds: string[];
   try {
-    deletedImageFileIds = await transact((trxRepos) =>
-      deletePrintingRows(trxRepos.candidateMutations, printing.id),
-    );
+    deletedImageFileIds = await transact((trxRepos) => deletePrintingRows(trxRepos, printing.id));
   } catch (error: unknown) {
     // 23503 = foreign_key_violation: a referencing row appeared between the
     // blocker check and the delete — re-check so the client gets the same
     // CONFLICT it would have gotten had the row existed up front.
     if (error instanceof Error && "code" in error && error.code === "23503") {
-      throwIfPrintingBlocked(await mut.countPrintingDeleteBlockers(printing.id));
+      throwIfPrintingBlocked(await guards.countForPrinting(printing.id));
     }
     throw error;
   }
@@ -245,7 +248,7 @@ interface AcceptPrintingFields {
 export async function acceptPrinting(
   transact: Transact,
   repos: {
-    candidateMutations: CandidateMutationsRepo;
+    catalogMutations: CatalogMutationsRepo;
     printingImages: PrintingImagesRepo;
     markers: MarkersRepo;
     distributionChannels: DistributionChannelsRepo;
@@ -260,7 +263,7 @@ export async function acceptPrinting(
     throw new AppError(400, ERROR_CODES.BAD_REQUEST, "printingFields.setId is required");
   }
 
-  const mut = repos.candidateMutations;
+  const mut = repos.catalogMutations;
 
   const markerSlugs = [...(printingFields.markerSlugs ?? [])].sort();
   const channelSlugs = printingFields.distributionChannelSlugs ?? [];
@@ -323,7 +326,7 @@ export async function acceptPrinting(
     let setUuid = "";
     let setPrintedTotal: number | null = null;
     if (printingFields.setId) {
-      const setRow = await trxRepos.candidateMutations.getSetIdBySlug(printingFields.setId);
+      const setRow = await trxRepos.catalogMutations.getSetIdBySlug(printingFields.setId);
       setUuid = setRow?.id ?? "";
       if (setUuid) {
         const setTotalRow = await trxRepos.sets.getPrintedTotal(setUuid);
@@ -347,7 +350,7 @@ export async function acceptPrinting(
 
     const costKeywords = await trxRepos.keywords.listCostKeywords();
 
-    insertedId = await trxRepos.candidateMutations.upsertPrinting({
+    insertedId = await trxRepos.catalogMutations.upsertPrinting({
       cardId,
       setId: setUuid,
       shortCode: printingFields.shortCode,
@@ -380,7 +383,7 @@ export async function acceptPrinting(
       channelRows.map((c) => ({ channelId: c.id })),
     );
 
-    await trxRepos.candidateMutations.recomputeKeywordsForPrintingCard(insertedId);
+    await trxRepos.keywords.recomputeForPrintingCard(insertedId);
 
     if (printingFields.imageUrl) {
       insertedImageId = await trxRepos.printingImages.insertImage(
@@ -390,7 +393,7 @@ export async function acceptPrinting(
     }
 
     if (candidatePrintingIds.length > 0) {
-      await trxRepos.candidateMutations.linkAndCheckCandidatePrintings(
+      await trxRepos.candidateCards.linkAndCheckCandidatePrintings(
         candidatePrintingIds,
         insertedId,
       );

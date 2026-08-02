@@ -4,7 +4,7 @@ import type { CardType, Domain, SuperType } from "@openrift/shared/types";
 import type { Transact } from "../deps.js";
 import type { Io } from "../io.js";
 import type { candidateCardsRepo } from "../repositories/candidate-cards.js";
-import type { candidateMutationsRepo } from "../repositories/candidate-mutations.js";
+import type { catalogMutationsRepo } from "../repositories/catalog-mutations.js";
 import type { distributionChannelsRepo } from "../repositories/distribution-channels.js";
 import type { markersRepo } from "../repositories/markers.js";
 import type { printingEventsRepo } from "../repositories/printing-events.js";
@@ -12,7 +12,7 @@ import type { printingImagesRepo } from "../repositories/printing-images.js";
 import { acceptPrinting } from "./printing-admin.js";
 
 type CandidateCardsRepo = ReturnType<typeof candidateCardsRepo>;
-type CandidateMutationsRepo = ReturnType<typeof candidateMutationsRepo>;
+type CatalogMutationsRepo = ReturnType<typeof catalogMutationsRepo>;
 type PrintingEventsRepo = ReturnType<typeof printingEventsRepo>;
 type PrintingImagesRepo = ReturnType<typeof printingImagesRepo>;
 type MarkersRepo = ReturnType<typeof markersRepo>;
@@ -31,7 +31,7 @@ export async function acceptFavoriteNewCard(
   io: Io,
   repos: {
     candidateCards: CandidateCardsRepo;
-    candidateMutations: CandidateMutationsRepo;
+    catalogMutations: CatalogMutationsRepo;
     printingImages: PrintingImagesRepo;
     markers: MarkersRepo;
     distributionChannels: DistributionChannelsRepo;
@@ -40,7 +40,7 @@ export async function acceptFavoriteNewCard(
   normalizedName: string,
   favoriteProviders: Set<string>,
 ): Promise<{ cardSlug: string; printingsCreated: number }> {
-  const mut = repos.candidateMutations;
+  const mut = repos.catalogMutations;
 
   // 1. Find candidate cards for this name, filtered to favorite providers
   const allCandidates = await repos.candidateCards.candidateCardsByNormName(normalizedName);
@@ -61,11 +61,11 @@ export async function acceptFavoriteNewCard(
   if (existing) {
     // Link the name alias to the existing card instead of creating a new one
     await transact(async (trxRepos) => {
-      await trxRepos.candidateMutations.createNameAliases(normalizedName, existing.id);
+      await trxRepos.catalogMutations.createNameAliases(normalizedName, existing.id);
     });
   } else {
     await transact(async (trxRepos) => {
-      await trxRepos.candidateMutations.acceptNewCardFromSources(
+      await trxRepos.catalogMutations.acceptNewCardFromSources(
         {
           id: cardSlug,
           name: primaryCandidate.name,
@@ -146,7 +146,7 @@ export async function acceptFavoriteNewCard(
 
   // 5. Mark favorite candidates as checked
   for (const cc of favoriteCandidates) {
-    await mut.checkCandidateCard(cc.id);
+    await repos.candidateCards.checkCandidateCard(cc.id);
   }
 
   // Each acceptPrinting above fire-and-forget rehosts the image it inserted, so

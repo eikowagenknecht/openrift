@@ -1,5 +1,13 @@
 import type { CardFace, MissingImageCard, ProviderStatsResponse } from "@openrift/shared";
-import type { ExpressionBuilder, Kysely, Selectable } from "kysely";
+import type { ArtVariant, Finish, Rarity } from "@openrift/shared/types";
+import type {
+  DeleteResult,
+  ExpressionBuilder,
+  Kysely,
+  Selectable,
+  Updateable,
+  UpdateResult,
+} from "kysely";
 import { sql } from "kysely";
 
 import { parseJsonb } from "../db/helpers.js";
@@ -115,13 +123,18 @@ interface ExportPrintingRow extends Selectable<PrintingsTable> {
 }
 
 /**
- * Read-only queries for the candidate-cards admin UI.
+ * Queries and mutations over the candidate tables (`candidate_cards`,
+ * `candidate_printings`, `printing_link_overrides`) that back the
+ * candidate-cards admin UI: the read side feeding the list and detail views,
+ * and the write side that checks, patches, and links candidates against
+ * accepted printings. Writes to the accepted catalog itself live in
+ * `catalogMutationsRepo`.
  *
  * Each method performs a single database query (or returns early for empty
  * inputs). Response shaping and multi-query orchestration live in the
  * service layer (`services/card-source-queries.ts`).
  *
- * @returns An object with candidate-card query methods bound to the given `db`.
+ * @returns An object with candidate-card methods bound to the given `db`.
  */
 export function candidateCardsRepo(db: Kysely<Database>) {
   return {
@@ -816,6 +829,317 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           .orderBy("po.canonicalRank")
           .execute() as Promise<ExportPrintingRow[]>
       );
+    },
+
+    // ── Candidate card checks ─────────────────────────────────────────────
+
+    /**
+     * Mark a single candidate card as checked.
+     * @returns Update result.
+     */
+    checkCandidateCard(candidateCardId: string): Promise<UpdateResult> {
+      return db
+        .updateTable("candidateCards")
+        .set({ checkedAt: new Date() })
+        .where("id", "=", candidateCardId)
+        .executeTakeFirst();
+    },
+
+    /**
+     * Clear checked_at on a single candidate card.
+     * @returns Update result.
+     */
+    uncheckCandidateCard(candidateCardId: string): Promise<UpdateResult> {
+      return db
+        .updateTable("candidateCards")
+        .set({ checkedAt: null })
+        .where("id", "=", candidateCardId)
+        .executeTakeFirst();
+    },
+
+    /**
+     * Mark all candidate cards with matching normalized names OR linked to the
+     * given card via candidate_printings → printings as checked.
+     * @returns The total number of rows updated.
+     */
+    async checkAllCandidateCards(normNames: string[], cardId: string): Promise<number> {
+      const now = new Date();
+      // Candidate cards linked because their candidate_printings already have a printingId
+      const linkedByPrintingId = db
+        .selectFrom("candidatePrintings")
+        .innerJoin("printings", "printings.id", "candidatePrintings.printingId")
+        .select("candidatePrintings.candidateCardId")
+        .where("printings.cardId", "=", cardId);
+
+      // Candidate cards linked because their candidate_printings have a shortCode matching
+      // a printing's shortCode (same logic as the display query)
+      const printingShortCodes = db
+        .selectFrom("printings")
+        .select("shortCode")
+        .where("cardId", "=", cardId);
+      const linkedByShortCode = db
+        .selectFrom("candidatePrintings as ps_match")
+        .select("ps_match.candidateCardId")
+        .where("ps_match.shortCode", "in", printingShortCodes);
+
+      const results = await db
+        .updateTable("candidateCards")
+        .set({ checkedAt: now })
+        .where((eb) =>
+          eb.or([
+            eb("candidateCards.normName", "in", normNames),
+            eb("candidateCards.id", "in", linkedByPrintingId),
+            eb("candidateCards.id", "in", linkedByShortCode),
+          ]),
+        )
+        .where("checkedAt", "is", null)
+        .execute();
+      return results.reduce((sum, r) => sum + Number(r.numUpdatedRows), 0);
+    },
+
+    // ── Candidate printing checks ─────────────────────────────────────────
+
+    /**
+     * Mark a single candidate printing as checked.
+     * @returns Update result.
+     */
+    checkCandidatePrinting(id: string): Promise<UpdateResult> {
+      return db
+        .updateTable("candidatePrintings")
+        .set({ checkedAt: new Date() })
+        .where("id", "=", id)
+        .executeTakeFirst();
+    },
+
+    /**
+     * Clear checked_at on a single candidate printing.
+     * @returns Update result.
+     */
+    uncheckCandidatePrinting(id: string): Promise<UpdateResult> {
+      return db
+        .updateTable("candidatePrintings")
+        .set({ checkedAt: null })
+        .where("id", "=", id)
+        .executeTakeFirst();
+    },
+
+    /**
+     * Mark all candidate printings for a given printing (and optional extra IDs) as checked.
+     * @returns The total number of rows updated.
+     */
+    async checkAllCandidatePrintings(printingId?: string, extraIds?: string[]): Promise<number> {
+      if (!printingId && !extraIds?.length) {
+        return 0;
+      }
+      const results = await db
+        .updateTable("candidatePrintings")
+        .set({ checkedAt: new Date() })
+        .where((eb) =>
+          eb.or([
+            ...(printingId ? [eb("printingId", "=", printingId)] : []),
+            ...(extraIds?.length ? [eb("id", "in", extraIds)] : []),
+          ]),
+        )
+        .where("checkedAt", "is", null)
+        .execute();
+      return results.reduce((sum, r) => sum + Number(r.numUpdatedRows), 0);
+    },
+
+    /**
+     * Mark all candidate cards and printings for a given provider as checked.
+     * @returns Number of cards and printings checked.
+     */
+    async checkByProvider(
+      provider: string,
+      now: Date,
+    ): Promise<{ cardsChecked: number; printingsChecked: number }> {
+      const cardResult = await db
+        .updateTable("candidateCards")
+        .set({ checkedAt: now })
+        .where("provider", "=", provider)
+        .where("checkedAt", "is", null)
+        .execute();
+
+      const printingResult = await db
+        .updateTable("candidatePrintings")
+        .set({ checkedAt: now })
+        .where("checkedAt", "is", null)
+        .where(
+          "candidateCardId",
+          "in",
+          db.selectFrom("candidateCards").select("id").where("provider", "=", provider),
+        )
+        .execute();
+
+      return {
+        cardsChecked: Number(cardResult[0].numUpdatedRows),
+        printingsChecked: Number(printingResult[0].numUpdatedRows),
+      };
+    },
+
+    // ── Candidate printing mutations ──────────────────────────────────────
+
+    /**
+     * Patch allowed fields on a candidate printing.
+     * @returns Update result.
+     */
+    patchCandidatePrinting(
+      id: string,
+      updates: Updateable<CandidatePrintingsTable>,
+    ): Promise<UpdateResult> {
+      return db
+        .updateTable("candidatePrintings")
+        .set(updates)
+        .where("id", "=", id)
+        .executeTakeFirst();
+    },
+
+    /**
+     * Delete a candidate printing by ID.
+     * @returns Delete result.
+     */
+    deleteCandidatePrinting(id: string): Promise<DeleteResult> {
+      return db.deleteFrom("candidatePrintings").where("id", "=", id).executeTakeFirst();
+    },
+
+    /** @returns A candidate printing by ID (all columns). */
+    getCandidatePrintingById(id: string): Promise<Selectable<CandidatePrintingsTable> | undefined> {
+      return db
+        .selectFrom("candidatePrintings")
+        .selectAll()
+        .where("id", "=", id)
+        .executeTakeFirst();
+    },
+
+    /** Copy a candidate printing and link it to a different printing. */
+    async copyCandidatePrinting(
+      ps: Selectable<CandidatePrintingsTable>,
+      target: {
+        id: string;
+        rarity: string | null;
+        artVariant: string | null;
+        isSigned: boolean;
+        markerSlugs: string[];
+        finish: string;
+      },
+    ): Promise<void> {
+      await db
+        .insertInto("candidatePrintings")
+        .values({
+          candidateCardId: ps.candidateCardId,
+          printingId: target.id,
+          shortCode: ps.shortCode,
+          setId: ps.setId,
+          setName: ps.setName,
+          rarity: target.rarity as Rarity | null,
+          artVariant: target.artVariant as ArtVariant | null,
+          isSigned: target.isSigned,
+          markerSlugs: target.markerSlugs,
+          finish: target.finish as Finish,
+          artist: ps.artist,
+          publicCode: ps.publicCode,
+          printedRulesText: ps.printedRulesText,
+          printedEffectText: ps.printedEffectText,
+          imageUrl: ps.imageUrl,
+          flavorText: ps.flavorText,
+          externalId: `${ps.externalId ?? ps.shortCode}-copy-${Date.now()}`,
+          extraData: ps.extraData,
+        })
+        .execute();
+    },
+
+    /**
+     * Delete all candidate cards for a given provider name.
+     * @returns Number of deleted rows.
+     */
+    async deleteByProvider(provider: string): Promise<number> {
+      const result = await db
+        .deleteFrom("candidateCards")
+        .where("provider", "=", provider)
+        .execute();
+      return Number(result[0].numDeletedRows);
+    },
+
+    // ── Candidate printing linking ────────────────────────────────────────
+
+    /** Bulk-link (or unlink) candidate printings to a printing UUID. */
+    async linkCandidatePrintings(
+      candidatePrintingIds: string[],
+      printingUuid: string | null,
+    ): Promise<void> {
+      await db
+        .updateTable("candidatePrintings")
+        .set({ printingId: printingUuid })
+        .where("id", "in", candidatePrintingIds)
+        .execute();
+    },
+
+    /** Link candidate printings to a printing UUID and mark as checked. */
+    async linkAndCheckCandidatePrintings(
+      candidatePrintingIds: string[],
+      printingUuid: string,
+    ): Promise<void> {
+      await db
+        .updateTable("candidatePrintings")
+        .set({ printingId: printingUuid, checkedAt: new Date() })
+        .where("id", "in", candidatePrintingIds)
+        .execute();
+    },
+
+    /** Unlink all candidate_printings referencing a printing UUID (set printing_id to null). */
+    async unlinkCandidatePrintingsByPrintingId(printingId: string): Promise<void> {
+      await db
+        .updateTable("candidatePrintings")
+        .set({ printingId: null })
+        .where("printingId", "=", printingId)
+        .execute();
+    },
+
+    /** Upsert printing link overrides for the given candidate printing IDs. */
+    async upsertPrintingLinkOverrides(
+      candidatePrintingIds: string[],
+      printingId: string,
+    ): Promise<void> {
+      const rows = await db
+        .selectFrom("candidatePrintings")
+        .select(["externalId", "finish"])
+        .where("id", "in", candidatePrintingIds)
+        .execute();
+      for (const row of rows) {
+        await db
+          .insertInto("printingLinkOverrides")
+          .values({
+            externalId: row.externalId,
+            finish: row.finish ?? "",
+            printingId,
+          })
+          .onConflict((oc) => oc.columns(["externalId", "finish"]).doUpdateSet({ printingId }))
+          .execute();
+      }
+    },
+
+    /** Remove printing link overrides for the given candidate printing IDs (unlink). */
+    async removePrintingLinkOverrides(candidatePrintingIds: string[]): Promise<void> {
+      const rows = await db
+        .selectFrom("candidatePrintings")
+        .select(["externalId", "finish"])
+        .where("id", "in", candidatePrintingIds)
+        .execute();
+      if (rows.length === 0) {
+        return;
+      }
+      for (const row of rows) {
+        await db
+          .deleteFrom("printingLinkOverrides")
+          .where("externalId", "=", row.externalId)
+          .where("finish", "=", row.finish ?? "")
+          .execute();
+      }
+    },
+
+    /** Delete printing_link_overrides that reference a printing ID. */
+    async deletePrintingLinkOverridesById(printingId: string): Promise<void> {
+      await db.deleteFrom("printingLinkOverrides").where("printingId", "=", printingId).execute();
     },
   };
 }

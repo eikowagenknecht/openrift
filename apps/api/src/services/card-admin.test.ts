@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Transact } from "../deps.js";
 import type { Io } from "../io.js";
-import type { CardDeleteBlockers } from "../repositories/candidate-mutations.js";
+import type { CardDeleteBlockers } from "../repositories/catalog-delete-guards.js";
 import { deleteCard } from "./card-admin.js";
 
 vi.mock("./images/variants.js", () => ({
@@ -33,10 +33,15 @@ function noBlockers(overrides: Partial<CardDeleteBlockers> = {}): CardDeleteBloc
   };
 }
 
-function baseMut(overrides: Record<string, unknown> = {}) {
-  return {
+/**
+ * Build the repo set `deleteCard` reads, flattened so a test can override any
+ * single method by name regardless of which repo now owns it.
+ * @returns The repos object plus a `mut` view over every mocked method.
+ */
+function baseRepos(overrides: Record<string, unknown> = {}) {
+  const mut = {
     getCardById: vi.fn(async () => ({ id: "card-uuid", name: "Test", slug: "test" })),
-    countCardDeleteBlockers: vi.fn(async () => noBlockers()),
+    countForCard: vi.fn(async () => noBlockers()),
     getPrintingIdsByCardId: vi.fn(async () => [{ id: "p-1" }, { id: "p-2" }]),
     unlinkCandidatePrintingsByPrintingId: vi.fn(async () => {}),
     deletePrintingImagesByPrintingId: vi.fn(async () => []),
@@ -49,7 +54,25 @@ function baseMut(overrides: Record<string, unknown> = {}) {
     isImageFileReferenced: vi.fn(async () => false),
     deleteImageFileById: vi.fn(async () => {}),
     ...overrides,
+  } as Record<string, any>;
+  const pick = (...keys: string[]) => Object.fromEntries(keys.map((k) => [k, mut[k]]));
+  const repos = {
+    catalogMutations: pick(
+      "getCardById",
+      "getPrintingIdsByCardId",
+      "deletePrintingImagesByPrintingId",
+      "deletePrintingById",
+      "deleteCardBansByCardId",
+      "deleteMarketplaceCardOverridesByCardId",
+      "deleteCardById",
+      "getImageFileById",
+      "isImageFileReferenced",
+      "deleteImageFileById",
+    ),
+    candidateCards: pick("unlinkCandidatePrintingsByPrintingId", "deletePrintingLinkOverridesById"),
+    catalogDeleteGuards: pick("countForCard"),
   };
+  return { mut, repos };
 }
 
 describe("deleteCard", () => {
@@ -58,8 +81,7 @@ describe("deleteCard", () => {
   });
 
   it("throws NOT_FOUND when the card does not exist", async () => {
-    const mut = baseMut({ getCardById: vi.fn(async () => null) });
-    const repos = { candidateMutations: mut };
+    const { repos } = baseRepos({ getCardById: vi.fn(async () => null) });
 
     await expect(
       deleteCard(mockTransact(repos), {} as Io, repos as any, "card-missing"),
@@ -67,10 +89,9 @@ describe("deleteCard", () => {
   });
 
   it("throws CONFLICT naming the blockers when user data references the card", async () => {
-    const mut = baseMut({
-      countCardDeleteBlockers: vi.fn(async () => noBlockers({ copies: 3, deckCards: 1 })),
+    const { mut, repos } = baseRepos({
+      countForCard: vi.fn(async () => noBlockers({ copies: 3, deckCards: 1 })),
     });
-    const repos = { candidateMutations: mut };
 
     await expect(
       deleteCard(mockTransact(repos), {} as Io, repos as any, "card-uuid"),
@@ -81,8 +102,7 @@ describe("deleteCard", () => {
   });
 
   it("deletes all printings, admin children, and the card row", async () => {
-    const mut = baseMut();
-    const repos = { candidateMutations: mut };
+    const { mut, repos } = baseRepos();
 
     await deleteCard(mockTransact(repos), {} as Io, repos as any, "card-uuid");
 
@@ -95,7 +115,7 @@ describe("deleteCard", () => {
   });
 
   it("cleans up orphaned rehosted files after the transaction", async () => {
-    const mut = baseMut({
+    const { mut, repos } = baseRepos({
       deletePrintingImagesByPrintingId: vi.fn(async (printingId: string) =>
         printingId === "p-1" ? [{ imageFileId: "ci-1" }] : [],
       ),
@@ -104,7 +124,6 @@ describe("deleteCard", () => {
         rehostedUrl: "/media/cards/g1/img-1",
       })),
     });
-    const repos = { candidateMutations: mut };
 
     await deleteCard(mockTransact(repos), {} as Io, repos as any, "card-uuid");
 
@@ -113,12 +132,11 @@ describe("deleteCard", () => {
   });
 
   it("converts a foreign-key race during the delete into CONFLICT", async () => {
-    const countCardDeleteBlockers = vi
+    const countForCard = vi
       .fn()
       .mockResolvedValueOnce(noBlockers())
       .mockResolvedValueOnce(noBlockers({ copies: 1 }));
-    const mut = baseMut({ countCardDeleteBlockers });
-    const repos = { candidateMutations: mut };
+    const { repos } = baseRepos({ countForCard });
     const fkError = Object.assign(new Error("violates foreign key constraint"), {
       code: "23503",
     });
@@ -130,13 +148,12 @@ describe("deleteCard", () => {
   });
 
   it("rethrows non-FK transaction errors unchanged", async () => {
-    const mut = baseMut();
-    const repos = { candidateMutations: mut };
+    const { mut, repos } = baseRepos();
     const transact: Transact = () => Promise.reject(new Error("connection lost"));
 
     await expect(deleteCard(transact, {} as Io, repos as any, "card-uuid")).rejects.toThrow(
       "connection lost",
     );
-    expect(mut.countCardDeleteBlockers).toHaveBeenCalledTimes(1);
+    expect(mut.countForCard).toHaveBeenCalledTimes(1);
   });
 });

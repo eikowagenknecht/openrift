@@ -199,4 +199,196 @@ describe("candidateCardsRepo", () => {
     ]);
     expect(await candidateCardsRepo(db).exportPrintings()).toHaveLength(1);
   });
+
+  // ── Candidate mutations ───────────────────────────────────────────────
+
+  it("checkCandidateCard updates checked_at", async () => {
+    const db = createMockDb([{ numUpdatedRows: 1n }]);
+    const result = await candidateCardsRepo(db).checkCandidateCard("cc-1");
+    expect(result).toBeDefined();
+  });
+
+  it("uncheckCandidateCard clears checked_at", async () => {
+    const db = createMockDb([{ numUpdatedRows: 1n }]);
+    const result = await candidateCardsRepo(db).uncheckCandidateCard("cc-1");
+    expect(result).toBeDefined();
+  });
+
+  it("checkAllCandidateCards returns affected count", async () => {
+    const db = createMockDb([{ numUpdatedRows: 3n }]);
+    const result = await candidateCardsRepo(db).checkAllCandidateCards(["annie"], "c-1");
+    expect(result).toBe(3);
+  });
+
+  // ── Candidate printing checks ─────────────────────────────────────────────
+
+  it("checkCandidatePrinting updates checked_at", async () => {
+    const db = createMockDb([{ numUpdatedRows: 1n }]);
+    expect(await candidateCardsRepo(db).checkCandidatePrinting("cp-1")).toBeDefined();
+  });
+
+  it("uncheckCandidatePrinting clears checked_at", async () => {
+    const db = createMockDb([{ numUpdatedRows: 1n }]);
+    expect(await candidateCardsRepo(db).uncheckCandidatePrinting("cp-1")).toBeDefined();
+  });
+
+  it("checkAllCandidatePrintings returns 0 when no ids provided", async () => {
+    const db = createMockDb([]);
+    expect(await candidateCardsRepo(db).checkAllCandidatePrintings()).toBe(0);
+  });
+
+  it("checkAllCandidatePrintings with printingId", async () => {
+    const db = createMockDb([{ numUpdatedRows: 2n }]);
+    expect(await candidateCardsRepo(db).checkAllCandidatePrintings("p-1")).toBe(2);
+  });
+
+  it("checkAllCandidatePrintings with extraIds", async () => {
+    const db = createMockDb([{ numUpdatedRows: 1n }]);
+    expect(await candidateCardsRepo(db).checkAllCandidatePrintings(undefined, ["cp-1"])).toBe(1);
+  });
+
+  it("checkAllCandidatePrintings with both printingId and extraIds", async () => {
+    const db = createMockDb([{ numUpdatedRows: 3n }]);
+    expect(await candidateCardsRepo(db).checkAllCandidatePrintings("p-1", ["cp-1", "cp-2"])).toBe(
+      3,
+    );
+  });
+
+  // ── Candidate printing mutations ──────────────────────────────────────────
+
+  it("patchCandidatePrinting updates fields", async () => {
+    const db = createMockDb([{ numUpdatedRows: 1n }]);
+    expect(
+      await candidateCardsRepo(db).patchCandidatePrinting("cp-1", { rarity: "rare" }),
+    ).toBeDefined();
+  });
+
+  it("deleteCandidatePrinting deletes a printing", async () => {
+    const db = createMockDb([{ numDeletedRows: 1n }]);
+    expect(await candidateCardsRepo(db).deleteCandidatePrinting("cp-1")).toBeDefined();
+  });
+
+  it("getCandidatePrintingById returns a printing", async () => {
+    const db = createMockDb([{ id: "cp-1" }]);
+    expect(await candidateCardsRepo(db).getCandidatePrintingById("cp-1")).toEqual({
+      id: "cp-1",
+    });
+  });
+
+  it("copyCandidatePrinting inserts a copy", async () => {
+    const ps = {
+      id: "cp-1",
+      candidateCardId: "cc-1",
+      printingId: null,
+      shortCode: "OGS-001",
+      setId: "s-1",
+      setName: "Proving Grounds",
+      rarity: "rare",
+      artVariant: "normal",
+      isSigned: false,
+      finish: "normal",
+      artist: "Artist",
+      publicCode: null,
+      printedRulesText: null,
+      printedEffectText: null,
+      imageUrl: null,
+      flavorText: null,
+      externalId: "ext-1",
+      extraData: null,
+      markerSlugs: [],
+      checkedAt: null,
+      normName: "annie",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as any;
+    const target = {
+      id: "p-new",
+      rarity: "rare",
+      artVariant: "normal",
+      isSigned: false,
+      markerSlugs: [],
+      finish: "normal",
+    };
+    const db = createMockDb([]);
+    await expect(candidateCardsRepo(db).copyCandidatePrinting(ps, target)).resolves.toBeUndefined();
+  });
+
+  // ── Linking ───────────────────────────────────────────────────────────────
+
+  it("linkCandidatePrintings links printings", async () => {
+    const db = createMockDb([]);
+    await expect(
+      candidateCardsRepo(db).linkCandidatePrintings(["cp-1"], "p-1"),
+    ).resolves.toBeUndefined();
+  });
+
+  it("linkAndCheckCandidatePrintings links and checks", async () => {
+    const db = createMockDb([]);
+    await expect(
+      candidateCardsRepo(db).linkAndCheckCandidatePrintings(["cp-1"], "p-1"),
+    ).resolves.toBeUndefined();
+  });
+
+  it("upsertPrintingLinkOverrides upserts overrides", async () => {
+    const db = createMockDb([{ externalId: "ext-1", finish: "normal" }]);
+    await expect(
+      candidateCardsRepo(db).upsertPrintingLinkOverrides(["cp-1"], "p-1"),
+    ).resolves.toBeUndefined();
+  });
+
+  it("upsertPrintingLinkOverrides handles null finish", async () => {
+    const db = createMockDb([{ externalId: "ext-1", finish: null }]);
+    await expect(
+      candidateCardsRepo(db).upsertPrintingLinkOverrides(["cp-1"], "p-1"),
+    ).resolves.toBeUndefined();
+  });
+
+  it("removePrintingLinkOverrides removes overrides", async () => {
+    const db = createMockDb([{ externalId: "ext-1", finish: "normal" }]);
+    await expect(
+      candidateCardsRepo(db).removePrintingLinkOverrides(["cp-1"]),
+    ).resolves.toBeUndefined();
+  });
+
+  it("removePrintingLinkOverrides handles null finish", async () => {
+    const db = createMockDb([{ externalId: "ext-1", finish: null }]);
+    await expect(
+      candidateCardsRepo(db).removePrintingLinkOverrides(["cp-1"]),
+    ).resolves.toBeUndefined();
+  });
+
+  it("removePrintingLinkOverrides is no-op for empty result", async () => {
+    const db = createMockDb([]);
+    await expect(
+      candidateCardsRepo(db).removePrintingLinkOverrides(["cp-1"]),
+    ).resolves.toBeUndefined();
+  });
+
+  // ── Card mutations ────────────────────────────────────────────────────────
+
+  it("unlinkCandidatePrintingsByPrintingId unlinks", async () => {
+    const db = createMockDb([]);
+    await expect(
+      candidateCardsRepo(db).unlinkCandidatePrintingsByPrintingId("p-1"),
+    ).resolves.toBeUndefined();
+  });
+
+  it("deletePrintingLinkOverridesById deletes overrides", async () => {
+    const db = createMockDb([]);
+    await expect(
+      candidateCardsRepo(db).deletePrintingLinkOverridesById("p-1"),
+    ).resolves.toBeUndefined();
+  });
+
+  it("checkByProvider returns check counts", async () => {
+    const db = createMockDb([{ numUpdatedRows: 5n }]);
+    const result = await candidateCardsRepo(db).checkByProvider("test", new Date());
+    expect(result.cardsChecked).toBe(5);
+    expect(result.printingsChecked).toBe(5);
+  });
+
+  it("deleteByProvider returns deleted count", async () => {
+    const db = createMockDb([{ numDeletedRows: 10n }]);
+    expect(await candidateCardsRepo(db).deleteByProvider("test")).toBe(10);
+  });
 });

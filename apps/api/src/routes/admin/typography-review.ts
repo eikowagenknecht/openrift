@@ -131,7 +131,7 @@ export const adminTypographyReviewRouter = {
   }),
 
   accept: os.accept.handler(async ({ input, context }): Promise<void> => {
-    const { catalog, candidateMutations: mut } = context.repos;
+    const { catalog, catalogMutations: mut, cardErrata } = context.repos;
     const { entity, id, field, proposed } = input;
 
     if (entity === "card") {
@@ -153,11 +153,11 @@ export const adminTypographyReviewRouter = {
       }
 
       // Otherwise treat as errata text (correctedRulesText / correctedEffectText)
-      const errata = await mut.getCardErrata(id);
+      const errata = await cardErrata.getByCardId(id);
       if (!errata) {
         throw new AppError(404, ERROR_CODES.NOT_FOUND, "Card errata not found");
       }
-      await mut.upsertCardErrata(id, {
+      await cardErrata.upsert(id, {
         ...errata,
         effectiveDate: errata.effectiveDate
           ? errata.effectiveDate.toISOString().slice(0, 10)

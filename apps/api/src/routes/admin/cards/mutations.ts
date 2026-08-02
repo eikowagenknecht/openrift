@@ -37,43 +37,46 @@ const os = implement(adminCardMutationsContract).$context<ApiContext>().use(requ
  */
 export const adminCardMutationsRouter = {
   checkCandidateCard: os.checkCandidateCard.handler(async ({ input, context }): Promise<void> => {
-    const { candidateMutations: mut } = context.repos;
-    const result = await mut.checkCandidateCard(input.candidateCardId);
+    const { candidateCards } = context.repos;
+    const result = await candidateCards.checkCandidateCard(input.candidateCardId);
     assertUpdated(result, "Candidate card not found");
   }),
 
   uncheckCandidateCard: os.uncheckCandidateCard.handler(
     async ({ input, context }): Promise<void> => {
-      const { candidateMutations: mut } = context.repos;
-      const result = await mut.uncheckCandidateCard(input.candidateCardId);
+      const { candidateCards } = context.repos;
+      const result = await candidateCards.uncheckCandidateCard(input.candidateCardId);
       assertUpdated(result, "Candidate card not found");
     },
   ),
 
   checkAllCandidatePrintings: os.checkAllCandidatePrintings.handler(async ({ input, context }) => {
-    const { candidateMutations: mut } = context.repos;
-    const updated = await mut.checkAllCandidatePrintings(input.printingId, input.extraIds);
+    const { candidateCards } = context.repos;
+    const updated = await candidateCards.checkAllCandidatePrintings(
+      input.printingId,
+      input.extraIds,
+    );
     return { updated };
   }),
 
   checkCandidatePrinting: os.checkCandidatePrinting.handler(
     async ({ input, context }): Promise<void> => {
-      const { candidateMutations: mut } = context.repos;
-      const result = await mut.checkCandidatePrinting(input.id);
+      const { candidateCards } = context.repos;
+      const result = await candidateCards.checkCandidatePrinting(input.id);
       assertUpdated(result, "Candidate printing not found");
     },
   ),
 
   uncheckCandidatePrinting: os.uncheckCandidatePrinting.handler(
     async ({ input, context }): Promise<void> => {
-      const { candidateMutations: mut } = context.repos;
-      const result = await mut.uncheckCandidatePrinting(input.id);
+      const { candidateCards } = context.repos;
+      const result = await candidateCards.uncheckCandidatePrinting(input.id);
       assertUpdated(result, "Candidate printing not found");
     },
   ),
 
   checkAllForCard: os.checkAllForCard.handler(async ({ input, context }) => {
-    const { candidateMutations: mut } = context.repos;
+    const { catalogMutations: mut, candidateCards } = context.repos;
 
     const card = await mut.getCardById(input.cardId);
     assertFound(card, "Card not found");
@@ -82,13 +85,13 @@ export const adminCardMutationsRouter = {
     const aliasRows = await mut.getCardAliases(card.id);
     const uniqueVariants = [...new Set([cardNormName, ...aliasRows.map((a) => a.normName)])];
 
-    const updated = await mut.checkAllCandidateCards(uniqueVariants, card.id);
+    const updated = await candidateCards.checkAllCandidateCards(uniqueVariants, card.id);
     return { updated };
   }),
 
   patchCandidatePrinting: os.patchCandidatePrinting.handler(
     async ({ input, context }): Promise<void> => {
-      const { candidateMutations: mut, candidateCards, providerSettings } = context.repos;
+      const { candidateCards, providerSettings } = context.repos;
       const { id, ...body } = input;
 
       const scope = await reviewableProviderScope(context.adminAccess, providerSettings);
@@ -108,9 +111,9 @@ export const adminCardMutationsRouter = {
         throw new AppError(400, ERROR_CODES.BAD_REQUEST, "No valid fields to update");
       }
 
-      const before = await mut.getCandidatePrintingById(id);
+      const before = await candidateCards.getCandidatePrintingById(id);
 
-      const result = await mut.patchCandidatePrinting(id, updates);
+      const result = await candidateCards.patchCandidatePrinting(id, updates);
       assertUpdated(result, "Candidate printing not found");
 
       await recordAdminEvent(context.repos, context.userId, {
@@ -130,9 +133,9 @@ export const adminCardMutationsRouter = {
 
   deleteCandidatePrinting: os.deleteCandidatePrinting.handler(
     async ({ input, context }): Promise<void> => {
-      const { candidateMutations: mut } = context.repos;
-      const before = await mut.getCandidatePrintingById(input.id);
-      const result = await mut.deleteCandidatePrinting(input.id);
+      const { candidateCards } = context.repos;
+      const before = await candidateCards.getCandidatePrintingById(input.id);
+      const result = await candidateCards.deleteCandidatePrinting(input.id);
       assertDeleted(result, "Candidate printing not found");
 
       await recordAdminEvent(context.repos, context.userId, {
@@ -156,20 +159,20 @@ export const adminCardMutationsRouter = {
 
   copyCandidatePrinting: os.copyCandidatePrinting.handler(
     async ({ input, context }): Promise<void> => {
-      const { candidateMutations: mut } = context.repos;
+      const { catalogMutations: mut, candidateCards } = context.repos;
       const { id, printingId } = input;
 
       if (!printingId) {
         throw new AppError(400, ERROR_CODES.BAD_REQUEST, "printingId is required");
       }
 
-      const ps = await mut.getCandidatePrintingById(id);
+      const ps = await candidateCards.getCandidatePrintingById(id);
       assertFound(ps, "Candidate printing not found");
 
       const target = await mut.getPrintingDifferentiatorsById(printingId);
       assertFound(target, "Target printing not found");
 
-      await mut.copyCandidatePrinting(ps, target);
+      await candidateCards.copyCandidatePrinting(ps, target);
 
       await recordAdminEvent(context.repos, context.userId, {
         action: "candidate-printing.copy",
@@ -183,19 +186,19 @@ export const adminCardMutationsRouter = {
 
   linkCandidatePrintings: os.linkCandidatePrintings.handler(
     async ({ input, context }): Promise<void> => {
-      const { candidateMutations: mut } = context.repos;
+      const { candidateCards } = context.repos;
       const { candidatePrintingIds, printingId } = input;
 
       if (!Array.isArray(candidatePrintingIds) || candidatePrintingIds.length === 0) {
         throw new AppError(400, ERROR_CODES.BAD_REQUEST, "candidatePrintingIds[] required");
       }
 
-      await mut.linkCandidatePrintings(candidatePrintingIds, printingId);
+      await candidateCards.linkCandidatePrintings(candidatePrintingIds, printingId);
 
       // Persist or remove link overrides so links survive delete + re-upload
       await (printingId
-        ? mut.upsertPrintingLinkOverrides(candidatePrintingIds, printingId)
-        : mut.removePrintingLinkOverrides(candidatePrintingIds));
+        ? candidateCards.upsertPrintingLinkOverrides(candidatePrintingIds, printingId)
+        : candidateCards.removePrintingLinkOverrides(candidatePrintingIds));
 
       await recordAdminEvent(context.repos, context.userId, {
         action: "candidate-printing.link",
@@ -207,7 +210,7 @@ export const adminCardMutationsRouter = {
   ),
 
   renameCard: os.renameCard.handler(async ({ input, context }): Promise<void> => {
-    const { candidateMutations: mut } = context.repos;
+    const { catalogMutations: mut } = context.repos;
     const { cardId, newId } = input;
 
     if (!newId?.trim()) {
@@ -236,9 +239,14 @@ export const adminCardMutationsRouter = {
   }),
 
   deletePrinting: os.deletePrinting.handler(async ({ input, context }): Promise<void> => {
-    const { candidateMutations } = context.repos;
-    const before = await candidateMutations.getFullPrintingById(input.printingId);
-    await deletePrinting(context.transact, context.io, { candidateMutations }, input.printingId);
+    const { catalogMutations, catalogDeleteGuards } = context.repos;
+    const before = await catalogMutations.getFullPrintingById(input.printingId);
+    await deletePrinting(
+      context.transact,
+      context.io,
+      { catalogMutations, catalogDeleteGuards },
+      input.printingId,
+    );
 
     await recordAdminEvent(context.repos, context.userId, {
       action: "printing.delete",
@@ -258,9 +266,14 @@ export const adminCardMutationsRouter = {
   }),
 
   deleteCard: os.deleteCard.handler(async ({ input, context }): Promise<void> => {
-    const { candidateMutations } = context.repos;
-    const before = await candidateMutations.getCardById(input.cardId);
-    await deleteCard(context.transact, context.io, { candidateMutations }, input.cardId);
+    const { catalogMutations, catalogDeleteGuards } = context.repos;
+    const before = await catalogMutations.getCardById(input.cardId);
+    await deleteCard(
+      context.transact,
+      context.io,
+      { catalogMutations, catalogDeleteGuards },
+      input.cardId,
+    );
     await context.repos.catalog.refreshCatalogViews();
 
     await recordAdminEvent(context.repos, context.userId, {
@@ -273,21 +286,21 @@ export const adminCardMutationsRouter = {
   }),
 
   checkByProvider: os.checkByProvider.handler(async ({ input, context }) => {
-    const { candidateMutations: mut } = context.repos;
+    const { candidateCards } = context.repos;
     const provider = input.provider;
     if (!provider.trim()) {
       throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Provider name is required");
     }
-    return await mut.checkByProvider(provider.trim(), new Date());
+    return await candidateCards.checkByProvider(provider.trim(), new Date());
   }),
 
   deleteByProvider: os.deleteByProvider.handler(async ({ input, context }) => {
-    const { candidateMutations: mut } = context.repos;
+    const { candidateCards } = context.repos;
     const provider = input.provider;
     if (!provider.trim()) {
       throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Provider name is required");
     }
-    const deleted = await mut.deleteByProvider(provider.trim());
+    const deleted = await candidateCards.deleteByProvider(provider.trim());
 
     await recordAdminEvent(context.repos, context.userId, {
       action: "provider.delete-candidates",
@@ -301,14 +314,14 @@ export const adminCardMutationsRouter = {
   }),
 
   upsertErrata: os.upsertErrata.handler(async ({ input, context }): Promise<void> => {
-    const { candidateMutations: mut } = context.repos;
+    const { catalogMutations: mut, cardErrata } = context.repos;
     const { cardId, correctedRulesText, correctedEffectText, source, sourceUrl, effectiveDate } =
       input;
 
-    const [errataBefore] = await mut.getErrataByCardIds([cardId]);
+    const [errataBefore] = await cardErrata.getByCardIds([cardId]);
     const card = await mut.getCardById(cardId);
 
-    await mut.upsertCardErrata(cardId, {
+    await cardErrata.upsert(cardId, {
       correctedRulesText,
       correctedEffectText,
       source,
@@ -341,13 +354,13 @@ export const adminCardMutationsRouter = {
   }),
 
   deleteErrata: os.deleteErrata.handler(async ({ input, context }): Promise<void> => {
-    const { candidateMutations: mut } = context.repos;
+    const { catalogMutations: mut, cardErrata } = context.repos;
     const { cardId } = input;
 
-    const [errataBefore] = await mut.getErrataByCardIds([cardId]);
+    const [errataBefore] = await cardErrata.getByCardIds([cardId]);
     const card = await mut.getCardById(cardId);
 
-    await mut.deleteCardErrata(cardId);
+    await cardErrata.deleteByCardId(cardId);
 
     // Recompute keywords from printing text only (no errata anymore)
     const printingTexts = await mut.getPrintingTextsForCardId(cardId);
@@ -395,7 +408,7 @@ export const adminCardMutationsRouter = {
   }),
 
   acceptField: os.acceptField.handler(async ({ input, context }): Promise<void> => {
-    const { candidateMutations: mut, candidateCards, providerSettings } = context.repos;
+    const { catalogMutations: mut, candidateCards, providerSettings } = context.repos;
     const { cardId, field, value } = input;
 
     // Grant holders may only edit cards that still have candidate data from
@@ -512,7 +525,7 @@ export const adminCardMutationsRouter = {
   }),
 
   acceptPrintingField: os.acceptPrintingField.handler(async ({ input, context }): Promise<void> => {
-    const { candidateMutations: mut, rarities } = context.repos;
+    const { catalogMutations: mut, rarities, keywords } = context.repos;
     const { printingId, field, value, source } = input;
 
     // Normalize enum fields that have DB check constraints (before validation
@@ -585,12 +598,12 @@ export const adminCardMutationsRouter = {
 
     // Same pattern for distribution channels (rows in printing_distribution_channels).
     if (field === "distributionChannelSlugs") {
-      const { candidateMutations, distributionChannels: channelsRepo } = context.repos;
+      const { catalogMutations, distributionChannels: channelsRepo } = context.repos;
       const newSlugs = Array.isArray(normalizedValue)
         ? (normalizedValue as string[]).filter((s) => typeof s === "string")
         : [];
       await updatePrintingDistributionChannels(
-        { candidateMutations, distributionChannels: channelsRepo },
+        { catalogMutations, distributionChannels: channelsRepo },
         printingId,
         newSlugs,
       );
@@ -646,7 +659,7 @@ export const adminCardMutationsRouter = {
 
     // Recompute card-level keywords when printing text changes
     if (field === "printedRulesText" || field === "printedEffectText") {
-      await mut.recomputeKeywordsForPrintingCard(printingId);
+      await keywords.recomputeForPrintingCard(printingId);
     }
 
     await auditEvent(auditValue);
@@ -671,7 +684,7 @@ export const adminCardMutationsRouter = {
 
     await context.transact(async (trxRepos) => {
       // FK constraints validate values at DB level — safe to cast from z.string()
-      await trxRepos.candidateMutations.acceptNewCardFromSources(
+      await trxRepos.catalogMutations.acceptNewCardFromSources(
         cardFields as typeof cardFields & {
           types: CardType[];
           domains: Domain[];
@@ -696,7 +709,7 @@ export const adminCardMutationsRouter = {
   acceptFavoriteNewCard: os.acceptFavoriteNewCard.handler(async ({ input, context }) => {
     const {
       candidateCards,
-      candidateMutations,
+      catalogMutations,
       printingImages,
       markers,
       distributionChannels,
@@ -710,7 +723,7 @@ export const adminCardMutationsRouter = {
       context.io,
       {
         candidateCards,
-        candidateMutations,
+        catalogMutations,
         printingImages,
         markers,
         distributionChannels,
@@ -737,7 +750,7 @@ export const adminCardMutationsRouter = {
   acceptFavoritePrintings: os.acceptFavoritePrintings.handler(async ({ input, context }) => {
     const {
       candidateCards,
-      candidateMutations,
+      catalogMutations,
       printingImages,
       markers,
       distributionChannels,
@@ -751,7 +764,7 @@ export const adminCardMutationsRouter = {
       context.io,
       {
         candidateCards,
-        candidateMutations,
+        catalogMutations,
         printingImages,
         markers,
         distributionChannels,
@@ -791,7 +804,7 @@ export const adminCardMutationsRouter = {
   }),
 
   linkUnmatched: os.linkUnmatched.handler(async ({ input, context }): Promise<void> => {
-    const { candidateMutations: mut } = context.repos;
+    const { catalogMutations: mut } = context.repos;
     const { name, cardId } = input;
 
     if (!cardId) {
@@ -802,7 +815,7 @@ export const adminCardMutationsRouter = {
     assertFound(card, "Target card not found");
 
     await context.transact(async (trxRepos) => {
-      await trxRepos.candidateMutations.createNameAliases(name, card.id);
+      await trxRepos.catalogMutations.createNameAliases(name, card.id);
     });
 
     await recordAdminEvent(context.repos, context.userId, {
@@ -816,7 +829,7 @@ export const adminCardMutationsRouter = {
   }),
 
   acceptPrinting: os.acceptPrinting.handler(async ({ input, context }) => {
-    const { candidateMutations, printingImages, markers, distributionChannels, printingEvents } =
+    const { catalogMutations, printingImages, markers, distributionChannels, printingEvents } =
       context.repos;
     const { cardId, printingFields, candidatePrintingIds } = input;
 
@@ -839,14 +852,14 @@ export const adminCardMutationsRouter = {
 
     const printingId = await acceptPrinting(
       context.transact,
-      { candidateMutations, printingImages, markers, distributionChannels, printingEvents },
+      { catalogMutations, printingImages, markers, distributionChannels, printingEvents },
       cardId,
       printingFields,
       candidatePrintingIds,
       context.io,
     );
 
-    const card = await candidateMutations.getCardById(cardId);
+    const card = await catalogMutations.getCardById(cardId);
     await recordAdminEvent(context.repos, context.userId, {
       action: "printing.accept",
       entityType: "printing",
@@ -872,7 +885,7 @@ export const adminCardMutationsRouter = {
     const cardFields = input;
 
     await context.transact(async (trxRepos) => {
-      await trxRepos.candidateMutations.acceptNewCardFromSources(
+      await trxRepos.catalogMutations.acceptNewCardFromSources(
         cardFields as typeof cardFields & {
           types: CardType[];
           domains: Domain[];
@@ -897,20 +910,20 @@ export const adminCardMutationsRouter = {
   }),
 
   createPrinting: os.createPrinting.handler(async ({ input, context }) => {
-    const { candidateMutations, printingImages, markers, distributionChannels, printingEvents } =
+    const { catalogMutations, printingImages, markers, distributionChannels, printingEvents } =
       context.repos;
     const { cardId, ...printingFields } = input;
 
     const printingId = await acceptPrinting(
       context.transact,
-      { candidateMutations, printingImages, markers, distributionChannels, printingEvents },
+      { catalogMutations, printingImages, markers, distributionChannels, printingEvents },
       cardId,
       printingFields,
       [],
       context.io,
     );
 
-    const card = await candidateMutations.getCardById(cardId);
+    const card = await catalogMutations.getCardById(cardId);
     await recordAdminEvent(context.repos, context.userId, {
       action: "printing.create",
       entityType: "printing",

@@ -1,4 +1,4 @@
-import type { candidateMutationsRepo } from "../repositories/candidate-mutations.js";
+import type { candidateCardsRepo } from "../repositories/candidate-cards.js";
 import type { ingestRepo } from "../repositories/ingest.js";
 import {
   loadCandidateLinkIndex,
@@ -7,7 +7,7 @@ import {
 } from "./candidate-links.js";
 
 type IngestRepo = ReturnType<typeof ingestRepo>;
-type CandidateMutationsRepo = ReturnType<typeof candidateMutationsRepo>;
+type CandidateCardsRepo = ReturnType<typeof candidateCardsRepo>;
 
 /**
  * Re-run the ingest-time key resolution for every unlinked candidate printing.
@@ -23,7 +23,7 @@ type CandidateMutationsRepo = ReturnType<typeof candidateMutationsRepo>;
  */
 export async function relinkCandidatePrintings(repos: {
   ingest: IngestRepo;
-  candidateMutations: CandidateMutationsRepo;
+  candidateCards: CandidateCardsRepo;
 }): Promise<{ examined: number; linked: number }> {
   const [unlinked, linkIndex] = await Promise.all([
     repos.ingest.allUnlinkedCandidatePrintings(),
@@ -54,7 +54,7 @@ export async function relinkCandidatePrintings(repos: {
 
   let linked = 0;
   for (const [printingId, ids] of idsByPrinting) {
-    await repos.candidateMutations.linkCandidatePrintings(ids, printingId);
+    await repos.candidateCards.linkCandidatePrintings(ids, printingId);
     linked += ids.length;
   }
 

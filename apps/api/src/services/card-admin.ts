@@ -4,13 +4,15 @@ import type { Transact } from "../deps.js";
 import { AppError } from "../errors.js";
 import type { Io } from "../io.js";
 import type {
-  candidateMutationsRepo,
   CardDeleteBlockers,
-} from "../repositories/candidate-mutations.js";
+  catalogDeleteGuardsRepo,
+} from "../repositories/catalog-delete-guards.js";
+import type { catalogMutationsRepo } from "../repositories/catalog-mutations.js";
 import { assertFound } from "../utils/assertions.js";
 import { cleanupOrphanedImageFiles, deletePrintingRows } from "./printing-admin.js";
 
-type CandidateMutationsRepo = ReturnType<typeof candidateMutationsRepo>;
+type CatalogMutationsRepo = ReturnType<typeof catalogMutationsRepo>;
+type CatalogDeleteGuardsRepo = ReturnType<typeof catalogDeleteGuardsRepo>;
 
 // ── deleteCard ───────────────────────────────────────────────────────────────
 
@@ -36,15 +38,15 @@ const BLOCKER_LABELS: Record<keyof CardDeleteBlockers, string> = {
 export async function deleteCard(
   transact: Transact,
   io: Io,
-  repos: { candidateMutations: CandidateMutationsRepo },
+  repos: { catalogMutations: CatalogMutationsRepo; catalogDeleteGuards: CatalogDeleteGuardsRepo },
   cardId: string,
 ): Promise<void> {
-  const mut = repos.candidateMutations;
+  const mut = repos.catalogMutations;
 
   const card = await mut.getCardById(cardId);
   assertFound(card, "Card not found");
 
-  const blockers = await mut.countCardDeleteBlockers(card.id);
+  const blockers = await repos.catalogDeleteGuards.countForCard(card.id);
   throwIfBlocked(blockers);
 
   const printings = await mut.getPrintingIdsByCardId(card.id);
@@ -52,10 +54,10 @@ export async function deleteCard(
   let orphanCandidateImageIds: string[];
   try {
     orphanCandidateImageIds = await transact(async (trxRepos) => {
-      const trxMut = trxRepos.candidateMutations;
+      const trxMut = trxRepos.catalogMutations;
       const imageFileIds: string[] = [];
       for (const printing of printings) {
-        imageFileIds.push(...(await deletePrintingRows(trxMut, printing.id)));
+        imageFileIds.push(...(await deletePrintingRows(trxRepos, printing.id)));
       }
       await trxMut.deleteCardBansByCardId(card.id);
       await trxMut.deleteMarketplaceCardOverridesByCardId(card.id);
@@ -67,7 +69,7 @@ export async function deleteCard(
     // blocker check and the delete — re-check so the client gets the same
     // CONFLICT it would have gotten had the row existed up front.
     if (error instanceof Error && "code" in error && error.code === "23503") {
-      throwIfBlocked(await mut.countCardDeleteBlockers(card.id));
+      throwIfBlocked(await repos.catalogDeleteGuards.countForCard(card.id));
     }
     throw error;
   }

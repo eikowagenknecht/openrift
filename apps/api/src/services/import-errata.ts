@@ -120,7 +120,8 @@ export async function importErrata(
   }
 
   await transact(async (trxRepos) => {
-    const mut = trxRepos.candidateMutations;
+    const mut = trxRepos.catalogMutations;
+    const errata = trxRepos.cardErrata;
 
     // ── Phase 1: Bulk-fetch all referenced cards and their existing state ──
     const uniqueSlugs = [...new Set(entries.map((entry) => entry.cardSlug))];
@@ -129,7 +130,7 @@ export async function importErrata(
     const cardIds = cards.map((card) => card.id);
 
     const [existingErrata, printingTexts] = await Promise.all([
-      mut.getErrataByCardIds(cardIds),
+      errata.getByCardIds(cardIds),
       mut.getPrintingTextsByCardIds(cardIds),
     ]);
 
@@ -202,7 +203,7 @@ export async function importErrata(
         continue;
       }
 
-      await mut.upsertCardErrata(card.id, incoming);
+      await errata.upsert(card.id, incoming);
       await mut.updateCardById(card.id, { keywords: dedupedKeywords(entry, printings) });
     }
   });

@@ -19,9 +19,12 @@ const mockCatalog = {
 
 const mockMutations = {
   updateCardById: vi.fn(),
-  getCardErrata: vi.fn(),
-  upsertCardErrata: vi.fn(),
   updatePrintingFieldById: vi.fn(),
+};
+
+const mockCardErrata = {
+  getByCardId: vi.fn(),
+  upsert: vi.fn(),
 };
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
@@ -33,7 +36,8 @@ app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
   c.set("repos", {
     catalog: mockCatalog,
-    candidateMutations: mockMutations,
+    catalogMutations: mockMutations,
+    cardErrata: mockCardErrata,
     keywords: { listCostKeywords: vi.fn().mockResolvedValue(["Equip", "Repeat"]) },
   } as never);
   await next();
@@ -203,8 +207,8 @@ describe("POST /api/admin/v1/typography-review/accept", () => {
     expect(mockMutations.updateCardById).not.toHaveBeenCalled();
   });
 
-  it("still routes errata fields through upsertCardErrata", async () => {
-    mockMutations.getCardErrata.mockResolvedValue({
+  it("still routes errata fields through cardErrata.upsert", async () => {
+    mockCardErrata.getByCardId.mockResolvedValue({
       cardId: CARD_ID,
       correctedRulesText: "old",
       correctedEffectText: null,
@@ -212,7 +216,7 @@ describe("POST /api/admin/v1/typography-review/accept", () => {
       sourceUrl: null,
       effectiveDate: null,
     });
-    mockMutations.upsertCardErrata.mockResolvedValue(undefined);
+    mockCardErrata.upsert.mockResolvedValue(undefined);
 
     const res = await app.request("/api/admin/v1/typography-review/accept", {
       method: "POST",
@@ -226,7 +230,7 @@ describe("POST /api/admin/v1/typography-review/accept", () => {
     });
 
     expect(res.status).toBe(204);
-    expect(mockMutations.upsertCardErrata).toHaveBeenCalled();
+    expect(mockCardErrata.upsert).toHaveBeenCalled();
     expect(mockMutations.updateCardById).not.toHaveBeenCalled();
   });
 });

@@ -9,11 +9,13 @@ import { adminGrantsRepo } from "./repositories/admin-grants.js";
 import { adminsRepo } from "./repositories/admins.js";
 import { artVariantsRepo } from "./repositories/art-variants.js";
 import { candidateCardsRepo } from "./repositories/candidate-cards.js";
-import { candidateMutationsRepo } from "./repositories/candidate-mutations.js";
 import { canonicalPrintingsRepo } from "./repositories/canonical-printings.js";
 import { cardBansRepo } from "./repositories/card-bans.js";
+import { cardErrataRepo } from "./repositories/card-errata.js";
 import { cardTradesRepo } from "./repositories/card-trades.js";
 import { cardTypesRepo } from "./repositories/card-types.js";
+import { catalogDeleteGuardsRepo } from "./repositories/catalog-delete-guards.js";
+import { catalogMutationsRepo } from "./repositories/catalog-mutations.js";
 import { catalogRepo } from "./repositories/catalog.js";
 import { collectionDeckbuildingPrefsRepo } from "./repositories/collection-deckbuilding-prefs.js";
 import { collectionEventsRepo } from "./repositories/collection-events.js";
@@ -106,14 +108,16 @@ export interface Repos {
   adminGrants: ReturnType<typeof adminGrantsRepo>;
   artVariants: ReturnType<typeof artVariantsRepo>;
   cardBans: ReturnType<typeof cardBansRepo>;
+  cardErrata: ReturnType<typeof cardErrataRepo>;
   cardTrades: ReturnType<typeof cardTradesRepo>;
   deckCheck: ReturnType<typeof deckCheckRepo>;
   deckCheckKeys: ReturnType<typeof deckCheckKeysRepo>;
   cardTypes: ReturnType<typeof cardTypesRepo>;
   canonicalPrintings: ReturnType<typeof canonicalPrintingsRepo>;
-  candidateMutations: ReturnType<typeof candidateMutationsRepo>;
   candidateCards: ReturnType<typeof candidateCardsRepo>;
   catalog: ReturnType<typeof catalogRepo>;
+  catalogDeleteGuards: ReturnType<typeof catalogDeleteGuardsRepo>;
+  catalogMutations: ReturnType<typeof catalogMutationsRepo>;
   collections: ReturnType<typeof collectionsRepo>;
   collectionDeckbuildingPrefs: ReturnType<typeof collectionDeckbuildingPrefsRepo>;
   copies: ReturnType<typeof copiesRepo>;
@@ -265,14 +269,16 @@ export function createRepos(db: Kysely<Database>): Repos {
     adminGrants: adminGrantsRepo(db),
     artVariants: artVariantsRepo(db),
     cardBans: cardBansRepo(db),
+    cardErrata: cardErrataRepo(db),
     cardTrades: cardTradesRepo(db),
     deckCheck: deckCheckRepo(db),
     deckCheckKeys: deckCheckKeysRepo(db),
     cardTypes: cardTypesRepo(db),
     canonicalPrintings: canonicalPrintingsRepo(db),
-    candidateMutations: candidateMutationsRepo(db),
     candidateCards: candidateCardsRepo(db),
     catalog: catalogRepo(db),
+    catalogDeleteGuards: catalogDeleteGuardsRepo(db),
+    catalogMutations: catalogMutationsRepo(db),
     collections: collectionsRepo(db),
     collectionDeckbuildingPrefs: collectionDeckbuildingPrefsRepo(db),
     copies: copiesRepo(db),

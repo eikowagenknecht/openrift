@@ -32,7 +32,7 @@ describe("updatePrintingMarkers", () => {
 
   it("throws NOT_FOUND when printing does not exist", async () => {
     const trxRepos = {
-      candidateMutations: {
+      catalogMutations: {
         getPrintingById: vi.fn(async () => null),
       },
       markers: {},
@@ -45,7 +45,7 @@ describe("updatePrintingMarkers", () => {
 
   it("throws BAD_REQUEST when any marker slug is unknown", async () => {
     const trxRepos = {
-      candidateMutations: {
+      catalogMutations: {
         getPrintingById: vi.fn(async () => ({
           id: "p-uuid",
           shortCode: "OGN-001",
@@ -66,7 +66,7 @@ describe("updatePrintingMarkers", () => {
   it("clears markers when the slug list is empty", async () => {
     const setForPrinting = vi.fn(async () => {});
     const trxRepos = {
-      candidateMutations: {
+      catalogMutations: {
         getPrintingById: vi.fn(async () => ({
           id: "p-uuid",
           shortCode: "OGN-001",
@@ -84,7 +84,7 @@ describe("updatePrintingMarkers", () => {
   it("syncs markers via the join table for a non-empty slug list", async () => {
     const setForPrinting = vi.fn(async () => {});
     const trxRepos = {
-      candidateMutations: {
+      catalogMutations: {
         getPrintingById: vi.fn(async () => ({
           id: "p-uuid",
           shortCode: "OGN-001",
@@ -122,7 +122,7 @@ describe("deletePrinting", () => {
 
   it("throws NOT_FOUND when printing does not exist", async () => {
     const repos = {
-      candidateMutations: {
+      catalogMutations: {
         getPrintingById: vi.fn(async () => null),
       },
     };
@@ -140,13 +140,17 @@ describe("deletePrinting", () => {
     const deletePrintingById = vi.fn(async () => {});
 
     const repos = {
-      candidateMutations: {
+      catalogMutations: {
         getPrintingById: vi.fn(async () => ({ id: "p-uuid" })),
-        countPrintingDeleteBlockers: vi.fn(async () => NO_PRINTING_BLOCKERS),
-        unlinkCandidatePrintingsByPrintingId,
         deletePrintingImagesByPrintingId,
-        deletePrintingLinkOverridesById,
         deletePrintingById,
+      },
+      candidateCards: {
+        unlinkCandidatePrintingsByPrintingId,
+        deletePrintingLinkOverridesById,
+      },
+      catalogDeleteGuards: {
+        countForPrinting: vi.fn(async () => NO_PRINTING_BLOCKERS),
       },
     };
     const transact = mockTransact(repos);
@@ -164,14 +168,16 @@ describe("deletePrinting", () => {
     // surface as a raw PostgresError 500 instead of a clean CONFLICT.
     const deletePrintingById = vi.fn(async () => {});
     const repos = {
-      candidateMutations: {
+      catalogMutations: {
         getPrintingById: vi.fn(async () => ({ id: "p-uuid" })),
-        countPrintingDeleteBlockers: vi.fn(async () => ({
+        deletePrintingById,
+      },
+      catalogDeleteGuards: {
+        countForPrinting: vi.fn(async () => ({
           ...NO_PRINTING_BLOCKERS,
           copies: 3,
           listEntries: 1,
         })),
-        deletePrintingById,
       },
     };
     const transact = mockTransact(repos);
@@ -187,15 +193,12 @@ describe("deletePrinting", () => {
 
   it("cleans up rehosted files on disk after transaction", async () => {
     const repos = {
-      candidateMutations: {
+      catalogMutations: {
         getPrintingById: vi.fn(async () => ({ id: "p-uuid" })),
-        countPrintingDeleteBlockers: vi.fn(async () => NO_PRINTING_BLOCKERS),
-        unlinkCandidatePrintingsByPrintingId: vi.fn(async () => {}),
         deletePrintingImagesByPrintingId: vi.fn(async () => [
           { imageFileId: "ci-1" },
           { imageFileId: "ci-2" },
         ]),
-        deletePrintingLinkOverridesById: vi.fn(async () => {}),
         deletePrintingById: vi.fn(async () => {}),
         getImageFileById: vi.fn(async (id: string) =>
           id === "ci-1"
@@ -204,6 +207,13 @@ describe("deletePrinting", () => {
         ),
         isImageFileReferenced: vi.fn(async () => false),
         deleteImageFileById: vi.fn(async () => {}),
+      },
+      candidateCards: {
+        unlinkCandidatePrintingsByPrintingId: vi.fn(async () => {}),
+        deletePrintingLinkOverridesById: vi.fn(async () => {}),
+      },
+      catalogDeleteGuards: {
+        countForPrinting: vi.fn(async () => NO_PRINTING_BLOCKERS),
       },
     };
     const transact = mockTransact(repos);
@@ -226,10 +236,12 @@ describe("acceptPrinting", () => {
 
   function baseRepos(overrides: Record<string, unknown> = {}) {
     return {
-      candidateMutations: {
+      catalogMutations: {
         getCardById: vi.fn(async () => ({ id: "card-uuid", name: "Test", slug: "test" })),
         getPrintingCardIdByComposite: vi.fn(async () => null),
         upsertPrinting: vi.fn(async () => "p-uuid"),
+      },
+      candidateCards: {
         linkAndCheckCandidatePrintings: vi.fn(async () => {}),
       },
       printingImages: { insertImage: vi.fn(async () => "pi-1") },
@@ -264,10 +276,13 @@ describe("acceptPrinting", () => {
   function withTrxExtras(repos: ReturnType<typeof baseRepos>) {
     return {
       ...repos,
-      candidateMutations: {
-        ...repos.candidateMutations,
+      catalogMutations: {
+        ...repos.catalogMutations,
         getSetIdBySlug: vi.fn(async () => ({ id: "set-uuid" })),
-        recomputeKeywordsForPrintingCard: vi.fn(async () => {}),
+      },
+      keywords: {
+        ...repos.keywords,
+        recomputeForPrintingCard: vi.fn(async () => {}),
       },
     };
   }
@@ -317,7 +332,7 @@ describe("acceptPrinting", () => {
 
   it("throws CONFLICT when printing identity belongs to a different card", async () => {
     const repos = baseRepos({
-      candidateMutations: {
+      catalogMutations: {
         getCardById: vi.fn(async () => ({ id: "card-uuid", name: "Test", slug: "test" })),
         getPrintingCardIdByComposite: vi.fn(async () => ({ cardId: "other-card-uuid" })),
       },
@@ -378,7 +393,7 @@ describe("acceptPrinting", () => {
       "p-uuid",
       "https://example.com/img.png",
     );
-    expect(repos.candidateMutations.linkAndCheckCandidatePrintings).toHaveBeenCalledWith(
+    expect(repos.candidateCards.linkAndCheckCandidatePrintings).toHaveBeenCalledWith(
       ["cp-1"],
       "p-uuid",
     );
@@ -389,10 +404,12 @@ describe("acceptPrinting", () => {
     const linkAndCheckCandidatePrintings = vi.fn(async () => {});
 
     const repos = {
-      candidateMutations: {
+      catalogMutations: {
         getCardById: vi.fn(async () => ({ id: "card-uuid", name: "Test", slug: "test" })),
         getPrintingCardIdByComposite: vi.fn(async () => null),
         upsertPrinting,
+      },
+      candidateCards: {
         linkAndCheckCandidatePrintings,
       },
       printingImages: {},
@@ -424,10 +441,13 @@ describe("acceptPrinting", () => {
 
     const trxRepos = {
       ...repos,
-      candidateMutations: {
-        ...repos.candidateMutations,
+      catalogMutations: {
+        ...repos.catalogMutations,
         getSetIdBySlug: vi.fn(async () => ({ id: "set-uuid" })),
-        recomputeKeywordsForPrintingCard: vi.fn(async () => {}),
+      },
+      keywords: {
+        ...repos.keywords,
+        recomputeForPrintingCard: vi.fn(async () => {}),
       },
     };
 
@@ -477,10 +497,12 @@ describe("acceptPrinting", () => {
 
   it("does not insert image when imageUrl is absent", async () => {
     const repos = baseRepos({
-      candidateMutations: {
+      catalogMutations: {
         getCardById: vi.fn(async () => ({ id: "card-uuid", name: "Test", slug: "test" })),
         getPrintingCardIdByComposite: vi.fn(async () => null),
         upsertPrinting: vi.fn(async () => "p-uuid"),
+      },
+      candidateCards: {
         linkAndCheckCandidatePrintings: vi.fn(async () => {}),
       },
     });

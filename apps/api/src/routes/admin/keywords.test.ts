@@ -27,10 +27,7 @@ const mockKeywords = {
   deleteStyle: vi.fn(),
   upsertTranslation: vi.fn(),
   deleteTranslation: vi.fn(),
-};
-
-const mockCandidateMutations = {
-  recomputeAllKeywords: vi.fn(),
+  recomputeAll: vi.fn(),
 };
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
@@ -43,7 +40,6 @@ app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
   c.set("repos", {
     keywords: mockKeywords,
-    candidateMutations: mockCandidateMutations,
   } as never);
   await next();
 });
@@ -147,12 +143,12 @@ describe("POST /recompute-keywords", () => {
   });
 
   it("returns the recompute result", async () => {
-    mockCandidateMutations.recomputeAllKeywords.mockResolvedValue({ totalCards: 100, updated: 7 });
+    mockKeywords.recomputeAll.mockResolvedValue({ totalCards: 100, updated: 7 });
 
     const res = await app.request("/api/admin/v1/recompute-keywords", { method: "POST" });
     expect(res.status).toBe(200);
     expect(await readJson(res)).toEqual({ totalCards: 100, updated: 7 });
-    expect(mockCandidateMutations.recomputeAllKeywords).toHaveBeenCalledTimes(1);
+    expect(mockKeywords.recomputeAll).toHaveBeenCalledTimes(1);
   });
 });
 

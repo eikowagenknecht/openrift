@@ -2,7 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createTransact } from "../deps.js";
 import type { Io } from "../io.js";
-import { candidateMutationsRepo } from "../repositories/candidate-mutations.js";
+import { catalogDeleteGuardsRepo } from "../repositories/catalog-delete-guards.js";
+import { catalogMutationsRepo } from "../repositories/catalog-mutations.js";
 import { createDbContext, seedTestUser, syncCardCardTypes } from "../test/integration-context.js";
 import { deleteCard } from "./card-admin.js";
 
@@ -22,7 +23,8 @@ describe.skipIf(!ctx)("deleteCard (integration)", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
   const { db } = ctx!;
   const transact = createTransact(db);
-  const mut = candidateMutationsRepo(db);
+  const mut = catalogMutationsRepo(db);
+  const guards = catalogDeleteGuardsRepo(db);
 
   const SET_SLUG = "CADM-TEST";
   const CARD_SLUG = "CADM-001";
@@ -120,7 +122,12 @@ describe.skipIf(!ctx)("deleteCard (integration)", () => {
 
   it("refuses with CONFLICT while a copy references one of the card's printings", async () => {
     await expect(
-      deleteCard(transact, {} as Io, { candidateMutations: mut }, cardId),
+      deleteCard(
+        transact,
+        {} as Io,
+        { catalogMutations: mut, catalogDeleteGuards: guards },
+        cardId,
+      ),
     ).rejects.toThrow("collection copies (1)");
 
     const stillThere = await db
@@ -134,7 +141,12 @@ describe.skipIf(!ctx)("deleteCard (integration)", () => {
   it("deletes the card, its printings, and cascading children once unblocked", async () => {
     await db.deleteFrom("copies").where("id", "=", copyId).execute();
 
-    await deleteCard(transact, {} as Io, { candidateMutations: mut }, cardId);
+    await deleteCard(
+      transact,
+      {} as Io,
+      { catalogMutations: mut, catalogDeleteGuards: guards },
+      cardId,
+    );
 
     const card = await db
       .selectFrom("cards")
@@ -163,7 +175,7 @@ describe.skipIf(!ctx)("deleteCard (integration)", () => {
       deleteCard(
         transact,
         {} as Io,
-        { candidateMutations: mut },
+        { catalogMutations: mut, catalogDeleteGuards: guards },
         "00000000-0000-4000-a000-000000000000",
       ),
     ).rejects.toThrow("Card not found");

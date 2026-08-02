@@ -50,38 +50,29 @@ const mockAppendSetTotal = vi.mocked(appendSetTotal);
 // ---------------------------------------------------------------------------
 
 const mockMut = {
-  checkCandidateCard: vi.fn(),
-  uncheckCandidateCard: vi.fn(),
-  checkAllCandidatePrintings: vi.fn(),
-  checkCandidatePrinting: vi.fn(),
-  uncheckCandidatePrinting: vi.fn(),
   getCardById: vi.fn(),
   getCardAliases: vi.fn(),
-  checkAllCandidateCards: vi.fn(),
-  patchCandidatePrinting: vi.fn(),
-  deleteCandidatePrinting: vi.fn(),
-  getCandidatePrintingById: vi.fn(),
   getPrintingDifferentiatorsById: vi.fn(),
-  copyCandidatePrinting: vi.fn(),
-  linkCandidatePrintings: vi.fn(),
-  upsertPrintingLinkOverrides: vi.fn(),
-  removePrintingLinkOverrides: vi.fn(),
   renameCardSlugById: vi.fn(),
-  checkByProvider: vi.fn(),
-  deleteByProvider: vi.fn(),
-  upsertCardErrata: vi.fn(),
-  deleteCardErrata: vi.fn(),
   getPrintingTextsForCardId: vi.fn(),
   updateCardById: vi.fn(),
   replaceCardDomainsById: vi.fn(),
   replaceCardSuperTypesById: vi.fn(),
   getFullPrintingById: vi.fn(),
   getFullCardById: vi.fn(),
-  getErrataByCardIds: vi.fn(async () => []),
   updatePrintingFieldById: vi.fn(),
-  recomputeKeywordsForPrintingCard: vi.fn(),
   getSetPrintedTotalForPrinting: vi.fn(),
 };
+
+const mockCardErrata = {
+  upsert: vi.fn(),
+  deleteByCardId: vi.fn(),
+  getByCardIds: vi.fn(async () => []),
+};
+
+const mockKeywords = { recomputeForPrintingCard: vi.fn() };
+
+const mockCatalogDeleteGuards = { countForCard: vi.fn(), countForPrinting: vi.fn() };
 
 // Audit event sink (record-admin-event.ts); handlers write here best-effort.
 const mockAdminEvents = { insert: vi.fn() };
@@ -97,14 +88,30 @@ const mockIo = { fetch: vi.fn() };
 const mockTransact = vi.fn(
   async (
     cb: (repos: {
-      candidateMutations: typeof mockTrxMut;
+      catalogMutations: typeof mockTrxMut;
       printingImages: object;
     }) => Promise<unknown>,
-  ) => cb({ candidateMutations: mockTrxMut, printingImages: {} }),
+  ) => cb({ catalogMutations: mockTrxMut, printingImages: {} }),
 );
 const mockSets = { getBySlug: vi.fn() };
 const mockRefreshCatalogViews = vi.fn();
-const mockCandidateCards = {};
+const mockCandidateCards = {
+  checkCandidateCard: vi.fn(),
+  uncheckCandidateCard: vi.fn(),
+  checkAllCandidatePrintings: vi.fn(),
+  checkCandidatePrinting: vi.fn(),
+  uncheckCandidatePrinting: vi.fn(),
+  checkAllCandidateCards: vi.fn(),
+  patchCandidatePrinting: vi.fn(),
+  deleteCandidatePrinting: vi.fn(),
+  getCandidatePrintingById: vi.fn(),
+  copyCandidatePrinting: vi.fn(),
+  linkCandidatePrintings: vi.fn(),
+  upsertPrintingLinkOverrides: vi.fn(),
+  removePrintingLinkOverrides: vi.fn(),
+  checkByProvider: vi.fn(),
+  deleteByProvider: vi.fn(),
+};
 
 // ---------------------------------------------------------------------------
 // Test app — mount the oRPC router directly (without the requireAdmin gate).
@@ -122,7 +129,10 @@ app.use("*", async (c, next) => {
   c.set("io", mockIo as never);
   c.set("transact", mockTransact as never);
   c.set("repos", {
-    candidateMutations: mockMut,
+    catalogMutations: mockMut,
+    catalogDeleteGuards: mockCatalogDeleteGuards,
+    cardErrata: mockCardErrata,
+    keywords: { ...mockKeywords, listCostKeywords: vi.fn().mockResolvedValue(["Equip", "Repeat"]) },
     adminEvents: mockAdminEvents,
     candidateCards: mockCandidateCards,
     printingImages: {},
@@ -137,7 +147,6 @@ app.use("*", async (c, next) => {
         .fn()
         .mockResolvedValue([{ slug: "common" }, { slug: "uncommon" }, { slug: "rare" }]),
     },
-    keywords: { listCostKeywords: vi.fn().mockResolvedValue(["Equip", "Repeat"]) },
   } as never);
   c.set("services", {
     importErrata: mockImportErrata,
@@ -158,22 +167,22 @@ describe("POST /cards/:candidateCardId/check", () => {
   });
 
   it("returns 204 on success", async () => {
-    mockMut.checkCandidateCard.mockResolvedValue({ numUpdatedRows: 1n });
+    mockCandidateCards.checkCandidateCard.mockResolvedValue({ numUpdatedRows: 1n });
 
     const res = await app.request(`/api/admin/v1/cards/${CARD_ID}/check`, { method: "POST" });
     expect(res.status).toBe(204);
-    expect(mockMut.checkCandidateCard).toHaveBeenCalledWith(CARD_ID);
+    expect(mockCandidateCards.checkCandidateCard).toHaveBeenCalledWith(CARD_ID);
   });
 
   it("returns 404 when candidate card not found", async () => {
-    mockMut.checkCandidateCard.mockResolvedValue({ numUpdatedRows: 0n });
+    mockCandidateCards.checkCandidateCard.mockResolvedValue({ numUpdatedRows: 0n });
 
     const res = await app.request(`/api/admin/v1/cards/${CARD_ID}/check`, { method: "POST" });
     expect(res.status).toBe(404);
   });
 
   it("returns 404 when result is null", async () => {
-    mockMut.checkCandidateCard.mockResolvedValue(null);
+    mockCandidateCards.checkCandidateCard.mockResolvedValue(null);
 
     const res = await app.request(`/api/admin/v1/cards/${CARD_ID}/check`, { method: "POST" });
     expect(res.status).toBe(404);
@@ -186,15 +195,15 @@ describe("POST /cards/:candidateCardId/uncheck", () => {
   });
 
   it("returns 204 on success", async () => {
-    mockMut.uncheckCandidateCard.mockResolvedValue({ numUpdatedRows: 1n });
+    mockCandidateCards.uncheckCandidateCard.mockResolvedValue({ numUpdatedRows: 1n });
 
     const res = await app.request(`/api/admin/v1/cards/${CARD_ID}/uncheck`, { method: "POST" });
     expect(res.status).toBe(204);
-    expect(mockMut.uncheckCandidateCard).toHaveBeenCalledWith(CARD_ID);
+    expect(mockCandidateCards.uncheckCandidateCard).toHaveBeenCalledWith(CARD_ID);
   });
 
   it("returns 404 when candidate card not found", async () => {
-    mockMut.uncheckCandidateCard.mockResolvedValue({ numUpdatedRows: 0n });
+    mockCandidateCards.uncheckCandidateCard.mockResolvedValue({ numUpdatedRows: 0n });
 
     const res = await app.request(`/api/admin/v1/cards/${CARD_ID}/uncheck`, { method: "POST" });
     expect(res.status).toBe(404);
@@ -207,7 +216,7 @@ describe("POST /cards/candidate-printings/check-all", () => {
   });
 
   it("returns 200 with updated count", async () => {
-    mockMut.checkAllCandidatePrintings.mockResolvedValue(5);
+    mockCandidateCards.checkAllCandidatePrintings.mockResolvedValue(5);
 
     const res = await app.request("/api/admin/v1/cards/candidate-printings/check-all", {
       method: "POST",
@@ -217,11 +226,14 @@ describe("POST /cards/candidate-printings/check-all", () => {
     expect(res.status).toBe(200);
     const json = await readJson(res);
     expect(json).toEqual({ updated: 5 });
-    expect(mockMut.checkAllCandidatePrintings).toHaveBeenCalledWith("p-1", ["e-1", "e-2"]);
+    expect(mockCandidateCards.checkAllCandidatePrintings).toHaveBeenCalledWith("p-1", [
+      "e-1",
+      "e-2",
+    ]);
   });
 
   it("works without optional fields", async () => {
-    mockMut.checkAllCandidatePrintings.mockResolvedValue(0);
+    mockCandidateCards.checkAllCandidatePrintings.mockResolvedValue(0);
 
     const res = await app.request("/api/admin/v1/cards/candidate-printings/check-all", {
       method: "POST",
@@ -240,17 +252,17 @@ describe("POST /cards/candidate-printings/:id/check", () => {
   });
 
   it("returns 204 on success", async () => {
-    mockMut.checkCandidatePrinting.mockResolvedValue({ numUpdatedRows: 1n });
+    mockCandidateCards.checkCandidatePrinting.mockResolvedValue({ numUpdatedRows: 1n });
 
     const res = await app.request(`/api/admin/v1/cards/candidate-printings/${CP_ID}/check`, {
       method: "POST",
     });
     expect(res.status).toBe(204);
-    expect(mockMut.checkCandidatePrinting).toHaveBeenCalledWith(CP_ID);
+    expect(mockCandidateCards.checkCandidatePrinting).toHaveBeenCalledWith(CP_ID);
   });
 
   it("returns 404 when not found", async () => {
-    mockMut.checkCandidatePrinting.mockResolvedValue({ numUpdatedRows: 0n });
+    mockCandidateCards.checkCandidatePrinting.mockResolvedValue({ numUpdatedRows: 0n });
 
     const res = await app.request(`/api/admin/v1/cards/candidate-printings/${CP_ID}/check`, {
       method: "POST",
@@ -265,17 +277,17 @@ describe("POST /cards/candidate-printings/:id/uncheck", () => {
   });
 
   it("returns 204 on success", async () => {
-    mockMut.uncheckCandidatePrinting.mockResolvedValue({ numUpdatedRows: 1n });
+    mockCandidateCards.uncheckCandidatePrinting.mockResolvedValue({ numUpdatedRows: 1n });
 
     const res = await app.request(`/api/admin/v1/cards/candidate-printings/${CP_ID}/uncheck`, {
       method: "POST",
     });
     expect(res.status).toBe(204);
-    expect(mockMut.uncheckCandidatePrinting).toHaveBeenCalledWith(CP_ID);
+    expect(mockCandidateCards.uncheckCandidatePrinting).toHaveBeenCalledWith(CP_ID);
   });
 
   it("returns 404 when not found", async () => {
-    mockMut.uncheckCandidatePrinting.mockResolvedValue({ numUpdatedRows: 0n });
+    mockCandidateCards.uncheckCandidatePrinting.mockResolvedValue({ numUpdatedRows: 0n });
 
     const res = await app.request(`/api/admin/v1/cards/candidate-printings/${CP_ID}/uncheck`, {
       method: "POST",
@@ -296,13 +308,13 @@ describe("POST /cards/:cardId/check-all", () => {
       slug: "fire-dragon",
     });
     mockMut.getCardAliases.mockResolvedValue([{ normName: "fire-dragon-alt" }]);
-    mockMut.checkAllCandidateCards.mockResolvedValue(3);
+    mockCandidateCards.checkAllCandidateCards.mockResolvedValue(3);
 
     const res = await app.request(`/api/admin/v1/cards/${CARD_ID2}/check-all`, { method: "POST" });
     expect(res.status).toBe(200);
     const json = await readJson(res);
     expect(json).toEqual({ updated: 3 });
-    expect(mockMut.checkAllCandidateCards).toHaveBeenCalledWith(
+    expect(mockCandidateCards.checkAllCandidateCards).toHaveBeenCalledWith(
       expect.arrayContaining(["fire-dragon-alt"]),
       "card-uuid",
     );
@@ -322,10 +334,10 @@ describe("POST /cards/:cardId/check-all", () => {
       slug: "fire-dragon",
     });
     mockMut.getCardAliases.mockResolvedValue([]);
-    mockMut.checkAllCandidateCards.mockResolvedValue(1);
+    mockCandidateCards.checkAllCandidateCards.mockResolvedValue(1);
 
     await app.request(`/api/admin/v1/cards/${CARD_ID2}/check-all`, { method: "POST" });
-    const callArgs = mockMut.checkAllCandidateCards.mock.calls[0];
+    const callArgs = mockCandidateCards.checkAllCandidateCards.mock.calls[0];
     const uniqueVariants = new Set(callArgs[0]);
     expect(uniqueVariants.size).toBe(callArgs[0].length);
   });
@@ -337,7 +349,7 @@ describe("PATCH /cards/candidate-printings/:id", () => {
   });
 
   it("returns 204 on successful patch", async () => {
-    mockMut.patchCandidatePrinting.mockResolvedValue({ numUpdatedRows: 1n });
+    mockCandidateCards.patchCandidatePrinting.mockResolvedValue({ numUpdatedRows: 1n });
 
     const res = await app.request(`/api/admin/v1/cards/candidate-printings/${CP_ID}`, {
       method: "PATCH",
@@ -345,7 +357,7 @@ describe("PATCH /cards/candidate-printings/:id", () => {
       body: JSON.stringify({ artVariant: "alternate", finish: "foil" }),
     });
     expect(res.status).toBe(204);
-    expect(mockMut.patchCandidatePrinting).toHaveBeenCalledWith(CP_ID, {
+    expect(mockCandidateCards.patchCandidatePrinting).toHaveBeenCalledWith(CP_ID, {
       artVariant: "alternate",
       finish: "foil",
     });
@@ -363,7 +375,7 @@ describe("PATCH /cards/candidate-printings/:id", () => {
   });
 
   it("returns 404 when candidate printing not found", async () => {
-    mockMut.patchCandidatePrinting.mockResolvedValue({ numUpdatedRows: 0n });
+    mockCandidateCards.patchCandidatePrinting.mockResolvedValue({ numUpdatedRows: 0n });
 
     const res = await app.request(`/api/admin/v1/cards/candidate-printings/${CP_ID}`, {
       method: "PATCH",
@@ -380,17 +392,17 @@ describe("DELETE /cards/candidate-printings/:id", () => {
   });
 
   it("returns 204 on success", async () => {
-    mockMut.deleteCandidatePrinting.mockResolvedValue({ numDeletedRows: 1n });
+    mockCandidateCards.deleteCandidatePrinting.mockResolvedValue({ numDeletedRows: 1n });
 
     const res = await app.request(`/api/admin/v1/cards/candidate-printings/${CP_ID}`, {
       method: "DELETE",
     });
     expect(res.status).toBe(204);
-    expect(mockMut.deleteCandidatePrinting).toHaveBeenCalledWith(CP_ID);
+    expect(mockCandidateCards.deleteCandidatePrinting).toHaveBeenCalledWith(CP_ID);
   });
 
   it("returns 404 when not found", async () => {
-    mockMut.deleteCandidatePrinting.mockResolvedValue({ numDeletedRows: 0n });
+    mockCandidateCards.deleteCandidatePrinting.mockResolvedValue({ numDeletedRows: 0n });
 
     const res = await app.request(`/api/admin/v1/cards/candidate-printings/${CP_ID}`, {
       method: "DELETE",
@@ -407,9 +419,9 @@ describe("POST /cards/candidate-printings/:id/copy", () => {
   it("returns 204 on successful copy", async () => {
     const candidatePrinting = { id: "cp-1", name: "Fire Dragon" };
     const targetPrinting = { id: "p-2", slug: "p-2" };
-    mockMut.getCandidatePrintingById.mockResolvedValue(candidatePrinting);
+    mockCandidateCards.getCandidatePrintingById.mockResolvedValue(candidatePrinting);
     mockMut.getPrintingDifferentiatorsById.mockResolvedValue(targetPrinting);
-    mockMut.copyCandidatePrinting.mockResolvedValue(undefined);
+    mockCandidateCards.copyCandidatePrinting.mockResolvedValue(undefined);
 
     const res = await app.request(`/api/admin/v1/cards/candidate-printings/${CP_ID}/copy`, {
       method: "POST",
@@ -417,7 +429,10 @@ describe("POST /cards/candidate-printings/:id/copy", () => {
       body: JSON.stringify({ printingId: "p-2" }),
     });
     expect(res.status).toBe(204);
-    expect(mockMut.copyCandidatePrinting).toHaveBeenCalledWith(candidatePrinting, targetPrinting);
+    expect(mockCandidateCards.copyCandidatePrinting).toHaveBeenCalledWith(
+      candidatePrinting,
+      targetPrinting,
+    );
   });
 
   it("returns 400 when printingId is empty", async () => {
@@ -430,7 +445,7 @@ describe("POST /cards/candidate-printings/:id/copy", () => {
   });
 
   it("returns 404 when candidate printing not found", async () => {
-    mockMut.getCandidatePrintingById.mockResolvedValue(null);
+    mockCandidateCards.getCandidatePrintingById.mockResolvedValue(null);
 
     const res = await app.request(`/api/admin/v1/cards/candidate-printings/${CP_ID}/copy`, {
       method: "POST",
@@ -443,7 +458,7 @@ describe("POST /cards/candidate-printings/:id/copy", () => {
   });
 
   it("returns 404 when target printing not found", async () => {
-    mockMut.getCandidatePrintingById.mockResolvedValue({ id: "cp-1" });
+    mockCandidateCards.getCandidatePrintingById.mockResolvedValue({ id: "cp-1" });
     mockMut.getPrintingDifferentiatorsById.mockResolvedValue(null);
 
     const res = await app.request(`/api/admin/v1/cards/candidate-printings/${CP_ID}/copy`, {
@@ -463,8 +478,8 @@ describe("POST /cards/candidate-printings/link", () => {
   });
 
   it("returns 204 and upserts link overrides when linking", async () => {
-    mockMut.linkCandidatePrintings.mockResolvedValue(undefined);
-    mockMut.upsertPrintingLinkOverrides.mockResolvedValue(undefined);
+    mockCandidateCards.linkCandidatePrintings.mockResolvedValue(undefined);
+    mockCandidateCards.upsertPrintingLinkOverrides.mockResolvedValue(undefined);
 
     const res = await app.request("/api/admin/v1/cards/candidate-printings/link", {
       method: "POST",
@@ -472,13 +487,16 @@ describe("POST /cards/candidate-printings/link", () => {
       body: JSON.stringify({ candidatePrintingIds: ["cp-1", "cp-2"], printingId: "p-1" }),
     });
     expect(res.status).toBe(204);
-    expect(mockMut.linkCandidatePrintings).toHaveBeenCalledWith(["cp-1", "cp-2"], "p-1");
-    expect(mockMut.upsertPrintingLinkOverrides).toHaveBeenCalledWith(["cp-1", "cp-2"], "p-1");
+    expect(mockCandidateCards.linkCandidatePrintings).toHaveBeenCalledWith(["cp-1", "cp-2"], "p-1");
+    expect(mockCandidateCards.upsertPrintingLinkOverrides).toHaveBeenCalledWith(
+      ["cp-1", "cp-2"],
+      "p-1",
+    );
   });
 
   it("removes link overrides when unlinking (printingId is null)", async () => {
-    mockMut.linkCandidatePrintings.mockResolvedValue(undefined);
-    mockMut.removePrintingLinkOverrides.mockResolvedValue(undefined);
+    mockCandidateCards.linkCandidatePrintings.mockResolvedValue(undefined);
+    mockCandidateCards.removePrintingLinkOverrides.mockResolvedValue(undefined);
 
     const res = await app.request("/api/admin/v1/cards/candidate-printings/link", {
       method: "POST",
@@ -486,7 +504,7 @@ describe("POST /cards/candidate-printings/link", () => {
       body: JSON.stringify({ candidatePrintingIds: ["cp-1"], printingId: null }),
     });
     expect(res.status).toBe(204);
-    expect(mockMut.removePrintingLinkOverrides).toHaveBeenCalledWith(["cp-1"]);
+    expect(mockCandidateCards.removePrintingLinkOverrides).toHaveBeenCalledWith(["cp-1"]);
   });
 
   it("returns 400 when candidatePrintingIds is empty", async () => {
@@ -577,7 +595,7 @@ describe("DELETE /cards/printing/:printingId", () => {
     expect(mockDeletePrinting).toHaveBeenCalledWith(
       mockTransact,
       mockIo,
-      expect.objectContaining({ candidateMutations: mockMut }),
+      expect.objectContaining({ catalogMutations: mockMut }),
       PRINTING_ID,
     );
   });
@@ -589,7 +607,10 @@ describe("POST /cards/by-provider/:provider/check", () => {
   });
 
   it("returns 200 with check result", async () => {
-    mockMut.checkByProvider.mockResolvedValue({ cardsChecked: 10, printingsChecked: 20 });
+    mockCandidateCards.checkByProvider.mockResolvedValue({
+      cardsChecked: 10,
+      printingsChecked: 20,
+    });
 
     const res = await app.request("/api/admin/v1/cards/by-provider/tcgplayer/check", {
       method: "POST",
@@ -597,7 +618,7 @@ describe("POST /cards/by-provider/:provider/check", () => {
     expect(res.status).toBe(200);
     const json = await readJson(res);
     expect(json).toEqual({ cardsChecked: 10, printingsChecked: 20 });
-    expect(mockMut.checkByProvider).toHaveBeenCalledWith("tcgplayer", expect.any(Date));
+    expect(mockCandidateCards.checkByProvider).toHaveBeenCalledWith("tcgplayer", expect.any(Date));
   });
 
   it("returns 400 when provider is empty (decoded blank)", async () => {
@@ -614,7 +635,7 @@ describe("DELETE /cards/by-provider/:provider", () => {
   });
 
   it("returns 200 with delete result", async () => {
-    mockMut.deleteByProvider.mockResolvedValue(15);
+    mockCandidateCards.deleteByProvider.mockResolvedValue(15);
 
     const res = await app.request("/api/admin/v1/cards/by-provider/tcgplayer", {
       method: "DELETE",
@@ -622,7 +643,7 @@ describe("DELETE /cards/by-provider/:provider", () => {
     expect(res.status).toBe(200);
     const json = await readJson(res);
     expect(json).toEqual({ provider: "tcgplayer", deleted: 15 });
-    expect(mockMut.deleteByProvider).toHaveBeenCalledWith("tcgplayer");
+    expect(mockCandidateCards.deleteByProvider).toHaveBeenCalledWith("tcgplayer");
   });
 
   it("returns 400 when provider is empty (decoded blank)", async () => {
@@ -639,7 +660,7 @@ describe("POST /cards/:cardId/errata", () => {
   });
 
   it("upserts errata and recomputes keywords (204)", async () => {
-    mockMut.upsertCardErrata.mockResolvedValue(undefined);
+    mockCardErrata.upsert.mockResolvedValue(undefined);
     mockMut.getPrintingTextsForCardId.mockResolvedValue([]);
     mockMut.updateCardById.mockResolvedValue(undefined);
 
@@ -653,7 +674,7 @@ describe("POST /cards/:cardId/errata", () => {
       }),
     });
     expect(res.status).toBe(204);
-    expect(mockMut.upsertCardErrata).toHaveBeenCalledWith(
+    expect(mockCardErrata.upsert).toHaveBeenCalledWith(
       CARD_ID2,
       expect.objectContaining({ correctedRulesText: "Deal 4 damage.", source: "official" }),
     );
@@ -670,13 +691,13 @@ describe("DELETE /cards/:cardId/errata", () => {
   });
 
   it("deletes errata and recomputes keywords (204)", async () => {
-    mockMut.deleteCardErrata.mockResolvedValue(undefined);
+    mockCardErrata.deleteByCardId.mockResolvedValue(undefined);
     mockMut.getPrintingTextsForCardId.mockResolvedValue([]);
     mockMut.updateCardById.mockResolvedValue(undefined);
 
     const res = await app.request(`/api/admin/v1/cards/${CARD_ID2}/errata`, { method: "DELETE" });
     expect(res.status).toBe(204);
-    expect(mockMut.deleteCardErrata).toHaveBeenCalledWith(CARD_ID2);
+    expect(mockCardErrata.deleteByCardId).toHaveBeenCalledWith(CARD_ID2);
     expect(mockMut.updateCardById).toHaveBeenCalledWith(
       CARD_ID2,
       expect.objectContaining({ keywords: expect.any(Array) }),
@@ -737,7 +758,7 @@ describe("POST /cards/:cardId/accept-field", () => {
     vi.resetAllMocks();
     mockFixTypography.mockImplementation((text: string | null) => text);
     mockMut.getPrintingTextsForCardId.mockResolvedValue([]);
-    mockMut.recomputeKeywordsForPrintingCard.mockResolvedValue(undefined);
+    mockKeywords.recomputeForPrintingCard.mockResolvedValue(undefined);
   });
 
   it("returns 204 and updates card field", async () => {
@@ -826,7 +847,7 @@ describe("POST /cards/printing/:printingId/accept-field", () => {
     vi.resetAllMocks();
     mockFixTypography.mockImplementation((text: string | null) => text);
     mockAppendSetTotal.mockImplementation((code: string) => code);
-    mockMut.recomputeKeywordsForPrintingCard.mockResolvedValue(undefined);
+    mockKeywords.recomputeForPrintingCard.mockResolvedValue(undefined);
     mockMut.getFullPrintingById.mockResolvedValue({
       id: "OGS-001",
       cardId: "card-uuid",
@@ -967,7 +988,7 @@ describe("POST /cards/new/:name/accept", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mockTransact.mockImplementation(async (cb) =>
-      cb({ candidateMutations: mockTrxMut, printingImages: {} }),
+      cb({ catalogMutations: mockTrxMut, printingImages: {} }),
     );
   });
 
@@ -1016,7 +1037,7 @@ describe("POST /cards/new/:name/accept-favorites", () => {
     expect(mockAcceptFavoriteNewCard).toHaveBeenCalledWith(
       mockTransact,
       mockIo,
-      expect.objectContaining({ candidateCards: mockCandidateCards, candidateMutations: mockMut }),
+      expect.objectContaining({ candidateCards: mockCandidateCards, catalogMutations: mockMut }),
       "Fire Dragon",
       expect.any(Set),
     );
@@ -1027,7 +1048,7 @@ describe("POST /cards/new/:name/link", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mockTransact.mockImplementation(async (cb) =>
-      cb({ candidateMutations: mockTrxMut, printingImages: {} }),
+      cb({ catalogMutations: mockTrxMut, printingImages: {} }),
     );
   });
 
@@ -1094,7 +1115,7 @@ describe("POST /cards/:cardId/accept-printing", () => {
     expect(json).toEqual({ printingId: "printing-uuid" });
     expect(mockAcceptPrinting).toHaveBeenCalledWith(
       mockTransact,
-      expect.objectContaining({ candidateMutations: mockMut }),
+      expect.objectContaining({ catalogMutations: mockMut }),
       CARD_ID2,
       expect.objectContaining({ shortCode: "FD" }),
       ["cp-1", "cp-2"],
@@ -1140,7 +1161,7 @@ describe("POST /cards/:cardSlug/accept-favorite-printings", () => {
     expect(mockAcceptFavoritePrintingsForCard).toHaveBeenCalledWith(
       mockTransact,
       mockIo,
-      expect.objectContaining({ candidateMutations: mockMut }),
+      expect.objectContaining({ catalogMutations: mockMut }),
       "fire-dragon",
       expect.any(Set),
     );
@@ -1151,7 +1172,7 @@ describe("POST /cards/create", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mockTransact.mockImplementation(async (cb) =>
-      cb({ candidateMutations: mockTrxMut, printingImages: {} }),
+      cb({ catalogMutations: mockTrxMut, printingImages: {} }),
     );
   });
 
@@ -1210,7 +1231,7 @@ describe("POST /cards/:cardId/printings", () => {
     expect(json).toEqual({ printingId: "printing-uuid" });
     expect(mockAcceptPrinting).toHaveBeenCalledWith(
       mockTransact,
-      expect.objectContaining({ candidateMutations: mockMut }),
+      expect.objectContaining({ catalogMutations: mockMut }),
       CARD_ID2,
       expect.objectContaining({ shortCode: "FD", setId: "origin" }),
       [],
@@ -1291,7 +1312,7 @@ describe("audit events", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mockTransact.mockImplementation(async (cb) =>
-      cb({ candidateMutations: mockTrxMut, printingImages: {} }),
+      cb({ catalogMutations: mockTrxMut, printingImages: {} }),
     );
   });
 
@@ -1352,7 +1373,7 @@ describe("audit events", () => {
   });
 
   it("deleting a candidate printing records the deleted key fields", async () => {
-    mockMut.getCandidatePrintingById.mockResolvedValue({
+    mockCandidateCards.getCandidatePrintingById.mockResolvedValue({
       id: CP_ID,
       shortCode: "OGN-002",
       setId: "ogn",
@@ -1361,7 +1382,7 @@ describe("audit events", () => {
       artVariant: "normal",
       externalId: "ext-2",
     });
-    mockMut.deleteCandidatePrinting.mockResolvedValue({ numDeletedRows: 1n });
+    mockCandidateCards.deleteCandidatePrinting.mockResolvedValue({ numDeletedRows: 1n });
 
     const res = await app.request(`/api/admin/v1/cards/candidate-printings/${CP_ID}`, {
       method: "DELETE",
@@ -1398,7 +1419,7 @@ describe("audit events", () => {
   });
 
   it("check/uncheck bookkeeping writes NO audit event", async () => {
-    mockMut.checkCandidatePrinting.mockResolvedValue({ numUpdatedRows: 1n });
+    mockCandidateCards.checkCandidatePrinting.mockResolvedValue({ numUpdatedRows: 1n });
 
     const res = await app.request(`/api/admin/v1/cards/candidate-printings/${CP_ID}/check`, {
       method: "POST",

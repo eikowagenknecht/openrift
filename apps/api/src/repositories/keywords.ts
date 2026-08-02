@@ -1,4 +1,5 @@
 import { WellKnown } from "@openrift/shared";
+import { extractKeywords } from "@openrift/shared/keywords";
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
@@ -10,9 +11,33 @@ interface KeywordTranslationRow {
   label: string;
 }
 
+/** Text sources a card's keywords are derived from. */
+interface KeywordTextSources {
+  errata: { correctedRulesText: string | null; correctedEffectText: string | null } | undefined;
+  printings: { printedRulesText: string | null; printedEffectText: string | null }[];
+}
+
 /**
- * Queries for keywords (canonical names with display styles) and their
- * per-language translations.
+ * Derive a card's keyword list from its card-level errata text plus every EN
+ * printing's text, in that order, deduped by first occurrence.
+ *
+ * @returns The card's keywords.
+ */
+function deriveKeywords({ errata, printings }: KeywordTextSources): string[] {
+  return [
+    ...extractKeywords(errata?.correctedRulesText ?? ""),
+    ...extractKeywords(errata?.correctedEffectText ?? ""),
+    ...printings.flatMap((printing) => [
+      ...extractKeywords(printing.printedRulesText ?? ""),
+      ...extractKeywords(printing.printedEffectText ?? ""),
+    ]),
+  ].filter((keyword, index, all) => all.indexOf(keyword) === index);
+}
+
+/**
+ * Queries for keywords (canonical names with display styles), their
+ * per-language translations, and the derivation that recomputes
+ * `cards.keywords` from printing and errata text.
  *
  * @returns An object with keyword query methods bound to the given `db`.
  */
@@ -184,6 +209,85 @@ export function keywordsRepo(db: Kysely<Database>) {
           AND (other.printed_rules_text IS NOT NULL OR other.printed_effect_text IS NOT NULL)
       `.execute(db);
       return rows.rows;
+    },
+
+    // ── Derivation (cards.keywords) ───────────────────────────────────────
+
+    /**
+     * Recompute keywords for the card that owns the given printing by scanning
+     * all sibling printings' text plus any card-level errata text.
+     */
+    async recomputeForPrintingCard(printingId: string): Promise<void> {
+      const row = await db
+        .selectFrom("printings")
+        .select(["printings.cardId"])
+        .where("printings.id", "=", printingId)
+        .executeTakeFirst();
+
+      if (!row) {
+        return;
+      }
+
+      const errata = await db
+        .selectFrom("cardErrata")
+        .select(["correctedRulesText", "correctedEffectText"])
+        .where("cardId", "=", row.cardId)
+        .executeTakeFirst();
+
+      const siblings = await db
+        .selectFrom("printings")
+        .select(["printedRulesText", "printedEffectText"])
+        .where("cardId", "=", row.cardId)
+        .where("language", "=", WellKnown.language.EN)
+        .execute();
+
+      const keywords = deriveKeywords({ errata, printings: siblings });
+
+      await db.updateTable("cards").set({ keywords }).where("id", "=", row.cardId).execute();
+    },
+
+    /**
+     * Recompute keywords for all cards by scanning card-level and printing-level
+     * text fields. Only updates cards whose computed keywords differ.
+     * @returns Count of total cards scanned and cards actually updated.
+     */
+    async recomputeAll(): Promise<{ totalCards: number; updated: number }> {
+      const cards = await db.selectFrom("cards").select(["id", "keywords"]).execute();
+
+      const errata = await db
+        .selectFrom("cardErrata")
+        .select(["cardId", "correctedRulesText", "correctedEffectText"])
+        .execute();
+
+      const errataByCard = new Map(errata.map((e) => [e.cardId, e]));
+
+      const printings = await db
+        .selectFrom("printings")
+        .select(["cardId", "printedRulesText", "printedEffectText"])
+        .where("language", "=", WellKnown.language.EN)
+        .execute();
+
+      const printingsByCard = Map.groupBy(printings, (row) => row.cardId);
+
+      let updated = 0;
+
+      for (const card of cards) {
+        const keywords = deriveKeywords({
+          errata: errataByCard.get(card.id),
+          printings: printingsByCard.get(card.id) ?? [],
+        });
+
+        const existing = card.keywords as string[];
+        const changed =
+          keywords.length !== existing.length || keywords.some((kw) => !existing.includes(kw));
+
+        if (changed) {
+          await db.updateTable("cards").set({ keywords }).where("id", "=", card.id).execute();
+          updated++;
+        }
+      }
+
+      return { totalCards: cards.length, updated };
     },
   };
 }

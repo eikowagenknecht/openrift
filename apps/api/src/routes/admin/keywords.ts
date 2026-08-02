@@ -42,10 +42,7 @@ export const adminKeywordsRouter = {
     await context.repos.keywords.deleteStyle(input.name);
   }),
 
-  recompute: os.recompute.handler(async ({ context }) => {
-    const { candidateMutations } = context.repos;
-    return await candidateMutations.recomputeAllKeywords();
-  }),
+  recompute: os.recompute.handler(({ context }) => context.repos.keywords.recomputeAll()),
 
   discoverTranslations: os.discoverTranslations.handler(async ({ context }) => {
     const repos = context.repos;
