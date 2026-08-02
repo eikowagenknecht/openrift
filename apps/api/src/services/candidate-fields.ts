@@ -104,7 +104,7 @@ export function candidatePrintingValidatorInput(printing: IngestPrinting): Recor
  * @param value The raw `extra_data` from the payload.
  * @returns The value, or null when absent or an empty object.
  */
-export function jsonOrNull(value: unknown): unknown {
+function jsonOrNull(value: unknown): unknown {
   if (value === null || value === undefined) {
     return null;
   }
