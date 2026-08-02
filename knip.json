@@ -8,12 +8,7 @@
     "apps/discord-bot": {},
     "apps/api": {
       "entry": ["src/app.ts"],
-      "ignore": [
-        "src/**/*.test.ts",
-        "src/**/*.integration.test.ts",
-        "src/test/**",
-        "src/db/migrations/*.ts"
-      ]
+      "ignore": ["src/test/**", "src/db/migrations/*.ts"]
     },
     "apps/web": {
       "entry": ["src/routes/**/*.tsx", "src/components/cards/card-detail/index.tsx"],
