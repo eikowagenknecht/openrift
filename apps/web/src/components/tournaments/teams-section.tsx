@@ -75,8 +75,8 @@ export function TeamsSection({
       await createTeam.mutateAsync({ id, participantIds: [firstId, secondId] });
       setFirstId("");
       setSecondId("");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Couldn't create the team");
+    } catch {
+      // Reported by the global mutation error toast (see reportMutationError).
     }
   }
 
@@ -84,8 +84,8 @@ export function TeamsSection({
     try {
       await dissolveTeam.mutateAsync({ id, teamId });
       toast.success(`Dissolved ${name}`);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Couldn't dissolve the team");
+    } catch {
+      // Reported by the global mutation error toast (see reportMutationError).
     }
   }
 

@@ -1,6 +1,5 @@
 import type { OrganizationRole } from "@openrift/shared";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 import { OrgDeckCheckKeysSection } from "@/components/deck-check/deck-check-keys-section";
@@ -77,8 +76,10 @@ export function OrganizationPage({ id }: { id: string }) {
   async function run(action: () => Promise<unknown>) {
     try {
       await action();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Something went wrong");
+    } catch {
+      // The failure is reported by the global mutation onError toast; swallow
+      // the rejection here so the `void run(...)` call sites don't surface it
+      // as an uncaught promise.
     }
   }
 

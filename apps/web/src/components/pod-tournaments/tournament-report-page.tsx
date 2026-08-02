@@ -28,8 +28,8 @@ export function ReportRoundsContent({ token, data }: { token: string; data: PodR
     try {
       await submitResult.mutateAsync({ podId, results });
       toast.success("Result submitted");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Couldn't save result");
+    } catch {
+      // Reported by the global mutation error toast (see reportMutationError).
     }
   }
 
@@ -37,8 +37,8 @@ export function ReportRoundsContent({ token, data }: { token: string; data: PodR
     try {
       await submitPlayerResult.mutateAsync({ podId, playerId, gamePoints });
       toast.success("Score saved");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Couldn't save score");
+    } catch {
+      // Reported by the global mutation error toast (see reportMutationError).
     }
   }
 

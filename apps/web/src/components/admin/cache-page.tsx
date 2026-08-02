@@ -31,8 +31,8 @@ export function CachePage() {
     try {
       await purge.mutateAsync();
       toast.success("Cloudflare cache purged");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Purge failed");
+    } catch {
+      // Reported by the global mutation error toast (see reportMutationError).
     }
   }
 
@@ -40,8 +40,8 @@ export function CachePage() {
     try {
       await refreshMatviews.mutateAsync();
       toast.success("Materialized views refreshed");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Refresh failed");
+    } catch {
+      // Reported by the global mutation error toast (see reportMutationError).
     }
   }
 

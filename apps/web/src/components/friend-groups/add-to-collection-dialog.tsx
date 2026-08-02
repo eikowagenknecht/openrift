@@ -107,8 +107,8 @@ function AddToCollectionBody({
       await applySync.mutateAsync({ tradeId, targetCollectionId, groupSlug });
       toast.success(`Added ${cardName} to your collection`);
       onClose();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Couldn't add to your collection");
+    } catch {
+      // Reported by the global mutation error toast (see reportMutationError).
     }
   };
 

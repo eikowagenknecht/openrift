@@ -207,8 +207,8 @@ function StaffRow({
                     userId: member.userId,
                     role: member.role,
                   });
-                } catch (error) {
-                  toast.error(error instanceof Error ? error.message : "Something went wrong");
+                } catch {
+                  // Reported by the global mutation error toast (see reportMutationError).
                 }
               }}
             >
@@ -277,8 +277,8 @@ function StaffInviteRow({
   async function run(enabled: boolean) {
     try {
       await setInvite.mutateAsync({ id, role: staffRole, enabled });
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Something went wrong");
+    } catch {
+      // Reported by the global mutation error toast (see reportMutationError).
     }
   }
 
@@ -419,8 +419,8 @@ function AddStaffDialog({
             try {
               await addStaff.mutateAsync({ id: tournamentId, userId, role });
               onOpenChange(false);
-            } catch (error) {
-              toast.error(error instanceof Error ? error.message : "Something went wrong");
+            } catch {
+              // Reported by the global mutation error toast (see reportMutationError).
             }
           }}
         >

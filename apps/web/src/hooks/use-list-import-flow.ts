@@ -134,6 +134,9 @@ export function useListImportFlow(
       reset();
       onClose();
     } catch {
+      // Deliberately a SECOND toast on top of the global mutation error one:
+      // that one says why the call failed, this one says the import was left
+      // half-done. Batches before the failing one already committed.
       toast.error("Import failed. Some cards may have been added.");
       setIsImporting(false);
     }

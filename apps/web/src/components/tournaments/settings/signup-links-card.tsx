@@ -1,6 +1,5 @@
 import type { TournamentDetailResponse } from "@openrift/shared";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { ShareLinkRow } from "@/components/share/share-link-row";
 import { Button } from "@/components/ui/button";
@@ -47,8 +46,8 @@ export function SignupLinksCard({
   async function run(action: () => Promise<unknown>) {
     try {
       await action();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Something went wrong");
+    } catch {
+      // Reported by the global mutation error toast (see reportMutationError).
     }
   }
 

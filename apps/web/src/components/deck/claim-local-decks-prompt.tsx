@@ -74,6 +74,9 @@ export function ClaimLocalDecksPrompt() {
         }
         importedIds.push(deck.id);
       } catch {
+        // Deliberately a SECOND toast on top of the global mutation error one:
+        // this loop claims several decks, and only this toast names which one
+        // failed while the others carried on.
         toast.error(`Couldn't import "${deck.name}".`);
       }
     }

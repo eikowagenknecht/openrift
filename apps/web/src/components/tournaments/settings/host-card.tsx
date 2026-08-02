@@ -40,8 +40,8 @@ export function HostCard({
     try {
       await updateTournament.mutateAsync({ id: detail.id, host });
       toast.success("Host updated");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Something went wrong");
+    } catch {
+      // Reported by the global mutation error toast (see reportMutationError).
     }
   }
 

@@ -18,7 +18,6 @@ import {
 } from "@openrift/shared";
 import { GripVerticalIcon, PlusIcon } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { Heading } from "@/components/heading";
 import { Button } from "@/components/ui/button";
@@ -195,8 +194,8 @@ export function PodPairingEditor({
     try {
       await replace.mutateAsync({ id, roundNumber: round.roundNumber, ...expanded });
       onClose();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Couldn't save pairing");
+    } catch {
+      // Reported by the global mutation error toast (see reportMutationError).
     }
   }
 

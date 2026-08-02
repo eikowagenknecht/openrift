@@ -1,7 +1,6 @@
 import type { TournamentDetailResponse, TournamentParticipantStatus } from "@openrift/shared";
 import { CheckIcon, GlobeIcon, UserPlusIcon, UserXIcon } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { SearchInput } from "@/components/filters/search-input";
 import { PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
@@ -165,8 +164,10 @@ export function TournamentParticipantsTab({
   async function run(action: () => Promise<unknown>) {
     try {
       await action();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Something went wrong");
+    } catch {
+      // The failure is reported by the global mutation onError toast; swallow
+      // the rejection here so the `void run(...)` call sites don't surface it
+      // as an uncaught promise.
     }
   }
 
@@ -485,8 +486,8 @@ export function AddParticipantButton({ id }: { id: string }) {
       await addParticipant.mutateAsync({ id, displayName });
       setName("");
       setOpen(false);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Something went wrong");
+    } catch {
+      // Reported by the global mutation error toast (see reportMutationError).
     }
   }
 

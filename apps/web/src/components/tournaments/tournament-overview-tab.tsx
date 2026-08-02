@@ -11,7 +11,6 @@ import {
   UsersIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { toast } from "sonner";
 
 import {
   formatPlayerRecord,
@@ -221,8 +220,10 @@ function JoinRequestsBand({
   async function run(action: () => Promise<unknown>) {
     try {
       await action();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Something went wrong");
+    } catch {
+      // The failure is reported by the global mutation onError toast; swallow
+      // the rejection here so the `void run(...)` call sites don't surface it
+      // as an uncaught promise.
     }
   }
 

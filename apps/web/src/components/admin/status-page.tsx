@@ -385,8 +385,8 @@ function FlushPrintingEventsButton() {
     let started: Awaited<ReturnType<typeof flush.mutateAsync>>;
     try {
       started = await flush.mutateAsync();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Couldn't start flush");
+    } catch {
+      // Reported by the global mutation error toast (see reportMutationError).
       return;
     }
     if (started.status === "already_running") {
@@ -423,8 +423,8 @@ function PostChangelogButton() {
     let result: Awaited<ReturnType<typeof post.mutateAsync>>;
     try {
       result = await post.mutateAsync();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Post failed");
+    } catch {
+      // Reported by the global mutation error toast (see reportMutationError).
       return;
     }
     if (result.posted) {

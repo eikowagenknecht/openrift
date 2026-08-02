@@ -1,7 +1,6 @@
 import type { TournamentDeckSubmission, TournamentPlayMode } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 
 import { PageTopBar, PageTopBarSticky, PageTopBarTitle } from "@/components/layout/page-top-bar";
 import { SettingsGroup } from "@/components/layout/settings-group";
@@ -168,8 +167,8 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
     try {
       const created = await createTournament.mutateAsync(payload);
       void navigate({ to: "/tournaments/$id", params: { id: created.id } });
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Couldn't create tournament");
+    } catch {
+      // Reported by the global mutation error toast (see reportMutationError).
     }
   }
 

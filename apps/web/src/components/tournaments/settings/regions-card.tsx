@@ -1,5 +1,4 @@
 import type { TournamentDetailResponse } from "@openrift/shared";
-import { toast } from "sonner";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -24,8 +23,8 @@ export function RegionsCard({
   async function toggle(checked: boolean) {
     try {
       await updateTournament.mutateAsync({ id: detail.id, regionsEnabled: checked });
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Something went wrong");
+    } catch {
+      // Reported by the global mutation error toast (see reportMutationError).
     }
   }
 

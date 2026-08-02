@@ -118,6 +118,9 @@ function ProductAddBody({
       );
       onClose();
     } catch {
+      // Deliberately a SECOND toast on top of the global mutation error one:
+      // that one says why the call failed, this one says the add was left
+      // half-done. Batches before the failing one already committed.
       toast.error("Adding failed. Some cards may have been added.");
       setIsAdding(false);
     }

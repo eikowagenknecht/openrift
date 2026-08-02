@@ -12,6 +12,7 @@
 - fix(Collection): **Quick add asks before deleting card details** — undoing an add in the quick-add palette removed a copy outright, so any grade, condition, notes, or links you had recorded on it since adding went with it.
 - fix(Tournaments): **Cancelled tournaments stay readable** — cancelling a tournament with pairings broke its pairings tab and every participant's follow link with an error; both now open and show it as cancelled.
 - fix(Collection): **Errors on failed list and collection edits** — adding to a list, changing an entry, or reordering lists and collections used to revert with no message, and now says why it failed.
+- fix(App): **One message when an action fails** — a failed action raised two toasts, and the vague one usually hid the real reason the server gave.
 
 ## 2026-08-01
 

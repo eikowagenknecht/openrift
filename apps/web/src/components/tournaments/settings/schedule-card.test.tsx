@@ -158,7 +158,7 @@ describe("ScheduleCard saving", () => {
     });
   });
 
-  it("reports a failed save rather than swallowing it", async () => {
+  it("leaves a failed save to the global mutation error toast", async () => {
     const user = userEvent.setup();
     updateMutateAsync.mockRejectedValue(new Error("Schedule conflicts with another round"));
     render(<ScheduleCard detail={makeDetail()} locked={false} canEndEarly={false} />);
@@ -167,11 +167,12 @@ describe("ScheduleCard saving", () => {
     await user.type(screen.getByLabelText("Start time (24h)"), "11:30");
     await user.click(screen.getByRole("button", { name: "Save schedule" }));
 
-    // The click handler fires the mutation without awaiting it, so the catch
-    // that raises the message settles a microtask after userEvent returns.
-    await waitFor(() =>
-      expect(toastError).toHaveBeenCalledWith("Schedule conflicts with another round"),
-    );
+    await waitFor(() => expect(updateMutateAsync).toHaveBeenCalled());
+    // The card catches only to keep the rejection off the console — the toast
+    // belongs to the QueryClient's default onError (reportMutationError), which
+    // this test's mutation stub bypasses. A toast here would be the second one
+    // the user sees, and the vaguer of the two.
+    expect(toastError).not.toHaveBeenCalled();
   });
 });
 

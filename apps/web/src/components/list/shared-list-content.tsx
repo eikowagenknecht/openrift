@@ -7,7 +7,6 @@ import type {
 import { legendDisplayName } from "@openrift/shared";
 import { HandshakeIcon, HeartIcon, ListIcon, XIcon } from "lucide-react";
 import { Suspense, useState } from "react";
-import { toast } from "sonner";
 
 import { CardViewer } from "@/components/card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
@@ -250,8 +249,8 @@ function SharedListGrid({
         quantity: pending.quantity + 1,
         groupSlug: exchange.groupSlug,
       });
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Couldn't claim that copy");
+    } catch {
+      // Reported by the global mutation error toast (see reportMutationError).
     }
   };
 
@@ -276,8 +275,8 @@ function SharedListGrid({
         : cancelTrade.mutateAsync({ tradeId: pending.tradeId, groupSlug: exchange.groupSlug });
     try {
       await release;
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Couldn't release that copy");
+    } catch {
+      // Reported by the global mutation error toast (see reportMutationError).
     }
   };
 

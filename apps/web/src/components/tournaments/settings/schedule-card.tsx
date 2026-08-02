@@ -1,6 +1,5 @@
 import type { TournamentDetailResponse } from "@openrift/shared";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -58,8 +57,8 @@ export function ScheduleCard({
   async function run(action: () => Promise<unknown>) {
     try {
       await action();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Something went wrong");
+    } catch {
+      // Reported by the global mutation error toast (see reportMutationError).
     }
   }
 

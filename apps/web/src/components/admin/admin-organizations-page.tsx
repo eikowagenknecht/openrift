@@ -65,8 +65,8 @@ function EditOrgDialog({ org }: { org: OrganizationSummaryResponse }) {
       });
       setOpen(false);
       toast.success("Organization updated");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Update failed");
+    } catch {
+      // Reported by the global mutation error toast (see reportMutationError).
     }
   }
 
@@ -158,8 +158,8 @@ function OrgRow({ org }: { org: OrganizationSummaryResponse }) {
               onClick={async () => {
                 try {
                   await deleteOrg.mutateAsync(org.id);
-                } catch (error) {
-                  toast.error(error instanceof Error ? error.message : "Delete failed");
+                } catch {
+                  // Reported by the global mutation error toast (see reportMutationError).
                 }
               }}
             >
@@ -218,8 +218,8 @@ export function AdminOrganizationsPage() {
       setDescription("");
       setOwnerUserId("");
       toast.success("Organization created");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Create failed");
+    } catch {
+      // Reported by the global mutation error toast (see reportMutationError).
     }
   }
 

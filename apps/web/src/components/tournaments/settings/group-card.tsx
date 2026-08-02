@@ -44,8 +44,8 @@ export function GroupCard({
     try {
       await updateTournament.mutateAsync({ id: detail.id, groupId });
       toast.success(successMessage);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Something went wrong");
+    } catch {
+      // Reported by the global mutation error toast (see reportMutationError).
     }
   }
 

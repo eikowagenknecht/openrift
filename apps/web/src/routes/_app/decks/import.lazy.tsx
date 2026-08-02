@@ -447,8 +447,9 @@ function DeckImportPage() {
           toast.success(`Replaced cards in "${targetName}" with ${totalCards} cards.`);
           void navigate({ to: "/decks/$deckId", params: { deckId: replaceTarget.deckId } });
         },
+        // The failure itself is toasted by the global mutation onError; this
+        // handler only releases the importing state.
         onError: () => {
-          toast.error("Failed to replace deck cards.");
           setIsImporting(false);
         },
       },
@@ -487,14 +488,14 @@ function DeckImportPage() {
                 void navigate({ to: "/decks/$deckId", params: { deckId: deck.id } });
               },
               onError: () => {
-                toast.error("Failed to save deck cards.");
                 setIsImporting(false);
               },
             },
           );
         },
+        // The failure itself is toasted by the global mutation onError; these
+        // handlers only release the importing state.
         onError: () => {
-          toast.error("Failed to create deck.");
           setIsImporting(false);
         },
       },

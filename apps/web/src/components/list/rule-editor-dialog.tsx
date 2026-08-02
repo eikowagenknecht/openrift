@@ -140,7 +140,8 @@ export function RuleEditorDialog({
           toast.success(next.length > 0 ? "Rules saved" : "Rules removed");
           onOpenChange(false);
         },
-        onError: () => toast.error("Couldn't save the rules"),
+        // No onError: a per-call handler runs in ADDITION to the global
+        // mutation onError, which already toasts the server's message.
       },
     );
   };

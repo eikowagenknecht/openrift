@@ -188,8 +188,8 @@ function OfferBody({
       });
       toast.success(`Offered ${cardName} to ${counterpartyName}`);
       onClose();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Couldn't send the offer");
+    } catch {
+      // Reported by the global mutation error toast (see reportMutationError).
     }
   };
 

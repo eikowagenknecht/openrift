@@ -315,8 +315,8 @@ function ServingCard({ assets }: { assets: ScanAssets | null }) {
     let started: Awaited<ReturnType<typeof rebuild.mutateAsync>>;
     try {
       started = await rebuild.mutateAsync();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Couldn't start the rebuild");
+    } catch {
+      // Reported by the global mutation error toast (see reportMutationError).
       return;
     }
     if (started.status === "already_running") {

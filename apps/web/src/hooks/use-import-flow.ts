@@ -142,6 +142,9 @@ export function useImportFlow() {
       toast.success(`Added ${summary.totalCards} ${cardLabel} to ${list.name}.`);
       navigate({ to: "/collections/lists/$listId", params: { listId } });
     } catch {
+      // Deliberately a SECOND toast on top of the global mutation error one:
+      // that one says why the call failed, this one says the import was left
+      // half-done. Batches before the failing one already committed.
       toast.error("Import failed. Some cards may have been added.");
       setIsImporting(false);
     }
@@ -174,7 +177,7 @@ export function useImportFlow() {
         const result = await createCollection.mutateAsync({ name: trimmed });
         targetCollectionId = result.id;
       } catch {
-        toast.error("Failed to create collection.");
+        // Reported by the global mutation error toast (see reportMutationError).
         setIsCreatingCollection(false);
         return;
       }
@@ -200,6 +203,9 @@ export function useImportFlow() {
         try {
           await disposeCopies.mutateAsync({ copyIds: existingCopyIds });
         } catch {
+          // Deliberately a SECOND toast on top of the global mutation error
+          // one: that one says why the clear failed, this one says the import
+          // never started, so the collection is untouched.
           toast.error("Couldn't clear the collection, so nothing was imported.");
           setIsImporting(false);
           return;
@@ -241,6 +247,9 @@ export function useImportFlow() {
         params: { collectionId: targetCollectionId },
       });
     } catch {
+      // Deliberately a SECOND toast on top of the global mutation error one:
+      // that one says why the call failed, this one says the import was left
+      // half-done. Batches before the failing one already committed.
       toast.error("Import failed. Some cards may have been added.");
       setIsImporting(false);
     }

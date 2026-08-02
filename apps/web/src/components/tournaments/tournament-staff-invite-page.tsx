@@ -27,8 +27,8 @@ export function TournamentStaffInvitePage({ token }: { token: string }) {
       const result = await claim.mutateAsync(token);
       toast.success(successMessage);
       void navigate({ to: "/tournaments/$id", params: { id: result.tournamentId } });
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Couldn't accept the invite");
+    } catch {
+      // Reported by the global mutation error toast (see reportMutationError).
     }
   }
 

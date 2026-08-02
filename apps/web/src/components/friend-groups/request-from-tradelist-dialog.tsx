@@ -193,8 +193,8 @@ function RequestBody({
       }
       toast.success(`Requested ${cardName} from ${counterpartyName}`);
       onClose();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Couldn't send the request");
+    } catch {
+      // Reported by the global mutation error toast (see reportMutationError).
     }
   };
 

@@ -96,8 +96,8 @@ function DeleteKeyButton({ apiKey }: { apiKey: ApiKeySummary }) {
     try {
       await deleteKey.mutateAsync({ keyId: apiKey.id });
       toast.success("API key revoked");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Revoke failed");
+    } catch {
+      // Reported by the global mutation error toast (see reportMutationError).
     }
   }
 
@@ -144,8 +144,8 @@ export function ApiKeysPage() {
       const created = await createKey.mutateAsync({ name: trimmed });
       setName("");
       setCreatedKey(created.key);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Create failed");
+    } catch {
+      // Reported by the global mutation error toast (see reportMutationError).
     }
   }
 

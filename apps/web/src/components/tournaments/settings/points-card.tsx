@@ -55,8 +55,8 @@ export function PointsCard({
     try {
       await updateTournament.mutateAsync(patch);
       toast.success("Points updated");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Something went wrong");
+    } catch {
+      // Reported by the global mutation error toast (see reportMutationError).
     }
   }
 

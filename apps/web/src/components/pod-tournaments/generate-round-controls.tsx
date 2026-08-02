@@ -156,12 +156,8 @@ export function GenerateRoundControls({
         setByeIds((current) => current.filter((byeId) => !goneIds.includes(byeId)));
       }
       toast.success(dropped ? `Dropped ${player.displayName}` : `${player.displayName} is back in`);
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : `Couldn't ${dropped ? "drop" : "reactivate"} ${player.displayName}`,
-      );
+    } catch {
+      // Reported by the global mutation error toast (see reportMutationError).
     }
   }
 
@@ -169,8 +165,8 @@ export function GenerateRoundControls({
     try {
       await generateRound.mutateAsync({ id, byes: byeIds });
       setByeIds([]);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Couldn't generate round");
+    } catch {
+      // Reported by the global mutation error toast (see reportMutationError).
     }
   }
 

@@ -19,8 +19,8 @@ export function TournamentSubmitPage({ token }: { token: string }) {
     let result;
     try {
       result = await requestJoin.mutateAsync({ token });
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Couldn't send your request");
+    } catch {
+      // Reported by the global mutation error toast (see reportMutationError).
       return;
     }
     setJoined(true);
