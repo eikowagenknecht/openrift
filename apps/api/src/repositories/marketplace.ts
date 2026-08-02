@@ -47,15 +47,19 @@ export function marketplaceRepo(db: Kysely<Database>) {
     /**
      * Latest headline price per marketplace for every printing.
      *
-     * Reads from the `mv_latest_printing_prices` materialized view, which
-     * pre-computes the sibling self-join + DISTINCT ON from raw snapshot data.
+     * `lastSeen` is the day the price was observed, not the day it was read.
+     * The pipeline writes a snapshot only when a marketplace returns data, so
+     * a delisted card keeps its final price indefinitely and looks current.
      *
-     * @returns Rows with `printingId`, `marketplace`, and the headline price as `marketCents`.
+     * @returns Rows with `printingId`, `marketplace`, the headline price as
+     *          `marketCents`, and the `lastSeen` day as `YYYY-MM-DD`.
      */
-    latestPrices(): Promise<{ printingId: string; marketplace: string; marketCents: number }[]> {
+    latestPrices(): Promise<
+      { printingId: string; marketplace: string; marketCents: number; lastSeen: string }[]
+    > {
       return db
         .selectFrom("mvLatestPrintingPrices")
-        .select(["printingId", "marketplace", "headlineCents as marketCents"])
+        .select(["printingId", "marketplace", "headlineCents as marketCents", "lastSeen"])
         .execute();
     },
 
@@ -74,7 +78,7 @@ export function marketplaceRepo(db: Kysely<Database>) {
       const result = await sql<{ token: string }>`
         SELECT
           coalesce(count(*)::text, '0') || '|' ||
-          coalesce(md5(string_agg(printing_id::text || ':' || marketplace || ':' || headline_cents::text, ',' ORDER BY printing_id, marketplace)), '') AS token
+          coalesce(md5(string_agg(printing_id::text || ':' || marketplace || ':' || headline_cents::text || ':' || last_seen::text, ',' ORDER BY printing_id, marketplace)), '') AS token
         FROM mv_latest_printing_prices
       `.execute(db);
       return result.rows[0]?.token ?? "";

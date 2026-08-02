@@ -41,6 +41,7 @@ const dbPrice = {
   printingId: "a0000000-0001-4000-a000-000000000001",
   marketplace: "tcgplayer",
   marketCents: 275,
+  lastSeen: "2026-03-01",
   recordedAt: new Date("2026-03-01"),
 };
 
@@ -48,6 +49,7 @@ const dbPriceFoil = {
   printingId: "a0000000-0001-4000-a000-000000000002",
   marketplace: "tcgplayer",
   marketCents: 800,
+  lastSeen: "2026-03-01",
   recordedAt: new Date("2026-03-01"),
 };
 
@@ -141,6 +143,54 @@ describe("GET /api/v1/prices", () => {
     const res = await app.request("/api/v1/prices");
     const json = await res.json();
     expect(json.prices).toEqual({});
+  });
+
+  it("reports nothing as stale when every price shares the newest day", async () => {
+    const res = await app.request("/api/v1/prices");
+    const json = await res.json();
+    expect(json.stale).toEqual({});
+  });
+
+  it("flags a price last seen longer ago than the threshold", async () => {
+    // The pipeline stops writing snapshots once a card's last listing goes, so
+    // this price still looks current in `prices` and only `stale` gives it away.
+    mockMarketplaceRepo.latestPrices.mockResolvedValue([
+      { ...dbPrice, lastSeen: "2026-03-01" },
+      {
+        printingId: "a0000000-0001-4000-a000-000000000009",
+        marketplace: "cardtrader",
+        marketCents: 3222,
+        lastSeen: "2026-02-01",
+      },
+    ]);
+    const res = await app.request("/api/v1/prices");
+    const json = await res.json();
+
+    expect(json.prices["a0000000-0001-4000-a000-000000000009"]).toEqual({ cardtrader: 3222 });
+    expect(json.stale).toEqual({ "a0000000-0001-4000-a000-000000000009": { cardtrader: 28 } });
+  });
+
+  it("leaves a price inside the threshold alone", async () => {
+    mockMarketplaceRepo.latestPrices.mockResolvedValue([
+      { ...dbPrice, lastSeen: "2026-03-01" },
+      { ...dbPriceFoil, marketplace: "cardmarket", lastSeen: "2026-02-25" },
+    ]);
+    const res = await app.request("/api/v1/prices");
+    const json = await res.json();
+    expect(json.stale).toEqual({});
+  });
+
+  it("ages prices against the newest observation, not the wall clock", async () => {
+    // Every fixture day is far in the past. Comparing to now() would mark the
+    // whole catalogue stale; comparing to the freshest row is what the cron
+    // cadence actually means.
+    mockMarketplaceRepo.latestPrices.mockResolvedValue([
+      { ...dbPrice, lastSeen: "2020-01-10" },
+      { ...dbPriceFoil, lastSeen: "2020-01-10" },
+    ]);
+    const res = await app.request("/api/v1/prices");
+    const json = await res.json();
+    expect(json.stale).toEqual({});
   });
 });
 

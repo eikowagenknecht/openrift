@@ -29,6 +29,17 @@ export const MARKETPLACE_CURRENCY: Record<Marketplace, Currency> = {
   cardtrader: "EUR",
 };
 
+/**
+ * Days a headline price may go unobserved before it is reported as stale.
+ *
+ * The price pipeline writes a snapshot only when a marketplace returns data,
+ * so a card whose last listing sold keeps its final price forever. A week is
+ * wide enough to ride out a missed cron run and narrow enough to catch a real
+ * delisting: marketplace products cluster hard into "seen yesterday" and "not
+ * seen in a month", with very little in between.
+ */
+export const PRICE_STALE_AFTER_DAYS = 7;
+
 /** Maps each time range to its lookback window in days (`null` = no limit). */
 export const TIME_RANGE_DAYS = {
   "7d": 7,

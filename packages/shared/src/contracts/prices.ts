@@ -36,6 +36,16 @@ const marketplaceCurrenciesSchema = z
   })
   .openapi({ example: { tcgplayer: "USD", cardmarket: "EUR", cardtrader: "EUR" } });
 
+// Days since a stale price was last observed, per marketplace. Only printings
+// with at least one stale marketplace appear, which keeps this a rounding
+// error on the wire: the price map itself carries every printing (~270 KB),
+// while barely 4% of products go unseen for a week.
+const staleAgeMapSchema = z.object({
+  tcgplayer: z.number().int().optional().openapi({ example: 29, description: "Days since seen" }),
+  cardmarket: z.number().int().optional().openapi({ example: 29, description: "Days since seen" }),
+  cardtrader: z.number().int().optional().openapi({ example: 29, description: "Days since seen" }),
+});
+
 export const pricesResponseSchema = z
   .object({
     prices: z.record(z.string(), marketplacePriceMapSchema).openapi({
@@ -49,6 +59,15 @@ export const pricesResponseSchema = z
     }),
     // SCH-2: the cents amounts above are explicit about their currency here.
     currencies: marketplaceCurrenciesSchema,
+    /**
+     * Prices last observed more than `PRICE_STALE_AFTER_DAYS` ago, with their
+     * age in days. The pipeline stops writing snapshots when a card's last
+     * listing goes, so the price in `prices` stays put and looks current.
+     * Absent from this map means the price is fresh.
+     */
+    stale: z.record(z.string(), staleAgeMapSchema).openapi({
+      example: { "019cfc3b-03d3-7dac-86c9-27900cd43727": { cardtrader: 29 } },
+    }),
   })
   .openapi("PricesResponse");
 

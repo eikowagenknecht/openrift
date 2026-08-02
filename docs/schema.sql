@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict cisCe6OMJtpQhksXeVHDUspgacTOcNcrK5Ik3wpB0rIzUaQ09KkndhScBMxmE1L
+\restrict rl4HdpsKqPGBRdbbfzDm7XGd7wY7uPchawVzXMevrOFjZKnhRITNCWPOjmDa64r
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1874,7 +1874,8 @@ CREATE MATERIALIZED VIEW public.mv_daily_printing_prices AS
 CREATE MATERIALIZED VIEW public.mv_latest_printing_prices AS
  SELECT DISTINCT ON (printing_id, marketplace) printing_id,
     marketplace,
-    headline_cents
+    headline_cents,
+    day AS last_seen
    FROM public.mv_daily_printing_prices d
   ORDER BY printing_id, marketplace, day DESC
   WITH NO DATA;
@@ -6185,5 +6186,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict cisCe6OMJtpQhksXeVHDUspgacTOcNcrK5Ik3wpB0rIzUaQ09KkndhScBMxmE1L
+\unrestrict rl4HdpsKqPGBRdbbfzDm7XGd7wY7uPchawVzXMevrOFjZKnhRITNCWPOjmDa64r
 

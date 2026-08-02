@@ -92,7 +92,7 @@ const ORDERS: EnumOrders = {
   cardSizes: ["standard", "oversized"],
 };
 
-const NO_PRICES: PricesResponse = { prices: {}, currencies: MARKETPLACE_CURRENCY };
+const NO_PRICES: PricesResponse = { prices: {}, currencies: MARKETPLACE_CURRENCY, stale: {} };
 
 describe("extractCatalogFacets", () => {
   it("returns facets shape derived from the catalog", () => {
@@ -139,6 +139,7 @@ describe("extractCatalogFacets", () => {
         "p-3": { tcgplayer: 750 },
       },
       currencies: MARKETPLACE_CURRENCY,
+      stale: {},
     };
     const facets = extractCatalogFacets(makeCatalog(cards, printings), prices, ORDERS);
 
@@ -332,6 +333,7 @@ describe("extractCatalogFacets ↔ useCardData parity", () => {
         "p-spell": { cardtrader: 2.1 },
       },
       currencies: MARKETPLACE_CURRENCY,
+      stale: {},
     };
 
     const ssrFacets = extractCatalogFacets(catalog, prices, ORDERS);

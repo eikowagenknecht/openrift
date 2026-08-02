@@ -1790,6 +1790,8 @@ interface MvLatestPrintingPricesView {
   printingId: string;
   marketplace: string;
   headlineCents: number;
+  /** Day the price was last observed (migration 221). A date, not a timestamp. */
+  lastSeen: string;
 }
 
 /** Per-day headline price per printing (migration 219). `day` is a date. */

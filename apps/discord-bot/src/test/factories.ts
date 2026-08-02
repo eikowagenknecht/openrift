@@ -143,11 +143,18 @@ export function makeInitResponse(): InitResponse {
   };
 }
 
-/** @returns A PricesResponse with the given per-printing cents maps. */
-export function makePricesResponse(prices: PricesResponse["prices"] = {}): PricesResponse {
+/**
+ * @returns A PricesResponse with the given per-printing cents maps, and no
+ *          price marked stale. Pass `stale` when a test needs an aged price.
+ */
+export function makePricesResponse(
+  prices: PricesResponse["prices"] = {},
+  stale: PricesResponse["stale"] = {},
+): PricesResponse {
   return {
     prices,
     currencies: { tcgplayer: "USD", cardmarket: "EUR", cardtrader: "EUR" },
+    stale,
   };
 }
 
