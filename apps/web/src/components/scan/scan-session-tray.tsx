@@ -1,8 +1,9 @@
 import type { Printing } from "@openrift/shared";
-import { WellKnown, imageUrl, legendDisplayName } from "@openrift/shared";
+import { WellKnown, getOrientation, legendDisplayName } from "@openrift/shared";
 import { ArrowLeftRightIcon, MinusIcon, PlusIcon, SparklesIcon } from "lucide-react";
 import { useId } from "react";
 
+import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { FoilOverlay } from "@/components/cards/foil-overlay";
 import { PrintingVariantLabel } from "@/components/cards/printing-label";
 import { Button } from "@/components/ui/button";
@@ -190,10 +191,11 @@ function TrayRow({
             isFoil && "ring-1 ring-amber-400/60",
           )}
         >
-          <img
-            src={imageUrl(printing.images[0]?.imageId ?? "", "120w")}
-            alt=""
-            className="size-full object-cover"
+          <CardArtThumb
+            imageId={printing.images[0]?.imageId}
+            variant="120w"
+            className="size-full"
+            landscape={getOrientation(printing.card.types) === "landscape"}
           />
           {/* Static rainbow, never the shimmer keyframe — the camera
               pipeline needs every frame of CPU it can get. */}

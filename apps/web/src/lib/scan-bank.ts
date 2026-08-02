@@ -1,3 +1,4 @@
+import { WellKnown } from "@openrift/shared";
 import type { EmbedBank } from "@openrift/shared/scan";
 import { decodeEmbedBank } from "@openrift/shared/scan";
 
@@ -75,4 +76,17 @@ export async function loadScanBank(bankUrl: string, labelsUrl: string): Promise<
 export function describeKey(labels: Record<string, CardLabel>, key: string): string {
   const label = labels[key];
   return label ? `${label.name} (${label.code} ${label.language})` : `unknown ${key.slice(0, 8)}`;
+}
+
+/**
+ * Whether a matched key's artwork is stored landscape (Battlefields), so a
+ * thumbnail can rotate it into the portrait frame the way the rest of the app
+ * does. The scan surfaces only have bank labels, not catalogue printings, so
+ * the card type on the label is the orientation source here.
+ *
+ * @returns True for a Battlefield key, false for everything else and for keys
+ * with no label.
+ */
+export function isLandscapeKey(labels: Record<string, CardLabel>, key: string): boolean {
+  return labels[key]?.type === WellKnown.cardType.BATTLEFIELD;
 }

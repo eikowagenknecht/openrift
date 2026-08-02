@@ -1,9 +1,9 @@
-import { imageUrl } from "@openrift/shared";
 import { CameraIcon, CameraOffIcon, LoaderIcon, RotateCcwIcon } from "lucide-react";
 import { Fragment, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
+import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { PageDescription } from "@/components/layout/page-top-bar";
 import { ScanLoadRow } from "@/components/scan/scan-load-row";
 import { Badge } from "@/components/ui/badge";
@@ -23,7 +23,7 @@ import type { ScanAssets } from "@/hooks/use-scan-serving";
 import { useLatestScanBankRun, useRebuildScanBank, useScanAssets } from "@/hooks/use-scan-serving";
 import type { CameraInfo, CameraInfoEntry } from "@/lib/camera-info";
 import type { LoadedScanBank } from "@/lib/scan-bank";
-import { describeKey, loadScanBank } from "@/lib/scan-bank";
+import { describeKey, isLandscapeKey, loadScanBank } from "@/lib/scan-bank";
 
 const MODES: { value: string; label: string }[] = [
   { value: "single", label: "Single card (guide rect, fastest)" },
@@ -43,7 +43,7 @@ const CANDIDATE_TRIES: { value: string; label: string }[] = [
   { value: "4", label: "4 (calibrated default)" },
 ];
 
-function LocksCard({ locks }: { locks: LockedCard[] }) {
+function LocksCard({ locks, loaded }: { locks: LockedCard[]; loaded: LoadedScanBank | null }) {
   return (
     <Card>
       <CardHeader>
@@ -58,10 +58,11 @@ function LocksCard({ locks }: { locks: LockedCard[] }) {
           <ul className="flex flex-col gap-2">
             {locks.map((lock) => (
               <li key={`${lock.key}-${lock.at}`} className="flex items-center gap-3">
-                <img
-                  src={imageUrl(lock.key, "120w")}
-                  alt=""
-                  className="h-14 w-10 rounded object-cover"
+                <CardArtThumb
+                  imageId={lock.key}
+                  variant="120w"
+                  className="w-10"
+                  landscape={loaded !== null && isLandscapeKey(loaded.labels, lock.key)}
                 />
                 <span className="flex-1">{lock.label}</span>
                 <Badge variant="secondary" className="tabular-nums">
@@ -108,10 +109,11 @@ function LiveFrameCard({ readout, loaded, active }: LiveFrameCardProps) {
           <ul className="mt-3 flex flex-col gap-2">
             {readout.ranked.map((entry) => (
               <li key={entry.key} className="flex items-center gap-2">
-                <img
-                  src={imageUrl(entry.key, "120w")}
-                  alt=""
-                  className="h-12 w-9 rounded object-cover"
+                <CardArtThumb
+                  imageId={entry.key}
+                  variant="120w"
+                  className="w-9"
+                  landscape={isLandscapeKey(loaded.labels, entry.key)}
                 />
                 <span className={entry.key === readout.winnerKey ? "flex-1 font-medium" : "flex-1"}>
                   {describeKey(loaded.labels, entry.key)}
@@ -588,7 +590,7 @@ export function ScanTestPage() {
               </p>
             )}
 
-            <LocksCard locks={readout.locks} />
+            <LocksCard locks={readout.locks} loaded={loaded} />
           </div>
 
           <div className="flex flex-col gap-4">

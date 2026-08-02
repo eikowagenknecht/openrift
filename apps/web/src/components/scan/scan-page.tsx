@@ -49,7 +49,7 @@ import { useScanAssets } from "@/hooks/use-scan-serving";
 import type { AimHint } from "@/lib/scan-aim-hint";
 import { createAimHintSmoother, deriveAimHint } from "@/lib/scan-aim-hint";
 import type { LoadedScanBank } from "@/lib/scan-bank";
-import { describeKey, loadScanBank } from "@/lib/scan-bank";
+import { describeKey, isLandscapeKey, loadScanBank } from "@/lib/scan-bank";
 import { ghostConfidence } from "@/lib/scan-confidence";
 import { playLockTick } from "@/lib/scan-feedback";
 import { guideRectIn, snapshotVideoRect } from "@/lib/scan-flight";
@@ -388,7 +388,12 @@ export function ScanPage() {
         continue;
       }
       seen.add(artKey);
-      candidates.push({ key: entry.key, artKey, label: describeKey(loaded.labels, entry.key) });
+      candidates.push({
+        key: entry.key,
+        artKey,
+        label: describeKey(loaded.labels, entry.key),
+        landscape: isLandscapeKey(loaded.labels, entry.key),
+      });
     }
     if (candidates.length === 0) {
       toast.info("Nothing recognisable in the frame yet, aim at a card first");
@@ -437,6 +442,7 @@ export function ScanPage() {
         key: candidate.key,
         artKey: candidate.artKey,
         label: describeKey(loaded.labels, candidate.key),
+        landscape: isLandscapeKey(loaded.labels, candidate.key),
       })),
     );
   }

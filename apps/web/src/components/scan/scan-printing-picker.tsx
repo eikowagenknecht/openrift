@@ -1,6 +1,7 @@
 import type { Printing } from "@openrift/shared";
-import { imageUrl, legendDisplayName } from "@openrift/shared";
+import { getOrientation, legendDisplayName } from "@openrift/shared";
 
+import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { PrintingVariantLabel } from "@/components/cards/printing-label";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from "@/components/ui/drawer";
@@ -58,10 +59,11 @@ export function ScanPrintingPicker({
           className="hover:bg-muted flex w-full items-center gap-3 rounded-md px-2 py-1.5 text-left"
           onClick={() => onPick(candidate)}
         >
-          <img
-            src={imageUrl(candidate.images[0]?.imageId ?? "", "120w")}
-            alt=""
-            className="h-14 w-10 shrink-0 rounded object-cover"
+          <CardArtThumb
+            imageId={candidate.images[0]?.imageId}
+            variant="120w"
+            className="w-10"
+            landscape={getOrientation(candidate.card.types) === "landscape"}
           />
           <span className="min-w-0 flex-1">
             <span className="block truncate font-medium">{legendDisplayName(candidate.card)}</span>
