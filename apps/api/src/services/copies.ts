@@ -3,7 +3,7 @@ import type { CopyLink, CopyMetadataPatch } from "@openrift/shared";
 
 import type { Repos, Transact } from "../deps.js";
 import { AppError } from "../errors.js";
-import { assertFound } from "../utils/assertions.js";
+import { assertFound } from "../lib/assertions.js";
 import { logEvents } from "./event-logger.js";
 import { ensureInbox } from "./inbox.js";
 

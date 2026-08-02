@@ -3,10 +3,10 @@ import { publicUserShareContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
 import { gravatarHashForEmail } from "../../lib/gravatar.js";
+import { expandRuleListCounts } from "../../lib/list-counts.js";
+import { parseListRules, toListEntryDetail, toPublicList } from "../../lib/list-presenters.js";
 import { requireUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
-import { expandRuleListCounts } from "../../utils/list-counts.js";
-import { parseListRules, toListEntryDetail, toPublicList } from "../../utils/mappers.js";
 
 const os = implement(publicUserShareContract).$context<ApiContext>().use(requireUser);
 

@@ -6,6 +6,17 @@
 - **Styling** — Tailwind utility classes with `cn()` from `@/lib/utils` for conditional class merging.
 - **React Compiler** — auto-memoizes everything. Do not add `useMemo`, `useCallback`, or `React.memo`.
 
+## API module layout
+
+`apps/api/src` has exactly four homes for non-route code, and every file belongs to one of them. There is no `utils/` directory — it existed alongside `lib/` with no rule separating them, the two drifted, and it was folded into `lib/`.
+
+- **`repositories/`** — all database access. Routes and services reach it through `c.get("repos")`; nothing else may touch `db` / Kysely.
+- **`services/`** — orchestration that has side effects or owns a workflow: sending mail, writing images to disk, running a job, ingesting a provider feed.
+- **`lib/`** — everything shared that isn't a repository or a service. A `lib/` module may take `Repos` and await reads (`loadGroupForMember`, `expandRuleListCounts`, `loadMarkerAndChannelMaps`); the line is side effects and workflow ownership, not whether it touches the database.
+- **`routes/`** — the HTTP surface. Logic worth testing on its own moves down into `lib/`.
+
+Row-to-response mapping is called a **presenter**, and it lives in `lib/<domain>-presenters.ts` — one module per domain (`collection`, `copy`, `deck`, `list`, `printing`, `product`, `deck-check`, `tournament`). Do not name these `mappers` or `*-response`, and do not park one in a service because that's where its first caller happened to be. Presenters are pure and get a sibling `*-presenters.test.ts`; the one exception is a presenter that needs a repo read to compose a detail response (`buildEntryDetail`), which stays in the domain's presenter module rather than moving to `services/`.
+
 ## shadcn/ui Components
 
 Components in `apps/web/src/components/ui/` are scaffolded from shadcn's `base-nova` style (built on Base UI, not Radix). Add new ones with:

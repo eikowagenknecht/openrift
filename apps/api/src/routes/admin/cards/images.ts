@@ -7,6 +7,7 @@ import { implement } from "@orpc/server";
 import { v7 as uuidv7 } from "uuid";
 
 import { AppError } from "../../../errors.js";
+import { assertFound } from "../../../lib/assertions.js";
 import { requireAuthedUser } from "../../../orpc/base.js";
 import type { ApiContext } from "../../../orpc/context.js";
 import {
@@ -23,7 +24,6 @@ import {
   rehostSingleImage,
 } from "../../../services/images/index.js";
 import { recordAdminEvent } from "../../../services/record-admin-event.js";
-import { assertFound } from "../../../utils/assertions.js";
 
 const os = implement(adminCardImagesContract).$context<ApiContext>().use(requireAuthedUser);
 

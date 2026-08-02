@@ -3,7 +3,7 @@ import type { LoanResponse } from "@openrift/shared/types";
 
 import type { Repos, Transact } from "../deps.js";
 import { AppError } from "../errors.js";
-import { isUniqueViolation } from "../utils/pg-errors.js";
+import { isUniqueViolation } from "../lib/pg-errors.js";
 import { disposeCopiesInTransaction } from "./copies.js";
 
 export interface CreateLoanInput {

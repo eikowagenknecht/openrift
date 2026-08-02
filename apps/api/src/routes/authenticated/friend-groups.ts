@@ -31,15 +31,16 @@ import { friendGroupsContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
+import { toCopy } from "../../lib/copy-presenters.js";
 import { gravatarHashForEmail } from "../../lib/gravatar.js";
 import { hasRole, loadGroupForMember, requireRole } from "../../lib/group-access.js";
+import { expandRuleListCounts } from "../../lib/list-counts.js";
+import { toListEntryDetail } from "../../lib/list-presenters.js";
+import { getFavoriteMarketplace } from "../../lib/preferences.js";
+import { generateShareToken } from "../../lib/share-token.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import type { Group, MemberPreviewRow, MemberWithUser } from "../../repositories/friend-groups.js";
-import { expandRuleListCounts } from "../../utils/list-counts.js";
-import { toCopy, toListEntryDetail } from "../../utils/mappers.js";
-import { getFavoriteMarketplace } from "../../utils/preferences.js";
-import { generateShareToken } from "../../utils/share-token.js";
 
 /** Discord link codes are one-shot and short-lived — 15 minutes to run /link. */
 const DISCORD_LINK_CODE_TTL_MS = 15 * 60 * 1000;

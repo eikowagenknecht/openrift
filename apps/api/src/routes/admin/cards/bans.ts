@@ -3,10 +3,10 @@ import { adminCardBansContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../../errors.js";
+import { assertFound } from "../../../lib/assertions.js";
 import { requireAuthedUser } from "../../../orpc/base.js";
 import type { ApiContext } from "../../../orpc/context.js";
 import { recordAdminEvent } from "../../../services/record-admin-event.js";
-import { assertFound } from "../../../utils/assertions.js";
 
 const os = implement(adminCardBansContract).$context<ApiContext>().use(requireAuthedUser);
 

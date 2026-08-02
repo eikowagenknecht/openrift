@@ -2,13 +2,13 @@ import type { SetDetailResponse, SetListResponse } from "@openrift/shared";
 import { setsContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
-import { requireUser } from "../../orpc/base.js";
-import type { ApiContext } from "../../orpc/context.js";
 import {
   buildCardsResponse,
   buildPrintingsResponse,
   loadMarkerAndChannelMaps,
-} from "../../utils/printing-response.js";
+} from "../../lib/printing-presenters.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 
 const os = implement(setsContract).$context<ApiContext>().use(requireUser);
 

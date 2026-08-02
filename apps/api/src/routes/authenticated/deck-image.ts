@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 
+import { assertFound } from "../../lib/assertions.js";
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
 import {
@@ -9,7 +10,6 @@ import {
 } from "../../services/deck-image.js";
 import { siteHostFromOrigin } from "../../services/list-image.js";
 import type { Variables } from "../../types.js";
-import { assertFound } from "../../utils/assertions.js";
 
 /**
  * Owner-authenticated download of a deck's share image (ADR-031). The export

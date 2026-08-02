@@ -3,9 +3,9 @@ import { publicListsContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
 import { gravatarHashForEmail } from "../../lib/gravatar.js";
+import { toListEntryDetail, toPublicList } from "../../lib/list-presenters.js";
 import { requireUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
-import { toListEntryDetail, toPublicList } from "../../utils/mappers.js";
 
 const os = implement(publicListsContract).$context<ApiContext>().use(requireUser);
 

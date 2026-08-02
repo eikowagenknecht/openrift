@@ -1,24 +1,24 @@
 import { deckCheckEntrySource } from "@openrift/shared";
 import type {
+  DeckCheckEntryCardResponse,
   DeckCheckEntryDetailResponse,
   DeckCheckEntryResponse,
   DeckCheckEntrySummaryResponse,
   DeckCheckEventSummaryResponse,
   DeckCheckKeyResponse,
+  DeckZone,
 } from "@openrift/shared";
 
 import type { Repos } from "../deps.js";
 import type { DeckCheckKey } from "../repositories/deck-check-keys.js";
 import type {
   DeckCheckEntry,
+  DeckCheckEntryCard,
   DeckCheckEntrySummary,
   DeckCheckEvent,
   DeckCheckEventWithCounts,
 } from "../repositories/deck-check.js";
-import {
-  buildEntryAdvisories,
-  toDeckCheckEntryCardResponse,
-} from "../services/deck-check-advisories.js";
+import { buildEntryAdvisories } from "../services/deck-check-advisories.js";
 
 /*
  * Shared response mappers for the deck-check subsystem (ADR-025/033). The same
@@ -37,6 +37,28 @@ export function isoDate(value: Date | string | null): string | null {
     return null;
   }
   return value instanceof Date ? value.toISOString().slice(0, 10) : String(value);
+}
+
+/**
+ * Maps a stored entry-card row onto the response shape both the checker and
+ * the player view render.
+ * @returns The card-line response.
+ */
+export function toDeckCheckEntryCardResponse(row: DeckCheckEntryCard): DeckCheckEntryCardResponse {
+  return {
+    id: row.id,
+    sortOrder: row.sortOrder,
+    rawName: row.rawName,
+    section: row.section,
+    zone: row.zone as DeckZone,
+    quantity: row.quantity,
+    matchStatus: row.matchStatus,
+    foundCopies: Array.from({ length: row.quantity }, (_copy, index) =>
+      Boolean(row.foundCopies[index]),
+    ),
+    resolvedCardId: row.resolvedCardId,
+    resolvedPrintingId: row.resolvedPrintingId,
+  };
 }
 
 /** @returns The event projection mapped to its API summary response. */

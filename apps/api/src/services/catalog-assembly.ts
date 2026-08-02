@@ -6,7 +6,7 @@ import type {
 } from "@openrift/shared";
 
 import type { Repos } from "../deps.js";
-import { loadMarkerAndChannelMaps, resolveMarkers } from "../utils/printing-response.js";
+import { loadMarkerAndChannelMaps, resolveMarkers } from "../lib/printing-presenters.js";
 
 /**
  * Assembles the full catalog (cards + printings + sets) server-side. Extracted

@@ -6,16 +6,16 @@ import type {
 import { publicDecksContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
-import { gravatarHashForEmail } from "../../lib/gravatar.js";
-import { requireUser } from "../../orpc/base.js";
-import type { ApiContext } from "../../orpc/context.js";
-import { encodeDeck } from "../../services/deck-codecs/encode-deck.js";
 import {
   isEmptyDeckPlan,
   toDeckPlan,
   toPublicDeck,
   toPublicDeckCard,
-} from "../../utils/mappers.js";
+} from "../../lib/deck-presenters.js";
+import { gravatarHashForEmail } from "../../lib/gravatar.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
+import { encodeDeck } from "../../services/deck-codecs/encode-deck.js";
 
 const os = implement(publicDecksContract).$context<ApiContext>().use(requireUser);
 

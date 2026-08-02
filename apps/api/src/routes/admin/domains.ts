@@ -3,9 +3,9 @@ import { adminDomainsContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
+import { assertSlugAvailable, assertValidReorder } from "../../lib/assertions.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
-import { assertSlugAvailable, assertValidReorder } from "../../utils/assertions.js";
 
 const os = implement(adminDomainsContract).$context<ApiContext>().use(requireAuthedUser);
 

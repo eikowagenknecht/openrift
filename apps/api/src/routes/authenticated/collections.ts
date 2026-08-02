@@ -14,16 +14,17 @@ import type { Updateable } from "kysely";
 
 import type { CollectionsTable } from "../../db/index.js";
 import { AppError } from "../../errors.js";
+import { assertFound } from "../../lib/assertions.js";
+import { toCollection } from "../../lib/collection-presenters.js";
+import { toCopy } from "../../lib/copy-presenters.js";
+import { getFavoriteMarketplace } from "../../lib/preferences.js";
+import { generateShareToken } from "../../lib/share-token.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import { buildPatchUpdates } from "../../patch.js";
 import type { FieldMapping } from "../../patch.js";
 import { clampCopiesLimit } from "../../repositories/copies.js";
 import { buildKeysetCursor } from "../../repositories/query-helpers.js";
-import { assertFound } from "../../utils/assertions.js";
-import { toCollection, toCopy } from "../../utils/mappers.js";
-import { getFavoriteMarketplace } from "../../utils/preferences.js";
-import { generateShareToken } from "../../utils/share-token.js";
 
 const patchFields: FieldMapping<Updateable<CollectionsTable>> = {
   name: "name",

@@ -2,8 +2,8 @@ import { ERROR_CODES } from "@openrift/shared";
 
 import type { Repos, Transact } from "../deps.js";
 import { AppError } from "../errors.js";
+import { assertFound } from "../lib/assertions.js";
 import type { ProductContentRow, ProductWithCounts } from "../repositories/products.js";
-import { assertFound } from "../utils/assertions.js";
 
 /**
  * Resolves the list an admin wants to snapshot into product contents

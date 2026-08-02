@@ -7,10 +7,10 @@ import { publicTournamentsContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
 import type { Repos } from "../../deps.js";
+import { isUniqueViolation } from "../../lib/pg-errors.js";
 import { requireUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import type { Tournament } from "../../repositories/tournaments.js";
-import { isUniqueViolation } from "../../utils/pg-errors.js";
 
 /**
  * Resolves the host's public display name (user name or org name).

@@ -3,12 +3,12 @@ import { ERROR_CODES } from "@openrift/shared";
 import type { Transact } from "../deps.js";
 import { AppError } from "../errors.js";
 import type { Io } from "../io.js";
+import { assertFound } from "../lib/assertions.js";
 import type {
   CardDeleteBlockers,
   catalogDeleteGuardsRepo,
 } from "../repositories/catalog-delete-guards.js";
 import type { catalogMutationsRepo } from "../repositories/catalog-mutations.js";
-import { assertFound } from "../utils/assertions.js";
 import { cleanupOrphanedImageFiles, deletePrintingRows } from "./printing-admin.js";
 
 type CatalogMutationsRepo = ReturnType<typeof catalogMutationsRepo>;

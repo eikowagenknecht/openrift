@@ -19,15 +19,15 @@ import type { z } from "zod";
 
 import type { Repos } from "../../deps.js";
 import { AppError } from "../../errors.js";
+import { assertDeleted, assertFound } from "../../lib/assertions.js";
+import { toDeck, toDeckCard, toDeckPlan, toDeckSummary } from "../../lib/deck-presenters.js";
+import { withUniqueShareToken } from "../../lib/share-token.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import { buildPatchUpdates } from "../../patch.js";
 import type { FieldMapping } from "../../patch.js";
 import type { DeckUpdateInput } from "../../repositories/decks.js";
 import { encodeDeck } from "../../services/deck-codecs/encode-deck.js";
-import { assertDeleted, assertFound } from "../../utils/assertions.js";
-import { toDeck, toDeckCard, toDeckPlan, toDeckSummary } from "../../utils/mappers.js";
-import { withUniqueShareToken } from "../../utils/share-token.js";
 
 async function assertKnownFormat(deckFormats: Repos["deckFormats"], format: string): Promise<void> {
   const row = await deckFormats.getBySlug(format);

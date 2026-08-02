@@ -7,6 +7,7 @@ import { normalizeNameForMatching } from "@openrift/shared/utils";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../../errors.js";
+import { assertDeleted, assertFound, assertUpdated } from "../../../lib/assertions.js";
 import { requireAuthedUser } from "../../../orpc/base.js";
 import type { ApiContext } from "../../../orpc/context.js";
 import { acceptFavoritePrintingsForCard } from "../../../services/accept-favorite-printings.js";
@@ -25,7 +26,6 @@ import {
 } from "../../../services/printing-admin.js";
 import { recordAdminEvent } from "../../../services/record-admin-event.js";
 import { relinkCandidatePrintings } from "../../../services/relink-candidates.js";
-import { assertDeleted, assertFound, assertUpdated } from "../../../utils/assertions.js";
 
 const os = implement(adminCardMutationsContract).$context<ApiContext>().use(requireAuthedUser);
 

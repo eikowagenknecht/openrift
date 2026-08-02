@@ -3,11 +3,11 @@ import { adminProductsContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
+import { assertFound } from "../../lib/assertions.js";
+import { toCoverCards, toProductSummary } from "../../lib/product-presenters.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import { createProductFromList, resyncProductContents } from "../../services/products.js";
-import { assertFound } from "../../utils/assertions.js";
-import { toCoverCards, toProductSummary } from "../../utils/product-response.js";
 
 const os = implement(adminProductsContract).$context<ApiContext>().use(requireAuthedUser);
 

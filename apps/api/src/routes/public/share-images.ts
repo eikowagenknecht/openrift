@@ -4,6 +4,7 @@ import { rateLimiter } from "hono-rate-limiter";
 import { bodyLimit } from "hono/body-limit";
 
 import { AppError } from "../../errors.js";
+import { assertFound } from "../../lib/assertions.js";
 import {
   buildDeckImageCards,
   buildDeckImageCardsFromRefs,
@@ -19,7 +20,6 @@ import {
 import type { ShareImageCard } from "../../services/share-image.js";
 import { renderShareImage } from "../../services/share-image.js";
 import type { Variables } from "../../types.js";
-import { assertFound } from "../../utils/assertions.js";
 
 /**
  * Public share images (ADR-024). `GET .../image.png` renders the card-grid PNG

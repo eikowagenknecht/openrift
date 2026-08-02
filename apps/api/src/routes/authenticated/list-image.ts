@@ -1,10 +1,10 @@
 import { Hono } from "hono";
 
+import { assertFound } from "../../lib/assertions.js";
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
 import { renderListImage, siteHostFromOrigin } from "../../services/list-image.js";
 import type { Variables } from "../../types.js";
-import { assertFound } from "../../utils/assertions.js";
 
 /**
  * Owner-authenticated download of a list's share image (ADR-024). The share

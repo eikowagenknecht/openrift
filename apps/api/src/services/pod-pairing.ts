@@ -20,10 +20,10 @@ import type {
 
 import type { Repos } from "../deps.js";
 import { AppError } from "../errors.js";
+import { assertFound } from "../lib/assertions.js";
+import { isUniqueViolationOn } from "../lib/pg-errors.js";
 import { scoringOf } from "../repositories/pod-tournaments.js";
 import type { PodRound, PodTournament } from "../repositories/pod-tournaments.js";
-import { assertFound } from "../utils/assertions.js";
-import { isUniqueViolationOn } from "../utils/pg-errors.js";
 
 /**
  * The 409 raised when a second pairing collides with an already-open round.

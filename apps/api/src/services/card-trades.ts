@@ -3,8 +3,8 @@ import type { CardTradeResponse, CardTradeRole } from "@openrift/shared/types";
 
 import type { Repos, Transact } from "../deps.js";
 import { AppError } from "../errors.js";
+import { isUniqueViolation } from "../lib/pg-errors.js";
 import type { CardTrade } from "../repositories/card-trades.js";
-import { isUniqueViolation } from "../utils/pg-errors.js";
 import { disposeCopiesInTransaction } from "./copies.js";
 import { logEvents } from "./event-logger.js";
 import type { TradeEmailDeps } from "./trade-notifications.js";

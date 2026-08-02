@@ -17,13 +17,13 @@ import type { z } from "zod";
 
 import type { Repos } from "../deps.js";
 import { AppError } from "../errors.js";
+import { generateShareToken } from "../lib/share-token.js";
 import type {
   DeckCheckEntry,
   DeckCheckHost,
   NewDeckCheckEntryCard,
 } from "../repositories/deck-check.js";
 import { cardResolutionKey } from "../repositories/deck-check.js";
-import { generateShareToken } from "../utils/share-token.js";
 import { storedCardLines } from "./deck-check-states.js";
 
 export type DeckCheckIngestPayload = z.infer<typeof deckCheckIngestSchema>;

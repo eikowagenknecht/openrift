@@ -4,9 +4,9 @@ import { adminSiteSettingsContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
+import { assertDeleted, assertFound } from "../../lib/assertions.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
-import { assertDeleted, assertFound } from "../../utils/assertions.js";
 
 const os = implement(adminSiteSettingsContract).$context<ApiContext>().use(requireAuthedUser);
 

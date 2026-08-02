@@ -2,9 +2,9 @@ import type { UserShareStateResponse } from "@openrift/shared";
 import { userShareContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
+import { withUniqueShareToken } from "../../lib/share-token.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
-import { withUniqueShareToken } from "../../utils/share-token.js";
 
 const os = implement(userShareContract).$context<ApiContext>().use(requireAuthedUser);
 

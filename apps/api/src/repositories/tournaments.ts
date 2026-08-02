@@ -17,7 +17,7 @@ import { sql } from "kysely";
 
 import { parseJsonb } from "../db/helpers.js";
 import type { Database, TournamentParticipantsTable, TournamentsTable } from "../db/index.js";
-import { generateShareToken } from "../utils/share-token.js";
+import { generateShareToken } from "../lib/share-token.js";
 
 export type Tournament = Selectable<TournamentsTable>;
 export type TournamentParticipant = Selectable<TournamentParticipantsTable>;

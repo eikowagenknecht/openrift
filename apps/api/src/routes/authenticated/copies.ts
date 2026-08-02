@@ -6,11 +6,11 @@ import type {
 import { copiesContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
+import { toCopy } from "../../lib/copy-presenters.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import { clampCopiesLimit } from "../../repositories/copies.js";
 import { buildKeysetCursor } from "../../repositories/query-helpers.js";
-import { toCopy } from "../../utils/mappers.js";
 
 const os = implement(copiesContract).$context<ApiContext>().use(requireAuthedUser);
 

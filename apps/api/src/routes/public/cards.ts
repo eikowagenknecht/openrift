@@ -6,9 +6,9 @@ import type {
 import { cardsContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
+import { loadMarkerAndChannelMaps, resolveMarkers } from "../../lib/printing-presenters.js";
 import { requireUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
-import { loadMarkerAndChannelMaps, resolveMarkers } from "../../utils/printing-response.js";
 
 const os = implement(cardsContract).$context<ApiContext>().use(requireUser);
 

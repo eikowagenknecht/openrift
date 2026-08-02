@@ -14,12 +14,12 @@ import { listsContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
+import { assertDeleted, assertFound } from "../../lib/assertions.js";
+import { toList, toListDetail, toListEntry, toListEntryDetail } from "../../lib/list-presenters.js";
+import { withUniqueShareToken } from "../../lib/share-token.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import type { ListEntryUpdate, ListUpdate, NewEntryValues } from "../../repositories/lists.js";
-import { assertDeleted, assertFound } from "../../utils/assertions.js";
-import { toList, toListDetail, toListEntry, toListEntryDetail } from "../../utils/mappers.js";
-import { withUniqueShareToken } from "../../utils/share-token.js";
 
 const os = implement(listsContract).$context<ApiContext>().use(requireAuthedUser);
 

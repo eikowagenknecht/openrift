@@ -4,6 +4,7 @@ import type { ArtVariant, CardSize, Finish, Rarity } from "@openrift/shared/type
 import type { Transact } from "../deps.js";
 import { AppError } from "../errors.js";
 import type { Io } from "../io.js";
+import { assertFound } from "../lib/assertions.js";
 import type { candidateCardsRepo } from "../repositories/candidate-cards.js";
 import type {
   catalogDeleteGuardsRepo,
@@ -14,7 +15,6 @@ import type { distributionChannelsRepo } from "../repositories/distribution-chan
 import type { markersRepo } from "../repositories/markers.js";
 import type { printingEventsRepo } from "../repositories/printing-events.js";
 import type { printingImagesRepo } from "../repositories/printing-images.js";
-import { assertFound } from "../utils/assertions.js";
 import { rehostSingleImage } from "./images/jobs.js";
 import { deleteRehostFiles } from "./images/variants.js";
 import { recordNewPrintingEvent } from "./record-printing-event.js";

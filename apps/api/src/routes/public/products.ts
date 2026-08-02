@@ -2,15 +2,15 @@ import type { ProductDetailResponse, ProductsListResponse } from "@openrift/shar
 import { productsContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
-import { requireUser } from "../../orpc/base.js";
-import type { ApiContext } from "../../orpc/context.js";
-import { assertFound } from "../../utils/assertions.js";
+import { assertFound } from "../../lib/assertions.js";
 import {
   buildCardsResponse,
   buildPrintingsResponse,
   loadMarkerAndChannelMaps,
-} from "../../utils/printing-response.js";
-import { toCoverCards, toProductSummary } from "../../utils/product-response.js";
+} from "../../lib/printing-presenters.js";
+import { toCoverCards, toProductSummary } from "../../lib/product-presenters.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 
 const os = implement(productsContract).$context<ApiContext>().use(requireUser);
 

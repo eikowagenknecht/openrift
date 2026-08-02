@@ -2,10 +2,10 @@ import type { CollectionEventListResponse } from "@openrift/shared";
 import { collectionEventsContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
+import { toCollectionEvent } from "../../lib/collection-presenters.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import { buildKeysetCursor } from "../../repositories/query-helpers.js";
-import { toCollectionEvent } from "../../utils/mappers.js";
 
 const os = implement(collectionEventsContract).$context<ApiContext>().use(requireAuthedUser);
 

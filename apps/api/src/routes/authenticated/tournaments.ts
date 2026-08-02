@@ -12,6 +12,7 @@ import type { Repos } from "../../deps.js";
 import { AppError } from "../../errors.js";
 import { loadGroupForMember } from "../../lib/group-access.js";
 import { buildPodRunDetail, podRunDetailById } from "../../lib/pod-tournament-builders.js";
+import { generateShareToken } from "../../lib/share-token.js";
 import {
   loadParticipant,
   loadPodTournament,
@@ -46,7 +47,6 @@ import {
   rerollRound as rerollRoundEngine,
   submitPodResult,
 } from "../../services/pod-pairing.js";
-import { generateShareToken } from "../../utils/share-token.js";
 
 /**
  * The active teammate of a teamed participant, or undefined (no team, or the

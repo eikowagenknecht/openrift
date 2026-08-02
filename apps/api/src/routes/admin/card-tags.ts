@@ -8,9 +8,9 @@ import { adminCardTagsContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
+import { assertFound } from "../../lib/assertions.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
-import { assertFound } from "../../utils/assertions.js";
 
 const os = implement(adminCardTagsContract).$context<ApiContext>().use(requireAuthedUser);
 

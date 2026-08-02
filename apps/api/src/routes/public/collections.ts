@@ -2,13 +2,14 @@ import type { PublicCollectionDetailResponse } from "@openrift/shared";
 import { publicCollectionsContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
+import { toPublicCollection } from "../../lib/collection-presenters.js";
+import { toPublicCopy } from "../../lib/copy-presenters.js";
 import { gravatarHashForEmail } from "../../lib/gravatar.js";
+import { getFavoriteMarketplace } from "../../lib/preferences.js";
 import { requireUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import { clampCopiesLimit } from "../../repositories/copies.js";
 import { buildKeysetCursor } from "../../repositories/query-helpers.js";
-import { toPublicCollection, toPublicCopy } from "../../utils/mappers.js";
-import { getFavoriteMarketplace } from "../../utils/preferences.js";
 
 const os = implement(publicCollectionsContract).$context<ApiContext>().use(requireUser);
 

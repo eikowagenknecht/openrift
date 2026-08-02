@@ -1,7 +1,6 @@
 import { inferZone, validateDeck, WellKnown } from "@openrift/shared";
 import type {
   CardType,
-  DeckCheckEntryCardResponse,
   DeckCheckMatchStatus,
   DeckViolation,
   DeckZone,
@@ -12,7 +11,6 @@ import type {
 } from "@openrift/shared";
 
 import type { Repos } from "../deps.js";
-import type { DeckCheckEntryCard } from "../repositories/deck-check.js";
 
 /**
  * The card-line shape the advisory computation needs: satisfied both by stored
@@ -111,28 +109,6 @@ export function computeZoneSuggestions(
     });
   }
   return suggestions;
-}
-
-/**
- * Maps a stored entry-card row onto the response shape both the checker and
- * the player view render.
- * @returns The card-line response.
- */
-export function toDeckCheckEntryCardResponse(row: DeckCheckEntryCard): DeckCheckEntryCardResponse {
-  return {
-    id: row.id,
-    sortOrder: row.sortOrder,
-    rawName: row.rawName,
-    section: row.section,
-    zone: row.zone as DeckZone,
-    quantity: row.quantity,
-    matchStatus: row.matchStatus,
-    foundCopies: Array.from({ length: row.quantity }, (_copy, index) =>
-      Boolean(row.foundCopies[index]),
-    ),
-    resolvedCardId: row.resolvedCardId,
-    resolvedPrintingId: row.resolvedPrintingId,
-  };
 }
 
 /**
