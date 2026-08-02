@@ -6,6 +6,7 @@ import type {
   TournamentCoverLegend,
   TournamentDetailResponse,
   TournamentHostInfo,
+  TournamentHostType,
   TournamentListResponse,
   TournamentPairingStyle,
   TournamentParticipantListResponse,
@@ -29,6 +30,7 @@ import type { Repos } from "../../deps.js";
 import { AppError } from "../../errors.js";
 import { gravatarHashForEmail } from "../../lib/gravatar.js";
 import { loadGroupForMember } from "../../lib/group-access.js";
+import { hasOrgRole, loadOrg, requireOrgRole } from "../../lib/org-access.js";
 import { moduleFlags, toParticipant, toStaffMember } from "../../lib/tournament-presenters.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
@@ -37,7 +39,6 @@ import type { PodRosterPlayer, PodTournament } from "../../repositories/pod-tour
 import type {
   Tournament,
   TournamentParticipant,
-  TournamentPatch,
   TournamentSummaryRow,
 } from "../../repositories/tournaments.js";
 import {
@@ -143,9 +144,34 @@ async function isHost(repos: Repos, tournament: Tournament, userId: string): Pro
   if (tournament.hostOrgId) {
     const membership = await repos.organizations.getMembership(tournament.hostOrgId, userId);
     // Org judges have no host authority; only owners/managers host for the org.
-    return membership !== undefined && membership.role !== "judge";
+    return membership !== undefined && hasOrgRole(membership.role, "manager");
   }
   return false;
+}
+
+/** The host column triple, kept mutually exclusive so the host CHECK holds. */
+interface TournamentHostColumns {
+  hostType: TournamentHostType;
+  hostUserId: string | null;
+  hostOrgId: string | null;
+}
+
+/**
+ * Resolves an organization host for a create or a host reassignment: 404 on an
+ * unknown org, 403 unless the caller is an owner or manager of it.
+ * @param repos The repository bundle.
+ * @param orgId The organization to host under.
+ * @param userId The acting user.
+ * @returns The host columns for that org.
+ */
+async function resolveOrgHost(
+  repos: Repos,
+  orgId: string,
+  userId: string,
+): Promise<TournamentHostColumns> {
+  const org = await loadOrg(repos, orgId, "Host organization not found");
+  await requireOrgRole(repos, org.id, userId, "manager");
+  return { hostType: "organization", hostUserId: null, hostOrgId: org.id };
 }
 
 /** Throws 403 unless the user is the host or an organizer (the manage gate). */
@@ -762,7 +788,7 @@ async function resolveStaff(
     userId: member.userId,
     name: member.name,
     // owner/manager are implicit organizers; an org judge is an implicit judge.
-    role: member.role === "judge" ? "judge" : "organizer",
+    role: hasOrgRole(member.role, "manager") ? "organizer" : "judge",
     source: "organization",
     orgRole: member.role,
     addedAt: member.joinedAt.toISOString(),
@@ -825,81 +851,66 @@ export const tournamentsRouter = {
     },
   ),
 
-  create: os.create.handler(
-    async ({ input, context, errors }): Promise<TournamentDetailResponse> => {
-      const repos = context.repos;
-      const userId = context.userId;
-      assertDateOrder(
-        new Date(input.startsAt),
-        input.endsAt ? new Date(input.endsAt) : null,
-        input.submissionsCloseAt ? new Date(input.submissionsCloseAt) : null,
-      );
-      assertPlayModeCompatible(
-        input.playMode ?? "1v1",
-        input.pairingStyle,
-        input.regionsEnabled ?? false,
-      );
+  create: os.create.handler(async ({ input, context }): Promise<TournamentDetailResponse> => {
+    const repos = context.repos;
+    const userId = context.userId;
+    assertDateOrder(
+      new Date(input.startsAt),
+      input.endsAt ? new Date(input.endsAt) : null,
+      input.submissionsCloseAt ? new Date(input.submissionsCloseAt) : null,
+    );
+    assertPlayModeCompatible(
+      input.playMode ?? "1v1",
+      input.pairingStyle,
+      input.regionsEnabled ?? false,
+    );
 
-      let hostUserId: string | null = null;
-      let hostOrgId: string | null = null;
-      if (input.host.type === "user") {
-        hostUserId = userId;
-      } else {
-        const org = await repos.organizations.findById(input.host.orgId);
-        if (!org) {
-          throw errors.NOT_FOUND({ message: "Host organization not found" });
-        }
-        const membership = await repos.organizations.getMembership(org.id, userId);
-        if (!membership || membership.role === "judge") {
-          throw new AppError(403, ERROR_CODES.FORBIDDEN, "Not an owner or manager of that org");
-        }
-        hostOrgId = org.id;
+    const host: TournamentHostColumns =
+      input.host.type === "user"
+        ? { hostType: "user", hostUserId: userId, hostOrgId: null }
+        : await resolveOrgHost(repos, input.host.orgId, userId);
+
+    if (input.groupId) {
+      const membership = await repos.friendGroups.getMembership(input.groupId, userId);
+      if (!membership) {
+        throw new AppError(403, ERROR_CODES.FORBIDDEN, "Not a member of that group");
       }
+    }
 
-      if (input.groupId) {
-        const membership = await repos.friendGroups.getMembership(input.groupId, userId);
-        if (!membership) {
-          throw new AppError(403, ERROR_CODES.FORBIDDEN, "Not a member of that group");
-        }
-      }
-
-      const created = await context.transact(async (txRepos) => {
-        const tournament = await txRepos.tournaments.create({
-          hostType: input.host.type,
-          hostUserId,
-          hostOrgId,
-          groupId: input.groupId ?? null,
-          name: input.name,
-          pairingStyle: input.pairingStyle,
-          playMode: input.playMode,
-          scoringScheme: input.scoringScheme,
-          byePoints: input.byePoints,
-          matchFormat: input.matchFormat,
-          winPoints: input.winPoints,
-          drawPoints: input.drawPoints,
-          regionsEnabled: input.regionsEnabled,
-          deckSubmission: input.deckSubmission,
-          submissionsCloseAt: input.submissionsCloseAt ? new Date(input.submissionsCloseAt) : null,
-          listLockMode: input.listLockMode,
-          deckFormat: input.deckFormat ?? null,
-          allowedSets: input.allowedSets ?? null,
-          selfRegistration: input.selfRegistration,
-          startsAt: new Date(input.startsAt),
-          endsAt: input.endsAt ? new Date(input.endsAt) : null,
-        });
-        // Seed the creator as organizer staff for clarity (org owner/manager are
-        // implicit organizers too, but the row documents who set it up).
-        await txRepos.tournaments.addStaff(tournament.id, userId, "organizer");
-        // Mint the share link as soon as it's needed (open self-registration or
-        // a tournament that expects decks); the host never generates it by hand.
-        if ((input.selfRegistration ?? false) || input.deckSubmission !== "none") {
-          await txRepos.tournaments.setSubmissionToken(tournament.id, generateShareToken());
-        }
-        return tournament;
+    const created = await context.transact(async (txRepos) => {
+      const tournament = await txRepos.tournaments.create({
+        ...host,
+        groupId: input.groupId ?? null,
+        name: input.name,
+        pairingStyle: input.pairingStyle,
+        playMode: input.playMode,
+        scoringScheme: input.scoringScheme,
+        byePoints: input.byePoints,
+        matchFormat: input.matchFormat,
+        winPoints: input.winPoints,
+        drawPoints: input.drawPoints,
+        regionsEnabled: input.regionsEnabled,
+        deckSubmission: input.deckSubmission,
+        submissionsCloseAt: input.submissionsCloseAt ? new Date(input.submissionsCloseAt) : null,
+        listLockMode: input.listLockMode,
+        deckFormat: input.deckFormat ?? null,
+        allowedSets: input.allowedSets ?? null,
+        selfRegistration: input.selfRegistration,
+        startsAt: new Date(input.startsAt),
+        endsAt: input.endsAt ? new Date(input.endsAt) : null,
       });
-      return detailById(repos, created.id, userId);
-    },
-  ),
+      // Seed the creator as organizer staff for clarity (org owner/manager are
+      // implicit organizers too, but the row documents who set it up).
+      await txRepos.tournaments.addStaff(tournament.id, userId, "organizer");
+      // Mint the share link as soon as it's needed (open self-registration or
+      // a tournament that expects decks); the host never generates it by hand.
+      if ((input.selfRegistration ?? false) || input.deckSubmission !== "none") {
+        await txRepos.tournaments.setSubmissionToken(tournament.id, generateShareToken());
+      }
+      return tournament;
+    });
+    return detailById(repos, created.id, userId);
+  }),
 
   get: os.get.handler(async ({ input, context }): Promise<TournamentDetailResponse> => {
     const repos = context.repos;
@@ -911,155 +922,137 @@ export const tournamentsRouter = {
     return buildDetail(repos, tournament, userId);
   }),
 
-  update: os.update.handler(
-    async ({ input, context, errors }): Promise<TournamentDetailResponse> => {
-      const repos = context.repos;
-      const userId = context.userId;
-      const { id, ...patch } = input;
-      const tournament = await loadTournament(repos, id);
-      await requireManage(repos, tournament, userId);
-      const currentStatus = tournament.status as TournamentStatus;
-      if (currentStatus === "cancelled") {
-        throw new AppError(409, ERROR_CODES.CONFLICT, "A cancelled tournament cannot be edited");
-      }
-      // Status moves follow the forward-only lifecycle; an unchanged value is a no-op.
-      if (
-        patch.status !== undefined &&
-        patch.status !== currentStatus &&
-        !ALLOWED_STATUS_TRANSITIONS[currentStatus].includes(patch.status)
-      ) {
-        throw new AppError(
-          409,
-          ERROR_CODES.CONFLICT,
-          `A ${currentStatus} tournament can't move to ${patch.status}`,
-        );
-      }
-      // The pairing engine can change only before any round exists (rounds/pods
-      // depend on it).
-      const pairingChanging =
-        patch.pairingStyle !== undefined && patch.pairingStyle !== tournament.pairingStyle;
-      // The match format shapes result entry, so it is frozen alongside the
-      // pairing engine once rounds exist. The play mode shapes both, so it
-      // freezes with them.
-      const matchFormatChanging =
-        patch.matchFormat !== undefined && patch.matchFormat !== tournament.matchFormat;
-      const playModeChanging =
-        patch.playMode !== undefined && patch.playMode !== tournament.playMode;
-      if (
-        (pairingChanging || matchFormatChanging || playModeChanging) &&
-        (await repos.tournaments.hasRounds(id))
-      ) {
-        throw new AppError(
-          409,
-          ERROR_CODES.CONFLICT,
-          "The pairing engine can't change once a round has been generated",
-        );
-      }
-      assertPlayModeCompatible(
-        patch.playMode ?? tournament.playMode,
-        patch.pairingStyle ?? tournament.pairingStyle,
-        patch.regionsEnabled ?? tournament.regionsEnabled,
+  update: os.update.handler(async ({ input, context }): Promise<TournamentDetailResponse> => {
+    const repos = context.repos;
+    const userId = context.userId;
+    const { id, ...patch } = input;
+    const tournament = await loadTournament(repos, id);
+    await requireManage(repos, tournament, userId);
+    const currentStatus = tournament.status as TournamentStatus;
+    if (currentStatus === "cancelled") {
+      throw new AppError(409, ERROR_CODES.CONFLICT, "A cancelled tournament cannot be edited");
+    }
+    // Status moves follow the forward-only lifecycle; an unchanged value is a no-op.
+    if (
+      patch.status !== undefined &&
+      patch.status !== currentStatus &&
+      !ALLOWED_STATUS_TRANSITIONS[currentStatus].includes(patch.status)
+    ) {
+      throw new AppError(
+        409,
+        ERROR_CODES.CONFLICT,
+        `A ${currentStatus} tournament can't move to ${patch.status}`,
       );
-      // Validate the merged schedule: a patch may touch only one of the three
-      // instants, so the order check needs the existing row to fill the rest.
-      assertDateOrder(
-        patch.startsAt === undefined ? tournament.startsAt : new Date(patch.startsAt),
-        patch.endsAt === undefined
-          ? tournament.endsAt
-          : patch.endsAt
-            ? new Date(patch.endsAt)
-            : null,
+    }
+    // The pairing engine can change only before any round exists (rounds/pods
+    // depend on it).
+    const pairingChanging =
+      patch.pairingStyle !== undefined && patch.pairingStyle !== tournament.pairingStyle;
+    // The match format shapes result entry, so it is frozen alongside the
+    // pairing engine once rounds exist. The play mode shapes both, so it
+    // freezes with them.
+    const matchFormatChanging =
+      patch.matchFormat !== undefined && patch.matchFormat !== tournament.matchFormat;
+    const playModeChanging = patch.playMode !== undefined && patch.playMode !== tournament.playMode;
+    if (
+      (pairingChanging || matchFormatChanging || playModeChanging) &&
+      (await repos.tournaments.hasRounds(id))
+    ) {
+      throw new AppError(
+        409,
+        ERROR_CODES.CONFLICT,
+        "The pairing engine can't change once a round has been generated",
+      );
+    }
+    assertPlayModeCompatible(
+      patch.playMode ?? tournament.playMode,
+      patch.pairingStyle ?? tournament.pairingStyle,
+      patch.regionsEnabled ?? tournament.regionsEnabled,
+    );
+    // Validate the merged schedule: a patch may touch only one of the three
+    // instants, so the order check needs the existing row to fill the rest.
+    assertDateOrder(
+      patch.startsAt === undefined ? tournament.startsAt : new Date(patch.startsAt),
+      patch.endsAt === undefined ? tournament.endsAt : patch.endsAt ? new Date(patch.endsAt) : null,
+      patch.submissionsCloseAt === undefined
+        ? tournament.submissionsCloseAt
+        : patch.submissionsCloseAt
+          ? new Date(patch.submissionsCloseAt)
+          : null,
+    );
+    if (patch.groupId) {
+      const membership = await repos.friendGroups.getMembership(patch.groupId, userId);
+      if (!membership) {
+        throw new AppError(403, ERROR_CODES.FORBIDDEN, "Not a member of that group");
+      }
+    }
+    // Host reassignment is host-only, in any direction. The target binds to the
+    // caller (personal = themselves; org = an org they belong to).
+    let hostPatch: Partial<TournamentHostColumns> = {};
+    const hostChanging =
+      patch.host !== undefined &&
+      (patch.host.type !== tournament.hostType ||
+        (patch.host.type === "organization" && patch.host.orgId !== tournament.hostOrgId));
+    if (hostChanging && patch.host) {
+      await requireHost(repos, tournament, userId);
+      hostPatch =
+        patch.host.type === "user"
+          ? { hostType: "user", hostUserId: userId, hostOrgId: null }
+          : await resolveOrgHost(repos, patch.host.orgId, userId);
+    }
+    await repos.tournaments.updateSettings(id, {
+      ...hostPatch,
+      name: patch.name,
+      status: patch.status,
+      pairingStyle: pairingChanging ? patch.pairingStyle : undefined,
+      playMode: playModeChanging ? patch.playMode : undefined,
+      startsAt: patch.startsAt === undefined ? undefined : new Date(patch.startsAt),
+      endsAt: patch.endsAt === undefined ? undefined : patch.endsAt ? new Date(patch.endsAt) : null,
+      groupId: patch.groupId,
+      scoringScheme: patch.scoringScheme,
+      byePoints: patch.byePoints,
+      matchFormat: matchFormatChanging ? patch.matchFormat : undefined,
+      winPoints: patch.winPoints,
+      drawPoints: patch.drawPoints,
+      regionsEnabled: patch.regionsEnabled,
+      deckSubmission: patch.deckSubmission,
+      submissionsCloseAt:
         patch.submissionsCloseAt === undefined
-          ? tournament.submissionsCloseAt
+          ? undefined
           : patch.submissionsCloseAt
             ? new Date(patch.submissionsCloseAt)
             : null,
-      );
-      if (patch.groupId) {
-        const membership = await repos.friendGroups.getMembership(patch.groupId, userId);
-        if (!membership) {
-          throw new AppError(403, ERROR_CODES.FORBIDDEN, "Not a member of that group");
-        }
+      listLockMode: patch.listLockMode,
+      deckFormat: patch.deckFormat,
+      allowedSets: patch.allowedSets,
+      selfRegistration: patch.selfRegistration,
+    });
+    // Leaving 2v2 dissolves the (never-played — the rounds guard above)
+    // teams, so no stale team ids survive into 1v1 responses.
+    if (playModeChanging && patch.playMode === "1v1") {
+      await repos.podTournaments.dissolveAllTeams(id);
+    }
+    // The follow-along report is a pod-engine surface. Leaving the pod engine
+    // revokes its share token so the now-meaningless report link stops resolving
+    // (the public report also gates on pairingStyle, but clearing the token keeps
+    // the manage UI and any cached link honest).
+    if (pairingChanging && patch.pairingStyle !== "pod" && patch.pairingStyle !== "swiss") {
+      if (tournament.reportToken) {
+        await repos.podTournaments.setReportToken(id, null);
       }
-      // Host reassignment is host-only, in any direction. The target binds to the
-      // caller (personal = themselves; org = an org they belong to); the column
-      // triple stays mutually exclusive so the host CHECK holds.
-      let hostPatch: Pick<TournamentPatch, "hostType" | "hostUserId" | "hostOrgId"> = {};
-      const hostChanging =
-        patch.host !== undefined &&
-        (patch.host.type !== tournament.hostType ||
-          (patch.host.type === "organization" && patch.host.orgId !== tournament.hostOrgId));
-      if (hostChanging && patch.host) {
-        await requireHost(repos, tournament, userId);
-        if (patch.host.type === "user") {
-          hostPatch = { hostType: "user", hostUserId: userId, hostOrgId: null };
-        } else {
-          const org = await repos.organizations.findById(patch.host.orgId);
-          if (!org) {
-            throw errors.NOT_FOUND({ message: "Host organization not found" });
-          }
-          const membership = await repos.organizations.getMembership(org.id, userId);
-          if (!membership || membership.role === "judge") {
-            throw new AppError(403, ERROR_CODES.FORBIDDEN, "Not an owner or manager of that org");
-          }
-          hostPatch = { hostType: "organization", hostUserId: null, hostOrgId: org.id };
-        }
+      if (tournament.followToken) {
+        await repos.podTournaments.setFollowToken(id, null);
       }
-      await repos.tournaments.updateSettings(id, {
-        ...hostPatch,
-        name: patch.name,
-        status: patch.status,
-        pairingStyle: pairingChanging ? patch.pairingStyle : undefined,
-        playMode: playModeChanging ? patch.playMode : undefined,
-        startsAt: patch.startsAt === undefined ? undefined : new Date(patch.startsAt),
-        endsAt:
-          patch.endsAt === undefined ? undefined : patch.endsAt ? new Date(patch.endsAt) : null,
-        groupId: patch.groupId,
-        scoringScheme: patch.scoringScheme,
-        byePoints: patch.byePoints,
-        matchFormat: matchFormatChanging ? patch.matchFormat : undefined,
-        winPoints: patch.winPoints,
-        drawPoints: patch.drawPoints,
-        regionsEnabled: patch.regionsEnabled,
-        deckSubmission: patch.deckSubmission,
-        submissionsCloseAt:
-          patch.submissionsCloseAt === undefined
-            ? undefined
-            : patch.submissionsCloseAt
-              ? new Date(patch.submissionsCloseAt)
-              : null,
-        listLockMode: patch.listLockMode,
-        deckFormat: patch.deckFormat,
-        allowedSets: patch.allowedSets,
-        selfRegistration: patch.selfRegistration,
-      });
-      // Leaving 2v2 dissolves the (never-played — the rounds guard above)
-      // teams, so no stale team ids survive into 1v1 responses.
-      if (playModeChanging && patch.playMode === "1v1") {
-        await repos.podTournaments.dissolveAllTeams(id);
-      }
-      // The follow-along report is a pod-engine surface. Leaving the pod engine
-      // revokes its share token so the now-meaningless report link stops resolving
-      // (the public report also gates on pairingStyle, but clearing the token keeps
-      // the manage UI and any cached link honest).
-      if (pairingChanging && patch.pairingStyle !== "pod" && patch.pairingStyle !== "swiss") {
-        if (tournament.reportToken) {
-          await repos.podTournaments.setReportToken(id, null);
-        }
-        if (tournament.followToken) {
-          await repos.podTournaments.setFollowToken(id, null);
-        }
-      }
-      // Mint the share link the first time it's needed (self-registration opened
-      // or decks now expected); turning self-registration off keeps the link.
-      const willSelfRegister = patch.selfRegistration ?? tournament.selfRegistration;
-      const willExpectDecks = (patch.deckSubmission ?? tournament.deckSubmission) !== "none";
-      if (!tournament.submissionToken && (willSelfRegister || willExpectDecks)) {
-        await repos.tournaments.setSubmissionToken(id, generateShareToken());
-      }
-      return detailById(repos, id, userId);
-    },
-  ),
+    }
+    // Mint the share link the first time it's needed (self-registration opened
+    // or decks now expected); turning self-registration off keeps the link.
+    const willSelfRegister = patch.selfRegistration ?? tournament.selfRegistration;
+    const willExpectDecks = (patch.deckSubmission ?? tournament.deckSubmission) !== "none";
+    if (!tournament.submissionToken && (willSelfRegister || willExpectDecks)) {
+      await repos.tournaments.setSubmissionToken(id, generateShareToken());
+    }
+    return detailById(repos, id, userId);
+  }),
 
   cancel: os.cancel.handler(async ({ input, context }): Promise<TournamentDetailResponse> => {
     const repos = context.repos;

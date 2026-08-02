@@ -13,6 +13,7 @@ import { implement } from "@orpc/server";
 import type { Repos } from "../../deps.js";
 import { AppError } from "../../errors.js";
 import { toKey } from "../../lib/deck-check-presenters.js";
+import { loadOrg, requireOrgRole } from "../../lib/org-access.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import type { DeckCheckHost } from "../../repositories/deck-check.js";
@@ -44,15 +45,9 @@ async function authorizeOrgHost(
   orgId: string,
   userId: string,
 ): Promise<DeckCheckHost> {
-  const org = await repos.organizations.findById(orgId);
-  if (!org) {
-    throw new AppError(404, ERROR_CODES.NOT_FOUND, "Organization not found");
-  }
-  const membership = await repos.organizations.getMembership(orgId, userId);
-  if (!membership || membership.role === "judge") {
-    throw new AppError(403, ERROR_CODES.FORBIDDEN, "Owner or manager only");
-  }
-  return { hostType: "organization", hostUserId: null, hostOrgId: orgId };
+  const org = await loadOrg(repos, orgId);
+  await requireOrgRole(repos, org.id, userId, "manager");
+  return { hostType: "organization", hostUserId: null, hostOrgId: org.id };
 }
 
 /** @returns The current user as a deck-check host. */
