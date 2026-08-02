@@ -10,8 +10,12 @@
       "dependsOn": ["^typecheck"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"]
     },
+    "topo": {
+      "dependsOn": ["^topo"]
+    },
     "test": {
-      "inputs": ["src/**"]
+      "dependsOn": ["topo"],
+      "inputs": ["$TURBO_DEFAULT$"]
     },
     "test:coverage": {
       "inputs": ["src/**"],
