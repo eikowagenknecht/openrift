@@ -23,7 +23,13 @@ function fakeCv(): Record<string, unknown> {
   return cv;
 }
 
-describe("loadOpenCv", () => {
+// Every test calls `vi.resetModules()` and re-imports the loader, so each one
+// pays a cold import. That fits the 5s default with room to spare, but it did
+// time out back when this suite lived in the 2295-line use-card-scanner, and a
+// timeout is unusually expensive here: it strands the loader mid-flight, which
+// then strips `then` off the *next* test's `globalThis.cv` and fails that one
+// too. The headroom is cheap next to debugging that cascade a second time.
+describe("loadOpenCv", { timeout: 30_000 }, () => {
   let appended: HTMLScriptElement[];
   let moduleDuringEval: EmscriptenModule | undefined;
   let respondWith: "load" | "error";
