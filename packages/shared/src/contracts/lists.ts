@@ -3,6 +3,8 @@ import {
   currencyResponseSchema,
   listEntryBaseShape,
   listEntryDetailResponseSchema,
+  LIST_INTENTS,
+  LIST_KINDS,
   listIntentResponseSchema,
   listKindResponseSchema,
   tradePreferenceSchema,
@@ -26,9 +28,12 @@ import { authedRoute } from "./_base.js";
 
 extendZodWithOpenApi(z);
 
-const listIntentSchema = z.enum(["wish", "trade", "organize"]);
+// Request-side enums. Built from the shared value arrays rather than aliased to
+// the response schemas so the `.openapi()` component names stay on the response
+// side (see LIST_INTENTS in response-schemas.ts).
+const listIntentSchema = z.enum(LIST_INTENTS);
 
-const listKindSchema = z.enum(["card", "printing", "copy"]);
+const listKindSchema = z.enum(LIST_KINDS);
 
 /**
  * Allowed intent × kind combos. Mirrors the chk_lists_intent_kind DB
@@ -36,8 +41,8 @@ const listKindSchema = z.enum(["card", "printing", "copy"]);
  * @returns true if the combo is allowed.
  */
 const isAllowedIntentKind = (
-  intent: "wish" | "trade" | "organize",
-  kind: "card" | "printing" | "copy",
+  intent: (typeof LIST_INTENTS)[number],
+  kind: (typeof LIST_KINDS)[number],
 ): boolean => {
   if (intent === "wish") {
     return kind === "card" || kind === "printing";

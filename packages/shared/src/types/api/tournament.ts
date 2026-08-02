@@ -5,6 +5,7 @@
 // this file carries the umbrella-level enums and the host/staff/participant
 // entities the umbrella adds on top.
 
+import type { deckCheckClaimSourceSchema } from "@openrift/shared/contracts/deck-check";
 import type {
   organizationDetailResponseSchema,
   organizationListResponseSchema,
@@ -20,17 +21,25 @@ import type {
 } from "@openrift/shared/contracts/public-tournaments";
 import type {
   tournamentCoverLegendSchema,
+  tournamentDeckPhaseSchema,
+  tournamentDeckSubmissionSchema,
   tournamentDetailResponseSchema,
   tournamentHostInfoSchema,
+  tournamentListLockModeSchema,
   tournamentListResponseSchema,
+  tournamentMatchFormatSchema,
   tournamentModuleFlagsSchema,
   tournamentMyDeckEntrySchema,
+  tournamentPairingStyleSchema,
   tournamentParticipantListResponseSchema,
   tournamentParticipantPreviewSchema,
   tournamentParticipantResponseSchema,
+  tournamentParticipantStatusSchema,
+  tournamentPlayModeSchema,
   tournamentStaffCandidateListResponseSchema,
   tournamentStaffCandidateResponseSchema,
   tournamentStaffMemberResponseSchema,
+  tournamentStaffRoleSchema,
   tournamentSummaryResponseSchema,
   tournamentWinnerSchema,
 } from "@openrift/shared/contracts/tournaments";
@@ -38,7 +47,7 @@ import type { TOURNAMENT_STATUSES } from "@openrift/shared/response-schemas";
 import type { z } from "zod";
 
 /** Exactly one of a user or an organization hosts a tournament. */
-export type TournamentHostType = "user" | "organization";
+export type TournamentHostType = z.infer<typeof tournamentHostInfoSchema>["type"];
 
 /** Lifecycle, orthogonal to the deck phase. `cancelled` locks it read-only. */
 export type TournamentStatus = (typeof TOURNAMENT_STATUSES)[number];
@@ -48,7 +57,7 @@ export type TournamentStatus = (typeof TOURNAMENT_STATUSES)[number];
  * deck-only event); `pod` = 3/4-player pod rounds; `swiss` = 1v1 Swiss matches.
  * The single pairing axis, extensible to cut later.
  */
-export type TournamentPairingStyle = "none" | "pod" | "swiss";
+export type TournamentPairingStyle = z.infer<typeof tournamentPairingStyleSchema>;
 
 /**
  * The play mode, orthogonal to the pairing style. `2v2` composes with `swiss`
@@ -56,26 +65,26 @@ export type TournamentPairingStyle = "none" | "pod" | "swiss";
  * and with `none` (deck-only events checked against the 2v2 banlist); it is
  * rejected with `pod` and with the region layer.
  */
-export type TournamentPlayMode = "1v1" | "2v2";
+export type TournamentPlayMode = z.infer<typeof tournamentPlayModeSchema>;
 
 /** Swiss result entry: best of 1 or best of 3. Only meaningful for `swiss`. */
-export type TournamentMatchFormat = "bo1" | "bo3";
+export type TournamentMatchFormat = z.infer<typeof tournamentMatchFormatSchema>;
 
 /**
  * Whether a decklist is expected. Every submission produces a deck-check entry, so
  * a tournament that collects lists (`optional`/`required`) is checkable by judges;
  * there is no separate "enable checking" switch.
  */
-export type TournamentDeckSubmission = "none" | "optional" | "required";
+export type TournamentDeckSubmission = z.infer<typeof tournamentDeckSubmissionSchema>;
 
 /** Deck-submission sub-state, orthogonal to {@link TournamentStatus}. */
-export type TournamentDeckPhase = "open" | "closed" | "locked";
+export type TournamentDeckPhase = z.infer<typeof tournamentDeckPhaseSchema>;
 
 /** When a submitted list locks: on submit, or only at the submission deadline. */
-export type TournamentListLockMode = "on_submit" | "at_deadline";
+export type TournamentListLockMode = z.infer<typeof tournamentListLockModeSchema>;
 
 /** Per-tournament staff grant, decoupled from friend-group roles. */
-export type TournamentStaffRole = "organizer" | "judge";
+export type TournamentStaffRole = z.infer<typeof tournamentStaffRoleSchema>;
 
 /**
  * Organization membership. `owner`/`manager` inherit organizer authority on every
@@ -85,15 +94,15 @@ export type TournamentStaffRole = "organizer" | "judge";
 export type OrganizationRole = z.infer<typeof organizationRoleSchema>;
 
 /** Participant lifecycle: walk-in/invited/self-requested → active → dropped/no-show. */
-export type TournamentParticipantStatus =
-  | "requested"
-  | "invited"
-  | "active"
-  | "dropped"
-  | "no_show";
+export type TournamentParticipantStatus = z.infer<typeof tournamentParticipantStatusSchema>;
 
-/** How a participant's account link was established. */
-export type TournamentClaimSource = "judge_manual" | "self_submit" | "claim_link";
+/**
+ * How a participant's account link was established. Claim machinery is
+ * lifted from deck_check_entries (see {@link DeckCheckClaimSource} in
+ * `deck-check.ts`), so this derives from the same schema rather than
+ * re-declaring the vocabulary.
+ */
+export type TournamentClaimSource = z.infer<typeof deckCheckClaimSourceSchema>;
 
 export type OrganizationResponse = z.infer<typeof organizationResponseSchema>;
 
@@ -110,7 +119,9 @@ export type OrganizationSummaryResponse = z.infer<typeof organizationSummaryResp
 export type OrganizationListResponse = z.infer<typeof organizationListResponseSchema>;
 
 /** The caller's relationship to a tournament. */
-export type TournamentViewerRole = "host" | "organizer" | "judge" | "participant";
+export type TournamentViewerRole = z.infer<
+  typeof tournamentSummaryResponseSchema
+>["myRoles"][number];
 
 /** The polymorphic host resolved to a display name (and org slug, if an org host). */
 export type TournamentHostInfo = z.infer<typeof tournamentHostInfoSchema>;

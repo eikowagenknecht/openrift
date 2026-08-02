@@ -9,22 +9,24 @@ import type {
 } from "@openrift/shared/contracts/lists";
 import type {
   listEntryDetailResponseSchema,
+  listIntentResponseSchema,
+  listKindResponseSchema,
   publicListDetailResponseSchema,
   publicListResponseSchema,
 } from "@openrift/shared/response-schemas";
 import type { z } from "zod";
 
-export type ListIntent = "wish" | "trade" | "organize";
+export type ListIntent = z.infer<typeof listIntentResponseSchema>;
 
 /** Granularity the list tracks. Each list contains uniformly one kind. */
-export type ListKind = "card" | "printing" | "copy";
+export type ListKind = z.infer<typeof listKindResponseSchema>;
 
 /**
  * Where an expanded entry came from (ADR-034). `manual` = a real `list_entries`
  * row; `rule` = produced by the list's dynamic rule; `both` = a manual entry the
  * rule also produced (the manual row wins for id/overrides).
  */
-export type EntrySource = "manual" | "rule" | "both";
+export type EntrySource = z.infer<typeof listEntryDetailResponseSchema>["source"];
 
 export type ListResponse = z.infer<typeof listResponseSchema>;
 

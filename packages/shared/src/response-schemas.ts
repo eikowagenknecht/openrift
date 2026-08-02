@@ -335,9 +335,19 @@ export const tradePreferenceSchema = z
 
 // ── Lists (unified wishlist / tradelist / organize) ─────────────────────────
 
-export const listIntentResponseSchema = z.enum(["wish", "trade", "organize"]).openapi("ListIntent");
+/**
+ * The list vocabularies, and the single owner of these values. The DB CHECKs on
+ * `lists.intent` / `lists.kind` permit exactly these sets. The request schemas in
+ * `contracts/lists.ts` build their own bare `z.enum` from these arrays rather
+ * than reusing the response schemas below, so the `.openapi()` component names
+ * stay attached to the response side only.
+ */
+export const LIST_INTENTS = ["wish", "trade", "organize"] as const;
+export const LIST_KINDS = ["card", "printing", "copy"] as const;
 
-export const listKindResponseSchema = z.enum(["card", "printing", "copy"]).openapi("ListKind");
+export const listIntentResponseSchema = z.enum(LIST_INTENTS).openapi("ListIntent");
+
+export const listKindResponseSchema = z.enum(LIST_KINDS).openapi("ListKind");
 
 export const listEntryBaseShape = {
   id: z.string(),

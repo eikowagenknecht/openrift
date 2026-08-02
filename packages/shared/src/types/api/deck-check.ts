@@ -1,6 +1,7 @@
 import type {
   deckCheckChangeLineSchema,
   deckCheckChangeSummarySchema,
+  deckCheckClaimSourceSchema,
   deckCheckEntryDetailResponseSchema,
   deckCheckEntryResponseSchema,
   deckCheckEntrySummaryResponseSchema,
@@ -21,27 +22,34 @@ import type {
   deckCheckSubmissionResultResponseSchema,
   playerDeckCheckEntryDetailResponseSchema,
 } from "@openrift/shared/contracts/deck-check-player";
-import type { deckCheckEntryCardResponseSchema } from "@openrift/shared/response-schemas";
+import type {
+  deckCheckEntryCardResponseSchema,
+  deckCheckEntryStateSchema,
+  deckCheckMatchStatusSchema,
+  deckCheckReviewOutcomeSchema,
+} from "@openrift/shared/response-schemas";
 import type { z } from "zod";
 
-export type DeckCheckEventStatus = "active" | "archived";
+export type DeckCheckEventStatus = z.infer<typeof deckCheckEventSummaryResponseSchema>["status"];
 /**
  * The entry lifecycle (ADR-027): a player edits only in `editable`; `submitted`
  * awaits a judge; `approved` is the pre-event list approval; `checked` is the
  * event-day physical verification; `withdrawn` means the organizer pulled it.
  */
-export type DeckCheckEntryState = "editable" | "submitted" | "approved" | "checked" | "withdrawn";
+export type DeckCheckEntryState = z.infer<typeof deckCheckEntryStateSchema>;
 /** How the most recent judge review went; null until a judge reviewed. */
-export type DeckCheckReviewOutcome = "ok" | "issue";
+export type DeckCheckReviewOutcome = z.infer<typeof deckCheckReviewOutcomeSchema>;
 /**
  * When a submitted list locks against player changes (TR 401.3, ADR-027):
  * at the moment of submission (strict default), or only once the submission
  * window closes (casual leagues, self-service corrections until then).
  */
-export type DeckCheckListLockMode = "on_submit" | "at_deadline";
-export type DeckCheckMatchStatus = "matched" | "ambiguous" | "unmatched";
+export type DeckCheckListLockMode = z.infer<
+  typeof deckCheckEventSummaryResponseSchema
+>["listLockMode"];
+export type DeckCheckMatchStatus = z.infer<typeof deckCheckMatchStatusSchema>;
 /** How an entry got linked to an OpenRift account (ADR-026). */
-export type DeckCheckClaimSource = "judge_manual" | "self_submit" | "claim_link";
+export type DeckCheckClaimSource = z.infer<typeof deckCheckClaimSourceSchema>;
 
 /** One normalized card line as it appears in a change summary. */
 export type DeckCheckChangeLine = z.infer<typeof deckCheckChangeLineSchema>;
@@ -129,6 +137,6 @@ export type DeckCheckClaimLandingResponse = z.infer<typeof deckCheckClaimLanding
  * - `duplicate`: the caller already holds a different spot in this tournament,
  *   so linking this one too would break one-account-per-tournament; refused.
  */
-export type DeckCheckClaimStatus = "claimed" | "already" | "conflict" | "blocked" | "duplicate";
+export type DeckCheckClaimStatus = z.infer<typeof deckCheckClaimResultResponseSchema>["status"];
 
 export type DeckCheckClaimResultResponse = z.infer<typeof deckCheckClaimResultResponseSchema>;

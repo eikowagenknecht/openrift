@@ -4,9 +4,13 @@ import type {
   podMemberResponseSchema,
   podPenaltyViewSchema,
   podPlayerResponseSchema,
+  podPlayerStatusSchema,
   podReportTokenResponseSchema,
   podResponseSchema,
+  podResultStatusSchema,
   podRoundResponseSchema,
+  podRoundStatusSchema,
+  podScoringSchemeSchema,
   podSnapshotPlayerSchema,
   podStandingRowSchema,
   podTournamentDetailResponseSchema,
@@ -22,10 +26,10 @@ import type { TournamentStatus } from "./tournament.js";
  * through `runState` and the public report token (ADR-033).
  */
 export type PodTournamentStatus = TournamentStatus;
-export type PodScoringScheme = "standard" | "three_pod_reduced";
-export type PodRoundStatus = "reporting" | "finalized";
-export type PodResultStatus = "pending" | "reported";
-export type PodPlayerStatus = "active" | "dropped";
+export type PodScoringScheme = z.infer<typeof podScoringSchemeSchema>;
+export type PodRoundStatus = z.infer<typeof podRoundStatusSchema>;
+export type PodResultStatus = z.infer<typeof podResultStatusSchema>;
+export type PodPlayerStatus = z.infer<typeof podPlayerStatusSchema>;
 
 export type PodTournamentResponse = z.infer<typeof podTournamentResponseSchema>;
 

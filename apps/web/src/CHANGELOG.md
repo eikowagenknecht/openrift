@@ -11,6 +11,7 @@
 - feat(Collection): **Move or remove part of a stack** — right-clicking a card with several copies now lets you pick how many to move to another collection or remove, instead of taking all of them.
 - feat(App): **Card, roadmap and changelog titles stay in view** — those three pages now carry the same sticky title bar as the rest of the app, so the title and its actions stay reachable as you scroll.
 - feat(App): **Shorter Discord card replies** — a card lookup now shows the image and prices, with the stats and rules text behind a Details button, and flags a ban or errata right away.
+- fix(Tournaments): **Submitting right on the deadline** — a deck submitted just after the deadline was saved, but the page reported an error and told you to contact a judge about it.
 - fix(App): **Chip markers in Discord card text** — rules text that points a keyword chip left or right showed a stray `>` chip in the bot's reply instead of shaping the chip beside it.
 - fix(Decks): **TTS imports keep their zones** — importing a Tabletop Simulator deck that isn't complete no longer tags a main-deck card as your chosen champion or files cards into the sideboard.
 - fix(Collection): **Language survives a CSV round trip** — exporting and re-importing a collection dropped the language on cards in anything but English, French, or Simplified Chinese.

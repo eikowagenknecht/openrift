@@ -1,4 +1,5 @@
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
+import { tournamentStaffRoleSchema } from "@openrift/shared/contracts/tournaments";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
@@ -25,8 +26,6 @@ export const publicTournamentJoinResponseSchema = z
     alreadyJoined: z.boolean(),
   })
   .openapi("PublicTournamentJoinResponse");
-
-const tournamentStaffRoleSchema = z.enum(["organizer", "judge"]);
 
 export const tournamentStaffInviteLandingResponseSchema = z
   .object({

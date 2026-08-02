@@ -108,17 +108,24 @@ function toPreviewCards(cardRows: NewDeckCheckEntryCard[]): DeckCheckEntryCardRe
   }));
 }
 
+/** A loaded entry, its event, and whether this load performed the deadline settle. */
+interface LoadedOwnEntry {
+  row: PlayerDeckCheckEntryRow;
+  event: DeckCheckEvent;
+  justSettled: boolean;
+}
+
 /**
  * Loads one of the caller's entries with its event, settling the deadline
  * auto-submit on the way (ADR-027). Not-owned and missing entries are 404
  * (never 403), so existence is not leaked.
- * @returns The (possibly settled) row and its event.
+ * @returns The (possibly settled) row, its event, and whether this call settled it.
  */
 async function loadOwnEntry(
   repos: Repos,
   userId: string,
   entryId: string,
-): Promise<{ row: PlayerDeckCheckEntryRow; event: DeckCheckEvent }> {
+): Promise<LoadedOwnEntry> {
   return withSettledEvent(repos, await repos.deckCheck.getEntryForPlayer(entryId, userId));
 }
 
@@ -133,7 +140,7 @@ async function loadOwnEntryForTournament(
   repos: Repos,
   userId: string,
   tournamentId: string,
-): Promise<{ row: PlayerDeckCheckEntryRow; event: DeckCheckEvent }> {
+): Promise<LoadedOwnEntry> {
   return withSettledEvent(
     repos,
     await repos.deckCheck.getEntryForPlayerByTournament(tournamentId, userId),
@@ -143,12 +150,18 @@ async function loadOwnEntryForTournament(
 /**
  * Resolves a looked-up player row to its event and settles the deadline
  * auto-submit, 404-ing whenever either half is missing.
- * @returns The (possibly settled) row and its event.
+ *
+ * `justSettled` reports whether this call was the one that performed the
+ * deadline auto-submit, rather than finding the entry already settled. Loading
+ * an entry writes in that case, so a caller that is about to reject on a closed
+ * window needs to know whether the rejection would contradict a write it just
+ * caused. Only `submit` acts on it: see the window guard there.
+ * @returns The (possibly settled) row, its event, and whether this call settled it.
  */
 async function withSettledEvent(
   repos: Repos,
   row: PlayerDeckCheckEntryRow | undefined,
-): Promise<{ row: PlayerDeckCheckEntryRow; event: DeckCheckEvent }> {
+): Promise<LoadedOwnEntry> {
   if (!row) {
     throw new AppError(404, ERROR_CODES.NOT_FOUND, "Entry not found");
   }
@@ -157,7 +170,11 @@ async function withSettledEvent(
     throw new AppError(404, ERROR_CODES.NOT_FOUND, "Entry not found");
   }
   const settled = await settleExpiredEditable(repos, event, row);
-  return { row: { ...row, ...settled }, event };
+  return {
+    row: { ...row, ...settled },
+    event,
+    justSettled: row.state === "editable" && settled.state !== "editable",
+  };
 }
 
 async function loadOpenSubmissionEvent(
@@ -339,8 +356,17 @@ export const deckCheckPlayerRouter = {
     async ({ input, context }): Promise<PlayerDeckCheckEntryDetailResponse> => {
       const repos = context.repos;
       const userId = context.userId;
-      const { row, event } = await loadOwnEntry(repos, userId, input.entryId);
+      const { row, event, justSettled } = await loadOwnEntry(repos, userId, input.entryId);
       if (!submissionWindowOpen(event)) {
+        // Loading the entry auto-submits it when the deadline has passed
+        // (settleExpiredEditable, via loadOwnEntry). Where that just happened,
+        // the deck really did go in, backdated to the close time, so the
+        // player got what they asked for and a 409 would contradict the write
+        // this request itself caused. Only an entry that was already past the
+        // deadline before this call is a genuine conflict.
+        if (justSettled) {
+          return buildPlayerDetail(repos, row, event);
+        }
         throw new AppError(409, ERROR_CODES.CONFLICT, "Submissions closed. Contact a judge.");
       }
       if (row.state !== "editable") {

@@ -49,6 +49,15 @@ export function fixTypography(text: string | null, options?: FixTypographyOption
     .replaceAll(/"(?<quoted>[^"]*)"/gu, "“$<quoted>”") // straight double quotes → curly
     .replaceAll(/-(?<digit>\d)/gu, "−$<digit>") // hyphen before digit → minus sign
     .replaceAll(/\n (?! )/gu, "\n"); // strip single leading space after line break
+  // The two rewrites below look like the bracket grammar in `card-text.ts`, but
+  // they are not the same job and deliberately do not share it. `tokenizeCardText`
+  // parses text that is already correct; these run upstream at import/admin time
+  // to *make* it correct, so they work on the raw string and must reproduce the
+  // untouched parts of it byte for byte. They are also narrower on purpose: the
+  // bracket here is `[A-Z][a-z]+`, not the tokenizer's `[^\]]+`, which is what
+  // keeps `[>]`, `[Level 3]` and CJK labels out of the rewrite. Routing this
+  // through the tokenizer would mean re-serializing every token just to move a
+  // glyph across one bracket.
   if (keywordGlyphs) {
     const costAlternation = costKeywords.map((name) => escapeRegExp(name)).join("|");
     if (costAlternation) {

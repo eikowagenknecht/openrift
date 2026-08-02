@@ -168,6 +168,33 @@ describe("extractBracketedTerms", () => {
     // English keywords don't contain CJK chars, so CJK stripping is skipped
     expect(extractBracketedTerms("[Shield2]")).toEqual(["Shield2"]);
   });
+
+  // ── Nested markup (inherited from the shared tokenizer) ────────────────
+
+  it("finds a keyword inside reminder text", () => {
+    expect(extractBracketedTerms("(gain [Flying])")).toEqual(["Flying"]);
+  });
+
+  it("finds a keyword inside italicized reminder text", () => {
+    expect(extractBracketedTerms("_(This unit has [Shield].)_")).toEqual(["Shield"]);
+  });
+
+  it("keeps source order across nested and top-level brackets", () => {
+    // Positional correlation is the whole point of this function, so a keyword
+    // in reminder text has to land between its neighbours, not after them.
+    expect(extractBracketedTerms("[Assault 1] _(also gains [Shield 2])_ [Deflect]")).toEqual([
+      "Assault",
+      "Shield",
+      "Deflect",
+    ]);
+  });
+
+  it("skips shape markers attached to a keyword", () => {
+    // The tokenizer folds [>] / [>>] into the keyword they decorate, so neither
+    // reaches the output as a term of its own.
+    expect(extractBracketedTerms("[Level 3][>]")).toEqual(["Level"]);
+    expect(extractBracketedTerms("[>>][Reaction]")).toEqual(["Reaction"]);
+  });
 });
 
 // ── extractKeywords ───────────────────────────────────────────────────────
@@ -241,5 +268,15 @@ describe("extractKeywords", () => {
     expect(result).toContain("Shield");
     expect(result).toContain("Assault");
     expect(result).toHaveLength(2);
+  });
+
+  // ── Nested markup (inherited from the shared tokenizer) ────────────────
+
+  it("extracts a keyword from italicized reminder text", () => {
+    expect(extractKeywords("_(This unit has [Shield].)_")).toEqual(["Shield"]);
+  });
+
+  it("skips a shape marker attached to a keyword", () => {
+    expect(extractKeywords("[>>][Reaction]")).toEqual(["Reaction"]);
   });
 });
