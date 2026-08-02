@@ -19,18 +19,25 @@ import type { ReticleGrade } from "@/lib/scan-overlay";
 import {
   BRACKET_FRACTION,
   GUIDE_COLOR,
+  GUIDE_MATCH_PX,
   RETICLE_COLORS,
+  RETICLE_HOLD_FRAMES,
+  RETICLE_JUMP_FRACTION,
   RING_EASE,
   RING_SNAP,
   boundsOfQuad,
   bracketSegments,
+  copyQuad,
   coverMapping,
   lockRingDash,
   mapQuad,
+  quadMatches,
+  quadsWithin,
   reticleLineWidth,
   ringRadiusFor,
   roundedRectPerimeter,
   shouldDrawLockRing,
+  smoothQuadToward,
   stepQuadToward,
   stepToward,
 } from "@/lib/scan-overlay";
@@ -73,6 +80,29 @@ export interface OverlayDrawState {
   mapped: Point[];
   /** The guide rect, mapped into canvas pixels. */
   guide: Point[];
+  /**
+   * What the brackets are actually aiming at, in rotated-frame pixels: the
+   * detector's quads averaged over the last few processed frames, which is
+   * where per-frame detector noise gets taken out. Only moves when a processed
+   * frame lands, never on a repaint.
+   */
+  smoothed: Point[];
+  /** False until the first quad lands, when {@link OverlayDrawState.smoothed}
+   * takes it whole rather than easing toward it from nowhere. */
+  smoothing: boolean;
+  /** The last real detection, kept so a dropout holds the outline in place
+   * instead of snapping the brackets out to the guide. */
+  held: Point[];
+  /** Whether {@link OverlayDrawState.held} holds anything yet. */
+  holding: boolean;
+  /** A detection that jumped away from the drawn outline, waiting for a second
+   * frame to agree with it before the reticle follows. */
+  proposed: Point[];
+  /** Whether {@link OverlayDrawState.proposed} is waiting on confirmation. */
+  pending: boolean;
+  /** Processed frames since the last real detection; past
+   * {@link RETICLE_HOLD_FRAMES} the hold is released. */
+  missed: number;
   /** False until a target lands, so the reticle appears in place rather than
    * sliding in from wherever the last run left it. */
   shown: boolean;
@@ -102,11 +132,83 @@ export function createDrawState(): OverlayDrawState {
     points: corners(),
     mapped: corners(),
     guide: corners(),
+    smoothed: corners(),
+    smoothing: false,
+    held: corners(),
+    holding: false,
+    proposed: corners(),
+    pending: false,
+    missed: 0,
     shown: false,
     ring: 0,
     painted: null,
     settled: false,
   };
+}
+
+/**
+ * The detection this processed frame contributes to the reticle, if any.
+ *
+ * Two frames are rejected here. The guide fallback the session substitutes
+ * when no proposal overlaps the guide is not a detection — it is the guide,
+ * and {@link GUIDE_MATCH_PX} is how the painter tells the two apart. And a
+ * proposal that lands far from the outline already drawn is held back until a
+ * second frame agrees with it, which is what keeps the brackets off the card's
+ * printed inner frame; see {@link RETICLE_JUMP_FRACTION}.
+ *
+ * @returns The quad to follow, in rotated-frame pixels, or null.
+ */
+function detectionFrom(target: OverlayTarget, state: OverlayDrawState): readonly Point[] | null {
+  const quad =
+    target.quad && !(target.guide && quadsWithin(target.quad, target.guide, GUIDE_MATCH_PX))
+      ? target.quad
+      : null;
+  if (!quad) {
+    return null;
+  }
+  if (!state.smoothing || quadMatches(quad, state.smoothed, RETICLE_JUMP_FRACTION)) {
+    state.pending = false;
+    return quad;
+  }
+  const confirmed = state.pending && quadMatches(quad, state.proposed, RETICLE_JUMP_FRACTION);
+  copyQuad(quad, state.proposed);
+  state.pending = !confirmed;
+  return confirmed ? quad : null;
+}
+
+/**
+ * Pick the quad the brackets should aim at this processed frame and fold it
+ * into the smoothed one, in rotated-frame pixels.
+ *
+ * The three sources, in order: a detection, the last one for a few frames
+ * after the detector loses it, and the guide rect once that hold runs out.
+ *
+ * @returns Nothing; the smoothed quad is moved, and `smoothing` says whether
+ *   it holds anything the painter should draw.
+ */
+function aimAt(target: OverlayTarget, state: OverlayDrawState): void {
+  const detected = detectionFrom(target, state);
+  if (detected) {
+    copyQuad(detected, state.held);
+    state.holding = true;
+    state.missed = 0;
+  } else {
+    state.missed++;
+    if (state.missed > RETICLE_HOLD_FRAMES) {
+      state.holding = false;
+    }
+  }
+  const source = detected ?? (state.holding ? state.held : target.guide);
+  if (!source) {
+    state.smoothing = false;
+    return;
+  }
+  if (state.smoothing) {
+    smoothQuadToward(state.smoothed, source);
+  } else {
+    copyQuad(source, state.smoothed);
+    state.smoothing = true;
+  }
 }
 
 /**
@@ -171,18 +273,39 @@ export function paintOverlay(
   target: OverlayTarget | null,
   state: OverlayDrawState,
 ): void {
+  const previous = state.painted;
   // Nothing moved and nothing new landed: what is on the canvas is already
   // right, so the cheapest frame is the one that does not paint.
-  if (target === state.painted && state.settled) {
+  const fresh = target !== previous;
+  if (!fresh && state.settled) {
     return;
   }
   state.painted = target;
   context.clearRect(0, 0, canvas.width, canvas.height);
   if (!target) {
     state.shown = false;
+    state.smoothing = false;
+    state.holding = false;
+    state.pending = false;
+    state.missed = 0;
     state.ring = 0;
     state.settled = true;
     return;
+  }
+  // The smoothed and held quads are in frame pixels, so a rotation adopted
+  // mid-run (or a camera that renegotiates its resolution) makes both of them
+  // mean something else. Start over rather than easing across the change.
+  if (
+    previous &&
+    (previous.frameWidth !== target.frameWidth ||
+      previous.frameHeight !== target.frameHeight ||
+      previous.turns !== target.turns)
+  ) {
+    state.smoothing = false;
+    state.holding = false;
+    state.pending = false;
+    state.missed = 0;
+    state.shown = false;
   }
   const mapping = coverMapping(
     target.frameWidth,
@@ -208,19 +331,18 @@ export function paintOverlay(
     context.stroke();
   }
 
-  // With no candidate the brackets sit on the guide itself, so the reticle is
-  // always somewhere sensible and never blinks in and out between frames.
-  const source = target.quad ?? target.guide;
+  // Where the brackets aim only ever changes when a processed frame lands; a
+  // repaint in between just glides the drawn corners toward it.
+  if (fresh) {
+    aimAt(target, state);
+  }
   let settled = true;
-  if (source) {
-    mapQuad(source, mapping, state.mapped);
+  if (state.smoothing) {
+    mapQuad(state.smoothed, mapping, state.mapped);
     if (state.shown) {
       settled = stepQuadToward(state.points, state.mapped);
     } else {
-      for (const [index, point] of state.points.entries()) {
-        point.x = state.mapped[index].x;
-        point.y = state.mapped[index].y;
-      }
+      copyQuad(state.mapped, state.points);
       state.shown = true;
     }
   } else {

@@ -12,15 +12,21 @@ import {
   RETICLE_WIDTH_MIN,
   boundsOfQuad,
   bracketSegments,
+  copyQuad,
   coverMapping,
   gradeReticle,
   lockRingDash,
   lockRingFraction,
   mapQuad,
+  quadDiagonal,
+  quadMatches,
+  quadOffsetTo,
+  quadsWithin,
   reticleLineWidth,
   ringRadiusFor,
   roundedRectPerimeter,
   shouldDrawLockRing,
+  smoothQuadToward,
   stepQuadToward,
   stepToward,
   unrotatePoint,
@@ -135,6 +141,100 @@ describe("stepQuadToward", () => {
 
     expect(current[0]).toEqual({ x: 50, y: 50 });
     expect(current[3]).toEqual({ x: 0, y: 10 });
+  });
+});
+
+describe("quadOffsetTo", () => {
+  it("keeps the numbering when the corners already line up", () => {
+    expect(quadOffsetTo(rect(0, 0, 100, 200), rect(2, 1, 100, 200))).toBe(0);
+  });
+
+  it("finds the rotation that undoes a renumbered quad", () => {
+    const reference = rect(0, 0, 100, 200);
+    const renumbered = [reference[1], reference[2], reference[3], reference[0]];
+
+    // Offset 3 reads the renumbered quad back in the reference's order.
+    expect(quadOffsetTo(renumbered, reference)).toBe(3);
+  });
+
+  it("leaves an incomplete quad alone", () => {
+    expect(quadOffsetTo([{ x: 0, y: 0 }], rect(0, 0, 100, 200))).toBe(0);
+  });
+});
+
+describe("smoothQuadToward", () => {
+  it("moves each corner a fraction of the way to the detection", () => {
+    const current = rect(0, 0, 100, 200);
+
+    smoothQuadToward(current, rect(10, 20, 100, 200), 0.5);
+
+    expect(current[0]).toEqual({ x: 5, y: 10 });
+    expect(current[2]).toEqual({ x: 105, y: 210 });
+  });
+
+  it("does not move at all when only the corner numbering changed", () => {
+    const current = rect(0, 0, 100, 200);
+    const detection = rect(0, 0, 100, 200);
+
+    smoothQuadToward(current, [detection[1], detection[2], detection[3], detection[0]], 0.5);
+
+    // A canonicalisation flip renumbers the same four corners; easing them
+    // pairwise would spin the brackets around a card that never moved.
+    expect(current).toEqual(rect(0, 0, 100, 200));
+  });
+});
+
+describe("copyQuad", () => {
+  it("overwrites the corners without replacing the objects", () => {
+    const out = rect(0, 0, 0, 0);
+    const first = out[0];
+
+    copyQuad(rect(10, 20, 100, 200), out);
+
+    expect(out[2]).toEqual({ x: 110, y: 220 });
+    expect(out[0]).toBe(first);
+  });
+});
+
+describe("quadsWithin", () => {
+  it("accepts corners inside the tolerance and rejects one outside it", () => {
+    expect(quadsWithin(rect(0, 0, 100, 200), rect(0.4, 0, 100, 200), 0.5)).toBe(true);
+    expect(quadsWithin(rect(0, 0, 100, 200), rect(0, 0, 100, 201), 0.5)).toBe(false);
+  });
+
+  it("rejects quads of different lengths", () => {
+    expect(quadsWithin(rect(0, 0, 100, 200), [{ x: 0, y: 0 }], 100)).toBe(false);
+  });
+});
+
+describe("quadDiagonal", () => {
+  it("measures the longer diagonal", () => {
+    expect(quadDiagonal(rect(0, 0, 30, 40))).toBe(50);
+  });
+
+  it("returns zero for an incomplete quad", () => {
+    expect(quadDiagonal([{ x: 0, y: 0 }])).toBe(0);
+  });
+});
+
+describe("quadMatches", () => {
+  it("scales its tolerance to the reference's own size", () => {
+    // The same 10px offset is a near miss on a card filling the frame and a
+    // different card entirely on one held at arm's length.
+    expect(quadMatches(rect(10, 0, 300, 400), rect(0, 0, 300, 400), 0.05)).toBe(true);
+    expect(quadMatches(rect(10, 0, 30, 40), rect(0, 0, 30, 40), 0.05)).toBe(false);
+  });
+
+  it("looks past a renumbered quad", () => {
+    const reference = rect(0, 0, 300, 400);
+
+    expect(
+      quadMatches([reference[2], reference[3], reference[0], reference[1]], reference, 0.05),
+    ).toBe(true);
+  });
+
+  it("rejects an incomplete quad", () => {
+    expect(quadMatches([{ x: 0, y: 0 }], rect(0, 0, 300, 400), 1)).toBe(false);
   });
 });
 

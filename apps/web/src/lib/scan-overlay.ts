@@ -27,16 +27,73 @@ export const HOLD_STEADY_MIN_INLIERS = 6;
 export const HOLD_STEADY_MAX_INLIERS = 10;
 
 /**
- * Per-frame easing of the drawn corners toward the pipeline's last quad, as a
- * fraction of the remaining distance. The pipeline lands 5-15 times a second
- * and the paint loop runs at display rate, so without this the outline visibly
- * teleports; 0.25 catches up in about four frames, fast enough that the
- * brackets still read as tracking the card rather than trailing it.
+ * Per-frame easing of the drawn corners toward the smoothed quad, as a
+ * fraction of the remaining distance. The paint loop runs at display rate and
+ * the smoothed quad only moves when a processed frame lands (5-15 times a
+ * second), so this is what fills the gap between them: at 0.15 the glide takes
+ * roughly 160ms, the same order as the pipeline's own interval, so the
+ * brackets are still moving when the next quad arrives instead of arriving
+ * early and sitting frozen until it does.
  */
-const RETICLE_EASE = 0.25;
+const RETICLE_EASE = 0.15;
 
 /** Sub-pixel remainder that is snapped rather than eased forever. */
 const RETICLE_SNAP_PX = 0.5;
+
+/**
+ * Per-processed-frame easing of the smoothed quad toward the detector's raw
+ * one, in frame pixels.
+ *
+ * The detector re-derives the outline from scratch every frame — two detectors
+ * merged, then whichever proposal embeds closest wins the frame — so
+ * consecutive quads on a card lying perfectly still differ by several pixels,
+ * and now and then by far more when a different proposal takes the frame.
+ * Easing the drawn corners cannot damp that: the paint loop reaches each raw
+ * quad well inside one pipeline interval, so every raw quad still gets drawn
+ * in full and the reticle swims. The averaging has to happen on the pipeline's
+ * own cadence, which is what this does. 0.5 settles in about three processed
+ * frames.
+ */
+const RETICLE_TARGET_EASE = 0.5;
+
+/**
+ * How many processed frames the reticle keeps drawing the last real detection
+ * after the detector stops finding one.
+ *
+ * A dropout is usually not the card leaving, it is one blurred or glared
+ * frame, and without a hold the brackets snap from the card out to the guide
+ * rect and back again a few frames later. That is the largest single jump the
+ * overlay can make. Three frames is 200-600ms depending on pipeline rate: long
+ * enough to ride out a jiggle, short enough that a card actually taken away
+ * releases the reticle promptly.
+ */
+export const RETICLE_HOLD_FRAMES = 3;
+
+/**
+ * How far a detection may sit from the outline already drawn, as a fraction of
+ * that outline's diagonal, before a second frame has to agree with it.
+ *
+ * The detectors do not always propose the card's outer edge: a rectangle fit
+ * lands on the printed inner frame about as readily, and which of the two wins
+ * is decided by whichever embeds closest, so the two alternate frame to frame
+ * on one motionless card. That is a jump of roughly a tenth of the card, back
+ * and forth, several times a second, and no amount of averaging hides it —
+ * only refusing to follow the second proposal until it proves itself does.
+ * Real hand motion clears the bar within a frame or two, so the cost is a
+ * frame of lag when the card genuinely moves.
+ */
+export const RETICLE_JUMP_FRACTION = 0.08;
+
+/**
+ * How close a candidate quad has to sit to the guide rect to count as the
+ * session's guide fallback rather than as a detection.
+ *
+ * That fallback rectifies the guide itself when no proposal overlaps it, so
+ * its quad is the guide's own corners to the pixel. Counting it as a detection
+ * would defeat the hold above — the brackets would jump out to the guide with
+ * a candidate still nominally present.
+ */
+export const GUIDE_MATCH_PX = 0.5;
 
 /** The lock ring fills more slowly than the reticle tracks: it is a progress
  * bar, and a run that breaks should visibly bleed back rather than blink out. */
@@ -164,6 +221,134 @@ export function stepQuadToward(
     settled &&= point.x === to.x && point.y === to.y;
   }
   return settled;
+}
+
+/**
+ * Which cyclic rotation of `quad` lines its corners up with `reference`.
+ *
+ * The pipeline canonicalises every quad by sorting its corners around the
+ * centre and then starting on a short side, and both halves of that can pick a
+ * different corner from one frame to the next: the angular sort wraps at half
+ * a turn, and the short-side test flips whenever noise makes the two side
+ * pairs measure nearly equal. Either flip renumbers the same four corners, and
+ * a reticle that eased corner-by-corner would spin the brackets right around
+ * the card while the card had not moved at all.
+ *
+ * @returns The offset in 0..3 to add to a corner index of `quad`, or 0 when
+ *   either quad is not a full four corners.
+ */
+export function quadOffsetTo(quad: readonly Point[], reference: readonly Point[]): number {
+  if (quad.length < 4 || reference.length < 4) {
+    return 0;
+  }
+  let bestOffset = 0;
+  let bestCost = Number.POSITIVE_INFINITY;
+  for (let offset = 0; offset < 4; offset++) {
+    let cost = 0;
+    for (let index = 0; index < 4; index++) {
+      const from = quad[(index + offset) % 4];
+      const to = reference[index];
+      cost += Math.hypot(from.x - to.x, from.y - to.y);
+    }
+    if (cost < bestCost) {
+      bestCost = cost;
+      bestOffset = offset;
+    }
+  }
+  return bestOffset;
+}
+
+/**
+ * Ease a smoothed quad toward a freshly detected one, in place, corner by
+ * corner under the correspondence {@link quadOffsetTo} found.
+ *
+ * Runs once per processed frame rather than once per animation frame, so the
+ * factor is a per-detection weight and not a per-repaint one.
+ *
+ * @returns Nothing; `current` is moved toward `target`.
+ */
+export function smoothQuadToward(
+  current: Point[],
+  target: readonly Point[],
+  factor = RETICLE_TARGET_EASE,
+): void {
+  const offset = quadOffsetTo(target, current);
+  for (const [index, point] of current.entries()) {
+    const to = target[(index + offset) % target.length];
+    if (!to) {
+      continue;
+    }
+    point.x += (to.x - point.x) * clamp(factor, 0, 1);
+    point.y += (to.y - point.y) * clamp(factor, 0, 1);
+  }
+}
+
+/**
+ * Copy a quad's corners into a caller-owned array, without allocating.
+ *
+ * @returns Nothing; `out` is overwritten.
+ */
+export function copyQuad(quad: readonly Point[], out: Point[]): void {
+  for (const [index, point] of out.entries()) {
+    const from = quad[index];
+    if (from) {
+      point.x = from.x;
+      point.y = from.y;
+    }
+  }
+}
+
+/**
+ * Whether every corner of one quad sits within `px` of its counterpart.
+ *
+ * @returns True when the quads are the same shape to that tolerance.
+ */
+export function quadsWithin(a: readonly Point[], b: readonly Point[], px: number): boolean {
+  if (a.length !== b.length) {
+    return false;
+  }
+  return a.every((point, index) => Math.hypot(point.x - b[index].x, point.y - b[index].y) <= px);
+}
+
+/**
+ * The longer of a quad's two diagonals, which is the scale everything about it
+ * is judged against — a tolerance in raw pixels would mean something different
+ * for a card held at arm's length than for one filling the frame.
+ *
+ * @returns The length in the quad's own units, 0 for an incomplete quad.
+ */
+export function quadDiagonal(quad: readonly Point[]): number {
+  if (quad.length < 4) {
+    return 0;
+  }
+  return Math.max(
+    Math.hypot(quad[2].x - quad[0].x, quad[2].y - quad[0].y),
+    Math.hypot(quad[3].x - quad[1].x, quad[3].y - quad[1].y),
+  );
+}
+
+/**
+ * Whether a quad sits on top of another, allowing for the corner renumbering
+ * {@link quadOffsetTo} undoes and scaling the tolerance to the reference's own
+ * size.
+ *
+ * @returns True when every corner lands within `fraction` of the reference's
+ *   diagonal of its counterpart.
+ */
+export function quadMatches(
+  quad: readonly Point[],
+  reference: readonly Point[],
+  fraction: number,
+): boolean {
+  if (quad.length < 4 || reference.length < 4) {
+    return false;
+  }
+  const limit = fraction * quadDiagonal(reference);
+  const offset = quadOffsetTo(quad, reference);
+  return reference.every((point, index) => {
+    const from = quad[(index + offset) % 4];
+    return Math.hypot(from.x - point.x, from.y - point.y) <= limit;
+  });
 }
 
 /** One bracket leg: a straight stroke from a corner along one of its edges. */

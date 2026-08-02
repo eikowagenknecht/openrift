@@ -1,7 +1,7 @@
 import type { Quad } from "@openrift/shared/scan";
 import { describe, expect, it, vi } from "vitest";
 
-import { GUIDE_COLOR, RETICLE_COLORS, gradeReticle } from "@/lib/scan-overlay";
+import { GUIDE_COLOR, RETICLE_COLORS, RETICLE_HOLD_FRAMES, gradeReticle } from "@/lib/scan-overlay";
 import type { OverlayTarget } from "@/lib/scan-overlay-paint";
 import { createDrawState, paintOverlay, syncOverlaySize } from "@/lib/scan-overlay-paint";
 
@@ -192,6 +192,85 @@ describe("paintOverlay", () => {
     // Eased, not snapped: the first frame of a full run draws a partial ring.
     expect(ring?.dash[0]).toBeLessThan(ring?.dash[1] ?? 0);
     expect(state.settled).toBe(false);
+  });
+
+  it("eases the aim toward a moved detection instead of jumping to it", () => {
+    const { context } = fakeContext();
+    const state = createDrawState();
+
+    paintOverlay(fakeCanvas(), context, target(), state);
+    paintOverlay(fakeCanvas(), context, target({ quad: rect(30, 40, 100, 200) }), state);
+
+    // Halfway there, not there: consecutive detector quads on a still card
+    // differ by several pixels, and drawing each one in full is what made the
+    // reticle swim.
+    expect(state.smoothed[0]).toEqual({ x: 25, y: 40 });
+  });
+
+  it("ignores a proposal that jumps away until a second frame agrees", () => {
+    const { context } = fakeContext();
+    const state = createDrawState();
+    const jumped = target({ quad: rect(20, 90, 100, 200) });
+
+    paintOverlay(fakeCanvas(), context, target(), state);
+    paintOverlay(fakeCanvas(), context, jumped, state);
+    // The detectors propose the card's printed inner frame about as readily as
+    // its outer edge, and the two alternate on a motionless card.
+    expect(state.smoothed[0]).toEqual({ x: 20, y: 40 });
+
+    paintOverlay(fakeCanvas(), context, target({ quad: rect(20, 90, 100, 200) }), state);
+
+    // Two frames agreeing is the card having moved, so the reticle follows.
+    expect(state.smoothed[0].y).toBeGreaterThan(40);
+  });
+
+  it("holds the last detection through a short dropout", () => {
+    const { context } = fakeContext();
+    const state = createDrawState();
+
+    paintOverlay(fakeCanvas(), context, target(), state);
+    paintOverlay(fakeCanvas(), context, target({ quad: null }), state);
+
+    // One blurred frame is not the card leaving, and snapping the brackets out
+    // to the guide and back is the biggest jump the overlay can make.
+    expect(state.smoothed[0]).toEqual({ x: 20, y: 40 });
+  });
+
+  it("treats the session's guide fallback as a dropout, not a detection", () => {
+    const { context } = fakeContext();
+    const state = createDrawState();
+    const guide = rect(10, 20, 120, 240);
+
+    paintOverlay(fakeCanvas(), context, target({ guide }), state);
+    paintOverlay(fakeCanvas(), context, target({ quad: guide, guide }), state);
+
+    expect(state.smoothed[0]).toEqual({ x: 20, y: 40 });
+  });
+
+  it("releases the hold once the dropout outlasts it", () => {
+    const { context } = fakeContext();
+    const state = createDrawState();
+
+    paintOverlay(fakeCanvas(), context, target(), state);
+    for (let frame = 0; frame < RETICLE_HOLD_FRAMES + 1; frame++) {
+      paintOverlay(fakeCanvas(), context, target({ quad: null }), state);
+    }
+
+    // A card actually taken away has to give the brackets back to the guide.
+    expect(state.smoothed[0].x).toBeLessThan(20);
+  });
+
+  it("starts the aim over when the frame geometry changes", () => {
+    const { context } = fakeContext();
+    const state = createDrawState();
+
+    paintOverlay(fakeCanvas(), context, target(), state);
+    paintOverlay(fakeCanvas(), context, target({ quad: rect(60, 40, 100, 200), turns: 1 }), state);
+
+    // The smoothed quad is in frame pixels, so a quarter turn adopted mid-run
+    // makes it mean something else; easing across that would swing the
+    // brackets over the whole viewfinder.
+    expect(state.smoothed[0]).toEqual({ x: 60, y: 40 });
   });
 
   it("draws no lock ring for a one-frame run", () => {
