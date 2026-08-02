@@ -238,15 +238,29 @@ export function useCopyRowsForPrintings(
 export interface DeckBuildingCounts {
   /** Per-printing counts in collections marked as available for deck building. */
   available: Record<string, number>;
-  /** Per-printing counts in collections excluded from deck building (locked away). */
+  /**
+   * Per-printing counts locked away from deck building, for any reason.
+   * Equal to `lockedLoaned` + `lockedReserved` + `lockedExcluded` added
+   * together per printing.
+   */
   locked: Record<string, number>;
+  /** Per-printing counts locked because the copy is out on loan (ADR-039). */
+  lockedLoaned: Record<string, number>;
+  /** Per-printing counts locked because the copy is reserved for a live outgoing trade (ADR-019). */
+  lockedReserved: Record<string, number>;
+  /** Per-printing counts locked because their collection is excluded from deck building. */
+  lockedExcluded: Record<string, number>;
 }
 
 /**
  * Splits copies into deck-building-available and locked-away buckets, based on
  * each copy's collection availability. A copy in an excluded collection is
  * "locked", not "available" — the deck builder must not count it as owned.
- * @returns Per-printing `available` and `locked` count maps.
+ * The locked bucket also keeps a per-reason breakdown so callers (the missing
+ * cards dialog) can say *why* a copy is locked instead of assuming every
+ * locked copy sits in an excluded collection.
+ * @returns Per-printing `available` and `locked` count maps, plus the locked
+ *   reason breakdown (`lockedLoaned`, `lockedReserved`, `lockedExcluded`).
  */
 export function aggregateDeckBuildingCounts(
   copies: readonly CopyResponse[],
@@ -254,19 +268,24 @@ export function aggregateDeckBuildingCounts(
 ): DeckBuildingCounts {
   const available: Record<string, number> = {};
   const locked: Record<string, number> = {};
+  const lockedLoaned: Record<string, number> = {};
+  const lockedReserved: Record<string, number> = {};
+  const lockedExcluded: Record<string, number> = {};
   for (const copy of copies) {
     // A copy out on a loan (ADR-039) is physically absent: never available,
     // whatever its collection's flag says. It is still owned, so it counts as
     // locked — lending only draws from personal collections, so no group check.
     if (copy.onLoan) {
       locked[copy.printingId] = (locked[copy.printingId] ?? 0) + 1;
+      lockedLoaned[copy.printingId] = (lockedLoaned[copy.printingId] ?? 0) + 1;
       continue;
     }
-    // A copy reserved for a live outgoing trade (ADR-034) is committed away:
+    // A copy reserved for a live outgoing trade (ADR-019) is committed away:
     // owned but not buildable, so it's locked, not available. Reservations only
     // pin personal copies, so no group check here either.
     if (copy.reserved) {
       locked[copy.printingId] = (locked[copy.printingId] ?? 0) + 1;
+      lockedReserved[copy.printingId] = (lockedReserved[copy.printingId] ?? 0) + 1;
       continue;
     }
     // Default to available when the collection is unknown (race during create
@@ -282,9 +301,10 @@ export function aggregateDeckBuildingCounts(
       // viewer's personal copies. Group copies the viewer hasn't opted into
       // aren't theirs, so they're neither available nor locked.
       locked[copy.printingId] = (locked[copy.printingId] ?? 0) + 1;
+      lockedExcluded[copy.printingId] = (lockedExcluded[copy.printingId] ?? 0) + 1;
     }
   }
-  return { available, locked };
+  return { available, locked, lockedLoaned, lockedReserved, lockedExcluded };
 }
 
 /**

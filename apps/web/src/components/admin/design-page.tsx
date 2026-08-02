@@ -1,3 +1,4 @@
+import type { CardTradeLiveAnnotation, CardTradeLivePhase, CardTradeRole } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import {
   BellIcon,
@@ -52,7 +53,9 @@ import {
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
 import { TopBarBreadcrumbTrail } from "@/components/layout/top-bar-breadcrumb";
+import { OnLoanChip } from "@/components/loans/on-loan-chip";
 import { ShareLinkRow } from "@/components/share/share-link-row";
+import { SharedTradeStatusChip, TradeStatusChip } from "@/components/trades/trade-status-chip";
 import {
   Accordion,
   AccordionContent,
@@ -1894,6 +1897,26 @@ const REGION_OPTIONS = [
   { value: "demacia", label: "Demacia" },
 ];
 
+const LIVE_TRADE_PHASES: CardTradeLivePhase[] = ["asked", "offered", "reserved", "traded"];
+
+function demoTradeAnnotation(
+  role: CardTradeRole,
+  phase: CardTradeLivePhase,
+): CardTradeLiveAnnotation {
+  return { printingId: "printing-1", role, phase, tradeCount: 1, quantity: 2 };
+}
+
+// One captioned row inside the trade-chip demo: the chips sweep a mode, the
+// caption names it. Hover a chip for the tooltip the strip modes rely on.
+function TradeChipRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="space-y-1">
+      <p className="text-muted-foreground text-2xs font-mono">{label}</p>
+      <div className="flex flex-wrap items-center gap-3">{children}</div>
+    </div>
+  );
+}
+
 function CompositesSection() {
   const [plainSearch, setPlainSearch] = useState("");
   const [scopedSearch, setScopedSearch] = useState("teemo");
@@ -2094,6 +2117,57 @@ function CompositesSection() {
           </div>
           <div className="w-40">
             <CardCountStrip count={1} totalCount={4} icon={PackageIcon} />
+          </div>
+        </Demo>
+        <Demo
+          name="TradeStatusChip"
+          hint="Marks a printing the viewer has a live trade on. Ghost like OnLoanChip so the two share one strip; weight carries how binding the state is, never colour."
+          spec="Offered and Reserved are equally binding: same icon, same weight. Only a bid is muted."
+          className="sm:col-span-2 xl:col-span-3"
+        >
+          <div className="w-full space-y-3">
+            <TradeChipRow label='detail="label" · giver (their own copy is at stake)'>
+              {LIVE_TRADE_PHASES.map((phase) => (
+                <TradeStatusChip
+                  key={phase}
+                  detail="label"
+                  annotation={demoTradeAnnotation("giver", phase)}
+                />
+              ))}
+            </TradeChipRow>
+            <TradeChipRow label='detail="label" · receiver (a card coming to them)'>
+              {LIVE_TRADE_PHASES.map((phase) => (
+                <TradeStatusChip
+                  key={phase}
+                  detail="label"
+                  annotation={demoTradeAnnotation("receiver", phase)}
+                />
+              ))}
+            </TradeChipRow>
+            <TradeChipRow label='detail="count" (strip default, wording in the tooltip) · detail="icon" (copies view) · detail="word" (per-copy rows, no printing-wide number) · next to OnLoanChip'>
+              <TradeStatusChip annotation={demoTradeAnnotation("giver", "reserved")} />
+              <TradeStatusChip annotation={demoTradeAnnotation("giver", "asked")} totalCount={5} />
+              <TradeStatusChip
+                detail="icon"
+                annotation={demoTradeAnnotation("receiver", "traded")}
+              />
+              <TradeStatusChip detail="word" annotation={demoTradeAnnotation("giver", "offered")} />
+              <div className="w-40">
+                <CardStrip
+                  center={
+                    <>
+                      <OnLoanChip count={1} />
+                      <TradeStatusChip annotation={demoTradeAnnotation("giver", "offered")} />
+                    </>
+                  }
+                />
+              </div>
+            </TradeChipRow>
+            <TradeChipRow label="SharedTradeStatusChip (share links: reserved means not claimable, and no prop can carry a name)">
+              <SharedTradeStatusChip />
+              <SharedTradeStatusChip count={2} />
+              <SharedTradeStatusChip detail="icon" />
+            </TradeChipRow>
           </div>
         </Demo>
         <Demo name="ConfirmActionDialog" hint="Shared confirm step for destructive actions.">

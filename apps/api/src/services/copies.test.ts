@@ -2,7 +2,7 @@
    no-empty-function,
    unicorn/no-useless-undefined
    -- test file: mocks require empty fns and explicit undefined */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { Repos, Transact } from "../deps.js";
 import { AppError } from "../errors.js";
@@ -32,10 +32,25 @@ function createMockRepos(overrides: {
     collectionId: string;
     collectionName: string;
   }[];
+  /** Copies pinned by a live (pending/reserved) trade. */
   reservedCopies?: string[];
+  /** Copies still pinned by a completed trade whose giver sync is unresolved. */
+  completedReservedCopies?: string[];
   loanedCopies?: string[];
 }) {
   const targetExists = overrides.targetCollection !== undefined;
+  const pins = [
+    ...(overrides.reservedCopies ?? []).map((copyId) => ({
+      copyId,
+      tradeId: "trade-live",
+      status: "reserved" as const,
+    })),
+    ...(overrides.completedReservedCopies ?? []).map((copyId) => ({
+      copyId,
+      tradeId: "trade-done",
+      status: "completed" as const,
+    })),
+  ];
   const repos = {
     collections: {
       ensureInbox: () => Promise.resolve(overrides.inboxId ?? "inbox-id"),
@@ -70,7 +85,14 @@ function createMockRepos(overrides: {
     },
     cardTrades: {
       filterReservedCopyIds: (copyIds: readonly string[]) =>
-        Promise.resolve((overrides.reservedCopies ?? []).filter((id) => copyIds.includes(id))),
+        Promise.resolve(
+          pins.filter((pin) => copyIds.includes(pin.copyId)).map((pin) => pin.copyId),
+        ),
+      listReservationsForCopies: (copyIds: readonly string[]) =>
+        Promise.resolve(pins.filter((pin) => copyIds.includes(pin.copyId))),
+      // The unfillable sweep (ADR-019) runs after every move/dispose. These
+      // fixtures leave the actor with no pending trades, so it stops here.
+      listPendingForGiverPrinting: () => Promise.resolve([]),
     },
     loans: {
       filterLoanedCopyIds: (copyIds: readonly string[]) =>
@@ -185,6 +207,56 @@ describe("moveCopies", () => {
     ).rejects.toThrow("One or more copies not found");
   });
 
+  it("moves a reserved copy between the owner's own collections", async () => {
+    const repos = createMockRepos({
+      writableCollections: ["col-1"],
+      targetCollection: { id: "col-2", name: "Target" },
+      collections: [{ id: "col-2", name: "Target" }],
+      fetchedCopies: [
+        { id: "copy-1", printingId: "p-1", collectionId: "col-1", collectionName: "Source" },
+      ],
+      reservedCopies: ["copy-1"],
+    });
+    const transact = mockTransact(repos);
+
+    await expect(
+      moveCopies(repos, transact, "user-1", ["copy-1"], "col-2"),
+    ).resolves.toBeUndefined();
+  });
+
+  it("refuses to move a reserved copy into a group collection (ADR-019)", async () => {
+    const repos = createMockRepos({
+      writableCollections: ["col-1"],
+      targetCollection: { id: "group-col", name: "Shared" },
+      collections: [{ id: "group-col", name: "Shared", groupId: "grp-1" }],
+      fetchedCopies: [
+        { id: "copy-1", printingId: "p-1", collectionId: "col-1", collectionName: "Source" },
+      ],
+      reservedCopies: ["copy-1"],
+    });
+    const transact = mockTransact(repos);
+
+    await expect(
+      moveCopies(repos, transact, "user-1", ["copy-1"], "group-col"),
+    ).rejects.toMatchObject({ status: 409 });
+  });
+
+  it("moves an unreserved copy into a group collection", async () => {
+    const repos = createMockRepos({
+      writableCollections: ["col-1"],
+      targetCollection: { id: "group-col", name: "Shared" },
+      collections: [{ id: "group-col", name: "Shared", groupId: "grp-1" }],
+      fetchedCopies: [
+        { id: "copy-1", printingId: "p-1", collectionId: "col-1", collectionName: "Source" },
+      ],
+    });
+    const transact = mockTransact(repos);
+
+    await expect(
+      moveCopies(repos, transact, "user-1", ["copy-1"], "group-col"),
+    ).resolves.toBeUndefined();
+  });
+
   it("moves copies successfully", async () => {
     const repos = createMockRepos({
       writableCollections: ["col-1"],
@@ -272,7 +344,84 @@ describe("disposeCopies", () => {
 
     await expect(disposeCopies(transact, "user-1", ["copy-1"])).rejects.toMatchObject({
       status: 409,
+      message: "This card is reserved in an active trade — cancel the trade to free it.",
     });
+  });
+
+  it("points a completed trade's leftover pin at the sync, not at cancelling", async () => {
+    const repos = createMockRepos({
+      writableCollections: ["col-1"],
+      fetchedCopies: [
+        { id: "copy-1", printingId: "p-1", collectionId: "col-1", collectionName: "Main" },
+      ],
+      completedReservedCopies: ["copy-1"],
+    });
+    const transact = mockTransact(repos);
+
+    await expect(disposeCopies(transact, "user-1", ["copy-1"])).rejects.toMatchObject({
+      status: 409,
+      message:
+        "This card is still reserved by a completed trade. Resolve or skip that trade's sync to free it.",
+    });
+  });
+});
+
+describe("copy mutations sweep unfillable pending trades", () => {
+  /**
+   * Repos for the sweep wiring: one copy of `p-1`, one pending request for it,
+   * and a supply read that reports the stack empty once the mutation ran.
+   * @returns The stub repos plus the auto-cancel spy.
+   */
+  function sweepRepos() {
+    const markAutoCancelled = vi.fn(() => Promise.resolve(1));
+    const repos = {
+      collections: {
+        filterWritableByViewer: (ids: readonly string[]) => Promise.resolve([...ids]),
+        listIdNameGroupByIds: () =>
+          Promise.resolve([{ id: "col-2", name: "Target", groupId: null }]),
+      },
+      copies: {
+        listWithCollectionContext: () =>
+          Promise.resolve([
+            { id: "copy-1", printingId: "p-1", collectionId: "col-1", collectionName: "Main" },
+          ]),
+        lockByIds: (copyIds: string[]) => Promise.resolve(copyIds),
+        moveBatchById: () => Promise.resolve(),
+        deleteBatchById: () => Promise.resolve(),
+      },
+      collectionEvents: { insert: () => Promise.resolve() },
+      loans: { filterLoanedCopyIds: () => Promise.resolve([]) },
+      cardTrades: {
+        filterReservedCopyIds: () => Promise.resolve([]),
+        listReservationsForCopies: () => Promise.resolve([]),
+        listPendingForGiverPrinting: () =>
+          Promise.resolve([
+            { id: "trade-1", groupId: "group-1", quantity: 1, initiator: "receiver" },
+          ]),
+        markAutoCancelled,
+      },
+      friendGroupMatches: {
+        // Read after the mutation: the giver no longer offers the printing.
+        giverPrintingSupply: () => Promise.resolve({ unreservedCopyIds: [], hasAny: false }),
+      },
+    } as unknown as Repos;
+    return { repos, markAutoCancelled };
+  }
+
+  it("disposing the backing copies cancels the pending trade (ADR-019)", async () => {
+    const { repos, markAutoCancelled } = sweepRepos();
+
+    await disposeCopies(mockTransact(repos), "user-1", ["copy-1"]);
+
+    expect(markAutoCancelled).toHaveBeenCalledWith("trade-1");
+  });
+
+  it("moving the backing copies out of view cancels the pending trade", async () => {
+    const { repos, markAutoCancelled } = sweepRepos();
+
+    await moveCopies(repos, mockTransact(repos), "user-1", ["copy-1"], "col-2");
+
+    expect(markAutoCancelled).toHaveBeenCalledWith("trade-1");
   });
 });
 

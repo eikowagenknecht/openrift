@@ -78,6 +78,7 @@ import {
   completeTrade,
   createTrade,
   declineTrade,
+  listTradeCopyOptions,
   setTradeQuantity,
   skipTradeSync,
 } from "./services/card-trades.js";
@@ -187,6 +188,7 @@ export interface Services {
   ingestUserSubmission: typeof ingestUserSubmission;
   importErrata: typeof importErrata;
   createTrade: typeof createTrade;
+  listTradeCopyOptions: typeof listTradeCopyOptions;
   acceptTrade: typeof acceptTrade;
   declineTrade: typeof declineTrade;
   cancelTrade: typeof cancelTrade;
@@ -377,6 +379,7 @@ export const services: Services = {
   ingestUserSubmission,
   importErrata,
   createTrade,
+  listTradeCopyOptions,
   acceptTrade,
   declineTrade,
   cancelTrade,

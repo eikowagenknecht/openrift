@@ -1,10 +1,15 @@
 import { ERROR_CODES } from "@openrift/shared";
-import type { CardTradeResponse, CardTradeRole } from "@openrift/shared/types";
+import type {
+  CardTradeCopyOptionsResponse,
+  CardTradeResponse,
+  CardTradeRole,
+} from "@openrift/shared/types";
 
 import type { Repos, Transact } from "../deps.js";
 import { AppError } from "../errors.js";
+import { sortCopiesForPinning, toCardTradeCopyOptions } from "../lib/card-trade-presenters.js";
 import { isUniqueViolation } from "../lib/pg-errors.js";
-import type { CardTrade } from "../repositories/card-trades.js";
+import type { CardTrade, PendingGiverTrade } from "../repositories/card-trades.js";
 import { disposeCopiesInTransaction } from "./copies.js";
 import { logEvents } from "./event-logger.js";
 import type { TradeEmailDeps } from "./trade-notifications.js";
@@ -92,10 +97,27 @@ function assertRecipient(trade: CardTrade, role: CardTradeRole, action: string):
 }
 
 /**
- * Caps `quantity` against the giver's live (unreserved) supply of `printingId`.
+ * Caps `quantity` against what the giver can genuinely still hand over: their
+ * live unreserved copies of `printingId` in `groupId`, minus whatever their
+ * other pending offers have already claimed.
+ *
  * Rule-aware (ADR-034): a copy offered only via a dynamic trade rule counts here
  * just as it does in the match view, so callers can't disagree with the dialog's
  * `availableCount`.
+ *
+ * Offers count against the total because an offer (`initiator = 'giver'`) is a
+ * commitment the giver made, and nothing is pinned until the recipient accepts.
+ * Each live offer claims specific copy ids out of the group it lives in, oldest
+ * offer first (see {@link claimCopiesForOffers}), so a copy shared only with a
+ * different group is never falsely counted against this one. This refines
+ * ADR-019's "a pending request reserves nothing" rule, which still holds for
+ * the request direction: receiver-initiated pending rows are bids and claim no
+ * copies, so several members may ask for one card and the giver picks. A
+ * knock-on effect is intended: once the only copy is out on an offer, a new
+ * request for it also fails here, because the supply really is committed.
+ *
+ * `excludeTradeId` drops the trade being resized from the claim pass, so a
+ * pending offer does not compete with itself in {@link setTradeQuantity}.
  */
 async function assertSupplyAvailable(
   repos: Repos,
@@ -103,15 +125,161 @@ async function assertSupplyAvailable(
   giverUserId: string,
   printingId: string,
   quantity: number,
+  excludeTradeId?: string,
 ): Promise<void> {
-  const { unreservedCopyIds } = await repos.friendGroupMatches.giverPrintingSupply({
-    groupId,
+  const pending = await repos.cardTrades.listPendingForGiverPrinting(giverUserId, printingId);
+  const offers = pending.filter(
+    (trade) => trade.initiator === "giver" && trade.id !== excludeTradeId,
+  );
+  const supplyByGroup = await readSupplyByGroup(
+    repos,
+    new Set([groupId, ...offers.map((offer) => offer.groupId)]),
     giverUserId,
     printingId,
-  });
-  if (quantity > unreservedCopyIds.length) {
-    throw tooFewAvailable(unreservedCopyIds.length);
+  );
+  const { claimed } = claimCopiesForOffers(offers, supplyByGroup);
+  const available = (supplyByGroup.get(groupId) ?? []).filter((copyId) => !claimed.has(copyId));
+  if (quantity > available.length) {
+    throw tooFewAvailable(available.length);
   }
+}
+
+/**
+ * Reads the giver's unreserved copies of one printing, once per group.
+ * Sequential on purpose: the repos may be bound to a single transaction
+ * connection, which cannot serve concurrent queries.
+ * @returns Group id to the copy ids that group can see.
+ */
+async function readSupplyByGroup(
+  repos: Repos,
+  groupIds: Iterable<string>,
+  giverUserId: string,
+  printingId: string,
+): Promise<Map<string, string[]>> {
+  const byGroup = new Map<string, string[]>();
+  for (const groupId of groupIds) {
+    const { unreservedCopyIds } = await repos.friendGroupMatches.giverPrintingSupply({
+      groupId,
+      giverUserId,
+      printingId,
+    });
+    byGroup.set(groupId, unreservedCopyIds);
+  }
+  return byGroup;
+}
+
+/**
+ * Allocates the giver's visible copies to their live pending offers, oldest
+ * first. An offer only claims copies the group it lives in can actually see, so
+ * a giver who shares different copies with different groups is never falsely
+ * emptied out. An offer that no longer fits claims nothing and is reported back
+ * as unfillable.
+ *
+ * Shared by {@link assertSupplyAvailable} and
+ * {@link autoCancelUnfillablePendingTrades} so that creating a trade and
+ * sweeping for dead ones can never disagree about what is still free. Counting
+ * offers globally instead would refuse a second offer whenever the first one
+ * lives in another group, even when the two draw on different copies.
+ * @returns The copy ids claimed by a surviving offer, and the offers that no longer fit.
+ */
+function claimCopiesForOffers(
+  offers: readonly PendingGiverTrade[],
+  supplyByGroup: ReadonlyMap<string, readonly string[]>,
+): { claimed: Set<string>; unfillable: PendingGiverTrade[] } {
+  const claimed = new Set<string>();
+  const unfillable: PendingGiverTrade[] = [];
+  for (const offer of offers) {
+    const free = (supplyByGroup.get(offer.groupId) ?? []).filter((copyId) => !claimed.has(copyId));
+    if (free.length < offer.quantity) {
+      unfillable.push(offer);
+      continue;
+    }
+    for (const copyId of free.slice(0, offer.quantity)) {
+      claimed.add(copyId);
+    }
+  }
+  return { claimed, unfillable };
+}
+
+/**
+ * Cancels every still-`pending` trade of one giver+printing that the giver's
+ * current supply can no longer fill (ADR-019). The threshold is the trade's own
+ * `quantity`, not zero: a request for 2 against 1 remaining copy is dead and is
+ * closed rather than left to sit out its seven-day TTL.
+ *
+ * Runs inside the caller's transaction, so the supply drop and the cancellations
+ * commit together. Call it from every path where a giver's supply can fall:
+ * accepting a competing trade, disposing copies, moving copies, and unsharing a
+ * trade list.
+ *
+ * Ordering, when several pending trades compete for one stack:
+ *
+ * 1. Offers first, oldest first. An offer (`initiator = 'giver'`) is a
+ *    commitment and consumes supply, exactly as in {@link assertSupplyAvailable},
+ *    so the copies it holds come off the table before anything else is judged.
+ *    Oldest-first lets the first promise survive and keeps the result stable.
+ * 2. Requests last, each judged against what the surviving offers left. A
+ *    request is a bid, not a commitment (ADR-019), so requests never consume
+ *    from each other: several members may still compete for one card and the
+ *    giver picks. A request dies only when the supply itself stops covering it.
+ *
+ * Allocation is by copy id, not by count, so a giver who shares different copies
+ * with different groups is not falsely emptied out. An offer in one group only
+ * claims copies that group can see. No trade counts against itself: an offer is
+ * measured against what the *other* offers left, and claims its own share only
+ * if it fits.
+ * @returns The ids of the trades that were auto-cancelled.
+ */
+export async function autoCancelUnfillablePendingTrades(
+  trxRepos: Repos,
+  giverUserId: string,
+  printingId: string,
+): Promise<string[]> {
+  const pending = await trxRepos.cardTrades.listPendingForGiverPrinting(giverUserId, printingId);
+  if (pending.length === 0) {
+    return [];
+  }
+
+  // One supply read per group these trades span.
+  const supplyByGroup = await readSupplyByGroup(
+    trxRepos,
+    new Set(pending.map((trade) => trade.groupId)),
+    giverUserId,
+    printingId,
+  );
+
+  const cancelled: string[] = [];
+  const cancel = async (tradeId: string): Promise<void> => {
+    // Guarded on `status = 'pending'`, so a concurrent accept/decline that
+    // already moved the row wins and nothing is recorded here.
+    if ((await trxRepos.cardTrades.markAutoCancelled(tradeId)) > 0) {
+      cancelled.push(tradeId);
+    }
+  };
+
+  // Pass 1: the offers claim their copies, oldest first. This is the same
+  // allocation {@link assertSupplyAvailable} runs, so a trade this sweep keeps
+  // is exactly one `createTrade` would have allowed.
+  const { claimed, unfillable } = claimCopiesForOffers(
+    pending.filter((trade) => trade.initiator === "giver"),
+    supplyByGroup,
+  );
+  for (const offer of unfillable) {
+    await cancel(offer.id);
+  }
+
+  // Pass 2: the requests share whatever is left, competing freely.
+  for (const trade of pending) {
+    if (trade.initiator === "giver") {
+      continue;
+    }
+    const free = (supplyByGroup.get(trade.groupId) ?? []).filter((copyId) => !claimed.has(copyId));
+    if (free.length < trade.quantity) {
+      await cancel(trade.id);
+    }
+  }
+
+  return cancelled;
 }
 
 /** Claims the giver's side of a completed trade's sync (guards a double-apply). */
@@ -189,7 +357,20 @@ export async function createTrade(
     buyQuantity: demandQuantity,
   } = printingMatches[0];
 
-  // Live supply nets out reserved copies.
+  // Checked before supply: a second offer to the same person would otherwise
+  // fail the supply check (its own pending offer holds the copy) and report
+  // phantom exhaustion instead of the duplicate.
+  const existing = await repos.cardTrades.findLiveTrade(
+    group.id,
+    giverUserId,
+    receiverUserId,
+    printingId,
+  );
+  if (existing !== undefined) {
+    throw new AppError(409, ERROR_CODES.CONFLICT, "A live trade for this card already exists");
+  }
+
+  // Live supply nets out reserved copies and the giver's pending offers.
   await assertSupplyAvailable(repos, group.id, giverUserId, printingId, quantity);
   // Never trade more than the wanting side wants — over-trading would over-credit
   // copies and drive the wishlist negative on sync.
@@ -201,16 +382,6 @@ export async function createTrade(
         ? `They only want ${demandQuantity} of this card`
         : `You only want ${demandQuantity} of this card`,
     );
-  }
-
-  const existing = await repos.cardTrades.findLiveTrade(
-    group.id,
-    giverUserId,
-    receiverUserId,
-    printingId,
-  );
-  if (existing !== undefined) {
-    throw new AppError(409, ERROR_CODES.CONFLICT, "A live trade for this card already exists");
   }
 
   const expiresAt = new Date(Date.now() + PENDING_TTL_HOURS * 60 * 60 * 1000);
@@ -247,14 +418,113 @@ export async function createTrade(
 }
 
 /**
+ * Decides which physical copies an accept promises, out of the candidates that
+ * survived the row lock and the loan re-check. Reservations pin copy ids, so
+ * this is the choice of what physically leaves the giver's binder (ADR-019).
+ *
+ * `chosenCopyIds` is the accepting giver's explicit pick. It is honoured only
+ * once every id is confirmed to be in `availableCopyIds` — the live supply
+ * narrowed by the lock — so an id from another member, from another printing,
+ * or from a copy that just went away is refused instead of pinned.
+ *
+ * Without a pick the plainest copies go first, so a graded, noted or altered
+ * copy stays with its owner while a plain one is still on the table.
+ * @returns Exactly `trade.quantity` copy ids to pin.
+ */
+async function resolvePinnedCopyIds(
+  trxRepos: Repos,
+  trade: CardTrade,
+  role: CardTradeRole,
+  availableCopyIds: string[],
+  chosenCopyIds?: string[],
+): Promise<string[]> {
+  if (chosenCopyIds === undefined) {
+    // Nothing to weigh when the whole stack is going anyway.
+    if (availableCopyIds.length === trade.quantity) {
+      return availableCopyIds;
+    }
+    const rows = await trxRepos.copies.listMetadataByIds(availableCopyIds);
+    const ordered = sortCopiesForPinning(rows).map((row) => row.id);
+    // An id with no metadata row cannot happen under the lock. If it ever did,
+    // dropping it would silently shrink the pin, so append it instead.
+    const seen = new Set(ordered);
+    return [...ordered, ...availableCopyIds.filter((id) => !seen.has(id))].slice(0, trade.quantity);
+  }
+
+  // Only the giver owns these copies. On a giver-initiated offer the receiver
+  // is the one accepting, and they have no say over which copy they get.
+  if (role !== "giver") {
+    throw new AppError(
+      403,
+      ERROR_CODES.FORBIDDEN,
+      "Only the giver can choose which copies to promise",
+    );
+  }
+  const unique = new Set(chosenCopyIds);
+  if (unique.size !== chosenCopyIds.length) {
+    throw new AppError(409, ERROR_CODES.CONFLICT, "Choose each copy only once");
+  }
+  if (unique.size !== trade.quantity) {
+    const noun = trade.quantity === 1 ? "copy" : "copies";
+    throw new AppError(409, ERROR_CODES.CONFLICT, `Choose exactly ${trade.quantity} ${noun}`);
+  }
+  const available = new Set(availableCopyIds);
+  if (chosenCopyIds.some((id) => !available.has(id))) {
+    throw new AppError(
+      409,
+      ERROR_CODES.CONFLICT,
+      "One of those copies is no longer available to trade",
+    );
+  }
+  return chosenCopyIds;
+}
+
+/**
+ * The physical copies a pending trade could draw on, for the giver's picker.
+ * Giver-only: the rows carry the owner's private notes, and the giver is the
+ * only party who gets to choose which copy leaves their binder.
+ *
+ * Reads the same reservable supply the accept path pins from, so the picker can
+ * never offer a copy the accept would then refuse.
+ * @returns The candidates in default pin order, plus whether to prompt at all.
+ */
+export async function listTradeCopyOptions(
+  repos: Repos,
+  tradeId: string,
+  byUserId: string,
+): Promise<CardTradeCopyOptionsResponse> {
+  const { trade, role } = await loadTradeForParty(repos, tradeId, byUserId);
+  if (role !== "giver") {
+    throw new AppError(
+      403,
+      ERROR_CODES.FORBIDDEN,
+      "Only the giver can see the copies behind this trade",
+    );
+  }
+  assertTradeStatus(trade, "pending", "This trade is no longer pending");
+
+  const { unreservedCopyIds } = await repos.friendGroupMatches.giverPrintingSupply({
+    groupId: trade.groupId,
+    giverUserId: trade.giverUserId,
+    printingId: trade.printingId,
+  });
+  const copies = await repos.copies.listMetadataByIds(unreservedCopyIds);
+  return toCardTradeCopyOptions({ tradeId: trade.id, quantity: trade.quantity, copies });
+}
+
+/**
  * Accepts a pending trade (recipient only): pins `quantity` unreserved copies and
  * flips to `reserved`.
+ *
+ * `chosenCopyIds` lets an accepting giver say which physical copies to promise
+ * (see {@link resolvePinnedCopyIds}). Omitted, the plainest copies go first.
  * @returns The reserved trade as a viewer-oriented DTO.
  */
 export function acceptTrade(
   transact: Transact,
   tradeId: string,
   byUserId: string,
+  chosenCopyIds?: string[],
 ): Promise<CardTradeResponse> {
   return transact(async (trxRepos) => {
     const { trade, role } = await loadTradeForParty(trxRepos, tradeId, byUserId);
@@ -264,6 +534,9 @@ export function acceptTrade(
     // Rule-aware (ADR-034): the reservable supply mirrors the match view, so a
     // copy offered only via a dynamic trade rule is pinnable here. `hasAny` is
     // reservation-agnostic, telling the two exhaustion cases apart below.
+    // Pending offers are not netted out here, unlike in createTrade: the pins
+    // settle the race, and this trade's own offer must not block the accept
+    // that turns it into a reservation.
     const { unreservedCopyIds: copyIds, hasAny } =
       await trxRepos.friendGroupMatches.giverPrintingSupply({
         groupId: trade.groupId,
@@ -279,6 +552,9 @@ export function acceptTrade(
       }
       await trxRepos.cardTrades.deleteCopiesForTrade(tradeId); // no-op while pending
       await trxRepos.cardTrades.markAutoCancelled(tradeId);
+      // The basis vanished for everyone, not just this trade. Close the
+      // giver's other pending trades for the printing in the same breath.
+      await autoCancelUnfillablePendingTrades(trxRepos, trade.giverUserId, trade.printingId);
       return reloadDto(trxRepos, tradeId, byUserId);
     }
 
@@ -303,8 +579,18 @@ export function acceptTrade(
     if (availableCopyIds.length < trade.quantity) {
       throw tooFewAvailable(availableCopyIds.length);
     }
+
+    // Which of the survivors actually gets promised — the giver's own pick when
+    // they sent one, otherwise the plainest copies.
+    const pinnedCopyIds = await resolvePinnedCopyIds(
+      trxRepos,
+      trade,
+      role,
+      availableCopyIds,
+      chosenCopyIds,
+    );
     try {
-      await trxRepos.cardTrades.pinCopies(tradeId, availableCopyIds.slice(0, trade.quantity));
+      await trxRepos.cardTrades.pinCopies(tradeId, pinnedCopyIds);
     } catch (error) {
       // A concurrent accept claimed one of these copies first (UNIQUE(copy_id)).
       if (isUniqueViolation(error)) {
@@ -317,6 +603,10 @@ export function acceptTrade(
       // A concurrent decline/cancel moved it out of `pending` after we pinned.
       throw new AppError(409, ERROR_CODES.CONFLICT, "This trade is no longer pending");
     }
+    // The pins just took these copies out of the reservable supply, so the
+    // giver's competing pending trades may have become unfillable. Close them
+    // now instead of letting them sit until the TTL, 409-ing on every accept.
+    await autoCancelUnfillablePendingTrades(trxRepos, trade.giverUserId, trade.printingId);
     return reloadDto(trxRepos, tradeId, byUserId);
   });
 }
@@ -404,13 +694,16 @@ export function setTradeQuantity(
       throw new AppError(403, ERROR_CODES.FORBIDDEN, "Only the initiator can change this request");
     }
 
-    // Cap by the giver's live (unreserved) supply, mirroring createTrade.
+    // Cap by the giver's live (unreserved) supply, mirroring createTrade. This
+    // trade is excluded from the committed-offer sum: a pending offer being
+    // resized must not count against itself.
     await assertSupplyAvailable(
       trxRepos,
       trade.groupId,
       trade.giverUserId,
       trade.printingId,
       quantity,
+      trade.id,
     );
 
     // Keep the receiver's wish entry ≥ the request: claiming a copy is an explicit

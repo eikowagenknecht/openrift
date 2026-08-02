@@ -123,6 +123,37 @@ function CopyTextButton({ label, getText }: { label: string; getText: () => stri
   );
 }
 
+/**
+ * Builds the "why is this locked" tooltip sentence for a missing-card row,
+ * branching on which reasons actually contributed: out on loan, reserved for
+ * a trade, or sitting in a collection excluded from deck building. Several
+ * reasons read as alternatives ("out on loan or reserved for a trade"), since
+ * the per-reason counts are not zone-capped the way `locked` is and so must
+ * not be shown beside it.
+ * @returns The tooltip sentence.
+ */
+function lockedTooltipText(card: CardOwnership): string {
+  const reasons: string[] = [];
+  if (card.lockedLoaned > 0) {
+    reasons.push("out on loan");
+  }
+  if (card.lockedReserved > 0) {
+    reasons.push("reserved for a trade");
+  }
+  if (card.lockedExcluded > 0) {
+    reasons.push("in a collection that's excluded from deck building");
+  }
+
+  const copyWord = card.locked === 1 ? "copy" : "copies";
+  if (reasons.length <= 1) {
+    const reason = reasons[0] ?? "you can't build with right now";
+    return `You have ${card.locked} ${copyWord} ${reason}.`;
+  }
+  const last = reasons.at(-1);
+  const rest = reasons.slice(0, -1).join(", ");
+  return `You have ${card.locked} ${copyWord} that are ${rest} or ${last}.`;
+}
+
 export function DeckMissingCardsDialog({
   open,
   onOpenChange,
@@ -244,8 +275,7 @@ export function DeckMissingCardsDialog({
                             <LockIcon className="size-3" />
                           </TooltipTrigger>
                           <TooltipContent side="top" className="max-w-56 text-xs">
-                            You have {card.locked} {card.locked === 1 ? "copy" : "copies"} in a
-                            collection that&apos;s excluded from deck building.
+                            {lockedTooltipText(card)}
                           </TooltipContent>
                         </Tooltip>
                       )}

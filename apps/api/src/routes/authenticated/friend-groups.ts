@@ -41,6 +41,7 @@ import { generateShareToken } from "../../lib/share-token.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import type { Group, MemberPreviewRow, MemberWithUser } from "../../repositories/friend-groups.js";
+import { autoCancelUnfillablePendingTrades } from "../../services/card-trades.js";
 
 /** Discord link codes are one-shot and short-lived — 15 minutes to run /link. */
 const DISCORD_LINK_CODE_TTL_MS = 15 * 60 * 1000;
@@ -763,7 +764,26 @@ export const friendGroupsRouter = {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "List not found");
     }
 
-    await friendGroups.unshare(ctx.group.id, input.listId);
+    if (list.intent !== "trade") {
+      await friendGroups.unshare(ctx.group.id, input.listId);
+      return;
+    }
+
+    // Pulling a trade list out of the group drops the supply behind the
+    // viewer's live offers and the requests aimed at them, so re-check both in
+    // the same transaction as the unshare (ADR-019). Only the printings that
+    // still have a pending trade are worth a supply read.
+    await context.transact(async (trxRepos) => {
+      await trxRepos.friendGroups.unshare(ctx.group.id, input.listId);
+      const printingIds = await trxRepos.cardTrades.listPendingPrintingIdsForGiverInGroup(
+        ctx.group.id,
+        viewerId,
+      );
+      for (const printingId of printingIds) {
+        // Sequential: the repos are bound to a single transaction connection.
+        await autoCancelUnfillablePendingTrades(trxRepos, viewerId, printingId);
+      }
+    });
   }),
 
   // ── MATCH VIEW ──────────────────────────────────────────────────────────

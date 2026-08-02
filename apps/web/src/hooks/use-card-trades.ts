@@ -1,4 +1,9 @@
-import type { CardTradeResponse, CardTradeRole, CardTradeStatus } from "@openrift/shared";
+import type {
+  CardTradeCopyOptionsResponse,
+  CardTradeResponse,
+  CardTradeRole,
+  CardTradeStatus,
+} from "@openrift/shared";
 import { cardTradesContract } from "@openrift/shared/contracts/card-trades";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
@@ -29,6 +34,18 @@ const fetchTradeActionCounts = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(({ context }) => apiOrpcClient(cardTradesContract, context.cookie).actionCounts());
 
+const fetchLiveTradesByPrinting = createServerFn({ method: "GET" })
+  .middleware([withCookies])
+  .handler(({ context }) => apiOrpcClient(cardTradesContract, context.cookie).liveByPrinting());
+
+const fetchTradeCopyOptions = createServerFn({ method: "GET" })
+  .validator((input: string) => input)
+  .middleware([withCookies])
+  .handler(
+    ({ context, data: tradeId }): Promise<CardTradeCopyOptionsResponse> =>
+      apiOrpcClient(cardTradesContract, context.cookie).copyOptions({ id: tradeId }),
+  );
+
 // ── Server functions: mutations ───────────────────────────────────────────────
 
 const createTradeFn = createServerFn({ method: "POST" })
@@ -56,15 +73,25 @@ const setTradeQuantityFn = createServerFn({ method: "POST" })
   );
 
 const tradeActionFn = createServerFn({ method: "POST" })
-  .validator(
-    (input: { tradeId: string; action: "accept" | "decline" | "cancel" | "complete" }) => input,
-  )
+  .validator((input: { tradeId: string; action: "decline" | "cancel" | "complete" }) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<CardTradeResponse> =>
-      // accept/decline/cancel/complete share the same { id } → CardTradeResponse
-      // shape, so index the client by the action name.
+      // decline/cancel/complete share the same { id } → CardTradeResponse
+      // shape, so index the client by the action name. Accept has its own
+      // function below because it carries the giver's copy choice.
       apiOrpcClient(cardTradesContract, context.cookie)[data.action]({ id: data.tradeId }),
+  );
+
+const acceptTradeFn = createServerFn({ method: "POST" })
+  .validator((input: { tradeId: string; copyIds?: string[] }) => input)
+  .middleware([withCookies])
+  .handler(
+    ({ context, data }): Promise<CardTradeResponse> =>
+      apiOrpcClient(cardTradesContract, context.cookie).accept({
+        id: data.tradeId,
+        copyIds: data.copyIds,
+      }),
   );
 
 const applyTradeSyncFn = createServerFn({ method: "POST" })
@@ -132,14 +159,75 @@ export function useUserTrades() {
   });
 }
 
+/**
+ * The viewer's live trades across all groups, summed per (printing, role,
+ * phase), for the card browsers' per-card trade markers.
+ *
+ * Deliberately not polled. A card-browser cell mounts this hook once per
+ * visible card, and `refetchInterval` is per-observer in query-core, so a poll
+ * here would arm one timer per cell instead of one per app. A stale window
+ * plus the trade mutations' own invalidation covers everything the user does
+ * themselves; a counterparty's accept lands on the next refocus.
+ * @returns The live-annotations query.
+ */
+export function useLiveTradesByPrinting() {
+  const userId = useUserId();
+  return useQuery({
+    queryKey: queryKeys.trades.liveByPrinting(userId ?? ""),
+    queryFn: () => fetchLiveTradesByPrinting(),
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
+    enabled: userId !== null,
+  });
+}
+
+/**
+ * The candidate copies behind one pending trade, in the server's default pin
+ * order, for the giver's copy picker.
+ *
+ * Deliberately not a mounted `useQuery`: the route re-reads the giver's supply,
+ * which for a member with a dynamic trade list assembles the whole rule
+ * catalogue. It must run once per opened picker, never on a render and never on
+ * a poll, so the accept flow pulls it through `fetchQuery` at the moment the
+ * giver presses Accept and nothing subscribes to it. `fetchQuery` on a
+ * zero-`staleTime` key always goes to the network, so a picker reopened after
+ * another accept sees the copies that are still free rather than a cached list.
+ * @returns The copy-options query options.
+ */
+export function tradeCopyOptionsQueryOptions(userId: string, tradeId: string) {
+  return queryOptions({
+    queryKey: queryKeys.trades.copyOptions(userId, tradeId),
+    queryFn: () => fetchTradeCopyOptions({ data: tradeId }),
+  });
+}
+
 // ── Mutation hooks ──────────────────────────────────────────────────────────
 
 /**
- * Invalidates trades + the affected group's matches (reserved copies changed).
+ * Trade mutations pin/release copies, which changes the `reserved` flag on the
+ * copies feed and on any list that copy belongs to, so every trade mutation
+ * also resyncs the client-side copies store and the lists cache (Reserved
+ * badges). That takes both copies keys: `copies.all` marks the shared
+ * response cache stale, and `copies.syncedStore` makes the react-db
+ * collection's own query refetch through it (its queryFn only hits the
+ * network when the shared cache is stale). `lists.all` is a prefix match, so
+ * it also covers `lists.detail` for the same reason. The server picks which
+ * copies get reserved or released, so there is nothing to write
+ * optimistically.
+ *
+ * `trades.all` is a prefix match too, so it already refreshes the card
+ * browsers' per-printing annotations (`trades.liveByPrinting`) — that key
+ * needs no entry of its own here, and `query-keys.test.ts` locks the nesting
+ * that makes it true.
  * @returns The query keys to invalidate.
  */
 function tradeInvalidationKeys(userId: string, groupSlug?: string): (readonly unknown[])[] {
-  const keys: (readonly unknown[])[] = [queryKeys.trades.all(userId)];
+  const keys: (readonly unknown[])[] = [
+    queryKeys.trades.all(userId),
+    queryKeys.copies.all(userId),
+    queryKeys.copies.syncedStore(userId),
+    queryKeys.lists.all(userId),
+  ];
   if (groupSlug !== undefined) {
     keys.push(queryKeys.friendGroups.matches(userId, groupSlug));
   }
@@ -187,10 +275,20 @@ export function useSetTradeQuantity() {
   });
 }
 
+/**
+ * Accepts a pending trade. When the viewer is the giver they may name the exact
+ * copies to promise via `copyIds` (see `tradeCopyOptionsQueryOptions`); omitting
+ * it lets the server pin the plainest copies itself, which is what every
+ * receiver-side accept does.
+ * @returns The accept mutation.
+ */
 export function useAcceptTrade() {
   const userId = useRequiredUserId();
-  return useMutationWithInvalidation<CardTradeResponse, { tradeId: string; groupSlug?: string }>({
-    mutationFn: (data) => tradeActionFn({ data: { tradeId: data.tradeId, action: "accept" } }),
+  return useMutationWithInvalidation<
+    CardTradeResponse,
+    { tradeId: string; groupSlug?: string; copyIds?: string[] }
+  >({
+    mutationFn: (data) => acceptTradeFn({ data: { tradeId: data.tradeId, copyIds: data.copyIds } }),
     invalidates: (variables) => tradeInvalidationKeys(userId, variables.groupSlug),
   });
 }

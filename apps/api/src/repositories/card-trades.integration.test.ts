@@ -6,10 +6,12 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createRepos, createTransact } from "../deps.js";
 import {
   acceptTrade,
+  autoCancelUnfillablePendingTrades,
   cancelTrade,
   completeTrade,
   createTrade,
   declineTrade,
+  listTradeCopyOptions,
   setTradeQuantity,
   skipTradeSync,
   applyTradeSync,
@@ -22,7 +24,9 @@ import { friendGroupsRepo } from "./friend-groups.js";
 const GIVER_ID = crypto.randomUUID();
 const RECEIVER_ID = crypto.randomUUID();
 const OUTSIDER_ID = crypto.randomUUID();
-const ALL_USER_IDS = [GIVER_ID, RECEIVER_ID, OUTSIDER_ID];
+/** Never party to a trade in this file, so their annotation list stays empty. */
+const BYSTANDER_ID = crypto.randomUUID();
+const ALL_USER_IDS = [GIVER_ID, RECEIVER_ID, OUTSIDER_ID, BYSTANDER_ID];
 
 const ctx = createDbContext(GIVER_ID);
 
@@ -241,6 +245,32 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
       .then((rows) => rows.filter((row) => row.printingId === PRINTING_1.id).length);
   }
 
+  /** Records a PSA 10 on a copy, so the candidates stop being interchangeable. */
+  async function gradeCopy(copyId: string): Promise<void> {
+    await db
+      .updateTable("copies")
+      .set({ grader: "psa", grade: 10 })
+      .where("id", "=", copyId)
+      .execute();
+  }
+
+  /** @returns The id of a giver-owned PRINTING_1 copy that is on no shared list. */
+  async function unlistedGiverCopy(): Promise<string> {
+    const collectionId = await collectionFor(GIVER_ID);
+    const row = await db
+      .insertInto("copies")
+      .values({ printingId: PRINTING_1.id, collectionId })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    return row.id;
+  }
+
+  /** @returns The trade's current status, read straight from the row. */
+  async function statusOf(tradeId: string): Promise<string | undefined> {
+    const row = await repos.cardTrades.getById(tradeId);
+    return row?.status;
+  }
+
   function request(group: { slug: string }, quantity: number) {
     return createTrade(repos, {
       callerUserId: RECEIVER_ID,
@@ -250,6 +280,35 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
       printingId: PRINTING_1.id,
       quantity,
     });
+  }
+
+  /**
+   * The giver's "I have this, want it?" offer, so the initiator is the giver.
+   * @returns The created trade DTO.
+   */
+  function offer(group: { slug: string }, toUserId: string, quantity: number) {
+    return createTrade(repos, {
+      callerUserId: GIVER_ID,
+      groupSlug: group.slug,
+      counterpartyUserId: toUserId,
+      role: "giver",
+      printingId: PRINTING_1.id,
+      quantity,
+    });
+  }
+
+  /** Gives an existing member of `groupId` a shared wish for PRINTING_1. */
+  async function shareWish(groupId: string, userId: string, quantity: number): Promise<void> {
+    const wish = await db
+      .insertInto("lists")
+      .values({ userId, name: "Wants", intent: "wish", kind: "printing" })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    await db
+      .insertInto("listEntries")
+      .values({ listId: wish.id, userId, kind: "printing", printingId: PRINTING_1.id, quantity })
+      .execute();
+    await groupsRepo.share(groupId, wish.id, userId);
   }
 
   /**
@@ -339,7 +398,7 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     expect(await availableForReceiver(group.id)).toBe(0);
   });
 
-  it("keeps a request pending when copies still exist but are reserved by a competing trade", async () => {
+  it("accepting one request auto-cancels the competing one the stack can't cover", async () => {
     // Two members both want the giver's single shared copy.
     const slug = await uniqueSlug();
     const group = await groupsRepo.createWithOwner(
@@ -409,15 +468,21 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
       quantity: 1,
     });
 
-    // The giver accepts the first; the only copy is now reserved.
+    // The giver accepts the first; the only copy is now pinned to it.
     await acceptTrade(transact, tradeForReceiver.id, GIVER_ID);
-    // Accepting the second 409s (copy reserved) and the request stays pending —
-    // the basis still exists, it's just exhausted.
+
+    // The second request can no longer be filled, so the accept closes it in
+    // the same transaction (system actor). It used to sit pending for the whole
+    // seven-day TTL, silently 409-ing every time the giver pressed accept.
+    const outsiderRow = await repos.cardTrades.getById(tradeForOutsider.id);
+    expect(outsiderRow?.status).toBe("cancelled");
+    expect(outsiderRow?.lastActorUserId).toBeNull();
+
+    // And accepting it now reports the closed state, not a bare supply error.
     await expect(acceptTrade(transact, tradeForOutsider.id, GIVER_ID)).rejects.toMatchObject({
       status: 409,
+      message: "This trade is no longer pending",
     });
-    const outsiderRow = await repos.cardTrades.getById(tradeForOutsider.id);
-    expect(outsiderRow?.status).toBe("pending");
   });
 
   it("receiver sync can only be applied once", async () => {
@@ -653,7 +718,7 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     expect(await repos.cardTrades.listReservedCopyIds(trade.id)).toHaveLength(0);
   });
 
-  it("disposeCopies refuses a reserved copy; moveCopies succeeds; applyGiverSync disposes", async () => {
+  it("disposeCopies refuses a reserved copy; a personal move succeeds; applyGiverSync disposes", async () => {
     const { group, copyIds } = await setupMatch(1);
     const trade = await request(group, 1);
     await acceptTrade(transact, trade.id, GIVER_ID);
@@ -662,7 +727,7 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
       status: 409,
     });
 
-    // Moving a reserved copy between collections is allowed.
+    // Moving a reserved copy between the owner's own collections is allowed.
     const otherCollection = await db
       .insertInto("collections")
       .values({
@@ -682,6 +747,68 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     await expect(applyTradeSync(transact, trade.id, GIVER_ID)).resolves.toMatchObject({
       status: "completed",
     });
+  });
+
+  it("moveCopies refuses to move a reserved copy into a group collection", async () => {
+    const { group, copyIds } = await setupMatch(1);
+    const trade = await request(group, 1);
+    await acceptTrade(transact, trade.id, GIVER_ID);
+
+    // A pooled collection owned by the group, not by any single member. It
+    // cascades away with the group in afterAll.
+    const pooled = await db
+      .insertInto("collections")
+      .values({
+        groupId: group.id,
+        name: "Pooled Binder",
+        isInbox: false,
+        sortOrder: 3,
+      })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+
+    await expect(
+      moveCopies(repos, transact, GIVER_ID, [copyIds[0]], pooled.id),
+    ).rejects.toMatchObject({ status: 409 });
+
+    // The copy stayed put, so every other member still sees their own supply.
+    const stayed = await db
+      .selectFrom("copies")
+      .select("collectionId")
+      .where("id", "=", copyIds[0])
+      .executeTakeFirstOrThrow();
+    expect(stayed.collectionId).not.toBe(pooled.id);
+
+    // The same move is fine once the copy is no longer pinned.
+    await cancelTrade(transact, trade.id, GIVER_ID);
+    await expect(
+      moveCopies(repos, transact, GIVER_ID, [copyIds[0]], pooled.id),
+    ).resolves.toBeUndefined();
+
+    // Move it back so the group collection is empty when the group cascades.
+    const home = await collectionFor(GIVER_ID);
+    await moveCopies(repos, transact, GIVER_ID, [copyIds[0]], home);
+  });
+
+  it("disposeCopies points a completed trade's leftover pin at the sync, not at cancelling", async () => {
+    const { group, copyIds } = await setupMatch(1);
+    const trade = await request(group, 1);
+    await acceptTrade(transact, trade.id, GIVER_ID);
+    // Completing does not release the pins; only the giver's sync does. Until
+    // then the trade cannot be cancelled either, so "cancel it" would be a
+    // remedy the user cannot carry out.
+    await completeTrade(transact, trade.id, GIVER_ID);
+    expect(await repos.cardTrades.listReservedCopyIds(trade.id)).toHaveLength(1);
+
+    await expect(disposeCopies(transact, GIVER_ID, [copyIds[0]])).rejects.toMatchObject({
+      status: 409,
+      message:
+        "This card is still reserved by a completed trade. Resolve or skip that trade's sync to free it.",
+    });
+
+    // Resolving the giver's side releases the pin, and the copy is disposable.
+    await skipTradeSync(transact, trade.id, GIVER_ID);
+    await expect(disposeCopies(transact, GIVER_ID, [copyIds[0]])).resolves.toBeUndefined();
   });
 
   it("expirePending moves only pending rows past 24h to expired", async () => {
@@ -769,5 +896,450 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     const receiverSynced = await repos.cardTrades.actionNeededCountsForUser(RECEIVER_ID);
     expect(inGroup(giverSynced)).toBeUndefined();
     expect(inGroup(receiverSynced)?.count).toBe(1);
+  });
+
+  // ── Pending offers consume supply ────────────────────────────────────────
+  // An offer is a commitment, so it holds its copies from the moment it is made
+  // (a request stays a bid). The committed sum is global, so these tests cancel
+  // the offers they leave behind: this suite shares one DB and one giver, and a
+  // lingering pending offer would eat later tests' supply.
+
+  it("a pending offer holds its copy, so the same copy can't be offered twice", async () => {
+    const { group } = await setupMatch(1);
+    await groupsRepo.addMember(group.id, OUTSIDER_ID, "member");
+    await shareWish(group.id, OUTSIDER_ID, 1);
+
+    const first = await offer(group, RECEIVER_ID, 1);
+    expect(first.status).toBe("pending");
+    expect(first.initiator).toBe("giver");
+
+    // The giver's single copy is spoken for, so a second offer of it is refused
+    // and the reported count is the netted one.
+    await expect(offer(group, OUTSIDER_ID, 1)).rejects.toMatchObject({
+      status: 409,
+      message: "Only 0 copies are still available",
+    });
+
+    // Cancelling releases the commitment and the copy can be offered again.
+    await cancelTrade(transact, first.id, GIVER_ID);
+    const second = await offer(group, OUTSIDER_ID, 1);
+    expect(second.status).toBe("pending");
+    await cancelTrade(transact, second.id, GIVER_ID);
+  });
+
+  it("a pending request is a bid: it never holds the giver's supply", async () => {
+    const { group } = await setupMatch(1);
+    await groupsRepo.addMember(group.id, OUTSIDER_ID, "member");
+    await shareWish(group.id, OUTSIDER_ID, 1);
+
+    // Two members ask for the same single copy. Both requests stand; the giver
+    // picks which one to accept.
+    const fromReceiver = await request(group, 1);
+    const fromOutsider = await createTrade(repos, {
+      callerUserId: OUTSIDER_ID,
+      groupSlug: group.slug,
+      counterpartyUserId: GIVER_ID,
+      role: "receiver",
+      printingId: PRINTING_1.id,
+      quantity: 1,
+    });
+    expect(fromReceiver.status).toBe("pending");
+    expect(fromOutsider.status).toBe("pending");
+    // Neither request consumed the giver's supply: the copy is still visible
+    // in the match, exactly as before either request existed.
+    expect(await availableForReceiver(group.id)).toBe(1);
+  });
+
+  it("counts pending offers across groups, mirroring the global copy pins", async () => {
+    const first = await setupMatch(1);
+    // A second group where the same physical copy and a matching wish are
+    // shared. `uq_card_trades_live` is per group, so only the global committed
+    // sum can stop the double-promise here.
+    const slug = await uniqueSlug();
+    const second = await groupsRepo.createWithOwner(
+      { slug, name: "Cross Group", description: null, code: null },
+      GIVER_ID,
+    );
+    createdGroupIds.push(second.id);
+    await groupsRepo.addMember(second.id, RECEIVER_ID, "member");
+    await groupsRepo.share(second.id, first.tradeListId, GIVER_ID);
+    await shareWish(second.id, RECEIVER_ID, 1);
+
+    const offered = await offer(first.group, RECEIVER_ID, 1);
+    expect(offered.status).toBe("pending");
+    await expect(offer(second, RECEIVER_ID, 1)).rejects.toMatchObject({
+      status: 409,
+      message: "Only 0 copies are still available",
+    });
+
+    await cancelTrade(transact, offered.id, GIVER_ID);
+  });
+
+  it("setTradeQuantity resizes an offer without counting it against itself", async () => {
+    const { group } = await setupMatch(3);
+    const offered = await offer(group, RECEIVER_ID, 2);
+    // The 2 copies this offer already holds are its own, so raising it to the
+    // giver's full stack of 3 is allowed.
+    const resized = await setTradeQuantity(transact, offered.id, GIVER_ID, 3);
+    expect(resized.quantity).toBe(3);
+    await cancelTrade(transact, offered.id, GIVER_ID);
+  });
+
+  it("accepting an offer is not blocked by the supply that offer holds", async () => {
+    const { group } = await setupMatch(1);
+    const offered = await offer(group, RECEIVER_ID, 1);
+    // Accept pins copies rather than re-checking committed offers, so the
+    // trade's own commitment can't block the reservation it becomes.
+    const reserved = await acceptTrade(transact, offered.id, RECEIVER_ID);
+    expect(reserved.status).toBe("reserved");
+    expect(await repos.cardTrades.listReservedCopyIds(offered.id)).toHaveLength(1);
+  });
+
+  // ── Unfillable pending trades are closed, not left to rot ────────────────
+  // Whenever the giver's supply drops below a pending trade's quantity, that
+  // trade is auto-cancelled in the same transaction as the drop. Without this
+  // it sat pending for the whole seven-day TTL, telling the giver it needed
+  // action and 409-ing every time they pressed accept.
+
+  it("disposing the copies behind a pending request closes it", async () => {
+    const { group, copyIds } = await setupMatch(1);
+    const trade = await request(group, 1);
+    expect(trade.status).toBe("pending");
+
+    await disposeCopies(transact, GIVER_ID, [copyIds[0]]);
+
+    const row = await repos.cardTrades.getById(trade.id);
+    expect(row?.status).toBe("cancelled");
+    // System actor: nobody declined it, the basis simply went away.
+    expect(row?.lastActorUserId).toBeNull();
+  });
+
+  it("keeps a pending request for 1 while one copy is still left", async () => {
+    const { group, copyIds } = await setupMatch(2);
+    const trade = await request(group, 1);
+
+    // One of two copies destroyed still covers a request for one.
+    await disposeCopies(transact, GIVER_ID, [copyIds[0]]);
+    expect(await statusOf(trade.id)).toBe("pending");
+
+    // The last copy going takes the request with it.
+    await disposeCopies(transact, GIVER_ID, [copyIds[1]]);
+    expect(await statusOf(trade.id)).toBe("cancelled");
+  });
+
+  it("closes a pending request for 2 once only one copy is left", async () => {
+    // The threshold is the trade's own quantity, not zero.
+    const { group, copyIds } = await setupMatch(2);
+    const trade = await request(group, 2);
+
+    await disposeCopies(transact, GIVER_ID, [copyIds[0]]);
+
+    expect(await statusOf(trade.id)).toBe("cancelled");
+  });
+
+  it("leaves the giver's offer standing and closes the request behind it", async () => {
+    const { group, copyIds } = await setupMatch(2);
+    await groupsRepo.addMember(group.id, OUTSIDER_ID, "member");
+    await shareWish(group.id, OUTSIDER_ID, 1);
+
+    // Two copies cover both: the offer commits one, the request bids for the other.
+    const offered = await offer(group, OUTSIDER_ID, 1);
+    const requested = await request(group, 1);
+
+    // Destroying one copy leaves a single one, already committed by the offer.
+    // Offers are settled before requests are judged, so only the request dies.
+    await disposeCopies(transact, GIVER_ID, [copyIds[0]]);
+
+    expect(await statusOf(offered.id)).toBe("pending");
+    expect(await statusOf(requested.id)).toBe("cancelled");
+
+    await cancelTrade(transact, offered.id, GIVER_ID);
+  });
+
+  it("moving the giver's copy into a group binder closes the request it backed", async () => {
+    const { group, copyIds } = await setupMatch(1);
+    const trade = await request(group, 1);
+
+    // A pooled collection belongs to the group, not to the giver, so the copy
+    // leaves their personal supply. It cascades away with the group in afterAll.
+    const pooled = await db
+      .insertInto("collections")
+      .values({ groupId: group.id, name: "Pooled Binder", isInbox: false, sortOrder: 4 })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    await moveCopies(repos, transact, GIVER_ID, [copyIds[0]], pooled.id);
+
+    expect(await statusOf(trade.id)).toBe("cancelled");
+
+    // Move it back so the group collection is empty when the group cascades.
+    const home = await collectionFor(GIVER_ID);
+    await moveCopies(repos, transact, GIVER_ID, [copyIds[0]], home);
+  });
+
+  it("unsharing the trade list closes the requests it was backing", async () => {
+    const { group, tradeListId } = await setupMatch(1);
+    const trade = await request(group, 1);
+
+    // Mirrors the unshareList route: drop the share, then re-check the giver's
+    // pending trades for the printings still in flight, all in one transaction.
+    await transact(async (trxRepos) => {
+      await trxRepos.friendGroups.unshare(group.id, tradeListId);
+      const printingIds = await trxRepos.cardTrades.listPendingPrintingIdsForGiverInGroup(
+        group.id,
+        GIVER_ID,
+      );
+      for (const printingId of printingIds) {
+        await autoCancelUnfillablePendingTrades(trxRepos, GIVER_ID, printingId);
+      }
+    });
+
+    expect(await statusOf(trade.id)).toBe("cancelled");
+  });
+  // -------------------------------------------------------------------------
+  // Choosing which physical copy gets promised (C4)
+  // -------------------------------------------------------------------------
+
+  it("promises the plainest copy when the giver makes no choice", async () => {
+    const { group, copyIds } = await setupMatch(2);
+    await gradeCopy(copyIds[0]);
+    const trade = await request(group, 1);
+
+    await acceptTrade(transact, trade.id, GIVER_ID);
+
+    // The PSA 10 stays with its owner while a plain copy is still on the table.
+    expect(await repos.cardTrades.listReservedCopyIds(trade.id)).toEqual([copyIds[1]]);
+  });
+
+  it("promises exactly the copy the giver picked, graded or not", async () => {
+    const { group, copyIds } = await setupMatch(2);
+    await gradeCopy(copyIds[0]);
+    const trade = await request(group, 1);
+
+    await acceptTrade(transact, trade.id, GIVER_ID, [copyIds[0]]);
+
+    expect(await repos.cardTrades.listReservedCopyIds(trade.id)).toEqual([copyIds[0]]);
+  });
+
+  it("refuses a choice that does not match the trade quantity", async () => {
+    const { group, copyIds } = await setupMatch(3);
+    const trade = await request(group, 2);
+
+    await expect(acceptTrade(transact, trade.id, GIVER_ID, [copyIds[0]])).rejects.toMatchObject({
+      status: 409,
+    });
+    expect(await repos.cardTrades.listReservedCopyIds(trade.id)).toEqual([]);
+    expect(await statusOf(trade.id)).toBe("pending");
+  });
+
+  it("refuses a copy the giver owns but never shared with the group", async () => {
+    const { group } = await setupMatch(2);
+    const trade = await request(group, 1);
+    const unlisted = await unlistedGiverCopy();
+
+    await expect(acceptTrade(transact, trade.id, GIVER_ID, [unlisted])).rejects.toMatchObject({
+      status: 409,
+    });
+    expect(await repos.cardTrades.listReservedCopyIds(trade.id)).toEqual([]);
+    expect(await statusOf(trade.id)).toBe("pending");
+  });
+
+  it("refuses a copy that belongs to someone else", async () => {
+    const { group } = await setupMatch(1);
+    const trade = await request(group, 1);
+    const receiverCollectionId = await collectionFor(RECEIVER_ID);
+    const theirs = await db
+      .insertInto("copies")
+      .values({ printingId: PRINTING_1.id, collectionId: receiverCollectionId })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+
+    await expect(acceptTrade(transact, trade.id, GIVER_ID, [theirs.id])).rejects.toMatchObject({
+      status: 409,
+    });
+    expect(await repos.cardTrades.listReservedCopyIds(trade.id)).toEqual([]);
+  });
+
+  it("refuses a choice from the receiver accepting the giver's offer", async () => {
+    const { group, copyIds } = await setupMatch(2);
+    const offered = await offer(group, RECEIVER_ID, 1);
+
+    // The receiver is the recipient here, but the copies are not theirs to pick.
+    await expect(
+      acceptTrade(transact, offered.id, RECEIVER_ID, [copyIds[0]]),
+    ).rejects.toMatchObject({ status: 403 });
+
+    // A pending offer commits supply globally, so release it before moving on.
+    await cancelTrade(transact, offered.id, GIVER_ID);
+  });
+
+  it("lists the giver's candidate copies plainest-first and flags a real choice", async () => {
+    const { group, copyIds } = await setupMatch(2);
+    await gradeCopy(copyIds[0]);
+    const trade = await request(group, 1);
+
+    const options = await listTradeCopyOptions(repos, trade.id, GIVER_ID);
+
+    expect(options.tradeId).toBe(trade.id);
+    expect(options.quantity).toBe(1);
+    expect(options.choiceMatters).toBe(true);
+    expect(options.copies.map((row) => row.id)).toEqual([copyIds[1], copyIds[0]]);
+    expect(options.copies[0].hasRecordedDetails).toBe(false);
+    expect(options.copies[1]).toMatchObject({
+      grader: "psa",
+      grade: 10,
+      hasRecordedDetails: true,
+      collectionName: "Trade Test Binder",
+    });
+  });
+
+  it("does not flag a choice when the candidates are identical and unrecorded", async () => {
+    const { group } = await setupMatch(2);
+    const trade = await request(group, 1);
+
+    const options = await listTradeCopyOptions(repos, trade.id, GIVER_ID);
+
+    expect(options.copies).toHaveLength(2);
+    expect(options.choiceMatters).toBe(false);
+  });
+
+  it("keeps the candidate copies away from the receiver", async () => {
+    const { group } = await setupMatch(1);
+    const trade = await request(group, 1);
+
+    await expect(listTradeCopyOptions(repos, trade.id, RECEIVER_ID)).rejects.toMatchObject({
+      status: 403,
+    });
+  });
+
+  // ── liveAnnotationsForUser ─────────────────────────────────────────────────
+  // Every test in this file trades PRINTING_1 and cleanup only runs in afterAll,
+  // so the annotation buckets accumulate. Each case therefore reads one bucket
+  // before and after the action and asserts the delta, never an absolute count.
+
+  /** @returns The viewer's PRINTING_1 bucket for one role and phase, zeroed when absent. */
+  async function bucket(
+    userId: string,
+    role: "giver" | "receiver",
+    phase: "asked" | "offered" | "reserved" | "traded",
+  ): Promise<{ tradeCount: number; quantity: number }> {
+    const rows = await repos.cardTrades.liveAnnotationsForUser(userId);
+    const row = rows.find(
+      (entry) => entry.printingId === PRINTING_1.id && entry.role === role && entry.phase === phase,
+    );
+    return { tradeCount: row?.tradeCount ?? 0, quantity: row?.quantity ?? 0 };
+  }
+
+  /** @returns The delta of one bucket across `action`. */
+  async function bucketDelta(
+    userId: string,
+    role: "giver" | "receiver",
+    phase: "asked" | "offered" | "reserved" | "traded",
+    action: () => Promise<unknown>,
+  ): Promise<{ tradeCount: number; quantity: number }> {
+    const before = await bucket(userId, role, phase);
+    await action();
+    const after = await bucket(userId, role, phase);
+    return {
+      tradeCount: after.tradeCount - before.tradeCount,
+      quantity: after.quantity - before.quantity,
+    };
+  }
+
+  it("reports a receiver-initiated request as asked on both sides", async () => {
+    const { group } = await setupMatch(3);
+    const giverBefore = await bucket(GIVER_ID, "giver", "asked");
+    const receiverBefore = await bucket(RECEIVER_ID, "receiver", "asked");
+
+    await request(group, 2);
+
+    const giverAfter = await bucket(GIVER_ID, "giver", "asked");
+    const receiverAfter = await bucket(RECEIVER_ID, "receiver", "asked");
+    expect(giverAfter.tradeCount - giverBefore.tradeCount).toBe(1);
+    expect(giverAfter.quantity - giverBefore.quantity).toBe(2);
+    expect(receiverAfter.tradeCount - receiverBefore.tradeCount).toBe(1);
+    expect(receiverAfter.quantity - receiverBefore.quantity).toBe(2);
+  });
+
+  it("reports a giver-initiated offer as offered on both sides", async () => {
+    const { group } = await setupMatch(2);
+    const giverBefore = await bucket(GIVER_ID, "giver", "offered");
+    const receiverBefore = await bucket(RECEIVER_ID, "receiver", "offered");
+    const askedBefore = await bucket(GIVER_ID, "giver", "asked");
+
+    await offer(group, RECEIVER_ID, 1);
+
+    const giverAfter = await bucket(GIVER_ID, "giver", "offered");
+    const receiverAfter = await bucket(RECEIVER_ID, "receiver", "offered");
+    expect(giverAfter.tradeCount - giverBefore.tradeCount).toBe(1);
+    expect(receiverAfter.tradeCount - receiverBefore.tradeCount).toBe(1);
+    // `initiator` is what splits pending in two, so the same row must not also
+    // land in `asked`.
+    expect(await bucket(GIVER_ID, "giver", "asked")).toEqual(askedBefore);
+  });
+
+  it("moves the bucket from asked to reserved on accept", async () => {
+    const { group } = await setupMatch(2);
+    const trade = await request(group, 2);
+
+    const askedBefore = await bucket(GIVER_ID, "giver", "asked");
+    const reservedDelta = await bucketDelta(GIVER_ID, "giver", "reserved", () =>
+      acceptTrade(transact, trade.id, GIVER_ID),
+    );
+    const askedAfter = await bucket(GIVER_ID, "giver", "asked");
+
+    expect(reservedDelta).toEqual({ tradeCount: 1, quantity: 2 });
+    expect(askedBefore.tradeCount - askedAfter.tradeCount).toBe(1);
+  });
+
+  it("reports a completed trade as traded until each side resolves its own sync", async () => {
+    const { group } = await setupMatch(1);
+    const trade = await request(group, 1);
+    await acceptTrade(transact, trade.id, GIVER_ID);
+
+    const giverTraded = await bucketDelta(GIVER_ID, "giver", "traded", () =>
+      completeTrade(transact, trade.id, GIVER_ID),
+    );
+    expect(giverTraded).toEqual({ tradeCount: 1, quantity: 1 });
+    const receiverTraded = await bucket(RECEIVER_ID, "receiver", "traded");
+    expect(receiverTraded.tradeCount).toBeGreaterThanOrEqual(1);
+
+    // Resolving the giver's side drops their annotation; the receiver still owes
+    // theirs, so their bucket is untouched.
+    const afterSkip = await bucketDelta(GIVER_ID, "giver", "traded", () =>
+      skipTradeSync(transact, trade.id, GIVER_ID),
+    );
+    expect(afterSkip).toEqual({ tradeCount: -1, quantity: -1 });
+    expect(await bucket(RECEIVER_ID, "receiver", "traded")).toEqual(receiverTraded);
+  });
+
+  it("drops a declined trade from every bucket", async () => {
+    const { group } = await setupMatch(1);
+    const trade = await request(group, 1);
+
+    const before = await repos.cardTrades.liveAnnotationsForUser(GIVER_ID);
+    await declineTrade(transact, trade.id, GIVER_ID);
+    const after = await repos.cardTrades.liveAnnotationsForUser(GIVER_ID);
+
+    const askedOf = (rows: typeof before) =>
+      rows.find(
+        (row) => row.printingId === PRINTING_1.id && row.role === "giver" && row.phase === "asked",
+      )?.tradeCount ?? 0;
+    expect(askedOf(before) - askedOf(after)).toBe(1);
+  });
+
+  it("sums live trades from several groups into one printing bucket", async () => {
+    const { group: first } = await setupMatch(2);
+    const { group: second } = await setupMatch(2);
+
+    const delta = await bucketDelta(GIVER_ID, "giver", "asked", async () => {
+      await request(first, 2);
+      await request(second, 1);
+    });
+
+    expect(delta).toEqual({ tradeCount: 2, quantity: 3 });
+  });
+
+  it("returns nothing for a user with no live trades", async () => {
+    expect(await repos.cardTrades.liveAnnotationsForUser(BYSTANDER_ID)).toEqual([]);
   });
 });

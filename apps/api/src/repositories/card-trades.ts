@@ -3,6 +3,7 @@ import type {
   CardTradeActionNeeded,
   CardTradeCounterparty,
   CardTradeInitiator,
+  CardTradeLivePhase,
   CardTradeResponse,
   CardTradeRole,
   CardTradeStatus,
@@ -90,6 +91,34 @@ export interface QueuedStatusEmailRow {
 
 /** The per-trade marker column a queued status email stamps once sent/suppressed. */
 export type TradeStatusEmailMarker = "reservedEmailSentAt" | "closedEmailSentAt";
+
+/** One `card_trade_copies` pin plus the status of the trade holding it. */
+export interface ReservedCopyPin {
+  copyId: string;
+  tradeId: string;
+  status: CardTradeStatus;
+}
+
+/** A still-`pending` trade of one giver+printing, for the unfillable sweep. */
+export interface PendingGiverTrade {
+  id: string;
+  groupId: string;
+  quantity: number;
+  initiator: CardTradeInitiator;
+}
+
+/**
+ * One aggregated bucket of the viewer's live trades on a printing, as
+ * {@link cardTradesRepo.liveAnnotationsForUser} reads it. Carries no identity:
+ * the row is already summed across every group and counterparty.
+ */
+export interface LiveTradeAnnotationRow {
+  printingId: string;
+  role: CardTradeRole;
+  phase: CardTradeLivePhase;
+  tradeCount: number;
+  quantity: number;
+}
 
 function isoOrNull(value: Date | null): string | null {
   return value === null ? null : value.toISOString();
@@ -340,6 +369,53 @@ export function cardTradesRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
+    /**
+     * The giver's still-`pending` trades for one printing, across every group.
+     * Feeds the unfillable sweep in the card-trades service, which re-reads
+     * supply and cancels what can no longer be filled (ADR-019).
+     *
+     * Ordered oldest first (`created_at`, then `id` to break ties on rows
+     * written in the same microsecond) so the sweep's first-come-first-served
+     * allocation is stable and reproducible.
+     * @returns The pending rows, oldest first.
+     */
+    listPendingForGiverPrinting(
+      giverUserId: string,
+      printingId: string,
+    ): Promise<PendingGiverTrade[]> {
+      return db
+        .selectFrom("cardTrades")
+        .select(["id", "groupId", "quantity", "initiator"])
+        .where("giverUserId", "=", giverUserId)
+        .where("printingId", "=", printingId)
+        .where("status", "=", "pending")
+        .orderBy("createdAt", "asc")
+        .orderBy("id", "asc")
+        .execute();
+    },
+
+    /**
+     * Distinct printings the giver still has `pending` trades for in one group.
+     * A group-scoped supply change (unsharing a trade list) drives the
+     * per-printing sweep from this list, so the work stays proportional to the
+     * live trades rather than to the list's size.
+     * @returns The printing ids, unordered.
+     */
+    async listPendingPrintingIdsForGiverInGroup(
+      groupId: string,
+      giverUserId: string,
+    ): Promise<string[]> {
+      const rows = await db
+        .selectFrom("cardTrades")
+        .select("printingId")
+        .distinct()
+        .where("groupId", "=", groupId)
+        .where("giverUserId", "=", giverUserId)
+        .where("status", "=", "pending")
+        .execute();
+      return rows.map((row) => row.printingId);
+    },
+
     /** @returns The viewer's trades (optionally filtered), newest change first, as DTOs. */
     async listForUser(
       userId: string,
@@ -500,6 +576,59 @@ export function cardTradesRepo(db: Kysely<Database>) {
         groupSlug: row.groupSlug,
         count: Number(row.count),
       }));
+    },
+
+    /**
+     * The viewer's live trades across every group, summed per (printing, role,
+     * phase) so a card browser can annotate a cell without loading trades. Live
+     * means pending, reserved, or completed-but-not-yet-synced *on the viewer's
+     * own side*; terminal rows and an already-synced side are simply absent.
+     *
+     * One scan with a role CASE rather than a UNION of a giver query and a
+     * receiver query. The phase ladder is identical for both sides apart from
+     * which `*_sync_applied_at` column counts, so a union would restate the
+     * whole ladder twice and give the vocabulary two homes. Both
+     * `idx_card_trades_giver` and `idx_card_trades_receiver` lead with the user
+     * column, so the `OR` still reaches each side through its own index.
+     *
+     * Self-trades are rejected at creation, so no row matches both sides and
+     * the role CASE is never ambiguous.
+     * @returns One row per (printing, role, phase); unordered.
+     */
+    async liveAnnotationsForUser(userId: string): Promise<LiveTradeAnnotationRow[]> {
+      const result = await sql<LiveTradeAnnotationRow>`
+        SELECT
+          printing_id,
+          role,
+          phase,
+          count(*)::int AS trade_count,
+          sum(quantity)::int AS quantity
+        FROM (
+          SELECT
+            t.printing_id,
+            t.quantity,
+            (CASE WHEN t.giver_user_id = ${userId} THEN 'giver' ELSE 'receiver' END) AS role,
+            -- The WHERE below admits nothing but these four cases, so the ELSE
+            -- branch is the completed-and-unsynced one.
+            (CASE
+              WHEN t.status = 'pending' AND t.initiator = 'receiver' THEN 'asked'
+              WHEN t.status = 'pending' AND t.initiator = 'giver' THEN 'offered'
+              WHEN t.status = 'reserved' THEN 'reserved'
+              ELSE 'traded'
+            END) AS phase
+          FROM card_trades t
+          WHERE (t.giver_user_id = ${userId} OR t.receiver_user_id = ${userId})
+            AND (
+              t.status IN ('pending', 'reserved')
+              OR (t.status = 'completed' AND (
+                (t.giver_user_id = ${userId} AND t.giver_sync_applied_at IS NULL)
+                OR (t.receiver_user_id = ${userId} AND t.receiver_sync_applied_at IS NULL)
+              ))
+            )
+        ) live
+        GROUP BY printing_id, role, phase
+      `.execute(db);
+      return result.rows;
     },
 
     // ── Request-email coalescing (ADR-030) ───────────────────────────────────
@@ -716,6 +845,26 @@ export function cardTradesRepo(db: Kysely<Database>) {
         .where("copyId", "in", [...copyIds])
         .execute();
       return rows.map((row) => row.copyId);
+    },
+
+    /**
+     * Like {@link filterReservedCopyIds}, but carries the owning trade's status.
+     * A pin on a `completed` trade means the giver has not resolved their sync
+     * yet, and that trade can no longer be cancelled, so the dispose guard needs
+     * the status to name a remedy that actually exists (ADR-019).
+     * @returns One row per pinned copy in `copyIds`.
+     */
+    async listReservationsForCopies(copyIds: readonly string[]): Promise<ReservedCopyPin[]> {
+      if (copyIds.length === 0) {
+        return [];
+      }
+      const rows = await db
+        .selectFrom("cardTradeCopies as ctc")
+        .innerJoin("cardTrades as t", "t.id", "ctc.tradeId")
+        .select(["ctc.copyId", "ctc.tradeId", "t.status"])
+        .where("ctc.copyId", "in", [...copyIds])
+        .execute();
+      return rows;
     },
 
     // ── State transitions ────────────────────────────────────────────────────

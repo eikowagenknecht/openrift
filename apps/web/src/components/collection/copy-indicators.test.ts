@@ -13,6 +13,13 @@ describe("copyHasRecordedDetails", () => {
     expect(copyHasRecordedDetails(stubCopy({ onLoan: true }))).toBe(true);
   });
 
+  // A reservation is the most consequential thing a copy can record: it is
+  // promised to someone. An otherwise blank pinned copy used to report
+  // "No details yet" in the copy picker.
+  it("counts a copy pinned to a live trade with no other details", () => {
+    expect(copyHasRecordedDetails(stubCopy({ reserved: true }))).toBe(true);
+  });
+
   it("counts a raw condition", () => {
     expect(copyHasRecordedDetails(stubCopy({ condition: "near-mint" }))).toBe(true);
   });
@@ -40,8 +47,14 @@ describe("copyMarkers", () => {
     expect(copyMarkers(stubCopy())).toEqual([]);
   });
 
-  it("excludes condition, grade, and loan (those render bespoke)", () => {
-    const copy = stubCopy({ condition: "near-mint", grader: "psa", grade: 9, onLoan: true });
+  it("excludes condition, grade, loan, and reservation (those render bespoke)", () => {
+    const copy = stubCopy({
+      condition: "near-mint",
+      grader: "psa",
+      grade: 9,
+      onLoan: true,
+      reserved: true,
+    });
     expect(copyMarkers(copy)).toEqual([]);
   });
 

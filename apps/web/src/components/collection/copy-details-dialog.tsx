@@ -1,11 +1,19 @@
-import type { CopyLink, CopyMetadataPatch, CopyResponse, Printing } from "@openrift/shared";
+import type {
+  CardTradeLiveAnnotation,
+  CopyLink,
+  CopyMetadataPatch,
+  CopyResponse,
+  Printing,
+} from "@openrift/shared";
 import type { LucideIcon } from "lucide-react";
 import { ArrowLeftIcon, HandHeartIcon, PlusIcon, XIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { PrintingVariantLabel } from "@/components/cards/printing-label";
 import { copyHasRecordedDetails, copyMarkers } from "@/components/collection/copy-indicators";
+import { tradeAnnotationByCopyId } from "@/components/collection/tile-trade-status";
 import { OnLoanChip } from "@/components/loans/on-loan-chip";
+import { TradeStatusChip } from "@/components/trades/trade-status-chip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,11 +38,13 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useLiveTradesByPrinting } from "@/hooks/use-card-trades";
 import { useCopies, useUpdateCopies } from "@/hooks/use-copies";
 import type { EnumLabels } from "@/hooks/use-enums";
 import { useConditionList, useEnumOrders, useGraderList } from "@/hooks/use-enums";
 import { formatCardId } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
+import { liveTradeStatus } from "@/lib/trade-status-labels";
 
 /** What the grid resolved from the right-clicked tile. */
 export interface CopyDetailsTarget {
@@ -81,6 +91,7 @@ export function CopyDetailsDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const { data: allCopies } = useCopies();
+  const { data: liveTrades } = useLiveTradesByPrinting();
   const [editingCopyId, setEditingCopyId] = useState<string | null>(null);
 
   // Seed the editor when a new target arrives: a single-copy tile skips the
@@ -103,6 +114,7 @@ export function CopyDetailsDialog({
   const copies = allCopies.filter((copy) => targetIds.has(copy.id));
   const editingCopy = editingCopyId ? copies.find((copy) => copy.id === editingCopyId) : undefined;
   const showList = !editingCopy;
+  const tradeByCopyId = tradeAnnotationByCopyId(liveTrades?.annotations, target.printingByCopyId);
 
   return (
     <Dialog open onOpenChange={onOpenChange}>
@@ -111,6 +123,7 @@ export function CopyDetailsDialog({
           <CopyPickerList
             target={target}
             copies={copies}
+            tradeByCopyId={tradeByCopyId}
             onPick={setEditingCopyId}
             onClose={() => onOpenChange(false)}
           />
@@ -118,6 +131,7 @@ export function CopyDetailsDialog({
           <CopyEditor
             key={editingCopy.id}
             copy={editingCopy}
+            tradeAnnotation={tradeByCopyId.get(editingCopy.id)}
             cardName={target.cardName}
             printing={target.printingByCopyId.get(editingCopy.id)}
             siblings={distinctPrintings(target.printingByCopyId)}
@@ -238,22 +252,33 @@ function ConditionBadge({ copy, labels }: { copy: CopyResponse; labels: EnumLabe
 
 /**
  * Summary of what a copy actually records — a condition/grade badge, the loan
- * marker, plus an icon per marker (altered, notes, links). "No details yet"
- * shows only when the copy is genuinely blank, so an altered-but-unrecorded copy
- * is no longer mislabeled as having nothing.
+ * and live-trade markers, plus an icon per marker (altered, notes, links).
+ * "No details yet" shows only when the copy is genuinely blank, so an
+ * altered-but-unrecorded copy is no longer mislabeled as having nothing.
  * @returns The indicator row, or a "No details yet" hint.
  */
-function CopySummary({ copy }: { copy: CopyResponse }) {
+function CopySummary({
+  copy,
+  tradeAnnotation,
+}: {
+  copy: CopyResponse;
+  tradeAnnotation?: CardTradeLiveAnnotation;
+}) {
   const { labels } = useEnumOrders();
 
   if (!copyHasRecordedDetails(copy)) {
     return <span className="text-muted-foreground text-sm">No details yet</span>;
   }
 
+  // This copy's own flag decides whether it is one of the pinned ones. The
+  // printing's annotation supplies the word (see tradeAnnotationByCopyId).
+  const trade = copy.reserved && tradeAnnotation ? liveTradeStatus(tradeAnnotation) : null;
+
   return (
     <span className="flex shrink-0 items-center gap-1.5">
       <ConditionBadge copy={copy} labels={labels} />
       {copy.onLoan && <SummaryIcon icon={HandHeartIcon} label="On loan" />}
+      {trade && <SummaryIcon icon={trade.icon} label={trade.label} />}
       {copyMarkers(copy).map((marker) => (
         <SummaryIcon
           key={marker.key}
@@ -270,11 +295,13 @@ function CopySummary({ copy }: { copy: CopyResponse }) {
 function CopyPickerList({
   target,
   copies,
+  tradeByCopyId,
   onPick,
   onClose,
 }: {
   target: CopyDetailsTarget;
   copies: CopyResponse[];
+  tradeByCopyId: ReadonlyMap<string, CardTradeLiveAnnotation>;
   onPick: (copyId: string) => void;
   onClose: () => void;
 }) {
@@ -302,7 +329,7 @@ function CopyPickerList({
                 <span className="min-w-0 truncate">
                   {printing && <PrintingDescriptor printing={printing} siblings={siblings} />}
                 </span>
-                <CopySummary copy={copy} />
+                <CopySummary copy={copy} tradeAnnotation={tradeByCopyId.get(copy.id)} />
               </PickerRow>
             );
           })}
@@ -319,6 +346,7 @@ function CopyPickerList({
 
 function CopyEditor({
   copy,
+  tradeAnnotation,
   cardName,
   printing,
   siblings,
@@ -327,6 +355,7 @@ function CopyEditor({
   onDone,
 }: {
   copy: CopyResponse;
+  tradeAnnotation?: CardTradeLiveAnnotation;
   cardName: string;
   printing: Printing | undefined;
   siblings: Printing[];
@@ -384,6 +413,11 @@ function CopyEditor({
           )}
           Copy details
           {copy.onLoan && <OnLoanChip count={1} iconOnly />}
+          {/* Icon only: the header is about this one copy, so the annotation's
+              per-printing count would misread as this copy's. */}
+          {copy.reserved && tradeAnnotation && (
+            <TradeStatusChip detail="icon" annotation={tradeAnnotation} />
+          )}
         </DialogTitle>
         <DialogDescription>
           {cardName}

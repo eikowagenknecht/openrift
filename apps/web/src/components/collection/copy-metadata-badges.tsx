@@ -1,10 +1,11 @@
-import type { CopyResponse } from "@openrift/shared";
+import type { CardTradeLiveAnnotation, CopyResponse } from "@openrift/shared";
 import { FileTextIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { CardStrip } from "@/components/cards/card-strip";
 import { copyMarkers } from "@/components/collection/copy-indicators";
 import { OnLoanChip } from "@/components/loans/on-loan-chip";
+import { TradeStatusChip } from "@/components/trades/trade-status-chip";
 import { CountPillButton } from "@/components/ui/count-pill";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { conditionShortCode } from "@/lib/condition-codes";
@@ -50,21 +51,55 @@ function MetadataPillButton({
  * Per-copy metadata strip for copies-view tiles (ADR-038): a condition or
  * grade pill plus altered/notes/links markers, in the same fixed above-card
  * row the stacked views use for their count strips. Every pill opens the
- * copy-details editor. A copy that is out on a loan additionally leads with
- * the static on-loan marker (ADR-039). Renders the empty row for a bare (or
- * still loading) copy so tiles in a row stay aligned.
+ * copy-details editor. A copy that is out on a loan or pinned to a live trade
+ * additionally leads with the static loan (ADR-039) and trade (ADR-019)
+ * markers. Renders the empty row for a bare (or still loading) copy so tiles in
+ * a row stay aligned.
+ *
+ * `tradeAnnotation` is the copy's printing's collapsed annotation. It is only
+ * ever the source of the *word*, never of whether to show one: a printing's
+ * annotation covers whichever copies a trade happens to have pinned, so an
+ * unpinned copy of a traded printing must stay unmarked. See
+ * {@link CopyMetadataPills}.
  *
  * @returns The strip row.
  */
-export function CopyMetadataStrip({ copy }: { copy: CopyResponse | undefined }) {
-  return <CardStrip center={copy && <CopyMetadataPills copy={copy} />} />;
+export function CopyMetadataStrip({
+  copy,
+  tradeAnnotation,
+}: {
+  copy: CopyResponse | undefined;
+  tradeAnnotation?: CardTradeLiveAnnotation | null;
+}) {
+  return (
+    <CardStrip
+      center={copy && <CopyMetadataPills copy={copy} tradeAnnotation={tradeAnnotation} />}
+    />
+  );
 }
 
-function CopyMetadataPills({ copy }: { copy: CopyResponse }) {
+function CopyMetadataPills({
+  copy,
+  tradeAnnotation,
+}: {
+  copy: CopyResponse;
+  tradeAnnotation?: CardTradeLiveAnnotation | null;
+}) {
   const { labels } = useEnumOrders();
   return (
     <>
       {copy.onLoan && <OnLoanChip iconOnly count={1} />}
+      {/* Two sources, each answering the half of this the other cannot. The
+          copy's own `reserved` flag decides *whether* a marker belongs on this
+          tile, because it is the only per-copy fact. A sibling copy's
+          reservation, or a pending trade with nothing pinned yet, leaves this
+          copy free and unmarked. The annotation decides *what it says*, because
+          `reserved` stays true through the handover until the giver applies
+          their sync, so it cannot tell "Reserved" from "Traded". Icon only: the
+          tile is one copy, so a count would always read 1. */}
+      {copy.reserved && tradeAnnotation && (
+        <TradeStatusChip detail="icon" annotation={tradeAnnotation} />
+      )}
       {copy.grader !== null && copy.grade !== null && (
         <MetadataPillButton
           itemId={copy.id}

@@ -67,6 +67,28 @@ describe("queryKeys", () => {
   it("priceHistory.byPrinting returns tuple with printingId and range", () => {
     expect(queryKeys.priceHistory.byPrinting("p1", "30d")).toEqual(["priceHistory", "p1", "30d"]);
   });
+
+  // The card browsers' per-printing trade markers rely on this nesting: trade
+  // mutations invalidate `trades.all`, and react-query matches by prefix, so a
+  // key nested under it is refreshed without its own invalidation entry. Move
+  // it out from under the prefix and the markers go stale after every accept.
+  it("trades.liveByPrinting nests under the trades.all invalidation prefix", () => {
+    const prefix = queryKeys.trades.all("user-1");
+    const key = queryKeys.trades.liveByPrinting("user-1");
+    expect(key).toEqual(["trades", "user-1", "live-by-printing"]);
+    expect(key.slice(0, prefix.length)).toEqual([...prefix]);
+  });
+
+  // Same reason as above: the giver's copy picker reads which copies a trade
+  // could take, and every one of them stops being a candidate the moment some
+  // other accept pins it. Nested under `trades.all`, the entry is dropped by
+  // the invalidation each trade mutation already does.
+  it("trades.copyOptions nests under the trades.all invalidation prefix", () => {
+    const prefix = queryKeys.trades.all("user-1");
+    const key = queryKeys.trades.copyOptions("user-1", "trade-1");
+    expect(key).toEqual(["trades", "user-1", "copy-options", "trade-1"]);
+    expect(key.slice(0, prefix.length)).toEqual([...prefix]);
+  });
 });
 
 // ---------------------------------------------------------------------------

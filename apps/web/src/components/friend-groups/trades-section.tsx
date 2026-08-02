@@ -37,6 +37,7 @@ import { useTradeActionStore } from "@/stores/trade-action-store";
 
 import { AddToCollectionDialog } from "./add-to-collection-dialog";
 import { TradeCardmarketExportDialog } from "./trade-cardmarket-export-dialog";
+import { TradeCopyPickerDialog, useTradeAcceptFlow } from "./trade-copy-picker-dialog";
 import {
   CardMetaLine,
   CounterpartyChip,
@@ -59,7 +60,7 @@ function TradeRow({ trade }: { trade: CardTradeResponse }) {
   const settle = useTradeActionStore((state) => state.settle);
   const [addOpen, setAddOpen] = useState(false);
 
-  const accept = useAcceptTrade();
+  const acceptFlow = useTradeAcceptFlow({ onSettled: () => settle(trade.id) });
   const decline = useDeclineTrade();
   const cancel = useCancelTrade();
   const complete = useCompleteTrade();
@@ -147,7 +148,14 @@ function TradeRow({ trade }: { trade: CardTradeResponse }) {
               >
                 Decline
               </Button>
-              <Button size="sm" disabled={acting} onClick={() => run(accept, actionArgs)}>
+              <Button
+                size="sm"
+                disabled={acting}
+                onClick={() => {
+                  begin(trade.id);
+                  acceptFlow.start({ ...actionArgs, role: trade.role, cardName });
+                }}
+              >
                 Accept
               </Button>
             </>
@@ -204,6 +212,10 @@ function TradeRow({ trade }: { trade: CardTradeResponse }) {
         </div>
       </div>
 
+      {trade.actionNeeded === "accept-or-decline" ? (
+        <TradeCopyPickerDialog flow={acceptFlow} />
+      ) : null}
+
       {incoming && trade.actionNeeded === "apply-sync" ? (
         <AddToCollectionDialog
           open={addOpen}
@@ -230,6 +242,14 @@ type BulkMode = "accept-decline" | "cancel" | "none";
  * mutation per trade and driving the shared action store so every affected row
  * shows its in-flight state. Renders nothing until there are at least two to act
  * on, since a lone trade is served fine by its own row button.
+ *
+ * Bulk accept deliberately does not offer the copy picker the row buttons do.
+ * Choosing copies needs one options read per trade, and that read re-derives
+ * the giver's supply, so an "Accept all (12)" would pay twelve of them before
+ * anything happened and then stop on a queue of dialogs. Sending no `copyIds`
+ * leaves the server pinning the plainest copies first, which is the protection
+ * that matters here. A giver who wants to hand over a specific copy accepts
+ * that trade from its own row.
  * @returns The bulk-action buttons, or null when fewer than two apply.
  */
 function BulkTradeActions({ trades, mode }: { trades: CardTradeResponse[]; mode: BulkMode }) {

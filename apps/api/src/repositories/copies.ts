@@ -30,9 +30,28 @@ type CopyRow = Pick<
   groupId: string | null;
   /** True when the copy is out on a live loan (ADR-039). */
   onLoan: boolean;
-  /** True when the copy is pinned to a live outgoing trade (ADR-034): still owned, but reserved. */
+  /** True when the copy is pinned to a live outgoing trade (ADR-019): still owned, but reserved. */
   reserved: boolean;
 };
+
+/**
+ * A copy's per-copy metadata (ADR-038) with the name of the collection holding
+ * it. Feeds the trade-accept copy picker, which needs enough detail to tell two
+ * physical copies of one printing apart.
+ */
+type CopyMetadataRow = Pick<
+  Selectable<CopiesTable>,
+  | "id"
+  | "printingId"
+  | "collectionId"
+  | "condition"
+  | "grader"
+  | "grade"
+  | "notesPublic"
+  | "notesPrivate"
+  | "isAltered"
+  | "links"
+> & { collectionName: string };
 
 /** The per-copy metadata columns (ADR-038), aliased for `cp`-joined queries. */
 const COPY_METADATA_COLUMNS = [
@@ -100,7 +119,7 @@ export function copiesRepo(db: Kysely<Database>) {
         // join can't multiply rows (ADR-039).
         .leftJoin("loanCopies as lc", "lc.copyId", "cp.id")
         // Likewise pinned by at most one live trade (UNIQUE copy_id) — its
-        // presence means the copy is reserved for an outgoing trade (ADR-034).
+        // presence means the copy is reserved for an outgoing trade (ADR-019).
         .leftJoin("cardTradeCopies as ctc", "ctc.copyId", "cp.id")
         .select([
           "cp.id",
@@ -322,6 +341,32 @@ export function copiesRepo(db: Kysely<Database>) {
       return rows.map((row) => row.id);
     },
 
+    /**
+     * Per-copy metadata (ADR-038) for specific copies, with the name of the
+     * collection holding each. Not user-scoped: like the other id-list reads
+     * here, the caller has already established the right to see these copies
+     * (the trade paths derive the ids from the giver's own shared supply).
+     * @returns One row per id that still exists, in no particular order.
+     */
+    listMetadataByIds(copyIds: readonly string[]): Promise<CopyMetadataRow[]> {
+      if (copyIds.length === 0) {
+        return Promise.resolve([]);
+      }
+      return db
+        .selectFrom("copies as cp")
+        .innerJoin("collections as col", "col.id", "cp.collectionId")
+        .select([
+          "cp.id",
+          "cp.printingId",
+          "cp.collectionId",
+          "col.name as collectionName",
+          ...COPY_METADATA_COLUMNS,
+        ])
+        .where("cp.id", "in", copyIds as string[])
+        .execute()
+        .then((rows) => rows.map((row) => withParsedLinks(row)));
+    },
+
     /** Moves copies to a target collection; caller verified write access. */
     async moveBatchById(copyIds: string[], toCollectionId: string): Promise<void> {
       if (copyIds.length === 0) {
@@ -429,7 +474,7 @@ export function copiesRepo(db: Kysely<Database>) {
      * counts when its collection is deck-building-available for the viewer
      * (`COALESCE(pref.available, group_id IS NULL)`) AND it is neither out on a
      * live loan (ADR-039, physically absent) nor reserved for a live outgoing
-     * trade (ADR-034). Borrowed-in copies are added separately (they aren't
+     * trade (ADR-019). Borrowed-in copies are added separately (they aren't
      * copy rows — see `loansRepo.borrowedCountByCard`).
      * @returns Map from card id to buildable copy count.
      */
@@ -460,7 +505,7 @@ export function copiesRepo(db: Kysely<Database>) {
             ),
           ),
         )
-        // A copy reserved for a live outgoing trade is committed elsewhere (ADR-034).
+        // A copy reserved for a live outgoing trade is committed elsewhere (ADR-019).
         .where(({ not, exists, selectFrom }) =>
           not(
             exists(

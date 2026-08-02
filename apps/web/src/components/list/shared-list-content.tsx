@@ -39,9 +39,9 @@ import { collectListPrintings, kindToView } from "@/components/list/list-entries
 import { ListHeader } from "@/components/list/list-header";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
-import { Badge } from "@/components/ui/badge";
+import { SharedTradeStatusChip } from "@/components/trades/trade-status-chip";
 import { Button } from "@/components/ui/button";
-import { CountPill, CountPillButton } from "@/components/ui/count-pill";
+import { CountPillButton } from "@/components/ui/count-pill";
 import {
   Empty,
   EmptyDescription,
@@ -397,7 +397,7 @@ function SharedListGrid({
     // adds nothing there.
     const entry = entryByItemId.get(item.id);
     // A copy pinned to a live (accepted) trade — yours or another member's — can't
-    // be claimed; it carries the "Reserved" badge and no action.
+    // be claimed; it carries the "Reserved" chip and no action.
     const reserved = entry?.kind === "copy" && entry.reserved;
     // This specific copy is covered by one of the viewer's pending requests to
     // this member. It shows a "Requested" badge (click to release) and no claim
@@ -631,7 +631,7 @@ function SharedListGrid({
 // request opens the dialog to pick + share a wishlist, later requests bump the
 // live request's quantity), a requested copy shows a "Requested ×" button that
 // releases one copy (decrement, or cancel at the last), and a reserved copy shows
-// a read-only "Reserved" badge. The owned-count and wish-heart pills, when
+// a read-only "Reserved" chip. The owned-count and wish-heart pills, when
 // present, sit at the left. `disabled` guards against a request/release already
 // in flight.
 function RequestStrip({
@@ -663,10 +663,13 @@ function RequestStrip({
       }
       right={
         /* All three states share the count-pill shape so they read as one
-           control across cards; color carries the state (neutral = actionable,
-           primary tint = requested by you, green = reserved/locked). */
+           control across cards; the two actionable ones carry a tint (neutral =
+           claimable, primary = requested by you) while the locked one is the
+           app-wide reserved chip. That chip takes no annotation and no text, so
+           this page can never spell out who the copy is promised to — it is
+           reachable through a share token with no session behind it. */
         state === "reserved" ? (
-          <CountPill variant="success">Reserved</CountPill>
+          <SharedTradeStatusChip />
         ) : state === "requested" ? (
           <CountPillButton
             variant="primary"
@@ -736,9 +739,9 @@ function OfferStrip({ disabled, onClick }: { disabled: boolean; onClick: () => v
  * Table-row request action for a member's tradelist. `printing` and `itemId` are
  * injected by the table via cloneElement; absent on header/placeholder rows. A
  * copy in one of the viewer's pending requests shows a "Requested" chip with a
- * release (×) button; a reserved copy shows a read-only "Reserved" badge; a
+ * release (×) button; a reserved copy shows a read-only "Reserved" chip; a
  * claimable copy shows the "Request" button.
- * @returns The request button, a release control, a Reserved badge, or null when no printing is bound.
+ * @returns The request button, a release control, a Reserved chip, or null when no printing is bound.
  */
 function TradelistRequestActionsCell({
   printing,
@@ -777,7 +780,7 @@ function TradelistRequestActionsCell({
   }
   const entry = itemId ? entryByItemId.get(itemId) : undefined;
   if (entry?.kind === "copy" && entry.reserved) {
-    return <Badge variant="success">Reserved</Badge>;
+    return <SharedTradeStatusChip />;
   }
   return (
     <Button

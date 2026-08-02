@@ -437,6 +437,8 @@ describe("evaluateListRule — trade", () => {
   });
 
   it("keeps reserved copies in the pool and annotates them", () => {
+    // Keep 0 means "offer everything I have", so the reserved copy is still
+    // offered even though it sorts to the front of the keep ladder.
     const ownedCopies = [
       ownedCopy({ copyId: "cp1", printingId: "p1", cardId: "c1", reserved: true }),
       ownedCopy({ copyId: "cp2", printingId: "p1", cardId: "c1" }),
@@ -445,6 +447,37 @@ describe("evaluateListRule — trade", () => {
     const reserved = out.find((e) => e.copyId === "cp1");
     expect(reserved?.reserved).toBe(true);
     expect(out).toHaveLength(2);
+  });
+
+  it("keeps the reserved copy back and offers the available ones", () => {
+    // Three copies, one pinned to a live trade. Keeping 1 must hold back the
+    // reserved copy, so both offered copies are genuinely available.
+    const ownedCopies = [
+      ownedCopy({ copyId: "cp1", printingId: "p1", cardId: "c1" }),
+      ownedCopy({ copyId: "cp2", printingId: "p1", cardId: "c1", reserved: true }),
+      ownedCopy({ copyId: "cp3", printingId: "p1", cardId: "c1" }),
+    ];
+    const out = evaluateListRule(tradeRule({ keepPerCard: { mode: "fixed", n: 1 } }), "copy", {
+      catalog,
+      ownedCopies,
+    });
+    expect(out.map((entry) => entry.copyId).sort()).toEqual(["cp1", "cp3"]);
+  });
+
+  it("reserved outranks printing niceness in the keep ladder", () => {
+    // The reserved copy is the plain one and the free copy is the foil
+    // (special). Reserved is the top tier, so the plain copy is kept and the
+    // nicer foil is offered.
+    const ownedCopies = [
+      ownedCopy({ copyId: "cpPlain", printingId: "plain", cardId: "c1", reserved: true }),
+      ownedCopy({ copyId: "cpFoil", printingId: "foil", cardId: "c1" }),
+    ];
+    const out = evaluateListRule(tradeRule({ keepPerCard: { mode: "fixed", n: 1 } }), "copy", {
+      catalog: nicenessCatalog,
+      ownedCopies,
+      enumOrders,
+    });
+    expect(out.map((entry) => entry.copyId)).toEqual(["cpFoil"]);
   });
 
   it("only trades copies whose printing passes the filter", () => {
@@ -1159,11 +1192,43 @@ describe("evaluateListRules — trade combine (the Zeri matrix)", () => {
   });
 
   it("carries the reserved annotation through combination", () => {
+    // Two reserved copies against a keep of one per rule: the ladder holds back
+    // Z4, so Z5 is offered and keeps its annotation.
+    const reservedCopies = ownedCopies.map((copy) =>
+      copy.copyId === "z4" || copy.copyId === "z5" ? { ...copy, reserved: true } : copy,
+    );
+    const keepOnePlain: ListRule[] = [
+      rules[0]!,
+      {
+        kind: "trade",
+        filter: filters({ finishes: ["normal"] }),
+        collectionIds: null,
+        keepPerCard: { mode: "fixed", n: 1 },
+        excludeCopyIds: [],
+      },
+    ];
+    const out = evaluateListRules(keepOnePlain, "copy", { ...ctx, ownedCopies: reservedCopies });
+    expect(out.map((entry) => entry.copyId).sort()).toEqual(["z1", "z2", "z3", "z5"]);
+    expect(out.find((entry) => entry.copyId === "z5")?.reserved).toBe(true);
+  });
+
+  it("count modes hold back the reserved copy first", () => {
+    // Z5 (a plain) is pinned to a live trade. Reserved is the top tier, so it
+    // is the one held back and the nicer free copies are offered.
     const reservedCopies = ownedCopies.map((copy) =>
       copy.copyId === "z5" ? { ...copy, reserved: true } : copy,
     );
-    const out = evaluateListRules(rules, "copy", { ...ctx, ownedCopies: reservedCopies });
-    expect(out.find((entry) => entry.copyId === "z5")?.reserved).toBe(true);
+    const reservedCtx = { ...ctx, ownedCopies: reservedCopies };
+    expect(
+      evaluateListRules([rules[0]!], "copy", reservedCtx)
+        .map((entry) => entry.copyId)
+        .sort(),
+    ).toEqual(["z1", "z2", "z3", "z4"]);
+    expect(
+      evaluateListRules([rules[0]!], "copy", reservedCtx, "count-max")
+        .map((entry) => entry.copyId)
+        .sort(),
+    ).toEqual(["z1", "z2", "z3", "z4"]);
   });
 });
 

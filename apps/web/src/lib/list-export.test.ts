@@ -7,7 +7,9 @@ import {
   formatCardListAsDeckText,
   formatCardmarketWants,
   formatListShareText,
+  hasReservedCopies,
   stacksFromListEntries,
+  withoutReservedCopies,
 } from "./list-export";
 
 function cardEntry(
@@ -208,7 +210,7 @@ function printingEntry(
 function copyEntry(
   id: string,
   cardName: string,
-  opts: { printingId: string; shortCode: string; finish?: string },
+  opts: { printingId: string; shortCode: string; finish?: string; reserved?: boolean },
 ): ListEntryDetailResponse {
   return {
     id,
@@ -226,11 +228,88 @@ function copyEntry(
     shortCode: opts.shortCode,
     language: "EN",
     imageId: null,
-    reserved: false,
+    reserved: opts.reserved ?? false,
     onLoan: false,
     tradeOverride: EMPTY_TRADE_PREFERENCE,
   };
 }
+
+describe("hasReservedCopies", () => {
+  it("is true when a copy is pinned to a live trade", () => {
+    const entries = [
+      copyEntry("e1", "Cleave", { printingId: "p1", shortCode: "OGN-004" }),
+      copyEntry("e2", "Cleave", { printingId: "p1", shortCode: "OGN-004", reserved: true }),
+    ];
+    expect(hasReservedCopies(entries)).toBe(true);
+  });
+
+  it("is false when no copy is reserved", () => {
+    const entries = [copyEntry("e1", "Cleave", { printingId: "p1", shortCode: "OGN-004" })];
+    expect(hasReservedCopies(entries)).toBe(false);
+  });
+
+  it("is false for card- and printing-kind lists, which carry no reserved flag", () => {
+    const entries = [
+      cardEntry("e1", "c1", "Teemo, Scout", 1),
+      printingEntry("e2", "Cleave", 2, { shortCode: "OGN-004" }),
+    ];
+    expect(hasReservedCopies(entries)).toBe(false);
+  });
+
+  it("is false for an empty list", () => {
+    expect(hasReservedCopies([])).toBe(false);
+  });
+});
+
+describe("withoutReservedCopies", () => {
+  const printingsById: Record<string, Printing> = {
+    p1: stubPrinting({ id: "p1", shortCode: "OGN-004" }),
+  };
+  const binder: ListEntryDetailResponse[] = [
+    copyEntry("e1", "Cleave", { printingId: "p1", shortCode: "OGN-004" }),
+    copyEntry("e2", "Cleave", { printingId: "p1", shortCode: "OGN-004" }),
+    copyEntry("e3", "Cleave", { printingId: "p1", shortCode: "OGN-004", reserved: true }),
+  ];
+
+  it("drops the reserved copy from the CSV stacks", () => {
+    const stacks = stacksFromListEntries(withoutReservedCopies(binder), printingsById);
+    expect(stacks).toHaveLength(1);
+    expect(stacks[0].copyIds).toHaveLength(2);
+  });
+
+  it("keeps the reserved copy when the exclusion is off", () => {
+    const stacks = stacksFromListEntries(binder, printingsById);
+    expect(stacks[0].copyIds).toHaveLength(3);
+  });
+
+  it("drops the reserved copy from the share text and the Cardmarket block", () => {
+    const kept = withoutReservedCopies(binder);
+    expect(formatListShareText("Binder", "copy", kept, null)).toContain("2x Cleave · OGN-004");
+    expect(
+      formatCardmarketWants(kept.map((entry) => ({ name: entry.cardName, quantity: 1 }))),
+    ).toBe("2x Cleave");
+  });
+
+  it("leaves a list without reserved copies unchanged", () => {
+    const clean = [
+      copyEntry("e1", "Cleave", { printingId: "p1", shortCode: "OGN-004" }),
+      copyEntry("e2", "Cleave", { printingId: "p1", shortCode: "OGN-004" }),
+    ];
+    expect(withoutReservedCopies(clean)).toEqual(clean);
+  });
+
+  it("keeps card- and printing-kind entries, which are never reserved", () => {
+    const entries = [
+      cardEntry("e1", "c1", "Teemo, Scout", 1),
+      printingEntry("e2", "Cleave", 2, { shortCode: "OGN-004" }),
+    ];
+    expect(withoutReservedCopies(entries)).toEqual(entries);
+  });
+
+  it("returns an empty array for an empty list", () => {
+    expect(withoutReservedCopies([])).toEqual([]);
+  });
+});
 
 describe("formatListShareText", () => {
   const SHARE_URL = "https://openrift.app/lists/share/tok123";

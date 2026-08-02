@@ -14,8 +14,11 @@ import { CollectionCardContextMenu } from "@/components/collection/collection-ca
 import { CopyMetadataStrip, StackMetadataChip } from "@/components/collection/copy-metadata-badges";
 import { DraggableCard } from "@/components/collection/draggable-card";
 import { SelectionCheckbox } from "@/components/collection/selection-checkbox";
+import { tileTradeStatus } from "@/components/collection/tile-trade-status";
 import { OnLoanChip } from "@/components/loans/on-loan-chip";
+import { TradeStatusChip } from "@/components/trades/trade-status-chip";
 import { Button } from "@/components/ui/button";
+import { useLiveTradesByPrinting } from "@/hooks/use-card-trades";
 import { useCopyRowsForPrintings, useOwnedCountsForPrintings } from "@/hooks/use-owned-count";
 import type { WishEntryFlat } from "@/hooks/use-wish-entries";
 import { isStackSelected } from "@/lib/stack-selection";
@@ -170,6 +173,34 @@ export const CollectionGridCell = memo(function CollectionGridCell({
       <OnLoanChip count={onLoanCount} totalCount={inCardsView ? onLoanCopies.length : undefined} />
     ) : undefined;
 
+  // Live-trade marker (ADR-019), sitting beside the on-loan chip it shares a
+  // shape with. Read here rather than threaded down from the grid: a
+  // per-printing map rebuilt in the parent's render busts every cell's memo on
+  // each trades refetch, the trap the `ownedCountByPrinting` note in
+  // use-collection-grid-data.ts documents. The query is shared, so one fetch
+  // still serves every mounted cell.
+  const { data: liveTrades } = useLiveTradesByPrinting();
+  const tradeStatus = tileTradeStatus({
+    annotations: liveTrades?.annotations,
+    copies: cardCopies,
+    printingId: displayPrinting.id,
+    siblingIds,
+    withSiblingTotal: inCardsView,
+    isGroupCollection: sourceCollectionIsGroup,
+  });
+  // Stacked tiles carry the chip in the count strip's extras slot. A copies-view
+  // tile is one physical copy, so its marker hangs off that copy's own
+  // `reserved` flag inside CopyMetadataStrip instead. The annotation is per
+  // printing and cannot say which copy is pinned.
+  const tradeChip =
+    stacked && tradeStatus ? (
+      <TradeStatusChip
+        annotation={tradeStatus.annotation}
+        totalCount={tradeStatus.totalCount}
+        title={tradeStatus.title}
+      />
+    ) : undefined;
+
   const ownedCount = counts?.totals[displayPrinting.id] ?? 0;
   const totalInCollection =
     counts && inCardsView && siblings && siblings.length > 1 ? counts.total : undefined;
@@ -202,13 +233,15 @@ export const CollectionGridCell = memo(function CollectionGridCell({
   // always 1 and the per-printing controls don't apply.
   //
   // Strip variants:
-  //  - copies view: on-loan marker + metadata chips (condition/grade, altered,
-  //    notes, links); an empty row for bare copies so tiles in a row stay aligned
+  //  - copies view: on-loan and live-trade markers + metadata chips
+  //    (condition/grade, altered, notes, links); an empty row for bare copies so
+  //    tiles in a row stay aligned
   //  - stacked browse: full +/-, count pill opens the variant×collection popover
   //  - stacked select + owned: read-only count, OwnedCollectionsPopover
   //  - stacked select + unowned: no strip (nothing to display)
-  // Stacked strips append an annotated-copies chip in the extras slot when any
-  // copy carries metadata.
+  // Stacked strips append the live-trade chip and an annotated-copies chip in
+  // the extras slot, when the printing has a trade in flight and when any copy
+  // carries metadata.
   // Group "bulk box" controls that live inside the count strip, next to the
   // amount: a wishlist heart (with the total wished quantity, opening a popover
   // of every wishlist the card is on) and a one-click Take button. Only
@@ -253,7 +286,7 @@ export const CollectionGridCell = memo(function CollectionGridCell({
 
   let strip: ReactNode | undefined;
   if (!stacked) {
-    strip = <CopyMetadataStrip copy={singleCopy} />;
+    strip = <CopyMetadataStrip copy={singleCopy} tradeAnnotation={tradeStatus?.annotation} />;
   } else if (mode === "browse") {
     strip = (
       <CardCountStrip
@@ -280,9 +313,10 @@ export const CollectionGridCell = memo(function CollectionGridCell({
             : undefined
         }
         extras={
-          onLoanChip || metadataChip || boxExtras ? (
+          onLoanChip || tradeChip || metadataChip || boxExtras ? (
             <>
               {onLoanChip}
+              {tradeChip}
               {metadataChip}
               {boxExtras}
             </>
@@ -306,9 +340,10 @@ export const CollectionGridCell = memo(function CollectionGridCell({
           />
         }
         extras={
-          onLoanChip || metadataChip ? (
+          onLoanChip || tradeChip || metadataChip ? (
             <>
               {onLoanChip}
+              {tradeChip}
               {metadataChip}
             </>
           ) : undefined

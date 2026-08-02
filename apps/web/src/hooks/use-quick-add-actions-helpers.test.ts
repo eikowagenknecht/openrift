@@ -60,6 +60,40 @@ describe("pickRemovalCopy", () => {
   it("returns undefined for an empty list", () => {
     expect(pickRemovalCopy([])).toBeUndefined();
   });
+
+  // Regression: the newest bare copy is the one metadata-sorting would pick
+  // first, but it's pinned to a live trade. The API rejects removing a
+  // reserved copy, so the picker must skip it for a removable sibling.
+  it("skips a reserved copy even when it would otherwise be picked first", () => {
+    const reservedNewest = stubCopy({
+      id: "01900000-0000-7000-8000-000000000099",
+      printingId: "pr-1",
+      collectionId: "col-1",
+      groupId: null,
+      reserved: true,
+    });
+    const bareOlder = copy("01900000-0000-7000-8000-000000000001", "pr-1", "col-1");
+    const bareMiddle = copy("01900000-0000-7000-8000-000000000050", "pr-1", "col-1");
+    expect(pickRemovalCopy([reservedNewest, bareOlder, bareMiddle])).toBe(bareMiddle);
+  });
+
+  it("returns undefined when every candidate copy is reserved", () => {
+    const reservedA = stubCopy({
+      id: "01900000-0000-7000-8000-000000000001",
+      printingId: "pr-1",
+      collectionId: "col-1",
+      groupId: null,
+      reserved: true,
+    });
+    const reservedB = stubCopy({
+      id: "01900000-0000-7000-8000-000000000099",
+      printingId: "pr-1",
+      collectionId: "col-1",
+      groupId: null,
+      reserved: true,
+    });
+    expect(pickRemovalCopy([reservedA, reservedB])).toBeUndefined();
+  });
 });
 
 describe("decideRemoval", () => {

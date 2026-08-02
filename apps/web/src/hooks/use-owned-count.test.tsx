@@ -199,25 +199,32 @@ describe("aggregateDeckBuildingCounts", () => {
     expect(aggregateDeckBuildingCounts(copies, availability)).toEqual({
       available: { p1: 2, p2: 1 },
       locked: {},
+      lockedLoaned: {},
+      lockedReserved: {},
+      lockedExcluded: {},
     });
   });
 
   // ADR-039: a copy out on a loan is physically absent — never available,
   // even when its collection is marked available. It's still owned, so it
-  // buckets as locked.
+  // buckets as locked, and specifically as the loaned reason.
   it("buckets on-loan copies as locked even in available collections", () => {
     const copies = [copy("p1", "c-playset"), copy("p1", "c-playset", true)];
     const availability = new Map([["c-playset", true]]);
     expect(aggregateDeckBuildingCounts(copies, availability)).toEqual({
       available: { p1: 1 },
       locked: { p1: 1 },
+      lockedLoaned: { p1: 1 },
+      lockedReserved: {},
+      lockedExcluded: {},
     });
   });
 
   // ADR-034: a copy reserved for a live outgoing trade is committed away — never
   // available, even in an available collection. Still owned, so it buckets as
-  // locked. This keeps the deck editor's missing count in step with the server
-  // `/decks` overview, which excludes reserved copies from buildable stock.
+  // locked, and specifically as the reserved reason. This keeps the deck
+  // editor's missing count in step with the server `/decks` overview, which
+  // excludes reserved copies from buildable stock.
   it("buckets reserved copies as locked even in available collections", () => {
     const copies = [
       copy("p1", "c-playset"),
@@ -227,19 +234,26 @@ describe("aggregateDeckBuildingCounts", () => {
     expect(aggregateDeckBuildingCounts(copies, availability)).toEqual({
       available: { p1: 1 },
       locked: { p1: 1 },
+      lockedLoaned: {},
+      lockedReserved: { p1: 1 },
+      lockedExcluded: {},
     });
   });
 
   // Regression: the deck card browser used the raw owned total, so cards sitting
   // in a collection marked "exclude from deck building" still showed as owned
   // (and passed the owned-only filter). They must bucket as locked, never
-  // available, so the grid badge agrees with the ownership panel.
+  // available, so the grid badge agrees with the ownership panel. Specifically
+  // the excluded reason, not loaned or reserved.
   it("buckets copies in excluded collections as locked, never available", () => {
     const copies = [copy("p1", "c-unl"), copy("p1", "c-unl"), copy("p2", "c-unl")];
     const availability = new Map([["c-unl", false]]);
     expect(aggregateDeckBuildingCounts(copies, availability)).toEqual({
       available: {},
       locked: { p1: 2, p2: 1 },
+      lockedLoaned: {},
+      lockedReserved: {},
+      lockedExcluded: { p1: 2, p2: 1 },
     });
   });
 
@@ -252,6 +266,9 @@ describe("aggregateDeckBuildingCounts", () => {
     expect(aggregateDeckBuildingCounts(copies, availability)).toEqual({
       available: { p1: 1 },
       locked: { p1: 2 },
+      lockedLoaned: {},
+      lockedReserved: {},
+      lockedExcluded: { p1: 2 },
     });
   });
 
@@ -260,6 +277,9 @@ describe("aggregateDeckBuildingCounts", () => {
     expect(aggregateDeckBuildingCounts(copies, new Map())).toEqual({
       available: { p1: 1 },
       locked: {},
+      lockedLoaned: {},
+      lockedReserved: {},
+      lockedExcluded: {},
     });
   });
 
@@ -269,6 +289,9 @@ describe("aggregateDeckBuildingCounts", () => {
     expect(aggregateDeckBuildingCounts(copies, availability)).toEqual({
       available: {},
       locked: {},
+      lockedLoaned: {},
+      lockedReserved: {},
+      lockedExcluded: {},
     });
   });
 
@@ -278,6 +301,33 @@ describe("aggregateDeckBuildingCounts", () => {
     expect(aggregateDeckBuildingCounts(copies, availability)).toEqual({
       available: { p1: 1 },
       locked: {},
+      lockedLoaned: {},
+      lockedReserved: {},
+      lockedExcluded: {},
+    });
+  });
+
+  // Regression: the three reasons used to be folded into one "locked" bucket,
+  // so the deck builder's tooltip always blamed an excluded collection even
+  // when the real reason was a loan or a trade reservation. Splitting the
+  // reasons out lets the tooltip tell the truth for each one, and for a
+  // printing locked for more than one reason at once.
+  it("splits locked copies into per-reason buckets when multiple reasons apply to the same printing", () => {
+    const copies = [
+      copy("p1", "c-playset", true), // on loan
+      stubCopy({ printingId: "p1", collectionId: "c-playset", reserved: true }), // reserved
+      copy("p1", "c-unl"), // in an excluded collection
+    ];
+    const availability = new Map([
+      ["c-playset", true],
+      ["c-unl", false],
+    ]);
+    expect(aggregateDeckBuildingCounts(copies, availability)).toEqual({
+      available: {},
+      locked: { p1: 3 },
+      lockedLoaned: { p1: 1 },
+      lockedReserved: { p1: 1 },
+      lockedExcluded: { p1: 1 },
     });
   });
 });

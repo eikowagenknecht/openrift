@@ -1,11 +1,13 @@
-import type { CardTradeResponse } from "@openrift/shared";
+import type { CardTradeLiveAnnotation, CardTradeResponse } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
 import type { MatchCopyDetail, MatchSuggestionFields } from "./trade-derivation";
 import {
   bucketMemberTrades,
+  collapseTradeAnnotations,
   countTradeSuggestions,
   describeViewerSource,
+  groupTradeAnnotationsByPrinting,
   groupTradesByCounterparty,
   matchCopyConditionLabel,
   matchSuggestionKey,
@@ -550,5 +552,172 @@ describe("matchCopyConditionLabel and summarizeMatchCopies", () => {
 
   it("handles an empty copies array", () => {
     expect(summarizeMatchCopies([], labelOf)).toEqual({ conditions: null, notes: [] });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// groupTradeAnnotationsByPrinting / collapseTradeAnnotations
+// ---------------------------------------------------------------------------
+
+function annotation(overrides: Partial<CardTradeLiveAnnotation> = {}): CardTradeLiveAnnotation {
+  return {
+    printingId: "printing-1",
+    role: "giver",
+    phase: "asked",
+    tradeCount: 1,
+    quantity: 1,
+    ...overrides,
+  };
+}
+
+describe("groupTradeAnnotationsByPrinting", () => {
+  it("returns an empty map for no annotations", () => {
+    expect(groupTradeAnnotationsByPrinting([]).size).toBe(0);
+  });
+
+  it("keys by printing id", () => {
+    const map = groupTradeAnnotationsByPrinting([
+      annotation({ printingId: "printing-1" }),
+      annotation({ printingId: "printing-2" }),
+    ]);
+    expect([...map.keys()]).toEqual(["printing-1", "printing-2"]);
+  });
+
+  // uq_card_trades_live is per (group, giver, receiver, printing), so one
+  // printing genuinely carries several live trades in different phases.
+  it("keeps every annotation on one printing, in input order", () => {
+    const map = groupTradeAnnotationsByPrinting([
+      annotation({ phase: "asked", tradeCount: 2 }),
+      annotation({ phase: "reserved" }),
+      annotation({ phase: "traded" }),
+    ]);
+    expect(map.get("printing-1")?.map((entry) => entry.phase)).toEqual([
+      "asked",
+      "reserved",
+      "traded",
+    ]);
+  });
+
+  // Accepting a trade pins the copies away, which raises the same card's
+  // shortfall on a netOwned wish rule and can open a request for it. Both
+  // annotations are real; showing "Reserved" and "Requested" together is not.
+  it("drops the receiver side when the same printing also has a giver side", () => {
+    const map = groupTradeAnnotationsByPrinting([
+      annotation({ role: "receiver", phase: "asked" }),
+      annotation({ role: "giver", phase: "reserved" }),
+    ]);
+    expect(map.get("printing-1")).toEqual([annotation({ role: "giver", phase: "reserved" })]);
+  });
+
+  it("keeps a receiver-only printing untouched", () => {
+    const map = groupTradeAnnotationsByPrinting([
+      annotation({ role: "receiver", phase: "offered" }),
+      annotation({ role: "receiver", phase: "asked" }),
+    ]);
+    expect(map.get("printing-1")).toHaveLength(2);
+  });
+
+  it("suppresses per printing, not across the whole list", () => {
+    const map = groupTradeAnnotationsByPrinting([
+      annotation({ printingId: "printing-1", role: "giver", phase: "reserved" }),
+      annotation({ printingId: "printing-1", role: "receiver", phase: "asked" }),
+      annotation({ printingId: "printing-2", role: "receiver", phase: "asked" }),
+    ]);
+    expect(map.get("printing-1")?.map((entry) => entry.role)).toEqual(["giver"]);
+    expect(map.get("printing-2")?.map((entry) => entry.role)).toEqual(["receiver"]);
+  });
+
+  it("does not mutate the input array", () => {
+    const input = [
+      annotation({ role: "receiver", phase: "asked" }),
+      annotation({ role: "giver", phase: "reserved" }),
+    ];
+    groupTradeAnnotationsByPrinting(input);
+    expect(input).toHaveLength(2);
+  });
+});
+
+describe("collapseTradeAnnotations", () => {
+  it("returns null for an empty list", () => {
+    expect(collapseTradeAnnotations([])).toBeNull();
+  });
+
+  it("returns the only annotation unchanged", () => {
+    expect(collapseTradeAnnotations([annotation({ phase: "offered", quantity: 3 })])).toEqual(
+      annotation({ phase: "offered", quantity: 3 }),
+    );
+  });
+
+  it("picks traded over reserved, offered and asked", () => {
+    expect(
+      collapseTradeAnnotations([
+        annotation({ phase: "asked" }),
+        annotation({ phase: "offered" }),
+        annotation({ phase: "reserved" }),
+        annotation({ phase: "traded" }),
+      ])?.phase,
+    ).toBe("traded");
+  });
+
+  it("picks reserved over offered and asked", () => {
+    expect(
+      collapseTradeAnnotations([
+        annotation({ phase: "offered" }),
+        annotation({ phase: "asked" }),
+        annotation({ phase: "reserved" }),
+      ])?.phase,
+    ).toBe("reserved");
+  });
+
+  it("picks offered over asked", () => {
+    expect(
+      collapseTradeAnnotations([annotation({ phase: "asked" }), annotation({ phase: "offered" })])
+        ?.phase,
+    ).toBe("offered");
+  });
+
+  // The chip must not overstate what is committed: one reserved copy behind two
+  // asked-for ones is one copy committed, not three.
+  it("keeps the winning bucket's own counts rather than summing the side", () => {
+    expect(
+      collapseTradeAnnotations([
+        annotation({ phase: "asked", tradeCount: 2, quantity: 3 }),
+        annotation({ phase: "reserved", tradeCount: 1, quantity: 4 }),
+      ]),
+    ).toEqual(annotation({ phase: "reserved", tradeCount: 1, quantity: 4 }));
+  });
+
+  // Callers should suppress first, but a mixed list must never report copies
+  // going out together with copies coming in.
+  it("reports only the winning side when both are present", () => {
+    expect(
+      collapseTradeAnnotations([
+        annotation({ role: "giver", phase: "reserved", tradeCount: 1, quantity: 2 }),
+        annotation({ role: "receiver", phase: "asked", tradeCount: 5, quantity: 9 }),
+      ]),
+    ).toEqual(annotation({ role: "giver", phase: "reserved", tradeCount: 1, quantity: 2 }));
+  });
+
+  it("prefers the viewer's own copies when both sides sit at the same phase", () => {
+    expect(
+      collapseTradeAnnotations([
+        annotation({ role: "receiver", phase: "reserved" }),
+        annotation({ role: "giver", phase: "reserved" }),
+      ])?.role,
+    ).toBe("giver");
+  });
+
+  it("collapses each printing of a grouped map independently", () => {
+    const map = groupTradeAnnotationsByPrinting([
+      annotation({ printingId: "printing-1", phase: "asked", tradeCount: 2, quantity: 2 }),
+      annotation({ printingId: "printing-1", phase: "traded", tradeCount: 1, quantity: 1 }),
+      annotation({ printingId: "printing-2", role: "receiver", phase: "offered", quantity: 6 }),
+    ]);
+    expect(collapseTradeAnnotations(map.get("printing-1") ?? [])).toEqual(
+      annotation({ printingId: "printing-1", phase: "traded", tradeCount: 1, quantity: 1 }),
+    );
+    expect(collapseTradeAnnotations(map.get("printing-2") ?? [])).toEqual(
+      annotation({ printingId: "printing-2", role: "receiver", phase: "offered", quantity: 6 }),
+    );
   });
 });

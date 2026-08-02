@@ -18,12 +18,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ExpandToggle } from "@/components/ui/expand-toggle";
 import { Pressable } from "@/components/ui/pressable";
 import { UserAvatar } from "@/components/user-avatar";
-import {
-  useAcceptTrade,
-  useCreateTrade,
-  useDeclineTrade,
-  useUserTrades,
-} from "@/hooks/use-card-trades";
+import { useCreateTrade, useDeclineTrade, useUserTrades } from "@/hooks/use-card-trades";
 import { useCards } from "@/hooks/use-cards";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useMarketplaceInfo } from "@/hooks/use-marketplace-info";
@@ -42,6 +37,7 @@ import { useDisplayStore } from "@/stores/display-store";
 import { useMatchVariantsFoldStore } from "@/stores/match-variants-fold-store";
 
 import { RequestTradeDialog } from "./request-trade-dialog";
+import { TradeCopyPickerDialog, useTradeAcceptFlow } from "./trade-copy-picker-dialog";
 import {
   CardMetaLine,
   CounterpartyChip,
@@ -80,27 +76,38 @@ function MatchRowTradeAction({
 }) {
   const [open, setOpen] = useState(false);
   const createTrade = useCreateTrade();
-  const acceptTrade = useAcceptTrade();
+  const acceptFlow = useTradeAcceptFlow();
   const declineTrade = useDeclineTrade();
 
   if (liveTrade !== undefined) {
     // A request/offer awaiting the viewer — let them act without leaving the tab.
     if (liveTrade.actionNeeded === "accept-or-decline") {
-      const busy = acceptTrade.isPending || declineTrade.isPending;
-      const args = { tradeId: liveTrade.id, groupSlug };
+      const busy = acceptFlow.busy || declineTrade.isPending;
       return (
         <div className="flex shrink-0 items-center gap-1.5">
           <Button
             size="sm"
             variant="outline"
             disabled={busy}
-            onClick={() => declineTrade.mutate(args)}
+            onClick={() => declineTrade.mutate({ tradeId: liveTrade.id, groupSlug })}
           >
             Decline
           </Button>
-          <Button size="sm" disabled={busy} onClick={() => acceptTrade.mutate(args)}>
+          <Button
+            size="sm"
+            disabled={busy}
+            onClick={() =>
+              acceptFlow.start({
+                tradeId: liveTrade.id,
+                groupSlug,
+                role: liveTrade.role,
+                cardName: match.cardName,
+              })
+            }
+          >
             Accept
           </Button>
+          <TradeCopyPickerDialog flow={acceptFlow} />
         </div>
       );
     }

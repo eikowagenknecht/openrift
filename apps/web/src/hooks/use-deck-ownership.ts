@@ -28,6 +28,16 @@ export interface CardOwnership {
    */
   locked: number;
   /**
+   * How many of this card's locked copies (anywhere in the deck, not just
+   * this zone) are locked for each reason: out on loan, reserved for a live
+   * outgoing trade, or sitting in a collection excluded from deck building.
+   * Used only to word the "why is this locked" tooltip — the displayed count
+   * is still `locked`, which is capped to this zone's shortfall.
+   */
+  lockedLoaned: number;
+  lockedReserved: number;
+  lockedExcluded: number;
+  /**
    * Copies the viewer is currently borrowing from a friend (ADR-039,
    * acknowledged active loans). Borrowed copies are physically in hand, so
    * they DO reduce the shortfall — shown separately because they aren't owned.
@@ -101,6 +111,11 @@ export function computeDeckOwnership(
   languageOrder: readonly string[],
   lockedCountByPrinting?: Record<string, number>,
   borrowedCountByPrinting?: Record<string, number>,
+  lockedReasonCountByPrinting?: {
+    loaned: Record<string, number>;
+    reserved: Record<string, number>;
+    excluded: Record<string, number>;
+  },
 ): DeckOwnershipData {
   // Intentionally NOT `"use memo"`: when React Compiler memoizes a `"use
   // memo"` helper, it wraps the call site in a cache check. On cache hits
@@ -151,6 +166,39 @@ export function computeDeckOwnership(
       const count = borrowedCountByPrinting[printing.id] ?? 0;
       if (count > 0) {
         borrowedByCardId.set(printing.cardId, (borrowedByCardId.get(printing.cardId) ?? 0) + count);
+      }
+    }
+  }
+
+  // Same fan-out for the locked reason breakdown, used only to word the "why
+  // locked" tooltip — the capped `lockedByCardId` above still owns the actual
+  // displayed count, so these aren't re-capped per zone.
+  const loanedByCardId = new Map<string, number>();
+  if (lockedReasonCountByPrinting?.loaned) {
+    for (const printing of allPrintings) {
+      const count = lockedReasonCountByPrinting.loaned[printing.id] ?? 0;
+      if (count > 0) {
+        loanedByCardId.set(printing.cardId, (loanedByCardId.get(printing.cardId) ?? 0) + count);
+      }
+    }
+  }
+
+  const reservedByCardId = new Map<string, number>();
+  if (lockedReasonCountByPrinting?.reserved) {
+    for (const printing of allPrintings) {
+      const count = lockedReasonCountByPrinting.reserved[printing.id] ?? 0;
+      if (count > 0) {
+        reservedByCardId.set(printing.cardId, (reservedByCardId.get(printing.cardId) ?? 0) + count);
+      }
+    }
+  }
+
+  const excludedByCardId = new Map<string, number>();
+  if (lockedReasonCountByPrinting?.excluded) {
+    for (const printing of allPrintings) {
+      const count = lockedReasonCountByPrinting.excluded[printing.id] ?? 0;
+      if (count > 0) {
+        excludedByCardId.set(printing.cardId, (excludedByCardId.get(printing.cardId) ?? 0) + count);
       }
     }
   }
@@ -255,6 +303,9 @@ export function computeDeckOwnership(
       owned: ownedInZone,
       shortfall,
       locked: lockedInZone,
+      lockedLoaned: loanedByCardId.get(card.cardId) ?? 0,
+      lockedReserved: reservedByCardId.get(card.cardId) ?? 0,
+      lockedExcluded: excludedByCardId.get(card.cardId) ?? 0,
       borrowed: borrowedInZone,
       displayPrice,
       displayPrinting,
@@ -316,6 +367,11 @@ export function useDeckOwnership(
   marketplace: Marketplace,
   lockedCountByPrinting?: Record<string, number>,
   borrowedCountByPrinting?: Record<string, number>,
+  lockedReasonCountByPrinting?: {
+    loaned: Record<string, number>;
+    reserved: Record<string, number>;
+    excluded: Record<string, number>;
+  },
 ): DeckOwnershipData | undefined {
   const prices = usePrices();
   const languageOrder = useEffectiveLanguageOrder();
@@ -331,5 +387,6 @@ export function useDeckOwnership(
     languageOrder,
     lockedCountByPrinting,
     borrowedCountByPrinting,
+    lockedReasonCountByPrinting,
   );
 }

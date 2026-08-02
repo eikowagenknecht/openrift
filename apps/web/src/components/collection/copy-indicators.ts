@@ -62,15 +62,19 @@ export function copyMarkers(copy: CopyResponse): CopyMarker[] {
 }
 
 /**
- * Whether a copy has anything worth summarizing: it is out on loan, has a
- * condition or grade, or carries any marker. Drives the "No details yet"
- * fallback, so it stays in sync with everything the summaries surface by
- * reusing `copyMarkers` rather than re-listing the marker fields.
+ * Whether a copy has anything worth summarizing: it is out on loan, pinned to a
+ * live trade, has a condition or grade, or carries any marker. Drives the
+ * "No details yet" fallback, so it stays in sync with everything the summaries
+ * surface by reusing `copyMarkers` rather than re-listing the marker fields.
  * @returns `true` when the copy has any state worth showing.
  */
 export function copyHasRecordedDetails(copy: CopyResponse): boolean {
   return (
     copy.onLoan ||
+    // A reservation is the copy's most consequential state (it is promised to
+    // someone), so a copy whose only notable fact is that must not report
+    // having no details.
+    copy.reserved ||
     (copy.grader !== null && copy.grade !== null) ||
     copy.condition !== null ||
     copyMarkers(copy).length > 0

@@ -1,9 +1,11 @@
 import type { ListEntryDetailResponse, ListKind } from "@openrift/shared";
 import { CheckIcon, CopyIcon, DownloadIcon } from "lucide-react";
+import type { ReactNode } from "react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -27,7 +29,9 @@ import { CSV_EXPORT_FORMATS, csvExportFilename, downloadCSV } from "@/lib/csv-ex
 import {
   formatCardListAsDeckText,
   formatCardmarketWants,
+  hasReservedCopies,
   stacksFromListEntries,
+  withoutReservedCopies,
 } from "@/lib/list-export";
 
 interface ListExportDialogProps {
@@ -44,6 +48,11 @@ interface ListExportDialogProps {
  * the supported formats, reusing the collection export writers. Card- and
  * printing-kind lists additionally get a Cardmarket-ready wants block —
  * copy-kind lists hold owned copies, not wants, so they don't.
+ *
+ * Copies pinned to a live trade are dropped by default, because an export is
+ * where a user promises cards without checking a badge. The filter runs once
+ * here so no format below can miss it, and the toggle only appears when the
+ * list actually holds a reserved copy.
  * @returns The export dialog.
  */
 export function ListExportDialog({
@@ -53,15 +62,33 @@ export function ListExportDialog({
   open,
   onOpenChange,
 }: ListExportDialogProps) {
+  const [excludeReserved, setExcludeReserved] = useState(true);
+
+  const hasReserved = hasReservedCopies(entries);
+  const exportEntries = hasReserved && excludeReserved ? withoutReservedCopies(entries) : entries;
+
+  const reservedToggle = hasReserved ? (
+    <div className="flex items-center gap-2">
+      <Checkbox
+        id="list-export-exclude-reserved"
+        checked={excludeReserved}
+        onCheckedChange={(checked) => setExcludeReserved(checked === true)}
+      />
+      <label htmlFor="list-export-exclude-reserved" className="cursor-pointer text-sm">
+        Exclude cards reserved in a trade
+      </label>
+    </div>
+  ) : null;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         {kind === "card" ? (
-          <TextExport entries={entries} />
+          <TextExport entries={exportEntries} />
         ) : (
-          <CsvExport listName={listName} entries={entries} />
+          <CsvExport listName={listName} entries={exportEntries} options={reservedToggle} />
         )}
-        {kind !== "copy" && <CardmarketBlock entries={entries} />}
+        {kind !== "copy" && <CardmarketBlock entries={exportEntries} />}
       </DialogContent>
     </Dialog>
   );
@@ -106,9 +133,12 @@ function TextExport({ entries }: { entries: readonly ListEntryDetailResponse[] }
 function CsvExport({
   listName,
   entries,
+  options,
 }: {
   listName: string;
   entries: readonly ListEntryDetailResponse[];
+  /** Extra export options, rendered between the format select and the button. */
+  options?: ReactNode;
 }) {
   const { printingsById } = useCards();
   const [format, setFormat] = useState<CsvExportFormat>("openrift");
@@ -150,6 +180,7 @@ function CsvExport({
             ))}
           </SelectContent>
         </Select>
+        {options}
         <div className="flex justify-end">
           <Button type="submit" disabled={cardCount === 0}>
             <DownloadIcon className="size-4" />

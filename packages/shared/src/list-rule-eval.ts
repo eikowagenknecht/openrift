@@ -38,14 +38,16 @@ function orderRank(order: readonly string[], slug: string): number {
 
 /**
  * Compares two printings by keep-priority: the nicer one sorts first (kept).
- * The top tier is standard-vs-special ({@link isStandardPrinting}): a special
- * copy (marked, signed, alt art, premium finish) is kept over a plain one, even
- * across rarities — "keep the special one, offer the plain reprint". Below
- * that, lexicographic across rarity, finish, markers, art variant, then signed
- * — rarity/finish/art measured against their reference order (premium last →
- * higher rank kept), markers by presence (a marked printing — promo stamp,
- * event stamp — is kept over an unmarked one). `canonicalRank` is the neutral
- * final tiebreak so equally-nice printings stay deterministic.
+ * The top printing tier is standard-vs-special ({@link isStandardPrinting}): a
+ * special copy (marked, signed, alt art, premium finish) is kept over a plain
+ * one, even across rarities — "keep the special one, offer the plain reprint".
+ * Below that, lexicographic across rarity, finish, markers, art variant, then
+ * signed — rarity/finish/art measured against their reference order (premium
+ * last → higher rank kept), markers by presence (a marked printing — promo
+ * stamp, event stamp — is kept over an unmarked one). `canonicalRank` is the
+ * neutral final tiebreak so equally-nice printings stay deterministic.
+ * The ladder's real top tier is `reserved`. It is a copy property, so it lives
+ * in {@link copyKeepComparator}, not here.
  * @returns Negative if `a` should be kept before `b`, positive if `b` first, 0 if equal.
  */
 function comparePrintingKeepPriority(a: Printing, b: Printing, orders: KeepPriorityOrders): number {
@@ -392,10 +394,16 @@ interface TradeRulePool {
 }
 
 /**
- * Comparator over owned copies by their printing's keep priority
+ * Comparator over owned copies by keep priority. The top tier is `reserved`: a
+ * copy pinned to a live trade (ADR-019) is already promised, so it is held back
+ * before any other copy and the copies the rule offers are the ones actually
+ * available. Below that the printing's keep priority
  * ({@link comparePrintingKeepPriority}), with copy id (uuidv7) as the final
  * deterministic tiebreak. Without reference orders (or for unknown printings)
- * the copy id alone decides.
+ * reserved and then the copy id decide.
+ *
+ * Reserved copies stay in the pool. They only sort to the front, so a keep
+ * count of 0 ("offer everything I have") still offers them, still annotated.
  * @returns A comparator for `toSorted` that puts kept-first copies first.
  */
 function copyKeepComparator(
@@ -403,6 +411,10 @@ function copyKeepComparator(
   enumOrders: KeepPriorityOrders | undefined,
 ): (first: OwnedCopyRow, second: OwnedCopyRow) => number {
   return (first, second) => {
+    const byReserved = Number(second.reserved) - Number(first.reserved);
+    if (byReserved !== 0) {
+      return byReserved;
+    }
     const firstPrinting = printingById.get(first.printingId);
     const secondPrinting = printingById.get(second.printingId);
     if (enumOrders && firstPrinting && secondPrinting) {
@@ -484,10 +496,10 @@ export function ownedCopyPrintingScope(
 
 /**
  * One trade rule's candidate copies grouped per the rule's `keepPer` (per card
- * by default, per printing when set) and ordered keep-first: the nicer printing
- * first (standard-vs-special → rarity → finish → markers → art → signed, per
- * {@link comparePrintingKeepPriority} — stable over time, no prices), with copy
- * id (uuidv7) as the final deterministic tiebreak.
+ * by default, per printing when set) and ordered keep-first: reserved copies
+ * first, then the nicer printing (standard-vs-special → rarity → finish →
+ * markers → art → signed, per {@link comparePrintingKeepPriority} — stable over
+ * time, no prices), with copy id (uuidv7) as the final deterministic tiebreak.
  * @returns Group key (card id or printing id) → the rule's keep count and ordered candidates.
  */
 function tradeRulePools(

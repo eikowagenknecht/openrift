@@ -1,4 +1,9 @@
-import type { CardTradeResponse, FriendGroupMatchRow } from "@openrift/shared";
+import type {
+  CardTradeLiveAnnotation,
+  CardTradeLivePhase,
+  CardTradeResponse,
+  FriendGroupMatchRow,
+} from "@openrift/shared";
 
 /** The three buckets the per-group Trades tab groups trades into. */
 export type TradeSection = "action-needed" | "active" | "history";
@@ -294,6 +299,82 @@ export function tradeStatusLabel(status: CardTradeResponse["status"]): string {
  */
 export function maxTradeQuantity(demandQuantity: number, availableCount: number): number {
   return Math.max(0, Math.min(demandQuantity, availableCount));
+}
+
+/**
+ * Live-trade phases from least to most committed, matching the server ladder in
+ * `apps/api/src/lib/card-trade-presenters.ts`. `asked` is a bid nobody acted on,
+ * `offered` already consumes the giver's supply, `reserved` has copies pinned,
+ * `traded` means the cards changed hands.
+ */
+const LIVE_PHASE_ORDER: readonly CardTradeLivePhase[] = ["asked", "offered", "reserved", "traded"];
+
+/** @returns How committed a phase is; higher wins a collapse. */
+function phaseRank(phase: CardTradeLivePhase): number {
+  return LIVE_PHASE_ORDER.indexOf(phase);
+}
+
+/**
+ * Indexes the flat live-trade annotations by printing so a card cell can look
+ * up its own without scanning. The value is always an array: `uq_card_trades_live`
+ * is unique per (group, giver, receiver, printing), so one printing can carry
+ * several live trades at once, in different phases.
+ *
+ * Receiver-side annotations are dropped for any printing that also has a
+ * giver-side one. That pair is not a data bug, it is the normal result of
+ * accepting a trade: `ownedCountsByPrinting` in
+ * `packages/shared/src/list-rule-eval.ts` skips reserved copies when netting a
+ * `netOwned` wish rule, so pinning copies away raises the same card's shortfall
+ * on a rule-driven wishlist and can open a request for it. Both annotations are
+ * correct, but "Reserved" and "Requested" on one card at one moment reads as
+ * broken, and the copy the viewer is giving away is the one they care about.
+ * @param annotations The viewer's live-trade annotations, in any order.
+ * @returns Printing id to its surviving annotations, in input order.
+ */
+export function groupTradeAnnotationsByPrinting(
+  annotations: readonly CardTradeLiveAnnotation[],
+): Map<string, CardTradeLiveAnnotation[]> {
+  const byPrinting = Map.groupBy(annotations, (annotation) => annotation.printingId);
+  for (const [printingId, group] of byPrinting) {
+    if (group.some((entry) => entry.role === "giver")) {
+      byPrinting.set(
+        printingId,
+        group.filter((entry) => entry.role === "giver"),
+      );
+    }
+  }
+  return byPrinting;
+}
+
+/**
+ * Picks the single annotation a surface with room for only one marker should
+ * show, most committed phase first. Ties on phase keep the viewer's own copies
+ * (`giver`) ahead of a card coming to them, matching the suppression in
+ * {@link groupTradeAnnotationsByPrinting}.
+ *
+ * The counts stay the winning bucket's own. Summing the whole side into them
+ * would overstate the commitment, which is the one thing this feature exists to
+ * prevent: a printing with one reserved trade and two asked ones is one copy
+ * committed, not three, and a chip reading "Reserved 3" would be a lie. A
+ * surface that also wants the side total has the full array from
+ * {@link groupTradeAnnotationsByPrinting} and can sum it there.
+ *
+ * The endpoint emits one row per (printing, role, phase), so the winner is
+ * already the whole of its bucket.
+ * @param annotations One printing's annotations.
+ * @returns The most committed annotation, or null when there is nothing to show.
+ */
+export function collapseTradeAnnotations(
+  annotations: readonly CardTradeLiveAnnotation[],
+): CardTradeLiveAnnotation | null {
+  // Rank giver above receiver at equal phase by adding a half step, which keeps
+  // the whole comparison one number and never crosses into the next phase.
+  const rank = (entry: CardTradeLiveAnnotation): number =>
+    phaseRank(entry.phase) + (entry.role === "giver" ? 0.5 : 0);
+  return annotations.reduce<CardTradeLiveAnnotation | null>(
+    (best, entry) => (best === null || rank(entry) > rank(best) ? entry : best),
+    null,
+  );
 }
 
 /** One counterparty's trades, kept together so the Trades tab can show one

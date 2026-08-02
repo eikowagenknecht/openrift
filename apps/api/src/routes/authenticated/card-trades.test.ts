@@ -14,10 +14,12 @@ import { cardTradesRouter } from "./card-trades";
 const mockCardTradesRepo = {
   listForUser: vi.fn(() => Promise.resolve([] as object[])),
   actionNeededCountsForUser: vi.fn(() => Promise.resolve([] as object[])),
+  liveAnnotationsForUser: vi.fn(() => Promise.resolve([] as object[])),
 };
 
 const mockCreateTrade = vi.fn(() => Promise.resolve({} as object));
 const mockAcceptTrade = vi.fn(() => Promise.resolve({} as object));
+const mockListTradeCopyOptions = vi.fn(() => Promise.resolve({} as object));
 const mockDeclineTrade = vi.fn(() => Promise.resolve({} as object));
 const mockCancelTrade = vi.fn(() => Promise.resolve({} as object));
 const mockCompleteTrade = vi.fn(() => Promise.resolve({} as object));
@@ -38,6 +40,7 @@ app.use("*", async (c, next) => {
   c.set("repos", { cardTrades: mockCardTradesRepo } as never);
   c.set("services", {
     createTrade: mockCreateTrade,
+    listTradeCopyOptions: mockListTradeCopyOptions,
     acceptTrade: mockAcceptTrade,
     declineTrade: mockDeclineTrade,
     cancelTrade: mockCancelTrade,
@@ -63,6 +66,7 @@ app.onError((err, c) => {
 const TRADE_ID = "a0000000-0001-4000-a000-000000000020";
 const PRINTING_ID = "a0000000-0001-4000-a000-000000000030";
 const COUNTERPARTY_ID = "a0000000-0001-4000-a000-000000000002";
+const COPY_ID = "a0000000-0001-4000-a000-000000000060";
 
 const tradeResponse = {
   id: TRADE_ID,
@@ -196,6 +200,91 @@ describe("GET /api/v1/trades/action-counts", () => {
   });
 });
 
+describe("GET /api/v1/trades/live-by-printing", () => {
+  const PRINTING_B = "a0000000-0001-4000-a000-000000000031";
+
+  it("returns the viewer's annotations, ordered by the presenter", async () => {
+    mockCardTradesRepo.liveAnnotationsForUser.mockResolvedValue([
+      { printingId: PRINTING_B, role: "receiver", phase: "asked", tradeCount: 1, quantity: 1 },
+      { printingId: PRINTING_ID, role: "giver", phase: "asked", tradeCount: 2, quantity: 3 },
+      { printingId: PRINTING_ID, role: "giver", phase: "reserved", tradeCount: 1, quantity: 1 },
+    ]);
+    const res = await app.request("/api/v1/trades/live-by-printing");
+    expect(res.status).toBe(200);
+    const json = await readJson(res);
+    expect(json.annotations.map((row: { phase: string }) => row.phase)).toEqual([
+      "reserved",
+      "asked",
+      "asked",
+    ]);
+    expect(mockCardTradesRepo.liveAnnotationsForUser).toHaveBeenCalledWith(USER_ID);
+  });
+
+  // The endpoint feeds a card browser, where a leaked counterparty or group
+  // would put an in-progress negotiation on a shoulder-surfable surface.
+  it("carries no counterparty, group or user identity", async () => {
+    mockCardTradesRepo.liveAnnotationsForUser.mockResolvedValue([
+      { printingId: PRINTING_ID, role: "giver", phase: "traded", tradeCount: 1, quantity: 4 },
+    ]);
+    const res = await app.request("/api/v1/trades/live-by-printing");
+    const json = await readJson(res);
+    expect(json.annotations[0]).toEqual({
+      printingId: PRINTING_ID,
+      role: "giver",
+      phase: "traded",
+      tradeCount: 1,
+      quantity: 4,
+    });
+  });
+
+  it("returns an empty list when nothing is live", async () => {
+    mockCardTradesRepo.liveAnnotationsForUser.mockResolvedValue([]);
+    const res = await app.request("/api/v1/trades/live-by-printing");
+    expect(res.status).toBe(200);
+    const json = await readJson(res);
+    expect(json.annotations).toEqual([]);
+  });
+});
+
+describe("GET /api/v1/trades/:id/copy-options", () => {
+  it("returns the giver's candidate copies", async () => {
+    mockListTradeCopyOptions.mockResolvedValue({
+      tradeId: TRADE_ID,
+      quantity: 1,
+      choiceMatters: true,
+      copies: [
+        {
+          id: COPY_ID,
+          collectionId: "a0000000-0001-4000-a000-000000000050",
+          collectionName: "Trade Binder",
+          condition: null,
+          grader: null,
+          grade: null,
+          notesPublic: null,
+          notesPrivate: null,
+          isAltered: false,
+          links: [],
+          hasRecordedDetails: false,
+        },
+      ],
+    });
+    const res = await app.request(`/api/v1/trades/${TRADE_ID}/copy-options`);
+    expect(res.status).toBe(200);
+    const json = await readJson(res);
+    expect(json.choiceMatters).toBe(true);
+    expect(json.copies).toHaveLength(1);
+    expect(mockListTradeCopyOptions).toHaveBeenCalledWith(expect.anything(), TRADE_ID, USER_ID);
+  });
+
+  it("returns 403 when the viewer is not the giver", async () => {
+    mockListTradeCopyOptions.mockRejectedValue(
+      new AppError(403, "FORBIDDEN", "Only the giver can see the copies behind this trade"),
+    );
+    const res = await app.request(`/api/v1/trades/${TRADE_ID}/copy-options`);
+    expect(res.status).toBe(403);
+  });
+});
+
 describe("POST /api/v1/trades/:id/accept", () => {
   it("returns 200 with the updated trade", async () => {
     mockAcceptTrade.mockResolvedValue({ ...tradeResponse, status: "reserved" });
@@ -203,7 +292,28 @@ describe("POST /api/v1/trades/:id/accept", () => {
     expect(res.status).toBe(200);
     const lintBody = await readJson(res);
     expect(lintBody.status).toBe("reserved");
-    expect(mockAcceptTrade).toHaveBeenCalledWith(expect.anything(), TRADE_ID, USER_ID);
+    expect(mockAcceptTrade).toHaveBeenCalledWith(expect.anything(), TRADE_ID, USER_ID, undefined);
+  });
+
+  it("forwards the giver's chosen copy ids to the service", async () => {
+    mockAcceptTrade.mockResolvedValue({ ...tradeResponse, status: "reserved" });
+    const res = await app.request(`/api/v1/trades/${TRADE_ID}/accept`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ copyIds: [COPY_ID] }),
+    });
+    expect(res.status).toBe(200);
+    expect(mockAcceptTrade).toHaveBeenCalledWith(expect.anything(), TRADE_ID, USER_ID, [COPY_ID]);
+  });
+
+  it("rejects an empty copy-id list at the schema", async () => {
+    const res = await app.request(`/api/v1/trades/${TRADE_ID}/accept`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ copyIds: [] }),
+    });
+    expect(res.status).toBe(400);
+    expect(mockAcceptTrade).not.toHaveBeenCalled();
   });
 
   it("returns 404 when the service throws not-found", async () => {

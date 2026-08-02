@@ -1,4 +1,5 @@
 import type {
+  CardTradeLiveAnnotation,
   Currency,
   ListEntryDetailResponse,
   ListKind,
@@ -19,6 +20,7 @@ import { FloatingActionBar } from "@/components/collection/floating-action-bar";
 import { ListActionsCell } from "@/components/list/list-actions-cell";
 import { ListGridCell } from "@/components/list/list-grid-cell";
 import { ListRemoveDialog } from "@/components/list/list-remove-dialog";
+import { buildListTradeIndex } from "@/components/list/list-trade-status";
 import { MoveToListDialog } from "@/components/list/move-to-list-dialog";
 import { TakeOffTradelistDialog } from "@/components/list/take-off-tradelist-dialog";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
@@ -26,6 +28,8 @@ import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { TradePreferenceDialog } from "@/components/trade-preferences/trade-preference-dialog";
 import { Toggle } from "@/components/ui/toggle";
 import { useFilterActions } from "@/hooks/use-card-filters";
+import { useLiveTradesByPrinting } from "@/hooks/use-card-trades";
+import { useCards } from "@/hooks/use-cards";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useListEntryBrowserData } from "@/hooks/use-list-entry-browser-data";
 import { useListEntryBrowserSelection } from "@/hooks/use-list-entry-browser-selection";
@@ -39,6 +43,11 @@ import { useSiblingOverrideStore } from "@/stores/sibling-override-store";
 // are printing-level attributes a listed promo printing can carry, and both
 // sections self-hide when nothing on the list has one.
 const LIST_HIDDEN_FILTER_SECTIONS: ReadonlySet<string> = new Set(["owned", "customTags"]);
+
+// Stable empty so a logged-out or still-loading trades query doesn't hand the
+// index builder a fresh array on every render, which would rebuild the index
+// and break the grid cells' memo.
+const NO_TRADE_ANNOTATIONS: readonly CardTradeLiveAnnotation[] = [];
 
 export interface ListEntryBrowserProps {
   listId: string;
@@ -125,6 +134,16 @@ export function ListEntryBrowser({
     entryByKey,
   } = useListEntryBrowserData({ kind, entries, showLibrary });
   const isMobile = useIsMobile();
+
+  // Live-trade status for the whole grid, resolved once. Annotations name a
+  // printing, so card-kind wish entries need the catalog to get from the
+  // traded printing back to the card the entry wants.
+  const { printingsById } = useCards();
+  const { data: liveTrades } = useLiveTradesByPrinting();
+  const tradeIndex = buildListTradeIndex(
+    liveTrades?.annotations ?? NO_TRADE_ANNOTATIONS,
+    printingsById,
+  );
 
   // Sibling-swap overrides live in the shared store (scope: "list"). Reset
   // when this browser unmounts (listId change) so a pin on a previous list
@@ -220,6 +239,7 @@ export function ListEntryBrowser({
       display={display}
       showImages={showImages}
       priceRange={priceRangeByCardId?.get(item.printing.cardId)}
+      tradeIndex={tradeIndex}
     />
   );
 
@@ -340,6 +360,7 @@ export function ListEntryBrowser({
                 kind={kind}
                 entryByItemId={entryByItemId}
                 entriesByPrintingId={entriesByPrintingId}
+                tradeIndex={tradeIndex}
                 supportsTradePrefs={supportsTradePrefs}
                 listTradeDefaults={listTradeDefaults}
                 listCurrency={listCurrency}

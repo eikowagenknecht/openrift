@@ -1,4 +1,10 @@
-import type { Currency, ListKind, Printing, TradePreference } from "@openrift/shared";
+import type {
+  CardTradeLiveAnnotation,
+  Currency,
+  ListKind,
+  Printing,
+  TradePreference,
+} from "@openrift/shared";
 import { legendDisplayName } from "@openrift/shared";
 import { ListIcon, XIcon } from "lucide-react";
 import type { ReactNode } from "react";
@@ -13,8 +19,11 @@ import type { ListEntryDragData } from "@/components/collection/dnd-types";
 import { SelectionCheckbox } from "@/components/collection/selection-checkbox";
 import { DraggableListEntry } from "@/components/list/draggable-list-entry";
 import { ListEntryContextMenu } from "@/components/list/list-entry-context-menu";
+import type { ListTradeIndex } from "@/components/list/list-trade-status";
+import { listEntryTradeStatus } from "@/components/list/list-trade-status";
 import { isRuleSourced, RuleSourceBadge } from "@/components/list/rule-source-badge";
 import { TradePreferenceGridPill } from "@/components/trade-preferences/trade-preference-grid-pill";
+import { TradeStatusChip } from "@/components/trades/trade-status-chip";
 import { Badge } from "@/components/ui/badge";
 import { entryToExcludeTarget } from "@/lib/rule-exclude";
 import {
@@ -63,6 +72,8 @@ interface ListGridCellProps {
   display: CardThumbnailDisplay;
   showImages: boolean;
   priceRange?: { min: number; max: number };
+  /** The viewer's live-trade annotations, indexed by printing and by card. */
+  tradeIndex: ListTradeIndex;
 }
 
 /**
@@ -99,6 +110,7 @@ export const ListGridCell = memo(function ListGridCell({
   display,
   showImages,
   priceRange,
+  tradeIndex,
 }: ListGridCellProps) {
   const inCardsView = view === "cards";
   const inSelectMode = mode === "select";
@@ -147,6 +159,11 @@ export const ListGridCell = memo(function ListGridCell({
     (state) => inSelectMode && editableEntryId !== null && state.selected.has(editableEntryId),
   );
 
+  // The tile's live-trade status. Resolved here, in the component, because
+  // buildStrip is a plain function and the entry-shape mapping can't be done
+  // from a printing id alone — a card-kind wish entry names a card.
+  const tradeStatus = entry ? listEntryTradeStatus(entry, tradeIndex) : null;
+
   // Select mode hides the browse controls (quantity stepper, trade pill) and
   // the drag wrap, and shows a checkbox instead — mirrors /collections.
   const strip = inSelectMode
@@ -159,6 +176,7 @@ export const ListGridCell = memo(function ListGridCell({
         listTradeDefaults,
         listCurrency,
         supportsTradePrefs,
+        tradeStatus,
       });
 
   // Drag wiring: browse-mode tiles with a backing entry are draggable. The
@@ -260,6 +278,8 @@ interface BuildStripArgs {
   listTradeDefaults: TradePreference;
   listCurrency: Currency | null;
   supportsTradePrefs: boolean;
+  /** The entry's live-trade status, resolved by the cell. Null when nothing is in flight. */
+  tradeStatus: CardTradeLiveAnnotation | null;
 }
 
 function buildStrip({
@@ -270,7 +290,18 @@ function buildStrip({
   listTradeDefaults,
   listCurrency,
   supportsTradePrefs,
+  tradeStatus,
 }: BuildStripArgs): ReactNode {
+  // The word ("Reserved", "Traded", "Offered to you", …) rather than the icon
+  // alone: Offered and Reserved share the handshake, so an icon-only chip
+  // can't tell a promised copy from a pinned one.
+  //
+  // A copy list's tile is one physical copy, so it drops the number: the
+  // annotation counts the whole printing, and two reserved copies of it would
+  // otherwise each read "Reserved 2" and look like four.
+  const tradeChip = tradeStatus ? (
+    <TradeStatusChip annotation={tradeStatus} detail={kind === "copy" ? "word" : "label"} />
+  ) : null;
   if (showLibrary) {
     // Library mode: + adds to the list (bulk-add upserts by key), - decrements
     // the manual part (the rule's contribution can't be stepped below — ADR-034
@@ -304,9 +335,10 @@ function buildStrip({
           ariaLabel: `Add ${legendDisplayName(displayPrinting.card)} to list`,
         }}
         extras={
-          entry && entry.ruleQuantity > 0 ? (
-            <RuleSourceBadge quantity={entry.ruleQuantity} />
-          ) : undefined
+          <>
+            {entry && entry.ruleQuantity > 0 && <RuleSourceBadge quantity={entry.ruleQuantity} />}
+            {tradeChip}
+          </>
         }
       />
     );
@@ -318,9 +350,8 @@ function buildStrip({
 
   // Rule-derived entries (ADR-034) are read-only — no stepper, no take-off, no
   // preference edit. The rule badge marks them (same badge as the table view);
-  // the static quantity / Reserved signal sits alongside.
+  // the static quantity / trade-status signal sits alongside.
   if (entry.id === null) {
-    const reserved = entry.kind === "copy" && entry.reserved;
     const onLoan = entry.kind === "copy" && entry.onLoan;
     return (
       <CardStrip
@@ -331,7 +362,7 @@ function buildStrip({
               onExclude={() => dispatchExcludeFromRule(entryToExcludeTarget(entry))}
               excludeLabel={`Don't include ${entry.cardName}`}
             />
-            {reserved && <Badge variant="success">Reserved</Badge>}
+            {tradeChip}
             {onLoan && <Badge variant="secondary">On loan</Badge>}
           </>
         }
@@ -360,19 +391,19 @@ function buildStrip({
     // Copy-kind (tradelists): no count, no stepper. Surface a take-off button
     // so it isn't hidden behind the context menu. It opens the keep-vs-sold
     // chooser rather than removing outright, since taking a copy off a tradelist
-    // has two outcomes (kept vs sold). The "Reserved" badge (when the copy is
-    // pinned to a live trade) and the take-off button sit in the shell's edge
-    // zones, whose equal flex widths keep the trade pill dead-centered even
-    // against an uneven-width badge. `entry` is guaranteed non-null here.
-    const reserved = entry.kind === "copy" && entry.reserved;
-    // A copy can't be both reserved and lent (the claims exclude each other),
-    // so at most one of the two edge badges renders.
+    // has two outcomes (kept vs sold). The trade-status chip (Reserved, Traded,
+    // Offered, Asked for) and the take-off button sit in the shell's edge zones,
+    // whose equal flex widths keep the trade pill dead-centered even against an
+    // uneven-width chip. `entry` is guaranteed non-null here.
+    // A lent copy can't also be pinned to a trade (the claims exclude each
+    // other), but it can still carry an unpinned offer on its printing, so the
+    // two left-hand markers are not mutually exclusive.
     const onLoan = entry.kind === "copy" && entry.onLoan;
     return (
       <CardStrip
         left={
           <>
-            {reserved && <Badge variant="success">Reserved</Badge>}
+            {tradeChip}
             {onLoan && <Badge variant="secondary">On loan</Badge>}
           </>
         }
@@ -418,14 +449,11 @@ function buildStrip({
         ariaLabel: `Increase ${entry.cardName} quantity`,
       }}
       extras={
-        entry.ruleQuantity > 0 ? (
-          <>
-            <RuleSourceBadge quantity={entry.ruleQuantity} />
-            {tradePill}
-          </>
-        ) : (
-          tradePill
-        )
+        <>
+          {entry.ruleQuantity > 0 && <RuleSourceBadge quantity={entry.ruleQuantity} />}
+          {tradeChip}
+          {tradePill}
+        </>
       }
     />
   );

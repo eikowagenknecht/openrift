@@ -7,9 +7,11 @@ import type {
 
 import type { TableRowSlotProps } from "@/components/cards/card-table";
 import { ListEntryTableActions } from "@/components/list/list-entry-table-actions";
+import type { ListTradeIndex } from "@/components/list/list-trade-status";
+import { listEntryTradeStatus } from "@/components/list/list-trade-status";
 import { RuleSourceBadge } from "@/components/list/rule-source-badge";
 import { TradePreferencePill } from "@/components/trade-preferences/trade-preference-pill";
-import { Badge } from "@/components/ui/badge";
+import { TradeStatusChip } from "@/components/trades/trade-status-chip";
 import { entryToExcludeTarget } from "@/lib/rule-exclude";
 import { dispatchExcludeFromRule } from "@/stores/card-row-actions-store";
 
@@ -17,6 +19,8 @@ interface ListActionsCellProps extends TableRowSlotProps {
   kind: ListKind;
   entryByItemId: Map<string, ListEntryDetailResponse>;
   entriesByPrintingId: Map<string, ListEntryDetailResponse[]>;
+  /** The viewer's live-trade annotations, indexed by printing and by card. */
+  tradeIndex: ListTradeIndex;
   supportsTradePrefs: boolean;
   listTradeDefaults: TradePreference;
   listCurrency: Currency | null;
@@ -35,6 +39,7 @@ export function ListActionsCell({
   kind,
   entryByItemId,
   entriesByPrintingId,
+  tradeIndex,
   supportsTradePrefs,
   listTradeDefaults,
   listCurrency,
@@ -52,6 +57,16 @@ export function ListActionsCell({
   if (!entry) {
     return null;
   }
+  // The row's live-trade status. A plain call, not a hook — the three guards
+  // above run before anything else in this component, so a hook here would be
+  // conditional.
+  const tradeStatus = listEntryTradeStatus(entry, tradeIndex);
+  // A copy-kind row is one physical copy, so it shows the word without the
+  // count: the annotation's number covers the whole printing, and repeating it
+  // per row would read as several times the copies actually in flight.
+  const tradeChip = tradeStatus ? (
+    <TradeStatusChip annotation={tradeStatus} detail={entry.kind === "copy" ? "word" : "label"} />
+  ) : null;
   // Rule-derived entries (ADR-034) have no list_entries row — they can't be
   // edited or removed, only excluded from the rule that produced them.
   if (entry.id === null) {
@@ -62,7 +77,7 @@ export function ListActionsCell({
           onExclude={() => dispatchExcludeFromRule(entryToExcludeTarget(entry))}
           excludeLabel={`Don't include ${entry.cardName}`}
         />
-        {entry.kind === "copy" && entry.reserved && <Badge variant="success">Reserved</Badge>}
+        {tradeChip}
       </div>
     );
   }
@@ -90,7 +105,7 @@ export function ListActionsCell({
         <RuleSourceBadge quantity={kind === "copy" ? undefined : entry.ruleQuantity} />
       )}
       {tradePill}
-      {entry.kind === "copy" && entry.reserved && <Badge variant="success">Reserved</Badge>}
+      {tradeChip}
       {kind === "copy" ? (
         <ListEntryTableActions
           showQuantity={false}

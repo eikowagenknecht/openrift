@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-08-03
+
+### Highlights
+
+- feat(Trades): **Trade status on your own cards** — a copy you have offered, reserved or already handed over now says so in your collection and on your lists, and the same copy can no longer be promised to two people at once.
+- feat(Trades): **Choose which copy you hand over** — accepting a request lets you pick, and only asks when the copies actually differ, so a graded or noted card is never promised by accident.
+
+### Other
+
+- feat(Trades): **Wishlists show what is coming** — a card someone has offered or reserved for you now shows that on the wishlist you asked for it on, instead of only on the Trades page.
+- fix(Trades): **Dead trade requests close themselves** — a request the other side can no longer fill (the copies were traded away, removed, or the list was unshared) now closes right away instead of waiting a week and failing on accept.
+- fix(Trades): **Filtered tradelists skip promised copies** — a tradelist built from filters kept offering a copy that was already reserved for someone else.
+- fix(Collection): **Trade changes refresh your cards** — accepting or cancelling a trade left stale copy counts behind for a few minutes.
+- fix(Collection): **Exports leave out reserved cards** — exporting a tradelist listed cards that were already promised, which the take-off dialog refuses to sell.
+- fix(Collection): **Removing a copy skips promised ones** — the quick-add minus button could pick a copy reserved for a trade and fail, with removable copies sitting right beside it.
+- fix(Collection): **Clearer message on a promised card** — deleting a card held by a finished trade told you to cancel that trade, which is not possible, and now points at the sync you still need to resolve.
+- fix(Decks): **Correct reason for a locked copy** — the missing cards list always blamed an excluded collection for the padlock icon, even when a copy was actually out on loan or reserved for a trade.
+
 ## 2026-08-02
 
 ### Highlights

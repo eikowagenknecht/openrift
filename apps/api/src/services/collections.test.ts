@@ -159,6 +159,9 @@ function createClearMockRepos(
     },
     cardTrades: {
       filterReservedCopyIds: vi.fn(async () => overrides.reservedIds ?? []),
+      // The unfillable-trade sweep runs after every dispose; these fixtures
+      // leave the actor with no pending trades, so it stops right here.
+      listPendingForGiverPrinting: vi.fn(async () => []),
     },
     loans: {
       filterLoanedCopyIds: vi.fn(async () => overrides.loanedIds ?? []),
@@ -287,7 +290,7 @@ function createResetMocks(
     copies: { listInPersonalCollections, deleteAllInPersonalCollections },
     collections: { deleteAllPersonalExceptInbox, ensureInbox },
     lists: { listIdsWithEntries, deleteEmptyWithoutRules },
-    cardTrades: { filterReservedCopyIds },
+    cardTrades: { filterReservedCopyIds, listPendingForGiverPrinting: vi.fn(async () => []) },
     loans: { filterLoanedCopyIds },
     collectionEvents: { insert: insertEvents },
   } as unknown as Repos;

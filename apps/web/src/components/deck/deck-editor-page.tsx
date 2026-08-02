@@ -231,6 +231,11 @@ function DeckEditorContent({
     marketplace,
     deckCounts?.locked,
     borrowedCounts,
+    deckCounts && {
+      loaned: deckCounts.lockedLoaned,
+      reserved: deckCounts.lockedReserved,
+      excluded: deckCounts.lockedExcluded,
+    },
   );
 
   // Build the runes-by-domain catalog up here (always-mounted parent) so the

@@ -1,11 +1,14 @@
 import type {
   CardTradeActionCountsResponse,
+  CardTradeCopyOptionsResponse,
   CardTradeListResponse,
+  CardTradeLiveByPrintingResponse,
   CardTradeResponse,
 } from "@openrift/shared";
 import { cardTradesContract } from "@openrift/shared/contracts/card-trades";
 import { implement } from "@orpc/server";
 
+import { toCardTradeLiveByPrinting } from "../../lib/card-trade-presenters.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 
@@ -47,9 +50,24 @@ export const cardTradesRouter = {
     },
   ),
 
+  liveByPrinting: os.liveByPrinting.handler(
+    async ({ context }): Promise<CardTradeLiveByPrintingResponse> => {
+      const { cardTrades } = context.repos;
+      const rows = await cardTrades.liveAnnotationsForUser(context.userId);
+      return toCardTradeLiveByPrinting(rows);
+    },
+  ),
+
+  copyOptions: os.copyOptions.handler(
+    ({ input, context }): Promise<CardTradeCopyOptionsResponse> => {
+      const { listTradeCopyOptions } = context.services;
+      return listTradeCopyOptions(context.repos, input.id, context.userId);
+    },
+  ),
+
   accept: os.accept.handler(({ input, context }): Promise<CardTradeResponse> => {
     const { acceptTrade } = context.services;
-    return acceptTrade(context.transact, input.id, context.userId);
+    return acceptTrade(context.transact, input.id, context.userId, input.copyIds);
   }),
 
   decline: os.decline.handler(({ input, context }): Promise<CardTradeResponse> => {

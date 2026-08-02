@@ -19,12 +19,16 @@ export function pickNewestCopy(copies: readonly CopyResponse[]): CopyResponse | 
  * Picks the copy the minus button should remove: the newest copy WITHOUT
  * recorded details (ADR-038), so conditions/notes survive routine count
  * adjustments. Only when every copy is annotated does it fall back to the
- * newest annotated one — callers confirm that removal with the user.
- * @returns The removal candidate, or undefined if the list is empty.
+ * newest annotated one — callers confirm that removal with the user. Copies
+ * reserved by a live trade are never candidates: the API rejects their
+ * removal, so picking one would just surface an error toast when a
+ * removable sibling copy is sitting right there.
+ * @returns The removal candidate, or undefined if no copy is removable.
  */
 export function pickRemovalCopy(copies: readonly CopyResponse[]): CopyResponse | undefined {
-  const bare = copies.filter((copy) => !copyHasMetadata(copy));
-  return pickNewestCopy(bare.length > 0 ? bare : copies);
+  const removable = copies.filter((copy) => !copy.reserved);
+  const bare = removable.filter((copy) => !copyHasMetadata(copy));
+  return pickNewestCopy(bare.length > 0 ? bare : removable);
 }
 
 type RemovalDecision =

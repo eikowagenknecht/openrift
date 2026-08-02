@@ -45,6 +45,11 @@ export function SharedDeckOwnershipBridge({
     marketplace,
     counts?.locked,
     borrowedCounts,
+    counts && {
+      loaned: counts.lockedLoaned,
+      reserved: counts.lockedReserved,
+      excluded: counts.lockedExcluded,
+    },
   );
 
   useEffect(() => {

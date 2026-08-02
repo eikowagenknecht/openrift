@@ -195,6 +195,15 @@ export const queryKeys = {
     all: (userId: string) => ["trades", userId] as const,
     byGroup: (userId: string, groupId: string) => ["trades", userId, "group", groupId] as const,
     actionCounts: (userId: string) => ["trades", userId, "action-counts"] as const,
+    // Per-printing live-trade annotations for the card browsers. Under the
+    // `all` prefix on purpose, so every trade mutation already refreshes it.
+    liveByPrinting: (userId: string) => ["trades", userId, "live-by-printing"] as const,
+    // The candidate copies behind one pending trade, for the giver's copy
+    // picker. Fetched on demand only (the route re-reads the giver's supply),
+    // and under the `all` prefix so an accept or a quantity change drops it
+    // without its own invalidation entry.
+    copyOptions: (userId: string, tradeId: string) =>
+      ["trades", userId, "copy-options", tradeId] as const,
   },
   loans: {
     // Same prefix-invalidation shape as trades (ADR-039): mutations invalidate

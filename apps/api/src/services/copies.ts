@@ -4,6 +4,7 @@ import type { CopyLink, CopyMetadataPatch } from "@openrift/shared";
 import type { Repos, Transact } from "../deps.js";
 import { AppError } from "../errors.js";
 import { assertFound } from "../lib/assertions.js";
+import { autoCancelUnfillablePendingTrades } from "./card-trades.js";
 import { logEvents } from "./event-logger.js";
 import { ensureInbox } from "./inbox.js";
 
@@ -38,7 +39,7 @@ interface AddCopyResult {
   links: CopyLink[];
   /** Always false for a copy that was just created (ADR-039). */
   onLoan: boolean;
-  /** Always false for a copy that was just created (ADR-034): not yet reserved. */
+  /** Always false for a copy that was just created (ADR-019): not yet reserved. */
   reserved: boolean;
 }
 
@@ -155,6 +156,28 @@ export async function updateCopies(
 }
 
 /**
+ * Re-checks the actor's live pending trades for every printing whose copies just
+ * moved or vanished, closing the ones their supply can no longer fill (ADR-019).
+ *
+ * Only the actor's own supply can change here. Trade supply is built from
+ * personally-owned copies, and a personal collection only passes
+ * `filterWritableByViewer` for its owner, so a group-owned source belongs to
+ * nobody's supply and the sweep simply finds nothing to cancel. Runs inside the
+ * caller's transaction so the copy change and the cancellations commit together.
+ * @returns Nothing; cancelled trades are recorded by the sweep itself.
+ */
+async function sweepUnfillableTrades(
+  trxRepos: Repos,
+  userId: string,
+  printingIds: Iterable<string>,
+): Promise<void> {
+  for (const printingId of new Set(printingIds)) {
+    // Sequential: the repos are bound to a single transaction connection.
+    await autoCancelUnfillablePendingTrades(trxRepos, userId, printingId);
+  }
+}
+
+/**
  * Move copies between collections.
  *
  * The viewer must have write access to:
@@ -163,6 +186,11 @@ export async function updateCopies(
  *
  * Source access means the copy lives in one of the viewer's writable collections
  * (personal owner OR group member of a shared collection that contains it).
+ *
+ * A copy reserved by a trade (ADR-019) may still move between the owner's own
+ * personal collections, but not into a group collection. Reservations pin
+ * personal copies only, and the whole group would otherwise see `reserved` on a
+ * copy that is not theirs.
  */
 export async function moveCopies(
   repos: Repos,
@@ -175,7 +203,7 @@ export async function moveCopies(
   if (targetWritable.length === 0) {
     throw new AppError(404, ERROR_CODES.NOT_FOUND, "Target collection not found");
   }
-  const targetMeta = await repos.collections.listIdAndNameByIds([toCollectionId]);
+  const targetMeta = await repos.collections.listIdNameGroupByIds([toCollectionId]);
   const target = targetMeta[0];
   assertFound(target, "Target collection not found");
 
@@ -190,6 +218,21 @@ export async function moveCopies(
     const writableSources = await trxRepos.collections.filterWritableByViewer(sourceIds, userId);
     if (writableSources.length !== sourceIds.length) {
       throw new AppError(403, ERROR_CODES.FORBIDDEN, "One or more copies are not writable by you");
+    }
+
+    if (target.groupId !== null) {
+      // Lock the rows first so a concurrent trade-accept serializes against this
+      // move. Without the lock the guard below could pass, the pin lands in the
+      // gap, and the copy still ends up group-owned while reserved.
+      await trxRepos.copies.lockByIds(copyIds);
+      const reserved = await trxRepos.cardTrades.filterReservedCopyIds(copyIds);
+      if (reserved.length > 0) {
+        throw new AppError(
+          409,
+          ERROR_CODES.CONFLICT,
+          "This card is reserved in a trade. It can only move between your own collections.",
+        );
+      }
     }
 
     await trxRepos.copies.moveBatchById(
@@ -210,6 +253,15 @@ export async function moveCopies(
         toCollectionName: target.name,
       })),
     );
+
+    // A move can take a copy out of the supply a group can see (into a group
+    // collection, or out of a collection a trade rule is scoped to), so the
+    // owner's pending trades for those printings may no longer be fillable.
+    await sweepUnfillableTrades(
+      trxRepos,
+      userId,
+      copies.map((copy) => copy.printingId),
+    );
   });
 }
 
@@ -218,8 +270,9 @@ export async function moveCopies(
  * Logs removal events before deleting. The viewer must have write access to
  * every source collection (personal owner or group member of a shared one).
  *
- * Rejects copies reserved by a live trade (ADR-019). Trade-sync's giver path
- * releases its reservation rows first and then disposes within the same
+ * Rejects copies still pinned by a trade reservation (ADR-019), live or held by
+ * a completed trade whose giver has not resolved their sync. Trade-sync's giver
+ * path releases its reservation rows first and then disposes within the same
  * transaction via {@link disposeCopiesInTransaction} with the guard skipped.
  */
 export async function disposeCopies(
@@ -265,12 +318,19 @@ export async function disposeCopiesInTransaction(
   // Same for a copy out on a loan (ADR-039): write-off releases its pins first
   // and then disposes in the same transaction, so the guard passes there.
   if (options?.skipReservationGuard !== true) {
-    const reserved = await trxRepos.cardTrades.filterReservedCopyIds(copyIds);
-    if (reserved.length > 0) {
+    const pins = await trxRepos.cardTrades.listReservationsForCopies(copyIds);
+    if (pins.length > 0) {
+      // A pin on a still-live trade is freed by cancelling it. A pin that
+      // outlived completion (the giver never resolved their sync) is not:
+      // cancel only accepts pending/reserved, so pointing at it would name an
+      // impossible remedy. Resolving or skipping the sync releases those.
+      const live = pins.some((pin) => pin.status === "pending" || pin.status === "reserved");
       throw new AppError(
         409,
         ERROR_CODES.CONFLICT,
-        "This card is reserved in an active trade — cancel the trade to free it.",
+        live
+          ? "This card is reserved in an active trade — cancel the trade to free it."
+          : "This card is still reserved by a completed trade. Resolve or skip that trade's sync to free it.",
       );
     }
     const loaned = await trxRepos.loans.filterLoanedCopyIds(copyIds);
@@ -298,4 +358,12 @@ export async function disposeCopiesInTransaction(
 
   // Hard-delete copies (collection_events.copy_id → SET NULL via FK)
   await trxRepos.copies.deleteBatchById(copies.map((row) => row.id));
+
+  // The copies are gone, so any pending trade that was counting on them is
+  // dead. Close it here rather than leaving it to 409 on accept for a week.
+  await sweepUnfillableTrades(
+    trxRepos,
+    userId,
+    copies.map((row) => row.printingId),
+  );
 }

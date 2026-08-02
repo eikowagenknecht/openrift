@@ -64,6 +64,29 @@ function variantSuffix(
 }
 
 /**
+ * True when the list holds at least one copy pinned to a live trade (ADR-019).
+ * Only copy-kind entries carry the flag, so card- and printing-kind lists are
+ * always false.
+ * @returns Whether any entry is a reserved copy.
+ */
+export function hasReservedCopies(entries: readonly ListEntryDetailResponse[]): boolean {
+  return entries.some((entry) => entry.kind === "copy" && entry.reserved);
+}
+
+/**
+ * Drops copies that are pinned to a live trade, so an export never promises a
+ * card the take-off dialog already refuses to sell. Card- and printing-kind
+ * entries carry no reserved flag, so they always survive. Apply this once on
+ * the entries every format reads, not per format.
+ * @returns The entries without reserved copies.
+ */
+export function withoutReservedCopies(
+  entries: readonly ListEntryDetailResponse[],
+): ListEntryDetailResponse[] {
+  return entries.filter((entry) => entry.kind !== "copy" || !entry.reserved);
+}
+
+/**
  * Formats card-kind list entries in the deckbuilder-style text format:
  * one `<quantity> <cardName>` per line, in the order entries are given.
  * Apostrophes are straightened to ASCII so the output round-trips through

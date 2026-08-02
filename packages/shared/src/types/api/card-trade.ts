@@ -4,8 +4,13 @@
 import type {
   CARD_TRADE_STATUSES,
   cardTradeActionCountsResponseSchema,
+  cardTradeCopyOptionSchema,
+  cardTradeCopyOptionsResponseSchema,
   cardTradeCounterpartySchema,
   cardTradeListResponseSchema,
+  cardTradeLiveAnnotationSchema,
+  cardTradeLiveByPrintingResponseSchema,
+  cardTradeLivePhaseSchema,
   cardTradeResponseSchema,
 } from "@openrift/shared/contracts/card-trades";
 import type { z } from "zod";
@@ -34,3 +39,21 @@ export type CardTradeListResponse = z.infer<typeof cardTradeListResponseSchema>;
 
 /** Per-group count of trades needing the viewer's action (accept/decline or apply-sync). */
 export type CardTradeActionCountsResponse = z.infer<typeof cardTradeActionCountsResponseSchema>;
+
+/** One physical copy the giver could promise to a pending trade. */
+export type CardTradeCopyOption = z.infer<typeof cardTradeCopyOptionSchema>;
+
+/**
+ * The candidate copies behind a pending trade, in the server's default pin
+ * order. `choiceMatters` says whether the client should ask the giver to pick.
+ */
+export type CardTradeCopyOptionsResponse = z.infer<typeof cardTradeCopyOptionsResponseSchema>;
+
+/** How far along a live trade is, from the viewer's side. */
+export type CardTradeLivePhase = z.infer<typeof cardTradeLivePhaseSchema>;
+
+/** The viewer's live trades on one printing, from one side, in one phase. */
+export type CardTradeLiveAnnotation = z.infer<typeof cardTradeLiveAnnotationSchema>;
+
+/** Every live trade the viewer has, aggregated per (printing, role, phase). */
+export type CardTradeLiveByPrintingResponse = z.infer<typeof cardTradeLiveByPrintingResponseSchema>;
