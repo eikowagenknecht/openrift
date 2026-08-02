@@ -790,7 +790,7 @@ describe("copiesQuerySchema", () => {
   });
 
   // Regression: a syntactically invalid cursor used to pass this schema (it
-  // only checked non-empty string), reach parseCursor's unconditional
+  // only checked non-empty string), reach the repo cursor parser's unconditional
   // `new Date(cursor)`, and produce an Invalid Date that propagated into the
   // Kysely query as a 500 instead of failing validation with a 400.
   it("rejects a garbage cursor", () => {

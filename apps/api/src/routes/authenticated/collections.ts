@@ -18,7 +18,8 @@ import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import { buildPatchUpdates } from "../../patch.js";
 import type { FieldMapping } from "../../patch.js";
-import { buildCopiesCursor, clampCopiesLimit } from "../../repositories/copies.js";
+import { clampCopiesLimit } from "../../repositories/copies.js";
+import { buildKeysetCursor } from "../../repositories/query-helpers.js";
 import { assertFound } from "../../utils/assertions.js";
 import { toCollection, toCopy } from "../../utils/mappers.js";
 import { getFavoriteMarketplace } from "../../utils/preferences.js";
@@ -219,7 +220,7 @@ export const collectionsRouter = {
 
     return {
       items: items.map((row) => toCopy(row)),
-      nextCursor: hasMore && lastItem ? buildCopiesCursor(lastItem.createdAt, lastItem.id) : null,
+      nextCursor: hasMore && lastItem ? buildKeysetCursor(lastItem.createdAt, lastItem.id) : null,
     };
   }),
 

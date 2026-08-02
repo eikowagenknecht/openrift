@@ -2,14 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { AppError } from "../errors.js";
 import { createMockDb } from "../test/mock-db.js";
-import { buildEventsCursor, collectionEventsRepo } from "./collection-events.js";
-
-describe("buildEventsCursor", () => {
-  it("encodes createdAt and id into a single string", () => {
-    const cursor = buildEventsCursor(new Date("2026-01-15T12:30:00.000Z"), "abc-123");
-    expect(cursor).toBe("2026-01-15T12:30:00.000Z_abc-123");
-  });
-});
+import { collectionEventsRepo } from "./collection-events.js";
 
 describe("collectionEventsRepo", () => {
   it("listForUser returns events without cursor", async () => {
@@ -25,11 +18,11 @@ describe("collectionEventsRepo", () => {
     expect(await repo.listForUser("u1", 20, "2026-01-01T00:00:00.000Z_e-last")).toEqual([]);
   });
 
-  // Regression: parseCursor used to pass an unparseable cursor straight into
-  // `new Date(...)` and let the resulting Invalid Date reach the Kysely
+  // Regression: the cursor parser used to pass an unparseable cursor straight
+  // into `new Date(...)` and let the resulting Invalid Date reach the Kysely
   // query, producing an INTERNAL_ERROR 500. The query schema now rejects
-  // malformed cursors before they get this far, but the repo also guards
-  // itself so any unvalidated caller fails with a 400 AppError instead.
+  // malformed cursors before they get this far, but keysetCursorPredicate also
+  // guards, so any unvalidated caller fails with a 400 AppError instead.
   it("listForUser rejects an unparseable cursor", () => {
     const db = createMockDb([]);
     const repo = collectionEventsRepo(db);

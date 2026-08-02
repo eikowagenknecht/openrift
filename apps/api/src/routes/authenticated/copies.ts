@@ -8,7 +8,8 @@ import { implement } from "@orpc/server";
 
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
-import { buildCopiesCursor, clampCopiesLimit } from "../../repositories/copies.js";
+import { clampCopiesLimit } from "../../repositories/copies.js";
+import { buildKeysetCursor } from "../../repositories/query-helpers.js";
 import { toCopy } from "../../utils/mappers.js";
 
 const os = implement(copiesContract).$context<ApiContext>().use(requireAuthedUser);
@@ -35,7 +36,7 @@ export const copiesRouter = {
     const lastItem = items.at(-1);
     return {
       items: items.map((row) => toCopy(row)),
-      nextCursor: hasMore && lastItem ? buildCopiesCursor(lastItem.createdAt, lastItem.id) : null,
+      nextCursor: hasMore && lastItem ? buildKeysetCursor(lastItem.createdAt, lastItem.id) : null,
     };
   }),
 

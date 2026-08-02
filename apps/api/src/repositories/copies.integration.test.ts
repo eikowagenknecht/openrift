@@ -10,7 +10,8 @@ import {
 import { createDbContext, seedTestUser } from "../test/integration-context.js";
 import { collectionDeckbuildingPrefsRepo } from "./collection-deckbuilding-prefs.js";
 import { collectionsRepo } from "./collections.js";
-import { buildCopiesCursor, copiesRepo } from "./copies.js";
+import { copiesRepo } from "./copies.js";
+import { buildKeysetCursor } from "./query-helpers.js";
 
 const ctx = createDbContext("a0000000-0027-4000-a000-000000000001");
 
@@ -253,7 +254,7 @@ async function paginateAll(
 
     if (hasMore) {
       const lastItem = items.at(-1)!;
-      cursor = buildCopiesCursor(lastItem.createdAt, lastItem.id);
+      cursor = buildKeysetCursor(lastItem.createdAt, lastItem.id);
     } else {
       cursor = undefined;
     }

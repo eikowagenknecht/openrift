@@ -31,7 +31,7 @@ const auditActorSchema = z.object({
 });
 
 export const adminAuditEventsQuerySchema = z.object({
-  // Same keyset shape produced by admin-events.ts's buildEventsCursor
+  // Same keyset shape produced by query-helpers.ts's buildKeysetCursor
   // (re-exported from collection-events.ts): an ISO 8601 timestamp,
   // optionally suffixed with "_<id>". Rejecting malformed cursors here
   // means a garbage `cursor` fails with a 400 instead of reaching the

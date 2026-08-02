@@ -4,7 +4,7 @@ import { collectionEventsQuerySchema } from "./collection-events.js";
 
 // Mirrors the copiesQuerySchema cursor regression tests in schemas.test.ts:
 // a syntactically invalid cursor used to pass this schema (bare non-empty
-// string), reach collection-events.ts's parseCursor, and produce an Invalid
+// string), reach the repo's cursor parser, and produce an Invalid
 // Date that propagated into the Kysely query as a 500 instead of a 400.
 describe("collectionEventsQuerySchema", () => {
   it("rejects a garbage cursor", () => {
@@ -29,7 +29,7 @@ describe("collectionEventsQuerySchema", () => {
     ).toBe(true);
   });
 
-  it("accepts a composite timestamp_id cursor, the shape buildEventsCursor produces", () => {
+  it("accepts a composite timestamp_id cursor, the shape buildKeysetCursor produces", () => {
     expect(
       collectionEventsQuerySchema.safeParse({ cursor: "2025-01-01T00:00:00.000Z_ce-123" }).success,
     ).toBe(true);

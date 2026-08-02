@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { buildEventsCursor } from "../../repositories/admin-events.js";
+import { buildKeysetCursor } from "../../repositories/query-helpers.js";
 import { registerRouterForTest } from "../../test/mount-router.js";
 import type { Variables } from "../../types.js";
 import { adminAuditEventsRouter } from "./audit-events";
@@ -74,7 +74,7 @@ describe("GET /audit-events", () => {
 
   it("passes filters, limit, and cursor through to the repo", async () => {
     mockRepo.list.mockResolvedValue([]);
-    const cursor = buildEventsCursor(
+    const cursor = buildKeysetCursor(
       new Date("2026-07-08T09:00:00.000Z"),
       "00000000-0000-7000-a000-000000000009",
     );
@@ -105,7 +105,7 @@ describe("GET /audit-events", () => {
     const json = await res.json();
 
     expect(json.items).toHaveLength(2);
-    expect(json.nextCursor).toBe(buildEventsCursor(t2, "00000000-0000-7000-a000-000000000002"));
+    expect(json.nextCursor).toBe(buildKeysetCursor(t2, "00000000-0000-7000-a000-000000000002"));
   });
 });
 

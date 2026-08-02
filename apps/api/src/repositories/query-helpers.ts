@@ -1,7 +1,9 @@
-import type { Kysely, RawBuilder } from "kysely";
+import { ERROR_CODES } from "@openrift/shared";
+import type { Expression, Kysely, RawBuilder, SqlBool } from "kysely";
 import { sql } from "kysely";
 
 import type { Database } from "../db/index.js";
+import { AppError } from "../errors.js";
 
 /**
  * Resolve card_id dynamically: direct card name match → alias match → candidate printing match.
@@ -41,6 +43,72 @@ export function imageUrlWithOriginal(alias: string): RawBuilder<string | null> {
   return sql<
     string | null
   >`COALESCE(${sql.ref(`${alias}.rehostedUrl`)}, ${sql.ref(`${alias}.originalUrl`)})`;
+}
+
+const CURSOR_SEPARATOR = "_";
+
+/**
+ * Builds an opaque keyset cursor from a timestamp and id. The matching reader
+ * is {@link keysetCursorPredicate}; `keysetCursorSchema` in `@openrift/shared`
+ * validates the same grammar at the contract boundary.
+ * @returns A cursor string encoding both values.
+ */
+export function buildKeysetCursor(createdAt: Date, id: string): string {
+  return `${createdAt.toISOString()}${CURSOR_SEPARATOR}${id}`;
+}
+
+/**
+ * Splits a cursor into its timestamp and id parts.
+ * @returns The decoded timestamp, and the id (null for a legacy cursor).
+ */
+function parseKeysetCursor(cursor: string): { time: Date; id: string | null } {
+  const separatorIndex = cursor.indexOf(CURSOR_SEPARATOR);
+  // Legacy timestamp-only cursor (backward compat during deploys) has no
+  // separator; either way, the part before it (or the whole string) must be
+  // a parseable timestamp.
+  const rawTime = separatorIndex === -1 ? cursor : cursor.slice(0, separatorIndex);
+  const time = new Date(rawTime);
+  if (Number.isNaN(time.getTime())) {
+    // The query schemas (keysetCursorSchema) already reject syntactically
+    // invalid cursors before this runs; this is a defensive backstop against
+    // any other caller passing an unvalidated cursor straight through.
+    throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Invalid cursor");
+  }
+  return {
+    time,
+    id: separatorIndex === -1 ? null : cursor.slice(separatorIndex + 1),
+  };
+}
+
+/**
+ * WHERE predicate that resumes a keyset-paginated list after `cursor`. The
+ * caller's ORDER BY must be `<timeColumn> desc, <idColumn> <idDirection>` —
+ * the tie-break comparator follows `idDirection`, so the two orderings in use
+ * (events page id-descending, copies id-ascending) stay explicit rather than
+ * drifting apart.
+ *
+ * The timestamp is compared through `date_trunc('milliseconds', ...)`: the
+ * column keeps µs precision that a JS `Date` cannot carry, so an untruncated
+ * equality would silently skip the rows sharing the cursor's second.
+ *
+ * @param cursor — a cursor produced by {@link buildKeysetCursor}
+ * @param options — the ordered columns and the id tie-break direction
+ * @returns A SQL predicate for `query.where(...)`.
+ * @throws {AppError} 400 when the cursor's timestamp part is unparseable.
+ */
+export function keysetCursorPredicate(
+  cursor: string,
+  options: { timeColumn: string; idColumn: string; idDirection: "asc" | "desc" },
+): Expression<SqlBool> {
+  const { time, id } = parseKeysetCursor(cursor);
+  const truncatedTime = sql<Date>`date_trunc('milliseconds', ${sql.ref(options.timeColumn)})`;
+  if (id === null) {
+    return sql<SqlBool>`${truncatedTime} < ${time}`;
+  }
+  const idRef = sql.ref(options.idColumn);
+  const tieBreak =
+    options.idDirection === "asc" ? sql<SqlBool>`${idRef} > ${id}` : sql<SqlBool>`${idRef} < ${id}`;
+  return sql<SqlBool>`(${truncatedTime} < ${time} or (${truncatedTime} = ${time} and ${tieBreak}))`;
 }
 
 /**

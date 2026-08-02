@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { AppError } from "../errors.js";
 import { createMockDb } from "../test/mock-db.js";
-import { buildCopiesCursor, copiesRepo } from "./copies.js";
+import { copiesRepo } from "./copies.js";
 
 const COPY_ROW = {
   id: "cp-1",
@@ -11,13 +11,6 @@ const COPY_ROW = {
   groupId: null,
   createdAt: new Date(),
 };
-
-describe("buildCopiesCursor", () => {
-  it("encodes createdAt and id into a single string", () => {
-    const cursor = buildCopiesCursor(new Date("2026-01-15T12:30:00.000Z"), "abc-123");
-    expect(cursor).toBe("2026-01-15T12:30:00.000Z_abc-123");
-  });
-});
 
 describe("copiesRepo", () => {
   it("listForAccessibleCollections returns copies without cursor", async () => {
@@ -34,11 +27,11 @@ describe("copiesRepo", () => {
     ).toEqual([]);
   });
 
-  // Regression: parseCursor used to pass an unparseable cursor straight into
-  // `new Date(...)` and let the resulting Invalid Date reach the Kysely
+  // Regression: the cursor parser used to pass an unparseable cursor straight
+  // into `new Date(...)` and let the resulting Invalid Date reach the Kysely
   // query, producing an INTERNAL_ERROR 500. The query schema now rejects
-  // malformed cursors before they get this far, but the repo also guards
-  // itself so any unvalidated caller fails with a 400 AppError instead.
+  // malformed cursors before they get this far, but keysetCursorPredicate also
+  // guards, so any unvalidated caller fails with a 400 AppError instead.
   it("listForAccessibleCollections rejects an unparseable cursor", () => {
     const db = createMockDb([]);
     const repo = copiesRepo(db);

@@ -5,7 +5,8 @@ import { implement } from "@orpc/server";
 import { gravatarHashForEmail } from "../../lib/gravatar.js";
 import { requireUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
-import { buildCopiesCursor, clampCopiesLimit } from "../../repositories/copies.js";
+import { clampCopiesLimit } from "../../repositories/copies.js";
+import { buildKeysetCursor } from "../../repositories/query-helpers.js";
 import { toPublicCollection, toPublicCopy } from "../../utils/mappers.js";
 import { getFavoriteMarketplace } from "../../utils/preferences.js";
 
@@ -42,7 +43,7 @@ export const publicCollectionsRouter = {
       return {
         collection: toPublicCollection(found.collection, value),
         items: items.map((row) => toPublicCopy(row)),
-        nextCursor: hasMore && lastItem ? buildCopiesCursor(lastItem.createdAt, lastItem.id) : null,
+        nextCursor: hasMore && lastItem ? buildKeysetCursor(lastItem.createdAt, lastItem.id) : null,
         owner: {
           displayName: found.ownerName ?? "Anonymous",
           // null for group-owned collections (a group has no email/gravatar).

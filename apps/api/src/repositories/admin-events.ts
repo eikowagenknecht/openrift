@@ -1,34 +1,8 @@
-import { ERROR_CODES } from "@openrift/shared";
 import type { Kysely } from "kysely";
-import { sql } from "kysely";
 
 import { parseJsonb } from "../db/helpers.js";
 import type { AdminEventAction, AdminEventEntityType, Database } from "../db/index.js";
-import { AppError } from "../errors.js";
-
-export { buildEventsCursor } from "./collection-events.js";
-
-const CURSOR_SEPARATOR = "_";
-
-function parseCursor(cursor: string): { time: Date; id: string | null } {
-  const separatorIndex = cursor.indexOf(CURSOR_SEPARATOR);
-  // Legacy timestamp-only cursor (backward compat during deploys) has no
-  // separator; either way, the part before it (or the whole string) must be
-  // a parseable timestamp.
-  const rawTime = separatorIndex === -1 ? cursor : cursor.slice(0, separatorIndex);
-  const time = new Date(rawTime);
-  if (Number.isNaN(time.getTime())) {
-    // The query schema (adminAuditEventsContract's list input) already rejects
-    // syntactically invalid cursors before this runs; this is a defensive
-    // backstop against any other caller passing an unvalidated cursor straight
-    // through.
-    throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Invalid cursor");
-  }
-  return {
-    time,
-    id: separatorIndex === -1 ? null : cursor.slice(separatorIndex + 1),
-  };
-}
+import { keysetCursorPredicate } from "./query-helpers.js";
 
 /** Input for one audit event write. */
 export interface AdminEventInsert {
@@ -146,15 +120,13 @@ export function adminEventsRepo(db: Kysely<Database>) {
         );
       }
       if (cursor) {
-        const { time, id } = parseCursor(cursor);
-        // date_trunc to milliseconds: JS Dates lose the µs the column stores,
-        // so an untruncated equality/comparison would silently skip rows.
-        const tsMs = sql<Date>`date_trunc('milliseconds', ${sql.ref("ae.createdAt")})`;
-        query = id
-          ? query.where((eb) =>
-              eb.or([eb(tsMs, "<", time), eb.and([eb(tsMs, "=", time), eb("ae.id", "<", id)])]),
-            )
-          : query.where(tsMs, "<", time);
+        query = query.where(
+          keysetCursorPredicate(cursor, {
+            timeColumn: "ae.createdAt",
+            idColumn: "ae.id",
+            idDirection: "desc",
+          }),
+        );
       }
 
       const rows = await query.execute();

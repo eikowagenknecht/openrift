@@ -1,10 +1,9 @@
 import type { CopyLink, OwnedCopyRow } from "@openrift/shared";
-import { ERROR_CODES } from "@openrift/shared";
 import type { Insertable, Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
 import type { CopiesTable, Database } from "../db/index.js";
-import { AppError } from "../errors.js";
+import { keysetCursorPredicate } from "./query-helpers.js";
 
 /**
  * Slim copy row — printing details are resolved client-side from the catalog.
@@ -57,16 +56,6 @@ function withParsedLinks<T extends { links: CopyLink[] | string }>(row: T): T {
   return { ...row, links: parseLinks(row.links) };
 }
 
-const CURSOR_SEPARATOR = "_";
-
-/**
- * Builds an opaque keyset cursor from a timestamp and id.
- * @returns A cursor string encoding both values.
- */
-export function buildCopiesCursor(createdAt: Date, id: string): string {
-  return `${createdAt.toISOString()}${CURSOR_SEPARATOR}${id}`;
-}
-
 /** Default page size, and hard maximum, for cursor-paginated copy listings. */
 const COPIES_PAGE_DEFAULT = 5000;
 const COPIES_PAGE_MAX = 5000;
@@ -80,25 +69,6 @@ const COPIES_PAGE_MAX = 5000;
  */
 export function clampCopiesLimit(limit?: number): number {
   return Math.min(limit ?? COPIES_PAGE_DEFAULT, COPIES_PAGE_MAX);
-}
-
-function parseCursor(cursor: string): { time: Date; id: string | null } {
-  const separatorIndex = cursor.indexOf(CURSOR_SEPARATOR);
-  // Legacy timestamp-only cursor (backward compat during deploys) has no
-  // separator; either way, the part before it (or the whole string) must be
-  // a parseable timestamp.
-  const rawTime = separatorIndex === -1 ? cursor : cursor.slice(0, separatorIndex);
-  const time = new Date(rawTime);
-  if (Number.isNaN(time.getTime())) {
-    // The query schema (copiesQuerySchema) already rejects syntactically
-    // invalid cursors before this runs; this is a defensive backstop against
-    // any other caller passing an unvalidated cursor straight through.
-    throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Invalid cursor");
-  }
-  return {
-    time,
-    id: separatorIndex === -1 ? null : cursor.slice(separatorIndex + 1),
-  };
 }
 
 /**
@@ -155,14 +125,13 @@ export function copiesRepo(db: Kysely<Database>) {
         query = query.limit(limit + 1);
       }
       if (cursor) {
-        const { time, id } = parseCursor(cursor);
-        // Truncate to milliseconds so PostgreSQL's µs precision matches JS Date's ms precision
-        const tsMs = sql<Date>`date_trunc('milliseconds', ${sql.ref("cp.createdAt")})`;
-        query = id
-          ? query.where((eb) =>
-              eb.or([eb(tsMs, "<", time), eb.and([eb(tsMs, "=", time), eb("cp.id", ">", id)])]),
-            )
-          : query.where(tsMs, "<", time);
+        query = query.where(
+          keysetCursorPredicate(cursor, {
+            timeColumn: "cp.createdAt",
+            idColumn: "cp.id",
+            idDirection: "asc",
+          }),
+        );
       }
       return query.execute().then((rows) => rows.map((row) => withParsedLinks(row)));
     },
@@ -252,13 +221,13 @@ export function copiesRepo(db: Kysely<Database>) {
         query = query.limit(limit + 1);
       }
       if (cursor) {
-        const { time, id } = parseCursor(cursor);
-        const tsMs = sql<Date>`date_trunc('milliseconds', ${sql.ref("cp.createdAt")})`;
-        query = id
-          ? query.where((eb) =>
-              eb.or([eb(tsMs, "<", time), eb.and([eb(tsMs, "=", time), eb("cp.id", ">", id)])]),
-            )
-          : query.where(tsMs, "<", time);
+        query = query.where(
+          keysetCursorPredicate(cursor, {
+            timeColumn: "cp.createdAt",
+            idColumn: "cp.id",
+            idDirection: "asc",
+          }),
+        );
       }
       return query.execute().then((rows) => rows.map((row) => withParsedLinks(row)));
     },

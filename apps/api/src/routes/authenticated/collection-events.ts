@@ -4,7 +4,7 @@ import { implement } from "@orpc/server";
 
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
-import { buildEventsCursor } from "../../repositories/collection-events.js";
+import { buildKeysetCursor } from "../../repositories/query-helpers.js";
 import { toCollectionEvent } from "../../utils/mappers.js";
 
 const os = implement(collectionEventsContract).$context<ApiContext>().use(requireAuthedUser);
@@ -22,7 +22,7 @@ export const collectionEventsRouter = {
     const lastItem = items.at(-1);
     return {
       items: items.map((r) => toCollectionEvent(r)),
-      nextCursor: hasMore && lastItem ? buildEventsCursor(lastItem.createdAt, lastItem.id) : null,
+      nextCursor: hasMore && lastItem ? buildKeysetCursor(lastItem.createdAt, lastItem.id) : null,
     };
   }),
 };

@@ -101,12 +101,12 @@ export const marketplaceGroupParamSchema = z.object({
 });
 
 /**
- * A keyset pagination cursor as produced by `buildCopiesCursor` (and the
- * matching helpers in `collection-events.ts` / `admin-events.ts`): either a
+ * A keyset pagination cursor as produced by `buildKeysetCursor`
+ * in `apps/api/src/repositories/query-helpers.ts`: either a
  * bare ISO 8601 timestamp (legacy form) or `"<ISO timestamp>_<id>"`. Rejecting
  * syntactically invalid cursors here means a garbage `cursor` query param
  * fails validation with the normal 400 response instead of reaching
- * `parseCursor`'s `new Date(...)` and producing an Invalid Date that
+ * `keysetCursorPredicate`'s `new Date(...)` and producing an Invalid Date that
  * propagates into the query.
  */
 export const keysetCursorSchema = z

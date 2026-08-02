@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { createDbContext, seedTestUser } from "../test/integration-context.js";
-import { adminEventsRepo, buildEventsCursor } from "./admin-events.js";
+import { adminEventsRepo } from "./admin-events.js";
+import { buildKeysetCursor } from "./query-helpers.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: admin_events repository (migration 201)
@@ -118,7 +119,7 @@ describe.skipIf(!ctx)("adminEventsRepo (integration)", () => {
     const pageRows = firstPage.slice(0, 2);
     const last = pageRows.at(-1);
     // oxlint-disable-next-line typescript/no-non-null-assertion -- length asserted above
-    const cursor = buildEventsCursor(last!.createdAt, last!.id);
+    const cursor = buildKeysetCursor(last!.createdAt, last!.id);
 
     const secondPage = await repo.list({ search: "AEV" }, 2, cursor);
     expect(secondPage).toHaveLength(1);

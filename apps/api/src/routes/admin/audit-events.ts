@@ -3,7 +3,7 @@ import { implement } from "@orpc/server";
 
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
-import { buildEventsCursor } from "../../repositories/admin-events.js";
+import { buildKeysetCursor } from "../../repositories/query-helpers.js";
 
 const os = implement(adminAuditEventsContract).$context<ApiContext>().use(requireAuthedUser);
 
@@ -34,7 +34,7 @@ export const adminAuditEventsRouter = {
         ...row,
         createdAt: row.createdAt.toISOString(),
       })),
-      nextCursor: hasMore && last ? buildEventsCursor(last.createdAt, last.id) : null,
+      nextCursor: hasMore && last ? buildKeysetCursor(last.createdAt, last.id) : null,
     };
   }),
 

@@ -8,7 +8,7 @@ import { authedRoute } from "./_base.js";
 extendZodWithOpenApi(z);
 
 export const collectionEventsQuerySchema = z.object({
-  // Same keyset shape produced by collection-events.ts's buildEventsCursor:
+  // Same keyset shape produced by query-helpers.ts's buildKeysetCursor:
   // an ISO 8601 timestamp, optionally suffixed with "_<id>". Rejecting
   // malformed cursors here means a garbage `cursor` fails with a 400 instead
   // of reaching the repo's `new Date(...)` and producing a 500.

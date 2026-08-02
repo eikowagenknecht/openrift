@@ -4,7 +4,7 @@ import { adminAuditEventsQuerySchema } from "./audit-events.js";
 
 // Mirrors the copiesQuerySchema cursor regression tests in schemas.test.ts:
 // a syntactically invalid cursor used to pass this schema (bare non-empty
-// string), reach admin-events.ts's parseCursor, and produce an Invalid Date
+// string), reach the repo's cursor parser, and produce an Invalid Date
 // that propagated into the Kysely query as a 500 instead of a 400.
 describe("adminAuditEventsQuerySchema", () => {
   it("rejects a garbage cursor", () => {
@@ -29,7 +29,7 @@ describe("adminAuditEventsQuerySchema", () => {
     ).toBe(true);
   });
 
-  it("accepts a composite timestamp_id cursor, the shape buildEventsCursor produces", () => {
+  it("accepts a composite timestamp_id cursor, the shape buildKeysetCursor produces", () => {
     expect(
       adminAuditEventsQuerySchema.safeParse({ cursor: "2025-01-01T00:00:00.000Z_ae-123" }).success,
     ).toBe(true);
