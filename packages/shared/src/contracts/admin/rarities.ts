@@ -2,6 +2,7 @@ import { withParams } from "@openrift/shared/schemas";
 import { z } from "zod";
 
 import { authedRoute } from "../_base.js";
+import { slugRegex } from "./shared.js";
 
 const TAG = "Admin - Rarities";
 
@@ -44,7 +45,7 @@ export const adminRaritiesContract = {
     .errors({ CONFLICT: { message: "Rarity already exists" } })
     .input(
       z.object({
-        slug: z.string().min(1),
+        slug: z.string().min(1).regex(slugRegex, "Slug must be kebab-case"),
         label: z.string().min(1),
         color: hexColorSchema.optional(),
       }),

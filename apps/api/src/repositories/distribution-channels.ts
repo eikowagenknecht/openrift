@@ -1,7 +1,7 @@
 import type { Kysely } from "kysely";
-import { sql } from "kysely";
 
 import type { Database } from "../db/index.js";
+import { reorderBySortOrder } from "./sort-order.js";
 
 type DistributionChannelKind = "event" | "product";
 
@@ -82,17 +82,13 @@ export function distributionChannelsRepo(db: Kysely<Database>) {
         .executeTakeFirstOrThrow();
     },
 
-    async reorder(ids: string[]): Promise<void> {
-      if (ids.length === 0) {
-        return;
-      }
-      const values = sql.join(ids.map((id, i) => sql`(${id}::uuid, ${i}::int)`));
-      await sql`
-        update distribution_channels
-        set sort_order = d.new_order
-        from (values ${values}) as d(id, new_order)
-        where distribution_channels.id = d.id
-      `.execute(db);
+    reorder(ids: readonly string[]): Promise<void> {
+      return reorderBySortOrder(db, {
+        table: "distributionChannels",
+        keyColumn: "id",
+        keys: ids,
+        keyType: "uuid",
+      });
     },
 
     update(

@@ -117,15 +117,14 @@ export function ColorPreviewCell<TRow extends { label: string; color: string | n
 
 interface SlugAddInputProps<TDraft extends { slug: string }> extends AdminDraftSlotProps<TDraft> {
   placeholder: string;
-  /** Slugs are kebab-case by default; pages that keep PascalCase slugs pass false. */
-  lowercase?: boolean;
   /** Tailwind width class for the input. */
   width?: string;
 }
 
 /**
  * Monospaced slug text input for the add row, and for edit on the pages that allow
- * renaming a slug.
+ * renaming a slug. Every taxonomy slug is kebab-case, so typing is lowercased as
+ * it goes in.
  *
  * @returns The slug input, or null while there is no active draft.
  */
@@ -133,7 +132,6 @@ export function SlugAddInput<TDraft extends { slug: string }>({
   draft,
   setDraft,
   placeholder,
-  lowercase = true,
   width = "w-40",
 }: SlugAddInputProps<TDraft>) {
   if (!draft || !setDraft) {
@@ -143,10 +141,7 @@ export function SlugAddInput<TDraft extends { slug: string }>({
     <Input
       value={draft.slug}
       onChange={(event) =>
-        setDraft((prev) => ({
-          ...prev,
-          slug: lowercase ? event.target.value.toLowerCase() : event.target.value,
-        }))
+        setDraft((prev) => ({ ...prev, slug: event.target.value.toLowerCase() }))
       }
       placeholder={placeholder}
       className={cn("h-8 font-mono", width)}
@@ -278,29 +273,14 @@ export function CategorySelectOptions({ items }: { items: { value: string; label
 }
 
 /**
- * Both fields are required on every admin CRUD page. Split out of
- * {@link validateSlugAndLabel} for the pages whose slugs are deliberately not
- * kebab-case (rarities and domains keep PascalCase slugs).
- *
- * @returns An error string to block save, or null when both fields are filled.
- */
-export function validateRequiredSlugAndLabel(slug: string, label: string): string | null {
-  if (!slug.trim() || !label.trim()) {
-    return "Slug and label are required";
-  }
-  return null;
-}
-
-/**
  * Shared "required slug + label, slug must be kebab-case" validation used by
  * every admin CRUD page's add/edit draft.
  *
  * @returns An error string to block save, or null when the draft is valid.
  */
 export function validateSlugAndLabel(slug: string, label: string, example: string): string | null {
-  const required = validateRequiredSlugAndLabel(slug, label);
-  if (required) {
-    return required;
+  if (!slug.trim() || !label.trim()) {
+    return "Slug and label are required";
   }
   if (!isValidSlug(slug.trim())) {
     return `Slug must be kebab-case (e.g. ${example})`;

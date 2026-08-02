@@ -1,7 +1,7 @@
 import type { Kysely } from "kysely";
-import { sql } from "kysely";
 
 import type { Database } from "../db/index.js";
+import { reorderBySortOrder } from "./sort-order.js";
 
 export function markersRepo(db: Kysely<Database>) {
   return {
@@ -50,17 +50,13 @@ export function markersRepo(db: Kysely<Database>) {
         .executeTakeFirstOrThrow();
     },
 
-    async reorder(ids: string[]): Promise<void> {
-      if (ids.length === 0) {
-        return;
-      }
-      const values = sql.join(ids.map((id, i) => sql`(${id}::uuid, ${i}::int)`));
-      await sql`
-        update markers
-        set sort_order = d.new_order
-        from (values ${values}) as d(id, new_order)
-        where markers.id = d.id
-      `.execute(db);
+    reorder(ids: readonly string[]): Promise<void> {
+      return reorderBySortOrder(db, {
+        table: "markers",
+        keyColumn: "id",
+        keys: ids,
+        keyType: "uuid",
+      });
     },
 
     update(

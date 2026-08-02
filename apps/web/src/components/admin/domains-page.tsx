@@ -8,7 +8,7 @@ import {
   SlugAddInput,
   SlugCell,
   validateHexColor,
-  validateRequiredSlugAndLabel,
+  validateSlugAndLabel,
   WellKnownCell,
 } from "@/components/admin/admin-crud-shared";
 import { AdminTable } from "@/components/admin/admin-table";
@@ -43,8 +43,7 @@ const columns: AdminColumnDef<DomainRow, DomainDraft>[] = [
     width: "w-40",
     sortValue: (domain) => domain.slug,
     cell: <SlugCell<DomainRow> />,
-    // Domain slugs are PascalCase (NewDomain), not kebab-case.
-    addCell: <SlugAddInput<DomainDraft> placeholder="NewDomain" lowercase={false} />,
+    addCell: <SlugAddInput<DomainDraft> placeholder="new-domain" />,
   },
   {
     header: "Label",
@@ -110,7 +109,7 @@ export function DomainsPage() {
             color: draft.color.trim() || null,
           }),
         validate: (draft) =>
-          validateRequiredSlugAndLabel(draft.slug, draft.label) ??
+          validateSlugAndLabel(draft.slug, draft.label, "new-domain") ??
           validateHexColor(draft.color, "#CB212D"),
         label: "Add Domain",
       }}

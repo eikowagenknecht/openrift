@@ -2,6 +2,7 @@ import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
 import type { Database, SetsTable } from "../db/index.js";
+import { reorderBySortOrder } from "./sort-order.js";
 
 /**
  * Queries for game sets (the `sets` table).
@@ -161,18 +162,17 @@ export function setsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Reorders sets by slug list. Each slug gets sortOrder = index + 1. */
-    async reorder(ids: string[]): Promise<void> {
-      if (ids.length === 0) {
-        return;
-      }
-      const values = sql.join(ids.map((id, i) => sql`(${id}::uuid, ${i + 1}::int)`));
-      await sql`
-        update sets
-        set sort_order = d.new_order
-        from (values ${values}) as d(id, new_order)
-        where sets.id = d.id
-      `.execute(db);
+    /**
+     * Reorders sets by id list, each set taking its 0-based position as sortOrder.
+     * @returns void once the reorder has been applied.
+     */
+    reorder(ids: readonly string[]): Promise<void> {
+      return reorderBySortOrder(db, {
+        table: "sets",
+        keyColumn: "id",
+        keys: ids,
+        keyType: "uuid",
+      });
     },
 
     /**

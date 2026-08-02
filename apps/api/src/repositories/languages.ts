@@ -1,7 +1,7 @@
 import type { Kysely } from "kysely";
-import { sql } from "kysely";
 
 import type { Database } from "../db/index.js";
+import { reorderBySortOrder } from "./sort-order.js";
 
 export function languagesRepo(db: Kysely<Database>) {
   return {
@@ -50,17 +50,8 @@ export function languagesRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    async reorder(codes: string[]): Promise<void> {
-      if (codes.length === 0) {
-        return;
-      }
-      const values = sql.join(codes.map((code, i) => sql`(${code}::text, ${i + 1}::int)`));
-      await sql`
-        update languages
-        set sort_order = d.new_order
-        from (values ${values}) as d(code, new_order)
-        where languages.code = d.code
-      `.execute(db);
+    reorder(codes: readonly string[]): Promise<void> {
+      return reorderBySortOrder(db, { table: "languages", keyColumn: "code", keys: codes });
     },
   };
 }

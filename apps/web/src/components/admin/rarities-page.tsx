@@ -8,7 +8,7 @@ import {
   SlugAddInput,
   SlugCell,
   validateHexColor,
-  validateRequiredSlugAndLabel,
+  validateSlugAndLabel,
   WellKnownCell,
 } from "@/components/admin/admin-crud-shared";
 import { AdminTable } from "@/components/admin/admin-table";
@@ -43,8 +43,7 @@ const columns: AdminColumnDef<RarityRow, RarityDraft>[] = [
     width: "w-40",
     sortValue: (rarity) => rarity.slug,
     cell: <SlugCell<RarityRow> />,
-    // Rarity slugs are PascalCase (NewRarity), not kebab-case.
-    addCell: <SlugAddInput<RarityDraft> placeholder="NewRarity" lowercase={false} />,
+    addCell: <SlugAddInput<RarityDraft> placeholder="new-rarity" />,
   },
   {
     header: "Label",
@@ -110,7 +109,7 @@ export function RaritiesPage() {
             color: draft.color.trim() || null,
           }),
         validate: (draft) =>
-          validateRequiredSlugAndLabel(draft.slug, draft.label) ??
+          validateSlugAndLabel(draft.slug, draft.label, "new-rarity") ??
           validateHexColor(draft.color, "#E052B1"),
         label: "Add Rarity",
       }}
