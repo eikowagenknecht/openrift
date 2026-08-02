@@ -4,7 +4,10 @@ import type {
   OrganizationResponse,
   OrganizationRole,
 } from "@openrift/shared";
-import { adminOrganizationsContract, organizationsContract } from "@openrift/shared/contracts";
+import {
+  adminOrganizationsContract,
+  organizationsContract,
+} from "@openrift/shared/contracts/organizations";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

@@ -1,5 +1,5 @@
-import { cardSubmissionsContract } from "@openrift/shared/contracts";
-import type { CardSubmissionInput } from "@openrift/shared/contracts";
+import { cardSubmissionsContract } from "@openrift/shared/contracts/card-submissions";
+import type { CardSubmissionInput } from "@openrift/shared/contracts/card-submissions";
 import { useMutation } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

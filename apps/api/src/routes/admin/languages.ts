@@ -1,6 +1,6 @@
 import { ERROR_CODES } from "@openrift/shared";
 import type { LanguageResponse } from "@openrift/shared";
-import { adminLanguagesContract } from "@openrift/shared/contracts";
+import { adminLanguagesContract } from "@openrift/shared/contracts/admin/languages";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";

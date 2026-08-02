@@ -1,4 +1,4 @@
-import { adminUnifiedMappingsContract } from "@openrift/shared/contracts";
+import { adminUnifiedMappingsContract } from "@openrift/shared/contracts/admin/unified-mappings";
 import { implement } from "@orpc/server";
 
 import { requireAuthedUser } from "../../orpc/base.js";

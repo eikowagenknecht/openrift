@@ -6,7 +6,7 @@ import type {
   DeckCheckSubmissionResultResponse,
   PlayerDeckCheckEntryDetailResponse,
 } from "@openrift/shared";
-import { deckCheckPlayerContract } from "@openrift/shared/contracts";
+import { deckCheckPlayerContract } from "@openrift/shared/contracts/deck-check-player";
 import { implement } from "@orpc/server";
 
 import type { Repos } from "../../deps.js";

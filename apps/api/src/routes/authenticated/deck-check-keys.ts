@@ -7,7 +7,7 @@ import type {
   DeckCheckKeyResponse,
   DeckCheckKeysResponse,
 } from "@openrift/shared";
-import { deckCheckKeysContract } from "@openrift/shared/contracts";
+import { deckCheckKeysContract } from "@openrift/shared/contracts/deck-check-keys";
 import { implement } from "@orpc/server";
 
 import type { Repos } from "../../deps.js";

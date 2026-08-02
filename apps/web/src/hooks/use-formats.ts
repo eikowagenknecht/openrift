@@ -1,4 +1,4 @@
-import { adminFormatsContract } from "@openrift/shared/contracts";
+import { adminFormatsContract } from "@openrift/shared/contracts/admin/formats";
 import { useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

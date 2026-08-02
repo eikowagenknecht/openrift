@@ -1,5 +1,5 @@
 import type { CustomTag, DistributionChannel, InitResponse, KeywordEntry } from "@openrift/shared";
-import { initContract } from "@openrift/shared/contracts";
+import { initContract } from "@openrift/shared/contracts/init";
 import { implement } from "@orpc/server";
 
 import { requireUser } from "../../orpc/base.js";

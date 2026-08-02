@@ -1,7 +1,7 @@
 // Feature flags fetched via server function — resolved server-side during SSR
 // to avoid proxy hops and ensure data is embedded in the initial HTML.
 
-import { featureFlagsContract } from "@openrift/shared/contracts";
+import { featureFlagsContract } from "@openrift/shared/contracts/feature-flags";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

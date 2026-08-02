@@ -1,4 +1,4 @@
-import { adminAuditEventsContract } from "@openrift/shared/contracts";
+import { adminAuditEventsContract } from "@openrift/shared/contracts/admin/audit-events";
 import { implement } from "@orpc/server";
 
 import { requireAuthedUser } from "../../orpc/base.js";

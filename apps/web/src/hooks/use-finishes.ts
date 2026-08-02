@@ -1,5 +1,5 @@
-import type { AdminFinishesResponse } from "@openrift/shared/contracts";
-import { adminFinishesContract } from "@openrift/shared/contracts";
+import type { AdminFinishesResponse } from "@openrift/shared/contracts/admin/finishes";
+import { adminFinishesContract } from "@openrift/shared/contracts/admin/finishes";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

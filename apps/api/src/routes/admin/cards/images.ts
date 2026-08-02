@@ -2,7 +2,7 @@
 import { join } from "node:path";
 
 import { ERROR_CODES } from "@openrift/shared";
-import { adminCardImagesContract } from "@openrift/shared/contracts";
+import { adminCardImagesContract } from "@openrift/shared/contracts/admin/card-images";
 import { implement } from "@orpc/server";
 import { v7 as uuidv7 } from "uuid";
 

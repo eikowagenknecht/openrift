@@ -1,8 +1,8 @@
 import type {
   AdminFeatureFlagOverridesResponse,
   AdminFeatureFlagsResponse,
-} from "@openrift/shared/contracts";
-import { adminFeatureFlagsContract } from "@openrift/shared/contracts";
+} from "@openrift/shared/contracts/admin/feature-flags";
+import { adminFeatureFlagsContract } from "@openrift/shared/contracts/admin/feature-flags";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

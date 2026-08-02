@@ -1,5 +1,5 @@
-import type { AdminCardTypesResponse } from "@openrift/shared/contracts";
-import { adminCardTypesContract } from "@openrift/shared/contracts";
+import type { AdminCardTypesResponse } from "@openrift/shared/contracts/admin/card-types";
+import { adminCardTypesContract } from "@openrift/shared/contracts/admin/card-types";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

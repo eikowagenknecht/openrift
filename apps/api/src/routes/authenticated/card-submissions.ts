@@ -1,5 +1,5 @@
 import { ERROR_CODES } from "@openrift/shared";
-import { cardSubmissionsContract } from "@openrift/shared/contracts";
+import { cardSubmissionsContract } from "@openrift/shared/contracts/card-submissions";
 import { implement } from "@orpc/server";
 import type { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";

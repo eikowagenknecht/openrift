@@ -7,7 +7,7 @@ import type {
   RuleVersionResponse,
   RuleVersionsListResponse,
 } from "@openrift/shared";
-import { rulesContract } from "@openrift/shared/contracts";
+import { rulesContract } from "@openrift/shared/contracts/rules";
 import { implement } from "@orpc/server";
 
 import { requireUser } from "../../orpc/base.js";

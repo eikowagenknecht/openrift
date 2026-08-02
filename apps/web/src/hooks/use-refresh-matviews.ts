@@ -1,4 +1,4 @@
-import { adminOperationsContract } from "@openrift/shared/contracts";
+import { adminOperationsContract } from "@openrift/shared/contracts/admin/operations";
 import { useMutation } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

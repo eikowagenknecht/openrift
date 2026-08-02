@@ -1,5 +1,5 @@
 import type { DeckCheckEntryDetailResponse, DeckCheckEventDetailResponse } from "@openrift/shared";
-import { tournamentDeckCheckContract } from "@openrift/shared/contracts";
+import { tournamentDeckCheckContract } from "@openrift/shared/contracts/tournament-deck-check";
 import { isDefinedError, safe } from "@orpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";

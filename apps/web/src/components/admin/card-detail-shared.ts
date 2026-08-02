@@ -6,7 +6,7 @@ import type {
   ProviderSettingResponse,
 } from "@openrift/shared";
 import { appendSetTotal, fixTypography } from "@openrift/shared";
-import { cardFieldsSchema } from "@openrift/shared/contracts";
+import { cardFieldsSchema } from "@openrift/shared/contracts/admin/card-mutations";
 
 import type { FieldDef, PrintingGroup } from "@/components/admin/candidate-spreadsheet";
 import {

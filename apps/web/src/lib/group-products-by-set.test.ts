@@ -1,4 +1,4 @@
-import type { ProductSet, ProductSummary } from "@openrift/shared/contracts";
+import type { ProductSet, ProductSummary } from "@openrift/shared/contracts/products";
 import { describe, expect, it } from "vitest";
 
 import { groupProductsBySet } from "./group-products-by-set";

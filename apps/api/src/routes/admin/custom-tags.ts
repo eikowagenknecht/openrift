@@ -6,7 +6,7 @@ import type {
   CustomTagCategoryResponse,
   CustomTagResponse,
 } from "@openrift/shared";
-import { adminCustomTagsContract } from "@openrift/shared/contracts";
+import { adminCustomTagsContract } from "@openrift/shared/contracts/admin/custom-tags";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";

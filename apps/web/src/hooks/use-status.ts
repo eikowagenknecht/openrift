@@ -1,5 +1,5 @@
-import type { AdminStatusResponse } from "@openrift/shared/contracts";
-import { adminStatusContract } from "@openrift/shared/contracts";
+import type { AdminStatusResponse } from "@openrift/shared/contracts/admin/status";
+import { adminStatusContract } from "@openrift/shared/contracts/admin/status";
 import { queryOptions, useMutation, useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

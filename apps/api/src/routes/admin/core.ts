@@ -1,4 +1,4 @@
-import { adminCoreContract } from "@openrift/shared/contracts";
+import { adminCoreContract } from "@openrift/shared/contracts/admin/core";
 import { implement } from "@orpc/server";
 
 import { cronJobs } from "../../cron-jobs.js";

@@ -8,7 +8,7 @@ import type {
   CopyListResponse,
   ResetCollectionsResponse,
 } from "@openrift/shared";
-import { collectionsContract } from "@openrift/shared/contracts";
+import { collectionsContract } from "@openrift/shared/contracts/collections";
 import { implement } from "@orpc/server";
 import type { Updateable } from "kysely";
 

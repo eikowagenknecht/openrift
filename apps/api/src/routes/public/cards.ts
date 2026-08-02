@@ -3,7 +3,7 @@ import type {
   CatalogCardResponse,
   CatalogPrintingResponse,
 } from "@openrift/shared";
-import { cardsContract } from "@openrift/shared/contracts";
+import { cardsContract } from "@openrift/shared/contracts/cards";
 import { implement } from "@orpc/server";
 
 import { loadMarkerAndChannelMaps, resolveMarkers } from "../../lib/printing-presenters.js";

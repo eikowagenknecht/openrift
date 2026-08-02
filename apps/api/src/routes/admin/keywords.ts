@@ -1,4 +1,4 @@
-import { adminKeywordsContract } from "@openrift/shared/contracts";
+import { adminKeywordsContract } from "@openrift/shared/contracts/admin/keywords";
 import { implement } from "@orpc/server";
 
 import { requireAuthedUser } from "../../orpc/base.js";

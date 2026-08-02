@@ -1,5 +1,5 @@
-import type { AdminMarkersResponse } from "@openrift/shared/contracts";
-import { adminMarkersContract } from "@openrift/shared/contracts";
+import type { AdminMarkersResponse } from "@openrift/shared/contracts/admin/markers";
+import { adminMarkersContract } from "@openrift/shared/contracts/admin/markers";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

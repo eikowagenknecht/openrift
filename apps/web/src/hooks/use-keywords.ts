@@ -1,5 +1,5 @@
-import type { KeywordStatsResponse } from "@openrift/shared/contracts";
-import { adminKeywordsContract } from "@openrift/shared/contracts";
+import type { KeywordStatsResponse } from "@openrift/shared/contracts/admin/keywords";
+import { adminKeywordsContract } from "@openrift/shared/contracts/admin/keywords";
 import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

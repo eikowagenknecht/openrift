@@ -1,5 +1,5 @@
 import type { DeckCheckClaimLandingResponse } from "@openrift/shared";
-import { deckCheckClaimContract } from "@openrift/shared/contracts";
+import { deckCheckClaimContract } from "@openrift/shared/contracts/deck-check-claim";
 import { implement } from "@orpc/server";
 
 import { requireUser } from "../../orpc/base.js";

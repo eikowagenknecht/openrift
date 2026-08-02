@@ -5,7 +5,8 @@ import type {
   DeckCheckSubmissionResultResponse,
   PlayerDeckCheckEntryDetailResponse,
 } from "@openrift/shared";
-import { deckCheckClaimContract, deckCheckPlayerContract } from "@openrift/shared/contracts";
+import { deckCheckClaimContract } from "@openrift/shared/contracts/deck-check-claim";
+import { deckCheckPlayerContract } from "@openrift/shared/contracts/deck-check-player";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

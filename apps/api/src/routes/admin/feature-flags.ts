@@ -1,6 +1,6 @@
 import { ERROR_CODES } from "@openrift/shared";
 import type { FeatureFlagResponse } from "@openrift/shared";
-import { adminFeatureFlagsContract } from "@openrift/shared/contracts";
+import { adminFeatureFlagsContract } from "@openrift/shared/contracts/admin/feature-flags";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";

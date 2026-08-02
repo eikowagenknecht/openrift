@@ -1,6 +1,6 @@
 import { ERROR_CODES } from "@openrift/shared";
 import type { OrganizationListResponse, OrganizationResponse } from "@openrift/shared";
-import { adminOrganizationsContract } from "@openrift/shared/contracts";
+import { adminOrganizationsContract } from "@openrift/shared/contracts/organizations";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";

@@ -25,7 +25,8 @@ import {
   getAvailableFilters,
   priceLookupFromMap,
 } from "@openrift/shared";
-import { initContract, pricesContract } from "@openrift/shared/contracts";
+import { initContract } from "@openrift/shared/contracts/init";
+import { pricesContract } from "@openrift/shared/contracts/prices";
 import { createServerFn } from "@tanstack/react-start";
 
 import { enrichCatalog, readCatalogFromServerCache } from "@/lib/catalog-query";

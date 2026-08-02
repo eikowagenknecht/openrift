@@ -1,5 +1,5 @@
-import { adminCardBansContract } from "@openrift/shared/contracts";
-import type { CardBanResponse } from "@openrift/shared/contracts";
+import { adminCardBansContract } from "@openrift/shared/contracts/admin/card-bans";
+import type { CardBanResponse } from "@openrift/shared/contracts/admin/card-bans";
 import { useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

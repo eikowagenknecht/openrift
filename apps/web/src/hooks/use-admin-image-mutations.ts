@@ -1,4 +1,5 @@
-import { adminCardImagesContract, adminCardMutationsContract } from "@openrift/shared/contracts";
+import { adminCardImagesContract } from "@openrift/shared/contracts/admin/card-images";
+import { adminCardMutationsContract } from "@openrift/shared/contracts/admin/card-mutations";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";

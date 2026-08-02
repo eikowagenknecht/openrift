@@ -11,7 +11,7 @@ import type {
   SuperType,
 } from "@openrift/shared";
 import { WellKnown, validateDeck, ERROR_CODES } from "@openrift/shared";
-import { decksContract } from "@openrift/shared/contracts";
+import { decksContract } from "@openrift/shared/contracts/decks";
 import type { updateDeckPlanSchema } from "@openrift/shared/contracts/decks";
 import { PREFERENCE_DEFAULTS } from "@openrift/shared/types";
 import { implement } from "@orpc/server";

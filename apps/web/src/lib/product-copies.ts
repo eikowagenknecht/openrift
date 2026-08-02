@@ -1,4 +1,4 @@
-import type { ProductDetailResponse } from "@openrift/shared/contracts";
+import type { ProductDetailResponse } from "@openrift/shared/contracts/products";
 
 /** One row of the POST /copies payload built from a product's contents. */
 export interface ProductCopyRow {

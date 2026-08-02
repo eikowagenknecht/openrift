@@ -12,7 +12,7 @@ import type {
   PriceMap,
   PricesResponse,
 } from "@openrift/shared";
-import { pricesContract } from "@openrift/shared/contracts";
+import { pricesContract } from "@openrift/shared/contracts/prices";
 import { implement } from "@orpc/server";
 
 import { requireUser } from "../../orpc/base.js";

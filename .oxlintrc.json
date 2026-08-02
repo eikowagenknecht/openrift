@@ -108,6 +108,12 @@
     "no-restricted-imports": [
       "error",
       {
+        "paths": [
+          {
+            "name": "@openrift/shared/contracts",
+            "message": "Import the contract you need from '@openrift/shared/contracts/<module>'. The barrel pulls all 86 contract modules into one chunk that apps/web preloads on every route."
+          }
+        ],
         "patterns": [
           {
             "group": ["../*"],

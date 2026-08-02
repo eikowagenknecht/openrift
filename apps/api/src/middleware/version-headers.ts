@@ -1,4 +1,4 @@
-import { API_FORMAT_HEADER, API_FORMAT_VERSION } from "@openrift/shared/contracts";
+import { API_FORMAT_HEADER, API_FORMAT_VERSION } from "@openrift/shared/contracts/api-format";
 import type { MiddlewareHandler } from "hono";
 
 // Every /api response carries exactly one of two version headers, split by

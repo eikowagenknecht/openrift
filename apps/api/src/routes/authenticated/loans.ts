@@ -4,7 +4,7 @@ import type {
   LoanListResponse,
   LoanResponse,
 } from "@openrift/shared";
-import { loansContract } from "@openrift/shared/contracts";
+import { loansContract } from "@openrift/shared/contracts/loans";
 import { implement } from "@orpc/server";
 
 import { requireAuthedUser } from "../../orpc/base.js";

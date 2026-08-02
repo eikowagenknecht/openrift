@@ -1,5 +1,5 @@
 import type { ListGroupSharesResponse } from "@openrift/shared";
-import { listsContract } from "@openrift/shared/contracts";
+import { listsContract } from "@openrift/shared/contracts/lists";
 import { isDefinedError, safe } from "@orpc/client";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";

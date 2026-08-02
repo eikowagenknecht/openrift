@@ -15,7 +15,8 @@ import type {
   SuperType,
 } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
-import { decksContract, publicDecksContract } from "@openrift/shared/contracts";
+import { decksContract } from "@openrift/shared/contracts/decks";
+import { publicDecksContract } from "@openrift/shared/contracts/public-decks";
 import { isDefinedError, safe } from "@orpc/client";
 import { useMutation, useQueryClient, queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";

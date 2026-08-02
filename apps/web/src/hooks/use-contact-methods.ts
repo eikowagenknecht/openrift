@@ -3,7 +3,7 @@ import type {
   ContactMethodType,
   UserContactMethodsResponse,
 } from "@openrift/shared";
-import { contactMethodsContract } from "@openrift/shared/contracts";
+import { contactMethodsContract } from "@openrift/shared/contracts/contact-methods";
 import { useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

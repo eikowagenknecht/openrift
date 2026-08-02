@@ -16,7 +16,7 @@ import type {
   FriendGroupSharedCollectionDetailResponse,
   FriendGroupSharedListDetailResponse,
 } from "@openrift/shared";
-import { friendGroupsContract } from "@openrift/shared/contracts";
+import { friendGroupsContract } from "@openrift/shared/contracts/friend-groups";
 import { isDefinedError, safe } from "@orpc/client";
 import type { QueryClient } from "@tanstack/react-query";
 import { queryOptions, useQuery, useSuspenseQuery } from "@tanstack/react-query";

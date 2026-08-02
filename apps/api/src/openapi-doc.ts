@@ -1,3 +1,4 @@
+// oxlint-disable-next-line no-restricted-imports -- the document enumerates every contract, so the barrel is the point here; apps/api runs unbundled on Bun.
 import * as contracts from "@openrift/shared/contracts";
 import type { AnyContractRouter } from "@orpc/contract";
 import type { OpenAPI } from "@orpc/openapi";

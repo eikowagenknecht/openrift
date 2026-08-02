@@ -1,4 +1,4 @@
-import { adminAuditEventsContract } from "@openrift/shared/contracts";
+import { adminAuditEventsContract } from "@openrift/shared/contracts/admin/audit-events";
 import { infiniteQueryOptions, useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

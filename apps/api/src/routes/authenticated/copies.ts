@@ -3,7 +3,7 @@ import type {
   CopyListMembershipsResponse,
   CopyListResponse,
 } from "@openrift/shared";
-import { copiesContract } from "@openrift/shared/contracts";
+import { copiesContract } from "@openrift/shared/contracts/copies";
 import { implement } from "@orpc/server";
 
 import { toCopy } from "../../lib/copy-presenters.js";

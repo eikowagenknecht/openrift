@@ -1,5 +1,5 @@
 import type { CardTradeResponse, CardTradeRole, CardTradeStatus } from "@openrift/shared";
-import { cardTradesContract } from "@openrift/shared/contracts";
+import { cardTradesContract } from "@openrift/shared/contracts/card-trades";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

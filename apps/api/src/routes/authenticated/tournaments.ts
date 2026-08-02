@@ -5,7 +5,7 @@ import type {
   TournamentListResponse,
   TournamentParticipantListResponse,
 } from "@openrift/shared";
-import { tournamentsContract } from "@openrift/shared/contracts";
+import { tournamentsContract } from "@openrift/shared/contracts/tournaments";
 import { implement } from "@orpc/server";
 
 import type { Repos } from "../../deps.js";

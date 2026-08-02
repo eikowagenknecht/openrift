@@ -1,5 +1,5 @@
 import type { Printing, SetDetailResponse, SetListResponse } from "@openrift/shared";
-import { setsContract } from "@openrift/shared/contracts";
+import { setsContract } from "@openrift/shared/contracts/sets";
 import { isDefinedError, safe } from "@orpc/client";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";

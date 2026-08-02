@@ -4,7 +4,7 @@ import type {
   AdminTagCategoryListResponse,
   TagCategoryResponse,
 } from "@openrift/shared";
-import { adminCardTagsContract } from "@openrift/shared/contracts";
+import { adminCardTagsContract } from "@openrift/shared/contracts/admin/card-tags";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";

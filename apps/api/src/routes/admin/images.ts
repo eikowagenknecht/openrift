@@ -1,6 +1,6 @@
 import { ERROR_CODES } from "@openrift/shared";
 import type { RegenerateImagesCheckpoint } from "@openrift/shared";
-import { adminImagesContract } from "@openrift/shared/contracts";
+import { adminImagesContract } from "@openrift/shared/contracts/admin/images";
 import { createLogger } from "@openrift/shared/logger";
 import { implement } from "@orpc/server";
 

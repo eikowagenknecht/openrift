@@ -1,5 +1,5 @@
-import type { AdminDomainsResponse } from "@openrift/shared/contracts";
-import { adminDomainsContract } from "@openrift/shared/contracts";
+import type { AdminDomainsResponse } from "@openrift/shared/contracts/admin/domains";
+import { adminDomainsContract } from "@openrift/shared/contracts/admin/domains";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

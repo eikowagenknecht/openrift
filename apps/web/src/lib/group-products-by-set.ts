@@ -1,4 +1,4 @@
-import type { ProductSet, ProductSummary } from "@openrift/shared/contracts";
+import type { ProductSet, ProductSummary } from "@openrift/shared/contracts/products";
 
 /** Grouping key for products without a set (set ids are UUIDs, no collision). */
 const NO_SET_KEY = "no-set";

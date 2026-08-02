@@ -1,5 +1,5 @@
 import type { DeckCheckKeyMintedResponse, DeckCheckKeysResponse } from "@openrift/shared";
-import { deckCheckKeysContract } from "@openrift/shared/contracts";
+import { deckCheckKeysContract } from "@openrift/shared/contracts/deck-check-keys";
 import { useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

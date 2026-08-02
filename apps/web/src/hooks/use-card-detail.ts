@@ -1,5 +1,5 @@
 import type { CardDetailResponse, Printing } from "@openrift/shared";
-import { cardsContract } from "@openrift/shared/contracts";
+import { cardsContract } from "@openrift/shared/contracts/cards";
 import { isDefinedError, safe } from "@orpc/client";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";

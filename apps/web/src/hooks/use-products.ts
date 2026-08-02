@@ -1,6 +1,10 @@
 import type { Printing } from "@openrift/shared";
-import type { ProductDetailResponse, ProductsListResponse } from "@openrift/shared/contracts";
-import { adminProductsContract, productsContract } from "@openrift/shared/contracts";
+import { adminProductsContract } from "@openrift/shared/contracts/admin/products";
+import type {
+  ProductDetailResponse,
+  ProductsListResponse,
+} from "@openrift/shared/contracts/products";
+import { productsContract } from "@openrift/shared/contracts/products";
 import { isDefinedError, safe } from "@orpc/client";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";

@@ -1,6 +1,6 @@
 import type { MarketplaceGroupKind } from "@openrift/shared";
-import type { MarketplaceGroupsResponse } from "@openrift/shared/contracts";
-import { adminMarketplaceGroupsContract } from "@openrift/shared/contracts";
+import type { MarketplaceGroupsResponse } from "@openrift/shared/contracts/admin/marketplace-groups";
+import { adminMarketplaceGroupsContract } from "@openrift/shared/contracts/admin/marketplace-groups";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

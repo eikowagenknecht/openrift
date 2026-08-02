@@ -1,4 +1,4 @@
-import { adminCatalogContract } from "@openrift/shared/contracts";
+import { adminCatalogContract } from "@openrift/shared/contracts/admin/catalog";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

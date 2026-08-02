@@ -1,4 +1,4 @@
-import { unsubscribeContract } from "@openrift/shared/contracts";
+import { unsubscribeContract } from "@openrift/shared/contracts/unsubscribe";
 import { implement } from "@orpc/server";
 
 import { requireUser } from "../../orpc/base.js";

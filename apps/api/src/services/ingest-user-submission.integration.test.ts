@@ -1,4 +1,4 @@
-import type { CardSubmissionInput } from "@openrift/shared/contracts";
+import type { CardSubmissionInput } from "@openrift/shared/contracts/card-submissions";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { createTransact } from "../deps.js";

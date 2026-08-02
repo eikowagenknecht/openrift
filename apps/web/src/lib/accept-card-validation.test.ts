@@ -1,4 +1,4 @@
-import type { AcceptNewCardBody } from "@openrift/shared/contracts";
+import type { AcceptNewCardBody } from "@openrift/shared/contracts/admin/card-mutations";
 import { describe, expect, it } from "vitest";
 
 import { describeAcceptCardFieldIssues, hasRequiredActiveFields } from "./accept-card-validation";

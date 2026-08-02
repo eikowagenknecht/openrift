@@ -7,7 +7,7 @@ import type {
   RehostStatusResponse,
   UnrehostImagesResponse,
 } from "@openrift/shared";
-import { adminImagesContract } from "@openrift/shared/contracts";
+import { adminImagesContract } from "@openrift/shared/contracts/admin/images";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

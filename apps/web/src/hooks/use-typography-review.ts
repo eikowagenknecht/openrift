@@ -1,5 +1,5 @@
-import type { TypographyReviewResponse } from "@openrift/shared/contracts";
-import { adminTypographyReviewContract } from "@openrift/shared/contracts";
+import type { TypographyReviewResponse } from "@openrift/shared/contracts/admin/typography-review";
+import { adminTypographyReviewContract } from "@openrift/shared/contracts/admin/typography-review";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

@@ -1,5 +1,9 @@
-import type { JobRunActivity } from "@openrift/shared/contracts";
-import { JOB_RUN_ACTIVITIES, JOB_STATUSES, JOB_TRIGGERS } from "@openrift/shared/contracts";
+import type { JobRunActivity } from "@openrift/shared/contracts/admin/job-runs";
+import {
+  JOB_RUN_ACTIVITIES,
+  JOB_STATUSES,
+  JOB_TRIGGERS,
+} from "@openrift/shared/contracts/admin/job-runs";
 import {
   ChevronDownIcon,
   ChevronLeftIcon,

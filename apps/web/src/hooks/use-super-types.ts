@@ -1,5 +1,5 @@
-import type { AdminSuperTypesResponse } from "@openrift/shared/contracts";
-import { adminSuperTypesContract } from "@openrift/shared/contracts";
+import type { AdminSuperTypesResponse } from "@openrift/shared/contracts/admin/super-types";
+import { adminSuperTypesContract } from "@openrift/shared/contracts/admin/super-types";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

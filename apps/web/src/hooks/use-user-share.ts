@@ -3,7 +3,8 @@ import type {
   PublicUserBundleResponse,
   UserShareStateResponse,
 } from "@openrift/shared";
-import { publicUserShareContract, userShareContract } from "@openrift/shared/contracts";
+import { publicUserShareContract } from "@openrift/shared/contracts/public-user-share";
+import { userShareContract } from "@openrift/shared/contracts/user-share";
 import { isDefinedError, safe } from "@orpc/client";
 import {
   queryOptions,

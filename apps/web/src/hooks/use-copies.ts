@@ -4,7 +4,7 @@ import type {
   CopyResponse,
 } from "@openrift/shared";
 import { definedCopyMetadataFields, normalizeCopyMetadataPatch } from "@openrift/shared";
-import { copiesContract } from "@openrift/shared/contracts";
+import { copiesContract } from "@openrift/shared/contracts/copies";
 import { createTransaction, eq, useLiveQuery } from "@tanstack/react-db";
 import { useBatcher } from "@tanstack/react-pacer";
 import type { QueryClient } from "@tanstack/react-query";

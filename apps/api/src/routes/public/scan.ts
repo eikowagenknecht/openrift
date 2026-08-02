@@ -1,5 +1,5 @@
-import type { ScanManifest } from "@openrift/shared/contracts";
-import { scanContract } from "@openrift/shared/contracts";
+import type { ScanManifest } from "@openrift/shared/contracts/scan";
+import { scanContract } from "@openrift/shared/contracts/scan";
 import { implement } from "@orpc/server";
 
 import { requireUser } from "../../orpc/base.js";

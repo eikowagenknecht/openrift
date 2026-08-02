@@ -1,6 +1,6 @@
 import type { DistributionChannelKind, DistributionChannelResponse } from "@openrift/shared";
-import type { AdminDistributionChannelsResponse } from "@openrift/shared/contracts";
-import { adminDistributionChannelsContract } from "@openrift/shared/contracts";
+import type { AdminDistributionChannelsResponse } from "@openrift/shared/contracts/admin/distribution-channels";
+import { adminDistributionChannelsContract } from "@openrift/shared/contracts/admin/distribution-channels";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

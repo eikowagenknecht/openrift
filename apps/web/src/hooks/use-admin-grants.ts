@@ -1,6 +1,6 @@
 import type { AdminSectionSlug } from "@openrift/shared";
-import type { AdminGrantsResponse } from "@openrift/shared/contracts";
-import { adminGrantsContract } from "@openrift/shared/contracts";
+import type { AdminGrantsResponse } from "@openrift/shared/contracts/admin/grants";
+import { adminGrantsContract } from "@openrift/shared/contracts/admin/grants";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

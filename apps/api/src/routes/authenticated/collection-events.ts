@@ -1,5 +1,5 @@
 import type { CollectionEventListResponse } from "@openrift/shared";
-import { collectionEventsContract } from "@openrift/shared/contracts";
+import { collectionEventsContract } from "@openrift/shared/contracts/collection-events";
 import { implement } from "@orpc/server";
 
 import { toCollectionEvent } from "../../lib/collection-presenters.js";

@@ -1,5 +1,5 @@
-import type { AdminMeResponse } from "@openrift/shared/contracts";
-import { adminCoreContract } from "@openrift/shared/contracts";
+import type { AdminMeResponse } from "@openrift/shared/contracts/admin/core";
+import { adminCoreContract } from "@openrift/shared/contracts/admin/core";
 import { ORPCError } from "@orpc/client";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";

@@ -1,5 +1,6 @@
 import type { CopyListResponse, CopyResponse } from "@openrift/shared";
-import { collectionsContract, copiesContract } from "@openrift/shared/contracts";
+import { collectionsContract } from "@openrift/shared/contracts/collections";
+import { copiesContract } from "@openrift/shared/contracts/copies";
 import { queryOptions } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";

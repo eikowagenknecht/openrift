@@ -5,7 +5,8 @@ import type {
   PublicCollectionDetailResponse,
   ResetCollectionsResponse,
 } from "@openrift/shared";
-import { collectionsContract, publicCollectionsContract } from "@openrift/shared/contracts";
+import { collectionsContract } from "@openrift/shared/contracts/collections";
+import { publicCollectionsContract } from "@openrift/shared/contracts/public-collections";
 import { isDefinedError, safe } from "@orpc/client";
 import { useLiveQuery } from "@tanstack/react-db";
 import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";

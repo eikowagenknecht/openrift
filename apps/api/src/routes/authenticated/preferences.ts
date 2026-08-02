@@ -1,5 +1,8 @@
 import type { UserPreferencesResponse } from "@openrift/shared";
-import { preferencesContract, userPreferencesResponseSchema } from "@openrift/shared/contracts";
+import {
+  preferencesContract,
+  userPreferencesResponseSchema,
+} from "@openrift/shared/contracts/preferences";
 import { createLogger } from "@openrift/shared/logger";
 import { implement } from "@orpc/server";
 

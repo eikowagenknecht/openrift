@@ -1,4 +1,4 @@
-import { adminScanContract } from "@openrift/shared/contracts";
+import { adminScanContract } from "@openrift/shared/contracts/admin/scan";
 import { createLogger } from "@openrift/shared/logger";
 import { implement } from "@orpc/server";
 

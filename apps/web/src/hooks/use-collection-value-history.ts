@@ -4,7 +4,7 @@ import type {
   Marketplace,
   TimeRange,
 } from "@openrift/shared";
-import { collectionValueHistoryContract } from "@openrift/shared/contracts";
+import { collectionValueHistoryContract } from "@openrift/shared/contracts/collection-value-history";
 import type { ContractRouterClient } from "@orpc/contract";
 import { useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";

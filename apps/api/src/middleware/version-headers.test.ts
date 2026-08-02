@@ -1,4 +1,4 @@
-import { API_FORMAT_VERSION } from "@openrift/shared/contracts";
+import { API_FORMAT_VERSION } from "@openrift/shared/contracts/api-format";
 import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
 

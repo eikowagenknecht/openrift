@@ -1,4 +1,4 @@
-import { unsubscribeContract } from "@openrift/shared/contracts";
+import { unsubscribeContract } from "@openrift/shared/contracts/unsubscribe";
 import type { EmailNotificationChannel } from "@openrift/shared/types";
 import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";

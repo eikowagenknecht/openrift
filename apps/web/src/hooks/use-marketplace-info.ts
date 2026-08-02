@@ -1,5 +1,5 @@
 import type { MarketplaceInfoResponse } from "@openrift/shared";
-import { pricesContract } from "@openrift/shared/contracts";
+import { pricesContract } from "@openrift/shared/contracts/prices";
 import { useQuery } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";

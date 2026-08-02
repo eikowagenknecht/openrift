@@ -1,5 +1,5 @@
 import type { SitemapDataResponse } from "@openrift/shared";
-import { sitemapContract } from "@openrift/shared/contracts";
+import { sitemapContract } from "@openrift/shared/contracts/sitemap";
 import { implement } from "@orpc/server";
 
 import { requireUser } from "../../orpc/base.js";

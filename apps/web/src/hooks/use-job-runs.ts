@@ -1,11 +1,11 @@
 import type {
   JobRunActivity,
-  JobRunsListResponse,
   JobRunView,
+  JobRunsListResponse,
   JobStatus,
   JobTrigger,
-} from "@openrift/shared/contracts";
-import { adminJobRunsContract } from "@openrift/shared/contracts";
+} from "@openrift/shared/contracts/admin/job-runs";
+import { adminJobRunsContract } from "@openrift/shared/contracts/admin/job-runs";
 import { keepPreviousData, queryOptions, useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

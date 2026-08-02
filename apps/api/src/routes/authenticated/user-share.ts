@@ -1,5 +1,5 @@
 import type { UserShareStateResponse } from "@openrift/shared";
-import { userShareContract } from "@openrift/shared/contracts";
+import { userShareContract } from "@openrift/shared/contracts/user-share";
 import { implement } from "@orpc/server";
 
 import { withUniqueShareToken } from "../../lib/share-token.js";

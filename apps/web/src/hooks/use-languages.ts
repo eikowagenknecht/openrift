@@ -1,5 +1,5 @@
-import type { AdminLanguagesResponse } from "@openrift/shared/contracts";
-import { adminLanguagesContract } from "@openrift/shared/contracts";
+import type { AdminLanguagesResponse } from "@openrift/shared/contracts/admin/languages";
+import { adminLanguagesContract } from "@openrift/shared/contracts/admin/languages";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

@@ -1,5 +1,5 @@
 import type { IgnoredProductResponse } from "@openrift/shared";
-import { adminIgnoredProductsContract } from "@openrift/shared/contracts";
+import { adminIgnoredProductsContract } from "@openrift/shared/contracts/admin/ignored-products";
 import { implement } from "@orpc/server";
 
 import { requireAuthedUser } from "../../orpc/base.js";

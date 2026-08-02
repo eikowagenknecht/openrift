@@ -1,6 +1,6 @@
 import { ERROR_CODES } from "@openrift/shared";
 import type { ProviderSettingResponse } from "@openrift/shared";
-import { adminProviderSettingsContract } from "@openrift/shared/contracts";
+import { adminProviderSettingsContract } from "@openrift/shared/contracts/admin/provider-settings";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";

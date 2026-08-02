@@ -1,5 +1,5 @@
 import type { UserPreferencesResponse } from "@openrift/shared";
-import { preferencesContract } from "@openrift/shared/contracts";
+import { preferencesContract } from "@openrift/shared/contracts/preferences";
 import type { ContractRouterClient } from "@orpc/contract";
 import { useDebouncedCallback } from "@tanstack/react-pacer";
 import { useQuery, useQueryClient } from "@tanstack/react-query";

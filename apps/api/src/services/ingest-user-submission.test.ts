@@ -1,4 +1,4 @@
-import type { CardSubmissionInput } from "@openrift/shared/contracts";
+import type { CardSubmissionInput } from "@openrift/shared/contracts/card-submissions";
 import { describe, expect, it } from "vitest";
 
 import { buildUserSubmissionCard, formatSubmissionDateStamp } from "./ingest-user-submission.js";

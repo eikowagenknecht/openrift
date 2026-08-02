@@ -1,6 +1,6 @@
 import { appendSetTotal, fixTypography, ERROR_CODES } from "@openrift/shared";
 import type { CardType, Domain, SuperType } from "@openrift/shared";
-import { adminCardMutationsContract } from "@openrift/shared/contracts";
+import { adminCardMutationsContract } from "@openrift/shared/contracts/admin/card-mutations";
 import { cardFieldRules, printingFieldRules } from "@openrift/shared/db-field-rules";
 import { extractKeywords } from "@openrift/shared/keywords";
 import { normalizeNameForMatching } from "@openrift/shared/utils";

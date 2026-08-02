@@ -1,4 +1,8 @@
-import type { ProductCoverCard, ProductSet, ProductSummary } from "@openrift/shared/contracts";
+import type {
+  ProductCoverCard,
+  ProductSet,
+  ProductSummary,
+} from "@openrift/shared/contracts/products";
 import { Link, createLazyFileRoute } from "@tanstack/react-router";
 import { PlusIcon } from "lucide-react";
 import { useState } from "react";

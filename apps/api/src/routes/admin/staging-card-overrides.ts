@@ -1,4 +1,4 @@
-import { adminStagingCardOverridesContract } from "@openrift/shared/contracts";
+import { adminStagingCardOverridesContract } from "@openrift/shared/contracts/admin/staging-card-overrides";
 import { implement } from "@orpc/server";
 
 import { requireAuthedUser } from "../../orpc/base.js";

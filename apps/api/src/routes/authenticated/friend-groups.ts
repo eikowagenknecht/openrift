@@ -27,7 +27,7 @@ import type {
   ListIntent,
   ListKind,
 } from "@openrift/shared";
-import { friendGroupsContract } from "@openrift/shared/contracts";
+import { friendGroupsContract } from "@openrift/shared/contracts/friend-groups";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";

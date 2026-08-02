@@ -1,5 +1,5 @@
 import { ERROR_CODES, fixTypography } from "@openrift/shared";
-import { adminTypographyReviewContract } from "@openrift/shared/contracts";
+import { adminTypographyReviewContract } from "@openrift/shared/contracts/admin/typography-review";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";

@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 
 import { ERROR_CODES } from "@openrift/shared";
 import type { DeckCheckIngestResultResponse } from "@openrift/shared";
-import { deckCheckIngestContract } from "@openrift/shared/contracts";
+import { deckCheckIngestContract } from "@openrift/shared/contracts/deck-check-ingest";
 import { implement } from "@orpc/server";
 import type { Hono } from "hono";
 import { rateLimiter } from "hono-rate-limiter";

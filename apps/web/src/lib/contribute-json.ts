@@ -9,7 +9,7 @@
  */
 import type { Card, Printing } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
-import type { CardSubmissionInput } from "@openrift/shared/contracts";
+import type { CardSubmissionInput } from "@openrift/shared/contracts/card-submissions";
 import { contributionFileSchema } from "@openrift/shared/contribute-schema";
 import type { ZodIssue } from "zod";
 

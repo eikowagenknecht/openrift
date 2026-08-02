@@ -1,4 +1,4 @@
-import { adminPrintingEventsContract } from "@openrift/shared/contracts";
+import { adminPrintingEventsContract } from "@openrift/shared/contracts/admin/printing-events";
 import { createLogger } from "@openrift/shared/logger";
 import { implement } from "@orpc/server";
 

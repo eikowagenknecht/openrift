@@ -1,6 +1,6 @@
 import { slugifyName } from "@openrift/shared";
-import type { ProductSummary } from "@openrift/shared/contracts";
-import { productSlugRegex, RESERVED_PRODUCT_SLUGS } from "@openrift/shared/contracts";
+import type { ProductSummary } from "@openrift/shared/contracts/products";
+import { RESERVED_PRODUCT_SLUGS, productSlugRegex } from "@openrift/shared/contracts/products";
 import { Link } from "@tanstack/react-router";
 import { RefreshCwIcon } from "lucide-react";
 import { useState } from "react";

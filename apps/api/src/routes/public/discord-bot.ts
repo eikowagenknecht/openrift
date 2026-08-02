@@ -7,8 +7,8 @@ import type {
   DiscordBotRedeemLinkResponse,
   DiscordBotTradeChannelsResponse,
   DiscordBotTradelistHoldersResponse,
-} from "@openrift/shared/contracts";
-import { discordBotContract } from "@openrift/shared/contracts";
+} from "@openrift/shared/contracts/discord-bot";
+import { discordBotContract } from "@openrift/shared/contracts/discord-bot";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";

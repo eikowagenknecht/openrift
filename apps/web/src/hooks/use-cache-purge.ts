@@ -1,4 +1,4 @@
-import { adminCacheContract } from "@openrift/shared/contracts";
+import { adminCacheContract } from "@openrift/shared/contracts/admin/cache";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

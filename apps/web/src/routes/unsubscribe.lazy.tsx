@@ -1,4 +1,4 @@
-import { unsubscribeContract } from "@openrift/shared/contracts";
+import { unsubscribeContract } from "@openrift/shared/contracts/unsubscribe";
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { useState } from "react";

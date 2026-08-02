@@ -1,5 +1,8 @@
-import type { ProductDetailResponse, ProductsListResponse } from "@openrift/shared/contracts";
-import { productsContract } from "@openrift/shared/contracts";
+import type {
+  ProductDetailResponse,
+  ProductsListResponse,
+} from "@openrift/shared/contracts/products";
+import { productsContract } from "@openrift/shared/contracts/products";
 import { implement } from "@orpc/server";
 
 import { assertFound } from "../../lib/assertions.js";

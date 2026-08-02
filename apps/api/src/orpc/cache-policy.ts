@@ -14,6 +14,7 @@
 // (ADR-016: viewer-dependent routes run `loadSession`, which appends
 // `Vary: Cookie`; hot URL-cacheable routes must not.)
 
+// oxlint-disable-next-line no-restricted-imports -- ETAG_PATHS is walked out of every contract, so the barrel is the point here; apps/api runs unbundled on Bun.
 import * as contracts from "@openrift/shared/contracts";
 
 /** The cache lifetime tiers a contract can declare via `meta.cache`. */

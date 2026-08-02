@@ -1,4 +1,4 @@
-import { adminIgnoredCandidatesContract } from "@openrift/shared/contracts";
+import { adminIgnoredCandidatesContract } from "@openrift/shared/contracts/admin/ignored-candidates";
 import { queryOptions, useMutation, useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

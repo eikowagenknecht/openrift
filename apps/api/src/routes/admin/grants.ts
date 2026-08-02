@@ -1,5 +1,5 @@
 import { isAdminSectionSlug } from "@openrift/shared";
-import { adminGrantsContract } from "@openrift/shared/contracts";
+import { adminGrantsContract } from "@openrift/shared/contracts/admin/grants";
 import { implement, ORPCError } from "@orpc/server";
 
 import { requireAuthedUser } from "../../orpc/base.js";

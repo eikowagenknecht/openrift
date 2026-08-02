@@ -1,5 +1,5 @@
 import { ERROR_CODES } from "@openrift/shared";
-import { adminDomainsContract } from "@openrift/shared/contracts";
+import { adminDomainsContract } from "@openrift/shared/contracts/admin/domains";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";

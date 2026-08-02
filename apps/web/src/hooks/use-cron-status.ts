@@ -1,4 +1,4 @@
-import { adminCoreContract } from "@openrift/shared/contracts";
+import { adminCoreContract } from "@openrift/shared/contracts/admin/core";
 import { useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

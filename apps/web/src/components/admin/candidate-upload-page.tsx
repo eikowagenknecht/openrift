@@ -1,5 +1,5 @@
 import type { ProviderSettingResponse, ProviderStatsResponse } from "@openrift/shared";
-import { adminCardQueriesContract } from "@openrift/shared/contracts";
+import { adminCardQueriesContract } from "@openrift/shared/contracts/admin/card-queries";
 import { createServerFn } from "@tanstack/react-start";
 import {
   CheckIcon,

@@ -14,7 +14,8 @@ import type {
   PublicListDetailResponse,
   TradePreference,
 } from "@openrift/shared";
-import { listsContract, publicListsContract } from "@openrift/shared/contracts";
+import { listsContract } from "@openrift/shared/contracts/lists";
+import { publicListsContract } from "@openrift/shared/contracts/public-lists";
 import { isDefinedError, safe } from "@orpc/client";
 import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";

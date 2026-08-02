@@ -1,4 +1,4 @@
-import { adminChangelogContract } from "@openrift/shared/contracts";
+import { adminChangelogContract } from "@openrift/shared/contracts/admin/changelog";
 import { useMutation } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

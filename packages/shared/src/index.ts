@@ -37,7 +37,6 @@ export {
 
 export { CONTACT_METHOD_LABELS, formatContactMethodsSummary } from "./contact-methods.js";
 
-export { snapshotHeadline } from "./types/api/pricing.js";
 export { ERROR_CODES } from "./error-codes.js";
 
 export { ADMIN_SECTION_LABELS, ADMIN_SECTION_SLUGS, isAdminSectionSlug } from "./admin-sections.js";

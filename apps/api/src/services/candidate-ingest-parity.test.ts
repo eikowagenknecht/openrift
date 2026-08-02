@@ -1,5 +1,5 @@
 /* oxlint-disable no-restricted-imports -- api has no @/ alias */
-import type { CardSubmissionInput } from "@openrift/shared/contracts";
+import type { CardSubmissionInput } from "@openrift/shared/contracts/card-submissions";
 import { describe, expect, it, vi } from "vitest";
 
 import type { Repos, Transact } from "../deps.js";

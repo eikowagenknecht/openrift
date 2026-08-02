@@ -1,5 +1,5 @@
 import type { PodReportResponse } from "@openrift/shared";
-import { publicPodTournamentsContract } from "@openrift/shared/contracts";
+import { publicPodTournamentsContract } from "@openrift/shared/contracts/public-pod-tournaments";
 import { implement } from "@orpc/server";
 
 import type { Repos } from "../../deps.js";

@@ -1,5 +1,5 @@
-import type { AdminRaritiesResponse } from "@openrift/shared/contracts";
-import { adminRaritiesContract } from "@openrift/shared/contracts";
+import type { AdminRaritiesResponse } from "@openrift/shared/contracts/admin/rarities";
+import { adminRaritiesContract } from "@openrift/shared/contracts/admin/rarities";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

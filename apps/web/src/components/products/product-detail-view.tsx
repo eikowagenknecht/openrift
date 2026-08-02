@@ -1,5 +1,5 @@
 import type { Marketplace, Printing } from "@openrift/shared";
-import type { ProductDetailResponse } from "@openrift/shared/contracts";
+import type { ProductDetailResponse } from "@openrift/shared/contracts/products";
 import { Suspense, useState } from "react";
 
 import { CardViewer } from "@/components/card-viewer";

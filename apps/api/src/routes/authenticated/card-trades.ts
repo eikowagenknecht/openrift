@@ -3,7 +3,7 @@ import type {
   CardTradeListResponse,
   CardTradeResponse,
 } from "@openrift/shared";
-import { cardTradesContract } from "@openrift/shared/contracts";
+import { cardTradesContract } from "@openrift/shared/contracts/card-trades";
 import { implement } from "@orpc/server";
 
 import { requireAuthedUser } from "../../orpc/base.js";

@@ -17,7 +17,7 @@
  * updated.
  */
 import { WellKnown } from "@openrift/shared";
-import type { CardSubmissionInput } from "@openrift/shared/contracts";
+import type { CardSubmissionInput } from "@openrift/shared/contracts/card-submissions";
 import type { Insertable } from "kysely";
 
 import type { CandidateCardsTable } from "../db/index.js";

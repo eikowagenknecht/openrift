@@ -1,4 +1,4 @@
-import type { ProductCoverCard, ProductSummary } from "@openrift/shared/contracts";
+import type { ProductCoverCard, ProductSummary } from "@openrift/shared/contracts/products";
 
 import type { ProductCoverRow, ProductWithCounts } from "../repositories/products.js";
 

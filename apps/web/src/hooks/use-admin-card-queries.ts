@@ -1,4 +1,4 @@
-import { adminCardQueriesContract } from "@openrift/shared/contracts";
+import { adminCardQueriesContract } from "@openrift/shared/contracts/admin/card-queries";
 import { queryOptions, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

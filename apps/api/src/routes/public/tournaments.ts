@@ -3,7 +3,7 @@ import type {
   PublicTournamentLandingResponse,
   TournamentStaffInviteLandingResponse,
 } from "@openrift/shared";
-import { publicTournamentsContract } from "@openrift/shared/contracts";
+import { publicTournamentsContract } from "@openrift/shared/contracts/public-tournaments";
 import { implement } from "@orpc/server";
 
 import type { Repos } from "../../deps.js";

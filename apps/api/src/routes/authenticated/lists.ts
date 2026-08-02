@@ -10,7 +10,7 @@ import type {
   ListResponse,
   ListShareResponse,
 } from "@openrift/shared";
-import { listsContract } from "@openrift/shared/contracts";
+import { listsContract } from "@openrift/shared/contracts/lists";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";

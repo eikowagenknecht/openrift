@@ -1,4 +1,4 @@
-import { adminCardQueriesContract } from "@openrift/shared/contracts";
+import { adminCardQueriesContract } from "@openrift/shared/contracts/admin/card-queries";
 import { implement } from "@orpc/server";
 
 import { requireAuthedUser } from "../../../orpc/base.js";

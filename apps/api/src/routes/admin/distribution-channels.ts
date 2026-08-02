@@ -1,6 +1,6 @@
 import { ERROR_CODES } from "@openrift/shared";
 import type { DistributionChannelResponse } from "@openrift/shared";
-import { adminDistributionChannelsContract } from "@openrift/shared/contracts";
+import { adminDistributionChannelsContract } from "@openrift/shared/contracts/admin/distribution-channels";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";

@@ -1,8 +1,6 @@
-import {
-  adminIgnoredProductsContract,
-  adminStagingCardOverridesContract,
-  adminUnifiedMappingsContract,
-} from "@openrift/shared/contracts";
+import { adminIgnoredProductsContract } from "@openrift/shared/contracts/admin/ignored-products";
+import { adminStagingCardOverridesContract } from "@openrift/shared/contracts/admin/staging-card-overrides";
+import { adminUnifiedMappingsContract } from "@openrift/shared/contracts/admin/unified-mappings";
 import {
   queryOptions,
   useMutation,

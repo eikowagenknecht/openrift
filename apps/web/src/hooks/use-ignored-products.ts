@@ -1,4 +1,4 @@
-import { adminIgnoredProductsContract } from "@openrift/shared/contracts";
+import { adminIgnoredProductsContract } from "@openrift/shared/contracts/admin/ignored-products";
 import { queryOptions, useMutation, useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

@@ -16,11 +16,9 @@ import type {
   TournamentStaffRole,
   TournamentStatus,
 } from "@openrift/shared";
-import {
-  publicPodTournamentsContract,
-  publicTournamentsContract,
-  tournamentsContract,
-} from "@openrift/shared/contracts";
+import { publicPodTournamentsContract } from "@openrift/shared/contracts/public-pod-tournaments";
+import { publicTournamentsContract } from "@openrift/shared/contracts/public-tournaments";
+import { tournamentsContract } from "@openrift/shared/contracts/tournaments";
 import { isDefinedError, safe } from "@orpc/client";
 import { queryOptions, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";

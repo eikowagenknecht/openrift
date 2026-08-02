@@ -3,7 +3,7 @@ import type {
   TradeRequestEmailCadence,
   UserPreferencesResponse,
 } from "@openrift/shared";
-import { preferencesContract } from "@openrift/shared/contracts";
+import { preferencesContract } from "@openrift/shared/contracts/preferences";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

@@ -1,6 +1,6 @@
 import { ERROR_CODES } from "@openrift/shared";
 import type { RuleChangeType, RuleKind, RuleType } from "@openrift/shared";
-import { adminRulesContract } from "@openrift/shared/contracts";
+import { adminRulesContract } from "@openrift/shared/contracts/admin/rules";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";

@@ -1,4 +1,4 @@
-import { adminStatusContract } from "@openrift/shared/contracts";
+import { adminStatusContract } from "@openrift/shared/contracts/admin/status";
 import { implement } from "@orpc/server";
 import type { Cron } from "croner";
 

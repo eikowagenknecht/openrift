@@ -1,4 +1,4 @@
-import { adminOperationsContract } from "@openrift/shared/contracts";
+import { adminOperationsContract } from "@openrift/shared/contracts/admin/operations";
 import { createLogger } from "@openrift/shared/logger";
 import { implement } from "@orpc/server";
 

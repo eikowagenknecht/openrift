@@ -1,5 +1,5 @@
-import type { AdminDeckZonesResponse } from "@openrift/shared/contracts";
-import { adminDeckZonesContract } from "@openrift/shared/contracts";
+import type { AdminDeckZonesResponse } from "@openrift/shared/contracts/admin/deck-zones";
+import { adminDeckZonesContract } from "@openrift/shared/contracts/admin/deck-zones";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

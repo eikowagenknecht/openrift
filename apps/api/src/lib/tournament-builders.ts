@@ -13,7 +13,7 @@ import type {
 import {
   TOURNAMENT_COVER_LEGEND_COUNT,
   TOURNAMENT_PARTICIPANT_PREVIEW_COUNT,
-} from "@openrift/shared/contracts";
+} from "@openrift/shared/contracts/tournaments";
 
 import { parseJsonb } from "../db/helpers.js";
 import type { Repos } from "../deps.js";

@@ -1,4 +1,4 @@
-import { adminIgnoredCandidatesContract } from "@openrift/shared/contracts";
+import { adminIgnoredCandidatesContract } from "@openrift/shared/contracts/admin/ignored-candidates";
 import { implement } from "@orpc/server";
 
 import { requireAuthedUser } from "../../orpc/base.js";

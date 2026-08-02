@@ -1,4 +1,4 @@
-import { adminFormatsContract } from "@openrift/shared/contracts";
+import { adminFormatsContract } from "@openrift/shared/contracts/admin/formats";
 import { implement } from "@orpc/server";
 
 import { requireAuthedUser } from "../../orpc/base.js";

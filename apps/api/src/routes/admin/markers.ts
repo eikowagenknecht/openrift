@@ -1,6 +1,6 @@
 import { ERROR_CODES } from "@openrift/shared";
 import type { MarkerResponse } from "@openrift/shared";
-import { adminMarkersContract } from "@openrift/shared/contracts";
+import { adminMarkersContract } from "@openrift/shared/contracts/admin/markers";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";

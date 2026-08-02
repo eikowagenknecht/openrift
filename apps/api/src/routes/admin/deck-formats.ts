@@ -1,5 +1,5 @@
 import { ERROR_CODES } from "@openrift/shared";
-import { adminDeckFormatsContract } from "@openrift/shared/contracts";
+import { adminDeckFormatsContract } from "@openrift/shared/contracts/admin/deck-formats";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";

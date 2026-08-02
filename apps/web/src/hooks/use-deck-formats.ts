@@ -1,5 +1,5 @@
-import type { AdminDeckFormatsResponse } from "@openrift/shared/contracts";
-import { adminDeckFormatsContract } from "@openrift/shared/contracts";
+import type { AdminDeckFormatsResponse } from "@openrift/shared/contracts/admin/deck-formats";
+import { adminDeckFormatsContract } from "@openrift/shared/contracts/admin/deck-formats";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

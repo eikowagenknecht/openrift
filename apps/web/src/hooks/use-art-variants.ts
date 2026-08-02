@@ -1,5 +1,5 @@
-import type { AdminArtVariantsResponse } from "@openrift/shared/contracts";
-import { adminArtVariantsContract } from "@openrift/shared/contracts";
+import type { AdminArtVariantsResponse } from "@openrift/shared/contracts/admin/art-variants";
+import { adminArtVariantsContract } from "@openrift/shared/contracts/admin/art-variants";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

@@ -1,5 +1,5 @@
-import { cardFieldsSchema } from "@openrift/shared/contracts";
-import type { AcceptNewCardBody } from "@openrift/shared/contracts";
+import { cardFieldsSchema } from "@openrift/shared/contracts/admin/card-mutations";
+import type { AcceptNewCardBody } from "@openrift/shared/contracts/admin/card-mutations";
 import type { z } from "zod";
 
 /** Human labels for the card fields the accept-new-card schema validates, so a

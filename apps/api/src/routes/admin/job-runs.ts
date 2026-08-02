@@ -1,5 +1,5 @@
 import type { JobRunsListResponse, JobRunView } from "@openrift/shared";
-import { adminJobRunsContract } from "@openrift/shared/contracts";
+import { adminJobRunsContract } from "@openrift/shared/contracts/admin/job-runs";
 import { implement } from "@orpc/server";
 
 import { requireAuthedUser } from "../../orpc/base.js";

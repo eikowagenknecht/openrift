@@ -3,7 +3,7 @@ import type {
   DeckPlanCardMetaResponse,
   PublicDeckDetailResponse,
 } from "@openrift/shared";
-import { publicDecksContract } from "@openrift/shared/contracts";
+import { publicDecksContract } from "@openrift/shared/contracts/public-decks";
 import { implement } from "@orpc/server";
 
 import {

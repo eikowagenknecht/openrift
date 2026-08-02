@@ -1,5 +1,5 @@
-import type { ProviderSettingsResponse } from "@openrift/shared/contracts";
-import { adminProviderSettingsContract } from "@openrift/shared/contracts";
+import type { ProviderSettingsResponse } from "@openrift/shared/contracts/admin/provider-settings";
+import { adminProviderSettingsContract } from "@openrift/shared/contracts/admin/provider-settings";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
