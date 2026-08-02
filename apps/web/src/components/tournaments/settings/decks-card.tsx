@@ -16,6 +16,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { useServerSeededState } from "@/hooks/use-server-seeded-state";
 import { useUpdateTournament } from "@/hooks/use-tournaments";
+import { runReportedMutation } from "@/lib/run-reported-mutation";
 import {
   combineLocalDateTimeToUtc,
   DECK_PHASE_LABEL,
@@ -65,14 +66,6 @@ export function DecksCard({
       detail.submissionsCloseAt !== null &&
       new Date(nextCloseAt).getTime() !== new Date(detail.submissionsCloseAt).getTime());
 
-  async function run(action: () => Promise<unknown>) {
-    try {
-      await action();
-    } catch {
-      // Reported by the global mutation error toast (see reportMutationError).
-    }
-  }
-
   return (
     <Card id="decks" className="scroll-mt-16">
       <CardHeader>
@@ -92,7 +85,7 @@ export function DecksCard({
             disabled={locked || updateTournament.isPending}
             onValueChange={(value) => {
               if (value === "none" || value === "optional" || value === "required") {
-                void run(() =>
+                void runReportedMutation(() =>
                   updateTournament.mutateAsync({ id: detail.id, deckSubmission: value }),
                 );
               }
@@ -135,7 +128,7 @@ export function DecksCard({
                 <Button
                   disabled={locked || closeInvalid || !closeChanged || updateTournament.isPending}
                   onClick={() =>
-                    void run(() =>
+                    void runReportedMutation(() =>
                       updateTournament.mutateAsync({
                         id: detail.id,
                         submissionsCloseAt: nextCloseAt,
@@ -168,7 +161,7 @@ export function DecksCard({
                   checked={detail.listLockMode === "at_deadline"}
                   disabled={locked || updateTournament.isPending}
                   onCheckedChange={(checked) =>
-                    void run(() =>
+                    void runReportedMutation(() =>
                       updateTournament.mutateAsync({
                         id: detail.id,
                         listLockMode: checked ? "at_deadline" : "on_submit",

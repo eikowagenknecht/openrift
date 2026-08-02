@@ -29,7 +29,7 @@ When customizing a scaffolded component, add a `// custom: <reason>` comment on 
 
 ## Linting
 
-We use **oxlint** (not ESLint). When suppressing a lint rule, use `oxlint-disable` comments — not `eslint-disable`:
+We use **oxlint** as the primary linter, plus ESLint for the React Compiler rules that oxlint doesn't cover. When suppressing an oxlint rule, use `oxlint-disable` comments — not `eslint-disable`:
 
 ```ts
 // oxlint-disable-next-line import/first -- must import after vi.mock

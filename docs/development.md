@@ -81,7 +81,7 @@ docker exec openrift-db-1 psql -U openrift -c "SELECT count(*) FROM cards;"
 ## Linting and Formatting
 
 ```bash
-bun lint          # Full lint: build all packages, then oxlint + oxfmt
+bun lint          # Full lint: oxlint, then ESLint (React Compiler rules), then oxfmt
 bun lint:oxlint   # Run oxlint with --fix
 bun lint:oxfmt    # Run oxfmt on apps/ and packages/
 ```

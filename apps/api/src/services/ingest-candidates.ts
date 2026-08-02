@@ -1,5 +1,4 @@
 import type { DiffValue } from "@openrift/shared/response-schemas";
-import { emptyToNull } from "@openrift/shared/utils";
 import type { Insertable, Updateable } from "kysely";
 
 import type { CandidateCardsTable, CandidatePrintingsTable } from "../db/index.js";
@@ -12,7 +11,6 @@ import {
   candidateCardValidatorInput,
   candidatePrintingValidator,
   candidatePrintingValidatorInput,
-  jsonOrNull,
 } from "./candidate-fields.js";
 import {
   loadCandidateLinkIndex,
@@ -300,27 +298,13 @@ export async function ingestCandidates(
             shortCode: card.short_code ?? null,
             fields: changedFields,
           });
-          const cardUpdate: Record<string, unknown> = {
-            name: card.name,
-            types: card.types,
-            superTypes: card.super_types,
-            domains: card.domains,
-            might: card.might,
-            energy: card.energy,
-            power: card.power,
-            mightBonus: card.might_bonus,
-            rulesText: emptyToNull(card.rules_text),
-            effectText: emptyToNull(card.effect_text),
-            tags: card.tags,
-            externalId: card.external_id,
+          // Same column mapping as the insert branch below (buildCandidateCardFields),
+          // plus checkedAt: an update means the upload disagreed with what a
+          // human already reviewed, so it goes back into the review queue.
+          const cardUpdate: Updateable<CandidateCardsTable> = {
+            ...buildCandidateCardFields(card),
             checkedAt: null,
           };
-          if (card.short_code !== undefined) {
-            cardUpdate.shortCode = card.short_code ?? null;
-          }
-          if (card.extra_data !== undefined) {
-            cardUpdate.extraData = jsonOrNull(card.extra_data);
-          }
           await repo.updateCandidateCard(existingCandidateCard.id, cardUpdate);
           updates++;
         } else {

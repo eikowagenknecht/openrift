@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useUpdateTournament } from "@/hooks/use-tournaments";
+import { runReportedMutation } from "@/lib/run-reported-mutation";
 import type { TournamentRoundsChoice } from "@/lib/tournament-display";
 import {
   hasPairing,
@@ -46,14 +47,6 @@ export function FormatCard({
       ? ROUNDS_CHOICE_ITEMS.filter((item) => item.value !== "pod")
       : ROUNDS_CHOICE_ITEMS;
 
-  async function run(action: () => Promise<unknown>) {
-    try {
-      await action();
-    } catch {
-      // Reported by the global mutation error toast (see reportMutationError).
-    }
-  }
-
   return (
     <Card id="pairings" className="scroll-mt-16">
       <CardHeader>
@@ -77,7 +70,7 @@ export function FormatCard({
                   // 2v2 pairs team Swiss, so a pod-style event moves to Swiss
                   // in the same patch; leaving 2v2 dissolves any
                   // (never-played) teams server-side.
-                  void run(() =>
+                  void runReportedMutation(() =>
                     updateTournament.mutateAsync({
                       id: detail.id,
                       playMode: value,
@@ -111,7 +104,7 @@ export function FormatCard({
                 onCheckedChange={(checked) => {
                   // Re-enabling restores the default engine for the play mode
                   // (2v2 pairs team Swiss only).
-                  void run(() =>
+                  void runReportedMutation(() =>
                     updateTournament.mutateAsync({
                       id: detail.id,
                       pairingStyle: checked
@@ -137,7 +130,7 @@ export function FormatCard({
                     return;
                   }
                   const next = pairingFromRoundsChoice(value as TournamentRoundsChoice);
-                  void run(() =>
+                  void runReportedMutation(() =>
                     updateTournament.mutateAsync({
                       id: detail.id,
                       pairingStyle: next.pairingStyle,

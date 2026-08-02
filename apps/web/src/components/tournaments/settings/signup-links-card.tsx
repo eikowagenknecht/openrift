@@ -16,6 +16,7 @@ import { DialogForm } from "@/components/ui/dialog-form";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useSetTournamentSubmissionToken, useUpdateTournament } from "@/hooks/use-tournaments";
+import { runReportedMutation } from "@/lib/run-reported-mutation";
 import { getSiteUrl } from "@/lib/site-config";
 
 /**
@@ -43,14 +44,6 @@ export function SignupLinksCard({
   const showLink = detail.selfRegistration || deckExpected;
   const linkLabel = detail.selfRegistration ? "Registration link" : "Deck submission link";
 
-  async function run(action: () => Promise<unknown>) {
-    try {
-      await action();
-    } catch {
-      // Reported by the global mutation error toast (see reportMutationError).
-    }
-  }
-
   return (
     <>
       <Card id="signup-links" className="scroll-mt-16">
@@ -69,7 +62,7 @@ export function SignupLinksCard({
               checked={detail.selfRegistration}
               disabled={locked || updateTournament.isPending}
               onCheckedChange={(checked) =>
-                void run(() =>
+                void runReportedMutation(() =>
                   updateTournament.mutateAsync({ id: detail.id, selfRegistration: checked }),
                 )
               }
@@ -105,7 +98,9 @@ export function SignupLinksCard({
         <DialogContent>
           <DialogForm
             onSubmit={async () => {
-              await run(() => setSubmissionToken.mutateAsync({ id: detail.id, enabled: true }));
+              await runReportedMutation(() =>
+                setSubmissionToken.mutateAsync({ id: detail.id, enabled: true }),
+              );
               setConfirmRotate(false);
             }}
           >

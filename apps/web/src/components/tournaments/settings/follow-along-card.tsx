@@ -15,6 +15,7 @@ import {
 import { DialogForm } from "@/components/ui/dialog-form";
 import { Label } from "@/components/ui/label";
 import { useSetTournamentFollowToken, useSetTournamentReportToken } from "@/hooks/use-tournaments";
+import { runReportedMutation } from "@/lib/run-reported-mutation";
 import { getSiteUrl } from "@/lib/site-config";
 
 /**
@@ -41,14 +42,6 @@ export function FollowAlongCard({
   const followUrl = detail.followToken
     ? `${getSiteUrl()}/tournaments/report/${detail.followToken}`
     : null;
-
-  async function run(action: () => Promise<unknown>) {
-    try {
-      await action();
-    } catch {
-      // Reported by the global mutation error toast (see reportMutationError).
-    }
-  }
 
   return (
     <>
@@ -88,7 +81,9 @@ export function FollowAlongCard({
                 className="w-fit"
                 disabled={locked || setReportToken.isPending}
                 onClick={() =>
-                  void run(() => setReportToken.mutateAsync({ id: detail.id, enabled: true }))
+                  void runReportedMutation(() =>
+                    setReportToken.mutateAsync({ id: detail.id, enabled: true }),
+                  )
                 }
               >
                 Enable reporting link
@@ -122,7 +117,9 @@ export function FollowAlongCard({
                 className="w-fit"
                 disabled={locked || setFollowToken.isPending}
                 onClick={() =>
-                  void run(() => setFollowToken.mutateAsync({ id: detail.id, enabled: true }))
+                  void runReportedMutation(() =>
+                    setFollowToken.mutateAsync({ id: detail.id, enabled: true }),
+                  )
                 }
               >
                 Enable follow-only link
@@ -136,7 +133,9 @@ export function FollowAlongCard({
         <DialogContent>
           <DialogForm
             onSubmit={async () => {
-              await run(() => setReportToken.mutateAsync({ id: detail.id, enabled: false }));
+              await runReportedMutation(() =>
+                setReportToken.mutateAsync({ id: detail.id, enabled: false }),
+              );
               setConfirmDisableReport(false);
             }}
           >
@@ -163,7 +162,9 @@ export function FollowAlongCard({
         <DialogContent>
           <DialogForm
             onSubmit={async () => {
-              await run(() => setFollowToken.mutateAsync({ id: detail.id, enabled: false }));
+              await runReportedMutation(() =>
+                setFollowToken.mutateAsync({ id: detail.id, enabled: false }),
+              );
               setConfirmDisableFollow(false);
             }}
           >

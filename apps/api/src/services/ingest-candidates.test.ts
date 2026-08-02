@@ -1203,7 +1203,12 @@ describe("ingestCandidates", () => {
     expect(updateCall.shortCode).toBe("NEW-001");
   });
 
-  it("omits extraData from update when extra_data is undefined", async () => {
+  it("sets extraData to null on update when extra_data is undefined", async () => {
+    // The upload contract's `extra_data` field defaults to `null` (never
+    // `undefined`) once it clears zod validation, so this only exercises the
+    // update path's fallback for a hand-built IngestCard missing the field —
+    // same as the insert path (buildCandidateCardFields), which both branches
+    // now share.
     const repos = createMockRepos({
       allCandidateCardsForProvider: vi.fn().mockResolvedValue([
         {
@@ -1231,7 +1236,7 @@ describe("ingestCandidates", () => {
     await ingestCandidates(transact, "gallery", [card]);
 
     const updateCall = (repos.ingest as any).updateCandidateCard.mock.calls[0][1];
-    expect(updateCall).not.toHaveProperty("extraData");
+    expect(updateCall.extraData).toBeNull();
   });
 
   it("normalizes non-empty object values through camelCaseKeys during comparison", async () => {

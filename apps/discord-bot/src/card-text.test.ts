@@ -60,6 +60,22 @@ describe("formatCardText", () => {
     expect(formatCardText("Draw 1.\n[Reaction]", EMOJIS)).toBe("Draw 1.\n`Reaction`");
   });
 
+  it("leaves parenthesised reminder text plain, rendering the glyphs inside it", () => {
+    expect(formatCardText("(Pay :rb_energy_1: to draw.)", EMOJIS)).toBe(
+      "(Pay <:rb_energy_1:2> to draw.)",
+    );
+  });
+
+  it("drops a chip marker that has no chip to point at", () => {
+    expect(formatCardText("Kill this: [>]", EMOJIS)).toBe("Kill this:");
+  });
+
+  it("points the marker at the chip that follows it", () => {
+    expect(formatCardText("[>>][Level 2] I have +1 :rb_might:.", EMOJIS)).toBe(
+      "`Level 2` I have +1 <:rb_might:1>.",
+    );
+  });
+
   it("renders every glyph as words when the app has no emojis", () => {
     expect(formatCardText("Pay :rb_energy_1: :rb_rune_fury:.", new Map())).toBe(
       "Pay 1 energy Fury rune.",

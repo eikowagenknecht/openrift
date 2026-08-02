@@ -85,9 +85,7 @@ export function LendCardDialog({
           onOpenChange(false);
           toast.success(`Lent ${cardName} — track it on the Lending page`);
         },
-        onError: (error) => {
-          toast.error(error instanceof Error ? error.message : "Couldn't record the loan");
-        },
+        // Reported by the global mutation error toast (see reportMutationError).
       },
     );
   }

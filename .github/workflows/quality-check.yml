@@ -67,6 +67,12 @@ jobs:
       - name: Check asset content types
         run: bun run check:asset-types
 
+      # Dependabot bumps bypass lefthook (bot commits don't run pre-commit
+      # hooks), so a root `overrides` pin can drift from the package it dedupes
+      # without anything catching it before merge.
+      - name: Check override pins
+        run: bun run check:override-pins
+
   test:
     if: ${{ !contains(github.event.head_commit.message, 'chore(release):') }}
 

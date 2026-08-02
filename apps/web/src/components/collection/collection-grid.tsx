@@ -65,7 +65,10 @@ import { isTempCopyId } from "@/lib/temp-copy-id";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 import { useAddModeStore } from "@/stores/add-mode-store";
 import type { CollectionContextAction } from "@/stores/card-row-actions-store";
-import { useCollectionOverlayStore } from "@/stores/collection-overlay-store";
+import {
+  useCloseCollectionOverlaysOnUnmount,
+  useCollectionOverlayStore,
+} from "@/stores/collection-overlay-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { useLibraryToggle } from "@/stores/library-toggle-store";
 import { useOnboardingStore } from "@/stores/onboarding-store";
@@ -330,9 +333,12 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     clearSelection();
     useAddModeStore.getState().reset();
     // A dialog left open would otherwise still be pointing at the collection
-    // the viewer just navigated away from.
+    // the viewer just navigated away from. Leaving the grid entirely is handled
+    // on the way out instead — see useCloseCollectionOverlaysOnUnmount.
     useCollectionOverlayStore.getState().reset();
   }, [collectionId, clearSelection]);
+
+  useCloseCollectionOverlaysOnUnmount();
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {

@@ -113,10 +113,9 @@ export function useListEntryBrowserSelection({
     if (!next) {
       return;
     }
-    updateList.mutate(
-      { listId, rules: next },
-      { onError: () => toast.error("Couldn't update the rule") },
-    );
+    // No onError: a per-call handler runs in ADDITION to the global
+    // mutation onError, which already toasts the server's message.
+    updateList.mutate({ listId, rules: next });
   };
 
   // ── "Take off list" (copy-kind tradelists) ──────────────────────────

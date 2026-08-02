@@ -59,8 +59,19 @@ export function QuickAddStepper({
       <span
         className={cn(
           "text-2xs w-5 text-center tabular-nums",
+          // The changed-green is scoped to unselected rows rather than left to
+          // the cascade: `dark:text-green-400` and
+          // `group-data-[selected=true]:text-accent-foreground` both compile to
+          // specificity (0,2,0) — `:is(.dark *)` and
+          // `:is(:where(.group)[data-selected=true] *)` each contribute one
+          // class-level component, and `:where()` contributes none — so the tie
+          // went to whichever Tailwind emits last, which is the dark variant.
+          // A selected row's changed count therefore came out green in dark
+          // mode and accent-foreground in light mode. `group-not-data` makes
+          // the two rules mutually exclusive, so neither theme depends on
+          // source order.
           changed
-            ? "group-data-[selected=true]:text-accent-foreground text-green-600 dark:text-green-400"
+            ? "group-data-[selected=true]:text-accent-foreground group-not-data-[selected=true]:text-green-600 dark:group-not-data-[selected=true]:text-green-400"
             : "text-muted-foreground group-data-[selected=true]:text-accent-foreground/80",
         )}
       >

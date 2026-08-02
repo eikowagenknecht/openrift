@@ -1,13 +1,14 @@
 import { appendSetTotal, fixTypography, ERROR_CODES } from "@openrift/shared";
 import type { CardType, Domain, SuperType } from "@openrift/shared";
 import { adminCardMutationsContract } from "@openrift/shared/contracts/admin/card-mutations";
+import type { AcceptCardField } from "@openrift/shared/contracts/admin/card-mutations";
 import { cardFieldRules, printingFieldRules } from "@openrift/shared/db-field-rules";
 import { extractKeywords } from "@openrift/shared/keywords";
 import { normalizeNameForMatching } from "@openrift/shared/utils";
 import { implement } from "@orpc/server";
 import type { Updateable } from "kysely";
 
-import type { CandidatePrintingsTable } from "../../../db/index.js";
+import type { CandidatePrintingsTable, CardsTable } from "../../../db/index.js";
 import { AppError } from "../../../errors.js";
 import { assertDeleted, assertFound, assertUpdated } from "../../../lib/assertions.js";
 import { requireAuthedUser } from "../../../orpc/base.js";
@@ -30,6 +31,55 @@ import { recordAdminEvent } from "../../../services/record-admin-event.js";
 import { relinkCandidatePrintings } from "../../../services/relink-candidates.js";
 
 const os = implement(adminCardMutationsContract).$context<ApiContext>().use(requireAuthedUser);
+
+/**
+ * The `cards` column update for a validated `acceptField` write. `field` has
+ * already had `domains` / `superTypes` / `types` (the junction-table columns)
+ * handled and returned on by the caller, so only scalar `cards` columns
+ * reach here.
+ * @param field The scalar card field being written.
+ * @param finalValue The validated value for that field.
+ * @returns The typed `cards` update.
+ */
+function cardUpdateFor(
+  field: Exclude<AcceptCardField, "domains" | "superTypes" | "types">,
+  finalValue: unknown,
+): Updateable<CardsTable> {
+  switch (field) {
+    case "name": {
+      return { name: finalValue as string };
+    }
+    case "might": {
+      return { might: finalValue as number | null };
+    }
+    case "energy": {
+      return { energy: finalValue as number | null };
+    }
+    case "power": {
+      return { power: finalValue as number | null };
+    }
+    case "mightBonus": {
+      return { mightBonus: finalValue as number | null };
+    }
+    case "tags": {
+      return { tags: finalValue as string[] };
+    }
+    case "maxCopiesOverride": {
+      return { maxCopiesOverride: finalValue as number | null };
+    }
+    case "comment": {
+      return { comment: finalValue as string | null };
+    }
+    default: {
+      const unhandled: never = field;
+      throw new AppError(
+        400,
+        ERROR_CODES.VALIDATION_ERROR,
+        `Unsupported card field: ${String(unhandled)}`,
+      );
+    }
+  }
+}
 
 /**
  * Bespoke admin card mutations: the candidate check/uncheck verbs and the
@@ -492,7 +542,7 @@ export const adminCardMutationsRouter = {
       return;
     }
 
-    const updates: Record<string, unknown> = { [field]: finalValue };
+    const updates = cardUpdateFor(field, finalValue);
 
     try {
       await mut.updateCardById(cardId, updates);

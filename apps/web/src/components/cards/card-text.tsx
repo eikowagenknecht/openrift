@@ -1,78 +1,10 @@
-import type { KeywordsResponse } from "@openrift/shared";
+import type { CardTextToken, KeywordsResponse } from "@openrift/shared";
+import { tokenizeCardText } from "@openrift/shared";
 
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useKeywordStyles } from "@/hooks/use-keyword-styles";
 import { getKeywordStyle } from "@/lib/keywords";
 import { cn } from "@/lib/utils";
-
-// Matches glyph tokens (:rb_xxx:), bracketed keywords ([Keyword]),
-// parenthesized text ((reminder text)), italic markdown (_text_), and newlines.
-// Italic allows glyph tokens inside so underscores in :rb_xxx: don't break it.
-const TOKEN_PATTERN =
-  /:rb_(?<glyph>\w+):|\[(?<keyword>[^\]]+)\]|\((?<paren>[^)]+)\)|_(?<italic>(?::rb_\w+:|[^_])+)_|\n/gu;
-
-export type CardTextToken =
-  | { type: "text"; value: string }
-  | { type: "glyph"; name: string }
-  | {
-      type: "keyword";
-      name: string;
-      children: CardTextToken[];
-      pointedRight?: boolean;
-      pointedLeft?: boolean;
-    }
-  | { type: "paren"; children: CardTextToken[] }
-  | { type: "italic"; children: CardTextToken[] }
-  | { type: "newline" };
-
-export function tokenizeCardText(text: string): CardTextToken[] {
-  const tokens: CardTextToken[] = [];
-  let lastIndex = 0;
-
-  for (const match of text.matchAll(TOKEN_PATTERN)) {
-    if (match.index > lastIndex) {
-      tokens.push({ type: "text", value: text.slice(lastIndex, match.index) });
-    }
-
-    if (match[1]) {
-      tokens.push({ type: "glyph", name: match[1] });
-    } else if (match[2]) {
-      const raw = match[2];
-      const name = raw.replaceAll(/:rb_\w+:/gu, "").trim();
-      tokens.push({ type: "keyword", name, children: tokenizeCardText(raw) });
-    } else if (match[3]) {
-      tokens.push({ type: "paren", children: tokenizeCardText(match[3]) });
-    } else if (match[4]) {
-      tokens.push({ type: "italic", children: tokenizeCardText(match[4]) });
-    } else {
-      tokens.push({ type: "newline" });
-    }
-
-    lastIndex = match.index + match[0].length;
-  }
-
-  if (lastIndex < text.length) {
-    tokens.push({ type: "text", value: text.slice(lastIndex) });
-  }
-
-  // Merge [>] into the preceding keyword as a shape modifier (pointed right edge).
-  // Merge [>>] into the following keyword as a shape modifier (pointed left edge).
-  for (let i = tokens.length - 1; i >= 0; i--) {
-    const tok = tokens[i];
-    if (tok.type !== "keyword") {
-      continue;
-    }
-    if (tok.name === ">" && i > 0 && tokens[i - 1].type === "keyword") {
-      (tokens[i - 1] as Extract<CardTextToken, { type: "keyword" }>).pointedRight = true;
-      tokens.splice(i, 1);
-    } else if (tok.name === ">>" && i < tokens.length - 1 && tokens[i + 1].type === "keyword") {
-      (tokens[i + 1] as Extract<CardTextToken, { type: "keyword" }>).pointedLeft = true;
-      tokens.splice(i, 1);
-    }
-  }
-
-  return tokens;
-}
 
 // Default shape: slanted parallelogram (left edge angled right, right edge angled left).
 // pointedRight: right edge becomes an arrow pointing right.

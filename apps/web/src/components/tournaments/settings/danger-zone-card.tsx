@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { DialogForm } from "@/components/ui/dialog-form";
 import { useCancelTournament, useDeleteTournament } from "@/hooks/use-tournaments";
+import { runReportedMutation } from "@/lib/run-reported-mutation";
 
 /**
  * Cancel (read-only, data kept) and delete (gone for good). Both are confirmed;
@@ -27,14 +28,6 @@ export function DangerZoneCard({ detail }: { detail: TournamentDetailResponse })
   const deleteTournament = useDeleteTournament();
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-
-  async function run(action: () => Promise<unknown>) {
-    try {
-      await action();
-    } catch {
-      // Reported by the global mutation error toast (see reportMutationError).
-    }
-  }
 
   return (
     <>
@@ -64,7 +57,7 @@ export function DangerZoneCard({ detail }: { detail: TournamentDetailResponse })
         <DialogContent>
           <DialogForm
             onSubmit={async () => {
-              await run(() => cancelTournament.mutateAsync({ id: detail.id }));
+              await runReportedMutation(() => cancelTournament.mutateAsync({ id: detail.id }));
               setConfirmCancel(false);
             }}
           >
@@ -90,7 +83,7 @@ export function DangerZoneCard({ detail }: { detail: TournamentDetailResponse })
         <DialogContent>
           <DialogForm
             onSubmit={async () => {
-              await run(async () => {
+              await runReportedMutation(async () => {
                 await deleteTournament.mutateAsync(detail.id);
                 await navigate({ to: "/tournaments" });
               });

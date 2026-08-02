@@ -24,7 +24,13 @@ vi.mock("@tanstack/react-start", () => ({
 }));
 
 vi.mock("@/lib/server-fns/middleware", () => ({ withCookies: () => {} }));
-vi.mock("@/lib/auth-session", () => ({ useUserId: () => "test-user-id" }));
+
+// Mutable so a test can drive a sign-out / sign-in without remounting the hook,
+// which is what the app layout does (it stays mounted across both).
+const { signedInUser } = vi.hoisted(() => ({
+  signedInUser: { id: "test-user-id" as string | null },
+}));
+vi.mock("@/lib/auth-session", () => ({ useUserId: () => signedInUser.id }));
 vi.mock("@/hooks/use-hydrated", () => ({ useHydrated: () => true }));
 
 const { usePreferencesSync } = await import("./use-preferences-sync");
@@ -107,6 +113,7 @@ async function flushMicrotasks() {
 beforeEach(() => {
   resetDisplay();
   resetTheme();
+  signedInUser.id = "test-user-id";
 });
 
 afterEach(() => {
@@ -216,6 +223,46 @@ describe("usePreferencesSync", () => {
 
     await flushSaveDebounce();
     expect(patches().at(-1)?.body).toMatchObject({ showImages: false });
+  });
+
+  it("re-applies the server prefs after a sign-out / sign-in cycle", async () => {
+    // Regression: the snapshot outlived the signed-in user. The layout that
+    // calls this hook stays mounted across sign-out, and sign-out resets the
+    // stores, so the hook was left holding the previous user's snapshot while
+    // the stores held defaults. The hydrate guard read that gap as a pending
+    // local edit and stood down on every payload for the rest of the session:
+    // the next sign-in silently lost its stored theme and languages, and the
+    // reset stores were PATCHed over the server record instead.
+    const { patches } = stubFetch({ languages: ["de"], theme: "dark" } as UserPreferencesResponse);
+    const { Wrapper } = wrap();
+    const { rerender } = renderHook(({ enabled }) => usePreferencesSync(enabled), {
+      initialProps: { enabled: true },
+      wrapper: Wrapper,
+    });
+
+    await waitFor(() => expect(useThemeStore.getState().preference).toBe("dark"));
+
+    // Sign out: the header resets the stores, then the session goes null.
+    act(() => {
+      useDisplayStore.getState().reset();
+      useThemeStore.getState().reset();
+    });
+    signedInUser.id = null;
+    rerender({ enabled: false });
+    expect(useThemeStore.getState().preference).toBeNull();
+
+    // Sign back in. The query key is the same as before, so the cached payload
+    // comes back in the very render the identity flips.
+    signedInUser.id = "test-user-id";
+    rerender({ enabled: true });
+    await flushMicrotasks();
+
+    expect(useThemeStore.getState().preference).toBe("dark");
+    expect(useDisplayStore.getState().overrides.languages).toEqual(["de"]);
+
+    // And the stores the sign-out reset never got pushed over the record.
+    await flushSaveDebounce();
+    expect(patches()).toHaveLength(0);
   });
 
   it("still releases the hydration signal when it stands down for a pending edit", async () => {

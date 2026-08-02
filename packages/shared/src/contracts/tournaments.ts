@@ -1,7 +1,12 @@
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
+import { organizationRoleSchema } from "@openrift/shared/contracts/organizations";
 import {
   deckCheckEntryStateSchema,
   deckCheckReviewOutcomeSchema,
+  podMatchFormatSchema,
+  podPairingStyleSchema,
+  podPlayModeSchema,
+  podScoringSchemeSchema,
   podTournamentDetailResponseSchema,
   TOURNAMENT_STATUSES,
 } from "@openrift/shared/response-schemas";
@@ -20,9 +25,12 @@ extendZodWithOpenApi(z);
 // ─── Enums ─────────────────────────────────────────────────────────────────
 
 export const tournamentStatusSchema = z.enum(TOURNAMENT_STATUSES);
-export const tournamentPairingStyleSchema = z.enum(["none", "pod", "swiss"]);
-export const tournamentPlayModeSchema = z.enum(["1v1", "2v2"]);
-export const tournamentMatchFormatSchema = z.enum(["bo1", "bo3"]);
+// The pod engine reads the same columns, so these vocabularies live once in
+// response-schemas.ts (the `pod*` schemas) and are re-exported under their
+// tournaments-contract name here rather than re-declared.
+export const tournamentPairingStyleSchema = podPairingStyleSchema;
+export const tournamentPlayModeSchema = podPlayModeSchema;
+export const tournamentMatchFormatSchema = podMatchFormatSchema;
 export const tournamentDeckSubmissionSchema = z.enum(["none", "optional", "required"]);
 export const tournamentDeckPhaseSchema = z.enum(["open", "closed", "locked"]);
 export const tournamentListLockModeSchema = z.enum(["on_submit", "at_deadline"]);
@@ -35,7 +43,7 @@ export const tournamentParticipantStatusSchema = z.enum([
   "no_show",
 ]);
 const tournamentViewerRoleSchema = z.enum(["host", "organizer", "judge", "participant"]);
-export const scoringSchemeSchema = z.enum(["standard", "three_pod_reduced"]);
+export const scoringSchemeSchema = podScoringSchemeSchema;
 
 // ─── Response schemas ──────────────────────────────────────────────────────
 
@@ -61,7 +69,7 @@ export const tournamentStaffMemberResponseSchema = z
     // is an implicit staff member of the host org (owner/manager as organizer, or
     // judge as judge).
     source: z.enum(["grant", "organization"]),
-    orgRole: z.enum(["owner", "manager", "judge"]).nullable(),
+    orgRole: organizationRoleSchema.nullable(),
     addedAt: z.string(),
   })
   .openapi("TournamentStaffMemberResponse");

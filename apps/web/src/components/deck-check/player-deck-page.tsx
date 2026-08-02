@@ -382,15 +382,17 @@ function SaveToDecksButton({ data }: { data: PlayerDeckCheckEntryDetailResponse 
                 );
                 void navigate({ to: "/decks/$deckId", params: { deckId: deck.id } });
               },
+              // Reported by the global mutation error toast (see reportMutationError);
+              // still reset the pending flag so the button is clickable again.
               onError: () => {
-                toast.error("Failed to save the deck's cards.");
                 setIsSaving(false);
               },
             },
           );
         },
+        // Reported by the global mutation error toast (see reportMutationError);
+        // still reset the pending flag so the button is clickable again.
         onError: () => {
-          toast.error("Failed to create the deck.");
           setIsSaving(false);
         },
       },

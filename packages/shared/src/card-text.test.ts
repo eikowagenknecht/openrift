@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { CardTextToken } from "./card-text";
-import { tokenizeCardText } from "./card-text";
+import type { CardTextToken } from "./card-text.js";
+import { tokenizeCardText } from "./card-text.js";
 
 function text(value: string): CardTextToken {
   return { type: "text", value };
@@ -133,9 +133,41 @@ describe("tokenizeCardText", () => {
     expect(tokenizeCardText("[>]")).toEqual([keyword(">")]);
   });
 
+  it("merges [>>] into the following keyword as pointedLeft modifier", () => {
+    expect(tokenizeCardText("[>>][Level 3]")).toEqual([
+      { ...keyword("Level 3"), pointedLeft: true },
+    ]);
+  });
+
+  it("does not merge [>>] without a following keyword", () => {
+    expect(tokenizeCardText("[>>]")).toEqual([keyword(">>")]);
+  });
+
+  it("does not merge a shape marker across intervening text", () => {
+    expect(tokenizeCardText("[Level 3] [>]")).toEqual([
+      keyword("Level 3"),
+      text(" "),
+      keyword(">"),
+    ]);
+  });
+
   it("handles italic wrapping parenthesized text", () => {
     expect(tokenizeCardText("_(You may pay :rb_energy1:)_")).toEqual([
       italic(paren(text("You may pay "), glyph("energy1"))),
     ]);
+  });
+
+  it("keeps newlines inside reminder text as newline tokens", () => {
+    expect(tokenizeCardText("_first\nsecond_")).toEqual([
+      italic(text("first"), newline, text("second")),
+    ]);
+  });
+
+  it("leaves an unclosed paren as plain text", () => {
+    expect(tokenizeCardText("(Pay 1 to draw")).toEqual([text("(Pay 1 to draw")]);
+  });
+
+  it("parses a keyword inside parenthesized reminder text", () => {
+    expect(tokenizeCardText("(gain [Flying])")).toEqual([paren(text("gain "), keyword("Flying"))]);
   });
 });

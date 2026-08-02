@@ -10,6 +10,7 @@ import type {
   organizationListResponseSchema,
   organizationMemberResponseSchema,
   organizationResponseSchema,
+  organizationRoleSchema,
   organizationSummaryResponseSchema,
 } from "@openrift/shared/contracts/organizations";
 import type {
@@ -81,7 +82,7 @@ export type TournamentStaffRole = "organizer" | "judge";
  * tournament the org hosts; `judge` inherits judge authority only (deck check, no
  * management) and has no org-admin access.
  */
-export type OrganizationRole = "owner" | "manager" | "judge";
+export type OrganizationRole = z.infer<typeof organizationRoleSchema>;
 
 /** Participant lifecycle: walk-in/invited/self-requested → active → dropped/no-show. */
 export type TournamentParticipantStatus =

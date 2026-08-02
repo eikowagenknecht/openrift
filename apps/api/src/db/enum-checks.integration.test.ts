@@ -191,7 +191,7 @@ describe.skipIf(!DATABASE_URL)("DB enum CHECKs match their TypeScript unions", (
       // is itself drift worth failing on, so an unparseable one yields no values.
       const actual = match?.groups ? parseArrayLiterals(match.groups.values).toSorted() : [];
       const wanted = [...expected].toSorted();
-      if (actual.join(" ") !== wanted.join(" ")) {
+      if (actual.join("\0") !== wanted.join("\0")) {
         mismatches.push({ constraint: row.conname, db: actual, ts: wanted });
       }
     }

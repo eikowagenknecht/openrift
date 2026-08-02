@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useServerSeededState } from "@/hooks/use-server-seeded-state";
 import { useUpdateTournament } from "@/hooks/use-tournaments";
+import { runReportedMutation } from "@/lib/run-reported-mutation";
 import {
   localTimeZoneLabel,
   parseScheduleInput,
@@ -53,14 +54,6 @@ export function ScheduleCard({
       detail.endsAt !== null &&
       new Date(nextEndsAt).getTime() !== new Date(detail.endsAt).getTime());
   const scheduleChanged = startChanged || endChanged;
-
-  async function run(action: () => Promise<unknown>) {
-    try {
-      await action();
-    } catch {
-      // Reported by the global mutation error toast (see reportMutationError).
-    }
-  }
 
   return (
     <Card id="schedule" className="scroll-mt-16">
@@ -136,7 +129,7 @@ export function ScheduleCard({
               if (nextStartsAt === null) {
                 return;
               }
-              void run(() =>
+              void runReportedMutation(() =>
                 updateTournament.mutateAsync({
                   id: detail.id,
                   startsAt: nextStartsAt,
@@ -152,7 +145,7 @@ export function ScheduleCard({
               variant="secondary"
               disabled={updateTournament.isPending}
               onClick={() =>
-                void run(() =>
+                void runReportedMutation(() =>
                   updateTournament.mutateAsync({
                     id: detail.id,
                     endsAt: new Date().toISOString(),

@@ -275,15 +275,17 @@ export function DeckListPage() {
               onSuccess: () => {
                 void navigate({ to: "/decks/$deckId", params: { deckId: deck.id } });
               },
+              // Reported by the global mutation error toast (see reportMutationError);
+              // still reset the pending flag so the empty-state view is interactive again.
               onError: () => {
-                toast.error("Failed to save the sample deck.");
                 setCreatingSample(false);
               },
             },
           );
         },
+        // Reported by the global mutation error toast (see reportMutationError);
+        // still reset the pending flag so the empty-state view is interactive again.
         onError: () => {
-          toast.error("Failed to create the sample deck.");
           setCreatingSample(false);
         },
       },

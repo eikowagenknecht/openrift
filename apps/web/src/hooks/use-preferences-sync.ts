@@ -103,13 +103,14 @@ export function usePreferencesSync(enabled: boolean) {
   const queryClient = useQueryClient();
   const userId = useUserId();
   const hydrated = useHydrated();
-  // The last snapshot the stores and the server are known to agree on. Anything
-  // else in the stores is a local edit that still owes the server a PATCH, and
-  // that one fact drives both directions: the save path skips when the stores
-  // already match it, and the hydrate path stands down when they don't (a
-  // refetch that resolves mid-edit must not paint the pre-edit server values
-  // back over the change). Null until the subscribe effect seeds it on mount,
-  // which is also what lets the very first server payload hydrate unconditionally.
+  // The last snapshot the stores and the currently signed-in user's server
+  // record are known to agree on. Anything else in the stores is a local edit
+  // that still owes the server a PATCH, and that one fact drives both
+  // directions: the save path skips when the stores already match it, and the
+  // hydrate path stands down when they don't (a refetch that resolves mid-edit
+  // must not paint the pre-edit server values back over the change). Null until
+  // the identity effect below seeds it, which is also what lets the very first
+  // server payload hydrate unconditionally.
   const lastSynced = useRef<string | null>(null);
 
   // Client-only (`hydrated`): this query is otherwise started fire-and-forget
@@ -173,6 +174,29 @@ export function usePreferencesSync(enabled: boolean) {
     }
   }, [enabled, isError]);
 
+  // Re-baseline whenever the signed-in identity changes (sign-in, sign-out, or
+  // straight into another account). The snapshot belongs to one user, so
+  // carrying it across the switch misreads the next user's starting state: sign
+  // out resets the stores (`handleSignOut` in components/layout/header.tsx),
+  // and the guard in the hydrate effect would read that reset as "a local edit
+  // the server hasn't seen" and stand down on it for the rest of the session,
+  // so whoever signs in next never gets their stored theme or languages back.
+  //
+  // Re-seeding from the stores beats clearing to null: it restores exactly the
+  // mount-time invariant, where the stores are presumed to hold what the new
+  // user's record holds until their payload says otherwise, so a device-local
+  // write arriving first cannot PATCH the reset stores over their real prefs.
+  // It also keeps the whole mechanism one string, with no second ref pairing a
+  // user id to the snapshot and no flag beside it.
+  //
+  // Declared above the hydrate effect on purpose. Effects run in declaration
+  // order, and someone signing back in inside the query's gcTime is handed
+  // their cached payload in the very render the identity flips, so the
+  // re-baseline has to land before that payload is judged against it.
+  useEffect(() => {
+    lastSynced.current = serializePrefs();
+  }, [userId]);
+
   // Hydrate stores when server data arrives.
   useEffect(() => {
     if (!data) {
@@ -206,12 +230,6 @@ export function usePreferencesSync(enabled: boolean) {
 
   // Subscribe to store changes and debounce-save to server
   useEffect(() => {
-    // Written long-hand: the React Compiler cannot lower `??=` and bails out of
-    // the whole hook if it sees one.
-    if (lastSynced.current === null) {
-      lastSynced.current = serializePrefs();
-    }
-
     function onStoreChange() {
       // Cheap filter only. The debounced callback re-checks against the same
       // snapshot at fire time, which is what makes the hydration writes free:

@@ -1,4 +1,5 @@
 import type { Printing } from "@openrift/shared";
+import { useEffect } from "react";
 import { create } from "zustand";
 
 import type { CopyDetailsTarget } from "@/components/collection/copy-details-dialog";
@@ -82,3 +83,34 @@ export const useCollectionOverlayStore = create<CollectionOverlayState>()((set) 
   setTakeFollowUp: (target) => set({ takeFollowUp: target }),
   reset: () => set({ ...CLOSED }),
 }));
+
+/**
+ * Closes every overlay when the collection grid unmounts.
+ *
+ * As eight `useState` slots these were closed by construction on every remount.
+ * A module singleton is not: it keeps whatever was open when the grid went
+ * away. The grid's own `reset()` runs in an effect body, which React flushes
+ * *after* paint, so leaving /collections with a dialog up and coming back
+ * rendered that dialog open for one frame — worst case `copyDetailsTarget`,
+ * which paints copy rows belonging to the collection the viewer already left.
+ * Clearing on the way out instead means the store is already clean before the
+ * next mount renders, so there is no frame to catch.
+ *
+ * Cleanup rather than a second mount-time effect on purpose: a mount effect
+ * would land after paint like the existing one and fix nothing.
+ *
+ * Correct under StrictMode's dev double-invoke (mount → unmount → mount): the
+ * cleanup fires on the simulated unmount, but `reset()` is idempotent and
+ * nothing can have opened an overlay in between — every opener is a user event
+ * or a later effect. The empty dep array keeps the cleanup tied to unmount, so
+ * it never runs mid-session and closes a dialog the viewer is using.
+ * @returns Nothing.
+ */
+export function useCloseCollectionOverlaysOnUnmount() {
+  useEffect(
+    () => () => {
+      useCollectionOverlayStore.getState().reset();
+    },
+    [],
+  );
+}

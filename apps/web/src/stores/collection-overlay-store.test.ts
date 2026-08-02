@@ -1,6 +1,11 @@
+import { renderHook } from "@testing-library/react";
+import { StrictMode, createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { useCollectionOverlayStore } from "@/stores/collection-overlay-store";
+import {
+  useCloseCollectionOverlaysOnUnmount,
+  useCollectionOverlayStore,
+} from "@/stores/collection-overlay-store";
 import { stubPrinting } from "@/test/factories";
 import { createStoreResetter } from "@/test/store-helpers";
 
@@ -88,5 +93,80 @@ describe("useCollectionOverlayStore", () => {
     expect(state.copyDetailsTarget).toBeNull();
     expect(state.takeConfirm).toBeNull();
     expect(state.takeFollowUp).toBeNull();
+  });
+});
+
+describe("useCloseCollectionOverlaysOnUnmount", () => {
+  /** Opens one slot of each kind — boolean, and the two object-valued targets. */
+  function openEverything() {
+    const printing = stubPrinting();
+    useCollectionOverlayStore.getState().setQuickAddOpen(true);
+    useCollectionOverlayStore.getState().setDeleteOpen(true);
+    useCollectionOverlayStore.getState().setClearInboxOpen(true);
+    useCollectionOverlayStore.getState().setEditOpen(true);
+    useCollectionOverlayStore.getState().setShareOpen(true);
+    useCollectionOverlayStore.getState().setCopyDetailsTarget({
+      copyIds: ["copy-1"],
+      cardName: "Yasuo",
+      printingByCopyId: new Map([["copy-1", printing]]),
+    });
+    useCollectionOverlayStore
+      .getState()
+      .setTakeConfirm({ printing, availableCopyIds: ["copy-1"], initialQuantity: 1 });
+    useCollectionOverlayStore
+      .getState()
+      .setTakeFollowUp({ printing, entries: [], takenQuantity: 1 });
+  }
+
+  it("closes every overlay when the grid unmounts", () => {
+    // The store outlives the grid, and the grid's mount-time reset only runs
+    // after paint. Clearing on unmount is what keeps a returning viewer from
+    // seeing one frame of the dialog they left open.
+    const { unmount } = renderHook(() => {
+      useCloseCollectionOverlaysOnUnmount();
+    });
+    openEverything();
+
+    unmount();
+
+    const state = useCollectionOverlayStore.getState();
+    expect(state.quickAddOpen).toBe(false);
+    expect(state.deleteOpen).toBe(false);
+    expect(state.clearInboxOpen).toBe(false);
+    expect(state.editOpen).toBe(false);
+    expect(state.shareOpen).toBe(false);
+    expect(state.copyDetailsTarget).toBeNull();
+    expect(state.takeConfirm).toBeNull();
+    expect(state.takeFollowUp).toBeNull();
+  });
+
+  it("leaves open overlays alone while the grid stays mounted", () => {
+    // Cleanup-only: a dialog must survive re-renders of the grid underneath it.
+    const { rerender } = renderHook(() => {
+      useCloseCollectionOverlaysOnUnmount();
+    });
+    useCollectionOverlayStore.getState().setEditOpen(true);
+
+    rerender();
+
+    expect(useCollectionOverlayStore.getState().editOpen).toBe(true);
+  });
+
+  it("survives StrictMode's double-invoked mount", () => {
+    // Dev StrictMode runs mount → unmount → mount, so the cleanup fires once
+    // before the viewer can do anything. Nothing opens an overlay in that
+    // window, and reset() is idempotent, so state set afterwards has to stick.
+    const { unmount } = renderHook(
+      () => {
+        useCloseCollectionOverlaysOnUnmount();
+      },
+      { wrapper: ({ children }) => createElement(StrictMode, null, children) },
+    );
+    useCollectionOverlayStore.getState().setShareOpen(true);
+    expect(useCollectionOverlayStore.getState().shareOpen).toBe(true);
+
+    unmount();
+
+    expect(useCollectionOverlayStore.getState().shareOpen).toBe(false);
   });
 });

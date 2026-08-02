@@ -11,6 +11,7 @@
 - feat(Collection): **Move or remove part of a stack** — right-clicking a card with several copies now lets you pick how many to move to another collection or remove, instead of taking all of them.
 - feat(App): **Card, roadmap and changelog titles stay in view** — those three pages now carry the same sticky title bar as the rest of the app, so the title and its actions stay reachable as you scroll.
 - feat(App): **Shorter Discord card replies** — a card lookup now shows the image and prices, with the stats and rules text behind a Details button, and flags a ban or errata right away.
+- fix(App): **Chip markers in Discord card text** — rules text that points a keyword chip left or right showed a stray `>` chip in the bot's reply instead of shaping the chip beside it.
 - fix(Decks): **TTS imports keep their zones** — importing a Tabletop Simulator deck that isn't complete no longer tags a main-deck card as your chosen champion or files cards into the sideboard.
 - fix(Collection): **Language survives a CSV round trip** — exporting and re-importing a collection dropped the language on cards in anything but English, French, or Simplified Chinese.
 - fix(Tournaments): **Lowercased deck codes accepted** — pasting a deck code in lower case for a deck check said it could not be read.
@@ -18,7 +19,7 @@
 - fix(Tournaments): **Cancelled tournaments stay readable** — cancelling a tournament with pairings broke its pairings tab and every participant's follow link with an error; both now open and show it as cancelled.
 - fix(Collection): **Errors on failed list and collection edits** — adding to a list, changing an entry, or reordering lists and collections used to revert with no message, and now says why it failed.
 - fix(App): **One message when an action fails** — a failed action raised two toasts, and the vague one usually hid the real reason the server gave.
-- fix(App): **Display settings save reliably** — a preference changed in the moment the server answered could be dropped, and a background refresh could revert one you had just set.
+- fix(App): **Display settings save reliably** — a preference changed in the moment the server answered could be dropped, a background refresh could revert one you had just set, and signing back in left your saved settings unapplied.
 - fix(Tournaments): **Edit forms show current values** — the deck-check player and card dialogs, and the tournament settings cards, kept whatever the page loaded with instead of following later updates.
 - fix(Groups): **Group settings show current values** — the name, slug, and description fields on the manage page kept their page-load values while the group data refreshed behind them.
 

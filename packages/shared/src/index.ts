@@ -81,6 +81,9 @@ export {
 
 export { extractBracketedTerms, extractKeywords } from "./keywords.js";
 
+export type { CardTextToken } from "./card-text.js";
+export { tokenizeCardText } from "./card-text.js";
+
 export type { ImageVariant } from "./image-url.js";
 export { imageUrl } from "./image-url.js";
 
