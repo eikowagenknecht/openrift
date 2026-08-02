@@ -1,0 +1,335 @@
+import type {
+  AdminPrintingImageResponse,
+  AdminPrintingMarketplaceMappingResponse,
+  AdminPrintingResponse,
+  CandidateCardResponse,
+  CandidatePrintingResponse,
+  ProviderSettingResponse,
+} from "@openrift/shared";
+import { Link } from "@tanstack/react-router";
+import {
+  CheckCheckIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  CopyIcon,
+  EllipsisVerticalIcon,
+  Trash2Icon,
+} from "lucide-react";
+
+import { CandidateSpreadsheet } from "@/components/admin/candidate-spreadsheet";
+import type { FieldDef } from "@/components/admin/candidate-spreadsheet";
+import {
+  buildPrintingNormalizer,
+  computePrintingMatchStatus,
+  deduplicateSourceImages,
+} from "@/components/admin/card-detail-shared";
+import { PrintingImageSwitcher } from "@/components/admin/printing-image-switcher";
+import { PrintingMarketplaceBadges } from "@/components/admin/printing-marketplace-cells";
+import { PrintingSourceActions } from "@/components/admin/printing-source-actions";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  useAcceptPrintingField,
+  useCheckAllCandidatePrintings,
+  useCheckCandidatePrinting,
+  useCopyCandidatePrinting,
+  useDeleteCandidatePrinting,
+  useDeletePrinting,
+  useLinkCandidatePrintings,
+  useUncheckCandidatePrinting,
+} from "@/hooks/use-admin-card-mutations";
+import { useIgnoreCandidatePrinting } from "@/hooks/use-ignored-candidates";
+import { cn } from "@/lib/utils";
+import { getCollapsedPrintings, useAdminCardFoldStore } from "@/stores/admin-card-fold-store";
+
+interface PrintingSourceColumnActionsProps {
+  row?: CandidateCardResponse | CandidatePrintingResponse;
+  targets: { id: string; label: string }[];
+  sourceLabels: Record<string, string>;
+  onAssign: (input: { candidatePrintingIds: string[]; printingId: string | null }) => void;
+  onCopy: (input: { id: string; printingId: string }) => void;
+  onIgnore: (input: { provider: string; externalId: string; finish: string | null }) => void;
+  onDelete: (id: string) => void;
+}
+
+function PrintingSourceColumnActions({
+  row,
+  targets,
+  sourceLabels,
+  onAssign,
+  onCopy,
+  onIgnore,
+  onDelete,
+}: PrintingSourceColumnActionsProps) {
+  if (!row) {
+    return null;
+  }
+  const printingRow = row as CandidatePrintingResponse;
+  return (
+    <PrintingSourceActions
+      targets={targets}
+      onAssign={(pid) => onAssign({ candidatePrintingIds: [row.id], printingId: pid })}
+      onCopy={(pid) => onCopy({ id: row.id, printingId: pid })}
+      onUnassign={() => onAssign({ candidatePrintingIds: [row.id], printingId: null })}
+      onIgnore={() =>
+        onIgnore({
+          provider: sourceLabels[printingRow.candidateCardId] ?? "",
+          externalId: row.externalId,
+          finish: printingRow.finish,
+        })
+      }
+      onDelete={() => onDelete(row.id)}
+    />
+  );
+}
+
+interface PrintingReviewCardProps {
+  printing: AdminPrintingResponse;
+  /** Route slug of the owning card: fold-store key and create-printing link param. */
+  cardId: string;
+  /** All accepted printings on the card, for the "assign source elsewhere" targets. */
+  printings: AdminPrintingResponse[];
+  /** Every candidate source on the card; narrowed to this printing here. */
+  candidatePrintings: CandidatePrintingResponse[];
+  /** Every accepted image on the card; narrowed to this printing here. */
+  printingImages: AdminPrintingImageResponse[];
+  marketplaceMappings: AdminPrintingMarketplaceMappingResponse[];
+  sourceLabels: Record<string, string>;
+  sourceNames: Record<string, string>;
+  providerSettings: ProviderSettingResponse[];
+  printingSourceFields: FieldDef[];
+  setTotals: Record<string, number>;
+  costKeywords: readonly string[];
+  /** Query keys this row's mutations invalidate. */
+  invalidates: readonly (readonly unknown[])[];
+  /** Card-review grant holders only accept fields; triage and delete stay full-admin. */
+  isAdmin: boolean;
+}
+
+/**
+ * One accepted printing in the card review list: a foldable header carrying the
+ * match status and triage actions, over the candidate spreadsheet for its
+ * sources.
+ *
+ * The row owns its own mutations and reads its own fold slice so the detail
+ * page's `.map()` closes over nothing that changes per render, and toggling one
+ * row re-renders only that row.
+ *
+ * @returns The printing card element.
+ */
+export function PrintingReviewCard({
+  printing,
+  cardId,
+  printings,
+  candidatePrintings,
+  printingImages,
+  marketplaceMappings,
+  sourceLabels,
+  sourceNames,
+  providerSettings,
+  printingSourceFields,
+  setTotals,
+  costKeywords,
+  invalidates,
+  isAdmin,
+}: PrintingReviewCardProps) {
+  const printingId = printing.id;
+  const printingLabel = printing.expectedPrintingId;
+
+  const isExpanded = useAdminCardFoldStore(
+    (state) => !getCollapsedPrintings(state, cardId).has(printingId),
+  );
+  const togglePrintingFold = useAdminCardFoldStore((state) => state.togglePrinting);
+
+  const checkAllCandidatePrintings = useCheckAllCandidatePrintings(invalidates);
+  const checkPrintingSource = useCheckCandidatePrinting(invalidates);
+  const uncheckPrintingSource = useUncheckCandidatePrinting(invalidates);
+  const acceptPrintingField = useAcceptPrintingField(invalidates);
+  const linkPrintingSources = useLinkCandidatePrintings(invalidates);
+  const copyPrintingSource = useCopyCandidatePrinting(invalidates);
+  const deletePrintingSource = useDeleteCandidatePrinting(invalidates);
+  const deletePrintingMutation = useDeletePrinting(invalidates);
+  const ignorePrintingSource = useIgnoreCandidatePrinting();
+
+  const allSources = candidatePrintings.filter((ps) => ps.printingId === printingId);
+  const ownImages = printingImages.filter((pi) => pi.printingId === printingId);
+  const activeImage = ownImages.find((pi) => pi.isActive);
+  const printingWithImage = {
+    ...printing,
+    imageUrl: activeImage?.originalUrl ?? null,
+  };
+
+  const matchStatus = computePrintingMatchStatus(
+    printing,
+    allSources,
+    sourceLabels,
+    providerSettings,
+    printingSourceFields,
+    setTotals,
+    costKeywords,
+  );
+  const headerBgClass =
+    matchStatus === "match"
+      ? "bg-green-50 dark:bg-green-950/30"
+      : "bg-yellow-50 dark:bg-yellow-950/30";
+
+  // Deduplicate source images not yet accepted as printing images
+  const sourceImagesForSwitcher = deduplicateSourceImages(
+    allSources.filter(
+      (ps) => ps.imageUrl && !ownImages.some((pi) => pi.originalUrl === ps.imageUrl),
+    ),
+    sourceLabels,
+  );
+
+  const uncheckedSources = allSources.filter((ps) => !ps.checkedAt);
+
+  return (
+    <div data-printing-id={printingId} className="overflow-hidden rounded-md border">
+      {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- contains nested buttons, can't use <button> */}
+      <div
+        className={cn(
+          "flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-sm font-medium hover:opacity-90",
+          headerBgClass,
+        )}
+        onClick={() => togglePrintingFold(cardId, printingId)}
+      >
+        <span className="flex items-center gap-2">
+          {isExpanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
+          <span>{printingLabel}</span>
+          <span className="text-muted-foreground font-normal">
+            ({allSources.length} source
+            {allSources.length === 1 ? "" : "s"})
+          </span>
+          {!activeImage && <Badge variant="destructive">no image</Badge>}
+          <PrintingMarketplaceBadges printingId={printingId} mappings={marketplaceMappings} />
+        </span>
+        {isAdmin && uncheckedSources.length > 0 && (
+          <Button
+            variant="outline"
+            disabled={checkAllCandidatePrintings.isPending}
+            onClick={(e) => {
+              e.stopPropagation();
+              checkAllCandidatePrintings.mutate({ printingId });
+            }}
+          >
+            <CheckCheckIcon className="mr-1" />
+            Check {uncheckedSources.length} unchecked
+          </Button>
+        )}
+        {isAdmin && (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="ml-auto"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              }
+            >
+              <EllipsisVerticalIcon />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                render={
+                  <Link
+                    to="/admin/cards/$cardSlug/printings/create"
+                    params={{ cardSlug: cardId }}
+                    search={{ duplicateFrom: printingId }}
+                  />
+                }
+              >
+                <CopyIcon className="mr-2" />
+                Duplicate printing
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={deletePrintingMutation.isPending}
+                onClick={() => {
+                  if (
+                    globalThis.confirm(`Delete printing "${printingLabel}"? This cannot be undone.`)
+                  ) {
+                    deletePrintingMutation.mutate(printingId);
+                  }
+                }}
+              >
+                <Trash2Icon className="text-destructive mr-2" />
+                <span className="text-destructive">Delete</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
+      {isExpanded && (
+        <div className="flex flex-col gap-3 border-t p-3 lg:flex-row">
+          <PrintingImageSwitcher
+            printingId={printingId}
+            printingLabel={printingLabel}
+            images={ownImages}
+            providerSettings={providerSettings}
+            sourceImages={sourceImagesForSwitcher}
+            invalidates={invalidates}
+            isAdmin={isAdmin}
+          />
+          <div className="min-w-0 flex-1 space-y-3">
+            <CandidateSpreadsheet
+              key={allSources.map((s) => s.id).join(",")}
+              fields={printingSourceFields}
+              activeRow={printingWithImage}
+              candidateRows={allSources}
+              providerLabels={sourceLabels}
+              providerNames={sourceNames}
+              providerSettings={providerSettings}
+              activeImageUrl={printingWithImage.imageUrl}
+              costKeywords={costKeywords}
+              normalizeCandidate={buildPrintingNormalizer(
+                setTotals,
+                printing.setSlug,
+                costKeywords,
+              )}
+              onCellClick={(field, value) => {
+                acceptPrintingField.mutate({
+                  printingId,
+                  field,
+                  value,
+                  source: "provider",
+                });
+              }}
+              onActiveChange={(field, value) => {
+                if (value === undefined) {
+                  return;
+                }
+                acceptPrintingField.mutate({ printingId, field, value });
+              }}
+              onCheck={isAdmin ? (id) => checkPrintingSource.mutate(id) : undefined}
+              onUncheck={isAdmin ? (id) => uncheckPrintingSource.mutate(id) : undefined}
+              columnActions={
+                isAdmin ? (
+                  <PrintingSourceColumnActions
+                    targets={printings
+                      .filter((p) => p.id !== printingId)
+                      .map((p) => ({
+                        id: p.id,
+                        label: p.expectedPrintingId,
+                      }))}
+                    sourceLabels={sourceLabels}
+                    onAssign={(input) => linkPrintingSources.mutate(input)}
+                    onCopy={(input) => copyPrintingSource.mutate(input)}
+                    onIgnore={(input) => ignorePrintingSource.mutate(input)}
+                    onDelete={(id) => deletePrintingSource.mutate(id)}
+                  />
+                ) : undefined
+              }
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
