@@ -6,9 +6,12 @@ import { cn } from "@/lib/utils";
 
 /**
  * The peeking height of the portrait sheet: enough for the summary line and
- * the newest row, so the last scan is always legible without a drag.
+ * the newest row *with its actions out*, so the last scan is both legible and
+ * correctable without a drag. Sized against the parts (swipe handle 12px,
+ * summary 20, row padding 16, thumbnail 56, actions 32, plus the gaps), which
+ * is why it is not a round number of rows.
  */
-const PEEK_SNAP_POINT = "7rem";
+const PEEK_SNAP_POINT = "10rem";
 
 /** Width of the landscape side panel, sized to fit a tray row without wrapping. */
 const LANDSCAPE_PANEL_WIDTH = "w-72";

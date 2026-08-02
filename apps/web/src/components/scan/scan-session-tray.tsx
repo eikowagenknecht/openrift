@@ -1,13 +1,17 @@
 import type { Printing } from "@openrift/shared";
 import { WellKnown, imageUrl, legendDisplayName } from "@openrift/shared";
 import { ArrowLeftRightIcon, MinusIcon, PlusIcon, SparklesIcon } from "lucide-react";
+import { useId } from "react";
 
 import { FoilOverlay } from "@/components/cards/foil-overlay";
 import { PrintingVariantLabel } from "@/components/cards/printing-label";
 import { Button } from "@/components/ui/button";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
+import { CountPill } from "@/components/ui/count-pill";
+import { Pressable } from "@/components/ui/pressable";
 import type { UnidentifiedCard } from "@/hooks/use-card-scanner";
 import { useEnumOrders } from "@/hooks/use-enums";
+import { useScanTrayDisclosure } from "@/hooks/use-scan-tray-disclosure";
 import { formatCardId } from "@/lib/format";
 import type { ScanPrintingIndex } from "@/lib/scan-resolve";
 import { finishSiblingsOf } from "@/lib/scan-resolve";
@@ -48,6 +52,12 @@ interface ScanSessionTrayProps {
  * first. Every row is already in the collection — the controls here fix the
  * exceptions (a foil pull, a mis-scan) without leaving the page.
  *
+ * A row's controls do not fit beside its name on a phone, so only one row
+ * shows them at a time, on a line of its own below the card. That row is the
+ * newest one by default (see {@link useScanTrayDisclosure}), which is the card
+ * still in the user's hand; every other row is a plain log line the user can
+ * tap to correct.
+ *
  * @returns The tray, or a hint while the session is still empty.
  */
 export function ScanSessionTray({
@@ -62,7 +72,11 @@ export function ScanSessionTray({
   onDismissMissed,
 }: ScanSessionTrayProps) {
   const rows = useScanSessionStore((state) => state.rows);
+  // Read once here, not per row: the hook rebuilds every enum's label map on
+  // each call, and the camera pipeline wants that CPU.
   const { labels } = useEnumOrders();
+  const newestFirst = [...rows.values()].toReversed();
+  const { openId, toggle } = useScanTrayDisclosure(newestFirst.map((row) => row.printing.id));
 
   if (rows.size === 0) {
     return (
@@ -81,7 +95,6 @@ export function ScanSessionTray({
     );
   }
 
-  const newestFirst = [...rows.values()].toReversed();
   const total = newestFirst.reduce((sum, row) => sum + row.copyIds.length, 0);
 
   return (
@@ -95,94 +108,155 @@ export function ScanSessionTray({
         onIdentify={onIdentifyMissed}
         onDismiss={onDismissMissed}
       />
-      <ul className="flex flex-col gap-2">
-        {newestFirst.map((row) => {
-          const printing = row.printing;
-          const siblings = index ? finishSiblingsOf(printing, index) : [];
-          const isFoil = printing.finish !== WellKnown.finish.NORMAL;
-          return (
-            <li key={printing.id} className="flex items-center gap-3">
-              {/* Radius and clipping stay on this wrapper; the foil overlay's
-                  3D transform lives two levels in. Combining them on one
-                  element mis-sizes the overlay in Firefox. */}
-              <span
-                className={cn(
-                  "relative block h-14 w-10 shrink-0 overflow-hidden rounded",
-                  isFoil && "ring-1 ring-amber-400/60",
-                )}
-              >
-                <img
-                  src={imageUrl(printing.images[0]?.imageId ?? "", "120w")}
-                  alt=""
-                  className="size-full object-cover"
-                />
-                {/* Static rainbow, never the shimmer keyframe — the camera
-                    pipeline needs every frame of CPU it can get. */}
-                {isFoil && <FoilOverlay active shimmer={false} />}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate font-medium">
-                  {legendDisplayName(printing.card)}
-                  {row.copyIds.length > 1 && (
-                    <span className="text-muted-foreground tabular-nums">
-                      {" "}
-                      ×{row.copyIds.length}
-                    </span>
-                  )}
-                </span>
-                <span className="text-muted-foreground flex items-center gap-1.5 text-sm">
-                  <span className="font-mono">{formatCardId(printing)}</span>
-                  <PrintingVariantLabel printing={printing} siblings={siblings} />
-                </span>
-              </span>
-              {siblings.map((sibling) => {
-                const toFoil = sibling.finish !== WellKnown.finish.NORMAL;
-                return (
-                  <Button
-                    key={sibling.id}
-                    size="sm"
-                    variant={isFoil ? "secondary" : "outline"}
-                    // The button that makes a card foil carries the same amber
-                    // cue as a foil thumbnail. A rainbow wash sat over the
-                    // label and cost it contrast, so the ring gets it instead.
-                    className={cn(toFoil && "ring-1 ring-amber-400/60")}
-                    onClick={() => onSwitchFinish(row, sibling)}
-                    aria-label={`Mark one ${legendDisplayName(printing.card)} as ${labels.finishes[sibling.finish]}`}
-                  >
-                    <SparklesIcon className={cn("size-4", toFoil && "text-amber-500")} />
-                    {labels.finishes[sibling.finish]}
-                  </Button>
-                );
-              })}
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                onClick={() => onChangePrinting(row)}
-                aria-label={`Change the printing of ${legendDisplayName(printing.card)}`}
-              >
-                <ArrowLeftRightIcon className="size-4" />
-              </Button>
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                onClick={() => onAddOne(row)}
-                aria-label={`Add another ${legendDisplayName(printing.card)}`}
-              >
-                <PlusIcon className="size-4" />
-              </Button>
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                onClick={() => onRemoveOne(row)}
-                aria-label={`Remove one ${legendDisplayName(printing.card)}`}
-              >
-                <MinusIcon className="size-4" />
-              </Button>
-            </li>
-          );
-        })}
+      <ul className="flex flex-col">
+        {newestFirst.map((row) => (
+          <TrayRow
+            key={row.printing.id}
+            row={row}
+            siblings={index ? finishSiblingsOf(row.printing, index) : []}
+            finishLabels={labels.finishes}
+            open={openId === row.printing.id}
+            onToggle={toggle}
+            onSwitchFinish={onSwitchFinish}
+            onAddOne={onAddOne}
+            onRemoveOne={onRemoveOne}
+            onChangePrinting={onChangePrinting}
+          />
+        ))}
       </ul>
     </div>
+  );
+}
+
+interface TrayRowProps {
+  row: ScanSessionRow;
+  /** Same-card printings that differ only in finish, for the switch buttons. */
+  siblings: Printing[];
+  finishLabels: Record<string, string>;
+  open: boolean;
+  onToggle: (printingId: string) => void;
+  onSwitchFinish: (row: ScanSessionRow, sibling: Printing) => void;
+  onAddOne: (row: ScanSessionRow) => void;
+  onRemoveOne: (row: ScanSessionRow) => void;
+  onChangePrinting: (row: ScanSessionRow) => void;
+}
+
+/**
+ * One scanned card in the tray: a tappable log line, plus its corrections on a
+ * second line while it is the open row.
+ *
+ * The line keeps its padding whether or not it is open, so opening a row never
+ * shifts the rows above it out from under the user's thumb.
+ *
+ * @returns The tray row.
+ */
+function TrayRow({
+  row,
+  siblings,
+  finishLabels,
+  open,
+  onToggle,
+  onSwitchFinish,
+  onAddOne,
+  onRemoveOne,
+  onChangePrinting,
+}: TrayRowProps) {
+  const actionsId = useId();
+  const printing = row.printing;
+  const name = legendDisplayName(printing.card);
+  const isFoil = printing.finish !== WellKnown.finish.NORMAL;
+  const copies = row.copyIds.length;
+
+  return (
+    <li className={cn("-mx-2 rounded-md px-2 py-2", open && "bg-muted/50")}>
+      <Pressable
+        className="flex w-full items-center gap-3 rounded-md"
+        aria-expanded={open}
+        // Only while open: the panel is unmounted when closed, and pointing
+        // aria-controls at an absent id is worse than omitting it.
+        aria-controls={open ? actionsId : undefined}
+        onClick={() => onToggle(printing.id)}
+      >
+        {/* Radius and clipping stay on this wrapper; the foil overlay's
+            3D transform lives two levels in. Combining them on one
+            element mis-sizes the overlay in Firefox. */}
+        <span
+          className={cn(
+            "relative block h-14 w-10 shrink-0 overflow-hidden rounded",
+            isFoil && "ring-1 ring-amber-400/60",
+          )}
+        >
+          <img
+            src={imageUrl(printing.images[0]?.imageId ?? "", "120w")}
+            alt=""
+            className="size-full object-cover"
+          />
+          {/* Static rainbow, never the shimmer keyframe — the camera
+              pipeline needs every frame of CPU it can get. */}
+          {isFoil && <FoilOverlay active shimmer={false} />}
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="flex items-center gap-2">
+            <span className="truncate font-medium">{name}</span>
+            {/* Outside the truncating span: a count that gets cut off is worse
+                than a name that does, because nothing else states it. */}
+            {copies > 1 && <CountPill className="shrink-0">×{copies}</CountPill>}
+          </span>
+          <span className="text-muted-foreground flex items-center gap-1.5 text-sm">
+            <span className="font-mono">{formatCardId(printing)}</span>
+            <PrintingVariantLabel printing={printing} siblings={siblings} />
+          </span>
+        </span>
+      </Pressable>
+      {open && (
+        <div id={actionsId} className="mt-2 flex flex-wrap items-center gap-2">
+          {siblings.map((sibling) => {
+            const toFoil = sibling.finish !== WellKnown.finish.NORMAL;
+            return (
+              <Button
+                key={sibling.id}
+                variant={isFoil ? "secondary" : "outline"}
+                // The button that makes a card foil carries the same amber
+                // cue as a foil thumbnail. A rainbow wash sat over the
+                // label and cost it contrast, so the ring gets it instead.
+                className={cn(toFoil && "ring-1 ring-amber-400/60")}
+                onClick={() => onSwitchFinish(row, sibling)}
+                aria-label={`Mark one ${name} as ${finishLabels[sibling.finish]}`}
+              >
+                <SparklesIcon className={cn(toFoil && "text-amber-500")} />
+                {finishLabels[sibling.finish]}
+              </Button>
+            );
+          })}
+          <Button
+            variant="outline"
+            onClick={() => onChangePrinting(row)}
+            aria-label={`Change the printing of ${name}`}
+          >
+            <ArrowLeftRightIcon />
+            Printing
+          </Button>
+          <div className="ml-auto flex items-center gap-2">
+            <Button
+              size="icon"
+              variant="outline"
+              onClick={() => onRemoveOne(row)}
+              aria-label={`Remove one ${name}`}
+            >
+              <MinusIcon />
+            </Button>
+            <Button
+              size="icon"
+              variant="outline"
+              onClick={() => onAddOne(row)}
+              aria-label={`Add another ${name}`}
+            >
+              <PlusIcon />
+            </Button>
+          </div>
+        </div>
+      )}
+    </li>
   );
 }
 
