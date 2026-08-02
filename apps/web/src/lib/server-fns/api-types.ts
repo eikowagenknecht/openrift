@@ -21,10 +21,8 @@ export type {
 // dynamic output is cast to at the call boundary (the API validates the real
 // shape server-side). Types come from the contract.
 export type {
-  AcceptCardFieldBody,
   AcceptNewCardBody,
   AcceptPrintingBody,
-  AcceptPrintingFieldBody,
   CreateCardBody,
   CreatePrintingBody,
   PatchCandidatePrintingBody,
