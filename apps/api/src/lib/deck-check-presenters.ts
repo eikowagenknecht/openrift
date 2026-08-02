@@ -8,12 +8,12 @@ import type {
 } from "@openrift/shared";
 
 import type { Repos } from "../deps.js";
+import type { DeckCheckKey } from "../repositories/deck-check-keys.js";
 import type {
   DeckCheckEntry,
   DeckCheckEntrySummary,
   DeckCheckEvent,
   DeckCheckEventWithCounts,
-  DeckCheckKey,
 } from "../repositories/deck-check.js";
 import {
   buildEntryAdvisories,

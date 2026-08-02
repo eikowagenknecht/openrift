@@ -48,7 +48,7 @@ export const deckCheckIngestRouter = {
     }
 
     const tokenHash = createHash("sha256").update(token).digest("hex");
-    const key = await context.repos.deckCheck.findActiveKeyByHash(tokenHash);
+    const key = await context.repos.deckCheckKeys.findActiveKeyByHash(tokenHash);
     if (!key) {
       throw new AppError(401, ERROR_CODES.UNAUTHORIZED, "Unknown or revoked push key");
     }
@@ -61,7 +61,7 @@ export const deckCheckIngestRouter = {
         context.config.appBaseUrl,
       ),
     );
-    await context.repos.deckCheck.touchKeyUsage(key.id);
+    await context.repos.deckCheckKeys.touchKeyUsage(key.id);
 
     return result;
   }),

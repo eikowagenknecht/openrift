@@ -21,6 +21,7 @@ import { collectionsRepo } from "./repositories/collections.js";
 import { copiesRepo } from "./repositories/copies.js";
 import { customTagCategoriesRepo } from "./repositories/custom-tag-categories.js";
 import { customTagsRepo } from "./repositories/custom-tags.js";
+import { deckCheckKeysRepo } from "./repositories/deck-check-keys.js";
 import { deckCheckRepo } from "./repositories/deck-check.js";
 import { deckFormatsRepo } from "./repositories/deck-formats.js";
 import { deckPlansRepo } from "./repositories/deck-plans.js";
@@ -107,6 +108,7 @@ export interface Repos {
   cardBans: ReturnType<typeof cardBansRepo>;
   cardTrades: ReturnType<typeof cardTradesRepo>;
   deckCheck: ReturnType<typeof deckCheckRepo>;
+  deckCheckKeys: ReturnType<typeof deckCheckKeysRepo>;
   cardTypes: ReturnType<typeof cardTypesRepo>;
   canonicalPrintings: ReturnType<typeof canonicalPrintingsRepo>;
   candidateMutations: ReturnType<typeof candidateMutationsRepo>;
@@ -265,6 +267,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     cardBans: cardBansRepo(db),
     cardTrades: cardTradesRepo(db),
     deckCheck: deckCheckRepo(db),
+    deckCheckKeys: deckCheckKeysRepo(db),
     cardTypes: cardTypesRepo(db),
     canonicalPrintings: canonicalPrintingsRepo(db),
     candidateMutations: candidateMutationsRepo(db),

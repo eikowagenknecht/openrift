@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
+import type { DeckCheckKey } from "../repositories/deck-check-keys.js";
 import type {
   DeckCheckEntry,
   DeckCheckEntrySummary,
   DeckCheckEvent,
-  DeckCheckKey,
 } from "../repositories/deck-check.js";
 import { toEntrySummary, toEventSummary, toKey } from "./deck-check-presenters.js";
 

@@ -13,7 +13,7 @@ vi.mock("../../services/deck-check-ingest.js", () => ({
   ingestDeckCheckPush: (...args: unknown[]) => mockIngest(...args),
 }));
 
-const mockDeckCheckRepo = {
+const mockDeckCheckKeysRepo = {
   findActiveKeyByHash: vi.fn(),
   touchKeyUsage: vi.fn(),
 };
@@ -25,10 +25,10 @@ const mockDeckCheckRepo = {
 // not part of the router, so they're out of scope here.
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
-  c.set("repos", { deckCheck: mockDeckCheckRepo } as never);
+  c.set("repos", { deckCheckKeys: mockDeckCheckKeysRepo } as never);
   c.set("config", { appBaseUrl: "https://openrift.test" } as never);
   c.set("transact", (async (run: (repos: unknown) => unknown) =>
-    run({ deckCheck: mockDeckCheckRepo })) as never);
+    run({ deckCheckKeys: mockDeckCheckKeysRepo })) as never);
   await next();
 });
 registerRouterForTest(app, deckCheckIngestRouter);
@@ -62,7 +62,7 @@ describe("POST /api/v1/ingest/deck-check (oRPC)", () => {
   });
 
   it("returns 200 with the ingest result for a valid key + payload", async () => {
-    mockDeckCheckRepo.findActiveKeyByHash.mockResolvedValue({
+    mockDeckCheckKeysRepo.findActiveKeyByHash.mockResolvedValue({
       id: "key-1",
       hostType: "user",
       hostUserId: "user-1",
@@ -82,7 +82,7 @@ describe("POST /api/v1/ingest/deck-check (oRPC)", () => {
       { tournamentId: EVENT_ID, entries: [] },
       "https://openrift.test",
     );
-    expect(mockDeckCheckRepo.touchKeyUsage).toHaveBeenCalledWith("key-1");
+    expect(mockDeckCheckKeysRepo.touchKeyUsage).toHaveBeenCalledWith("key-1");
   });
 
   it("returns 401 { code, message } when the Authorization header is missing", async () => {
@@ -92,11 +92,11 @@ describe("POST /api/v1/ingest/deck-check (oRPC)", () => {
       code: ERROR_CODES.UNAUTHORIZED,
       message: "Missing push key",
     });
-    expect(mockDeckCheckRepo.findActiveKeyByHash).not.toHaveBeenCalled();
+    expect(mockDeckCheckKeysRepo.findActiveKeyByHash).not.toHaveBeenCalled();
   });
 
   it("returns 401 { code, message } when the key is unknown or revoked", async () => {
-    mockDeckCheckRepo.findActiveKeyByHash.mockResolvedValue(undefined);
+    mockDeckCheckKeysRepo.findActiveKeyByHash.mockResolvedValue(undefined);
     const res = await push(
       { tournamentId: EVENT_ID, entries: [] },
       { Authorization: "Bearer nope" },
@@ -113,6 +113,6 @@ describe("POST /api/v1/ingest/deck-check (oRPC)", () => {
     expect(res.status).toBe(400);
     // Validation runs before the handler, so the key is never looked up — this
     // preserves the previous validation-first ordering.
-    expect(mockDeckCheckRepo.findActiveKeyByHash).not.toHaveBeenCalled();
+    expect(mockDeckCheckKeysRepo.findActiveKeyByHash).not.toHaveBeenCalled();
   });
 });

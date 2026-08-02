@@ -73,14 +73,14 @@ export const deckCheckKeysRouter = {
   // ── Personal keys ──────────────────────────────────────────────────────────
   listMine: os.listMine.handler(async ({ context }): Promise<DeckCheckKeysResponse> => {
     const repos = context.repos;
-    const keys = await repos.deckCheck.listKeysForHost(userHost(context.userId));
+    const keys = await repos.deckCheckKeys.listKeysForHost(userHost(context.userId));
     return { items: keys.map((key) => toKey(key)) };
   }),
 
   mintMine: os.mintMine.handler(async ({ input, context }): Promise<DeckCheckKeyMintedResponse> => {
     const repos = context.repos;
     const { token, tokenHash, tokenPrefix } = mintToken();
-    const key = await repos.deckCheck.createKeyForHost({
+    const key = await repos.deckCheckKeys.createKeyForHost({
       host: userHost(context.userId),
       tokenHash,
       tokenPrefix,
@@ -92,7 +92,7 @@ export const deckCheckKeysRouter = {
 
   renameMine: os.renameMine.handler(async ({ input, context }): Promise<DeckCheckKeyResponse> => {
     const repos = context.repos;
-    const key = await repos.deckCheck.updateKeyLabelForHost(
+    const key = await repos.deckCheckKeys.updateKeyLabelForHost(
       userHost(context.userId),
       input.keyId,
       input.label,
@@ -105,7 +105,10 @@ export const deckCheckKeysRouter = {
 
   revokeMine: os.revokeMine.handler(async ({ input, context }): Promise<void> => {
     const repos = context.repos;
-    const revoked = await repos.deckCheck.revokeKeyForHost(userHost(context.userId), input.keyId);
+    const revoked = await repos.deckCheckKeys.revokeKeyForHost(
+      userHost(context.userId),
+      input.keyId,
+    );
     if (!revoked) {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "Key not found");
     }
@@ -113,7 +116,7 @@ export const deckCheckKeysRouter = {
 
   removeMine: os.removeMine.handler(async ({ input, context }): Promise<void> => {
     const repos = context.repos;
-    const removed = await repos.deckCheck.deleteRevokedKeyForHost(
+    const removed = await repos.deckCheckKeys.deleteRevokedKeyForHost(
       userHost(context.userId),
       input.keyId,
     );
@@ -126,7 +129,7 @@ export const deckCheckKeysRouter = {
   listForOrg: os.listForOrg.handler(async ({ input, context }): Promise<DeckCheckKeysResponse> => {
     const repos = context.repos;
     const host = await authorizeOrgHost(repos, input.orgId, context.userId);
-    const keys = await repos.deckCheck.listKeysForHost(host);
+    const keys = await repos.deckCheckKeys.listKeysForHost(host);
     return { items: keys.map((key) => toKey(key)) };
   }),
 
@@ -135,7 +138,7 @@ export const deckCheckKeysRouter = {
       const repos = context.repos;
       const host = await authorizeOrgHost(repos, input.orgId, context.userId);
       const { token, tokenHash, tokenPrefix } = mintToken();
-      const key = await repos.deckCheck.createKeyForHost({
+      const key = await repos.deckCheckKeys.createKeyForHost({
         host,
         tokenHash,
         tokenPrefix,
@@ -150,7 +153,7 @@ export const deckCheckKeysRouter = {
     async ({ input, context }): Promise<DeckCheckKeyResponse> => {
       const repos = context.repos;
       const host = await authorizeOrgHost(repos, input.orgId, context.userId);
-      const key = await repos.deckCheck.updateKeyLabelForHost(host, input.keyId, input.label);
+      const key = await repos.deckCheckKeys.updateKeyLabelForHost(host, input.keyId, input.label);
       if (!key) {
         throw new AppError(404, ERROR_CODES.NOT_FOUND, "Key not found");
       }
@@ -161,7 +164,7 @@ export const deckCheckKeysRouter = {
   revokeForOrg: os.revokeForOrg.handler(async ({ input, context }): Promise<void> => {
     const repos = context.repos;
     const host = await authorizeOrgHost(repos, input.orgId, context.userId);
-    const revoked = await repos.deckCheck.revokeKeyForHost(host, input.keyId);
+    const revoked = await repos.deckCheckKeys.revokeKeyForHost(host, input.keyId);
     if (!revoked) {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "Key not found");
     }
@@ -170,7 +173,7 @@ export const deckCheckKeysRouter = {
   removeForOrg: os.removeForOrg.handler(async ({ input, context }): Promise<void> => {
     const repos = context.repos;
     const host = await authorizeOrgHost(repos, input.orgId, context.userId);
-    const removed = await repos.deckCheck.deleteRevokedKeyForHost(host, input.keyId);
+    const removed = await repos.deckCheckKeys.deleteRevokedKeyForHost(host, input.keyId);
     if (!removed) {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "Key not found");
     }
