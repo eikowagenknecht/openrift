@@ -17,8 +17,17 @@ pre-commit:
       root: "apps/web/"
       run: bunx eslint --no-warn-ignored '{staged_files}'
     syncpack-lint:
-      glob: "**/package.json"
+      # `**/package.json` alone never matches the root file, so a range slipped
+      # into the root devDependencies used to go unchecked.
+      glob: ["package.json", "**/package.json"]
       run: bunx syncpack lint
+    override-pins:
+      # syncpack cannot see this class of drift: it groups by package name, so
+      # an npm: alias and its target look like one instance each.
+      # Both globs are needed — `**/package.json` does not match the root file,
+      # which is where the overrides themselves live.
+      glob: ["package.json", "**/package.json"]
+      run: bun scripts/check-override-pins.ts
     oxfmt-fix:
       glob: "*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc,md}"
       run: bunx oxfmt '{staged_files}' && git update-index --again

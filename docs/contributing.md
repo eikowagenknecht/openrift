@@ -52,19 +52,49 @@ Never pass `version`/`migrate` to `persist()`. Users run stale cached bundles af
 
 Absorb shape changes in a defensive `merge` that validates each field and falls back to defaults. For a genuinely breaking change, branch on a `schemaVersion` field inside the persisted state (handled by `merge`), or rotate to a new storage key with a one-time migration from the old key. Enforced by `apps/web/src/stores/persist-no-version.test.ts`.
 
+## Dependencies
+
+Pin exact versions everywhere — no `^`, no `~`. `syncpack lint` enforces this on commit.
+
+The root `overrides` block is separate: each entry collapses two copies of a package into one, and only works while it matches the version the repo depends on directly. `bun scripts/check-override-pins.ts` (also on commit) fails when one drifts. The `//` keys next to each override explain why it exists.
+
 ## Commits
 
 [Conventional Commits](https://www.conventionalcommits.org/), enforced by commitlint (`feat:`, `fix:`, `refactor:`, `chore:`, etc.).
 
 ## Changelog
 
-`apps/web/src/CHANGELOG.md` is shown to users in the "What's new" panel. Add an entry after `feat:` or `fix:` work (skip for chores/refactors users won't notice).
+`apps/web/src/CHANGELOG.md` is shown to users in the "What's new" panel. Add an entry after `feat:` or `fix:` work. Skip it for chores, refactors, perf, CI, docs, admin-only features, and internal fixes users won't notice.
+
+Each date splits into `### Highlights` and `### Other`. The panel shows Highlights expanded and collapses Other behind a "N more changes" toggle, and the Discord webhook posts the same split.
 
 ```plaintext
 ## YYYY-MM-DD
 
-- feat: You can now flip the sort order with a toggle
-- fix: A gap that appeared below the header when scrolling is now gone
+### Highlights
+
+- feat(Collection): **Inline tradelist removal** — each card now has a remove button right on the card, no right-click menu needed.
+- fix(Rules): **Duplicate rule warnings** — a card under several printings no longer triggers the same warning twice.
+
+### Other
+
+- feat(Tournaments): **Sort deck-check cards by energy** — orders each zone by energy cost, then power, then name.
+- fix(Groups): **Activity-feed icon sizes** — member avatars now line up with the other event icons.
 ```
 
-Every entry must be a proper sentence. Never start with "Added" — just say what the feature does. For fixes, describe what was broken and how it's now fixed.
+An entry is `type(Area):`, then a bold title of 3–6 words, then an em dash with a space on each side, then one plain sentence. Group `feat:` entries above `fix:` entries within each section, newest date at the top.
+
+**Area** is exactly one tag from this list, spelled as written: `Cards`, `Collection`, `Decks`, `Groups`, `Trades`, `Tournaments`, `Rules`, `Packs`, `Products`, `Designer`, `Account`, `App`. Use `App` for anything cross-cutting (performance, theming, navigation, offline).
+
+**Highlights vs Other** — Highlights are what a user would actually care about on that release: new surfaces, visible behavior changes, fixes to something painful. Polish, wording tweaks, and edge cases go under Other. There is no quota; a quiet release can have none, and a date may have only one of the two sections.
+
+**Writing the entry:**
+
+- The title is a noun phrase, not a sentence. Never start with "Added" or "Added the ability to".
+- The body is one sentence, around 100 characters, ending in a period. It adds the fact the title doesn't already carry — not a feature tour.
+- Keep the body free of em dashes so the divider stays the only one on the line.
+- Say what the change does for the user. Cut presentational detail (hover behavior, exact positions, color names) unless the visual itself is the fix.
+- For fixes, say briefly what was broken and how it now behaves.
+- Fold closely related changes into one entry. Several tweaks to the same feature are one bullet, and a feat plus its follow-up fix collapse into the feat.
+
+Older dates use a flat `- feat: sentence` form with no sections. The parser still renders those (as Other), so leave them alone and use the current format going forward.

@@ -10,15 +10,16 @@ All workspaces use **Vitest** as the test runner. `apps/web` runs with `jsdom`; 
 # All workspaces (via Turbo) — always use `bun run test` at the root
 bun run test
 
-# Individual workspaces
-bun run --cwd packages/shared test    # vitest run
-bun run --cwd apps/web test           # vitest run
-bun run --cwd apps/api test           # vitest run
+# One workspace — go through Turbo so the result is cached
+bunx turbo test --filter=shared
+bunx turbo test --filter=web
+bunx turbo test --filter=api
 
-# With coverage
-bun run --cwd packages/shared test:coverage
-bun run --cwd apps/web test:coverage
+# A single file — the dev-loop default
+bun run --cwd apps/web test src/stores/display-store.test.ts
 ```
+
+Reserve `bun run --cwd <pkg> test` for a single file. Without a file argument it invokes vitest directly, bypasses the Turbo cache, and forces the pre-push hook to redo identical work.
 
 ## Writing Tests
 
@@ -37,8 +38,12 @@ src/
 
 ### Test Helpers
 
-When a function takes a complex object (like `Card` or `CardFilters`), build minimal stubs instead of importing real data.
-Define a factory at the top of the test file that returns a valid object with sensible defaults, then override only the fields relevant to each test:
+In `apps/web`, the shared helpers are mandatory rather than optional:
+
+- **Factories** — `apps/web/src/test/factories.ts` builds `Card`, `Printing` and friends. Import from there instead of hand-rolling a stub, so a shape change lands in one file.
+- **Store resets** — Zustand stores are singletons, so a store test must call `createStoreResetter()` from `apps/web/src/test/store-helpers.ts` in `beforeEach`/`afterEach`. Without it, state leaks between tests in the same file.
+
+Elsewhere, or for a shape the factories don't cover, define a local factory at the top of the test file that returns a valid object with sensible defaults and override only the fields each test cares about:
 
 ```ts
 function makeCard(overrides: Partial<Card> = {}): Card {
@@ -52,6 +57,10 @@ function makeCard(overrides: Partial<Card> = {}): Card {
 ```
 
 For functions that take simple inputs (strings, numbers, `null`), just call them directly — no factory needed.
+
+### What needs a test
+
+Every new or modified store, hook with real logic, or `lib/` utility gets a sibling `*.test.ts`. Aim for the happy path, the edges (empty input, boundaries), and the error path. Every bug fix gets a regression test that fails without the fix — if the path genuinely can't be tested (a third-party SSR quirk, browser-only behavior), say so in the commit message rather than shipping it uncovered.
 
 ### Imports
 
@@ -79,52 +88,57 @@ Integration tests hit a real PostgreSQL database. They use the `.integration.tes
 bun run test:integration          # all integration tests (via Turbo)
 ```
 
-### Temporary databases are mandatory
+The pre-push hook runs this, so there is no need to run it yourself as a verification step. The runner ignores file arguments — it is always the whole suite. It also needs the local Docker database, which is not reachable from a worktree, so run it from the main checkout only.
 
-Every integration test **must** use a temporary database. Never hit the development or production database from tests.
+### One shared temporary database
 
-Use `setupTestDb()` from `apps/api/src/test/integration-setup.ts` (or its inline equivalent for API tests that need dynamic imports). It:
+Never hit the development or production database from tests. `apps/api/src/test/run-integration.ts` owns the database for the whole run: it creates one `openrift_test_shared_<timestamp>` database, migrates it, loads the seed fixtures, inserts the test users, and drops it at the end. Test files never create or drop a database — they connect to the one the runner passes down via `INTEGRATION_DB_URL`.
 
-1. Creates a fresh `openrift_test_<timestamp>` database
-2. Runs all migrations
-3. Returns a Kysely instance and a `teardown()` that drops the database
+Files are discovered by glob (`src/**/*.integration.test.ts`), so a new test runs as soon as it exists. Nothing to register.
+
+The migrations test is the one exception: it rolls every migration back and re-applies it, so the runner gives it its own temp database via `setupTestDb()`. No other test should use that helper.
+
+### Two contexts
+
+Call one of these once at module scope, then guard the suite with `describe.skipIf(!ctx)` so the file skips cleanly when the runner isn't providing a database.
 
 ```ts
-// apps/api example (static imports)
-import { setupTestDb } from "./test/integration-setup.js";
+// Repo-level test — database only.
+import { createDbContext } from "../test/integration-context.js";
 
-let db: Kysely<Database>;
-let teardown: () => Promise<void>;
+const ctx = createDbContext("a0000000-0034-4000-a000-000000000001");
 
-beforeAll(async () => {
-  ({ db, teardown } = await setupTestDb(DATABASE_URL!));
-});
-
-afterAll(async () => {
-  await teardown();
+describe.skipIf(!ctx)("priceRefreshRepo (integration)", () => {
+  const { db } = ctx!;
+  // ...
 });
 ```
 
-For API integration tests where modules must see the temp DB URL at import time, create the temp database via top-level `await` **before** dynamically importing app modules:
-
 ```ts
-// apps/api example (dynamic imports)
-const tempDbName = `openrift_test_auth_${Date.now()}`;
-// ... create temp DB ...
-process.env.DATABASE_URL = replaceDbName(DATABASE_URL, tempDbName);
+// Route-level test — Hono app with auth mocked for the given user.
+import { createTestContext, req, seedTestUser } from "../../test/integration-context.js";
 
-const { app } = await import("./app.js");
-const { db } = await import("./db.js");
+const USER_ID = crypto.randomUUID();
+const ctx = createTestContext(USER_ID);
 
-// Run migrations, then run tests, then drop the temp DB in afterAll
+describe.skipIf(!ctx)("POST /collections/reset", () => {
+  const { app, db } = ctx!;
+  // await app.request(req("POST", "/collections/reset"))
+});
 ```
+
+`createUnauthenticatedTestContext()` is the anonymous-caller variant. `req` / `adminReq` build requests against `/api/v1` and `/api/admin/v1`.
+
+### Every file owns its data
+
+All files share one database, so a fixed user id is hidden coupling between files. Seed your own user with `seedTestUser(db)` (random UUID by default; pass `id` when the value has to exist at module scope for `createTestContext`), and delete what you inserted in `afterAll`. Do not delete rows you did not create — the seed fixtures belong to every other file too.
 
 ### Writing a new integration test
 
 1. Name the file `*.integration.test.ts`
-2. Guard with `describe.skipIf(!DATABASE_URL)` so tests skip gracefully without a database
-3. Create a temp database (see patterns above)
-4. Always drop the temp database in `afterAll`
+2. Create a `createDbContext` / `createTestContext` at module scope and guard with `describe.skipIf(!ctx)`
+3. Seed your own user and rows rather than reusing another file's
+4. Delete everything you inserted in `afterAll`
 
 ## Coverage
 
@@ -132,8 +146,8 @@ Vitest prints a summary table to the terminal with `--coverage`. File-based repo
 
 ```bash
 # Per-package
-bun run --cwd packages/shared test:coverage
-bun run --cwd apps/web test:coverage
+bunx turbo test:coverage --filter=shared
+bunx turbo test:coverage --filter=web
 
 # Merged across the monorepo
 bun run test:coverage
