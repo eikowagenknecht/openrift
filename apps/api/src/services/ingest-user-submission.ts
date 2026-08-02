@@ -10,16 +10,32 @@
  * per-submission-unique `external_id`, never deleting anything. Everything
  * downstream — the admin review tabs, accept/promote, and reject/ignore — is
  * the shared ADR-008 machinery, untouched.
+ *
+ * The payload mapping and the live card/printing link resolution are shared
+ * with the batch ingest (candidate-fields.ts, candidate-links.ts) rather than
+ * restated here — they had already drifted once when only the batch path was
+ * updated.
  */
 import { WellKnown } from "@openrift/shared";
 import type { CardSubmissionInput } from "@openrift/shared/contracts";
-import { emptyToNull, normalizeNameForMatching } from "@openrift/shared/utils";
 import type { Insertable } from "kysely";
 
 import type { CandidateCardsTable } from "../db/index.js";
 import type { Transact } from "../deps.js";
 import type { IngestCard, IngestPrinting } from "../routes/admin/cards/schemas.js";
-import { candidateCardValidator, candidatePrintingValidator } from "./ingest-candidates.js";
+import {
+  buildCandidateCardFields,
+  buildCandidatePrintingFields,
+  candidateCardValidator,
+  candidateCardValidatorInput,
+  candidatePrintingValidator,
+  candidatePrintingValidatorInput,
+} from "./candidate-fields.js";
+import {
+  loadCandidateLinkIndex,
+  resolveCardIdByName,
+  resolvePrintingLink,
+} from "./candidate-links.js";
 
 /** The provider name every in-app user submission is ingested under. */
 export const USER_SUBMISSION_PROVIDER = "usersubmission";
@@ -163,40 +179,16 @@ export function ingestUserSubmission(
 
     // ── Validate against the identical rules the admin ingest uses ───────────
     const errors: string[] = [];
-    const cardValidation = candidateCardValidator.safeParse({
-      name: card.name,
-      types: card.types,
-      might: card.might,
-      energy: card.energy,
-      power: card.power,
-      might_bonus: card.might_bonus,
-      rules_text: emptyToNull(card.rules_text),
-      effect_text: emptyToNull(card.effect_text),
-      short_code: card.short_code ?? null,
-      external_id: card.external_id,
-    });
+    const cardValidation = candidateCardValidator.safeParse(candidateCardValidatorInput(card));
     if (!cardValidation.success) {
       errors.push(
         ...cardValidation.error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`),
       );
     }
     for (const printing of card.printings) {
-      const printingValidation = candidatePrintingValidator.safeParse({
-        short_code: printing.short_code,
-        set_id: printing.set_id,
-        set_name: printing.set_name ?? null,
-        rarity: printing.rarity,
-        art_variant: printing.art_variant,
-        finish: printing.finish,
-        size: printing.size,
-        artist: printing.artist,
-        public_code: printing.public_code,
-        printed_rules_text: emptyToNull(printing.printed_rules_text),
-        printed_effect_text: emptyToNull(printing.printed_effect_text),
-        image_url: printing.image_url ?? null,
-        flavor_text: printing.flavor_text ?? null,
-        external_id: printing.external_id,
-      });
+      const printingValidation = candidatePrintingValidator.safeParse(
+        candidatePrintingValidatorInput(printing),
+      );
       if (!printingValidation.success) {
         errors.push(
           ...printingValidation.error.issues.map(
@@ -210,84 +202,34 @@ export function ingestUserSubmission(
     }
 
     // ── Resolve live card + printing links (for the review "update" view) ────
-    const [cardNorms, aliases, printingKeys, linkOverrideRows] = await Promise.all([
-      repo.allCardNorms(),
-      repo.allCardNameAliases(),
-      repo.allPrintingKeys(),
-      repo.allPrintingLinkOverrides(),
-    ]);
-    const cardByNorm = new Map(cardNorms.map((row) => [row.normName, row.id]));
-    const aliasByNorm = new Map(aliases.map((row) => [row.normName, row.cardId]));
-    const printingByKey = new Map(
-      printingKeys.map((row) => [
-        `${row.shortCode}:${row.finish}:${[...row.markerSlugs].toSorted().join(",")}:${row.language}`,
-        row.id,
-      ]),
-    );
-    const linkOverrides = new Map(
-      linkOverrideRows.map((row) => [`${row.externalId}:${row.finish}`, row.printingId]),
-    );
-
-    // An empty key identifies nothing — see the note in ingest-candidates.ts.
-    const normName = normalizeNameForMatching(card.name);
-    const effectiveCardId =
-      normName === "" ? null : (cardByNorm.get(normName) ?? aliasByNorm.get(normName) ?? null);
+    // Same index and same gate as the batch ingest, so a submission links
+    // exactly where a provider upload of the same card would.
+    const linkIndex = await loadCandidateLinkIndex(repo);
+    const cardLinked = resolveCardIdByName(linkIndex, card.name) !== null;
 
     // ── Insert the candidate card + printings ────────────────────────────────
     const cardInsert: Insertable<CandidateCardsTable> = {
       provider: USER_SUBMISSION_PROVIDER,
-      name: card.name,
-      types: card.types,
-      superTypes: card.super_types,
-      domains: card.domains,
-      might: card.might,
-      energy: card.energy,
-      power: card.power,
-      mightBonus: card.might_bonus,
-      rulesText: emptyToNull(card.rules_text),
-      effectText: emptyToNull(card.effect_text),
-      tags: card.tags,
-      externalId: card.external_id,
-      shortCode: card.short_code ?? null,
-      extraData: null,
+      ...buildCandidateCardFields(card),
       submittedByUserId: userId,
       submissionNote,
     };
     const candidateCardId = await repo.insertCandidateCard(cardInsert);
 
     for (const printing of card.printings) {
-      const sortedSlugs = [...(printing.marker_slugs ?? [])].toSorted();
-      const printingKey =
-        effectiveCardId && printing.rarity && printing.finish
-          ? `${printing.short_code}:${printing.finish}:${sortedSlugs.join(",")}:${printing.language ?? WellKnown.language.EN}`
-          : null;
-      const overrideId = linkOverrides.get(`${printing.external_id}:${printing.finish ?? ""}`);
-      const resolvedPrintingId =
-        overrideId ?? (printingKey ? (printingByKey.get(printingKey) ?? null) : null);
+      const resolvedPrintingId = resolvePrintingLink(linkIndex, {
+        externalId: printing.external_id,
+        shortCode: printing.short_code,
+        finish: printing.finish,
+        markerSlugs: printing.marker_slugs,
+        language: printing.language,
+        cardLinked,
+      });
 
       await repo.insertCandidatePrinting({
         candidateCardId,
         printingId: resolvedPrintingId,
-        shortCode: printing.short_code,
-        setId: printing.set_id,
-        setName: printing.set_name ?? null,
-        rarity: printing.rarity,
-        artVariant: printing.art_variant,
-        isSigned: printing.is_signed,
-        markerSlugs: sortedSlugs,
-        distributionChannelSlugs: printing.distribution_channel_slugs ?? [],
-        finish: printing.finish,
-        size: printing.size ?? null,
-        artist: printing.artist,
-        publicCode: printing.public_code,
-        printedRulesText: emptyToNull(printing.printed_rules_text),
-        printedEffectText: emptyToNull(printing.printed_effect_text),
-        imageUrl: printing.image_url ?? null,
-        flavorText: printing.flavor_text ?? null,
-        language: printing.language ?? null,
-        printedName: printing.printed_name ?? null,
-        externalId: printing.external_id,
-        extraData: null,
+        ...buildCandidatePrintingFields(printing),
       });
     }
 

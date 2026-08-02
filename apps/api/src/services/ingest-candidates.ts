@@ -1,13 +1,24 @@
-import { WellKnown } from "@openrift/shared";
 import type { DiffValue } from "@openrift/shared/response-schemas";
-import { emptyToNull, normalizeNameForMatching } from "@openrift/shared/utils";
+import { emptyToNull } from "@openrift/shared/utils";
 import type { Insertable } from "kysely";
-import { z } from "zod";
 
 import type { CandidateCardsTable } from "../db/index.js";
-import { candidateCardFieldRules, candidatePrintingFieldRules } from "../db/schemas.js";
 import type { Transact } from "../deps.js";
 import type { IngestCard } from "../routes/admin/cards/schemas.js";
+import {
+  buildCandidateCardFields,
+  buildCandidatePrintingFields,
+  candidateCardValidator,
+  candidateCardValidatorInput,
+  candidatePrintingValidator,
+  candidatePrintingValidatorInput,
+  jsonOrNull,
+} from "./candidate-fields.js";
+import {
+  loadCandidateLinkIndex,
+  resolveCardIdByName,
+  resolvePrintingLink,
+} from "./candidate-links.js";
 
 interface ItemDetail {
   name: string;
@@ -35,16 +46,6 @@ interface IngestResult {
   newPrintingDetails: ItemDetail[];
   removedPrintingDetails: ItemDetail[];
   updatedPrintings: UpdatedCardDetail[];
-}
-
-function jsonOrNull(value: unknown): unknown {
-  if (value === null || value === undefined) {
-    return null;
-  }
-  if (typeof value === "object" && Object.keys(value as object).length === 0) {
-    return null;
-  }
-  return value;
 }
 
 /** Maps camelCase DB column names to snake_case IngestCard field names. */
@@ -92,38 +93,6 @@ function normalize(value: unknown): unknown {
   }
   return value;
 }
-
-// Validation schemas built from DB field rules — validates values as they'll be written.
-// Exported so the user-submission ingest (ADR-036) validates against the identical rules.
-export const candidateCardValidator = z.object({
-  name: candidateCardFieldRules.name,
-  types: candidateCardFieldRules.types,
-  might: candidateCardFieldRules.might,
-  energy: candidateCardFieldRules.energy,
-  power: candidateCardFieldRules.power,
-  might_bonus: candidateCardFieldRules.mightBonus,
-  rules_text: candidateCardFieldRules.rulesText,
-  effect_text: candidateCardFieldRules.effectText,
-  short_code: candidateCardFieldRules.shortCode,
-  external_id: candidateCardFieldRules.externalId,
-});
-
-export const candidatePrintingValidator = z.object({
-  short_code: candidatePrintingFieldRules.shortCode,
-  set_id: candidatePrintingFieldRules.setId,
-  set_name: candidatePrintingFieldRules.setName,
-  rarity: candidatePrintingFieldRules.rarity,
-  art_variant: candidatePrintingFieldRules.artVariant,
-  finish: candidatePrintingFieldRules.finish,
-  size: candidatePrintingFieldRules.size,
-  artist: candidatePrintingFieldRules.artist,
-  public_code: candidatePrintingFieldRules.publicCode,
-  printed_rules_text: candidatePrintingFieldRules.printedRulesText,
-  printed_effect_text: candidatePrintingFieldRules.printedEffectText,
-  image_url: candidatePrintingFieldRules.imageUrl,
-  flavor_text: candidatePrintingFieldRules.flavorText,
-  external_id: candidatePrintingFieldRules.externalId,
-});
 
 const isDiffScalar = (v: unknown): v is string | number | boolean | null =>
   v === null || typeof v === "string" || typeof v === "number" || typeof v === "boolean";
@@ -255,31 +224,11 @@ export async function ingestCandidates(
       ccByExternalId.set(row.externalId, row);
     }
 
-    // 1b. All cards (for normName → id resolution)
-    const allCards = await repo.allCardNorms();
-    const cardByNorm = new Map<string, string>();
-    for (const c of allCards) {
-      cardByNorm.set(c.normName, c.id);
-    }
+    // 1b. Live cards, aliases, printings and manual link overrides — the shared
+    // index behind card and printing link resolution (see candidate-links.ts).
+    const linkIndex = await loadCandidateLinkIndex(repo);
 
-    // 1c. All card_name_aliases (for normName → cardId fallback)
-    const allAliases = await repo.allCardNameAliases();
-    const aliasByNorm = new Map<string, string>();
-    for (const a of allAliases) {
-      aliasByNorm.set(a.normName, a.cardId);
-    }
-
-    // 1d. All printings (for composite key → id resolution). Short codes are
-    // uppercased on both sides of the key so source-side casing drift
-    // ("VEN-sp3" vs "VEN-SP3") still links.
-    const allPrintings = await repo.allPrintingKeys();
-    const printingByKey = new Map<string, string>();
-    for (const p of allPrintings) {
-      const slugKey = [...p.markerSlugs].sort().join(",");
-      printingByKey.set(`${p.shortCode.toUpperCase()}:${p.finish}:${slugKey}:${p.language}`, p.id);
-    }
-
-    // 1e. All existing candidate_printings for candidate_cards owned by this provider.
+    // 1c. All existing candidate_printings for candidate_cards owned by this provider.
     // We need the candidate_card_ids first, so collect from the existing rows.
     const existingCCIds = new Set(existingCCRows.map((r) => r.id));
     let existingCPRows: Awaited<ReturnType<typeof repo.candidatePrintingsByCandidateCardIds>> = [];
@@ -295,7 +244,7 @@ export async function ingestCandidates(
       }
     }
 
-    // 1f. Ignored candidates — load once and build lookup sets
+    // 1d. Ignored candidates — load once and build lookup sets
     const ignoredCardRows = await repo.ignoredCandidateCards(provider);
     const ignoredCards = new Set(ignoredCardRows.map((r) => r.externalId));
 
@@ -310,15 +259,7 @@ export async function ingestCandidates(
       }
     }
 
-    // 1g. Printing link overrides (manual links that survive re-uploads)
-    const overrideRows = await repo.allPrintingLinkOverrides();
-    // Key: "entityId:finish" → printing UUID
-    const linkOverrides = new Map<string, string>();
-    for (const r of overrideRows) {
-      linkOverrides.set(`${r.externalId}:${r.finish}`, r.printingId);
-    }
-
-    // 1h. (no-op — markers come straight from the upload payload as slugs)
+    // 1e. (no-op — markers come straight from the upload payload as slugs)
 
     // ── Phase 2: Process each card (writes only) ───────────────────────────
 
@@ -327,18 +268,7 @@ export async function ingestCandidates(
 
     for (const card of dedupedCards) {
       // Validate card data against DB CHECK constraints (using normalized values)
-      const cardValidation = candidateCardValidator.safeParse({
-        name: card.name,
-        types: card.types,
-        might: card.might,
-        energy: card.energy,
-        power: card.power,
-        might_bonus: card.might_bonus,
-        rules_text: emptyToNull(card.rules_text),
-        effect_text: emptyToNull(card.effect_text),
-        short_code: card.short_code ?? null,
-        external_id: card.external_id,
-      });
+      const cardValidation = candidateCardValidator.safeParse(candidateCardValidatorInput(card));
       if (!cardValidation.success) {
         errors.push(
           `Card "${card.name}": ${cardValidation.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", ")}`,
@@ -401,20 +331,7 @@ export async function ingestCandidates(
       } else {
         const cardInsert: Insertable<CandidateCardsTable> = {
           provider,
-          name: card.name,
-          types: card.types,
-          superTypes: card.super_types,
-          domains: card.domains,
-          might: card.might,
-          energy: card.energy,
-          power: card.power,
-          mightBonus: card.might_bonus,
-          rulesText: emptyToNull(card.rules_text),
-          effectText: emptyToNull(card.effect_text),
-          tags: card.tags,
-          externalId: card.external_id,
-          shortCode: card.short_code ?? null,
-          extraData: card.extra_data === undefined ? null : jsonOrNull(card.extra_data),
+          ...buildCandidateCardFields(card),
         };
         candidateCardId = await repo.insertCandidateCard(cardInsert);
         seenCCIds.add(candidateCardId);
@@ -422,32 +339,15 @@ export async function ingestCandidates(
         newCards++;
       }
 
-      // Resolve card by norm_name from pre-fetched maps. An empty key means the
-      // name held no letters or digits at all, so it identifies nothing —
-      // resolving on it would link this candidate to whichever unrelated card
-      // normalized the same way.
-      const normName = normalizeNameForMatching(card.name);
-      const effectiveCardId =
-        normName === "" ? null : (cardByNorm.get(normName) ?? aliasByNorm.get(normName) ?? null);
+      // Whether this candidate's card resolves to a live one — the gate on
+      // printing link resolution below.
+      const cardLinked = resolveCardIdByName(linkIndex, card.name) !== null;
 
       for (const p of card.printings) {
         // Validate printing data against DB CHECK constraints (using normalized values)
-        const printingValidation = candidatePrintingValidator.safeParse({
-          short_code: p.short_code,
-          set_id: p.set_id,
-          set_name: p.set_name ?? null,
-          rarity: p.rarity,
-          art_variant: p.art_variant,
-          finish: p.finish,
-          size: p.size ?? null,
-          artist: p.artist,
-          public_code: p.public_code,
-          printed_rules_text: emptyToNull(p.printed_rules_text),
-          printed_effect_text: emptyToNull(p.printed_effect_text),
-          image_url: p.image_url ?? null,
-          flavor_text: p.flavor_text ?? null,
-          external_id: p.external_id,
-        });
+        const printingValidation = candidatePrintingValidator.safeParse(
+          candidatePrintingValidatorInput(p),
+        );
         if (!printingValidation.success) {
           errors.push(
             `Printing "${p.short_code}" for card "${card.name}": ${printingValidation.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", ")}`,
@@ -463,46 +363,19 @@ export async function ingestCandidates(
           continue;
         }
 
-        const sortedSlugs = [...(p.marker_slugs ?? [])].sort();
-        const slugKey = sortedSlugs.join(",");
-        // Rarity is deliberately NOT required: it isn't part of the key, and
-        // requiring it left sources that report finish but no rarity
-        // permanently unlinked.
-        const printingKey =
-          effectiveCardId && p.finish
-            ? `${p.short_code.toUpperCase()}:${p.finish}:${slugKey}:${p.language ?? WellKnown.language.EN}`
-            : null;
-
-        // Check for a manual link override (survives delete + re-upload)
-        const overrideId = linkOverrides.get(`${p.external_id}:${p.finish ?? ""}`);
-        const resolvedPrintingId =
-          overrideId ?? (printingKey ? (printingByKey.get(printingKey) ?? null) : null);
+        const resolvedPrintingId = resolvePrintingLink(linkIndex, {
+          externalId: p.external_id,
+          shortCode: p.short_code,
+          finish: p.finish,
+          markerSlugs: p.marker_slugs,
+          language: p.language,
+          cardLinked,
+        });
 
         // Look up existing candidate_printing by external_id (provider's stable key)
         const existingCP = cpByExternalId.get(p.external_id);
 
-        const printingFields = {
-          shortCode: p.short_code,
-          setId: p.set_id,
-          setName: p.set_name ?? null,
-          rarity: p.rarity,
-          artVariant: p.art_variant,
-          isSigned: p.is_signed,
-          markerSlugs: sortedSlugs,
-          distributionChannelSlugs: p.distribution_channel_slugs ?? [],
-          finish: p.finish,
-          size: p.size ?? null,
-          artist: p.artist,
-          publicCode: p.public_code,
-          printedRulesText: emptyToNull(p.printed_rules_text),
-          printedEffectText: emptyToNull(p.printed_effect_text),
-          imageUrl: p.image_url ?? null,
-          flavorText: p.flavor_text ?? null,
-          language: p.language ?? null,
-          printedName: p.printed_name ?? null,
-          externalId: p.external_id,
-          extraData: jsonOrNull(p.extra_data),
-        };
+        const printingFields = buildCandidatePrintingFields(p);
 
         if (existingCP) {
           seenCPIds.add(existingCP.id);
