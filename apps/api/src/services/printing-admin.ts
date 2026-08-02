@@ -13,7 +13,8 @@ import type { markersRepo } from "../repositories/markers.js";
 import type { printingEventsRepo } from "../repositories/printing-events.js";
 import type { printingImagesRepo } from "../repositories/printing-images.js";
 import { assertFound } from "../utils/assertions.js";
-import { deleteRehostFiles, rehostSingleImage } from "./image-rehost.js";
+import { rehostSingleImage } from "./images/jobs.js";
+import { deleteRehostFiles } from "./images/variants.js";
 import { recordNewPrintingEvent } from "./record-printing-event.js";
 
 type CandidateMutationsRepo = ReturnType<typeof candidateMutationsRepo>;

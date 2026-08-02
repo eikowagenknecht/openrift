@@ -8,7 +8,7 @@ import {
   processAndSave,
   regenerateFromOrig,
   rehostSingleImage,
-} from "../../../services/image-rehost.js";
+} from "../../../services/images/index.js";
 import { registerRouterForTest } from "../../../test/mount-router.js";
 import type { Variables } from "../../../types.js";
 import { adminCardImagesRouter } from "./images";
@@ -17,7 +17,7 @@ import { adminCardImagesRouter } from "./images";
 // Mock service modules — vitest hoists vi.mock() automatically
 // ---------------------------------------------------------------------------
 
-vi.mock("../../../services/image-rehost.js", () => ({
+vi.mock("../../../services/images/index.js", () => ({
   CARD_MEDIA_DIR: "/mock/media/cards",
   rehostSingleImage: vi.fn(),
   deleteRehostFiles: vi.fn(),

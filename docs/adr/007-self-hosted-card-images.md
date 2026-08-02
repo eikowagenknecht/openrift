@@ -9,8 +9,8 @@ date: 2026-03-09
 >
 > **Update 2026-04-28:** The on-disk layout, size set, and database model below are all out of date. Current state:
 >
-> - **Filenames are keyed on the `image_files.id` UUID, not on set/short_code/rarity/finish.** The base path is `/media/cards/{last-2-uuid-chars}/{imageFileId}`, returned by `imageRehostedUrl()` in `apps/api/src/services/image-rehost.ts`. Callers append `-{size}.webp` (or `-orig.{ext}`) to that base. The last 2 hex chars of the UUID act as a sharding prefix for even directory distribution.
-> - **Four WebP variants**, not two: `120w`, `240w`, `400w`, `full` (short-edge caps 120 / 240 / 400 / 800), plus the `-orig.{ext}` archive. See `SIZES` in `image-rehost.ts`.
+> - **Filenames are keyed on the `image_files.id` UUID, not on set/short_code/rarity/finish.** The base path is `/media/cards/{last-2-uuid-chars}/{imageFileId}`, returned by `imageRehostedUrl()` in `apps/api/src/services/images/paths.ts`. Callers append `-{size}.webp` (or `-orig.{ext}`) to that base. The last 2 hex chars of the UUID act as a sharding prefix for even directory distribution.
+> - **Four WebP variants**, not two: `120w`, `240w`, `400w`, `full` (short-edge caps 120 / 240 / 400 / 800), plus the `-orig.{ext}` archive. See `SIZES` in `services/images/variants.ts`.
 > - **Database model changed.** `printings.image_url` no longer exists. Images are stored in a separate `image_files` table (`original_url`, `rehosted_url`) and linked to printings via `printing_images` (with a `face` column for front/back support). Multiple providers per printing are supported.
 >
 > The sections below are a historical record with two layers: the Design and Serving sections were revised 2026-04-10 (drop the 300w variant, cap `full` at 800, both remaining variants q85), while the Consequences and Migration sections still describe the original 2026-03-09 plan of 3 WebP variants (300w q75, 400w q75, full q85). The initial implementation deviated from that plan in one respect: it generated all three variants at q85.

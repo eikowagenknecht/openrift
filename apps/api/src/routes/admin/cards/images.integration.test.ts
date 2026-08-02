@@ -12,7 +12,7 @@ import {
 // Integration tests: Card-sources image management routes
 //
 // Uses the shared integration database. A mock io object is injected so
-// image-rehost functions don't hit the real filesystem or network.
+// the image pipeline doesn't hit the real filesystem or network.
 // ---------------------------------------------------------------------------
 
 const FAKE_BUFFER = Buffer.from("img");

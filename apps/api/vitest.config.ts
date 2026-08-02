@@ -44,6 +44,7 @@ export default defineConfig({
         "src/auth.ts",
         "src/email.ts",
         // More type-only / barrel files
+        "src/services/images/index.ts",
         "src/services/price-refresh/index.ts",
         "src/services/price-refresh/types.ts",
       ],

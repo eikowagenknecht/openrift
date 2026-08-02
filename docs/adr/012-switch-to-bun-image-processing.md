@@ -7,7 +7,7 @@ date: 2026-05-13
 
 ## Context and Problem Statement
 
-Bun v1.3.14 ships `Bun.Image`, a built-in image processing API benchmarked at 1.2–1.38× sharp 0.34.5. We currently use sharp in `apps/api/src/services/image-rehost.ts` to normalize uploaded card scans, accessed through a thin wrapper in `apps/api/src/io.ts`. Switching would drop a native dependency, shrink install size, and pick up the perf win.
+Bun v1.3.14 ships `Bun.Image`, a built-in image processing API benchmarked at 1.2–1.38× sharp 0.34.5. We currently use sharp in `apps/api/src/services/images/` to normalize uploaded card scans, accessed through a thin wrapper in `apps/api/src/io.ts`. Switching would drop a native dependency, shrink install size, and pick up the perf win.
 
 ## Considered Options
 
@@ -26,7 +26,7 @@ Rejected: do not switch to `Bun.Image`. The card-rehost pipeline depends on `tri
 
 ### Confirmation
 
-Re-evaluate when a future Bun release adds `trim` and `extract` (or equivalents). The replacement would touch only `io.ts` and `image-rehost.ts`.
+Re-evaluate when a future Bun release adds `trim` and `extract` (or equivalents). The replacement would touch only `io.ts` and `services/images/variants.ts`.
 
 ## Pros and Cons of the Options
 

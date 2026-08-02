@@ -11,7 +11,7 @@ import {
   rehostImages,
   runRegenerateImagesJob,
   unrehostImages,
-} from "../../services/image-rehost.js";
+} from "../../services/images/index.js";
 import { registerRouterForTest } from "../../test/mount-router.js";
 import type { Variables } from "../../types.js";
 import { adminImagesRouter } from "./images";
@@ -24,7 +24,7 @@ const RUN_X = "019d4999-4219-72f6-b7bb-640000000003";
 // Mock service module — vitest hoists vi.mock() automatically
 // ---------------------------------------------------------------------------
 
-vi.mock("../../services/image-rehost.js", async (importActual) => {
+vi.mock("../../services/images/index.js", async (importActual) => {
   const actual = (await importActual()) as Record<string, unknown>;
   return {
     ...actual,

@@ -9,12 +9,15 @@ import type { Transact } from "../deps.js";
 import type { Io } from "../io.js";
 import { acceptPrinting, deletePrinting, updatePrintingMarkers } from "./printing-admin.js";
 
-vi.mock("./image-rehost.js", () => ({
-  deleteRehostFiles: vi.fn(async () => {}),
+vi.mock("./images/jobs.js", () => ({
   rehostSingleImage: vi.fn(async () => {}),
 }));
+vi.mock("./images/variants.js", () => ({
+  deleteRehostFiles: vi.fn(async () => {}),
+}));
 
-import { deleteRehostFiles, rehostSingleImage } from "./image-rehost.js";
+import { rehostSingleImage } from "./images/jobs.js";
+import { deleteRehostFiles } from "./images/variants.js";
 
 function mockTransact(trxRepos: unknown): Transact {
   return (fn) => fn(trxRepos as any) as any;

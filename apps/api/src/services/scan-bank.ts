@@ -17,7 +17,7 @@ import {
 import type { Io } from "../io.js";
 import type { ScanReferenceRow, catalogRepo } from "../repositories/catalog.js";
 import type { scanIndexRepo } from "../repositories/scan-index.js";
-import { CARD_MEDIA_DIR, MEDIA_DIR } from "./image-rehost.js";
+import { CARD_MEDIA_DIR, MEDIA_DIR } from "./images/paths.js";
 
 type CatalogRepo = ReturnType<typeof catalogRepo>;
 type ScanIndexRepo = ReturnType<typeof scanIndexRepo>;

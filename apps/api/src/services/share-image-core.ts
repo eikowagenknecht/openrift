@@ -2,7 +2,7 @@ import { Resvg } from "@resvg/resvg-js";
 import satori from "satori";
 
 import type { Io } from "../io.js";
-import { CARD_MEDIA_DIR } from "./image-rehost.js";
+import { CARD_MEDIA_DIR } from "./images/paths.js";
 
 /**
  * Shared primitives for the server-rendered share images (ADR-024, ADR-031):

@@ -19,7 +19,7 @@ import {
   rehostImages,
   runRegenerateImagesJob,
   unrehostImages,
-} from "../../services/image-rehost.js";
+} from "../../services/images/index.js";
 import { runJobAsync } from "../../services/run-job.js";
 
 const log = createLogger("admin");

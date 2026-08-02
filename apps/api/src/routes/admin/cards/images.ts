@@ -21,7 +21,7 @@ import {
   processAndSave,
   regenerateFromOrig,
   rehostSingleImage,
-} from "../../../services/image-rehost.js";
+} from "../../../services/images/index.js";
 import { recordAdminEvent } from "../../../services/record-admin-event.js";
 import { assertFound } from "../../../utils/assertions.js";
 

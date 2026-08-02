@@ -9,11 +9,11 @@ import type { Io } from "../io.js";
 import type { CardDeleteBlockers } from "../repositories/candidate-mutations.js";
 import { deleteCard } from "./card-admin.js";
 
-vi.mock("./image-rehost.js", () => ({
+vi.mock("./images/variants.js", () => ({
   deleteRehostFiles: vi.fn(async () => {}),
 }));
 
-import { deleteRehostFiles } from "./image-rehost.js";
+import { deleteRehostFiles } from "./images/variants.js";
 
 function mockTransact(trxRepos: unknown): Transact {
   return (fn) => fn(trxRepos as any) as any;
