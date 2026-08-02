@@ -265,7 +265,18 @@ export default defineConfig(({ mode, command }) => {
       // below the default 4 KB assetsInlineLimit and get inlined, which the
       // production CSP (`font-src 'self'`) then blocks because it forbids the
       // data: scheme. Keeping fonts as same-origin files satisfies the policy.
-      assetsInlineLimit: (filePath: string) => !/\.(?:woff2?|ttf|otf|eot)$/u.test(filePath),
+      //
+      // Fonts return false (never inline); EVERYTHING ELSE MUST RETURN
+      // undefined, not a boolean. A callback that returns true forces the
+      // asset inline whatever its size, so `!isFont` inlined every non-font
+      // asset ever imported: the 13 MB onnxruntime WASM became an 18 MB
+      // base64 string, copied into all five chunks that reference it. That
+      // was 98 MB of build output against 25 MB, and the scanner page shipped
+      // ~16 MB gzip of base64-in-JS instead of fetching one 3.4 MB gzip wasm
+      // the browser can stream-compile and cache. undefined falls back to the
+      // 4 KB size rule, which is what everything except fonts wants.
+      assetsInlineLimit: (filePath: string) =>
+        /\.(?:woff2?|ttf|otf|eot)$/u.test(filePath) ? false : undefined,
       rolldownOptions: {
         output: {
           codeSplitting: {
