@@ -116,7 +116,7 @@ interface DisplayState {
 
   // Clear all account-scoped overrides (used on sign-out so the next visitor
   // sees the unauthenticated defaults). Device-local state (maxColumns,
-  // filtersExpanded, cardsShowCounts, layout) is preserved.
+  // filtersExpanded, cardsShowCounts, displayMode) is preserved.
   reset: () => void;
 
   // Hydrate overrides from server data (used by sync hook)
@@ -131,14 +131,6 @@ interface DisplayState {
   toggleCardsShowCounts: () => void;
   displayMode: DisplayMode;
   setDisplayMode: (value: "grid" | "table") => void;
-
-  // Layout state (derived from viewport, not persisted)
-  physicalMax: number;
-  setPhysicalMax: (value: number) => void;
-  physicalMin: number;
-  setPhysicalMin: (value: number) => void;
-  autoColumns: number;
-  setAutoColumns: (value: number) => void;
 }
 
 export const useDisplayStore = create<DisplayState>()(
@@ -263,13 +255,6 @@ export const useDisplayStore = create<DisplayState>()(
       toggleCardsShowCounts: () => set((state) => ({ cardsShowCounts: !state.cardsShowCounts })),
       displayMode: "grid" as const,
       setDisplayMode: (value) => set({ displayMode: value }),
-
-      physicalMax: 8,
-      physicalMin: 1,
-      autoColumns: 5,
-      setPhysicalMax: (value) => set({ physicalMax: value }),
-      setPhysicalMin: (value) => set({ physicalMin: value }),
-      setAutoColumns: (value) => set({ autoColumns: value }),
     }),
     {
       name: "user-preferences",

@@ -1,11 +1,11 @@
 import type { TournamentDetailResponse } from "@openrift/shared";
-import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useServerSeededState } from "@/hooks/use-server-seeded-state";
 import { useUpdateTournament } from "@/hooks/use-tournaments";
 
 /**
@@ -22,9 +22,9 @@ export function PointsCard({
 }) {
   const updateTournament = useUpdateTournament();
   const isSwiss = detail.pairingStyle === "swiss";
-  const [winText, setWinText] = useState(String(detail.winPoints));
-  const [drawText, setDrawText] = useState(String(detail.drawPoints));
-  const [byeText, setByeText] = useState(String(detail.byePoints));
+  const [winText, setWinText] = useServerSeededState(String(detail.winPoints));
+  const [drawText, setDrawText] = useServerSeededState(String(detail.drawPoints));
+  const [byeText, setByeText] = useServerSeededState(String(detail.byePoints));
 
   const parsePoints = (text: string): number | null => {
     if (!/^\d{1,2}$/u.test(text.trim())) {

@@ -56,7 +56,6 @@ import { useQuickAddActions } from "@/hooks/use-quick-add-actions";
 import { useSeedLanguagesFromPrefs } from "@/hooks/use-seed-languages-from-prefs";
 import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { useWishEntries } from "@/hooks/use-wish-entries";
-import type { WishEntryFlat } from "@/hooks/use-wish-entries";
 import { tileSiblings } from "@/lib/card-tiles";
 import { collectionTableActionsColumn } from "@/lib/collection-table";
 import { aggregatePersonalCollectionValue } from "@/lib/collection-value";
@@ -66,13 +65,13 @@ import { isTempCopyId } from "@/lib/temp-copy-id";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 import { useAddModeStore } from "@/stores/add-mode-store";
 import type { CollectionContextAction } from "@/stores/card-row-actions-store";
+import { useCollectionOverlayStore } from "@/stores/collection-overlay-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { useLibraryToggle } from "@/stores/library-toggle-store";
 import { useOnboardingStore } from "@/stores/onboarding-store";
 import { useSelectionStore } from "@/stores/selection-store";
 import { useSiblingOverrideStore } from "@/stores/sibling-override-store";
 
-import type { CopyDetailsTarget } from "./copy-details-dialog";
 import { DisposeDialog } from "./dispose-dialog";
 import { MoveDialog } from "./move-dialog";
 
@@ -216,29 +215,11 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   // Which of `actionCopyIds` carry recorded details (ADR-038), snapshotted when
   // the dispose dialog opens so it can warn about deleting them.
   const [actionAnnotatedIds, setActionAnnotatedIds] = useState<ReadonlySet<string>>(new Set());
-  // Per-copy metadata dialog (ADR-038): the right-clicked tile's copies plus
-  // the printing behind each, so the dialog can label rows across printings.
-  const [copyDetailsTarget, setCopyDetailsTarget] = useState<CopyDetailsTarget | null>(null);
-  const [quickAddOpen, setQuickAddOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [clearInboxOpen, setClearInboxOpen] = useState(false);
-  const [editOpen, setEditOpen] = useState(false);
-  const [shareOpen, setShareOpen] = useState(false);
-  // Group "bulk box" take confirmation: set when the viewer asks to take, holds
-  // every takeable copy of the card plus the quantity the dialog opens on, so
-  // the confirm dialog can offer a 1..available stepper and run the move.
-  const [takeConfirm, setTakeConfirm] = useState<{
-    printing: Printing;
-    availableCopyIds: string[];
-    initialQuantity: number;
-  } | null>(null);
-  // Group "bulk box" post-take wishlist cleanup: set when a just-taken card
-  // matched one or more of the viewer's wish lists.
-  const [takeFollowUp, setTakeFollowUp] = useState<{
-    printing: Printing;
-    entries: WishEntryFlat[];
-    takenQuantity: number;
-  } | null>(null);
+  // The dialogs below the grid (quick add, delete, clear inbox, edit, share,
+  // per-copy details, and the two group "bulk box" take steps) keep their
+  // open/close state in collection-overlay-store, and this component only ever
+  // writes to it. Same reasoning as the variant popover below: subscribing here
+  // would re-render the whole virtualized grid every time a dialog opened.
   const moveCopies = useMoveCopies();
   const disposeCopies = useDisposeCopies();
   // Raw synced copy rows, for metadata-aware checks at action time (ADR-038).
@@ -348,13 +329,16 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     useSiblingOverrideStore.getState().clearScope("collection");
     clearSelection();
     useAddModeStore.getState().reset();
+    // A dialog left open would otherwise still be pointing at the collection
+    // the viewer just navigated away from.
+    useCollectionOverlayStore.getState().reset();
   }, [collectionId, clearSelection]);
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key === "k") {
         event.preventDefault();
-        setQuickAddOpen((prev) => !prev);
+        useCollectionOverlayStore.getState().toggleQuickAdd();
       }
     };
     document.addEventListener("keydown", handler);
@@ -448,7 +432,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     }
     deleteCollection.mutate(collectionId, {
       onSuccess: () => {
-        setDeleteOpen(false);
+        useCollectionOverlayStore.getState().setDeleteOpen(false);
         void navigate({ to: "/collections" });
       },
     });
@@ -460,7 +444,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     }
     clearCollection.mutate(currentCollection.id, {
       onSuccess: ({ removedCount, keptCopyIds }) => {
-        setClearInboxOpen(false);
+        useCollectionOverlayStore.getState().setClearInboxOpen(false);
         const keptCount = keptCopyIds.length;
         if (removedCount === 0 && keptCount === 0) {
           toast.info("Your Inbox is already empty");
@@ -551,7 +535,9 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       return;
     }
     const initialQuantity = Math.min(Math.max(1, count), availableCopyIds.length);
-    setTakeConfirm({ printing: stack.printing, availableCopyIds, initialQuantity });
+    useCollectionOverlayStore
+      .getState()
+      .setTakeConfirm({ printing: stack.printing, availableCopyIds, initialQuantity });
   };
 
   // ── Grid click handlers, drag-preview effect, row-actions-store effect ──
@@ -578,7 +564,6 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     handleOpenVariants,
     handleTake,
     setLendTarget,
-    setCopyDetailsTarget,
     openAction,
   });
 
@@ -586,6 +571,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   // their inbox, then offer the wishlist cleanup when the card was one they
   // wanted.
   const performTake = (quantity: number) => {
+    const takeConfirm = useCollectionOverlayStore.getState().takeConfirm;
     if (!takeConfirm || !inboxId) {
       return;
     }
@@ -601,10 +587,12 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
               ? `Took ${legendDisplayName(printing.card)}`
               : `Took ${takenQuantity}× ${legendDisplayName(printing.card)}`,
           );
-          setTakeConfirm(null);
+          useCollectionOverlayStore.getState().setTakeConfirm(null);
           const matches = wish.entriesForPrinting(printing.cardId, printing.id);
           if (matches.length > 0) {
-            setTakeFollowUp({ printing, entries: matches, takenQuantity });
+            useCollectionOverlayStore
+              .getState()
+              .setTakeFollowUp({ printing, entries: matches, takenQuantity });
           }
         },
       },
@@ -687,7 +675,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       unpricedCount={unpricedCount}
       formatValue={formatValue}
       addTarget={addTarget}
-      onQuickAdd={() => setQuickAddOpen(true)}
+      onQuickAdd={() => useCollectionOverlayStore.getState().setQuickAddOpen(true)}
       onSelectAll={() => toggleSelectAll(selectableCopyIds)}
       onEnterSelect={enterSelectMode}
       onExitSelect={exitSelectMode}
@@ -702,10 +690,10 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       // collection feeds *their own* deck inventory, not just group admins.
       canToggleDeckbuilding={Boolean(currentCollection)}
       deckbuildingAvailable={currentCollection?.availableForDeckbuilding ?? false}
-      onEdit={() => setEditOpen(true)}
-      onDelete={() => setDeleteOpen(true)}
-      onClearInbox={() => setClearInboxOpen(true)}
-      onShare={() => setShareOpen(true)}
+      onEdit={() => useCollectionOverlayStore.getState().setEditOpen(true)}
+      onDelete={() => useCollectionOverlayStore.getState().setDeleteOpen(true)}
+      onClearInbox={() => useCollectionOverlayStore.getState().setClearInboxOpen(true)}
+      onShare={() => useCollectionOverlayStore.getState().setShareOpen(true)}
       onToggleDeckbuilding={() => {
         if (currentCollection) {
           setDeckbuilding.mutate({
@@ -779,37 +767,21 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const collectionOverlays = (
     <CollectionGridOverlays
       addTarget={addTarget}
-      quickAddOpen={quickAddOpen}
-      setQuickAddOpen={setQuickAddOpen}
       currentCollection={currentCollection}
       catalogAllPrintingsByCardId={catalogAllPrintingsByCardId}
       ownedCountByPrinting={ownedCountByPrinting}
       preferredLanguages={preferredLanguages}
       collections={collections}
-      deleteOpen={deleteOpen}
-      setDeleteOpen={setDeleteOpen}
       handleDeleteCollection={handleDeleteCollection}
       deleteIsPending={deleteCollection.isPending}
-      clearInboxOpen={clearInboxOpen}
-      setClearInboxOpen={setClearInboxOpen}
       handleClearInbox={handleClearInbox}
       clearInboxIsPending={clearCollection.isPending}
-      editOpen={editOpen}
-      setEditOpen={setEditOpen}
-      shareOpen={shareOpen}
-      setShareOpen={setShareOpen}
       pendingAnnotatedDispose={pendingAnnotatedDispose}
       confirmAnnotatedDispose={confirmAnnotatedDispose}
       cancelAnnotatedDispose={cancelAnnotatedDispose}
       disposeIsPending={disposeIsPending}
-      copyDetailsTarget={copyDetailsTarget}
-      setCopyDetailsTarget={setCopyDetailsTarget}
-      takeConfirm={takeConfirm}
-      setTakeConfirm={setTakeConfirm}
       performTake={performTake}
       moveIsPending={moveCopies.isPending}
-      takeFollowUp={takeFollowUp}
-      setTakeFollowUp={setTakeFollowUp}
       inboxName={inboxName}
     />
   );
@@ -852,7 +824,10 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
                     <LibraryBigIcon />
                     Browse & add
                   </Button>
-                  <Button variant="ghost" onClick={() => setQuickAddOpen(true)}>
+                  <Button
+                    variant="ghost"
+                    onClick={() => useCollectionOverlayStore.getState().setQuickAddOpen(true)}
+                  >
                     <SquarePlusIcon />
                     Quick add
                   </Button>

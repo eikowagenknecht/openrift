@@ -73,6 +73,7 @@ import {
   useUpdateFriendGroup,
   useUpdateGroupContactReveal,
 } from "@/hooks/use-friend-groups";
+import { useServerSeededState } from "@/hooks/use-server-seeded-state";
 import { useRequiredUserId } from "@/lib/auth-session";
 import { formatAbsoluteDate } from "@/lib/format-date";
 import { getSiteUrl } from "@/lib/site-config";
@@ -202,9 +203,9 @@ function AdminSettings({ data, slug }: { data: FriendGroupDetailResponse; slug: 
   const disableCode = useDisableFriendGroupCode();
   const enableCode = useEnableFriendGroupCode();
 
-  const [name, setName] = useState(data.group.name);
-  const [description, setDescription] = useState(data.group.description ?? "");
-  const [newSlug, setNewSlug] = useState(data.group.slug);
+  const [name, setName] = useServerSeededState(data.group.name);
+  const [description, setDescription] = useServerSeededState(data.group.description ?? "");
+  const [newSlug, setNewSlug] = useServerSeededState(data.group.slug);
   const [rotateConfirmOpen, setRotateConfirmOpen] = useState(false);
   const [disableConfirmOpen, setDisableConfirmOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);

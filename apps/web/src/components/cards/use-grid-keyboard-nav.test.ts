@@ -44,7 +44,7 @@ function press(key: string, init: KeyboardEventInit = {}) {
 describe("useGridKeyboardNav: +/-", () => {
   it("`+` dispatches onIncrement for the selected card", () => {
     const onIncrement = vi.fn();
-    useCardRowActionsStore.getState().setHandlers({ onIncrement });
+    useCardRowActionsStore.getState().setHandlers("collection", { onIncrement });
     useSelectionStore.getState().selectCard(p1, items, "printing");
 
     renderHook(() => useGridKeyboardNav({ items }));
@@ -56,7 +56,7 @@ describe("useGridKeyboardNav: +/-", () => {
 
   it("`=` is a no-shift alias for `+`", () => {
     const onIncrement = vi.fn();
-    useCardRowActionsStore.getState().setHandlers({ onIncrement });
+    useCardRowActionsStore.getState().setHandlers("collection", { onIncrement });
     useSelectionStore.getState().selectCard(p1, items, "printing");
 
     renderHook(() => useGridKeyboardNav({ items }));
@@ -68,7 +68,7 @@ describe("useGridKeyboardNav: +/-", () => {
 
   it("`-` dispatches onDecrement for the selected card, anchored to its tile", () => {
     const onDecrement = vi.fn();
-    useCardRowActionsStore.getState().setHandlers({ onDecrement });
+    useCardRowActionsStore.getState().setHandlers("collection", { onDecrement });
     useSelectionStore.getState().selectCard(p2, items, "printing");
 
     // Mock the tile in the DOM so the anchor lookup succeeds — mirrors
@@ -85,7 +85,7 @@ describe("useGridKeyboardNav: +/-", () => {
 
   it("`-` passes undefined anchor when the tile element isn't in the DOM", () => {
     const onDecrement = vi.fn();
-    useCardRowActionsStore.getState().setHandlers({ onDecrement });
+    useCardRowActionsStore.getState().setHandlers("collection", { onDecrement });
     useSelectionStore.getState().selectCard(p1, items, "printing");
 
     renderHook(() => useGridKeyboardNav({ items }));
@@ -97,7 +97,7 @@ describe("useGridKeyboardNav: +/-", () => {
   it("skips +/- while the variant popover is open", () => {
     const onIncrement = vi.fn();
     const onDecrement = vi.fn();
-    useCardRowActionsStore.getState().setHandlers({ onIncrement, onDecrement });
+    useCardRowActionsStore.getState().setHandlers("collection", { onIncrement, onDecrement });
     useSelectionStore.getState().selectCard(p1, items, "printing");
     useAddModeStore.getState().openVariants(p1.cardId, document.createElement("div"), "add");
 
@@ -111,7 +111,7 @@ describe("useGridKeyboardNav: +/-", () => {
 
   it("does nothing when no card is selected", () => {
     const onIncrement = vi.fn();
-    useCardRowActionsStore.getState().setHandlers({ onIncrement });
+    useCardRowActionsStore.getState().setHandlers("collection", { onIncrement });
 
     renderHook(() => useGridKeyboardNav({ items }));
     const event = press("+");
@@ -132,7 +132,7 @@ describe("useGridKeyboardNav: +/-", () => {
   it("ignores Ctrl/Meta `+` / `-` so browser zoom still works", () => {
     const onIncrement = vi.fn();
     const onDecrement = vi.fn();
-    useCardRowActionsStore.getState().setHandlers({ onIncrement, onDecrement });
+    useCardRowActionsStore.getState().setHandlers("collection", { onIncrement, onDecrement });
     useSelectionStore.getState().selectCard(p1, items, "printing");
 
     renderHook(() => useGridKeyboardNav({ items }));
@@ -145,7 +145,7 @@ describe("useGridKeyboardNav: +/-", () => {
 
   it("ignores `+` / `-` while typing in an input", () => {
     const onIncrement = vi.fn();
-    useCardRowActionsStore.getState().setHandlers({ onIncrement });
+    useCardRowActionsStore.getState().setHandlers("collection", { onIncrement });
     useSelectionStore.getState().selectCard(p1, items, "printing");
 
     const input = document.createElement("input");

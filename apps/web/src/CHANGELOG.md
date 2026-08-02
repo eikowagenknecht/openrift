@@ -18,6 +18,9 @@
 - fix(Tournaments): **Cancelled tournaments stay readable** — cancelling a tournament with pairings broke its pairings tab and every participant's follow link with an error; both now open and show it as cancelled.
 - fix(Collection): **Errors on failed list and collection edits** — adding to a list, changing an entry, or reordering lists and collections used to revert with no message, and now says why it failed.
 - fix(App): **One message when an action fails** — a failed action raised two toasts, and the vague one usually hid the real reason the server gave.
+- fix(App): **Display settings save reliably** — a preference changed in the moment the server answered could be dropped, and a background refresh could revert one you had just set.
+- fix(Tournaments): **Edit forms show current values** — the deck-check player and card dialogs, and the tournament settings cards, kept whatever the page loaded with instead of following later updates.
+- fix(Groups): **Group settings show current values** — the name, slug, and description fields on the manage page kept their page-load values while the group data refreshed behind them.
 
 ## 2026-08-01
 

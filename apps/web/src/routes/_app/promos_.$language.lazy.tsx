@@ -66,6 +66,7 @@ import { computeLanguageAggregates } from "@/lib/promos-tree";
 import { FilterSearchProvider } from "@/lib/search-schemas";
 import { cn, PAGE_PADDING, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
+import { useGridViewportStore } from "@/stores/grid-viewport-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
 export const Route = createLazyFileRoute("/_app/promos_/$language")({
@@ -617,22 +618,18 @@ function PromoSectionsContent({
 
   // Share the column-sizing mechanism with /cards: useResponsiveColumns
   // measures the container, applies the user's maxColumns override, and
-  // writes the live autoColumns / physicalMin / physicalMax back to the
-  // display store so ColumnControls in the toolbar reflects the real
-  // measurement. Each section grid further down consumes `columns` via
-  // inline gridTemplateColumns, replacing the previous Tailwind
-  // breakpoint classes (wide:grid-cols-6 xwide:grid-cols-8 …).
+  // publishes the live autoColumns / physicalMin / physicalMax so
+  // ColumnControls in the toolbar reflects the real measurement. Each section
+  // grid further down consumes `columns` via inline gridTemplateColumns,
+  // replacing the previous Tailwind breakpoint classes (wide:grid-cols-6
+  // xwide:grid-cols-8 …).
   const maxColumns = useDisplayStore((s) => s.maxColumns);
-  const setAutoColumns = useDisplayStore((s) => s.setAutoColumns);
-  const setPhysicalMax = useDisplayStore((s) => s.setPhysicalMax);
-  const setPhysicalMin = useDisplayStore((s) => s.setPhysicalMin);
+  const setMeasurements = useGridViewportStore((s) => s.setMeasurements);
   const { containerRef, columns, autoColumns, physicalMax, physicalMin, measured } =
     useResponsiveColumns(maxColumns);
   useEffect(() => {
-    setAutoColumns(autoColumns);
-    setPhysicalMax(physicalMax);
-    setPhysicalMin(physicalMin);
-  }, [autoColumns, physicalMax, physicalMin, setAutoColumns, setPhysicalMax, setPhysicalMin]);
+    setMeasurements({ physicalMax, physicalMin, autoColumns });
+  }, [autoColumns, physicalMax, physicalMin, setMeasurements]);
 
   // Active = the last section whose top has crossed the sticky threshold.
   // Drives the floating pill and the smooth-scroll-to-section button.

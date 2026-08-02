@@ -25,11 +25,14 @@ const printing = { id: "p1" } as Printing;
 describe("useCardRowActionsStore", () => {
   it("starts with no handlers registered", () => {
     expect(useCardRowActionsStore.getState().handlers).toEqual({});
+    expect(useCardRowActionsStore.getState().owner).toBeNull();
   });
 
-  it("setHandlers replaces the handler slot", () => {
+  it("setHandlers records the owning surface alongside the handlers", () => {
     const onRowClick = vi.fn();
-    useCardRowActionsStore.getState().setHandlers({ onRowClick });
+    useCardRowActionsStore.getState().setHandlers("catalog", { onRowClick });
+
+    expect(useCardRowActionsStore.getState().owner).toBe("catalog");
     useCardRowActionsStore.getState().handlers.onRowClick?.(printing);
     expect(onRowClick).toHaveBeenCalledWith(printing);
   });
@@ -37,12 +40,35 @@ describe("useCardRowActionsStore", () => {
   it("setHandlers replaces (not merges) prior handlers", () => {
     const first = vi.fn();
     const second = vi.fn();
-    useCardRowActionsStore.getState().setHandlers({ onRowClick: first });
-    useCardRowActionsStore.getState().setHandlers({ onIncrement: second });
+    useCardRowActionsStore.getState().setHandlers("catalog", { onRowClick: first });
+    useCardRowActionsStore.getState().setHandlers("collection", { onIncrement: second });
 
     expect(useCardRowActionsStore.getState().handlers.onRowClick).toBeUndefined();
     useCardRowActionsStore.getState().handlers.onIncrement?.(printing);
     expect(second).toHaveBeenCalledWith(printing);
+  });
+
+  it("clearHandlers empties the slot for the surface that owns it", () => {
+    useCardRowActionsStore.getState().setHandlers("list", { onRowClick: vi.fn() });
+    useCardRowActionsStore.getState().clearHandlers("list");
+
+    expect(useCardRowActionsStore.getState().owner).toBeNull();
+    expect(useCardRowActionsStore.getState().handlers).toEqual({});
+  });
+
+  it("clearHandlers from a surface that no longer owns the slot is a no-op", () => {
+    // React mounts the incoming surface before running the outgoing one's
+    // cleanup, so an unconditional clear would wipe a registration that had
+    // already been replaced and leave every row inert.
+    const successor = vi.fn();
+    useCardRowActionsStore.getState().setHandlers("catalog", { onRowClick: vi.fn() });
+    useCardRowActionsStore.getState().setHandlers("collection", { onRowClick: successor });
+
+    useCardRowActionsStore.getState().clearHandlers("catalog");
+
+    expect(useCardRowActionsStore.getState().owner).toBe("collection");
+    useCardRowActionsStore.getState().handlers.onRowClick?.(printing);
+    expect(successor).toHaveBeenCalledWith(printing);
   });
 
   it("undefined handlers are a no-op without throwing", () => {
@@ -53,14 +79,14 @@ describe("useCardRowActionsStore", () => {
 
   it("dispatchContextAction forwards the itemId and action to the registered handler", () => {
     const onContextAction = vi.fn();
-    useCardRowActionsStore.getState().setHandlers({ onContextAction });
+    useCardRowActionsStore.getState().setHandlers("collection", { onContextAction });
     dispatchContextAction("item-1", "dispose");
     expect(onContextAction).toHaveBeenCalledWith("item-1", "dispose", undefined);
   });
 
   it("dispatchContextAction forwards the displayed printing for printing-scoped actions", () => {
     const onContextAction = vi.fn();
-    useCardRowActionsStore.getState().setHandlers({ onContextAction });
+    useCardRowActionsStore.getState().setHandlers("collection", { onContextAction });
     const foilPrinting = stubPrinting({ id: "p-foil" });
     dispatchContextAction("item-1", "lend", foilPrinting);
     expect(onContextAction).toHaveBeenCalledWith("item-1", "lend", foilPrinting);
@@ -72,7 +98,7 @@ describe("useCardRowActionsStore", () => {
 
   it("dispatchExcludeFromRule forwards the target to the registered handler", () => {
     const onExcludeFromRule = vi.fn();
-    useCardRowActionsStore.getState().setHandlers({ onExcludeFromRule });
+    useCardRowActionsStore.getState().setHandlers("list", { onExcludeFromRule });
     dispatchExcludeFromRule({ kind: "card", cardId: "card-1" });
     expect(onExcludeFromRule).toHaveBeenCalledWith({ kind: "card", cardId: "card-1" });
   });

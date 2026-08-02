@@ -1,12 +1,11 @@
 import type { CollectionResponse, Printing } from "@openrift/shared";
 
 import type { PendingAnnotatedDispose } from "@/hooks/use-quick-add-actions";
-import type { WishEntryFlat } from "@/hooks/use-wish-entries";
+import { useCollectionOverlayStore } from "@/stores/collection-overlay-store";
 
 import { AnnotatedDisposeDialog } from "./annotated-dispose-dialog";
 import { ClearInboxDialog } from "./clear-inbox-dialog";
 import { CollectionShareDialog } from "./collection-share-dialog";
-import type { CopyDetailsTarget } from "./copy-details-dialog";
 import { CopyDetailsDialog } from "./copy-details-dialog";
 import { DeleteCollectionDialog } from "./delete-collection-dialog";
 import { EditCollectionDialog } from "./edit-collection-dialog";
@@ -16,49 +15,21 @@ import { TakeWishlistFollowUpDialog } from "./take-wishlist-followup-dialog";
 
 interface CollectionGridOverlaysProps {
   addTarget?: string;
-  quickAddOpen: boolean;
-  setQuickAddOpen: (open: boolean) => void;
   currentCollection?: CollectionResponse;
   catalogAllPrintingsByCardId: Map<string, Printing[]>;
   ownedCountByPrinting?: Record<string, number>;
   preferredLanguages?: readonly string[];
   collections?: CollectionResponse[];
-  deleteOpen: boolean;
-  setDeleteOpen: (open: boolean) => void;
   handleDeleteCollection: () => void;
   deleteIsPending: boolean;
-  clearInboxOpen: boolean;
-  setClearInboxOpen: (open: boolean) => void;
   handleClearInbox: () => void;
   clearInboxIsPending: boolean;
-  editOpen: boolean;
-  setEditOpen: (open: boolean) => void;
-  shareOpen: boolean;
-  setShareOpen: (open: boolean) => void;
   pendingAnnotatedDispose: PendingAnnotatedDispose | null;
   confirmAnnotatedDispose: () => Promise<void>;
   cancelAnnotatedDispose: () => void;
   disposeIsPending: boolean;
-  copyDetailsTarget: CopyDetailsTarget | null;
-  setCopyDetailsTarget: (target: CopyDetailsTarget | null) => void;
-  takeConfirm: {
-    printing: Printing;
-    availableCopyIds: string[];
-    initialQuantity: number;
-  } | null;
-  setTakeConfirm: (
-    value: { printing: Printing; availableCopyIds: string[]; initialQuantity: number } | null,
-  ) => void;
   performTake: (quantity: number) => void;
   moveIsPending: boolean;
-  takeFollowUp: {
-    printing: Printing;
-    entries: WishEntryFlat[];
-    takenQuantity: number;
-  } | null;
-  setTakeFollowUp: (
-    value: { printing: Printing; entries: WishEntryFlat[]; takenQuantity: number } | null,
-  ) => void;
   inboxName?: string;
 }
 
@@ -70,43 +41,51 @@ interface CollectionGridOverlaysProps {
  * single, stable mount point across the empty <-> populated transition (an
  * open QuickAddPalette keeps its state across the first add instead of
  * remounting when the empty-state subtree unmounts).
+ *
+ * Which overlay is open comes from the collection overlay store, not from
+ * props: the grid dispatches into that store without subscribing to it, so
+ * opening a dialog doesn't re-render the virtualized grid behind it. What stays
+ * as props is what only the grid can supply — the catalog maps, the mutation
+ * handlers and their pending flags.
  * @returns The overlay dialogs for the collection grid.
  */
 export function CollectionGridOverlays({
   addTarget,
-  quickAddOpen,
-  setQuickAddOpen,
   currentCollection,
   catalogAllPrintingsByCardId,
   ownedCountByPrinting,
   preferredLanguages,
   collections,
-  deleteOpen,
-  setDeleteOpen,
   handleDeleteCollection,
   deleteIsPending,
-  clearInboxOpen,
-  setClearInboxOpen,
   handleClearInbox,
   clearInboxIsPending,
-  editOpen,
-  setEditOpen,
-  shareOpen,
-  setShareOpen,
   pendingAnnotatedDispose,
   confirmAnnotatedDispose,
   cancelAnnotatedDispose,
   disposeIsPending,
-  copyDetailsTarget,
-  setCopyDetailsTarget,
-  takeConfirm,
-  setTakeConfirm,
   performTake,
   moveIsPending,
-  takeFollowUp,
-  setTakeFollowUp,
   inboxName,
 }: CollectionGridOverlaysProps) {
+  const quickAddOpen = useCollectionOverlayStore((state) => state.quickAddOpen);
+  const deleteOpen = useCollectionOverlayStore((state) => state.deleteOpen);
+  const clearInboxOpen = useCollectionOverlayStore((state) => state.clearInboxOpen);
+  const editOpen = useCollectionOverlayStore((state) => state.editOpen);
+  const shareOpen = useCollectionOverlayStore((state) => state.shareOpen);
+  const copyDetailsTarget = useCollectionOverlayStore((state) => state.copyDetailsTarget);
+  const takeConfirm = useCollectionOverlayStore((state) => state.takeConfirm);
+  const takeFollowUp = useCollectionOverlayStore((state) => state.takeFollowUp);
+
+  const setQuickAddOpen = useCollectionOverlayStore((state) => state.setQuickAddOpen);
+  const setDeleteOpen = useCollectionOverlayStore((state) => state.setDeleteOpen);
+  const setClearInboxOpen = useCollectionOverlayStore((state) => state.setClearInboxOpen);
+  const setEditOpen = useCollectionOverlayStore((state) => state.setEditOpen);
+  const setShareOpen = useCollectionOverlayStore((state) => state.setShareOpen);
+  const setCopyDetailsTarget = useCollectionOverlayStore((state) => state.setCopyDetailsTarget);
+  const setTakeConfirm = useCollectionOverlayStore((state) => state.setTakeConfirm);
+  const setTakeFollowUp = useCollectionOverlayStore((state) => state.setTakeFollowUp);
+
   return (
     <>
       {addTarget && (

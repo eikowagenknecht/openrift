@@ -20,13 +20,13 @@ import {
   useUpdateList,
   useUpdateListEntry,
 } from "@/hooks/use-lists";
+import { useRowActionHandlers } from "@/hooks/use-row-action-handlers";
 import { useUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
 import type { RuleExcludeTarget } from "@/lib/rule-exclude";
 import { excludeEntryFromRules } from "@/lib/rule-exclude";
 import { computeShiftRange, resolveContextActionTarget } from "@/lib/stack-selection";
 import type { ListBulkAction } from "@/stores/card-row-actions-store";
-import { useCardRowActionsStore } from "@/stores/card-row-actions-store";
 import { useGridFocusStore } from "@/stores/grid-focus-store";
 import { useSelectionStore } from "@/stores/selection-store";
 import { useSiblingOverrideStore } from "@/stores/sibling-override-store";
@@ -347,78 +347,68 @@ export function useListEntryBrowserSelection({
     );
   };
 
-  // Register list-grid action dispatchers so the per-cell ListGridCell can
-  // hand off click / +/- / remove / set-preference without taking parent
-  // closures as props. Re-register every render so handlers close over the
-  // freshest mutation results and pending flags.
-  // oxlint-disable-next-line react-hooks/exhaustive-deps -- intentional: re-register every render
-  useEffect(() => {
-    useCardRowActionsStore.getState().setHandlers({
-      onRowClick: handleCardClick,
-      onSiblingClick: handleSiblingClick,
-      onIncrement: handleIncrement,
-      onDecrement: handleDecrement,
-      // Grid tile click: browse opens the detail pane; select toggles the
-      // tile's entry (shift extends the range).
-      onItemClick: (itemId, printing, modifiers) => {
-        if (mode === "browse") {
-          handleCardClick(printing);
-          return;
-        }
-        const entry = entryByItemId.get(itemId);
-        // Rule-derived entries (null id, ADR-034) aren't selectable.
-        if (!entry || entry.id === null) {
-          return;
-        }
-        if (modifiers.shift) {
-          shiftSelectRange(itemId);
-        } else {
-          toggleSelect(entry.id);
-          setLastSelectedItemId(itemId);
-        }
-      },
-      onItemToggle: (itemId) => {
-        const entry = entryByItemId.get(itemId);
-        // Rule-derived entries (null id, ADR-034) aren't selectable.
-        if (!entry || entry.id === null) {
-          return;
-        }
+  useRowActionHandlers("list", {
+    onRowClick: handleCardClick,
+    onSiblingClick: handleSiblingClick,
+    onIncrement: handleIncrement,
+    onDecrement: handleDecrement,
+    // Grid tile click: browse opens the detail pane; select toggles the
+    // tile's entry (shift extends the range).
+    onItemClick: (itemId, printing, modifiers) => {
+      if (mode === "browse") {
+        handleCardClick(printing);
+        return;
+      }
+      const entry = entryByItemId.get(itemId);
+      // Rule-derived entries (null id, ADR-034) aren't selectable.
+      if (!entry || entry.id === null) {
+        return;
+      }
+      if (modifiers.shift) {
+        shiftSelectRange(itemId);
+      } else {
         toggleSelect(entry.id);
         setLastSelectedItemId(itemId);
-      },
-      onListBulkAction: (entryId, action) => {
-        // Same selection-or-single resolution as the collection right-click
-        // menu — entries are singular ids, so stacked: false.
-        const { copyIds, narrowSelectionTo } = resolveContextActionTarget({
-          mode,
-          stacked: false,
-          itemId: entryId,
-          cardCopyIds: [entryId],
-          selected,
-        });
-        if (narrowSelectionTo) {
-          clearSelection();
-          addToSelection(narrowSelectionTo);
-          setLastSelectedItemId(entryId);
-        }
-        openListAction(action, copyIds);
-      },
-      onEntryQuantityChange: (entryId, quantity) => {
-        // Library-mode decrement passes empty entryId when there's no entry;
-        // the cell already disables the button in that case but guard here too.
-        if (!entryId) {
-          return;
-        }
-        onQuantityChange(entryId, quantity);
-      },
-      onRemoveEntry: (entryId, cardName) => onRemoveEntry(entryId, cardName),
-      onSetPreference: (entryId) => setPrefDialogEntryId(entryId),
-      onExcludeFromRule: handleExcludeFromRule,
-      isQuantityPendingFor: (entryId) => isQuantityPendingFor(entryId),
-    });
-    return () => {
-      useCardRowActionsStore.getState().setHandlers({});
-    };
+      }
+    },
+    onItemToggle: (itemId) => {
+      const entry = entryByItemId.get(itemId);
+      // Rule-derived entries (null id, ADR-034) aren't selectable.
+      if (!entry || entry.id === null) {
+        return;
+      }
+      toggleSelect(entry.id);
+      setLastSelectedItemId(itemId);
+    },
+    onListBulkAction: (entryId, action) => {
+      // Same selection-or-single resolution as the collection right-click
+      // menu — entries are singular ids, so stacked: false.
+      const { copyIds, narrowSelectionTo } = resolveContextActionTarget({
+        mode,
+        stacked: false,
+        itemId: entryId,
+        cardCopyIds: [entryId],
+        selected,
+      });
+      if (narrowSelectionTo) {
+        clearSelection();
+        addToSelection(narrowSelectionTo);
+        setLastSelectedItemId(entryId);
+      }
+      openListAction(action, copyIds);
+    },
+    onEntryQuantityChange: (entryId, quantity) => {
+      // Library-mode decrement passes empty entryId when there's no entry;
+      // the cell already disables the button in that case but guard here too.
+      if (!entryId) {
+        return;
+      }
+      onQuantityChange(entryId, quantity);
+    },
+    onRemoveEntry: (entryId, cardName) => onRemoveEntry(entryId, cardName),
+    onSetPreference: (entryId) => setPrefDialogEntryId(entryId),
+    onExcludeFromRule: handleExcludeFromRule,
+    isQuantityPendingFor: (entryId) => isQuantityPendingFor(entryId),
   });
 
   // Move targets: same kind + intent (the API rejects mismatches), this list

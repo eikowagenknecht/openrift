@@ -7,16 +7,16 @@ import {
   computeDragSelectionSummary,
   dragSelectionNoun,
 } from "@/components/collection/collection-drag";
-import type { CopyDetailsTarget } from "@/components/collection/copy-details-dialog";
 import { buildOnDecrement } from "@/components/collection/route-decrement";
 import type { useQuickAddActions } from "@/hooks/use-quick-add-actions";
+import { useRowActionHandlers } from "@/hooks/use-row-action-handlers";
 import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { cardsViewTileKey, splitsCardIntoTiles } from "@/lib/card-tiles";
 import { computeShiftRange, resolveContextActionTarget } from "@/lib/stack-selection";
 import { useAddModeStore } from "@/stores/add-mode-store";
 import type { VariantPopoverIntent } from "@/stores/add-mode-store";
 import type { CollectionContextAction } from "@/stores/card-row-actions-store";
-import { useCardRowActionsStore } from "@/stores/card-row-actions-store";
+import { useCollectionOverlayStore } from "@/stores/collection-overlay-store";
 import { useDragPreviewStore } from "@/stores/drag-preview-store";
 import { useSelectionStore } from "@/stores/selection-store";
 import { useSiblingOverrideStore } from "@/stores/sibling-override-store";
@@ -59,7 +59,6 @@ interface UseCollectionGridSelectionParams {
   handleOpenVariants: ReturnType<typeof useQuickAddActions>["handleOpenVariants"];
   handleTake: (itemId: string, count: number) => void;
   setLendTarget: (target: { printing: Printing; maxQuantity: number } | null) => void;
-  setCopyDetailsTarget: (target: CopyDetailsTarget | null) => void;
   openAction: (action: CollectionContextAction, copyIds: string[]) => void;
 }
 
@@ -96,7 +95,6 @@ export function useCollectionGridSelection({
   handleOpenVariants,
   handleTake,
   setLendTarget,
-  setCopyDetailsTarget,
   openAction,
 }: UseCollectionGridSelectionParams) {
   // In "cards" view, collect all copy IDs and printing IDs per tile for
@@ -249,7 +247,7 @@ export function useCollectionGridSelection({
           }
         }
       }
-      setCopyDetailsTarget({
+      useCollectionOverlayStore.getState().setCopyDetailsTarget({
         copyIds: cardCopyIds,
         cardName: legendDisplayName(stack.printing.card),
         printingByCopyId,
@@ -271,12 +269,6 @@ export function useCollectionGridSelection({
     openAction(action, copyIds);
   };
 
-  // Register table-row action handlers in the no-subscribe store so the
-  // virtualized CardTable + per-cell CollectionGridCell can dispatch row
-  // clicks / +/- / select-mode actions without taking these unstable closures
-  // as props. Mirrors card-browser.tsx's wiring; see card-row-actions-store.ts
-  // for the why. Re-register every render so rows pick up the freshest
-  // implementation.
   // When the tile is split by set, the +/- variant popover offers only the
   // tile's own set so it can't add or remove a printing from another set.
   const openVariantsForTile = handleOpenVariants
@@ -287,59 +279,53 @@ export function useCollectionGridSelection({
         handleOpenVariants(printing, anchorEl, intent, tileGroupBy === "set", dataView !== "cards")
     : undefined;
 
-  // oxlint-disable-next-line react-hooks/exhaustive-deps -- intentional: re-register every render
-  useEffect(() => {
-    useCardRowActionsStore.getState().setHandlers({
-      onRowClick: handleGridCardClick,
-      onSiblingClick: handleSiblingClick,
-      onIncrement: handleQuickAdd,
-      onDecrement: buildOnDecrement({
-        dataView,
-        groupBy: tileGroupBy,
-        ownedPrintingIdsByTile: allPrintingIdsByTile,
-        handleOpenVariants: openVariantsForTile,
-        tryUndoAdd,
-      }),
-      onOpenVariants: openVariantsForTile,
-      onItemClick: (itemId, printing, modifiers) => {
-        const stack = stackByItemId.get(itemId);
-        // Browse mode: ctrl-click on an owned card flips into select mode and
-        // toggles. Plain click opens the detail pane.
-        if (mode === "browse") {
-          if (modifiers.ctrl && stack) {
-            setSelectMode(true);
-            toggleStackForItem(itemId, stack);
-            setLastSelectedItemId(itemId);
-            return;
-          }
-          handleGridCardClick(printing);
-          return;
-        }
-        // Select mode: shift-click extends the range, regular click toggles.
-        if (!stack) {
-          return;
-        }
-        if (modifiers.shift) {
-          shiftSelectRange(itemId);
-        } else {
+  useRowActionHandlers("collection", {
+    onRowClick: handleGridCardClick,
+    onSiblingClick: handleSiblingClick,
+    onIncrement: handleQuickAdd,
+    onDecrement: buildOnDecrement({
+      dataView,
+      groupBy: tileGroupBy,
+      ownedPrintingIdsByTile: allPrintingIdsByTile,
+      handleOpenVariants: openVariantsForTile,
+      tryUndoAdd,
+    }),
+    onOpenVariants: openVariantsForTile,
+    onItemClick: (itemId, printing, modifiers) => {
+      const stack = stackByItemId.get(itemId);
+      // Browse mode: ctrl-click on an owned card flips into select mode and
+      // toggles. Plain click opens the detail pane.
+      if (mode === "browse") {
+        if (modifiers.ctrl && stack) {
+          setSelectMode(true);
           toggleStackForItem(itemId, stack);
           setLastSelectedItemId(itemId);
-        }
-      },
-      onItemToggle: (itemId) => {
-        const stack = stackByItemId.get(itemId);
-        if (!stack) {
           return;
         }
+        handleGridCardClick(printing);
+        return;
+      }
+      // Select mode: shift-click extends the range, regular click toggles.
+      if (!stack) {
+        return;
+      }
+      if (modifiers.shift) {
+        shiftSelectRange(itemId);
+      } else {
         toggleStackForItem(itemId, stack);
         setLastSelectedItemId(itemId);
-      },
-      onContextAction: handleContextAction,
-      onTake: handleTake,
-    });
-    return () => {
-      useCardRowActionsStore.getState().setHandlers({});
-    };
+      }
+    },
+    onItemToggle: (itemId) => {
+      const stack = stackByItemId.get(itemId);
+      if (!stack) {
+        return;
+      }
+      toggleStackForItem(itemId, stack);
+      setLastSelectedItemId(itemId);
+    },
+    onContextAction: handleContextAction,
+    onTake: handleTake,
   });
 
   return {

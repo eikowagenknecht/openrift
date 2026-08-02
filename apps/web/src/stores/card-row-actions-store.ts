@@ -26,7 +26,16 @@ export type CollectionContextAction = "move" | "addToList" | "lend" | "dispose" 
  */
 export type ListBulkAction = "move" | "remove" | "takeOff";
 
-interface CardRowHandlers {
+/**
+ * The card-browser surfaces that register handlers here. Exactly one is mounted
+ * at a time (each is its own route), and the tag makes that an assertion rather
+ * than an assumption — it is what lets a surface's cleanup tell "I am the
+ * registered owner, clear the slot" from "someone else already took over".
+ */
+export type CardRowSurface = "catalog" | "collection" | "deck" | "list";
+
+/** Handlers every card-browser surface can offer. */
+interface BaseRowHandlers {
   onRowClick?: (printing: Printing) => void;
   onSiblingClick?: (printing: Printing) => void;
   onIncrement?: (printing: Printing, modifiers?: CardRowClickModifiers) => void;
@@ -48,45 +57,78 @@ interface CardRowHandlers {
   onItemClick?: (itemId: string, printing: Printing, modifiers: CardRowClickModifiers) => void;
   /** Toggle the cell's stack in select mode (used by the cell's checkbox). */
   onItemToggle?: (itemId: string) => void;
+}
+
+/** Handlers only /collections registers. */
+interface CollectionRowHandlers {
   /**
-   * /collections: a right-click menu action on a card. The grid resolves the
-   * target — the current multi-selection when this card is part of it,
-   * otherwise just this card — then opens the matching dialog. `printing` is
-   * the cell's *displayed* printing (sibling swaps included), for actions that
-   * target one printing rather than the whole tile ("lend", ADR-039).
+   * A right-click menu action on a card. The grid resolves the target — the
+   * current multi-selection when this card is part of it, otherwise just this
+   * card — then opens the matching dialog. `printing` is the cell's *displayed*
+   * printing (sibling swaps included), for actions that target one printing
+   * rather than the whole tile ("lend", ADR-039).
    */
   onContextAction?: (itemId: string, action: CollectionContextAction, printing?: Printing) => void;
   /**
-   * /collections group "bulk box": take `count` copies of this card from the
-   * shared group collection into the viewer's inbox (a free-pile claim, capped
-   * to what the box holds). Only wired up when the collection is group-owned.
+   * Group "bulk box": take `count` copies of this card from the shared group
+   * collection into the viewer's inbox (a free-pile claim, capped to what the
+   * box holds). Only wired up when the collection is group-owned.
    */
   onTake?: (itemId: string, count: number) => void;
-  /** /lists: set an entry's quantity directly (browse-mode +/- buttons on the quantity strip). */
+}
+
+/** Handlers only /lists registers. */
+interface ListRowHandlers {
+  /** Set an entry's quantity directly (browse-mode +/- buttons on the quantity strip). */
   onEntryQuantityChange?: (entryId: string, quantity: number) => void;
-  /** /lists: remove an entry directly (the minus button at quantity 1, no confirm). */
+  /** Remove an entry directly (the minus button at quantity 1, no confirm). */
   onRemoveEntry?: (entryId: string, cardName: string) => void;
-  /** /lists: open the trade-preference editor for an entry. */
+  /** Open the trade-preference editor for an entry. */
   onSetPreference?: (entryId: string) => void;
-  /** /lists: is the given entry currently waiting on a pending quantity mutation? */
+  /** Is the given entry currently waiting on a pending quantity mutation? */
   isQuantityPendingFor?: (entryId: string) => boolean;
   /**
-   * /lists: a right-click menu bulk action on an entry. The browser resolves
-   * the target — the current multi-selection when this entry is part of it,
+   * A right-click menu bulk action on an entry. The browser resolves the
+   * target — the current multi-selection when this entry is part of it,
    * otherwise just this entry — then opens the matching dialog.
    */
   onListBulkAction?: (entryId: string, action: ListBulkAction) => void;
   /**
-   * /lists: drop a rule-produced entry from the list's dynamic rules (ADR-034).
-   * Rule entries have no `list_entries` row, so they can't be removed — only
+   * Drop a rule-produced entry from the list's dynamic rules (ADR-034). Rule
+   * entries have no `list_entries` row, so they can't be removed — only
    * excluded, which appends the target id to the producing rule(s) and re-saves.
    */
   onExcludeFromRule?: (target: RuleExcludeTarget) => void;
 }
 
+/**
+ * What a surface may register, keyed by surface. The dispatchers below read
+ * through the union, so a handler stays reachable from any cell; the split is
+ * what stops a surface registering another surface's vocabulary by accident.
+ */
+export interface HandlersBySurface {
+  catalog: BaseRowHandlers;
+  collection: BaseRowHandlers & CollectionRowHandlers;
+  deck: BaseRowHandlers;
+  list: BaseRowHandlers & ListRowHandlers;
+}
+
+type CardRowHandlers = BaseRowHandlers & CollectionRowHandlers & ListRowHandlers;
+
 interface CardRowActionsState {
+  /** Which surface's handlers are in the slot, or null when it's empty. */
+  owner: CardRowSurface | null;
   handlers: CardRowHandlers;
-  setHandlers: (handlers: CardRowHandlers) => void;
+  setHandlers: <TSurface extends CardRowSurface>(
+    owner: TSurface,
+    handlers: HandlersBySurface[TSurface],
+  ) => void;
+  /**
+   * Empty the slot, but only if `owner` still holds it. An unconditional clear
+   * would let a surface unmounting after its successor mounted wipe the
+   * successor's registration.
+   */
+  clearHandlers: (owner: CardRowSurface) => void;
 }
 
 // Why a registry instead of prop drilling: card-browser's quick-add handlers
@@ -97,8 +139,11 @@ interface CardRowActionsState {
 // subscription, so registry updates don't trigger re-renders, and the row's
 // prop surface stays stable across parent re-renders.
 export const useCardRowActionsStore = create<CardRowActionsState>()((set) => ({
+  owner: null,
   handlers: {},
-  setHandlers: (handlers) => set({ handlers }),
+  setHandlers: (owner, handlers) => set({ owner, handlers }),
+  clearHandlers: (owner) =>
+    set((state) => (state.owner === owner ? { owner: null, handlers: {} } : state)),
 }));
 
 // Module-scoped trampolines with permanent identity. Pass these as props to

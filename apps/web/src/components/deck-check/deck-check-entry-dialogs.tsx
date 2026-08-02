@@ -56,6 +56,25 @@ export function EditPlayerDialog({
   const [allowRiotIdSharing, setAllowRiotIdSharing] = useState(entry.allowRiotIdSharing);
   const updateEntry = useUpdateTournamentDeckCheckEntry();
 
+  // Seed on the open transition, as a render-phase adjustment rather than an
+  // effect. The dialog has no DialogTrigger — the parent flips the controlled
+  // `open` prop — and BaseUI's Dialog only fires onOpenChange for user-initiated
+  // changes, so an onOpenChange re-seed never runs and the fields would show
+  // whatever `entry` held when the page first mounted. Keying the reset on the
+  // transition rather than on `entry` itself matters because the feeding query
+  // polls: re-seeding on every response would overwrite the judge mid-edit.
+  const [seededOpen, setSeededOpen] = useState(open);
+  if (open !== seededOpen) {
+    setSeededOpen(open);
+    if (open) {
+      setPlayerName(entry.playerName);
+      setRiotId(entry.riotId ?? "");
+      setAllowDeckPublishing(entry.allowDeckPublishing);
+      setAllowNameSharing(entry.allowNameSharing);
+      setAllowRiotIdSharing(entry.allowRiotIdSharing);
+    }
+  }
+
   const handleSave = async () => {
     const name = playerName.trim();
     if (!name) {
@@ -74,19 +93,7 @@ export function EditPlayerDialog({
   };
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(nextOpen) => {
-        if (nextOpen) {
-          setPlayerName(entry.playerName);
-          setRiotId(entry.riotId ?? "");
-          setAllowDeckPublishing(entry.allowDeckPublishing);
-          setAllowNameSharing(entry.allowNameSharing);
-          setAllowRiotIdSharing(entry.allowRiotIdSharing);
-        }
-        onOpenChange(nextOpen);
-      }}
-    >
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Edit player details</DialogTitle>
@@ -259,6 +266,19 @@ export function FixCardDialog({
   const [copies, setCopies] = useState(String(card.quantity));
   const fixCard = useFixTournamentDeckCheckCard();
 
+  // Seed on the open transition — see the note in EditPlayerDialog. This dialog
+  // is reused for every row in the checklist, so without the reset it would
+  // reopen holding the previously fixed card's name and zone.
+  const [seededOpen, setSeededOpen] = useState(open);
+  if (open !== seededOpen) {
+    setSeededOpen(open);
+    if (open) {
+      setName(card.rawName);
+      setSection(card.zone);
+      setCopies(String(card.quantity));
+    }
+  }
+
   const zoneChanged = section !== card.zone;
   // Only a multi-copy line moving to a different zone can be split.
   const splittable = zoneChanged && card.quantity > 1;
@@ -286,17 +306,7 @@ export function FixCardDialog({
   };
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(nextOpen) => {
-        if (nextOpen) {
-          setName(card.rawName);
-          setSection(card.zone);
-          setCopies(String(card.quantity));
-        }
-        onOpenChange(nextOpen);
-      }}
-    >
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogForm onSubmit={() => void handleSave()}>
           <DialogHeader>

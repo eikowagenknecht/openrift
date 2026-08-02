@@ -1,11 +1,11 @@
 import type { TournamentDetailResponse } from "@openrift/shared";
-import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useServerSeededState } from "@/hooks/use-server-seeded-state";
 import { useUpdateTournament } from "@/hooks/use-tournaments";
 import {
   localTimeZoneLabel,
@@ -31,10 +31,10 @@ export function ScheduleCard({
   const updateTournament = useUpdateTournament();
   const startInit = splitUtcToLocalDateTime(detail.startsAt);
   const endInit = detail.endsAt ? splitUtcToLocalDateTime(detail.endsAt) : { date: "", time: "" };
-  const [startDate, setStartDate] = useState(startInit.date);
-  const [startTime, setStartTime] = useState(startInit.time);
-  const [endDate, setEndDate] = useState(endInit.date);
-  const [endTime, setEndTime] = useState(endInit.time);
+  const [startDate, setStartDate] = useServerSeededState(startInit.date);
+  const [startTime, setStartTime] = useServerSeededState(startInit.time);
+  const [endDate, setEndDate] = useServerSeededState(endInit.date);
+  const [endTime, setEndTime] = useServerSeededState(endInit.time);
 
   const tzLabel = localTimeZoneLabel();
   const {

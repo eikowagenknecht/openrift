@@ -1,9 +1,9 @@
 import type { TournamentDetailResponse } from "@openrift/shared";
-import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { useServerSeededState } from "@/hooks/use-server-seeded-state";
 import { useUpdateTournament } from "@/hooks/use-tournaments";
 
 /**
@@ -19,7 +19,7 @@ export function NameCard({
   locked: boolean;
 }) {
   const updateTournament = useUpdateTournament();
-  const [name, setName] = useState(detail.name);
+  const [name, setName] = useServerSeededState(detail.name);
 
   async function save() {
     try {

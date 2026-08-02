@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { useWindowVirtualizerFresh } from "@/lib/virtualizer-fresh";
 import { useDisplayStore } from "@/stores/display-store";
 import { useGridFocusStore } from "@/stores/grid-focus-store";
+import { useGridViewportStore } from "@/stores/grid-viewport-store";
 
 import {
   BUTTON_PAD,
@@ -240,16 +241,14 @@ export function CardGrid({
   const stickyOffset = stickyOffsetProp ?? headerHeight;
 
   const maxColumns = useDisplayStore((s) => s.maxColumns);
-  const setPhysicalMax = useDisplayStore((s) => s.setPhysicalMax);
-  const setPhysicalMin = useDisplayStore((s) => s.setPhysicalMin);
-  const setAutoColumns = useDisplayStore((s) => s.setAutoColumns);
+  const setMeasurements = useGridViewportStore((s) => s.setMeasurements);
 
   const adminSettings = useAdminSettings();
   const debugOverlayEnabled = adminSettings?.debugOverlay === true;
 
   // ── Responsive column layout ─────────────────────────────────────
   // Measures the container and computes how many columns fit.
-  // Writes physical min/max/auto back to the store for the column slider UI.
+  // Publishes physical min/max/auto for the column slider UI.
   const {
     containerRef,
     containerEl,
@@ -261,10 +260,8 @@ export function CardGrid({
   } = useResponsiveColumns(maxColumns);
 
   useLayoutEffect(() => {
-    setPhysicalMax(physicalMax);
-    setPhysicalMin(physicalMin);
-    setAutoColumns(autoColumns);
-  }, [physicalMax, physicalMin, autoColumns, setPhysicalMax, setPhysicalMin, setAutoColumns]);
+    setMeasurements({ physicalMax, physicalMin, autoColumns });
+  }, [physicalMax, physicalMin, autoColumns, setMeasurements]);
 
   const thumbWidth = (containerWidth - GAP * (columns - 1)) / columns;
 

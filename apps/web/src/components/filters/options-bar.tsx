@@ -28,6 +28,7 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 import { isPrintingsOnlyGrouping } from "@/lib/group-by-field";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
+import { useGridViewportStore } from "@/stores/grid-viewport-store";
 
 import { FilterCustomizeControl } from "./filter-customize-control";
 import { FilterPanelContent } from "./filter-panel-content";
@@ -212,9 +213,9 @@ function useOptionsBarState() {
   const displayMode = useDisplayStore((s) => s.displayMode);
   const maxColumns = useDisplayStore((s) => s.maxColumns);
   const setMaxColumns = useDisplayStore((s) => s.setMaxColumns);
-  const maxColumnsLimit = useDisplayStore((s) => s.physicalMax);
-  const minColumnsLimit = useDisplayStore((s) => s.physicalMin);
-  const autoColumns = useDisplayStore((s) => s.autoColumns);
+  const maxColumnsLimit = useGridViewportStore((s) => s.physicalMax);
+  const minColumnsLimit = useGridViewportStore((s) => s.physicalMin);
+  const autoColumns = useGridViewportStore((s) => s.autoColumns);
 
   const minColumns = minColumnsLimit;
 

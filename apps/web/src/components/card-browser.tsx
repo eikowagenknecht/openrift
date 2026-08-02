@@ -27,12 +27,12 @@ import { useChannelRegistry } from "@/hooks/use-enums";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
+import { useRowActionHandlers } from "@/hooks/use-row-action-handlers";
 import { useSeedLanguagesFromPrefs } from "@/hooks/use-seed-languages-from-prefs";
 import { useSession, useUserId } from "@/lib/auth-session";
 import { splitsCardIntoTiles, tileSiblings } from "@/lib/card-tiles";
 import { filterPrintingsByLanguages } from "@/lib/filter-printings-by-languages";
 import { maxOwnedCount } from "@/lib/owned-bucket";
-import { useCardRowActionsStore } from "@/stores/card-row-actions-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
 import { useSiblingOverrideStore } from "@/stores/sibling-override-store";
@@ -244,20 +244,9 @@ export function CardBrowser() {
     useSiblingOverrideStore.getState().setOverride("cards", printing.cardId, printing.id);
   };
 
-  // Register row-action handlers in a no-subscribe store so virtualized rows
-  // (table + grid) can dispatch via getState() without taking these unstable
-  // closures as props. See card-row-actions-store.ts for the why. Re-register
-  // on every render — the handlers close over per-render state (items, findBy)
-  // and we want rows to dispatch the freshest implementation.
-  // oxlint-disable-next-line react-hooks/exhaustive-deps -- intentional: re-register every render
-  useEffect(() => {
-    useCardRowActionsStore.getState().setHandlers({
-      onRowClick: handleGridCardClick,
-      onSiblingClick: handleSiblingClick,
-    });
-    return () => {
-      useCardRowActionsStore.getState().setHandlers({});
-    };
+  useRowActionHandlers("catalog", {
+    onRowClick: handleGridCardClick,
+    onSiblingClick: handleSiblingClick,
   });
 
   const searchAndClose = (query: string) => {

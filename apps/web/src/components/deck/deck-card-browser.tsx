@@ -33,6 +33,7 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useDeckBuildingCounts } from "@/hooks/use-owned-count";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
+import { useRowActionHandlers } from "@/hooks/use-row-action-handlers";
 import { useSeedLanguagesFromPrefs } from "@/hooks/use-seed-languages-from-prefs";
 import { useSession } from "@/lib/auth-session";
 import { splitsCardIntoTiles } from "@/lib/card-tiles";
@@ -45,7 +46,6 @@ import {
 } from "@/lib/deck-builder-card";
 import { getFormatTagConfig } from "@/lib/format-tag-config";
 import { maxOwnedCount } from "@/lib/owned-bucket";
-import { useCardRowActionsStore } from "@/stores/card-row-actions-store";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { isLocalDeckId } from "@/stores/local-decks-store";
@@ -549,19 +549,11 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
     .filter((card) => card.zone === WellKnown.deckZone.RUNES)
     .reduce((sum, card) => sum + card.quantity, 0);
 
-  // Register the row-body click handler so the virtualized CardTable can
-  // dispatch row clicks without taking unstable closures as props. The +/-
-  // buttons in the actions cell come from the deck-specific renderActions
-  // slot below, which closes over deck state directly — no store needed for
-  // those.
-  // oxlint-disable-next-line react-hooks/exhaustive-deps -- intentional: re-register every render
-  useEffect(() => {
-    useCardRowActionsStore.getState().setHandlers({
-      onRowClick: handleCardClick,
-    });
-    return () => {
-      useCardRowActionsStore.getState().setHandlers({});
-    };
+  // The +/- buttons in the actions cell come from the deck-specific
+  // renderActions slot below, which closes over deck state directly — only the
+  // row-body click needs the registry.
+  useRowActionHandlers("deck", {
+    onRowClick: handleCardClick,
   });
 
   const isMaxReached = (item: CardViewerItem): boolean => {

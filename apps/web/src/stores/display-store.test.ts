@@ -273,16 +273,5 @@ describe("useDisplayStore", () => {
       useDisplayStore.getState().setDisplayMode("grid");
       expect(useDisplayStore.getState().displayMode).toBe("grid");
     });
-
-    it("layout state setters work", () => {
-      useDisplayStore.getState().setPhysicalMax(12);
-      useDisplayStore.getState().setPhysicalMin(2);
-      useDisplayStore.getState().setAutoColumns(6);
-
-      const state = useDisplayStore.getState();
-      expect(state.physicalMax).toBe(12);
-      expect(state.physicalMin).toBe(2);
-      expect(state.autoColumns).toBe(6);
-    });
   });
 });

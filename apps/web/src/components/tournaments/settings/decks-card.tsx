@@ -1,6 +1,5 @@
 import type { TournamentDetailResponse } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { useServerSeededState } from "@/hooks/use-server-seeded-state";
 import { useUpdateTournament } from "@/hooks/use-tournaments";
 import {
   combineLocalDateTimeToUtc,
@@ -42,8 +42,8 @@ export function DecksCard({
   const closeInit = detail.submissionsCloseAt
     ? splitUtcToLocalDateTime(detail.submissionsCloseAt)
     : { date: "", time: "" };
-  const [closeDate, setCloseDate] = useState(closeInit.date);
-  const [closeTime, setCloseTime] = useState(closeInit.time);
+  const [closeDate, setCloseDate] = useServerSeededState(closeInit.date);
+  const [closeTime, setCloseTime] = useServerSeededState(closeInit.time);
 
   const tzLabel = localTimeZoneLabel();
   const deckExpected = detail.deckSubmission !== "none";
