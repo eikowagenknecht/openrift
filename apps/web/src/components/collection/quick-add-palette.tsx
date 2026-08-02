@@ -1,10 +1,9 @@
 import type { CollectionResponse, Printing } from "@openrift/shared";
-import { getOrientation, imageUrl, legendDisplayName } from "@openrift/shared";
+import { imageUrl, legendDisplayName } from "@openrift/shared";
 import {
   ArrowRightIcon,
   ArrowRightLeftIcon,
   ChevronRightIcon,
-  MinusIcon,
   PlusIcon,
   SearchIcon,
   XIcon,
@@ -32,28 +31,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  useBatchedAddCopies,
-  useCopies,
-  useDisposeCopies,
-  useMoveCopies,
-} from "@/hooks/use-copies";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { usePrices } from "@/hooks/use-prices";
+import { useQuickAddActions } from "@/hooks/use-quick-add-actions";
+import { useQuickAddMoveMode } from "@/hooks/use-quick-add-move-mode";
 import { searchCards } from "@/hooks/use-quick-add-search";
 import { compactFormatterForMarketplace, formatCardId, priceColorClass } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
-import { LANDSCAPE_ROTATION_STYLE, needsCssRotation } from "@/lib/images";
-import {
-  buildMoveSources,
-  groupMovableCopies,
-  MOVE_FROM_ANYWHERE,
-  movableCountsByPrinting,
-} from "@/lib/move-sources";
-import { summarizeBatchAdd } from "@/lib/summarize-batch-add";
+import { MOVE_FROM_ANYWHERE } from "@/lib/move-sources";
 import { cn } from "@/lib/utils";
 import { useAddModeStore } from "@/stores/add-mode-store";
 import { useDisplayStore } from "@/stores/display-store";
+
+import { AnnotatedDisposeDialog } from "./annotated-dispose-dialog";
+import { QuickAddPreview } from "./quick-add-preview";
+import { QuickAddStepper } from "./quick-add-stepper";
 
 interface QuickAddPaletteProps {
   open: boolean;
@@ -146,13 +138,6 @@ interface PaletteInnerProps {
   isMobile: boolean;
 }
 
-/** One palette-session move, kept so Shift+Enter / the minus button can send the copy back where it came from. */
-interface MoveRecord {
-  copyId: string;
-  printingId: string;
-  fromCollectionId: string;
-}
-
 function PaletteInner({
   collectionId,
   collectionName,
@@ -169,77 +154,42 @@ function PaletteInner({
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const scrollOnChange = useRef(false);
-  const batchedAdd = useBatchedAddCopies({
-    // Fires once per API batch, not per click, so a held-Enter burst produces
-    // one aggregated toast instead of N "Added 1× Card" lines. Error toasts
-    // are handled by the global mutation onError in query-client.ts.
-    onBatchSuccess: (printingIds) => {
-      const msg = summarizeBatchAdd(printingIds, (id) => {
-        for (const list of printingsByCardId.values()) {
-          const found = list.find((printing) => printing.id === id);
-          if (found) {
-            return legendDisplayName(found.card);
-          }
-        }
-      });
-      if (msg) {
-        toast.success(msg);
-      }
-    },
-  });
-  const disposeCopies = useDisposeCopies();
   const addedItems = useAddModeStore((s) => s.addedItems);
   const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
   const prices = usePrices();
   const favoriteMarketplace = marketplaceOrder[0] ?? "cardtrader";
   const compactFmt = compactFormatterForMarketplace(favoriteMarketplace);
 
-  // ── Move mode ──────────────────────────────────────────────────────
-  // Instead of creating new copies, Move reassigns existing ones: From
-  // (a source collection, or anywhere) → To (defaults to the collection
-  // the palette opened on). Both sides are pickable, so the same palette
-  // pulls cards into a fresh deckbox or clears the inbox out into one.
-  const canMove = (collections?.length ?? 0) >= 2;
-  const [mode, setMode] = useState<"add" | "move">("add");
-  const [moveFrom, setMoveFrom] = useState<string>(MOVE_FROM_ANYWHERE);
-  const [moveTo, setMoveTo] = useState<string>(collectionId);
-  // Set by the swap button so a second click restores the exact previous
-  // direction (a plain value swap can't restore "All collections").
-  // Cleared when either dropdown is changed manually.
-  const [swapUndo, setSwapUndo] = useState<{ from: string; to: string } | null>(null);
-  const [moveHistory, setMoveHistory] = useState<MoveRecord[]>([]);
-  // Which source collection Enter moves from, as an index into the selected
-  // printing's source list (ArrowRight/Tab cycles it, clicking a chip sets it).
-  const [sourceIndex, setSourceIndex] = useState(0);
-  const moveCopies = useMoveCopies();
-  // Live rows across all collections; PaletteInner only mounts while the
-  // palette is open, so the subscription doesn't outlive it.
-  const { data: allCopies } = useCopies();
-  const inMoveMode = mode === "move" && canMove;
-  const inboxId = collections?.find((col) => col.isInbox)?.id;
-  const collectionDisplayName = (id: string) =>
-    collections?.find((col) => col.id === id)?.name ?? "collection";
-  const movableByPrinting = inMoveMode
-    ? groupMovableCopies(allCopies, {
-        excludeCollectionId: moveTo,
-        onlyCollectionId: moveFrom === MOVE_FROM_ANYWHERE ? undefined : moveFrom,
-      })
-    : null;
-  const movableCounts = movableByPrinting ? movableCountsByPrinting(movableByPrinting) : undefined;
-  const fromItems = [
-    { value: MOVE_FROM_ANYWHERE, label: "All collections" },
-    ...(collections ?? [])
-      .filter((col) => col.id !== moveTo)
-      .map((col) => ({ value: col.id, label: col.name })),
-  ];
-  const toItems = (collections ?? [])
-    .filter((col) => col.id !== moveFrom)
-    .map((col) => ({ value: col.id, label: col.name }));
+  // Add and undo run through the shared quick-add hook, so the palette gets the
+  // same ADR-038 handling the collection grid has: undoing an add whose copy has
+  // since been annotated parks for confirmation instead of destroying the
+  // details. The removal toast and the refocus fire from onDisposed, which runs
+  // only once a removal actually lands — a parked one announces nothing and
+  // leaves focus to the confirmation dialog.
+  const {
+    handleQuickAdd,
+    tryUndoAdd,
+    pendingAnnotatedDispose,
+    confirmAnnotatedDispose,
+    cancelAnnotatedDispose,
+    disposeIsPending,
+  } = useQuickAddActions(collectionId, collectionId, (printing) => {
+    toast.success(`Removed 1× ${legendDisplayName(printing.card)}`);
+    inputRef.current?.focus();
+  });
+
+  const move = useQuickAddMoveMode({
+    collectionId,
+    collections,
+    selectionKey: `${expandedCardId ?? ""}:${expandedIndex}`,
+    onMoved: () => inputRef.current?.focus(),
+  });
+  const { inMoveMode, moveFrom, moveTo } = move;
 
   const results = searchCards(query, printingsByCardId, {
     // In move mode the ×N badges show what's movable in the current
     // From scope, not the global owned count.
-    ownedCountByPrinting: inMoveMode ? (movableCounts ?? {}) : ownedCountByPrinting,
+    ownedCountByPrinting: inMoveMode ? (move.movableCounts ?? {}) : ownedCountByPrinting,
     preferredLanguages,
   });
 
@@ -253,25 +203,13 @@ function PaletteInner({
   const [failedImageId, setFailedImageId] = useState<string | null>(null);
   const rawPreviewImageId = previewPrinting?.images[0]?.imageId ?? null;
   const previewImageId = rawPreviewImageId === failedImageId ? null : rawPreviewImageId;
-  const previewThumbnail = previewImageId ? imageUrl(previewImageId, "full") : null;
-  // The mobile preview renders at a smaller, fixed width, so a lighter variant
-  // is plenty (400w covers ~160px CSS at DPR 2).
-  const previewThumbnailMobile = previewImageId ? imageUrl(previewImageId, "400w") : null;
   const markPreviewFailed = () => setFailedImageId(rawPreviewImageId);
-  const previewRotated = previewPrinting
-    ? needsCssRotation(getOrientation(previewPrinting.card.types))
-    : false;
 
   // Clamp selection when results change
   useEffect(() => {
     setSelectedIndex((prev) => Math.min(prev, Math.max(0, results.length - 1)));
     setExpandedCardId(null);
   }, [results.length]);
-
-  // A new printing row, direction, or target starts back at the default source.
-  useEffect(() => {
-    setSourceIndex(0);
-  }, [expandedCardId, expandedIndex, moveFrom, moveTo]);
 
   // Scroll selected item into view (keyboard navigation only)
   useEffect(() => {
@@ -294,136 +232,23 @@ function PaletteInner({
   }, [selectedIndex, expandedCardId, expandedIndex]);
 
   const handleAdd = async (printing: Printing) => {
-    // Increment pending so the "N new" badge reflects the click immediately,
-    // not after the 300ms batch + API round-trip completes.
-    useAddModeStore.getState().incrementPending(printing);
-    try {
-      const { result } = batchedAdd.add(printing.id, collectionId);
-      const real = await result;
-      useAddModeStore.getState().recordAdd(printing, real.id);
-      const input = inputRef.current;
-      if (input) {
-        input.focus();
-      }
-      // Success toast is fired once per batch by onBatchSuccess above; error
-      // toast is fired by the global mutation handler in query-client.ts.
-    } catch {
-      // Swallow: the global onError already toasted; rethrowing would
-      // surface as an uncaught promise warning.
-    }
-    useAddModeStore.getState().decrementPending(printing.id);
+    // The success toast is fired once per API batch by the shared hook, so a
+    // held-Enter burst produces one aggregated line rather than N. Error toasts
+    // come from the global mutation handler in query-client.ts.
+    await handleQuickAdd?.(printing);
+    inputRef.current?.focus();
   };
 
   const handleUndo = async (printing: Printing) => {
+    // Session-only: the palette's minus takes back what this session added and
+    // never touches a copy the user already owned. tryUndoAdd's owned-copy
+    // fallback is for the collection grid's tile minus, where that count is the
+    // thing being edited; here it is context for what you are adding to.
     const entry = useAddModeStore.getState().addedItems.get(printing.id);
     if (!entry || entry.copyIds.length === 0) {
       return;
     }
-    const copyIdToRemove = entry.copyIds.at(-1);
-    if (!copyIdToRemove) {
-      return;
-    }
-    // Pop from the session store optimistically so rapid undo clicks advance
-    // to the next copyId instead of racing on the same one. disposeCopies
-    // already optimistically removes the row from the copies collection.
-    useAddModeStore.getState().recordUndo(printing.id);
-    try {
-      await disposeCopies.mutateAsync({ copyIds: [copyIdToRemove] });
-      toast.success(`Removed 1× ${legendDisplayName(printing.card)}`);
-      const input = inputRef.current;
-      if (input) {
-        input.focus();
-      }
-    } catch {
-      // Roll the session store back; the error toast is fired once by the
-      // global mutation handler in query-client.ts (a second toast here would
-      // duplicate it).
-      useAddModeStore.getState().recordAdd(printing, copyIdToRemove);
-    }
-  };
-
-  const handleMoveOne = async (printing: Printing, sourceCollectionId?: string) => {
-    const sources = buildMoveSources(movableByPrinting?.get(printing.id) ?? [], inboxId);
-    const source = sourceCollectionId
-      ? sources.find((s) => s.collectionId === sourceCollectionId)
-      : sources[Math.min(sourceIndex, sources.length - 1)];
-    const copyId = source?.copyIds[0];
-    if (!source || !copyId) {
-      return;
-    }
-    const record: MoveRecord = {
-      copyId,
-      printingId: printing.id,
-      fromCollectionId: source.collectionId,
-    };
-    setMoveHistory((prev) => [...prev, record]);
-    try {
-      await moveCopies.mutateAsync({ copyIds: [copyId], toCollectionId: moveTo });
-      // Stable id per printing: a held Enter replaces the toast instead of
-      // stacking one per keypress. Error toasts come from the global
-      // mutation onError in query-client.ts.
-      toast.success(
-        `Moved 1× ${legendDisplayName(printing.card)} to ${collectionDisplayName(moveTo)}`,
-        { id: `palette-move-${printing.id}` },
-      );
-      const input = inputRef.current;
-      if (input) {
-        input.focus();
-      }
-    } catch {
-      // Roll the session history back; the global onError already toasted.
-      setMoveHistory((prev) => prev.filter((entry) => entry !== record));
-    }
-  };
-
-  const handleUndoMove = async (printing: Printing) => {
-    const record = moveHistory.findLast((entry) => entry.printingId === printing.id);
-    if (!record) {
-      return;
-    }
-    setMoveHistory((prev) => prev.filter((entry) => entry !== record));
-    try {
-      await moveCopies.mutateAsync({
-        copyIds: [record.copyId],
-        toCollectionId: record.fromCollectionId,
-      });
-      toast.success(
-        `Moved 1× ${legendDisplayName(printing.card)} back to ${collectionDisplayName(record.fromCollectionId)}`,
-        { id: `palette-move-${printing.id}` },
-      );
-      const input = inputRef.current;
-      if (input) {
-        input.focus();
-      }
-    } catch {
-      setMoveHistory((prev) => [...prev, record]);
-    }
-  };
-
-  const handleSwapDirection = () => {
-    if (swapUndo) {
-      setMoveFrom(swapUndo.from);
-      setMoveTo(swapUndo.to);
-      setSwapUndo(null);
-      return;
-    }
-    const previous = { from: moveFrom, to: moveTo };
-    if (moveFrom === MOVE_FROM_ANYWHERE) {
-      // "All collections" can't become the target — anchor From to the old
-      // target and default the destination to the inbox (or the first other
-      // collection when the inbox IS the old target, i.e. clearing it out).
-      const target =
-        inboxId && inboxId !== moveTo ? inboxId : collections?.find((col) => col.id !== moveTo)?.id;
-      if (!target) {
-        return;
-      }
-      setMoveFrom(moveTo);
-      setMoveTo(target);
-    } else {
-      setMoveFrom(moveTo);
-      setMoveTo(moveFrom);
-    }
-    setSwapUndo(previous);
+    await tryUndoAdd?.(printing);
   };
 
   const clearSearch = () => {
@@ -447,13 +272,11 @@ function PaletteInner({
   const selectedPrinting = expandedCard?.printings[expandedIndex];
   const selectedSourceCount =
     inMoveMode && moveFrom === MOVE_FROM_ANYWHERE && selectedPrinting
-      ? new Set(
-          (movableByPrinting?.get(selectedPrinting.id) ?? []).map((copy) => copy.collectionId),
-        ).size
+      ? move.sourcesFor(selectedPrinting.id).length
       : 0;
   const canUndoSelected = selectedPrinting
     ? inMoveMode
-      ? moveHistory.some((entry) => entry.printingId === selectedPrinting.id)
+      ? move.movedCount(selectedPrinting.id) > 0
       : (addedItems.get(selectedPrinting.id)?.quantity ?? 0) > 0
     : false;
 
@@ -462,9 +285,9 @@ function PaletteInner({
   // working from anywhere inside the palette. React synthetic events bubble
   // here even from portaled popups.
   const handleModeShortcut = (event: React.KeyboardEvent) => {
-    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "m" && canMove) {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "m" && move.canMove) {
       event.preventDefault();
-      setMode((prev) => (prev === "add" ? "move" : "add"));
+      move.toggleMode();
       inputRef.current?.focus();
     }
   };
@@ -496,13 +319,10 @@ function PaletteInner({
         // Step back through the source chips first; only from the leftmost
         // chip does Left collapse the card (go back one level).
         if (inMoveMode && moveFrom === MOVE_FROM_ANYWHERE && selectedPrinting) {
-          const sources = buildMoveSources(
-            movableByPrinting?.get(selectedPrinting.id) ?? [],
-            inboxId,
-          );
-          const activeSource = Math.min(sourceIndex, sources.length - 1);
+          const sources = move.sourcesFor(selectedPrinting.id);
+          const activeSource = Math.min(move.sourceIndex, sources.length - 1);
           if (activeSource > 0) {
-            setSourceIndex(activeSource - 1);
+            move.setSourceIndex(activeSource - 1);
             return;
           }
         }
@@ -514,14 +334,11 @@ function PaletteInner({
         // (move mode with an open source scope only). Clamps at the last
         // chip — Left walks back and exits at the leftmost, so no wrap.
         if (inMoveMode && moveFrom === MOVE_FROM_ANYWHERE && selectedPrinting) {
-          const sources = buildMoveSources(
-            movableByPrinting?.get(selectedPrinting.id) ?? [],
-            inboxId,
-          );
+          const sources = move.sourcesFor(selectedPrinting.id);
           if (sources.length > 1) {
             event.preventDefault();
-            setSourceIndex((prev) =>
-              Math.min(Math.min(prev, sources.length - 1) + 1, sources.length - 1),
+            move.setSourceIndex(
+              Math.min(Math.min(move.sourceIndex, sources.length - 1) + 1, sources.length - 1),
             );
           }
         }
@@ -543,9 +360,9 @@ function PaletteInner({
         if (card) {
           const printing = card.printings[expandedIndex];
           if (event.shiftKey) {
-            void (inMoveMode ? handleUndoMove(printing) : handleUndo(printing));
+            void (inMoveMode ? move.undoMove(printing) : handleUndo(printing));
           } else {
-            void (inMoveMode ? handleMoveOne(printing) : handleAdd(printing));
+            void (inMoveMode ? move.moveOne(printing) : handleAdd(printing));
           }
         }
       } else {
@@ -572,77 +389,39 @@ function PaletteInner({
   return (
     // oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- bubbling keyboard shortcut listener, not an interactive element
     <div className="relative" onKeyDown={handleModeShortcut}>
-      {/* Card image preview — shown at the top of the drawer on mobile, where
-          there's no off-canvas space for the desktop side pane. */}
-      {isMobile && previewPrinting && previewThumbnailMobile && (
+      {/* Card image preview — at the top of the drawer on mobile, where there's
+          no off-canvas space for the desktop side pane. It renders at a fixed
+          160px, so a lighter variant is plenty (400w covers it at DPR 2). */}
+      {previewPrinting && previewImageId && isMobile && (
         <div className="mb-3 flex justify-center">
-          <div
-            className="bg-muted aspect-card relative w-40 overflow-hidden"
-            style={{ borderRadius: "5% / 3.6%" }}
-          >
-            {previewRotated ? (
-              <div
-                className="absolute top-1/2 left-1/2 overflow-hidden"
-                style={LANDSCAPE_ROTATION_STYLE}
-              >
-                <img
-                  src={previewThumbnailMobile}
-                  alt={legendDisplayName(previewPrinting.card)}
-                  className="size-full object-cover"
-                  onError={markPreviewFailed}
-                />
-              </div>
-            ) : (
-              <img
-                src={previewThumbnailMobile}
-                alt={legendDisplayName(previewPrinting.card)}
-                className="absolute inset-0 w-full object-cover"
-                onError={markPreviewFailed}
-              />
-            )}
-          </div>
+          <QuickAddPreview
+            printing={previewPrinting}
+            src={imageUrl(previewImageId, "400w")}
+            className="w-40"
+            onError={markPreviewFailed}
+          />
         </div>
       )}
 
       {/* Card image preview — floats left of the dialog on desktop */}
-      {previewPrinting && previewThumbnail && (
+      {previewPrinting && previewImageId && (
         <div className="absolute top-0 right-full mr-3 hidden w-96 lg:block">
-          <div
-            className="bg-muted aspect-card relative overflow-hidden"
-            style={{ borderRadius: "5% / 3.6%" }}
-          >
-            {previewRotated ? (
-              <div
-                className="absolute top-1/2 left-1/2 overflow-hidden"
-                style={LANDSCAPE_ROTATION_STYLE}
-              >
-                <img
-                  src={previewThumbnail}
-                  alt={legendDisplayName(previewPrinting.card)}
-                  className="size-full object-cover"
-                  onError={markPreviewFailed}
-                />
-              </div>
-            ) : (
-              <img
-                src={previewThumbnail}
-                alt={legendDisplayName(previewPrinting.card)}
-                className="absolute inset-0 w-full object-cover"
-                onError={markPreviewFailed}
-              />
-            )}
-          </div>
+          <QuickAddPreview
+            printing={previewPrinting}
+            src={imageUrl(previewImageId, "full")}
+            onError={markPreviewFailed}
+          />
         </div>
       )}
 
       {/* Mode toggle + move direction. The drawer already pads its content
           (p-4), so the horizontal inset applies on desktop only. */}
-      {canMove && (
+      {move.canMove && (
         <div className={cn("flex flex-col gap-2 pb-1", !isMobile && "px-3 pt-3")}>
           <Tabs
-            value={mode}
+            value={move.mode}
             onValueChange={(value) => {
-              setMode(value as "add" | "move");
+              move.setMode(value as "add" | "move");
               // Hand focus back to the search input so typing (and Ctrl+M)
               // keep working after a mouse click on a tab.
               inputRef.current?.focus();
@@ -653,13 +432,13 @@ function PaletteInner({
                   would switch to. Keyboard-only, so hidden on mobile. */}
               <TabsTrigger value="add">
                 Add
-                {!isMobile && mode === "move" && (
+                {!isMobile && move.mode === "move" && (
                   <Kbd className="pointer-events-none opacity-60">Ctrl+M</Kbd>
                 )}
               </TabsTrigger>
               <TabsTrigger value="move">
                 Move
-                {!isMobile && mode === "add" && (
+                {!isMobile && move.mode === "add" && (
                   <Kbd className="pointer-events-none opacity-60">Ctrl+M</Kbd>
                 )}
               </TabsTrigger>
@@ -669,12 +448,11 @@ function PaletteInner({
             <div className="flex items-center gap-1.5">
               <span className="text-muted-foreground text-xs">from</span>
               <Select
-                items={fromItems}
+                items={move.fromItems}
                 value={moveFrom}
                 onValueChange={(value) => {
                   if (value) {
-                    setMoveFrom(value);
-                    setSwapUndo(null);
+                    move.chooseMoveFrom(value);
                   }
                 }}
               >
@@ -682,7 +460,7 @@ function PaletteInner({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {fromItems.map((item) => (
+                  {move.fromItems.map((item) => (
                     <SelectItem key={item.value} value={item.value}>
                       {item.label}
                     </SelectItem>
@@ -693,19 +471,18 @@ function PaletteInner({
                 type="button"
                 size="icon"
                 variant="ghost"
-                onClick={handleSwapDirection}
+                onClick={move.handleSwapDirection}
                 aria-label="Swap move direction"
               >
                 <ArrowRightLeftIcon />
               </Button>
               <span className="text-muted-foreground text-xs">to</span>
               <Select
-                items={toItems}
+                items={move.toItems}
                 value={moveTo}
                 onValueChange={(value) => {
                   if (value) {
-                    setMoveTo(value);
-                    setSwapUndo(null);
+                    move.chooseMoveTo(value);
                   }
                 }}
               >
@@ -713,7 +490,7 @@ function PaletteInner({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {toItems.map((item) => (
+                  {move.toItems.map((item) => (
                     <SelectItem key={item.value} value={item.value}>
                       {item.label}
                     </SelectItem>
@@ -735,7 +512,7 @@ function PaletteInner({
           type="text"
           aria-label={
             inMoveMode
-              ? `Move card to ${collectionDisplayName(moveTo)}`
+              ? `Move card to ${move.collectionDisplayName(moveTo)}`
               : `Add card to ${collectionName}`
           }
           value={query}
@@ -743,7 +520,7 @@ function PaletteInner({
           onKeyDown={handleKeyDown}
           placeholder={
             inMoveMode
-              ? `Move to "${collectionDisplayName(moveTo)}"...`
+              ? `Move to "${move.collectionDisplayName(moveTo)}"...`
               : `Add to "${collectionName}"...`
           }
           className="text-base sm:text-sm"
@@ -840,19 +617,16 @@ function PaletteInner({
                     const addedEntry = addedItems.get(printing.id);
                     const sessionAdded =
                       (addedEntry?.quantity ?? 0) + (addedEntry?.pendingCount ?? 0);
-                    const movableForPrinting = movableCounts?.[printing.id] ?? 0;
-                    const movedThisSession = inMoveMode
-                      ? moveHistory.filter((entry) => entry.printingId === printing.id).length
-                      : 0;
+                    const movableForPrinting = move.movableCounts?.[printing.id] ?? 0;
+                    const movedThisSession = move.movedCount(printing.id);
                     // Source breakdown only for the selected row — it drives
                     // both the per-source chips (From = anywhere) and the
                     // "nothing to move" note.
                     const sources =
-                      inMoveMode && isPrintingSelected
-                        ? buildMoveSources(movableByPrinting?.get(printing.id) ?? [], inboxId)
-                        : null;
+                      inMoveMode && isPrintingSelected ? move.sourcesFor(printing.id) : null;
                     const rarityIcon = getFilterIconPath("rarities", printing.rarity);
                     const price = prices.get(printing.id, favoriteMarketplace);
+                    const cardName = legendDisplayName(printing.card);
                     return (
                       <div
                         key={printing.id}
@@ -895,86 +669,30 @@ function PaletteInner({
                             </span>
                           )}
                           {inMoveMode ? (
-                            <div className="mr-1.5 ml-1 flex shrink-0 items-center gap-0.5">
-                              <Button
-                                type="button"
-                                tabIndex={-1}
-                                onMouseDown={keepInputFocus}
-                                size="icon-xs"
-                                variant="ghost"
-                                onClick={() => handleUndoMove(printing)}
-                                disabled={movedThisSession === 0}
-                                aria-label={`Undo move ${legendDisplayName(printing.card)}`}
-                              >
-                                <MinusIcon />
-                              </Button>
-                              <span
-                                className={cn(
-                                  "text-2xs w-5 text-center tabular-nums",
-                                  isPrintingSelected
-                                    ? movedThisSession > 0
-                                      ? "text-accent-foreground"
-                                      : "text-accent-foreground/80"
-                                    : movedThisSession > 0
-                                      ? "text-green-600 dark:text-green-400"
-                                      : "text-muted-foreground",
-                                )}
-                              >
-                                {movableForPrinting}
-                              </span>
-                              <Button
-                                type="button"
-                                tabIndex={-1}
-                                onMouseDown={keepInputFocus}
-                                size="icon-xs"
-                                onClick={() => handleMoveOne(printing)}
-                                disabled={movableForPrinting === 0}
-                                aria-label={`Move ${legendDisplayName(printing.card)}`}
-                                className="group-data-[selected=true]:bg-accent-foreground group-data-[selected=true]:text-accent group-data-[selected=true]:hover:bg-accent-foreground/80"
-                              >
-                                <ArrowRightIcon />
-                              </Button>
-                            </div>
+                            <QuickAddStepper
+                              count={movableForPrinting}
+                              changed={movedThisSession > 0}
+                              incrementIcon={<ArrowRightIcon />}
+                              incrementLabel={`Move ${cardName}`}
+                              decrementLabel={`Undo move ${cardName}`}
+                              onIncrement={() => void move.moveOne(printing)}
+                              onDecrement={() => void move.undoMove(printing)}
+                              incrementDisabled={movableForPrinting === 0}
+                              decrementDisabled={movedThisSession === 0}
+                              onMouseDown={keepInputFocus}
+                            />
                           ) : (
-                            <div className="mr-1.5 ml-1 flex shrink-0 items-center gap-0.5">
-                              <Button
-                                type="button"
-                                tabIndex={-1}
-                                onMouseDown={keepInputFocus}
-                                size="icon-xs"
-                                variant="ghost"
-                                onClick={() => handleUndo(printing)}
-                                disabled={sessionAdded === 0}
-                                aria-label={`Undo add ${legendDisplayName(printing.card)}`}
-                              >
-                                <MinusIcon />
-                              </Button>
-                              <span
-                                className={cn(
-                                  "text-2xs w-5 text-center tabular-nums",
-                                  isPrintingSelected
-                                    ? sessionAdded > 0
-                                      ? "text-accent-foreground"
-                                      : "text-accent-foreground/80"
-                                    : sessionAdded > 0
-                                      ? "text-green-600 dark:text-green-400"
-                                      : "text-muted-foreground",
-                                )}
-                              >
-                                {ownedForPrinting}
-                              </span>
-                              <Button
-                                type="button"
-                                tabIndex={-1}
-                                onMouseDown={keepInputFocus}
-                                size="icon-xs"
-                                onClick={() => handleAdd(printing)}
-                                aria-label={`Add ${legendDisplayName(printing.card)}`}
-                                className="group-data-[selected=true]:bg-accent-foreground group-data-[selected=true]:text-accent group-data-[selected=true]:hover:bg-accent-foreground/80"
-                              >
-                                <PlusIcon />
-                              </Button>
-                            </div>
+                            <QuickAddStepper
+                              count={ownedForPrinting}
+                              changed={sessionAdded > 0}
+                              incrementIcon={<PlusIcon />}
+                              incrementLabel={`Add ${cardName}`}
+                              decrementLabel={`Undo add ${cardName}`}
+                              onIncrement={() => void handleAdd(printing)}
+                              onDecrement={() => void handleUndo(printing)}
+                              decrementDisabled={sessionAdded === 0}
+                              onMouseDown={keepInputFocus}
+                            />
                           )}
                         </div>
                         {/* Per-source breakdown for the selected row in move mode */}
@@ -989,7 +707,7 @@ function PaletteInner({
                                 <span className="text-accent-foreground/80">from</span>
                                 {sources.map((source, chipIndex) => {
                                   const isActiveSource =
-                                    chipIndex === Math.min(sourceIndex, sources.length - 1);
+                                    chipIndex === Math.min(move.sourceIndex, sources.length - 1);
                                   return (
                                     <Pressable
                                       key={source.collectionId}
@@ -1001,11 +719,11 @@ function PaletteInner({
                                           : "border-accent-foreground/30 hover:bg-accent-foreground/10",
                                       )}
                                       onClick={() => {
-                                        setSourceIndex(chipIndex);
-                                        void handleMoveOne(printing, source.collectionId);
+                                        move.setSourceIndex(chipIndex);
+                                        void move.moveOne(printing, source.collectionId);
                                       }}
                                     >
-                                      {collectionDisplayName(source.collectionId)} ×
+                                      {move.collectionDisplayName(source.collectionId)} ×
                                       {source.copyIds.length}
                                       {isActiveSource && !isMobile && (
                                         <span className="opacity-70"> ↵</span>
@@ -1058,6 +776,16 @@ function PaletteInner({
           </div>
         </>
       )}
+
+      {/* Mounted inside the palette so both call sites get it — /cards has no
+          other AnnotatedDisposeDialog, and on /collections the grid's copy is
+          driven by its own separate quick-add state. */}
+      <AnnotatedDisposeDialog
+        pending={pendingAnnotatedDispose}
+        onConfirm={() => void confirmAnnotatedDispose()}
+        onCancel={cancelAnnotatedDispose}
+        isPending={disposeIsPending}
+      />
     </div>
   );
 }

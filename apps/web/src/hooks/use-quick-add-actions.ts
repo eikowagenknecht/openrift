@@ -1,5 +1,5 @@
 import type { CopyResponse, Printing } from "@openrift/shared";
-import { copyHasMetadata } from "@openrift/shared";
+import { copyHasMetadata, legendDisplayName } from "@openrift/shared";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -36,19 +36,28 @@ export interface PendingAnnotatedDispose {
  * (All Cards view), minus looks across all of the user's collections and
  * reports "ambiguous" when the copies span multiple collections so the caller
  * can escalate to the variant×collection popover.
+ *
+ * `onDisposed` fires once a removal actually lands — after the ADR-038
+ * confirmation when there was one, never when the removal is merely parked.
+ * Surfaces that cover the grid (the quick-add palette) use it to report the
+ * removal; the grid itself leaves it undefined and lets its count speak.
  * @returns Quick-add actions, or undefined handlers when disabled.
  */
-export function useQuickAddActions(addTarget?: string, viewCollectionId?: string) {
+export function useQuickAddActions(
+  addTarget?: string,
+  viewCollectionId?: string,
+  onDisposed?: (printing: Printing) => void,
+) {
   // Remember printings added this session so onBatchSuccess can look up names
   // for the toast summary without the caller threading them through. Entries
   // are cleared when their batch resolves.
   const pendingPrintingsRef = useRef<Map<string, Printing>>(new Map());
   const batchedAdd = useBatchedAddCopies({
     onBatchSuccess: (printingIds) => {
-      const msg = summarizeBatchAdd(
-        printingIds,
-        (id) => pendingPrintingsRef.current.get(id)?.card.name,
-      );
+      const msg = summarizeBatchAdd(printingIds, (id) => {
+        const printing = pendingPrintingsRef.current.get(id);
+        return printing ? legendDisplayName(printing.card) : undefined;
+      });
       if (msg) {
         toast.success(msg);
       }
@@ -82,6 +91,7 @@ export function useQuickAddActions(addTarget?: string, viewCollectionId?: string
     }
     try {
       await disposeCopies.mutateAsync({ copyIds: [copy.id] });
+      onDisposed?.(printing);
     } catch {
       // Expected failures (e.g. trade-reserved) toast via the global mutation
       // onError handler; restore the session entry so a later undo still works.
@@ -140,6 +150,7 @@ export function useQuickAddActions(addTarget?: string, viewCollectionId?: string
           useAddModeStore.getState().recordUndo(printing.id);
           try {
             await disposeCopies.mutateAsync({ copyIds: [sessionCopyId] });
+            onDisposed?.(printing);
           } catch {
             useAddModeStore.getState().recordAdd(printing, sessionCopyId);
           }
@@ -162,6 +173,7 @@ export function useQuickAddActions(addTarget?: string, viewCollectionId?: string
         if (decision.kind === "dispose") {
           try {
             await disposeCopies.mutateAsync({ copyIds: [decision.copyId] });
+            onDisposed?.(printing);
           } catch {
             // The remove can fail for an expected reason (e.g. the copy is
             // reserved in an active trade). The error toast is fired by the
@@ -197,6 +209,7 @@ export function useQuickAddActions(addTarget?: string, viewCollectionId?: string
     }
     try {
       await disposeCopies.mutateAsync({ copyIds: [candidate.id] });
+      onDisposed?.(printing);
     } catch {
       // The remove can fail for an expected reason (e.g. the copy is reserved
       // in an active trade). The error toast is fired by the global mutation
