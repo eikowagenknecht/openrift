@@ -27,6 +27,7 @@ import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardRow } from "@/components/ui/card-list";
 import {
   Empty,
   EmptyDescription,
@@ -406,10 +407,7 @@ function ByesSection({
         {byes.map((bye) => {
           const priorByes = priorByesByPlayer.get(bye.playerId) ?? 0;
           return (
-            <li
-              key={bye.playerId}
-              className="ring-foreground/10 bg-card flex items-center justify-between gap-2 rounded-lg px-3 py-2 ring-1"
-            >
+            <CardRow key={bye.playerId}>
               <span className="flex min-w-0 items-center gap-2">
                 <UserAvatar name={bye.displayName} size="sm" />
                 <span className="truncate font-medium">{bye.displayName}</span>
@@ -422,7 +420,7 @@ function ByesSection({
               <span className="font-semibold tabular-nums">
                 {byePoints > 0 ? `+${byePoints} bye` : "sat out · 0"}
               </span>
-            </li>
+            </CardRow>
           );
         })}
       </ul>

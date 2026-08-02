@@ -4,6 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { Heading } from "@/components/heading";
 import { TopBarBreadcrumbBar } from "@/components/layout/top-bar-breadcrumb";
 import { Badge } from "@/components/ui/badge";
+import { CardList } from "@/components/ui/card-list";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { UserAvatar } from "@/components/user-avatar";
 import { useGroupTrades } from "@/hooks/use-card-trades";
@@ -94,13 +95,13 @@ export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
         {hasCollections ? (
           <section className="flex flex-col gap-3">
             <SectionHeading>Collections</SectionHeading>
-            <ul className="ring-foreground/10 bg-card flex flex-col rounded-lg p-1.5 ring-1">
+            <CardList>
               {sortedCollections.map((share) => (
                 <li key={share.collectionId}>
                   <SharedCollectionRow slug={slug} share={share} />
                 </li>
               ))}
-            </ul>
+            </CardList>
           </section>
         ) : null}
 

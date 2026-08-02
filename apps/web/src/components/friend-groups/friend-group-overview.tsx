@@ -6,6 +6,7 @@ import type { ComponentType, ReactNode, SVGProps } from "react";
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { ActionBand } from "@/components/ui/action-band";
 import { buttonVariants } from "@/components/ui/button";
+import { CardList } from "@/components/ui/card-list";
 import { IconChip } from "@/components/ui/icon-chip";
 import { SectionHeading } from "@/components/ui/section-heading";
 import type { StatTileTone } from "@/components/ui/stat-tile";
@@ -379,7 +380,7 @@ function NewestShared({ slug, data }: { slug: string; data: FriendGroupDetailRes
   return (
     <section className="flex flex-col gap-3">
       <SectionHeading>Newest shared</SectionHeading>
-      <ul className="ring-foreground/10 bg-card flex flex-col rounded-lg p-1.5 ring-1">
+      <CardList>
         {rows.map((row) => (
           <li key={row.key}>
             {/* Each branch renders its own concrete <Link> so `to`/`params`
@@ -403,7 +404,7 @@ function NewestShared({ slug, data }: { slug: string; data: FriendGroupDetailRes
             )}
           </li>
         ))}
-      </ul>
+      </CardList>
     </section>
   );
 }
@@ -424,7 +425,7 @@ function TournamentNudge({ slug, data }: { slug: string; data: FriendGroupDetail
     <section className="flex flex-col gap-3">
       <SectionHeading>Next up</SectionHeading>
       {current.length > 0 ? (
-        <ul className="ring-foreground/10 bg-card flex flex-col rounded-lg p-1.5 ring-1">
+        <CardList>
           {current.map((tournament) => (
             <li key={tournament.id}>
               <Link
@@ -442,7 +443,7 @@ function TournamentNudge({ slug, data }: { slug: string; data: FriendGroupDetail
               </Link>
             </li>
           ))}
-        </ul>
+        </CardList>
       ) : (
         <div className="border-border flex flex-col gap-2 rounded-lg border border-dashed p-4">
           <p className="text-muted-foreground text-sm">

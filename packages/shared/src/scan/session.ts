@@ -639,22 +639,18 @@ export function createScanSession(
       if (focus < opts.minFocus) {
         continue;
       }
-      const ranked = await rankCardEmbedding(
-        card,
-        opts.embedKind,
-        deps.embedder,
-        deps.bank,
-        opts.topK,
-        opts.confidentDistance,
-        opts.rotationFallbackDistance,
+      const ranked = await rankCardEmbedding(card, opts.embedKind, deps.embedder, deps.bank, {
+        topK: opts.topK,
+        confidentDistance: opts.confidentDistance,
+        rotationFallbackDistance: opts.rotationFallbackDistance,
         // Idle backoff embeds upright only; the frame that breaks the streak
         // gets the rotation search back.
-        !idle && focus >= opts.rotationMinFocus,
-        lastWinnerRotation,
-        embedInput,
-        embedImageSize,
-        opts.rotationPairOnly,
-      );
+        allowRotationFallback: !idle && focus >= opts.rotationMinFocus,
+        preferredRotation: lastWinnerRotation,
+        scratch: embedInput,
+        imageSize: embedImageSize,
+        pairOnly: opts.rotationPairOnly,
+      });
       if (ranked.length > 0 && (!best || ranked[0].distance < best.ranked[0].distance)) {
         best = { candidate, ranked, card, focus };
       }

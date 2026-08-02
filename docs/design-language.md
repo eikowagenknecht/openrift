@@ -33,7 +33,11 @@ Boxed controls that share a horizontal row share a height. The form tier is **h-
 
 ## Tiles and list rows
 
-Entity tiles and list rows (a deck, group, trade, member, tournament, stat block) use the **`Card` primitive**, not hand-rolled `bg-card rounded-* border` divs — hand-rolled boxes drift from the Card look (corner radius, ring-vs-border) the moment tokens change. For clickable rows, the Link/button stays the outer element (`className="block"`) with the Card nested inside carrying the visuals. Hand-rolled containers remain correct for: sticky toolbars and page chrome, form option-groups inside dialogs, diagram/mock frames (see `typography.md`), interactive gesture surfaces (match tracker), and deliberately custom marketing surfaces (landing page).
+Entity tiles and list rows (a deck, group, trade, member, tournament, stat block) use the **`Card` primitive**, not hand-rolled `bg-card rounded-* border` divs — hand-rolled boxes drift from the Card look (corner radius, ring-vs-border) the moment tokens change. For clickable rows, the Link/button stays the outer element (`className="block"`) with the Card nested inside carrying the visuals.
+
+Two list shapes carry the Card edge without being a `Card`, and both have a primitive in `components/ui/card-list.tsx`. **`CardList`** is one panel with its rows flush inside it, separated by their own hover wash — a rail of same-shaped rows (a group's newest shares, a tournament's rounds and staff). **`CardRow`** is a standalone bordered row in a gapped list, for rows that stand apart because each is its own entity with its own actions (a bye, a team). They are alternatives, not a pair: a `CardRow` never goes inside a `CardList`. Reach for `Card` itself as soon as the thing has a header, a footer, or real content padding.
+
+Hand-rolled containers remain correct for: sticky toolbars and page chrome, form option-groups inside dialogs, diagram/mock frames (see `typography.md`), interactive gesture surfaces (match tracker), and deliberately custom marketing surfaces (landing page).
 
 ## Empty states
 

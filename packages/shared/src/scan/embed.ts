@@ -280,6 +280,55 @@ export async function embedCardRotations(
   return normalizeEmbeddings(await embedder(input, 4), 4);
 }
 
+export interface RankOptions {
+  /** How many nearest references to return. */
+  topK: number;
+  /**
+   * Preferred-pass distance at or under which the shortlist is taken as
+   * settled and no further rotations are embedded. Negative disables the
+   * staging entirely and embeds all four rotations in one batch.
+   */
+  confidentDistance: number;
+  /**
+   * Preferred-pass distance above which the other rotations are worth trying.
+   * A card that already ranks moderately in its preferred orientation
+   * (marginal print, glare) cannot be improved by rotating it, so between the
+   * confident gate and this bound the preferred shortlist stands and feature
+   * verification decides. Zero always falls back (the pre-threshold
+   * behaviour).
+   */
+  rotationFallbackDistance?: number;
+  /**
+   * When false the staged path stops after the preferred pass even when it is
+   * not confident. Sessions pass false for motion-blurred candidates: those
+   * frames essentially never verify, so the three extra rotations would be
+   * spent exactly when lock-on latency matters most (the aim swinging onto a
+   * new card).
+   */
+  allowRotationFallback?: boolean;
+  /**
+   * The quarter turn embedded first. Sessions pass the rotation that last won,
+   * so a sideways card (battlefields) pays the full rotation search only on
+   * discovery, not on every steady frame.
+   */
+  preferredRotation?: number;
+  /** Optional reusable staging tensor of at least four slots. */
+  scratch?: Float32Array;
+  /** Encoder input edge length, when the model is not the default size. */
+  imageSize?: number;
+  /**
+   * Restrict the fallback to the preferred rotation's 180-degree partner.
+   * Sound only when the bank is canonical (landscape references rotated 90
+   * degrees left at build, encoder trained on that frame) AND the card's
+   * projected footprint orientation is trustworthy — guide mode, where the
+   * user aims straight on. Pan frames can foreshorten a card past the aspect
+   * flip (~44 degrees), which lands content in the other pair, so pan keeps
+   * the full search (measured: pair-only in pan loses stacked battlefields and
+   * is net slower, 2026-07-30).
+   */
+  pairOnly?: boolean;
+}
+
 /**
  * Rank one rectified card against the bank, staging rotations when a
  * confident-distance gate is enabled: the upright orientation is embedded
@@ -289,29 +338,6 @@ export async function embedCardRotations(
  * stays slot 0 either way. A negative gate embeds all four rotations in one
  * batch (the ungated behaviour).
  *
- * @param rotationFallbackDistance Preferred-pass distance above which the
- *   other rotations are worth trying. A card that already ranks moderately in
- *   its preferred orientation (marginal print, glare) cannot be improved by
- *   rotating it, so between the confident gate and this bound the preferred
- *   shortlist stands and feature verification decides. Zero always falls back
- *   (the pre-threshold behaviour).
- * @param allowRotationFallback When false the staged path stops after the
- *   preferred pass even when it is not confident. Sessions pass false for
- *   motion-blurred candidates: those frames essentially never verify, so the
- *   three extra rotations would be spent exactly when lock-on latency matters
- *   most (the aim swinging onto a new card).
- * @param preferredRotation The quarter turn embedded first. Sessions pass the
- *   rotation that last won, so a sideways card (battlefields) pays the full
- *   rotation search only on discovery, not on every steady frame.
- * @param scratch Optional reusable staging tensor of at least four slots.
- * @param pairOnly Restrict the fallback to the preferred rotation's 180-degree
- *   partner. Sound only when the bank is canonical (landscape references
- *   rotated 90 degrees left at build, encoder trained on that frame) AND the
- *   card's projected footprint orientation is trustworthy — guide mode, where
- *   the user aims straight on. Pan frames can foreshorten a card past the
- *   aspect flip (~44 degrees), which lands content in the other pair, so pan
- *   keeps the full search (measured: pair-only in pan loses stacked
- *   battlefields and is net slower, 2026-07-30).
  * @returns The `topK` nearest references, nearest first.
  */
 export async function rankCardEmbedding(
@@ -319,14 +345,16 @@ export async function rankCardEmbedding(
   kind: EmbedKind,
   embedder: CardEmbedder,
   bank: EmbedBank,
-  topK: number,
-  confidentDistance: number,
-  rotationFallbackDistance = 0,
-  allowRotationFallback = true,
-  preferredRotation = 0,
-  scratch?: Float32Array,
-  imageSize = EMBED_IMAGE_SIZE,
-  pairOnly = false,
+  {
+    topK,
+    confidentDistance,
+    rotationFallbackDistance = 0,
+    allowRotationFallback = true,
+    preferredRotation = 0,
+    scratch,
+    imageSize = EMBED_IMAGE_SIZE,
+    pairOnly = false,
+  }: RankOptions,
 ): Promise<RankedEmbed[]> {
   if (confidentDistance < 0) {
     return rankEmbedBank(

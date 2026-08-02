@@ -15,6 +15,7 @@ import { CoverBand } from "@/components/cover-band";
 import { PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
 import { Button } from "@/components/ui/button";
 import { CardLink } from "@/components/ui/card-link";
+import { CardList } from "@/components/ui/card-list";
 import { CountPill } from "@/components/ui/count-pill";
 import { Pressable } from "@/components/ui/pressable";
 import { SectionHeading } from "@/components/ui/section-heading";
@@ -329,13 +330,13 @@ function MemberSharesBlock({
       </div>
       <ContactMethodChips methods={member.contactMethods} className="-mt-1 ml-8" />
       {collections.length > 0 ? (
-        <ul className="ring-foreground/10 bg-card flex flex-col rounded-lg p-1.5 ring-1">
+        <CardList>
           {collections.map((share) => (
             <li key={share.collectionId}>
               <SharedCollectionRow slug={slug} share={share} />
             </li>
           ))}
-        </ul>
+        </CardList>
       ) : null}
     </div>
   );

@@ -32,9 +32,15 @@ import {
   WalletIcon,
 } from "lucide-react";
 
-import { Heading } from "@/components/heading";
+import {
+  PageTopBar,
+  PageTopBarActions,
+  PageTopBarButton,
+  PageTopBarSticky,
+  PageTopBarTitle,
+} from "@/components/layout/page-top-bar";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { cn, PAGE_PADDING } from "@/lib/utils";
+import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 
 interface RoadmapItem {
   title: string;
@@ -264,118 +270,121 @@ const roadmapItems: RoadmapItem[] = [
 
 export function RoadmapPage() {
   return (
-    <div className={cn("mx-auto w-full max-w-2xl", PAGE_PADDING)}>
-      <div className="mb-6 flex items-baseline justify-between">
-        <Heading level={1}>Roadmap</Heading>
-        <Link to="/changelog" className="text-muted-foreground hover:text-foreground text-sm">
-          What&apos;s new &rarr;
-        </Link>
-      </div>
+    <>
+      <PageTopBarSticky maxWidth="2xl">
+        <PageTopBar>
+          <PageTopBarTitle>Roadmap</PageTopBarTitle>
+          <PageTopBarActions>
+            <PageTopBarButton render={<Link to="/changelog" />}>What&apos;s new</PageTopBarButton>
+          </PageTopBarActions>
+        </PageTopBar>
+      </PageTopBarSticky>
+      <div className={cn("mx-auto w-full max-w-2xl pt-3", PAGE_PADDING_NO_TOP)}>
+        <ol className="relative">
+          {roadmapItems.map((item, i) => {
+            const isFirst = i === 0;
+            const isLast = i === roadmapItems.length - 1;
+            const firstDoneIndex = roadmapItems.findIndex((r) => r.done);
+            const isFirstDone = i === firstDoneIndex;
 
-      <ol className="relative">
-        {roadmapItems.map((item, i) => {
-          const isFirst = i === 0;
-          const isLast = i === roadmapItems.length - 1;
-          const firstDoneIndex = roadmapItems.findIndex((r) => r.done);
-          const isFirstDone = i === firstDoneIndex;
+            const showHeader = (isFirst && !item.done) || isFirstDone;
+            const headerLabel = isFirstDone ? "Shipped" : "Planned";
 
-          const showHeader = (isFirst && !item.done) || isFirstDone;
-          const headerLabel = isFirstDone ? "Shipped" : "Planned";
-
-          return (
-            <li key={item.title}>
-              {showHeader && (
+            return (
+              <li key={item.title}>
+                {showHeader && (
+                  <div className="flex gap-4">
+                    <div className="flex w-20 shrink-0 justify-center md:w-28">
+                      {isFirstDone && <div className="bg-muted-foreground/15 w-0.5" />}
+                    </div>
+                    <p className="text-muted-foreground flex-1 py-3 text-xs font-medium tracking-wider uppercase">
+                      {headerLabel}
+                    </p>
+                  </div>
+                )}
                 <div className="flex gap-4">
-                  <div className="flex w-20 shrink-0 justify-center md:w-28">
-                    {isFirstDone && <div className="bg-muted-foreground/15 w-0.5" />}
-                  </div>
-                  <p className="text-muted-foreground flex-1 py-3 text-xs font-medium tracking-wider uppercase">
-                    {headerLabel}
-                  </p>
-                </div>
-              )}
-              <div className="flex gap-4">
-                {/* Timeline column */}
-                <div className="flex w-20 shrink-0 flex-col items-center md:w-28">
-                  {/* Date label */}
-                  <span
-                    className={cn(
-                      "mb-2 hidden text-xs md:block",
-                      item.done ? "text-muted-foreground" : "text-muted-foreground/60 italic",
-                    )}
-                  >
-                    {item.done ? item.date : "Soon™"}
-                  </span>
-
-                  {/* Dot */}
-                  <div
-                    className={cn(
-                      "z-10 flex size-6 shrink-0 items-center justify-center rounded-full border-2",
-                      item.done
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-muted-foreground/30 bg-background text-muted-foreground/50",
-                    )}
-                  >
-                    {item.done ? (
-                      <CheckIcon className="size-3.5" />
-                    ) : (
-                      <CircleDotIcon className="size-3" />
-                    )}
-                  </div>
-
-                  {/* Connector line */}
-                  {!isLast && (
-                    <div
+                  {/* Timeline column */}
+                  <div className="flex w-20 shrink-0 flex-col items-center md:w-28">
+                    {/* Date label */}
+                    <span
                       className={cn(
-                        "w-0.5 flex-1",
-                        // Line between done items
-                        item.done && roadmapItems[i + 1]?.done
-                          ? "bg-primary/30"
-                          : "bg-muted-foreground/15",
-                      )}
-                    />
-                  )}
-                </div>
-
-                {/* Card */}
-                <div className={cn("flex-1 pb-6", isLast && "pb-0")}>
-                  <Card
-                    size="sm"
-                    className={cn(!item.done && "ring-muted-foreground/10 border-dashed")}
-                  >
-                    <CardHeader>
-                      <CardTitle
-                        className={cn(
-                          "flex items-center gap-2",
-                          item.done ? "text-foreground" : "text-muted-foreground italic",
-                        )}
-                      >
-                        <span className={item.done ? "text-primary" : "text-muted-foreground/50"}>
-                          {item.icon}
-                        </span>
-                        {item.title}
-                      </CardTitle>
-                      <CardDescription className={cn(!item.done && "italic")}>
-                        {item.description}
-                      </CardDescription>
-                    </CardHeader>
-
-                    {/* Mobile date */}
-                    <p
-                      className={cn(
-                        "px-3 pb-3 text-xs md:hidden",
+                        "mb-2 hidden text-xs md:block",
                         item.done ? "text-muted-foreground" : "text-muted-foreground/60 italic",
                       )}
                     >
                       {item.done ? item.date : "Soon™"}
-                    </p>
-                  </Card>
+                    </span>
+
+                    {/* Dot */}
+                    <div
+                      className={cn(
+                        "z-10 flex size-6 shrink-0 items-center justify-center rounded-full border-2",
+                        item.done
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-muted-foreground/30 bg-background text-muted-foreground/50",
+                      )}
+                    >
+                      {item.done ? (
+                        <CheckIcon className="size-3.5" />
+                      ) : (
+                        <CircleDotIcon className="size-3" />
+                      )}
+                    </div>
+
+                    {/* Connector line */}
+                    {!isLast && (
+                      <div
+                        className={cn(
+                          "w-0.5 flex-1",
+                          // Line between done items
+                          item.done && roadmapItems[i + 1]?.done
+                            ? "bg-primary/30"
+                            : "bg-muted-foreground/15",
+                        )}
+                      />
+                    )}
+                  </div>
+
+                  {/* Card */}
+                  <div className={cn("flex-1 pb-6", isLast && "pb-0")}>
+                    <Card
+                      size="sm"
+                      className={cn(!item.done && "ring-muted-foreground/10 border-dashed")}
+                    >
+                      <CardHeader>
+                        <CardTitle
+                          className={cn(
+                            "flex items-center gap-2",
+                            item.done ? "text-foreground" : "text-muted-foreground italic",
+                          )}
+                        >
+                          <span className={item.done ? "text-primary" : "text-muted-foreground/50"}>
+                            {item.icon}
+                          </span>
+                          {item.title}
+                        </CardTitle>
+                        <CardDescription className={cn(!item.done && "italic")}>
+                          {item.description}
+                        </CardDescription>
+                      </CardHeader>
+
+                      {/* Mobile date */}
+                      <p
+                        className={cn(
+                          "px-3 pb-3 text-xs md:hidden",
+                          item.done ? "text-muted-foreground" : "text-muted-foreground/60 italic",
+                        )}
+                      >
+                        {item.done ? item.date : "Soon™"}
+                      </p>
+                    </Card>
+                  </div>
                 </div>
-              </div>
-            </li>
-          );
-        })}
-      </ol>
-    </div>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+    </>
   );
 }

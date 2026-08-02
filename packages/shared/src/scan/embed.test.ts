@@ -85,7 +85,10 @@ describe("rankCardEmbedding", () => {
 
   it("stops after the upright rotation when it matches confidently", async () => {
     const { embedder, calls } = embedderOf([[axis(0)]]);
-    const ranked = await rankCardEmbedding(card, "card", embedder, bank, 2, 0.3);
+    const ranked = await rankCardEmbedding(card, "card", embedder, bank, {
+      topK: 2,
+      confidentDistance: 0.3,
+    });
     expect(calls).toEqual([1]);
     expect(ranked[0].key).toBe("a");
     expect(ranked[0].distance).toBeCloseTo(0);
@@ -96,7 +99,10 @@ describe("rankCardEmbedding", () => {
     // Upright matches nothing in the bank; the second batch's middle slot is
     // rotation 2 and must be reported as such.
     const { embedder, calls } = embedderOf([[axis(2)], [axis(3), axis(1), axis(4)]]);
-    const ranked = await rankCardEmbedding(card, "card", embedder, bank, 2, 0.3);
+    const ranked = await rankCardEmbedding(card, "card", embedder, bank, {
+      topK: 2,
+      confidentDistance: 0.3,
+    });
     expect(calls).toEqual([1, 3]);
     expect(ranked[0].key).toBe("b");
     expect(ranked[0].distance).toBeCloseTo(0);
@@ -110,7 +116,11 @@ describe("rankCardEmbedding", () => {
     marginal[0] = 0.72;
     marginal[2] = Math.sqrt(1 - 0.72 * 0.72);
     const { embedder, calls } = embedderOf([[marginal]]);
-    const ranked = await rankCardEmbedding(card, "card", embedder, bank, 2, 0.2, 0.35);
+    const ranked = await rankCardEmbedding(card, "card", embedder, bank, {
+      topK: 2,
+      confidentDistance: 0.2,
+      rotationFallbackDistance: 0.35,
+    });
     expect(calls).toEqual([1]);
     expect(ranked[0].key).toBe("a");
     expect(ranked[0].distance).toBeCloseTo(0.28);
@@ -118,14 +128,22 @@ describe("rankCardEmbedding", () => {
 
   it("stops after the unconfident upright pass when the rotation fallback is disallowed", async () => {
     const { embedder, calls } = embedderOf([[axis(2)]]);
-    const ranked = await rankCardEmbedding(card, "card", embedder, bank, 2, 0.3, 0, false);
+    const ranked = await rankCardEmbedding(card, "card", embedder, bank, {
+      topK: 2,
+      confidentDistance: 0.3,
+      allowRotationFallback: false,
+    });
     expect(calls).toEqual([1]);
     expect(ranked[0].distance).toBeCloseTo(1);
   });
 
   it("labels a confident preferred-rotation match with that rotation", async () => {
     const { embedder, calls } = embedderOf([[axis(0)]]);
-    const ranked = await rankCardEmbedding(card, "card", embedder, bank, 2, 0.3, 0, true, 2);
+    const ranked = await rankCardEmbedding(card, "card", embedder, bank, {
+      topK: 2,
+      confidentDistance: 0.3,
+      preferredRotation: 2,
+    });
     expect(calls).toEqual([1]);
     expect(ranked[0].key).toBe("a");
     expect(ranked[0].rotation).toBe(2);
@@ -135,7 +153,11 @@ describe("rankCardEmbedding", () => {
     // Preferred rotation 1 misses; the fallback's first slot is rotation 0 and
     // must be reported as such.
     const { embedder, calls } = embedderOf([[axis(2)], [axis(1), axis(3), axis(4)]]);
-    const ranked = await rankCardEmbedding(card, "card", embedder, bank, 2, 0.3, 0, true, 1);
+    const ranked = await rankCardEmbedding(card, "card", embedder, bank, {
+      topK: 2,
+      confidentDistance: 0.3,
+      preferredRotation: 1,
+    });
     expect(calls).toEqual([1, 3]);
     expect(ranked[0].key).toBe("b");
     expect(ranked[0].rotation).toBe(0);
@@ -144,20 +166,12 @@ describe("rankCardEmbedding", () => {
   it("falls back to only the 180-degree partner in pair-only mode", async () => {
     // Preferred rotation 1 misses; the single-slot fallback is rotation 3.
     const { embedder, calls } = embedderOf([[axis(2)], [axis(1)]]);
-    const ranked = await rankCardEmbedding(
-      card,
-      "card",
-      embedder,
-      bank,
-      2,
-      0.3,
-      0,
-      true,
-      1,
-      undefined,
-      undefined,
-      true,
-    );
+    const ranked = await rankCardEmbedding(card, "card", embedder, bank, {
+      topK: 2,
+      confidentDistance: 0.3,
+      preferredRotation: 1,
+      pairOnly: true,
+    });
     expect(calls).toEqual([1, 1]);
     expect(ranked[0].key).toBe("b");
     expect(ranked[0].rotation).toBe(3);
@@ -165,7 +179,10 @@ describe("rankCardEmbedding", () => {
 
   it("embeds all four rotations in one batch when the gate is disabled", async () => {
     const { embedder, calls } = embedderOf([[axis(0), axis(2), axis(3), axis(4)]]);
-    const ranked = await rankCardEmbedding(card, "card", embedder, bank, 1, -1);
+    const ranked = await rankCardEmbedding(card, "card", embedder, bank, {
+      topK: 1,
+      confidentDistance: -1,
+    });
     expect(calls).toEqual([4]);
     expect(ranked[0].key).toBe("a");
     expect(ranked[0].rotation).toBe(0);

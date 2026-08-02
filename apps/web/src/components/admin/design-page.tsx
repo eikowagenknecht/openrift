@@ -85,6 +85,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { CardLink } from "@/components/ui/card-link";
+import { CardList, CardRow } from "@/components/ui/card-list";
 import { ChartContainer } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -1080,7 +1081,7 @@ function TilesSection() {
     <DemoSection
       id="tiles"
       title="Tiles"
-      note="CardLink is the whole-Card click target for list tiles; every tile hovers the same way (shadow lift, muted wash, 1px primary edge). Cards that keep secondary actions inside, and non-Card link tiles like the deck grid, apply cardLinkVariants() directly. StatTile is the dashboard stat; accent is reserved for the one tile needing attention. StatStrip is its non-linking sibling for inline context counts. ActionBand is the full-width 'needs you' band (the overview's trades hub, the members page's join requests). Podium is the standings throne. CoverBand is the warm-glow strip at the top of showcase tiles (product fans, group avatar stacks); UserAvatarStack is the overlapping who's-here row with a +N overflow."
+      note="CardLink is the whole-Card click target for list tiles; every tile hovers the same way (shadow lift, muted wash, 1px primary edge). Cards that keep secondary actions inside, and non-Card link tiles like the deck grid, apply cardLinkVariants() directly. CardList and CardRow carry the same Card edge for the two list shapes that are not a Card: one flush panel of rows, and standalone rows in a gapped list. StatTile is the dashboard stat; accent is reserved for the one tile needing attention. StatStrip is its non-linking sibling for inline context counts. ActionBand is the full-width 'needs you' band (the overview's trades hub, the members page's join requests). Podium is the standings throne. CoverBand is the warm-glow strip at the top of showcase tiles (product fans, group avatar stacks); UserAvatarStack is the overlapping who's-here row with a +N overflow."
     >
       <DemoRow label="CardLink">
         <CardLink
@@ -1108,6 +1109,35 @@ function TilesSection() {
             <span className="text-muted-foreground text-xs">Ready to play</span>
           </div>
         </CardLink>
+      </DemoRow>
+      <DemoRow
+        label="CardList / CardRow"
+        hint="The two list shapes that carry the Card edge without being a Card. CardList is one panel with its rows flush inside, separated by their own hover wash — a rail of same-shaped rows. CardRow is a standalone bordered row in a gapped list, for rows that stand apart because each is its own entity. They are alternatives, not a pair: a CardRow never goes inside a CardList."
+        className="items-start gap-6"
+      >
+        <CardList className="w-full max-w-xs">
+          {["Round 1", "Round 2", "Round 3"].map((round) => (
+            <li
+              key={round}
+              className="hover:bg-muted/50 flex items-center gap-2.5 rounded px-2 py-2"
+            >
+              <span className="bg-primary/60 size-2 shrink-0 rounded-full" aria-hidden="true" />
+              <span className="min-w-0 flex-1 truncate text-sm font-medium">{round}</span>
+              <span className="text-muted-foreground shrink-0 text-xs">finalized</span>
+            </li>
+          ))}
+        </CardList>
+        <ul className="flex w-full max-w-xs flex-col gap-1.5">
+          {["Vi", "Ekko"].map((name) => (
+            <CardRow key={name}>
+              <span className="flex min-w-0 items-center gap-2">
+                <UserAvatar name={name} size="sm" />
+                <span className="truncate font-medium">{name}</span>
+              </span>
+              <span className="font-semibold tabular-nums">+3 bye</span>
+            </CardRow>
+          ))}
+        </ul>
       </DemoRow>
       <DemoRow label="StatTile">
         <div className="grid w-full max-w-2xl gap-3 sm:grid-cols-2">

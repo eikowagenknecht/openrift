@@ -9,6 +9,7 @@
 ### Other
 
 - feat(Collection): **Move or remove part of a stack** — right-clicking a card with several copies now lets you pick how many to move to another collection or remove, instead of taking all of them.
+- feat(App): **Card, roadmap and changelog titles stay in view** — those three pages now carry the same sticky title bar as the rest of the app, so the title and its actions stay reachable as you scroll.
 - feat(App): **Shorter Discord card replies** — a card lookup now shows the image and prices, with the stats and rules text behind a Details button, and flags a ban or errata right away.
 - fix(Collection): **Quick add asks before deleting card details** — undoing an add in the quick-add palette removed a copy outright, so any grade, condition, notes, or links you had recorded on it since adding went with it.
 - fix(Tournaments): **Cancelled tournaments stay readable** — cancelling a tournament with pairings broke its pairings tab and every participant's follow link with an error; both now open and show it as cancelled.

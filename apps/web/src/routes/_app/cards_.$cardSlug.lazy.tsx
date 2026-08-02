@@ -15,7 +15,6 @@ import {
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import {
-  ArrowLeftIcon,
   CheckIcon,
   PaletteIcon,
   PencilLineIcon,
@@ -37,6 +36,14 @@ import { TIME_RANGES } from "@/components/cards/price-history-chart-constants";
 import { SuggestImageNotice } from "@/components/cards/suggest-image-notice";
 import { Heading } from "@/components/heading";
 import { LanguageChip } from "@/components/language-chip";
+import {
+  PageTopBar,
+  PageTopBarActions,
+  PageTopBarBack,
+  PageTopBarButton,
+  PageTopBarSticky,
+  PageTopBarTitle,
+} from "@/components/layout/page-top-bar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -54,7 +61,7 @@ import { usePriceHistory } from "@/hooks/use-price-history";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { formatPublicCode, formatterForMarketplace } from "@/lib/format";
 import { getFilterIconPath, getTypeIconPaths } from "@/lib/icons";
-import { cn, PAGE_PADDING } from "@/lib/utils";
+import { cn, PAGE_PADDING, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
 const PriceHistoryChart = lazy(async () => {
@@ -277,212 +284,203 @@ function CardDetailPage() {
   const infoRowCount = Math.max(leftRows.length, rightRows.length);
 
   return (
-    <div className={cn(PAGE_PADDING, "mx-auto flex max-w-6xl flex-col gap-4")}>
-      <div>
-        <Link
-          to="/cards"
-          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm"
-        >
-          <ArrowLeftIcon className="size-4" />
-          All cards
-        </Link>
-      </div>
+    <>
+      <PageTopBarSticky maxWidth="6xl">
+        <PageTopBar>
+          <PageTopBarBack to="/cards" aria-label="All cards" />
+          <PageTopBarTitle>{legendDisplayName(card)}</PageTopBarTitle>
+          <PageTopBarActions>
+            <PageTopBarButton
+              aria-label="Suggest a correction"
+              render={<Link to="/contribute/$cardSlug" params={{ cardSlug }} />}
+            >
+              <PencilLineIcon className="size-4" />
+              <span className="hidden sm:inline">Suggest a correction</span>
+            </PageTopBarButton>
+            <ShareLinkButton cardName={legendDisplayName(card)} />
+          </PageTopBarActions>
+        </PageTopBar>
+      </PageTopBarSticky>
+      <div className={cn(PAGE_PADDING_NO_TOP, "mx-auto flex max-w-6xl flex-col gap-4 pt-3")}>
+        <div className="flex flex-col gap-6 md:flex-row">
+          {/* Left column: card image */}
+          <div className="shrink-0 md:w-80">
+            {frontImage ? (
+              <ImgWithFallback
+                src={imageUrl(frontImage.imageId, "400w")}
+                srcSet={`${imageUrl(frontImage.imageId, "400w")} 400w, ${imageUrl(frontImage.imageId, "full")} 800w`}
+                sizes="(min-width: 768px) 320px, 100vw"
+                width={heroWidth}
+                height={heroHeight}
+                fetchPriority="high"
+                alt={legendDisplayName(card)}
+                className="w-full rounded-xl"
+                fallback={heroFallback}
+              />
+            ) : (
+              heroFallback
+            )}
+          </div>
 
-      {/* Card header */}
-      <div className="flex items-start justify-between gap-3">
-        <Heading level={1}>{legendDisplayName(card)}</Heading>
-        <div className="flex shrink-0 items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            aria-label="Suggest a correction"
-            render={<Link to="/contribute/$cardSlug" params={{ cardSlug }} />}
-          >
-            <PencilLineIcon className="size-4" />
-            <span className="hidden sm:inline">Suggest a correction</span>
-          </Button>
-          <ShareLinkButton cardName={legendDisplayName(card)} />
-        </div>
-      </div>
+          {/* Right column: card info */}
+          <CardPanel className="min-w-0 flex-1 p-4">
+            <table className="w-full table-fixed text-sm">
+              <tbody>
+                {Array.from({ length: infoRowCount }, (_, i) => {
+                  const left = leftRows[i];
+                  const right = rightRows[i];
+                  return (
+                    // oxlint-disable-next-line jsx-a11y/control-has-associated-label -- presentational info-table row, not a control
+                    <tr key={i}>
+                      <td className="text-muted-foreground w-24 py-1 pr-2 align-top text-xs font-medium">
+                        <div className="flex min-h-6 flex-col justify-center">{left?.[0]}</div>
+                      </td>
+                      <td className="w-[calc(50%-6rem)] py-1 pr-6 align-top">
+                        <div className="flex min-h-6 flex-col justify-center">{left?.[1]}</div>
+                      </td>
+                      <td className="text-muted-foreground hidden w-24 py-1 pr-2 align-top text-xs font-medium sm:table-cell">
+                        <div className="flex min-h-6 flex-col justify-center">{right?.[0]}</div>
+                      </td>
+                      <td className="hidden w-[calc(50%-6rem)] py-1 align-top sm:table-cell">
+                        <div className="flex min-h-6 flex-col justify-center">{right?.[1]}</div>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {/* Right column rows stacked on mobile */}
+                {/* oxlint-disable-next-line jsx-a11y/control-has-associated-label -- presentational info-table row, not a control */}
+                <tr className="sm:hidden">
+                  {/* oxlint-disable-next-line jsx-a11y/control-has-associated-label -- presentational info-table cell, not a control */}
+                  <td colSpan={2} className="pt-2">
+                    <table className="w-full text-sm">
+                      <tbody>
+                        {rightRows.map(([label, value], i) => (
+                          <InfoRow key={i} label={label}>
+                            {value}
+                          </InfoRow>
+                        ))}
+                      </tbody>
+                    </table>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
 
-      <div className="flex flex-col gap-6 md:flex-row">
-        {/* Left column: card image */}
-        <div className="shrink-0 md:w-80">
-          {frontImage ? (
-            <ImgWithFallback
-              src={imageUrl(frontImage.imageId, "400w")}
-              srcSet={`${imageUrl(frontImage.imageId, "400w")} 400w, ${imageUrl(frontImage.imageId, "full")} 800w`}
-              sizes="(min-width: 768px) 320px, 100vw"
-              width={heroWidth}
-              height={heroHeight}
-              fetchPriority="high"
-              alt={legendDisplayName(card)}
-              className="w-full rounded-xl"
-              fallback={heroFallback}
-            />
-          ) : (
-            heroFallback
-          )}
-        </div>
-
-        {/* Right column: card info */}
-        <CardPanel className="min-w-0 flex-1 p-4">
-          <table className="w-full table-fixed text-sm">
-            <tbody>
-              {Array.from({ length: infoRowCount }, (_, i) => {
-                const left = leftRows[i];
-                const right = rightRows[i];
-                return (
-                  // oxlint-disable-next-line jsx-a11y/control-has-associated-label -- presentational info-table row, not a control
-                  <tr key={i}>
-                    <td className="text-muted-foreground w-24 py-1 pr-2 align-top text-xs font-medium">
-                      <div className="flex min-h-6 flex-col justify-center">{left?.[0]}</div>
-                    </td>
-                    <td className="w-[calc(50%-6rem)] py-1 pr-6 align-top">
-                      <div className="flex min-h-6 flex-col justify-center">{left?.[1]}</div>
-                    </td>
-                    <td className="text-muted-foreground hidden w-24 py-1 pr-2 align-top text-xs font-medium sm:table-cell">
-                      <div className="flex min-h-6 flex-col justify-center">{right?.[0]}</div>
-                    </td>
-                    <td className="hidden w-[calc(50%-6rem)] py-1 align-top sm:table-cell">
-                      <div className="flex min-h-6 flex-col justify-center">{right?.[1]}</div>
-                    </td>
-                  </tr>
-                );
-              })}
-              {/* Right column rows stacked on mobile */}
-              {/* oxlint-disable-next-line jsx-a11y/control-has-associated-label -- presentational info-table row, not a control */}
-              <tr className="sm:hidden">
-                {/* oxlint-disable-next-line jsx-a11y/control-has-associated-label -- presentational info-table cell, not a control */}
-                <td colSpan={2} className="pt-2">
-                  <table className="w-full text-sm">
-                    <tbody>
-                      {rightRows.map(([label, value], i) => (
-                        <InfoRow key={i} label={label}>
-                          {value}
-                        </InfoRow>
-                      ))}
-                    </tbody>
-                  </table>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-
-          {/* Full-width rows: text, errata, bans */}
-          <table className="w-full table-fixed text-sm">
-            <tbody>
-              {selectedPrinting.printedRulesText && (
-                <InfoRow label="Rules">
-                  <p className="text-muted-foreground">
-                    <CardText
-                      text={card.errata?.correctedRulesText ?? selectedPrinting.printedRulesText}
-                    />
-                  </p>
-                </InfoRow>
-              )}
-              {selectedPrinting.printedEffectText && (
-                <InfoRow label="Effect">
-                  <div
-                    className="rounded px-2 py-1.5"
-                    style={getDomainGradientStyle(card.domains, "18", domainColors)}
-                  >
+            {/* Full-width rows: text, errata, bans */}
+            <table className="w-full table-fixed text-sm">
+              <tbody>
+                {selectedPrinting.printedRulesText && (
+                  <InfoRow label="Rules">
                     <p className="text-muted-foreground">
                       <CardText
-                        text={
-                          card.errata?.correctedEffectText ?? selectedPrinting.printedEffectText
-                        }
+                        text={card.errata?.correctedRulesText ?? selectedPrinting.printedRulesText}
                       />
                     </p>
-                  </div>
-                </InfoRow>
-              )}
-              {selectedPrinting.flavorText && (
-                <InfoRow label="Flavor">
-                  <p className="text-muted-foreground/70 italic">{selectedPrinting.flavorText}</p>
-                </InfoRow>
-              )}
-              {selectedPrinting.markers.length > 0 && (
-                <InfoRow label="Promo">
-                  <div className="border-border/50 bg-muted/30 flex flex-wrap gap-1 rounded border px-2.5 py-1.5">
-                    {selectedPrinting.markers.map((marker) => (
-                      <Badge
-                        key={marker.id}
-                        variant="secondary"
-                        title={marker.description ?? undefined}
-                      >
-                        {marker.label}
-                      </Badge>
-                    ))}
-                  </div>
-                </InfoRow>
-              )}
-              <FoundInRow
-                printing={selectedPrinting}
-                products={data.productsByPrinting.get(selectedPrinting.id) ?? []}
-              />
-              {selectedPrinting.comment && (
-                <InfoRow label="Note">
-                  <div className="border-border/50 bg-muted/30 rounded border px-2.5 py-1.5">
-                    <p className="text-muted-foreground italic">{selectedPrinting.comment}</p>
-                  </div>
-                </InfoRow>
-              )}
-              {card.errata && <ErrataRow errata={card.errata} printing={selectedPrinting} />}
-              {card.bans.length > 0 && (
-                <InfoRow label="Bans">
-                  <Alert variant="destructive" className="space-y-1.5">
-                    {card.bans.map((ban) => (
-                      <div key={ban.formatId}>
-                        <AlertTitle>
-                          Banned in {ban.formatName} since {ban.bannedAt}
-                        </AlertTitle>
-                        {ban.reason && (
-                          <AlertDescription className="mt-0.5">{ban.reason}</AlertDescription>
-                        )}
-                        {!isBaseBanFormat(ban.formatId) && (
-                          <AlertDescription className="mt-0.5">
-                            Applies to {ban.formatName} play only. The card stays legal in other
-                            constructed play.
-                          </AlertDescription>
-                        )}
-                      </div>
-                    ))}
-                  </Alert>
-                </InfoRow>
-              )}
-            </tbody>
-          </table>
-        </CardPanel>
-      </div>
-
-      {/* Printings grouped by language */}
-      {printings.length > 0 &&
-        [...Map.groupBy(printings, (p) => p.language)].map(([lang, group]) => (
-          <div key={lang}>
-            <h2 className="text-muted-foreground mb-2 flex items-center gap-2 text-xs font-medium">
-              <LanguageChip code={lang} />
-              {languageLabels[lang] ?? lang}
-            </h2>
-            {/* grid-cols-1 matters: without it the implicit column sizes to the
-                widest printing card and pushes the whole page past a phone
-                viewport (long treatment paths get clipped off-screen). */}
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {group.map((printing) => (
-                <PrintingCard
-                  key={printing.id}
-                  printing={printing}
-                  isSelected={printing.id === selectedPrinting.id}
-                  onSelect={() => selectPrinting(printing)}
+                  </InfoRow>
+                )}
+                {selectedPrinting.printedEffectText && (
+                  <InfoRow label="Effect">
+                    <div
+                      className="rounded px-2 py-1.5"
+                      style={getDomainGradientStyle(card.domains, "18", domainColors)}
+                    >
+                      <p className="text-muted-foreground">
+                        <CardText
+                          text={
+                            card.errata?.correctedEffectText ?? selectedPrinting.printedEffectText
+                          }
+                        />
+                      </p>
+                    </div>
+                  </InfoRow>
+                )}
+                {selectedPrinting.flavorText && (
+                  <InfoRow label="Flavor">
+                    <p className="text-muted-foreground/70 italic">{selectedPrinting.flavorText}</p>
+                  </InfoRow>
+                )}
+                {selectedPrinting.markers.length > 0 && (
+                  <InfoRow label="Promo">
+                    <div className="border-border/50 bg-muted/30 flex flex-wrap gap-1 rounded border px-2.5 py-1.5">
+                      {selectedPrinting.markers.map((marker) => (
+                        <Badge
+                          key={marker.id}
+                          variant="secondary"
+                          title={marker.description ?? undefined}
+                        >
+                          {marker.label}
+                        </Badge>
+                      ))}
+                    </div>
+                  </InfoRow>
+                )}
+                <FoundInRow
+                  printing={selectedPrinting}
+                  products={data.productsByPrinting.get(selectedPrinting.id) ?? []}
                 />
-              ))}
-            </div>
-          </div>
-        ))}
+                {selectedPrinting.comment && (
+                  <InfoRow label="Note">
+                    <div className="border-border/50 bg-muted/30 rounded border px-2.5 py-1.5">
+                      <p className="text-muted-foreground italic">{selectedPrinting.comment}</p>
+                    </div>
+                  </InfoRow>
+                )}
+                {card.errata && <ErrataRow errata={card.errata} printing={selectedPrinting} />}
+                {card.bans.length > 0 && (
+                  <InfoRow label="Bans">
+                    <Alert variant="destructive" className="space-y-1.5">
+                      {card.bans.map((ban) => (
+                        <div key={ban.formatId}>
+                          <AlertTitle>
+                            Banned in {ban.formatName} since {ban.bannedAt}
+                          </AlertTitle>
+                          {ban.reason && (
+                            <AlertDescription className="mt-0.5">{ban.reason}</AlertDescription>
+                          )}
+                          {!isBaseBanFormat(ban.formatId) && (
+                            <AlertDescription className="mt-0.5">
+                              Applies to {ban.formatName} play only. The card stays legal in other
+                              constructed play.
+                            </AlertDescription>
+                          )}
+                        </div>
+                      ))}
+                    </Alert>
+                  </InfoRow>
+                )}
+              </tbody>
+            </table>
+          </CardPanel>
+        </div>
 
-      {/* Price history section for selected printing */}
-      {selectedPrinting && <PriceHistorySection printing={selectedPrinting} />}
-    </div>
+        {/* Printings grouped by language */}
+        {printings.length > 0 &&
+          [...Map.groupBy(printings, (p) => p.language)].map(([lang, group]) => (
+            <div key={lang}>
+              <h2 className="text-muted-foreground mb-2 flex items-center gap-2 text-xs font-medium">
+                <LanguageChip code={lang} />
+                {languageLabels[lang] ?? lang}
+              </h2>
+              {/* grid-cols-1 matters: without it the implicit column sizes to the
+                  widest printing card and pushes the whole page past a phone
+                  viewport (long treatment paths get clipped off-screen). */}
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {group.map((printing) => (
+                  <PrintingCard
+                    key={printing.id}
+                    printing={printing}
+                    isSelected={printing.id === selectedPrinting.id}
+                    onSelect={() => selectPrinting(printing)}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+
+        {/* Price history section for selected printing */}
+        {selectedPrinting && <PriceHistorySection printing={selectedPrinting} />}
+      </div>
+    </>
   );
 }
 
@@ -1054,9 +1052,9 @@ function ShareLinkButton({ cardName }: { cardName: string }) {
   };
 
   return (
-    <Button variant="outline" size="sm" onClick={handleShare} aria-label="Share link">
+    <PageTopBarButton onClick={handleShare} aria-label="Share link">
       {copied ? <CheckIcon className="size-4" /> : <Share2Icon className="size-4" />}
       Share
-    </Button>
+    </PageTopBarButton>
   );
 }

@@ -20,6 +20,7 @@ import {
 import { ParticipantFacepile } from "@/components/tournaments/participant-facepile";
 import { ActionBand } from "@/components/ui/action-band";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { CardList } from "@/components/ui/card-list";
 import { IconChip } from "@/components/ui/icon-chip";
 import type { PodiumSeat } from "@/components/ui/podium";
 import { Podium } from "@/components/ui/podium";
@@ -505,7 +506,7 @@ function RoundsRail({
   return (
     <section className="flex flex-col gap-3">
       <SectionHeading>Rounds</SectionHeading>
-      <ul className="ring-foreground/10 bg-card flex flex-col rounded-lg p-1.5 ring-1">
+      <CardList>
         {run.rounds.map((round) => (
           <li key={round.id}>
             <Link
@@ -543,7 +544,7 @@ function RoundsRail({
             No rounds were run.
           </li>
         ) : null}
-      </ul>
+      </CardList>
     </section>
   );
 }
@@ -559,7 +560,7 @@ function StaffRail({ id, detail }: { id: string; detail: TournamentDetailRespons
   return (
     <section className="flex flex-col gap-3">
       <SectionHeading>Staff</SectionHeading>
-      <ul className="ring-foreground/10 bg-card flex flex-col rounded-lg p-1.5 ring-1">
+      <CardList>
         {detail.staff.map((member) => (
           <li key={`${member.userId}:${member.role}`} className={RAIL_ROW_CLASS}>
             <UserAvatar name={member.name} size="sm" />
@@ -583,7 +584,7 @@ function StaffRail({ id, detail }: { id: string; detail: TournamentDetailRespons
             </Link>
           </li>
         )}
-      </ul>
+      </CardList>
     </section>
   );
 }

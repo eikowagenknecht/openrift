@@ -1,13 +1,21 @@
 import { Link } from "@tanstack/react-router";
 import { ChevronRightIcon } from "lucide-react";
+import { useState } from "react";
 
 import changelogMd from "@/CHANGELOG.md?raw";
-import { Heading } from "@/components/heading";
+import {
+  PageTopBar,
+  PageTopBarActions,
+  PageTopBarButton,
+  PageTopBarSticky,
+  PageTopBarTitle,
+  useMeasuredHeight,
+} from "@/components/layout/page-top-bar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type { ChangelogEntry } from "@/lib/changelog";
 import { parseChangelog } from "@/lib/changelog";
 import { formatRelativeDate } from "@/lib/format-relative-date";
-import { cn, PAGE_PADDING } from "@/lib/utils";
+import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 
 const changelogGroups = parseChangelog(changelogMd);
 
@@ -49,53 +57,66 @@ function EntryItem({ entry }: { entry: ChangelogEntry }) {
 }
 
 export function ChangelogPage() {
+  const [barEl, setBarEl] = useState<HTMLDivElement | null>(null);
+  // The date headers stick below the page top bar, not below the global header
+  // alone, so their offset is the bar's measured height added to the header's.
+  const barHeight = useMeasuredHeight(barEl);
+  const dateHeaderTop = `calc(var(--header-height) - 1px + ${barHeight}px)`;
+
   return (
-    <div className={cn("mx-auto max-w-2xl", PAGE_PADDING)}>
-      <div className="mb-6 flex items-baseline justify-between">
-        <Heading level={1}>What&apos;s new</Heading>
-        <Link to="/roadmap" className="text-muted-foreground hover:text-foreground text-sm">
-          Roadmap &rarr;
-        </Link>
-      </div>
-      <div className="flex flex-col gap-6">
-        {changelogGroups.map((group) => (
-          <div key={group.date}>
-            <div className="border-border bg-background sticky top-14 z-10 flex items-baseline justify-between border-b py-2 pb-2">
-              <span className="text-foreground text-sm font-semibold">
-                {formatRelativeDate(group.date)}
-              </span>
-              <span className="text-muted-foreground text-sm tabular-nums">{group.date}</span>
-            </div>
-            {group.highlights.length > 0 && (
-              <ul className="space-y-2 pt-2">
-                {group.highlights.map((entry, i) => (
-                  <EntryItem key={i} entry={entry} />
-                ))}
-              </ul>
-            )}
-            {group.other.length > 0 && (
-              <Collapsible
-                defaultOpen={group.highlights.length === 0}
-                className={cn(group.highlights.length > 0 && "pt-2")}
+    <>
+      <PageTopBarSticky ref={setBarEl} maxWidth="2xl">
+        <PageTopBar>
+          <PageTopBarTitle>What&apos;s new</PageTopBarTitle>
+          <PageTopBarActions>
+            <PageTopBarButton render={<Link to="/roadmap" />}>Roadmap</PageTopBarButton>
+          </PageTopBarActions>
+        </PageTopBar>
+      </PageTopBarSticky>
+      <div className={cn("mx-auto max-w-2xl pt-3", PAGE_PADDING_NO_TOP)}>
+        <div className="flex flex-col gap-6">
+          {changelogGroups.map((group) => (
+            <div key={group.date}>
+              <div
+                className="border-border bg-background sticky z-10 flex items-baseline justify-between border-b py-2 pb-2"
+                style={{ top: dateHeaderTop }}
               >
-                {group.highlights.length > 0 && (
-                  <CollapsibleTrigger className="group text-muted-foreground hover:text-foreground flex cursor-pointer items-center gap-1 text-sm">
-                    <ChevronRightIcon className="size-3.5 transition-transform group-data-[panel-open]:rotate-90" />
-                    {group.other.length} more {group.other.length === 1 ? "change" : "changes"}
-                  </CollapsibleTrigger>
-                )}
-                <CollapsibleContent>
-                  <ul className="space-y-2 pt-2">
-                    {group.other.map((entry, i) => (
-                      <EntryItem key={i} entry={entry} />
-                    ))}
-                  </ul>
-                </CollapsibleContent>
-              </Collapsible>
-            )}
-          </div>
-        ))}
+                <span className="text-foreground text-sm font-semibold">
+                  {formatRelativeDate(group.date)}
+                </span>
+                <span className="text-muted-foreground text-sm tabular-nums">{group.date}</span>
+              </div>
+              {group.highlights.length > 0 && (
+                <ul className="space-y-2 pt-2">
+                  {group.highlights.map((entry, i) => (
+                    <EntryItem key={i} entry={entry} />
+                  ))}
+                </ul>
+              )}
+              {group.other.length > 0 && (
+                <Collapsible
+                  defaultOpen={group.highlights.length === 0}
+                  className={cn(group.highlights.length > 0 && "pt-2")}
+                >
+                  {group.highlights.length > 0 && (
+                    <CollapsibleTrigger className="group text-muted-foreground hover:text-foreground flex cursor-pointer items-center gap-1 text-sm">
+                      <ChevronRightIcon className="size-3.5 transition-transform group-data-[panel-open]:rotate-90" />
+                      {group.other.length} more {group.other.length === 1 ? "change" : "changes"}
+                    </CollapsibleTrigger>
+                  )}
+                  <CollapsibleContent>
+                    <ul className="space-y-2 pt-2">
+                      {group.other.map((entry, i) => (
+                        <EntryItem key={i} entry={entry} />
+                      ))}
+                    </ul>
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
