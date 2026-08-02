@@ -229,7 +229,7 @@
     "//": "Patch vulnerable transitive deps. Run `bun audit` after removing any to check if still needed.",
     "// @tanstack/query-core": "Dedupe: query-db-collection and router-ssr-query peer-resolve an older query-core; TS treats identical-but-different-path type copies as distinct, collapsing createCollection generics to Record<string, unknown>.",
     "// hono, @hono/node-server, lodash": "better-auth → prisma → @prisma/dev pins old versions",
-    "// html2canvas": "Redirect jspdf's optional html2canvas dep to html2canvas-pro (the version we already use directly). Keep this pin in step with html2canvas-pro in apps/web: dependabot does not treat an npm: alias as the same package, so a mismatch silently ships both versions as separate chunks.",
+    "// html2canvas": "Redirect jspdf's optional html2canvas dep to html2canvas-pro (the version we already use directly). Keep this pin in step with html2canvas-pro in apps/web: dependabot does not treat an npm: alias as the same package, so a mismatch silently ships both versions as separate chunks. Enforced by scripts/check-override-pins.ts.",
     "// kysely": "Dedupe: better-auth pins kysely 0.29.2 while the api uses 0.29.4; two kysely copies fork @better-auth/core into two identical-but-different-path type copies, breaking the api build.",
     "@hono/node-server": "1.19.14",
     "@tanstack/query-core": "5.101.4",
