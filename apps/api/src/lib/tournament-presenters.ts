@@ -2,6 +2,8 @@ import type {
   OrganizationMemberResponse,
   OrganizationResponse,
   OrganizationSummaryResponse,
+  PodPlayerResponse,
+  PodTournamentResponse,
   TournamentModuleFlags,
   TournamentParticipantResponse,
   TournamentParticipantStatus,
@@ -13,11 +15,19 @@ import type {
   OrganizationMemberWithName,
   OrganizationSummary,
 } from "../repositories/organizations.js";
+import type { PodRosterPlayer, PodTournament } from "../repositories/pod-tournaments.js";
 import type {
   Tournament,
   TournamentParticipantWithUser,
   TournamentStaffWithName,
 } from "../repositories/tournaments.js";
+
+/**
+ * Pure row → response mappers for the tournaments umbrella and its
+ * organizations (ADR-033). Everything here is a total function of its
+ * argument; anything that has to read the repos to assemble a payload lives in
+ * the sibling `*-builders.ts` modules instead.
+ */
 
 /** @returns The organization row mapped to its API response shape. */
 export function toOrganizationResponse(org: Organization): OrganizationResponse {
@@ -92,5 +102,38 @@ export function moduleFlags(tournament: Tournament): TournamentModuleFlags {
   return {
     pairing: tournament.pairingStyle !== "none",
     deckSubmission: tournament.deckSubmission !== "none",
+  };
+}
+
+/** @returns The pod-engine view of the tournament row. */
+export function toPodTournament(row: PodTournament): PodTournamentResponse {
+  return {
+    id: row.id,
+    name: row.name,
+    status: row.status,
+    currentRound: row.currentRound,
+    pairingStyle: row.pairingStyle,
+    playMode: row.playMode,
+    scoringScheme: row.scoringScheme,
+    byePoints: row.byePoints,
+    matchFormat: row.matchFormat,
+    winPoints: row.winPoints,
+    drawPoints: row.drawPoints,
+    regionsEnabled: row.regionsEnabled,
+    reportToken: row.reportToken,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+/** @returns The pod-engine view of a participant row. */
+export function toPodPlayer(row: PodRosterPlayer): PodPlayerResponse {
+  return {
+    id: row.id,
+    displayName: row.displayName,
+    status: row.status,
+    droppedAfterRound: row.droppedAfterRound,
+    teamId: row.teamId,
+    createdAt: row.createdAt.toISOString(),
   };
 }
