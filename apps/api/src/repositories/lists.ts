@@ -24,7 +24,13 @@ import type { DeleteResult, Insertable, Kysely, Selectable, Updateable } from "k
 import { sql } from "kysely";
 
 import type { Database, ListEntriesTable, ListsTable } from "../db/index.js";
-import { imageId } from "./query-helpers.js";
+import type { PrintingDetail } from "./query-helpers.js";
+import {
+  imageId,
+  joinFrontImage,
+  printingDetailsByIds,
+  selectCopyWithCard,
+} from "./query-helpers.js";
 
 /**
  * Lazy providers a dynamic-rule list read needs but the repo can't build from
@@ -1066,16 +1072,6 @@ interface RuleOnlyDetails {
   copies: Map<string, CopyDetail>;
 }
 
-interface PrintingDetail {
-  cardName: string;
-  setId: string;
-  rarity: Rarity;
-  finish: Finish;
-  shortCode: string;
-  language: string;
-  imageId: string | null;
-}
-
 interface CopyDetail extends PrintingDetail {
   printingId: string;
   collectionId: string;
@@ -1205,51 +1201,6 @@ async function cardDetailsByIds(
   return new Map(rows.map((row) => [row.id, { cardName: row.cardName }]));
 }
 
-async function printingDetailsByIds(
-  db: Kysely<Database>,
-  ids: string[],
-): Promise<Map<string, PrintingDetail>> {
-  if (ids.length === 0) {
-    return new Map();
-  }
-  const rows = await db
-    .selectFrom("printings as p")
-    .innerJoin("cards as card", "card.id", "p.cardId")
-    .leftJoin("printingImages as pi", (join) =>
-      join
-        .onRef("pi.printingId", "=", "p.id")
-        .on("pi.face", "=", "front")
-        .on("pi.isActive", "=", true),
-    )
-    .leftJoin("imageFiles as ci", "ci.id", "pi.imageFileId")
-    .select([
-      "p.id",
-      "card.name as cardName",
-      "p.setId",
-      "p.rarity",
-      "p.finish",
-      "p.shortCode",
-      "p.language",
-      imageId("ci").as("imageId"),
-    ])
-    .where("p.id", "in", ids)
-    .execute();
-  return new Map(
-    rows.map((row) => [
-      row.id,
-      {
-        cardName: row.cardName,
-        setId: row.setId,
-        rarity: row.rarity,
-        finish: row.finish,
-        shortCode: row.shortCode,
-        language: row.language,
-        imageId: row.imageId,
-      },
-    ]),
-  );
-}
-
 async function copyDetailsByIds(
   db: Kysely<Database>,
   ids: string[],
@@ -1257,30 +1208,20 @@ async function copyDetailsByIds(
   if (ids.length === 0) {
     return new Map();
   }
-  const rows = await db
-    .selectFrom("copies as cp")
-    .innerJoin("printings as p", "p.id", "cp.printingId")
-    .innerJoin("cards as card", "card.id", "p.cardId")
-    .leftJoin("printingImages as pi", (join) =>
-      join
-        .onRef("pi.printingId", "=", "p.id")
-        .on("pi.face", "=", "front")
-        .on("pi.isActive", "=", true),
-    )
-    .leftJoin("imageFiles as ci", "ci.id", "pi.imageFileId")
+  const rows = await selectCopyWithCard(db)
     .leftJoin("cardTradeCopies as ctc", "ctc.copyId", "cp.id")
     .leftJoin("loanCopies as lc", "lc.copyId", "cp.id")
     .select([
       "cp.id",
       "cp.printingId",
       "cp.collectionId",
-      "card.name as cardName",
+      "c.name as cardName",
       "p.setId",
       "p.rarity",
       "p.finish",
       "p.shortCode",
       "p.language",
-      imageId("ci").as("imageId"),
+      imageId("imgf").as("imageId"),
       "ctc.copyId as reservedByTradeCopyId",
       "lc.copyId as pinnedByLoanCopyId",
     ])
@@ -1356,18 +1297,12 @@ async function printingEntryQuery(
   db: Kysely<Database>,
   scope: { listId: string; userId?: string },
 ): Promise<ListEntryRow[]> {
-  let q = db
-    .selectFrom("listEntries as le")
-    .innerJoin("printings as p", "p.id", "le.printingId")
-    .innerJoin("cards as card", "card.id", "p.cardId")
-    .leftJoin("printingImages as pi", (join) =>
-      join
-        .onRef("pi.printingId", "=", "p.id")
-        .on("pi.face", "=", "front")
-        .on("pi.isActive", "=", true),
-    )
-    .leftJoin("imageFiles as ci", "ci.id", "pi.imageFileId")
-    .where("le.listId", "=", scope.listId);
+  let q = joinFrontImage(
+    db
+      .selectFrom("listEntries as le")
+      .innerJoin("printings as p", "p.id", "le.printingId")
+      .innerJoin("cards as card", "card.id", "p.cardId"),
+  ).where("le.listId", "=", scope.listId);
   if (scope.userId !== undefined) {
     q = q.where("le.userId", "=", scope.userId);
   }
@@ -1386,7 +1321,7 @@ async function printingEntryQuery(
       "p.finish",
       "p.shortCode",
       "p.language",
-      imageId("ci").as("imageId"),
+      imageId("imgf").as("imageId"),
     ])
     .execute();
   return rows.map((row) => ({
@@ -1417,18 +1352,13 @@ async function copyEntryQuery(
   db: Kysely<Database>,
   scope: { listId: string; userId?: string },
 ): Promise<ListEntryRow[]> {
-  let q = db
-    .selectFrom("listEntries as le")
-    .innerJoin("copies as cp", "cp.id", "le.copyId")
-    .innerJoin("printings as p", "p.id", "cp.printingId")
-    .innerJoin("cards as card", "card.id", "p.cardId")
-    .leftJoin("printingImages as pi", (join) =>
-      join
-        .onRef("pi.printingId", "=", "p.id")
-        .on("pi.face", "=", "front")
-        .on("pi.isActive", "=", true),
-    )
-    .leftJoin("imageFiles as ci", "ci.id", "pi.imageFileId")
+  let q = joinFrontImage(
+    db
+      .selectFrom("listEntries as le")
+      .innerJoin("copies as cp", "cp.id", "le.copyId")
+      .innerJoin("printings as p", "p.id", "cp.printingId")
+      .innerJoin("cards as card", "card.id", "p.cardId"),
+  )
     // A copy is pinned to at most one live trade (UNIQUE copy_id), so this
     // join can't multiply rows. Its presence means the copy is reserved.
     .leftJoin("cardTradeCopies as ctc", "ctc.copyId", "cp.id")
@@ -1453,7 +1383,7 @@ async function copyEntryQuery(
       "p.finish",
       "p.shortCode",
       "p.language",
-      imageId("ci").as("imageId"),
+      imageId("imgf").as("imageId"),
       "cp.collectionId",
       "cp.printingId",
       "ctc.copyId as reservedByTradeCopyId",

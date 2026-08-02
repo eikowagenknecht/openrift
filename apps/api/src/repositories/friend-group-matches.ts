@@ -24,7 +24,7 @@ import { sql } from "kysely";
 import type { Database } from "../db/index.js";
 import { gravatarHashForEmail } from "../lib/gravatar.js";
 import type { ListRuleProviders } from "./lists.js";
-import { imageId } from "./query-helpers.js";
+import { printingDetailsByIds } from "./query-helpers.js";
 
 /**
  * One side of a match — a wish entry intersecting a trade entry. The row always
@@ -551,58 +551,6 @@ function buildDemand(
   });
 }
 
-interface PrintingDetail {
-  cardName: string;
-  setId: string;
-  rarity: Rarity;
-  finish: Finish;
-  imageId: string | null;
-}
-
-/**
- * Output detail for matched printings (card name/type, set, rarity, finish, image).
- * @returns A map of printing id to its display detail.
- */
-async function loadPrintingDetails(
-  db: Kysely<Database>,
-  printingIds: string[],
-): Promise<Map<string, PrintingDetail>> {
-  const map = new Map<string, PrintingDetail>();
-  if (printingIds.length === 0) {
-    return map;
-  }
-  const rows = await db
-    .selectFrom("printings as p")
-    .innerJoin("cards as card", "card.id", "p.cardId")
-    .leftJoin("printingImages as pi", (join) =>
-      join
-        .onRef("pi.printingId", "=", "p.id")
-        .on("pi.face", "=", "front")
-        .on("pi.isActive", "=", true),
-    )
-    .leftJoin("imageFiles as imgf", "imgf.id", "pi.imageFileId")
-    .select([
-      "p.id",
-      "card.name as cardName",
-      "p.setId",
-      "p.rarity",
-      "p.finish",
-      imageId("imgf").as("imageId"),
-    ])
-    .where("p.id", "in", printingIds)
-    .execute();
-  for (const row of rows) {
-    map.set(row.id, {
-      cardName: row.cardName,
-      setId: row.setId,
-      rarity: row.rarity,
-      finish: row.finish,
-      imageId: row.imageId,
-    });
-  }
-  return map;
-}
-
 async function runMatchQuery(
   db: Kysely<Database>,
   providers: ListRuleProviders | undefined,
@@ -794,7 +742,7 @@ async function runMatchQuery(
     isOthersHave ? supply.map((s) => s.ownerUserId) : demand.map((d) => d.ownerUserId),
   );
   const users = await loadUsers(db, [...counterpartyIds]);
-  const printingDetails = await loadPrintingDetails(db, [
+  const printingDetails = await printingDetailsByIds(db, [
     ...new Set(supply.map((entry) => entry.printingId)),
   ]);
 

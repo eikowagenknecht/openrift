@@ -11,12 +11,13 @@ import { describe, expect, it } from "vitest";
 
 import type { Database } from "../db/index.js";
 import { AppError } from "../errors.js";
-import { createMockDb } from "../test/mock-db.js";
 import {
   buildKeysetCursor,
   imageId,
   imageUrlWithOriginal,
+  joinFrontImage,
   keysetCursorPredicate,
+  requireFrontImage,
   resolveCardId,
   selectCopyWithCard,
 } from "./query-helpers.js";
@@ -62,11 +63,75 @@ describe("imageUrlWithOriginal", () => {
   });
 });
 
+describe("joinFrontImage", () => {
+  it("left-joins the active front image of the p-aliased printing", () => {
+    const { sql, parameters } = joinFrontImage(compileDb.selectFrom("printings as p"))
+      .select(["p.id", imageId("imgf").as("imageId")])
+      .compile();
+
+    expect(sql).toContain(
+      'left join "printing_images" as "pi" on "pi"."printing_id" = "p"."id" and "pi"."face" = $1 and "pi"."is_active" = $2',
+    );
+    expect(sql).toContain(
+      'left join "image_files" as "imgf" on "imgf"."id" = "pi"."image_file_id"',
+    );
+    expect(parameters).toEqual(["front", true]);
+  });
+
+  it("keeps rows whose printing has no image (left, not inner)", () => {
+    const { sql } = joinFrontImage(compileDb.selectFrom("printings as p")).select("p.id").compile();
+
+    expect(sql).not.toContain("inner join");
+  });
+
+  it("resolves p against a view as readily as the base table", () => {
+    const { sql } = joinFrontImage(compileDb.selectFrom("printingsOrdered as p"))
+      .select("p.id")
+      .compile();
+
+    expect(sql).toContain('from "printings_ordered" as "p"');
+    expect(sql).toContain('"pi"."printing_id" = "p"."id"');
+  });
+});
+
+describe("requireFrontImage", () => {
+  it("inner-joins the front image off the given printing reference", () => {
+    const { sql, parameters } = requireFrontImage(
+      compileDb.selectFrom("copies as cp"),
+      "cp.printingId",
+    )
+      .select(["cp.id", "imgf.id as imageId"])
+      .compile();
+
+    expect(sql).toContain(
+      'inner join "printing_images" as "pim" on "pim"."printing_id" = "cp"."printing_id" and "pim"."face" = $1 and "pim"."is_active" = $2',
+    );
+    expect(sql).toContain(
+      'inner join "image_files" as "imgf" on "imgf"."id" = "pim"."image_file_id"',
+    );
+    expect(parameters).toEqual(["front", true]);
+  });
+
+  it("drops rows whose printing has no image (inner, not left)", () => {
+    const { sql } = requireFrontImage(compileDb.selectFrom("copies as cp"), "cp.printingId")
+      .select("cp.id")
+      .compile();
+
+    expect(sql).not.toContain("left join");
+  });
+});
+
 describe("selectCopyWithCard", () => {
-  it("returns a query builder with joins", () => {
-    const db = createMockDb();
-    const builder = selectCopyWithCard(db);
-    expect(builder).toBeDefined();
+  it("joins copies through printings and cards to the front image", () => {
+    const { sql } = selectCopyWithCard(compileDb)
+      .select(["cp.id", "c.name", imageId("imgf").as("imageId")])
+      .compile();
+
+    expect(sql).toContain('from "copies" as "cp"');
+    expect(sql).toContain('inner join "printings" as "p" on "p"."id" = "cp"."printing_id"');
+    expect(sql).toContain('inner join "cards" as "c" on "c"."id" = "p"."card_id"');
+    expect(sql).toContain('left join "printing_images" as "pi"');
+    expect(sql).toContain('left join "image_files" as "imgf"');
   });
 });
 

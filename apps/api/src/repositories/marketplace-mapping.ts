@@ -2,7 +2,7 @@ import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
 import type { Database } from "../db/index.js";
-import { imageUrlWithOriginal } from "./query-helpers.js";
+import { imageUrlWithOriginal, joinFrontImage } from "./query-helpers.js";
 
 type Db = Kysely<Database>;
 
@@ -189,24 +189,19 @@ export function marketplaceMappingRepo(db: Db) {
     /** @returns All cards with their printings, sets, marketplace variant mappings, and images. */
     allCardsWithPrintings(marketplace: string) {
       return (
-        db
-          .selectFrom("cards as c")
-          .innerJoin("printings as p", "p.cardId", "c.id")
-          .innerJoin("sets as s", "s.id", "p.setId")
-          .innerJoin("mvCardAggregates as mca", "mca.cardId", "c.id")
-          .leftJoin("marketplaceProductVariants as mpv", "mpv.printingId", "p.id")
-          .leftJoin("marketplaceProducts as mp", (join) =>
-            join
-              .onRef("mp.id", "=", "mpv.marketplaceProductId")
-              .on("mp.marketplace", "=", marketplace),
-          )
-          .leftJoin("printingImages as pi", (join) =>
-            join
-              .onRef("pi.printingId", "=", "p.id")
-              .on("pi.face", "=", "front")
-              .on("pi.isActive", "=", true),
-          )
-          .leftJoin("imageFiles as ci", "ci.id", "pi.imageFileId")
+        joinFrontImage(
+          db
+            .selectFrom("cards as c")
+            .innerJoin("printings as p", "p.cardId", "c.id")
+            .innerJoin("sets as s", "s.id", "p.setId")
+            .innerJoin("mvCardAggregates as mca", "mca.cardId", "c.id")
+            .leftJoin("marketplaceProductVariants as mpv", "mpv.printingId", "p.id")
+            .leftJoin("marketplaceProducts as mp", (join) =>
+              join
+                .onRef("mp.id", "=", "mpv.marketplaceProductId")
+                .on("mp.marketplace", "=", marketplace),
+            ),
+        )
           .select([
             "c.id as cardId",
             "c.slug as cardSlug",
@@ -226,7 +221,7 @@ export function marketplaceMappingRepo(db: Db) {
             "p.finish",
             "p.size",
             "p.language",
-            imageUrlWithOriginal("ci").as("imageUrl"),
+            imageUrlWithOriginal("imgf").as("imageUrl"),
             "mp.externalId as externalId",
             "mp.groupId as sourceGroupId",
             "mp.language as sourceLanguage",
@@ -265,55 +260,49 @@ export function marketplaceMappingRepo(db: Db) {
      * @returns One row per (printing × variant), plus one row per printing with no variant in any marketplace.
      */
     allCardsWithPrintingsUnified(cardIdentifier?: string) {
-      let query = db
-        .selectFrom("cards as c")
-        .innerJoin("printings as p", "p.cardId", "c.id")
-        .innerJoin("sets as s", "s.id", "p.setId")
-        .innerJoin("mvCardAggregates as mca", "mca.cardId", "c.id")
-        .leftJoin("marketplaceProductVariants as mpv", "mpv.printingId", "p.id")
-        .leftJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
-        .leftJoin("marketplaceGroups as mg", (join) =>
-          join
-            .onRef("mg.marketplace", "=", "mp.marketplace")
-            .onRef("mg.groupId", "=", "mp.groupId"),
-        )
-        .leftJoin("sets as gs", "gs.id", "mg.setId")
-        .leftJoin("printingImages as pi", (join) =>
-          join
-            .onRef("pi.printingId", "=", "p.id")
-            .on("pi.face", "=", "front")
-            .on("pi.isActive", "=", true),
-        )
-        .leftJoin("imageFiles as ci", "ci.id", "pi.imageFileId")
-        .select([
-          "c.id as cardId",
-          "c.slug as cardSlug",
-          "c.name as cardName",
-          "mca.domains",
-          "mca.superTypes",
-          "c.energy",
-          "c.might",
-          "p.id as printingId",
-          "s.slug as setId",
-          "p.shortCode",
-          "p.rarity",
-          "s.name as setName",
-          "p.artVariant",
-          "p.isSigned",
-          "p.markerSlugs",
-          "p.finish",
-          "p.size",
-          "p.language",
-          imageUrlWithOriginal("ci").as("imageUrl"),
-          "mp.marketplace as variantMarketplace",
-          "mp.externalId as externalId",
-          "mp.groupId as sourceGroupId",
-          "mg.name as sourceGroupName",
-          "mg.groupKind as sourceGroupKind",
-          "gs.slug as sourceGroupSetSlug",
-          "mp.language as sourceLanguage",
-          "mp.finish as productFinish",
-        ]);
+      let query = joinFrontImage(
+        db
+          .selectFrom("cards as c")
+          .innerJoin("printings as p", "p.cardId", "c.id")
+          .innerJoin("sets as s", "s.id", "p.setId")
+          .innerJoin("mvCardAggregates as mca", "mca.cardId", "c.id")
+          .leftJoin("marketplaceProductVariants as mpv", "mpv.printingId", "p.id")
+          .leftJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
+          .leftJoin("marketplaceGroups as mg", (join) =>
+            join
+              .onRef("mg.marketplace", "=", "mp.marketplace")
+              .onRef("mg.groupId", "=", "mp.groupId"),
+          )
+          .leftJoin("sets as gs", "gs.id", "mg.setId"),
+      ).select([
+        "c.id as cardId",
+        "c.slug as cardSlug",
+        "c.name as cardName",
+        "mca.domains",
+        "mca.superTypes",
+        "c.energy",
+        "c.might",
+        "p.id as printingId",
+        "s.slug as setId",
+        "p.shortCode",
+        "p.rarity",
+        "s.name as setName",
+        "p.artVariant",
+        "p.isSigned",
+        "p.markerSlugs",
+        "p.finish",
+        "p.size",
+        "p.language",
+        imageUrlWithOriginal("imgf").as("imageUrl"),
+        "mp.marketplace as variantMarketplace",
+        "mp.externalId as externalId",
+        "mp.groupId as sourceGroupId",
+        "mg.name as sourceGroupName",
+        "mg.groupKind as sourceGroupKind",
+        "gs.slug as sourceGroupSetSlug",
+        "mp.language as sourceLanguage",
+        "mp.finish as productFinish",
+      ]);
       if (cardIdentifier !== undefined) {
         query = query.where((eb) =>
           eb.or([

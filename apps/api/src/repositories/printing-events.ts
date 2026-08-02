@@ -1,7 +1,7 @@
 import type { Kysely } from "kysely";
 
 import type { Database } from "../db/index.js";
-import { imageId } from "./query-helpers.js";
+import { imageId, joinFrontImage } from "./query-helpers.js";
 
 const MAX_RETRIES = 5;
 
@@ -55,21 +55,16 @@ export function printingEventsRepo(db: Kysely<Database>) {
      * @returns Enriched pending events ordered by creation time.
      */
     async listPending(): Promise<EnrichedPrintingEvent[]> {
-      return await db
-        .selectFrom("printingEvents as pe")
-        .innerJoin("printings as p", "p.id", "pe.printingId")
-        .innerJoin("cards as c", "c.id", "p.cardId")
-        .innerJoin("sets as s", "s.id", "p.setId")
-        .leftJoin("finishes as fi", "fi.slug", "p.finish")
-        .leftJoin("rarities as r", "r.slug", "p.rarity")
-        .leftJoin("languages as lng", "lng.code", "p.language")
-        .leftJoin("printingImages as pi", (join) =>
-          join
-            .onRef("pi.printingId", "=", "p.id")
-            .on("pi.face", "=", "front")
-            .on("pi.isActive", "=", true),
-        )
-        .leftJoin("imageFiles as imgf", "imgf.id", "pi.imageFileId")
+      return await joinFrontImage(
+        db
+          .selectFrom("printingEvents as pe")
+          .innerJoin("printings as p", "p.id", "pe.printingId")
+          .innerJoin("cards as c", "c.id", "p.cardId")
+          .innerJoin("sets as s", "s.id", "p.setId")
+          .leftJoin("finishes as fi", "fi.slug", "p.finish")
+          .leftJoin("rarities as r", "r.slug", "p.rarity")
+          .leftJoin("languages as lng", "lng.code", "p.language"),
+      )
         .select([
           "pe.id",
           "pe.printingId",
@@ -101,21 +96,16 @@ export function printingEventsRepo(db: Kysely<Database>) {
       if (statuses.length === 0) {
         return [];
       }
-      return await db
-        .selectFrom("printingEvents as pe")
-        .innerJoin("printings as p", "p.id", "pe.printingId")
-        .innerJoin("cards as c", "c.id", "p.cardId")
-        .innerJoin("sets as s", "s.id", "p.setId")
-        .leftJoin("finishes as fi", "fi.slug", "p.finish")
-        .leftJoin("rarities as r", "r.slug", "p.rarity")
-        .leftJoin("languages as lng", "lng.code", "p.language")
-        .leftJoin("printingImages as pi", (join) =>
-          join
-            .onRef("pi.printingId", "=", "p.id")
-            .on("pi.face", "=", "front")
-            .on("pi.isActive", "=", true),
-        )
-        .leftJoin("imageFiles as imgf", "imgf.id", "pi.imageFileId")
+      return await joinFrontImage(
+        db
+          .selectFrom("printingEvents as pe")
+          .innerJoin("printings as p", "p.id", "pe.printingId")
+          .innerJoin("cards as c", "c.id", "p.cardId")
+          .innerJoin("sets as s", "s.id", "p.setId")
+          .leftJoin("finishes as fi", "fi.slug", "p.finish")
+          .leftJoin("rarities as r", "r.slug", "p.rarity")
+          .leftJoin("languages as lng", "lng.code", "p.language"),
+      )
         .select([
           "pe.id",
           "pe.printingId",

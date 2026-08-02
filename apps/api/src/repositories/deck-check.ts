@@ -21,7 +21,7 @@ import type {
   DeckCheckKeysTable,
   TournamentsTable,
 } from "../db/index.js";
-import { imageId } from "./query-helpers.js";
+import { imageId, requireFrontImage } from "./query-helpers.js";
 
 export type DeckCheckKey = Selectable<DeckCheckKeysTable>;
 export type DeckCheckEntryCard = Selectable<DeckCheckEntryCardsTable>;
@@ -548,20 +548,16 @@ export function deckCheckRepo(db: Kysely<Database>) {
       }
       // One row per (tournament, legend card): the earliest-submitted entry's
       // printing, so one popular legend can't fill the fan several times.
-      const bestPerCard = db
-        .selectFrom("deckCheckEntries as en")
-        .innerJoin("deckCheckEntryCards as c", "c.entryId", "en.id")
-        .innerJoin("printingImages as pim", (join) =>
-          join
-            .onRef("pim.printingId", "=", "c.resolvedPrintingId")
-            .on("pim.face", "=", "front")
-            .on("pim.isActive", "=", true),
-        )
-        .innerJoin("imageFiles as ci", "ci.id", "pim.imageFileId")
+      const bestPerCard = requireFrontImage(
+        db
+          .selectFrom("deckCheckEntries as en")
+          .innerJoin("deckCheckEntryCards as c", "c.entryId", "en.id"),
+        "c.resolvedPrintingId",
+      )
         .select([
           "en.tournamentId",
           "c.resolvedPrintingId as printingId",
-          imageId("ci").as("imageId"),
+          imageId("imgf").as("imageId"),
           "en.submittedAt",
           "en.createdAt",
           "c.sortOrder",
@@ -575,7 +571,7 @@ export function deckCheckRepo(db: Kysely<Database>) {
         .where("en.withdrawnAt", "is", null)
         .where("c.zone", "=", WellKnown.deckZone.LEGEND)
         .where("c.resolvedPrintingId", "is not", null)
-        .where(sql`${imageId("ci")}`, "is not", null);
+        .where(sql`${imageId("imgf")}`, "is not", null);
       // Fan slots are ranked over the deduped rows only, so a repeat legend
       // never burns a slot that a distinct one should get.
       const rankedPerTournament = db
@@ -614,19 +610,15 @@ export function deckCheckRepo(db: Kysely<Database>) {
       if (participantIds.length === 0) {
         return new Map();
       }
-      const rows = await db
-        .selectFrom("deckCheckEntries as en")
-        .innerJoin("deckCheckEntryCards as c", "c.entryId", "en.id")
-        .innerJoin("printingImages as pim", (join) =>
-          join
-            .onRef("pim.printingId", "=", "c.resolvedPrintingId")
-            .on("pim.face", "=", "front")
-            .on("pim.isActive", "=", true),
-        )
-        .innerJoin("imageFiles as ci", "ci.id", "pim.imageFileId")
+      const rows = await requireFrontImage(
+        db
+          .selectFrom("deckCheckEntries as en")
+          .innerJoin("deckCheckEntryCards as c", "c.entryId", "en.id"),
+        "c.resolvedPrintingId",
+      )
         .select([
           "en.participantId",
-          imageId("ci").as("imageId"),
+          imageId("imgf").as("imageId"),
           sql<number>`(row_number() over (
             partition by en.participant_id
             order by en.submitted_at nulls last, en.created_at, c.sort_order
@@ -636,7 +628,7 @@ export function deckCheckRepo(db: Kysely<Database>) {
         .where("en.allowDeckPublishing", "=", true)
         .where("en.withdrawnAt", "is", null)
         .where("c.zone", "=", WellKnown.deckZone.LEGEND)
-        .where(sql`${imageId("ci")}`, "is not", null)
+        .where(sql`${imageId("imgf")}`, "is not", null)
         .execute();
       const images = new Map<string, string>();
       for (const row of rows) {

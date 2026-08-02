@@ -1,8 +1,17 @@
 import { ERROR_CODES } from "@openrift/shared";
-import type { Expression, Kysely, RawBuilder, SqlBool } from "kysely";
+import type { Finish, Rarity } from "@openrift/shared/types";
+import type {
+  Expression,
+  Kysely,
+  RawBuilder,
+  SelectQueryBuilder,
+  SqlBool,
+  StringReference,
+} from "kysely";
 import { sql } from "kysely";
 
 import type { Database } from "../db/index.js";
+import type { ImageFilesTable, PrintingImagesTable, PrintingsTable } from "../db/tables.js";
 import { AppError } from "../errors.js";
 
 /**
@@ -111,21 +120,146 @@ export function keysetCursorPredicate(
   return sql<SqlBool>`(${truncatedTime} < ${time} or (${truncatedTime} = ${time} and ${tieBreak}))`;
 }
 
+interface FrontImageTables {
+  pi: PrintingImagesTable;
+  imgf: ImageFilesTable;
+}
+
 /**
- * Base query: copies → printings → cards → front-face printing images → image files
- * (aliases: cp, p, c, pi, imgf).
- * @returns A Kysely SelectQueryBuilder with the five tables joined.
+ * Left-joins the active front-face image of the `p`-aliased printing, exposing
+ * it as `pi` (printing_images) and `imgf` (image_files). Left, not inner, so a
+ * printing with no artwork still yields its row — pair it with `imageId("imgf")`
+ * to get the nullable image id, or read `imgf.rehostedUrl` directly.
+ *
+ * The query must already have `printings` (or `printings_ordered`) aliased to
+ * `p`; the generic constraint enforces that much, and the internal casts are
+ * what let one helper serve every root table. Callers therefore must not
+ * already use the `pi` or `imgf` aliases.
+ *
+ * @param qb A select query with a `p`-aliased printing in scope.
+ * @returns The same query with the two image joins appended.
  */
-export function selectCopyWithCard(db: Kysely<Database>) {
-  return db
-    .selectFrom("copies as cp")
-    .innerJoin("printings as p", "p.id", "cp.printingId")
-    .innerJoin("cards as c", "c.id", "p.cardId")
+export function joinFrontImage<DB extends { p: { id: unknown } }, TB extends keyof DB, O>(
+  qb: SelectQueryBuilder<DB, TB, O>,
+): SelectQueryBuilder<DB & FrontImageTables, TB | "pi" | "imgf", O> {
+  return (qb as unknown as SelectQueryBuilder<Database & { p: PrintingsTable }, "p", O>)
     .leftJoin("printingImages as pi", (join) =>
       join
         .onRef("pi.printingId", "=", "p.id")
         .on("pi.face", "=", "front")
         .on("pi.isActive", "=", true),
     )
-    .leftJoin("imageFiles as imgf", "imgf.id", "pi.imageFileId");
+    .leftJoin("imageFiles as imgf", "imgf.id", "pi.imageFileId") as unknown as SelectQueryBuilder<
+    DB & FrontImageTables,
+    TB | "pi" | "imgf",
+    O
+  >;
+}
+
+interface RequiredFrontImageTables {
+  pim: PrintingImagesTable;
+  imgf: ImageFilesTable;
+}
+
+/**
+ * Inner-join variant of {@link joinFrontImage}: takes the printing id from an
+ * explicit reference instead of a `p` alias, and drops rows whose printing has
+ * no active front image. Use it where an imageless printing must not surface at
+ * all — cover fans and thumb stacks, where a blank tile would waste a slot.
+ *
+ * Exposes the joins as `pim` and `imgf`, so a query can carry this or
+ * `joinFrontImage`, never both.
+ *
+ * @param qb The select query to extend.
+ * @param printingIdRef Reference to the printing id column to match on, e.g. `"cp.printingId"`.
+ * @returns The same query with the two image joins appended.
+ */
+export function requireFrontImage<DB extends Database, TB extends keyof DB, O>(
+  qb: SelectQueryBuilder<DB, TB, O>,
+  printingIdRef: StringReference<DB, TB>,
+): SelectQueryBuilder<DB & RequiredFrontImageTables, TB | "pim" | "imgf", O> {
+  return (qb as unknown as SelectQueryBuilder<Database & { src: { printingId: string } }, "src", O>)
+    .innerJoin("printingImages as pim", (join) =>
+      join
+        .onRef("pim.printingId", "=", printingIdRef as never)
+        .on("pim.face", "=", "front")
+        .on("pim.isActive", "=", true),
+    )
+    .innerJoin("imageFiles as imgf", "imgf.id", "pim.imageFileId") as unknown as SelectQueryBuilder<
+    DB & RequiredFrontImageTables,
+    TB | "pim" | "imgf",
+    O
+  >;
+}
+
+/**
+ * Base query: copies → printings → cards → front-face printing images → image files
+ * (aliases: cp, p, c, pi, imgf).
+ * @returns A Kysely SelectQueryBuilder with the five tables joined.
+ */
+export function selectCopyWithCard(db: Kysely<Database>) {
+  return joinFrontImage(
+    db
+      .selectFrom("copies as cp")
+      .innerJoin("printings as p", "p.id", "cp.printingId")
+      .innerJoin("cards as c", "c.id", "p.cardId"),
+  );
+}
+
+/** Display detail for one printing: its card's name plus the printing's own identity and art. */
+export interface PrintingDetail {
+  cardName: string;
+  setId: string;
+  rarity: Rarity;
+  finish: Finish;
+  shortCode: string;
+  language: string;
+  imageId: string | null;
+}
+
+/**
+ * Batch-loads display detail for the given printing ids. Shared by the list
+ * repository (rule-only entry enrichment) and the trade matcher, which both
+ * need the same card-name/set/rarity/finish/art tuple keyed by printing.
+ *
+ * @param db The Kysely instance to query.
+ * @param ids Printing ids to load; an empty array short-circuits without a query.
+ * @returns A map of printing id to its detail. Ids with no printing are absent.
+ */
+export async function printingDetailsByIds(
+  db: Kysely<Database>,
+  ids: string[],
+): Promise<Map<string, PrintingDetail>> {
+  if (ids.length === 0) {
+    return new Map();
+  }
+  const rows = await joinFrontImage(
+    db.selectFrom("printings as p").innerJoin("cards as card", "card.id", "p.cardId"),
+  )
+    .select([
+      "p.id",
+      "card.name as cardName",
+      "p.setId",
+      "p.rarity",
+      "p.finish",
+      "p.shortCode",
+      "p.language",
+      imageId("imgf").as("imageId"),
+    ])
+    .where("p.id", "in", ids)
+    .execute();
+  return new Map(
+    rows.map((row) => [
+      row.id,
+      {
+        cardName: row.cardName,
+        setId: row.setId,
+        rarity: row.rarity,
+        finish: row.finish,
+        shortCode: row.shortCode,
+        language: row.language,
+        imageId: row.imageId,
+      },
+    ]),
+  );
 }

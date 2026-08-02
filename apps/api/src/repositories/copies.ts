@@ -3,7 +3,7 @@ import type { Insertable, Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
 import type { CopiesTable, Database } from "../db/index.js";
-import { keysetCursorPredicate } from "./query-helpers.js";
+import { keysetCursorPredicate, requireFrontImage, selectCopyWithCard } from "./query-helpers.js";
 
 /**
  * Slim copy row — printing details are resolved client-side from the catalog.
@@ -540,17 +540,7 @@ export function copiesRepo(db: Kysely<Database>) {
       cards: { cardName: string; quantity: number; imageId: string | null }[];
       totalDistinct: number;
     }> {
-      const rows = await db
-        .selectFrom("copies as cp")
-        .innerJoin("printings as p", "p.id", "cp.printingId")
-        .innerJoin("cards as c", "c.id", "p.cardId")
-        .leftJoin("printingImages as pi", (join) =>
-          join
-            .onRef("pi.printingId", "=", "p.id")
-            .on("pi.face", "=", "front")
-            .on("pi.isActive", "=", true),
-        )
-        .leftJoin("imageFiles as imgf", "imgf.id", "pi.imageFileId")
+      const rows = await selectCopyWithCard(db)
         .select((eb) => [
           "c.name as cardName",
           "imgf.id as imageFileId",
@@ -602,25 +592,17 @@ export function copiesRepo(db: Kysely<Database>) {
       }
       // One row per (collection, printing) with its copy count; the image
       // joins are inner so imageless printings don't burn a cover slot.
-      const perPrinting = db
-        .selectFrom("copies as cp")
-        .innerJoin("printingImages as pim", (join) =>
-          join
-            .onRef("pim.printingId", "=", "cp.printingId")
-            .on("pim.face", "=", "front")
-            .on("pim.isActive", "=", true),
-        )
-        .innerJoin("imageFiles as ci", "ci.id", "pim.imageFileId")
+      const perPrinting = requireFrontImage(db.selectFrom("copies as cp"), "cp.printingId")
         .select([
           "cp.collectionId",
           "cp.printingId",
-          "ci.id as imageId",
+          "imgf.id as imageId",
           sql<number>`count(*)::int`.as("copyCount"),
           sql<Date>`max(cp.created_at)`.as("newestAt"),
         ])
         .where("cp.collectionId", "in", collectionIds)
-        .where("ci.rehostedUrl", "is not", null)
-        .groupBy(["cp.collectionId", "cp.printingId", "ci.id"]);
+        .where("imgf.rehostedUrl", "is not", null)
+        .groupBy(["cp.collectionId", "cp.printingId", "imgf.id"]);
       const ranked = db.selectFrom(perPrinting.as("per")).select([
         "per.collectionId",
         "per.printingId",

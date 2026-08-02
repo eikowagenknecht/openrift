@@ -4,7 +4,7 @@ import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
 import type { Database, ProductsTable } from "../db/index.js";
-import { imageId } from "./query-helpers.js";
+import { imageId, requireFrontImage } from "./query-helpers.js";
 
 /** A product row with its content rollups (distinct printings, summed quantities). */
 export interface ProductWithCounts extends Selectable<ProductsTable> {
@@ -147,23 +147,19 @@ export function productsRepo(db: Kysely<Database>) {
       // One row per (product, card): the card's best printing (highest
       // rarity, stable on public_code), so variant-heavy cards can't fill
       // the whole fan with the same art.
-      const bestPerCard = db
-        .selectFrom("productPrintings as pp")
-        .innerJoin("printings as pr", "pr.id", "pp.printingId")
-        .innerJoin("cards as c", "c.id", "pr.cardId")
-        .innerJoin("printingImages as pim", (join) =>
-          join
-            .onRef("pim.printingId", "=", "pp.printingId")
-            .on("pim.face", "=", "front")
-            .on("pim.isActive", "=", true),
-        )
-        .innerJoin("imageFiles as ci", "ci.id", "pim.imageFileId")
+      const bestPerCard = requireFrontImage(
+        db
+          .selectFrom("productPrintings as pp")
+          .innerJoin("printings as pr", "pr.id", "pp.printingId")
+          .innerJoin("cards as c", "c.id", "pr.cardId"),
+        "pp.printingId",
+      )
         .leftJoin("cardTypes as ct", "ct.slug", "c.type")
         .leftJoin("rarities as r", "r.slug", "pr.rarity")
         .select([
           "pp.productId",
           "pp.printingId",
-          imageId("ci").as("imageId"),
+          imageId("imgf").as("imageId"),
           "c.name",
           sql<number>`coalesce(ct.sort_order, 32767)`.as("typeOrder"),
           sql<number>`coalesce(r.sort_order, -1)`.as("rarityOrder"),
@@ -174,7 +170,7 @@ export function productsRepo(db: Kysely<Database>) {
           ))::int`.as("printingRank"),
         ])
         .where("pp.productId", "in", productIds)
-        .where(sql`${imageId("ci")}`, "is not", null)
+        .where(sql`${imageId("imgf")}`, "is not", null)
         .where("c.type", "!=", WellKnown.cardType.BATTLEFIELD);
 
       const rankedPerProduct = db

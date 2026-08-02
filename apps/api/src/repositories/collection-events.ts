@@ -2,7 +2,7 @@ import type { ActivityAction, CardType } from "@openrift/shared/types";
 import type { Kysely, Selectable } from "kysely";
 
 import type { CollectionEventsTable, Database, PrintingsTable } from "../db/index.js";
-import { imageId, keysetCursorPredicate } from "./query-helpers.js";
+import { imageId, joinFrontImage, keysetCursorPredicate } from "./query-helpers.js";
 
 /** Collection event row with printing, card, and image details. */
 type CollectionEventRow = Pick<
@@ -38,18 +38,13 @@ export function collectionEventsRepo(db: Kysely<Database>) {
      * @returns Events enriched with printing, card, and image data.
      */
     listForUser(userId: string, limit: number, cursor?: string): Promise<CollectionEventRow[]> {
-      let query = db
-        .selectFrom("collectionEvents as ce")
-        .innerJoin("printings as p", "p.id", "ce.printingId")
-        .innerJoin("cards as card", "card.id", "p.cardId")
-        .innerJoin("mvCardAggregates as mca", "mca.cardId", "card.id")
-        .leftJoin("printingImages as pi", (join) =>
-          join
-            .onRef("pi.printingId", "=", "p.id")
-            .on("pi.face", "=", "front")
-            .on("pi.isActive", "=", true),
-        )
-        .leftJoin("imageFiles as ci", "ci.id", "pi.imageFileId")
+      let query = joinFrontImage(
+        db
+          .selectFrom("collectionEvents as ce")
+          .innerJoin("printings as p", "p.id", "ce.printingId")
+          .innerJoin("cards as card", "card.id", "p.cardId")
+          .innerJoin("mvCardAggregates as mca", "mca.cardId", "card.id"),
+      )
         .select([
           "ce.id",
           "ce.action",
@@ -60,7 +55,7 @@ export function collectionEventsRepo(db: Kysely<Database>) {
           "ce.toCollectionId",
           "ce.toCollectionName",
           "ce.createdAt",
-          imageId("ci").as("imageId"),
+          imageId("imgf").as("imageId"),
           "p.shortCode",
           "p.rarity",
           "card.name as cardName",

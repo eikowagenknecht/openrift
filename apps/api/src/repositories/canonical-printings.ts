@@ -3,7 +3,7 @@ import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
 import type { Database } from "../db/index.js";
-import { imageId } from "./query-helpers.js";
+import { imageId, joinFrontImage } from "./query-helpers.js";
 
 /** Input row for per-row short code resolution. */
 interface DeckRowForShortCode {
@@ -163,15 +163,7 @@ export function canonicalPrintingsRepo(db: Kysely<Database>) {
       ];
       const preferredMap = new Map<string, PrintingMetaRow>();
       if (preferredIds.length > 0) {
-        const preferredRows = await db
-          .selectFrom("printings as p")
-          .leftJoin("printingImages as pi", (join) =>
-            join
-              .onRef("pi.printingId", "=", "p.id")
-              .on("pi.face", "=", "front")
-              .on("pi.isActive", "=", true),
-          )
-          .leftJoin("imageFiles as imgf", "imgf.id", "pi.imageFileId")
+        const preferredRows = await joinFrontImage(db.selectFrom("printings as p"))
           .select(["p.id as printingId", "p.shortCode", imageId("imgf").as("imageId")])
           .where("p.id", "in", preferredIds)
           .execute();
@@ -192,15 +184,7 @@ export function canonicalPrintingsRepo(db: Kysely<Database>) {
         // Use the `printings_ordered` view (canonicalRank pre-computed) instead
         // of appendCanonicalOrder so the left-joined image tables don't break
         // appendCanonicalOrder's generic constraint on the query shape.
-        const canonicalRows = await db
-          .selectFrom("printingsOrdered as p")
-          .leftJoin("printingImages as pi", (join) =>
-            join
-              .onRef("pi.printingId", "=", "p.id")
-              .on("pi.face", "=", "front")
-              .on("pi.isActive", "=", true),
-          )
-          .leftJoin("imageFiles as imgf", "imgf.id", "pi.imageFileId")
+        const canonicalRows = await joinFrontImage(db.selectFrom("printingsOrdered as p"))
           .select(["p.cardId", "p.id as printingId", "p.shortCode", imageId("imgf").as("imageId")])
           .where("p.cardId", "in", cardIdsNeedingCanonical)
           .distinctOn("p.cardId")
