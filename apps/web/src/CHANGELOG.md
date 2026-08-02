@@ -8,6 +8,7 @@
 
 ### Other
 
+- feat(Groups): **Setup nudges on the group page** — a group now tells you when its members can't see a contact method or any list of yours, links to where you fix it, and lets you dismiss the reminder.
 - feat(Collection): **Move or remove part of a stack** — right-clicking a card with several copies now lets you pick how many to move to another collection or remove, instead of taking all of them.
 - feat(App): **Card, roadmap and changelog titles stay in view** — those three pages now carry the same sticky title bar as the rest of the app, so the title and its actions stay reachable as you scroll.
 - feat(App): **Shorter Discord card replies** — a card lookup now shows the image and prices, with the stats and rules text behind a Details button, and flags a ban or errata right away.

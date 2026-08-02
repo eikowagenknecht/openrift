@@ -154,22 +154,24 @@ function ContactSharingPanel({ data, slug }: { data: FriendGroupDetailResponse; 
   }
 
   return (
-    <Card>
+    // The id is the target of the overview's contacts nudge; the clearance
+    // keeps the card below the header and the breadcrumb bar when it lands.
+    <Card id="contacts" className="scroll-mt-28">
       <CardHeader>
         <CardTitle>Your contacts in this group</CardTitle>
         <CardDescription>
           Choose which of your contact methods this group&apos;s members can see. They show up next
-          to your name on the Members and Trades pages.
+          to your name on the Members and Trades pages.{" "}
+          <Link to="/profile" hash="contacts" className="underline">
+            Add or edit them in your profile
+          </Link>
+          .
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {contactMethods.length === 0 ? (
           <p className="text-muted-foreground text-sm">
-            You haven&apos;t added any contact methods yet.{" "}
-            <Link to="/profile" hash="contacts" className="underline">
-              Add them in your profile
-            </Link>
-            .
+            You haven&apos;t added any contact methods yet.
           </p>
         ) : (
           contactMethods.map((method) => (
@@ -509,12 +511,15 @@ function ShareableListsPanel({ slug }: { slug: string }) {
 
   if (data.items.length === 0) {
     return (
-      <Card>
+      <Card id="lists" className="scroll-mt-28">
         <CardHeader>
           <CardTitle>Share your lists</CardTitle>
           <CardDescription>
-            You don&apos;t have any lists yet. Create a wishlist, tradelist, or organize list to
-            share it with this group.{" "}
+            You don&apos;t have any lists yet.{" "}
+            <Link to="/collections" className="text-primary hover:underline">
+              Create a wishlist, tradelist, or organize list
+            </Link>{" "}
+            to share it with this group.{" "}
             <Link
               to="/help/$slug"
               params={{ slug: "lists" }}
@@ -528,7 +533,8 @@ function ShareableListsPanel({ slug }: { slug: string }) {
     );
   }
   return (
-    <Card>
+    // The id is the target of the overview's shared-lists nudge.
+    <Card id="lists" className="scroll-mt-28">
       <CardHeader>
         <CardTitle>Share your lists</CardTitle>
         <CardDescription>

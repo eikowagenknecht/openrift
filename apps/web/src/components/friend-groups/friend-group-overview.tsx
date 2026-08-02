@@ -34,6 +34,7 @@ import { capitalize, cn } from "@/lib/utils";
 
 import { FriendGroupActivityFeed } from "./friend-group-activity-feed";
 import { isAdmin } from "./friend-group-shell";
+import { GroupSetupNudges } from "./group-setup-nudges";
 import { HOVER_ROW_CLASS } from "./hover-row";
 import { LIST_INTENT_ICON, LIST_INTENT_NOUN } from "./list-intent-meta";
 import { TradeDirectionIcon, TradeExpiry, TradeStatusBadge } from "./trade-row-parts";
@@ -48,6 +49,7 @@ import { TradeDirectionIcon, TradeExpiry, TradeStatusBadge } from "./trade-row-p
 export function OverviewContent({ slug, data }: { slug: string; data: FriendGroupDetailResponse }) {
   return (
     <div className="flex flex-col gap-8">
+      <GroupSetupNudges slug={slug} data={data} />
       <TradesHub slug={slug} data={data} />
       <ActionTiles slug={slug} data={data} />
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_18rem]">
