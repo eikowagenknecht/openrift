@@ -127,7 +127,11 @@ purge_cloudflare_cache() {
 purge_cloudflare_cache
 
 echo "==> Cleaning up old images..."
-docker image prune -f
+# Prod and preview share this VPS, so their deploys can overlap and the daemon
+# only allows one prune at a time ("a prune operation is already running").
+# The losing side just leaves old layers behind until the next deploy, which is
+# not worth failing a deploy that already swapped in the new images.
+docker image prune -f || echo "WARNING: image prune skipped; old layers stay until the next deploy."
 
 echo "==> Done. Current status:"
 docker compose ps
