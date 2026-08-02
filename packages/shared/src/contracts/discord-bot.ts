@@ -46,6 +46,27 @@ export const discordBotTradelistHoldersResponseSchema = z
   })
   .openapi("DiscordBotTradelistHoldersResponse");
 
+export const discordBotSetTradeChannelSchema = z.object({
+  guildId: z.string().min(1).max(32),
+  /** Discord channel snowflake (64-bit int as text). */
+  channelId: z.string().min(1).max(32),
+  enabled: z.boolean(),
+});
+
+export const discordBotTradeChannelsResponseSchema = z
+  .object({
+    /** False when the guild has no linked group; channelIds is then empty. */
+    linked: z.boolean(),
+    channelIds: z.array(z.string()),
+  })
+  .openapi("DiscordBotTradeChannelsResponse");
+
+export const discordBotAllTradeChannelsResponseSchema = z
+  .object({
+    guilds: z.array(z.object({ guildId: z.string(), channelIds: z.array(z.string()) })),
+  })
+  .openapi("DiscordBotAllTradeChannelsResponse");
+
 const TAG = "Discord Bot";
 
 /**
@@ -87,10 +108,38 @@ export const discordBotContract = {
     .meta({ auth: "bearer" })
     .input(z.object({ guildId: z.string().min(1).max(32), cardId: z.uuid() }))
     .output(discordBotTradelistHoldersResponseSchema),
+  setTradeChannel: oc
+    .route({
+      method: "POST",
+      path: "/api/v1/discord-bot/guilds/{guildId}/trade-channels",
+      tags: [TAG],
+      description:
+        "Opts one channel of a linked guild in or out of card-name scanning. " +
+        "Called by the bot's /tradechannel command; unlinked guilds get `linked: false`.",
+    })
+    .meta({ auth: "bearer" })
+    .input(discordBotSetTradeChannelSchema)
+    .output(discordBotTradeChannelsResponseSchema),
+  tradeChannels: oc
+    .route({
+      method: "GET",
+      path: "/api/v1/discord-bot/trade-channels",
+      tags: [TAG],
+      description:
+        "Every linked guild that has trade channels. The bot caches this in memory " +
+        "and refreshes it periodically, since scanning is decided per message.",
+    })
+    .meta({ auth: "bearer" })
+    .input(z.object({}))
+    .output(discordBotAllTradeChannelsResponseSchema),
 };
 
 export type DiscordBotContract = typeof discordBotContract;
 export type DiscordBotRedeemLinkResponse = z.infer<typeof discordBotRedeemLinkResponseSchema>;
 export type DiscordBotTradelistHoldersResponse = z.infer<
   typeof discordBotTradelistHoldersResponseSchema
+>;
+export type DiscordBotTradeChannelsResponse = z.infer<typeof discordBotTradeChannelsResponseSchema>;
+export type DiscordBotAllTradeChannelsResponse = z.infer<
+  typeof discordBotAllTradeChannelsResponseSchema
 >;

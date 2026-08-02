@@ -167,6 +167,7 @@ import * as m218 from "./218-organize-list-rules.js";
 import * as m219 from "./219-daily-printing-prices-mv.js";
 import * as m220 from "./220-collection-events-immutable-refs.js";
 import * as m221 from "./221-latest-prices-last-seen.js";
+import * as m222 from "./222-discord-trade-channels.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -393,4 +394,5 @@ export const migrations: Record<string, Migration> = {
   "219-daily-printing-prices-mv": m219,
   "220-collection-events-immutable-refs": m220,
   "221-latest-prices-last-seen": m221,
+  "222-discord-trade-channels": m222,
 };

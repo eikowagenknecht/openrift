@@ -191,6 +191,72 @@ describe.skipIf(!ctx)("friendGroupDiscordLinksRepo (integration)", () => {
     expect(await repo.findByGuildId(`guild-${groupA.id}`)).toBeUndefined();
   });
 
+  /**
+   * Links a fresh group to a guild.
+   *
+   * @returns The linked guild id.
+   */
+  async function linkedGuild(prefix: string): Promise<string> {
+    const group = await createGroup();
+    const guildId = `guild-${prefix}-${group.id}`;
+    await repo.createPendingLink({
+      groupId: group.id,
+      createdByUserId: OWNER_ID,
+      code: `${prefix}-${group.id}`,
+      codeExpiresAt: futureExpiry(),
+    });
+    await repo.redeemCode({ code: `${prefix}-${group.id}`, guildId, guildName: null });
+    return guildId;
+  }
+
+  it("adds and removes trade channels idempotently", async () => {
+    const guildId = await linkedGuild("tc");
+
+    expect(await repo.setTradeChannel({ guildId, channelId: "chan-1", enabled: true })).toEqual([
+      "chan-1",
+    ]);
+    // Adding the same channel twice must not duplicate it.
+    expect(await repo.setTradeChannel({ guildId, channelId: "chan-1", enabled: true })).toEqual([
+      "chan-1",
+    ]);
+    expect(await repo.setTradeChannel({ guildId, channelId: "chan-2", enabled: true })).toEqual([
+      "chan-1",
+      "chan-2",
+    ]);
+    expect(await repo.setTradeChannel({ guildId, channelId: "chan-1", enabled: false })).toEqual([
+      "chan-2",
+    ]);
+    // Removing one that was never there is a no-op, not an error.
+    expect(await repo.setTradeChannel({ guildId, channelId: "chan-9", enabled: false })).toEqual([
+      "chan-2",
+    ]);
+  });
+
+  it("reports no link rather than failing for an unlinked guild", async () => {
+    expect(
+      await repo.setTradeChannel({ guildId: "guild-never-linked", channelId: "c", enabled: true }),
+    ).toBeNull();
+  });
+
+  it("lists only guilds that actually have trade channels", async () => {
+    const withChannels = await linkedGuild("has");
+    const withoutChannels = await linkedGuild("none");
+    await repo.setTradeChannel({ guildId: withChannels, channelId: "chan-x", enabled: true });
+
+    const listed = await repo.listTradeChannels();
+    expect(listed.find((entry) => entry.guildId === withChannels)?.channelIds).toEqual(["chan-x"]);
+    expect(listed.some((entry) => entry.guildId === withoutChannels)).toBe(false);
+  });
+
+  it("drops a guild from the list once its last channel is turned off", async () => {
+    const guildId = await linkedGuild("drop");
+    await repo.setTradeChannel({ guildId, channelId: "chan-only", enabled: true });
+    await repo.setTradeChannel({ guildId, channelId: "chan-only", enabled: false });
+
+    const listed = await repo.listTradeChannels();
+    expect(listed.some((entry) => entry.guildId === guildId)).toBe(false);
+  });
+
   it("cascades links away with the group", async () => {
     const group = await createGroup();
     await repo.createPendingLink({

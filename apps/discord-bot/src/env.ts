@@ -11,6 +11,13 @@ export interface BotEnv {
    * registered and card replies carry no tradelist info.
    */
   apiSecret: string | null;
+  /**
+   * What trade-channel scanning does with what it finds. `log` (the default)
+   * writes the reply it would have posted to the log and posts nothing, so a
+   * server's real traffic can tune the matcher before the bot ever speaks
+   * unprompted; `reply` posts for real.
+   */
+  tradeScanMode: "log" | "reply";
 }
 
 /**
@@ -31,5 +38,8 @@ export function readBotEnv(env: Record<string, string | undefined> = process.env
     apiUrl: env.API_INTERNAL_URL ?? "http://localhost:3000",
     siteUrl: env.SITE_URL ?? "http://localhost:5173",
     apiSecret: env.DISCORD_BOT_API_SECRET ?? null,
+    // Anything other than an explicit "reply" stays quiet: a typo in this var
+    // must not be what makes the bot start posting on its own.
+    tradeScanMode: env.DISCORD_TRADE_SCAN_MODE === "reply" ? "reply" : "log",
   };
 }

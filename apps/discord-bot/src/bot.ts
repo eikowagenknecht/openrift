@@ -48,6 +48,9 @@ import {
   searchRules,
 } from "./rule-search.js";
 import type { RulesCache } from "./rules-cache.js";
+import type { TradeChannelCache } from "./trade-channels.js";
+import type { ScanIndex } from "./trade-scan.js";
+import { buildScanIndex, buildTradeReply, scanForCards, tradeLine } from "./trade-scan.js";
 
 const CARD_COMMAND = {
   name: "card",
@@ -113,11 +116,28 @@ const RULE_COMMAND = {
   ],
 } as const;
 
+const TRADE_CHANNEL_COMMAND = {
+  name: "tradechannel",
+  description: "Mark this channel as a trade channel, so card names in posts get offers attached",
+  options: [
+    {
+      type: ApplicationCommandOptionType.Boolean,
+      name: "enabled",
+      description: "On to scan this channel, off to stop",
+      required: true,
+    },
+  ],
+  // Server managers only — this decides where the bot speaks unprompted.
+  default_member_permissions: PermissionFlagsBits.ManageGuild.toString(),
+  dm_permission: false,
+} as const;
+
 interface BotContext {
   env: BotEnv;
   api: ApiClients;
   cache: CatalogCache;
   rules: RulesCache;
+  tradeChannels: TradeChannelCache;
 }
 
 /** Glyph emojis of the logged-in application, resolved once on ready; empty until then. */
@@ -135,6 +155,23 @@ function indexFor(cache: CatalogCache): CardIndex | null {
     cachedIndex = { snapshot, index: buildCardIndex(snapshot.cards, snapshot.printingsByCardId) };
   }
   return cachedIndex.index;
+}
+
+/** Same lazy-per-snapshot pattern, for the free-prose scan of trade channels. */
+let cachedScanIndex: { snapshot: unknown; index: ScanIndex } | null = null;
+
+function scanIndexFor(cache: CatalogCache): ScanIndex | null {
+  const snapshot = cache.snapshot;
+  if (!snapshot) {
+    return null;
+  }
+  if (cachedScanIndex?.snapshot !== snapshot) {
+    cachedScanIndex = {
+      snapshot,
+      index: buildScanIndex(snapshot.cards, snapshot.printingsByCardId),
+    };
+  }
+  return cachedScanIndex.index;
 }
 
 /** Same lazy-per-snapshot pattern as the card index, for the rules. */
@@ -375,6 +412,62 @@ async function handleLinkCommand(ctx: BotContext, interaction: ChatInputCommandI
   });
 }
 
+/**
+ * The /tradechannel command: opts the current channel in or out of card-name
+ * scanning. Restricted to members with Manage Server, and only meaningful in a
+ * guild already linked to a group — linking is the group's consent, this is
+ * the server saying where that consent applies.
+ */
+async function handleTradeChannelCommand(
+  ctx: BotContext,
+  interaction: ChatInputCommandInteraction,
+) {
+  const api = ctx.api.discordBot;
+  if (!api || !interaction.inGuild()) {
+    await interaction.reply({
+      content: "Trade channels only work in a server, and need the bot's group features enabled.",
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+  const enabled = interaction.options.getBoolean("enabled", true);
+  const { error, data } = await safe(
+    api.setTradeChannel({
+      guildId: interaction.guildId,
+      channelId: interaction.channelId,
+      enabled,
+    }),
+  );
+  if (error) {
+    console.error("set-trade-channel failed", error);
+    await interaction.reply({
+      content: "Couldn't save that, try again in a moment.",
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+  if (!data.linked) {
+    await interaction.reply({
+      content:
+        "This server isn't linked to an OpenRift group yet. Run `/link` with a code from the group's Manage page first.",
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+  // Write through so the setting applies to the very next message here,
+  // rather than at the cache's next refresh.
+  ctx.tradeChannels.set(interaction.guildId, data.channelIds);
+  const mode =
+    ctx.env.tradeScanMode === "reply"
+      ? ""
+      : " (the bot is in log-only mode right now, so it won't post yet)";
+  await interaction.reply({
+    content: enabled
+      ? `This channel is now a trade channel. Card names in posts here will get an offers reply.${mode}`
+      : "This channel is no longer a trade channel.",
+  });
+}
+
 async function handleDeckCommand(ctx: BotContext, interaction: ChatInputCommandInteraction) {
   const snapshot = ctx.cache.snapshot;
   if (!snapshot) {
@@ -428,8 +521,60 @@ type MessageMatch =
   | { type: "card"; card: CatalogCard; reference: string }
   | { type: "rule"; entry: IndexedRule };
 
+/**
+ * Answers a post in a trade channel with the offers the guild's linked group
+ * holds for the cards it names — no brackets, no command, nothing the poster
+ * had to know about. Silence is the default: cards nobody offers contribute
+ * no line, and a message whose every name draws a blank produces no reply, so
+ * the noise floor is the group's actual supply rather than the match count.
+ */
+async function handleTradeScan(ctx: BotContext, message: Message) {
+  const index = scanIndexFor(ctx.cache);
+  if (!index) {
+    return;
+  }
+  const cards = scanForCards(message.content, index);
+  if (cards.length === 0) {
+    return;
+  }
+  const holders = await Promise.all(
+    cards.map((card) => fetchTradelistHolders(ctx.api, message.guildId, card.id)),
+  );
+  const lines = cards.map((card, position) =>
+    tradeLine(card, holders[position] ?? null, ctx.env.siteUrl),
+  );
+  const groupName = holders.find((entry) => entry?.groupName)?.groupName ?? null;
+  const reply = buildTradeReply(lines, groupName);
+  if (!reply) {
+    return;
+  }
+  // Log-only is the default: a channel's real traffic tunes the matcher
+  // before the bot ever posts something nobody asked for.
+  if (ctx.env.tradeScanMode !== "reply") {
+    console.log(
+      `[trade-scan log-only] #${message.channelId}: matched ${cards
+        .map((card) => card.name)
+        .join(", ")} — would reply:\n${reply}`,
+    );
+    return;
+  }
+  await message.reply({ content: reply, allowedMentions: { parse: [], repliedUser: false } });
+}
+
 async function handleMessage(ctx: BotContext, message: Message) {
-  if (message.author.bot || !message.content.includes("[[")) {
+  if (message.author.bot) {
+    return;
+  }
+  if (ctx.tradeChannels.isTradeChannel(message.guildId, message.channelId)) {
+    // Isolated: a scan failure must not swallow the [[card name]] reply below,
+    // which is the path someone explicitly asked for.
+    try {
+      await handleTradeScan(ctx, message);
+    } catch (error) {
+      console.error("Trade scan failed", error);
+    }
+  }
+  if (!message.content.includes("[[")) {
     return;
   }
   const cardIndex = indexFor(ctx.cache);
@@ -515,7 +660,7 @@ export function createBot(ctx: BotContext): Client {
         CARD_COMMAND,
         DECK_COMMAND,
         RULE_COMMAND,
-        ...(ctx.api.discordBot ? [LINK_COMMAND] : []),
+        ...(ctx.api.discordBot ? [LINK_COMMAND, TRADE_CHANNEL_COMMAND] : []),
       ]);
     } catch (error) {
       console.error("Failed to register slash commands", error);
@@ -558,6 +703,11 @@ export function createBot(ctx: BotContext): Client {
         interaction.commandName === LINK_COMMAND.name
       ) {
         await handleLinkCommand(ctx, interaction);
+      } else if (
+        interaction.isChatInputCommand() &&
+        interaction.commandName === TRADE_CHANNEL_COMMAND.name
+      ) {
+        await handleTradeChannelCommand(ctx, interaction);
       }
     } catch (error) {
       console.error("Interaction handling failed", error);

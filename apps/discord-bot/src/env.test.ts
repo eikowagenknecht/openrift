@@ -23,4 +23,19 @@ describe("readBotEnv", () => {
     expect(env.apiUrl).toBe("http://api:3000");
     expect(env.siteUrl).toBe("https://openrift.example");
   });
+
+  it("only posts trade-scan replies when explicitly told to", () => {
+    expect(readBotEnv({ DISCORD_BOT_TOKEN: "t" }).tradeScanMode).toBe("log");
+    expect(
+      readBotEnv({ DISCORD_BOT_TOKEN: "t", DISCORD_TRADE_SCAN_MODE: "reply" }).tradeScanMode,
+    ).toBe("reply");
+  });
+
+  it("treats a mistyped trade-scan mode as log-only, never as replying", () => {
+    for (const value of ["Reply", "yes", "true", "", "post"]) {
+      expect(
+        readBotEnv({ DISCORD_BOT_TOKEN: "t", DISCORD_TRADE_SCAN_MODE: value }).tradeScanMode,
+      ).toBe("log");
+    }
+  });
 });

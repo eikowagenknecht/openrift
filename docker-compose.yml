@@ -105,6 +105,9 @@ services:
       # Shared with the API (which reads it from .env via env_file); unset
       # disables the group features (/link, tradelist replies).
       DISCORD_BOT_API_SECRET: "${DISCORD_BOT_API_SECRET-}"
+      # Unset means log-only: trade-channel scanning logs what it would post
+      # and posts nothing. Set to `reply` to let it answer for real.
+      DISCORD_TRADE_SCAN_MODE: "${DISCORD_TRADE_SCAN_MODE-}"
       API_INTERNAL_URL: "http://api:3000"
       SITE_URL: "${SITE_URL}"
     logging:

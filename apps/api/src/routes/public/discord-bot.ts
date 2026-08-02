@@ -3,7 +3,9 @@ import { createHash, timingSafeEqual } from "node:crypto";
 
 import { ERROR_CODES } from "@openrift/shared";
 import type {
+  DiscordBotAllTradeChannelsResponse,
   DiscordBotRedeemLinkResponse,
+  DiscordBotTradeChannelsResponse,
   DiscordBotTradelistHoldersResponse,
 } from "@openrift/shared/contracts";
 import { discordBotContract } from "@openrift/shared/contracts";
@@ -86,6 +88,29 @@ export const discordBotRouter = {
           printings: holder.printings,
         })),
       };
+    },
+  ),
+
+  setTradeChannel: os.setTradeChannel.handler(
+    async ({ input, context }): Promise<DiscordBotTradeChannelsResponse> => {
+      requireBotSecret(context);
+      const channelIds = await context.repos.friendGroupDiscordLinks.setTradeChannel({
+        guildId: input.guildId,
+        channelId: input.channelId,
+        enabled: input.enabled,
+      });
+      if (!channelIds) {
+        return { linked: false, channelIds: [] };
+      }
+      return { linked: true, channelIds };
+    },
+  ),
+
+  tradeChannels: os.tradeChannels.handler(
+    async ({ context }): Promise<DiscordBotAllTradeChannelsResponse> => {
+      requireBotSecret(context);
+      const guilds = await context.repos.friendGroupDiscordLinks.listTradeChannels();
+      return { guilds };
     },
   ),
 };

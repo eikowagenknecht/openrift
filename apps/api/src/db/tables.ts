@@ -786,6 +786,8 @@ export interface FriendGroupDiscordLinksTable {
   createdByUserId: string | null;
   createdAt: CreatedAt;
   linkedAt: Date | null;
+  /** Channels of the linked guild the bot scans for card names (migration 222). */
+  tradeChannelIds: Generated<string[]>;
 }
 
 // ─── Organizations (migration 166, ADR-033) ──────────────────────────────────

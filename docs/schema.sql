@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict rl4HdpsKqPGBRdbbfzDm7XGd7wY7uPchawVzXMevrOFjZKnhRITNCWPOjmDa64r
+\restrict c25u0eVf1s2rUjX2eeF3OBbrGci4ijnkHRW7b14EwHxaF7DjsEvB5PSaD0ZSWcc
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1328,9 +1328,11 @@ CREATE TABLE public.friend_group_discord_links (
     created_by_user_id text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     linked_at timestamp with time zone,
+    trade_channel_ids text[] DEFAULT '{}'::text[] NOT NULL,
     CONSTRAINT chk_fg_discord_links_linked_at CHECK (((guild_id IS NULL) = (linked_at IS NULL))),
     CONSTRAINT chk_fg_discord_links_pending_expiry CHECK (((code IS NULL) OR (code_expires_at IS NOT NULL))),
-    CONSTRAINT chk_fg_discord_links_state CHECK (((guild_id IS NULL) <> (code IS NULL)))
+    CONSTRAINT chk_fg_discord_links_state CHECK (((guild_id IS NULL) <> (code IS NULL))),
+    CONSTRAINT chk_fg_discord_links_trade_channels CHECK (((guild_id IS NOT NULL) OR (cardinality(trade_channel_ids) = 0)))
 );
 
 
@@ -6186,5 +6188,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict rl4HdpsKqPGBRdbbfzDm7XGd7wY7uPchawVzXMevrOFjZKnhRITNCWPOjmDa64r
+\unrestrict c25u0eVf1s2rUjX2eeF3OBbrGci4ijnkHRW7b14EwHxaF7DjsEvB5PSaD0ZSWcc
 

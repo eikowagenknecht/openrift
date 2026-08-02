@@ -132,6 +132,57 @@ export function friendGroupDiscordLinksRepo(db: Kysely<Database>) {
     },
 
     /**
+     * Opts one channel of a linked guild in or out of card-name scanning.
+     * Idempotent in both directions, and a no-op for an unlinked guild.
+     * @returns The guild's trade channels after the change, or null when the
+     * guild has no link.
+     */
+    async setTradeChannel(values: {
+      guildId: string;
+      channelId: string;
+      enabled: boolean;
+    }): Promise<string[] | null> {
+      const link = await db
+        .selectFrom("friendGroupDiscordLinks")
+        .select(["id", "tradeChannelIds"])
+        .where("guildId", "=", values.guildId)
+        .executeTakeFirst();
+      if (!link) {
+        return null;
+      }
+      const current = new Set(link.tradeChannelIds);
+      if (values.enabled) {
+        current.add(values.channelId);
+      } else {
+        current.delete(values.channelId);
+      }
+      const next = [...current].toSorted();
+      const updated = await db
+        .updateTable("friendGroupDiscordLinks")
+        .set({ tradeChannelIds: next })
+        .where("id", "=", link.id)
+        .returning("tradeChannelIds")
+        .executeTakeFirstOrThrow();
+      return updated.tradeChannelIds;
+    },
+
+    /**
+     * Every linked guild that has at least one trade channel. The bot holds
+     * this in memory and refreshes it periodically: deciding whether to scan
+     * happens on every message, which no per-message query could carry.
+     * @returns One entry per guild with trade channels.
+     */
+    listTradeChannels(): Promise<{ guildId: string; channelIds: string[] }[]> {
+      return db
+        .selectFrom("friendGroupDiscordLinks")
+        .select(["guildId", "tradeChannelIds as channelIds"])
+        .where("guildId", "is not", null)
+        .where(({ eb, fn }) => eb(fn("cardinality", ["tradeChannelIds"]), ">", 0))
+        .orderBy("guildId", "asc")
+        .execute() as Promise<{ guildId: string; channelIds: string[] }[]>;
+    },
+
+    /**
      * Resolves a guild to its linked group, if any.
      * @returns The link joined with the group's id, slug, and name, or undefined.
      */

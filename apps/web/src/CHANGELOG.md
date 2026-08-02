@@ -2,6 +2,10 @@
 
 ## 2026-08-02
 
+### Highlights
+
+- feat(Trades): **Discord trade channels** — mark a channel with `/tradechannel` and the bot answers ordinary posts that name a card with who in your group has it, no command needed.
+
 ### Other
 
 - feat(App): **Shorter Discord card replies** — a card lookup now shows the image and prices, with the stats and rules text behind a Details button, and flags a ban or errata right away.

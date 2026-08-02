@@ -3,6 +3,7 @@ import { createBot } from "./bot.js";
 import { CatalogCache } from "./catalog-cache.js";
 import { readBotEnv } from "./env.js";
 import { RulesCache } from "./rules-cache.js";
+import { TradeChannelCache } from "./trade-channels.js";
 
 const REFRESH_INTERVAL_MS = 30 * 60 * 1000;
 const STARTUP_RETRY_MS = 15 * 1000;
@@ -51,7 +52,13 @@ async function refreshSafely(): Promise<void> {
 
 setInterval(() => void refreshSafely(), REFRESH_INTERVAL_MS);
 
-const client = createBot({ env, api, cache, rules });
+// Which channels get scanned. Off by default and never blocking: a failure
+// here leaves the map empty, which means no scanning, not scanning everything.
+const tradeChannels = new TradeChannelCache(api);
+await tradeChannels.start();
+console.log(`Trade scanning: ${env.tradeScanMode === "reply" ? "replying" : "log-only"}`);
+
+const client = createBot({ env, api, cache, rules, tradeChannels });
 
 async function shutdown(signal: string): Promise<void> {
   console.log(`Received ${signal}, shutting down`);
