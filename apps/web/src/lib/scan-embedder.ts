@@ -83,7 +83,9 @@ export async function loadScanEmbedder(
   }
   cached ??= (async () => {
     const ort = await import("onnxruntime-web/wasm");
-    ort.env.wasm.wasmPaths = { wasm: wasmPaths.wasm, mjs: wasmPaths.mjs };
+    // The binary only. Overriding the glue path too would switch ort off its
+    // embedded copy for a separate download (see scan-ort-assets.ts).
+    ort.env.wasm.wasmPaths = { wasm: wasmPaths.wasm };
     // Keep inference off the main thread: without the proxy every forward pass
     // blocks the UI for its full duration (1-2 s per frame on a phone). Threads
     // only engage under cross-origin isolation (COOP/COEP, set by the dev

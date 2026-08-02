@@ -44,7 +44,7 @@ export interface ScanWorkerInit {
   bankUrl: string;
   labelsUrl: string;
   /** Resolved by the page: see scan-ort-assets.ts for why not here. */
-  wasmPaths: { wasm: string; mjs: string };
+  wasmPaths: { wasm: string };
 }
 
 /**
