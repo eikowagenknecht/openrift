@@ -2,8 +2,8 @@ import type { ClassifiedCardTag, TagCategoryResponse } from "@openrift/shared";
 import { useState } from "react";
 
 import {
-  CategoryDescriptionInput,
   CategorySelectOptions,
+  DescriptionInput,
   validateSlugAndLabel,
 } from "@/components/admin/admin-crud-shared";
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
@@ -135,8 +135,8 @@ const categoryColumns: AdminColumnDef<TagCategoryResponse, TagCategoryDraft>[] =
     header: "Description",
     sortValue: (cat) => cat.description ?? "",
     cell: <CategoryDescriptionCell />,
-    editCell: <CategoryDescriptionInput<TagCategoryDraft> />,
-    addCell: <CategoryDescriptionInput<TagCategoryDraft> />,
+    editCell: <DescriptionInput<TagCategoryDraft> />,
+    addCell: <DescriptionInput<TagCategoryDraft> />,
   },
   {
     header: "Tags",

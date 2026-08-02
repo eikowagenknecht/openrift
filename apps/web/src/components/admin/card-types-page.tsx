@@ -1,11 +1,15 @@
+import {
+  LabelAddInput,
+  LabelCell,
+  LabelInput,
+  SlugAddInput,
+  SlugCell,
+  validateSlugAndLabel,
+  WellKnownCell,
+} from "@/components/admin/admin-crud-shared";
 import { AdminTable } from "@/components/admin/admin-table";
-import type {
-  AdminCellSlotProps,
-  AdminColumnDef,
-  AdminDraftSlotProps,
-} from "@/components/admin/admin-table";
+import type { AdminColumnDef } from "@/components/admin/admin-table";
 import { PageDescription } from "@/components/layout/page-top-bar";
-import { Input } from "@/components/ui/input";
 import {
   useCardTypes,
   useCreateCardType,
@@ -13,7 +17,7 @@ import {
   useReorderCardTypes,
   useUpdateCardType,
 } from "@/hooks/use-card-types";
-import { isValidSlug } from "@/lib/admin-slug";
+import { swapForReorder } from "@/lib/admin-reorder";
 
 interface CardTypeRow {
   slug: string;
@@ -27,87 +31,23 @@ interface CardTypeDraft {
   label: string;
 }
 
-function SlugCell({ row }: AdminCellSlotProps<CardTypeRow>) {
-  if (!row) {
-    return null;
-  }
-  return <span className="font-mono text-sm">{row.slug}</span>;
-}
-
-function LabelCell({ row }: AdminCellSlotProps<CardTypeRow>) {
-  if (!row) {
-    return null;
-  }
-  return <span className="text-sm">{row.label}</span>;
-}
-
-function WellKnownCell({ row }: AdminCellSlotProps<CardTypeRow>) {
-  if (!row) {
-    return null;
-  }
-  return <span className="text-muted-foreground text-sm">{row.isWellKnown ? "Yes" : "No"}</span>;
-}
-
-function SlugAddInput({ draft, setDraft }: AdminDraftSlotProps<CardTypeDraft>) {
-  if (!draft || !setDraft) {
-    return null;
-  }
-  return (
-    <Input
-      value={draft.slug}
-      onChange={(event) =>
-        setDraft((prev) => ({ ...prev, slug: event.target.value.toLowerCase() }))
-      }
-      placeholder="unit"
-      className="h-8 w-40 font-mono"
-    />
-  );
-}
-
-function LabelInput({ draft, setDraft }: AdminDraftSlotProps<CardTypeDraft>) {
-  if (!draft || !setDraft) {
-    return null;
-  }
-  return (
-    <Input
-      value={draft.label}
-      onChange={(event) => setDraft((prev) => ({ ...prev, label: event.target.value }))}
-      className="h-8"
-    />
-  );
-}
-
-function LabelAddInput({ draft, setDraft }: AdminDraftSlotProps<CardTypeDraft>) {
-  if (!draft || !setDraft) {
-    return null;
-  }
-  return (
-    <Input
-      value={draft.label}
-      onChange={(event) => setDraft((prev) => ({ ...prev, label: event.target.value }))}
-      placeholder="Unit"
-      className="h-8"
-    />
-  );
-}
-
 const columns: AdminColumnDef<CardTypeRow, CardTypeDraft>[] = [
   {
     header: "Slug",
     sortValue: (cardType) => cardType.slug,
-    cell: <SlugCell />,
-    addCell: <SlugAddInput />,
+    cell: <SlugCell<CardTypeRow> />,
+    addCell: <SlugAddInput<CardTypeDraft> placeholder="unit" />,
   },
   {
     header: "Label",
     sortValue: (cardType) => cardType.label,
-    cell: <LabelCell />,
-    editCell: <LabelInput />,
-    addCell: <LabelAddInput />,
+    cell: <LabelCell<CardTypeRow> />,
+    editCell: <LabelInput<CardTypeDraft> />,
+    addCell: <LabelAddInput<CardTypeDraft> placeholder="Unit" />,
   },
   {
     header: "Well-known",
-    cell: <WellKnownCell />,
+    cell: <WellKnownCell<CardTypeRow> />,
   },
 ];
 
@@ -120,13 +60,10 @@ export function CardTypesPage() {
   const { cardTypes } = data;
 
   function moveCardType(index: number, direction: -1 | 1) {
-    const newIndex = index + direction;
-    if (newIndex < 0 || newIndex >= cardTypes.length) {
-      return;
+    const reordered = swapForReorder(cardTypes, index, direction, (cardType) => cardType.slug);
+    if (reordered) {
+      reorderMutation.mutate(reordered);
     }
-    const reordered = cardTypes.map((cardType) => cardType.slug);
-    [reordered[index], reordered[newIndex]] = [reordered[newIndex], reordered[index]];
-    reorderMutation.mutate(reordered);
   }
 
   return (
@@ -149,17 +86,7 @@ export function CardTypesPage() {
             slug: draft.slug.trim(),
             label: draft.label.trim(),
           }),
-        validate: (draft) => {
-          const slug = draft.slug.trim();
-          const label = draft.label.trim();
-          if (!slug || !label) {
-            return "Slug and label are required";
-          }
-          if (!isValidSlug(slug)) {
-            return "Slug must be kebab-case (e.g. unit, battlefield)";
-          }
-          return null;
-        },
+        validate: (draft) => validateSlugAndLabel(draft.slug, draft.label, "unit, battlefield"),
         label: "Add Card Type",
       }}
       edit={{

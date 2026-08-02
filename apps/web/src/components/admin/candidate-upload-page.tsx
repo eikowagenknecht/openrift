@@ -47,6 +47,7 @@ import {
   useProviderSettings,
   useUpdateProviderSetting,
 } from "@/hooks/use-provider-settings";
+import { swapForReorder } from "@/lib/admin-reorder";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { cn } from "@/lib/utils";
@@ -839,13 +840,10 @@ function ManageProvidersCard({
     }));
 
   function moveProvider(index: number, direction: -1 | 1) {
-    const newIndex = index + direction;
-    if (newIndex < 0 || newIndex >= rows.length) {
-      return;
+    const reordered = swapForReorder(rows, index, direction, (r) => r.name);
+    if (reordered) {
+      reorderMutation.mutate(reordered);
     }
-    const reordered = rows.map((r) => r.name);
-    [reordered[index], reordered[newIndex]] = [reordered[newIndex], reordered[index]];
-    reorderMutation.mutate(reordered);
   }
 
   return (

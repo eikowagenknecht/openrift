@@ -1,11 +1,15 @@
+import {
+  LabelAddInput,
+  LabelCell,
+  LabelInput,
+  SlugAddInput,
+  SlugCell,
+  validateSlugAndLabel,
+  WellKnownCell,
+} from "@/components/admin/admin-crud-shared";
 import { AdminTable } from "@/components/admin/admin-table";
-import type {
-  AdminCellSlotProps,
-  AdminColumnDef,
-  AdminDraftSlotProps,
-} from "@/components/admin/admin-table";
+import type { AdminColumnDef } from "@/components/admin/admin-table";
 import { PageDescription } from "@/components/layout/page-top-bar";
-import { Input } from "@/components/ui/input";
 import {
   useCreateSuperType,
   useDeleteSuperType,
@@ -13,7 +17,7 @@ import {
   useSuperTypes,
   useUpdateSuperType,
 } from "@/hooks/use-super-types";
-import { isValidSlug } from "@/lib/admin-slug";
+import { swapForReorder } from "@/lib/admin-reorder";
 
 interface SuperTypeRow {
   slug: string;
@@ -27,87 +31,23 @@ interface SuperTypeDraft {
   label: string;
 }
 
-function SlugCell({ row }: AdminCellSlotProps<SuperTypeRow>) {
-  if (!row) {
-    return null;
-  }
-  return <span className="font-mono text-sm">{row.slug}</span>;
-}
-
-function LabelCell({ row }: AdminCellSlotProps<SuperTypeRow>) {
-  if (!row) {
-    return null;
-  }
-  return <span className="text-sm">{row.label}</span>;
-}
-
-function WellKnownCell({ row }: AdminCellSlotProps<SuperTypeRow>) {
-  if (!row) {
-    return null;
-  }
-  return <span className="text-muted-foreground text-sm">{row.isWellKnown ? "Yes" : "No"}</span>;
-}
-
-function SlugAddInput({ draft, setDraft }: AdminDraftSlotProps<SuperTypeDraft>) {
-  if (!draft || !setDraft) {
-    return null;
-  }
-  return (
-    <Input
-      value={draft.slug}
-      onChange={(event) =>
-        setDraft((prev) => ({ ...prev, slug: event.target.value.toLowerCase() }))
-      }
-      placeholder="champion"
-      className="h-8 w-40 font-mono"
-    />
-  );
-}
-
-function LabelInput({ draft, setDraft }: AdminDraftSlotProps<SuperTypeDraft>) {
-  if (!draft || !setDraft) {
-    return null;
-  }
-  return (
-    <Input
-      value={draft.label}
-      onChange={(event) => setDraft((prev) => ({ ...prev, label: event.target.value }))}
-      className="h-8"
-    />
-  );
-}
-
-function LabelAddInput({ draft, setDraft }: AdminDraftSlotProps<SuperTypeDraft>) {
-  if (!draft || !setDraft) {
-    return null;
-  }
-  return (
-    <Input
-      value={draft.label}
-      onChange={(event) => setDraft((prev) => ({ ...prev, label: event.target.value }))}
-      placeholder="Champion"
-      className="h-8"
-    />
-  );
-}
-
 const columns: AdminColumnDef<SuperTypeRow, SuperTypeDraft>[] = [
   {
     header: "Slug",
     sortValue: (superType) => superType.slug,
-    cell: <SlugCell />,
-    addCell: <SlugAddInput />,
+    cell: <SlugCell<SuperTypeRow> />,
+    addCell: <SlugAddInput<SuperTypeDraft> placeholder="champion" />,
   },
   {
     header: "Label",
     sortValue: (superType) => superType.label,
-    cell: <LabelCell />,
-    editCell: <LabelInput />,
-    addCell: <LabelAddInput />,
+    cell: <LabelCell<SuperTypeRow> />,
+    editCell: <LabelInput<SuperTypeDraft> />,
+    addCell: <LabelAddInput<SuperTypeDraft> placeholder="Champion" />,
   },
   {
     header: "Well-known",
-    cell: <WellKnownCell />,
+    cell: <WellKnownCell<SuperTypeRow> />,
   },
 ];
 
@@ -120,13 +60,10 @@ export function SuperTypesPage() {
   const { superTypes } = data;
 
   function moveSuperType(index: number, direction: -1 | 1) {
-    const newIndex = index + direction;
-    if (newIndex < 0 || newIndex >= superTypes.length) {
-      return;
+    const reordered = swapForReorder(superTypes, index, direction, (superType) => superType.slug);
+    if (reordered) {
+      reorderMutation.mutate(reordered);
     }
-    const reordered = superTypes.map((superType) => superType.slug);
-    [reordered[index], reordered[newIndex]] = [reordered[newIndex], reordered[index]];
-    reorderMutation.mutate(reordered);
   }
 
   return (
@@ -148,17 +85,7 @@ export function SuperTypesPage() {
             slug: draft.slug.trim(),
             label: draft.label.trim(),
           }),
-        validate: (draft) => {
-          const slug = draft.slug.trim();
-          const label = draft.label.trim();
-          if (!slug || !label) {
-            return "Slug and label are required";
-          }
-          if (!isValidSlug(slug)) {
-            return "Slug must be kebab-case (e.g. champion, signature)";
-          }
-          return null;
-        },
+        validate: (draft) => validateSlugAndLabel(draft.slug, draft.label, "champion, signature"),
         label: "Add Supertype",
       }}
       edit={{

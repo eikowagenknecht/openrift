@@ -1,11 +1,15 @@
+import {
+  LabelAddInput,
+  LabelCell,
+  LabelInput,
+  SlugAddInput,
+  SlugCell,
+  validateSlugAndLabel,
+  WellKnownCell,
+} from "@/components/admin/admin-crud-shared";
 import { AdminTable } from "@/components/admin/admin-table";
-import type {
-  AdminCellSlotProps,
-  AdminColumnDef,
-  AdminDraftSlotProps,
-} from "@/components/admin/admin-table";
+import type { AdminColumnDef } from "@/components/admin/admin-table";
 import { PageDescription } from "@/components/layout/page-top-bar";
-import { Input } from "@/components/ui/input";
 import {
   useCreateFinish,
   useDeleteFinish,
@@ -13,7 +17,7 @@ import {
   useReorderFinishes,
   useUpdateFinish,
 } from "@/hooks/use-finishes";
-import { isValidSlug } from "@/lib/admin-slug";
+import { swapForReorder } from "@/lib/admin-reorder";
 
 interface FinishRow {
   slug: string;
@@ -27,87 +31,23 @@ interface FinishDraft {
   label: string;
 }
 
-function SlugCell({ row }: AdminCellSlotProps<FinishRow>) {
-  if (!row) {
-    return null;
-  }
-  return <span className="font-mono text-sm">{row.slug}</span>;
-}
-
-function LabelCell({ row }: AdminCellSlotProps<FinishRow>) {
-  if (!row) {
-    return null;
-  }
-  return <span className="text-sm">{row.label}</span>;
-}
-
-function WellKnownCell({ row }: AdminCellSlotProps<FinishRow>) {
-  if (!row) {
-    return null;
-  }
-  return <span className="text-muted-foreground text-sm">{row.isWellKnown ? "Yes" : "No"}</span>;
-}
-
-function SlugAddInput({ draft, setDraft }: AdminDraftSlotProps<FinishDraft>) {
-  if (!draft || !setDraft) {
-    return null;
-  }
-  return (
-    <Input
-      value={draft.slug}
-      onChange={(event) =>
-        setDraft((prev) => ({ ...prev, slug: event.target.value.toLowerCase() }))
-      }
-      placeholder="foil"
-      className="h-8 w-40 font-mono"
-    />
-  );
-}
-
-function LabelInput({ draft, setDraft }: AdminDraftSlotProps<FinishDraft>) {
-  if (!draft || !setDraft) {
-    return null;
-  }
-  return (
-    <Input
-      value={draft.label}
-      onChange={(event) => setDraft((prev) => ({ ...prev, label: event.target.value }))}
-      className="h-8"
-    />
-  );
-}
-
-function LabelAddInput({ draft, setDraft }: AdminDraftSlotProps<FinishDraft>) {
-  if (!draft || !setDraft) {
-    return null;
-  }
-  return (
-    <Input
-      value={draft.label}
-      onChange={(event) => setDraft((prev) => ({ ...prev, label: event.target.value }))}
-      placeholder="Foil"
-      className="h-8"
-    />
-  );
-}
-
 const columns: AdminColumnDef<FinishRow, FinishDraft>[] = [
   {
     header: "Slug",
     sortValue: (finish) => finish.slug,
-    cell: <SlugCell />,
-    addCell: <SlugAddInput />,
+    cell: <SlugCell<FinishRow> />,
+    addCell: <SlugAddInput<FinishDraft> placeholder="foil" />,
   },
   {
     header: "Label",
     sortValue: (finish) => finish.label,
-    cell: <LabelCell />,
-    editCell: <LabelInput />,
-    addCell: <LabelAddInput />,
+    cell: <LabelCell<FinishRow> />,
+    editCell: <LabelInput<FinishDraft> />,
+    addCell: <LabelAddInput<FinishDraft> placeholder="Foil" />,
   },
   {
     header: "Well-known",
-    cell: <WellKnownCell />,
+    cell: <WellKnownCell<FinishRow> />,
   },
 ];
 
@@ -120,13 +60,10 @@ export function FinishesPage() {
   const { finishes } = data;
 
   function moveFinish(index: number, direction: -1 | 1) {
-    const newIndex = index + direction;
-    if (newIndex < 0 || newIndex >= finishes.length) {
-      return;
+    const reordered = swapForReorder(finishes, index, direction, (finish) => finish.slug);
+    if (reordered) {
+      reorderMutation.mutate(reordered);
     }
-    const reordered = finishes.map((finish) => finish.slug);
-    [reordered[index], reordered[newIndex]] = [reordered[newIndex], reordered[index]];
-    reorderMutation.mutate(reordered);
   }
 
   return (
@@ -148,17 +85,7 @@ export function FinishesPage() {
             slug: draft.slug.trim(),
             label: draft.label.trim(),
           }),
-        validate: (draft) => {
-          const slug = draft.slug.trim();
-          const label = draft.label.trim();
-          if (!slug || !label) {
-            return "Slug and label are required";
-          }
-          if (!isValidSlug(slug)) {
-            return "Slug must be kebab-case (e.g. foil, non-foil)";
-          }
-          return null;
-        },
+        validate: (draft) => validateSlugAndLabel(draft.slug, draft.label, "foil, non-foil"),
         label: "Add Finish",
       }}
       edit={{

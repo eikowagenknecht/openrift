@@ -28,6 +28,7 @@ import {
   useSets,
   useUpdateSet,
 } from "@/hooks/use-sets";
+import { swapForReorder } from "@/lib/admin-reorder";
 
 interface SetDraft {
   id: string;
@@ -311,13 +312,10 @@ export function SetsPage() {
   const { sets } = data;
 
   function moveSet(index: number, direction: -1 | 1) {
-    const newIndex = index + direction;
-    if (newIndex < 0 || newIndex >= sets.length) {
-      return;
+    const reordered = swapForReorder(sets, index, direction, (s) => s.id);
+    if (reordered) {
+      reorderMutation.mutate(reordered);
     }
-    const reordered = sets.map((s) => s.id);
-    [reordered[index], reordered[newIndex]] = [reordered[newIndex], reordered[index]];
-    reorderMutation.mutate(reordered);
   }
 
   return (

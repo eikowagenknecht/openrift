@@ -1,12 +1,15 @@
-import { LabelInput, validateSlugAndLabel } from "@/components/admin/admin-crud-shared";
+import {
+  LabelAddInput,
+  LabelCell,
+  LabelInput,
+  SlugAddInput,
+  SlugCell,
+  validateSlugAndLabel,
+  WellKnownCell,
+} from "@/components/admin/admin-crud-shared";
 import { AdminTable } from "@/components/admin/admin-table";
-import type {
-  AdminCellSlotProps,
-  AdminColumnDef,
-  AdminDraftSlotProps,
-} from "@/components/admin/admin-table";
+import type { AdminColumnDef } from "@/components/admin/admin-table";
 import { PageDescription } from "@/components/layout/page-top-bar";
-import { Input } from "@/components/ui/input";
 import {
   useArtVariants,
   useCreateArtVariant,
@@ -14,6 +17,7 @@ import {
   useReorderArtVariants,
   useUpdateArtVariant,
 } from "@/hooks/use-art-variants";
+import { swapForReorder } from "@/lib/admin-reorder";
 
 interface ArtVariantRow {
   slug: string;
@@ -27,74 +31,23 @@ interface ArtVariantDraft {
   label: string;
 }
 
-function SlugCell({ row }: AdminCellSlotProps<ArtVariantRow>) {
-  if (!row) {
-    return null;
-  }
-  return <span className="font-mono text-sm">{row.slug}</span>;
-}
-
-function LabelCell({ row }: AdminCellSlotProps<ArtVariantRow>) {
-  if (!row) {
-    return null;
-  }
-  return <span className="text-sm">{row.label}</span>;
-}
-
-function WellKnownCell({ row }: AdminCellSlotProps<ArtVariantRow>) {
-  if (!row) {
-    return null;
-  }
-  return <span className="text-muted-foreground text-sm">{row.isWellKnown ? "Yes" : "No"}</span>;
-}
-
-function SlugAddInput({ draft, setDraft }: AdminDraftSlotProps<ArtVariantDraft>) {
-  if (!draft || !setDraft) {
-    return null;
-  }
-  return (
-    <Input
-      value={draft.slug}
-      onChange={(event) =>
-        setDraft((prev) => ({ ...prev, slug: event.target.value.toLowerCase() }))
-      }
-      placeholder="alternate"
-      className="h-8 w-40 font-mono"
-    />
-  );
-}
-
-function LabelAddInput({ draft, setDraft }: AdminDraftSlotProps<ArtVariantDraft>) {
-  if (!draft || !setDraft) {
-    return null;
-  }
-  return (
-    <Input
-      value={draft.label}
-      onChange={(event) => setDraft((prev) => ({ ...prev, label: event.target.value }))}
-      placeholder="Alternate Art"
-      className="h-8"
-    />
-  );
-}
-
 const columns: AdminColumnDef<ArtVariantRow, ArtVariantDraft>[] = [
   {
     header: "Slug",
     sortValue: (artVariant) => artVariant.slug,
-    cell: <SlugCell />,
-    addCell: <SlugAddInput />,
+    cell: <SlugCell<ArtVariantRow> />,
+    addCell: <SlugAddInput<ArtVariantDraft> placeholder="alternate" />,
   },
   {
     header: "Label",
     sortValue: (artVariant) => artVariant.label,
-    cell: <LabelCell />,
+    cell: <LabelCell<ArtVariantRow> />,
     editCell: <LabelInput<ArtVariantDraft> />,
-    addCell: <LabelAddInput />,
+    addCell: <LabelAddInput<ArtVariantDraft> placeholder="Alternate Art" />,
   },
   {
     header: "Well-known",
-    cell: <WellKnownCell />,
+    cell: <WellKnownCell<ArtVariantRow> />,
   },
 ];
 
@@ -107,13 +60,10 @@ export function ArtVariantsPage() {
   const { artVariants } = data;
 
   function moveArtVariant(index: number, direction: -1 | 1) {
-    const newIndex = index + direction;
-    if (newIndex < 0 || newIndex >= artVariants.length) {
-      return;
+    const reordered = swapForReorder(artVariants, index, direction, (variant) => variant.slug);
+    if (reordered) {
+      reorderMutation.mutate(reordered);
     }
-    const reordered = artVariants.map((artVariant) => artVariant.slug);
-    [reordered[index], reordered[newIndex]] = [reordered[newIndex], reordered[index]];
-    reorderMutation.mutate(reordered);
   }
 
   return (

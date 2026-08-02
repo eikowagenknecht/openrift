@@ -1,12 +1,9 @@
+import { LabelCell, LabelInput, SlugCell } from "@/components/admin/admin-crud-shared";
 import { AdminTable } from "@/components/admin/admin-table";
-import type {
-  AdminCellSlotProps,
-  AdminColumnDef,
-  AdminDraftSlotProps,
-} from "@/components/admin/admin-table";
+import type { AdminColumnDef } from "@/components/admin/admin-table";
 import { PageDescription } from "@/components/layout/page-top-bar";
-import { Input } from "@/components/ui/input";
 import { useDeckZones, useReorderDeckZones, useUpdateDeckZone } from "@/hooks/use-deck-zones";
+import { swapForReorder } from "@/lib/admin-reorder";
 
 interface DeckZoneRow {
   slug: string;
@@ -20,44 +17,17 @@ interface DeckZoneDraft {
   label: string;
 }
 
-function SlugCell({ row }: AdminCellSlotProps<DeckZoneRow>) {
-  if (!row) {
-    return null;
-  }
-  return <span className="font-mono text-sm">{row.slug}</span>;
-}
-
-function LabelCell({ row }: AdminCellSlotProps<DeckZoneRow>) {
-  if (!row) {
-    return null;
-  }
-  return <span className="text-sm">{row.label}</span>;
-}
-
-function LabelInput({ draft, setDraft }: AdminDraftSlotProps<DeckZoneDraft>) {
-  if (!draft || !setDraft) {
-    return null;
-  }
-  return (
-    <Input
-      value={draft.label}
-      onChange={(event) => setDraft((prev) => ({ ...prev, label: event.target.value }))}
-      className="h-8"
-    />
-  );
-}
-
 const columns: AdminColumnDef<DeckZoneRow, DeckZoneDraft>[] = [
   {
     header: "Slug",
     sortValue: (zone) => zone.slug,
-    cell: <SlugCell />,
+    cell: <SlugCell<DeckZoneRow> />,
   },
   {
     header: "Label",
     sortValue: (zone) => zone.label,
-    cell: <LabelCell />,
-    editCell: <LabelInput />,
+    cell: <LabelCell<DeckZoneRow> />,
+    editCell: <LabelInput<DeckZoneDraft> />,
   },
 ];
 
@@ -68,13 +38,10 @@ export function DeckZonesPage() {
   const { deckZones } = data;
 
   function moveZone(index: number, direction: -1 | 1) {
-    const newIndex = index + direction;
-    if (newIndex < 0 || newIndex >= deckZones.length) {
-      return;
+    const reordered = swapForReorder(deckZones, index, direction, (zone) => zone.slug);
+    if (reordered) {
+      reorderMutation.mutate(reordered);
     }
-    const reordered = deckZones.map((zone) => zone.slug);
-    [reordered[index], reordered[newIndex]] = [reordered[newIndex], reordered[index]];
-    reorderMutation.mutate(reordered);
   }
 
   return (

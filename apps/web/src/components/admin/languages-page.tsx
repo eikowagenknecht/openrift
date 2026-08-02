@@ -1,5 +1,6 @@
 import type { LanguageResponse } from "@openrift/shared";
 
+import { ColorCell, ColorInput, validateHexColor } from "@/components/admin/admin-crud-shared";
 import { AdminTable } from "@/components/admin/admin-table";
 import type {
   AdminCellSlotProps,
@@ -17,6 +18,7 @@ import {
   useReorderLanguages,
   useUpdateLanguage,
 } from "@/hooks/use-languages";
+import { swapForReorder } from "@/lib/admin-reorder";
 
 interface LanguageDraft {
   code: string;
@@ -38,21 +40,6 @@ function NameCell({ row }: AdminCellSlotProps<LanguageResponse>) {
   return <span className="text-sm">{row.name}</span>;
 }
 
-function ColorCell({ row }: AdminCellSlotProps<LanguageResponse>) {
-  if (!row) {
-    return null;
-  }
-  if (!row.color) {
-    return <span className="text-muted-foreground">-</span>;
-  }
-  return (
-    <div className="flex items-center gap-2">
-      <span className="inline-block size-4 rounded border" style={{ backgroundColor: row.color }} />
-      <span className="font-mono text-sm">{row.color}</span>
-    </div>
-  );
-}
-
 function PreviewCell({ row }: AdminCellSlotProps<LanguageResponse>) {
   if (!row) {
     return null;
@@ -63,20 +50,6 @@ function PreviewCell({ row }: AdminCellSlotProps<LanguageResponse>) {
     <Badge className="font-mono" style={languageChipStyle(row.color)}>
       {row.code}
     </Badge>
-  );
-}
-
-function ColorInput({ draft, setDraft }: AdminDraftSlotProps<LanguageDraft>) {
-  if (!draft || !setDraft) {
-    return null;
-  }
-  return (
-    <Input
-      value={draft.color}
-      onChange={(event) => setDraft((prev) => ({ ...prev, color: event.target.value }))}
-      placeholder="#1D4ED8"
-      className="h-8 w-28 font-mono"
-    />
   );
 }
 
@@ -140,9 +113,9 @@ const columns: AdminColumnDef<LanguageResponse, LanguageDraft>[] = [
   {
     header: "Color",
     width: "w-36",
-    cell: <ColorCell />,
-    editCell: <ColorInput />,
-    addCell: <ColorInput />,
+    cell: <ColorCell<LanguageResponse> />,
+    editCell: <ColorInput<LanguageDraft> placeholder="#1D4ED8" />,
+    addCell: <ColorInput<LanguageDraft> placeholder="#1D4ED8" />,
   },
   {
     header: "Preview",
@@ -160,13 +133,10 @@ export function LanguagesPage() {
   const { languages } = data;
 
   function moveLanguage(index: number, direction: -1 | 1) {
-    const newIndex = index + direction;
-    if (newIndex < 0 || newIndex >= languages.length) {
-      return;
+    const reordered = swapForReorder(languages, index, direction, (lang) => lang.code);
+    if (reordered) {
+      reorderMutation.mutate(reordered);
     }
-    const reordered = languages.map((lang) => lang.code);
-    [reordered[index], reordered[newIndex]] = [reordered[newIndex], reordered[index]];
-    reorderMutation.mutate(reordered);
   }
 
   return (
@@ -199,11 +169,7 @@ export function LanguagesPage() {
           if (code.length > 5) {
             return "Code must be 5 characters or fewer";
           }
-          const color = draft.color.trim();
-          if (color && !/^#[0-9a-fA-F]{6}$/u.test(color)) {
-            return "Color must be a hex code (e.g. #1D4ED8)";
-          }
-          return null;
+          return validateHexColor(draft.color, "#1D4ED8");
         },
         label: "Add Language",
       }}

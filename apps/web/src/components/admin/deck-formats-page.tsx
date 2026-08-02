@@ -1,11 +1,15 @@
+import {
+  LabelAddInput,
+  LabelCell,
+  LabelInput,
+  SlugAddInput,
+  SlugCell,
+  validateSlugAndLabel,
+  WellKnownCell,
+} from "@/components/admin/admin-crud-shared";
 import { AdminTable } from "@/components/admin/admin-table";
-import type {
-  AdminCellSlotProps,
-  AdminColumnDef,
-  AdminDraftSlotProps,
-} from "@/components/admin/admin-table";
+import type { AdminColumnDef } from "@/components/admin/admin-table";
 import { PageDescription } from "@/components/layout/page-top-bar";
-import { Input } from "@/components/ui/input";
 import {
   useCreateDeckFormat,
   useDeckFormats,
@@ -13,7 +17,7 @@ import {
   useReorderDeckFormats,
   useUpdateDeckFormat,
 } from "@/hooks/use-deck-formats";
-import { isValidSlug } from "@/lib/admin-slug";
+import { swapForReorder } from "@/lib/admin-reorder";
 
 interface DeckFormatRow {
   slug: string;
@@ -27,87 +31,23 @@ interface DeckFormatDraft {
   label: string;
 }
 
-function SlugCell({ row }: AdminCellSlotProps<DeckFormatRow>) {
-  if (!row) {
-    return null;
-  }
-  return <span className="font-mono text-sm">{row.slug}</span>;
-}
-
-function LabelCell({ row }: AdminCellSlotProps<DeckFormatRow>) {
-  if (!row) {
-    return null;
-  }
-  return <span className="text-sm">{row.label}</span>;
-}
-
-function WellKnownCell({ row }: AdminCellSlotProps<DeckFormatRow>) {
-  if (!row) {
-    return null;
-  }
-  return <span className="text-muted-foreground text-sm">{row.isWellKnown ? "Yes" : "No"}</span>;
-}
-
-function SlugAddInput({ draft, setDraft }: AdminDraftSlotProps<DeckFormatDraft>) {
-  if (!draft || !setDraft) {
-    return null;
-  }
-  return (
-    <Input
-      value={draft.slug}
-      onChange={(event) =>
-        setDraft((prev) => ({ ...prev, slug: event.target.value.toLowerCase() }))
-      }
-      placeholder="constructed"
-      className="h-8 w-40 font-mono"
-    />
-  );
-}
-
-function LabelInput({ draft, setDraft }: AdminDraftSlotProps<DeckFormatDraft>) {
-  if (!draft || !setDraft) {
-    return null;
-  }
-  return (
-    <Input
-      value={draft.label}
-      onChange={(event) => setDraft((prev) => ({ ...prev, label: event.target.value }))}
-      className="h-8"
-    />
-  );
-}
-
-function LabelAddInput({ draft, setDraft }: AdminDraftSlotProps<DeckFormatDraft>) {
-  if (!draft || !setDraft) {
-    return null;
-  }
-  return (
-    <Input
-      value={draft.label}
-      onChange={(event) => setDraft((prev) => ({ ...prev, label: event.target.value }))}
-      placeholder="Constructed"
-      className="h-8"
-    />
-  );
-}
-
 const columns: AdminColumnDef<DeckFormatRow, DeckFormatDraft>[] = [
   {
     header: "Slug",
     sortValue: (deckFormat) => deckFormat.slug,
-    cell: <SlugCell />,
-    addCell: <SlugAddInput />,
+    cell: <SlugCell<DeckFormatRow> />,
+    addCell: <SlugAddInput<DeckFormatDraft> placeholder="constructed" />,
   },
   {
     header: "Label",
     sortValue: (deckFormat) => deckFormat.label,
-    cell: <LabelCell />,
-    editCell: <LabelInput />,
-    addCell: <LabelAddInput />,
+    cell: <LabelCell<DeckFormatRow> />,
+    editCell: <LabelInput<DeckFormatDraft> />,
+    addCell: <LabelAddInput<DeckFormatDraft> placeholder="Constructed" />,
   },
   {
     header: "Well-known",
-    cell: <WellKnownCell />,
+    cell: <WellKnownCell<DeckFormatRow> />,
   },
 ];
 
@@ -120,13 +60,10 @@ export function DeckFormatsPage() {
   const { deckFormats } = data;
 
   function moveDeckFormat(index: number, direction: -1 | 1) {
-    const newIndex = index + direction;
-    if (newIndex < 0 || newIndex >= deckFormats.length) {
-      return;
+    const reordered = swapForReorder(deckFormats, index, direction, (format) => format.slug);
+    if (reordered) {
+      reorderMutation.mutate(reordered);
     }
-    const reordered = deckFormats.map((deckFormat) => deckFormat.slug);
-    [reordered[index], reordered[newIndex]] = [reordered[newIndex], reordered[index]];
-    reorderMutation.mutate(reordered);
   }
 
   return (
@@ -148,17 +85,7 @@ export function DeckFormatsPage() {
             slug: draft.slug.trim(),
             label: draft.label.trim(),
           }),
-        validate: (draft) => {
-          const slug = draft.slug.trim();
-          const label = draft.label.trim();
-          if (!slug || !label) {
-            return "Slug and label are required";
-          }
-          if (!isValidSlug(slug)) {
-            return "Slug must be kebab-case (e.g. constructed, freeform)";
-          }
-          return null;
-        },
+        validate: (draft) => validateSlugAndLabel(draft.slug, draft.label, "constructed, freeform"),
         label: "Add Deck Format",
       }}
       edit={{

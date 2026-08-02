@@ -1,6 +1,13 @@
 import type { DistributionChannelKind, DistributionChannelResponse } from "@openrift/shared";
 
-import { validateSlugAndLabel } from "@/components/admin/admin-crud-shared";
+import {
+  DescriptionCell,
+  DescriptionInput,
+  LabelAddInput,
+  LabelInput,
+  SlugAddInput,
+  validateSlugAndLabel,
+} from "@/components/admin/admin-crud-shared";
 import { AdminTable } from "@/components/admin/admin-table";
 import type {
   AdminCellSlotProps,
@@ -105,20 +112,6 @@ function ChildrenLabelCell({ row }: AdminCellSlotProps<DistributionChannelRespon
   );
 }
 
-function DescriptionCell({ row }: AdminCellSlotProps<DistributionChannelResponse>) {
-  if (!row) {
-    return null;
-  }
-  return (
-    <span
-      className="text-muted-foreground block max-w-xs truncate"
-      title={row.description ?? undefined}
-    >
-      {row.description ?? "—"}
-    </span>
-  );
-}
-
 function PrintingCountCell({ row }: AdminCellSlotProps<DistributionChannelResponse>) {
   if (!row) {
     return null;
@@ -127,47 +120,6 @@ function PrintingCountCell({ row }: AdminCellSlotProps<DistributionChannelRespon
     return <span className="text-muted-foreground/60">0</span>;
   }
   return <span>{row.printingCount.toLocaleString()}</span>;
-}
-
-function LabelInput({ draft, setDraft }: AdminDraftSlotProps<ChannelDraft>) {
-  if (!draft || !setDraft) {
-    return null;
-  }
-  return (
-    <Input
-      value={draft.label}
-      onChange={(e) => setDraft((prev) => ({ ...prev, label: e.target.value }))}
-      className="h-8"
-    />
-  );
-}
-
-function LabelAddInput({ draft, setDraft }: AdminDraftSlotProps<ChannelDraft>) {
-  if (!draft || !setDraft) {
-    return null;
-  }
-  return (
-    <Input
-      value={draft.label}
-      onChange={(e) => setDraft((prev) => ({ ...prev, label: e.target.value }))}
-      placeholder="Nexus Night 2025"
-      className="h-8"
-    />
-  );
-}
-
-function SlugInput({ draft, setDraft }: AdminDraftSlotProps<ChannelDraft>) {
-  if (!draft || !setDraft) {
-    return null;
-  }
-  return (
-    <Input
-      value={draft.slug}
-      onChange={(e) => setDraft((prev) => ({ ...prev, slug: e.target.value.toLowerCase() }))}
-      placeholder="nexus-night-2025"
-      className="h-8 w-56 font-mono"
-    />
-  );
 }
 
 interface ParentSelectProps extends AdminDraftSlotProps<ChannelDraft> {
@@ -289,20 +241,6 @@ function ChildrenLabelInput({ draft, setDraft }: AdminDraftSlotProps<ChannelDraf
   );
 }
 
-function DescriptionInput({ draft, setDraft }: AdminDraftSlotProps<ChannelDraft>) {
-  if (!draft || !setDraft) {
-    return null;
-  }
-  return (
-    <Input
-      value={draft.description}
-      onChange={(e) => setDraft((prev) => ({ ...prev, description: e.target.value }))}
-      placeholder="Optional description (markdown links supported)"
-      className="h-8"
-    />
-  );
-}
-
 export function DistributionChannelsPage() {
   const { data } = useDistributionChannels();
   const createMutation = useCreateDistributionChannel();
@@ -343,14 +281,14 @@ export function DistributionChannelsPage() {
     {
       header: "Label",
       cell: <LabelCell nodeById={nodeById} />,
-      editCell: <LabelInput />,
-      addCell: <LabelAddInput />,
+      editCell: <LabelInput<ChannelDraft> />,
+      addCell: <LabelAddInput<ChannelDraft> placeholder="Nexus Night 2025" />,
     },
     {
       header: "Slug",
       cell: <SlugCell />,
-      editCell: <SlugInput />,
-      addCell: <SlugInput />,
+      editCell: <SlugAddInput<ChannelDraft> placeholder="nexus-night-2025" width="w-56" />,
+      addCell: <SlugAddInput<ChannelDraft> placeholder="nexus-night-2025" width="w-56" />,
     },
     {
       header: "Parent",
@@ -374,9 +312,13 @@ export function DistributionChannelsPage() {
     },
     {
       header: "Description",
-      cell: <DescriptionCell />,
-      editCell: <DescriptionInput />,
-      addCell: <DescriptionInput />,
+      cell: <DescriptionCell<DistributionChannelResponse> />,
+      editCell: (
+        <DescriptionInput<ChannelDraft> placeholder="Optional description (markdown links supported)" />
+      ),
+      addCell: (
+        <DescriptionInput<ChannelDraft> placeholder="Optional description (markdown links supported)" />
+      ),
     },
     {
       header: "In use",

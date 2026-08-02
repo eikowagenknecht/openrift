@@ -3,8 +3,8 @@ import type { CustomTagCategoryResponse, CustomTagResponse } from "@openrift/sha
 import { useState } from "react";
 
 import {
-  CategoryDescriptionInput,
   CategorySelectOptions,
+  DescriptionInput,
   validateSlugAndLabel,
 } from "@/components/admin/admin-crud-shared";
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
@@ -201,8 +201,8 @@ const categoryColumns: AdminColumnDef<CustomTagCategoryResponse, CustomTagCatego
     header: "Description",
     sortValue: (cat) => cat.description ?? "",
     cell: <CategoryDescriptionCell />,
-    editCell: <CategoryDescriptionInput<CustomTagCategoryDraft> />,
-    addCell: <CategoryDescriptionInput<CustomTagCategoryDraft> />,
+    editCell: <DescriptionInput<CustomTagCategoryDraft> />,
+    addCell: <DescriptionInput<CustomTagCategoryDraft> />,
   },
   {
     header: "Tags",
@@ -364,20 +364,6 @@ function TagCategorySelect({ draft, setDraft, items }: TagCategorySelectProps) {
   );
 }
 
-function TagDescriptionInput({ draft, setDraft }: AdminDraftSlotProps<CustomTagDraft>) {
-  if (!draft || !setDraft) {
-    return null;
-  }
-  return (
-    <Input
-      value={draft.description}
-      onChange={(e) => setDraft((prev) => ({ ...prev, description: e.target.value }))}
-      placeholder="Optional description"
-      className="h-8"
-    />
-  );
-}
-
 /**
  * Per-row "Clear" action: removes every card assignment from the tag after a
  * confirmation, keeping the tag itself. Hidden while the tag has no cards.
@@ -459,8 +445,8 @@ function TagsSection({
       header: "Description",
       sortValue: (t) => t.description ?? "",
       cell: <TagDescriptionCell />,
-      editCell: <TagDescriptionInput />,
-      addCell: <TagDescriptionInput />,
+      editCell: <DescriptionInput<CustomTagDraft> />,
+      addCell: <DescriptionInput<CustomTagDraft> />,
     },
     {
       header: "Cards",

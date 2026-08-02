@@ -1,13 +1,18 @@
 import type { MarkerResponse } from "@openrift/shared";
 
+import {
+  DescriptionCell,
+  DescriptionInput,
+  LabelAddInput,
+  LabelCell,
+  LabelInput,
+  SlugAddInput,
+  SlugCell,
+  validateSlugAndLabel,
+} from "@/components/admin/admin-crud-shared";
 import { AdminTable } from "@/components/admin/admin-table";
-import type {
-  AdminCellSlotProps,
-  AdminColumnDef,
-  AdminDraftSlotProps,
-} from "@/components/admin/admin-table";
+import type { AdminColumnDef } from "@/components/admin/admin-table";
 import { PageDescription } from "@/components/layout/page-top-bar";
-import { Input } from "@/components/ui/input";
 import {
   useCreateMarker,
   useDeleteMarker,
@@ -15,7 +20,7 @@ import {
   useReorderMarkers,
   useUpdateMarker,
 } from "@/hooks/use-markers";
-import { isValidSlug } from "@/lib/admin-slug";
+import { swapForReorder } from "@/lib/admin-reorder";
 
 interface MarkerDraft {
   id: string;
@@ -24,109 +29,26 @@ interface MarkerDraft {
   description: string;
 }
 
-function SlugCell({ row }: AdminCellSlotProps<MarkerResponse>) {
-  if (!row) {
-    return null;
-  }
-  return <span className="font-mono text-sm">{row.slug}</span>;
-}
-
-function LabelCell({ row }: AdminCellSlotProps<MarkerResponse>) {
-  if (!row) {
-    return null;
-  }
-  return <span>{row.label}</span>;
-}
-
-function DescriptionCell({ row }: AdminCellSlotProps<MarkerResponse>) {
-  if (!row) {
-    return null;
-  }
-  return (
-    <span
-      className="text-muted-foreground block max-w-xs truncate"
-      title={row.description ?? undefined}
-    >
-      {row.description ?? "—"}
-    </span>
-  );
-}
-
-function SlugAddInput({ draft, setDraft }: AdminDraftSlotProps<MarkerDraft>) {
-  if (!draft || !setDraft) {
-    return null;
-  }
-  return (
-    <Input
-      value={draft.slug}
-      onChange={(e) => setDraft((prev) => ({ ...prev, slug: e.target.value.toLowerCase() }))}
-      placeholder="top-8"
-      className="h-8 w-48 font-mono"
-    />
-  );
-}
-
-function LabelInput({ draft, setDraft }: AdminDraftSlotProps<MarkerDraft>) {
-  if (!draft || !setDraft) {
-    return null;
-  }
-  return (
-    <Input
-      value={draft.label}
-      onChange={(e) => setDraft((prev) => ({ ...prev, label: e.target.value }))}
-      className="h-8"
-    />
-  );
-}
-
-function LabelAddInput({ draft, setDraft }: AdminDraftSlotProps<MarkerDraft>) {
-  if (!draft || !setDraft) {
-    return null;
-  }
-  return (
-    <Input
-      value={draft.label}
-      onChange={(e) => setDraft((prev) => ({ ...prev, label: e.target.value }))}
-      placeholder="Top 8"
-      className="h-8"
-    />
-  );
-}
-
-function DescriptionInput({ draft, setDraft }: AdminDraftSlotProps<MarkerDraft>) {
-  if (!draft || !setDraft) {
-    return null;
-  }
-  return (
-    <Input
-      value={draft.description}
-      onChange={(e) => setDraft((prev) => ({ ...prev, description: e.target.value }))}
-      placeholder="Optional description"
-      className="h-8"
-    />
-  );
-}
-
 const columns: AdminColumnDef<MarkerResponse, MarkerDraft>[] = [
   {
     header: "Slug",
     sortValue: (m) => m.slug,
-    cell: <SlugCell />,
-    addCell: <SlugAddInput />,
+    cell: <SlugCell<MarkerResponse> />,
+    addCell: <SlugAddInput<MarkerDraft> placeholder="top-8" width="w-48" />,
   },
   {
     header: "Label",
     sortValue: (m) => m.label,
-    cell: <LabelCell />,
-    editCell: <LabelInput />,
-    addCell: <LabelAddInput />,
+    cell: <LabelCell<MarkerResponse> />,
+    editCell: <LabelInput<MarkerDraft> />,
+    addCell: <LabelAddInput<MarkerDraft> placeholder="Top 8" />,
   },
   {
     header: "Description",
     sortValue: (m) => m.description ?? "",
-    cell: <DescriptionCell />,
-    editCell: <DescriptionInput />,
-    addCell: <DescriptionInput />,
+    cell: <DescriptionCell<MarkerResponse> />,
+    editCell: <DescriptionInput<MarkerDraft> />,
+    addCell: <DescriptionInput<MarkerDraft> />,
   },
 ];
 
@@ -139,13 +61,10 @@ export function MarkersPage() {
   const markers = data.markers;
 
   function moveMarker(index: number, direction: -1 | 1) {
-    const newIndex = index + direction;
-    if (newIndex < 0 || newIndex >= markers.length) {
-      return;
+    const reordered = swapForReorder(markers, index, direction, (m) => m.id);
+    if (reordered) {
+      reorderMutation.mutate(reordered);
     }
-    const reordered = markers.map((m) => m.id);
-    [reordered[index], reordered[newIndex]] = [reordered[newIndex], reordered[index]];
-    reorderMutation.mutate(reordered);
   }
 
   return (
@@ -169,17 +88,7 @@ export function MarkersPage() {
             label: d.label.trim(),
             description: d.description.trim() || null,
           }),
-        validate: (d) => {
-          const slug = d.slug.trim();
-          const label = d.label.trim();
-          if (!slug || !label) {
-            return "Slug and label are required";
-          }
-          if (!isValidSlug(slug)) {
-            return "Slug must be kebab-case (e.g. top-8)";
-          }
-          return null;
-        },
+        validate: (d) => validateSlugAndLabel(d.slug, d.label, "top-8"),
         label: "Add Marker",
       }}
       edit={{

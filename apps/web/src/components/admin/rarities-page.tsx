@@ -1,12 +1,19 @@
+import {
+  ColorCell,
+  ColorInput,
+  ColorPreviewCell,
+  LabelAddInput,
+  LabelCell,
+  LabelInput,
+  SlugAddInput,
+  SlugCell,
+  validateHexColor,
+  validateRequiredSlugAndLabel,
+  WellKnownCell,
+} from "@/components/admin/admin-crud-shared";
 import { AdminTable } from "@/components/admin/admin-table";
-import type {
-  AdminCellSlotProps,
-  AdminColumnDef,
-  AdminDraftSlotProps,
-} from "@/components/admin/admin-table";
+import type { AdminColumnDef } from "@/components/admin/admin-table";
 import { PageDescription } from "@/components/layout/page-top-bar";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import {
   useCreateRarity,
   useDeleteRarity,
@@ -14,7 +21,7 @@ import {
   useReorderRarities,
   useUpdateRarity,
 } from "@/hooks/use-rarities";
-import { contrastText } from "@/lib/color";
+import { swapForReorder } from "@/lib/admin-reorder";
 
 interface RarityRow {
   slug: string;
@@ -30,143 +37,39 @@ interface RarityDraft {
   color: string;
 }
 
-function SlugCell({ row }: AdminCellSlotProps<RarityRow>) {
-  if (!row) {
-    return null;
-  }
-  return <span className="font-mono text-sm">{row.slug}</span>;
-}
-
-function LabelCell({ row }: AdminCellSlotProps<RarityRow>) {
-  if (!row) {
-    return null;
-  }
-  return <span className="text-sm">{row.label}</span>;
-}
-
-function ColorCell({ row }: AdminCellSlotProps<RarityRow>) {
-  if (!row) {
-    return null;
-  }
-  if (!row.color) {
-    return <span className="text-muted-foreground">-</span>;
-  }
-  return (
-    <div className="flex items-center gap-2">
-      <span className="inline-block size-4 rounded border" style={{ backgroundColor: row.color }} />
-      <span className="font-mono text-sm">{row.color}</span>
-    </div>
-  );
-}
-
-function PreviewCell({ row }: AdminCellSlotProps<RarityRow>) {
-  if (!row) {
-    return null;
-  }
-  return (
-    <Badge
-      style={row.color ? { backgroundColor: row.color, color: contrastText(row.color) } : undefined}
-      variant={row.color ? "default" : "secondary"}
-    >
-      {row.label}
-    </Badge>
-  );
-}
-
-function WellKnownCell({ row }: AdminCellSlotProps<RarityRow>) {
-  if (!row) {
-    return null;
-  }
-  return <span className="text-muted-foreground text-sm">{row.isWellKnown ? "Yes" : "No"}</span>;
-}
-
-function SlugAddInput({ draft, setDraft }: AdminDraftSlotProps<RarityDraft>) {
-  if (!draft || !setDraft) {
-    return null;
-  }
-  return (
-    <Input
-      value={draft.slug}
-      onChange={(event) => setDraft((prev) => ({ ...prev, slug: event.target.value }))}
-      placeholder="NewRarity"
-      className="h-8 w-40 font-mono"
-    />
-  );
-}
-
-function LabelInput({ draft, setDraft }: AdminDraftSlotProps<RarityDraft>) {
-  if (!draft || !setDraft) {
-    return null;
-  }
-  return (
-    <Input
-      value={draft.label}
-      onChange={(event) => setDraft((prev) => ({ ...prev, label: event.target.value }))}
-      className="h-8"
-    />
-  );
-}
-
-function LabelAddInput({ draft, setDraft }: AdminDraftSlotProps<RarityDraft>) {
-  if (!draft || !setDraft) {
-    return null;
-  }
-  return (
-    <Input
-      value={draft.label}
-      onChange={(event) => setDraft((prev) => ({ ...prev, label: event.target.value }))}
-      placeholder="New Rarity"
-      className="h-8"
-    />
-  );
-}
-
-function ColorInput({ draft, setDraft }: AdminDraftSlotProps<RarityDraft>) {
-  if (!draft || !setDraft) {
-    return null;
-  }
-  return (
-    <Input
-      value={draft.color}
-      onChange={(event) => setDraft((prev) => ({ ...prev, color: event.target.value }))}
-      placeholder="#E052B1"
-      className="h-8 w-28 font-mono"
-    />
-  );
-}
-
 const columns: AdminColumnDef<RarityRow, RarityDraft>[] = [
   {
     header: "Slug",
     width: "w-40",
     sortValue: (rarity) => rarity.slug,
-    cell: <SlugCell />,
-    addCell: <SlugAddInput />,
+    cell: <SlugCell<RarityRow> />,
+    // Rarity slugs are PascalCase (NewRarity), not kebab-case.
+    addCell: <SlugAddInput<RarityDraft> placeholder="NewRarity" lowercase={false} />,
   },
   {
     header: "Label",
     width: "w-40",
     sortValue: (rarity) => rarity.label,
-    cell: <LabelCell />,
-    editCell: <LabelInput />,
-    addCell: <LabelAddInput />,
+    cell: <LabelCell<RarityRow> />,
+    editCell: <LabelInput<RarityDraft> />,
+    addCell: <LabelAddInput<RarityDraft> placeholder="New Rarity" />,
   },
   {
     header: "Color",
     width: "w-36",
-    cell: <ColorCell />,
-    editCell: <ColorInput />,
-    addCell: <ColorInput />,
+    cell: <ColorCell<RarityRow> />,
+    editCell: <ColorInput<RarityDraft> placeholder="#E052B1" />,
+    addCell: <ColorInput<RarityDraft> placeholder="#E052B1" />,
   },
   {
     header: "Preview",
     width: "w-28",
-    cell: <PreviewCell />,
+    cell: <ColorPreviewCell<RarityRow> />,
   },
   {
     header: "Well-known",
     width: "w-24",
-    cell: <WellKnownCell />,
+    cell: <WellKnownCell<RarityRow> />,
   },
 ];
 
@@ -179,13 +82,10 @@ export function RaritiesPage() {
   const { rarities } = data;
 
   function moveRarity(index: number, direction: -1 | 1) {
-    const newIndex = index + direction;
-    if (newIndex < 0 || newIndex >= rarities.length) {
-      return;
+    const reordered = swapForReorder(rarities, index, direction, (rarity) => rarity.slug);
+    if (reordered) {
+      reorderMutation.mutate(reordered);
     }
-    const reordered = rarities.map((rarity) => rarity.slug);
-    [reordered[index], reordered[newIndex]] = [reordered[newIndex], reordered[index]];
-    reorderMutation.mutate(reordered);
   }
 
   return (
@@ -209,18 +109,9 @@ export function RaritiesPage() {
             label: draft.label.trim(),
             color: draft.color.trim() || null,
           }),
-        validate: (draft) => {
-          const slug = draft.slug.trim();
-          const label = draft.label.trim();
-          if (!slug || !label) {
-            return "Slug and label are required";
-          }
-          const color = draft.color.trim();
-          if (color && !/^#[0-9a-fA-F]{6}$/u.test(color)) {
-            return "Color must be a hex code (e.g. #E052B1)";
-          }
-          return null;
-        },
+        validate: (draft) =>
+          validateRequiredSlugAndLabel(draft.slug, draft.label) ??
+          validateHexColor(draft.color, "#E052B1"),
         label: "Add Rarity",
       }}
       edit={{
