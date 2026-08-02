@@ -174,12 +174,20 @@ export interface CoalescedRequestFlushResult {
   emailsSent: number;
   /** Queued requests folded into sent emails. */
   requests: number;
+  /** Pair sends that threw. Without this a run where every send failed records
+   *  the same all-zero summary as a run with nothing to send. */
+  failed: number;
+  /** Requests claimed for a send that then threw. Claims are never released
+   *  (at-most-once, ADR-030), so these are dropped rather than retried. */
+  requestsDropped: number;
 }
 
 /** A trade-request flush did nothing when no pair was due (flag off, or no
  *  pending requests), so no email was sent and no queued request was folded in.
  *  @returns True when the run had no work to do. */
 export function isTradeRequestFlushNoop(result: CoalescedRequestFlushResult): boolean {
+  // `failed` needs no clause: only a due pair can fail, so any failure is
+  // already counted in `pairs`.
   return result.pairs === 0 && result.emailsSent === 0 && result.requests === 0;
 }
 
@@ -189,9 +197,10 @@ export function isTradeRequestFlushNoop(result: CoalescedRequestFlushResult): bo
  * {@link isRequestGroupDue}), folds all that pair's queued requests into one
  * email. A still-settling burst is left queued (not claimed) for a later tick;
  * an opted-out recipient's queue is claimed-and-suppressed so it isn't retried
- * forever. Per-pair sends are best-effort — a failure is logged and the run
- * continues.
- * @returns Counts of pairs emailed, emails sent, and requests included.
+ * forever. Per-pair sends are best-effort — a failure is logged, counted in
+ * `failed`, and the run continues.
+ * @returns Counts of pairs emailed, emails sent and requests included, plus the
+ *   failed sends and the requests dropped with them.
  */
 export async function flushCoalescedTradeRequests(
   deps: CoalescedRequestFlushDeps,
@@ -201,12 +210,12 @@ export async function flushCoalescedTradeRequests(
   // Kill switch (shared with the instant email): leave queued rows untouched
   // while off, so they resume when the flag is turned back on.
   if ((await repos.featureFlags.isEnabled(TRADE_REQUEST_EMAIL_FLAG)) === false) {
-    return { pairs: 0, emailsSent: 0, requests: 0 };
+    return { pairs: 0, emailsSent: 0, requests: 0, failed: 0, requestsDropped: 0 };
   }
 
   const pending = await repos.cardTrades.listPendingRequestEmails();
   if (pending.length === 0) {
-    return { pairs: 0, emailsSent: 0, requests: 0 };
+    return { pairs: 0, emailsSent: 0, requests: 0, failed: 0, requestsDropped: 0 };
   }
 
   // The query orders by (recipient, sender, created_at), so each pair's rows
@@ -219,6 +228,8 @@ export async function flushCoalescedTradeRequests(
   let pairs = 0;
   let emailsSent = 0;
   let requests = 0;
+  let failed = 0;
+  let requestsDropped = 0;
 
   for (const rows of byPair.values()) {
     const { recipientUserId, senderUserId } = rows[0];
@@ -326,6 +337,8 @@ export async function flushCoalescedTradeRequests(
       emailsSent += 1;
       requests += claimedRows.length;
     } catch (error) {
+      failed += 1;
+      requestsDropped += claimedRows.length;
       log.error(
         { err: error, recipientUserId, senderUserId },
         "Failed to send coalesced trade-request email",
@@ -333,5 +346,5 @@ export async function flushCoalescedTradeRequests(
     }
   }
 
-  return { pairs, emailsSent, requests };
+  return { pairs, emailsSent, requests, failed, requestsDropped };
 }

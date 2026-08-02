@@ -172,7 +172,13 @@ describe.skipIf(!ctx)("trade match digest (integration)", () => {
     await setupMatch(DIGEST_ID);
     const sent: { to: string; subject: string; html: string }[] = [];
     const result = await sendTradeMatchDigest(makeDeps(null, sent));
-    expect(result).toEqual({ recipients: 0, emailsSent: 0, matches: 0 });
+    expect(result).toEqual({
+      recipients: 0,
+      emailsSent: 0,
+      matches: 0,
+      failed: 0,
+      matchesDropped: 0,
+    });
     expect(sent).toHaveLength(0);
   });
 
@@ -224,7 +230,13 @@ describe.skipIf(!ctx)("trade match digest (integration)", () => {
       await setupMatch(DIGEST_ID);
       const sent: { to: string; subject: string; html: string }[] = [];
       const result = await sendTradeMatchDigest(makeDeps(EPOCH, sent));
-      expect(result).toEqual({ recipients: 0, emailsSent: 0, matches: 0 });
+      expect(result).toEqual({
+        recipients: 0,
+        emailsSent: 0,
+        matches: 0,
+        failed: 0,
+        matchesDropped: 0,
+      });
       expect(sent.find((email) => email.to === DIGEST_EMAIL)).toBeUndefined();
     } finally {
       await repos.featureFlags.deleteByKey(TRADE_MATCH_DIGEST_FLAG);

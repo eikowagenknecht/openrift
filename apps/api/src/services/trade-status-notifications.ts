@@ -37,12 +37,20 @@ export interface TradeStatusFlushResult {
   emailsSent: number;
   /** Queued status changes folded into sent emails. */
   events: number;
+  /** Pair sends that threw. Without this a run where every send failed records
+   *  the same all-zero summary as a run with nothing to send. */
+  failed: number;
+  /** Status changes claimed for a send that then threw. Claims are never
+   *  released (at-most-once, ADR-030), so these are dropped, not retried. */
+  eventsDropped: number;
 }
 
 /** A trade-status flush did nothing when no pair was due (flag off, or no queued
  *  transitions), so no email was sent and no event was folded in.
  *  @returns True when the run had no work to do. */
 export function isTradeStatusFlushNoop(result: TradeStatusFlushResult): boolean {
+  // `failed` needs no clause: only a due pair can fail, so any failure is
+  // already counted in `pairs`.
   return result.pairs === 0 && result.emailsSent === 0 && result.events === 0;
 }
 
@@ -98,8 +106,9 @@ async function claimPair(
  * that pair's queued transitions into one email to the party who didn't act. A
  * still-settling burst is left queued for a later tick; an opted-out recipient's
  * queue is claimed-and-suppressed so it isn't retried forever. Per-pair sends are
- * best-effort — a failure is logged and the run continues.
- * @returns Counts of pairs emailed, emails sent, and transitions included.
+ * best-effort — a failure is logged, counted in `failed`, and the run continues.
+ * @returns Counts of pairs emailed, emails sent and transitions included, plus
+ *   the failed sends and the transitions dropped with them.
  */
 export async function flushTradeStatusEmails(
   deps: TradeStatusFlushDeps,
@@ -109,12 +118,12 @@ export async function flushTradeStatusEmails(
   // Kill switch: leave queued rows untouched while off, so they resume when the
   // flag is turned back on.
   if ((await repos.featureFlags.isEnabled(TRADE_STATUS_EMAIL_FLAG)) === false) {
-    return { pairs: 0, emailsSent: 0, events: 0 };
+    return { pairs: 0, emailsSent: 0, events: 0, failed: 0, eventsDropped: 0 };
   }
 
   const pending = await repos.cardTrades.listPendingStatusEmails();
   if (pending.length === 0) {
-    return { pairs: 0, emailsSent: 0, events: 0 };
+    return { pairs: 0, emailsSent: 0, events: 0, failed: 0, eventsDropped: 0 };
   }
 
   // The query orders by (recipient, actor, updated_at), so each pair's rows are
@@ -127,6 +136,8 @@ export async function flushTradeStatusEmails(
   let pairs = 0;
   let emailsSent = 0;
   let events = 0;
+  let failed = 0;
+  let eventsDropped = 0;
 
   for (const rows of byPair.values()) {
     const { recipientUserId, actorUserId } = rows[0];
@@ -228,6 +239,8 @@ export async function flushTradeStatusEmails(
       emailsSent += 1;
       events += claimedRows.length;
     } catch (error) {
+      failed += 1;
+      eventsDropped += claimedRows.length;
       log.error(
         { err: error, recipientUserId, actorUserId },
         "Failed to send coalesced trade-status email",
@@ -235,5 +248,5 @@ export async function flushTradeStatusEmails(
     }
   }
 
-  return { pairs, emailsSent, events };
+  return { pairs, emailsSent, events, failed, eventsDropped };
 }

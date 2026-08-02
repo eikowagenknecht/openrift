@@ -43,12 +43,20 @@ export interface TradeMatchDigestResult {
   emailsSent: number;
   /** Total new matches included across all sent emails. */
   matches: number;
+  /** Recipient sends that threw. Without this a run where SMTP was down all day
+   *  is indistinguishable from a quiet day with no new matches. */
+  failed: number;
+  /** Matches that were never delivered because their send threw. The watermark
+   *  advances regardless (ADR-030), so these are dropped, not retried. */
+  matchesDropped: number;
 }
 
 /** A match digest did nothing when no recipient was emailed and no match was
  *  included (flag off, first run, or nobody had new matches).
  *  @returns True when the run had no work to do. */
 export function isTradeMatchDigestNoop(result: TradeMatchDigestResult): boolean {
+  // `failed` needs no clause: a send can only fail for a recipient that was
+  // considered, so any failure already shows up in `recipients`.
   return result.recipients === 0 && result.emailsSent === 0 && result.matches === 0;
 }
 
@@ -81,9 +89,10 @@ interface PendingGroup {
 /**
  * Sends the daily match digest (ADR-030): one email per opted-in, verified user
  * aggregating the cards that became available in their groups since the
- * watermark. Per-recipient sends are best-effort — a failure is logged and the
- * run continues so one bad address can't sink the batch.
- * @returns Counts of recipients considered, emails sent, and matches included.
+ * watermark. Per-recipient sends are best-effort — a failure is logged, counted
+ * in `failed`, and the run continues so one bad address can't sink the batch.
+ * @returns Counts of recipients considered, emails sent and matches included,
+ *   plus the failed sends and the matches dropped with them.
  */
 export async function sendTradeMatchDigest(
   deps: TradeMatchDigestDeps,
@@ -95,17 +104,19 @@ export async function sendTradeMatchDigest(
   // matches are dropped rather than queued — consistent with the digest's
   // watermark-only, best-effort design (a missed day is acceptable; ADR-030).
   if ((await repos.featureFlags.isEnabled(TRADE_MATCH_DIGEST_FLAG)) === false) {
-    return { recipients: 0, emailsSent: 0, matches: 0 };
+    return { recipients: 0, emailsSent: 0, matches: 0, failed: 0, matchesDropped: 0 };
   }
 
   // First run (no watermark) records `now()` and notifies nobody.
   if (sinceTimestamp === null) {
-    return { recipients: 0, emailsSent: 0, matches: 0 };
+    return { recipients: 0, emailsSent: 0, matches: 0, failed: 0, matchesDropped: 0 };
   }
 
   const recipients = await repos.userPreferences.listMatchDigestRecipients();
   let emailsSent = 0;
   let matchesSent = 0;
+  let failed = 0;
+  let matchesDropped = 0;
 
   for (const recipient of recipients) {
     const groups = await repos.friendGroups.listGroupsForUser(recipient.userId);
@@ -170,6 +181,8 @@ export async function sendTradeMatchDigest(
       emailsSent += 1;
       matchesSent += totalMatches;
     } catch (error) {
+      failed += 1;
+      matchesDropped += totalMatches;
       log.error(
         { err: error, userId: recipient.userId },
         "Failed to send trade match digest to recipient",
@@ -177,5 +190,11 @@ export async function sendTradeMatchDigest(
     }
   }
 
-  return { recipients: recipients.length, emailsSent, matches: matchesSent };
+  return {
+    recipients: recipients.length,
+    emailsSent,
+    matches: matchesSent,
+    failed,
+    matchesDropped,
+  };
 }
