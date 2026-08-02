@@ -10,6 +10,7 @@
 
 - feat(App): **Shorter Discord card replies** — a card lookup now shows the image and prices, with the stats and rules text behind a Details button, and flags a ban or errata right away.
 - fix(Tournaments): **Cancelled tournaments stay readable** — cancelling a tournament with pairings broke its pairings tab and every participant's follow link with an error; both now open and show it as cancelled.
+- fix(Collection): **Errors on failed list and collection edits** — adding to a list, changing an entry, or reordering lists and collections used to revert with no message, and now says why it failed.
 
 ## 2026-08-01
 

@@ -1,8 +1,14 @@
-import type { ListBulkAddResponse, ListResponse } from "@openrift/shared";
+import type { ListBulkAddResponse, ListDetailResponse, ListResponse } from "@openrift/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { toast } from "sonner";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { createQueryClient } from "@/lib/query-client";
+import { PERSISTENT_ERROR_TOAST } from "@/lib/toast";
+
+vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
 vi.mock("@tanstack/react-start", () => ({
   createServerFn: () => {
@@ -29,6 +35,9 @@ vi.mock("@/lib/server-fns/middleware", () => ({
 vi.mock("@/lib/auth-session", () => ({
   useRequiredUserId: () => "test-user-id",
   useUserId: () => "test-user-id",
+  // Read by the shared mutation error reporter on a 401; none of these tests
+  // fail with one, but the module-level import has to resolve.
+  sessionQueryOptions: () => ({ queryKey: ["session"] }),
 }));
 
 const {
@@ -36,6 +45,7 @@ const {
   useCreateList,
   useDeleteList,
   useRemoveListEntry,
+  useReorderLists,
   useUpdateList,
   useUpdateListEntry,
 } = await import("./use-lists");
@@ -49,6 +59,12 @@ function stubFetchJson(payload: unknown) {
 
 function stubFetchNoContent() {
   const fetchMock = vi.fn().mockResolvedValueOnce(new Response(null, { status: 204 }));
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
+}
+
+function stubFetchFailure() {
+  const fetchMock = vi.fn().mockRejectedValue(new Error("Service unavailable"));
   vi.stubGlobal("fetch", fetchMock);
   return fetchMock;
 }
@@ -80,6 +96,25 @@ const LIST: ListResponse = {
   tradeDefaults: { pricePref: null, priceAbsoluteCents: null, tradeType: null },
   currency: null,
   hasRule: false,
+};
+
+const SECOND_LIST: ListResponse = { ...LIST, id: "lst-2", name: "Haves", intent: "trade" };
+
+const DETAIL: ListDetailResponse = {
+  list: { ...LIST, rules: [], ruleCombine: null },
+  entries: [
+    {
+      kind: "card",
+      id: "le-1",
+      listId: "lst-1",
+      cardId: "card-1",
+      cardName: "Yasuo",
+      quantity: 1,
+      ruleQuantity: 0,
+      source: "manual",
+      tradeOverride: { pricePref: null, priceAbsoluteCents: null, tradeType: null },
+    },
+  ],
 };
 
 afterEach(() => {
@@ -203,6 +238,84 @@ describe("useUpdateListEntry", () => {
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: ["lists", "test-user-id", "lst-1"],
     });
+  });
+});
+
+// A hook that declares its own onError to roll an optimistic update back
+// REPLACES the QueryClient's default mutation onError (react-query merges
+// mutation options shallowly), so each of these rollbacks has to report the
+// failure itself. Without that, the change silently reverts and the user is
+// left thinking the click did nothing.
+describe("optimistic rollbacks still report the failure", () => {
+  let errorSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.mocked(toast.error).mockClear();
+    errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    errorSpy.mockRestore();
+  });
+
+  // The app's real client, so the test proves the toast survives the default
+  // handler being replaced rather than testing a bare QueryClient.
+  function makeAppClient() {
+    return createQueryClient();
+  }
+
+  it("useReorderLists restores the previous order and toasts", async () => {
+    stubFetchFailure();
+    const client = makeAppClient();
+    const listsKey = ["lists", "test-user-id"];
+    client.setQueryData(listsKey, { items: [LIST, SECOND_LIST] });
+    const { result } = renderHook(() => useReorderLists(), { wrapper: wrap(client) });
+
+    await act(async () => {
+      await result.current
+        .mutateAsync({ intent: "wish", orderedIds: ["lst-2", "lst-1"] })
+        .catch(() => {});
+    });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(client.getQueryData(listsKey)).toEqual({ items: [LIST, SECOND_LIST] });
+    expect(toast.error).toHaveBeenCalledWith(expect.any(String), PERSISTENT_ERROR_TOAST);
+  });
+
+  it("useBulkAddListEntries restores the previous quantities and toasts", async () => {
+    stubFetchFailure();
+    const client = makeAppClient();
+    const detailKey = ["lists", "test-user-id", "lst-1"];
+    client.setQueryData(detailKey, DETAIL);
+    const { result } = renderHook(() => useBulkAddListEntries(), { wrapper: wrap(client) });
+
+    await act(async () => {
+      await result.current
+        .mutateAsync({ listId: "lst-1", entries: [{ cardId: "card-1", quantity: 2 }] })
+        .catch(() => {});
+    });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(client.getQueryData<ListDetailResponse>(detailKey)?.entries[0].quantity).toBe(1);
+    expect(toast.error).toHaveBeenCalledWith(expect.any(String), PERSISTENT_ERROR_TOAST);
+  });
+
+  it("useUpdateListEntry restores the previous entry and toasts", async () => {
+    stubFetchFailure();
+    const client = makeAppClient();
+    const detailKey = ["lists", "test-user-id", "lst-1"];
+    client.setQueryData(detailKey, DETAIL);
+    const { result } = renderHook(() => useUpdateListEntry(), { wrapper: wrap(client) });
+
+    await act(async () => {
+      await result.current
+        .mutateAsync({ listId: "lst-1", entryId: "le-1", quantity: 7 })
+        .catch(() => {});
+    });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(client.getQueryData<ListDetailResponse>(detailKey)?.entries[0].quantity).toBe(1);
+    expect(toast.error).toHaveBeenCalledWith(expect.any(String), PERSISTENT_ERROR_TOAST);
   });
 });
 

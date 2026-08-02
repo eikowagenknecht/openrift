@@ -7,6 +7,42 @@ import { isStaleServerFnError, reloadIfStaleServerFnError } from "./stale-bundle
 import { PERSISTENT_ERROR_TOAST } from "./toast";
 
 /**
+ * The failure path for a mutation: reload on a stale bundle, refetch the
+ * session on a 401, log the diagnostic, and raise the persistent error toast.
+ *
+ * Installed as the QueryClient's default mutation `onError`, and exported
+ * because react-query merges mutation options shallowly — a mutation that
+ * declares its own `onError` (to roll an optimistic update back) *replaces*
+ * the default instead of running alongside it. Those handlers call this
+ * directly, or the user watches the change revert with nothing explaining why.
+ * @returns Nothing.
+ */
+export function reportMutationError(err: Error, queryClient: QueryClient): void {
+  // Reload instead of toasting a framework-internal message at the user when
+  // their bundle is stale (same as the query cache onError in createQueryClient).
+  if (reloadIfStaleServerFnError(err)) {
+    return;
+  }
+  if (isSessionExpiredError(err)) {
+    void queryClient.invalidateQueries({ queryKey: sessionQueryOptions().queryKey });
+  }
+  // fetchApi throws an ApiError whose `message` is the server's error text
+  // (the user-facing toast) and whose `diagnostic` (method/url/status/body) is
+  // for the console only. isApiError is structural because the prototype is
+  // lost across the server-function boundary.
+  const diagnostic = isApiError(err) ? err.diagnostic : undefined;
+  if (diagnostic) {
+    console.error(`[mutation error] ${err.message}\n\n${diagnostic}`, err);
+  } else {
+    console.error(err);
+  }
+  // Mutations are user-triggered actions; a failure that auto-dismisses is easy
+  // to miss (an add/remove looks like it worked). Keep it up until the user
+  // acknowledges it.
+  toast.error(err.message, PERSISTENT_ERROR_TOAST);
+}
+
+/**
  * Factory for QueryClient — called once per request on the server (to avoid
  * cross-request data leakage) and once on the client.
  *
@@ -55,30 +91,7 @@ export function createQueryClient() {
       // Mutation errors show a global toast since the user expects feedback
       // on an action they triggered.
       mutations: {
-        onError: (err) => {
-          // Reload instead of toasting a framework-internal message at the user
-          // when their bundle is stale (see the query cache onError above).
-          if (reloadIfStaleServerFnError(err)) {
-            return;
-          }
-          if (isSessionExpiredError(err)) {
-            invalidateSession();
-          }
-          // fetchApi throws an ApiError whose `message` is the server's error
-          // text (the user-facing toast) and whose `diagnostic` (method/url/
-          // status/body) is for the console only. isApiError is structural
-          // because the prototype is lost across the server-function boundary.
-          const diagnostic = isApiError(err) ? err.diagnostic : undefined;
-          if (diagnostic) {
-            console.error(`[mutation error] ${err.message}\n\n${diagnostic}`, err);
-          } else {
-            console.error(err);
-          }
-          // Mutations are user-triggered actions; a failure that auto-dismisses
-          // is easy to miss (an add/remove looks like it worked). Keep it up
-          // until the user acknowledges it.
-          toast.error(err.message, PERSISTENT_ERROR_TOAST);
-        },
+        onError: (err) => reportMutationError(err, queryClient),
       },
     },
   });

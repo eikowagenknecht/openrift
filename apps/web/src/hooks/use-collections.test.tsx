@@ -1,7 +1,14 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { toast } from "sonner";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { createQueryClient } from "@/lib/query-client";
+import type { CollectionsResponse } from "@/lib/server-fns/api-types";
+import { PERSISTENT_ERROR_TOAST } from "@/lib/toast";
+
+vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
 // Server fns are module-level; route every mocked handler to one spy so tests
 // can script the API response of whichever fn a hook invokes.
@@ -37,7 +44,7 @@ vi.mock("@/lib/copies-collection", () => ({
   useCopiesCollection: () => copiesCollectionHolder.current,
 }));
 
-const { useClearCollection } = await import("./use-collections");
+const { useClearCollection, useReorderCollections } = await import("./use-collections");
 
 function wrap(client: QueryClient) {
   return function Wrapper({ children }: { children: ReactNode }) {
@@ -58,6 +65,63 @@ function seedSession(client: QueryClient, userId: string) {
     },
   });
 }
+
+function collection(id: string, sortOrder: number): CollectionsResponse["items"][number] {
+  return {
+    id,
+    name: id,
+    description: null,
+    availableForDeckbuilding: true,
+    isInbox: false,
+    sortOrder,
+    isPublic: false,
+    shareToken: null,
+    copyCount: 0,
+    totalValueCents: null,
+    unpricedCopyCount: null,
+    createdAt: "2026-05-17T00:00:00Z",
+    updatedAt: "2026-05-17T00:00:00Z",
+    groupId: null,
+    groupSlug: null,
+    groupName: null,
+    viewerCanAdmin: true,
+  };
+}
+
+// Declaring onError for the rollback REPLACES the QueryClient's default
+// mutation onError (react-query merges mutation options shallowly), so the
+// hook has to report the failure itself — otherwise the sidebar order snaps
+// back with nothing saying the reorder was rejected.
+describe("useReorderCollections", () => {
+  let errorSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    serverFnImpl.mockReset();
+    vi.mocked(toast.error).mockClear();
+    errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    errorSpy.mockRestore();
+  });
+
+  it("restores the previous order and toasts when the reorder fails", async () => {
+    serverFnImpl.mockRejectedValue(new Error("Service unavailable"));
+    // The app's real client, so the test proves the toast survives the default
+    // handler being replaced rather than testing a bare QueryClient.
+    const client = createQueryClient();
+    seedSession(client, "user-1");
+    const items = [collection("col-1", 0), collection("col-2", 1)];
+    client.setQueryData(["collections", "user-1"], { items });
+
+    const { result } = renderHook(() => useReorderCollections(), { wrapper: wrap(client) });
+    await result.current.mutateAsync({ orderedIds: ["col-2", "col-1"] }).catch(() => {});
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(client.getQueryData(["collections", "user-1"])).toEqual({ items });
+    expect(toast.error).toHaveBeenCalledWith(expect.any(String), PERSISTENT_ERROR_TOAST);
+  });
+});
 
 describe("useClearCollection", () => {
   beforeEach(() => {

@@ -14,6 +14,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { useRequiredUserId } from "@/lib/auth-session";
 import { collectionsQueryOptions } from "@/lib/collections-query";
 import { useCopiesCollection } from "@/lib/copies-collection";
+import { reportMutationError } from "@/lib/query-client";
 import { queryKeys } from "@/lib/query-keys";
 import { reorderInPlace } from "@/lib/reorder-in-place";
 import type { CollectionsResponse } from "@/lib/server-fns/api-types";
@@ -183,10 +184,14 @@ export function useReorderCollections() {
       }
       return { previous };
     },
-    onError: (_error, _variables, context) => {
+    onError: (error, _variables, context) => {
       if (context?.previous) {
         queryClient.setQueryData(queryKeys.collections.all(userId), context.previous);
       }
+      // Declaring onError here replaces the QueryClient's default one, so the
+      // rollback would otherwise revert the order with nothing telling the user
+      // the reorder failed.
+      reportMutationError(error, queryClient);
     },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.collections.all(userId) });
