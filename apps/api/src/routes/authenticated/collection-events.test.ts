@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppError } from "../../errors.js";
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { collectionEventsRouter } from "./collection-events";
 
@@ -75,7 +76,7 @@ describe("GET /api/v1/collection-events", () => {
     mockCollectionEventsRepo.listForUser.mockResolvedValue([dbEvent]);
     const res = await app.request("/api/v1/collection-events");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.items).toHaveLength(1);
     expect(json.items[0].id).toBe(dbEvent.id);
     expect(json.items[0].action).toBe("added");
@@ -86,7 +87,7 @@ describe("GET /api/v1/collection-events", () => {
   it("returns empty array when no events", async () => {
     mockCollectionEventsRepo.listForUser.mockResolvedValue([]);
     const res = await app.request("/api/v1/collection-events");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.items).toEqual([]);
     expect(json.nextCursor).toBeNull();
   });
@@ -116,7 +117,7 @@ describe("GET /api/v1/collection-events", () => {
     mockCollectionEventsRepo.listForUser.mockResolvedValue(items);
     const res = await app.request("/api/v1/collection-events");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.items).toHaveLength(100);
     expect(json.nextCursor).toBeTruthy();
   });
@@ -129,7 +130,7 @@ describe("GET /api/v1/collection-events", () => {
     }));
     mockCollectionEventsRepo.listForUser.mockResolvedValue(items);
     const res = await app.request("/api/v1/collection-events");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.items).toHaveLength(100);
     expect(json.nextCursor).toBeNull();
   });
@@ -137,7 +138,7 @@ describe("GET /api/v1/collection-events", () => {
   it("maps event fields correctly", async () => {
     mockCollectionEventsRepo.listForUser.mockResolvedValue([dbEvent]);
     const res = await app.request("/api/v1/collection-events");
-    const json = await res.json();
+    const json = await readJson(res);
     const event = json.items[0];
 
     expect(event.id).toBe(dbEvent.id);
@@ -172,7 +173,7 @@ describe("GET /api/v1/collection-events", () => {
     }));
     mockCollectionEventsRepo.listForUser.mockResolvedValue(items);
     const res = await app.request("/api/v1/collection-events?limit=10");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.items).toHaveLength(10);
     // Last item in the sliced array (index 9): createdAt = lastDate - 9s, id = ...000000000009
     const expectedTime = new Date(lastDate.getTime() - 9000).toISOString();

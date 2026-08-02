@@ -93,11 +93,17 @@ function createMockRepos(
   const distributionChannels = {} as any;
   const markers = {} as any;
 
-  return {
-    repos: { candidateCards, candidateMutations, printingImages, distributionChannels, markers },
+  // Only the handful of methods the service actually calls are stubbed; the
+  // cast stands in for the rest of each repo's surface.
+  const repos = {
     candidateCards,
     candidateMutations,
-  };
+    printingImages,
+    distributionChannels,
+    markers,
+  } as unknown as Parameters<typeof acceptFavoriteNewCard>[2];
+
+  return { repos, candidateCards, candidateMutations };
 }
 
 // ── Tests ───────────────────────────────────────────────────────────────

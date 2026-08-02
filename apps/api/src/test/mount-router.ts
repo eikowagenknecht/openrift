@@ -1,8 +1,10 @@
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
+import type { Router } from "@orpc/server";
 import type { Context, Hono } from "hono";
 
 import { appErrorInterceptor } from "../orpc/app-error-interceptor.js";
 import { buildApiContext } from "../orpc/context.js";
+import type { ApiContext } from "../orpc/context.js";
 import type { Variables } from "../types.js";
 
 /**
@@ -14,11 +16,17 @@ import type { Variables } from "../types.js";
  * (auth gating beyond `requireUser`, Cache-Control, `etag`) live in `app.ts`
  * and are covered separately, not here.
  *
+ * The router is typed `Router<any, ApiContext>` — the same instantiation the
+ * production handler infers. `ConstructorParameters<typeof OpenAPIHandler>[0]`
+ * would collapse the context parameter to its `Context` constraint, which no
+ * router built on our `ApiContext` base builder is assignable to.
+ *
  * @returns Nothing; mounts the router on the passed app.
  */
 export function registerRouterForTest(
   app: Hono<{ Variables: Variables }>,
-  router: ConstructorParameters<typeof OpenAPIHandler>[0],
+  // oxlint-disable-next-line typescript/no-explicit-any -- oRPC's own `Router<TInitialContext, TContext>` uses `any` for the initial context
+  router: Router<any, ApiContext>,
 ): void {
   const handler = new OpenAPIHandler(router, { interceptors: [appErrorInterceptor] });
   app.all("/api/*", async (c: Context<{ Variables: Variables }>) => {

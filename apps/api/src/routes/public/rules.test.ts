@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { rulesRouter } from "./rules";
 
@@ -67,7 +68,7 @@ describe("GET /api/v1/rules", () => {
 
     const res = await app.request("/api/v1/rules?kind=core");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.kind).toBe("core");
     expect(json.version).toBe("1.2.0");
     expect(json.rules).toHaveLength(1);
@@ -93,7 +94,7 @@ describe("GET /api/v1/rules", () => {
 
     const res = await app.request("/api/v1/rules?kind=core&version=1.2.0");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.version).toBe("1.2.0");
     expect(json.changes).toBeDefined();
     expect(json.changes.added).toEqual(["3.4.1"]);
@@ -109,7 +110,7 @@ describe("GET /api/v1/rules", () => {
 
     const res = await app.request("/api/v1/rules?kind=tournament");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.kind).toBe("tournament");
     expect(json.version).toBe("");
     expect(json.rules).toEqual([]);
@@ -132,7 +133,7 @@ describe("GET /api/v1/rules/versions", () => {
 
     const res = await app.request("/api/v1/rules/versions?kind=core");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.versions).toHaveLength(1);
     expect(json.versions[0]).toEqual({
       kind: "core",
@@ -147,7 +148,7 @@ describe("GET /api/v1/rules/versions", () => {
 
     const res = await app.request("/api/v1/rules/versions?kind=tournament");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.versions).toEqual([]);
   });
 });

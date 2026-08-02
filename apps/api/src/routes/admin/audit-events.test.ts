@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { buildKeysetCursor } from "../../repositories/query-helpers.js";
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminAuditEventsRouter } from "./audit-events";
 
@@ -59,7 +60,7 @@ describe("GET /audit-events", () => {
     const res = await app.request("/api/admin/v1/audit-events");
     expect(res.status).toBe(200);
 
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.items).toHaveLength(1);
     expect(json.items[0].createdAt).toBe(createdAt.toISOString());
     expect(json.items[0].oldValues).toEqual({ energy: 2 });
@@ -102,7 +103,7 @@ describe("GET /audit-events", () => {
     ]);
 
     const res = await app.request("/api/admin/v1/audit-events?limit=2");
-    const json = await res.json();
+    const json = await readJson(res);
 
     expect(json.items).toHaveLength(2);
     expect(json.nextCursor).toBe(buildKeysetCursor(t2, "00000000-0000-7000-a000-000000000002"));
@@ -122,7 +123,7 @@ describe("GET /audit-events/actors", () => {
 
     const res = await app.request("/api/admin/v1/audit-events/actors");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.actors).toHaveLength(2);
     expect(json.actors[1]).toEqual({ userId: "actor-2", name: null, email: null });
   });

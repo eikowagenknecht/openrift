@@ -2,6 +2,7 @@ import { sql } from "kysely";
 import { describe, expect, it } from "vitest";
 
 import { createTestContext, req, syncCardCardTypes } from "../../test/integration-context.js";
+import { readJson } from "../../test/read-json.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Prices routes
@@ -21,9 +22,6 @@ let setId: string;
 let cardId: string;
 let printingId: string;
 let printingNoSourceId: string;
-let _tcgVariantId: string;
-let _cmVariantId: string;
-let _ctVariantId: string;
 
 if (ctx) {
   const { db } = ctx;
@@ -74,6 +72,8 @@ if (ctx) {
       printedEffectText: null,
       flavorText: null,
       comment: null,
+      size: "standard",
+      language: "EN",
     })
     .returning("id")
     .execute();
@@ -96,6 +96,8 @@ if (ctx) {
       printedEffectText: null,
       flavorText: null,
       comment: null,
+      size: "standard",
+      language: "EN",
     })
     .returning("id")
     .execute();
@@ -115,7 +117,7 @@ if (ctx) {
     })
     .returning("id")
     .execute();
-  const [tcgVariant] = await db
+  await db
     .insertInto("marketplaceProductVariants")
     .values({
       marketplaceProductId: tcgProduct.id,
@@ -123,7 +125,6 @@ if (ctx) {
     })
     .returning("id")
     .execute();
-  _tcgVariantId = tcgVariant.id;
 
   // Cardmarket product + variant for printingId. CM also has no per-language SKU axis.
   const [cmProduct] = await db
@@ -138,7 +139,7 @@ if (ctx) {
     })
     .returning("id")
     .execute();
-  const [cmVariant] = await db
+  await db
     .insertInto("marketplaceProductVariants")
     .values({
       marketplaceProductId: cmProduct.id,
@@ -146,7 +147,6 @@ if (ctx) {
     })
     .returning("id")
     .execute();
-  _cmVariantId = cmVariant.id;
 
   // TCGPlayer prices at various dates. Prices are keyed on the SKU product,
   // not the variant — every variant bound to the product inherits the history.
@@ -214,7 +214,7 @@ if (ctx) {
     })
     .returning("id")
     .execute();
-  const [ctVariant] = await db
+  await db
     .insertInto("marketplaceProductVariants")
     .values({
       marketplaceProductId: ctProduct.id,
@@ -222,7 +222,6 @@ if (ctx) {
     })
     .returning("id")
     .execute();
-  _ctVariantId = ctVariant.id;
 
   // CardTrader prices: Zero-eligible low 2 days ago + plain low 5 days ago.
   await db
@@ -268,14 +267,14 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
       const res = await app.fetch(req("GET", "/prices"));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.prices).toBeDefined();
       expect(typeof json.prices).toBe("object");
     });
 
     it("includes the seeded printing with a headline price per marketplace", async () => {
       const res = await app.fetch(req("GET", "/prices"));
-      const json = await res.json();
+      const json = await readJson(res);
 
       // mv_latest_printing_prices picks the headline per marketplace; the wire
       // carries integer cents:
@@ -292,7 +291,7 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
 
     it("does not include printings without marketplace sources", async () => {
       const res = await app.fetch(req("GET", "/prices"));
-      const json = await res.json();
+      const json = await readJson(res);
 
       expect(json.prices[printingNoSourceId]).toBeUndefined();
     });
@@ -312,7 +311,7 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
       const res = await app.fetch(req("GET", `/prices/${printingId}/history`));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
 
       expect(json.tcgplayer.available).toBe(true);
       expect(json.tcgplayer.productId).toBe(90_001);
@@ -330,7 +329,7 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
       const res = await app.fetch(req("GET", `/prices/${fakeId}/history`));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.tcgplayer.available).toBe(false);
       expect(json.tcgplayer.productId).toBeNull();
       expect(json.tcgplayer.snapshots).toHaveLength(0);
@@ -343,14 +342,14 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
       const res = await app.fetch(req("GET", `/prices/${printingNoSourceId}/history`));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.tcgplayer.available).toBe(false);
       expect(json.cardmarket.available).toBe(false);
     });
 
     it("default range is 30d — excludes snapshots older than 30 days", async () => {
       const res = await app.fetch(req("GET", `/prices/${printingId}/history`));
-      const json = await res.json();
+      const json = await readJson(res);
 
       // With default 30d range: 2-day-old and 15-day-old tcgplayer snapshots
       // should be included, but 60-day and 120-day should be excluded
@@ -359,7 +358,7 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
 
     it("range=7d filters to only recent snapshots", async () => {
       const res = await app.fetch(req("GET", `/prices/${printingId}/history?range=7d`));
-      const json = await res.json();
+      const json = await readJson(res);
 
       // Only the 2-day-old snapshot should be included
       expect(json.tcgplayer.snapshots.length).toBe(1);
@@ -367,7 +366,7 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
 
     it("range=90d includes snapshots up to 90 days old", async () => {
       const res = await app.fetch(req("GET", `/prices/${printingId}/history?range=90d`));
-      const json = await res.json();
+      const json = await readJson(res);
 
       // 2-day, 15-day, 60-day snapshots included; 120-day excluded
       expect(json.tcgplayer.snapshots.length).toBe(3);
@@ -375,7 +374,7 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
 
     it("range=all returns all snapshots", async () => {
       const res = await app.fetch(req("GET", `/prices/${printingId}/history?range=all`));
-      const json = await res.json();
+      const json = await readJson(res);
 
       // All 4 tcgplayer snapshots
       expect(json.tcgplayer.snapshots.length).toBe(4);
@@ -383,7 +382,7 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
 
     it("tcgplayer snapshots have correct shape", async () => {
       const res = await app.fetch(req("GET", `/prices/${printingId}/history?range=7d`));
-      const json = await res.json();
+      const json = await readJson(res);
 
       const snap = json.tcgplayer.snapshots[0];
       expect(snap.date).toBeTypeOf("string");
@@ -396,7 +395,7 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
 
     it("cardmarket snapshots have correct shape", async () => {
       const res = await app.fetch(req("GET", `/prices/${printingId}/history?range=7d`));
-      const json = await res.json();
+      const json = await readJson(res);
 
       const snap = json.cardmarket.snapshots[0];
       expect(snap.date).toBeTypeOf("string");
@@ -409,7 +408,7 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
 
     it("cardtrader snapshots carry zeroLow and low", async () => {
       const res = await app.fetch(req("GET", `/prices/${printingId}/history?range=7d`));
-      const json = await res.json();
+      const json = await readJson(res);
 
       expect(json.cardtrader.available).toBe(true);
       expect(json.cardtrader.productId).toBe(90_003);
@@ -432,7 +431,7 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
 
     it("snapshots are ordered chronologically (ascending)", async () => {
       const res = await app.fetch(req("GET", `/prices/${printingId}/history?range=all`));
-      const json = await res.json();
+      const json = await readJson(res);
 
       const dates = json.tcgplayer.snapshots.map((s: { date: string }) => s.date);
       const sorted = dates.toSorted();

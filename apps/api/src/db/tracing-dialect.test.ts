@@ -6,7 +6,7 @@ import {
   SimpleSpanProcessor,
 } from "@opentelemetry/sdk-trace-base";
 import type { ReadableSpan } from "@opentelemetry/sdk-trace-base";
-import type { CompiledQuery, DatabaseConnection, Driver, QueryResult } from "kysely";
+import type { CompiledQuery, DatabaseConnection, Driver } from "kysely";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { TracingDialect } from "./tracing-dialect.js";
@@ -34,7 +34,12 @@ afterEach(() => {
 });
 
 function makeCompiled(sql: string): CompiledQuery {
-  return { sql, parameters: [], query: { kind: "SelectQueryNode" } as CompiledQuery["query"] };
+  return {
+    sql,
+    parameters: [],
+    query: { kind: "SelectQueryNode" } as CompiledQuery["query"],
+    queryId: { queryId: sql },
+  };
 }
 
 function fakeDriver(executeQuery: DatabaseConnection["executeQuery"]): Driver {
@@ -74,7 +79,7 @@ function spansByName(spans: ReadableSpan[]): Record<string, ReadableSpan> {
 
 describe("TracingDialect", () => {
   it("emits a db.query span with statement and system attributes", async () => {
-    const dialect = dialectFor(fakeDriver(async () => ({ rows: [] }) as QueryResult<unknown>));
+    const dialect = dialectFor(fakeDriver(async () => ({ rows: [] })));
     const conn = await dialect.createDriver().acquireConnection();
     await conn.executeQuery(makeCompiled("SELECT 1"));
 
@@ -88,7 +93,7 @@ describe("TracingDialect", () => {
   });
 
   it("nests db.query under the active parent span", async () => {
-    const dialect = dialectFor(fakeDriver(async () => ({ rows: [] }) as QueryResult<unknown>));
+    const dialect = dialectFor(fakeDriver(async () => ({ rows: [] })));
     const conn = await dialect.createDriver().acquireConnection();
 
     const tracer = trace.getTracer("test");
@@ -120,7 +125,7 @@ describe("TracingDialect", () => {
 
   it("truncates very long statements so spans stay under exporter limits", async () => {
     const huge = `SELECT ${"x".repeat(5000)}`;
-    const dialect = dialectFor(fakeDriver(async () => ({ rows: [] }) as QueryResult<unknown>));
+    const dialect = dialectFor(fakeDriver(async () => ({ rows: [] })));
     const conn = await dialect.createDriver().acquireConnection();
     await conn.executeQuery(makeCompiled(huge));
 
@@ -131,8 +136,10 @@ describe("TracingDialect", () => {
   });
 
   it("unwraps connections when delegating transaction lifecycle calls", async () => {
-    const beginTransaction = vi.fn(async () => undefined);
-    const releaseConnection = vi.fn(async () => undefined);
+    const beginTransaction = vi.fn(async (..._args: Parameters<Driver["beginTransaction"]>) => {});
+    const releaseConnection = vi.fn(
+      async (..._args: Parameters<Driver["releaseConnection"]>) => {},
+    );
     const innerConn: DatabaseConnection = {
       executeQuery: async () => ({ rows: [] }),
       streamQuery: () => {

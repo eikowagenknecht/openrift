@@ -3,7 +3,7 @@ import { sql } from "kysely";
 
 import type { Database } from "../db/index.js";
 
-type HealthStatus = "ok" | "db_empty" | "db_not_migrated" | "db_unreachable";
+export type HealthStatus = "ok" | "db_empty" | "db_not_migrated" | "db_unreachable";
 
 class HealthTimeoutError extends Error {
   constructor() {

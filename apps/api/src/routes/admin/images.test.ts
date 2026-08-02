@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { Repos } from "../../deps.js";
 import {
   REGENERATE_IMAGES_KIND,
   cleanupOrphanedFiles,
@@ -13,6 +14,7 @@ import {
   unrehostImages,
 } from "../../services/images/index.js";
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminImagesRouter } from "./images";
 
@@ -62,8 +64,8 @@ const mockJobRuns = {
   start: vi.fn(async () => ({ id: RUN_TEST })),
   succeed: vi.fn(),
   fail: vi.fn(),
-  findRunning: vi.fn(async () => null),
-  findLatestForResume: vi.fn(async () => null),
+  findRunning: vi.fn<Repos["jobRuns"]["findRunning"]>(async () => null),
+  findLatestForResume: vi.fn<Repos["jobRuns"]["findLatestForResume"]>(async () => null),
   getResult: vi.fn(),
   updateResult: vi.fn(),
   listRecent: vi.fn(),
@@ -109,7 +111,7 @@ describe("POST /api/admin/v1/rehost-images", () => {
 
     const res = await app.request("/api/admin/v1/rehost-images", { method: "POST" });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual(result);
     expect(mockRehostImages).toHaveBeenCalledWith(mockIo, mockPrintingImages, 10);
   });
@@ -147,7 +149,7 @@ describe("POST /api/admin/v1/regenerate-images", () => {
   it("kicks off a fresh job and returns runId immediately", async () => {
     const res = await app.request("/api/admin/v1/regenerate-images", { method: "POST" });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({ runId: RUN_TEST, status: "running" });
     expect(mockJobRuns.start).toHaveBeenCalledWith({
       kind: REGENERATE_IMAGES_KIND,
@@ -160,7 +162,7 @@ describe("POST /api/admin/v1/regenerate-images", () => {
     mockJobRuns.findRunning.mockResolvedValue({ id: EARLIER_RUN });
     const res = await app.request("/api/admin/v1/regenerate-images", { method: "POST" });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({ runId: EARLIER_RUN, status: "already_running" });
     expect(mockJobRuns.start).not.toHaveBeenCalled();
   });
@@ -175,6 +177,7 @@ describe("POST /api/admin/v1/regenerate-images", () => {
       finishedAt: new Date(),
       durationMs: 1,
       errorMessage: "boom",
+      noop: null,
       result: {
         snapshot: [{ imageId: "card-1", rehostedUrl: "/m/01/card-1" }],
         totalFiles: 5,
@@ -217,7 +220,7 @@ describe("POST /api/admin/v1/regenerate-images/cancel", () => {
 
     const res = await app.request("/api/admin/v1/regenerate-images/cancel", { method: "POST" });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({ runId: RUN_X, cancelRequested: true });
     expect(mockJobRuns.updateResult).toHaveBeenCalledWith(
       RUN_X,
@@ -243,7 +246,7 @@ describe("POST /api/admin/v1/cleanup-orphaned", () => {
 
     const res = await app.request("/api/admin/v1/cleanup-orphaned", { method: "POST" });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual(result);
     expect(mockCleanupOrphanedFiles).toHaveBeenCalledWith(mockIo, mockPrintingImages);
   });
@@ -259,7 +262,7 @@ describe("POST /api/admin/v1/clear-rehosted", () => {
 
     const res = await app.request("/api/admin/v1/clear-rehosted", { method: "POST" });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({ cleared: 42 });
     expect(mockClearAllRehosted).toHaveBeenCalledWith(mockIo, mockPrintingImages);
   });
@@ -283,7 +286,7 @@ describe("POST /api/admin/v1/unrehost-images", () => {
       body: JSON.stringify({ imageIds: [validUuid1, validUuid2] }),
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual(result);
     expect(mockUnrehostImages).toHaveBeenCalledWith(mockIo, mockPrintingImages, [
       validUuid1,
@@ -321,7 +324,7 @@ describe("POST /api/admin/v1/unrehost-images", () => {
       body: JSON.stringify({ imageIds: [validUuid1, validUuid2] }),
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual(result);
   });
 });
@@ -356,7 +359,7 @@ describe("GET /api/admin/v1/rehost-status", () => {
 
     const res = await app.request("/api/admin/v1/rehost-status");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual(result);
     expect(mockGetRehostStatus).toHaveBeenCalledWith(mockIo, mockPrintingImages);
   });
@@ -386,7 +389,7 @@ describe("GET /api/admin/v1/broken-images", () => {
 
     const res = await app.request("/api/admin/v1/broken-images");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual(result);
     expect(mockFindBrokenImages).toHaveBeenCalledWith(mockIo, mockPrintingImages);
   });
@@ -418,7 +421,7 @@ describe("GET /api/admin/v1/low-res-images", () => {
 
     const res = await app.request("/api/admin/v1/low-res-images");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual(result);
     expect(mockFindLowResImages).toHaveBeenCalledWith(mockIo, mockPrintingImages);
   });
@@ -451,7 +454,7 @@ describe("GET /api/admin/v1/missing-images", () => {
 
     const res = await app.request("/api/admin/v1/missing-images");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual(cards);
   });
 
@@ -460,7 +463,7 @@ describe("GET /api/admin/v1/missing-images", () => {
 
     const res = await app.request("/api/admin/v1/missing-images");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual([]);
   });
 });

@@ -697,6 +697,8 @@ describe.skipIf(!coverCtx)("copies coverPrintingsAcross (integration)", () => {
         printedEffectText: null,
         flavorText: null,
         comment: null,
+        size: "standard",
+        language: "EN",
       })
       .returning("id")
       .executeTakeFirstOrThrow();

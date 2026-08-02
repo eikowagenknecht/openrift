@@ -114,11 +114,11 @@ describe.skipIf(!ctx)("tournaments schema invariants (integration)", () => {
     await expect(
       db
         .insertInto("tournaments")
+        // @ts-expect-error — exercising the DB CHECK with an out-of-enum value.
         .values({
           hostType: "user",
           hostUserId: HOST_ID,
           name: "Bad pairing",
-          // @ts-expect-error — exercising the DB CHECK with an out-of-enum value.
           pairingStyle: "bracket",
         })
         .execute(),

@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createRepos } from "../../deps.js";
 import { CARD_FURY_UNIT } from "../../test/fixtures/constants.js";
 import { createTestContext, req, syncCardCardTypes } from "../../test/integration-context.js";
+import { readJson } from "../../test/read-json.js";
 
 // Fresh ids, not in run-integration.ts's TEST_USERS registry: the suite seeds
 // its own users (like the deck-check-player suite) so the FK targets exist.
@@ -72,8 +73,8 @@ describe.skipIf(!ownerCtx)("deck-check ingest push (integration, ADR-033)", () =
    * @param entries The entries to push.
    * @returns The ingest response.
    */
-  function push(entries: Record<string, unknown>[]): Promise<Response> {
-    return ownerApp.fetch(ingestReq(pushToken, { tournamentId: eventId, entries }));
+  async function push(entries: Record<string, unknown>[]): Promise<Response> {
+    return await ownerApp.fetch(ingestReq(pushToken, { tournamentId: eventId, entries }));
   }
 
   /**
@@ -129,7 +130,7 @@ describe.skipIf(!ownerCtx)("deck-check ingest push (integration, ADR-033)", () =
       req("POST", "/me/deck-check-keys", { label: "ingest-itest" }),
     );
     expect(keyRes.status).toBe(201);
-    const minted = (await keyRes.json()) as { token: string; key: { tokenPrefix: string } };
+    const minted = (await readJson(keyRes)) as { token: string; key: { tokenPrefix: string } };
     expect(minted.token.startsWith("orpk_")).toBe(true);
     expect(minted.token.startsWith(minted.key.tokenPrefix)).toBe(true);
     pushToken = minted.token;
@@ -177,7 +178,7 @@ describe.skipIf(!ownerCtx)("deck-check ingest push (integration, ADR-033)", () =
     // A throwaway key, so revoking it leaves the suite's main pushToken intact.
     const mint = await ownerApp.fetch(req("POST", "/me/deck-check-keys", { label: "to-revoke" }));
     expect(mint.status).toBe(201);
-    const minted = (await mint.json()) as { token: string; key: { id: string } };
+    const minted = (await readJson(mint)) as { token: string; key: { id: string } };
 
     // It authenticates an (empty) push before revocation.
     const before = await ownerApp.fetch(
@@ -207,12 +208,12 @@ describe.skipIf(!ownerCtx)("deck-check ingest push (integration, ADR-033)", () =
   it("creates entries on first push and upserts them by externalId", async () => {
     const first = await push([entryPayload()]);
     expect(first.status).toBe(200);
-    const firstResult = (await first.json()) as { tournamentId: string; entriesCreated: number };
+    const firstResult = (await readJson(first)) as { tournamentId: string; entriesCreated: number };
     expect(firstResult.tournamentId).toBe(eventId);
     expect(firstResult.entriesCreated).toBe(1);
 
     const second = await push([entryPayload()]);
-    const secondResult = (await second.json()) as {
+    const secondResult = (await readJson(second)) as {
       entriesCreated: number;
       entriesUnchanged: number;
     };
@@ -251,7 +252,7 @@ describe.skipIf(!ownerCtx)("deck-check ingest push (integration, ADR-033)", () =
       }),
     ]);
     expect(res.status).toBe(422);
-    const body = (await res.json()) as { message: string };
+    const body = (await readJson(res)) as { message: string };
     expect(body.message).toContain("commander");
 
     const entry = await repos.deckCheck.getEntryByExternalId(eventId, "entry-bad-section");
@@ -409,7 +410,7 @@ describe.skipIf(!ownerCtx)("deck-check ingest push (integration, ADR-033)", () =
         req("POST", `/tournaments/${eventId}/deck-check/re-resolve`),
       );
       expect(res.status).toBe(200);
-      const body = (await res.json()) as { updatedLines: number };
+      const body = (await readJson(res)) as { updatedLines: number };
       expect(body.updatedLines).toBeGreaterThanOrEqual(1);
 
       const entry = await repos.deckCheck.getEntryByExternalId(eventId, "entry-resolution");
@@ -444,7 +445,7 @@ describe.skipIf(!ownerCtx)("deck-check ingest push (integration, ADR-033)", () =
       req("GET", `/tournaments/${eventId}/deck-check/entries/${entry!.id}`),
     );
     expect(res.status).toBe(200);
-    const detail = (await res.json()) as {
+    const detail = (await readJson(res)) as {
       entry: { playerName: string };
       cards: { matchStatus: string; resolvedCardId: string | null }[];
       violations: { code: string }[];
@@ -465,7 +466,7 @@ describe.skipIf(!ownerCtx)("deck-check ingest push (integration, ADR-033)", () =
   it("removes a key only after it is revoked, and only its own host", async () => {
     const mint = await ownerApp.fetch(req("POST", "/me/deck-check-keys", { label: "to-remove" }));
     expect(mint.status).toBe(201);
-    const keyId = ((await mint.json()) as { key: { id: string } }).key.id;
+    const keyId = ((await readJson(mint)) as { key: { id: string } }).key.id;
 
     // An active key cannot be removed — it must be revoked first.
     const tooEarly = await ownerApp.fetch(req("DELETE", `/me/deck-check-keys/${keyId}/permanent`));
@@ -483,7 +484,7 @@ describe.skipIf(!ownerCtx)("deck-check ingest push (integration, ADR-033)", () =
 
     // The row is gone from the list entirely (not just revoked).
     const list = await ownerApp.fetch(req("GET", "/me/deck-check-keys"));
-    const items = ((await list.json()) as { items: { id: string }[] }).items;
+    const items = ((await readJson(list)) as { items: { id: string }[] }).items;
     expect(items.some((item) => item.id === keyId)).toBe(false);
   });
 });

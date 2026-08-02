@@ -54,7 +54,7 @@ describe("createMetricsMiddleware", () => {
     const { registerMetrics, registry } = createMetricsMiddleware({ collectDefaults: false });
 
     const app = new Hono();
-    app.use("*", async (c, next) => {
+    app.use("*", async (_c, next) => {
       const span = tracer.startSpan("test span");
       await context.with(trace.setSpan(context.active(), span), async () => {
         await next();

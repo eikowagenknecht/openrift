@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { cronJobs } from "../../cron-jobs.js";
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminCoreRouter } from "./core";
 
@@ -42,7 +43,7 @@ describe("GET /api/admin/v1/me", () => {
 
     const res = await app.request("/api/admin/v1/me");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({ isAdmin: true, sections: [] });
     expect(mockAdminGrantsRepo.sectionsForUser).not.toHaveBeenCalled();
   });
@@ -54,7 +55,7 @@ describe("GET /api/admin/v1/me", () => {
 
     const res = await app.request("/api/admin/v1/me");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({ isAdmin: false, sections: ["custom-tags"] });
   });
 
@@ -65,7 +66,7 @@ describe("GET /api/admin/v1/me", () => {
 
     const res = await app.request("/api/admin/v1/me");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({ isAdmin: false, sections: ["custom-tags"] });
   });
 });
@@ -90,7 +91,7 @@ describe("GET /api/admin/v1/cron-status", () => {
   it("returns all null when no cron jobs are scheduled", async () => {
     const res = await app.request("/api/admin/v1/cron-status");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({
       tcgplayer: null,
       cardmarket: null,
@@ -106,7 +107,7 @@ describe("GET /api/admin/v1/cron-status", () => {
 
     const res = await app.request("/api/admin/v1/cron-status");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({
       tcgplayer: { nextRun: nextDate.toISOString() },
       cardmarket: { nextRun: null },
@@ -125,7 +126,7 @@ describe("GET /api/admin/v1/cron-status", () => {
 
     const res = await app.request("/api/admin/v1/cron-status");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({
       tcgplayer: { nextRun: date1.toISOString() },
       cardmarket: { nextRun: date2.toISOString() },

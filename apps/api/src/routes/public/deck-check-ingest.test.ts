@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { deckCheckIngestRouter } from "./deck-check-ingest";
 
@@ -75,7 +76,7 @@ describe("POST /api/v1/ingest/deck-check (oRPC)", () => {
       { Authorization: "Bearer secret" },
     );
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual(RESULT);
+    expect(await readJson(res)).toEqual(RESULT);
     expect(mockIngest).toHaveBeenCalledWith(
       expect.anything(),
       { hostType: "user", hostUserId: "user-1", hostOrgId: null },
@@ -88,7 +89,7 @@ describe("POST /api/v1/ingest/deck-check (oRPC)", () => {
   it("returns 401 { code, message } when the Authorization header is missing", async () => {
     const res = await push({ tournamentId: EVENT_ID, entries: [] });
     expect(res.status).toBe(401);
-    expect(await res.json()).toMatchObject({
+    expect(await readJson(res)).toMatchObject({
       code: ERROR_CODES.UNAUTHORIZED,
       message: "Missing push key",
     });
@@ -102,7 +103,7 @@ describe("POST /api/v1/ingest/deck-check (oRPC)", () => {
       { Authorization: "Bearer nope" },
     );
     expect(res.status).toBe(401);
-    expect(await res.json()).toMatchObject({
+    expect(await readJson(res)).toMatchObject({
       code: ERROR_CODES.UNAUTHORIZED,
       message: "Unknown or revoked push key",
     });

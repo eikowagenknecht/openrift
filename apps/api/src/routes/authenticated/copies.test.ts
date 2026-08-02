@@ -3,6 +3,7 @@ import { describe, expect, it, beforeEach, vi } from "vitest";
 
 import { AppError } from "../../errors.js";
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { copiesRouter } from "./copies";
 
@@ -89,7 +90,7 @@ describe("GET /api/v1/copies", () => {
     mockRepo.listForAccessibleCollections.mockResolvedValue([dbCopy]);
     const res = await app.request("/api/v1/copies");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.items).toHaveLength(1);
     expect(json.items[0].id).toBe(dbCopy.id);
     expect(json.nextCursor).toBeNull();
@@ -98,7 +99,7 @@ describe("GET /api/v1/copies", () => {
   it("returns empty array when no copies", async () => {
     mockRepo.listForAccessibleCollections.mockResolvedValue([]);
     const res = await app.request("/api/v1/copies");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.items).toEqual([]);
     expect(json.nextCursor).toBeNull();
   });
@@ -111,7 +112,7 @@ describe("GET /api/v1/copies", () => {
     }));
     mockRepo.listForAccessibleCollections.mockResolvedValue(items);
     const res = await app.request("/api/v1/copies?limit=10");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.items).toHaveLength(10);
     expect(json.nextCursor).toBeTruthy();
   });
@@ -124,7 +125,7 @@ describe("GET /api/v1/copies", () => {
     }));
     mockRepo.listForAccessibleCollections.mockResolvedValue(items);
     const res = await app.request("/api/v1/copies");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.items).toHaveLength(5000);
     expect(json.nextCursor).toBeTruthy();
   });
@@ -170,7 +171,7 @@ describe("POST /api/v1/copies", () => {
       body: JSON.stringify({ copies: [{ printingId: PRINTING_ID }] }),
     });
     expect(res.status).toBe(201);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.items).toHaveLength(1);
   });
 });

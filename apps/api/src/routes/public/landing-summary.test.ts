@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { landingSummaryRouter } from "./landing-summary";
 
@@ -39,7 +40,7 @@ describe("GET /api/v1/landing-summary", () => {
   it("returns 200 with the landing summary shape", async () => {
     const res = await app.request("/api/v1/landing-summary");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({
       cardCount: 312,
       printingCount: 468,
@@ -61,7 +62,7 @@ describe("GET /api/v1/landing-summary", () => {
       thumbnailIds: [],
     });
     const res = await app.request("/api/v1/landing-summary");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.thumbnailIds).toEqual([]);
     expect(json.cardCount).toBe(0);
   });

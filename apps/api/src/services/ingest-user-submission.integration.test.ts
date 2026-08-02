@@ -55,9 +55,8 @@ async function submit(
 }
 
 describe.skipIf(!ctx)("ingestUserSubmission integration", () => {
-  // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
-  const db = ctx?.db ?? (null as any);
-  const transact = db ? createTransact(db) : (null as any);
+  const { db } = ctx!;
+  const transact = createTransact(db);
 
   beforeEach(async () => {
     await db

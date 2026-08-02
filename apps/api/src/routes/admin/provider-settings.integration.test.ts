@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { adminReq, createTestContext } from "../../test/integration-context.js";
+import { readJson } from "../../test/read-json.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Admin provider-settings routes
@@ -48,7 +49,7 @@ describe.skipIf(!adminCtx)("Admin provider-settings routes (integration)", () =>
       const res = await app.fetch(adminReq("GET", "/provider-settings"));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.providerSettings).toBeInstanceOf(Array);
       for (const setting of json.providerSettings) {
         expect(setting.provider).toBeTypeOf("string");
@@ -72,7 +73,7 @@ describe.skipIf(!adminCtx)("Admin provider-settings routes (integration)", () =>
 
       // Verify it appears in the list
       const listRes = await app.fetch(adminReq("GET", "/provider-settings"));
-      const json = await listRes.json();
+      const json = await readJson(listRes);
       const ipsEntry = json.providerSettings.find(
         (s: { provider: string }) => s.provider === "ips-test-provider",
       );
@@ -88,7 +89,7 @@ describe.skipIf(!adminCtx)("Admin provider-settings routes (integration)", () =>
       expect(res.status).toBe(204);
 
       const listRes = await app.fetch(adminReq("GET", "/provider-settings"));
-      const json = await listRes.json();
+      const json = await readJson(listRes);
       const ipsEntry = json.providerSettings.find(
         (s: { provider: string }) => s.provider === "ips-test-provider",
       );
@@ -102,7 +103,7 @@ describe.skipIf(!adminCtx)("Admin provider-settings routes (integration)", () =>
       expect(res.status).toBe(204);
 
       const listRes = await app.fetch(adminReq("GET", "/provider-settings"));
-      const json = await listRes.json();
+      const json = await readJson(listRes);
       const ipsEntry = json.providerSettings.find(
         (s: { provider: string }) => s.provider === "ips-test-provider",
       );
@@ -140,7 +141,7 @@ describe.skipIf(!adminCtx)("Admin provider-settings routes (integration)", () =>
       );
       expect(res.status).toBe(400);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.message).toContain("Duplicate");
     });
   });
@@ -155,7 +156,7 @@ describe.skipIf(!adminCtx)("Admin provider-settings routes (integration)", () =>
 
       // Verify no ips- entries remain
       const res = await app.fetch(adminReq("GET", "/provider-settings"));
-      const json = await res.json();
+      const json = await readJson(res);
       const ipsEntries = json.providerSettings.filter((s: { provider: string }) =>
         s.provider.startsWith("ips-"),
       );

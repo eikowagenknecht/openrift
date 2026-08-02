@@ -22,7 +22,13 @@ describe.skipIf(!ctx)("podTournamentsRepo (integration)", () => {
   const tournamentsRepo = repos.podTournaments;
   // The defaults a freshly created tournament carries; the derived reads take
   // the scoring knobs explicitly, so pass the same values the repo would store.
-  const scoring: PodScoring = { scheme: "standard", byePoints: 3, winPoints: 3, drawPoints: 1 };
+  const scoring: PodScoring = {
+    scheme: "standard",
+    byePoints: 3,
+    winPoints: 3,
+    drawPoints: 1,
+    playMode: "1v1",
+  };
   let counter = 0;
 
   beforeAll(async () => {

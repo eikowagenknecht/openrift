@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../../test/mount-router.js";
+import { readJson } from "../../../test/read-json.js";
 import type { Variables } from "../../../types.js";
 import { adminCardBansRouter } from "./bans";
 
@@ -59,7 +60,7 @@ describe("GET /api/admin/v1/cards/:id/bans", () => {
 
     const res = await app.request(`/api/admin/v1/cards/${CARD_ID}/bans`);
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({ bans: [banResponse] });
     expect(mockCardBans.listByCard).toHaveBeenCalledWith(CARD_ID);
   });
@@ -69,7 +70,7 @@ describe("GET /api/admin/v1/cards/:id/bans", () => {
 
     const res = await app.request(`/api/admin/v1/cards/${CARD_ID}/bans`);
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({ bans: [] });
   });
 });
@@ -95,7 +96,7 @@ describe("POST /api/admin/v1/cards/:id/bans", () => {
     });
 
     expect(res.status).toBe(201);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({ ban: banResponse });
     expect(mockCardBans.create).toHaveBeenCalledWith({
       cardId: CARD_ID,
@@ -144,7 +145,7 @@ describe("POST /api/admin/v1/cards/:id/bans", () => {
     });
 
     expect(res.status).toBe(409);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("already banned");
     expect(mockCardBans.create).not.toHaveBeenCalled();
   });
@@ -165,7 +166,7 @@ describe("PATCH /api/admin/v1/cards/:id/bans", () => {
     });
 
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.ban.reason).toBe("Updated");
     expect(mockCardBans.update).toHaveBeenCalledWith(CARD_ID, "standard", { reason: "Updated" });
   });
@@ -225,7 +226,7 @@ describe("DELETE /api/admin/v1/cards/:id/bans", () => {
     });
 
     expect(res.status).toBe(404);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("No active ban found");
     expect(mockCardBans.unban).toHaveBeenCalledWith(CARD_ID, "standard");
   });

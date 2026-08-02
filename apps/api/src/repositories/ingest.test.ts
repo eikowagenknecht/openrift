@@ -55,7 +55,17 @@ describe("ingestRepo", () => {
 
   it("insertCandidateCard returns inserted ID", async () => {
     const db = createMockDb([{ id: "cc-new" }]);
-    expect(await ingestRepo(db).insertCandidateCard({ name: "New" })).toBe("cc-new");
+    expect(
+      await ingestRepo(db).insertCandidateCard({
+        provider: "test",
+        externalId: "ext-1",
+        name: "New",
+        types: ["unit"],
+        superTypes: [],
+        domains: ["fury"],
+        tags: [],
+      }),
+    ).toBe("cc-new");
   });
 
   it("updateCandidatePrinting updates a printing", async () => {
@@ -68,7 +78,11 @@ describe("ingestRepo", () => {
   it("insertCandidatePrinting inserts a printing", async () => {
     const db = createMockDb([]);
     await expect(
-      ingestRepo(db).insertCandidatePrinting({ shortCode: "OGS-001" }),
+      ingestRepo(db).insertCandidatePrinting({
+        candidateCardId: "cc-1",
+        externalId: "ext-p-1",
+        shortCode: "OGS-001",
+      }),
     ).resolves.toBeUndefined();
   });
 

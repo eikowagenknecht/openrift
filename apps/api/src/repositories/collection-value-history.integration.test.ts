@@ -65,7 +65,10 @@ describe.skipIf(!ctx)("collection value history (integration)", () => {
           artist: seedPrinting.artist,
           rarity: "common",
           artVariant: "normal",
+          isSigned: false,
           finish: "normal",
+          size: "standard",
+          language: "EN",
         })),
       )
       .execute();

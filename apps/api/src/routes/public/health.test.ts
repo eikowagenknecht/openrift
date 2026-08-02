@@ -1,6 +1,8 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { readJson } from "../../test/read-json.js";
+import type { Variables } from "../../types.js";
 import { healthRoute } from "./health";
 
 // ---------------------------------------------------------------------------
@@ -11,7 +13,7 @@ const mockHealthRepo = {
   healthCheck: vi.fn(() => Promise.resolve("ok" as string)),
 };
 
-const app = new Hono()
+const app = new Hono<{ Variables: Variables }>()
   .use("*", async (c, next) => {
     c.set("repos", { health: mockHealthRepo } as never);
     await next();
@@ -33,7 +35,7 @@ describe("GET /api/health", () => {
     mockHealthRepo.healthCheck.mockResolvedValue("ok");
     const res = await app.request("/api/health");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.status).toBe("ok");
   });
 
@@ -41,7 +43,7 @@ describe("GET /api/health", () => {
     mockHealthRepo.healthCheck.mockResolvedValue("db_empty");
     const res = await app.request("/api/health");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.status).toBe("db_empty");
   });
 
@@ -49,7 +51,7 @@ describe("GET /api/health", () => {
     mockHealthRepo.healthCheck.mockResolvedValue("db_error");
     const res = await app.request("/api/health");
     expect(res.status).toBe(503);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.status).toBe("db_error");
   });
 
@@ -57,7 +59,7 @@ describe("GET /api/health", () => {
     mockHealthRepo.healthCheck.mockResolvedValue("timeout");
     const res = await app.request("/api/health");
     expect(res.status).toBe(503);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.status).toBe("timeout");
   });
 

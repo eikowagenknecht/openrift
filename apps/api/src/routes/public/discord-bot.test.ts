@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { discordBotRouter } from "./discord-bot";
 
@@ -71,7 +72,7 @@ describe("discord-bot router auth", () => {
   it("401s without an Authorization header", async () => {
     const response = await holders();
     expect(response.status).toBe(401);
-    expect(await response.json()).toMatchObject({ code: ERROR_CODES.UNAUTHORIZED });
+    expect(await readJson(response)).toMatchObject({ code: ERROR_CODES.UNAUTHORIZED });
   });
 
   it("401s with a wrong secret", async () => {
@@ -105,7 +106,7 @@ describe("POST /api/v1/discord-bot/links", () => {
       AUTH,
     );
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({
+    expect(await readJson(response)).toEqual({
       groupSlug: "summoners",
       groupName: "Summoner Skirmish",
     });
@@ -120,14 +121,14 @@ describe("POST /api/v1/discord-bot/links", () => {
     mockLinksRepo.redeemCode.mockResolvedValue({ status: "unknown-code" });
     const response = await redeem({ code: "stale", guildId: "guild-1" }, AUTH);
     expect(response.status).toBe(404);
-    expect(await response.json()).toMatchObject({ code: ERROR_CODES.NOT_FOUND });
+    expect(await readJson(response)).toMatchObject({ code: ERROR_CODES.NOT_FOUND });
   });
 
   it("409s when the guild is linked to another group", async () => {
     mockLinksRepo.redeemCode.mockResolvedValue({ status: "guild-taken" });
     const response = await redeem({ code: "abc123", guildId: "guild-1" }, AUTH);
     expect(response.status).toBe(409);
-    expect(await response.json()).toMatchObject({ code: ERROR_CODES.CONFLICT });
+    expect(await readJson(response)).toMatchObject({ code: ERROR_CODES.CONFLICT });
   });
 
   it("stores a blank guild name as null", async () => {
@@ -153,7 +154,7 @@ describe("GET /api/v1/discord-bot/guilds/{guildId}/cards/{cardId}/tradelist-hold
     mockLinksRepo.findByGuildId.mockResolvedValue(undefined);
     const response = await holders(AUTH);
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ linked: false, groupName: null, holders: [] });
+    expect(await readJson(response)).toEqual({ linked: false, groupName: null, holders: [] });
     expect(mockMatchesRepo.tradelistHoldersForCard).not.toHaveBeenCalled();
   });
 
@@ -182,7 +183,7 @@ describe("GET /api/v1/discord-bot/guilds/{guildId}/cards/{cardId}/tradelist-hold
     ]);
     const response = await holders(AUTH);
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({
+    expect(await readJson(response)).toEqual({
       linked: true,
       groupName: "Summoner Skirmish",
       holders: [

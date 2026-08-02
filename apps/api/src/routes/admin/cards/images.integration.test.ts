@@ -7,6 +7,7 @@ import {
   refreshCardAggregates,
   syncCardCardTypes,
 } from "../../../test/integration-context.js";
+import { readJson } from "../../../test/read-json.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Card-sources image management routes
@@ -120,6 +121,8 @@ if (ctx) {
       printedEffectText: null,
       flavorText: null,
       comment: null,
+      size: "standard",
+      language: "EN",
     })
     .returning("id")
     .execute();
@@ -375,7 +378,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       );
       expect(res.status).toBe(400);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.message).toBe("Candidate printing not linked to a printing");
     });
 
@@ -387,7 +390,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       );
       expect(res.status).toBe(400);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.message).toBe("Candidate printing has no image URL");
     });
   });
@@ -592,7 +595,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       const res = await app.fetch(adminReq("POST", `/cards/printing-images/${mainImageId}/rehost`));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.rehostedUrl).toBeTypeOf("string");
 
       // Verify rehostedUrl was set in DB via image_files
@@ -629,7 +632,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       );
       expect(res.status).toBe(400);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.message).toBe("Image has no original URL to rehost");
 
       // Clean up
@@ -680,7 +683,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       );
       expect(res.status).toBe(400);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.message).toBe("Image is not rehosted");
     });
 
@@ -850,7 +853,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       const res = await app.fetch(request);
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.rehostedUrl).toBeTypeOf("string");
       expect(json.rehostedUrl).toContain("/media/cards/");
 
@@ -880,7 +883,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       const res = await app.fetch(request);
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.rehostedUrl).toBeTypeOf("string");
 
       // Verify DB state: should be inactive
@@ -908,7 +911,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       const res = await app.fetch(request);
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.rehostedUrl).toBeTypeOf("string");
 
       // Default mode is "main" — verify the row is active.

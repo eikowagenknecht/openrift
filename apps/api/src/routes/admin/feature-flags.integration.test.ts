@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { adminReq, createTestContext, req } from "../../test/integration-context.js";
+import { readJson } from "../../test/read-json.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Feature flags routes
@@ -48,7 +49,7 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
       const res = await app.fetch(req("GET", "/feature-flags"));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       // No ffl- flags should exist yet
       expect(json.flags["ffl-deck-builder"]).toBeUndefined();
     });
@@ -96,7 +97,7 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
       const res = await app.fetch(req("GET", "/feature-flags"));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.flags["ffl-deck-builder"]).toBe(false);
       expect(json.flags["ffl-dark-mode"]).toBe(true);
     });
@@ -109,7 +110,7 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
       const res = await app.fetch(adminReq("GET", "/feature-flags"));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.flags).toEqual(expect.any(Array));
 
       const fflFlags = json.flags.filter((f: { key: string }) => f.key.startsWith("ffl-"));
@@ -141,7 +142,7 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
 
       // Verify via public endpoint
       const check = await app.fetch(req("GET", "/feature-flags"));
-      const flags = await check.json();
+      const flags = await readJson(check);
       expect(flags.flags["ffl-deck-builder"]).toBe(true);
     });
 
@@ -153,7 +154,7 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
 
       // Verify via admin endpoint
       const check = await app.fetch(adminReq("GET", "/feature-flags"));
-      const json = await check.json();
+      const json = await readJson(check);
       const flag = json.flags.find((f: { key: string }) => f.key === "ffl-deck-builder");
       expect(flag.description).toBe("Build your deck");
     });
@@ -175,7 +176,7 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
 
       // Verify it's gone from public endpoint
       const check = await app.fetch(req("GET", "/feature-flags"));
-      const flags = await check.json();
+      const flags = await readJson(check);
       expect(flags.flags["ffl-dark-mode"]).toBeUndefined();
     });
 

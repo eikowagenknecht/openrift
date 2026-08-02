@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { adminReq, createTestContext } from "../../test/integration-context.js";
+import { readJson } from "../../test/read-json.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Admin ignored-candidates (cards + printings)
@@ -51,7 +52,7 @@ describe.skipIf(!adminCtx)("Admin ignored-candidates routes (integration)", () =
       const res = await app.fetch(adminReq("GET", "/ignored-candidates"));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.cards).toBeInstanceOf(Array);
       expect(json.printings).toBeInstanceOf(Array);
 
@@ -168,7 +169,7 @@ describe.skipIf(!adminCtx)("Admin ignored-candidates routes (integration)", () =
       const res = await app.fetch(adminReq("GET", "/ignored-candidates"));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
 
       // Check cards
       const iicCards = json.cards.filter((c: { externalId: string }) =>
@@ -292,7 +293,7 @@ describe.skipIf(!adminCtx)("Admin ignored-candidates routes (integration)", () =
       const res = await app.fetch(adminReq("GET", "/ignored-candidates"));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       const iicCards = json.cards.filter((c: { externalId: string }) =>
         c.externalId.startsWith("iic-"),
       );

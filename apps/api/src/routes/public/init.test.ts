@@ -2,13 +2,21 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { initRouter } from "./init";
 
 // Must include every enum key the response schema declares (languages +
 // markers included) — oRPC validates the handler output, so an incomplete
 // fixture 500s where the old unvalidated Hono response let it slide.
-const emptyEnums = {
+interface EnumRow {
+  slug: string;
+  label: string;
+  sortOrder: number;
+  isWellKnown: boolean;
+}
+
+const emptyEnums: Record<string, EnumRow[]> = {
   cardTypes: [],
   rarities: [],
   domains: [],
@@ -98,7 +106,7 @@ describe("GET /api/v1/init", () => {
   it("returns 200 with enums and keywords", async () => {
     const res = await app.request("/api/v1/init");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.enums).toBeDefined();
     expect(json.keywords).toBeDefined();
   });
@@ -109,7 +117,7 @@ describe("GET /api/v1/init", () => {
       cardTypes: [{ slug: "creature", label: "Creature", sortOrder: 1, isWellKnown: true }],
     });
     const res = await app.request("/api/v1/init");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.enums.cardTypes).toEqual([{ slug: "creature", label: "Creature", sortOrder: 1 }]);
   });
 
@@ -119,7 +127,7 @@ describe("GET /api/v1/init", () => {
       { name: "Burn", color: "#ff4400", darkText: true, costKeyword: true },
     ]);
     const res = await app.request("/api/v1/init");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.keywords).toEqual({
       Shield: { color: "#4488ff", darkText: false, costKeyword: false },
       Burn: { color: "#ff4400", darkText: true, costKeyword: true },
@@ -134,7 +142,7 @@ describe("GET /api/v1/init", () => {
       { keywordName: "Shield", language: "SC", label: "护盾" },
     ]);
     const res = await app.request("/api/v1/init");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.keywords.Shield.translations).toEqual({ SC: "护盾" });
   });
 
@@ -143,7 +151,7 @@ describe("GET /api/v1/init", () => {
       { name: "Shield", color: "#4488ff", darkText: false, costKeyword: false },
     ]);
     const res = await app.request("/api/v1/init");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.keywords.Shield.translations).toBeUndefined();
   });
 
@@ -159,13 +167,13 @@ describe("GET /api/v1/init", () => {
   it("returns championIdentifierTags from the catalog repo", async () => {
     mockCatalogRepo.championIdentifierTags.mockResolvedValue(["Ivern", "Karma"]);
     const res = await app.request("/api/v1/init");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.championIdentifierTags).toEqual(["Ivern", "Karma"]);
   });
 
   it("returns empty keywords when none exist", async () => {
     const res = await app.request("/api/v1/init");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.keywords).toEqual({});
   });
 
@@ -179,7 +187,7 @@ describe("GET /api/v1/init", () => {
       { tag: "Poro", category: "species" },
     ]);
     const res = await app.request("/api/v1/init");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.tagCategories).toEqual([
       { slug: "region", label: "Region", sortOrder: 0 },
       { slug: "species", label: "Species", sortOrder: 2 },

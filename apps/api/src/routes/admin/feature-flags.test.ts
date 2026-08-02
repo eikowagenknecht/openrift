@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminFeatureFlagsRouter } from "./feature-flags";
 
@@ -63,7 +64,7 @@ describe("GET /feature-flags", () => {
     mockFlagsRepo.listAll.mockResolvedValue([dbFlag1, dbFlag2]);
     const res = await app.request("/api/admin/v1/feature-flags");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.flags).toHaveLength(2);
     expect(json.flags[0]).toEqual({
       key: "deck-builder",
@@ -85,7 +86,7 @@ describe("GET /feature-flags", () => {
     mockFlagsRepo.listAll.mockResolvedValue([]);
     const res = await app.request("/api/admin/v1/feature-flags");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.flags).toEqual([]);
   });
 });
@@ -137,7 +138,7 @@ describe("POST /feature-flags", () => {
       body: JSON.stringify({ key: "deck-builder" }),
     });
     expect(res.status).toBe(409);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("already exists");
   });
 });
@@ -179,7 +180,7 @@ describe("PATCH /feature-flags/:key", () => {
       body: JSON.stringify({ enabled: true }),
     });
     expect(res.status).toBe(404);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("not found");
   });
 });
@@ -204,7 +205,7 @@ describe("DELETE /feature-flags/:key", () => {
       method: "DELETE",
     });
     expect(res.status).toBe(404);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("not found");
   });
 });

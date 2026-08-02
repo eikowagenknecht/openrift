@@ -49,7 +49,7 @@ describe("collectionEventsRepo", () => {
       repo.insert([
         {
           userId: "u1",
-          action: "add",
+          action: "added",
           printingId: "p1",
           copyId: "c1",
           fromCollectionId: null,

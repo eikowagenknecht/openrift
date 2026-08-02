@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminUsersRouter } from "./users";
 
@@ -42,7 +43,7 @@ describe("GET /api/admin/v1/users", () => {
 
     const res = await app.request("/api/admin/v1/users");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({
       users: [
         {
@@ -81,7 +82,7 @@ describe("GET /api/admin/v1/users", () => {
 
     const res = await app.request("/api/admin/v1/users");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.users[0]).toMatchObject({ name: null, image: null, lastActiveAt: null });
   });
 
@@ -90,7 +91,7 @@ describe("GET /api/admin/v1/users", () => {
 
     const res = await app.request("/api/admin/v1/users");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({ users: [] });
   });
 });

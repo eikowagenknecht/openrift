@@ -1,6 +1,8 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { readJson } from "../../test/read-json.js";
+import type { Variables } from "../../types.js";
 import { publicOembedRoute } from "./oembed";
 
 const mockDecksRepo = {
@@ -17,7 +19,7 @@ const mockUserSharesRepo = {
   listsForOwner: vi.fn(),
 };
 
-const app = new Hono()
+const app = new Hono<{ Variables: Variables }>()
   .use("*", async (c, next) => {
     c.set("repos", {
       decks: mockDecksRepo,
@@ -33,9 +35,9 @@ const app = new Hono()
 const NOW = new Date("2026-04-20T00:00:00Z");
 const NOW_MS = NOW.getTime();
 
-function request(query: Record<string, string>): Promise<Response> {
+async function request(query: Record<string, string>): Promise<Response> {
   const params = new URLSearchParams(query).toString();
-  return app.request(`/api/v1/oembed?${params}`);
+  return await app.request(`/api/v1/oembed?${params}`);
 }
 
 beforeEach(() => {
@@ -58,7 +60,7 @@ describe("GET /api/v1/oembed", () => {
 
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toMatch(/application\/json/u);
-    const body = await res.json();
+    const body = await readJson(res);
     expect(body).toMatchObject({
       version: "1.0",
       type: "photo",
@@ -82,7 +84,7 @@ describe("GET /api/v1/oembed", () => {
 
     const res = await request({ url: "https://openrift.app/collections/share/tok-col" });
 
-    const body = await res.json();
+    const body = await readJson(res);
     expect(body.type).toBe("photo");
     expect(body.title).toBe("My Binder (collection)");
     expect(body.url).toBe(
@@ -99,7 +101,7 @@ describe("GET /api/v1/oembed", () => {
 
     const res = await request({ url: "https://openrift.app/lists/share/tok-list" });
 
-    const body = await res.json();
+    const body = await readJson(res);
     expect(body.title).toBe("Holiday Targets (trade list)");
     expect(body.url).toBe(`https://openrift.app/api/v1/lists/share/tok-list/image.png?v=${NOW_MS}`);
   });
@@ -116,7 +118,7 @@ describe("GET /api/v1/oembed", () => {
 
     const res = await request({ url: "https://openrift.app/users/share/tok-bundle" });
 
-    const body = await res.json();
+    const body = await readJson(res);
     expect(body.title).toBe("Alice's wish & tradelists");
     // Latest of the two list updates, folded with the list count (2).
     expect(body.url).toBe(
@@ -137,7 +139,7 @@ describe("GET /api/v1/oembed", () => {
       maxwidth: "600",
     });
 
-    const body = await res.json();
+    const body = await readJson(res);
     expect(body.width).toBe(600);
     expect(body.height).toBe(315);
     // No owner name → author_name omitted.

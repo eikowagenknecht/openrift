@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminCardTagsRouter } from "./card-tags";
 
@@ -68,7 +69,7 @@ describe("GET /tag-categories", () => {
     ]);
     const res = await app.request("/api/admin/v1/tag-categories");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.categories).toHaveLength(1);
     expect(json.categories[0].tagCount).toBe(2);
     expect(json.categories[0].createdAt).toBe(now.toISOString());
@@ -90,7 +91,7 @@ describe("POST /tag-categories", () => {
       body: JSON.stringify({ slug: "region", label: "Region" }),
     });
     expect(res.status).toBe(201);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.category.tagCount).toBe(0);
     expect(mockCatRepo.create).toHaveBeenCalledWith({
       slug: "region",
@@ -197,7 +198,7 @@ describe("GET /card-tags", () => {
     ]);
     const res = await app.request("/api/admin/v1/card-tags");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.tags).toEqual([
       { tag: "Ionia", cardCount: 56, categoryId: CAT_ID },
       { tag: "Poro", cardCount: 10, categoryId: null },
@@ -269,7 +270,7 @@ describe("POST /card-tags/detect-legends", () => {
       body: JSON.stringify({ categoryId: CAT_ID }),
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({ found: 3, assigned: 2 });
     expect(mockDefRepo.classifyMissing).toHaveBeenCalledWith(
       ["Darius", "Kha’Zix", "Master Yi"],
@@ -287,7 +288,7 @@ describe("POST /card-tags/detect-legends", () => {
       body: JSON.stringify({ categoryId: CAT_ID }),
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({ found: 1, assigned: 1 });
     expect(mockDefRepo.classifyMissing).toHaveBeenCalledWith(["Poppy"], CAT_ID);
   });

@@ -149,6 +149,8 @@ describe.skipIf(!ctx)("products repo coverCards (integration)", () => {
         printedEffectText: null,
         flavorText: null,
         comment: null,
+        size: "standard",
+        language: "EN",
       })
       .returning("id")
       .executeTakeFirstOrThrow();

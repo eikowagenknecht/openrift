@@ -96,6 +96,7 @@ function makeCardPrintingRow(overrides: Record<string, unknown> = {}) {
     isSigned: false,
     markerSlugs: [] as string[],
     finish: "normal",
+    size: "standard",
     language: "EN",
     imageUrl: null,
     externalId: null,

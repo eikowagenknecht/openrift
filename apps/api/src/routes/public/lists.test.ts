@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { publicListsRouter } from "./lists";
 
@@ -68,7 +69,7 @@ describe("GET /api/v1/lists/share/:token", () => {
 
     const res = await app.request("/api/v1/lists/share/tok-abc");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.list.id).toBe(LIST_ID);
     expect(json.list.name).toBe("Trade Binder");
     expect(json.list.intent).toBe("trade");
@@ -94,7 +95,7 @@ describe("GET /api/v1/lists/share/:token", () => {
 
     const res = await app.request("/api/v1/lists/share/tok-abc");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.owner.displayName).toBe("Anonymous");
     expect(json.entries).toEqual([]);
   });
@@ -104,7 +105,7 @@ describe("GET /api/v1/lists/share/:token", () => {
 
     const res = await app.request("/api/v1/lists/share/unknown");
     expect(res.status).toBe(404);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toBe("Not found");
     expect(mockListsRepo.entriesWithDetailsAnon).not.toHaveBeenCalled();
   });

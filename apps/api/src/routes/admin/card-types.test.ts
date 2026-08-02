@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminCardTypesRouter } from "./card-types";
 
@@ -45,7 +46,7 @@ describe("GET /card-types", () => {
 
     const res = await app.request("/api/admin/v1/card-types");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.cardTypes).toHaveLength(2);
     expect(json.cardTypes[0].slug).toBe("primary");
   });
@@ -54,7 +55,7 @@ describe("GET /card-types", () => {
     mockRepo.listAll.mockResolvedValue([]);
     const res = await app.request("/api/admin/v1/card-types");
     expect(res.status).toBe(200);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.cardTypes).toEqual([]);
   });
 });
@@ -83,7 +84,7 @@ describe("PUT /card-types/reorder", () => {
       body: JSON.stringify({ slugs: ["primary", "primary"] }),
     });
     expect(res.status).toBe(400);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("Duplicate");
   });
 
@@ -95,7 +96,7 @@ describe("PUT /card-types/reorder", () => {
       body: JSON.stringify({ slugs: ["primary"] }),
     });
     expect(res.status).toBe(400);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("Expected");
   });
 });
@@ -114,7 +115,7 @@ describe("POST /card-types", () => {
       body: JSON.stringify({ slug: "secondary", label: "Secondary" }),
     });
     expect(res.status).toBe(201);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.cardType.slug).toBe("secondary");
     expect(mockRepo.create).toHaveBeenCalledWith({ slug: "secondary", label: "Secondary" });
   });
@@ -127,7 +128,7 @@ describe("POST /card-types", () => {
       body: JSON.stringify({ slug: "secondary", label: "Secondary" }),
     });
     expect(res.status).toBe(409);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("already exists");
     expect(mockRepo.create).not.toHaveBeenCalled();
   });
@@ -158,7 +159,7 @@ describe("PATCH /card-types/:slug", () => {
       body: JSON.stringify({ label: "Renamed" }),
     });
     expect(res.status).toBe(404);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("not found");
     expect(mockRepo.update).not.toHaveBeenCalled();
   });
@@ -182,7 +183,7 @@ describe("DELETE /card-types/:slug", () => {
     mockRepo.getBySlug.mockResolvedValue(undefined);
     const res = await app.request("/api/admin/v1/card-types/missing", { method: "DELETE" });
     expect(res.status).toBe(404);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("not found");
     expect(mockRepo.deleteBySlug).not.toHaveBeenCalled();
   });
@@ -191,7 +192,7 @@ describe("DELETE /card-types/:slug", () => {
     mockRepo.getBySlug.mockResolvedValue({ ...baseRow, isWellKnown: true });
     const res = await app.request("/api/admin/v1/card-types/primary", { method: "DELETE" });
     expect(res.status).toBe(409);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("well-known");
     expect(mockRepo.deleteBySlug).not.toHaveBeenCalled();
   });
@@ -201,7 +202,7 @@ describe("DELETE /card-types/:slug", () => {
     mockRepo.isInUse.mockResolvedValue(true);
     const res = await app.request("/api/admin/v1/card-types/primary", { method: "DELETE" });
     expect(res.status).toBe(409);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("in use");
     expect(mockRepo.deleteBySlug).not.toHaveBeenCalled();
   });

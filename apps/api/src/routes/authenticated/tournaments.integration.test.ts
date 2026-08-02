@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createTestContext, req } from "../../test/integration-context.js";
+import { readJson } from "../../test/read-json.js";
 
 // Route-level integration tests for the ADR-033 unified tournaments umbrella:
 // create (with CHECK-invariant 422s + host authorization), list/detail/settings/
@@ -38,7 +39,7 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
     // Fetches the roster and returns the participant matching a display name.
     async function findParticipant(displayName: string): Promise<Participant | undefined> {
       const res = await host.app.fetch(req("GET", `/tournaments/${id}/participants`));
-      const body = (await res.json()) as { items: Participant[] };
+      const body = (await readJson(res)) as { items: Participant[] };
       return body.items.find((item) => item.displayName === displayName);
     }
 
@@ -139,7 +140,7 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
         }),
       );
       expect(res.status).toBe(201);
-      const body = (await res.json()) as {
+      const body = (await readJson(res)) as {
         id: string;
         pairingStyle: string;
         modules: { pairing: boolean };
@@ -154,7 +155,7 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       expect(body.host.type).toBe("user");
 
       const staff = await host.app.fetch(req("GET", `/tournaments/${id}/staff`));
-      const staffBody = (await staff.json()) as { items: { userId: string; role: string }[] };
+      const staffBody = (await readJson(staff)) as { items: { userId: string; role: string }[] };
       expect(staffBody.items.some((s) => s.userId === HOST_ID && s.role === "organizer")).toBe(
         true,
       );
@@ -184,7 +185,7 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
         }),
       );
       expect(ok.status).toBe(201);
-      const body = (await ok.json()) as { host: { type: string; orgSlug: string } };
+      const body = (await readJson(ok)) as { host: { type: string; orgSlug: string } };
       expect(body.host.type).toBe("organization");
       expect(body.host.orgSlug).toBe("trn-org");
     });
@@ -211,7 +212,7 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
           selfRegistration: true,
         }),
       );
-      const gateId = ((await create.json()) as { id: string }).id;
+      const gateId = ((await readJson(create)) as { id: string }).id;
 
       // Pin all four tokens to known values regardless of which endpoint mints each.
       await host.db
@@ -243,7 +244,7 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
 
       const asParticipant = await other.app.fetch(req("GET", `/tournaments/${gateId}`));
       expect(asParticipant.status).toBe(200);
-      const participantBody = (await asParticipant.json()) as DetailTokens;
+      const participantBody = (await readJson(asParticipant)) as DetailTokens;
       expect(participantBody.myRoles).toContain("participant");
       expect(participantBody.myRoles).not.toContain("organizer");
       expect(participantBody.myRoles).not.toContain("judge");
@@ -267,7 +268,7 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
         .onConflict((oc) => oc.columns(["tournamentId", "userId", "role"]).doNothing())
         .execute();
       const asJudge = await judge.app.fetch(req("GET", `/tournaments/${gateId}`));
-      const judgeBody = (await asJudge.json()) as DetailTokens;
+      const judgeBody = (await readJson(asJudge)) as DetailTokens;
       expect(judgeBody.myRoles).toContain("judge");
       expect(judgeBody.submissionToken).toBe("gate-submission");
       expect(judgeBody.reportToken).toBe("gate-report");
@@ -278,7 +279,7 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
 
       // The host (organizer) sees every token.
       const asHost = await host.app.fetch(req("GET", `/tournaments/${gateId}`));
-      const hostBody = (await asHost.json()) as DetailTokens;
+      const hostBody = (await readJson(asHost)) as DetailTokens;
       expect(hostBody.organizerInviteToken).toBe("gate-organizer-invite");
       expect(hostBody.judgeInviteToken).toBe("gate-judge-invite");
       expect(hostBody.submissionToken).toBe("gate-submission");
@@ -290,7 +291,7 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
     it("lists my tournaments", async () => {
       const res = await host.app.fetch(req("GET", "/tournaments"));
       expect(res.status).toBe(200);
-      const body = (await res.json()) as { items: { id: string }[] };
+      const body = (await readJson(res)) as { items: { id: string }[] };
       expect(body.items.some((item) => item.id === id)).toBe(true);
     });
 
@@ -315,11 +316,11 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
           startsAt: "2026-01-01T12:00:00Z",
         }),
       );
-      const laterId = ((await later.json()) as { id: string }).id;
-      const earlierId = ((await earlier.json()) as { id: string }).id;
+      const laterId = ((await readJson(later)) as { id: string }).id;
+      const earlierId = ((await readJson(earlier)) as { id: string }).id;
 
       const res = await host.app.fetch(req("GET", "/tournaments"));
-      const body = (await res.json()) as { items: { id: string }[] };
+      const body = (await readJson(res)) as { items: { id: string }[] };
       const laterIndex = body.items.findIndex((item) => item.id === laterId);
       const earlierIndex = body.items.findIndex((item) => item.id === earlierId);
       expect(laterIndex).toBeGreaterThanOrEqual(0);
@@ -333,7 +334,7 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
         req("PATCH", `/tournaments/${id}`, { name: "Friday Night Pods", byePoints: 2 }),
       );
       expect(ok.status).toBe(200);
-      const body = (await ok.json()) as { name: string; byePoints: number };
+      const body = (await readJson(ok)) as { name: string; byePoints: number };
       expect(body.name).toBe("Friday Night Pods");
       expect(body.byePoints).toBe(2);
     });
@@ -351,16 +352,16 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
           startsAt: "2026-06-01T12:00:00Z",
         }),
       );
-      const switchId = ((await created.json()) as { id: string }).id;
+      const switchId = ((await readJson(created)) as { id: string }).id;
 
       const enabled = await host.app.fetch(req("POST", `/tournaments/${switchId}/report-token`));
-      const enabledBody = (await enabled.json()) as { reportToken: string | null };
+      const enabledBody = (await readJson(enabled)) as { reportToken: string | null };
       expect(enabledBody.reportToken).not.toBeNull();
 
       const followEnabled = await host.app.fetch(
         req("POST", `/tournaments/${switchId}/follow-token`),
       );
-      const followEnabledBody = (await followEnabled.json()) as { followToken: string | null };
+      const followEnabledBody = (await readJson(followEnabled)) as { followToken: string | null };
       expect(followEnabledBody.followToken).not.toBeNull();
 
       // Switching to no-pairings (allowed because no round exists yet) clears both.
@@ -368,7 +369,7 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
         req("PATCH", `/tournaments/${switchId}`, { pairingStyle: "none" }),
       );
       expect(switched.status).toBe(200);
-      const switchedBody = (await switched.json()) as {
+      const switchedBody = (await readJson(switched)) as {
         reportToken: string | null;
         followToken: string | null;
       };
@@ -388,15 +389,15 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
           startsAt: "2026-06-01T12:00:00Z",
         }),
       );
-      const followId = ((await created.json()) as { id: string }).id;
+      const followId = ((await readJson(created)) as { id: string }).id;
 
       const enabled = await host.app.fetch(req("POST", `/tournaments/${followId}/follow-token`));
-      const enabledBody = (await enabled.json()) as { followToken: string | null };
+      const enabledBody = (await readJson(enabled)) as { followToken: string | null };
       expect(enabledBody.followToken).not.toBeNull();
 
       const disabled = await host.app.fetch(req("DELETE", `/tournaments/${followId}/follow-token`));
       expect(disabled.status).toBe(200);
-      const disabledBody = (await disabled.json()) as { followToken: string | null };
+      const disabledBody = (await readJson(disabled)) as { followToken: string | null };
       expect(disabledBody.followToken).toBeNull();
     });
 
@@ -412,7 +413,7 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
         }),
       );
       expect(created.status).toBe(201);
-      const reassignId = ((await created.json()) as { id: string }).id;
+      const reassignId = ((await readJson(created)) as { id: string }).id;
 
       // A non-host (unrelated user) cannot reassign — the manage gate rejects first.
       const byStranger = await other.app.fetch(
@@ -437,7 +438,7 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
         }),
       );
       expect(toOrg.status).toBe(200);
-      const toOrgBody = (await toOrg.json()) as { host: { type: string; orgId: string } };
+      const toOrgBody = (await readJson(toOrg)) as { host: { type: string; orgId: string } };
       expect(toOrgBody.host.type).toBe("organization");
       expect(toOrgBody.host.orgId).toBe(ORG2_ID);
 
@@ -446,7 +447,7 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
         req("PATCH", `/tournaments/${reassignId}`, { host: { type: "user" } }),
       );
       expect(toPersonal.status).toBe(200);
-      const toPersonalBody = (await toPersonal.json()) as {
+      const toPersonalBody = (await readJson(toPersonal)) as {
         host: { type: string; userId: string };
         myRoles: string[];
       };
@@ -474,7 +475,7 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
         }),
       );
       expect(created.status).toBe(201);
-      const orgTid = ((await created.json()) as { id: string }).id;
+      const orgTid = ((await readJson(created)) as { id: string }).id;
 
       // A judge with no org membership, added explicitly. They must be an
       // eligible candidate (a linked participant here), so seed that first.
@@ -494,7 +495,7 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
         orgRole: string | null;
       }
       const staff = await host.app.fetch(req("GET", `/tournaments/${orgTid}/staff`));
-      const items = ((await staff.json()) as { items: StaffMember[] }).items;
+      const items = ((await readJson(staff)) as { items: StaffMember[] }).items;
 
       // HOST is an org owner AND a seeded grant → shown once, from the org.
       const hostRows = items.filter((member) => member.userId === HOST_ID);
@@ -534,12 +535,12 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
         }),
       );
       expect(created.status).toBe(201);
-      const orgTid = ((await created.json()) as { id: string }).id;
+      const orgTid = ((await readJson(created)) as { id: string }).id;
 
       // The judge sees a judge role, not host/organizer.
       const detail = await judge.app.fetch(req("GET", `/tournaments/${orgTid}`));
       expect(detail.status).toBe(200);
-      const myRoles = ((await detail.json()) as { myRoles: string[] }).myRoles;
+      const myRoles = ((await readJson(detail)) as { myRoles: string[] }).myRoles;
       expect(myRoles).toContain("judge");
       expect(myRoles).not.toContain("host");
       expect(myRoles).not.toContain("organizer");
@@ -552,7 +553,7 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
         orgRole: string | null;
       }
       const staff = await host.app.fetch(req("GET", `/tournaments/${orgTid}/staff`));
-      const judgeRow = ((await staff.json()) as { items: StaffRow[] }).items.find(
+      const judgeRow = ((await readJson(staff)) as { items: StaffRow[] }).items.find(
         (member) => member.userId === JUDGE_ID,
       );
       expect(judgeRow).toMatchObject({ role: "judge", source: "organization", orgRole: "judge" });
@@ -604,7 +605,7 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
         req("DELETE", `/tournaments/${id}/staff/${JUDGE_ID}/judge`),
       );
       expect(remove.status).toBe(200);
-      const body = (await remove.json()) as { items: { userId: string }[] };
+      const body = (await readJson(remove)) as { items: { userId: string }[] };
       expect(body.items.some((s) => s.userId === JUDGE_ID)).toBe(false);
     });
 
@@ -623,7 +624,8 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
 
       const res = await host.app.fetch(req("GET", `/tournaments/${id}/staff/candidates`));
       expect(res.status).toBe(200);
-      const items = ((await res.json()) as { items: { userId: string; source: string }[] }).items;
+      const items = ((await readJson(res)) as { items: { userId: string; source: string }[] })
+        .items;
       expect(items.some((candidate) => candidate.userId === OTHER_ID)).toBe(true);
       expect(items.some((candidate) => candidate.userId === HOST_ID)).toBe(false);
 
@@ -637,14 +639,14 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
         req("POST", `/tournaments/${id}/staff-invite`, { role: "judge" }),
       );
       expect(enable.status).toBe(200);
-      const first = (await enable.json()) as { judgeInviteToken: string | null };
+      const first = (await readJson(enable)) as { judgeInviteToken: string | null };
       expect(first.judgeInviteToken).toBeTruthy();
 
       // Rotating mints a fresh token and retires the old one.
       const rotate = await host.app.fetch(
         req("POST", `/tournaments/${id}/staff-invite`, { role: "judge" }),
       );
-      const second = (await rotate.json()) as { judgeInviteToken: string | null };
+      const second = (await readJson(rotate)) as { judgeInviteToken: string | null };
       expect(second.judgeInviteToken).toBeTruthy();
       expect(second.judgeInviteToken).not.toBe(first.judgeInviteToken);
 
@@ -656,7 +658,7 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
 
       const disable = await host.app.fetch(req("DELETE", `/tournaments/${id}/staff-invite/judge`));
       expect(disable.status).toBe(200);
-      const cleared = (await disable.json()) as { judgeInviteToken: string | null };
+      const cleared = (await readJson(disable)) as { judgeInviteToken: string | null };
       expect(cleared.judgeInviteToken).toBeNull();
     });
 
@@ -684,7 +686,7 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
           startsAt: "2026-06-01T12:00:00Z",
         }),
       );
-      const closedId = ((await created.json()) as { id: string }).id;
+      const closedId = ((await readJson(created)) as { id: string }).id;
 
       // A running tournament still takes late walk-ins.
       await host.db
@@ -809,7 +811,7 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
           startsAt: "2026-06-01T12:00:00Z",
         }),
       );
-      const reissueTid = ((await created.json()) as { id: string }).id;
+      const reissueTid = ((await readJson(created)) as { id: string }).id;
       await host.app.fetch(
         req("POST", `/tournaments/${reissueTid}/participants`, { displayName: "Wrongly Linked" }),
       );
@@ -820,7 +822,7 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       }> => {
         const list = await host.app.fetch(req("GET", `/tournaments/${reissueTid}/participants`));
         const items = (
-          (await list.json()) as {
+          (await readJson(list)) as {
             items: {
               displayName: string;
               id: string;
@@ -862,7 +864,7 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       // The correct player can now claim the spot through the fresh link.
       const claim = await other.app.fetch(req("POST", `/deck-check/claim/${reopened.claimToken}`));
       expect(claim.status).toBe(200);
-      expect(((await claim.json()) as { status: string }).status).toBe("claimed");
+      expect(((await readJson(claim)) as { status: string }).status).toBe("claimed");
     });
 
     it("claims a participant by its link in a tournament without deck check", async () => {
@@ -876,7 +878,7 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
           startsAt: "2026-06-01T12:00:00Z",
         }),
       );
-      const claimTournamentId = ((await created.json()) as { id: string }).id;
+      const claimTournamentId = ((await readJson(created)) as { id: string }).id;
       await host.app.fetch(
         req("POST", `/tournaments/${claimTournamentId}/participants`, { displayName: "Claimable" }),
       );
@@ -884,7 +886,7 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
         req("GET", `/tournaments/${claimTournamentId}/participants`),
       );
       const items = (
-        (await list.json()) as { items: { displayName: string; claimToken: string | null }[] }
+        (await readJson(list)) as { items: { displayName: string; claimToken: string | null }[] }
       ).items;
       const claimable = items.find((participant) => participant.displayName === "Claimable");
       // Every participant gets a claim token, with or without deck check.
@@ -895,7 +897,7 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
         req("POST", `/deck-check/claim/${claimable?.claimToken}`),
       );
       expect(claim.status).toBe(200);
-      const result = (await claim.json()) as {
+      const result = (await readJson(claim)) as {
         status: string;
         tournamentId: string | null;
         entryId: string | null;
@@ -951,14 +953,14 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
           startsAt: "2026-06-01T12:00:00Z",
         }),
       );
-      const lifecycleId = ((await created.json()) as { id: string }).id;
+      const lifecycleId = ((await readJson(created)) as { id: string }).id;
 
       // setup → running is allowed.
       const run = await host.app.fetch(
         req("PATCH", `/tournaments/${lifecycleId}`, { status: "running" }),
       );
       expect(run.status).toBe(200);
-      expect(((await run.json()) as { status: string }).status).toBe("running");
+      expect(((await readJson(run)) as { status: string }).status).toBe("running");
 
       // running → setup is a backwards move and is rejected.
       const back = await host.app.fetch(
@@ -989,7 +991,7 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
           startsAt: "2026-06-01T12:00:00Z",
         }),
       );
-      const reschedId = ((await created.json()) as { id: string }).id;
+      const reschedId = ((await readJson(created)) as { id: string }).id;
 
       // Patching only endsAt is validated against the unchanged stored startsAt.
       const bad = await host.app.fetch(
@@ -1008,7 +1010,7 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
     it("cancels and then blocks edits and deletes (host only)", async () => {
       const cancel = await host.app.fetch(req("POST", `/tournaments/${id}/cancel`));
       expect(cancel.status).toBe(200);
-      expect(((await cancel.json()) as { status: string }).status).toBe("cancelled");
+      expect(((await readJson(cancel)) as { status: string }).status).toBe("cancelled");
 
       const blocked = await host.app.fetch(req("PATCH", `/tournaments/${id}`, { name: "Nope" }));
       expect(blocked.status).toBe(409);

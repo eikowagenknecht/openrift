@@ -11,6 +11,7 @@ import {
 } from "../../../services/printing-admin.js";
 import { relinkCandidatePrintings } from "../../../services/relink-candidates.js";
 import { registerRouterForTest } from "../../../test/mount-router.js";
+import { readJson } from "../../../test/read-json.js";
 import type { Variables } from "../../../types.js";
 import { adminCardMutationsRouter } from "./mutations";
 
@@ -214,7 +215,7 @@ describe("POST /cards/candidate-printings/check-all", () => {
       body: JSON.stringify({ printingId: "p-1", extraIds: ["e-1", "e-2"] }),
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({ updated: 5 });
     expect(mockMut.checkAllCandidatePrintings).toHaveBeenCalledWith("p-1", ["e-1", "e-2"]);
   });
@@ -228,7 +229,7 @@ describe("POST /cards/candidate-printings/check-all", () => {
       body: JSON.stringify({}),
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({ updated: 0 });
   });
 });
@@ -299,7 +300,7 @@ describe("POST /cards/:cardId/check-all", () => {
 
     const res = await app.request(`/api/admin/v1/cards/${CARD_ID2}/check-all`, { method: "POST" });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({ updated: 3 });
     expect(mockMut.checkAllCandidateCards).toHaveBeenCalledWith(
       expect.arrayContaining(["fire-dragon-alt"]),
@@ -357,7 +358,7 @@ describe("PATCH /cards/candidate-printings/:id", () => {
       body: JSON.stringify({}),
     });
     expect(res.status).toBe(400);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("No valid fields");
   });
 
@@ -437,7 +438,7 @@ describe("POST /cards/candidate-printings/:id/copy", () => {
       body: JSON.stringify({ printingId: "p-2" }),
     });
     expect(res.status).toBe(404);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("Candidate printing not found");
   });
 
@@ -451,7 +452,7 @@ describe("POST /cards/candidate-printings/:id/copy", () => {
       body: JSON.stringify({ printingId: "unknown" }),
     });
     expect(res.status).toBe(404);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("Target printing not found");
   });
 });
@@ -495,7 +496,7 @@ describe("POST /cards/candidate-printings/link", () => {
       body: JSON.stringify({ candidatePrintingIds: [], printingId: "p-1" }),
     });
     expect(res.status).toBe(400);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("candidatePrintingIds[] required");
   });
 });
@@ -556,7 +557,7 @@ describe("POST /cards/:cardId/rename", () => {
       body: JSON.stringify({ newId: "  " }),
     });
     expect(res.status).toBe(400);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("newId is required");
   });
 });
@@ -594,7 +595,7 @@ describe("POST /cards/by-provider/:provider/check", () => {
       method: "POST",
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({ cardsChecked: 10, printingsChecked: 20 });
     expect(mockMut.checkByProvider).toHaveBeenCalledWith("tcgplayer", expect.any(Date));
   });
@@ -602,7 +603,7 @@ describe("POST /cards/by-provider/:provider/check", () => {
   it("returns 400 when provider is empty (decoded blank)", async () => {
     const res = await app.request("/api/admin/v1/cards/by-provider/%20/check", { method: "POST" });
     expect(res.status).toBe(400);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("Provider name is required");
   });
 });
@@ -619,7 +620,7 @@ describe("DELETE /cards/by-provider/:provider", () => {
       method: "DELETE",
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({ provider: "tcgplayer", deleted: 15 });
     expect(mockMut.deleteByProvider).toHaveBeenCalledWith("tcgplayer");
   });
@@ -627,7 +628,7 @@ describe("DELETE /cards/by-provider/:provider", () => {
   it("returns 400 when provider is empty (decoded blank)", async () => {
     const res = await app.request("/api/admin/v1/cards/by-provider/%20", { method: "DELETE" });
     expect(res.status).toBe(400);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("Provider name is required");
   });
 });
@@ -713,7 +714,7 @@ describe("POST /cards/errata/upload", () => {
       }),
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual(summary);
     expect(mockImportErrata).toHaveBeenCalledWith(
       mockTransact,
@@ -734,7 +735,7 @@ describe("POST /cards/errata/upload", () => {
 describe("POST /cards/:cardId/accept-field", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    mockFixTypography.mockImplementation((text: string) => text);
+    mockFixTypography.mockImplementation((text: string | null) => text);
     mockMut.getPrintingTextsForCardId.mockResolvedValue([]);
     mockMut.recomputeKeywordsForPrintingCard.mockResolvedValue(undefined);
   });
@@ -814,7 +815,7 @@ describe("POST /cards/:cardId/accept-field", () => {
       body: JSON.stringify({ field: "might", value: -5 }),
     });
     expect(res.status).toBe(400);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.code).toBe("VALIDATION_ERROR");
     expect(json.message).toContain("Invalid value for might");
   });
@@ -823,7 +824,7 @@ describe("POST /cards/:cardId/accept-field", () => {
 describe("POST /cards/printing/:printingId/accept-field", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    mockFixTypography.mockImplementation((text: string) => text);
+    mockFixTypography.mockImplementation((text: string | null) => text);
     mockAppendSetTotal.mockImplementation((code: string) => code);
     mockMut.recomputeKeywordsForPrintingCard.mockResolvedValue(undefined);
     mockMut.getFullPrintingById.mockResolvedValue({
@@ -945,7 +946,7 @@ describe("POST /cards/printing/:printingId/accept-field", () => {
       body: JSON.stringify({ field: "setId", value: "nonexistent" }),
     });
     expect(res.status).toBe(404);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("Set not found");
   });
 
@@ -956,7 +957,7 @@ describe("POST /cards/printing/:printingId/accept-field", () => {
       body: JSON.stringify({ field: "rarity", value: "" }),
     });
     expect(res.status).toBe(400);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.code).toBe("VALIDATION_ERROR");
     expect(json.message).toContain("Invalid value for rarity");
   });
@@ -1010,7 +1011,7 @@ describe("POST /cards/new/:name/accept-favorites", () => {
       method: "POST",
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual(result);
     expect(mockAcceptFavoriteNewCard).toHaveBeenCalledWith(
       mockTransact,
@@ -1054,7 +1055,7 @@ describe("POST /cards/new/:name/link", () => {
       body: JSON.stringify({ cardId: "" }),
     });
     expect(res.status).toBe(400);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("cardId required");
   });
 
@@ -1067,7 +1068,7 @@ describe("POST /cards/new/:name/link", () => {
       body: JSON.stringify({ cardId: "nonexistent" }),
     });
     expect(res.status).toBe(404);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("Target card not found");
   });
 });
@@ -1089,7 +1090,7 @@ describe("POST /cards/:cardId/accept-printing", () => {
       }),
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({ printingId: "printing-uuid" });
     expect(mockAcceptPrinting).toHaveBeenCalledWith(
       mockTransact,
@@ -1117,7 +1118,7 @@ describe("POST /cards/candidate-printings/relink", () => {
       method: "POST",
     });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ examined: 10, linked: 4 });
+    expect(await readJson(res)).toEqual({ examined: 10, linked: 4 });
   });
 });
 
@@ -1134,7 +1135,7 @@ describe("POST /cards/:cardSlug/accept-favorite-printings", () => {
       method: "POST",
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual(result);
     expect(mockAcceptFavoritePrintingsForCard).toHaveBeenCalledWith(
       mockTransact,
@@ -1168,7 +1169,7 @@ describe("POST /cards/create", () => {
       }),
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({ cardSlug: "fire-dragon" });
     expect(mockTrxMut.acceptNewCardFromSources).toHaveBeenCalledWith(
       expect.objectContaining({ id: "fire-dragon" }),
@@ -1205,7 +1206,7 @@ describe("POST /cards/:cardId/printings", () => {
       }),
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({ printingId: "printing-uuid" });
     expect(mockAcceptPrinting).toHaveBeenCalledWith(
       mockTransact,
@@ -1258,7 +1259,7 @@ describe("POST /cards/upload", () => {
       }),
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.provider).toBe("test-provider");
     expect(json.newCards).toBe(5);
     // The `{ card, printings }` wrapper is flattened by the input transform into

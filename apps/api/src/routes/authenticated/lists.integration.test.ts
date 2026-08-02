@@ -3,6 +3,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import { friendGroupsRepo } from "../../repositories/friend-groups.js";
 import { CARD_FURY_UNIT, PRINTING_1 } from "../../test/fixtures/constants.js";
 import { createTestContext, req } from "../../test/integration-context.js";
+import { readJson } from "../../test/read-json.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Lists routes (kind-aware)
@@ -44,7 +45,7 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
   ): Promise<string> {
     const res = await app.fetch(req("POST", "/lists", { name, intent, kind }));
     expect(res.status).toBe(201);
-    const json = (await res.json()) as { id: string };
+    const json = (await readJson(res)) as { id: string };
     return json.id;
   }
 
@@ -87,7 +88,7 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
           req("POST", "/lists", { name: `New ${intent}/${kind}`, intent, kind }),
         );
         expect(res.status).toBe(201);
-        const json = (await res.json()) as { intent: string; kind: string; isPublic: boolean };
+        const json = (await readJson(res)) as { intent: string; kind: string; isPublic: boolean };
         expect(json.intent).toBe(intent);
         expect(json.kind).toBe(kind);
         expect(json.isPublic).toBe(false);
@@ -152,7 +153,7 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
     it("returns all lists for the user", async () => {
       const res = await app.fetch(req("GET", "/lists"));
       expect(res.status).toBe(200);
-      const json = (await res.json()) as { items: { intent: string; kind: string }[] };
+      const json = (await readJson(res)) as { items: { intent: string; kind: string }[] };
       expect(Array.isArray(json.items)).toBe(true);
       expect(json.items.length).toBeGreaterThanOrEqual(3);
       for (const item of json.items) {
@@ -164,7 +165,7 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
     it("filters by intent", async () => {
       const res = await app.fetch(req("GET", "/lists?intent=trade"));
       expect(res.status).toBe(200);
-      const json = (await res.json()) as { items: { intent: string }[] };
+      const json = (await readJson(res)) as { items: { intent: string }[] };
       expect(json.items.every((l) => l.intent === "trade")).toBe(true);
     });
   });
@@ -176,7 +177,7 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
       const id = await createList("Before", "wish", "card");
       const res = await app.fetch(req("PATCH", `/lists/${id}`, { name: "After" }));
       expect(res.status).toBe(200);
-      const json = (await res.json()) as { name: string };
+      const json = (await readJson(res)) as { name: string };
       expect(json.name).toBe("After");
     });
 
@@ -212,7 +213,7 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
         req("POST", `/lists/${id}/entries`, { cardId: CARD_FURY_UNIT.id }),
       );
       expect(res.status).toBe(201);
-      const json = (await res.json()) as { kind: string; cardId: string | null };
+      const json = (await readJson(res)) as { kind: string; cardId: string | null };
       expect(json.kind).toBe("card");
       expect(json.cardId).toBe(CARD_FURY_UNIT.id);
     });
@@ -231,7 +232,7 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
         req("POST", `/lists/${id}/entries`, { printingId: PRINTING_1.id, quantity: 2 }),
       );
       expect(res.status).toBe(201);
-      const json = (await res.json()) as { quantity: number; kind: string };
+      const json = (await readJson(res)) as { quantity: number; kind: string };
       expect(json.kind).toBe("printing");
       expect(json.quantity).toBe(2);
     });
@@ -270,7 +271,7 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
         }),
       );
       expect(res.status).toBe(200);
-      const json = (await res.json()) as { added: number; skipped: number };
+      const json = (await readJson(res)) as { added: number; skipped: number };
       expect(json.added).toBe(1);
       expect(json.skipped).toBe(1);
     });
@@ -296,7 +297,7 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
         req("POST", `/lists/${id}/entries/from-copies`, { copyIds: [copyId] }),
       );
       expect(res.status).toBe(200);
-      const json = (await res.json()) as { added: number; skipped: number };
+      const json = (await readJson(res)) as { added: number; skipped: number };
       expect(json.added).toBe(1);
       expect(json.skipped).toBe(0);
     });
@@ -308,12 +309,12 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
         req("POST", `/lists/${id}/entries/from-copies`, { copyIds: [copyId] }),
       );
       expect(res.status).toBe(200);
-      const json = (await res.json()) as { added: number; skipped: number };
+      const json = (await readJson(res)) as { added: number; skipped: number };
       expect(json.added).toBe(1);
 
       // Verify the entry landed as a card entry (not a copy entry).
       const detailRes = await app.fetch(req("GET", `/lists/${id}`));
-      const detail = (await detailRes.json()) as { entries: { kind: string }[] };
+      const detail = (await readJson(detailRes)) as { entries: { kind: string }[] };
       expect(detail.entries[0]?.kind).toBe("card");
     });
 
@@ -325,7 +326,7 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
         }),
       );
       expect(res.status).toBe(200);
-      const json = (await res.json()) as { added: number; skipped: number };
+      const json = (await readJson(res)) as { added: number; skipped: number };
       expect(json.added).toBe(0);
       expect(json.skipped).toBe(1);
     });
@@ -340,7 +341,7 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
       const createRes = await app.fetch(
         req("POST", `/lists/${source}/entries`, { cardId: CARD_FURY_UNIT.id, quantity: 3 }),
       );
-      const created = (await createRes.json()) as { id: string };
+      const created = (await readJson(createRes)) as { id: string };
 
       const moveRes = await app.fetch(
         req("POST", `/lists/${source}/entries/move`, {
@@ -349,15 +350,15 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
         }),
       );
       expect(moveRes.status).toBe(200);
-      const moved = (await moveRes.json()) as { moved: number; merged: number };
+      const moved = (await readJson(moveRes)) as { moved: number; merged: number };
       expect(moved).toEqual({ moved: 1, merged: 0 });
 
       const sourceRes = await app.fetch(req("GET", `/lists/${source}`));
-      const sourceDetail = (await sourceRes.json()) as { entries: unknown[] };
+      const sourceDetail = (await readJson(sourceRes)) as { entries: unknown[] };
       expect(sourceDetail.entries).toHaveLength(0);
 
       const destRes = await app.fetch(req("GET", `/lists/${dest}`));
-      const destDetail = (await destRes.json()) as {
+      const destDetail = (await readJson(destRes)) as {
         entries: { kind: string; quantity: number }[];
       };
       expect(destDetail.entries).toHaveLength(1);
@@ -373,7 +374,7 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
       const createRes = await app.fetch(
         req("POST", `/lists/${source}/entries`, { cardId: CARD_FURY_UNIT.id, quantity: 3 }),
       );
-      const created = (await createRes.json()) as { id: string };
+      const created = (await readJson(createRes)) as { id: string };
 
       const moveRes = await app.fetch(
         req("POST", `/lists/${source}/entries/move`, {
@@ -382,10 +383,10 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
         }),
       );
       expect(moveRes.status).toBe(200);
-      expect(await moveRes.json()).toEqual({ moved: 1, merged: 1 });
+      expect(await readJson(moveRes)).toEqual({ moved: 1, merged: 1 });
 
       const destRes = await app.fetch(req("GET", `/lists/${dest}`));
-      const destDetail = (await destRes.json()) as { entries: { quantity: number }[] };
+      const destDetail = (await readJson(destRes)) as { entries: { quantity: number }[] };
       expect(destDetail.entries).toHaveLength(1);
       expect(destDetail.entries[0]?.quantity).toBe(5);
     });
@@ -396,7 +397,7 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
       const createRes = await app.fetch(
         req("POST", `/lists/${source}/entries`, { cardId: CARD_FURY_UNIT.id }),
       );
-      const created = (await createRes.json()) as { id: string };
+      const created = (await readJson(createRes)) as { id: string };
 
       const res = await app.fetch(
         req("POST", `/lists/${source}/entries/move`, {
@@ -417,7 +418,7 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
       const createRes = await app.fetch(
         req("POST", `/lists/${source}/entries`, { cardId: CARD_FURY_UNIT.id }),
       );
-      const created = (await createRes.json()) as { id: string };
+      const created = (await readJson(createRes)) as { id: string };
 
       const res = await app.fetch(
         req("POST", `/lists/${source}/entries/move`, {
@@ -433,7 +434,7 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
       const createRes = await app.fetch(
         req("POST", `/lists/${list}/entries`, { cardId: CARD_FURY_UNIT.id }),
       );
-      const created = (await createRes.json()) as { id: string };
+      const created = (await readJson(createRes)) as { id: string };
 
       const res = await app.fetch(
         req("POST", `/lists/${list}/entries/move`, {
@@ -453,7 +454,7 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
       await app.fetch(req("POST", `/lists/${id}/entries`, { cardId: CARD_FURY_UNIT.id }));
       const res = await app.fetch(req("GET", `/lists/${id}`));
       expect(res.status).toBe(200);
-      const json = (await res.json()) as {
+      const json = (await readJson(res)) as {
         list: { id: string; kind: string };
         entries: { kind: string; cardName: string }[];
       };
@@ -473,13 +474,13 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
       const createRes = await app.fetch(
         req("POST", `/lists/${id}/entries`, { cardId: CARD_FURY_UNIT.id }),
       );
-      const created = (await createRes.json()) as { id: string };
+      const created = (await readJson(createRes)) as { id: string };
 
       const patchRes = await app.fetch(
         req("PATCH", `/lists/${id}/entries/${created.id}`, { quantity: 4 }),
       );
       expect(patchRes.status).toBe(200);
-      const patched = (await patchRes.json()) as { quantity: number };
+      const patched = (await readJson(patchRes)) as { quantity: number };
       expect(patched.quantity).toBe(4);
 
       const deleteRes = await app.fetch(req("DELETE", `/lists/${id}/entries/${created.id}`));
@@ -495,13 +496,13 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
 
       const shareRes = await app.fetch(req("POST", `/lists/${id}/share`));
       expect(shareRes.status).toBe(200);
-      const shareBody = (await shareRes.json()) as { shareToken: string; isPublic: boolean };
+      const shareBody = (await readJson(shareRes)) as { shareToken: string; isPublic: boolean };
       expect(shareBody.isPublic).toBe(true);
       expect(shareBody.shareToken.length).toBeGreaterThan(0);
 
       const publicRes = await app.fetch(req("GET", `/lists/share/${shareBody.shareToken}`));
       expect(publicRes.status).toBe(200);
-      const publicBody = (await publicRes.json()) as { list: { kind: string } };
+      const publicBody = (await readJson(publicRes)) as { list: { kind: string } };
       expect(publicBody.list.kind).toBe("card");
 
       const unshareRes = await app.fetch(req("DELETE", `/lists/${id}/share`));
@@ -516,13 +517,13 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
 
       const first = await app.fetch(req("POST", `/lists/${id}/share`));
       expect(first.status).toBe(200);
-      const firstBody = (await first.json()) as { shareToken: string; isPublic: boolean };
+      const firstBody = (await readJson(first)) as { shareToken: string; isPublic: boolean };
       expect(firstBody.shareToken.length).toBeGreaterThan(0);
       expect(firstBody.isPublic).toBe(true);
 
       const second = await app.fetch(req("POST", `/lists/${id}/share`));
       expect(second.status).toBe(200);
-      const secondBody = (await second.json()) as { shareToken: string; isPublic: boolean };
+      const secondBody = (await readJson(second)) as { shareToken: string; isPublic: boolean };
       // Same token returned — POST /share must not rotate.
       expect(secondBody.shareToken).toBe(firstBody.shareToken);
       expect(secondBody.isPublic).toBe(true);
@@ -538,7 +539,7 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
       // Owned but unshared → token null, not a 404.
       const unshared = await app.fetch(req("GET", `/lists/${id}/share`));
       expect(unshared.status).toBe(200);
-      const unsharedBody = (await unshared.json()) as {
+      const unsharedBody = (await readJson(unshared)) as {
         shareToken: string | null;
         isPublic: boolean;
       };
@@ -546,11 +547,11 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
       expect(unsharedBody.isPublic).toBe(false);
 
       const shareRes = await app.fetch(req("POST", `/lists/${id}/share`));
-      const shareBody = (await shareRes.json()) as { shareToken: string };
+      const shareBody = (await readJson(shareRes)) as { shareToken: string };
 
       const shared = await app.fetch(req("GET", `/lists/${id}/share`));
       expect(shared.status).toBe(200);
-      const sharedBody = (await shared.json()) as { shareToken: string; isPublic: boolean };
+      const sharedBody = (await readJson(shared)) as { shareToken: string; isPublic: boolean };
       expect(sharedBody.shareToken).toBe(shareBody.shareToken);
       expect(sharedBody.isPublic).toBe(true);
     });
@@ -565,7 +566,7 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
       const id = await createList("Rotatable", "organize", "card");
 
       const shareRes = await app.fetch(req("POST", `/lists/${id}/share`));
-      const shareBody = (await shareRes.json()) as { shareToken: string };
+      const shareBody = (await readJson(shareRes)) as { shareToken: string };
       const oldToken = shareBody.shareToken;
 
       // The old token resolves before rotation.
@@ -574,7 +575,7 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
 
       const rotateRes = await app.fetch(req("POST", `/lists/${id}/share/rotate`));
       expect(rotateRes.status).toBe(200);
-      const rotateBody = (await rotateRes.json()) as { shareToken: string; isPublic: boolean };
+      const rotateBody = (await readJson(rotateRes)) as { shareToken: string; isPublic: boolean };
       expect(rotateBody.shareToken.length).toBeGreaterThan(0);
       expect(rotateBody.shareToken).not.toBe(oldToken);
       expect(rotateBody.isPublic).toBe(true);
@@ -587,7 +588,7 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
 
       // GET /share now reflects the rotated token.
       const state = await app.fetch(req("GET", `/lists/${id}/share`));
-      const stateBody = (await state.json()) as { shareToken: string };
+      const stateBody = (await readJson(state)) as { shareToken: string };
       expect(stateBody.shareToken).toBe(rotateBody.shareToken);
     });
 
@@ -596,7 +597,7 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
 
       const rotateRes = await app.fetch(req("POST", `/lists/${id}/share/rotate`));
       expect(rotateRes.status).toBe(200);
-      const rotateBody = (await rotateRes.json()) as { shareToken: string; isPublic: boolean };
+      const rotateBody = (await readJson(rotateRes)) as { shareToken: string; isPublic: boolean };
       expect(rotateBody.shareToken.length).toBeGreaterThan(0);
       expect(rotateBody.isPublic).toBe(true);
 

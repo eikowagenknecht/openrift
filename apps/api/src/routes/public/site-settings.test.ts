@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { siteSettingsRouter } from "./site-settings";
 
@@ -34,7 +35,7 @@ describe("GET /api/v1/site-settings", () => {
     mockSiteSettingsRepo.listByScope.mockResolvedValue([{ key: "theme", value: "dark" }]);
     const res = await app.request("/api/v1/site-settings");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.settings).toBeDefined();
   });
 
@@ -44,7 +45,7 @@ describe("GET /api/v1/site-settings", () => {
       { key: "banner", value: "Welcome to OpenRift!" },
     ]);
     const res = await app.request("/api/v1/site-settings");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.settings).toEqual({
       theme: "dark",
       banner: "Welcome to OpenRift!",
@@ -54,7 +55,7 @@ describe("GET /api/v1/site-settings", () => {
   it("returns empty items when no settings exist", async () => {
     mockSiteSettingsRepo.listByScope.mockResolvedValue([]);
     const res = await app.request("/api/v1/site-settings");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.settings).toEqual({});
   });
 
@@ -77,7 +78,7 @@ describe("GET /api/v1/site-settings", () => {
       { key: "maintenance", value: "false" },
     ]);
     const res = await app.request("/api/v1/site-settings");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(Object.keys(json.settings)).toHaveLength(3);
     expect(json.settings.maintenance).toBe("false");
   });
@@ -88,7 +89,7 @@ describe("GET /api/v1/site-settings", () => {
       { key: "theme", value: "dark" },
     ]);
     const res = await app.request("/api/v1/site-settings");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.settings.theme).toBe("dark");
   });
 });

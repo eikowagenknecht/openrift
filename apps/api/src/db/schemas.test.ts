@@ -11,7 +11,7 @@ describe("noEmptyJsonb", () => {
   });
 
   it("passes for undefined", () => {
-    expect(noEmptyJsonb.safeParse().success).toBe(true);
+    expect(noEmptyJsonb.safeParse(undefined).success).toBe(true);
   });
 
   it("fails for empty object", () => {

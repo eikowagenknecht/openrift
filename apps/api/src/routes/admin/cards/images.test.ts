@@ -10,6 +10,7 @@ import {
   rehostSingleImage,
 } from "../../../services/images/index.js";
 import { registerRouterForTest } from "../../../test/mount-router.js";
+import { readJson } from "../../../test/read-json.js";
 import type { Variables } from "../../../types.js";
 import { adminCardImagesRouter } from "./images";
 
@@ -196,7 +197,7 @@ describe("POST /candidate-printings/:id/set-image", () => {
       body: JSON.stringify({ mode: "main" }),
     });
     expect(res.status).toBe(400);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("not linked");
   });
 
@@ -213,7 +214,7 @@ describe("POST /candidate-printings/:id/set-image", () => {
       body: JSON.stringify({ mode: "main" }),
     });
     expect(res.status).toBe(400);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("no image URL");
   });
 });
@@ -390,7 +391,7 @@ describe("POST /printing-images/:imageId/unrehost", () => {
       method: "POST",
     });
     expect(res.status).toBe(400);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("not rehosted");
   });
 
@@ -404,7 +405,7 @@ describe("POST /printing-images/:imageId/unrehost", () => {
       method: "POST",
     });
     expect(res.status).toBe(400);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("no original URL");
   });
 });
@@ -430,7 +431,7 @@ describe("POST /printing-images/:imageId/rehost", () => {
       method: "POST",
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({ rehostedUrl: "/media/cards/ab/00594247-a18a-4efd-8998-105449a4c1ab" });
     expect(mockDownloadImage).toHaveBeenCalledWith(mockIo, "https://example.com/img.png");
     expect(mockProcessAndSave).toHaveBeenCalledWith(
@@ -494,7 +495,7 @@ describe("POST /printing-images/:imageId/rehost", () => {
       method: "POST",
     });
     expect(res.status).toBe(400);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("no original URL");
   });
 });
@@ -644,7 +645,7 @@ describe("POST /printing/:printingId/add-image-url", () => {
       body: JSON.stringify({ url: "  " }),
     });
     expect(res.status).toBe(400);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("url is required");
   });
 
@@ -683,7 +684,7 @@ describe("POST /printing/:printingId/upload-image", () => {
       body: formData,
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({ rehostedUrl: "/media/cards/v7/mock-uuid-v7" });
     expect(mockTrxPrintingImages.insertUploadedImage).toHaveBeenCalledWith({
       id: "mock-uuid-v7",

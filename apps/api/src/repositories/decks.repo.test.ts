@@ -28,7 +28,7 @@ describe("decksRepo", () => {
   it("listForUser with wantedOnly filters", async () => {
     const db = createMockDb([]);
     const repo = decksRepo(db);
-    expect(await repo.listForUser("u1", true)).toEqual([]);
+    expect(await repo.listForUser("u1", { wantedOnly: true })).toEqual([]);
   });
 
   it("getByIdForUser returns a deck", async () => {
@@ -57,6 +57,7 @@ describe("decksRepo", () => {
       name: "Aggro",
       description: null,
       format: "constructed",
+      formatConfig: null,
       isWanted: false,
       isPublic: false,
     });
@@ -109,7 +110,9 @@ describe("decksRepo", () => {
     const db = createMockDb([]);
     const repo = decksRepo(db);
     await expect(
-      repo.replaceCards("d-1", [{ cardId: "c-1", zone: "main", quantity: 4 }]),
+      repo.replaceCards("d-1", [
+        { cardId: "c-1", zone: "main", quantity: 4, preferredPrintingId: null },
+      ]),
     ).resolves.toBeUndefined();
   });
 

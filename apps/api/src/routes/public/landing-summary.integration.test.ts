@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createUnauthenticatedTestContext, req } from "../../test/integration-context.js";
+import { readJson } from "../../test/read-json.js";
 
 const ctx = createUnauthenticatedTestContext();
 
@@ -10,7 +11,7 @@ describe.skipIf(!ctx)("Landing summary route (integration)", () => {
   it("returns 200 with the lightweight payload shape", async () => {
     const res = await app.fetch(req("GET", "/landing-summary"));
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(typeof json.cardCount).toBe("number");
     expect(typeof json.printingCount).toBe("number");
     expect(typeof json.copyCount).toBe("number");
@@ -19,7 +20,7 @@ describe.skipIf(!ctx)("Landing summary route (integration)", () => {
 
   it("excludes the heavy CatalogResponse fields", async () => {
     const res = await app.fetch(req("GET", "/landing-summary"));
-    const json = await res.json();
+    const json = await readJson(res);
     expect("cards" in json).toBe(false);
     expect("printings" in json).toBe(false);
     expect("sets" in json).toBe(false);
@@ -27,7 +28,7 @@ describe.skipIf(!ctx)("Landing summary route (integration)", () => {
 
   it("returns thumbnailIds as raw UUIDs, not URLs", async () => {
     const res = await app.fetch(req("GET", "/landing-summary"));
-    const json = await res.json();
+    const json = await readJson(res);
     if (json.thumbnailIds.length === 0) {
       return;
     }
@@ -46,7 +47,7 @@ describe.skipIf(!ctx)("Landing summary route (integration)", () => {
 
   it("never returns more than 36 thumbnails", async () => {
     const res = await app.fetch(req("GET", "/landing-summary"));
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.thumbnailIds.length).toBeLessThanOrEqual(36);
   });
 });

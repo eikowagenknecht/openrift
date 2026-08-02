@@ -1,18 +1,21 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { HealthStatus } from "./repositories/health.js";
 import { healthRoute } from "./routes/public/health.js";
+import { readJson } from "./test/read-json.js";
+import type { Variables } from "./types.js";
 
 // ---------------------------------------------------------------------------
 // Mock repos
 // ---------------------------------------------------------------------------
 
 const mockHealthRepo = {
-  healthCheck: vi.fn(() => Promise.resolve("ok" as const)),
+  healthCheck: vi.fn(async (): Promise<HealthStatus> => "ok"),
 };
 
 // oxlint-disable-next-line -- test mock doesn't match full Repos type
-const app = new Hono()
+const app = new Hono<{ Variables: Variables }>()
   .use("*", async (c, next) => {
     c.set("repos", { health: mockHealthRepo } as never);
     await next();
@@ -32,7 +35,7 @@ describe("GET /api/health", () => {
     const res = await app.fetch(new Request("http://localhost/api/health"));
     expect(res.status).toBe(200);
 
-    const json = (await res.json()) as { status: string };
+    const json = (await readJson(res)) as { status: string };
     expect(json.status).toBe("ok");
   });
 
@@ -42,7 +45,7 @@ describe("GET /api/health", () => {
     const res = await app.fetch(new Request("http://localhost/api/health"));
     expect(res.status).toBe(200);
 
-    const json = (await res.json()) as { status: string };
+    const json = (await readJson(res)) as { status: string };
     expect(json.status).toBe("db_empty");
   });
 
@@ -52,7 +55,7 @@ describe("GET /api/health", () => {
     const res = await app.fetch(new Request("http://localhost/api/health"));
     expect(res.status).toBe(503);
 
-    const json = (await res.json()) as { status: string };
+    const json = (await readJson(res)) as { status: string };
     expect(json.status).toBe("db_unreachable");
   });
 
@@ -62,7 +65,7 @@ describe("GET /api/health", () => {
     const res = await app.fetch(new Request("http://localhost/api/health"));
     expect(res.status).toBe(503);
 
-    const json = (await res.json()) as { status: string };
+    const json = (await readJson(res)) as { status: string };
     expect(json.status).toBe("db_not_migrated");
   });
 

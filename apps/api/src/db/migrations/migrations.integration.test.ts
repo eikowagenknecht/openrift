@@ -3,12 +3,12 @@ import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+import type { Logger } from "@openrift/shared/logger";
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 import { Migrator } from "kysely/migration";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import type { Logger } from "../../logger.js";
 import { setupTestDb } from "../../test/integration-setup.js";
 import { migrate, rollback } from "../migrate.js";
 import type { Database } from "../types.js";
@@ -162,11 +162,8 @@ describe.skipIf(!DATABASE_URL)("schema snapshot matches migrations", () => {
     ({ db, teardown } = await setupTestDb(DATABASE_URL!, "schema_snapshot"));
 
     // Extract the database name from the connection
-    const [row] = await db
-      .selectFrom(db.fn("current_database", []).as("name"))
-      .select("name")
-      .execute();
-    dbName = row.name as string;
+    const { rows } = await sql<{ name: string }>`select current_database() as name`.execute(db);
+    dbName = rows[0].name;
   });
 
   afterAll(async () => {

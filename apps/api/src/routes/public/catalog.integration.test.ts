@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { CARD_FURY_UNIT, OGS_SET, PRINTING_1 } from "../../test/fixtures/constants.js";
 import { createTestContext, req } from "../../test/integration-context.js";
+import { readJson } from "../../test/read-json.js";
 
 const USER_ID = "a0000000-0024-4000-a000-000000000001";
 const ctx = createTestContext(USER_ID);
@@ -43,6 +44,8 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
         printedEffectText: null,
         flavorText: null,
         comment: null,
+        size: "standard",
+        language: "EN",
       })
       .returning("id")
       .execute();
@@ -162,7 +165,7 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
       const res = await app.fetch(req("GET", "/catalog"));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(Array.isArray(json.sets)).toBe(true);
       expect(typeof json.cards).toBe("object");
       expect(typeof json.printings).toBe("object");
@@ -171,7 +174,7 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
 
     it("sets contain id, slug, and name", async () => {
       const res = await app.fetch(req("GET", "/catalog"));
-      const json = await res.json();
+      const json = await readJson(res);
 
       const ogsSet = json.sets.find((s: { id: string }) => s.id === SEED_SET_ID);
       expect(ogsSet).toBeDefined();
@@ -181,7 +184,7 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
 
     it("cards contain expected fields", async () => {
       const res = await app.fetch(req("GET", "/catalog"));
-      const json = await res.json();
+      const json = await readJson(res);
 
       const annieCardId = CARD_FURY_UNIT.id;
       const annie = json.cards[annieCardId];
@@ -195,7 +198,7 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
 
     it("printings contain expected fields", async () => {
       const res = await app.fetch(req("GET", "/catalog"));
-      const json = await res.json();
+      const json = await readJson(res);
 
       const printing = json.printings[SEED_PRINTING_ID];
       expect(printing).toBeDefined();
@@ -210,7 +213,7 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
 
     it("printing does not include marketPrice (prices live on /api/v1/prices)", async () => {
       const res = await app.fetch(req("GET", "/catalog"));
-      const json = await res.json();
+      const json = await readJson(res);
 
       const printing = json.printings[SEED_PRINTING_ID];
       expect("marketPrice" in printing).toBe(false);
@@ -219,7 +222,7 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
 
     it("printings include images array", async () => {
       const res = await app.fetch(req("GET", "/catalog"));
-      const json = await res.json();
+      const json = await readJson(res);
 
       // Assert against the dedicated printing seeded in beforeAll (isolated from
       // sibling tests that toggle the seed printings' images mid-run).

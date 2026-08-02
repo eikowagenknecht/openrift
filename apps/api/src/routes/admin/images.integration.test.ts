@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Io } from "../../io.js";
 import { adminReq, createTestContext } from "../../test/integration-context.js";
+import { readJson } from "../../test/read-json.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Admin image management routes
@@ -66,7 +67,7 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
       const res = await app.fetch(adminReq("POST", "/rehost-images"));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json).toHaveProperty("total");
       expect(json).toHaveProperty("rehosted");
       expect(json).toHaveProperty("skipped");
@@ -78,7 +79,7 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
       const res = await app.fetch(adminReq("POST", "/rehost-images?limit=5"));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(typeof json.total).toBe("number");
     });
   });
@@ -90,7 +91,7 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
       const res = await app.fetch(adminReq("POST", "/regenerate-images"));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json).toHaveProperty("runId");
       expect(json).toHaveProperty("status");
       expect(["running", "already_running"]).toContain(json.status);
@@ -102,7 +103,7 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
       );
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(typeof json.runId).toBe("string");
     });
   });
@@ -125,7 +126,7 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
       const res = await app.fetch(adminReq("POST", "/clear-rehosted"));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(typeof json.cleared).toBe("number");
     });
   });
@@ -137,7 +138,7 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
       const res = await app.fetch(adminReq("GET", "/rehost-status"));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.total).toBeTypeOf("number");
       expect(json.rehosted).toBeTypeOf("number");
       expect(json.external).toBeTypeOf("number");
@@ -155,7 +156,7 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
       const res = await app.fetch(adminReq("POST", "/cleanup-orphaned"));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(typeof json.scanned).toBe("number");
       expect(typeof json.deleted).toBe("number");
       expect(json.errors).toEqual(expect.any(Array));
@@ -169,7 +170,7 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
       const res = await app.fetch(adminReq("GET", "/broken-images"));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(typeof json.total).toBe("number");
       expect(json.broken).toEqual(expect.any(Array));
     });
@@ -182,7 +183,7 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
       const res = await app.fetch(adminReq("GET", "/low-res-images"));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(typeof json.total).toBe("number");
       expect(json.lowRes).toEqual(expect.any(Array));
     });
@@ -195,7 +196,7 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
       const res = await app.fetch(adminReq("GET", "/missing-images"));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json).toEqual(expect.any(Array));
     });
   });

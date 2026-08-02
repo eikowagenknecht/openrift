@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { adminReq, createTestContext } from "../../test/integration-context.js";
+import { readJson } from "../../test/read-json.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Admin site-settings CRUD
@@ -48,7 +49,7 @@ describe.skipIf(!adminCtx)("Admin site-settings routes (integration)", () => {
       const res = await app.fetch(adminReq("GET", "/site-settings"));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.settings).toBeInstanceOf(Array);
       const issSettings = json.settings.filter((s: { key: string }) => s.key.startsWith("iss-"));
       expect(issSettings).toHaveLength(0);
@@ -88,7 +89,7 @@ describe.skipIf(!adminCtx)("Admin site-settings routes (integration)", () => {
       );
       expect(res.status).toBe(409);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.message).toContain("already exists");
     });
 
@@ -123,7 +124,7 @@ describe.skipIf(!adminCtx)("Admin site-settings routes (integration)", () => {
       const res = await app.fetch(adminReq("GET", "/site-settings"));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       const issSettings = json.settings.filter((s: { key: string }) => s.key.startsWith("iss-"));
       expect(issSettings).toHaveLength(2);
 
@@ -154,7 +155,7 @@ describe.skipIf(!adminCtx)("Admin site-settings routes (integration)", () => {
 
       // Verify updated value
       const listRes = await app.fetch(adminReq("GET", "/site-settings"));
-      const json = await listRes.json();
+      const json = await readJson(listRes);
       const updated = json.settings.find((s: { key: string }) => s.key === "iss-analytics-url");
       expect(updated.value).toBe("https://new.analytics.test.com");
       expect(updated.scope).toBe("web");
@@ -167,7 +168,7 @@ describe.skipIf(!adminCtx)("Admin site-settings routes (integration)", () => {
       expect(res.status).toBe(204);
 
       const listRes = await app.fetch(adminReq("GET", "/site-settings"));
-      const json = await listRes.json();
+      const json = await readJson(listRes);
       const updated = json.settings.find((s: { key: string }) => s.key === "iss-analytics-url");
       expect(updated.scope).toBe("api");
     });
@@ -182,7 +183,7 @@ describe.skipIf(!adminCtx)("Admin site-settings routes (integration)", () => {
       expect(res.status).toBe(204);
 
       const listRes = await app.fetch(adminReq("GET", "/site-settings"));
-      const json = await listRes.json();
+      const json = await readJson(listRes);
       const updated = json.settings.find((s: { key: string }) => s.key === "iss-rate-limit");
       expect(updated.value).toBe("500");
       expect(updated.scope).toBe("web");
@@ -194,7 +195,7 @@ describe.skipIf(!adminCtx)("Admin site-settings routes (integration)", () => {
       );
       expect(res.status).toBe(404);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.message).toContain("not found");
     });
 
@@ -221,13 +222,13 @@ describe.skipIf(!adminCtx)("Admin site-settings routes (integration)", () => {
       const res = await app.fetch(adminReq("DELETE", "/site-settings/iss-rate-limit"));
       expect(res.status).toBe(404);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.message).toContain("not found");
     });
 
     it("verifies no iss- settings remain", async () => {
       const res = await app.fetch(adminReq("GET", "/site-settings"));
-      const json = await res.json();
+      const json = await readJson(res);
       const issSettings = json.settings.filter((s: { key: string }) => s.key.startsWith("iss-"));
       expect(issSettings).toHaveLength(0);
     });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { adminReq, createTestContext } from "../../test/integration-context.js";
+import { readJson } from "../../test/read-json.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Admin core routes (/admin/me, /admin/cron-status)
@@ -65,7 +66,7 @@ describe.skipIf(!ctx)("Admin core routes (integration)", () => {
       const res = await app.fetch(adminReq("GET", "/me"));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json).toEqual({ isAdmin: true, sections: [] });
     });
   });
@@ -77,7 +78,7 @@ describe.skipIf(!ctx)("Admin core routes (integration)", () => {
       const res = await app.fetch(adminReq("GET", "/cron-status"));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json).toEqual({
         tcgplayer: null,
         cardmarket: null,

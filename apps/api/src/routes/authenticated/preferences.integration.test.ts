@@ -5,6 +5,7 @@ import {
   createUnauthenticatedTestContext,
   req,
 } from "../../test/integration-context.js";
+import { readJson } from "../../test/read-json.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Preferences routes
@@ -56,7 +57,7 @@ describe.skipIf(!ctx)("Preferences routes (integration)", () => {
       const res = await app.fetch(req("GET", "/preferences"));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       // When no row exists, handler returns {} — client resolves defaults
       expect(json).toEqual({});
     });
@@ -74,7 +75,7 @@ describe.skipIf(!ctx)("Preferences routes (integration)", () => {
       const res = await app.fetch(req("PATCH", "/preferences", { showImages: false }));
       expect(res.status).toBe(200);
 
-      const json = parsePrefs(await res.json());
+      const json = parsePrefs(await readJson(res));
       expect(json.showImages).toBe(false);
       // Only explicitly-set fields are stored; missing fields resolve to defaults client-side
       expect(json.fancyFan).toBeUndefined();
@@ -129,11 +130,11 @@ describe.skipIf(!ctx)("Preferences routes (integration)", () => {
         req("PATCH", "/preferences", { emailNotifications: { tradeStatus: false } }),
       );
       expect(patched.status).toBe(200);
-      const patchedJson = parsePrefs(await patched.json());
+      const patchedJson = parsePrefs(await readJson(patched));
       expect((patchedJson.emailNotifications as { tradeStatus?: boolean }).tradeStatus).toBe(false);
 
       const fetched = await emailApp.fetch(req("GET", "/preferences"));
-      const fetchedJson = parsePrefs(await fetched.json());
+      const fetchedJson = parsePrefs(await readJson(fetched));
       expect((fetchedJson.emailNotifications as { tradeStatus?: boolean }).tradeStatus).toBe(false);
     });
   });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createUnauthenticatedTestContext } from "../../test/integration-context.js";
+import { readJson } from "../../test/read-json.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Health route
@@ -27,7 +28,7 @@ describe.skipIf(!ctx)("Health route (integration)", () => {
     const res = await app.fetch(healthReq());
     expect(res.status).toBe(200);
 
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.status).toBe("ok");
   });
 

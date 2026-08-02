@@ -19,11 +19,8 @@ function buildList(
   overrides: Partial<Selectable<ListsTable>> & { id: string; kind: ListKind; intent: ListIntent },
 ): Selectable<ListsTable> {
   return {
-    id: overrides.id,
     userId: "user-1",
     name: overrides.id,
-    intent: overrides.intent,
-    kind: overrides.kind,
     isPublic: false,
     shareToken: null,
     defaultPricePref: null,
@@ -213,7 +210,7 @@ describe("moveListEntries", () => {
         quantity: 1,
         pricePref: "absolute",
         priceAbsoluteCents: 1500,
-        tradeType: "sell",
+        tradeType: "money",
       }),
     ];
     const { repos, bulkCreateEntries } = createMockRepos({
@@ -231,7 +228,7 @@ describe("moveListEntries", () => {
       expect.objectContaining({
         pricePref: "absolute",
         priceAbsoluteCents: 1500,
-        tradeType: "sell",
+        tradeType: "money",
       }),
     );
   });

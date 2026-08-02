@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 
 // The handler reads `Bun.version`, but vitest runs under Node where the `Bun`
@@ -88,7 +89,7 @@ describe("GET /status", () => {
   it("returns 200 with server, database, app, and pricing sections", async () => {
     const res = await app.request("/api/admin/v1/status");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
 
     expect(json.server.environment).toBe("production");
     expect(typeof json.server.bunVersion).toBe("string");
@@ -120,7 +121,7 @@ describe("GET /status", () => {
 
     const res = await devApp.request("/api/admin/v1/status");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.server.environment).toBe("development");
   });
 
@@ -137,7 +138,7 @@ describe("GET /status", () => {
 
     const res = await app.request("/api/admin/v1/status");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.cron.jobs.tcgplayer.lastRun).toEqual({
       startedAt: "2026-04-01T10:00:00.000Z",
       finishedAt: "2026-04-01T10:01:00.000Z",

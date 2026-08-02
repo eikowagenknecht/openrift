@@ -27,6 +27,7 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
   it("creates a collection and retrieves it", async () => {
     const col = await repo.create({
       userId,
+      groupId: null,
       name: "Test Binder",
       description: null,
       isInbox: false,
@@ -52,6 +53,7 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
   it("returns undefined when queried with a different userId", async () => {
     const col = await repo.create({
       userId,
+      groupId: null,
       name: "Private Collection",
       description: null,
       isInbox: false,
@@ -71,6 +73,7 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
     // Create an inbox
     const inbox = await repo.create({
       userId,
+      groupId: null,
       name: "Inbox",
       description: null,
       isInbox: true,
@@ -80,6 +83,7 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
 
     const binder = await repo.create({
       userId,
+      groupId: null,
       name: "Alpha Binder",
       description: null,
       isInbox: false,
@@ -108,6 +112,7 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
   it("updates a collection name", async () => {
     const col = await repo.create({
       userId,
+      groupId: null,
       name: "Before Update",
       description: null,
       isInbox: false,
@@ -131,6 +136,7 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
   it("update returns undefined for wrong userId", async () => {
     const col = await repo.create({
       userId,
+      groupId: null,
       name: "Owned by 0026",
       description: null,
       isInbox: false,
@@ -151,6 +157,7 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
   it("returns id and name for existing collection", async () => {
     const col = await repo.create({
       userId,
+      groupId: null,
       name: "Named One",
       description: null,
       isInbox: false,
@@ -226,6 +233,7 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
   it("deletes a collection by id for the owning user", async () => {
     const col = await repo.create({
       userId,
+      groupId: null,
       name: "To Delete",
       description: null,
       isInbox: false,
@@ -261,6 +269,7 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
     // Create two collections
     const colA = await repo.create({
       userId,
+      groupId: null,
       name: "Source Collection",
       description: null,
       isInbox: false,
@@ -270,6 +279,7 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
 
     const colB = await repo.create({
       userId,
+      groupId: null,
       name: "Dest Collection",
       description: null,
       isInbox: false,

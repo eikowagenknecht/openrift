@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createRepos } from "../../deps.js";
 import { CARD_FURY_RUNE, CARD_FURY_UNIT } from "../../test/fixtures/constants.js";
 import { createTestContext, req } from "../../test/integration-context.js";
+import { readJson } from "../../test/read-json.js";
 
 // Route-level integration tests for the ADR-033 additive deck-check surfaces:
 // the tournament-scoped judge API (host + staff authorization, with a 403 for an
@@ -34,6 +35,8 @@ interface EntrySummary {
 }
 interface CardLine {
   id: string;
+  zone: string;
+  quantity: number;
   foundCopies?: boolean[];
 }
 
@@ -92,7 +95,7 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
         groupId: group.id,
       }),
     );
-    tournamentId = ((await created.json()) as { id: string }).id;
+    tournamentId = ((await readJson(created)) as { id: string }).id;
     await repos.tournaments.addStaff(tournamentId, JUDGE_ID, "judge");
     // The deck-check event view treats only a "running" tournament as active
     // (tournamentToEvent maps status running -> active); judging happens once the
@@ -117,7 +120,7 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
         req("GET", `/tournaments/${tournamentId}/deck-check/entries`),
       );
       expect(ok.status).toBe(200);
-      const body = (await ok.json()) as { event: { id: string }; entries: EntrySummary[] };
+      const body = (await readJson(ok)) as { event: { id: string }; entries: EntrySummary[] };
       expect(body.event.id).toBe(tournamentId);
 
       const denied = await stranger.app.fetch(
@@ -139,7 +142,7 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
         }),
       );
       expect(res.status).toBe(201);
-      const body = (await res.json()) as { entry: { id: string }; cards: CardLine[] };
+      const body = (await readJson(res)) as { entry: { id: string }; cards: CardLine[] };
       entryId = body.entry.id;
       expect(body.cards).toHaveLength(1);
 
@@ -160,12 +163,14 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
         }),
       );
       expect(approve.status).toBe(200);
-      expect(((await approve.json()) as { entry: { state: string } }).entry.state).toBe("approved");
+      expect(((await readJson(approve)) as { entry: { state: string } }).entry.state).toBe(
+        "approved",
+      );
 
       const detail = await host.app.fetch(
         req("GET", `/tournaments/${tournamentId}/deck-check/entries/${entryId}`),
       );
-      const cardId = ((await detail.json()) as { cards: CardLine[] }).cards[0]!.id;
+      const cardId = ((await readJson(detail)) as { cards: CardLine[] }).cards[0]!.id;
 
       const tick = await judge.app.fetch(
         req("PUT", `/tournaments/${tournamentId}/deck-check/entries/${entryId}/cards/${cardId}`, {
@@ -193,7 +198,7 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
         const res = await host.app.fetch(
           req("GET", `/tournaments/${tournamentId}/deck-check/entries`),
         );
-        return ((await res.json()) as Summary).event;
+        return ((await readJson(res)) as Summary).event;
       };
 
       // entryId was driven to "approved" by the prior test; it must show up in
@@ -222,10 +227,10 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
         const res = await host.app.fetch(
           req("GET", `/tournaments/${tournamentId}/deck-check/entries/${entry}`),
         );
-        return ((await res.json()) as { cards: CardLine[] }).cards;
+        return ((await readJson(res)) as { cards: CardLine[] }).cards;
       };
-      const setState = (entry: string, body: Record<string, unknown>): Promise<Response> =>
-        judge.app.fetch(
+      const setState = async (entry: string, body: Record<string, unknown>): Promise<Response> =>
+        await judge.app.fetch(
           req("PUT", `/tournaments/${tournamentId}/deck-check/entries/${entry}/state`, body),
         );
       const driveToApproved = async (displayName: string): Promise<string> => {
@@ -241,7 +246,7 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
             cards: [{ name: CARD_FURY_UNIT.name, quantity: 3, section: "main" }],
           }),
         );
-        const entry = ((await created.json()) as { entry: { id: string } }).entry.id;
+        const entry = ((await readJson(created)) as { entry: { id: string } }).entry.id;
         await setState(entry, { state: "approved" });
         return entry;
       };
@@ -277,7 +282,7 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
         }),
       );
       expect(created.status).toBe(201);
-      const newEntryId = ((await created.json()) as { entry: { id: string } }).entry.id;
+      const newEntryId = ((await readJson(created)) as { entry: { id: string } }).entry.id;
 
       const removed = await host.app.fetch(
         req("DELETE", `/tournaments/${tournamentId}/participants/${participant.id}`),
@@ -309,7 +314,7 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
         const res = await host.app.fetch(
           req("GET", `/tournaments/${tournamentId}/deck-check/entries`),
         );
-        const body = (await res.json()) as { entries: EntrySummary[] };
+        const body = (await readJson(res)) as { entries: EntrySummary[] };
         return body.entries.find((entry) => entry.participantId === participant.id);
       };
 
@@ -339,7 +344,7 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
           startsAt: "2026-06-01T12:00:00Z",
         }),
       );
-      const plainId = ((await plain.json()) as { id: string }).id;
+      const plainId = ((await readJson(plain)) as { id: string }).id;
       const res = await host.app.fetch(req("GET", `/tournaments/${plainId}/deck-check/entries`));
       expect(res.status).toBe(404);
     });
@@ -351,24 +356,24 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
         req("POST", "/me/deck-check-keys", { label: "My laptop" }),
       );
       expect(minted.status).toBe(201);
-      const body = (await minted.json()) as { key: { id: string }; token: string };
+      const body = (await readJson(minted)) as { key: { id: string }; token: string };
       expect(body.token.startsWith("orpk_")).toBe(true);
       const keyId = body.key.id;
 
       const list = await host.app.fetch(req("GET", "/me/deck-check-keys"));
-      const items = ((await list.json()) as { items: { id: string }[] }).items;
+      const items = ((await readJson(list)) as { items: { id: string }[] }).items;
       expect(items.some((item) => item.id === keyId)).toBe(true);
 
       // A personal key is private to its host.
       const otherList = await stranger.app.fetch(req("GET", "/me/deck-check-keys"));
-      const otherItems = ((await otherList.json()) as { items: { id: string }[] }).items;
+      const otherItems = ((await readJson(otherList)) as { items: { id: string }[] }).items;
       expect(otherItems.some((item) => item.id === keyId)).toBe(false);
 
       const revoke = await host.app.fetch(req("DELETE", `/me/deck-check-keys/${keyId}`));
       expect(revoke.status).toBe(204);
       const afterList = await host.app.fetch(req("GET", "/me/deck-check-keys"));
       const after = (
-        (await afterList.json()) as { items: { id: string; revokedAt: string | null }[] }
+        (await readJson(afterList)) as { items: { id: string; revokedAt: string | null }[] }
       ).items;
       expect(after.find((item) => item.id === keyId)?.revokedAt).not.toBeNull();
     });
@@ -378,11 +383,11 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
         req("POST", `/organizations/${ORG_ID}/deck-check-keys`, { label: "Store register" }),
       );
       expect(minted.status).toBe(201);
-      const keyId = ((await minted.json()) as { key: { id: string } }).key.id;
+      const keyId = ((await readJson(minted)) as { key: { id: string } }).key.id;
 
       const list = await orgOwner.app.fetch(req("GET", `/organizations/${ORG_ID}/deck-check-keys`));
       expect(
-        ((await list.json()) as { items: { id: string }[] }).items.some((i) => i.id === keyId),
+        ((await readJson(list)) as { items: { id: string }[] }).items.some((i) => i.id === keyId),
       ).toBe(true);
 
       const denied = await stranger.app.fetch(
@@ -417,7 +422,7 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
           startsAt: "2026-06-01T12:00:00Z",
         }),
       );
-      rpId = ((await created.json()) as { id: string }).id;
+      rpId = ((await readJson(created)) as { id: string }).id;
     });
 
     it("creates a fresh walk-in when no account is given", async () => {
@@ -467,7 +472,7 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
     it("lists the group's tournaments for a member and 404s a non-member", async () => {
       const ok = await member.app.fetch(req("GET", `/friend-groups/${GROUP_SLUG}/tournaments`));
       expect(ok.status).toBe(200);
-      const items = ((await ok.json()) as { items: { id: string }[] }).items;
+      const items = ((await readJson(ok)) as { items: { id: string }[] }).items;
       expect(items.some((item) => item.id === tournamentId)).toBe(true);
 
       const denied = await stranger.app.fetch(
@@ -495,7 +500,7 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
           cards: [{ name: CARD_FURY_UNIT.name, quantity: 1, section: "main" }],
         }),
       );
-      return ((await created.json()) as { entry: { id: string } }).entry.id;
+      return ((await readJson(created)) as { entry: { id: string } }).entry.id;
     };
     const expectState = async (
       entry: string,
@@ -569,7 +574,7 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
           startsAt: "2026-06-01T12:00:00Z",
         }),
       );
-      const archivedId = ((await created.json()) as { id: string }).id;
+      const archivedId = ((await readJson(created)) as { id: string }).id;
       await repos.tournaments.addStaff(archivedId, JUDGE_ID, "judge");
       const participant = await repos.tournaments.createParticipant({
         tournamentId: archivedId,
@@ -596,7 +601,7 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
       const res = await host.app.fetch(
         req("GET", `/tournaments/${tournamentId}/deck-check/entries/${entry}`),
       );
-      return ((await res.json()) as { cards: CardLine[] }).cards;
+      return ((await readJson(res)) as { cards: CardLine[] }).cards;
     };
     const newEntry = async (
       displayName: string,
@@ -613,7 +618,7 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
           cards,
         }),
       );
-      return ((await created.json()) as { entry: { id: string } }).entry.id;
+      return ((await readJson(created)) as { entry: { id: string } }).entry.id;
     };
 
     it("splits a multi-copy line on a partial move, merging into the target zone", async () => {
@@ -700,12 +705,12 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
           cards: [{ name: CARD_FURY_UNIT.name, quantity: 1, section: "main" }],
         }),
       );
-      const entryId = ((await created.json()) as { entry: { id: string } }).entry.id;
+      const entryId = ((await readJson(created)) as { entry: { id: string } }).entry.id;
       const entryToken = async (): Promise<string | null> => {
         const res = await host.app.fetch(
           req("GET", `/tournaments/${tournamentId}/deck-check/entries/${entryId}`),
         );
-        return ((await res.json()) as { entry: { claimToken: string | null } }).entry.claimToken;
+        return ((await readJson(res)) as { entry: { claimToken: string | null } }).entry.claimToken;
       };
 
       // Unclaimed and unblocked: the judge detail exposes the token to share.

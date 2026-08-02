@@ -19,13 +19,13 @@ import { vi } from "vitest";
 
 import type { Io } from "../io.js";
 
-export const mockMkdir = vi.fn(() => Promise.resolve(undefined as any));
-export const mockWriteFile = vi.fn(() => Promise.resolve(undefined as any));
-export const mockReadFile = vi.fn(() => Promise.resolve(Buffer.from("img")));
-export const mockReaddir = vi.fn((): Promise<any> => Promise.resolve([]));
-export const mockRename = vi.fn(() => Promise.resolve(undefined as any));
-export const mockUnlink = vi.fn(() => Promise.resolve(undefined as any));
-export const mockStat = vi.fn(() => Promise.resolve({ size: 1024 }));
+export const mockMkdir = vi.fn((..._args: any[]) => Promise.resolve(undefined as any));
+export const mockWriteFile = vi.fn((..._args: any[]) => Promise.resolve(undefined as any));
+export const mockReadFile = vi.fn((..._args: any[]) => Promise.resolve(Buffer.from("img")));
+export const mockReaddir = vi.fn((..._args: any[]): Promise<any> => Promise.resolve([]));
+export const mockRename = vi.fn((..._args: any[]) => Promise.resolve(undefined as any));
+export const mockUnlink = vi.fn((..._args: any[]) => Promise.resolve(undefined as any));
+export const mockStat = vi.fn((..._args: any[]): Promise<any> => Promise.resolve({ size: 1024 }));
 
 export const mockFetch = vi.fn(() =>
   Promise.resolve(

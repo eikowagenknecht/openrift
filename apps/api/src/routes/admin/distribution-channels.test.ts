@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminDistributionChannelsRouter } from "./distribution-channels";
 
@@ -54,7 +55,7 @@ describe("GET /distribution-channels", () => {
 
     const res = await app.request("/api/admin/v1/distribution-channels");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.distributionChannels).toHaveLength(2);
     expect(json.distributionChannels[0].printingCount).toBe(7);
     expect(json.distributionChannels[1].printingCount).toBe(0);
@@ -88,7 +89,7 @@ describe("DELETE /distribution-channels/:id", () => {
       method: "DELETE",
     });
     expect(res.status).toBe(409);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("child channels");
     expect(mockRepo.deleteById).not.toHaveBeenCalled();
     expect(mockRepo.deleteLinksForChannel).not.toHaveBeenCalled();
@@ -103,7 +104,7 @@ describe("DELETE /distribution-channels/:id", () => {
       method: "DELETE",
     });
     expect(res.status).toBe(409);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("3 printings");
     expect(mockRepo.deleteLinksForChannel).not.toHaveBeenCalled();
     expect(mockRepo.deleteById).not.toHaveBeenCalled();

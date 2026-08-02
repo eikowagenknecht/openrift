@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminJobRunsRouter } from "./job-runs";
 
@@ -47,7 +48,7 @@ describe("GET /job-runs", () => {
 
     const res = await app.request("/api/admin/v1/job-runs");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.runs).toHaveLength(1);
     expect(json.runs[0]).toMatchObject({
       id: baseRow.id,
@@ -83,7 +84,7 @@ describe("GET /job-runs", () => {
 
     const res = await app.request("/api/admin/v1/job-runs?kind=foo&page=2&limit=10");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.page).toBe(2);
     expect(json.limit).toBe(10);
 
@@ -107,7 +108,7 @@ describe("GET /job-runs", () => {
 
     const res = await app.request("/api/admin/v1/job-runs");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.runs[0].result).toBeNull();
     expect(json.runs[0].finishedAt).toBeNull();
   });

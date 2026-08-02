@@ -85,6 +85,7 @@ describe.skipIf(!ctx)("updatePrintingMarkers (integration)", () => {
         artist: "Test",
         publicCode: SHORT_CODE,
         language: "EN",
+        size: "standard",
       })
       .returning("id")
       .execute();
@@ -109,6 +110,7 @@ describe.skipIf(!ctx)("updatePrintingMarkers (integration)", () => {
         language: "EN",
         // Set directly; no sibling row with ['promo'] exists yet so no clash.
         markerSlugs: ["promo"],
+        size: "standard",
       })
       .returning("id")
       .execute();

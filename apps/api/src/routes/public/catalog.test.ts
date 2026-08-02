@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { catalogRouter } from "./catalog";
 
@@ -10,10 +11,10 @@ import { catalogRouter } from "./catalog";
 // ---------------------------------------------------------------------------
 
 const mockCatalogRepo = {
-  sets: vi.fn(() => Promise.resolve([])),
-  cards: vi.fn(() => Promise.resolve([])),
-  printings: vi.fn(() => Promise.resolve([])),
-  printingImages: vi.fn(() => Promise.resolve([])),
+  sets: vi.fn(() => Promise.resolve([] as unknown[])),
+  cards: vi.fn(() => Promise.resolve([] as unknown[])),
+  printings: vi.fn(() => Promise.resolve([] as unknown[])),
+  printingImages: vi.fn(() => Promise.resolve([] as unknown[])),
   cardBans: vi.fn(() => Promise.resolve([])),
   cardErrata: vi.fn(() => Promise.resolve([])),
   totalCopies: vi.fn(() => Promise.resolve(0)),
@@ -145,7 +146,7 @@ describe("GET /api/v1/catalog", () => {
   it("returns 200 with normalized CatalogResponse structure", async () => {
     const res = await app.request("/api/v1/catalog");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.sets).toHaveLength(1);
     expect(Object.keys(json.printings)).toHaveLength(1);
     expect(Object.keys(json.cards)).toHaveLength(1);
@@ -153,7 +154,7 @@ describe("GET /api/v1/catalog", () => {
 
   it("returns sets as { id, slug, name } objects", async () => {
     const res = await app.request("/api/v1/catalog");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.sets[0]).toEqual({
       id: "OGS",
       slug: "OGS",
@@ -166,7 +167,7 @@ describe("GET /api/v1/catalog", () => {
 
   it("returns cards keyed by card ID with non-null fields preserved", async () => {
     const res = await app.request("/api/v1/catalog");
-    const json = await res.json();
+    const json = await readJson(res);
     const card = json.cards["OGS-001"];
     expect(card).toBeDefined();
     expect(card.id).toBeUndefined();
@@ -195,7 +196,7 @@ describe("GET /api/v1/catalog", () => {
       ],
     });
     const res = await app.request("/api/v1/catalog");
-    const json = await res.json();
+    const json = await readJson(res);
     const card = json.cards["OGS-001"];
     expect(card.might).toBeNull();
     expect(card.energy).toBeNull();
@@ -215,7 +216,7 @@ describe("GET /api/v1/catalog", () => {
       printingImages: [],
     });
     const res = await app.request("/api/v1/catalog");
-    const json = await res.json();
+    const json = await readJson(res);
     const printing = json.printings["OGS-001:rare:normal:"];
     expect(printing.printedRulesText).toBeNull();
     expect(printing.printedEffectText).toBeNull();
@@ -226,7 +227,7 @@ describe("GET /api/v1/catalog", () => {
 
   it("maps printing fields with cardId reference instead of nested card", async () => {
     const res = await app.request("/api/v1/catalog");
-    const json = await res.json();
+    const json = await readJson(res);
     const printingId = "OGS-001:rare:normal:";
     const printing = json.printings[printingId];
 
@@ -246,7 +247,7 @@ describe("GET /api/v1/catalog", () => {
 
   it("forwards the image_files.id as imageId on each printing image", async () => {
     const res = await app.request("/api/v1/catalog");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.printings["OGS-001:rare:normal:"].images).toEqual([
       { face: "front", imageId: "019d6c25-b081-74b3-a901-64da4ae012ab" },
     ]);
@@ -254,20 +255,20 @@ describe("GET /api/v1/catalog", () => {
 
   it("passes setId through on printing", async () => {
     const res = await app.request("/api/v1/catalog");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.printings["OGS-001:rare:normal:"].setId).toBe("OGS");
   });
 
   it("returns errata as null when no errata exists", async () => {
     const res = await app.request("/api/v1/catalog");
-    const json = await res.json();
+    const json = await readJson(res);
     const card = json.cards["OGS-001"];
     expect(card.errata).toBeNull();
   });
 
   it("does not include market price on printing (prices live on /api/v1/prices)", async () => {
     const res = await app.request("/api/v1/catalog");
-    const json = await res.json();
+    const json = await readJson(res);
     const printing = json.printings["OGS-001:rare:normal:"];
     expect(printing).toBeDefined();
     expect("marketPrice" in printing).toBe(false);
@@ -300,7 +301,7 @@ describe("GET /api/v1/catalog", () => {
     });
 
     const res = await app.request("/api/v1/catalog");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.sets).toHaveLength(2);
     expect(Object.keys(json.printings)).toHaveLength(2);
     expect(json.printings["OGS-001:rare:normal:"]).toBeDefined();
@@ -316,7 +317,7 @@ describe("GET /api/v1/catalog", () => {
       printingImages: [],
     });
     const res = await app.request("/api/v1/catalog");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.printings).toEqual({});
     expect(json.cards).toEqual({});
     expect(json.sets).toEqual([]);
@@ -326,7 +327,7 @@ describe("GET /api/v1/catalog", () => {
     const plain = await app.request("/api/v1/catalog");
     const versioned = await app.request("/api/v1/catalog?v=some-etag-token");
     expect(versioned.status).toBe(200);
-    expect(await versioned.json()).toEqual(await plain.json());
+    expect(await readJson(versioned)).toEqual(await readJson(plain));
   });
 
   it("returns multiple images for a single printing", async () => {
@@ -337,7 +338,7 @@ describe("GET /api/v1/catalog", () => {
       ],
     });
     const res = await app.request("/api/v1/catalog");
-    const json = await res.json();
+    const json = await readJson(res);
     const printing = json.printings["OGS-001:rare:normal:"];
     expect(printing.images).toHaveLength(2);
     expect(printing.images[0]).toEqual({ face: "front", imageId: "front-uuid" });
@@ -349,7 +350,7 @@ describe("GET /api/v1/catalog", () => {
       printingImages: [],
     });
     const res = await app.request("/api/v1/catalog");
-    const json = await res.json();
+    const json = await readJson(res);
     const printing = json.printings["OGS-001:rare:normal:"];
     expect(printing.images).toEqual([]);
   });

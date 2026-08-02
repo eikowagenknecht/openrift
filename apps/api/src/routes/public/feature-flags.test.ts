@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { describe, expect, it, beforeEach, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { featureFlagsRouter } from "./feature-flags";
 
@@ -50,7 +51,7 @@ describe("GET /api/v1/feature-flags", () => {
 
     const res = await app.request("/api/v1/feature-flags");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({ flags: { "dark-mode": true, "beta-search": false } });
   });
 
@@ -59,7 +60,7 @@ describe("GET /api/v1/feature-flags", () => {
 
     const res = await app.request("/api/v1/feature-flags");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({ flags: {} });
   });
 
@@ -71,7 +72,7 @@ describe("GET /api/v1/feature-flags", () => {
     ]);
 
     const res = await app.request("/api/v1/feature-flags");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(Object.keys(json.flags)).toHaveLength(3);
     expect(json.flags.a).toBe(true);
     expect(json.flags.c).toBe(false);

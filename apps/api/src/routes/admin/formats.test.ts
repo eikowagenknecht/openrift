@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminFormatsRouter } from "./formats";
 
@@ -35,7 +36,7 @@ describe("GET /formats", () => {
 
     const res = await app.request("/api/admin/v1/formats");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.formats).toHaveLength(2);
     expect(json.formats[0]).toEqual({
       id: "019cfc3b-0369-7000-8000-000000000002",
@@ -49,6 +50,6 @@ describe("GET /formats", () => {
 
     const res = await app.request("/api/admin/v1/formats");
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ formats: [] });
+    expect(await readJson(res)).toEqual({ formats: [] });
   });
 });

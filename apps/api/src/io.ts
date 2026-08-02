@@ -15,7 +15,13 @@ interface Fs {
   writeFile: typeof writeFile;
 }
 
-export type Fetch = typeof globalThis.fetch;
+/**
+ * The part of `fetch` this app injects and consumes: the call itself. Deliberately
+ * not `typeof globalThis.fetch` — under Bun's types that carries a `preconnect`
+ * static that nothing here calls, and requiring it would force every fake to
+ * carry a property the seam exists to avoid.
+ */
+export type Fetch = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
 type Sharp = typeof sharp;
 

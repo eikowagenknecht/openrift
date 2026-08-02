@@ -18,6 +18,7 @@ function event(overrides: Partial<DeckCheckEvent> = {}): DeckCheckEvent {
     name: "Friday Skirmish",
     eventDate: new Date("2026-06-18T00:00:00.000Z"),
     format: "standard",
+    playMode: "1v1",
     allowedSets: ["OGN"],
     status: "active",
     listLockMode: "at_deadline",

@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminCatalogRouter } from "./catalog";
 
@@ -84,7 +85,7 @@ describe("GET /api/admin/v1/sets", () => {
 
     const res = await app.request("/api/admin/v1/sets");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.sets).toHaveLength(2);
     expect(json.sets[0]).toEqual({
       id: setId1,
@@ -119,7 +120,7 @@ describe("GET /api/admin/v1/sets", () => {
 
     const res = await app.request("/api/admin/v1/sets");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.sets[0].cardCount).toBe(0);
     expect(json.sets[0].printingCount).toBe(0);
   });
@@ -167,7 +168,7 @@ describe("PATCH /api/admin/v1/sets/:id", () => {
       }),
     });
     expect(res.status).toBe(404);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("not found");
   });
 
@@ -213,7 +214,7 @@ describe("POST /api/admin/v1/sets", () => {
       }),
     });
     expect(res.status).toBe(201);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.id).toBe(setId1);
     expect(mockSetsRepo.createIfNotExists).toHaveBeenCalledWith({
       slug: "new-set",
@@ -236,7 +237,7 @@ describe("POST /api/admin/v1/sets", () => {
       }),
     });
     expect(res.status).toBe(409);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("already exists");
   });
 
@@ -268,7 +269,7 @@ describe("DELETE /api/admin/v1/sets/:id", () => {
     mockSetsRepo.printingCount.mockResolvedValue(5);
     const res = await app.request(`/api/admin/v1/sets/${setId1}`, { method: "DELETE" });
     expect(res.status).toBe(409);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("5 printing(s)");
   });
 });
@@ -297,7 +298,7 @@ describe("PUT /api/admin/v1/sets/reorder", () => {
       body: JSON.stringify({ ids: [setId1, setId1] }),
     });
     expect(res.status).toBe(400);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("Duplicate");
   });
 
@@ -309,7 +310,7 @@ describe("PUT /api/admin/v1/sets/reorder", () => {
       body: JSON.stringify({ ids: [setId1] }),
     });
     expect(res.status).toBe(400);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("Expected 2");
   });
 
@@ -322,7 +323,7 @@ describe("PUT /api/admin/v1/sets/reorder", () => {
       body: JSON.stringify({ ids: [setId1, unknownId] }),
     });
     expect(res.status).toBe(400);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("Unknown set IDs");
   });
 });

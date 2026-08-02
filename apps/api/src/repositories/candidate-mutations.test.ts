@@ -289,8 +289,12 @@ describe("candidateMutationsRepo", () => {
       isSigned: false,
       markerSlugs: [],
       finish: "normal",
+      size: "standard",
       artist: "Artist",
       publicCode: "OGS-001",
+      language: "EN",
+      printedName: null,
+      printedYear: null,
       printedRulesText: null,
       printedEffectText: null,
       flavorText: null,
@@ -325,25 +329,19 @@ describe("candidateMutationsRepo", () => {
           name: "New Card",
           types: ["spell"],
           domains: ["fury"],
-          rulesText: "Deal 3 damage.",
         },
         "newcard",
       ),
     ).resolves.toBeUndefined();
   });
 
-  it("acceptNewCardFromSources deduplicates keywords from rulesText and effectText", async () => {
+  it("acceptNewCardFromSources writes an empty keyword set", async () => {
+    // Keywords are derived by the recompute pass, not on accept: the insert
+    // always writes `[]` and rules/effect text is no longer part of the input.
     const db = createMockDb([{ id: "c-new" }]);
     await expect(
       candidateMutationsRepo(db).acceptNewCardFromSources(
-        {
-          id: "OGS-DUP",
-          name: "Keyword Card",
-          types: ["spell"],
-          domains: ["fury"],
-          rulesText: "[Shield] this unit. [Shield] again.",
-          effectText: "[Shield] once more.",
-        },
+        { id: "OGS-DUP", name: "Keyword Card", types: ["spell"], domains: ["fury"] },
         "keywordcard",
       ),
     ).resolves.toBeUndefined();

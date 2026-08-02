@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 
 // The router calls the changelog-discord service helpers and run-job at module
@@ -53,7 +54,7 @@ describe("POST /changelog/post", () => {
 
     const res = await app.request("/api/admin/v1/changelog/post", { method: "POST" });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ posted: true, count: 2 });
+    expect(await readJson(res)).toEqual({ posted: true, count: 2 });
     expect(runJobMock).toHaveBeenCalledTimes(1);
   });
 
@@ -62,6 +63,6 @@ describe("POST /changelog/post", () => {
 
     const res = await app.request("/api/admin/v1/changelog/post", { method: "POST" });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ posted: false, count: 0 });
+    expect(await readJson(res)).toEqual({ posted: false, count: 0 });
   });
 });

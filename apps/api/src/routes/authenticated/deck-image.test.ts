@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppError } from "../../errors.js";
 import type * as DeckImageModule from "../../services/deck-image.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { deckImageRoute } from "./deck-image.js";
 
@@ -64,7 +65,7 @@ describe("deckImageRoute auth scoping", () => {
     const res = await buildApp(null).request("/api/v1/decks/abc/image.png");
 
     expect(res.status).toBe(401);
-    expect(await res.json()).toEqual({ error: "Unauthorized", code: "UNAUTHORIZED" });
+    expect(await readJson(res)).toEqual({ error: "Unauthorized", code: "UNAUTHORIZED" });
   });
 
   it("serves the image to the authenticated owner", async () => {

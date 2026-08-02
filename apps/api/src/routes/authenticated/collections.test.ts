@@ -3,6 +3,7 @@ import { describe, expect, it, beforeEach, vi } from "vitest";
 
 import { AppError } from "../../errors.js";
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { collectionsRouter } from "./collections";
 
@@ -32,7 +33,7 @@ const mockCollectionsRepo = {
 };
 
 const mockFriendGroupsRepo = {
-  getBySlug: vi.fn(() => Promise.resolve(undefined as object | undefined)),
+  getBySlug: vi.fn((_slug: string) => Promise.resolve(undefined as object | undefined)),
   // The route resolves rename aliases via the alias-aware lookup; delegate to
   // the getBySlug stub so tests keep configuring one mock.
   getBySlugOrPrevious: vi.fn((slug: string) => mockFriendGroupsRepo.getBySlug(slug)),
@@ -186,7 +187,7 @@ describe("GET /api/v1/collections", () => {
     ]);
     const res = await app.request("/api/v1/collections");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.items).toHaveLength(3);
     expect(json.items[0].name).toBe("Inbox");
     expect(json.items[2].groupSlug).toBe("friday-night");
@@ -215,7 +216,7 @@ describe("POST /api/v1/collections", () => {
       body: JSON.stringify({ name: "Main Binder" }),
     });
     expect(res.status).toBe(201);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.name).toBe("Main Binder");
     expect(mockCollectionsRepo.create).toHaveBeenCalledWith({
       userId: USER_ID,
@@ -241,7 +242,7 @@ describe("POST /api/v1/collections", () => {
       body: JSON.stringify({ name: "Pool", groupSlug: "friday-night" }),
     });
     expect(res.status).toBe(201);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.groupSlug).toBe("friday-night");
     expect(mockCollectionsRepo.create).toHaveBeenCalledWith(
       expect.objectContaining({ userId: null, groupId: dbSharedCollection.groupId }),
@@ -283,7 +284,7 @@ describe("GET /api/v1/collections/:id", () => {
     mockCollectionsRepo.getAccessForUser.mockResolvedValue(access(dbCollection));
     const res = await app.request(`/api/v1/collections/${dbCollection.id}`);
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.id).toBe(dbCollection.id);
     expect(json.viewerCanAdmin).toBe(true);
   });
@@ -311,7 +312,7 @@ describe("PATCH /api/v1/collections/:id", () => {
       body: JSON.stringify({ name: "Renamed" }),
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.name).toBe("Renamed");
   });
 
@@ -425,7 +426,7 @@ describe("POST /api/v1/collections/:id/clear", () => {
       method: "POST",
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.removedCount).toBe(3);
     expect(json.keptCopyIds).toEqual(["copy-9"]);
     expect(mockClearCollection).toHaveBeenCalledWith(expect.anything(), {
@@ -464,7 +465,7 @@ describe("GET /api/v1/collections/:id/copies", () => {
     mockCopiesRepo.listForCollection.mockResolvedValue([dbCopy]);
     const res = await app.request(`/api/v1/collections/${dbCollection.id}/copies`);
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.items).toHaveLength(1);
     expect(json.items[0].id).toBe(dbCopy.id);
     expect(json.nextCursor).toBeNull();
@@ -486,7 +487,7 @@ describe("GET /api/v1/collections/:id/copies", () => {
     mockCopiesRepo.listForCollection.mockResolvedValue(items);
     const res = await app.request(`/api/v1/collections/${dbCollection.id}/copies?limit=10`);
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.items).toHaveLength(10);
     expect(json.nextCursor).toBeTruthy();
   });
@@ -513,7 +514,7 @@ describe("POST /api/v1/collections/:id/share", () => {
       method: "POST",
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.shareToken).toMatch(/^[A-Za-z0-9]{12}$/u);
     expect(json.isPublic).toBe(true);
     expect(mockCollectionsRepo.setShareTokenById).toHaveBeenCalledWith(

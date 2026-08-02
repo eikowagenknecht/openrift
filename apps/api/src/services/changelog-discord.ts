@@ -1,5 +1,6 @@
 import type { Logger } from "@openrift/shared/logger";
 
+import type { Fetch } from "../io.js";
 import type { jobRunsRepo } from "../repositories/job-runs.js";
 
 interface ChangelogEntry {
@@ -171,7 +172,7 @@ interface PostChangelogParams {
   fromDate: string | null;
   log: Logger;
   postDelayMs?: number;
-  fetcher?: typeof fetch;
+  fetcher?: Fetch;
   sleeper?: (ms: number) => Promise<void>;
   readFile?: (path: string) => Promise<string>;
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { adminReq, createTestContext } from "../../test/integration-context.js";
+import { readJson } from "../../test/read-json.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Admin marketplace-groups routes (unified)
@@ -46,7 +47,7 @@ describe.skipIf(!ctx)("Admin marketplace-groups routes (integration)", () => {
       const res = await app.fetch(adminReq("GET", "/marketplace-groups"));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.groups).toEqual(expect.any(Array));
 
       const cardmarketGroup = json.groups.find(
@@ -77,7 +78,7 @@ describe.skipIf(!ctx)("Admin marketplace-groups routes (integration)", () => {
 
     it("response shape includes all expected fields", async () => {
       const res = await app.fetch(adminReq("GET", "/marketplace-groups"));
-      const json = await res.json();
+      const json = await readJson(res);
 
       for (const group of json.groups) {
         expect(group).toHaveProperty("marketplace");
@@ -113,7 +114,7 @@ describe.skipIf(!ctx)("Admin marketplace-groups routes (integration)", () => {
 
     it("GET reflects the updated names", async () => {
       const res = await app.fetch(adminReq("GET", "/marketplace-groups"));
-      const json = await res.json();
+      const json = await readJson(res);
 
       const tcgplayerGroup = json.groups.find(
         (g: { marketplace: string; groupId: number }) =>

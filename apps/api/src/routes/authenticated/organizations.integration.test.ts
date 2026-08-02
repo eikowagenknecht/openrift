@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { adminReq, createTestContext, req, seedTestUser } from "../../test/integration-context.js";
+import { readJson } from "../../test/read-json.js";
 
 // Route-level integration tests for the ADR-033 organization surfaces: admin
 // provisioning (under /api/admin/v1, requireAdmin-gated) and authenticated
@@ -69,7 +70,7 @@ describe.skipIf(!adminCtx || !ownerCtx || !managerCtx || !outsiderCtx || !extraC
         }),
       );
       expect(res.status).toBe(201);
-      const body = (await res.json()) as { id: string; slug: string };
+      const body = (await readJson(res)) as { id: string; slug: string };
       orgId = body.id;
       expect(body.slug).toBe("store-one");
     });
@@ -103,7 +104,7 @@ describe.skipIf(!adminCtx || !ownerCtx || !managerCtx || !outsiderCtx || !extraC
     it("lists orgs with owner name + member count (admin)", async () => {
       const res = await admin.app.fetch(adminReq("GET", "/organizations"));
       expect(res.status).toBe(200);
-      const body = (await res.json()) as { items: { id: string; memberCount: number }[] };
+      const body = (await readJson(res)) as { items: { id: string; memberCount: number }[] };
       const found = body.items.find((item) => item.id === orgId);
       expect(found?.memberCount).toBe(1);
     });
@@ -129,7 +130,7 @@ describe.skipIf(!adminCtx || !ownerCtx || !managerCtx || !outsiderCtx || !extraC
     it("returns detail to a member and 404 to an outsider", async () => {
       const detail = await owner.app.fetch(req("GET", `/organizations/${orgId}`));
       expect(detail.status).toBe(200);
-      const body = (await detail.json()) as { viewerRole: string; members: unknown[] };
+      const body = (await readJson(detail)) as { viewerRole: string; members: unknown[] };
       expect(body.viewerRole).toBe("owner");
       expect(body.members.length).toBe(1);
 
@@ -195,7 +196,7 @@ describe.skipIf(!adminCtx || !ownerCtx || !managerCtx || !outsiderCtx || !extraC
         req("PATCH", `/organizations/${orgId}/members/${EXTRA_ID}`, { role: "owner" }),
       );
       expect(promote.status).toBe(200);
-      const promoted = (await promote.json()) as { members: { userId: string; role: string }[] };
+      const promoted = (await readJson(promote)) as { members: { userId: string; role: string }[] };
       expect(promoted.members.find((member) => member.userId === EXTRA_ID)?.role).toBe("owner");
 
       // With two owners, demoting one back to manager is allowed.
@@ -217,7 +218,7 @@ describe.skipIf(!adminCtx || !ownerCtx || !managerCtx || !outsiderCtx || !extraC
         req("PATCH", `/organizations/${orgId}/members/${EXTRA_ID}`, { role: "judge" }),
       );
       expect(setJudge.status).toBe(200);
-      const body = (await setJudge.json()) as { members: { userId: string; role: string }[] };
+      const body = (await readJson(setJudge)) as { members: { userId: string; role: string }[] };
       expect(body.members.find((member) => member.userId === EXTRA_ID)?.role).toBe("judge");
 
       // A judge is a member but has no org-admin authority.
@@ -251,7 +252,7 @@ describe.skipIf(!adminCtx || !ownerCtx || !managerCtx || !outsiderCtx || !extraC
           ownerUserId: OWNER_ID,
         }),
       );
-      const raceOrgId = ((await create.json()) as { id: string }).id;
+      const raceOrgId = ((await readJson(create)) as { id: string }).id;
 
       // Promote EXTRA to a second owner so the org has exactly two owners.
       await owner.app.fetch(
@@ -290,7 +291,7 @@ describe.skipIf(!adminCtx || !ownerCtx || !managerCtx || !outsiderCtx || !extraC
     it("lists the orgs the caller owns or manages", async () => {
       const res = await owner.app.fetch(req("GET", "/organizations"));
       expect(res.status).toBe(200);
-      const body = (await res.json()) as { items: { id: string }[] };
+      const body = (await readJson(res)) as { items: { id: string }[] };
       expect(body.items.some((item) => item.id === orgId)).toBe(true);
     });
 
@@ -302,7 +303,7 @@ describe.skipIf(!adminCtx || !ownerCtx || !managerCtx || !outsiderCtx || !extraC
           ownerUserId: OWNER_ID,
         }),
       );
-      const tempId = ((await create.json()) as { id: string }).id;
+      const tempId = ((await readJson(create)) as { id: string }).id;
       const del = await admin.app.fetch(adminReq("DELETE", `/organizations/${tempId}`));
       expect(del.status).toBe(204);
       const missing = await admin.app.fetch(adminReq("DELETE", `/organizations/${tempId}`));

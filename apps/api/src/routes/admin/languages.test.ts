@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminLanguagesRouter } from "./languages";
 
@@ -53,7 +54,7 @@ describe("GET /languages", () => {
     mockRepo.listAll.mockResolvedValue([enRow, deRow]);
     const res = await app.request("/api/admin/v1/languages");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.languages).toHaveLength(2);
     expect(json.languages[0]).toEqual({
       code: "en",
@@ -69,7 +70,7 @@ describe("GET /languages", () => {
     mockRepo.listAll.mockResolvedValue([]);
     const res = await app.request("/api/admin/v1/languages");
     expect(res.status).toBe(200);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.languages).toEqual([]);
   });
 });
@@ -98,7 +99,7 @@ describe("PUT /languages/reorder", () => {
       body: JSON.stringify({ codes: ["en", "en"] }),
     });
     expect(res.status).toBe(400);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("Duplicate language codes");
   });
 
@@ -110,7 +111,7 @@ describe("PUT /languages/reorder", () => {
       body: JSON.stringify({ codes: ["en"] }),
     });
     expect(res.status).toBe(400);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("Expected 2 language codes");
   });
 
@@ -122,7 +123,7 @@ describe("PUT /languages/reorder", () => {
       body: JSON.stringify({ codes: ["en", "fr"] }),
     });
     expect(res.status).toBe(400);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("Unknown language codes: fr");
   });
 });
@@ -141,7 +142,7 @@ describe("POST /languages", () => {
       body: JSON.stringify({ code: "de", name: "German", color: "#123456", sortOrder: 1 }),
     });
     expect(res.status).toBe(201);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.language).toEqual({
       code: "de",
       name: "German",
@@ -166,7 +167,7 @@ describe("POST /languages", () => {
       body: JSON.stringify({ code: "en", name: "English" }),
     });
     expect(res.status).toBe(409);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("already exists");
     expect(mockRepo.create).not.toHaveBeenCalled();
   });
@@ -201,7 +202,7 @@ describe("PATCH /languages/:code", () => {
       body: JSON.stringify({ name: "Nope" }),
     });
     expect(res.status).toBe(404);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("not found");
     expect(mockRepo.update).not.toHaveBeenCalled();
   });
@@ -225,7 +226,7 @@ describe("DELETE /languages/:code", () => {
     mockRepo.getByCode.mockResolvedValue(undefined);
     const res = await app.request("/api/admin/v1/languages/zz", { method: "DELETE" });
     expect(res.status).toBe(404);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("not found");
     expect(mockRepo.isInUse).not.toHaveBeenCalled();
   });
@@ -235,7 +236,7 @@ describe("DELETE /languages/:code", () => {
     mockRepo.isInUse.mockResolvedValue(true);
     const res = await app.request("/api/admin/v1/languages/en", { method: "DELETE" });
     expect(res.status).toBe(409);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("in use");
     expect(mockRepo.deleteByCode).not.toHaveBeenCalled();
   });

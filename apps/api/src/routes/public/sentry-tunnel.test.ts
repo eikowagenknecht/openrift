@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { Variables } from "../../types.js";
 import { sentryTunnelRoute } from "./sentry-tunnel.js";
 
 const mockFetch = vi.fn();
@@ -9,7 +10,7 @@ const ALLOWED_DSN = "https://abc123@o123.ingest.de.sentry.io/456";
 const EXPECTED_INGEST = "https://o123.ingest.de.sentry.io/api/456/envelope/";
 
 function buildApp(sentryDsnSsr: string) {
-  return new Hono()
+  return new Hono<{ Variables: Variables }>()
     .use("*", async (c, next) => {
       c.set("io", { fetch: mockFetch } as never);
       c.set("config", { sentryDsnSsr } as never);
@@ -50,7 +51,7 @@ describe("POST /api/v1/sentry-tunnel", () => {
     expect((init.headers as Record<string, string>)["content-type"]).toBe(
       "application/x-sentry-envelope",
     );
-    const forwardedBody = await new Response(init.body as BodyInit).text();
+    const forwardedBody = await new Response(init.body as ArrayBuffer).text();
     expect(forwardedBody).toBe(body);
   });
 

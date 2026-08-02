@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import { AppError } from "../errors.js";
+import { readJson } from "../test/read-json.js";
 import type { Variables } from "../types.js";
 import { requireAuthedUser, requireUser } from "./base";
 import type { ApiContext } from "./context";
@@ -53,7 +54,7 @@ describe("apiImplement fail-closed auth middleware", () => {
     currentUser = null;
     const res = await app.request("/_t/pub");
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true });
+    expect(await readJson(res)).toEqual({ ok: true });
   });
 
   it("default (unclassified) procedure: 401 for anonymous (fail-closed)", async () => {
@@ -66,7 +67,7 @@ describe("apiImplement fail-closed auth middleware", () => {
     currentUser = { id: "u1" };
     const res = await app.request("/_t/priv");
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ hasUser: true });
+    expect(await readJson(res)).toEqual({ hasUser: true });
   });
 
   it("requireAuthedUser: 401 for anonymous", async () => {
@@ -79,7 +80,7 @@ describe("apiImplement fail-closed auth middleware", () => {
     currentUser = { id: "u1" };
     const res = await app.request("/_t/authed");
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ userId: "u1" });
+    expect(await readJson(res)).toEqual({ userId: "u1" });
   });
 });
 
@@ -155,7 +156,7 @@ async function errorBody(path: string): Promise<{
   status: number;
 }> {
   const res = await errorApp.request(path);
-  return (await res.json()) as { defined: boolean; code: string; status: number };
+  return (await readJson(res)) as { defined: boolean; code: string; status: number };
 }
 
 describe("convertingAppErrors typed-error round-trip", () => {

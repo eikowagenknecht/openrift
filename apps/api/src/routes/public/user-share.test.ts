@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { publicUserShareRouter } from "./user-share";
 
@@ -104,7 +105,7 @@ describe("GET /api/v1/users/share/:token", () => {
 
     const res = await app.request("/api/v1/users/share/tok-abc");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.owner.displayName).toBe("Alice");
     expect(json.owner.gravatarHash).toEqual(expect.any(String));
     expect(json.lists).toHaveLength(1);
@@ -143,7 +144,7 @@ describe("GET /api/v1/users/share/:token", () => {
 
     const res = await app.request("/api/v1/users/share/tok-abc");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     const byId = new Map(
       (json.lists as { id: string; entryCount: number }[]).map((l) => [l.id, l.entryCount]),
     );
@@ -170,7 +171,7 @@ describe("GET /api/v1/users/share/:token", () => {
 
     const res = await app.request("/api/v1/users/share/tok-abc");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.collections).toEqual([
       {
         id: "col-1",
@@ -194,7 +195,7 @@ describe("GET /api/v1/users/share/:token", () => {
 
     const res = await app.request("/api/v1/users/share/tok-abc");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.owner.displayName).toBe("Anonymous");
   });
 
@@ -203,7 +204,7 @@ describe("GET /api/v1/users/share/:token", () => {
 
     const res = await app.request("/api/v1/users/share/unknown");
     expect(res.status).toBe(404);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toBe("Not found");
     expect(mockUserSharesRepo.listsForOwner).not.toHaveBeenCalled();
   });
@@ -222,7 +223,7 @@ describe("GET /api/v1/users/share/:token/lists/:listId", () => {
 
     const res = await app.request(`/api/v1/users/share/tok-abc/lists/${LIST_ID}`);
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.list.id).toBe(LIST_ID);
     expect(json.list.name).toBe("Trade Binder");
     expect(json.entries).toHaveLength(1);
@@ -236,7 +237,7 @@ describe("GET /api/v1/users/share/:token/lists/:listId", () => {
 
     const res = await app.request(`/api/v1/users/share/tok-abc/lists/${LIST_ID}`);
     expect(res.status).toBe(404);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toBe("Not found");
     expect(mockListsRepo.entriesWithDetailsAnon).not.toHaveBeenCalled();
   });

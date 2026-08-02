@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminCustomTagsRouter } from "./custom-tags";
 
@@ -88,7 +89,7 @@ describe("GET /custom-tag-categories", () => {
     mockTagRepo.listAll.mockResolvedValue([tagRow, { ...tagRow, id: "x", slug: "demacia" }]);
     const res = await app.request("/api/admin/v1/custom-tag-categories");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.categories).toHaveLength(1);
     expect(json.categories[0].tagCount).toBe(2);
     expect(json.categories[0].createdAt).toBe(now.toISOString());
@@ -110,7 +111,7 @@ describe("POST /custom-tag-categories", () => {
       body: JSON.stringify({ slug: "region", label: "Region" }),
     });
     expect(res.status).toBe(201);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.category.tagCount).toBe(0);
     expect(mockCatRepo.create).toHaveBeenCalledWith({
       slug: "region",
@@ -128,7 +129,7 @@ describe("POST /custom-tag-categories", () => {
       body: JSON.stringify({ slug: "region", label: "Region" }),
     });
     expect(res.status).toBe(409);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("already exists");
     expect(mockCatRepo.create).not.toHaveBeenCalled();
   });
@@ -159,7 +160,7 @@ describe("PATCH /custom-tag-categories/:id", () => {
       body: JSON.stringify({ label: "X" }),
     });
     expect(res.status).toBe(404);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("not found");
     expect(mockCatRepo.update).not.toHaveBeenCalled();
   });
@@ -188,7 +189,7 @@ describe("DELETE /custom-tag-categories/:id", () => {
       method: "DELETE",
     });
     expect(res.status).toBe(409);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("in use");
     expect(mockCatRepo.deleteById).not.toHaveBeenCalled();
   });
@@ -210,7 +211,7 @@ describe("GET /custom-tags", () => {
     );
     const res = await app.request("/api/admin/v1/custom-tags");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.tags).toHaveLength(1);
     expect(json.tags[0].cardCount).toBe(2);
     expect(json.tags[0].createdAt).toBe(now.toISOString());
@@ -226,7 +227,7 @@ describe("GET /custom-tags/assignments", () => {
     mockTagRepo.assignmentsByCard.mockResolvedValue(new Map([["card-1", ["bandle-city"]]]));
     const res = await app.request("/api/admin/v1/custom-tags/assignments");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.assignments).toEqual({ "card-1": ["bandle-city"] });
   });
 });
@@ -247,7 +248,7 @@ describe("POST /custom-tags", () => {
       body: JSON.stringify({ slug: "bandle-city", label: "Bandle City", categoryId: CAT_ID }),
     });
     expect(res.status).toBe(201);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.tag.cardCount).toBe(0);
     expect(mockTagRepo.create).toHaveBeenCalledWith({
       slug: "bandle-city",
@@ -267,7 +268,7 @@ describe("POST /custom-tags", () => {
       body: JSON.stringify({ slug: "bandle-city", label: "Bandle City", categoryId: CAT_ID }),
     });
     expect(res.status).toBe(409);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("already exists");
     expect(mockTagRepo.create).not.toHaveBeenCalled();
   });
@@ -280,7 +281,7 @@ describe("POST /custom-tags", () => {
       body: JSON.stringify({ slug: "bandle-city", label: "Bandle City", categoryId: CAT_ID }),
     });
     expect(res.status).toBe(400);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("Unknown category id");
     expect(mockTagRepo.create).not.toHaveBeenCalled();
   });
@@ -311,7 +312,7 @@ describe("PATCH /custom-tags/:id", () => {
       body: JSON.stringify({ label: "X" }),
     });
     expect(res.status).toBe(404);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("not found");
     expect(mockTagRepo.update).not.toHaveBeenCalled();
   });
@@ -334,7 +335,7 @@ describe("DELETE /custom-tags/:id", () => {
     mockTagRepo.getById.mockResolvedValue(undefined);
     const res = await app.request(`/api/admin/v1/custom-tags/${TAG_ID}`, { method: "DELETE" });
     expect(res.status).toBe(404);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("not found");
     expect(mockTagRepo.deleteById).not.toHaveBeenCalled();
   });
@@ -354,7 +355,7 @@ describe("POST /custom-tags/:id/cards", () => {
       body: JSON.stringify({ cardIds: [CARD_ID, "019d4999-4219-72f6-b7bb-64004e1b1b04"] }),
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({ added: 2, requested: 2 });
     expect(mockTagRepo.addToCards).toHaveBeenCalledWith(TAG_ID, [
       CARD_ID,
@@ -375,7 +376,7 @@ describe("DELETE /custom-tags/:id/cards", () => {
       method: "DELETE",
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({ removed: 3 });
     expect(mockTagRepo.clearAssignments).toHaveBeenCalledWith(TAG_ID);
     expect(mockTagRepo.deleteById).not.toHaveBeenCalled();
@@ -387,7 +388,7 @@ describe("DELETE /custom-tags/:id/cards", () => {
       method: "DELETE",
     });
     expect(res.status).toBe(404);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("not found");
     expect(mockTagRepo.clearAssignments).not.toHaveBeenCalled();
   });
@@ -404,7 +405,7 @@ describe("GET /cards/:id/custom-tags", () => {
     mockTagRepo.tagIdsForCard.mockResolvedValue([TAG_ID]);
     const res = await app.request(`/api/admin/v1/cards/${CARD_ID}/custom-tags`);
     expect(res.status).toBe(200);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.customTagIds).toEqual([TAG_ID]);
   });
 
@@ -412,7 +413,7 @@ describe("GET /cards/:id/custom-tags", () => {
     mockCatalog.cardById.mockResolvedValue(undefined);
     const res = await app.request(`/api/admin/v1/cards/${CARD_ID}/custom-tags`);
     expect(res.status).toBe(404);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("Card not found");
     expect(mockTagRepo.tagIdsForCard).not.toHaveBeenCalled();
   });
@@ -444,7 +445,7 @@ describe("PUT /cards/:id/custom-tags", () => {
       body: JSON.stringify({ customTagIds: [] }),
     });
     expect(res.status).toBe(404);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("Card not found");
     expect(mockTagRepo.setForCard).not.toHaveBeenCalled();
   });

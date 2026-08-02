@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { adminReq, createTestContext, syncCardCardTypes } from "../../test/integration-context.js";
+import { readJson } from "../../test/read-json.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Admin catalog routes (sets + marketplace groups)
@@ -67,7 +68,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
         }),
       );
       expect(res.status).toBe(201);
-      const json = await res.json();
+      const json = await readJson(res);
       setIds["CAT-core-set"] = json.id;
     });
 
@@ -81,7 +82,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
         }),
       );
       expect(res.status).toBe(201);
-      const json = await res.json();
+      const json = await readJson(res);
       setIds["CAT-expansion-one"] = json.id;
     });
 
@@ -134,7 +135,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
       const res = await app.fetch(adminReq("GET", "/sets"));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.sets).toEqual(expect.any(Array));
 
       const coreSet = json.sets.find((s: { slug: string }) => s.slug === "CAT-core-set");
@@ -151,7 +152,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
 
     it("sets are ordered by sort_order", async () => {
       const res = await app.fetch(adminReq("GET", "/sets"));
-      const json = await res.json();
+      const json = await readJson(res);
 
       // Find our CAT- sets and verify they are in order relative to each other
       const catSets = json.sets.filter((s: { slug: string }) => s.slug.startsWith("CAT-"));
@@ -176,7 +177,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
         }),
       );
       expect(res.status).toBe(404);
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.code).toBe("NOT_FOUND");
     });
 
@@ -195,7 +196,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
 
     it("reflects the updated values on GET", async () => {
       const res = await app.fetch(adminReq("GET", "/sets"));
-      const json = await res.json();
+      const json = await readJson(res);
 
       const coreSet = json.sets.find((s: { slug: string }) => s.slug === "CAT-core-set");
       expect(coreSet.name).toBe("CAT Core Set Revised");
@@ -210,7 +211,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
     it("reorders sets", async () => {
       // Get all sets to include in the reorder (must include all UUIDs)
       const getRes = await app.fetch(adminReq("GET", "/sets"));
-      const getJson = await getRes.json();
+      const getJson = await readJson(getRes);
       const allIds: string[] = getJson.sets.map((s: { id: string }) => s.id);
 
       // Move CAT-expansion-one before CAT-core-set by reversing the order
@@ -229,7 +230,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
 
     it("reflects the new order on GET", async () => {
       const res = await app.fetch(adminReq("GET", "/sets"));
-      const json = await res.json();
+      const json = await readJson(res);
 
       const catSets = json.sets.filter((s: { slug: string }) => s.slug.startsWith("CAT-"));
       expect(catSets[0].slug).toBe("CAT-expansion-one");
@@ -247,28 +248,28 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
 
     it("rejects reorder with duplicate set IDs (400)", async () => {
       const getRes = await app.fetch(adminReq("GET", "/sets"));
-      const getJson = await getRes.json();
+      const getJson = await readJson(getRes);
       const allIds: string[] = getJson.sets.map((s: { id: string }) => s.id);
       const duped = [...allIds];
       duped[duped.length - 1] = duped[0];
 
       const res = await app.fetch(adminReq("PUT", "/sets/reorder", { ids: duped }));
       expect(res.status).toBe(400);
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.code).toBe("BAD_REQUEST");
       expect(json.message).toContain("Duplicate");
     });
 
     it("rejects reorder with unknown set IDs (400)", async () => {
       const getRes = await app.fetch(adminReq("GET", "/sets"));
-      const getJson = await getRes.json();
+      const getJson = await readJson(getRes);
       const allIds: string[] = getJson.sets.map((s: { id: string }) => s.id);
       const withUnknown = [...allIds];
       withUnknown[0] = "00000000-0000-4000-a000-ffffffffffff";
 
       const res = await app.fetch(adminReq("PUT", "/sets/reorder", { ids: withUnknown }));
       expect(res.status).toBe(400);
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.code).toBe("BAD_REQUEST");
       expect(json.message).toContain("Unknown");
     });
@@ -292,7 +293,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
         }),
       );
       expect(createRes.status).toBe(201);
-      const { id: tempSetId } = await createRes.json();
+      const { id: tempSetId } = await readJson(createRes);
 
       // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
       const { db: testDb } = ctx!;
@@ -334,12 +335,14 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
           printedEffectText: null,
           flavorText: null,
           comment: null,
+          size: "standard",
+          language: "EN",
         })
         .execute();
 
       const delRes = await app.fetch(adminReq("DELETE", `/sets/${tempSetId}`));
       expect(delRes.status).toBe(409);
-      const delJson = await delRes.json();
+      const delJson = await readJson(delRes);
       expect(delJson.code).toBe("CONFLICT");
       expect(delJson.message).toContain("printing");
 
@@ -357,7 +360,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
 
     it("set no longer appears in GET after deletion", async () => {
       const res = await app.fetch(adminReq("GET", "/sets"));
-      const json = await res.json();
+      const json = await readJson(res);
 
       const deleted = json.sets.find((s: { slug: string }) => s.slug === "CAT-expansion-one");
       expect(deleted).toBeUndefined();

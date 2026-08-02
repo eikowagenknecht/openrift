@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminDeckZonesRouter } from "./deck-zones";
 
@@ -43,7 +44,7 @@ describe("GET /deck-zones", () => {
     mockRepo.listAll.mockResolvedValue([baseRow, otherRow]);
     const res = await app.request("/api/admin/v1/deck-zones");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.deckZones).toHaveLength(2);
     expect(json.deckZones[0]).toEqual(baseRow);
   });
@@ -52,7 +53,7 @@ describe("GET /deck-zones", () => {
     mockRepo.listAll.mockResolvedValue([]);
     const res = await app.request("/api/admin/v1/deck-zones");
     expect(res.status).toBe(200);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.deckZones).toEqual([]);
   });
 });
@@ -81,7 +82,7 @@ describe("PUT /deck-zones/reorder", () => {
       body: JSON.stringify({ slugs: ["main", "main"] }),
     });
     expect(res.status).toBe(400);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("Duplicate slugs");
     expect(mockRepo.reorder).not.toHaveBeenCalled();
   });
@@ -94,7 +95,7 @@ describe("PUT /deck-zones/reorder", () => {
       body: JSON.stringify({ slugs: ["main"] }),
     });
     expect(res.status).toBe(400);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("Expected 2 slugs");
     expect(mockRepo.reorder).not.toHaveBeenCalled();
   });
@@ -107,7 +108,7 @@ describe("PUT /deck-zones/reorder", () => {
       body: JSON.stringify({ slugs: ["main", "nope"] }),
     });
     expect(res.status).toBe(400);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("Unknown deck zone slugs: nope");
     expect(mockRepo.reorder).not.toHaveBeenCalled();
   });
@@ -149,7 +150,7 @@ describe("PATCH /deck-zones/:slug", () => {
       body: JSON.stringify({ label: "X" }),
     });
     expect(res.status).toBe(404);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("not found");
     expect(mockRepo.update).not.toHaveBeenCalled();
   });

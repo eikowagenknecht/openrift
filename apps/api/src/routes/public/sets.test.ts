@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { setsRouter } from "./sets";
 
@@ -105,7 +106,7 @@ describe("GET /api/v1/sets", () => {
 
     const res = await app.request("/api/v1/sets");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.sets).toHaveLength(1);
     expect(json.sets[0]).toMatchObject({
       id: SET_ID,
@@ -123,7 +124,7 @@ describe("GET /api/v1/sets", () => {
 
     const res = await app.request("/api/v1/sets");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.sets[0]).toMatchObject({
       cardCount: 0,
       printingCount: 0,
@@ -152,7 +153,7 @@ describe("GET /api/v1/sets/:setSlug", () => {
 
     const res = await app.request("/api/v1/sets/OGN");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.set.id).toBe(SET_ID);
     expect(json.cards[CARD_ID]).toMatchObject({ slug: "jinx-rebel", errata: null, bans: [] });
     expect(json.printings).toHaveLength(1);
@@ -171,7 +172,7 @@ describe("GET /api/v1/sets/:setSlug", () => {
 
     const res = await app.request("/api/v1/sets/missing");
     expect(res.status).toBe(404);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toBe("Set not found: missing");
     expect(mockCatalogRepo.printingsBySetId).not.toHaveBeenCalled();
   });

@@ -12,6 +12,7 @@ import {
   buildUnmatchedDetail,
 } from "../../../services/candidate-queries.js";
 import { registerRouterForTest } from "../../../test/mount-router.js";
+import { readJson } from "../../../test/read-json.js";
 import type { Variables } from "../../../types.js";
 import { adminCardQueriesRouter } from "./queries";
 
@@ -96,7 +97,7 @@ describe("GET /api/admin/v1/cards/all-cards", () => {
 
     const res = await app.request("/api/admin/v1/cards/all-cards");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual(cards);
   });
 
@@ -105,7 +106,7 @@ describe("GET /api/admin/v1/cards/all-cards", () => {
 
     const res = await app.request("/api/admin/v1/cards/all-cards");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual([]);
   });
 });
@@ -120,7 +121,7 @@ describe("GET /api/admin/v1/cards/provider-names", () => {
 
     const res = await app.request("/api/admin/v1/cards/provider-names");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual(["gallery", "ocr"]);
   });
 
@@ -129,7 +130,7 @@ describe("GET /api/admin/v1/cards/provider-names", () => {
 
     const res = await app.request("/api/admin/v1/cards/provider-names");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual([]);
   });
 });
@@ -144,7 +145,7 @@ describe("GET /api/admin/v1/cards/distinct-artists", () => {
 
     const res = await app.request("/api/admin/v1/cards/distinct-artists");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual(["Jane Doe", "John Smith"]);
   });
 });
@@ -168,7 +169,7 @@ describe("GET /api/admin/v1/cards/provider-stats", () => {
 
     const res = await app.request("/api/admin/v1/cards/provider-stats");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual([
       {
         provider: "gallery",
@@ -208,7 +209,7 @@ describe("GET /api/admin/v1/cards (candidate list)", () => {
 
     const res = await app.request("/api/admin/v1/cards");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual(candidates);
     expect(mockBuildCandidateCardList).toHaveBeenCalledWith(
       mockCandidateCards,
@@ -249,7 +250,7 @@ describe("GET /api/admin/v1/cards/export", () => {
 
     const res = await app.request("/api/admin/v1/cards/export");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual(exportData);
     expect(mockBuildExport).toHaveBeenCalledWith(mockCandidateCards);
   });
@@ -294,7 +295,7 @@ describe("GET /api/admin/v1/cards/:cardSlug", () => {
 
     const res = await app.request("/api/admin/v1/cards/fireball");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.displayName).toBe("Fireball");
     expect(mockBuildCandidateCardDetail).toHaveBeenCalledWith(
       mockCandidateCards,
@@ -338,7 +339,7 @@ describe("GET /api/admin/v1/cards/new/:name", () => {
 
     const res = await app.request("/api/admin/v1/cards/new/newcard");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.displayName).toBe("New Card");
     expect(mockBuildUnmatchedDetail).toHaveBeenCalledWith(mockCandidateCards, "newcard", null);
   });

@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminProviderSettingsRouter } from "./provider-settings";
 
@@ -60,7 +61,7 @@ describe("GET /provider-settings", () => {
     mockRepo.listAll.mockResolvedValue([dbSetting1, dbSetting2]);
     const res = await app.request("/api/admin/v1/provider-settings");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.providerSettings).toHaveLength(2);
     expect(json.providerSettings[0]).toEqual({
       provider: "tcgplayer",
@@ -82,7 +83,7 @@ describe("GET /provider-settings", () => {
     mockRepo.listAll.mockResolvedValue([]);
     const res = await app.request("/api/admin/v1/provider-settings");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.providerSettings).toEqual([]);
   });
 });
@@ -110,7 +111,7 @@ describe("PUT /provider-settings/reorder", () => {
       body: JSON.stringify({ providers: ["tcgplayer", "tcgplayer"] }),
     });
     expect(res.status).toBe(400);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("Duplicate");
   });
 });

@@ -62,7 +62,14 @@ function reposFor(createRound: () => Promise<unknown>): Repos {
  * @returns The repos stub plus the createRound mock.
  */
 function reposWithSnapshot(players: TeamSnapshotPlayer[]) {
-  const createRound = vi.fn(async () => ({ id: "round-1", roundNumber: 1 }));
+  // Typed against the real signature so `createRound.mock.calls[0]` indexes as
+  // (tournamentId, roundNumber, pairing, byePlayerIds) instead of an empty tuple.
+  const createRound = vi.fn(
+    async (..._args: Parameters<Repos["podTournaments"]["createRound"]>) => ({
+      id: "round-1",
+      roundNumber: 1,
+    }),
+  );
   const repos = {
     podTournaments: {
       findOpenRound: vi.fn(async () => undefined),
@@ -152,7 +159,7 @@ describe("pairNextRound swiss auto-bye", () => {
     const call = createRound.mock.calls[0]!;
     const [pairing, byes] = [call[2], call[3]];
     expect(byes).toHaveLength(2);
-    expect(byes[0]).toBe("d");
+    expect(byes![0]).toBe("d");
     expect(pairing.pods).toHaveLength(1);
   });
 
@@ -295,7 +302,9 @@ describe("pairNextRound 2v2 team pairing", () => {
 
 describe("submitPodResult 2v2 team results", () => {
   function reposWithPod(playMode: "1v1" | "2v2") {
-    const setPodResult = vi.fn(async () => undefined);
+    const setPodResult = vi.fn(
+      async (..._args: Parameters<Repos["podTournaments"]["setPodResult"]>) => undefined,
+    );
     const repos = {
       podTournaments: {
         findPodForResult: vi.fn(async () => ({

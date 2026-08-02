@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminArtVariantsRouter } from "./art-variants";
 
@@ -45,7 +46,7 @@ describe("GET /art-variants", () => {
 
     const res = await app.request("/api/admin/v1/art-variants");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.artVariants).toHaveLength(2);
     expect(json.artVariants[0].slug).toBe("full-art");
   });
@@ -54,7 +55,7 @@ describe("GET /art-variants", () => {
     mockRepo.listAll.mockResolvedValue([]);
     const res = await app.request("/api/admin/v1/art-variants");
     expect(res.status).toBe(200);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.artVariants).toEqual([]);
   });
 });
@@ -83,7 +84,7 @@ describe("PUT /art-variants/reorder", () => {
       body: JSON.stringify({ slugs: ["full-art", "full-art"] }),
     });
     expect(res.status).toBe(400);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("Duplicate");
   });
 });
@@ -102,7 +103,7 @@ describe("POST /art-variants", () => {
       body: JSON.stringify({ slug: "etched", label: "Etched" }),
     });
     expect(res.status).toBe(201);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.artVariant.slug).toBe("etched");
     expect(mockRepo.create).toHaveBeenCalledWith({ slug: "etched", label: "Etched" });
   });
@@ -115,7 +116,7 @@ describe("POST /art-variants", () => {
       body: JSON.stringify({ slug: "full-art", label: "Full Art" }),
     });
     expect(res.status).toBe(409);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("already exists");
     expect(mockRepo.create).not.toHaveBeenCalled();
   });
@@ -146,7 +147,7 @@ describe("PATCH /art-variants/:slug", () => {
       body: JSON.stringify({ label: "Renamed" }),
     });
     expect(res.status).toBe(404);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("not found");
     expect(mockRepo.update).not.toHaveBeenCalled();
   });
@@ -170,7 +171,7 @@ describe("DELETE /art-variants/:slug", () => {
     mockRepo.getBySlug.mockResolvedValue(undefined);
     const res = await app.request("/api/admin/v1/art-variants/missing", { method: "DELETE" });
     expect(res.status).toBe(404);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("not found");
     expect(mockRepo.deleteBySlug).not.toHaveBeenCalled();
   });
@@ -179,7 +180,7 @@ describe("DELETE /art-variants/:slug", () => {
     mockRepo.getBySlug.mockResolvedValue({ ...baseRow, isWellKnown: true });
     const res = await app.request("/api/admin/v1/art-variants/full-art", { method: "DELETE" });
     expect(res.status).toBe(409);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("well-known");
     expect(mockRepo.deleteBySlug).not.toHaveBeenCalled();
   });
@@ -189,7 +190,7 @@ describe("DELETE /art-variants/:slug", () => {
     mockRepo.isInUse.mockResolvedValue(true);
     const res = await app.request("/api/admin/v1/art-variants/full-art", { method: "DELETE" });
     expect(res.status).toBe(409);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("in use");
     expect(mockRepo.deleteBySlug).not.toHaveBeenCalled();
   });

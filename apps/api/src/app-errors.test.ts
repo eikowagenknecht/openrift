@@ -5,6 +5,7 @@ import { z } from "zod/v4";
 
 import { createApp } from "./app.js";
 import { AppError } from "./errors.js";
+import { readJson } from "./test/read-json.js";
 
 // ---------------------------------------------------------------------------
 // Mock deps — minimal stubs to boot the app
@@ -42,9 +43,10 @@ function buildApp(isDev: boolean) {
     throw new AppError(404, "NOT_FOUND", "Not found");
   });
 
-  a.get("/api/test-error/zod-error", () => {
+  a.get("/api/test-error/zod-error", (): never => {
     const schema = z.object({ name: z.string() });
     schema.parse({ name: 123 });
+    throw new Error("unreachable — the parse above always throws");
   });
 
   a.get("/api/test-error/http-exception", () => {
@@ -72,7 +74,7 @@ const prodApp = buildApp(false);
 // ---------------------------------------------------------------------------
 
 describe("onError handler", () => {
-  let consoleSpy: ReturnType<typeof spyOn>;
+  let consoleSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -85,7 +87,7 @@ describe("onError handler", () => {
   it("handles AppError with details in dev", async () => {
     const res = await app.fetch(new Request("http://localhost/api/test-error/app-error"));
     expect(res.status).toBe(409);
-    const json = (await res.json()) as Record<string, unknown>;
+    const json = (await readJson(res)) as Record<string, unknown>;
     expect(json.error).toBe("Already exists");
     expect(json.code).toBe("CONFLICT");
     expect(json.details).toEqual({ field: "name" });
@@ -96,7 +98,7 @@ describe("onError handler", () => {
       new Request("http://localhost/api/test-error/app-error-no-details"),
     );
     expect(res.status).toBe(404);
-    const json = (await res.json()) as Record<string, unknown>;
+    const json = (await readJson(res)) as Record<string, unknown>;
     expect(json.error).toBe("Not found");
     expect(json.code).toBe("NOT_FOUND");
     expect(json).not.toHaveProperty("details");
@@ -105,7 +107,7 @@ describe("onError handler", () => {
   it("handles ZodError with details in dev", async () => {
     const res = await app.fetch(new Request("http://localhost/api/test-error/zod-error"));
     expect(res.status).toBe(400);
-    const json = (await res.json()) as Record<string, unknown>;
+    const json = (await readJson(res)) as Record<string, unknown>;
     expect(json.code).toBe("VALIDATION_ERROR");
     expect(json.error).toBe("Invalid request body");
     expect(Array.isArray(json.details)).toBe(true);
@@ -114,7 +116,7 @@ describe("onError handler", () => {
   it("handles HTTPException, mapping its status to a canonical code", async () => {
     const res = await app.fetch(new Request("http://localhost/api/test-error/http-exception"));
     expect(res.status).toBe(403);
-    const json = (await res.json()) as Record<string, unknown>;
+    const json = (await readJson(res)) as Record<string, unknown>;
     // 403 maps to FORBIDDEN via codeForStatus — never the old un-enumerated "HTTP_ERROR".
     expect(json.code).toBe("FORBIDDEN");
     expect(json.error).toBe("Forbidden");
@@ -123,7 +125,7 @@ describe("onError handler", () => {
   it("includes stack trace in dev for generic errors", async () => {
     const res = await app.fetch(new Request("http://localhost/api/test-error/generic-error"));
     expect(res.status).toBe(500);
-    const json = (await res.json()) as Record<string, unknown>;
+    const json = (await readJson(res)) as Record<string, unknown>;
     expect(json.code).toBe("INTERNAL_ERROR");
     expect(json.error).toBe("Internal server error");
     const details = json.details as { message: string; stack: string };
@@ -140,7 +142,7 @@ describe("onError handler", () => {
       }),
     );
     expect(res.status).toBe(400);
-    const json = (await res.json()) as Record<string, unknown>;
+    const json = (await readJson(res)) as Record<string, unknown>;
     expect(json.code).toBe("BAD_REQUEST");
     expect(json.error).toBe("Invalid JSON in request body");
   });
@@ -149,7 +151,7 @@ describe("onError handler", () => {
     const res = await app.fetch(new Request("http://localhost/api/v1/does-not-exist"));
     expect(res.status).toBe(404);
     expect(res.headers.get("content-type")).toContain("application/json");
-    const json = (await res.json()) as Record<string, unknown>;
+    const json = (await readJson(res)) as Record<string, unknown>;
     expect(json.code).toBe("NOT_FOUND");
     expect(json.error).toBe("Not found");
   });
@@ -165,7 +167,7 @@ describe("onError handler", () => {
 });
 
 describe("onError handler (production)", () => {
-  let consoleSpy: ReturnType<typeof spyOn>;
+  let consoleSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -178,7 +180,7 @@ describe("onError handler (production)", () => {
   it("strips AppError details in production", async () => {
     const res = await prodApp.fetch(new Request("http://localhost/api/test-error/app-error"));
     expect(res.status).toBe(409);
-    const json = (await res.json()) as Record<string, unknown>;
+    const json = (await readJson(res)) as Record<string, unknown>;
     expect(json.error).toBe("Already exists");
     expect(json.code).toBe("CONFLICT");
     expect(json).not.toHaveProperty("details");
@@ -187,7 +189,7 @@ describe("onError handler (production)", () => {
   it("includes ZodError field paths in production", async () => {
     const res = await prodApp.fetch(new Request("http://localhost/api/test-error/zod-error"));
     expect(res.status).toBe(400);
-    const json = (await res.json()) as Record<string, unknown>;
+    const json = (await readJson(res)) as Record<string, unknown>;
     expect(json.code).toBe("VALIDATION_ERROR");
     expect(json.error).toBe("Invalid request body");
     expect(Array.isArray(json.details)).toBe(true);
@@ -196,7 +198,7 @@ describe("onError handler (production)", () => {
   it("strips stack trace in production for generic errors", async () => {
     const res = await prodApp.fetch(new Request("http://localhost/api/test-error/generic-error"));
     expect(res.status).toBe(500);
-    const json = (await res.json()) as Record<string, unknown>;
+    const json = (await readJson(res)) as Record<string, unknown>;
     expect(json.code).toBe("INTERNAL_ERROR");
     expect(json.error).toBe("Internal server error");
     expect(json).not.toHaveProperty("details");

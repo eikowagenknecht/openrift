@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { saveMappings, unmapPrinting } from "../../services/marketplace-mapping.js";
 import { buildUnifiedMappingsResponse } from "../../services/unified-mapping-merge.js";
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminUnifiedMappingsRouter } from "./unified-mappings";
 
@@ -73,7 +74,7 @@ describe("GET /api/admin/v1/marketplace-mappings", () => {
 
     const res = await app.request("/api/admin/v1/marketplace-mappings");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual(mockResponse);
     expect(mockBuildUnifiedMappings).toHaveBeenCalledTimes(1);
   });
@@ -120,7 +121,7 @@ describe("POST /api/admin/v1/marketplace-mappings", () => {
     });
 
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.saved).toBe(2);
     expect(json.skipped).toEqual([]);
     expect(mockSaveMappings).toHaveBeenCalledTimes(1);
@@ -145,7 +146,7 @@ describe("POST /api/admin/v1/marketplace-mappings", () => {
     });
 
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.saved).toBe(1);
   });
 
@@ -171,7 +172,7 @@ describe("POST /api/admin/v1/marketplace-mappings", () => {
     });
 
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.saved).toBe(0);
     expect(json.skipped).toHaveLength(1);
   });

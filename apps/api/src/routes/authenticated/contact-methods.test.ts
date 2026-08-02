@@ -3,6 +3,7 @@ import { describe, expect, it, beforeEach, vi } from "vitest";
 
 import { AppError } from "../../errors.js";
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { contactMethodsRouter } from "./contact-methods";
 
@@ -59,7 +60,7 @@ describe("GET /api/v1/contact-methods", () => {
     mockContactMethodsRepo.listForUser.mockResolvedValue([discordMethod, emailMethod]);
     const res = await app.request("/api/v1/contact-methods");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.items).toHaveLength(2);
     expect(json.items[0].type).toBe("discord");
     expect(mockContactMethodsRepo.listForUser).toHaveBeenCalledWith(USER_ID);
@@ -75,7 +76,7 @@ describe("POST /api/v1/contact-methods", () => {
       body: JSON.stringify({ type: "discord", value: "alice#1234" }),
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.items).toHaveLength(1);
     expect(mockContactMethodsRepo.create).toHaveBeenCalledWith(USER_ID, "discord", "alice#1234");
   });
@@ -103,7 +104,7 @@ describe("PATCH /api/v1/contact-methods/:id", () => {
       body: JSON.stringify({ type: "discord", value: "alice#9999" }),
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.items[0].value).toBe("alice#9999");
     expect(mockContactMethodsRepo.update).toHaveBeenCalledWith(
       METHOD_ID,
@@ -121,7 +122,7 @@ describe("PATCH /api/v1/contact-methods/:id", () => {
       body: JSON.stringify({ type: "discord", value: "alice#9999" }),
     });
     expect(res.status).toBe(404);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toBe("Contact method not found");
   });
 });
@@ -132,7 +133,7 @@ describe("DELETE /api/v1/contact-methods/:id", () => {
     mockContactMethodsRepo.listForUser.mockResolvedValue([]);
     const res = await app.request(`/api/v1/contact-methods/${METHOD_ID}`, { method: "DELETE" });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.items).toEqual([]);
     expect(mockContactMethodsRepo.delete).toHaveBeenCalledWith(METHOD_ID, USER_ID);
   });
@@ -141,7 +142,7 @@ describe("DELETE /api/v1/contact-methods/:id", () => {
     mockContactMethodsRepo.delete.mockResolvedValue(false);
     const res = await app.request(`/api/v1/contact-methods/${METHOD_ID}`, { method: "DELETE" });
     expect(res.status).toBe(404);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toBe("Contact method not found");
   });
 });
@@ -156,7 +157,7 @@ describe("POST /api/v1/contact-methods/reorder", () => {
       body: JSON.stringify({ ids }),
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.items[0].id).toBe(OTHER_ID);
     expect(mockContactMethodsRepo.reorder).toHaveBeenCalledWith(USER_ID, ids);
   });

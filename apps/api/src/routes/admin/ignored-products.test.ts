@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminIgnoredProductsRouter } from "./ignored-products";
 
@@ -69,7 +70,7 @@ describe("GET /api/admin/v1/ignored-products", () => {
     mockMktAdmin.listIgnoredProducts.mockResolvedValue([dbIgnoredProductL2, dbIgnoredVariantL3]);
     const res = await app.request("/api/admin/v1/ignored-products");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.products).toHaveLength(2);
     expect(json.products[0]).toEqual({
       level: "product",
@@ -93,7 +94,7 @@ describe("GET /api/admin/v1/ignored-products", () => {
     mockMktAdmin.listIgnoredProducts.mockResolvedValue([]);
     const res = await app.request("/api/admin/v1/ignored-products");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.products).toEqual([]);
   });
 });
@@ -124,7 +125,7 @@ describe("POST /api/admin/v1/ignored-products (L2)", () => {
       }),
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.ignored).toBe(2);
     expect(mockMktAdmin.insertIgnoredProducts).toHaveBeenCalledWith([
       {
@@ -157,7 +158,7 @@ describe("POST /api/admin/v1/ignored-products (L2)", () => {
       }),
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.ignored).toBe(1);
   });
 
@@ -174,7 +175,7 @@ describe("POST /api/admin/v1/ignored-products (L2)", () => {
       }),
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.ignored).toBe(0);
     expect(mockMktAdmin.insertIgnoredProducts).not.toHaveBeenCalled();
   });
@@ -231,7 +232,7 @@ describe("POST /api/admin/v1/ignored-products (L3)", () => {
       }),
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.ignored).toBe(1);
     expect(mockMktAdmin.insertIgnoredVariants).toHaveBeenCalledWith([
       {
@@ -267,7 +268,7 @@ describe("DELETE /api/admin/v1/ignored-products (L2)", () => {
       }),
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.unignored).toBe(2);
     expect(mockMktAdmin.deleteIgnoredProducts).toHaveBeenCalledWith("tcgplayer", [12_345, 67_890]);
   });
@@ -284,7 +285,7 @@ describe("DELETE /api/admin/v1/ignored-products (L2)", () => {
       }),
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.unignored).toBe(0);
   });
 });
@@ -306,7 +307,7 @@ describe("DELETE /api/admin/v1/ignored-products (L3)", () => {
       }),
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.unignored).toBe(1);
     expect(mockMktAdmin.deleteIgnoredVariants).toHaveBeenCalledWith("tcgplayer", [
       { externalId: 12_345, finish: "normal", language: "EN" },

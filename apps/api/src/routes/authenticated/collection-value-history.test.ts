@@ -3,6 +3,7 @@ import { describe, expect, it, beforeEach, vi } from "vitest";
 
 import { AppError } from "../../errors.js";
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { collectionValueHistoryRouter } from "./collection-value-history";
 
@@ -48,7 +49,7 @@ describe("GET /api/v1/collection-value-history", () => {
     ]);
     const res = await app.request("/api/v1/collection-value-history");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.series).toHaveLength(2);
     expect(json.series[0]).toEqual({ date: "2026-03-15", valueCents: 125_000, copyCount: 42 });
   });
@@ -56,7 +57,7 @@ describe("GET /api/v1/collection-value-history", () => {
   it("returns an empty series when the repo has no data", async () => {
     mockMarketplaceRepo.collectionValueTimeSeries.mockResolvedValue([]);
     const res = await app.request("/api/v1/collection-value-history");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.series).toEqual([]);
   });
 

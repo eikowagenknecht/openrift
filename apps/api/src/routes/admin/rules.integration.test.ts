@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, it } from "vitest";
 
 import { adminReq, createTestContext } from "../../test/integration-context.js";
+import { readJson } from "../../test/read-json.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Admin rules import + delete flows.
@@ -61,7 +62,7 @@ describe.skipIf(!adminCtx)("Admin rules routes (integration)", () => {
         }),
       );
       expect(res.status).toBe(201);
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.kind).toBe("core");
       expect(json.version).toBe(CORE_VERSION);
       expect(json.added).toBe(2);
@@ -76,7 +77,7 @@ describe.skipIf(!adminCtx)("Admin rules routes (integration)", () => {
         }),
       );
       expect(res.status).toBe(201);
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.kind).toBe("tournament");
       expect(json.version).toBe(CORE_VERSION);
     });
@@ -124,7 +125,7 @@ describe.skipIf(!adminCtx)("Admin rules routes (integration)", () => {
         }),
       );
       expect(res.status).toBe(400);
-      const body = await res.json();
+      const body = await readJson(res);
       expect(body.message).toMatch(/older|chronological/iu);
     });
   });

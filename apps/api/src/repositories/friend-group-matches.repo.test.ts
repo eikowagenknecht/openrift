@@ -7,6 +7,7 @@ import type {
   PriceLookup,
   Printing,
 } from "@openrift/shared";
+import type { Kysely } from "kysely";
 import { describe, expect, it } from "vitest";
 
 import type { Database } from "../db/index.js";
@@ -28,7 +29,7 @@ function tableOf(arg: string): string {
   return arg.split(" ")[0];
 }
 
-function makeDb(queues: Record<string, Rows[]>): Database {
+function makeDb(queues: Record<string, Rows[]>): Kysely<Database> {
   const cursors: Record<string, number> = {};
   function chain(table: string): unknown {
     const handler: ProxyHandler<() => unknown> = {
@@ -57,7 +58,7 @@ function makeDb(queues: Record<string, Rows[]>): Database {
   }
   return {
     selectFrom: (arg: string) => chain(tableOf(arg)),
-  } as unknown as Database;
+  } as unknown as Kysely<Database>;
 }
 
 const NOW = new Date("2026-06-01T00:00:00Z");
@@ -147,6 +148,7 @@ function makeCatalogPrinting(
       keywords: overrides.keywords ?? [],
       tags: [],
       mightBonus: 0,
+      maxCopiesOverride: null,
       errata: null,
       bans: [],
     },

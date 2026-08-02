@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminMarkersRouter } from "./markers";
 
@@ -59,7 +60,7 @@ describe("GET /markers", () => {
     mockRepo.listAll.mockResolvedValue([markerA, markerB]);
     const res = await app.request("/api/admin/v1/markers");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.markers).toHaveLength(2);
     expect(json.markers[0]).toEqual({
       id: ID_A,
@@ -76,7 +77,7 @@ describe("GET /markers", () => {
     mockRepo.listAll.mockResolvedValue([]);
     const res = await app.request("/api/admin/v1/markers");
     expect(res.status).toBe(200);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.markers).toEqual([]);
   });
 });
@@ -105,7 +106,7 @@ describe("PUT /markers/reorder", () => {
       body: JSON.stringify({ ids: [ID_A, ID_A] }),
     });
     expect(res.status).toBe(400);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("Duplicate ids");
   });
 
@@ -117,7 +118,7 @@ describe("PUT /markers/reorder", () => {
       body: JSON.stringify({ ids: [ID_A] }),
     });
     expect(res.status).toBe(400);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("Expected 2 ids");
   });
 
@@ -130,7 +131,7 @@ describe("PUT /markers/reorder", () => {
       body: JSON.stringify({ ids: [ID_A, unknownId] }),
     });
     expect(res.status).toBe(400);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("Unknown marker ids");
   });
 });
@@ -150,7 +151,7 @@ describe("POST /markers", () => {
       body: JSON.stringify({ slug: "champion", label: "Champion", description: "Winner" }),
     });
     expect(res.status).toBe(201);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.marker.slug).toBe("champion");
     expect(mockRepo.create).toHaveBeenCalledWith({
       slug: "champion",
@@ -168,7 +169,7 @@ describe("POST /markers", () => {
       body: JSON.stringify({ slug: "top-8", label: "Top 8" }),
     });
     expect(res.status).toBe(409);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("already exists");
     expect(mockRepo.create).not.toHaveBeenCalled();
   });
@@ -203,7 +204,7 @@ describe("PATCH /markers/:id", () => {
       body: JSON.stringify({ label: "X" }),
     });
     expect(res.status).toBe(404);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("not found");
     expect(mockRepo.update).not.toHaveBeenCalled();
   });
@@ -217,7 +218,7 @@ describe("PATCH /markers/:id", () => {
       body: JSON.stringify({ slug: "champion" }),
     });
     expect(res.status).toBe(409);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("already in use");
     expect(mockRepo.update).not.toHaveBeenCalled();
   });
@@ -241,7 +242,7 @@ describe("DELETE /markers/:id", () => {
     mockRepo.getById.mockResolvedValue(undefined);
     const res = await app.request(`/api/admin/v1/markers/${ID_A}`, { method: "DELETE" });
     expect(res.status).toBe(404);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("not found");
     expect(mockRepo.isInUse).not.toHaveBeenCalled();
   });
@@ -251,7 +252,7 @@ describe("DELETE /markers/:id", () => {
     mockRepo.isInUse.mockResolvedValue(true);
     const res = await app.request(`/api/admin/v1/markers/${ID_A}`, { method: "DELETE" });
     expect(res.status).toBe(409);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toContain("in use");
     expect(mockRepo.deleteById).not.toHaveBeenCalled();
   });

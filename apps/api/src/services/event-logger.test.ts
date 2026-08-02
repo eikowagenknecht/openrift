@@ -4,7 +4,7 @@ import type { Repos } from "../deps.js";
 import { logEvents } from "./event-logger.js";
 
 function createMockRepos() {
-  const insertSpy = vi.fn(async () => {});
+  const insertSpy = vi.fn<Repos["collectionEvents"]["insert"]>(async () => {});
   const repos = {
     collectionEvents: { insert: insertSpy },
   } as unknown as Repos;

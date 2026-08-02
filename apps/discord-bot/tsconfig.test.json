@@ -1,0 +1,13 @@
+// Type-checks the whole package, tests included. `tsconfig.json` excludes
+// `*.test.ts` because it drives the emitting `build` (test files must not land
+// in dist/). This is the config `bun run typecheck` uses — it is a superset of
+// the build config's file set, so it covers production sources too.
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "tsBuildInfoFile": "./dist/.tsbuildinfo.test"
+  },
+  "include": ["src"],
+  "exclude": []
+}

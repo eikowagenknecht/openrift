@@ -5,6 +5,7 @@ import { AppError } from "../../errors.js";
 import type * as DeckImageModule from "../../services/deck-image.js";
 import { renderDeckImage } from "../../services/deck-image.js";
 import { renderShareImage } from "../../services/share-image.js";
+import type { Variables } from "../../types.js";
 import { publicShareImagesRoute } from "./share-images";
 
 // The render pipeline (satori + sharp + fonts) is exercised separately; here we
@@ -52,7 +53,7 @@ const mockCatalogRepo = {
   cardsByIds: vi.fn(),
 };
 
-const app = new Hono()
+const app = new Hono<{ Variables: Variables }>()
   .use("*", async (c, next) => {
     c.set("repos", {
       lists: mockListsRepo,

@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createTestContext, req } from "../../test/integration-context.js";
+import { readJson } from "../../test/read-json.js";
 
 // Route-level integration tests for the unified tournaments running surface
 // (ADR-033): the pod pairings/standings run state, round-running mutations, and
@@ -45,7 +46,7 @@ async function createPodTournament(
     }),
   );
   expect(res.status).toBe(201);
-  return ((await res.json()) as { id: string }).id;
+  return ((await readJson(res)) as { id: string }).id;
 }
 
 describe.skipIf(!ready)("Tournament running surface (integration)", () => {
@@ -95,7 +96,7 @@ describe.skipIf(!ready)("Tournament running surface (integration)", () => {
 
     const asHost = await host.app.fetch(req("GET", `/tournaments/${id}/run`));
     expect(asHost.status).toBe(200);
-    const body = (await asHost.json()) as { tournament: { id: string }; standings: unknown[] };
+    const body = (await readJson(asHost)) as { tournament: { id: string }; standings: unknown[] };
     expect(body.tournament.id).toBe(id);
     expect(Array.isArray(body.standings)).toBe(true);
 
@@ -144,7 +145,7 @@ describe.skipIf(!ready)("Tournament running surface (integration)", () => {
     expect(paired.status).toBe(200);
 
     const run = await host.app.fetch(req("GET", `/tournaments/${id}/run`));
-    const body = (await run.json()) as {
+    const body = (await readJson(run)) as {
       rounds: { pods: { podNumber: number; members: { displayName: string }[] }[] }[];
     };
     const pods = body.rounds[0].pods;
@@ -185,7 +186,7 @@ describe.skipIf(!ready)("Tournament running surface (integration)", () => {
 
     const enable = await orgOwner.app.fetch(req("POST", `/tournaments/${id}/report-token`));
     expect(enable.status).toBe(200);
-    const token = ((await enable.json()) as { reportToken: string | null }).reportToken;
+    const token = ((await readJson(enable)) as { reportToken: string | null }).reportToken;
     expect(token).toBeTruthy();
 
     const followAlong = await orgOwner.app.fetch(req("GET", `/pod-tournaments/report/${token}`));

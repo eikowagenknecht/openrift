@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { cardsRouter } from "./cards";
 
@@ -119,7 +120,7 @@ describe("GET /api/v1/cards/:cardSlug", () => {
 
     const res = await app.request("/api/v1/cards/jinx-rebel");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.card.id).toBe(CARD_ID);
     expect(json.card.slug).toBe("jinx-rebel");
     expect(json.card.errata).toBeNull();
@@ -141,7 +142,7 @@ describe("GET /api/v1/cards/:cardSlug", () => {
 
     const res = await app.request("/api/v1/cards/jinx-rebel");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.card.bans).toHaveLength(1);
     expect(json.card.bans[0]).toMatchObject({
       formatId: dbBan.formatId,
@@ -165,7 +166,7 @@ describe("GET /api/v1/cards/:cardSlug", () => {
 
     const res = await app.request("/api/v1/cards/jinx-rebel");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.card.errata).toMatchObject({
       correctedRulesText: "Corrected",
       source: "Riot",
@@ -182,7 +183,7 @@ describe("GET /api/v1/cards/:cardSlug", () => {
 
     const res = await app.request("/api/v1/cards/jinx-rebel");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     // Flat on the response, not nested under the printing: the printing schema
     // is shared with the synced catalog, which must not carry product data.
     expect(json.products).toEqual([
@@ -198,7 +199,7 @@ describe("GET /api/v1/cards/:cardSlug", () => {
     mockCatalogRepo.setsByIds.mockResolvedValue([dbSet]);
 
     const res = await app.request("/api/v1/cards/jinx-rebel");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.products).toEqual([]);
   });
 
@@ -207,7 +208,7 @@ describe("GET /api/v1/cards/:cardSlug", () => {
 
     const res = await app.request("/api/v1/cards/does-not-exist");
     expect(res.status).toBe(404);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toBe("Card not found: does-not-exist");
     expect(mockCatalogRepo.printingsByCardId).not.toHaveBeenCalled();
   });

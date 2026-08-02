@@ -6,6 +6,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import type { Repos } from "../deps.js";
 import type { MarketplaceConfig } from "../routes/admin/marketplace-configs.js";
+import type { GetMappingOverview } from "./unified-mapping-merge.js";
 import {
   buildUnifiedMappingsCardResponse,
   buildUnifiedMappingsResponse,
@@ -67,7 +68,7 @@ describe("buildUnifiedMappingsResponse", () => {
     const repos = {
       marketplaceMapping: { allCardsWithPrintingsUnified: vi.fn().mockResolvedValue([]) },
     } as unknown as Repos;
-    const getMappingOverview = vi.fn(async () => makeMappingResult());
+    const getMappingOverview = vi.fn<GetMappingOverview>(async () => makeMappingResult());
 
     const result = await buildUnifiedMappingsResponse(
       repos,
@@ -230,7 +231,7 @@ describe("buildUnifiedMappingsResponse", () => {
         ]),
       },
     } as unknown as Repos;
-    const getMappingOverview = vi.fn(async () => makeMappingResult());
+    const getMappingOverview = vi.fn<GetMappingOverview>(async () => makeMappingResult());
 
     await buildUnifiedMappingsResponse(
       repos,

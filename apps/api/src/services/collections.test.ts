@@ -277,9 +277,11 @@ function createResetMocks(
   const ensureInbox = vi.fn(async () => "inbox-1");
   const listIdsWithEntries = vi.fn(async () => overrides.listIdsWithEntries ?? []);
   const deleteEmptyWithoutRules = vi.fn(async () => overrides.removedLists ?? 0);
-  const filterReservedCopyIds = vi.fn(async () => overrides.reservedCopyIds ?? []);
-  const filterLoanedCopyIds = vi.fn(async () => overrides.loanedCopyIds ?? []);
-  const insertEvents = vi.fn(async () => {});
+  const filterReservedCopyIds = vi.fn(
+    async (_copyIds: string[]) => overrides.reservedCopyIds ?? [],
+  );
+  const filterLoanedCopyIds = vi.fn(async (_copyIds: string[]) => overrides.loanedCopyIds ?? []);
+  const insertEvents = vi.fn(async (_events: unknown[]) => {});
 
   const repos = {
     copies: { listInPersonalCollections, deleteAllInPersonalCollections },

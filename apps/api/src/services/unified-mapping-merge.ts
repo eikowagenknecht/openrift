@@ -95,7 +95,7 @@ interface MappingOverviewResult {
   allCards: AssignableCardResponse[];
 }
 
-type GetMappingOverview = (
+export type GetMappingOverview = (
   repos: Repos,
   config: MarketplaceConfig,
   options?: {

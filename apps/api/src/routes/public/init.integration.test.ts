@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, it } from "vitest";
 
 import { createUnauthenticatedTestContext, req } from "../../test/integration-context.js";
+import { readJson } from "../../test/read-json.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Init route
@@ -18,8 +19,8 @@ if (ctx) {
   await db
     .insertInto("keywords")
     .values([
-      { name: "INIT-Shield", color: "#4488ff", darkText: false },
-      { name: "INIT-Burn", color: "#ff4400", darkText: true },
+      { name: "INIT-Shield", color: "#4488ff", darkText: false, isWellKnown: false },
+      { name: "INIT-Burn", color: "#ff4400", darkText: true, isWellKnown: false },
     ])
     .execute();
 }
@@ -39,14 +40,14 @@ describe.skipIf(!ctx)("Init route (integration)", () => {
     const res = await app.fetch(req("GET", "/init"));
     expect(res.status).toBe(200);
 
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.enums).toBeDefined();
     expect(json.keywords).toBeDefined();
   });
 
   it("contains enum arrays", async () => {
     const res = await app.fetch(req("GET", "/init"));
-    const json = await res.json();
+    const json = await readJson(res);
 
     expect(Array.isArray(json.enums.cardTypes)).toBe(true);
     expect(Array.isArray(json.enums.rarities)).toBe(true);
@@ -55,7 +56,7 @@ describe.skipIf(!ctx)("Init route (integration)", () => {
 
   it("contains seeded keywords", async () => {
     const res = await app.fetch(req("GET", "/init"));
-    const json = await res.json();
+    const json = await readJson(res);
 
     expect(json.keywords["INIT-Shield"]).toEqual({
       color: "#4488ff",

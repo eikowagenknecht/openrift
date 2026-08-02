@@ -27,6 +27,7 @@ describe.skipIf(!ctx)("deckPlansRepo (integration)", () => {
       name,
       description: null,
       format: "constructed",
+      formatConfig: null,
       isWanted: false,
       isPublic: false,
     });
@@ -230,6 +231,7 @@ describe.skipIf(!ctx)("deckPlansRepo (integration)", () => {
       name: "Plan Cascade",
       description: null,
       format: "constructed",
+      formatConfig: null,
       isWanted: false,
       isPublic: false,
     });

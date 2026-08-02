@@ -3,6 +3,7 @@ import { describe, expect, it, beforeEach, vi } from "vitest";
 
 import { AppError } from "../../errors.js";
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { cardTradesRouter } from "./card-trades";
 
@@ -112,7 +113,7 @@ describe("POST /api/v1/trades", () => {
       }),
     });
     expect(res.status).toBe(201);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.id).toBe(TRADE_ID);
     expect(mockCreateTrade).toHaveBeenCalledWith(
       expect.anything(),
@@ -143,7 +144,7 @@ describe("POST /api/v1/trades", () => {
       }),
     });
     expect(res.status).toBe(409);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toBe("A matching trade already exists");
   });
 });
@@ -153,7 +154,7 @@ describe("GET /api/v1/trades", () => {
     mockCardTradesRepo.listForUser.mockResolvedValue([tradeResponse]);
     const res = await app.request("/api/v1/trades");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.items).toHaveLength(1);
     expect(json.items[0].id).toBe(TRADE_ID);
     expect(mockCardTradesRepo.listForUser).toHaveBeenCalledWith(USER_ID, {
@@ -181,7 +182,7 @@ describe("GET /api/v1/trades/action-counts", () => {
     ]);
     const res = await app.request("/api/v1/trades/action-counts");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.total).toBe(5);
     expect(json.byGroup).toHaveLength(2);
   });
@@ -189,7 +190,7 @@ describe("GET /api/v1/trades/action-counts", () => {
   it("returns total 0 when no groups need action", async () => {
     mockCardTradesRepo.actionNeededCountsForUser.mockResolvedValue([]);
     const res = await app.request("/api/v1/trades/action-counts");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.total).toBe(0);
     expect(json.byGroup).toEqual([]);
   });
@@ -200,7 +201,7 @@ describe("POST /api/v1/trades/:id/accept", () => {
     mockAcceptTrade.mockResolvedValue({ ...tradeResponse, status: "reserved" });
     const res = await app.request(`/api/v1/trades/${TRADE_ID}/accept`, { method: "POST" });
     expect(res.status).toBe(200);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.status).toBe("reserved");
     expect(mockAcceptTrade).toHaveBeenCalledWith(expect.anything(), TRADE_ID, USER_ID);
   });
@@ -209,7 +210,7 @@ describe("POST /api/v1/trades/:id/accept", () => {
     mockAcceptTrade.mockRejectedValue(new AppError(404, "NOT_FOUND", "Trade not found"));
     const res = await app.request(`/api/v1/trades/${TRADE_ID}/accept`, { method: "POST" });
     expect(res.status).toBe(404);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toBe("Trade not found");
   });
 });
@@ -219,7 +220,7 @@ describe("POST /api/v1/trades/:id/decline", () => {
     mockDeclineTrade.mockResolvedValue({ ...tradeResponse, status: "declined" });
     const res = await app.request(`/api/v1/trades/${TRADE_ID}/decline`, { method: "POST" });
     expect(res.status).toBe(200);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.status).toBe("declined");
     expect(mockDeclineTrade).toHaveBeenCalledWith(expect.anything(), TRADE_ID, USER_ID);
   });
@@ -230,7 +231,7 @@ describe("POST /api/v1/trades/:id/cancel", () => {
     mockCancelTrade.mockResolvedValue({ ...tradeResponse, status: "cancelled" });
     const res = await app.request(`/api/v1/trades/${TRADE_ID}/cancel`, { method: "POST" });
     expect(res.status).toBe(200);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.status).toBe("cancelled");
     expect(mockCancelTrade).toHaveBeenCalledWith(expect.anything(), TRADE_ID, USER_ID);
   });
@@ -241,7 +242,7 @@ describe("POST /api/v1/trades/:id/complete", () => {
     mockCompleteTrade.mockResolvedValue({ ...tradeResponse, status: "completed" });
     const res = await app.request(`/api/v1/trades/${TRADE_ID}/complete`, { method: "POST" });
     expect(res.status).toBe(200);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.status).toBe("completed");
     expect(mockCompleteTrade).toHaveBeenCalledWith(expect.anything(), TRADE_ID, USER_ID);
   });
@@ -252,7 +253,7 @@ describe("POST /api/v1/trades/:id/complete", () => {
     );
     const res = await app.request(`/api/v1/trades/${TRADE_ID}/complete`, { method: "POST" });
     expect(res.status).toBe(409);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.message).toBe("Trade is not ready to complete");
   });
 });
@@ -266,7 +267,7 @@ describe("POST /api/v1/trades/:id/quantity", () => {
       body: JSON.stringify({ quantity: 5 }),
     });
     expect(res.status).toBe(200);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.quantity).toBe(5);
     expect(mockSetTradeQuantity).toHaveBeenCalledWith(expect.anything(), TRADE_ID, USER_ID, 5);
   });

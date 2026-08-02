@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { publicCollectionsRouter } from "./collections";
 
@@ -19,7 +20,7 @@ const mockCopiesRepo = {
 };
 
 const mockMarketplaceRepo = {
-  singleCollectionValue: vi.fn(() => Promise.resolve(undefined)),
+  singleCollectionValue: vi.fn(() => Promise.resolve(undefined as object | undefined)),
 };
 
 const mockUserPreferencesRepo = {
@@ -106,7 +107,7 @@ describe("GET /api/v1/collections/share/:token", () => {
 
     const res = await app.request("/api/v1/collections/share/tok-abc");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.collection.id).toBe(COLLECTION_ID);
     expect(json.collection.name).toBe("Main Binder");
     expect(json.collection.totalValueCents).toBe(1234);
@@ -125,7 +126,7 @@ describe("GET /api/v1/collections/share/:token", () => {
     mockCopiesRepo.listForCollection.mockResolvedValue([]);
 
     const res = await app.request("/api/v1/collections/share/tok-abc");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.collection).not.toHaveProperty("shareToken");
     expect(json.collection).not.toHaveProperty("isPublic");
     expect(json.collection).not.toHaveProperty("isInbox");
@@ -145,7 +146,7 @@ describe("GET /api/v1/collections/share/:token", () => {
     mockCopiesRepo.listForCollection.mockResolvedValue([dbCopy]);
 
     const res = await app.request("/api/v1/collections/share/tok-abc");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.items[0]).toEqual({
       id: dbCopy.id,
       printingId: dbCopy.printingId,
@@ -169,7 +170,7 @@ describe("GET /api/v1/collections/share/:token", () => {
     mockCopiesRepo.listForCollection.mockResolvedValue([]);
 
     const res = await app.request("/api/v1/collections/share/tok-abc");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.owner.displayName).toBe("Anonymous");
   });
 
@@ -195,7 +196,7 @@ describe("GET /api/v1/collections/share/:token", () => {
 
     const res = await app.request("/api/v1/collections/share/tok-abc?limit=10");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.items).toHaveLength(10);
     expect(json.nextCursor).toBeTruthy();
   });
@@ -209,7 +210,7 @@ describe("GET /api/v1/collections/share/:token", () => {
 
     const res = await app.request("/api/v1/collections/share/tok-abc");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.collection.id).toBe(dbInbox.id);
   });
 });

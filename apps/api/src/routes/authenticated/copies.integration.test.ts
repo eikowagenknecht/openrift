@@ -2,6 +2,7 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import { PRINTING_1, PRINTING_2 } from "../../test/fixtures/constants.js";
 import { createTestContext, req } from "../../test/integration-context.js";
+import { readJson } from "../../test/read-json.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Copies routes
@@ -31,10 +32,10 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
     await app.fetch(req("GET", "/collections"));
 
     const res1 = await app.fetch(req("POST", "/collections", { name: "Main Collection" }));
-    collectionId = ((await res1.json()) as { id: string }).id;
+    collectionId = ((await readJson(res1)) as { id: string }).id;
 
     const res2 = await app.fetch(req("POST", "/collections", { name: "Second Collection" }));
-    secondCollectionId = ((await res2.json()) as { id: string }).id;
+    secondCollectionId = ((await readJson(res2)) as { id: string }).id;
   });
 
   // ── POST /copies ──────────────────────────────────────────────────────────
@@ -52,7 +53,7 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
       );
       expect(res.status).toBe(201);
 
-      const json = (await res.json()) as {
+      const json = (await readJson(res)) as {
         items: {
           id: string;
           printingId: string;
@@ -77,7 +78,7 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
       );
       expect(res.status).toBe(201);
 
-      const json = (await res.json()) as { items: { collectionId: string }[] };
+      const json = (await readJson(res)) as { items: { collectionId: string }[] };
       // Should go to inbox, which is different from our test collection
       expect(json.items[0].collectionId).not.toBe(collectionId);
     });
@@ -134,7 +135,7 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
         );
         expect(res.status).toBe(201);
 
-        const json = (await res.json()) as {
+        const json = (await readJson(res)) as {
           items: {
             id: string;
             collectionId: string;
@@ -182,7 +183,7 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
       const res = await app.fetch(req("GET", "/copies"));
       expect(res.status).toBe(200);
 
-      const json = (await res.json()) as { items: Record<string, unknown>[] };
+      const json = (await readJson(res)) as { items: Record<string, unknown>[] };
       expect(Array.isArray(json.items)).toBe(true);
       // 3 from first add + 1 from inbox add = 4
       expect(json.items.length).toBe(4);
@@ -208,7 +209,7 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
 
       // Verify the copy is now in the second collection
       const listRes = await app.fetch(req("GET", "/copies"));
-      const list = (await listRes.json()) as { items: { id: string; collectionId: string }[] };
+      const list = (await readJson(listRes)) as { items: { id: string; collectionId: string }[] };
       const moved = list.items.find((item) => item.id === copyIds[0]);
       expect(moved?.collectionId).toBe(secondCollectionId);
     });
@@ -250,7 +251,7 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
         }),
       );
       expect(res.status).toBe(201);
-      const json = (await res.json()) as {
+      const json = (await readJson(res)) as {
         items: { id: string; condition: string | null; links: { url: string }[] }[];
       };
       expect(json.items[0].condition).toBe("near-mint");
@@ -270,7 +271,7 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
       expect(res.status).toBe(204);
 
       const listRes = await app.fetch(req("GET", "/copies"));
-      const list = (await listRes.json()) as {
+      const list = (await readJson(listRes)) as {
         items: {
           id: string;
           condition: string | null;
@@ -297,7 +298,7 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
       expect(res.status).toBe(204);
 
       const listRes = await app.fetch(req("GET", "/copies"));
-      const list = (await listRes.json()) as {
+      const list = (await readJson(listRes)) as {
         items: {
           id: string;
           condition: string | null;
@@ -359,11 +360,11 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
 
       const shareRes = await app.fetch(req("POST", `/collections/${collectionId}/share`));
       expect(shareRes.status).toBe(200);
-      const { shareToken } = (await shareRes.json()) as { shareToken: string };
+      const { shareToken } = (await readJson(shareRes)) as { shareToken: string };
 
       const publicRes = await app.fetch(req("GET", `/collections/share/${shareToken}`));
       expect(publicRes.status).toBe(200);
-      const publicJson = (await publicRes.json()) as {
+      const publicJson = (await readJson(publicRes)) as {
         items: Record<string, unknown>[];
       };
       expect(publicJson.items.length).toBeGreaterThan(0);
@@ -385,7 +386,7 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
 
       // Verify the copy is gone
       const listRes = await app.fetch(req("GET", "/copies"));
-      const list = (await listRes.json()) as { items: { id: string }[] };
+      const list = (await readJson(listRes)) as { items: { id: string }[] };
       expect(list.items.find((item) => item.id === copyIds[2])).toBeUndefined();
     });
 
@@ -408,7 +409,7 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
       const res = await app.fetch(req("GET", "/collection-events"));
       expect(res.status).toBe(200);
 
-      const json = (await res.json()) as { items: { action: string }[] };
+      const json = (await readJson(res)) as { items: { action: string }[] };
       const actions = json.items.map((e) => e.action);
       // Should have: added (x3 from setup), moved, removed
       expect(actions).toContain("added");

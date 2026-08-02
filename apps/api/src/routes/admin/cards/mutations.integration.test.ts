@@ -5,6 +5,7 @@ import {
   createTestContext,
   syncCardCardTypes,
 } from "../../../test/integration-context.js";
+import { readJson } from "../../../test/read-json.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Card-sources mutation routes
@@ -82,6 +83,8 @@ if (ctx) {
       printedEffectText: null,
       flavorText: null,
       comment: null,
+      size: "standard",
+      language: "EN",
     })
     .returning("id")
     .execute();
@@ -104,6 +107,8 @@ if (ctx) {
       printedEffectText: null,
       flavorText: null,
       comment: null,
+      size: "standard",
+      language: "EN",
     })
     .returning("id")
     .execute();
@@ -330,7 +335,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       );
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.updated).toBeGreaterThanOrEqual(1);
     });
 
@@ -355,7 +360,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       );
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.updated).toBeGreaterThanOrEqual(2);
     });
   });
@@ -374,7 +379,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       const res = await app.fetch(adminReq("POST", `${P}/${cardId}/check-all`));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.updated).toBeGreaterThanOrEqual(1);
     });
 
@@ -898,6 +903,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           artist: "Artist A",
           publicCode: "CSM",
           language: "EN",
+          size: "standard",
         })
         .returning("id")
         .execute();
@@ -921,6 +927,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           artist: "Artist A",
           publicCode: "CSM",
           language: "SC",
+          size: "standard",
         })
         .returning("id")
         .execute();
@@ -1088,7 +1095,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       );
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.printingId).toBeTypeOf("string");
 
       // Verify the printing was created
@@ -1151,7 +1158,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       );
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.printingId).toBeTypeOf("string");
     });
 
@@ -1198,7 +1205,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       );
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.printingId).toBeTypeOf("string");
 
       // Verify isSigned/markerSlugs on the printing
@@ -1340,7 +1347,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       );
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.newCards).toBeTypeOf("number");
       expect(json.updates).toBeTypeOf("number");
       expect(json.unchanged).toBeTypeOf("number");
@@ -1705,6 +1712,8 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           printedEffectText: null,
           flavorText: null,
           comment: null,
+          size: "standard",
+          language: "EN",
         })
         .returning("id")
         .execute();
@@ -1793,7 +1802,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       const res = await app.fetch(adminReq("POST", `${P}/by-provider/csm-gallery/check`));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.cardsChecked).toBeGreaterThanOrEqual(1);
       expect(json.printingsChecked).toBeTypeOf("number");
     });
@@ -1834,7 +1843,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       const res = await app.fetch(adminReq("DELETE", `${P}/by-provider/csm-spreadsheet`));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.provider).toBe("csm-spreadsheet");
       expect(json.deleted).toBeGreaterThanOrEqual(1);
     });
@@ -1843,7 +1852,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       const res = await app.fetch(adminReq("DELETE", `${P}/by-provider/csm-spreadsheet`));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.deleted).toBe(0);
     });
 

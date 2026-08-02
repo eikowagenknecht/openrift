@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createRepos } from "../../deps.js";
 import { CARD_FURY_UNIT } from "../../test/fixtures/constants.js";
 import { createTestContext, req } from "../../test/integration-context.js";
+import { readJson } from "../../test/read-json.js";
 
 const OWNER_ID = crypto.randomUUID();
 const ADMIN_ID = crypto.randomUUID();
@@ -62,9 +63,9 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
   let strangerDeckId: string;
   let submissionToken: string;
 
-  function push(entries: Record<string, unknown>[]): Promise<Response> {
+  async function push(entries: Record<string, unknown>[]): Promise<Response> {
     // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
-    return ownerCtx!.app.fetch(ingestReq(pushToken, { tournamentId: eventId, entries }));
+    return await ownerCtx!.app.fetch(ingestReq(pushToken, { tournamentId: eventId, entries }));
   }
 
   async function createUser(userId: string, email: string, verified: boolean): Promise<void> {
@@ -120,7 +121,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
     const keyRes = await ownerApp.fetch(
       req("POST", "/me/deck-check-keys", { label: "player-itest" }),
     );
-    pushToken = ((await keyRes.json()) as { token: string }).token;
+    pushToken = ((await readJson(keyRes)) as { token: string }).token;
 
     for (const [userId, assign] of [
       [PLAYER_ID, (id: string) => (playerDeckId = id)],
@@ -204,7 +205,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
     it("resolves the caller's own entry from the tournament id", async () => {
       const res = await playerApp.fetch(req("GET", `/deck-check/mine/tournament/${eventId}`));
       expect(res.status).toBe(200);
-      const body = (await res.json()) as { entry: { eventName: string } };
+      const body = (await readJson(res)) as { entry: { eventName: string } };
       expect(body.entry.eventName).toBe("Self-Service Cup");
     });
 
@@ -269,7 +270,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
           req("GET", `/deck-check/mine/tournament/${tournament.id}`),
         );
         expect(detailRes.status).toBe(200);
-        const detail = (await detailRes.json()) as {
+        const detail = (await readJson(detailRes)) as {
           entry: { id: string; eventName: string; groupName: string | null };
         };
         expect(detail.entry.id).toBe(entry.id);
@@ -318,7 +319,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
       expect(after?.claimedUserId).toBeNull();
       expect(after?.claimBlockedAt).not.toBeNull();
       const reclaim = await memberApp.fetch(req("POST", `/deck-check/claim/${entry?.claimToken}`));
-      expect(((await reclaim.json()) as { status: string }).status).toBe("blocked");
+      expect(((await readJson(reclaim)) as { status: string }).status).toBe("blocked");
     });
   });
 
@@ -329,13 +330,13 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
       await ownerApp.fetch(req("PATCH", `/tournaments/${eventId}`, { selfRegistration: true }));
       const res = await ownerApp.fetch(req("POST", `/tournaments/${eventId}/submission-token`));
       expect(res.status).toBe(200);
-      const body = (await res.json()) as { submissionToken: string | null };
+      const body = (await readJson(res)) as { submissionToken: string | null };
       expect(body.submissionToken).not.toBeNull();
       submissionToken = body.submissionToken as string;
 
       const page = await playerApp.fetch(req("GET", `/deck-check/submissions/${submissionToken}`));
       expect(page.status).toBe(200);
-      const pageBody = (await page.json()) as {
+      const pageBody = (await readJson(page)) as {
         submissionsOpen: boolean;
         linkedEntry: { id: string } | null;
       };
@@ -351,7 +352,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
         req("POST", `/deck-check/submissions/${submissionToken}`, { deckId: playerDeckId }),
       );
       expect(res.status).toBe(200);
-      const body = (await res.json()) as { entryId: string | null };
+      const body = (await readJson(res)) as { entryId: string | null };
       expect(body.entryId).toBe(entry?.id);
       const after = await repos.deckCheck.getEntryByExternalId(eventId, "p-entry-1");
       expect(after?.state).toBe("submitted");
@@ -385,7 +386,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
           cards: [{ name: CARD_FURY_UNIT.name, quantity: 1, section: "main" }],
         },
       ]);
-      const result = (await res.json()) as { entriesUpdated: number; entriesIgnored: number };
+      const result = (await readJson(res)) as { entriesUpdated: number; entriesIgnored: number };
       expect(result.entriesUpdated).toBe(1);
       // Deprecated field, always 0 since ADR-027 removed edit-takeover.
       expect(result.entriesIgnored).toBe(0);
@@ -418,7 +419,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
 
       // Viewing still works; the deck page badges the entry as withdrawn.
       const view = await playerApp.fetch(req("GET", `/deck-check/mine/tournament/${eventId}`));
-      const body = (await view.json()) as { entry: { state: string } };
+      const body = (await readJson(view)) as { entry: { state: string } };
       expect(body.entry.state).toBe("withdrawn");
     });
 
@@ -434,7 +435,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
         req("POST", `/deck-check/submissions/${submissionToken}`, { deckId: strangerDeckId }),
       );
       expect(first.status).toBe(200);
-      const firstBody = (await first.json()) as { entryId: string };
+      const firstBody = (await readJson(first)) as { entryId: string };
 
       const entry = await repos.deckCheck.getEntryByExternalId(eventId, `openrift:${STRANGER_ID}`);
       expect(entry?.id).toBe(firstBody.entryId);
@@ -445,7 +446,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
       const second = await strangerApp.fetch(
         req("POST", `/deck-check/submissions/${submissionToken}`, { deckId: strangerDeckId }),
       );
-      const secondBody = (await second.json()) as { entryId: string };
+      const secondBody = (await readJson(second)) as { entryId: string };
       expect(secondBody.entryId).toBe(firstBody.entryId);
     });
 
@@ -517,7 +518,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
         }),
       );
       expect(res.status).toBe(200);
-      const body = (await res.json()) as { entryId: string | null; cards: unknown[] };
+      const body = (await readJson(res)) as { entryId: string | null; cards: unknown[] };
       expect(body.entryId).toBeNull();
       expect(body.cards.length).toBeGreaterThan(0);
       const entriesAfter = await repos.deckCheck.listEntriesForEvent(eventId);
@@ -573,7 +574,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
 
       const regen = await ownerApp.fetch(req("POST", `/tournaments/${eventId}/submission-token`));
       expect(regen.status).toBe(200);
-      const newToken = ((await regen.json()) as { submissionToken: string }).submissionToken;
+      const newToken = ((await readJson(regen)) as { submissionToken: string }).submissionToken;
       expect(newToken).not.toBe(submissionToken);
 
       const oldDead = await playerApp.fetch(
@@ -597,7 +598,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
 
       const view = await strangerApp.fetch(req("GET", `/deck-check/mine/tournament/${eventId}`));
       expect(view.status).toBe(200);
-      const body = (await view.json()) as { entry: { canEdit: boolean } };
+      const body = (await readJson(view)) as { entry: { canEdit: boolean } };
       expect(body.entry.canEdit).toBe(false);
     });
   });
@@ -630,8 +631,8 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
       // thing separating the two payloads.
       const mine = await playerApp.fetch(req("GET", `/deck-check/mine/tournament/${eventId}`));
       const theirs = await strangerApp.fetch(req("GET", `/deck-check/mine/tournament/${eventId}`));
-      const mineBody = (await mine.json()) as { entry: { id: string } };
-      const theirsBody = (await theirs.json()) as { entry: { id: string } };
+      const mineBody = (await readJson(mine)) as { entry: { id: string } };
+      const theirsBody = (await readJson(theirs)) as { entry: { id: string } };
       expect(theirsBody.entry.id).toBe(entryId2);
       expect(mineBody.entry.id).not.toBe(entryId2);
     });
@@ -639,7 +640,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
     it("unlocks a submitted entry self-service, then resubmits with a diff", async () => {
       const unlock = await strangerApp.fetch(req("POST", `/deck-check/mine/${entryId2}/unlock`));
       expect(unlock.status).toBe(200);
-      const unlocked = (await unlock.json()) as { entry: { state: string; canEdit: boolean } };
+      const unlocked = (await readJson(unlock)) as { entry: { state: string; canEdit: boolean } };
       expect(unlocked.entry.state).toBe("editable");
       expect(unlocked.entry.canEdit).toBe(true);
 
@@ -673,7 +674,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
       // Direct unlock files a request instead.
       const request = await strangerApp.fetch(req("POST", `/deck-check/mine/${entryId2}/unlock`));
       expect(request.status).toBe(200);
-      const requested = (await request.json()) as {
+      const requested = (await readJson(request)) as {
         entry: { state: string; unlockRequested: boolean };
       };
       expect(requested.entry.state).toBe("approved");
@@ -682,7 +683,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
       // The player can cancel their own request.
       const cancel = await strangerApp.fetch(req("DELETE", `/deck-check/mine/${entryId2}/unlock`));
       expect(
-        ((await cancel.json()) as { entry: { unlockRequested: boolean } }).entry.unlockRequested,
+        ((await readJson(cancel)) as { entry: { unlockRequested: boolean } }).entry.unlockRequested,
       ).toBe(false);
 
       // A judge can decline a request, keeping the approval.
@@ -731,7 +732,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
       expect(reloaded?.playerMessage).toBe("Fix the rune count");
 
       const view = await strangerApp.fetch(req("GET", `/deck-check/mine/tournament/${eventId}`));
-      const body = (await view.json()) as {
+      const body = (await readJson(view)) as {
         entry: { state: string; reviewOutcome: string | null; playerMessage: string | null };
       };
       expect(body.entry.state).toBe("editable");
@@ -786,7 +787,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
         }),
       );
       expect(patch.status).toBe(200);
-      expect(((await patch.json()) as { listLockMode: string }).listLockMode).toBe("on_submit");
+      expect(((await readJson(patch)) as { listLockMode: string }).listLockMode).toBe("on_submit");
 
       const entry = await repos.deckCheck.getEntryByExternalId(eventId, `openrift:${STRANGER_ID}`);
       // oxlint-disable-next-line typescript/no-non-null-assertion -- created by the earlier suite
@@ -802,7 +803,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
     it("a submitted deck only files an unlock request, never unlocks itself", async () => {
       const unlock = await strangerApp.fetch(req("POST", `/deck-check/mine/${entryId2}/unlock`));
       expect(unlock.status).toBe(200);
-      const body = (await unlock.json()) as {
+      const body = (await readJson(unlock)) as {
         entry: { state: string; unlockRequested: boolean; canUnlock: boolean };
       };
       expect(body.entry.state).toBe("submitted");
@@ -829,7 +830,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
         req("GET", `/tournaments/${eventId}/deck-check/entries/${entryId2}`),
       );
       expect(detailRes.status).toBe(200);
-      const detail = (await detailRes.json()) as {
+      const detail = (await readJson(detailRes)) as {
         entry: { state: string };
         cards: unknown[];
         violations: unknown[];
@@ -843,7 +844,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
       const listRes = await judgeApp.fetch(
         req("GET", `/tournaments/${eventId}/deck-check/entries`),
       );
-      const list = (await listRes.json()) as {
+      const list = (await readJson(listRes)) as {
         entries: { id: string; copyCount: number; verifiedCopyCount: number }[];
       };
       const summary = list.entries.find((candidate) => candidate.id === entryId2);
@@ -868,7 +869,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
       const detailRes = await judgeApp.fetch(
         req("GET", `/tournaments/${eventId}/deck-check/entries/${entryId2}`),
       );
-      const detail = (await detailRes.json()) as { entry: { state: string }; cards: unknown[] };
+      const detail = (await readJson(detailRes)) as { entry: { state: string }; cards: unknown[] };
       expect(detail.entry.state).toBe("submitted");
       expect(detail.cards.length).toBeGreaterThan(0);
     });
@@ -887,7 +888,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
         { externalId: "claim-stable", playerName: "C. Stable", cards: [fury] },
       ]);
       expect(first.status).toBe(200);
-      const firstBody = (await first.json()) as {
+      const firstBody = (await readJson(first)) as {
         entries: { externalId: string; entryId: string; claimUrl: string }[];
       };
       const entry = await repos.deckCheck.getEntryByExternalId(eventId, "claim-stable");
@@ -898,7 +899,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
       const second = await push([
         { externalId: "claim-stable", playerName: "C. Stable", cards: [fury] },
       ]);
-      const secondBody = (await second.json()) as {
+      const secondBody = (await readJson(second)) as {
         entries: { externalId: string; claimUrl: string }[];
       };
       expect(
@@ -918,7 +919,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
         .execute();
 
       const res = await push([{ externalId: "claim-mint", playerName: "M. Int", cards: [fury] }]);
-      const body = (await res.json()) as { entries: { externalId: string; claimUrl: string }[] };
+      const body = (await readJson(res)) as { entries: { externalId: string; claimUrl: string }[] };
       const after = await repos.deckCheck.getEntryByExternalId(eventId, "claim-mint");
       expect(after?.claimToken).not.toBeNull();
       const row = body.entries.find((entryRow) => entryRow.externalId === "claim-mint");
@@ -930,7 +931,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
       const entry = await repos.deckCheck.getEntryByExternalId(eventId, "claim-stable");
       const res = await unverifiedApp.fetch(req("GET", `/deck-check/claim/${entry?.claimToken}`));
       expect(res.status).toBe(200);
-      const body = (await res.json()) as {
+      const body = (await readJson(res)) as {
         tournamentName: string;
         groupName: string | null;
         participantName: string;
@@ -951,7 +952,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
       // the one-participant-per-account index (ADR-033).
       const first = await memberApp.fetch(req("POST", `/deck-check/claim/${entry?.claimToken}`));
       expect(first.status).toBe(200);
-      expect((await first.json()) as ClaimResult).toEqual({
+      expect((await readJson(first)) as ClaimResult).toEqual({
         status: "claimed",
         tournamentId: eventId,
         entryId: entry?.id,
@@ -961,7 +962,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
       expect(linked?.claimSource).toBe("claim_link");
 
       const again = await memberApp.fetch(req("POST", `/deck-check/claim/${entry?.claimToken}`));
-      expect((await again.json()) as ClaimResult).toEqual({
+      expect((await readJson(again)) as ClaimResult).toEqual({
         status: "already",
         tournamentId: eventId,
         entryId: entry?.id,
@@ -971,7 +972,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
     it("refuses a claim for an entry linked to a different account", async () => {
       const entry = await repos.deckCheck.getEntryByExternalId(eventId, "claim-unclaimed");
       const res = await playerApp.fetch(req("POST", `/deck-check/claim/${entry?.claimToken}`));
-      expect((await res.json()) as ClaimResult).toEqual({
+      expect((await readJson(res)) as ClaimResult).toEqual({
         status: "conflict",
         tournamentId: null,
         entryId: null,
@@ -992,7 +993,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
         .execute();
 
       const res = await strangerApp.fetch(req("POST", `/deck-check/claim/${entry?.claimToken}`));
-      expect((await res.json()) as ClaimResult).toEqual({
+      expect((await readJson(res)) as ClaimResult).toEqual({
         status: "blocked",
         tournamentId: null,
         entryId: null,
@@ -1006,7 +1007,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
       const entry = await repos.deckCheck.getEntryByExternalId(eventId, "claim-unverified");
       const res = await unverifiedApp.fetch(req("POST", `/deck-check/claim/${entry?.claimToken}`));
       expect(res.status).toBe(200);
-      expect((await res.json()) as ClaimResult).toEqual({
+      expect((await readJson(res)) as ClaimResult).toEqual({
         status: "claimed",
         tournamentId: eventId,
         entryId: entry?.id,

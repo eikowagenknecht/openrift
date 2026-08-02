@@ -5,22 +5,55 @@ import type { IngestCard, IngestPrinting } from "../routes/admin/cards/schemas.j
 import { createTestContext, syncCardCardTypes } from "../test/integration-context.js";
 import { ingestCandidates } from "./ingest-candidates.js";
 
-// Helpers — default external_id from short_code (cards) or short_code (printings)
-// so every test object satisfies the NOT NULL constraint without repeating it.
-type CardInput = Omit<IngestCard, "external_id" | "printings"> & {
-  external_id?: string;
-  printings?: PrintingInput[];
-};
-type PrintingInput = Omit<IngestPrinting, "external_id"> & { external_id?: string };
+// Helpers — a test spells only the fields it asserts on; these fill the rest
+// with the same defaults `ingestCardFieldsSchema` / `ingestPrintingSchema`
+// apply, including the external_id every candidate row needs (NOT NULL).
+type CardInput = Partial<Omit<IngestCard, "printings">> &
+  Pick<IngestCard, "name"> & { printings?: readonly PrintingInput[] };
+type PrintingInput = Partial<IngestPrinting> & Pick<IngestPrinting, "short_code">;
 
 function card(input: CardInput): IngestCard {
   return {
+    types: [],
+    super_types: [],
+    domains: [],
+    might: null,
+    energy: null,
+    power: null,
+    might_bonus: null,
+    rules_text: null,
+    effect_text: null,
+    tags: [],
+    short_code: null,
+    extra_data: null,
     ...input,
     external_id: input.external_id ?? input.short_code ?? input.name,
-    printings: (input.printings ?? []).map((p) => ({
-      ...p,
-      external_id: p.external_id ?? p.short_code,
-    })),
+    printings: (input.printings ?? []).map((p) => printing(p)),
+  };
+}
+
+function printing(input: PrintingInput): IngestPrinting {
+  return {
+    set_id: null,
+    set_name: null,
+    rarity: null,
+    art_variant: null,
+    is_signed: false,
+    marker_slugs: [],
+    distribution_channel_slugs: [],
+    finish: null,
+    size: null,
+    artist: null,
+    public_code: null,
+    printed_rules_text: null,
+    printed_effect_text: null,
+    image_url: null,
+    flavor_text: null,
+    extra_data: null,
+    language: null,
+    printed_name: null,
+    ...input,
+    external_id: input.external_id ?? input.short_code,
   };
 }
 
@@ -38,9 +71,8 @@ const ctx = createTestContext(USER_ID);
 const SOURCE = "ingest-test";
 
 describe.skipIf(!ctx)("ingestCandidates integration", () => {
-  // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf; db is only used inside it() callbacks
-  const db = ctx?.db ?? (null as any);
-  const transact = db ? createTransact(db) : (null as any);
+  const { db } = ctx!;
+  const transact = createTransact(db);
 
   // Seed data UUIDs populated by beforeAll
   let seedSetId: string;
@@ -133,6 +165,8 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
           artVariant: "normal",
           isSigned: false,
           finish: "normal",
+          size: "standard",
+          language: "EN",
           artist: "Test Artist",
           publicCode: "IGT-001/010",
           printedRulesText: null,
@@ -376,7 +410,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     // The diff value must be coerced to a serializable scalar.
     const base = {
       name: "Extra Card",
-      types: ["unit"] as const,
+      types: ["unit"],
       super_types: [] as string[],
       domains: ["mind"],
       might: 1,

@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { CARD_FURY_UNIT, PRINTING_1, PRINTING_2 } from "../../test/fixtures/constants.js";
 import { createTestContext, req, seedTestUser } from "../../test/integration-context.js";
+import { readJson } from "../../test/read-json.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: POST /collections/reset (danger-zone reset)
@@ -50,7 +51,7 @@ describe.skipIf(!ctx)("POST /collections/reset (integration)", () => {
   ): Promise<string> {
     const res = await app.fetch(req("POST", "/lists", { name, intent, kind }));
     expect(res.status).toBe(201);
-    const json = (await res.json()) as { id: string };
+    const json = (await readJson(res)) as { id: string };
     return json.id;
   }
 
@@ -117,7 +118,7 @@ describe.skipIf(!ctx)("POST /collections/reset (integration)", () => {
     const res = await app.fetch(req("POST", "/collections/reset"));
     expect(res.status).toBe(200);
 
-    const json = (await res.json()) as ResetCollectionsResponse;
+    const json = (await readJson(res)) as ResetCollectionsResponse;
     expect(json.removedCopies).toBe(3);
     expect(json.removedCollections).toBe(1);
     expect(json.removedLists).toBe(1);
@@ -165,7 +166,7 @@ describe.skipIf(!ctx)("POST /collections/reset (integration)", () => {
     const res = await app.fetch(req("POST", "/collections/reset"));
     expect(res.status).toBe(200);
 
-    const json = (await res.json()) as ResetCollectionsResponse;
+    const json = (await readJson(res)) as ResetCollectionsResponse;
     expect(json.removedCopies).toBe(0);
     expect(json.removedCollections).toBe(0);
     expect(json.removedLists).toBe(0);

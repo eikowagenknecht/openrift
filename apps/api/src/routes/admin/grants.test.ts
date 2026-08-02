@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminGrantsRouter } from "./grants";
 
@@ -39,7 +40,7 @@ describe("GET /admin-grants", () => {
 
     const res = await app.request("/api/admin/v1/admin-grants");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.grants).toEqual([
       { userId: TARGET_ID, userName: "Vi", userEmail: "vi@example.com", section: "custom-tags" },
     ]);
@@ -53,7 +54,7 @@ describe("GET /admin-grants", () => {
 
     const res = await app.request("/api/admin/v1/admin-grants");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.grants).toHaveLength(1);
     expect(json.grants[0].section).toBe("custom-tags");
   });

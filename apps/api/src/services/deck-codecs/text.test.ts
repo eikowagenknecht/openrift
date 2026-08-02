@@ -13,7 +13,6 @@ function card(overrides: Partial<DeckCodecCard> & { cardName: string }): DeckCod
     superTypes: [],
     domains: [],
     preferredPrintingId: null,
-    cardName: overrides.cardName,
     ...overrides,
   };
 }

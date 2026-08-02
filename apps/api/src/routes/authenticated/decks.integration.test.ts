@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { CARD_CALM_UNIT, CARD_FURY_UNIT } from "../../test/fixtures/constants.js";
 import { createTestContext, req } from "../../test/integration-context.js";
+import { readJson } from "../../test/read-json.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Decks routes
@@ -32,7 +33,7 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       );
       expect(res.status).toBe(201);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.id).toBeTypeOf("string");
       expect(json.name).toBe("My Deck");
       expect(json.format).toBe("constructed");
@@ -47,7 +48,7 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       );
       expect(res.status).toBe(201);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.format).toBe("freeform");
     });
 
@@ -57,7 +58,7 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       );
       expect(res.status).toBe(201);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.isWanted).toBe(true);
       wantedDeckId = json.id;
     });
@@ -85,7 +86,7 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       const res = await app.fetch(req("GET", "/decks"));
       expect(res.status).toBe(200);
 
-      const json = (await res.json()) as { items: unknown[] };
+      const json = (await readJson(res)) as { items: unknown[] };
       expect(Array.isArray(json.items)).toBe(true);
       expect(json.items.length).toBe(3);
     });
@@ -97,7 +98,7 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       // The list item shape is { deck: { id, ... }, isValid, ... } — there is
       // no top-level isWanted field, so verify the filter by identity: only the
       // wanted deck created above comes back.
-      const json = (await res.json()) as { items: { deck: { id: string } }[] };
+      const json = (await readJson(res)) as { items: { deck: { id: string } }[] };
       expect(json.items.length).toBe(1);
       expect(json.items[0].deck.id).toBe(wantedDeckId);
     });
@@ -110,7 +111,7 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       const res = await app.fetch(req("GET", `/decks/${deckId}`));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       // Custom getOne returns { deck, cards } shape
       expect(json.deck.id).toBe(deckId);
       expect(json.deck.name).toBe("My Deck");
@@ -133,7 +134,7 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       const res = await app.fetch(req("PATCH", `/decks/${deckId}`, { name: "Renamed Deck" }));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.name).toBe("Renamed Deck");
     });
 
@@ -143,7 +144,7 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       );
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.description).toBe("A great deck");
     });
 
@@ -167,13 +168,13 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
         }),
       );
       expect(res.status).toBe(200);
-      const json = (await res.json()) as { cards: unknown[] };
+      const json = (await readJson(res)) as { cards: unknown[] };
       expect(Array.isArray(json.cards)).toBe(true);
     });
 
     it("verifies cards were saved via GET", async () => {
       const res = await app.fetch(req("GET", `/decks/${deckId}`));
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.cards.length).toBe(2);
       // Authenticated deck-card rows carry { cardId, zone, quantity,
       // preferredPrintingId } — no denormalized cardName (that lives on the
@@ -187,7 +188,7 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
     // deck-validation rules surface as the `isValid` flag on GET /decks.
     async function isDeckValid(): Promise<boolean> {
       const listRes = await app.fetch(req("GET", "/decks"));
-      const list = (await listRes.json()) as {
+      const list = (await readJson(listRes)) as {
         items: { deck: { id: string }; isValid: boolean }[];
       };
       const entry = list.items.find((item) => item.deck.id === deckId);
@@ -226,7 +227,7 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       );
       expect(res.status).toBe(200);
 
-      const json = (await res.json()) as { cards: unknown[] };
+      const json = (await readJson(res)) as { cards: unknown[] };
       expect(json.cards.length).toBe(1);
     });
 
@@ -276,7 +277,7 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
         }),
       );
       expect(res.status).toBe(201);
-      const json = await res.json();
+      const json = await readJson(res);
       shareDeckId = json.id;
       expect(json.isPublic).toBe(false);
       expect(json.shareToken).toBeNull();
@@ -285,7 +286,7 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
     it("reports an unshared deck as { shareToken: null, isPublic: false } on GET /decks/:id/share", async () => {
       const res = await app.fetch(req("GET", `/decks/${shareDeckId}/share`));
       expect(res.status).toBe(200);
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.shareToken).toBeNull();
       expect(json.isPublic).toBe(false);
     });
@@ -293,7 +294,7 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
     it("generates a share token on POST /decks/:id/share", async () => {
       const res = await app.fetch(req("POST", `/decks/${shareDeckId}/share`));
       expect(res.status).toBe(200);
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.isPublic).toBe(true);
       expect(json.shareToken).toMatch(/^[A-Za-z0-9]{12}$/u);
       shareToken = json.shareToken;
@@ -302,7 +303,7 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
     it("reflects the shared state on GET /decks/:id/share", async () => {
       const res = await app.fetch(req("GET", `/decks/${shareDeckId}/share`));
       expect(res.status).toBe(200);
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.isPublic).toBe(true);
       expect(json.shareToken).toBe(shareToken);
     });
@@ -310,7 +311,7 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
     it("is idempotent: re-sharing returns the same token", async () => {
       const res = await app.fetch(req("POST", `/decks/${shareDeckId}/share`));
       expect(res.status).toBe(200);
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.isPublic).toBe(true);
       // Re-share does NOT churn the token — the existing one is returned.
       expect(json.shareToken).toBe(shareToken);
@@ -324,7 +325,7 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       const oldToken = shareToken;
       const res = await app.fetch(req("POST", `/decks/${shareDeckId}/share/rotate`));
       expect(res.status).toBe(200);
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.isPublic).toBe(true);
       expect(json.shareToken).toMatch(/^[A-Za-z0-9]{12}$/u);
       expect(json.shareToken).not.toBe(oldToken);
@@ -341,7 +342,7 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
 
     it("reflects isPublic=true and shareToken on GET /decks/:id", async () => {
       const res = await app.fetch(req("GET", `/decks/${shareDeckId}`));
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.deck.isPublic).toBe(true);
       expect(json.deck.shareToken).toBe(shareToken);
     });
@@ -349,7 +350,7 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
     it("returns the deck to anonymous callers via GET /decks/share/:token", async () => {
       const res = await app.fetch(req("GET", `/decks/share/${shareToken}`));
       expect(res.status).toBe(200);
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.deck.id).toBe(shareDeckId);
       expect(json.deck.name).toBe("Shareable");
       expect(json.deck.description).toBe("A friendly deck");
@@ -366,14 +367,14 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       return (async () => {
         const res = await otherUser.app.fetch(req("POST", `/decks/share/${shareToken}/clone`));
         expect(res.status).toBe(201);
-        const json = await res.json();
+        const json = await readJson(res);
         expect(json.deckId).toBeTypeOf("string");
         expect(json.deckId).not.toBe(shareDeckId);
 
         // Verify the clone exists under the second user, private, named "Copy of ..."
         const detail = await otherUser.app.fetch(req("GET", `/decks/${json.deckId}`));
         expect(detail.status).toBe(200);
-        const detailJson = await detail.json();
+        const detailJson = await readJson(detail);
         expect(detailJson.deck.name).toBe("Copy of Shareable");
         expect(detailJson.deck.isPublic).toBe(false);
         expect(detailJson.deck.isWanted).toBe(false);
@@ -391,7 +392,7 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       // not a 404 for an owned deck).
       const state = await app.fetch(req("GET", `/decks/${shareDeckId}/share`));
       expect(state.status).toBe(200);
-      const stateJson = await state.json();
+      const stateJson = await readJson(state);
       expect(stateJson.shareToken).toBeNull();
       expect(stateJson.isPublic).toBe(false);
     });
@@ -400,7 +401,7 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       const deadToken = shareToken;
       const res = await app.fetch(req("POST", `/decks/${shareDeckId}/share`));
       expect(res.status).toBe(200);
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.isPublic).toBe(true);
       expect(json.shareToken).not.toBe(deadToken);
 

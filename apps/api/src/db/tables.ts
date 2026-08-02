@@ -666,7 +666,7 @@ export interface ListsTable {
    * a json-encoded scalar string. NOT NULL with a `'[]'` default, so insert may
    * omit it. Empty array = manual-only list.
    */
-  rules: ColumnType<ListRules, ListRules, ListRules>;
+  rules: ColumnType<ListRules, ListRules | undefined, ListRules>;
   /**
    * How several rules combine (ADR-034 amendment 2, migration 190). NULL = the
    * intent's default (wish: sum, trade: protect). CHECK constrains the slugs.

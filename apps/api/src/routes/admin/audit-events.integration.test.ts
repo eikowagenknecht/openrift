@@ -6,6 +6,7 @@ import {
   seedTestUser,
   syncCardCardTypes,
 } from "../../test/integration-context.js";
+import { readJson } from "../../test/read-json.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: /api/admin/v1/audit-events (migration 201)
@@ -70,7 +71,7 @@ describe.skipIf(!adminCtx || !grantCtx)("audit-events routes (integration)", () 
       adminReq("GET", `/audit-events?actorUserId=${ADMIN_ID}&search=AER`),
     );
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
 
     expect(json.items.length).toBeGreaterThanOrEqual(1);
     const event = json.items.find(
@@ -89,7 +90,7 @@ describe.skipIf(!adminCtx || !grantCtx)("audit-events routes (integration)", () 
   it("lists the actor in the actors endpoint", async () => {
     const res = await adminApp.fetch(adminReq("GET", "/audit-events/actors"));
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     const ids = json.actors.map((a: { userId: string }) => a.userId);
     expect(ids).toContain(ADMIN_ID);
   });

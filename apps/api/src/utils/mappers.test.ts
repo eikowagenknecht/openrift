@@ -121,6 +121,7 @@ describe("toDeck", () => {
       name: "Aggro",
       description: "Fast opener",
       format: "constructed",
+      formatConfig: null,
       isWanted: true,
       isPublic: true,
       shareToken: "tok-abc",
@@ -134,6 +135,7 @@ describe("toDeck", () => {
       name: "Aggro",
       description: "Fast opener",
       format: "constructed",
+      formatConfig: null,
       isWanted: true,
       isPublic: true,
       shareToken: "tok-abc",
@@ -151,6 +153,7 @@ describe("toDeck", () => {
       name: "Aggro",
       description: null,
       format: "constructed",
+      formatConfig: null,
       isWanted: false,
       isPublic: false,
       shareToken: null,
@@ -175,6 +178,7 @@ describe("toPublicDeck", () => {
       name: "Aggro",
       description: "Fast opener",
       format: "constructed",
+      formatConfig: null,
       isWanted: false,
       isPublic: true,
       shareToken: "tok-abc",
@@ -188,6 +192,7 @@ describe("toPublicDeck", () => {
       name: "Aggro",
       description: "Fast opener",
       format: "constructed",
+      formatConfig: null,
       createdAt: "2025-06-15T12:00:00.000Z",
       updatedAt: "2025-06-16T08:30:00.000Z",
     });
@@ -209,6 +214,7 @@ describe("toDeckSummary", () => {
       name: "Aggro",
       description: "A fast deck",
       format: "constructed",
+      formatConfig: null,
       isWanted: true,
       isPublic: true,
       shareToken: "abc123",
@@ -221,6 +227,7 @@ describe("toDeckSummary", () => {
       id: "deck-1",
       name: "Aggro",
       format: "constructed",
+      formatConfig: null,
       isPinned: true,
       archivedAt: null,
       createdAt: "2025-06-15T12:00:00.000Z",
@@ -236,6 +243,7 @@ describe("toDeckSummary", () => {
       name: "Old",
       description: null,
       format: "freeform",
+      formatConfig: null,
       isWanted: false,
       isPublic: false,
       shareToken: null,
@@ -269,6 +277,9 @@ describe("toList", () => {
       defaultPriceAbsoluteCents: null,
       defaultTradeType: null,
       currency: null,
+      rules: [],
+      ruleCombine: null,
+      sortOrder: 0,
     });
     expect(result).toEqual({
       id: "lst-1",
@@ -301,6 +312,9 @@ describe("toList", () => {
       defaultPriceAbsoluteCents: null,
       defaultTradeType: null,
       currency: null,
+      rules: [],
+      ruleCombine: null,
+      sortOrder: 0,
     });
     expect(result.entryCount).toBe(0);
     expect(result.isPublic).toBe(true);
@@ -323,6 +337,9 @@ describe("toList", () => {
       defaultPriceAbsoluteCents: null,
       defaultTradeType: "cards",
       currency: "EUR",
+      rules: [],
+      ruleCombine: null,
+      sortOrder: 0,
     });
     expect(result.tradeDefaults).toEqual({
       pricePref: "cm_lowest",
@@ -372,6 +389,7 @@ describe("toListDetail", () => {
       defaultPriceAbsoluteCents: null,
       defaultTradeType: null,
       currency: "EUR",
+      sortOrder: 0,
       // The DB column is typed ListRules but arrives as a raw JSON string.
       rules: rulesJson as never,
       ruleCombine: null,
@@ -409,6 +427,9 @@ describe("toPublicList", () => {
       defaultPriceAbsoluteCents: null,
       defaultTradeType: null,
       currency: null,
+      rules: [],
+      ruleCombine: null,
+      sortOrder: 0,
     });
     expect(result).toEqual({
       id: "lst-1",
@@ -487,6 +508,8 @@ describe("toListEntry", () => {
 // toListEntryDetail
 // ---------------------------------------------------------------------------
 
+const NO_TRADE_OVERRIDE = { pricePref: null, priceAbsoluteCents: null, tradeType: null };
+
 describe("toListEntryDetail", () => {
   it("maps a card-kind entry with just card identity + name", () => {
     const result = toListEntryDetail({
@@ -494,16 +517,22 @@ describe("toListEntryDetail", () => {
       id: "le-1",
       listId: "lst-1",
       quantity: 2,
+      source: "manual",
+      ruleQuantity: 0,
       cardId: "card-1",
       cardName: "Fire Dragon",
+      tradeOverride: NO_TRADE_OVERRIDE,
     });
     expect(result).toEqual({
       kind: "card",
       id: "le-1",
       listId: "lst-1",
       quantity: 2,
+      source: "manual",
+      ruleQuantity: 0,
       cardId: "card-1",
       cardName: "Fire Dragon",
+      tradeOverride: NO_TRADE_OVERRIDE,
     });
   });
 
@@ -513,24 +542,34 @@ describe("toListEntryDetail", () => {
       id: "le-2",
       listId: "lst-1",
       quantity: 1,
+      source: "manual",
+      ruleQuantity: 0,
       printingId: "p-1",
       cardName: "Fire Dragon",
       setId: "set-1",
       rarity: "rare",
       finish: "foil",
+      shortCode: "OGS-005",
+      language: "EN",
       imageId: "img-1",
+      tradeOverride: NO_TRADE_OVERRIDE,
     });
     expect(result).toEqual({
       kind: "printing",
       id: "le-2",
       listId: "lst-1",
       quantity: 1,
+      source: "manual",
+      ruleQuantity: 0,
       printingId: "p-1",
       cardName: "Fire Dragon",
       setId: "set-1",
       rarity: "rare",
       finish: "foil",
+      shortCode: "OGS-005",
+      language: "EN",
       imageId: "img-1",
+      tradeOverride: NO_TRADE_OVERRIDE,
     });
   });
 
@@ -543,6 +582,8 @@ describe("toListEntryDetail", () => {
       id: "le-3",
       listId: "lst-1",
       quantity: 1,
+      source: "manual",
+      ruleQuantity: 0,
       copyId: "copy-1",
       printingId: "p-1",
       collectionId: "col-1",
@@ -550,22 +591,32 @@ describe("toListEntryDetail", () => {
       setId: "set-1",
       rarity: "rare",
       finish: "foil",
+      shortCode: "OGS-005",
+      language: "EN",
       imageId: "img-1",
       reserved: true,
+      onLoan: false,
+      tradeOverride: NO_TRADE_OVERRIDE,
     });
     expect(result).toEqual({
       kind: "copy",
       id: "le-3",
       listId: "lst-1",
       quantity: 1,
+      source: "manual",
+      ruleQuantity: 0,
       copyId: "copy-1",
       printingId: "p-1",
       cardName: "Fire Dragon",
       setId: "set-1",
       rarity: "rare",
       finish: "foil",
+      shortCode: "OGS-005",
+      language: "EN",
       imageId: "img-1",
       reserved: true,
+      onLoan: false,
+      tradeOverride: NO_TRADE_OVERRIDE,
     });
   });
 });
@@ -650,6 +701,7 @@ describe("toCollectionEvent", () => {
       rarity: "rare",
       imageId: "uuid-base",
       cardName: "Shadow Knight",
+      cardTypes: ["unit"],
       cardSuperTypes: ["champion"],
       tags: ["Hecarim"],
     });
@@ -667,6 +719,7 @@ describe("toCollectionEvent", () => {
       rarity: "rare",
       imageId: "uuid-base",
       cardName: "Shadow Knight",
+      cardTypes: ["unit"],
       cardSuperTypes: ["champion"],
       tags: ["Hecarim"],
     });
@@ -687,6 +740,7 @@ describe("toCollectionEvent", () => {
       rarity: "rare",
       imageId: null,
       cardName: "Shadow Knight",
+      cardTypes: ["unit"],
       cardSuperTypes: ["champion"],
       tags: [],
     });
@@ -704,11 +758,13 @@ describe("toDeckCard", () => {
       cardId: "card-1",
       zone: "main",
       quantity: 4,
+      preferredPrintingId: null,
     });
     expect(result).toEqual({
       cardId: "card-1",
       zone: "main",
       quantity: 4,
+      preferredPrintingId: null,
     });
   });
 });

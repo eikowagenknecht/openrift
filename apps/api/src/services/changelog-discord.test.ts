@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import type { Fetch } from "../io.js";
 import {
   buildDiscordPayloads,
   extractWatermark,
@@ -36,7 +37,7 @@ function makeJobRunsStub() {
 }
 
 function makeOkFetcher() {
-  return vi.fn(async () => new Response("", { status: 200 })) as never;
+  return vi.fn<Fetch>(async () => new Response("", { status: 200 }));
 }
 
 describe("parseChangelogSections", () => {
@@ -226,12 +227,8 @@ describe("postChangelogToDiscord", () => {
     });
 
     expect(fetcher).toHaveBeenCalledTimes(2);
-    const firstBody = JSON.parse(
-      (fetcher as never as { mock: { calls: unknown[][] } }).mock.calls[0][1].body,
-    );
-    const secondBody = JSON.parse(
-      (fetcher as never as { mock: { calls: unknown[][] } }).mock.calls[1][1].body,
-    );
+    const firstBody = JSON.parse((fetcher.mock.calls[0]![1] as { body: string }).body);
+    const secondBody = JSON.parse((fetcher.mock.calls[1]![1] as { body: string }).body);
     expect(firstBody.embeds[0].title).toBe("What's new (2026-04-07)");
     expect(secondBody.embeds[0].title).toBe("What's new (2026-04-08)");
     expect(result).toEqual({ posted: 2, lastPostedDate: "2026-04-08" });

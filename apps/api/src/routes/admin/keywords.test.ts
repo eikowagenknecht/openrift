@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 
 // The discoverTranslations handler calls the discovery service; mock it so no
@@ -64,7 +65,7 @@ describe("GET /keyword-stats", () => {
 
     const res = await app.request("/api/admin/v1/keyword-stats");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.counts).toEqual([{ keyword: "Accelerate", count: 4 }]);
     expect(json.styles).toEqual([
       { name: "Accelerate", color: "#24705f", darkText: false, costKeyword: false },
@@ -150,7 +151,7 @@ describe("POST /recompute-keywords", () => {
 
     const res = await app.request("/api/admin/v1/recompute-keywords", { method: "POST" });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ totalCards: 100, updated: 7 });
+    expect(await readJson(res)).toEqual({ totalCards: 100, updated: 7 });
     expect(mockCandidateMutations.recomputeAllKeywords).toHaveBeenCalledTimes(1);
   });
 });
@@ -172,7 +173,7 @@ describe("POST /discover-keyword-translations", () => {
       method: "POST",
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.candidatesExamined).toBe(3);
     expect(json.inserted).toBe(1);
     expect(discoverMock).toHaveBeenCalledTimes(1);

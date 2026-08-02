@@ -6,6 +6,7 @@ import {
   refreshCardAggregates,
   syncCardCardTypes,
 } from "../../../test/integration-context.js";
+import { readJson } from "../../../test/read-json.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: card-review per-section grant (ADR-040 lineage)
@@ -51,8 +52,20 @@ if (adminCtx && grantCtx) {
   await db
     .insertInto("providerSettings")
     .values([
-      { provider: ALLOWED, helperReviewable: true },
-      { provider: DENIED, helperReviewable: false },
+      {
+        provider: ALLOWED,
+        helperReviewable: true,
+        isFavorite: false,
+        isHidden: false,
+        sortOrder: 0,
+      },
+      {
+        provider: DENIED,
+        helperReviewable: false,
+        isFavorite: false,
+        isHidden: false,
+        sortOrder: 0,
+      },
     ])
     .onConflict((oc) => oc.column("provider").doNothing())
     .execute();
@@ -132,6 +145,8 @@ if (adminCtx && grantCtx) {
       printedEffectText: null,
       flavorText: null,
       comment: null,
+      size: "standard",
+      language: "EN",
     })
     .returning("id")
     .execute();
@@ -299,7 +314,7 @@ describe.skipIf(!adminCtx || !grantCtx)("card-review grant (integration)", () =>
     it("filters the candidate list to allowed providers", async () => {
       const res = await grantApp.fetch(adminReq("GET", "/cards"));
       expect(res.status).toBe(200);
-      const json = await res.json();
+      const json = await readJson(res);
 
       const bySlug = (slug: string) =>
         json.find((r: { cardSlug: string | null }) => r.cardSlug === slug);
@@ -318,7 +333,7 @@ describe.skipIf(!adminCtx || !grantCtx)("card-review grant (integration)", () =>
     it("full admins keep the unfiltered list", async () => {
       const res = await adminApp.fetch(adminReq("GET", "/cards"));
       expect(res.status).toBe(200);
-      const json = await res.json();
+      const json = await readJson(res);
 
       const card1 = json.find((r: { cardSlug: string | null }) => r.cardSlug === "CRG-001");
       expect(card1.candidateCount).toBe(2);
@@ -329,7 +344,7 @@ describe.skipIf(!adminCtx || !grantCtx)("card-review grant (integration)", () =>
     it("filters card-detail sources and candidate printings to allowed providers", async () => {
       const res = await grantApp.fetch(adminReq("GET", "/cards/CRG-001"));
       expect(res.status).toBe(200);
-      const json = await res.json();
+      const json = await readJson(res);
 
       expect(json.sources.map((s: { provider: string }) => s.provider)).toEqual([ALLOWED]);
       const cpIds = json.candidatePrintings.map((cp: { id: string }) => cp.id);
@@ -343,7 +358,7 @@ describe.skipIf(!adminCtx || !grantCtx)("card-review grant (integration)", () =>
 
     it("full admins keep both providers on the card detail", async () => {
       const res = await adminApp.fetch(adminReq("GET", "/cards/CRG-001"));
-      const json = await res.json();
+      const json = await readJson(res);
       const providers = json.sources.map((s: { provider: string }) => s.provider).sort();
       expect(providers).toEqual([ALLOWED, DENIED]);
     });
@@ -351,14 +366,14 @@ describe.skipIf(!adminCtx || !grantCtx)("card-review grant (integration)", () =>
     it("filters the unmatched detail to allowed providers", async () => {
       const allowed = await grantApp.fetch(adminReq("GET", "/cards/new/crgallowednew"));
       expect(allowed.status).toBe(200);
-      const allowedJson = await allowed.json();
+      const allowedJson = await readJson(allowed);
       expect(allowedJson.sources).toHaveLength(1);
       expect(allowedJson.sources[0].provider).toBe(ALLOWED);
 
       // the denied group reads as empty, not 403 — it simply isn't visible
       const denied = await grantApp.fetch(adminReq("GET", "/cards/new/crgdeniednew"));
       expect(denied.status).toBe(200);
-      const deniedJson = await denied.json();
+      const deniedJson = await readJson(denied);
       expect(deniedJson.sources).toHaveLength(0);
     });
 
@@ -518,7 +533,7 @@ describe.skipIf(!adminCtx || !grantCtx)("card-review grant (integration)", () =>
         }),
       );
       expect(res.status).toBe(200);
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.printingId).toBeTypeOf("string");
     });
 
@@ -549,7 +564,7 @@ describe.skipIf(!adminCtx || !grantCtx)("card-review grant (integration)", () =>
     it("reaches the me probe and learns its sections", async () => {
       const res = await grantApp.fetch(adminReq("GET", "/me"));
       expect(res.status).toBe(200);
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.isAdmin).toBe(false);
       expect(json.sections).toEqual(["card-review"]);
     });

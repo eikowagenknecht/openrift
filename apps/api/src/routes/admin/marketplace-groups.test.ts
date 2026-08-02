@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminMarketplaceGroupsRouter } from "./marketplace-groups";
 
@@ -75,7 +76,7 @@ describe("GET /marketplace-groups", () => {
 
     const res = await app.request("/api/admin/v1/marketplace-groups");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.groups).toHaveLength(2);
     expect(json.groups[0]).toEqual({
       marketplace: "tcgplayer",
@@ -106,7 +107,7 @@ describe("GET /marketplace-groups", () => {
 
     const res = await app.request("/api/admin/v1/marketplace-groups");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.groups[0].stagedCount).toBe(0);
     expect(json.groups[0].assignedCount).toBe(0);
   });
@@ -204,7 +205,7 @@ describe("PATCH /marketplace-groups/:marketplace/:id", () => {
       body: JSON.stringify({ name: "Unknown" }),
     });
     expect(res.status).toBe(404);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("not found");
   });
 });

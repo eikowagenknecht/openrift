@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, it } from "vitest";
 
 import { createUnauthenticatedTestContext, req } from "../../test/integration-context.js";
+import { readJson } from "../../test/read-json.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Site Settings route
@@ -41,14 +42,14 @@ describe.skipIf(!ctx)("Site Settings route (integration)", () => {
     const res = await app.fetch(req("GET", "/site-settings"));
     expect(res.status).toBe(200);
 
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.settings).toBeDefined();
     expect(typeof json.settings).toBe("object");
   });
 
   it("contains web-scoped settings", async () => {
     const res = await app.fetch(req("GET", "/site-settings"));
-    const json = await res.json();
+    const json = await readJson(res);
 
     expect(json.settings["STS-banner"]).toBe("Welcome to OpenRift!");
     expect(json.settings["STS-maintenance"]).toBe("false");
@@ -56,7 +57,7 @@ describe.skipIf(!ctx)("Site Settings route (integration)", () => {
 
   it("excludes non-web-scoped settings", async () => {
     const res = await app.fetch(req("GET", "/site-settings"));
-    const json = await res.json();
+    const json = await readJson(res);
 
     expect(json.settings["STS-api-only"]).toBeUndefined();
   });

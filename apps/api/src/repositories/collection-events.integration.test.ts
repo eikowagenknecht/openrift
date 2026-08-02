@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { PRINTING_1 } from "../test/fixtures/constants.js";
 import { createTestContext, req } from "../test/integration-context.js";
+import { readJson } from "../test/read-json.js";
 
 const ctx = createTestContext("a0000000-0011-4000-a000-000000000001");
 
@@ -14,7 +15,7 @@ describe.skipIf(!ctx)("collectionEventsRepo via API (integration)", () => {
   it("setup: creates a collection and adds copies to generate events", async () => {
     await app.fetch(req("GET", "/collections"));
     const colRes = await app.fetch(req("POST", "/collections", { name: "CE Repo Test" }));
-    collectionId = ((await colRes.json()) as { id: string }).id;
+    collectionId = ((await readJson(colRes)) as { id: string }).id;
 
     await app.fetch(
       req("POST", "/copies", {
@@ -30,7 +31,7 @@ describe.skipIf(!ctx)("collectionEventsRepo via API (integration)", () => {
     const res = await app.fetch(req("GET", "/collection-events"));
     expect(res.status).toBe(200);
 
-    const json = (await res.json()) as {
+    const json = (await readJson(res)) as {
       items: { action: string; cardName: string; shortCode: string; rarity: string }[];
     };
     expect(json.items.length).toBeGreaterThanOrEqual(2);
@@ -43,7 +44,7 @@ describe.skipIf(!ctx)("collectionEventsRepo via API (integration)", () => {
     const res = await app.fetch(req("GET", "/collection-events?limit=1"));
     expect(res.status).toBe(200);
 
-    const json = (await res.json()) as { items: unknown[]; nextCursor: string | null };
+    const json = (await readJson(res)) as { items: unknown[]; nextCursor: string | null };
     expect(json.items).toHaveLength(1);
     expect(json.nextCursor).not.toBeNull();
   });

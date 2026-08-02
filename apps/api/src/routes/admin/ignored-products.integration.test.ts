@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { CARD_FURY_UNIT } from "../../test/fixtures/constants.js";
 import { adminReq, createTestContext } from "../../test/integration-context.js";
+import { readJson } from "../../test/read-json.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Ignored products & staging card overrides
@@ -97,7 +98,7 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
       );
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.ignored).toBe(1);
     });
 
@@ -111,7 +112,7 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
       );
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.ignored).toBe(0);
 
       // Verify it was not actually inserted
@@ -142,7 +143,7 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
       const res = await app.fetch(adminReq("GET", "/ignored-products"));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       const igpProduct = json.products.find((p: { externalId: number }) => p.externalId === 10_401);
       expect(igpProduct).toBeDefined();
       expect(igpProduct.level).toBe("product");
@@ -166,7 +167,7 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
       );
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.unignored).toBe(1);
     });
 
@@ -174,7 +175,7 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
       const res = await app.fetch(adminReq("GET", "/ignored-products"));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       const igpProduct = json.products.find((p: { externalId: number }) => p.externalId === 10_401);
       expect(igpProduct).toBeUndefined();
     });

@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { promosRouter } from "./promos";
 
@@ -115,7 +116,7 @@ describe("GET /api/v1/promos", () => {
   it("returns an empty payload when there are no channel-distributed printings", async () => {
     const res = await app.request("/api/v1/promos");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.channels).toEqual([]);
     expect(json.cards).toEqual({});
     expect(json.printings).toEqual([]);
@@ -129,7 +130,7 @@ describe("GET /api/v1/promos", () => {
 
     const res = await app.request("/api/v1/promos");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
 
     expect(json.channels).toHaveLength(1);
     expect(json.channels[0]).toMatchObject({
@@ -176,7 +177,7 @@ describe("GET /api/v1/promos", () => {
 
     const res = await app.request("/api/v1/promos");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.cards[CARD_ID].bans).toHaveLength(1);
     expect(json.cards[CARD_ID].bans[0].formatName).toBe("Constructed");
     expect(json.cards[CARD_ID].errata).toMatchObject({

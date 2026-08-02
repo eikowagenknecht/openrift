@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { sitemapRouter } from "./sitemap";
 
@@ -43,7 +44,7 @@ describe("GET /api/v1/sitemap-data", () => {
 
     const res = await app.request("/api/v1/sitemap-data");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.cards).toEqual([{ slug: "jinx-rebel", updatedAt: "2026-04-01T12:00:00.000Z" }]);
     expect(json.sets).toEqual([{ slug: "origins", updatedAt: "2026-03-01T12:00:00.000Z" }]);
     expect(json.products).toEqual([
@@ -61,7 +62,7 @@ describe("GET /api/v1/sitemap-data", () => {
 
     const res = await app.request("/api/v1/sitemap-data");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.cards).toEqual([]);
     expect(json.sets).toEqual([]);
     expect(json.products).toEqual([]);

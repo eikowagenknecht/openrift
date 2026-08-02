@@ -1,8 +1,10 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { Repos } from "../../deps.js";
 import { AppError } from "../../errors.js";
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { listsRouter } from "./lists";
 
@@ -19,7 +21,9 @@ const mockListsRepo = {
   create: vi.fn(() => Promise.resolve({} as object)),
   update: vi.fn(() => Promise.resolve(undefined as object | undefined)),
   deleteByIdForUser: vi.fn(() => Promise.resolve({ numDeletedRows: 0n })),
-  setShareToken: vi.fn(() => Promise.resolve(undefined as object | undefined)),
+  setShareToken: vi.fn((..._args: Parameters<Repos["lists"]["setShareToken"]>) =>
+    Promise.resolve(undefined as object | undefined),
+  ),
   getShareState: vi.fn(() =>
     Promise.resolve(undefined as { shareToken: string | null; isPublic: boolean } | undefined),
   ),
@@ -27,7 +31,9 @@ const mockListsRepo = {
   entriesWithDetails: vi.fn(() => Promise.resolve([] as object[])),
   entriesWithDetailsAnon: vi.fn(() => Promise.resolve([] as object[])),
   createEntry: vi.fn(() => Promise.resolve({} as object)),
-  bulkCreateEntries: vi.fn(() => Promise.resolve({ inserted: 0, updated: 0 })),
+  bulkCreateEntries: vi.fn((..._args: Parameters<Repos["lists"]["bulkCreateEntries"]>) =>
+    Promise.resolve({ inserted: 0, updated: 0 }),
+  ),
   bulkCreateEntriesFromCopies: vi.fn(() => Promise.resolve({ added: 0, updated: 0, skipped: 0 })),
   updateEntry: vi.fn(() => Promise.resolve(undefined as object | undefined)),
   deleteEntry: vi.fn(() => Promise.resolve({ numDeletedRows: 0n })),
@@ -132,7 +138,7 @@ describe("GET /api/v1/lists", () => {
     mockListsRepo.listForUser.mockResolvedValue([{ ...dbList, entryCount: 7 }]);
     const res = await app.request("/api/v1/lists");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.items).toHaveLength(1);
     expect(json.items[0].intent).toBe("wish");
     expect(json.items[0].entryCount).toBe(7);
@@ -256,7 +262,7 @@ describe("GET /api/v1/lists/:id", () => {
     ]);
     const res = await app.request(`/api/v1/lists/${LIST_ID}`);
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.list.id).toBe(LIST_ID);
     expect(json.list.kind).toBe("card");
     expect(json.entries).toHaveLength(1);
@@ -292,7 +298,7 @@ describe("PATCH /api/v1/lists/:id", () => {
       body: JSON.stringify({ name: "Renamed" }),
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.name).toBe("Renamed");
   });
 
@@ -613,7 +619,7 @@ describe("POST /api/v1/lists/:id/entries/bulk", () => {
       }),
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({ added: 1, updated: 0, skipped: 1 });
     // bulkCreateEntries receives kind + only the owned entry.
     expect(mockListsRepo.bulkCreateEntries).toHaveBeenCalled();
@@ -658,7 +664,7 @@ describe("POST /api/v1/lists/:id/entries/bulk", () => {
       }),
     });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ added: 1, updated: 2, skipped: 0 });
+    expect(await readJson(res)).toEqual({ added: 1, updated: 2, skipped: 0 });
   });
 
   it("rejects bulk add when any entry doesn't match the list's kind", async () => {
@@ -698,7 +704,7 @@ describe("POST /api/v1/lists/:id/entries/from-copies", () => {
       body: JSON.stringify({ copyIds: [COPY_ID] }),
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({ added: 2, updated: 1, skipped: 1 });
     // Wish list → personalOnly=true.
     expect(mockListsRepo.bulkCreateEntriesFromCopies).toHaveBeenCalledWith(
@@ -739,7 +745,7 @@ describe("PATCH /api/v1/lists/:id/entries/:itemId", () => {
       body: JSON.stringify({ quantity: 5 }),
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.quantity).toBe(5);
   });
 
@@ -822,7 +828,7 @@ describe("POST /api/v1/lists/:id/share", () => {
     });
     const res = await app.request(`/api/v1/lists/${LIST_ID}/share`, { method: "POST" });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.isPublic).toBe(true);
     expect(typeof json.shareToken).toBe("string");
     expect(mockListsRepo.setShareToken).toHaveBeenCalled();
@@ -837,7 +843,7 @@ describe("POST /api/v1/lists/:id/share", () => {
     mockListsRepo.getShareState.mockResolvedValue({ shareToken: "existing", isPublic: true });
     const res = await app.request(`/api/v1/lists/${LIST_ID}/share`, { method: "POST" });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.shareToken).toBe("existing");
     expect(json.isPublic).toBe(true);
     expect(mockListsRepo.setShareToken).not.toHaveBeenCalled();
@@ -859,14 +865,14 @@ describe("GET /api/v1/lists/:id/share", () => {
     mockListsRepo.getShareState.mockResolvedValue({ shareToken: null, isPublic: false });
     const res = await app.request(`/api/v1/lists/${LIST_ID}/share`);
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ shareToken: null, isPublic: false });
+    expect(await readJson(res)).toEqual({ shareToken: null, isPublic: false });
   });
 
   it("reflects shared state", async () => {
     mockListsRepo.getShareState.mockResolvedValue({ shareToken: "tok", isPublic: true });
     const res = await app.request(`/api/v1/lists/${LIST_ID}/share`);
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ shareToken: "tok", isPublic: true });
+    expect(await readJson(res)).toEqual({ shareToken: "tok", isPublic: true });
   });
 
   it("returns 404 when not owned", async () => {
@@ -885,7 +891,7 @@ describe("POST /api/v1/lists/:id/share/rotate", () => {
     mockListsRepo.setShareToken.mockResolvedValue({ ...dbList, isPublic: true, shareToken: "new" });
     const res = await app.request(`/api/v1/lists/${LIST_ID}/share/rotate`, { method: "POST" });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(typeof json.shareToken).toBe("string");
     expect(json.isPublic).toBe(true);
     const args = mockListsRepo.setShareToken.mock.calls[0] ?? [];

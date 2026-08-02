@@ -6,6 +6,7 @@ import {
   refreshCardAggregates,
   syncCardCardTypes,
 } from "../../test/integration-context.js";
+import { readJson } from "../../test/read-json.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Marketplace mapping mutation routes
@@ -30,7 +31,6 @@ const ctx = createTestContext(USER_ID);
 let setId: string;
 let cardId: string;
 let printingId: string;
-let _secondPrintingId: string;
 
 if (ctx) {
   const { db } = ctx;
@@ -81,13 +81,15 @@ if (ctx) {
       printedEffectText: null,
       flavorText: null,
       comment: null,
+      size: "standard",
+      language: "EN",
     })
     .returning("id")
     .execute();
   printingId = printingRow.id;
 
   // Seed second printing (foil finish)
-  const [secondPrintingRow] = await db
+  await db
     .insertInto("printings")
     .values({
       cardId,
@@ -103,10 +105,11 @@ if (ctx) {
       printedEffectText: null,
       flavorText: null,
       comment: null,
+      size: "standard",
+      language: "EN",
     })
     .returning("id")
     .execute();
-  _secondPrintingId = secondPrintingRow.id;
 
   // Marketplace group for TCGPlayer
   await db
@@ -218,7 +221,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
       const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.groups).toEqual(expect.any(Array));
       expect(json.groups.length).toBeGreaterThanOrEqual(1);
       expect(json.unmatchedProducts).toBeDefined();
@@ -245,7 +248,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
       );
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.saved).toBe(0);
     });
 
@@ -257,7 +260,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
       );
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.saved).toBe(1);
     });
 
@@ -292,7 +295,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
 
     it("mapped printing shows externalId in overview", async () => {
       const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
-      const json = await res.json();
+      const json = await readJson(res);
 
       const testGroup = json.groups.find(
         (g: { cardName: string }) => g.cardName === "MKM Test Card",
@@ -361,7 +364,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
       );
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.saved).toBe(1);
 
       // Verify the product + variant was created (joined via the variant).
@@ -395,7 +398,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
       );
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.saved).toBe(0);
     });
   });
@@ -544,7 +547,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
       const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
 
       // Should NOT appear in staged products for tcgplayer
       const testGroup = json.groups.find(
@@ -628,7 +631,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
       const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       const testGroup = json.groups.find(
         (g: { cardName: string }) => g.cardName === "MKM Test Card",
       );
@@ -716,7 +719,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
       const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
 
       // Find the group for "Annie, Fiery"
       const annieGroup = json.groups.find(
@@ -753,7 +756,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
       );
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.saved).toBe(0);
     });
   });

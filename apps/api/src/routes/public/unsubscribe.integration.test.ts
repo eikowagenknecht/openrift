@@ -3,6 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createRepos } from "../../deps.js";
 import { signUnsubscribeToken } from "../../emails/unsubscribe-token.js";
 import { createUnauthenticatedTestContext, seedTestUser } from "../../test/integration-context.js";
+import { readJson } from "../../test/read-json.js";
 
 // Mirrors the secret in integration-context's mockConfig.auth.secret.
 const SECRET = "test";
@@ -80,7 +81,7 @@ describe.skipIf(!ctx)("unsubscribe (integration)", () => {
         `/api/v1/unsubscribe/preview?token=${encodeURIComponent(token)}`,
       );
       expect(response.status).toBe(200);
-      expect(await response.json()).toMatchObject({
+      expect(await readJson(response)).toMatchObject({
         valid: true,
         channel: "tradeMatches",
         alreadyUnsubscribed: false,
@@ -95,7 +96,7 @@ describe.skipIf(!ctx)("unsubscribe (integration)", () => {
         `/api/v1/unsubscribe/preview?token=${encodeURIComponent(`${token}x`)}`,
       );
       expect(response.status).toBe(200);
-      expect(await response.json()).toMatchObject({ valid: false });
+      expect(await readJson(response)).toMatchObject({ valid: false });
     });
   });
 
@@ -112,7 +113,7 @@ describe.skipIf(!ctx)("unsubscribe (integration)", () => {
       const token = signUnsubscribeToken(SECRET, USER_ID, "tradeRequests");
       const response = await confirm(token);
       expect(response.status).toBe(200);
-      expect(await response.json()).toEqual({
+      expect(await readJson(response)).toEqual({
         channel: "tradeRequests",
         channelLabel: "trade-request emails",
       });

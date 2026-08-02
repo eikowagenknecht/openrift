@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { publicDecksRouter } from "./decks";
 
@@ -130,7 +131,7 @@ describe("GET /api/v1/decks/share/:token", () => {
 
     const res = await app.request("/api/v1/decks/share/tok-abc");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.deck.id).toBe(DECK_ID);
     expect(json.deck.name).toBe("Fury Aggro");
     expect(json.cards).toHaveLength(1);
@@ -155,7 +156,7 @@ describe("GET /api/v1/decks/share/:token", () => {
     mockRepo.cardsForDeck.mockResolvedValue([]);
 
     const res = await app.request("/api/v1/decks/share/tok-abc");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.deck).not.toHaveProperty("shareToken");
     expect(json.deck).not.toHaveProperty("isPublic");
     expect(json.deck).not.toHaveProperty("userId");
@@ -170,7 +171,7 @@ describe("GET /api/v1/decks/share/:token", () => {
     mockRepo.cardsForDeck.mockResolvedValue([]);
 
     const res = await app.request("/api/v1/decks/share/tok-abc");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.owner.displayName).toBe("Anonymous");
   });
 
@@ -259,7 +260,7 @@ describe("POST /api/v1/decks/encode", () => {
   it("encodes a Piltover deck code (default format) that decodes back to the cards", async () => {
     const res = await encodeRequest({ cards: encodeCards });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.warnings).toEqual([]);
 
     const decoded = getDeckFromCode(json.code);
@@ -278,7 +279,7 @@ describe("POST /api/v1/decks/encode", () => {
 
   it("encodes the human-readable text format", async () => {
     const res = await encodeRequest({ format: "text", cards: encodeCards });
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.code).toContain("Legend:");
     expect(json.code).toContain("MainDeck:");
     expect(json.code).toContain("3 Unit A");
@@ -287,7 +288,7 @@ describe("POST /api/v1/decks/encode", () => {
   it("warns about cards with no resolvable short code", async () => {
     stubShortCodes(new Set(["unit-a"]));
     const res = await encodeRequest({ format: "tts", cards: encodeCards });
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.warnings).toEqual([`Skipped "Unit A": no canonical printing found`]);
     expect(json.code).not.toContain("OGN-003");
   });

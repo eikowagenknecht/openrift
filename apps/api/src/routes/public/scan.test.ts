@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { scanRouter } from "./scan";
 
@@ -31,7 +32,7 @@ describe("GET /api/v1/scan/manifest", () => {
 
     const res = await app.request("/api/v1/scan/manifest");
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({
+    expect(await readJson(res)).toEqual({
       available: false,
       formatVersion: null,
       bankHash: null,
@@ -57,7 +58,7 @@ describe("GET /api/v1/scan/manifest", () => {
 
     const res = await app.request("/api/v1/scan/manifest");
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({
+    expect(await readJson(res)).toEqual({
       available: true,
       formatVersion: 1,
       bankHash: "511b47521ffca52a",

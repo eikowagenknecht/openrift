@@ -127,6 +127,8 @@ describe.skipIf(!ctx)("tournament summary extras (integration)", () => {
         printedEffectText: null,
         flavorText: null,
         comment: null,
+        size: "standard",
+        language: "EN",
       })
       .returning("id")
       .executeTakeFirstOrThrow();

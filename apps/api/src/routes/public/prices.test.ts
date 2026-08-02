@@ -1,7 +1,9 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { Repos } from "../../deps.js";
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { pricesRouter } from "./prices";
 
@@ -16,8 +18,12 @@ const mockCatalogRepo = {
 const mockMarketplaceRepo = {
   latestPrices: vi.fn(() => Promise.resolve([] as object[])),
   sourcesForPrinting: vi.fn(() => Promise.resolve([] as object[])),
-  sourcesForPrintings: vi.fn(() => Promise.resolve([] as object[])),
-  snapshots: vi.fn(() => Promise.resolve([] as object[])),
+  sourcesForPrintings: vi.fn((..._args: Parameters<Repos["marketplace"]["sourcesForPrintings"]>) =>
+    Promise.resolve([] as object[]),
+  ),
+  snapshots: vi.fn((..._args: Parameters<Repos["marketplace"]["snapshots"]>) =>
+    Promise.resolve([] as object[]),
+  ),
 };
 
 // Mount the prices router the way production does (one OpenAPIHandler behind a
@@ -94,19 +100,19 @@ describe("GET /api/v1/prices", () => {
   it("returns 200 with PricesResponse structure", async () => {
     const res = await app.request("/api/v1/prices");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.prices).toBeDefined();
   });
 
   it("emits market_cents as integer cents", async () => {
     const res = await app.request("/api/v1/prices");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.prices["a0000000-0001-4000-a000-000000000001"]).toEqual({ tcgplayer: 275 });
   });
 
   it("returns one entry per printing", async () => {
     const res = await app.request("/api/v1/prices");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.prices["a0000000-0001-4000-a000-000000000001"]).toEqual({ tcgplayer: 275 });
     expect(json.prices["a0000000-0001-4000-a000-000000000002"]).toEqual({ tcgplayer: 800 });
   });
@@ -130,7 +136,7 @@ describe("GET /api/v1/prices", () => {
       },
     ]);
     const res = await app.request("/api/v1/prices");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.prices["a0000000-0001-4000-a000-000000000001"]).toEqual({
       tcgplayer: 100,
       cardmarket: 200,
@@ -141,13 +147,13 @@ describe("GET /api/v1/prices", () => {
   it("returns empty prices when no rows exist", async () => {
     mockMarketplaceRepo.latestPrices.mockResolvedValue([]);
     const res = await app.request("/api/v1/prices");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.prices).toEqual({});
   });
 
   it("reports nothing as stale when every price shares the newest day", async () => {
     const res = await app.request("/api/v1/prices");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.stale).toEqual({});
   });
 
@@ -164,7 +170,7 @@ describe("GET /api/v1/prices", () => {
       },
     ]);
     const res = await app.request("/api/v1/prices");
-    const json = await res.json();
+    const json = await readJson(res);
 
     expect(json.prices["a0000000-0001-4000-a000-000000000009"]).toEqual({ cardtrader: 3222 });
     expect(json.stale).toEqual({ "a0000000-0001-4000-a000-000000000009": { cardtrader: 28 } });
@@ -176,7 +182,7 @@ describe("GET /api/v1/prices", () => {
       { ...dbPriceFoil, marketplace: "cardmarket", lastSeen: "2026-02-25" },
     ]);
     const res = await app.request("/api/v1/prices");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.stale).toEqual({});
   });
 
@@ -189,7 +195,7 @@ describe("GET /api/v1/prices", () => {
       { ...dbPriceFoil, lastSeen: "2020-01-10" },
     ]);
     const res = await app.request("/api/v1/prices");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.stale).toEqual({});
   });
 });
@@ -211,7 +217,7 @@ describe("GET /api/v1/prices/:printingId/history", () => {
   it("returns 200 with PriceHistoryResponse structure", async () => {
     const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.tcgplayer).toBeDefined();
     expect(json.cardmarket).toBeDefined();
     expect(json.cardtrader).toBeDefined();
@@ -219,21 +225,21 @@ describe("GET /api/v1/prices/:printingId/history", () => {
 
   it("returns tcgplayer data with available + productId", async () => {
     const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.tcgplayer.available).toBe(true);
     expect(json.tcgplayer.productId).toBe(12_345);
   });
 
   it("returns cardmarket data with available + productId", async () => {
     const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.cardmarket.available).toBe(true);
     expect(json.cardmarket.productId).toBe(67_890);
   });
 
   it("emits snapshot prices as integer cents and trims unused fields", async () => {
     const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.tcgplayer.snapshots).toHaveLength(1);
     expect(json.tcgplayer.snapshots[0].market).toBe(275);
     expect(json.tcgplayer.snapshots[0].low).toBe(200);
@@ -244,7 +250,7 @@ describe("GET /api/v1/prices/:printingId/history", () => {
 
   it("formats snapshot date as YYYY-MM-DD", async () => {
     const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.tcgplayer.snapshots[0].date).toBe("2026-03-01");
   });
 
@@ -252,7 +258,7 @@ describe("GET /api/v1/prices/:printingId/history", () => {
     mockCatalogRepo.printingById.mockResolvedValue(undefined);
     const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-ffffffffffff/history");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.tcgplayer.available).toBe(false);
     expect(json.tcgplayer.snapshots).toEqual([]);
     expect(json.cardmarket.available).toBe(false);
@@ -263,7 +269,7 @@ describe("GET /api/v1/prices/:printingId/history", () => {
     mockMarketplaceRepo.sourcesForPrinting.mockResolvedValue([]);
     mockMarketplaceRepo.snapshots.mockResolvedValue([]);
     const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.tcgplayer.available).toBe(false);
     expect(json.tcgplayer.productId).toBeNull();
     expect(json.cardmarket.available).toBe(false);
@@ -339,7 +345,7 @@ describe("GET /api/v1/prices/:printingId/history", () => {
       return [dbSnapshot];
     });
     const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.cardtrader.available).toBe(true);
     expect(json.cardtrader.productId).toBe(99_999);
     expect(json.cardtrader.snapshots).toHaveLength(1);
@@ -350,7 +356,7 @@ describe("GET /api/v1/prices/:printingId/history", () => {
   it("returns unavailable cardtrader when no source exists", async () => {
     mockMarketplaceRepo.sourcesForPrinting.mockResolvedValue([dbMarketplaceSource]);
     const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.cardtrader.available).toBe(false);
     expect(json.cardtrader.productId).toBeNull();
     expect(json.cardtrader.snapshots).toEqual([]);
@@ -371,7 +377,7 @@ describe("GET /api/v1/prices/:printingId/history", () => {
       return [dbSnapshot];
     });
     const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.cardmarket.snapshots[0].market).toBe(300);
     expect(json.cardmarket.snapshots[0].low).toBe(150);
     expect(json.cardmarket.snapshots[0].trend).toBeUndefined();
@@ -394,7 +400,7 @@ describe("GET /api/v1/prices/:printingId/history", () => {
       return [dbSnapshot];
     });
     const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.cardmarket.snapshots[0].market).toBe(300);
     expect(json.cardmarket.snapshots[0].low).toBeNull();
   });
@@ -414,7 +420,7 @@ describe("GET /api/v1/prices/:printingId/history", () => {
       return [dbSnapshot];
     });
     const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.cardmarket.snapshots).toEqual([]);
   });
 
@@ -449,7 +455,7 @@ describe("GET /api/v1/prices/marketplace-info", () => {
   it("returns unavailable slots when no sources exist", async () => {
     const res = await app.request(`/api/v1/prices/marketplace-info?printings=${printingA}`);
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.infos[printingA]).toEqual({
       tcgplayer: { available: false, productId: null },
       cardmarket: { available: false, productId: null },
@@ -466,7 +472,7 @@ describe("GET /api/v1/prices/marketplace-info", () => {
     const res = await app.request(
       `/api/v1/prices/marketplace-info?printings=${printingA},${printingB}`,
     );
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.infos[printingA].tcgplayer).toEqual({ available: true, productId: 12_345 });
     expect(json.infos[printingA].cardmarket).toEqual({ available: true, productId: 67_890 });
     expect(json.infos[printingB].cardtrader).toEqual({ available: true, productId: 11_111 });

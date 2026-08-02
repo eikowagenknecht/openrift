@@ -1,6 +1,7 @@
 import { createLogger } from "@openrift/shared/logger";
 import { Hono } from "hono";
 
+import type { Fetch } from "../../io.js";
 import type { Variables } from "../../types.js";
 
 const log = createLogger("sentry-tunnel");
@@ -81,7 +82,7 @@ export const sentryTunnelRoute = new Hono<{ Variables: Variables }>().post(
  * @returns A promise that resolves once the forward attempt has settled.
  */
 async function forwardEnvelope(
-  fetch: typeof globalThis.fetch,
+  fetch: Fetch,
   ingestHost: string,
   projectId: string,
   headers: Record<string, string>,

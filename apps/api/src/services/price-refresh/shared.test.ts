@@ -2,6 +2,7 @@ import type { Logger } from "@openrift/shared/logger";
 import { toCents } from "@openrift/shared/utils";
 import { describe, expect, it } from "vitest";
 
+import type { Fetch } from "../../io.js";
 import { fetchJson } from "./fetch";
 import { logUpsertCounts } from "./log";
 import type { UpsertCounts } from "./types";
@@ -130,8 +131,7 @@ describe("logUpsertCounts", () => {
 // ---------------------------------------------------------------------------
 
 describe("fetchJson", () => {
-  const stubFetch: typeof globalThis.fetch = async () =>
-    Response.json({ hello: "world" }, { status: 200 });
+  const stubFetch: Fetch = async () => Response.json({ hello: "world" }, { status: 200 });
 
   it("returns parsed JSON and null lastModified when no header", async () => {
     const result = await fetchJson<{ hello: string }>(stubFetch, "https://example.com/api");
@@ -140,7 +140,7 @@ describe("fetchJson", () => {
   });
 
   it("parses Last-Modified header into Date", async () => {
-    const mockFetch: typeof globalThis.fetch = async () =>
+    const mockFetch: Fetch = async () =>
       Response.json(
         { ok: true },
         {
@@ -155,8 +155,7 @@ describe("fetchJson", () => {
   });
 
   it("throws on non-OK response", async () => {
-    const mockFetch: typeof globalThis.fetch = async () =>
-      new Response("Not Found", { status: 404 });
+    const mockFetch: Fetch = async () => new Response("Not Found", { status: 404 });
 
     await expect(fetchJson(mockFetch, "https://example.com/missing")).rejects.toThrow("HTTP 404");
   });

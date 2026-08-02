@@ -4,6 +4,7 @@ import { describe, expect, it, beforeEach, vi } from "vitest";
 
 import { AppError } from "../../errors.js";
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { preferencesRouter } from "./preferences";
 
@@ -54,7 +55,7 @@ describe("GET /api/v1/preferences", () => {
     mockRepo.getByUserId.mockResolvedValue(undefined);
     const res = await app.request("/api/v1/preferences");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({});
     expect(mockRepo.getByUserId).toHaveBeenCalledWith(USER_ID);
   });
@@ -68,7 +69,7 @@ describe("GET /api/v1/preferences", () => {
     mockRepo.getByUserId.mockResolvedValue({ userId: USER_ID, data: storedPrefs });
     const res = await app.request("/api/v1/preferences");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.showImages).toBe(false);
     expect(json.theme).toBe("dark");
   });
@@ -77,7 +78,7 @@ describe("GET /api/v1/preferences", () => {
     mockRepo.getByUserId.mockResolvedValue({ userId: USER_ID, data: null });
     const res = await app.request("/api/v1/preferences");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({});
   });
 
@@ -91,7 +92,7 @@ describe("GET /api/v1/preferences", () => {
     mockRepo.getByUserId.mockResolvedValue({ userId: USER_ID, data: storedPrefs });
     const res = await app.request("/api/v1/preferences");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.languages).toEqual(["en", "de"]);
     expect(json.completionScope).toEqual({ sets: ["set-a"], promos: "exclude", signed: true });
   });
@@ -107,7 +108,7 @@ describe("GET /api/v1/preferences", () => {
     });
     const res = await app.request("/api/v1/preferences");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({ showImages: false });
   });
 
@@ -118,7 +119,7 @@ describe("GET /api/v1/preferences", () => {
     });
     const res = await app.request("/api/v1/preferences");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({ languages: ["en"] });
   });
 
@@ -128,7 +129,7 @@ describe("GET /api/v1/preferences", () => {
     mockRepo.getByUserId.mockResolvedValue({ userId: USER_ID, data: '{"showImages":true}' });
     const res = await app.request("/api/v1/preferences");
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({});
+    expect(await readJson(res)).toEqual({});
   });
 
   it("does not leak undocumented stored keys", async () => {
@@ -137,7 +138,7 @@ describe("GET /api/v1/preferences", () => {
       data: { showImages: true, hiddenFilterSections: ["sets"] },
     });
     const res = await app.request("/api/v1/preferences");
-    expect(await res.json()).toEqual({ showImages: true });
+    expect(await readJson(res)).toEqual({ showImages: true });
   });
 });
 
@@ -154,7 +155,7 @@ describe("PATCH /api/v1/preferences", () => {
       body: JSON.stringify({ showImages: false }),
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.showImages).toBe(false);
     expect(mockRepo.upsert).toHaveBeenCalledWith(USER_ID, { showImages: false });
   });
@@ -167,7 +168,7 @@ describe("PATCH /api/v1/preferences", () => {
       body: JSON.stringify({ theme: "dark" }),
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.theme).toBe("dark");
   });
 
@@ -179,7 +180,7 @@ describe("PATCH /api/v1/preferences", () => {
       body: JSON.stringify({ fancyFan: false }),
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.fancyFan).toBe(false);
   });
 
@@ -191,7 +192,7 @@ describe("PATCH /api/v1/preferences", () => {
       body: JSON.stringify({ marketplaceOrder: ["cardmarket", "tcgplayer"] }),
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.marketplaceOrder).toEqual(["cardmarket", "tcgplayer"]);
   });
 
@@ -203,7 +204,7 @@ describe("PATCH /api/v1/preferences", () => {
       body: JSON.stringify({ defaultCardView: "cards" }),
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.defaultCardView).toBe("cards");
   });
 
@@ -262,7 +263,7 @@ describe("PATCH /api/v1/preferences", () => {
     });
     expect(res.status).toBe(200);
     expect(mockRepo.upsert).toHaveBeenCalledWith(USER_ID, { languages: ["en"], completionScope });
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.completionScope).toEqual(completionScope);
   });
 

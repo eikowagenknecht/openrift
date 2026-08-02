@@ -2,6 +2,7 @@
    promise/avoid-new
    -- need a never-resolving promise to test timeout */
 import { Kysely } from "kysely";
+import type { Dialect } from "kysely";
 import { describe, expect, it, vi } from "vitest";
 
 import type { Database } from "../db/index.js";
@@ -31,10 +32,12 @@ function createHealthMockDb(results: { rows: unknown[] }[]) {
   };
 
   return new Kysely<Database>({
+    // Only the calls healthRepo makes are stubbed; the cast stands in for the
+    // rest of Kysely's Dialect surface (migration locks, streaming, query ids).
     dialect: {
       createAdapter: () => ({ supportsTransactionalDdl: true, supportsReturning: true }),
       createDriver: () => mockDriver,
-      createIntrospector: () => ({}) as any,
+      createIntrospector: () => ({}),
       createQueryCompiler: () => ({
         compileQuery: (node: any) => ({
           sql: "",
@@ -42,7 +45,7 @@ function createHealthMockDb(results: { rows: unknown[] }[]) {
           query: node,
         }),
       }),
-    },
+    } as unknown as Dialect,
   });
 }
 
@@ -128,7 +131,7 @@ describe("healthRepo", () => {
       dialect: {
         createAdapter: () => ({ supportsTransactionalDdl: true, supportsReturning: true }),
         createDriver: () => mockDriver,
-        createIntrospector: () => ({}) as any,
+        createIntrospector: () => ({}),
         createQueryCompiler: () => ({
           compileQuery: (node: any) => ({
             sql: "",
@@ -136,7 +139,7 @@ describe("healthRepo", () => {
             query: node,
           }),
         }),
-      },
+      } as unknown as Dialect,
     });
 
     const repo = healthRepo(mockDb);

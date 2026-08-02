@@ -120,6 +120,7 @@ describe("buildEntryAdvisories", () => {
     id: string;
     name: string;
     type: string;
+    types: string[];
     superTypes: string[];
     domains: string[];
     tags: string[];

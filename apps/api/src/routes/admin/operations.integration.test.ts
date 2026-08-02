@@ -8,6 +8,7 @@ import {
   createUnauthenticatedTestContext,
   syncCardCardTypes,
 } from "../../test/integration-context.js";
+import { readJson } from "../../test/read-json.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Admin operations (clear prices, refresh prices)
@@ -109,6 +110,8 @@ async function seedMarketplaceData(marketplace: string) {
       printedEffectText: null,
       flavorText: null,
       comment: null,
+      size: "standard",
+      language: "EN",
     })
     .returning("id")
     .execute();
@@ -270,7 +273,7 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
       const res = await app.fetch(adminReq("POST", "/clear-prices", { marketplace: "tcgplayer" }));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.marketplace).toBe("tcgplayer");
       expect(json.deleted).toBeDefined();
       expect(typeof json.deleted.prices).toBe("number");
@@ -295,7 +298,7 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
       const res = await app.fetch(adminReq("POST", "/clear-prices", { marketplace: "tcgplayer" }));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.marketplace).toBe("tcgplayer");
       expect(json.deleted.prices).toBe(0);
       expect(json.deleted.variants).toBe(0);
@@ -312,7 +315,7 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
       const res = await app.fetch(adminReq("POST", "/clear-prices", { marketplace: "cardmarket" }));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.marketplace).toBe("cardmarket");
       expect(json.deleted).toBeDefined();
       expect(typeof json.deleted.prices).toBe("number");
@@ -336,7 +339,7 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
       const res = await app.fetch(adminReq("POST", "/clear-prices", { marketplace: "cardmarket" }));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json.marketplace).toBe("cardmarket");
       expect(json.deleted.prices).toBe(0);
       expect(json.deleted.variants).toBe(0);
@@ -384,7 +387,7 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
       const res = await app.fetch(adminReq("POST", "/refresh-tcgplayer-prices"));
       expect(res.status).toBe(202);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json).toHaveProperty("runId");
       expect(json).toHaveProperty("status");
     });
@@ -397,7 +400,7 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
       const res = await app.fetch(adminReq("POST", "/refresh-cardmarket-prices"));
       expect(res.status).toBe(202);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json).toHaveProperty("runId");
       expect(json).toHaveProperty("status");
     });
@@ -410,7 +413,7 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
       const res = await app.fetch(adminReq("POST", "/refresh-cardtrader-prices"));
       expect(res.status).toBe(202);
 
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json).toHaveProperty("runId");
       expect(json).toHaveProperty("status");
     });

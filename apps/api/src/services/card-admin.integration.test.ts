@@ -79,6 +79,7 @@ describe.skipIf(!ctx)("deleteCard (integration)", () => {
         artist: "Test",
         publicCode: "CADM-001",
         language: "EN",
+        size: "standard",
       })
       .returning("id")
       .execute();
@@ -86,7 +87,14 @@ describe.skipIf(!ctx)("deleteCard (integration)", () => {
 
     const [collectionRow] = await db
       .insertInto("collections")
-      .values({ userId: USER_ID, name: "Card Admin Test Collection" })
+      .values({
+        userId: USER_ID,
+        groupId: null,
+        name: "Card Admin Test Collection",
+        description: null,
+        isInbox: false,
+        sortOrder: 0,
+      })
       .returning("id")
       .execute();
     collectionId = collectionRow.id;

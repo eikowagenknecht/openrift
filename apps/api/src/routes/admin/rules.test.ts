@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminRulesRouter, parseRulesText } from "./rules";
 
@@ -157,7 +158,7 @@ describe("POST /api/admin/v1/rules/import", () => {
     });
 
     expect(res.status).toBe(201);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({
       kind: "core",
       version: "1.0",
@@ -194,7 +195,7 @@ describe("POST /api/admin/v1/rules/import", () => {
     });
 
     expect(res.status).toBe(201);
-    const json = await res.json();
+    const json = await readJson(res);
     // 001 changed (modified), 002 is new (added), 003 dropped (removed).
     expect(json).toMatchObject({ added: 1, modified: 1, removed: 1 });
   });
@@ -209,7 +210,7 @@ describe("POST /api/admin/v1/rules/import", () => {
     });
 
     expect(res.status).toBe(409);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("already exists");
     expect(mockRulesRepo.createVersion).not.toHaveBeenCalled();
   });
@@ -225,7 +226,7 @@ describe("POST /api/admin/v1/rules/import", () => {
     });
 
     expect(res.status).toBe(400);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("No valid rules");
   });
 
@@ -240,7 +241,7 @@ describe("POST /api/admin/v1/rules/import", () => {
     });
 
     expect(res.status).toBe(400);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("older than");
   });
 });
@@ -288,7 +289,7 @@ describe("PATCH /api/admin/v1/rules/:kind/versions/:version", () => {
     });
 
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({ kind: "core", version: "1.0", comments: "Updated note" });
     expect(mockRulesRepo.updateComments).toHaveBeenCalledWith("core", "1.0", "Updated note");
   });
@@ -307,7 +308,7 @@ describe("PATCH /api/admin/v1/rules/:kind/versions/:version", () => {
     });
 
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({ kind: "tournament", version: "1.0", comments: null });
   });
 

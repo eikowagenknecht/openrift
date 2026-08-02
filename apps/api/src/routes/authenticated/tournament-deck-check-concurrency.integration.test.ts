@@ -4,6 +4,7 @@ import { createRepos } from "../../deps.js";
 import { CARD_FURY_UNIT } from "../../test/fixtures/constants.js";
 import type { TestContext } from "../../test/integration-context.js";
 import { createTestContext, req } from "../../test/integration-context.js";
+import { readJson } from "../../test/read-json.js";
 
 // Integration counterpart to the mocked concurrency regression test in
 // tournament-deck-check.test.ts: setEntryState re-loads the entry under a
@@ -55,7 +56,7 @@ describe.skipIf(!hostCtx)("setEntryState concurrent judge transitions (integrati
         startsAt: "2026-06-01T12:00:00Z",
       }),
     );
-    tournamentId = ((await created.json()) as { id: string }).id;
+    tournamentId = ((await readJson(created)) as { id: string }).id;
     await repos.tournaments.addStaff(tournamentId, JUDGE_A_ID, "judge");
     await repos.tournaments.addStaff(tournamentId, JUDGE_B_ID, "judge");
     // The deck-check event view treats only a "running" tournament as active
@@ -84,10 +85,10 @@ describe.skipIf(!hostCtx)("setEntryState concurrent judge transitions (integrati
       }),
     );
     expect(createdEntry.status).toBe(201);
-    const entryId = ((await createdEntry.json()) as { entry: { id: string } }).entry.id;
+    const entryId = ((await readJson(createdEntry)) as { entry: { id: string } }).entry.id;
 
-    const approve = (judge: TestContext): Promise<Response> =>
-      judge.app.fetch(
+    const approve = async (judge: TestContext): Promise<Response> =>
+      await judge.app.fetch(
         req("PUT", `/tournaments/${tournamentId}/deck-check/entries/${entryId}/state`, {
           state: "approved",
         }),

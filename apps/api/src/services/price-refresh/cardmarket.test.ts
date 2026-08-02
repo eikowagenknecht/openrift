@@ -96,7 +96,6 @@ const PRICE_VI_V2 = {
 
 const ZERO_COUNTS: UpsertCounts = {
   prices: { total: 0, new: 0, updated: 0, unchanged: 0 },
-  staging: { total: 0, new: 0, updated: 0, unchanged: 0 },
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────
@@ -149,7 +148,7 @@ interface FetchJsonOpts {
 }
 
 function setupFetchJson(
-  fetchJsonSpy: ReturnType<typeof spyOn>,
+  fetchJsonSpy: ReturnType<typeof vi.spyOn>,
   products: Record<string, unknown>[],
   priceGuides: Record<string, unknown>[],
   opts: FetchJsonOpts = {},
@@ -172,9 +171,9 @@ function setupFetchJson(
 // ── Tests ────────────────────────────────────────────────────────────────
 
 describe("refreshCardmarketPrices", () => {
-  let fetchJsonSpy: ReturnType<typeof spyOn>;
-  let upsertSpy: ReturnType<typeof spyOn>;
-  let logUpsertSpy: ReturnType<typeof spyOn>;
+  let fetchJsonSpy: ReturnType<typeof vi.spyOn>;
+  let upsertSpy: ReturnType<typeof vi.spyOn>;
+  let logUpsertSpy: ReturnType<typeof vi.spyOn>;
 
   function upsertStaging(): StagingRow[] {
     return upsertSpy.mock.calls[0][3];
@@ -520,7 +519,6 @@ describe("refreshCardmarketPrices", () => {
       setupFetchJson(fetchJsonSpy, [], []);
       const customCounts: UpsertCounts = {
         prices: { total: 20, new: 10, updated: 5, unchanged: 5 },
-        staging: { total: 15, new: 8, updated: 4, unchanged: 3 },
       };
       upsertSpy.mockResolvedValue(customCounts);
 

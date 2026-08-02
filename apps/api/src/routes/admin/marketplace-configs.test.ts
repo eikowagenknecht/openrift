@@ -64,7 +64,6 @@ describe("createMarketplaceConfigs", () => {
 
       const result = tcgplayer.mapStagingPrices({
         ...priceRow,
-        zeroLowCents: null,
         externalId: 1,
         groupId: 1,
         productName: "Test",
@@ -105,6 +104,8 @@ describe("createMarketplaceConfigs", () => {
         externalId: 1,
         printingId: "p-1",
         productName: "Price Row",
+        finish: "normal",
+        language: null,
         recordedAt: date,
       });
 
@@ -165,6 +166,8 @@ describe("createMarketplaceConfigs", () => {
         externalId: 1,
         printingId: "p-1",
         productName: "CT Product",
+        finish: "normal",
+        language: null,
         recordedAt: new Date("2026-01-15"),
       });
 

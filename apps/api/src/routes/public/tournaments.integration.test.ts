@@ -5,6 +5,7 @@ import {
   createUnauthenticatedTestContext,
   req,
 } from "../../test/integration-context.js";
+import { readJson } from "../../test/read-json.js";
 
 // Route-level integration tests for the ADR-033 public request-to-join surface:
 // the unauthenticated submission-token landing, the authenticated request-to-join
@@ -53,9 +54,9 @@ describe.skipIf(!hostCtx || !joinerCtx || !anonCtx)(
           selfRegistration: true,
         }),
       );
-      id = ((await create.json()) as { id: string }).id;
+      id = ((await readJson(create)) as { id: string }).id;
       const enabled = await host.app.fetch(req("POST", `/tournaments/${id}/submission-token`));
-      token = ((await enabled.json()) as { submissionToken: string }).submissionToken;
+      token = ((await readJson(enabled)) as { submissionToken: string }).submissionToken;
     });
 
     afterAll(async () => {
@@ -66,7 +67,7 @@ describe.skipIf(!hostCtx || !joinerCtx || !anonCtx)(
     it("serves the landing (no auth) and 404s an unknown token", async () => {
       const res = await anon.app.fetch(req("GET", `/tournaments/submit/${token}`));
       expect(res.status).toBe(200);
-      const body = (await res.json()) as {
+      const body = (await readJson(res)) as {
         name: string;
         selfRegistrationOpen: boolean;
         deckExpected: boolean;
@@ -90,7 +91,7 @@ describe.skipIf(!hostCtx || !joinerCtx || !anonCtx)(
     it("creates a requested participant and is idempotent per account", async () => {
       const first = await joiner.app.fetch(req("POST", `/tournaments/submit/${token}/request`));
       expect(first.status).toBe(200);
-      const firstBody = (await first.json()) as {
+      const firstBody = (await readJson(first)) as {
         participantId: string;
         status: string;
         alreadyJoined: boolean;
@@ -100,7 +101,10 @@ describe.skipIf(!hostCtx || !joinerCtx || !anonCtx)(
 
       const second = await joiner.app.fetch(req("POST", `/tournaments/submit/${token}/request`));
       expect(second.status).toBe(200);
-      const secondBody = (await second.json()) as { participantId: string; alreadyJoined: boolean };
+      const secondBody = (await readJson(second)) as {
+        participantId: string;
+        alreadyJoined: boolean;
+      };
       expect(secondBody.participantId).toBe(firstBody.participantId);
       expect(secondBody.alreadyJoined).toBe(true);
     });
@@ -108,14 +112,14 @@ describe.skipIf(!hostCtx || !joinerCtx || !anonCtx)(
     it("reports the signed-in viewer's participant status on the landing", async () => {
       // The host runs the event but holds no player spot.
       const hostView = await host.app.fetch(req("GET", `/tournaments/submit/${token}`));
-      const hostBody = (await hostView.json()) as { viewerIsParticipant: boolean };
+      const hostBody = (await readJson(hostView)) as { viewerIsParticipant: boolean };
       expect(hostBody.viewerIsParticipant).toBe(false);
 
       // The joiner requested a spot in the previous test, so the landing reflects
       // it. This gates deck submission when self-registration is later closed
       // (ADR-033): a claimed participant can still submit, a stranger cannot.
       const joinerView = await joiner.app.fetch(req("GET", `/tournaments/submit/${token}`));
-      const joinerBody = (await joinerView.json()) as { viewerIsParticipant: boolean };
+      const joinerBody = (await readJson(joinerView)) as { viewerIsParticipant: boolean };
       expect(joinerBody.viewerIsParticipant).toBe(true);
     });
 
@@ -130,11 +134,12 @@ describe.skipIf(!hostCtx || !joinerCtx || !anonCtx)(
           selfRegistration: true,
         }),
       );
-      const closedId = ((await create.json()) as { id: string }).id;
+      const closedId = ((await readJson(create)) as { id: string }).id;
       const enabled = await host.app.fetch(
         req("POST", `/tournaments/${closedId}/submission-token`),
       );
-      const closedToken = ((await enabled.json()) as { submissionToken: string }).submissionToken;
+      const closedToken = ((await readJson(enabled)) as { submissionToken: string })
+        .submissionToken;
 
       // Self-registration stays open, but completing the tournament closes entries
       // with a terminal-state conflict (409), distinct from the 403 self-reg gate.
@@ -162,7 +167,8 @@ describe.skipIf(!hostCtx || !joinerCtx || !anonCtx)(
       const enabled = await host.app.fetch(
         req("POST", `/tournaments/${id}/staff-invite`, { role: "judge" }),
       );
-      const inviteToken = ((await enabled.json()) as { judgeInviteToken: string }).judgeInviteToken;
+      const inviteToken = ((await readJson(enabled)) as { judgeInviteToken: string })
+        .judgeInviteToken;
 
       // The landing requires a session, so a link scanner gets a 401, not a grant.
       const anonLanding = await anon.app.fetch(
@@ -175,12 +181,12 @@ describe.skipIf(!hostCtx || !joinerCtx || !anonCtx)(
         req("GET", `/tournaments/staff-invite/${inviteToken}`),
       );
       expect(landing.status).toBe(200);
-      const landingBody = (await landing.json()) as { role: string; alreadyStaff: boolean };
+      const landingBody = (await readJson(landing)) as { role: string; alreadyStaff: boolean };
       expect(landingBody.role).toBe("judge");
       expect(landingBody.alreadyStaff).toBe(false);
 
       const beforeClaim = await host.app.fetch(req("GET", `/tournaments/${id}/staff`));
-      const beforeItems = ((await beforeClaim.json()) as { items: { userId: string }[] }).items;
+      const beforeItems = ((await readJson(beforeClaim)) as { items: { userId: string }[] }).items;
       expect(beforeItems.some((member) => member.userId === JOINER_ID)).toBe(false);
 
       // The explicit confirm POST is what grants the role.
@@ -188,11 +194,11 @@ describe.skipIf(!hostCtx || !joinerCtx || !anonCtx)(
         req("POST", `/tournaments/staff-invite/${inviteToken}/claim`),
       );
       expect(claim.status).toBe(200);
-      expect((await claim.json()) as { role: string }).toMatchObject({ role: "judge" });
+      expect((await readJson(claim)) as { role: string }).toMatchObject({ role: "judge" });
 
       const afterClaim = await host.app.fetch(req("GET", `/tournaments/${id}/staff`));
       const afterItems = (
-        (await afterClaim.json()) as {
+        (await readJson(afterClaim)) as {
           items: { userId: string; role: string }[];
         }
       ).items;
@@ -205,7 +211,7 @@ describe.skipIf(!hostCtx || !joinerCtx || !anonCtx)(
         req("POST", `/tournaments/staff-invite/${inviteToken}/claim`),
       );
       expect(reclaim.status).toBe(200);
-      expect((await reclaim.json()) as { alreadyStaff: boolean }).toMatchObject({
+      expect((await readJson(reclaim)) as { alreadyStaff: boolean }).toMatchObject({
         alreadyStaff: true,
       });
 

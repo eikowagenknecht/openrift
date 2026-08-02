@@ -8,6 +8,7 @@ import {
   req,
   seedTestUser,
 } from "../../test/integration-context.js";
+import { readJson } from "../../test/read-json.js";
 
 // ADR-016 optional-auth coupling guard.
 //
@@ -62,7 +63,7 @@ describe.skipIf(!anonCtx || !authCtx)("Optional-auth public reads (integration)"
       expect(res.status).toBe(200);
       expect(res.headers.get("Vary")).toContain("Cookie");
       expect(res.headers.get("Cache-Control")).toContain("public");
-      const body = (await res.json()) as { flags: Record<string, boolean> };
+      const body = (await readJson(res)) as { flags: Record<string, boolean> };
       expect(body.flags[FLAG_KEY]).toBe(false);
     });
 
@@ -71,7 +72,7 @@ describe.skipIf(!anonCtx || !authCtx)("Optional-auth public reads (integration)"
       expect(res.status).toBe(200);
       expect(res.headers.get("Vary")).toContain("Cookie");
       expect(res.headers.get("Cache-Control")).toContain("private");
-      const body = (await res.json()) as { flags: Record<string, boolean> };
+      const body = (await readJson(res)) as { flags: Record<string, boolean> };
       // The per-user override wins over the global default only because
       // loadSession resolved the viewer onto context.user.
       expect(body.flags[FLAG_KEY]).toBe(true);

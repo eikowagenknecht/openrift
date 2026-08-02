@@ -33,6 +33,7 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
       name: "Test Deck Alpha",
       description: "A test deck",
       format: "constructed",
+      formatConfig: null,
       isWanted: false,
       isPublic: false,
     });
@@ -54,6 +55,7 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
       name: "Wanted Deck",
       description: null,
       format: "freeform",
+      formatConfig: null,
       isWanted: true,
       isPublic: false,
     });
@@ -236,7 +238,9 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
   it("replaces deck cards and retrieves them with details", async () => {
     const deckId = createdDeckIds[0];
 
-    await repo.replaceCards(deckId, [{ cardId: seedCardId, zone: "main", quantity: 3 }]);
+    await repo.replaceCards(deckId, [
+      { cardId: seedCardId, zone: "main", quantity: 3, preferredPrintingId: null },
+    ]);
 
     const cards = await repo.cardsWithDetails(deckId, userId);
 
@@ -274,6 +278,7 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
       name: "To Delete",
       description: null,
       format: "constructed",
+      formatConfig: null,
       isWanted: false,
       isPublic: false,
     });

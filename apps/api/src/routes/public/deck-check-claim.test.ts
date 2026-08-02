@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { deckCheckClaimRouter } from "./deck-check-claim";
 
@@ -51,7 +52,7 @@ describe("GET /api/v1/deck-check/claim/:token", () => {
 
     const res = await app.request("/api/v1/deck-check/claim/tok-abc");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.tournamentName).toBe("Regional Qualifier");
     // The Date is serialized to an ISO string for the response.
     expect(json.startsAt).toBe("2026-06-01T12:00:00.000Z");
@@ -76,7 +77,7 @@ describe("GET /api/v1/deck-check/claim/:token", () => {
 
     const res = await app.request("/api/v1/deck-check/claim/tok-solo");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.groupName).toBeNull();
     expect(json.hostName).toBe("Jane Host");
     expect(json.deckSubmission).toBe("none");
@@ -87,7 +88,7 @@ describe("GET /api/v1/deck-check/claim/:token", () => {
 
     const res = await app.request("/api/v1/deck-check/claim/unknown");
     expect(res.status).toBe(404);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toBe("Claim link not found");
   });
 });

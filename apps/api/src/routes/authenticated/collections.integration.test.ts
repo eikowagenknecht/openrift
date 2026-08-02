@@ -3,6 +3,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 
 import { PRINTING_1, PRINTING_2 } from "../../test/fixtures/constants.js";
 import { createTestContext, req } from "../../test/integration-context.js";
+import { readJson } from "../../test/read-json.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Collections routes
@@ -46,7 +47,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       const res = await app.fetch(req("POST", "/collections", { name: "Test Collection" }));
       expect(res.status).toBe(201);
 
-      const json = (await res.json()) as CollectionResponse;
+      const json = (await readJson(res)) as CollectionResponse;
       expect(json.id).toBeTypeOf("string");
       expect(json.name).toBe("Test Collection");
       expect(json.description).toBeNull();
@@ -66,7 +67,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       );
       expect(res.status).toBe(201);
 
-      const json = (await res.json()) as CollectionResponse;
+      const json = (await readJson(res)) as CollectionResponse;
       expect(json.name).toBe("Described");
       expect(json.description).toBe("A fine collection");
       secondCollectionId = json.id;
@@ -78,7 +79,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       );
       expect(res.status).toBe(201);
 
-      const json = (await res.json()) as CollectionResponse;
+      const json = (await readJson(res)) as CollectionResponse;
       expect(json.availableForDeckbuilding).toBe(false);
     });
 
@@ -105,7 +106,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       const res = await app.fetch(req("GET", "/collections"));
       expect(res.status).toBe(200);
 
-      const json = (await res.json()) as { items: CollectionResponse[] };
+      const json = (await readJson(res)) as { items: CollectionResponse[] };
       const inbox = json.items.find((c) => c.isInbox);
       expect(inbox).toBeDefined();
       // The expect above guarantees inbox is defined
@@ -116,7 +117,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       const res = await app.fetch(req("GET", "/collections"));
       expect(res.status).toBe(200);
 
-      const json = (await res.json()) as { items: CollectionResponse[] };
+      const json = (await readJson(res)) as { items: CollectionResponse[] };
       expect(Array.isArray(json.items)).toBe(true);
       // 3 created above + the seeded inbox = 4
       expect(json.items.length).toBeGreaterThanOrEqual(4);
@@ -124,7 +125,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
 
     it("returns inbox first, then remaining collections sorted", async () => {
       const res = await app.fetch(req("GET", "/collections"));
-      const json = (await res.json()) as { items: CollectionResponse[] };
+      const json = (await readJson(res)) as { items: CollectionResponse[] };
       // Inbox should always come first
       expect(json.items[0].isInbox).toBe(true);
       // Personal collections are ordered by sortOrder (then name as a tiebreak),
@@ -142,7 +143,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       const res = await app.fetch(req("GET", `/collections/${collectionId}`));
       expect(res.status).toBe(200);
 
-      const json = (await res.json()) as CollectionResponse;
+      const json = (await readJson(res)) as CollectionResponse;
       expect(json.id).toBe(collectionId);
       expect(json.name).toBe("Test Collection");
     });
@@ -163,7 +164,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       );
       expect(res.status).toBe(200);
 
-      const json = (await res.json()) as CollectionResponse;
+      const json = (await readJson(res)) as CollectionResponse;
       expect(json.name).toBe("Renamed Collection");
     });
 
@@ -173,7 +174,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       );
       expect(res.status).toBe(200);
 
-      const json = (await res.json()) as CollectionResponse;
+      const json = (await readJson(res)) as CollectionResponse;
       expect(json.description).toBe("Updated desc");
     });
 
@@ -184,7 +185,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       expect(res.status).toBe(204);
 
       const getRes = await app.fetch(req("GET", `/collections/${collectionId}`));
-      const json = (await getRes.json()) as CollectionResponse;
+      const json = (await readJson(getRes)) as CollectionResponse;
       expect(json.availableForDeckbuilding).toBe(false);
     });
 
@@ -192,7 +193,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       const res = await app.fetch(req("PATCH", `/collections/${collectionId}`, { sortOrder: 5 }));
       expect(res.status).toBe(200);
 
-      const json = (await res.json()) as CollectionResponse;
+      const json = (await readJson(res)) as CollectionResponse;
       expect(json.sortOrder).toBe(5);
     });
 
@@ -210,7 +211,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       const res = await app.fetch(req("GET", `/collections/${collectionId}/copies`));
       expect(res.status).toBe(200);
 
-      const json = (await res.json()) as { items: unknown[] };
+      const json = (await readJson(res)) as { items: unknown[] };
       expect(Array.isArray(json.items)).toBe(true);
       expect(json.items).toHaveLength(0);
     });
@@ -296,7 +297,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
         }),
       );
       expect(addRes.status).toBe(201);
-      const added = (await addRes.json()) as { items: { id: string }[] };
+      const added = (await readJson(addRes)) as { items: { id: string }[] };
       const addedIds = new Set(added.items.map((c) => c.id));
 
       const res = await app.fetch(req("DELETE", `/collections/${secondCollectionId}`));
@@ -304,7 +305,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
 
       // Both copies should now live in the inbox.
       const inboxCopiesRes = await app.fetch(req("GET", `/collections/${inboxId}/copies`));
-      const inboxCopies = (await inboxCopiesRes.json()) as { items: { id: string }[] };
+      const inboxCopies = (await readJson(inboxCopiesRes)) as { items: { id: string }[] };
       const inboxIds = new Set(inboxCopies.items.map((c) => c.id));
       for (const id of addedIds) {
         expect(inboxIds.has(id)).toBe(true);
@@ -323,7 +324,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       // 'removed' events to keep from_collection_id NOT NULL).
       const createRes = await app.fetch(req("POST", "/collections", { name: "Has History" }));
       expect(createRes.status).toBe(201);
-      const { id: historyCollectionId } = (await createRes.json()) as { id: string };
+      const { id: historyCollectionId } = (await readJson(createRes)) as { id: string };
 
       // Add a copy, then dispose it — this writes a 'removed' event with
       // from_collection_id = historyCollectionId.
@@ -333,7 +334,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
         }),
       );
       expect(addRes.status).toBe(201);
-      const [copy] = ((await addRes.json()) as { items: { id: string }[] }).items;
+      const [copy] = ((await readJson(addRes)) as { items: { id: string }[] }).items;
 
       const disposeRes = await app.fetch(req("POST", "/copies/dispose", { copyIds: [copy.id] }));
       expect(disposeRes.status).toBe(204);
@@ -348,18 +349,18 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       // constraint, which requires both from_collection_id and to_collection_id
       // to remain NOT NULL.
       const createSrcRes = await app.fetch(req("POST", "/collections", { name: "Move Source" }));
-      const { id: srcId } = (await createSrcRes.json()) as { id: string };
+      const { id: srcId } = (await readJson(createSrcRes)) as { id: string };
       const createDstRes = await app.fetch(
         req("POST", "/collections", { name: "Move Destination" }),
       );
-      const { id: dstId } = (await createDstRes.json()) as { id: string };
+      const { id: dstId } = (await readJson(createDstRes)) as { id: string };
 
       const addRes = await app.fetch(
         req("POST", "/copies", {
           copies: [{ printingId: PRINTING_2.id, collectionId: srcId }],
         }),
       );
-      const [copy] = ((await addRes.json()) as { items: { id: string }[] }).items;
+      const [copy] = ((await readJson(addRes)) as { items: { id: string }[] }).items;
 
       const moveRes = await app.fetch(
         req("POST", "/copies/move", { copyIds: [copy.id], toCollectionId: dstId }),
@@ -398,25 +399,25 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
 
       const res = await app.fetch(req("POST", `/collections/${inboxId}/clear`));
       expect(res.status).toBe(200);
-      const json = (await res.json()) as { removedCount: number; keptCopyIds: string[] };
+      const json = (await readJson(res)) as { removedCount: number; keptCopyIds: string[] };
       expect(json.removedCount).toBeGreaterThanOrEqual(2);
       expect(json.keptCopyIds).toEqual([]);
 
       // The inbox itself survives, empty.
       const getRes = await app.fetch(req("GET", `/collections/${inboxId}`));
       expect(getRes.status).toBe(200);
-      const inbox = (await getRes.json()) as CollectionResponse;
+      const inbox = (await readJson(getRes)) as CollectionResponse;
       expect(inbox.isInbox).toBe(true);
 
       const copiesRes = await app.fetch(req("GET", `/collections/${inboxId}/copies`));
-      const copies = (await copiesRes.json()) as { items: unknown[] };
+      const copies = (await readJson(copiesRes)) as { items: unknown[] };
       expect(copies.items).toEqual([]);
     });
 
     it("is a no-op on an already-empty collection", async () => {
       const res = await app.fetch(req("POST", `/collections/${inboxId}/clear`));
       expect(res.status).toBe(200);
-      const json = (await res.json()) as { removedCount: number; keptCopyIds: string[] };
+      const json = (await readJson(res)) as { removedCount: number; keptCopyIds: string[] };
       expect(json.removedCount).toBe(0);
       expect(json.keptCopyIds).toEqual([]);
     });
@@ -462,7 +463,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
     async function createShareCollection(name: string): Promise<string> {
       const res = await app.fetch(req("POST", "/collections", { name }));
       expect(res.status).toBe(201);
-      const json = (await res.json()) as CollectionResponse;
+      const json = (await readJson(res)) as CollectionResponse;
       return json.id;
     }
 
@@ -472,7 +473,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       const res = await app.fetch(req("GET", `/collections/${shareCollectionId}/share`));
       expect(res.status).toBe(200);
 
-      const json = (await res.json()) as CollectionShareResponse;
+      const json = (await readJson(res)) as CollectionShareResponse;
       expect(json.shareToken).toBeNull();
       expect(json.isPublic).toBe(false);
     });
@@ -481,7 +482,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       const res = await app.fetch(req("POST", `/collections/${shareCollectionId}/share`));
       expect(res.status).toBe(200);
 
-      const json = (await res.json()) as CollectionShareResponse;
+      const json = (await readJson(res)) as CollectionShareResponse;
       expect(json.shareToken).toBeTypeOf("string");
       expect(json.shareToken).not.toBe("");
       expect(json.isPublic).toBe(true);
@@ -493,19 +494,19 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       const res = await app.fetch(req("GET", `/collections/${shareCollectionId}/share`));
       expect(res.status).toBe(200);
 
-      const json = (await res.json()) as CollectionShareResponse;
+      const json = (await readJson(res)) as CollectionShareResponse;
       expect(json.shareToken).toBeTypeOf("string");
       expect(json.isPublic).toBe(true);
     });
 
     it("POST is idempotent — re-sharing returns the same token", async () => {
       const firstRes = await app.fetch(req("GET", `/collections/${shareCollectionId}/share`));
-      const first = (await firstRes.json()) as CollectionShareResponse;
+      const first = (await readJson(firstRes)) as CollectionShareResponse;
       expect(first.shareToken).toBeTypeOf("string");
 
       const secondRes = await app.fetch(req("POST", `/collections/${shareCollectionId}/share`));
       expect(secondRes.status).toBe(200);
-      const second = (await secondRes.json()) as CollectionShareResponse;
+      const second = (await readJson(secondRes)) as CollectionShareResponse;
 
       expect(second.shareToken).toBe(first.shareToken);
       expect(second.isPublic).toBe(true);
@@ -519,7 +520,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
 
     it("POST rotate mints a new token and the old one stops resolving", async () => {
       const beforeRes = await app.fetch(req("GET", `/collections/${shareCollectionId}/share`));
-      const before = (await beforeRes.json()) as CollectionShareResponse;
+      const before = (await readJson(beforeRes)) as CollectionShareResponse;
       const oldToken = before.shareToken as string;
       expect(oldToken).toBeTypeOf("string");
 
@@ -531,7 +532,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
         req("POST", `/collections/${shareCollectionId}/share/rotate`),
       );
       expect(rotateRes.status).toBe(200);
-      const rotated = (await rotateRes.json()) as CollectionShareResponse;
+      const rotated = (await readJson(rotateRes)) as CollectionShareResponse;
 
       expect(rotated.shareToken).toBeTypeOf("string");
       expect(rotated.shareToken).not.toBe(oldToken);
@@ -547,7 +548,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
 
       // GET reflects the rotated token.
       const stateRes = await app.fetch(req("GET", `/collections/${shareCollectionId}/share`));
-      const state = (await stateRes.json()) as CollectionShareResponse;
+      const state = (await readJson(stateRes)) as CollectionShareResponse;
       expect(state.shareToken).toBe(rotated.shareToken);
     });
 
@@ -556,7 +557,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
 
       const rotateRes = await app.fetch(req("POST", `/collections/${freshId}/share/rotate`));
       expect(rotateRes.status).toBe(200);
-      const rotated = (await rotateRes.json()) as CollectionShareResponse;
+      const rotated = (await readJson(rotateRes)) as CollectionShareResponse;
 
       expect(rotated.shareToken).toBeTypeOf("string");
       expect(rotated.isPublic).toBe(true);
@@ -569,7 +570,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
 
     it("DELETE unshares and the token stops resolving", async () => {
       const stateRes = await app.fetch(req("GET", `/collections/${shareCollectionId}/share`));
-      const state = (await stateRes.json()) as CollectionShareResponse;
+      const state = (await readJson(stateRes)) as CollectionShareResponse;
       const liveToken = state.shareToken as string;
       expect(liveToken).toBeTypeOf("string");
 
@@ -577,7 +578,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       expect(delRes.status).toBe(204);
 
       const afterRes = await app.fetch(req("GET", `/collections/${shareCollectionId}/share`));
-      const after = (await afterRes.json()) as CollectionShareResponse;
+      const after = (await readJson(afterRes)) as CollectionShareResponse;
       expect(after.shareToken).toBeNull();
       expect(after.isPublic).toBe(false);
 

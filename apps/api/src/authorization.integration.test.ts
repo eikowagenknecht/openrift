@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createTestContext, req } from "./test/integration-context.js";
+import { readJson } from "./test/read-json.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: CRUD factory user isolation
@@ -56,7 +57,7 @@ describe.skipIf(!ctx)("Authorization: user isolation — CRUD factory (integrati
     it("GET /decks returns empty array (user has no decks)", async () => {
       const res = await app.fetch(req("GET", "/decks"));
       expect(res.status).toBe(200);
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json).toEqual({ items: [] });
     });
   });
@@ -73,7 +74,7 @@ describe.skipIf(!ctx)("Authorization: user isolation — CRUD factory (integrati
     it("GET /lists returns empty array (user has no lists)", async () => {
       const res = await app.fetch(req("GET", "/lists"));
       expect(res.status).toBe(200);
-      const json = await res.json();
+      const json = await readJson(res);
       expect(json).toEqual({ items: [] });
     });
   });

@@ -40,9 +40,9 @@ describe("collectionsRepo", () => {
     const repo = collectionsRepo(db);
     const result = await repo.create({
       userId: "u1",
+      groupId: null,
       name: "Main",
       description: null,
-      availableForDeckbuilding: true,
       isInbox: false,
       sortOrder: 0,
     });

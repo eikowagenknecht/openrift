@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { AppError } from "../../errors.js";
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { tournamentDeckCheckRouter } from "./tournament-deck-check.js";
 
@@ -130,7 +131,7 @@ describe("PUT /tournaments/{tournamentId}/deck-check/entries/{entryId}/state", (
     );
 
     expect(res.status).toBe(409);
-    const body = (await res.json()) as { code: string };
+    const body = (await readJson(res)) as { code: string };
     expect(body.code).toBe("CONFLICT");
     // The re-loaded, locked entry was consulted...
     expect(txDeckCheck.getEntryForUpdate).toHaveBeenCalledWith(TOURNAMENT_ID, ENTRY_ID);

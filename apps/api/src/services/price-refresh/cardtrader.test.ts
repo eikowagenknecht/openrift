@@ -3,20 +3,17 @@
    unicorn/no-useless-undefined
    -- test file: mocks require empty fns and explicit undefined */
 import type { Logger } from "@openrift/shared/logger";
+import type { MockInstance } from "vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Repos } from "../../deps.js";
-import type { Fetch } from "../../io.js";
 import { refreshCardtraderPrices } from "./cardtrader.js";
 import * as logMod from "./log.js";
 import type { StagingRow, UpsertCounts } from "./types.js";
 import * as upsertMod from "./upsert.js";
 
-// ── Stub fetch ──────────────────────────────────────────────────────────
-
-const _stubFetch: Fetch = (() => {
-  throw new Error("unexpected real fetch");
-}) as unknown as Fetch;
+/** The `globalThis.fetch` spy these tests drive, typed so `mock.calls` indexes. */
+type FetchSpy = MockInstance<typeof globalThis.fetch>;
 
 // ── Mock data ───────────────────────────────────────────────────────────
 
@@ -53,7 +50,6 @@ const BLUEPRINT_SEALED = {
 
 const ZERO_COUNTS: UpsertCounts = {
   prices: { total: 0, new: 0, updated: 0, unchanged: 0 },
-  staging: { total: 0, new: 0, updated: 0, unchanged: 0 },
 };
 
 // ── Helpers ─────────────────────────────────────────────────────────────
@@ -174,7 +170,7 @@ interface MockFetchConfig {
   productsByExpansion?: Map<number, Record<string, unknown[]>>;
 }
 
-function setupMockFetch(fetchSpy: ReturnType<typeof vi.spyOn>, config: MockFetchConfig = {}) {
+function setupMockFetch(fetchSpy: FetchSpy, config: MockFetchConfig = {}) {
   const expansions = config.expansions ?? [];
   const blueprintsByExpansion = config.blueprintsByExpansion ?? new Map();
   const productsByExpansion = config.productsByExpansion ?? new Map();
@@ -202,7 +198,7 @@ function setupMockFetch(fetchSpy: ReturnType<typeof vi.spyOn>, config: MockFetch
 // ── Tests ───────────────────────────────────────────────────────────────
 
 describe("refreshCardtraderPrices", () => {
-  let fetchSpy: ReturnType<typeof vi.spyOn>;
+  let fetchSpy: FetchSpy;
   let upsertSpy: ReturnType<typeof vi.spyOn>;
   let logUpsertSpy: ReturnType<typeof vi.spyOn>;
 

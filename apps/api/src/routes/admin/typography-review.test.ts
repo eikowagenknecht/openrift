@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminTypographyReviewRouter } from "./typography-review";
 
@@ -89,7 +90,7 @@ describe("GET /api/admin/v1/typography-review", () => {
 
     const res = await app.request("/api/admin/v1/typography-review");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.diffs).toContainEqual({
       entity: "card",
       id: CARD_ID,
@@ -104,7 +105,7 @@ describe("GET /api/admin/v1/typography-review", () => {
     mockCatalog.cards.mockResolvedValue([{ ...baseCard, tags: ["Hero's Quest", "Plain"] }]);
 
     const res = await app.request("/api/admin/v1/typography-review");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.diffs).toContainEqual({
       entity: "card",
       id: CARD_ID,
@@ -120,7 +121,7 @@ describe("GET /api/admin/v1/typography-review", () => {
     mockCatalog.printings.mockResolvedValue([{ ...basePrinting, printedName: "Jinx's Wrath" }]);
 
     const res = await app.request("/api/admin/v1/typography-review");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.diffs).toContainEqual({
       entity: "printing",
       id: PRINTING_ID,
@@ -137,7 +138,7 @@ describe("GET /api/admin/v1/typography-review", () => {
     ]);
 
     const res = await app.request("/api/admin/v1/typography-review");
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.diffs).toEqual([]);
   });
 });

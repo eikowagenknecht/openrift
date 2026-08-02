@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { runJobAsync } from "../../services/run-job.js";
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminPrintingEventsRouter } from "./printing-events";
 
@@ -71,7 +72,7 @@ describe("POST /printing-events/flush", () => {
     mockRunJobAsync.mockResolvedValue({ runId: RUN_ID, status: "running" } as never);
     const res = await app.request("/api/admin/v1/printing-events/flush", { method: "POST" });
     expect(res.status).toBe(202);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({ runId: RUN_ID, status: "running" });
     expect(mockRunJobAsync).toHaveBeenCalledTimes(1);
   });
@@ -86,7 +87,7 @@ describe("GET /printing-events", () => {
     mockRepo.listByStatus.mockResolvedValue([eventRow]);
     const res = await app.request("/api/admin/v1/printing-events");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.events).toHaveLength(1);
     expect(json.events[0].id).toBe(eventRow.id);
     expect(json.events[0].createdAt).toBe(now.toISOString());
@@ -97,7 +98,7 @@ describe("GET /printing-events", () => {
     mockRepo.listByStatus.mockResolvedValue([]);
     const res = await app.request("/api/admin/v1/printing-events");
     expect(res.status).toBe(200);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.events).toEqual([]);
   });
 });
@@ -116,7 +117,7 @@ describe("POST /printing-events/retry", () => {
       body: JSON.stringify({ ids }),
     });
     expect(res.status).toBe(200);
-    const lintBody = await res.json();
+    const lintBody = await readJson(res);
     expect(lintBody.retried).toBe(2);
     expect(mockRepo.retryFailed).toHaveBeenCalledWith(ids);
   });

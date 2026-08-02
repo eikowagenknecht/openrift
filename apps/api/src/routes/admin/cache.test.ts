@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminCacheRouter } from "./cache";
 
@@ -41,14 +42,14 @@ describe("GET /cache/status", () => {
     const app = buildApp(configured);
     const res = await app.request("/api/admin/v1/cache/status");
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ configured: true });
+    expect(await readJson(res)).toEqual({ configured: true });
   });
 
   it("returns configured=false when credentials are missing", async () => {
     const app = buildApp(undefined);
     const res = await app.request("/api/admin/v1/cache/status");
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ configured: false });
+    expect(await readJson(res)).toEqual({ configured: false });
   });
 });
 
@@ -79,7 +80,7 @@ describe("POST /cache/purge", () => {
 
     expect(res.status).toBe(503);
     expect(mockFetch).not.toHaveBeenCalled();
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("not configured");
   });
 
@@ -92,7 +93,7 @@ describe("POST /cache/purge", () => {
     const res = await app.request("/api/admin/v1/cache/purge", { method: "POST" });
 
     expect(res.status).toBe(502);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("Cloudflare purge failed");
     // The upstream body is logged server-side, not reflected to the client.
     expect(json.message).not.toContain("bad zone");

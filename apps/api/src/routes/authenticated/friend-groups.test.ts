@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import { AppError } from "../../errors.js";
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
+import type { Variables } from "../../types.js";
 import { friendGroupsRouter } from "./friend-groups.js";
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
@@ -131,7 +133,7 @@ function makeApp(overrides: {
     ...overrides.cardTrades,
   };
 
-  const app = new Hono();
+  const app = new Hono<{ Variables: Variables }>();
   app.use("*", async (c, next) => {
     const repos = {
       friendGroups,
@@ -144,7 +146,7 @@ function makeApp(overrides: {
       users,
       cardTrades,
     };
-    c.set("user", overrides.user ?? { id: USER_ID });
+    c.set("user", (overrides.user ?? { id: USER_ID }) as never);
     c.set("repos", repos as never);
     // Test transact just runs the callback against the same mock repos.
     c.set("transact", (async (fn: (r: typeof repos) => unknown) => fn(repos)) as never);
@@ -221,7 +223,7 @@ describe("friend-groups route", () => {
     });
     const res = await app.request("/api/v1/friend-groups");
     expect(res.status).toBe(200);
-    const body = (await res.json()) as {
+    const body = (await readJson(res)) as {
       items: {
         sharedListCount: number;
         memberPreviews: { userId: string; gravatarHash: string; userEmail?: string }[];
@@ -263,7 +265,7 @@ describe("friend-groups route", () => {
     });
     const res = await app.request("/api/v1/friend-groups");
     expect(res.status).toBe(200);
-    const body = (await res.json()) as {
+    const body = (await readJson(res)) as {
       outgoingRequests: { id: string; groupSlug: string; groupName: string }[];
     };
     expect(body.outgoingRequests).toEqual([
@@ -285,7 +287,7 @@ describe("friend-groups route", () => {
     });
     const res = await app.request("/api/v1/friend-groups/pending-invites-count");
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ count: 3 });
+    expect(await readJson(res)).toEqual({ count: 3 });
   });
 
   it("GET /pending-requests-count returns the count", async () => {
@@ -294,7 +296,7 @@ describe("friend-groups route", () => {
     });
     const res = await app.request("/api/v1/friend-groups/pending-requests-count");
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ count: 2 });
+    expect(await readJson(res)).toEqual({ count: 2 });
   });
 
   // ── Create ──────────────────────────────────────────────────────────────
@@ -349,7 +351,7 @@ describe("friend-groups route", () => {
     });
     const res = await app.request("/api/v1/friend-groups/preview?code=ABCDEFGHIJKL");
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { viewerStatus: string };
+    const body = (await readJson(res)) as { viewerStatus: string };
     expect(body.viewerStatus).toBe("available");
     // The owner's name must not leak in the join preview (shown to non-members).
     expect(body).not.toHaveProperty("ownerName");
@@ -416,7 +418,7 @@ describe("friend-groups route", () => {
     });
     const res = await app.request("/api/v1/friend-groups/playgroup");
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { viewerStatus: string; members: unknown[] };
+    const body = (await readJson(res)) as { viewerStatus: string; members: unknown[] };
     expect(body.viewerStatus).toBe("pending");
     expect(body.members).toEqual([]);
   });
@@ -459,7 +461,7 @@ describe("friend-groups route", () => {
     });
     const res = await app.request("/api/v1/friend-groups/playgroup");
     expect(res.status).toBe(200);
-    const body = (await res.json()) as {
+    const body = (await readJson(res)) as {
       viewerRole: string;
       members: unknown[];
       pendingRequests: unknown[];
@@ -484,7 +486,7 @@ describe("friend-groups route", () => {
     });
     const res = await app.request("/api/v1/friend-groups/playgroup");
     expect(res.status).toBe(200);
-    const body = (await res.json()) as {
+    const body = (await readJson(res)) as {
       cardsTradedCount: number;
       cardsTradedByMember: Record<string, number>;
     };
@@ -525,7 +527,7 @@ describe("friend-groups route", () => {
     });
     const res = await app.request("/api/v1/friend-groups/playgroup");
     expect(res.status).toBe(200);
-    const body = (await res.json()) as {
+    const body = (await readJson(res)) as {
       collectionShares: { collectionId: string; coverPrintings: unknown[] }[];
     };
     expect(coverPrintingsAcross).toHaveBeenCalledWith([COLLECTION_ID], 4);
@@ -570,7 +572,7 @@ describe("friend-groups route", () => {
     });
     const res = await app.request("/api/v1/friend-groups/playgroup");
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { shares: { listId: string; entryCount: number }[] };
+    const body = (await readJson(res)) as { shares: { listId: string; entryCount: number }[] };
     const byId = new Map(body.shares.map((s) => [s.listId, s.entryCount]));
     // Rule-based list reports the expanded size, not the materialized 0.
     expect(byId.get(LIST_ID)).toBe(3);
@@ -624,7 +626,7 @@ describe("friend-groups route", () => {
     });
     const res = await app.request(`/api/v1/friend-groups/playgroup/members/${OTHER_ID}`);
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { shares: { listId: string; entryCount: number }[] };
+    const body = (await readJson(res)) as { shares: { listId: string; entryCount: number }[] };
     const byId = new Map(body.shares.map((s) => [s.listId, s.entryCount]));
     // Rule-based list reports the expanded size, not the materialized 0.
     expect(byId.get(LIST_ID)).toBe(3);
@@ -667,7 +669,7 @@ describe("friend-groups route", () => {
     });
     const res = await app.request("/api/v1/friend-groups/playgroup/shareable-lists");
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { items: { listId: string; entryCount: number }[] };
+    const body = (await readJson(res)) as { items: { listId: string; entryCount: number }[] };
     const byId = new Map(body.items.map((i) => [i.listId, i.entryCount]));
     // Rule-based list reports the expanded size, not the materialized 0.
     expect(byId.get(LIST_ID)).toBe(2);
@@ -1019,7 +1021,7 @@ describe("friend-groups route", () => {
     });
     const res = await app.request(`/api/v1/friend-groups/playgroup/collections/${COLLECTION_ID}`);
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { collection: { name: string }; viewerRole: string };
+    const body = (await readJson(res)) as { collection: { name: string }; viewerRole: string };
     expect(body.collection.name).toBe("Friend's Binder");
     expect(body.viewerRole).toBe("member");
   });
@@ -1068,7 +1070,7 @@ describe("friend-groups route", () => {
       });
       const res = await app.request(`/api/v1/friend-groups/playgroup/collections/${COLLECTION_ID}`);
       expect(res.status).toBe(200);
-      const body = (await res.json()) as {
+      const body = (await readJson(res)) as {
         copies: {
           condition: string | null;
           notesPublic: string | null;
@@ -1087,7 +1089,7 @@ describe("friend-groups route", () => {
       });
       const res = await app.request(`/api/v1/friend-groups/playgroup/collections/${COLLECTION_ID}`);
       expect(res.status).toBe(200);
-      const body = (await res.json()) as { copies: { notesPrivate: string | null }[] };
+      const body = (await readJson(res)) as { copies: { notesPrivate: string | null }[] };
       expect(body.copies[0].notesPrivate).toBe("paid too much");
     });
   });
@@ -1118,7 +1120,7 @@ describe("friend-groups route", () => {
     });
     const res = await app.request("/api/v1/friend-groups/playgroup/shareable-collections");
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { items: { sharedAt: string | null }[] };
+    const body = (await readJson(res)) as { items: { sharedAt: string | null }[] };
     expect(body.items).toHaveLength(2);
     expect(body.items[0]?.sharedAt).toBe(now.toISOString());
     expect(body.items[1]?.sharedAt).toBeNull();
@@ -1138,7 +1140,7 @@ describe("friend-groups route", () => {
     });
     const res = await app.request("/api/v1/friend-groups/playgroup/matches");
     expect(res.status).toBe(200);
-    const body = (await res.json()) as {
+    const body = (await readJson(res)) as {
       othersHaveYourWants: unknown[];
       othersWantYourHaves: unknown[];
     };

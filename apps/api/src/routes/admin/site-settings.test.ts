@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminSiteSettingsRouter } from "./site-settings";
 
@@ -63,7 +64,7 @@ describe("GET /api/admin/v1/site-settings", () => {
     mockRepo.listAll.mockResolvedValue([dbSetting1, dbSetting2]);
     const res = await app.request("/api/admin/v1/site-settings");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.settings).toHaveLength(2);
     expect(json.settings[0]).toEqual({
       key: "umami-url",
@@ -85,7 +86,7 @@ describe("GET /api/admin/v1/site-settings", () => {
     mockRepo.listAll.mockResolvedValue([]);
     const res = await app.request("/api/admin/v1/site-settings");
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.settings).toEqual([]);
   });
 });
@@ -133,7 +134,7 @@ describe("POST /api/admin/v1/site-settings", () => {
       body: JSON.stringify({ key: "umami-url", value: "https://analytics.example.com" }),
     });
     expect(res.status).toBe(409);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("already exists");
   });
 });
@@ -186,7 +187,7 @@ describe("PATCH /api/admin/v1/site-settings/:key", () => {
       body: JSON.stringify({ value: "test" }),
     });
     expect(res.status).toBe(404);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("not found");
   });
 });
@@ -211,7 +212,7 @@ describe("DELETE /api/admin/v1/site-settings/:key", () => {
       method: "DELETE",
     });
     expect(res.status).toBe(404);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toContain("not found");
   });
 });

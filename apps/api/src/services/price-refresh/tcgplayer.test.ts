@@ -102,7 +102,6 @@ const PRICE_BOLT_NORMAL = {
 
 const ZERO_COUNTS: UpsertCounts = {
   prices: { total: 0, new: 0, updated: 0, unchanged: 0 },
-  staging: { total: 0, new: 0, updated: 0, unchanged: 0 },
 };
 
 const LAST_MODIFIED = new Date("2026-03-10T20:00:00Z");
@@ -161,7 +160,7 @@ interface MockApiData {
   lastModifiedByGroup?: Map<number, Date | null>;
 }
 
-function setupFetchJson(fetchJsonSpy: ReturnType<typeof spyOn>, data: MockApiData = {}) {
+function setupFetchJson(fetchJsonSpy: ReturnType<typeof vi.spyOn>, data: MockApiData = {}) {
   const groups = data.groups ?? [];
   const productsByGroup = data.productsByGroup ?? new Map();
   const pricesByGroup = data.pricesByGroup ?? new Map();
@@ -193,16 +192,16 @@ function setupFetchJson(fetchJsonSpy: ReturnType<typeof spyOn>, data: MockApiDat
   });
 }
 
-function upsertStaging(spy: ReturnType<typeof spyOn>): StagingRow[] {
+function upsertStaging(spy: ReturnType<typeof vi.spyOn>): StagingRow[] {
   return spy.mock.calls[0][3];
 }
 
 // ── Tests ────────────────────────────────────────────────────────────────
 
 describe("refreshTcgplayerPrices", () => {
-  let fetchJsonSpy: ReturnType<typeof spyOn>;
-  let upsertSpy: ReturnType<typeof spyOn>;
-  let logUpsertSpy: ReturnType<typeof spyOn>;
+  let fetchJsonSpy: ReturnType<typeof vi.spyOn>;
+  let upsertSpy: ReturnType<typeof vi.spyOn>;
+  let logUpsertSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     fetchJsonSpy = vi.spyOn(fetchMod, "fetchJson" as any).mockResolvedValue({
@@ -608,7 +607,6 @@ describe("refreshTcgplayerPrices", () => {
       setupFetchJson(fetchJsonSpy);
       const customCounts: UpsertCounts = {
         prices: { total: 10, new: 5, updated: 3, unchanged: 2 },
-        staging: { total: 8, new: 4, updated: 2, unchanged: 2 },
       };
       upsertSpy.mockResolvedValue(customCounts);
 

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppError } from "../../errors.js";
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { publicPodTournamentsRouter } from "./pod-tournaments";
 
@@ -95,7 +96,7 @@ describe("GET /api/v1/pod-tournaments/report/:token", () => {
 
     const res = await app.request(`/api/v1/pod-tournaments/report/${TOKEN}`);
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.tournamentName).toBe("Friday Night Pods");
     expect(json.status).toBe("running");
     expect(json.currentRound).toBe(2);
@@ -119,7 +120,7 @@ describe("GET /api/v1/pod-tournaments/report/:token", () => {
 
     const res = await app.request(`/api/v1/pod-tournaments/report/${TOKEN}`);
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.status).toBe("cancelled");
   });
 
@@ -128,7 +129,7 @@ describe("GET /api/v1/pod-tournaments/report/:token", () => {
 
     const res = await app.request(`/api/v1/pod-tournaments/report/${FOLLOW_TOKEN}`);
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.canSubmit).toBe(false);
   });
 
@@ -168,7 +169,7 @@ describe("GET /api/v1/pod-tournaments/report/:token", () => {
 
     const res = await app.request(`/api/v1/pod-tournaments/report/${TOKEN}`);
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.rounds[0].penaltyTotal).toBeNull();
     expect(json.rounds[0].pods[0].penalty).toBeNull();
   });
@@ -178,7 +179,7 @@ describe("GET /api/v1/pod-tournaments/report/:token", () => {
 
     const res = await app.request(`/api/v1/pod-tournaments/report/${TOKEN}`);
     expect(res.status).toBe(404);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toBe("Not found");
     expect(mockPodTournamentsRepo.computeStandings).not.toHaveBeenCalled();
   });
@@ -193,7 +194,7 @@ describe("GET /api/v1/pod-tournaments/report/:token", () => {
 
     const res = await app.request(`/api/v1/pod-tournaments/report/${TOKEN}`);
     expect(res.status).toBe(404);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toBe("Not found");
     expect(mockPodTournamentsRepo.computeStandings).not.toHaveBeenCalled();
   });
@@ -227,7 +228,7 @@ describe("PUT /api/v1/pod-tournaments/report/:token/pods/:podId/result", () => {
 
     const res = await putRequest(TOKEN, POD_ID, validBody);
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.tournamentName).toBe("Friday Night Pods");
     expect(mockSubmitPodResult).toHaveBeenCalledTimes(1);
     const callArgs = mockSubmitPodResult.mock.calls[0] as unknown[];
@@ -241,7 +242,7 @@ describe("PUT /api/v1/pod-tournaments/report/:token/pods/:podId/result", () => {
 
     const res = await putRequest(FOLLOW_TOKEN, POD_ID, validBody);
     expect(res.status).toBe(403);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toBe("This link is follow-only");
     expect(mockSubmitPodResult).not.toHaveBeenCalled();
   });
@@ -251,7 +252,7 @@ describe("PUT /api/v1/pod-tournaments/report/:token/pods/:podId/result", () => {
 
     const res = await putRequest(TOKEN, POD_ID, validBody);
     expect(res.status).toBe(404);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toBe("Not found");
     expect(mockSubmitPodResult).not.toHaveBeenCalled();
   });
@@ -264,7 +265,7 @@ describe("PUT /api/v1/pod-tournaments/report/:token/pods/:podId/result", () => {
 
     const res = await putRequest(TOKEN, POD_ID, validBody);
     expect(res.status).toBe(404);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toBe("Not found");
     expect(mockSubmitPodResult).not.toHaveBeenCalled();
   });
@@ -277,7 +278,7 @@ describe("PUT /api/v1/pod-tournaments/report/:token/pods/:podId/result", () => {
 
     const res = await putRequest(TOKEN, POD_ID, validBody);
     expect(res.status).toBe(409);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toBe("Round is not accepting results");
   });
 });
@@ -305,7 +306,7 @@ describe("PUT /api/v1/pod-tournaments/report/:token/pods/:podId/players/:playerI
 
     const res = await putRequest(TOKEN, playerIds[0], { gamePoints: 3 });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.tournamentName).toBe("Friday Night Pods");
     expect(mockSubmitPodPlayerResult).toHaveBeenCalledTimes(1);
     const callArgs = mockSubmitPodPlayerResult.mock.calls[0] as unknown[];
@@ -334,7 +335,7 @@ describe("PUT /api/v1/pod-tournaments/report/:token/pods/:podId/players/:playerI
 
     const res = await putRequest(FOLLOW_TOKEN, playerIds[0], { gamePoints: 3 });
     expect(res.status).toBe(403);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toBe("This link is follow-only");
     expect(mockSubmitPodPlayerResult).not.toHaveBeenCalled();
   });
@@ -344,7 +345,7 @@ describe("PUT /api/v1/pod-tournaments/report/:token/pods/:podId/players/:playerI
 
     const res = await putRequest(TOKEN, playerIds[0], { gamePoints: 3 });
     expect(res.status).toBe(404);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toBe("Not found");
     expect(mockSubmitPodPlayerResult).not.toHaveBeenCalled();
   });
@@ -357,7 +358,7 @@ describe("PUT /api/v1/pod-tournaments/report/:token/pods/:podId/players/:playerI
 
     const res = await putRequest(TOKEN, playerIds[0], { gamePoints: 3 });
     expect(res.status).toBe(404);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toBe("Not found");
     expect(mockSubmitPodPlayerResult).not.toHaveBeenCalled();
   });
@@ -370,7 +371,7 @@ describe("PUT /api/v1/pod-tournaments/report/:token/pods/:podId/players/:playerI
 
     const res = await putRequest(TOKEN, playerIds[0], { gamePoints: 3 });
     expect(res.status).toBe(400);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.message).toBe("This player is not in this pod.");
   });
 });

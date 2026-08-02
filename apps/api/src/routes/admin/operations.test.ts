@@ -1,12 +1,14 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { Repos } from "../../deps.js";
 import {
   refreshCardmarketPrices,
   refreshCardtraderPrices,
   refreshTcgplayerPrices,
 } from "../../services/price-refresh/index.js";
 import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminOperationsRouter } from "./operations";
 
@@ -38,7 +40,7 @@ const mockJobRuns = {
   start: vi.fn(async () => ({ id: "019d4999-4219-72f6-b7bb-64004e1b1bff" })),
   succeed: vi.fn(async () => undefined),
   fail: vi.fn(async () => undefined),
-  findRunning: vi.fn(async () => null),
+  findRunning: vi.fn<Repos["jobRuns"]["findRunning"]>(async () => null),
   listRecent: vi.fn(),
   getLatestPerKind: vi.fn(),
   sweepOrphaned: vi.fn(),
@@ -101,7 +103,7 @@ describe("POST /api/admin/v1/clear-prices", () => {
       body: JSON.stringify({ marketplace: "tcgplayer" }),
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json).toEqual({
       marketplace: "tcgplayer",
       deleted: { prices: 10, variants: 15, products: 20 },
@@ -122,7 +124,7 @@ describe("POST /api/admin/v1/clear-prices", () => {
       body: JSON.stringify({ marketplace: "cardmarket" }),
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await readJson(res);
     expect(json.marketplace).toBe("cardmarket");
   });
 });
@@ -149,7 +151,7 @@ describe("POST /api/admin/v1/refresh-tcgplayer-prices", () => {
       method: "POST",
     });
     expect(res.status).toBe(202);
-    expect(await res.json()).toEqual({
+    expect(await readJson(res)).toEqual({
       runId: "019d4999-4219-72f6-b7bb-64004e1b1bff",
       status: "running",
     });
@@ -174,7 +176,7 @@ describe("POST /api/admin/v1/refresh-tcgplayer-prices", () => {
       method: "POST",
     });
     expect(res.status).toBe(202);
-    expect(await res.json()).toEqual({
+    expect(await readJson(res)).toEqual({
       runId: "019d4999-4219-72f6-b7bb-64004e1b1c00",
       status: "already_running",
     });
@@ -213,7 +215,7 @@ describe("POST /api/admin/v1/refresh-cardmarket-prices", () => {
       method: "POST",
     });
     expect(res.status).toBe(202);
-    expect(await res.json()).toEqual({
+    expect(await readJson(res)).toEqual({
       runId: "019d4999-4219-72f6-b7bb-64004e1b1bff",
       status: "running",
     });
@@ -238,7 +240,7 @@ describe("POST /api/admin/v1/refresh-cardtrader-prices", () => {
       method: "POST",
     });
     expect(res.status).toBe(202);
-    expect(await res.json()).toEqual({
+    expect(await readJson(res)).toEqual({
       runId: "019d4999-4219-72f6-b7bb-64004e1b1bff",
       status: "running",
     });
