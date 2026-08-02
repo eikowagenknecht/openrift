@@ -141,7 +141,7 @@ function DeckCheckKeysCard(actions: KeyActions) {
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between gap-2">
-          <CardTitle className="text-base">API keys</CardTitle>
+          <CardTitle>API keys</CardTitle>
           <Button size="sm" onClick={() => setCreateOpen(true)}>
             <PlusIcon className="size-4" />
             Create key

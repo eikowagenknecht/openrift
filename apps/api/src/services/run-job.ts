@@ -1,5 +1,6 @@
 import type { Logger } from "@openrift/shared/logger";
 import { context, SpanStatusCode, trace } from "@opentelemetry/api";
+import * as Sentry from "@sentry/bun";
 
 import type { JobTrigger } from "../db/index.js";
 import type { Repos } from "../deps.js";
@@ -83,6 +84,14 @@ async function runJobInner<T>(
     const durationMs = Date.now() - startMs;
     const message = error instanceof Error ? error.message : String(error);
     await repos.jobRuns.fail(id, { durationMs, errorMessage: message });
+    // Jobs swallow their errors so cron timers stay alive, so this catch is the
+    // only place a failed background run can be reported. Without it the job's
+    // failure exists solely as a job_runs row and a log line, neither of which
+    // has a push path to alerting.
+    Sentry.captureException(error, {
+      tags: { source: "job" },
+      extra: { kind, runId: id, trigger },
+    });
     log.error({ err: error, kind, runId: id, durationMs }, "Job failed");
     trace.getActiveSpan()?.setStatus({ code: SpanStatusCode.ERROR, message });
     return null;
@@ -138,6 +147,12 @@ export async function runJobAsync<T>(
         const durationMs = Date.now() - startMs;
         const message = error instanceof Error ? error.message : String(error);
         span.setStatus({ code: SpanStatusCode.ERROR, message });
+        // See the note in runJobInner: fire-and-forget work has no caller left
+        // to surface the throw, so this is the only reporting path.
+        Sentry.captureException(error, {
+          tags: { source: "job" },
+          extra: { kind, runId: id, trigger },
+        });
         try {
           await repos.jobRuns.fail(id, { durationMs, errorMessage: message });
         } catch (writeError) {

@@ -20,14 +20,19 @@ import {
   toDeckCheckEntryCardResponse,
 } from "../services/deck-check-advisories.js";
 
-/**
+/*
  * Shared response mappers for the deck-check subsystem (ADR-025/033). The same
  * shapes back both the group-scoped surface and the tournament-scoped judge API,
  * so the mapping lives here rather than being re-derived per router.
+ */
+
+/**
+ * Trim a date-ish value to the calendar day the deck-check responses expose.
+ * Exported because the player router presents the same `eventDate` field.
  * @param value A `Date`, a date string, or null.
  * @returns The value trimmed to a `YYYY-MM-DD` string, or null.
  */
-function isoDate(value: Date | string | null): string | null {
+export function isoDate(value: Date | string | null): string | null {
   if (value === null) {
     return null;
   }

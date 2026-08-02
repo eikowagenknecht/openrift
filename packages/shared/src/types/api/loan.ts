@@ -2,6 +2,7 @@
 // `loan*ResponseSchema` contract schemas in `contracts/loans.ts`.
 
 import type {
+  LOAN_STATUSES,
   loanActionCountsResponseSchema,
   loanBorrowerOptionsResponseSchema,
   loanCounterpartySchema,
@@ -13,7 +14,7 @@ import type { z } from "zod";
 /** The viewer's side of a loan. */
 export type LoanRole = "lender" | "borrower";
 
-export type LoanStatus = "active" | "returned" | "written_off";
+export type LoanStatus = (typeof LOAN_STATUSES)[number];
 
 export type LoanCounterparty = z.infer<typeof loanCounterpartySchema>;
 

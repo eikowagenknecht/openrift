@@ -64,7 +64,7 @@ export function GroupsJoinPage({ initialCode }: GroupsJoinPageProps) {
       {preview.isError ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">No group found</CardTitle>
+            <CardTitle>No group found</CardTitle>
             <CardDescription>
               That code doesn&apos;t match any group. Double-check with the admin who sent it to
               you.
@@ -74,7 +74,7 @@ export function GroupsJoinPage({ initialCode }: GroupsJoinPageProps) {
       ) : preview.data ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">{preview.data.name}</CardTitle>
+            <CardTitle>{preview.data.name}</CardTitle>
             <CardDescription>
               {preview.data.memberCount}
               {preview.data.memberCount === 1 ? " member" : " members"}

@@ -155,7 +155,7 @@ function ContactSharingPanel({ data, slug }: { data: FriendGroupDetailResponse; 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Your contacts in this group</CardTitle>
+        <CardTitle>Your contacts in this group</CardTitle>
         <CardDescription>
           Choose which of your contact methods this group&apos;s members can see. They show up next
           to your name on the Members and Trades pages.
@@ -235,7 +235,7 @@ function AdminSettings({ data, slug }: { data: FriendGroupDetailResponse; slug: 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Group settings</CardTitle>
+        <CardTitle>Group settings</CardTitle>
         <CardDescription>Visible to admins and the owner only.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
@@ -429,7 +429,7 @@ function DiscordPanel({ slug }: { slug: string }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
+        <CardTitle className="flex items-center gap-2">
           <BotIcon className="size-4" />
           Discord bot
         </CardTitle>
@@ -510,7 +510,7 @@ function ShareableListsPanel({ slug }: { slug: string }) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Share your lists</CardTitle>
+          <CardTitle>Share your lists</CardTitle>
           <CardDescription>
             You don&apos;t have any lists yet. Create a wishlist, tradelist, or organize list to
             share it with this group.{" "}
@@ -529,7 +529,7 @@ function ShareableListsPanel({ slug }: { slug: string }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Share your lists</CardTitle>
+        <CardTitle>Share your lists</CardTitle>
         <CardDescription>
           Shared lists are visible to everyone in this group. Changes here don&apos;t affect other
           groups you are in.
@@ -612,7 +612,7 @@ function ShareableCollectionsPanel({ slug }: { slug: string }) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Share your collections</CardTitle>
+          <CardTitle>Share your collections</CardTitle>
           <CardDescription>
             You don&apos;t have any personal collections yet. Create one to share it with this
             group.
@@ -624,7 +624,7 @@ function ShareableCollectionsPanel({ slug }: { slug: string }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Share your collections</CardTitle>
+        <CardTitle>Share your collections</CardTitle>
         <CardDescription>
           Shared collections are visible (read-only) to everyone in this group. Changes here
           don&apos;t affect other groups you are in.
@@ -758,7 +758,7 @@ function LeaveOrDeletePanel({ data, slug }: { data: FriendGroupDetailResponse; s
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Membership</CardTitle>
+        <CardTitle>Membership</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {isOwner ? (

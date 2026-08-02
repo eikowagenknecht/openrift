@@ -82,35 +82,9 @@ interface CompilerLoggerEvent {
   kind: string;
   reason?: string;
   detail?: {
-    options?: { category?: string };
     loc?: { start?: { line: number; column: number } } | null;
   };
 }
-
-// React Compiler bails on memoizing the two virtualized card surfaces: their
-// render path reads TanStack Virtual's `virtualizer` object directly
-// (`virtualizer.containerRef`, `.getVirtualItems()`, `.measureElement`), which
-// the compiler sees as ref access during render and flags under the `Refs`
-// category. The bailout is intentional and required — we deliberately use
-// `directDomUpdates: true` + `directDomUpdatesMode: "position"` (see the
-// comments in card-grid.tsx / card-table.tsx) instead of a `"use no memo"`
-// wrapper so the rest of each component still compiles. So these specific
-// diagnostics are pure noise.
-//
-// We match on (file suffix, category) rather than the exact message so any
-// *new* / unrelated compiler bailout in these files still surfaces. The scope
-// is intentionally narrow: only the two files that own the virtualizer, only
-// the `Refs` category (e.g. the unrelated `Refs` bailout in use-card-filters.ts
-// is NOT suppressed).
-//
-// TODO: Remove this once TanStack Virtual exposes the virtualizer in a way
-// React Compiler can analyze without a ref-during-render bailout
-// (track: https://github.com/TanStack/virtual). Drop the matching entries (or
-// the whole list) and the `Refs` events will reappear, confirming the fix.
-const SUPPRESSED_COMPILER_BAILOUTS: { fileSuffix: string; category: string }[] = [
-  { fileSuffix: "components/cards/card-grid.tsx", category: "Refs" },
-  { fileSuffix: "components/cards/card-table.tsx", category: "Refs" },
-];
 
 const compilerLogger = {
   logEvent(filename: string | null, event: CompilerLoggerEvent): void {
@@ -119,16 +93,6 @@ const compilerLogger = {
       event.kind !== "CompileSkip" &&
       event.kind !== "CompileDiagnostic" &&
       event.kind !== "PipelineError"
-    ) {
-      return;
-    }
-    const category = event.detail?.options?.category;
-    if (
-      filename &&
-      category &&
-      SUPPRESSED_COMPILER_BAILOUTS.some(
-        (entry) => filename.endsWith(entry.fileSuffix) && entry.category === category,
-      )
     ) {
       return;
     }

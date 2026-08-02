@@ -2,6 +2,7 @@
 // `cardTrade*ResponseSchema` contract schemas in `contracts/card-trades.ts`.
 
 import type {
+  CARD_TRADE_STATUSES,
   cardTradeActionCountsResponseSchema,
   cardTradeCounterpartySchema,
   cardTradeListResponseSchema,
@@ -15,13 +16,7 @@ export type CardTradeRole = "giver" | "receiver";
 /** Who started the trade. The party who must accept is always the non-initiator. */
 export type CardTradeInitiator = "giver" | "receiver";
 
-export type CardTradeStatus =
-  | "pending"
-  | "reserved"
-  | "completed"
-  | "declined"
-  | "cancelled"
-  | "expired";
+export type CardTradeStatus = (typeof CARD_TRADE_STATUSES)[number];
 
 /** The viewer's primary contextual action on a trade row, or `null` when none. */
 export type CardTradeActionNeeded = "accept-or-decline" | "cancel" | "complete" | "apply-sync";

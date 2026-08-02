@@ -10,6 +10,12 @@
       "dependsOn": ["^typecheck"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"]
     },
+    // Sentinel task with no script in any package: `dependsOn: ["^topo"]` makes
+    // it walk the whole workspace dependency graph, so any task depending on
+    // `topo` inherits every upstream package's hash without serializing on that
+    // package's real work. Needed because shared is consumed as raw source
+    // (its exports point at ./src/*.ts), so a change confined to
+    // packages/shared/src must invalidate both apps' test caches.
     "topo": {
       "dependsOn": ["^topo"]
     },

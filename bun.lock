@@ -232,9 +232,9 @@
     "// html2canvas": "Redirect jspdf's optional html2canvas dep to html2canvas-pro (the version we already use directly). Keep this pin in step with html2canvas-pro in apps/web: dependabot does not treat an npm: alias as the same package, so a mismatch silently ships both versions as separate chunks.",
     "// kysely": "Dedupe: better-auth pins kysely 0.29.2 while the api uses 0.29.4; two kysely copies fork @better-auth/core into two identical-but-different-path type copies, breaking the api build.",
     "@hono/node-server": "1.19.14",
-    "@tanstack/query-core": "5.101.0",
+    "@tanstack/query-core": "5.101.4",
     "hono": "4.12.32",
-    "html2canvas": "npm:html2canvas-pro@2.3.1",
+    "html2canvas": "npm:html2canvas-pro@2.3.2",
     "kysely": "0.29.4",
   },
   "packages": {
@@ -1130,7 +1130,7 @@
 
     "@tanstack/pacer-lite": ["@tanstack/pacer-lite@0.2.1", "", {}, "sha512-3PouiFjR4B6x1c969/Pl4ZIJleof1M0n6fNX8NRiC9Sqv1g06CVDlEaXUR4212ycGFyfq4q+t8Gi37Xy+z34iQ=="],
 
-    "@tanstack/query-core": ["@tanstack/query-core@5.101.0", "", {}, "sha512-cQetA74EB+seWySv1TTKr828TnP0u39m6LykwDXIo84SNortpDkp30TMEjkqtYCNP9c40uT/iwl6MLiufEt0Ow=="],
+    "@tanstack/query-core": ["@tanstack/query-core@5.101.4", "", {}, "sha512-gNwcvOJcRbLWPOLG/2OBm+zM+Yv+MKsXKEOWC57USuZDEsI71hEErQsiEGx5wX9rzWWkfwM0fVSPoiIFSsxfiw=="],
 
     "@tanstack/query-db-collection": ["@tanstack/query-db-collection@1.2.1", "", { "dependencies": { "@standard-schema/spec": "^1.1.0", "@tanstack/db": "0.6.17" }, "peerDependencies": { "@tanstack/query-core": "^5.0.0", "typescript": ">=4.7" } }, "sha512-2IwtxdolgPMwLoV7TKaB+1qVGU7ukulacCQqhCt1/50+x/r9sLXF2668fy6OnLd0mEkkEthzCa+J3ZbiA4kNbg=="],
 
@@ -1896,7 +1896,7 @@
 
     "html-url-attributes": ["html-url-attributes@3.0.1", "", {}, "sha512-ol6UPyBWqsrO6EJySPz2O7ZSr856WDrEzM5zMqp+FJJLGMW35cLYmmZnl0vztAZxRUoNZJFTCohfjuIJ8I4QBQ=="],
 
-    "html2canvas": ["html2canvas-pro@2.3.1", "", { "dependencies": { "css-line-break": "^2.1.0", "text-segmentation": "^1.0.3" } }, "sha512-w7CCWi0B0kCy/joy5cPN2GIDGW0iwbqBppxxc2Vc5UyqYDQ1K13ZVr+MyGR/34Mq03emCTxVbBTpG299/prACw=="],
+    "html2canvas": ["html2canvas-pro@2.3.2", "", { "dependencies": { "css-line-break": "^2.1.0", "text-segmentation": "^1.0.3" } }, "sha512-lYFaxtQM8exYVAtXmjdx8cjkw+/2GycRvSTcr2M2MuxXKuYlWe77+KFKuY92y/tzkvzA8XZTQIDlqoVZDB+mqQ=="],
 
     "html2canvas-pro": ["html2canvas-pro@2.3.2", "", { "dependencies": { "css-line-break": "^2.1.0", "text-segmentation": "^1.0.3" } }, "sha512-lYFaxtQM8exYVAtXmjdx8cjkw+/2GycRvSTcr2M2MuxXKuYlWe77+KFKuY92y/tzkvzA8XZTQIDlqoVZDB+mqQ=="],
 

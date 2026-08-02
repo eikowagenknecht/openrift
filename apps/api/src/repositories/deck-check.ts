@@ -14,6 +14,7 @@ import type {
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
+import { parseJsonb } from "../db/helpers.js";
 import type {
   Database,
   DeckCheckEntriesTable,
@@ -173,17 +174,6 @@ export function legendComboResolutions(
     }
   }
   return out;
-}
-
-/**
- * postgres.js can hand jsonb back as a string under Bun; parse defensively.
- * @returns The parsed value, or null when absent.
- */
-function parseJsonb<T>(value: T | string | null): T | null {
-  if (value === null || value === undefined) {
-    return null;
-  }
-  return (typeof value === "string" ? JSON.parse(value) : value) as T;
 }
 
 /**

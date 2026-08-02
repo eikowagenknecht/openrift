@@ -11,6 +11,7 @@ import { implement } from "@orpc/server";
 
 import type { Repos } from "../../deps.js";
 import { AppError } from "../../errors.js";
+import { isoDate } from "../../lib/deck-check-presenters.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import type {
@@ -39,13 +40,6 @@ import {
 } from "../../services/deck-check-states.js";
 
 // ─── Mappers ────────────────────────────────────────────────────────────────
-
-function isoDate(value: Date | string | null): string | null {
-  if (value === null) {
-    return null;
-  }
-  return value instanceof Date ? value.toISOString().slice(0, 10) : String(value);
-}
 
 /**
  * Builds the player projection of one entry: the deck by zone with the
@@ -414,11 +408,7 @@ export const deckCheckPlayerRouter = {
       const linked = await repos.deckCheck.getLinkedEntryForUser(event.id, userId);
       return {
         eventName: event.name,
-        eventDate: event.eventDate
-          ? event.eventDate instanceof Date
-            ? event.eventDate.toISOString().slice(0, 10)
-            : String(event.eventDate)
-          : null,
+        eventDate: isoDate(event.eventDate),
         groupName: event.groupName,
         format: event.format,
         allowedSets: event.allowedSets,

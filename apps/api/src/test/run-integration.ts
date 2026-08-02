@@ -8,7 +8,6 @@
  * Usage: bun --env-file=../../.env run src/test/run-integration.ts
  */
 
-import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { bootstrapSeededTestDb, dropTempDb, sweepStaleTestDatabases } from "./integration-setup.js";
@@ -17,130 +16,26 @@ import { bootstrapSeededTestDb, dropTempDb, sweepStaleTestDatabases } from "./in
 // Test file groups
 // ---------------------------------------------------------------------------
 
-/**
- * Files that can all run in a single parallel bun test invocation.
- *
- * This list is kept in sync with the actual integration test files — `bun test`
- * silently ignores file args that don't exist, so a stale/mistyped path means a
- * test file is dropped from the run without any error. Earlier these had drifted
- * (route tests live under routes/authenticated/, several files moved to
- * routes/public/, and a few listed files had been deleted), which silently
- * dropped ~124 tests. If you add/move/delete an integration test file, update
- * this list (it must equal every src/**\/*.integration.test.ts except the
- * migrations file, which runs separately below).
- */
-const PARALLEL_FILES = [
-  "src/auth-api-key.integration.test.ts",
-  "src/auth-rate-limit.integration.test.ts",
-  "src/authorization.integration.test.ts",
-  "src/db/card-type-triggers.integration.test.ts",
-  "src/db/norm-name-parity.integration.test.ts",
-  // Authenticated routes
-  "src/routes/authenticated/collections.integration.test.ts",
-  "src/routes/authenticated/collections-reset.integration.test.ts",
-  "src/routes/authenticated/copies.integration.test.ts",
-  "src/routes/authenticated/collection-events.integration.test.ts",
-  "src/routes/authenticated/lists.integration.test.ts",
-  "src/routes/authenticated/deck-check-player.integration.test.ts",
-  "src/routes/authenticated/tournament-deck-check.integration.test.ts",
-  "src/routes/authenticated/tournament-deck-check-concurrency.integration.test.ts",
-  "src/services/card-trades-loan-race.integration.test.ts",
-  "src/routes/authenticated/decks.integration.test.ts",
-  "src/routes/authenticated/preferences.integration.test.ts",
-  // Unified tournaments umbrella (ADR-033)
-  "src/routes/authenticated/organizations.integration.test.ts",
-  "src/routes/authenticated/tournaments.integration.test.ts",
-  "src/routes/authenticated/tournaments-run.integration.test.ts",
-  "src/routes/public/tournaments.integration.test.ts",
-  "src/routes/public/deck-check-ingest.integration.test.ts",
-  // Public routes
-  "src/routes/public/health.integration.test.ts",
-  "src/routes/public/init.integration.test.ts",
-  "src/routes/public/site-settings.integration.test.ts",
-  "src/routes/public/prices.integration.test.ts",
-  "src/routes/public/catalog.integration.test.ts",
-  "src/routes/public/landing-summary.integration.test.ts",
-  "src/routes/public/optional-auth-caching.integration.test.ts",
-  // Admin routes
-  "src/routes/admin/admin-core.integration.test.ts",
-  "src/routes/admin/catalog.integration.test.ts",
-  "src/routes/admin/marketplace-groups.integration.test.ts",
-  "src/routes/admin/marketplace-mapping.integration.test.ts",
-  "src/routes/admin/unified-mappings.integration.test.ts",
-  "src/routes/admin/ignored-products.integration.test.ts",
-  "src/routes/admin/feature-flags.integration.test.ts",
-  "src/routes/admin/ignored-candidates.integration.test.ts",
-  "src/routes/admin/operations.integration.test.ts",
-  "src/routes/admin/images.integration.test.ts",
-  "src/routes/admin/provider-settings.integration.test.ts",
-  "src/routes/admin/site-settings.integration.test.ts",
-  "src/routes/admin/rules.integration.test.ts",
-  "src/routes/admin/cards/queries.integration.test.ts",
-  "src/routes/admin/cards/mutations.integration.test.ts",
-  "src/routes/admin/cards/images.integration.test.ts",
-  "src/routes/admin/cards/card-review-grant.integration.test.ts",
-  "src/routes/admin/audit-events.integration.test.ts",
-  // Services
-  "src/services/price-refresh/upsert.integration.test.ts",
-  "src/services/ingest-candidates.integration.test.ts",
-  "src/services/ingest-user-submission.integration.test.ts",
-  "src/services/card-admin.integration.test.ts",
-  "src/services/printing-admin.integration.test.ts",
-  "src/services/products.integration.test.ts",
-  // Repositories
-  "src/repositories/admin-events.integration.test.ts",
-  "src/repositories/admins.integration.test.ts",
-  "src/repositories/candidate-cards.integration.test.ts",
-  "src/repositories/catalog.integration.test.ts",
-  "src/repositories/collection-events.integration.test.ts",
-  "src/repositories/collections.integration.test.ts",
-  "src/repositories/copies.integration.test.ts",
-  "src/repositories/decks.integration.test.ts",
-  "src/repositories/feature-flags.integration.test.ts",
-  "src/repositories/friend-group-discord-links.integration.test.ts",
-  "src/repositories/friend-groups.integration.test.ts",
-  "src/repositories/health.integration.test.ts",
-  "src/repositories/ignored-candidates.integration.test.ts",
-  "src/repositories/job-runs.integration.test.ts",
-  "src/repositories/keywords.integration.test.ts",
-  "src/repositories/lists.integration.test.ts",
-  "src/repositories/marketplace-admin.integration.test.ts",
-  "src/repositories/marketplace-mapping.integration.test.ts",
-  "src/repositories/marketplace.integration.test.ts",
-  "src/repositories/collection-value-history.integration.test.ts",
-  "src/repositories/price-refresh.integration.test.ts",
-  "src/repositories/printing-images.integration.test.ts",
-  "src/repositories/products.integration.test.ts",
-  "src/repositories/provider-settings.integration.test.ts",
-  "src/repositories/rules.integration.test.ts",
-  "src/repositories/sets.integration.test.ts",
-  "src/repositories/site-settings.integration.test.ts",
-  "src/repositories/user-preferences.integration.test.ts",
-  "src/repositories/user-shares.integration.test.ts",
-  "src/repositories/user-contact-methods.integration.test.ts",
-  "src/repositories/deck-plans.integration.test.ts",
-  "src/repositories/organizations-rebalance.integration.test.ts",
-  "src/repositories/pod-tournaments.integration.test.ts",
-  // Unified tournaments umbrella (ADR-033)
-  "src/repositories/tournaments-schema.integration.test.ts",
-  "src/repositories/tournament-summary-extras.integration.test.ts",
-  // Card trades (ADR-019)
-  "src/repositories/card-trades.integration.test.ts",
-  // Card lending (ADR-039)
-  "src/repositories/loans.integration.test.ts",
-  // Trade email notifications (ADR-030)
-  "src/services/trade-request-email.integration.test.ts",
-  "src/services/trade-request-coalesce.integration.test.ts",
-  "src/services/trade-status-email.integration.test.ts",
-  "src/services/trade-match-digest.integration.test.ts",
-  "src/routes/public/unsubscribe.integration.test.ts",
-];
+const repoRoot = resolve(import.meta.dirname!, "../..");
 
-/** Files that formerly used mock.module() — now empty since services are injected via context */
-const MOCK_MODULE_FILES: string[] = [];
-
-/** Migrations test — always gets its own temp DB (unchanged) */
+/** Migrations test — always gets its own temp DB, so it is excluded from the shared batch. */
 const MIGRATIONS_FILE = "src/db/migrations/migrations.integration.test.ts";
+
+/**
+ * Every integration test file, discovered from disk rather than hand-listed.
+ *
+ * A hand-maintained list had two silent-failure modes, both of which bit us:
+ * `bun test` ignores file args that don't exist, so a stale path dropped a file
+ * from the run without an error (~124 tests once went dark), and a new test file
+ * nobody remembered to register never ran at all. Globbing removes both by
+ * construction. Sorted because every file in the parallel batch shares one
+ * database, so the execution order has to be deterministic across machines.
+ */
+const ALL_FILES = [...new Bun.Glob("src/**/*.integration.test.ts").scanSync({ cwd: repoRoot })]
+  .map((file) => file.replaceAll("\\", "/"))
+  .sort();
+
+const PARALLEL_FILES = ALL_FILES.filter((file) => file !== MIGRATIONS_FILE);
 
 // ---------------------------------------------------------------------------
 // Main
@@ -152,42 +47,25 @@ if (!DATABASE_URL) {
   process.exit(0);
 }
 
-// Fail loudly if any listed test file is missing. bun test silently ignores
-// non-existent file args, so without this a mistyped/stale path drops a whole
-// test file from the run with no error (this is how ~124 tests went dark).
-{
-  const repoRoot = resolve(import.meta.dirname!, "../..");
-  const missing = [...PARALLEL_FILES, ...MOCK_MODULE_FILES, MIGRATIONS_FILE].filter(
-    (file) => !existsSync(resolve(repoRoot, file)),
+// The glob is the only thing standing between us and a run that quietly tests
+// nothing, so verify it actually found something. An empty result means the cwd
+// or the pattern is wrong, and every downstream step would still report success.
+if (ALL_FILES.length === 0) {
+  console.error(
+    `Integration runner: no src/**/*.integration.test.ts files found under ${repoRoot}.`,
   );
-  if (missing.length > 0) {
-    console.error(
-      `Integration runner: ${missing.length} listed test file(s) do not exist:\n  ${missing.join("\n  ")}\n` +
-        "Update PARALLEL_FILES in run-integration.ts to match the real files.",
-    );
-    process.exit(1);
-  }
+  process.exit(1);
 }
 
-// The reverse guard: fail loudly if any integration test file on disk is NOT
-// registered above. Without this, simply forgetting to add a new file to
-// PARALLEL_FILES silently drops it from every run (that is how the trade-request
-// -coalesce and trade-status-email tests went dark). Together with the existence
-// check above, the registered set must be exactly the files on disk.
-{
-  const repoRoot = resolve(import.meta.dirname!, "../..");
-  const registered = new Set([...PARALLEL_FILES, ...MOCK_MODULE_FILES, MIGRATIONS_FILE]);
-  const onDisk = [...new Bun.Glob("src/**/*.integration.test.ts").scanSync({ cwd: repoRoot })].map(
-    (file) => file.replaceAll("\\", "/"),
+// MIGRATIONS_FILE is the one path still written by hand. If it is renamed the
+// filter above stops matching, and bun test silently ignores the stale arg — so
+// the migrations test would vanish from the run while everything looked green.
+if (!ALL_FILES.includes(MIGRATIONS_FILE)) {
+  console.error(
+    `Integration runner: ${MIGRATIONS_FILE} does not exist.\n` +
+      "Update MIGRATIONS_FILE in run-integration.ts to match the real path.",
   );
-  const unregistered = onDisk.filter((file) => !registered.has(file)).sort();
-  if (unregistered.length > 0) {
-    console.error(
-      `Integration runner: ${unregistered.length} integration test file(s) exist but are not registered:\n  ${unregistered.join("\n  ")}\n` +
-        "Add each to PARALLEL_FILES (or MOCK_MODULE_FILES / MIGRATIONS_FILE) in run-integration.ts.",
-    );
-    process.exit(1);
-  }
+  process.exit(1);
 }
 
 const coverageArgs = process.env.COVERAGE
@@ -247,7 +125,7 @@ try {
   const parallelResult = Bun.spawnSync(
     ["bun", "test", ...coverageArgs, ...parallelCoverageDir, ...PARALLEL_FILES],
     {
-      cwd: resolve(import.meta.dirname!, "../.."),
+      cwd: repoRoot,
       env,
       stdout: "inherit",
       stderr: "inherit",
@@ -257,23 +135,7 @@ try {
     failed = true;
   }
 
-  // Batch 2: mock.module tests (separate processes)
-  for (const [i, file] of MOCK_MODULE_FILES.entries()) {
-    console.log(`\nRunning ${file} (separate process)...`);
-    const mockCoverageDir =
-      coverageArgs.length > 0 ? [`--coverage-dir=./coverage/integration-mock-${i}`] : [];
-    const result = Bun.spawnSync(["bun", "test", ...coverageArgs, ...mockCoverageDir, file], {
-      cwd: resolve(import.meta.dirname!, "../.."),
-      env,
-      stdout: "inherit",
-      stderr: "inherit",
-    });
-    if (result.exitCode !== 0) {
-      failed = true;
-    }
-  }
-
-  // Batch 3: migrations test (own temp DB, uses DATABASE_URL directly).
+  // Batch 2: migrations test (own temp DB, uses DATABASE_URL directly).
   // Needs a longer timeout than bun's 5s default: setupTestDb applies all ~100
   // migrations in beforeAll, and the up/down cycle rolls every one back and
   // re-applies — comfortably over 5s under DB contention from the parallel batch.
@@ -291,7 +153,7 @@ try {
       MIGRATIONS_FILE,
     ],
     {
-      cwd: resolve(import.meta.dirname!, "../.."),
+      cwd: repoRoot,
       env: { ...process.env },
       stdout: "inherit",
       stderr: "inherit",

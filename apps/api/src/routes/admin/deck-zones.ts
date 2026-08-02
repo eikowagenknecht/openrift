@@ -5,6 +5,7 @@ import { implement } from "@orpc/server";
 import { AppError } from "../../errors.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
+import { assertValidReorder } from "../../utils/assertions.js";
 
 const os = implement(adminDeckZonesContract).$context<ApiContext>().use(requireAuthedUser);
 
@@ -23,31 +24,12 @@ export const adminDeckZonesRouter = {
   reorder: os.reorder.handler(async ({ input, context }): Promise<void> => {
     const { deckZones: repo } = context.repos;
     const { slugs } = input;
-
-    const uniqueSlugs = new Set(slugs);
-    if (uniqueSlugs.size !== slugs.length) {
-      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Duplicate slugs in reorder list.");
-    }
-
-    const allZones = await repo.listAll();
-    if (slugs.length !== allZones.length) {
-      throw new AppError(
-        400,
-        ERROR_CODES.BAD_REQUEST,
-        `Expected ${allZones.length} slugs, got ${slugs.length}.`,
-      );
-    }
-
-    const knownSlugs = new Set(allZones.map((zone) => zone.slug));
-    const unknown = slugs.filter((slug) => !knownSlugs.has(slug));
-    if (unknown.length > 0) {
-      throw new AppError(
-        400,
-        ERROR_CODES.BAD_REQUEST,
-        `Unknown deck zone slugs: ${unknown.join(", ")}`,
-      );
-    }
-
+    const all = await repo.listAll();
+    assertValidReorder(slugs, all, {
+      keyOf: (row) => row.slug,
+      keyNoun: "slugs",
+      unknownLabel: "deck zone slugs",
+    });
     await repo.reorder(slugs);
   }),
 

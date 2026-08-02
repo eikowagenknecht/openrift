@@ -24,17 +24,19 @@ if (featureEnabled("deck-builder")) {
 
 ### API
 
-Query the `feature_flags` table directly:
+Go through the feature-flags repository — never touch the table with a raw `db` query (see the database-access rule in `CLAUDE.md`). Route handlers reach the repos via `c.get("repos")`; services take them as a parameter.
 
 ```ts
-const flag = await db
-  .selectFrom("feature_flags")
-  .select("enabled")
-  .where("key", "=", "deck-builder")
-  .executeTakeFirst();
-
-if (flag?.enabled) {
+if (await repos.featureFlags.isEnabled("deck-builder")) {
   /* ... */
+}
+```
+
+`isEnabled` returns `undefined` when no row exists for the key, so a check that should treat a missing flag as _on_ must compare explicitly:
+
+```ts
+if ((await repos.featureFlags.isEnabled("deck-builder")) === false) {
+  return; // only an explicitly disabled flag short-circuits
 }
 ```
 
