@@ -155,6 +155,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Pressable } from "@/components/ui/pressable";
 import { Progress } from "@/components/ui/progress";
 import { QrCode } from "@/components/ui/qr-code";
+import { QuantityStepper, QuantityStepperField } from "@/components/ui/quantity-stepper";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SectionHeading } from "@/components/ui/section-heading";
@@ -1394,6 +1395,7 @@ function CardThumbnailsSection() {
 function FormControlsSection() {
   const [date, setDate] = useState<string | undefined>();
   const [energy, setEnergy] = useState("any");
+  const [copies, setCopies] = useState(2);
   const energyItems = [
     { value: "any", label: "Any energy" },
     { value: "low", label: "0–2 energy" },
@@ -1458,6 +1460,21 @@ function FormControlsSection() {
         </Demo>
         <Demo name="DatePicker" hint="The only sanctioned date entry. Never a raw date input.">
           <DatePicker value={date} onChange={setDate} onClear={() => setDate(undefined)} />
+        </Demo>
+        <Demo
+          name="QuantityStepper"
+          hint="How many copies an action touches. The Field form adds the boxed label row the dialogs use."
+          spec="icon buttons size-8 · value w-8 tabular-nums · clamped to min/max"
+        >
+          <div className="w-full space-y-3">
+            <QuantityStepper value={copies} onValueChange={setCopies} max={4} />
+            <QuantityStepperField
+              label="Copies to move"
+              value={copies}
+              onValueChange={setCopies}
+              max={4}
+            />
+          </div>
         </Demo>
         <Demo name="Checkbox" hint="Binary option in forms and filter panels.">
           <Label className="flex items-center gap-2">

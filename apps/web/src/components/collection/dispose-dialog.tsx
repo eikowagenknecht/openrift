@@ -11,12 +11,28 @@ import {
 import { Button } from "@/components/ui/button";
 import { DialogForm } from "@/components/ui/dialog-form";
 import { Input } from "@/components/ui/input";
+import { QuantityStepperField } from "@/components/ui/quantity-stepper";
 import { disposeConfirmState } from "@/lib/dispose-confirm";
 
 interface DisposeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** How many copies the removal can touch — the stepper's upper bound. */
   count: number;
+  /**
+   * How many of them actually get removed. Controlled by the caller (unlike the
+   * other dialogs' steppers) because the list-membership check and the
+   * recorded-details count are computed there and have to track the chosen
+   * slice, not the whole stack.
+   */
+  quantity: number;
+  onQuantityChange: (quantity: number) => void;
+  /**
+   * True when all target copies are copies of the same card (the right-click /
+   * single-card path). Only then is a "how many copies" choice meaningful; a
+   * multi-card selection from the float bar removes everything selected.
+   */
+  singleCard?: boolean;
   onConfirm: () => void;
   isPending: boolean;
   /** Which of the viewer's lists reference the copies being disposed. */
@@ -39,31 +55,34 @@ export function DisposeDialog({
   open,
   onOpenChange,
   count,
+  quantity,
+  onQuantityChange,
+  singleCard = false,
   onConfirm,
   isPending,
   memberships,
   membershipsLoading = false,
   annotatedCount = 0,
 }: DisposeDialogProps) {
-  const cardNoun = `card${count === 1 ? "" : "s"}`;
+  const canChooseQuantity = singleCard && count > 1;
+  const cardNoun = `card${quantity === 1 ? "" : "s"}`;
   const { showListWarning, needsTypeConfirm, copiesOnAnyList } = disposeConfirmState(
-    count,
+    quantity,
     memberships,
   );
   const onListNoun = `card${copiesOnAnyList === 1 ? "" : "s"}`;
 
   const [confirmText, setConfirmText] = useState("");
-  // Start blank on every reopen so an earlier typed value can't carry over.
+  // Start blank on every reopen so an earlier typed value can't carry over, and
+  // on every quantity change — the typed number has to match what is removed.
   useEffect(() => {
-    if (!open) {
-      setConfirmText("");
-    }
-  }, [open]);
+    setConfirmText("");
+  }, [open, quantity]);
 
   // Hold the button while the membership check resolves: until then we don't
   // know whether this is a cross-list dispose, so we can't show the right
   // friction.
-  const typedConfirmSatisfied = !needsTypeConfirm || confirmText.trim() === String(count);
+  const typedConfirmSatisfied = !needsTypeConfirm || confirmText.trim() === String(quantity);
   const confirmDisabled = isPending || membershipsLoading || !typedConfirmSatisfied;
 
   return (
@@ -72,9 +91,19 @@ export function DisposeDialog({
         <DialogForm onSubmit={onConfirm}>
           <AlertDialogTitle>Remove cards from collection</AlertDialogTitle>
           <AlertDialogDescription>
-            This permanently removes {count} {cardNoun} from your collection. It can&apos;t be
+            This permanently removes {quantity} {cardNoun} from your collection. It can&apos;t be
             undone, but the removal is recorded in your activity history.
           </AlertDialogDescription>
+
+          {canChooseQuantity && (
+            <QuantityStepperField
+              label="Copies to remove"
+              value={quantity}
+              onValueChange={onQuantityChange}
+              max={count}
+              disabled={isPending}
+            />
+          )}
 
           {showListWarning && (
             <div className="border-destructive/40 bg-destructive/10 text-destructive flex gap-3 rounded-lg border p-3 text-sm">
@@ -85,7 +114,7 @@ export function DisposeDialog({
                   your lists
                 </p>
                 <p>
-                  Removing {count === 1 ? "it" : "them"} here deletes the {cardNoun} for good, so{" "}
+                  Removing {quantity === 1 ? "it" : "them"} here deletes the {cardNoun} for good, so{" "}
                   {copiesOnAnyList === 1 ? "it" : "they"} will also drop off:
                 </p>
                 <ul className="list-disc space-y-0.5 pl-4">
@@ -116,7 +145,7 @@ export function DisposeDialog({
           {needsTypeConfirm && (
             <div className="space-y-1.5">
               <label htmlFor="dispose-confirm" className="text-sm font-medium">
-                Type <span className="font-mono">{count}</span> to confirm
+                Type <span className="font-mono">{quantity}</span> to confirm
               </label>
               <Input
                 id="dispose-confirm"
@@ -124,7 +153,7 @@ export function DisposeDialog({
                 onChange={(event) => setConfirmText(event.target.value)}
                 inputMode="numeric"
                 autoComplete="off"
-                placeholder={String(count)}
+                placeholder={String(quantity)}
                 disabled={isPending}
               />
             </div>
@@ -143,7 +172,7 @@ export function DisposeDialog({
               ) : isPending ? (
                 "Removing…"
               ) : (
-                `Remove ${count} ${cardNoun}`
+                `Remove ${quantity} ${cardNoun}`
               )}
             </Button>
           </div>

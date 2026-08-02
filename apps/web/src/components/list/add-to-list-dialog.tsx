@@ -1,4 +1,4 @@
-import { FolderIcon, HandshakeIcon, MinusIcon, PlusIcon } from "lucide-react";
+import { FolderIcon, HandshakeIcon, PlusIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { PickerList, PickerRow } from "@/components/ui/picker-list";
+import { QuantityStepperField } from "@/components/ui/quantity-stepper";
 import { useBulkAddListEntries, useCreateList, useLists } from "@/hooks/use-lists";
 import { cn } from "@/lib/utils";
 
@@ -145,30 +146,13 @@ export function AddToListDialog({
           </DialogDescription>
         </DialogHeader>
         {canChooseQuantity && (
-          <div className="flex items-center justify-between gap-3 rounded-md border px-3 py-2">
-            <span className="text-sm">Copies to add</span>
-            <div className="flex items-center gap-3">
-              <Button
-                variant="outline"
-                size="icon"
-                disabled={quantity <= 1 || isPending}
-                onClick={() => setQuantity((current) => Math.max(1, current - 1))}
-                aria-label="One fewer"
-              >
-                <MinusIcon className="size-4" />
-              </Button>
-              <span className="w-8 text-center text-lg font-medium tabular-nums">{quantity}</span>
-              <Button
-                variant="outline"
-                size="icon"
-                disabled={quantity >= count || isPending}
-                onClick={() => setQuantity((current) => Math.min(count, current + 1))}
-                aria-label="One more"
-              >
-                <PlusIcon className="size-4" />
-              </Button>
-            </div>
-          </div>
+          <QuantityStepperField
+            label="Copies to add"
+            value={quantity}
+            onValueChange={setQuantity}
+            max={count}
+            disabled={isPending}
+          />
         )}
         {exceedsLimit && (
           <p className="border-destructive/30 bg-destructive/10 text-destructive rounded-md border px-3 py-2 text-sm">

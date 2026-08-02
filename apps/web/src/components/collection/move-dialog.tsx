@@ -1,6 +1,6 @@
 import type { CollectionResponse } from "@openrift/shared";
 import { InboxIcon, BookOpenIcon } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   AlertDialog,
@@ -12,34 +12,72 @@ import { Button } from "@/components/ui/button";
 import { CommandEmpty } from "@/components/ui/command";
 import { DialogForm } from "@/components/ui/dialog-form";
 import { PickerList, PickerRow } from "@/components/ui/picker-list";
+import { QuantityStepperField } from "@/components/ui/quantity-stepper";
 import { cn } from "@/lib/utils";
 
 interface MoveDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   collections: CollectionResponse[];
-  onMove: (toCollectionId: string) => void;
+  /** How many copies the move can touch — the stepper's upper bound. */
+  count: number;
+  /**
+   * True when all target copies are copies of the same card (the right-click /
+   * single-card path). Only then is a "how many copies" choice meaningful, so
+   * the dialog shows a 1..count stepper and moves just the chosen number. A
+   * multi-card selection from the float bar keeps the move-all behavior.
+   */
+  singleCard?: boolean;
+  onMove: (toCollectionId: string, quantity: number) => void;
   isPending: boolean;
 }
 
+/**
+ * Picks the collection a set of owned copies moves into, and how many of them
+ * move when they all belong to one card.
+ * @returns The move dialog.
+ */
 export function MoveDialog({
   open,
   onOpenChange,
   collections,
+  count,
+  singleCard = false,
   onMove,
   isPending,
 }: MoveDialogProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [highlightedId, setHighlightedId] = useState("");
 
+  // Re-arm to "all copies" each time the dialog opens for a fresh target.
+  const canChooseQuantity = singleCard && count > 1;
+  const [quantity, setQuantity] = useState(count);
+  useEffect(() => {
+    if (open) {
+      setQuantity(count);
+    }
+  }, [open, count]);
+  const effectiveQuantity = canChooseQuantity ? quantity : count;
+
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
-        <DialogForm onSubmit={() => selectedId && onMove(selectedId)}>
+        <DialogForm onSubmit={() => selectedId && onMove(selectedId, effectiveQuantity)}>
           <AlertDialogTitle>Move to collection</AlertDialogTitle>
           <AlertDialogDescription>
-            Choose a collection to move the selected cards to.
+            {effectiveQuantity === 1
+              ? "Choose a collection to move this copy to."
+              : `Choose a collection to move these ${effectiveQuantity} copies to.`}
           </AlertDialogDescription>
+          {canChooseQuantity && (
+            <QuantityStepperField
+              label="Copies to move"
+              value={quantity}
+              onValueChange={setQuantity}
+              max={count}
+              disabled={isPending}
+            />
+          )}
           {/* No overflow here — CommandList scrolls internally, keeping the filter input pinned. */}
           <div>
             {collections.length === 0 ? (

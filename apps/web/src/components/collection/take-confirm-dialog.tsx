@@ -1,6 +1,5 @@
 import type { Printing } from "@openrift/shared";
 import { legendDisplayName } from "@openrift/shared";
-import { MinusIcon, PlusIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import {
@@ -11,6 +10,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { DialogForm } from "@/components/ui/dialog-form";
+import { QuantityStepper } from "@/components/ui/quantity-stepper";
 
 interface TakeConfirmDialogProps {
   /** The card to take, or null when the dialog is closed. */
@@ -63,27 +63,12 @@ export function TakeConfirmDialog({
           </AlertDialogDescription>
           {canStep && (
             <div className="flex flex-col items-center gap-1 py-1">
-              <div className="flex items-center gap-3">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  disabled={quantity <= 1 || isPending}
-                  onClick={() => setQuantity((current) => Math.max(1, current - 1))}
-                  aria-label="One fewer"
-                >
-                  <MinusIcon className="size-4" />
-                </Button>
-                <span className="w-8 text-center text-lg font-medium tabular-nums">{quantity}</span>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  disabled={quantity >= maxQuantity || isPending}
-                  onClick={() => setQuantity((current) => Math.min(maxQuantity, current + 1))}
-                  aria-label="One more"
-                >
-                  <PlusIcon className="size-4" />
-                </Button>
-              </div>
+              <QuantityStepper
+                value={quantity}
+                onValueChange={setQuantity}
+                max={maxQuantity}
+                disabled={isPending}
+              />
               <p className="text-muted-foreground text-xs">{maxQuantity} in the box</p>
             </div>
           )}

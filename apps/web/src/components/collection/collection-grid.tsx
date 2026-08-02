@@ -205,13 +205,17 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   // to the selection or to just the clicked card. Decoupled from `selected` so
   // a browse-mode right-click can act on one card without entering select mode.
   const [actionCopyIds, setActionCopyIds] = useState<string[]>([]);
-  // True when `actionCopyIds` are all copies of a single card, so the
-  // Add-to-list dialog can offer a "how many copies" stepper instead of always
-  // adding every copy.
+  // True when `actionCopyIds` are all copies of a single card, so the Move,
+  // Add-to-list and Dispose dialogs can offer a "how many copies" stepper
+  // instead of always acting on every copy.
   const [actionSingleCard, setActionSingleCard] = useState(false);
-  // How many of `actionCopyIds` carry recorded details (ADR-038), snapshotted
-  // when the dispose dialog opens so it can warn about deleting them.
-  const [actionAnnotatedCount, setActionAnnotatedCount] = useState(0);
+  // How many copies the dispose dialog's stepper currently targets. Unlike the
+  // other dialogs this one lives here: the membership check and the
+  // recorded-details count below are computed over the chosen slice.
+  const [disposeQuantity, setDisposeQuantity] = useState(0);
+  // Which of `actionCopyIds` carry recorded details (ADR-038), snapshotted when
+  // the dispose dialog opens so it can warn about deleting them.
+  const [actionAnnotatedIds, setActionAnnotatedIds] = useState<ReadonlySet<string>>(new Set());
   // Per-copy metadata dialog (ADR-038): the right-clicked tile's copies plus
   // the printing behind each, so the dialog can label rows across printings.
   const [copyDetailsTarget, setCopyDetailsTarget] = useState<CopyDetailsTarget | null>(null);
@@ -239,9 +243,16 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const disposeCopies = useDisposeCopies();
   // Raw synced copy rows, for metadata-aware checks at action time (ADR-038).
   const copiesStore = useCopiesCollection();
+  // The copies the dispose dialog would actually remove: the front of the
+  // target stack, narrowed by its stepper. Every warning below is scoped to
+  // exactly these, so lowering the count re-checks rather than overstating.
+  const disposeCopyIds = actionCopyIds.slice(0, disposeQuantity);
   // Which of the viewer's lists reference the copies about to be disposed — only
   // checked while the dispose dialog is open so the warning can name them.
-  const disposeListMemberships = useCopyListMemberships(actionCopyIds, disposeOpen);
+  const disposeListMemberships = useCopyListMemberships(disposeCopyIds, disposeOpen);
+  const disposeAnnotatedCount = disposeCopyIds.filter((copyId) =>
+    actionAnnotatedIds.has(copyId),
+  ).length;
   const deleteCollection = useDeleteCollection();
   const clearCollection = useClearCollection();
   const setDeckbuilding = useSetCollectionDeckbuilding();
@@ -355,13 +366,17 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   // opened), not on `selected` directly — a browse-mode right-click targets a
   // single card without a visible selection. clearSelection() on success is a
   // no-op in that case and clears the selection in the select-mode paths.
-  const handleMove = (toCollectionId: string) => {
-    const count = actionCopyIds.length;
+  //
+  // A single-card target can act on part of the stack: the dialogs offer a
+  // stepper and hand back how many copies to touch, taken off the front of
+  // `actionCopyIds`.
+  const handleMove = (toCollectionId: string, quantity: number) => {
+    const copyIds = actionCopyIds.slice(0, quantity);
     moveCopies.mutate(
-      { copyIds: actionCopyIds, toCollectionId },
+      { copyIds, toCollectionId },
       {
         onSuccess: () => {
-          toast.success(`Moved ${count} card${count > 1 ? "s" : ""}`);
+          toast.success(`Moved ${copyIds.length} card${copyIds.length > 1 ? "s" : ""}`);
           clearSelection();
           setMoveOpen(false);
         },
@@ -370,12 +385,12 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   };
 
   const handleDispose = () => {
-    const count = actionCopyIds.length;
+    const copyIds = disposeCopyIds;
     disposeCopies.mutate(
-      { copyIds: actionCopyIds },
+      { copyIds },
       {
         onSuccess: () => {
-          toast.success(`Removed ${count} card${count > 1 ? "s" : ""}`);
+          toast.success(`Removed ${copyIds.length} card${copyIds.length > 1 ? "s" : ""}`);
           clearSelection();
           setDisposeOpen(false);
         },
@@ -386,20 +401,26 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   // Snapshot the action target, then open the matching dialog.
   const openAction = (action: CollectionContextAction, copyIds: string[]) => {
     setActionCopyIds(copyIds);
+    setActionSingleCard(copyIdsShareOneCard(copyIds));
     if (action === "move") {
       setMoveOpen(true);
     } else if (action === "addToList") {
-      setActionSingleCard(copyIdsShareOneCard(copyIds));
       setAddToListOpen(true);
     } else {
-      // Count targets with recorded details (ADR-038) so the dispose dialog
-      // can warn that removing them deletes those details.
+      // Note which targets have recorded details (ADR-038) so the dispose
+      // dialog can warn that removing them deletes those details. Snapshotted
+      // as ids, not a count, because the stepper can narrow the target set.
       const ids = new Set(copyIds);
-      setActionAnnotatedCount(
-        copiesStore
-          ? copiesStore.toArray.filter((copy) => ids.has(copy.id) && copyHasMetadata(copy)).length
-          : 0,
+      setActionAnnotatedIds(
+        new Set(
+          copiesStore
+            ? copiesStore.toArray
+                .filter((copy) => ids.has(copy.id) && copyHasMetadata(copy))
+                .map((copy) => copy.id)
+            : [],
+        ),
       );
+      setDisposeQuantity(copyIds.length);
       setDisposeOpen(true);
     }
   };
@@ -949,6 +970,8 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
               open={moveOpen}
               onOpenChange={setMoveOpen}
               collections={collections.filter((collection) => collection.id !== collectionId)}
+              count={actionCopyIds.length}
+              singleCard={actionSingleCard}
               onMove={handleMove}
               isPending={moveCopies.isPending}
             />
@@ -957,11 +980,14 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
               open={disposeOpen}
               onOpenChange={setDisposeOpen}
               count={actionCopyIds.length}
+              quantity={disposeQuantity}
+              onQuantityChange={setDisposeQuantity}
+              singleCard={actionSingleCard}
               onConfirm={handleDispose}
               isPending={disposeCopies.isPending}
               memberships={disposeListMemberships.data}
               membershipsLoading={disposeListMemberships.isLoading}
-              annotatedCount={actionAnnotatedCount}
+              annotatedCount={disposeAnnotatedCount}
             />
 
             <AddToListDialog
