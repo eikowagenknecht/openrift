@@ -1,3 +1,8 @@
+// oxlint-disable-next-line import/no-nodejs-modules -- test reads its sibling source file as text
+import { readFileSync } from "node:fs";
+// oxlint-disable-next-line import/no-nodejs-modules -- test reads its sibling source file as text
+import path from "node:path";
+
 import type { UserPreferencesResponse } from "@openrift/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
@@ -254,5 +259,15 @@ describe("usePreferencesSync", () => {
 
     expect(useDisplayStore.getState().showImages).toBe(false);
     expect(patches()).toHaveLength(0);
+  });
+
+  // Regression: the React Compiler cannot lower `??=` (Todo::lowerExpression)
+  // and bails out of the whole hook when it sees one, so the debounced saver
+  // and its store subscriptions get rebuilt on every render. The compiler
+  // logger in vite.config.ts surfaces the CompileError, but this source-level
+  // guard catches the pattern where the compiler doesn't run (vitest).
+  it("does not use `??=` assignments (React Compiler cannot lower them)", () => {
+    const source = readFileSync(path.resolve(__dirname, "./use-preferences-sync.ts"), "utf-8");
+    expect(source).not.toMatch(/[\w)\]]\s*\?\?=/u);
   });
 });

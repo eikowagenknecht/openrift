@@ -206,7 +206,11 @@ export function usePreferencesSync(enabled: boolean) {
 
   // Subscribe to store changes and debounce-save to server
   useEffect(() => {
-    lastSynced.current ??= serializePrefs();
+    // Written long-hand: the React Compiler cannot lower `??=` and bails out of
+    // the whole hook if it sees one.
+    if (lastSynced.current === null) {
+      lastSynced.current = serializePrefs();
+    }
 
     function onStoreChange() {
       // Cheap filter only. The debounced callback re-checks against the same
