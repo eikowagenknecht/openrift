@@ -241,12 +241,15 @@ export function ListPage({ listId }: ListPageProps) {
     />
   );
 
-  const exportDialog = (
+  // Mounted only while open: it re-runs the grid's filter pass over every
+  // entry to offer the "current filters" scope, which is wasted work on a
+  // page that re-renders on each quantity tick.
+  const exportDialog = exportOpen && (
     <ListExportDialog
       listName={data.list.name}
       kind={data.list.kind}
       entries={data.entries}
-      open={exportOpen}
+      open
       onOpenChange={setExportOpen}
     />
   );

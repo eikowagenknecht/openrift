@@ -24,6 +24,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useCards } from "@/hooks/use-cards";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
+import { useFilteredListEntries } from "@/hooks/use-filtered-list-entries";
 import type { CsvExportFormat } from "@/lib/csv-export";
 import { CSV_EXPORT_FORMATS, csvExportFilename, downloadCSV } from "@/lib/csv-export";
 import {
@@ -53,6 +54,11 @@ interface ListExportDialogProps {
  * where a user promises cards without checking a badge. The filter runs once
  * here so no format below can miss it, and the toggle only appears when the
  * list actually holds a reserved copy.
+ *
+ * The same goes for the grid's own filters: with any active, the export
+ * defaults to what the user is looking at rather than the whole list, since
+ * narrowing the grid and then exporting is the whole reason to filter before
+ * exporting. Both scoping steps run before any format sees the entries.
  * @returns The export dialog.
  */
 export function ListExportDialog({
@@ -62,31 +68,52 @@ export function ListExportDialog({
   open,
   onOpenChange,
 }: ListExportDialogProps) {
+  const [applyFilters, setApplyFilters] = useState(true);
   const [excludeReserved, setExcludeReserved] = useState(true);
 
-  const hasReserved = hasReservedCopies(entries);
-  const exportEntries = hasReserved && excludeReserved ? withoutReservedCopies(entries) : entries;
+  const { hasActiveFilters, filteredEntries } = useFilteredListEntries(entries);
+  const scopedEntries = hasActiveFilters && applyFilters ? filteredEntries : entries;
 
-  const reservedToggle = hasReserved ? (
-    <div className="flex items-center gap-2">
-      <Checkbox
-        id="list-export-exclude-reserved"
-        checked={excludeReserved}
-        onCheckedChange={(checked) => setExcludeReserved(checked === true)}
-      />
-      <label htmlFor="list-export-exclude-reserved" className="cursor-pointer text-sm">
-        Exclude cards reserved in a trade
-      </label>
-    </div>
-  ) : null;
+  const hasReserved = hasReservedCopies(scopedEntries);
+  const exportEntries =
+    hasReserved && excludeReserved ? withoutReservedCopies(scopedEntries) : scopedEntries;
+
+  const options = (
+    <>
+      {hasActiveFilters && (
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id="list-export-apply-filters"
+            checked={applyFilters}
+            onCheckedChange={(checked) => setApplyFilters(checked === true)}
+          />
+          <label htmlFor="list-export-apply-filters" className="cursor-pointer text-sm">
+            Only cards matching the current filters ({filteredEntries.length} of {entries.length})
+          </label>
+        </div>
+      )}
+      {hasReserved && (
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id="list-export-exclude-reserved"
+            checked={excludeReserved}
+            onCheckedChange={(checked) => setExcludeReserved(checked === true)}
+          />
+          <label htmlFor="list-export-exclude-reserved" className="cursor-pointer text-sm">
+            Exclude cards reserved in a trade
+          </label>
+        </div>
+      )}
+    </>
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         {kind === "card" ? (
-          <TextExport entries={exportEntries} />
+          <TextExport entries={exportEntries} options={options} />
         ) : (
-          <CsvExport listName={listName} entries={exportEntries} options={reservedToggle} />
+          <CsvExport listName={listName} entries={exportEntries} options={options} />
         )}
         {kind !== "copy" && <CardmarketBlock entries={exportEntries} />}
       </DialogContent>
@@ -94,7 +121,14 @@ export function ListExportDialog({
   );
 }
 
-function TextExport({ entries }: { entries: readonly ListEntryDetailResponse[] }) {
+function TextExport({
+  entries,
+  options,
+}: {
+  entries: readonly ListEntryDetailResponse[];
+  /** Extra export options, rendered between the text area and the button. */
+  options?: ReactNode;
+}) {
   const { copied, copy } = useCopyToClipboard();
 
   const code = formatCardListAsDeckText(entries);
@@ -119,6 +153,7 @@ function TextExport({ entries }: { entries: readonly ListEntryDetailResponse[] }
           rows={12}
           onClick={(event) => (event.target as HTMLTextAreaElement).select()}
         />
+        {options}
         <div className="flex justify-end">
           <Button type="submit" disabled={code.length === 0}>
             {copied ? <CheckIcon className="size-4" /> : <CopyIcon className="size-4" />}

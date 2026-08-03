@@ -11,6 +11,7 @@
 
 ### Other
 
+- feat(Collection): **Export just the cards you filtered to** — exporting a wishlist or tradelist while filters are on now offers the cards on screen instead of the whole list, with a checkbox to take everything anyway.
 - feat(Collection): **Auto-scan for a phone on a stand** — scanning now counts each card once however long you hold it up, and a toggle switches to counting every copy dealt past a propped-up camera.
 - feat(Collection): **Scan without collecting** — the scanner can name cards without adding them anywhere, every scanned card links through to its card page, and one button clears everything a sitting added.
 - feat(Collection): **Drag quantities work on lists too** — dropping a card stack on a wishlist or tradelist now takes one copy, the number key you hold, or the whole stack with Shift, just like dropping on a collection.
