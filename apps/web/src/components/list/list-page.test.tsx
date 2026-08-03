@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -58,7 +58,34 @@ const printingKindListDetail = {
   ],
 };
 
-let listDetail: typeof cardKindListDetail | typeof printingKindListDetail = cardKindListDetail;
+// A copy-kind organize list whose single entry came from a dynamic rule
+// (id: null, source: "rule"). Rule entries can't be selected, so "Move all to
+// collection" is the only way to file them somewhere else — it must be offered
+// even though nothing on the list is individually editable.
+const copyKindListDetail = {
+  list: { ...cardKindListDetail.list, kind: "copy", intent: "organize" },
+  entries: [
+    {
+      id: null,
+      kind: "copy",
+      copyId: "copy-1",
+      printingId: printingOnList.id,
+      cardId: "card-1",
+      cardName: "Test Card",
+      quantity: 1,
+      source: "rule",
+      ruleQuantity: 1,
+      reserved: false,
+      onLoan: false,
+      tradeOverride: EMPTY_TRADE_PREFERENCE,
+    },
+  ],
+};
+
+let listDetail:
+  | typeof cardKindListDetail
+  | typeof printingKindListDetail
+  | typeof copyKindListDetail = cardKindListDetail;
 
 function mutationStub() {
   return { mutate: vi.fn(), isPending: false, variables: undefined };
@@ -168,6 +195,11 @@ vi.mock("@/hooks/use-card-selection", () => ({
 vi.mock("@/hooks/use-copies", () => ({
   useCopyListMemberships: () => ({ data: undefined, isLoading: false }),
   useDisposeCopies: () => mutationStub(),
+  useMoveCopies: () => mutationStub(),
+}));
+
+vi.mock("@/hooks/use-collections", () => ({
+  useCollections: () => ({ data: [{ id: "col-1", name: "Bulk box", isInbox: false }] }),
 }));
 
 vi.mock("@/hooks/use-enums", () => ({
@@ -266,6 +298,14 @@ const resetters = [
   createStoreResetter(useSiblingOverrideStore),
 ];
 
+// The dropdown portals outside the render tree, and this file's teardown wipes
+// document.body before React unmounts — an open menu would then fail to detach.
+// Close it and wait for the portal to go.
+async function closeOpenMenu(user: ReturnType<typeof userEvent.setup>) {
+  await user.keyboard("{Escape}");
+  await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
+}
+
 function renderListPage() {
   const topBarSlot = document.createElement("div");
   document.body.append(topBarSlot);
@@ -295,6 +335,32 @@ describe("ListPage", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Group visibility" }));
     expect(screen.getByRole("dialog", { name: "Group visibility" })).toBeInTheDocument();
+  });
+
+  it("offers 'Move all to collection' on a rule-driven copy list", async () => {
+    listDetail = copyKindListDetail;
+    const user = userEvent.setup();
+    renderListPage();
+
+    await user.click(screen.getByRole("button", { name: "List actions" }));
+    expect(
+      await screen.findByRole("menuitem", { name: "Move all to collection" }),
+    ).toBeInTheDocument();
+    await closeOpenMenu(user);
+  });
+
+  it("hides 'Move all to collection' on a list with no copies behind it", async () => {
+    const user = userEvent.setup();
+    renderListPage();
+
+    await user.click(screen.getByRole("button", { name: "List actions" }));
+    // Wait for the menu itself before asserting the absence, or the negative
+    // would pass against a menu that simply hadn't opened yet.
+    expect(await screen.findByRole("menuitem", { name: "Export" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", { name: "Move all to collection" }),
+    ).not.toBeInTheDocument();
+    await closeOpenMenu(user);
   });
 
   it("feeds the detail pane every catalog printing of a card on a printing-kind list", () => {

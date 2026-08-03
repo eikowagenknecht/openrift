@@ -33,6 +33,7 @@ import {
   dispatchItemClick,
   dispatchItemToggle,
   dispatchListBulkAction,
+  dispatchMoveCopyToCollection,
   dispatchRemoveEntry,
   dispatchSetPreference,
   dispatchSiblingClick,
@@ -205,6 +206,9 @@ export const ListGridCell = memo(function ListGridCell({
   // otherwise just this entry — the browser resolves which via the bulk-action
   // handler. Trade preference stays single-entry. Copy-kind tradelists use
   // "Take off list…" (a keep-vs-sold chooser); other kinds get a plain Remove.
+  // Copy-kind entries also offer "Move to collection…", which files the
+  // physical copy elsewhere and leaves the list alone.
+  const copyId = entry?.kind === "copy" ? entry.copyId : null;
   const contextMenu =
     entry && editableEntryId !== null ? (
       <ListEntryContextMenu
@@ -215,14 +219,17 @@ export const ListGridCell = memo(function ListGridCell({
           kind === "copy" ? () => dispatchListBulkAction(editableEntryId, "takeOff") : undefined
         }
         onMove={() => dispatchListBulkAction(editableEntryId, "move")}
+        onMoveToCollection={copyId ? () => dispatchMoveCopyToCollection(copyId) : undefined}
         onSetPreference={
           supportsTradePrefs ? () => dispatchSetPreference(editableEntryId) : undefined
         }
       />
     ) : entry && !showLibrary ? (
-      // Rule-produced entries (ADR-034) can't be removed — their only action is
-      // excluding them from the rule that made them.
+      // Rule-produced entries (ADR-034) can't be removed — the rule owns them,
+      // so the only list-side action is excluding them from it. Moving the copy
+      // between collections isn't a list edit, so a copy entry keeps that one.
       <ListEntryContextMenu
+        onMoveToCollection={copyId ? () => dispatchMoveCopyToCollection(copyId) : undefined}
         onExclude={() => dispatchExcludeFromRule(entryToExcludeTarget(entry))}
       />
     ) : undefined;

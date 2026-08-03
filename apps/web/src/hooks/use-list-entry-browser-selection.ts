@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
+import { resolveCopyMoveTarget } from "@/components/list/list-entries";
 import { useCardSelection } from "@/hooks/use-card-selection";
 import { useCopyListMemberships, useDisposeCopies } from "@/hooks/use-copies";
 import {
@@ -145,6 +146,18 @@ export function useListEntryBrowserSelection({
     entries.flatMap((entry) => (entry.kind === "copy" && entry.reserved ? [entry.id] : [])),
   );
   const takeOffReservedCount = actionEntryIds.filter((id) => reservedEntryIds.has(id)).length;
+
+  // ── "Move to collection" (copy-kind lists) ──────────────────────────
+  // Filing the physical copies behind the entries somewhere else — the bulk box,
+  // a binder — without changing the list. Targeted by copy id rather than entry
+  // id: a rule-produced entry (ADR-034) has no `list_entries` row and so can't
+  // be selected, but it still names a real copy that can move.
+  const [moveToCollectionOpen, setMoveToCollectionOpen] = useState(false);
+  const [moveCopyIds, setMoveCopyIds] = useState<string[]>([]);
+  const handleMoveCopyToCollection = (copyId: string) => {
+    setMoveCopyIds(resolveCopyMoveTarget(entries, selected, copyId));
+    setMoveToCollectionOpen(true);
+  };
 
   // Drop any in-progress selection when the list changes, and force browse
   // mode in the catalog (library) view where most tiles have no entry to act
@@ -412,6 +425,7 @@ export function useListEntryBrowserSelection({
     },
     onRemoveEntry: (entryId, cardName) => onRemoveEntry(entryId, cardName),
     onSetPreference: (entryId) => setPrefDialogEntryId(entryId),
+    onMoveCopyToCollection: handleMoveCopyToCollection,
     onExcludeFromRule: handleExcludeFromRule,
     isQuantityPendingFor: (entryId) => isQuantityPendingFor(entryId),
   });
@@ -444,6 +458,9 @@ export function useListEntryBrowserSelection({
     disposeCopies,
     takeOffMemberships,
     takeOffReservedCount,
+    moveToCollectionOpen,
+    setMoveToCollectionOpen,
+    moveCopyIds,
     openListAction,
     handleSearchAndClose,
     moveTargetLists,

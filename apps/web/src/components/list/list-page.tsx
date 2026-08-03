@@ -1,6 +1,7 @@
 import type { Currency, TradePreference } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
+  BookOpenIcon,
   DownloadIcon,
   EllipsisVerticalIcon,
   LibraryBigIcon,
@@ -19,7 +20,7 @@ import { PageTopBarButton, PageTopBarIconButton } from "@/components/layout/page
 import { listKindIcon } from "@/components/list/create-list-dialog";
 import { DeleteListDialog } from "@/components/list/delete-list-dialog";
 import { ListEditDialog } from "@/components/list/list-edit-dialog";
-import { emptyStateCopy } from "@/components/list/list-entries";
+import { emptyStateCopy, listCopyIds } from "@/components/list/list-entries";
 import { ListEntryBrowser } from "@/components/list/list-entry-browser";
 import { ListExportDialog } from "@/components/list/list-export-dialog";
 import { ListGroupVisibilityDialog } from "@/components/list/list-group-visibility-dialog";
@@ -27,6 +28,7 @@ import { ListHeader } from "@/components/list/list-header";
 import { ListImportDialog } from "@/components/list/list-import-dialog";
 import { ListShareDialog } from "@/components/list/list-share-dialog";
 import { ListVisibilityButton } from "@/components/list/list-visibility-button";
+import { MoveCopiesToCollectionDialog } from "@/components/list/move-copies-to-collection-dialog";
 import { RuleEditorDialog } from "@/components/list/rule-editor-dialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -64,6 +66,7 @@ export function ListPage({ listId }: ListPageProps) {
   const [exportOpen, setExportOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [ruleOpen, setRuleOpen] = useState(false);
+  const [moveAllOpen, setMoveAllOpen] = useState(false);
 
   const deleteList = useDeleteList();
   const removeEntry = useRemoveListEntry();
@@ -123,6 +126,14 @@ export function ListPage({ listId }: ListPageProps) {
   const entriesCount = data.entries.length;
   const activeRuleCount = data.list.rules.length;
 
+  // Copy-kind lists sit on top of physical copies, so the whole list can be
+  // filed into another collection in one go — the "sorted out, now move it to
+  // the bulk box" path. It deliberately targets every copy on the list rather
+  // than the grid's current filter or selection: rule-produced entries can't be
+  // selected (ADR-034), and they're exactly the ones a dynamic bulk list is
+  // made of. Per-entry and per-selection moves live in the grid context menu.
+  const allCopyIds = listCopyIds(data.entries);
+
   const topBar = (
     <ListHeader
       list={data.list}
@@ -168,6 +179,12 @@ export function ListPage({ listId }: ListPageProps) {
                 <DownloadIcon className="size-4" />
                 Export
               </DropdownMenuItem>
+              {allCopyIds.length > 0 && (
+                <DropdownMenuItem onClick={() => setMoveAllOpen(true)}>
+                  <BookOpenIcon className="size-4" />
+                  Move all to collection
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem
                 className="text-destructive focus:text-destructive"
                 onClick={() => setDeleteOpen(true)}
@@ -263,6 +280,15 @@ export function ListPage({ listId }: ListPageProps) {
     />
   );
 
+  const moveAllDialog = (
+    <MoveCopiesToCollectionDialog
+      listId={listId}
+      copyIds={allCopyIds}
+      open={moveAllOpen}
+      onOpenChange={setMoveAllOpen}
+    />
+  );
+
   // Mounted only while open so its catalog/collections queries are paid on
   // demand, not on every list view (ADR-034).
   const ruleDialog = ruleOpen && (
@@ -315,6 +341,7 @@ export function ListPage({ listId }: ListPageProps) {
         {exportDialog}
         {importDialog}
         {ruleDialog}
+        {moveAllDialog}
       </>
     );
   }
@@ -349,6 +376,7 @@ export function ListPage({ listId }: ListPageProps) {
       {exportDialog}
       {importDialog}
       {ruleDialog}
+      {moveAllDialog}
     </>
   );
 }

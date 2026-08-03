@@ -239,6 +239,26 @@ export default function ListsArticle() {
         </p>
       </section>
 
+      {/* Moving copies into another collection */}
+      <section>
+        <Heading className="mb-2">Filing a copy list into another collection</Heading>
+        <p className="text-muted-foreground">
+          Copy-kind lists sit on top of real copies, so you can move those copies into a different
+          collection without leaving the list. Use{" "}
+          <strong className="text-foreground">Move all to collection</strong> in the list&apos;s ⋮
+          menu to file the whole list at once, or right-click a single card and pick{" "}
+          <strong className="text-foreground">Move to collection</strong>. In select mode, the
+          right-click action covers everything you have selected.
+        </p>
+        <p className="text-muted-foreground mt-2">
+          This is the &quot;sorted out, now put it in the bulk box&quot; path: build an organize
+          list with a dynamic rule that finds your surplus, check it over, then move it in one step.
+          If the rule is limited to specific source collections, the cards drop off the list as soon
+          as they land elsewhere, so the list empties as you work through it. Cards you added by
+          hand stay on the list, since a list entry follows the copy wherever it goes.
+        </p>
+      </section>
+
       {/* Importing and exporting */}
       <section>
         <Heading className="mb-2">Importing and exporting</Heading>

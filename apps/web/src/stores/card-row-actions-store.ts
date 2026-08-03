@@ -99,6 +99,14 @@ interface ListRowHandlers {
    */
   onListBulkAction?: (entryId: string, action: ListBulkAction) => void;
   /**
+   * Copy-kind entries: move the physical copies behind them into another
+   * collection. Keyed by copy id rather than entry id, so rule-produced
+   * entries (ADR-034, no `list_entries` row) can be moved too — a copy exists
+   * whether or not a rule is what put it on the list. The browser widens the
+   * target to the current selection when this entry is part of it.
+   */
+  onMoveCopyToCollection?: (copyId: string) => void;
+  /**
    * Drop a rule-produced entry from the list's dynamic rules (ADR-034). Rule
    * entries have no `list_entries` row, so they can't be removed — only
    * excluded, which appends the target id to the producing rule(s) and re-saves.
@@ -221,6 +229,10 @@ export function dispatchSetPreference(entryId: string): void {
 
 export function dispatchListBulkAction(entryId: string, action: ListBulkAction): void {
   useCardRowActionsStore.getState().handlers.onListBulkAction?.(entryId, action);
+}
+
+export function dispatchMoveCopyToCollection(copyId: string): void {
+  useCardRowActionsStore.getState().handlers.onMoveCopyToCollection?.(copyId);
 }
 
 export function dispatchExcludeFromRule(target: RuleExcludeTarget): void {

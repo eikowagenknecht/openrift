@@ -155,6 +155,52 @@ export function buildItemsFromCatalog(sortedCards: Printing[]): {
 }
 
 /**
+ * Every physical copy a copy-kind list points at, in list order. Card- and
+ * printing-kind entries have no copy behind them and drop out, so this is empty
+ * for those lists.
+ * @returns The copy ids of all copy-kind entries.
+ */
+export function listCopyIds(entries: readonly ListEntryDetailResponse[]): string[] {
+  return entries.flatMap((entry) => (entry.kind === "copy" ? [entry.copyId] : []));
+}
+
+/**
+ * What a "Move to collection" action on one entry should act on: the whole
+ * select-mode selection when that entry is part of it, otherwise just the entry
+ * itself. Mirrors the collection grid's right-click resolution, but keyed by
+ * copy id — a rule-produced entry (ADR-034) has no `list_entries` row and so
+ * can never be in the selection, yet it still names a real copy to move.
+ * @param entries - The list's entries, used to map the copy back to its entry id.
+ * @param selected - The select-mode selection, keyed by entry id.
+ * @param copyId - The copy whose entry was right-clicked.
+ * @returns The copy ids to move.
+ */
+export function resolveCopyMoveTarget(
+  entries: readonly ListEntryDetailResponse[],
+  selected: ReadonlySet<string>,
+  copyId: string,
+): string[] {
+  const entryIdByCopyId = new Map(
+    entries.flatMap((entry) =>
+      entry.kind === "copy" && entry.id !== null ? [[entry.copyId, entry.id] as const] : [],
+    ),
+  );
+  const entryId = entryIdByCopyId.get(copyId);
+  if (entryId === undefined || !selected.has(entryId)) {
+    return [copyId];
+  }
+  const copyIdByEntryId = new Map(
+    entries.flatMap((entry) =>
+      entry.kind === "copy" && entry.id !== null ? [[entry.id, entry.copyId] as const] : [],
+    ),
+  );
+  return [...selected].flatMap((id) => {
+    const selectedCopyId = copyIdByEntryId.get(id);
+    return selectedCopyId === undefined ? [] : [selectedCopyId];
+  });
+}
+
+/**
  * Keyed entry lookup for the add-mode strip's quantity display and `[-]`
  * action. Cards-kind lists key by `cardId` (one entry per card with quantity);
  * printing-kind lists key by `printingId`. Copy-kind lists have no add mode,

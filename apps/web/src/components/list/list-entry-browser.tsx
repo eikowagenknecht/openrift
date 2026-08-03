@@ -21,6 +21,7 @@ import { ListActionsCell } from "@/components/list/list-actions-cell";
 import { ListGridCell } from "@/components/list/list-grid-cell";
 import { ListRemoveDialog } from "@/components/list/list-remove-dialog";
 import { buildListTradeIndex } from "@/components/list/list-trade-status";
+import { MoveCopiesToCollectionDialog } from "@/components/list/move-copies-to-collection-dialog";
 import { MoveToListDialog } from "@/components/list/move-to-list-dialog";
 import { TakeOffTradelistDialog } from "@/components/list/take-off-tradelist-dialog";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
@@ -178,6 +179,9 @@ export function ListEntryBrowser({
     disposeCopies,
     takeOffMemberships,
     takeOffReservedCount,
+    moveToCollectionOpen,
+    setMoveToCollectionOpen,
+    moveCopyIds,
     openListAction,
     handleSearchAndClose,
     moveTargetLists,
@@ -422,6 +426,13 @@ export function ListEntryBrowser({
             lists={moveTargetLists}
             onMove={handleBulkMove}
             isPending={moveEntries.isPending}
+          />
+          <MoveCopiesToCollectionDialog
+            listId={listId}
+            copyIds={moveCopyIds}
+            open={moveToCollectionOpen}
+            onOpenChange={setMoveToCollectionOpen}
+            onMoved={clearSelection}
           />
           <ListRemoveDialog
             open={removeOpen}

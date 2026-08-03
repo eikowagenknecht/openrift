@@ -7,6 +7,7 @@ import { createStoreResetter } from "@/test/store-helpers";
 import {
   dispatchContextAction,
   dispatchExcludeFromRule,
+  dispatchMoveCopyToCollection,
   useCardRowActionsStore,
 } from "./card-row-actions-store";
 
@@ -105,5 +106,16 @@ describe("useCardRowActionsStore", () => {
 
   it("dispatchExcludeFromRule is a no-op when no handler is registered", () => {
     expect(() => dispatchExcludeFromRule({ kind: "copy", copyId: "copy-1" })).not.toThrow();
+  });
+
+  it("dispatchMoveCopyToCollection forwards the copy id to the registered handler", () => {
+    const onMoveCopyToCollection = vi.fn();
+    useCardRowActionsStore.getState().setHandlers("list", { onMoveCopyToCollection });
+    dispatchMoveCopyToCollection("copy-1");
+    expect(onMoveCopyToCollection).toHaveBeenCalledWith("copy-1");
+  });
+
+  it("dispatchMoveCopyToCollection is a no-op when no handler is registered", () => {
+    expect(() => dispatchMoveCopyToCollection("copy-1")).not.toThrow();
   });
 });

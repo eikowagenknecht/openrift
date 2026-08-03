@@ -3,7 +3,13 @@ import { describe, expect, it } from "vitest";
 
 import { EMPTY_TRADE_PREFERENCE, stubPrinting } from "@/test/factories";
 
-import { collectListPrintings, kindToView, resolveEntryPrinting } from "./list-entries";
+import {
+  collectListPrintings,
+  kindToView,
+  listCopyIds,
+  resolveCopyMoveTarget,
+  resolveEntryPrinting,
+} from "./list-entries";
 
 const entryBase = {
   listId: "list-1",
@@ -129,5 +135,59 @@ describe("collectListPrintings", () => {
     );
     expect(listPrintings).toEqual([printingA]);
     expect(entriesByPrintingId.size).toBe(1);
+  });
+});
+
+describe("listCopyIds", () => {
+  it("returns the copy ids of copy entries in list order", () => {
+    const entries = [
+      copyEntry("e1", "copy-1", "pa"),
+      copyEntry(null, "copy-2", "pb"),
+      copyEntry("e3", "copy-3", "pa"),
+    ];
+    expect(listCopyIds(entries)).toEqual(["copy-1", "copy-2", "copy-3"]);
+  });
+
+  it("returns nothing for lists without copies behind their entries", () => {
+    expect(listCopyIds([cardEntry("e1", "ca"), printingEntry("e2", "pa")])).toEqual([]);
+    expect(listCopyIds([])).toEqual([]);
+  });
+});
+
+describe("resolveCopyMoveTarget", () => {
+  const selectable = copyEntry("e1", "copy-1", "pa");
+  const alsoSelectable = copyEntry("e2", "copy-2", "pb");
+  const ruleProduced = copyEntry(null, "copy-3", "pa");
+  const entries = [selectable, alsoSelectable, ruleProduced];
+
+  it("targets just the clicked copy when nothing is selected", () => {
+    expect(resolveCopyMoveTarget(entries, new Set(), "copy-1")).toEqual(["copy-1"]);
+  });
+
+  it("targets just the clicked copy when the selection does not contain it", () => {
+    expect(resolveCopyMoveTarget(entries, new Set(["e2"]), "copy-1")).toEqual(["copy-1"]);
+  });
+
+  it("widens to the whole selection when the clicked copy is part of it", () => {
+    const target = resolveCopyMoveTarget(entries, new Set(["e1", "e2"]), "copy-1");
+    expect(target).toHaveLength(2);
+    expect(new Set(target)).toEqual(new Set(["copy-1", "copy-2"]));
+  });
+
+  it("targets a rule-produced copy alone even while other entries are selected", () => {
+    // Rule entries have no list_entries row, so they can never be in the
+    // selection — clicking one must not drag the selection along.
+    expect(resolveCopyMoveTarget(entries, new Set(["e1", "e2"]), "copy-3")).toEqual(["copy-3"]);
+  });
+
+  it("drops selected entries that have no copy behind them", () => {
+    const mixed = [selectable, cardEntry("e9", "ca")];
+    expect(resolveCopyMoveTarget(mixed, new Set(["e1", "e9"]), "copy-1")).toEqual(["copy-1"]);
+  });
+
+  it("falls back to the clicked copy when it is not on the list at all", () => {
+    expect(resolveCopyMoveTarget(entries, new Set(["e1"]), "copy-unknown")).toEqual([
+      "copy-unknown",
+    ]);
   });
 });
