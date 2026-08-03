@@ -11,7 +11,7 @@ import { ClockIcon, HandshakeIcon, PackageCheckIcon } from "lucide-react";
  * still free to promise elsewhere. `committed` means the copies are spoken for:
  * an offer already consumes the giver's supply, exactly as a reservation does.
  */
-export type LiveTradeTone = "soft" | "committed";
+type LiveTradeTone = "soft" | "committed";
 
 /** Everything a chip needs to present one live-trade annotation. */
 export interface LiveTradeStatusDescriptor {
