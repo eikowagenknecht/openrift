@@ -14,6 +14,7 @@
 - fix(Cards): **Excluded domains and rarities stand out** — clicking one of those icons a second time to hide its cards showed only a faint red tint, and now draws a line through the icon.
 - fix(Trades): **Dead trade requests close themselves** — a request the other side can no longer fill (the copies were traded away, removed, or the list was unshared) now closes right away instead of waiting a week and failing on accept.
 - fix(Trades): **Filtered tradelists skip promised copies** — a tradelist built from filters kept offering a copy that was already reserved for someone else.
+- fix(Trades): **Moving a card to a group binder unlists it** — a card moved into a shared group collection stayed on your tradelist and was still offered around, even though it had stopped being yours.
 - fix(Collection): **Trade changes refresh your cards** — accepting or cancelling a trade left stale copy counts behind for a few minutes.
 - fix(Collection): **Exports leave out reserved cards** — exporting a tradelist listed cards that were already promised, which the take-off dialog refuses to sell.
 - fix(Collection): **Removing a copy skips promised ones** — the quick-add minus button could pick a copy reserved for a trade and fail, with removable copies sitting right beside it.

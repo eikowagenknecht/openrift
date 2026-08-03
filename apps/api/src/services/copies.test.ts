@@ -37,6 +37,8 @@ function createMockRepos(overrides: {
   /** Copies still pinned by a completed trade whose giver sync is unresolved. */
   completedReservedCopies?: string[];
   loanedCopies?: string[];
+  /** Collects the copy ids whose trade-list entries the move dropped. */
+  droppedTradeEntryCopyIds?: string[];
 }) {
   const targetExists = overrides.targetCollection !== undefined;
   const pins = [
@@ -97,6 +99,14 @@ function createMockRepos(overrides: {
     loans: {
       filterLoanedCopyIds: (copyIds: readonly string[]) =>
         Promise.resolve((overrides.loanedCopies ?? []).filter((id) => copyIds.includes(id))),
+    },
+    lists: {
+      // Only reached for a move into a group collection: the copy stops being
+      // the owner's to offer, so their trade-list entries for it go.
+      deleteTradeEntriesForCopies: (copyIds: readonly string[]) => {
+        overrides.droppedTradeEntryCopyIds?.push(...copyIds);
+        return Promise.resolve({ numDeletedRows: BigInt(copyIds.length) });
+      },
     },
   } as unknown as Repos;
 
@@ -255,6 +265,42 @@ describe("moveCopies", () => {
     await expect(
       moveCopies(repos, transact, "user-1", ["copy-1"], "group-col"),
     ).resolves.toBeUndefined();
+  });
+
+  // Supply is built from trade-list membership, not ownership, so an entry left
+  // behind would keep advertising a copy the group now owns.
+  it("drops the owner's trade-list entries when a copy moves into a group collection", async () => {
+    const dropped: string[] = [];
+    const repos = createMockRepos({
+      writableCollections: ["col-1"],
+      targetCollection: { id: "group-col", name: "Shared" },
+      collections: [{ id: "group-col", name: "Shared", groupId: "grp-1" }],
+      fetchedCopies: [
+        { id: "copy-1", printingId: "p-1", collectionId: "col-1", collectionName: "Source" },
+      ],
+      droppedTradeEntryCopyIds: dropped,
+    });
+
+    await moveCopies(repos, mockTransact(repos), "user-1", ["copy-1"], "group-col");
+
+    expect(dropped).toEqual(["copy-1"]);
+  });
+
+  it("keeps trade-list entries when a copy moves between the owner's own collections", async () => {
+    const dropped: string[] = [];
+    const repos = createMockRepos({
+      writableCollections: ["col-1"],
+      targetCollection: { id: "col-2", name: "Target" },
+      collections: [{ id: "col-2", name: "Target" }],
+      fetchedCopies: [
+        { id: "copy-1", printingId: "p-1", collectionId: "col-1", collectionName: "Source" },
+      ],
+      droppedTradeEntryCopyIds: dropped,
+    });
+
+    await moveCopies(repos, mockTransact(repos), "user-1", ["copy-1"], "col-2");
+
+    expect(dropped).toEqual([]);
   });
 
   it("moves copies successfully", async () => {

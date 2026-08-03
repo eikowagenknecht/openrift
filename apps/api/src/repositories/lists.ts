@@ -909,6 +909,39 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
         .where("userId", "=", userId)
         .executeTakeFirst();
     },
+
+    /**
+     * Drops the owner's trade-list entries for the given copies, used when a
+     * copy stops being theirs to offer (moving it into a group collection).
+     *
+     * Trade lists only: an organize list may hold group-shared copies on
+     * purpose (`personalOnly` is false for that intent on the manual-add
+     * routes), so an organize entry pointing at a group-owned copy is correct
+     * and must survive. Wish lists never hold copies at all
+     * (`chk_lists_intent_kind` pins them to card and printing kind).
+     * @param copyIds The copies leaving the owner's personal collections.
+     * @param userId The entries' owner.
+     * @returns Delete result — `numDeletedRows` is the count actually removed.
+     */
+    deleteTradeEntriesForCopies(copyIds: readonly string[], userId: string): Promise<DeleteResult> {
+      if (copyIds.length === 0) {
+        return Promise.resolve({ numDeletedRows: 0n } as DeleteResult);
+      }
+      return db
+        .deleteFrom("listEntries")
+        .where("copyId", "in", [...copyIds])
+        .where("userId", "=", userId)
+        .where((eb) =>
+          eb.exists(
+            eb
+              .selectFrom("lists")
+              .select("lists.id")
+              .whereRef("lists.id", "=", "listEntries.listId")
+              .where("lists.intent", "=", "trade"),
+          ),
+        )
+        .executeTakeFirst();
+    },
   };
 }
 

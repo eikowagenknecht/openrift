@@ -254,6 +254,14 @@ export async function moveCopies(
       })),
     );
 
+    if (target.groupId !== null) {
+      // The copy now belongs to the group, so the owner has nothing left to
+      // offer. Their trade-list entries would otherwise keep advertising it:
+      // supply is built from list membership, not ownership, and nothing else
+      // clears an entry whose copy left the owner's collections.
+      await trxRepos.lists.deleteTradeEntriesForCopies(copyIds, userId);
+    }
+
     // A move can take a copy out of the supply a group can see (into a group
     // collection, or out of a collection a trade rule is scoped to), so the
     // owner's pending trades for those printings may no longer be fillable.
