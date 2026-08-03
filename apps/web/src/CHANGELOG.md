@@ -12,6 +12,8 @@
 
 - feat(Collection): **Drag quantities work on lists too** — dropping a card stack on a wishlist or tradelist now takes one copy, the number key you hold, or the whole stack with Shift, just like dropping on a collection.
 - feat(Trades): **Wishlists show what is coming** — a card someone has offered or reserved for you now shows that on the wishlist you asked for it on, instead of only on the Trades page.
+- feat(Collection): **Share links point members at the full view** — opening a collection's public link while signed in now offers a way through to the version that lets you add and take copies, instead of stranding you on the read-only page.
+- fix(Collection): **Sharing a group binder no longer crashes** — opening the share dialog on a collection owned by a group broke the page a few seconds later, taking the share link and the print button with it.
 - fix(Cards): **Filter sliders hold still while you drag** — the bar reshuffled on every move of a range handle, so the slider jumped away under the pointer, and now waits until you let go.
 - fix(Cards): **Excluded domains and rarities stand out** — clicking one of those icons a second time to hide its cards showed only a faint red tint, and now draws a line through the icon.
 - fix(Trades): **Dead trade requests close themselves** — a request the other side can no longer fill (the copies were traded away, removed, or the list was unshared) now closes right away instead of waiting a week and failing on accept.

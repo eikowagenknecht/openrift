@@ -1,3 +1,4 @@
+import { CatchBoundary } from "@tanstack/react-router";
 import { LinkIcon, PrinterIcon, Trash2Icon } from "lucide-react";
 import { Suspense, useState } from "react";
 
@@ -29,6 +30,11 @@ interface CollectionShareDialogProps {
   collectionName: string;
   isPublic: boolean;
   shareToken: string | null;
+  /**
+   * True for a group-owned (pooled) collection. Suppresses the friend-group
+   * panel, which only applies to a personal binder the viewer owns.
+   */
+  isGroupCollection: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -38,6 +44,7 @@ export function CollectionShareDialog({
   collectionName,
   isPublic,
   shareToken,
+  isGroupCollection,
   open,
   onOpenChange,
 }: CollectionShareDialogProps) {
@@ -96,9 +103,22 @@ export function CollectionShareDialog({
               </div>
             ) : null}
 
-            <Suspense fallback={null}>
-              <CollectionGroupShareSection collectionId={collectionId} />
-            </Suspense>
+            {/*
+              The group panel shares a *personal* binder with a group, so it is
+              meaningless for a pooled collection the group already owns. Its
+              `groupShares` query 404s on those by design, which used to throw
+              out of the suspense query and take the whole route down
+              (OPENRIFT-SSR-21). The boundary keeps any future failure here
+              contained to the panel: it is optional chrome, and losing it must
+              never cost the viewer their share link.
+            */}
+            {isGroupCollection ? null : (
+              <CatchBoundary getResetKey={() => collectionId} errorComponent={() => null}>
+                <Suspense fallback={null}>
+                  <CollectionGroupShareSection collectionId={collectionId} />
+                </Suspense>
+              </CatchBoundary>
+            )}
 
             <DialogFooter>
               {sharing ? (

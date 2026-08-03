@@ -73,6 +73,8 @@ interface SharedCollectionViewProps {
   data: PublicCollectionDetailResponse;
   search: FilterSearch;
   topBarTrailing?: ReactNode;
+  /** Callout rendered above the description, e.g. the full-access notice. */
+  notice?: ReactNode;
 }
 
 /**
@@ -83,7 +85,12 @@ interface SharedCollectionViewProps {
  *
  * @returns The shared collection page node.
  */
-export function SharedCollectionView({ data, search, topBarTrailing }: SharedCollectionViewProps) {
+export function SharedCollectionView({
+  data,
+  search,
+  topBarTrailing,
+  notice,
+}: SharedCollectionViewProps) {
   const [topBarSlot, setTopBarSlot] = useState<HTMLDivElement | null>(null);
   const topBarHeight = useMeasuredHeight(topBarSlot);
 
@@ -122,6 +129,7 @@ export function SharedCollectionView({ data, search, topBarTrailing }: SharedCol
             </PageTopBar>
           </div>
           <div className="flex min-w-0 flex-1 flex-col px-3 pb-3">
+            {notice}
             {collection.description ? (
               <p className="text-muted-foreground py-3 text-sm">{collection.description}</p>
             ) : null}

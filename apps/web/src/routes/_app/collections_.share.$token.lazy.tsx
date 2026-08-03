@@ -1,5 +1,6 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
+import { SharedCollectionAccessNotice } from "@/components/collection/shared-collection-access-notice";
 import { SharedCollectionView } from "@/components/collection/shared-collection-view";
 import { usePublicCollection } from "@/hooks/use-collections";
 
@@ -12,5 +13,11 @@ function SharedCollectionPage() {
   const { data } = usePublicCollection(token);
   const search = Route.useSearch();
 
-  return <SharedCollectionView data={data} search={search} />;
+  return (
+    <SharedCollectionView
+      data={data}
+      search={search}
+      notice={<SharedCollectionAccessNotice collectionId={data.collection.id} />}
+    />
+  );
 }

@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 const shareMutate = vi.fn();
 const unshareMutate = vi.fn();
@@ -12,16 +12,32 @@ vi.mock("@/hooks/use-collections", () => ({
 }));
 
 // Friend-group sharing is exercised at the route level; here we just stub the
-// hooks so the dialog renders without a QueryClientProvider. An empty groups
-// list short-circuits the new "Share with friend groups" section.
+// hooks so the dialog renders without a QueryClientProvider. The default empty
+// groups list short-circuits the "Share with friend groups" section; tests that
+// need the section rendered override `groupsMock`.
+const { groupsMock, groupSharesMock } = vi.hoisted(() => ({
+  groupsMock: vi.fn(
+    (): {
+      data: {
+        items: { id: string; slug: string; name: string }[];
+        pendingInvites: unknown[];
+        outgoingRequests: unknown[];
+      };
+    } => ({ data: { items: [], pendingInvites: [], outgoingRequests: [] } }),
+  ),
+  groupSharesMock: vi.fn((): { data: { items: { groupId: string }[] } } => ({
+    data: { items: [] },
+  })),
+}));
+
 vi.mock("@/hooks/use-friend-groups", () => ({
-  useFriendGroups: () => ({ data: { items: [], pendingInvites: [], outgoingRequests: [] } }),
+  useFriendGroups: groupsMock,
   useShareCollectionWithFriendGroup: () => ({ mutate: vi.fn(), isPending: false }),
   useUnshareCollectionFromFriendGroup: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 vi.mock("@/hooks/use-collection-group-shares", () => ({
-  useCollectionGroupShares: () => ({ data: { items: [] } }),
+  useCollectionGroupShares: groupSharesMock,
 }));
 
 vi.mock("@/lib/site-config", () => ({
@@ -30,7 +46,15 @@ vi.mock("@/lib/site-config", () => ({
 
 const { CollectionShareDialog } = await import("./collection-share-dialog");
 
-function Harness({ isPublic, shareToken }: { isPublic: boolean; shareToken: string | null }) {
+function Harness({
+  isPublic,
+  shareToken,
+  isGroupCollection = false,
+}: {
+  isPublic: boolean;
+  shareToken: string | null;
+  isGroupCollection?: boolean;
+}) {
   const [open, setOpen] = useState(true);
   return (
     <CollectionShareDialog
@@ -38,6 +62,7 @@ function Harness({ isPublic, shareToken }: { isPublic: boolean; shareToken: stri
       collectionName="Main binder"
       isPublic={isPublic}
       shareToken={shareToken}
+      isGroupCollection={isGroupCollection}
       open={open}
       onOpenChange={setOpen}
     />
@@ -45,6 +70,17 @@ function Harness({ isPublic, shareToken }: { isPublic: boolean; shareToken: stri
 }
 
 describe("CollectionShareDialog", () => {
+  afterEach(() => {
+    // mockReset (not mockClear) so the throwing implementation below doesn't
+    // leak, and so call counts start empty for the assertions that check the
+    // panel's query never ran.
+    groupsMock.mockReset();
+    groupsMock.mockReturnValue({ data: { items: [], pendingInvites: [], outgoingRequests: [] } });
+    groupSharesMock.mockReset();
+    groupSharesMock.mockReturnValue({ data: { items: [] } });
+    vi.restoreAllMocks();
+  });
+
   it("renders 'Create link' when the collection is not yet shared", () => {
     render(<Harness isPublic={false} shareToken={null} />);
     expect(screen.getByRole("button", { name: /create link/iu })).toBeInTheDocument();
@@ -80,5 +116,54 @@ describe("CollectionShareDialog", () => {
     render(<Harness isPublic shareToken="AbCdEfGhIjKl" />);
     await user.click(screen.getByRole("button", { name: /copy/iu }));
     expect(screen.getByRole("button", { name: /copied/iu })).toBeInTheDocument();
+  });
+
+  it("renders the friend-group panel for a personal collection", () => {
+    groupsMock.mockReturnValue({
+      data: {
+        items: [{ id: "group-1", slug: "allerlei", name: "Allerlei Spielerei" }],
+        pendingInvites: [],
+        outgoingRequests: [],
+      },
+    });
+    render(<Harness isPublic shareToken="AbCdEfGhIjKl" />);
+    expect(screen.getByText("Share with friend groups")).toBeInTheDocument();
+  });
+
+  // Regression (OPENRIFT-SSR-21): the panel shares a *personal* binder with a
+  // group, and its `groupShares` query 404s on a pooled collection by design.
+  // Rendering it for a group collection threw out of the suspense query and
+  // killed the whole route.
+  it("omits the friend-group panel for a group collection", () => {
+    groupsMock.mockReturnValue({
+      data: {
+        items: [{ id: "group-1", slug: "allerlei", name: "Allerlei Spielerei" }],
+        pendingInvites: [],
+        outgoingRequests: [],
+      },
+    });
+    render(<Harness isPublic shareToken="AbCdEfGhIjKl" isGroupCollection />);
+    expect(screen.queryByText("Share with friend groups")).not.toBeInTheDocument();
+    expect(groupSharesMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps the share link usable when the friend-group panel throws", () => {
+    // The render error is expected; keep it out of the test output.
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    groupsMock.mockReturnValue({
+      data: {
+        items: [{ id: "group-1", slug: "allerlei", name: "Allerlei Spielerei" }],
+        pendingInvites: [],
+        outgoingRequests: [],
+      },
+    });
+    groupSharesMock.mockImplementation(() => {
+      throw new Error("Collection not found");
+    });
+    render(<Harness isPublic shareToken="AbCdEfGhIjKl" />);
+    expect(
+      screen.getByDisplayValue("https://openrift.test/collections/share/AbCdEfGhIjKl"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Share with friend groups")).not.toBeInTheDocument();
   });
 });

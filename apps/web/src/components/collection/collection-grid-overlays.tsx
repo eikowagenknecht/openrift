@@ -136,6 +136,7 @@ export function CollectionGridOverlays({
           collectionName={currentCollection.name}
           isPublic={currentCollection.isPublic}
           shareToken={currentCollection.shareToken}
+          isGroupCollection={currentCollection.groupId !== null}
         />
       )}
       <AnnotatedDisposeDialog
