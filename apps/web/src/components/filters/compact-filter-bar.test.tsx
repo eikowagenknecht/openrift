@@ -118,6 +118,26 @@ describe("FilterIconCluster", () => {
     expect(labelSpan).toHaveTextContent("Fury7");
   });
 
+  it("slashes the icon of an excluded option", () => {
+    // Regression: domain/rarity icons are webp artwork, so the destructive text
+    // colour can't reach them, and icon-only mode has no text to strike. The
+    // exclusion used to read as nothing but a 10% red wash, which is easy to
+    // mistake for the included state's grey fill.
+    renderCluster({ iconPath: () => "/images/domains/fury.webp", excluded: ["fury"] });
+    const excludedToggle = screen.getByRole("button", { name: "Exclude Fury" });
+    expect(excludedToggle.querySelector("[data-slot='exclude-slash']")).toBeInTheDocument();
+  });
+
+  it("leaves included and unset icons unslashed", () => {
+    renderCluster({ iconPath: () => "/images/domains/fury.webp", included: ["fury"] });
+    expect(
+      screen.getByRole("button", { name: "Fury" }).querySelector("[data-slot='exclude-slash']"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Calm" }).querySelector("[data-slot='exclude-slash']"),
+    ).not.toBeInTheDocument();
+  });
+
   it("renders nothing when there are no options", () => {
     const { container } = render(
       <TooltipProvider>

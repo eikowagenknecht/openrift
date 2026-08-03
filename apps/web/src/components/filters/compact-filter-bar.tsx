@@ -131,7 +131,7 @@ export function FilterIconCluster({
                   aria-label={optionLabel}
                   className={cn(
                     // Excluded: not pressed, so tint it destructive and strike
-                    // the text fallback (icons can't strike, the tint carries it).
+                    // the text (the icon gets its own slash, see ExcludedSlash).
                     // Text + background tint suffice — no extra ring/border.
                     isExcluded && "text-destructive bg-destructive/10 line-through",
                     isZero && !isIncluded && !isExcluded && "opacity-40",
@@ -141,7 +141,10 @@ export function FilterIconCluster({
             >
               {icon ? (
                 <>
-                  <CardIcon src={icon} className="size-4" />
+                  <span className="relative inline-flex shrink-0 items-center justify-center">
+                    <CardIcon src={icon} className="size-4" />
+                    {isExcluded && <ExcludedSlash />}
+                  </span>
                   {showLabels && (
                     <span>
                       {displayLabel(option)}
@@ -162,6 +165,25 @@ export function FilterIconCluster({
         );
       })}
     </ToggleGroup>
+  );
+}
+
+/**
+ * The diagonal bar drawn across an excluded option's icon — the icon's
+ * counterpart to the strikethrough on excluded text. Domain and rarity icons
+ * are webp artwork, so `text-destructive` can't tint them, and with the cluster
+ * labels hidden there is no text to strike: without this the only cue left is a
+ * 10% red wash, near-indistinguishable from the included state's grey fill. The
+ * background-coloured outline keeps the line legible over a full-colour gem.
+ * @returns The slash overlay.
+ */
+function ExcludedSlash() {
+  return (
+    <span
+      aria-hidden="true"
+      data-slot="exclude-slash"
+      className="bg-destructive outline-background pointer-events-none absolute top-1/2 left-1/2 h-0.5 w-[150%] -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-full outline-1"
+    />
   );
 }
 

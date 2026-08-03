@@ -270,6 +270,12 @@ function RangeFilterSection({
   const urlMax = toSlider(resolvedMax);
   // Local state mirrors the live thumb position; URL writes are debounced. Without this, keyboard auto-repeat fires onValueCommitted per keystroke (~30/sec), which both thrashes the catalog filter pipeline and trips the browser's history.replaceState rate limit (~200/30s in Firefox), wedging the route into the pending skeleton.
   const [dragValue, setDragValue] = useState<[number, number] | null>(null);
+  // A pointer drag commits only when the thumb is released. Committing mid-drag
+  // re-renders the filter chrome (an active-filter chip appears, faceted bounds
+  // move), which reflows the bar under the pointer and drags the thumb somewhere
+  // the user never aimed for. Keyboard and track-press changes keep the debounce
+  // above, since they have no pointer to displace.
+  const isDraggingRef = useRef(false);
   const displayValue: [number, number] = isDegenerate
     ? [renderSliderMin, renderSliderMax]
     : (dragValue ?? [urlMin, urlMax]);
@@ -283,6 +289,7 @@ function RangeFilterSection({
   useEffect(() => {
     if (
       dragValue !== null &&
+      !isDraggingRef.current &&
       commitTimerRef.current === null &&
       pendingCommitRef.current === null
     ) {
@@ -354,15 +361,20 @@ function RangeFilterSection({
           value={displayValue}
           disabled={isDegenerate}
           aria-label={`${label} range`}
-          onValueChange={(values) => {
+          onValueChange={(values, details) => {
             const arr = Array.isArray(values) ? values : [values];
             const next: [number, number] = [arr[0] ?? sMin, arr[1] ?? sMax];
             setDragValue(next);
+            if (details.reason === "drag") {
+              isDraggingRef.current = true;
+              return;
+            }
             scheduleCommit(next);
           }}
           onValueCommitted={(values) => {
             const arr = Array.isArray(values) ? values : [values];
             const next: [number, number] = [arr[0] ?? sMin, arr[1] ?? sMax];
+            isDraggingRef.current = false;
             scheduleCommit(next);
           }}
           className="flex-1"
