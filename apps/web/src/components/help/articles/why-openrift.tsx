@@ -711,12 +711,13 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
   {
     kind: "row",
     feature: "Native mobile app",
-    values: ["no", "no", "no", "no", "partial"],
+    values: ["no", "no", "no", "partial", "partial"],
     detail: {
       general:
         "A native iOS or Android app installable from the app store, in addition to the website.",
       openrift:
         "No native app, by design: the site is built to be fast on phones, and 'Add to Home Screen' runs it full-screen like an app on both Android and iOS.",
+      riftmana: "Android app available, syncing with the site. I could not find an iOS version.",
       riftcore: "Android app available, no iOS version.",
     },
   },
