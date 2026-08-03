@@ -1,4 +1,4 @@
-import { jsPDF } from "jspdf";
+import { createPdfDocument } from "@/lib/pdf-document";
 
 /**
  * Wraps an already-rendered share image (the server-rendered deck image, ADR-031)
@@ -89,7 +89,7 @@ export async function downloadImageAsPdf(blob: Blob, filename: string): Promise<
   const dataUrl = await blobToDataUrl(blob);
   const { width, height } = await imageSize(dataUrl);
   const placement = fitImageOnPage(width, height);
-  const doc = new jsPDF({ orientation: placement.orientation, unit: "mm", format: "a4" });
+  const doc = createPdfDocument({ orientation: placement.orientation, unit: "mm", format: "a4" });
   doc.addImage(dataUrl, "PNG", placement.x, placement.y, placement.width, placement.height);
   doc.save(filename);
 }

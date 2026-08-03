@@ -1,8 +1,9 @@
 import type { DeckZone } from "@openrift/shared";
 import { SIDEBOARD_MAXIMUM, WellKnown } from "@openrift/shared";
-import { jsPDF } from "jspdf";
+import type { jsPDF } from "jspdf";
 
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
+import { createPdfDocument } from "@/lib/pdf-document";
 import { loadLogoDataUrl } from "@/lib/pdf-logo";
 
 export type RegistrationPageSize = "a4" | "letter";
@@ -446,7 +447,7 @@ export async function generateRegistrationPdf(
   siteUrl: string,
 ): Promise<void> {
   const page = PAGE_SIZES[pageSize];
-  const doc = new jsPDF({
+  const doc = createPdfDocument({
     orientation: "portrait",
     unit: "mm",
     format: pageSize === "a4" ? "a4" : "letter",

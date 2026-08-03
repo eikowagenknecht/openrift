@@ -1,6 +1,7 @@
-import { jsPDF } from "jspdf";
+import type { jsPDF } from "jspdf";
 import QRCode from "qrcode";
 
+import { createPdfDocument } from "@/lib/pdf-document";
 import { loadLogoDataUrl } from "@/lib/pdf-logo";
 
 /**
@@ -579,7 +580,7 @@ export async function buildBinderSheetDoc(options: BinderSheetOptions): Promise<
     // Skip the logo if it fails to load; the sheet is still usable.
   }
 
-  const doc = new jsPDF({
+  const doc = createPdfDocument({
     orientation: "portrait",
     unit: "mm",
     format: options.paper === "a4" ? "a4" : "letter",

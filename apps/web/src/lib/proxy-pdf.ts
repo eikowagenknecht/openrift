@@ -1,8 +1,9 @@
 import type { Card, CatalogResponse, Printing, Rarity } from "@openrift/shared";
 import { imageUrl, preferredPrinting, WellKnown } from "@openrift/shared";
-import { jsPDF } from "jspdf";
+import type { jsPDF } from "jspdf";
 
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
+import { createPdfDocument } from "@/lib/pdf-document";
 import { loadLogoDataUrl } from "@/lib/pdf-logo";
 
 export type ProxyPageSize = "a4" | "letter";
@@ -308,7 +309,7 @@ export async function assembleProxyPdf(
   const marginX = (page.width - COLS * CARD_WIDTH_MM) / 2;
   const marginY = (page.height - ROWS * CARD_HEIGHT_MM) / 2;
 
-  const doc = new jsPDF({
+  const doc = createPdfDocument({
     orientation: "portrait",
     unit: "mm",
     format: options.pageSize === "a4" ? "a4" : "letter",
@@ -339,7 +340,20 @@ export async function assembleProxyPdf(
       const rendered = renderedCards.get(proxyRenderKey(proxyCard));
 
       if (rendered) {
-        doc.addImage(rendered.dataUrl, "PNG", slotX, slotY, CARD_WIDTH_MM, CARD_HEIGHT_MM);
+        // Card art is photographic, where jsPDF's default "SLOW" level buys about
+        // 8% over "FAST" for three and a half times the work: measured on a full
+        // 9-up page, 4.19 MB in 1.8 s against 4.55 MB in 0.55 s. A 60-card deck
+        // is seven pages of that, so the seconds matter more than the bytes.
+        // Flat art (QR codes, the logo) keeps the default, where SLOW wins big.
+        doc.addImage({
+          imageData: rendered.dataUrl,
+          format: "PNG",
+          x: slotX,
+          y: slotY,
+          width: CARD_WIDTH_MM,
+          height: CARD_HEIGHT_MM,
+          compression: "FAST",
+        });
       } else {
         drawFallbackCard(doc, proxyCard.name, slotX, slotY);
       }
