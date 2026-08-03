@@ -21,6 +21,7 @@ import {
   PrinterIcon,
   RocketIcon,
   ScaleIcon,
+  ScanLineIcon,
   ScrollTextIcon,
   Share2Icon,
   ShuffleIcon,
@@ -71,6 +72,14 @@ const roadmapItems: RoadmapItem[] = [
     done: false,
   },
   // Done
+  {
+    title: "Card Scanner",
+    description:
+      "Point your camera at a card and it is added to your collection, recognised on your own device.",
+    icon: <ScanLineIcon className="size-4" />,
+    done: true,
+    date: "Aug 2026",
+  },
   {
     title: "Card Lending",
     description:

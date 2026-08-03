@@ -27,7 +27,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 
 interface CollectionTopBarProps {
   title: string;
@@ -84,7 +83,6 @@ export function CollectionTopBar({
   onShare,
   onToggleDeckbuilding,
 }: CollectionTopBarProps) {
-  const scannerEnabled = useFeatureEnabled("scanner");
   return (
     <PageTopBar>
       <div className="flex min-w-0 flex-1 items-baseline gap-2">
@@ -99,7 +97,7 @@ export function CollectionTopBar({
 
       <PageTopBarActions>
         <div className="flex items-center gap-2">
-          {scannerEnabled && addTarget && mode === "browse" && (
+          {addTarget && mode === "browse" && (
             <>
               <PageTopBarIconButton
                 render={<Link to="/collections/scan" />}

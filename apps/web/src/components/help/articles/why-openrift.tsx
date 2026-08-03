@@ -169,7 +169,7 @@ export default function WhyOpenRiftArticle() {
           not sure. Features that only OpenRift has are listed separately below the table.
         </p>
         <p className="text-muted-foreground mb-3">
-          OpenRift&apos;s own rows were last refreshed on 2026-07-08. The other sites&apos; counts
+          OpenRift&apos;s own rows were last refreshed on 2026-08-03. The other sites&apos; counts
           and features were last verified on 2026-05-27 and may have drifted since. When you&apos;re
           reading this, it&apos;s probably already slightly out of date, as counts and features
           change regularly. You can follow what changes on OpenRift&apos;s side in the{" "}
@@ -731,9 +731,13 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
   {
     kind: "row",
     feature: "Card scanning",
-    values: ["no", "no", "no", "no", "yes"],
+    values: ["yes", "no", "no", "yes", "yes"],
     detail: {
       general: "Camera-based card recognition to add cards to your collection without searching.",
+      openrift:
+        "Runs in the browser with nothing to install, and recognises cards on your own device, so no pictures are uploaded.",
+      riftmana: "In the mobile app, recognised on the device.",
+      riftcore: "Part of the paid AI tiers.",
     },
   },
   {
@@ -861,7 +865,7 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
     feature: "AI-powered tools",
     values: ["no", "no", "no", "no", "yes"],
     detail: {
-      general: "AI features like deck suggestions, natural language search, or card scanning.",
+      general: "AI features like deck suggestions, a rules judge, or natural language search.",
       openrift: "Not currently planned.",
       riftcore:
         "AI deck builder, AI judge, AI card scanner, voice input, and an AI binder assistant. All gated behind paid tiers.",

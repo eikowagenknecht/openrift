@@ -4,6 +4,7 @@
 
 ### Highlights
 
+- feat(Collection): **Scan cards with your camera** — hold a card in front of your phone and it is added to the collection you picked, recognised on the device itself so no pictures are uploaded.
 - feat(Collection): **Number keys add copies** — click a card in the grid, press a number from 1 to 9, and that many copies land in one press.
 - feat(Trades): **Trade status on your own cards** — a copy you have offered, reserved or already handed over now says so in your collection and on your lists, and the same copy can no longer be promised to two people at once.
 - feat(Trades): **Choose which copy you hand over** — accepting a request lets you pick, and only asks when the copies actually differ, so a graded or noted card is never promised by accident.
