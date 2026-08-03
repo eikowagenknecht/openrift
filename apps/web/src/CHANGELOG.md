@@ -10,6 +10,8 @@
 ### Other
 
 - feat(Trades): **Wishlists show what is coming** — a card someone has offered or reserved for you now shows that on the wishlist you asked for it on, instead of only on the Trades page.
+- fix(Cards): **Filter sliders hold still while you drag** — the bar reshuffled on every move of a range handle, so the slider jumped away under the pointer, and now waits until you let go.
+- fix(Cards): **Excluded domains and rarities stand out** — clicking one of those icons a second time to hide its cards showed only a faint red tint, and now draws a line through the icon.
 - fix(Trades): **Dead trade requests close themselves** — a request the other side can no longer fill (the copies were traded away, removed, or the list was unshared) now closes right away instead of waiting a week and failing on accept.
 - fix(Trades): **Filtered tradelists skip promised copies** — a tradelist built from filters kept offering a copy that was already reserved for someone else.
 - fix(Collection): **Trade changes refresh your cards** — accepting or cancelling a trade left stale copy counts behind for a few minutes.
