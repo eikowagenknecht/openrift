@@ -4,11 +4,13 @@
 
 ### Highlights
 
+- feat(Collection): **Number keys add copies** — click a card in the grid, press a number from 1 to 9, and that many copies land in one press.
 - feat(Trades): **Trade status on your own cards** — a copy you have offered, reserved or already handed over now says so in your collection and on your lists, and the same copy can no longer be promised to two people at once.
 - feat(Trades): **Choose which copy you hand over** — accepting a request lets you pick, and only asks when the copies actually differ, so a graded or noted card is never promised by accident.
 
 ### Other
 
+- feat(Collection): **Drag quantities work on lists too** — dropping a card stack on a wishlist or tradelist now takes one copy, the number key you hold, or the whole stack with Shift, just like dropping on a collection.
 - feat(Trades): **Wishlists show what is coming** — a card someone has offered or reserved for you now shows that on the wishlist you asked for it on, instead of only on the Trades page.
 - fix(Cards): **Filter sliders hold still while you drag** — the bar reshuffled on every move of a range handle, so the slider jumped away under the pointer, and now waits until you let go.
 - fix(Cards): **Excluded domains and rarities stand out** — clicking one of those icons a second time to hide its cards showed only a faint red tint, and now draws a line through the icon.

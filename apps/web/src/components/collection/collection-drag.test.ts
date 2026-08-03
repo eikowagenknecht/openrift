@@ -10,6 +10,7 @@ import { createStoreResetter } from "@/test/store-helpers";
 import {
   computeDragSelectionSummary,
   dragSelectionNoun,
+  resolveDropCopyIds,
   resolveSelectionDrag,
 } from "./collection-drag";
 import type { CardDragData } from "./dnd-types";
@@ -175,5 +176,33 @@ describe("resolveSelectionDrag", () => {
     useGridSelectionStore.setState({ selected: new Set(["c1", "c2", "c3"]) });
     const resolved = resolveSelectionDrag({ ...baseDrag, fromSelection: true });
     expect(resolved.copyIds).toEqual(["c1", "c2", "c3"]);
+  });
+});
+
+describe("resolveDropCopyIds", () => {
+  const stack = { copyIds: ["c1", "c2", "c3", "c4"], isStackDrag: true };
+  const unit = { copyIds: ["c1", "c2", "c3"], isStackDrag: false };
+
+  it("trims a stack drag to one copy with no modifier", () => {
+    expect(resolveDropCopyIds(stack, null)).toEqual(["c1"]);
+  });
+
+  it("takes the digit's worth of copies off the front of the stack", () => {
+    expect(resolveDropCopyIds(stack, 3)).toEqual(["c1", "c2", "c3"]);
+  });
+
+  it("caps a digit larger than the stack at the copies available", () => {
+    expect(resolveDropCopyIds(stack, 9)).toEqual(["c1", "c2", "c3", "c4"]);
+  });
+
+  it("takes the whole stack for Shift", () => {
+    expect(resolveDropCopyIds(stack, "all")).toEqual(["c1", "c2", "c3", "c4"]);
+  });
+
+  it("leaves a non-stack drag whole whatever the modifier", () => {
+    // A hand-built select-mode selection is exactly what the user picked, so
+    // there is nothing to trim.
+    expect(resolveDropCopyIds(unit, null)).toEqual(["c1", "c2", "c3"]);
+    expect(resolveDropCopyIds(unit, 2)).toEqual(["c1", "c2", "c3"]);
   });
 });

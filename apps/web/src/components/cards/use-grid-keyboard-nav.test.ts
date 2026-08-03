@@ -41,6 +41,117 @@ function press(key: string, init: KeyboardEventInit = {}) {
   return event;
 }
 
+describe("useGridKeyboardNav: digit keys", () => {
+  it("adds that many copies of the selected card in one press", () => {
+    const onIncrement = vi.fn();
+    useCardRowActionsStore.getState().setHandlers("collection", { onIncrement });
+    useSelectionStore.getState().selectCard(p1, items, "printing");
+
+    renderHook(() => useGridKeyboardNav({ items }));
+    const event = press("3");
+
+    expect(onIncrement).toHaveBeenCalledWith(p1, undefined, 3);
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("accepts 1 as an add-one shortcut", () => {
+    const onIncrement = vi.fn();
+    useCardRowActionsStore.getState().setHandlers("collection", { onIncrement });
+    useSelectionStore.getState().selectCard(p1, items, "printing");
+
+    renderHook(() => useGridKeyboardNav({ items }));
+    press("1");
+
+    expect(onIncrement).toHaveBeenCalledWith(p1, undefined, 1);
+  });
+
+  it("ignores 0", () => {
+    const onIncrement = vi.fn();
+    useCardRowActionsStore.getState().setHandlers("collection", { onIncrement });
+    useSelectionStore.getState().selectCard(p1, items, "printing");
+
+    renderHook(() => useGridKeyboardNav({ items }));
+    const event = press("0");
+
+    expect(onIncrement).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it("ignores auto-repeat so a held key adds one batch, not a stream", () => {
+    const onIncrement = vi.fn();
+    useCardRowActionsStore.getState().setHandlers("collection", { onIncrement });
+    useSelectionStore.getState().selectCard(p1, items, "printing");
+
+    renderHook(() => useGridKeyboardNav({ items }));
+    press("2");
+    press("2", { repeat: true });
+    press("2", { repeat: true });
+
+    expect(onIncrement).toHaveBeenCalledOnce();
+  });
+
+  it("ignores Ctrl/Meta/Alt digits so browser tab shortcuts still work", () => {
+    const onIncrement = vi.fn();
+    useCardRowActionsStore.getState().setHandlers("collection", { onIncrement });
+    useSelectionStore.getState().selectCard(p1, items, "printing");
+
+    renderHook(() => useGridKeyboardNav({ items }));
+    press("2", { ctrlKey: true });
+    press("3", { metaKey: true });
+    press("4", { altKey: true });
+
+    expect(onIncrement).not.toHaveBeenCalled();
+  });
+
+  it("ignores digits while typing in an input", () => {
+    const onIncrement = vi.fn();
+    useCardRowActionsStore.getState().setHandlers("collection", { onIncrement });
+    useSelectionStore.getState().selectCard(p1, items, "printing");
+
+    const input = document.createElement("input");
+    document.body.append(input);
+    input.focus();
+
+    renderHook(() => useGridKeyboardNav({ items }));
+    press("5");
+
+    expect(onIncrement).not.toHaveBeenCalled();
+    input.remove();
+  });
+
+  it("skips digits while the variant popover is open", () => {
+    const onIncrement = vi.fn();
+    useCardRowActionsStore.getState().setHandlers("collection", { onIncrement });
+    useSelectionStore.getState().selectCard(p1, items, "printing");
+    useAddModeStore.getState().openVariants(p1.cardId, document.createElement("div"), "add");
+
+    renderHook(() => useGridKeyboardNav({ items }));
+    press("2");
+
+    expect(onIncrement).not.toHaveBeenCalled();
+  });
+
+  it("does nothing when no card is selected", () => {
+    const onIncrement = vi.fn();
+    useCardRowActionsStore.getState().setHandlers("collection", { onIncrement });
+
+    renderHook(() => useGridKeyboardNav({ items }));
+    const event = press("2");
+
+    expect(onIncrement).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it("does nothing when the surface registers no add handler", () => {
+    useSelectionStore.getState().selectCard(p1, items, "printing");
+
+    renderHook(() => useGridKeyboardNav({ items }));
+    const event = press("2");
+
+    expect(event.defaultPrevented).toBe(false);
+  });
+});
+
 describe("useGridKeyboardNav: +/-", () => {
   it("`+` dispatches onIncrement for the selected card", () => {
     const onIncrement = vi.fn();

@@ -90,3 +90,23 @@ export function resolveSelectionDrag(data: CardDragData): CardDragData {
   }
   return { ...data, copyIds: [...useGridSelectionStore.getState().selected] };
 }
+
+/**
+ * Narrows a card drag's copy ids to what the drop should carry. A stack drag
+ * takes one copy by default, the whole stack when Shift is held, and `n` copies
+ * when a digit key 2-9 is held during the drag. Drags that aren't stacks (a
+ * single copy, or a hand-built select-mode selection) always carry every
+ * dragged copy — the user picked that set themselves, so there is nothing to
+ * trim. Both drop targets go through this, so dropping on a collection and
+ * dropping on a sidebar list read the same modifier the same way.
+ * @returns The copy ids the drop should act on.
+ */
+export function resolveDropCopyIds(
+  data: Pick<CardDragData, "copyIds" | "isStackDrag">,
+  modifier: "all" | number | null,
+): string[] {
+  if (!data.isStackDrag || modifier === "all") {
+    return data.copyIds;
+  }
+  return data.copyIds.slice(0, typeof modifier === "number" ? modifier : 1);
+}

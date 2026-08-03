@@ -11,8 +11,9 @@ import { createStoreResetter } from "@/test/store-helpers";
 // are out of scope here — we only care that the hook's own dispose call never
 // leaks an unhandled rejection.
 const disposeMutateAsync = vi.fn();
+const batchedAdd = vi.fn();
 vi.mock("@/hooks/use-copies", () => ({
-  useBatchedAddCopies: () => ({ add: vi.fn(), isPending: false }),
+  useBatchedAddCopies: () => ({ add: batchedAdd, isPending: false }),
   useDisposeCopies: () => ({ mutateAsync: disposeMutateAsync, isPending: false }),
 }));
 
@@ -76,5 +77,60 @@ describe("useQuickAddActions swallows expected dispose failures", () => {
 
     await expect(result.current.tryUndoAdd?.(printing)).resolves.toBe("done");
     expect(disposeMutateAsync).toHaveBeenCalledOnce();
+  });
+});
+
+// The grid's digit-key shortcut ("press 3 to add three copies") reaches the
+// hook through handleQuickAdd's `quantity` argument. Every click path leaves it
+// undefined and must still add exactly one.
+describe("useQuickAddActions handleQuickAdd quantity", () => {
+  const resetAddMode = createStoreResetter(useAddModeStore);
+
+  beforeEach(() => {
+    resetAddMode();
+    copies = [];
+    batchedAdd.mockReset();
+    let added = 0;
+    batchedAdd.mockImplementation(() => {
+      added += 1;
+      return { result: Promise.resolve({ id: `copy-${added}` }) };
+    });
+  });
+
+  afterEach(() => {
+    resetAddMode();
+  });
+
+  it("adds one copy when no quantity is given", async () => {
+    const printing = stubPrinting();
+    const { result } = renderHook(() => useQuickAddActions(COLLECTION_ID, COLLECTION_ID));
+
+    await result.current.handleQuickAdd?.(printing);
+
+    expect(batchedAdd).toHaveBeenCalledOnce();
+    expect(batchedAdd).toHaveBeenCalledWith(printing.id, COLLECTION_ID);
+  });
+
+  it("adds `quantity` copies, each recorded for undo", async () => {
+    const printing = stubPrinting();
+    const { result } = renderHook(() => useQuickAddActions(COLLECTION_ID, COLLECTION_ID));
+
+    await result.current.handleQuickAdd?.(printing, undefined, 3);
+
+    expect(batchedAdd).toHaveBeenCalledTimes(3);
+    expect(useAddModeStore.getState().addedItems.get(printing.id)?.copyIds).toEqual([
+      "copy-1",
+      "copy-2",
+      "copy-3",
+    ]);
+  });
+
+  it("treats a nonsensical quantity as one copy", async () => {
+    const printing = stubPrinting();
+    const { result } = renderHook(() => useQuickAddActions(COLLECTION_ID, COLLECTION_ID));
+
+    await result.current.handleQuickAdd?.(printing, undefined, 0);
+
+    expect(batchedAdd).toHaveBeenCalledOnce();
   });
 });

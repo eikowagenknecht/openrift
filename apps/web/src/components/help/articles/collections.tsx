@@ -3,6 +3,7 @@ import {
   BookOpenIcon,
   GripVerticalIcon,
   InboxIcon,
+  KeyboardIcon,
   ListChecksIcon,
   MousePointerClickIcon,
   PackageIcon,
@@ -142,7 +143,7 @@ export default function CollectionsArticle() {
       {/* Adding cards */}
       <section>
         <Heading className="mb-2">Adding cards</Heading>
-        <p className="text-muted-foreground">There are two ways to add cards to a collection:</p>
+        <p className="text-muted-foreground">There are a few ways to add cards to a collection:</p>
 
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <FeatureCard
@@ -155,6 +156,12 @@ export default function CollectionsArticle() {
             icon={<MousePointerClickIcon className="size-4" />}
             title="Browse & add"
             description="Browse the full catalog with all filters available. Click the plus button on any card to add it. A pulsing red dot shows you're in add mode."
+          />
+          <FeatureCard
+            icon={<KeyboardIcon className="size-4" />}
+            title="Add several at once"
+            shortcut="1-9"
+            description="Click a card in the grid to select it, then press a number key to add that many copies in one press. Plus and minus add or remove one."
           />
         </div>
 
@@ -172,7 +179,7 @@ export default function CollectionsArticle() {
           <FeatureCard
             icon={<GripVerticalIcon className="size-4" />}
             title="Drag & drop"
-            description="Drag cards from the grid and drop them on a collection in the sidebar. A blue ring highlights the target collection."
+            description="Drag cards from the grid onto a collection or a list in the sidebar. A blue ring highlights the target. One copy comes along by default: hold a number key while dragging to bring that many, or Shift for the whole stack."
           />
           <FeatureCard
             icon={<ListChecksIcon className="size-4" />}

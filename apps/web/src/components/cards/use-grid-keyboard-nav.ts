@@ -2,6 +2,7 @@ import type { Printing } from "@openrift/shared";
 import { useEffect } from "react";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
+import { parseDigitKey } from "@/lib/parse-digit-key";
 import { useAddModeStore } from "@/stores/add-mode-store";
 import { useCardRowActionsStore } from "@/stores/card-row-actions-store";
 import { useSelectionStore } from "@/stores/selection-store";
@@ -23,8 +24,9 @@ const isAddRemoveKey = (key: string) => isIncrementKey(key) || key === "-";
  * by index; up/down cycle through sibling printings (variants) of the
  * selected card without changing the grid position unless the sibling is
  * itself a tile in the grid. `+` / `=` / `-` trigger the add-mode strip's
- * increment / decrement on the selected card (no-op when add mode is off);
- * when the variant popover is open, it handles its own arrows and +/=/-.
+ * increment / decrement on the selected card, and a digit key 1-9 increments
+ * by that many at once (all no-ops when add mode is off); when the variant
+ * popover is open, it handles its own arrows and +/=/-.
  */
 export function useGridKeyboardNav({ items, siblingPrintings }: UseGridKeyboardNavParams) {
   const selectedCard = useSelectionStore((s) => s.selectedCard);
@@ -38,11 +40,15 @@ export function useGridKeyboardNav({ items, siblingPrintings }: UseGridKeyboardN
       if (tag === "input" || tag === "textarea" || tag === "select") {
         return;
       }
-      if (!NAV_KEYS.includes(e.key)) {
+      // A digit key adds that many copies in one press — the keyboard twin of
+      // holding a digit while dragging a stack between collections.
+      const digit = parseDigitKey(e.key);
+      if (!NAV_KEYS.includes(e.key) && digit === null) {
         return;
       }
-      // Don't hijack Ctrl/Cmd +/=/- (browser zoom).
-      if (isAddRemoveKey(e.key) && (e.ctrlKey || e.metaKey || e.altKey)) {
+      // Don't hijack the browser's own combos: Ctrl/Cmd +/=/- zooms, and
+      // Ctrl/Cmd/Alt + a digit switches tabs.
+      if ((isAddRemoveKey(e.key) || digit !== null) && (e.ctrlKey || e.metaKey || e.altKey)) {
         return;
       }
       // While the variant×collection popover is open it handles its own arrow /
@@ -50,6 +56,22 @@ export function useGridKeyboardNav({ items, siblingPrintings }: UseGridKeyboardN
       // the same keystrokes.
       const addMode = useAddModeStore.getState();
       if (addMode.variantPopover) {
+        return;
+      }
+
+      if (digit !== null) {
+        // Held keys auto-repeat; one press means one batch of `digit` copies,
+        // not a stream of them. (The repeats still arm the drag-quantity
+        // modifier on /collections, which reads the key state, not the press.)
+        if (e.repeat || !selectedCard) {
+          return;
+        }
+        const handlers = useCardRowActionsStore.getState().handlers;
+        if (!handlers.onIncrement) {
+          return;
+        }
+        e.preventDefault();
+        handlers.onIncrement(selectedCard, undefined, digit);
         return;
       }
 

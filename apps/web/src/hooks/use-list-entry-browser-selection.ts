@@ -26,7 +26,7 @@ import { queryKeys } from "@/lib/query-keys";
 import type { RuleExcludeTarget } from "@/lib/rule-exclude";
 import { excludeEntryFromRules } from "@/lib/rule-exclude";
 import { computeShiftRange, resolveContextActionTarget } from "@/lib/stack-selection";
-import type { ListBulkAction } from "@/stores/card-row-actions-store";
+import type { CardRowClickModifiers, ListBulkAction } from "@/stores/card-row-actions-store";
 import { useGridFocusStore } from "@/stores/grid-focus-store";
 import { useSelectionStore } from "@/stores/selection-store";
 import { useSiblingOverrideStore } from "@/stores/sibling-override-store";
@@ -205,15 +205,21 @@ export function useListEntryBrowserSelection({
     }
   };
 
-  const handleIncrement = (printing: Printing) => {
+  const handleIncrement = (
+    printing: Printing,
+    _modifiers?: CardRowClickModifiers,
+    quantity = 1,
+  ) => {
     // Lists upsert by (listId, cardId|printingId) — adding the same key twice
-    // bumps quantity. We always send quantity: 1; the server's bulk endpoint
-    // handles "new entry" vs. "+1 to existing entry" uniformly, and the hook's
-    // onMutate writes the optimistic bump straight into the query cache.
+    // bumps quantity. The server's bulk endpoint handles "new entry" vs.
+    // "+n to existing entry" uniformly, and the hook's onMutate writes the
+    // optimistic bump straight into the query cache. Anything above 1 comes
+    // from the grid's digit-key shortcut.
+    const bump = Math.max(1, quantity);
     const entryShape =
       kind === "card"
-        ? { cardId: printing.cardId, quantity: 1 }
-        : { printingId: printing.id, quantity: 1 };
+        ? { cardId: printing.cardId, quantity: bump }
+        : { printingId: printing.id, quantity: bump };
     bulkAddEntries.mutate({ listId, entries: [entryShape] });
   };
 

@@ -10,6 +10,7 @@ import { summarizeBatchAdd } from "@/lib/summarize-batch-add";
 import { isTempCopyId } from "@/lib/temp-copy-id";
 import { useAddModeStore } from "@/stores/add-mode-store";
 import type { VariantPopoverIntent } from "@/stores/add-mode-store";
+import type { CardRowClickModifiers } from "@/stores/card-row-actions-store";
 
 /**
  * A minus-button removal that landed on a copy with recorded details
@@ -122,8 +123,15 @@ export function useQuickAddActions(
   };
 
   // Default-target quick-add (current collection, or the inbox on All Cards).
+  // `quantity` above 1 comes from the grid's digit-key shortcut; the adds go
+  // out individually because `useBatchedAddCopies` coalesces them into one
+  // request (and one "3× Card" summary toast) anyway.
   const handleQuickAdd = addTarget
-    ? (printing: Printing) => addToCollection(printing, addTarget)
+    ? async (printing: Printing, _modifiers?: CardRowClickModifiers, quantity = 1) => {
+        await Promise.all(
+          Array.from({ length: Math.max(1, quantity) }, () => addToCollection(printing, addTarget)),
+        );
+      }
     : undefined;
 
   // Add to an explicitly chosen collection (the popover's per-collection `+`

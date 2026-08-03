@@ -38,7 +38,12 @@ export type CardRowSurface = "catalog" | "collection" | "deck" | "list";
 interface BaseRowHandlers {
   onRowClick?: (printing: Printing) => void;
   onSiblingClick?: (printing: Printing) => void;
-  onIncrement?: (printing: Printing, modifiers?: CardRowClickModifiers) => void;
+  /**
+   * Add one copy/entry of `printing`, or `quantity` of them when the caller
+   * asks for more. Only the grid's digit-key shortcut passes a quantity; every
+   * click path leaves it undefined and means one.
+   */
+  onIncrement?: (printing: Printing, modifiers?: CardRowClickModifiers, quantity?: number) => void;
   onDecrement?: (
     printing: Printing,
     anchorEl?: HTMLElement,

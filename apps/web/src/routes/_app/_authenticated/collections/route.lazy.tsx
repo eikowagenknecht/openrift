@@ -10,10 +10,10 @@ import {
 import { snapCenterToCursor } from "@dnd-kit/modifiers";
 import { imageUrl, legendDisplayName } from "@openrift/shared";
 import { createLazyFileRoute, Outlet } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { resolveSelectionDrag } from "@/components/collection/collection-drag";
+import { resolveDropCopyIds, resolveSelectionDrag } from "@/components/collection/collection-drag";
 import { CollectionSidebar } from "@/components/collection/collection-sidebar";
 import type {
   AnyDragData,
@@ -34,7 +34,7 @@ import { useMoveCopies } from "@/hooks/use-copies";
 import { useBulkAddCopiesToList, useMoveListEntries } from "@/hooks/use-lists";
 import { ViewSurfaceProvider } from "@/hooks/use-view-prefs";
 import { describeListAdd } from "@/lib/list-toast";
-import { parseMoveDigit } from "@/lib/parse-move-digit";
+import { parseMoveDigit } from "@/lib/parse-digit-key";
 import { FilterSearchProvider } from "@/lib/search-schemas";
 import { cn } from "@/lib/utils";
 import { useDragPreviewStore } from "@/stores/drag-preview-store";
@@ -54,10 +54,14 @@ function CollectionLayout() {
   const [topBarSlot, setTopBarSlot] = useState<HTMLDivElement | null>(null);
   const topBarHeight = useMeasuredHeight(topBarSlot);
   const [activeDrag, setActiveDrag] = useState<AnyDragData | null>(null);
-  // null → move 1 (default), "all" → Shift held, number → digit key 2-9 held.
-  // Only meaningful for `collection-card` drags — list-entry drags always
-  // carry the whole entry (no per-key trimming).
+  // null → one copy (default), "all" → Shift held, number → digit key 2-9 held
+  // during the drag. Applies to both drop targets (another collection, or a
+  // sidebar list). Only meaningful for `collection-card` drags — list-entry
+  // drags always carry the whole entry (no per-key trimming).
   const [moveModifier, setMoveModifier] = useState<"all" | number | null>(null);
+  // Read by the key listener below, which is mounted once and can't see
+  // `activeDrag` without re-subscribing on every drag.
+  const dragActiveRef = useRef(false);
   const moveCopies = useMoveCopies();
   const bulkAddCopiesToList = useBulkAddCopiesToList();
   const moveListEntries = useMoveListEntries();
@@ -65,9 +69,14 @@ function CollectionLayout() {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: DRAG_ACTIVATION }));
 
   // Track Shift and digit keys 2-9 for the whole collections layout, not just
-  // while a drag is active — otherwise pressing a modifier before grabbing a
-  // card would be missed (the keydown fires before listeners attach). Editable
+  // while a drag is active — otherwise pressing Shift before grabbing a card
+  // would be missed (the keydown fires before listeners attach). Editable
   // targets are ignored so typing a "3" in a search field doesn't update state.
+  //
+  // Digits are the exception: they only arm the drag quantity while a drag is
+  // already in flight. Outside a drag the same keys add copies of the focused
+  // card (useGridKeyboardNav), so accepting them here too would make
+  // "press 3, then grab" add three copies *and* move three.
   useEffect(() => {
     const isEditableTarget = (target: EventTarget | null) => {
       if (!(target instanceof HTMLElement)) {
@@ -85,7 +94,7 @@ function CollectionLayout() {
         return;
       }
       const digit = parseMoveDigit(event.key);
-      if (digit !== null) {
+      if (digit !== null && dragActiveRef.current) {
         setMoveModifier(digit);
       }
     };
@@ -113,6 +122,7 @@ function CollectionLayout() {
   }, []);
 
   const handleDragStart = (event: DragStartEvent) => {
+    dragActiveRef.current = true;
     const data = event.active.data.current as AnyDragData | undefined;
     if (data?.type === "collection-card") {
       // Resolve the live multi-selection at grab time so the overlay fans and
@@ -127,6 +137,7 @@ function CollectionLayout() {
 
   const handleDragEnd = (event: DragEndEvent) => {
     const modifier = moveModifier;
+    dragActiveRef.current = false;
     setActiveDrag(null);
 
     const dragData = event.active.data.current as AnyDragData | undefined;
@@ -159,10 +170,7 @@ function CollectionLayout() {
       if (dragData.sourceCollectionId === dropData.collectionId) {
         return;
       }
-      const copyIds =
-        dragData.isStackDrag && modifier !== "all"
-          ? dragData.copyIds.slice(0, typeof modifier === "number" ? modifier : 1)
-          : dragData.copyIds;
+      const copyIds = resolveDropCopyIds(dragData, modifier);
       const count = copyIds.length;
       moveCopies.mutate(
         { copyIds, toCollectionId: dropData.collectionId },
@@ -189,12 +197,12 @@ function CollectionLayout() {
       return;
     }
 
-    // Adding to a list is non-destructive (copies stay in their collection),
-    // so the stack-trim-to-one default doesn't apply — all copies under the
-    // dragged tile flow into the server, which derives the right entry shape
-    // (card / printing / copy) from the list's kind and dedupes.
+    // Same stack-trim rule as a collection drop: one copy by default, `n` with
+    // a digit key held, the whole stack with Shift. The server derives the
+    // right entry shape (card / printing / copy) from the list's kind and
+    // dedupes, so the trim only shows up on copy-kind lists.
     bulkAddCopiesToList.mutate(
-      { listId: dropData.listId, copyIds: dragData.copyIds },
+      { listId: dropData.listId, copyIds: resolveDropCopyIds(dragData, modifier) },
       {
         onSuccess: (result) => {
           const listName = dropData.listName;
@@ -257,6 +265,7 @@ function CollectionLayout() {
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
                 onDragCancel={() => {
+                  dragActiveRef.current = false;
                   setActiveDrag(null);
                 }}
               >
@@ -359,10 +368,9 @@ function DragPreview({ drag, modifier }: { drag: CardDragData; modifier: "all" |
     label = selectionCount === 1 ? drag.printing.card.name : `${selectionCount} ${plural}`;
   } else {
     // Lone stack/copy drag: the modifier may trim a stack down, and a single
-    // card shows its name.
-    const requested =
-      modifier === "all" ? drag.copyIds.length : typeof modifier === "number" ? modifier : 1;
-    count = drag.isStackDrag ? Math.min(requested, drag.copyIds.length) : drag.copyIds.length;
+    // card shows its name. Counted through the same helper the drop uses, so
+    // the badge can't promise a number the drop won't deliver.
+    count = resolveDropCopyIds(drag, modifier).length;
     label = count === 1 ? drag.printing.card.name : `${count} copies`;
   }
   // Show up to 3 fanned cards, front card on top
