@@ -374,6 +374,101 @@ describe("friendGroupMatchesRepo (ADR-034 app-level matcher)", () => {
   });
 });
 
+describe("friendGroupMatchesRepo — promised-incoming netting", () => {
+  // The baseline want is quantity 2 of crd-1 (see baselineQueues). The canned
+  // `cardTrades` rows stand for the already-filtered firm promises (reserved,
+  // or completed with receiver sync unapplied) — the fake db ignores WHEREs, so
+  // the status ladder itself is covered by the integration test.
+  function promisedRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+    return {
+      receiverUserId: "viewer",
+      printingId: "prt-1",
+      cardId: "crd-1",
+      quantity: 2,
+      ...overrides,
+    };
+  }
+
+  it("drops a want fully covered by a firm incoming trade", async () => {
+    const queues = { ...baselineQueues(), cardTrades: [[promisedRow()]] };
+    const repo = friendGroupMatchesRepo(makeDb(queues), PROVIDERS);
+    const rows = await repo.othersHaveYourWants({ groupId: "g", viewerUserId: "viewer" });
+    expect(rows).toEqual([]);
+  });
+
+  it("keeps the residual want when the promise covers it partially", async () => {
+    const queues = { ...baselineQueues(), cardTrades: [[promisedRow({ quantity: 1 })]] };
+    const repo = friendGroupMatchesRepo(makeDb(queues), PROVIDERS);
+    const rows = await repo.othersHaveYourWants({ groupId: "g", viewerUserId: "viewer" });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ buyEntryId: "e-w", buyQuantity: 1 });
+  });
+
+  it("ignores promises made to other members", async () => {
+    const queues = {
+      ...baselineQueues(),
+      cardTrades: [[promisedRow({ receiverUserId: "someone-else" })]],
+    };
+    const repo = friendGroupMatchesRepo(makeDb(queues), PROVIDERS);
+    const rows = await repo.othersHaveYourWants({ groupId: "g", viewerUserId: "viewer" });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ buyQuantity: 2 });
+  });
+
+  it("nets a printing-keyed wish from the per-printing pool", async () => {
+    const queues = {
+      ...baselineQueues(),
+      friendGroupListShares: [[tradeShare()], [wishShare({ kind: "printing" })]],
+      listEntries: [
+        [supplyEntry()],
+        [demandEntry({ kind: "printing", cardId: null, printingId: "prt-1", quantity: 1 })],
+      ],
+      cardTrades: [[promisedRow({ quantity: 1 })]],
+    };
+    const repo = friendGroupMatchesRepo(makeDb(queues), PROVIDERS);
+    const rows = await repo.othersHaveYourWants({ groupId: "g", viewerUserId: "viewer" });
+    expect(rows).toEqual([]);
+  });
+
+  it("spends a promise once across the same want on two lists", async () => {
+    // Two wish lists each wanting the same card, one promised copy: only the
+    // first list's entry (build order) is covered — the second still
+    // advertises. The promise must not net both.
+    const queues = {
+      ...baselineQueues(),
+      friendGroupListShares: [
+        [tradeShare()],
+        [wishShare({ listId: "lst-w1" }), wishShare({ listId: "lst-w2" })],
+      ],
+      listEntries: [
+        [supplyEntry()],
+        [
+          demandEntry({ id: "e-w1", listId: "lst-w1", quantity: 1 }),
+          demandEntry({ id: "e-w2", listId: "lst-w2", quantity: 1 }),
+        ],
+      ],
+      cardTrades: [[promisedRow({ quantity: 1 })]],
+    };
+    const repo = friendGroupMatchesRepo(makeDb(queues), PROVIDERS);
+    const rows = await repo.othersHaveYourWants({ groupId: "g", viewerUserId: "viewer" });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ buyEntryId: "e-w2", buyQuantity: 1 });
+  });
+
+  it("nets the mirror direction's buyer want too", async () => {
+    const queues = {
+      ...baselineQueues(),
+      cardTrades: [[promisedRow({ receiverUserId: "buyer" })]],
+    };
+    queues.friendGroupListShares[0][0].ownerUserId = "viewer"; // viewer's trade list
+    queues.friendGroupListShares[1][0].ownerUserId = "buyer"; // other's wish list
+    queues.users[0][0] = { id: "buyer", name: "Bob", image: null, email: "b@x.com" };
+    const repo = friendGroupMatchesRepo(makeDb(queues), PROVIDERS);
+    const rows = await repo.othersWantYourHaves({ groupId: "g", viewerUserId: "viewer" });
+    expect(rows).toEqual([]);
+  });
+});
+
 describe("friendGroupMatchesRepo — sorting and counterparty scoping", () => {
   // Two sellers (Alice, Bob); the viewer wants both Alpha and Beta.
   function multiSellerQueues() {

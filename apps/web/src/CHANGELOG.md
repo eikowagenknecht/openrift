@@ -22,6 +22,8 @@
 - feat(Collection): **Drag quantities work on lists too** — dropping a card stack on a wishlist or tradelist now takes one copy, the number key you hold, or the whole stack with Shift, just like dropping on a collection.
 - feat(Trades): **Wishlists show what is coming** — a card someone has offered or reserved for you now shows that on the wishlist you asked for it on, instead of only on the Trades page.
 - feat(Collection): **Share links point members at the full view** — opening a collection's public link while signed in now offers a way through to the version that lets you add and take copies, instead of stranding you on the read-only page.
+- fix(Trades): **Reserved cards stop reappearing as offers** — reserving the spare of a keep-N tradelist rule no longer puts one of the copies you meant to keep up for trade instead.
+- fix(Trades): **No more suggestions for cards already promised** — a card someone reserved for you, or one with an open request, stops showing as a trade opportunity in your other shared groups.
 - fix(Collection): **Scans follow your card language** — a card set to English could still be filed as Simplified Chinese, and mixed stacks now have an "any language" setting for the old behaviour.
 - fix(Collection): **Identify now reads the card in front of you** — it answered with whatever the camera had last worked out, often the card before, and now takes a fresh picture, shows it while it thinks, and adds the card when it is sure.
 - fix(Collection): **Promo printings stop asking** — a card that exists plain, foil and foil with a promo stamp opened the printing picker every time, and now files as the plain one unless the stamp is actually seen.

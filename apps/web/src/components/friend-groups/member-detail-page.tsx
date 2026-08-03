@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { CardList } from "@/components/ui/card-list";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { UserAvatar } from "@/components/user-avatar";
-import { useGroupTrades } from "@/hooks/use-card-trades";
+import { useGroupTrades, useUserTrades } from "@/hooks/use-card-trades";
 import { useFriendGroupDetail, useFriendGroupMemberDetail } from "@/hooks/use-friend-groups";
 import { withoutLiveTradeMatches } from "@/lib/trade-derivation";
 import { cn, PAGE_PADDING } from "@/lib/utils";
@@ -33,15 +33,18 @@ export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
   const { data } = useFriendGroupMemberDetail(slug, userId);
   const { data: groupDetail } = useFriendGroupDetail(slug);
   const { data: tradesData } = useGroupTrades(groupDetail.group.id);
+  const { data: allTradesData } = useUserTrades();
   const { member } = data;
 
   // Drop match suggestions that already have a live trade with this member for
-  // the same card, so a suggestion and its in-progress trade don't both show —
-  // the in-progress trade renders in MemberTradesSection instead. Mirrors the
-  // Trades page's SuggestedSection.
-  const trades = tradesData?.items ?? [];
-  const incomingMatches = withoutLiveTradeMatches(data.matches, trades);
-  const outgoingMatches = withoutLiveTradeMatches(data.reverseMatches, trades);
+  // the same card — here or in another shared group — so a suggestion and its
+  // in-progress trade don't both show; the in-progress trade renders in
+  // MemberTradesSection instead. Mirrors the Trades page's SuggestedSection,
+  // with the same fallback to the group's own trades until the all-groups
+  // list loads.
+  const liveTrades = allTradesData?.items ?? tradesData?.items ?? [];
+  const incomingMatches = withoutLiveTradeMatches(data.matches, liveTrades);
+  const outgoingMatches = withoutLiveTradeMatches(data.reverseMatches, liveTrades);
   const hasMatches = incomingMatches.length > 0 || outgoingMatches.length > 0;
 
   const sortedShares = data.shares.toSorted((a, b) => a.listName.localeCompare(b.listName));

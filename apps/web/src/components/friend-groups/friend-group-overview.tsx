@@ -13,7 +13,7 @@ import type { StatTileTone } from "@/components/ui/stat-tile";
 import { StatTile } from "@/components/ui/stat-tile";
 import { UserAvatarStack } from "@/components/user-avatar-stack";
 import { CAPPED_ROWS_LIMIT } from "@/hooks/use-capped-rows";
-import { useGroupTrades, useTradeActionCounts } from "@/hooks/use-card-trades";
+import { useGroupTrades, useTradeActionCounts, useUserTrades } from "@/hooks/use-card-trades";
 import { useCards } from "@/hooks/use-cards";
 import { useCollections } from "@/hooks/use-collections";
 import { useFriendGroupMatches } from "@/hooks/use-friend-groups";
@@ -74,16 +74,20 @@ function TradesHub({ slug, data }: { slug: string; data: FriendGroupDetailRespon
   const { data: matches } = useFriendGroupMatches(slug);
   const { data: actionCounts } = useTradeActionCounts();
   const { data: tradesData } = useGroupTrades(data.group.id);
+  const { data: allTradesData } = useUserTrades();
 
   const actionCount =
     actionCounts?.byGroup.find((entry) => entry.groupId === data.group.id)?.count ?? 0;
   const trades = tradesData?.items ?? [];
   const active = trades.filter((trade) => tradeSection(trade) === "active");
   // Count what the Trades page renders: per-copy match rows collapsed into
-  // suggestion tiles, minus suggestions already covered by a live trade.
+  // suggestion tiles, minus suggestions already covered by a live trade in any
+  // group (falling back to this group's own trades until the all-groups list
+  // loads).
+  const liveTrades = allTradesData?.items ?? trades;
   const matchCount = countTradeSuggestions(
-    withoutLiveTradeMatches(matches.othersHaveYourWants, trades),
-    withoutLiveTradeMatches(matches.othersWantYourHaves, trades),
+    withoutLiveTradeMatches(matches.othersHaveYourWants, liveTrades),
+    withoutLiveTradeMatches(matches.othersWantYourHaves, liveTrades),
   );
 
   const needsAction = actionCount > 0;

@@ -106,7 +106,10 @@ export interface IncomingMatchFeedRow {
  * both expanded (`evaluateListRules` + `expandList`) and matched in TypeScript,
  * preserving every invariant of the old single-join query — group/share
  * visibility, reserved-copy exclusion, trade-pref coalescing, and
- * copy → printing → card resolution.
+ * copy → printing → card resolution. Demand is additionally netted against
+ * quantities already promised to the wanting member by firm live trades
+ * ({@link netDemandAgainstPromises}), the demand-side mirror of the supply
+ * side's reserved-copy exclusion.
  *
  * **Only `wish` ↔ `trade` shares participate.** `organize` lists never appear
  * here. Deck-derived demand is excluded by construction — we only read list
@@ -373,6 +376,104 @@ async function loadManualEntries(
     }
   }
   return byList;
+}
+
+/**
+ * Per-member quantities already promised by live incoming trades, keyed
+ * `${userId}:${printingId}` / `${userId}:${cardId}`. Both pools are fed by the
+ * same trade rows — a promised copy is a copy of one printing of one card, so
+ * it satisfies a printing-keyed want and a card-keyed want alike, exactly as
+ * applying the sync will raise the owned counts that net dynamic wishes.
+ */
+interface PromisedIncomingPools {
+  byPrinting: Map<string, number>;
+  byCard: Map<string, number>;
+}
+
+function promisedKey(userId: string, id: string): string {
+  return `${userId}:${id}`;
+}
+
+/**
+ * Loads, for each demand owner, the quantities firm live trades already promise
+ * to them: `reserved` rows, plus `completed` rows whose receiver-side sync is
+ * still unapplied (the card is in hand, just not recorded yet — the same "live"
+ * ladder as the card-trades repo's `liveAnnotationsForUser`). Pending rows are
+ * deliberately absent: a pending request is a bid, not a promise, and several
+ * members may bid on one card (ADR-019).
+ * @returns The promised quantities pooled per printing and per card.
+ */
+async function loadPromisedIncoming(
+  db: Kysely<Database>,
+  ownerIds: string[],
+): Promise<PromisedIncomingPools> {
+  const byPrinting = new Map<string, number>();
+  const byCard = new Map<string, number>();
+  if (ownerIds.length === 0) {
+    return { byPrinting, byCard };
+  }
+  const rows = await db
+    .selectFrom("cardTrades")
+    .select((eb) => [
+      "receiverUserId",
+      "printingId",
+      "cardId",
+      eb.cast<number>(eb.fn.sum(eb.ref("quantity")), "integer").as("quantity"),
+    ])
+    .where("receiverUserId", "in", ownerIds)
+    .where((eb) =>
+      eb.or([
+        eb("status", "=", "reserved"),
+        eb.and([eb("status", "=", "completed"), eb("receiverSyncAppliedAt", "is", null)]),
+      ]),
+    )
+    .groupBy(["receiverUserId", "printingId", "cardId"])
+    .execute();
+  for (const row of rows) {
+    const printingKey = promisedKey(row.receiverUserId, row.printingId);
+    byPrinting.set(printingKey, (byPrinting.get(printingKey) ?? 0) + row.quantity);
+    const cardKey = promisedKey(row.receiverUserId, row.cardId);
+    byCard.set(cardKey, (byCard.get(cardKey) ?? 0) + row.quantity);
+  }
+  return { byPrinting, byCard };
+}
+
+/**
+ * Nets wish demand against the owner's promised incoming quantities, so a want
+ * a firm trade already covers stops advertising — in every group, against every
+ * counterparty. Card demand draws on the per-card pool, printing demand on the
+ * per-printing pool; entries consume a pool in build order, a fully covered
+ * entry drops out, and a partially covered one keeps its residual want (which
+ * is genuinely still tradeable).
+ * @returns The demand entries with promised quantities subtracted.
+ */
+function netDemandAgainstPromises(
+  demand: DemandEntry[],
+  pools: PromisedIncomingPools,
+): DemandEntry[] {
+  const remainingByPrinting = new Map(pools.byPrinting);
+  const remainingByCard = new Map(pools.byCard);
+  const netted: DemandEntry[] = [];
+  for (const entry of demand) {
+    const pool = entry.kind === "printing" ? remainingByPrinting : remainingByCard;
+    const id = entry.kind === "printing" ? entry.printingId : entry.cardId;
+    if (id === null) {
+      netted.push(entry);
+      continue;
+    }
+    const key = promisedKey(entry.ownerUserId, id);
+    const promised = pool.get(key) ?? 0;
+    if (promised <= 0) {
+      netted.push(entry);
+      continue;
+    }
+    const taken = Math.min(entry.buyQuantity, promised);
+    pool.set(key, promised - taken);
+    if (entry.buyQuantity > taken) {
+      netted.push({ ...entry, buyQuantity: entry.buyQuantity - taken });
+    }
+  }
+  return netted;
 }
 
 interface CopyMeta {
@@ -705,7 +806,7 @@ async function runMatchQuery(
       ),
     );
   }
-  const demand: DemandEntry[] = [];
+  const rawDemand: DemandEntry[] = [];
   for (const list of scopedDemand) {
     const ruleEntries =
       list.rules.length > 0 && providers
@@ -716,8 +817,18 @@ async function runMatchQuery(
             list.ruleCombine,
           )
         : [];
-    demand.push(...buildDemand(list, demandManual.get(list.listId) ?? [], ruleEntries));
+    rawDemand.push(...buildDemand(list, demandManual.get(list.listId) ?? [], ruleEntries));
   }
+
+  // A want a firm live trade already covers must not keep advertising — in any
+  // group, against any counterparty. Reserved copies already vanish from the
+  // supply side (buildSupply); this is the demand-side mirror. Wish entries are
+  // only decremented when the receiver applies their sync, so without this the
+  // same want re-surfaces everywhere until then.
+  const promised = await loadPromisedIncoming(db, [
+    ...new Set(rawDemand.map((entry) => entry.ownerUserId)),
+  ]);
+  const demand = netDemandAgainstPromises(rawDemand, promised);
 
   // Index demand for matching: card demand by cardId, printing demand by printingId.
   const demandByCard = new Map<string, DemandEntry[]>();

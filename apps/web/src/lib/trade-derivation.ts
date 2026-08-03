@@ -35,10 +35,14 @@ function liveTradeKey(counterpartyUserId: string, printingId: string): string {
  * Drops match rows that already have a live (pending or reserved) trade with the
  * same member for the same printing, so a suggestion and its in-progress trade
  * don't both appear on the Trades page. Matched on (counterparty, printing)
- * regardless of direction; only `counterpartyUserId` and `printingId` are read
- * from each match, so callers can pass full match rows or minimal stubs.
+ * regardless of direction and regardless of group — pass the viewer's trades
+ * across all groups, so a request opened with a member in one shared group also
+ * hides the identical suggestion in every other group (reserved trades are
+ * already netted out server-side; this covers the pending window). Only
+ * `counterpartyUserId` and `printingId` are read from each match, so callers
+ * can pass full match rows or minimal stubs.
  * @param matches The match rows to filter.
- * @param trades The viewer's trades in the group.
+ * @param trades The viewer's trades, across all groups.
  * @returns The matches with live-trade duplicates removed.
  */
 export function withoutLiveTradeMatches<

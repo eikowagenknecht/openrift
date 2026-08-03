@@ -438,7 +438,7 @@ describe("evaluateListRule — trade", () => {
 
   it("keeps reserved copies in the pool and annotates them", () => {
     // Keep 0 means "offer everything I have", so the reserved copy is still
-    // offered even though it sorts to the front of the keep ladder.
+    // offered from the tail of the keep ladder, annotated.
     const ownedCopies = [
       ownedCopy({ copyId: "cp1", printingId: "p1", cardId: "c1", reserved: true }),
       ownedCopy({ copyId: "cp2", printingId: "p1", cardId: "c1" }),
@@ -449,9 +449,10 @@ describe("evaluateListRule — trade", () => {
     expect(out).toHaveLength(2);
   });
 
-  it("keeps the reserved copy back and offers the available ones", () => {
-    // Three copies, one pinned to a live trade. Keeping 1 must hold back the
-    // reserved copy, so both offered copies are genuinely available.
+  it("a reserved copy never fills a keep slot", () => {
+    // Three copies, one pinned to a live trade. Keeping 1 must keep a copy
+    // that stays (cp1), not the promised cp2 — the reserved copy falls into
+    // the offered tail, annotated, where matching drops it.
     const ownedCopies = [
       ownedCopy({ copyId: "cp1", printingId: "p1", cardId: "c1" }),
       ownedCopy({ copyId: "cp2", printingId: "p1", cardId: "c1", reserved: true }),
@@ -461,13 +462,35 @@ describe("evaluateListRule — trade", () => {
       catalog,
       ownedCopies,
     });
-    expect(out.map((entry) => entry.copyId).sort()).toEqual(["cp1", "cp3"]);
+    expect(out.map((entry) => entry.copyId).sort()).toEqual(["cp2", "cp3"]);
+    expect(out.find((entry) => entry.copyId === "cp2")?.reserved).toBe(true);
+    expect(out.find((entry) => entry.copyId === "cp3")?.reserved).toBe(false);
   });
 
-  it("reserved outranks printing niceness in the keep ladder", () => {
+  it("reserving the spare does not replenish the offer from kept copies", () => {
+    // The real-world regression: four copies, keep 3 (a playset), and the one
+    // spare already promised to a live trade. Only the reserved spare may sit
+    // in the offer (annotated — matching drops it); the three keepers must all
+    // stay kept, or accepting one trade would silently put a keeper up for
+    // grabs and drop the owner below their keep count.
+    const ownedCopies = [
+      ownedCopy({ copyId: "cp1", printingId: "p1", cardId: "c1" }),
+      ownedCopy({ copyId: "cp2", printingId: "p1", cardId: "c1" }),
+      ownedCopy({ copyId: "cp3", printingId: "p1", cardId: "c1" }),
+      ownedCopy({ copyId: "cp4", printingId: "p1", cardId: "c1", reserved: true }),
+    ];
+    const out = evaluateListRule(tradeRule({ keepPerCard: { mode: "fixed", n: 3 } }), "copy", {
+      catalog,
+      ownedCopies,
+    });
+    expect(out.map((entry) => entry.copyId)).toEqual(["cp4"]);
+    expect(out[0]?.reserved).toBe(true);
+  });
+
+  it("printing niceness decides the keeps; reserved sorts below it", () => {
     // The reserved copy is the plain one and the free copy is the foil
-    // (special). Reserved is the top tier, so the plain copy is kept and the
-    // nicer foil is offered.
+    // (special). The foil stays with the owner (nicest kept copy); the
+    // promised plain copy is the only offer, annotated as reserved.
     const ownedCopies = [
       ownedCopy({ copyId: "cpPlain", printingId: "plain", cardId: "c1", reserved: true }),
       ownedCopy({ copyId: "cpFoil", printingId: "foil", cardId: "c1" }),
@@ -477,7 +500,8 @@ describe("evaluateListRule — trade", () => {
       ownedCopies,
       enumOrders,
     });
-    expect(out.map((entry) => entry.copyId)).toEqual(["cpFoil"]);
+    expect(out.map((entry) => entry.copyId)).toEqual(["cpPlain"]);
+    expect(out[0]?.reserved).toBe(true);
   });
 
   it("only trades copies whose printing passes the filter", () => {
@@ -1192,8 +1216,10 @@ describe("evaluateListRules — trade combine (the Zeri matrix)", () => {
   });
 
   it("carries the reserved annotation through combination", () => {
-    // Two reserved copies against a keep of one per rule: the ladder holds back
-    // Z4, so Z5 is offered and keeps its annotation.
+    // Two reserved copies against a keep of one per rule. Reserved copies sit
+    // at the tail of every pool, so the keeps go to copies that stay: rule A
+    // keeps Z1, the plains rule keeps Z3. Z4 and Z5 land in the offer with
+    // their annotation intact.
     const reservedCopies = ownedCopies.map((copy) =>
       copy.copyId === "z4" || copy.copyId === "z5" ? { ...copy, reserved: true } : copy,
     );
@@ -1208,27 +1234,24 @@ describe("evaluateListRules — trade combine (the Zeri matrix)", () => {
       },
     ];
     const out = evaluateListRules(keepOnePlain, "copy", { ...ctx, ownedCopies: reservedCopies });
-    expect(out.map((entry) => entry.copyId).sort()).toEqual(["z1", "z2", "z3", "z5"]);
+    expect(out.map((entry) => entry.copyId).sort()).toEqual(["z2", "z4", "z5"]);
+    expect(out.find((entry) => entry.copyId === "z4")?.reserved).toBe(true);
     expect(out.find((entry) => entry.copyId === "z5")?.reserved).toBe(true);
   });
 
-  it("count modes hold back the reserved copy first", () => {
-    // Z5 (a plain) is pinned to a live trade. Reserved is the top tier, so it
-    // is the one held back and the nicer free copies are offered.
+  it("count modes keep a copy that stays, not the reserved one", () => {
+    // Z5 (a plain) is pinned to a live trade. It can't fill the keep slot —
+    // Z1 (the nicest free copy) is kept, and Z5 rides along in the offer,
+    // annotated, where matching drops it.
     const reservedCopies = ownedCopies.map((copy) =>
       copy.copyId === "z5" ? { ...copy, reserved: true } : copy,
     );
     const reservedCtx = { ...ctx, ownedCopies: reservedCopies };
-    expect(
-      evaluateListRules([rules[0]!], "copy", reservedCtx)
-        .map((entry) => entry.copyId)
-        .sort(),
-    ).toEqual(["z1", "z2", "z3", "z4"]);
-    expect(
-      evaluateListRules([rules[0]!], "copy", reservedCtx, "count-max")
-        .map((entry) => entry.copyId)
-        .sort(),
-    ).toEqual(["z1", "z2", "z3", "z4"]);
+    for (const mode of [undefined, "count-max"] as const) {
+      const out = evaluateListRules([rules[0]!], "copy", reservedCtx, mode);
+      expect(out.map((entry) => entry.copyId).sort()).toEqual(["z2", "z3", "z4", "z5"]);
+      expect(out.find((entry) => entry.copyId === "z5")?.reserved).toBe(true);
+    }
   });
 });
 

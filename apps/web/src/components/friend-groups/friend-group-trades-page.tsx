@@ -22,7 +22,7 @@ import { Card } from "@/components/ui/card";
 import { IconChip } from "@/components/ui/icon-chip";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { UserAvatar } from "@/components/user-avatar";
-import { useGroupTrades } from "@/hooks/use-card-trades";
+import { useGroupTrades, useUserTrades } from "@/hooks/use-card-trades";
 import {
   useFriendGroupMatches,
   useFriendGroupShareableLists,
@@ -85,6 +85,7 @@ export function TradesPageContent({
 function TradesPulse({ slug, data }: { slug: string; data: FriendGroupDetailResponse }) {
   const { data: matches } = useFriendGroupMatches(slug);
   const { data: tradesData } = useGroupTrades(data.group.id);
+  const { data: allTradesData } = useUserTrades();
   const prices = usePrices();
   const marketplace = useDisplayStore((state) => state.marketplaceOrder[0] ?? "cardtrader");
 
@@ -93,9 +94,13 @@ function TradesPulse({ slug, data }: { slug: string; data: FriendGroupDetailResp
   const active = trades.filter((trade) => tradeSection(trade) === "active");
   const history = trades.filter((trade) => tradeSection(trade) === "history");
   // The same suggestion count the Possible trades section renders below.
+  // Deduped against the viewer's trades across all groups (falling back to the
+  // group's own until loaded), so a request opened with the same member in
+  // another shared group doesn't count as a suggestion here.
+  const liveTrades = allTradesData?.items ?? trades;
   const matchCount = countTradeSuggestions(
-    withoutLiveTradeMatches(matches.othersHaveYourWants, trades),
-    withoutLiveTradeMatches(matches.othersWantYourHaves, trades),
+    withoutLiveTradeMatches(matches.othersHaveYourWants, liveTrades),
+    withoutLiveTradeMatches(matches.othersWantYourHaves, liveTrades),
   );
   const sharedListCount = data.shares.filter(
     (share) => share.listIntent === "wish" || share.listIntent === "trade",
@@ -155,12 +160,16 @@ function JumpLink({ target, label, count }: { target: string; label: string; cou
 function SuggestedSection({ slug, data }: { slug: string; data: FriendGroupDetailResponse }) {
   const { data: matches } = useFriendGroupMatches(slug);
   const { data: tradesData } = useGroupTrades(data.group.id);
+  const { data: allTradesData } = useUserTrades();
 
   // Hide a suggestion once it has a live (pending/reserved) trade with the same
-  // member for the same card, so it doesn't echo the in-progress trade below.
-  const trades = tradesData?.items ?? [];
-  const incoming = withoutLiveTradeMatches(matches.othersHaveYourWants, trades);
-  const outgoing = withoutLiveTradeMatches(matches.othersWantYourHaves, trades);
+  // member for the same card — in this group (where it echoes the in-progress
+  // trade below) or in any other shared group (where the request already
+  // exists, so acting on the suggestion would just 409). Falls back to the
+  // group's own trades until the all-groups list loads.
+  const liveTrades = allTradesData?.items ?? tradesData?.items ?? [];
+  const incoming = withoutLiveTradeMatches(matches.othersHaveYourWants, liveTrades);
+  const outgoing = withoutLiveTradeMatches(matches.othersWantYourHaves, liveTrades);
   const hasMatches = incoming.length > 0 || outgoing.length > 0;
 
   return (

@@ -9,6 +9,7 @@ let currentTournaments: TournamentSummaryResponse[] = [];
 vi.mock("@/hooks/use-card-trades", () => ({
   useGroupTrades: () => ({ data: { items: [] } }),
   useTradeActionCounts: () => ({ data: { byGroup: [] } }),
+  useUserTrades: () => ({ data: { items: [] } }),
 }));
 
 vi.mock("@/hooks/use-cards", () => ({

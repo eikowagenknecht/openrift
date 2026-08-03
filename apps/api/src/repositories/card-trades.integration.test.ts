@@ -26,7 +26,13 @@ const RECEIVER_ID = crypto.randomUUID();
 const OUTSIDER_ID = crypto.randomUUID();
 /** Never party to a trade in this file, so their annotation list stays empty. */
 const BYSTANDER_ID = crypto.randomUUID();
-const ALL_USER_IDS = [GIVER_ID, RECEIVER_ID, OUTSIDER_ID, BYSTANDER_ID];
+/**
+ * Receiver reserved for the promised-incoming netting test alone: the netting
+ * pool is global per receiver, so reserved trades other tests leave behind
+ * (afterAll-only cleanup) would leak into its counts under RECEIVER_ID.
+ */
+const NETTED_RECEIVER_ID = crypto.randomUUID();
+const ALL_USER_IDS = [GIVER_ID, RECEIVER_ID, OUTSIDER_ID, BYSTANDER_ID, NETTED_RECEIVER_ID];
 
 const ctx = createDbContext(GIVER_ID);
 
@@ -106,32 +112,36 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
    * `copyCount`); both shared with a fresh group.
    * @returns The group, the receiver's wish entry, and the giver's copy ids.
    */
-  async function setupMatch(copyCount: number, wishQuantity: number = copyCount) {
+  async function setupMatch(
+    copyCount: number,
+    wishQuantity: number = copyCount,
+    receiverId: string = RECEIVER_ID,
+  ) {
     const slug = await uniqueSlug();
     const group = await groupsRepo.createWithOwner(
       { slug, name: "Trade Test Group", description: null, code: null },
       GIVER_ID,
     );
     createdGroupIds.push(group.id);
-    await groupsRepo.addMember(group.id, RECEIVER_ID, "member");
+    await groupsRepo.addMember(group.id, receiverId, "member");
 
     const wish = await db
       .insertInto("lists")
-      .values({ userId: RECEIVER_ID, name: "Wants", intent: "wish", kind: "printing" })
+      .values({ userId: receiverId, name: "Wants", intent: "wish", kind: "printing" })
       .returning("id")
       .executeTakeFirstOrThrow();
     const wishEntry = await db
       .insertInto("listEntries")
       .values({
         listId: wish.id,
-        userId: RECEIVER_ID,
+        userId: receiverId,
         kind: "printing",
         printingId: PRINTING_1.id,
         quantity: wishQuantity,
       })
       .returning("id")
       .executeTakeFirstOrThrow();
-    await groupsRepo.share(group.id, wish.id, RECEIVER_ID);
+    await groupsRepo.share(group.id, wish.id, receiverId);
 
     const tradeList = await db
       .insertInto("lists")
@@ -239,9 +249,12 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     return { group, copyIds };
   }
 
-  function availableForReceiver(groupId: string): Promise<number> {
+  function availableForReceiver(
+    groupId: string,
+    receiverId: string = RECEIVER_ID,
+  ): Promise<number> {
     return repos.friendGroupMatches
-      .othersHaveYourWants({ groupId, viewerUserId: RECEIVER_ID, counterpartyUserId: GIVER_ID })
+      .othersHaveYourWants({ groupId, viewerUserId: receiverId, counterpartyUserId: GIVER_ID })
       .then((rows) => rows.filter((row) => row.printingId === PRINTING_1.id).length);
   }
 
@@ -346,6 +359,43 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     expect(await repos.cardTrades.listReservedCopyIds(trade.id)).toHaveLength(2);
     // 3 shared copies − 2 reserved = 1 still matchable for everyone.
     expect(await availableForReceiver(group.id)).toBe(1);
+  });
+
+  it("a firm reserved trade nets the receiver's want across groups", async () => {
+    // The same pair matched in two groups on the same printing. Once the trade
+    // in the first group is reserved, the second group's identical suggestion
+    // must stop advertising — its supply copy is unreserved, but the want is
+    // already covered by a firm promise.
+    const first = await setupMatch(1, 1, NETTED_RECEIVER_ID);
+    const second = await setupMatch(1, 1, NETTED_RECEIVER_ID);
+    expect(await availableForReceiver(first.group.id, NETTED_RECEIVER_ID)).toBe(1);
+    expect(await availableForReceiver(second.group.id, NETTED_RECEIVER_ID)).toBe(1);
+
+    const trade = await createTrade(repos, {
+      callerUserId: NETTED_RECEIVER_ID,
+      groupSlug: first.group.slug,
+      counterpartyUserId: GIVER_ID,
+      role: "receiver",
+      printingId: PRINTING_1.id,
+      quantity: 1,
+    });
+    // A pending request is a bid, not a promise — the twin suggestion stays.
+    expect(await availableForReceiver(second.group.id, NETTED_RECEIVER_ID)).toBe(1);
+
+    await acceptTrade(transact, trade.id, GIVER_ID);
+    expect(await availableForReceiver(second.group.id, NETTED_RECEIVER_ID)).toBe(0);
+
+    // Completed with the receiver's sync unapplied still nets: the card is in
+    // hand, just not recorded yet.
+    await completeTrade(transact, trade.id, NETTED_RECEIVER_ID);
+    expect(await availableForReceiver(second.group.id, NETTED_RECEIVER_ID)).toBe(0);
+
+    // Applying the receiver sync ends the promise window. The second group's
+    // own manual wish entry still says 1 (manual lists don't self-clean), so
+    // its suggestion legitimately returns; dynamic netOwned wishes recompute
+    // from the newly owned copy instead and stay hidden.
+    await applyTradeSync(transact, trade.id, NETTED_RECEIVER_ID);
+    expect(await availableForReceiver(second.group.id, NETTED_RECEIVER_ID)).toBe(1);
   });
 
   it("rejects trading more than the wanting side wants", async () => {
