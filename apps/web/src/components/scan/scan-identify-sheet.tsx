@@ -1,10 +1,12 @@
+import { Loader2Icon } from "lucide-react";
+
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from "@/components/ui/drawer";
 import { Pressable } from "@/components/ui/pressable";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 
-/** One artwork from the current frame's embedding shortlist. */
+/** One artwork from the identified frame's embedding shortlist. */
 export interface IdentifyCandidate {
   /** Bank key (an image id) — doubles as the thumbnail source. */
   key: string;
@@ -16,23 +18,38 @@ export interface IdentifyCandidate {
 }
 
 interface ScanIdentifySheetProps {
-  /** The shortlist to offer, or null while the sheet is closed. */
-  candidates: IdentifyCandidate[] | null;
+  open: boolean;
+  /**
+   * The frame being identified, as a JPEG data URL. Shown from the moment the
+   * user asks, so which frame is being answered is never in doubt — the camera
+   * has long moved on by the time the answer comes back.
+   */
+  snapshot: string | null;
+  /** The frame is still going through the pipeline. */
+  pending: boolean;
+  /** The shortlist to offer, once there is one. */
+  candidates: IdentifyCandidate[];
   onPick: (candidate: IdentifyCandidate) => void;
   onDismiss: () => void;
 }
 
 /**
- * The manual escape hatch when the scanner will not lock: the current frame's
- * best matches, offered as tappable thumbnails. Picking one adds it exactly
- * like a lock would (finish default, language preference and the printing
- * picker all still apply); dismissing adds nothing.
+ * The manual escape hatch when the scanner will not lock: the captured frame
+ * and its best matches, offered as tappable thumbnails. Picking one adds it
+ * exactly like a lock would (finish default, language preference and the
+ * printing picker all still apply); dismissing adds nothing.
  *
  * @returns The identify sheet (a drawer on phones).
  */
-export function ScanIdentifySheet({ candidates, onPick, onDismiss }: ScanIdentifySheetProps) {
+export function ScanIdentifySheet({
+  open,
+  snapshot,
+  pending,
+  candidates,
+  onPick,
+  onDismiss,
+}: ScanIdentifySheetProps) {
   const isMobile = useIsMobile();
-  const open = candidates !== null;
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
@@ -40,7 +57,7 @@ export function ScanIdentifySheet({ candidates, onPick, onDismiss }: ScanIdentif
     }
   };
 
-  const body = candidates && (
+  const list = (
     <div className="flex flex-col gap-1">
       {candidates.map((candidate) => {
         const name = candidate.label.split(" (")[0];
@@ -69,9 +86,34 @@ export function ScanIdentifySheet({ candidates, onPick, onDismiss }: ScanIdentif
     </div>
   );
 
-  const title = "Which card is in the frame?";
-  const description =
-    "The closest matches for what the camera sees right now. Pick the card in hand, or dismiss if none of them is it.";
+  const body = (
+    <div className="flex gap-3">
+      {/* The guide is an upright card outline whatever the card's orientation,
+          so the snapshot always has the same shape. */}
+      {snapshot !== null && (
+        <img src={snapshot} alt="" className="bg-muted h-32 w-24 shrink-0 rounded object-cover" />
+      )}
+      <div className="min-w-0 flex-1">
+        {pending && (
+          <p className="text-muted-foreground flex items-center gap-2">
+            <Loader2Icon className="size-4 animate-spin" />
+            Recognising…
+          </p>
+        )}
+        {!pending && candidates.length === 0 && (
+          <p className="text-muted-foreground">
+            Nothing in that frame looked like a card. Fill the guide with it and try again.
+          </p>
+        )}
+        {!pending && candidates.length > 0 && list}
+      </div>
+    </div>
+  );
+
+  const title = "Which card is this?";
+  const description = pending
+    ? "Working out what the camera just saw."
+    : "The closest matches for the frame on the left. Pick the card in hand, or dismiss if none of them is it.";
 
   if (isMobile) {
     return (

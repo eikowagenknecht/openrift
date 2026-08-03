@@ -36,12 +36,26 @@ import { fetchReference } from "@/lib/scan-reference-image";
 /**
  * `single` asks the user to place one card in a drawn guide rect: detection is
  * anchored to the guide, junk elsewhere in frame is ignored, and the
- * verification shortlist is trimmed. `capture` is the same framing but the
- * pipeline only runs when `capture()` is tapped — one inference per shot, for
- * devices too slow to scan continuously. `pan` is the free-form mode for
- * panning over a binder page or spread-out cards.
+ * verification shortlist is trimmed. Each card is counted once, so a card held
+ * in shot is never added twice. `auto` is the same pass with the placement
+ * watcher counting copies, for a phone propped over a mat with cards dealt
+ * onto a pile. `capture` is the same framing but the pipeline only runs when
+ * `capture()` is tapped — one inference per shot, for devices too slow to scan
+ * continuously. `pan` is the free-form mode for panning over a binder page or
+ * spread-out cards.
  */
-export type ScannerMode = "single" | "capture" | "pan";
+export type ScannerMode = "single" | "auto" | "capture" | "pan";
+
+/**
+ * Modes that anchor on the guide rect and run the pipeline continuously. They
+ * share a session plan outright, which is what lets the page flip between
+ * single and auto mid-run without rebuilding anything.
+ *
+ * @returns True for the guide-anchored continuous modes.
+ */
+function isContinuousGuideMode(mode: ScannerMode): boolean {
+  return mode === "single" || mode === "auto";
+}
 
 /**
  * Shortlist caps applied on top of the per-encoder `gates.topK` (which is the
@@ -99,7 +113,7 @@ export function lockRunForMode(mode: ScannerMode): number {
   if (mode === "capture") {
     return 1;
   }
-  if (mode === "single") {
+  if (isContinuousGuideMode(mode)) {
     return 3;
   }
   return DEFAULT_SESSION_OPTIONS.accept.lockRun;
@@ -176,8 +190,10 @@ export function scanSessionPlans(input: ScanSessionPlanInput): {
               // Without this the number of copies counted drifts with the
               // device's frame rate (see AcceptOptions.relockOnlyAfterRearm).
               // Capture mode is exempt: there the tap is the user saying
-              // "count this".
-              relockOnlyAfterRearm: mode === "single",
+              // "count this". Single mode keeps it on and adds its own guard
+              // on top (see scan-relock.ts), because handheld the watcher
+              // re-arms on nothing more than a wobble.
+              relockOnlyAfterRearm: isContinuousGuideMode(mode),
             },
     },
     // The catch-up session never locks and never disambiguates: a lone frame

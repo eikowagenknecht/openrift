@@ -46,6 +46,36 @@ export function buildScanPrintingIndex(
 }
 
 /**
+ * Everything that distinguishes two printings of one render EXCEPT the finish,
+ * the language and the markers. Printings sharing this key are the same card
+ * from the same set at the same size, and only the three things the resolver
+ * decides on its own separate them.
+ *
+ * @returns A grouping key over the printing identity the resolver never
+ *   guesses at.
+ */
+function baseKeyOf(printing: Printing): string {
+  return [
+    printing.shortCode,
+    printing.artVariant,
+    printing.size,
+    printing.isSigned ? "signed" : "",
+  ].join("|");
+}
+
+/**
+ * The printing's markers (promo stamps and the like) as a stable key part.
+ *
+ * @returns The marker slugs, sorted and joined.
+ */
+function markerKeyOf(printing: Printing): string {
+  return printing.markers
+    .map((marker) => marker.slug)
+    .toSorted()
+    .join("+");
+}
+
+/**
  * Everything that distinguishes two printings of one render EXCEPT the finish
  * and the language. The language-preference shortcut auto-picks between
  * printings sharing this key: they are the same physical variant printed in
@@ -54,16 +84,7 @@ export function buildScanPrintingIndex(
  * @returns A grouping key over the non-finish, non-language printing identity.
  */
 function languageAgnosticKeyOf(printing: Printing): string {
-  return [
-    printing.shortCode,
-    printing.artVariant,
-    printing.size,
-    printing.isSigned ? "signed" : "",
-    printing.markers
-      .map((marker) => marker.slug)
-      .toSorted()
-      .join("+"),
-  ].join("|");
+  return [baseKeyOf(printing), markerKeyOf(printing)].join("|");
 }
 
 /**
@@ -92,6 +113,57 @@ function defaultOfFinishGroup(group: readonly Printing[]): Printing {
   return group.toSorted((a, b) => a.canonicalRank - b.canonicalRank)[0];
 }
 
+/**
+ * Drop the marked printings when markers are all that is left to decide.
+ *
+ * Reading a promo stamp off the card is the disambiguation stage's job, and it
+ * reports one when it sees one; the case that reaches here is the one where it
+ * saw nothing, which for a stamped printing it would not have. So an unstamped
+ * card is what the frame showed, and the plain printing is the answer — the
+ * same call the resolver already makes for foils, where an unremarkable card is
+ * the common case and the exception is one tap away in the tray.
+ *
+ * Only ever fires when the markers are the sole difference: a marked variant
+ * from another set, size or art still opens the picker.
+ *
+ * @returns The unmarked candidates, or the input untouched when markers were
+ *   not the whole difference.
+ */
+function withoutMarkerOnlyVariants(candidates: readonly Printing[]): readonly Printing[] {
+  if (Map.groupBy(candidates, baseKeyOf).size > 1) {
+    return candidates;
+  }
+  const plain = candidates.filter((printing) => printing.markers.length === 0);
+  return plain.length > 0 ? plain : candidates;
+}
+
+/**
+ * Swap the engine's language pick for the user's stated one.
+ *
+ * Only ever swaps within the same physical variant: the preferred-language
+ * printings have to sit on the same {@link languageAgnosticKeyOf} as the ones
+ * the engine named, so a card that simply does not exist in that language
+ * keeps the engine's answer.
+ *
+ * @returns The candidates to resolve, in the preferred language where one
+ *   exists for the same variant.
+ */
+function inPreferredLanguage(
+  picked: readonly Printing[],
+  artwork: readonly Printing[],
+  preferredLanguage: string,
+): Printing[] {
+  if (picked.some((printing) => printing.language === preferredLanguage)) {
+    return [...picked];
+  }
+  const variants = new Set(picked.map((printing) => languageAgnosticKeyOf(printing)));
+  const swapped = artwork.filter(
+    (printing) =>
+      printing.language === preferredLanguage && variants.has(languageAgnosticKeyOf(printing)),
+  );
+  return swapped.length > 0 ? swapped : [...picked];
+}
+
 /** How the page should handle one lock. */
 export type LockResolution =
   | {
@@ -117,13 +189,18 @@ export type LockResolution =
  * languages — and every single-render artwork, whose disambiguation stage
  * never runs) widens to every render of the locked artwork. Either way, if
  * the candidates differ only by finish the normal one auto-adds (tray switch
- * for the rest). When they differ only by language on top of that and the
- * caller states a preferred card language, that language auto-adds too — the
- * engine's language read abstains on blur and glare, and a collection that is
- * all one language should not pay a picker for every abstention (the tray's
- * change-printing control fixes the rare exception). Any deeper ambiguity
- * (oversized reprints, signed variants on a shared render) goes to the
- * picker.
+ * for the rest), and so does the unmarked one when a promo stamp is the only
+ * other difference (see {@link withoutMarkerOnlyVariants}). Any deeper
+ * ambiguity (oversized reprints, signed variants on a shared render) goes to
+ * the picker.
+ *
+ * A stated card language outranks the engine on language, both ways round.
+ * On an unresolved lock it settles a language-only ambiguity instead of
+ * paying a picker for every abstention, and on a resolved one it overrides
+ * the pick: the language read works off a few rows of glyphs, it has no way
+ * to abstain once it has committed, and someone who has said their cards are
+ * English does not want Simplified Chinese in their collection. Mixed stacks
+ * pass no preference and keep the engine's read.
  *
  * @returns The resolution the page acts on.
  */
@@ -132,27 +209,37 @@ export function resolveLock(
   index: ScanPrintingIndex,
   preferredLanguage?: string,
 ): LockResolution {
-  const keys = lock.resolved ? [lock.key] : (index.keysByArtKey.get(lock.artKey) ?? [lock.key]);
-  const candidates = [
+  const artKeys = index.keysByArtKey.get(lock.artKey) ?? [lock.key];
+  const printingsFor = (keys: readonly string[]) => [
     ...new Map(
       keys
         .flatMap((key) => index.byImageId.get(key) ?? [])
         .map((printing) => [printing.id, printing] as const),
     ).values(),
   ];
+  let candidates = printingsFor(lock.resolved ? [lock.key] : artKeys);
   if (candidates.length === 0) {
     return { kind: "unknown" };
   }
-  let groups = Map.groupBy(candidates, variantKeyOf);
-  if (groups.size > 1 && preferredLanguage !== undefined) {
-    const agnosticGroups = Map.groupBy(candidates, languageAgnosticKeyOf);
-    const preferred = candidates.filter((printing) => printing.language === preferredLanguage);
+  if (lock.resolved && preferredLanguage !== undefined) {
+    candidates = inPreferredLanguage(candidates, printingsFor(artKeys), preferredLanguage);
+  }
+  // Narrowed in two steps, markers before language, so a card that exists
+  // plain and stamped in several languages settles both at once.
+  let narrowed: readonly Printing[] = candidates;
+  if (Map.groupBy(narrowed, variantKeyOf).size > 1) {
+    narrowed = withoutMarkerOnlyVariants(narrowed);
+  }
+  if (preferredLanguage !== undefined && Map.groupBy(narrowed, variantKeyOf).size > 1) {
+    const agnosticGroups = Map.groupBy(narrowed, languageAgnosticKeyOf);
+    const preferred = narrowed.filter((printing) => printing.language === preferredLanguage);
     // Only the language (and finish) separates the candidates, and the
     // preferred language is among them — that is the user's answer.
     if (agnosticGroups.size === 1 && preferred.length > 0) {
-      groups = Map.groupBy(preferred, variantKeyOf);
+      narrowed = preferred;
     }
   }
+  const groups = Map.groupBy(narrowed, variantKeyOf);
   if (groups.size > 1) {
     // More than finish separates the candidates — the scan cannot know which
     // physical variant is in hand.

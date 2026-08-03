@@ -34,7 +34,7 @@ import { loadScanEmbedder, measuredEmbedMsPerImage } from "@/lib/scan-embedder";
 import { loadOpenCv } from "@/lib/scan-opencv";
 import { fetchReference } from "@/lib/scan-reference-image";
 
-import type { LockedCard, ScannerSettings } from "./use-card-scanner";
+import type { IdentifyAttempt, LockedCard, ScannerSettings } from "./use-card-scanner";
 import { DEFAULT_SCANNER_SETTINGS, useCardScanner } from "./use-card-scanner";
 
 vi.mock("@/lib/scan-opencv", () => ({
@@ -645,6 +645,22 @@ async function landUnrecognisedCard(): Promise<void> {
   advance(4100);
 }
 
+/**
+ * Another copy of the same card landing in the guide: the scene changes for a
+ * few frames and then holds still, which is what the placement watcher reads
+ * as "a card was dealt onto the pile".
+ *
+ * @returns Nothing; the watcher has seen the placement by the time it resolves.
+ */
+async function dealAnotherCopy(): Promise<void> {
+  for (const seed of [11, 12, 13]) {
+    sceneSeed = seed;
+    await pumpCameraFrame();
+  }
+  await pumpCameraFrame();
+  await pumpCameraFrame();
+}
+
 describe("useCardScanner", () => {
   beforeEach(() => {
     nowMs = 10_000;
@@ -1100,9 +1116,13 @@ describe("useCardScanner", () => {
   });
 
   describe("placement watcher and catch-up", () => {
+    // Copy counting from the placement watcher belongs to auto mode; single
+    // mode drops it because handheld it fires on a wobble.
+    const autoMode = { settings: { ...DEFAULT_SCANNER_SETTINGS, mode: "auto" as const } };
+
     it("offers a missed placement back as an unidentifiable card the user can dismiss", async () => {
       cardAbsent();
-      const { hook, onLock } = await mountReadyScanner();
+      const { hook, onLock } = await mountReadyScanner(autoMode);
       await act(async () => {
         await hook.result.current.start();
       });
@@ -1131,7 +1151,7 @@ describe("useCardScanner", () => {
 
     it("recovers a missed placement outright when the second look verifies it strongly", async () => {
       cardAbsent();
-      const { hook, onLock } = await mountReadyScanner();
+      const { hook, onLock } = await mountReadyScanner(autoMode);
       await act(async () => {
         await hook.result.current.start();
       });
@@ -1151,6 +1171,152 @@ describe("useCardScanner", () => {
       // The recovery took the placement back off the miss ledger.
       expect(hook.result.current.readout.placements).toBe(1);
       expect(hook.result.current.readout.missedPlacements).toBe(0);
+    });
+
+    it("counts no placements at all in single mode", async () => {
+      cardAbsent();
+      const { hook } = await mountReadyScanner();
+      await act(async () => {
+        await hook.result.current.start();
+      });
+
+      await landUnrecognisedCard();
+      await runFrames(1);
+
+      // Nothing lands on the ledger, so nothing reaches the second look and
+      // the tray never reports a card the hand only appeared to put down.
+      expect(hook.result.current.readout.placements).toBe(0);
+      expect(hook.result.current.readout.missedPlacements).toBe(0);
+      expect(hook.result.current.unidentified).toEqual([]);
+    });
+  });
+
+  describe("single-mode re-lock guard", () => {
+    it("reports the same card only once while it stays in the guide", async () => {
+      cardPresent();
+      const { hook, onLock } = await mountReadyScanner();
+      await act(async () => {
+        await hook.result.current.start();
+      });
+
+      await runFrames(12);
+      expect(onLock).toHaveBeenCalledTimes(1);
+    });
+
+    it("ignores a placement signal in single mode, where a hand fakes it", async () => {
+      cardPresent();
+      const { hook, onLock } = await mountReadyScanner();
+      await act(async () => {
+        await hook.result.current.start();
+      });
+      await runFrames(4);
+      expect(onLock).toHaveBeenCalledTimes(1);
+
+      await dealAnotherCopy();
+      await runFrames(4);
+      expect(onLock).toHaveBeenCalledTimes(1);
+    });
+
+    it("counts a second copy dealt onto the pile in auto mode", async () => {
+      cardPresent();
+      const { hook, onLock } = await mountReadyScanner({
+        settings: { ...DEFAULT_SCANNER_SETTINGS, mode: "auto" },
+      });
+      await act(async () => {
+        await hook.result.current.start();
+      });
+      await runFrames(4);
+      expect(onLock).toHaveBeenCalledTimes(1);
+
+      await dealAnotherCopy();
+      await runFrames(4);
+      expect(onLock).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe("identifyNow", () => {
+    it("adds the card outright when the grabbed frame proves one", async () => {
+      cardPresent();
+      const { hook, onLock } = await mountReadyScanner();
+      await act(async () => {
+        await hook.result.current.start();
+      });
+      onLock.mockClear();
+
+      let attempt!: IdentifyAttempt;
+      await act(async () => {
+        attempt = await hook.result.current.identifyNow();
+      });
+
+      expect(attempt.identified).toBe(true);
+      expect(onLock).toHaveBeenCalledTimes(1);
+      expect(onLock.mock.calls[0][0].key).toBe("k-a");
+    });
+
+    it("offers the shortlist when the frame is not convincing on its own", async () => {
+      cardPresent();
+      const { hook, onLock } = await mountReadyScanner();
+      await act(async () => {
+        await hook.result.current.start();
+      });
+      onLock.mockClear();
+      // Above the inlier floor, well short of standing alone.
+      currentInliers = () => 15;
+
+      let attempt!: IdentifyAttempt;
+      await act(async () => {
+        attempt = await hook.result.current.identifyNow();
+      });
+
+      expect(attempt.identified).toBe(false);
+      expect(attempt.candidates).toEqual([{ key: "k-a", artKey: "art-a" }]);
+      expect(onLock).not.toHaveBeenCalled();
+    });
+
+    it("hands the snapshot over before recognition starts", async () => {
+      cardPresent();
+      const { hook } = await mountReadyScanner();
+      await act(async () => {
+        await hook.result.current.start();
+      });
+      const onSnapshot = vi.fn<(snapshot: string | null) => void>();
+
+      await act(async () => {
+        await hook.result.current.identifyNow(onSnapshot);
+      });
+
+      expect(onSnapshot).toHaveBeenCalledTimes(1);
+    });
+
+    it("does nothing while the camera is stopped", async () => {
+      cardPresent();
+      const { hook, onLock } = await mountReadyScanner();
+
+      let attempt!: IdentifyAttempt;
+      await act(async () => {
+        attempt = await hook.result.current.identifyNow();
+      });
+
+      expect(attempt).toEqual({ snapshot: null, identified: false, candidates: [] });
+      expect(onLock).not.toHaveBeenCalled();
+    });
+
+    it("stops the live pass adding the same card a second time", async () => {
+      cardPresent();
+      const { hook, onLock } = await mountReadyScanner();
+      await act(async () => {
+        await hook.result.current.start();
+      });
+      onLock.mockClear();
+
+      await act(async () => {
+        await hook.result.current.identifyNow();
+      });
+      expect(onLock).toHaveBeenCalledTimes(1);
+
+      // The card is still in shot; the live pass must not count it again.
+      await runFrames(8);
+      expect(onLock).toHaveBeenCalledTimes(1);
     });
   });
 });

@@ -11,9 +11,15 @@
 
 ### Other
 
+- feat(Collection): **Auto-scan for a phone on a stand** — scanning now counts each card once however long you hold it up, and a toggle switches to counting every copy dealt past a propped-up camera.
+- feat(Collection): **Scan without collecting** — the scanner can name cards without adding them anywhere, every scanned card links through to its card page, and one button clears everything a sitting added.
 - feat(Collection): **Drag quantities work on lists too** — dropping a card stack on a wishlist or tradelist now takes one copy, the number key you hold, or the whole stack with Shift, just like dropping on a collection.
 - feat(Trades): **Wishlists show what is coming** — a card someone has offered or reserved for you now shows that on the wishlist you asked for it on, instead of only on the Trades page.
 - feat(Collection): **Share links point members at the full view** — opening a collection's public link while signed in now offers a way through to the version that lets you add and take copies, instead of stranding you on the read-only page.
+- fix(Collection): **Scans follow your card language** — a card set to English could still be filed as Simplified Chinese, and mixed stacks now have an "any language" setting for the old behaviour.
+- fix(Collection): **Identify now reads the card in front of you** — it answered with whatever the camera had last worked out, often the card before, and now takes a fresh picture, shows it while it thinks, and adds the card when it is sure.
+- fix(Collection): **Promo printings stop asking** — a card that exists plain, foil and foil with a promo stamp opened the printing picker every time, and now files as the plain one unless the stamp is actually seen.
+- fix(Collection): **Scan buttons stay on screen** — the controls under the newest scanned card were cut off at the bottom edge, and they now move to each new card instead of staying on an older one.
 - fix(App): **Much smaller PDF downloads** — every generated PDF (binder QR sheets, proxy sheets, registration sheets, deck images) stored its pictures uncompressed, so a sheet holding one QR code weighed 6.5 MB instead of a few hundred kilobytes.
 - fix(Collection): **Sharing a group binder no longer crashes** — opening the share dialog on a collection owned by a group broke the page a few seconds later, taking the share link and the print button with it.
 - fix(Cards): **Filter sliders hold still while you drag** — the bar reshuffled on every move of a range handle, so the slider jumped away under the pointer, and now waits until you let go.

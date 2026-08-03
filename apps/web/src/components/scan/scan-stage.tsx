@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
  * Clearance the portrait control bar keeps above the peeking tray sheet. Must
  * track `PEEK_SNAP_POINT` in scan-tray-shell, plus a little air.
  */
-const PORTRAIT_BOTTOM_STACK = "bottom-[calc(10rem+0.75rem)]";
+const PORTRAIT_BOTTOM_STACK = "bottom-[calc(11.5rem+0.75rem)]";
 
 /** Width of the landscape side panel, mirroring scan-tray-shell's panel. */
 const LANDSCAPE_PANEL_INSET = "right-72";

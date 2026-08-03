@@ -26,7 +26,8 @@ import type { LoadedScanBank } from "@/lib/scan-bank";
 import { describeKey, isLandscapeKey, loadScanBank } from "@/lib/scan-bank";
 
 const MODES: { value: string; label: string }[] = [
-  { value: "single", label: "Single card (guide rect, fastest)" },
+  { value: "single", label: "Single card, one lock per card (handheld)" },
+  { value: "auto", label: "Single card, copies counted (phone on a stand)" },
   { value: "capture", label: "Single card, tap to scan (slow devices)" },
   { value: "pan", label: "Pan (binder pages, spread-out cards)" },
 ];

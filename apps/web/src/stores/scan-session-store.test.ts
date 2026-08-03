@@ -114,11 +114,56 @@ describe("useScanSessionStore", () => {
     });
   });
 
+  describe("recordIdentified", () => {
+    it("logs a card the session is not collecting, with no copy behind it", () => {
+      const printing = stubPrinting({ id: "p1" });
+      useScanSessionStore.getState().recordIdentified(printing);
+
+      const row = useScanSessionStore.getState().rows.get("p1");
+      expect(row?.copyIds).toEqual([]);
+      expect(row?.pendingCount).toBe(0);
+    });
+
+    it("moves an existing row to newest without disturbing its copies", () => {
+      const first = stubPrinting({ id: "p1" });
+      const second = stubPrinting({ id: "p2" });
+      useScanSessionStore.getState().recordPending(first, "temp-1");
+      useScanSessionStore.getState().recordPending(second, "temp-2");
+      useScanSessionStore.getState().recordIdentified(first);
+
+      expect([...useScanSessionStore.getState().rows.keys()]).toEqual(["p2", "p1"]);
+      expect(useScanSessionStore.getState().rows.get("p1")?.copyIds).toEqual(["temp-1"]);
+    });
+  });
+
+  describe("scans", () => {
+    it("counts every recognised card, not every row", () => {
+      const printing = stubPrinting({ id: "p1" });
+      useScanSessionStore.getState().recordPending(printing, "temp-1");
+      useScanSessionStore.getState().recordPending(printing, "temp-2");
+      useScanSessionStore.getState().recordIdentified(stubPrinting({ id: "p2" }));
+
+      expect(useScanSessionStore.getState().scans).toBe(3);
+      expect(useScanSessionStore.getState().rows.size).toBe(2);
+    });
+
+    it("does not count a correction as a scan", () => {
+      const printing = stubPrinting({ id: "p1" });
+      useScanSessionStore.getState().recordPending(printing, "temp-1");
+      useScanSessionStore.getState().confirmAdd("p1", "temp-1", "copy-1");
+      useScanSessionStore.getState().removeCopy("p1", "copy-1");
+      useScanSessionStore.getState().recordConfirmed(printing, "copy-1");
+
+      expect(useScanSessionStore.getState().scans).toBe(1);
+    });
+  });
+
   describe("reset", () => {
-    it("clears all rows", () => {
+    it("clears all rows and the scan count", () => {
       useScanSessionStore.getState().recordPending(stubPrinting({ id: "p1" }), "temp-1");
       useScanSessionStore.getState().reset();
       expect(useScanSessionStore.getState().rows.size).toBe(0);
+      expect(useScanSessionStore.getState().scans).toBe(0);
     });
   });
 });

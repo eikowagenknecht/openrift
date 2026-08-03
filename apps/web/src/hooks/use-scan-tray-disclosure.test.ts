@@ -22,37 +22,58 @@ describe("useScanTrayDisclosure", () => {
     expect(result.current.openId).toBe("teemo");
   });
 
-  it("keeps a pinned row open when a scan lands", () => {
-    const { result, rerender } = renderHook(({ ids }) => useScanTrayDisclosure(ids), {
+  it("keeps a pinned row open while no new card lands", () => {
+    const { result, rerender } = renderHook(({ ids }) => useScanTrayDisclosure(ids, 1), {
       initialProps: { ids: ["lux", "jinx"] },
     });
     act(() => result.current.toggle("jinx"));
     expect(result.current.openId).toBe("jinx");
 
-    rerender({ ids: ["teemo", "lux", "jinx"] });
+    // Same scan count: a re-render (a copy confirming, say) is not a new card.
+    rerender({ ids: ["jinx", "lux"] });
     expect(result.current.openId).toBe("jinx");
   });
 
-  it("collapses the open row when it is tapped again, and stays collapsed across scans", () => {
-    const { result, rerender } = renderHook(({ ids }) => useScanTrayDisclosure(ids), {
-      initialProps: { ids: ["lux", "jinx"] },
+  it("hands a pinned row back to the newest one as soon as a card lands", () => {
+    const { result, rerender } = renderHook(({ ids, scans }) => useScanTrayDisclosure(ids, scans), {
+      initialProps: { ids: ["lux", "jinx"], scans: 2 },
+    });
+    act(() => result.current.toggle("jinx"));
+    expect(result.current.openId).toBe("jinx");
+
+    rerender({ ids: ["teemo", "lux", "jinx"], scans: 3 });
+    expect(result.current.openId).toBe("teemo");
+  });
+
+  it("reopens the newest row when a card lands on a collapsed tray", () => {
+    const { result, rerender } = renderHook(({ ids, scans }) => useScanTrayDisclosure(ids, scans), {
+      initialProps: { ids: ["lux", "jinx"], scans: 2 },
     });
     act(() => result.current.toggle("lux"));
     expect(result.current.openId).toBeNull();
 
-    rerender({ ids: ["teemo", "lux", "jinx"] });
+    rerender({ ids: ["teemo", "lux", "jinx"], scans: 3 });
+    expect(result.current.openId).toBe("teemo");
+  });
+
+  it("stays collapsed while no card lands", () => {
+    const { result, rerender } = renderHook(({ ids }) => useScanTrayDisclosure(ids, 1), {
+      initialProps: { ids: ["lux", "jinx"] },
+    });
+    act(() => result.current.toggle("lux"));
+    rerender({ ids: ["lux", "jinx"] });
     expect(result.current.openId).toBeNull();
   });
 
   it("resumes following the live row when the newest row is reopened", () => {
-    const { result, rerender } = renderHook(({ ids }) => useScanTrayDisclosure(ids), {
-      initialProps: { ids: ["lux", "jinx"] },
+    const { result, rerender } = renderHook(({ ids, scans }) => useScanTrayDisclosure(ids, scans), {
+      initialProps: { ids: ["lux", "jinx"], scans: 2 },
     });
     act(() => result.current.toggle("jinx"));
     act(() => result.current.toggle("lux"));
     expect(result.current.openId).toBe("lux");
 
-    rerender({ ids: ["teemo", "lux", "jinx"] });
+    rerender({ ids: ["teemo", "lux", "jinx"], scans: 3 });
     expect(result.current.openId).toBe("teemo");
   });
 

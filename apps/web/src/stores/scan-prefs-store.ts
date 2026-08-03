@@ -11,10 +11,20 @@ interface ScanPrefsState {
   /** Last collection scans were added to; null until the first pick. */
   targetCollectionId: string | null;
   setTargetCollectionId: (value: string | null) => void;
-  /** The language the user's physical cards are in (a printing language
-   * code, e.g. "EN"); language-only ambiguities resolve to it silently. */
-  cardLanguage: string;
-  setCardLanguage: (value: string) => void;
+  /**
+   * The language the user's physical cards are in (a printing language code,
+   * e.g. "EN"), or null for a mixed stack. A stated language wins over the
+   * engine's own language read; null hands that decision back to the engine.
+   */
+  cardLanguage: string | null;
+  setCardLanguage: (value: string | null) => void;
+  /**
+   * Keep counting copies of a card that stays in front of the lens, for
+   * dealing a stack past a propped-up phone. Off by default: handheld, the
+   * same card in shot would otherwise be added again and again.
+   */
+  autoScan: boolean;
+  setAutoScan: (value: boolean) => void;
 }
 
 export const useScanPrefsStore = create<ScanPrefsState>()(
@@ -26,6 +36,8 @@ export const useScanPrefsStore = create<ScanPrefsState>()(
       setTargetCollectionId: (value) => set({ targetCollectionId: value }),
       cardLanguage: DEFAULT_SCAN_LANGUAGE,
       setCardLanguage: (value) => set({ cardLanguage: value }),
+      autoScan: false,
+      setAutoScan: (value) => set({ autoScan: value }),
     }),
     {
       name: "openrift-scan-prefs",
@@ -33,9 +45,16 @@ export const useScanPrefsStore = create<ScanPrefsState>()(
         muted: state.muted,
         targetCollectionId: state.targetCollectionId,
         cardLanguage: state.cardLanguage,
+        autoScan: state.autoScan,
       }),
       merge: (persisted, current) => {
         const raw = (persisted as Record<string, unknown>) ?? {};
+        // null is a stored value here ("any language"), not a missing one, so
+        // it has to pass the shape check rather than fall back to the default.
+        const language =
+          typeof raw.cardLanguage === "string" || raw.cardLanguage === null
+            ? raw.cardLanguage
+            : current.cardLanguage;
         return {
           ...current,
           muted: typeof raw.muted === "boolean" ? raw.muted : current.muted,
@@ -43,8 +62,8 @@ export const useScanPrefsStore = create<ScanPrefsState>()(
             typeof raw.targetCollectionId === "string"
               ? raw.targetCollectionId
               : current.targetCollectionId,
-          cardLanguage:
-            typeof raw.cardLanguage === "string" ? raw.cardLanguage : current.cardLanguage,
+          cardLanguage: language,
+          autoScan: typeof raw.autoScan === "boolean" ? raw.autoScan : current.autoScan,
         };
       },
     },

@@ -34,6 +34,7 @@ import { gradeReticle, lockRingFraction } from "@/lib/scan-overlay";
 import type { OverlayTarget } from "@/lib/scan-overlay-paint";
 import { createDrawState, paintOverlay, syncOverlaySize } from "@/lib/scan-overlay-paint";
 import { createPlacementTally } from "@/lib/scan-placement-counts";
+import { createRelockGuard } from "@/lib/scan-relock";
 import type { ScanSessionPlan, ScannerMode } from "@/lib/scan-session";
 import {
   createConfiguredScanSession,
@@ -126,6 +127,22 @@ export interface UnidentifiedCard {
   /** Best guesses from the second look, nearest first; may be empty. */
   candidates: { key: string; artKey: string }[];
   at: number;
+}
+
+/**
+ * What one tap of "identify now" came back with, once the frame it grabbed had
+ * been through the pipeline.
+ */
+export interface IdentifyAttempt {
+  /** The guide at the moment of the tap, as a JPEG data URL. */
+  snapshot: string | null;
+  /**
+   * The frame proved one card outright, and it has already been reported
+   * through `onLock` — the caller has nothing left to ask.
+   */
+  identified: boolean;
+  /** Best guesses when it did not, artwork-deduped and nearest first. */
+  candidates: { key: string; artKey: string }[];
 }
 
 /** A card the accept layer locked, with the numbers the phone bar is judged on. */
@@ -333,6 +350,10 @@ export function useCardScanner(
   const watchCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const placementRef = useRef<PlacementDetector | null>(null);
   const placementTallyRef = useRef(createPlacementTally());
+  // Single mode's own copy counting, which replaces the watcher's (see
+  // scan-relock.ts). Fed on every processed frame in every mode, so flipping
+  // to single mid-session finds it already up to date.
+  const relockRef = useRef(createRelockGuard());
   const settlingRef = useRef({ disturbed: false, at: 0 });
   // Whether the last processed frame had something plausible in the guide, so
   // the catch-up pass can tell "between cards" from "mid-scan".
@@ -585,6 +606,13 @@ export function useCardScanner(
     // silently forgiven.
     const now = performance.now();
     settlingRef.current = { disturbed: signal.disturbed, at: now };
+    // Single mode keeps only the blur gate above: handheld, "a card came to
+    // rest" fires on hand tremor, and everything downstream of it (the copy
+    // count, the miss tally, the second look) then reports on cards that were
+    // never placed at all.
+    if (settingsRef.current.mode === "single") {
+      return;
+    }
     if (tally.takeMiss(now)) {
       // The card is gone from the guide by now, but the frame it settled on is
       // still here. Recognising it costs a frame slot the live pass did not
@@ -751,6 +779,14 @@ export function useCardScanner(
     if (!track) {
       return;
     }
+    // Single mode counts each card once. The engine re-armed this artwork off
+    // a placement signal or a two-frame dropout, neither of which means a new
+    // physical card when the phone is in a hand.
+    if (settingsRef.current.mode === "single" && !relockRef.current.allows(track.artKey)) {
+      console.log(`[scan] re-lock suppressed for ${track.label} (single mode)`);
+      return;
+    }
+    relockRef.current.note(track.artKey, performance.now());
     // A capture-mode lock comes from exactly one deliberate tap, so elapsed
     // run time is always 0.00s; the number that means something there is how
     // long the tap took to process.
@@ -953,25 +989,120 @@ export function useCardScanner(
       });
       return;
     }
-    const seen = new Set<string>();
-    const candidates: UnidentifiedCard["candidates"] = [];
-    for (const ranked of outcome.ranked) {
-      const artKey = loaded?.artKeys.get(ranked.key) ?? ranked.key;
-      if (seen.has(artKey)) {
-        continue;
-      }
-      seen.add(artKey);
-      candidates.push({ key: ranked.key, artKey });
-    }
     setCatchUpPending((current) => [
       ...current,
       {
         id: entry.id,
         thumbnail: entry.thumbnail,
-        candidates: candidates.slice(0, 4),
+        candidates: rankedArtworks(outcome.ranked).slice(0, 4),
         at: entry.at,
       },
     ]);
+  }
+
+  /**
+   * The artworks a frame's shortlist ranked, nearest first and one entry per
+   * artwork.
+   *
+   * @returns The deduped guesses, longest shortlists trimmed by the caller.
+   */
+  function rankedArtworks(ranked: readonly RankedEmbed[]): { key: string; artKey: string }[] {
+    const seen = new Set<string>();
+    const candidates: { key: string; artKey: string }[] = [];
+    for (const entry of ranked) {
+      const artKey = loaded?.artKeys.get(entry.key) ?? entry.key;
+      if (seen.has(artKey)) {
+        continue;
+      }
+      seen.add(artKey);
+      candidates.push({ key: entry.key, artKey });
+    }
+    return candidates;
+  }
+
+  /**
+   * Identify whatever is in the guide right now, on a frame grabbed at the
+   * moment of the call.
+   *
+   * Deliberately not the published readout: that lands 150 ms apart at best,
+   * pauses altogether while the guide is settling and idles right down between
+   * cards, so a tap could easily be answered with the card BEFORE the one the
+   * user is holding. Grabbing here means the answer describes the frame the
+   * user asked about, and the snapshot proves which frame that was.
+   *
+   * Runs through the never-locking second-look session, so it neither disturbs
+   * the live pass's run nor needs one: a frame strong enough on its own
+   * evidence is reported as a lock, anything weaker comes back as a shortlist
+   * for the user to pick from.
+   *
+   * @param onSnapshot Called with the captured frame before recognition
+   *   starts, so the UI can show what it is working on rather than a spinner
+   *   over nothing.
+   * @returns What the frame showed.
+   */
+  async function identifyNow(
+    onSnapshot?: (snapshot: string | null) => void,
+  ): Promise<IdentifyAttempt> {
+    const video = videoRef.current;
+    if (!video || !runningRef.current) {
+      return { snapshot: null, identified: false, candidates: [] };
+    }
+    const snapshot = snapshotVideoRect(video, guideRectIn(video.getBoundingClientRect()));
+    onSnapshot?.(snapshot);
+    const frame = grabFrame(video, frameTurnsRef.current);
+    if (!frame) {
+      return { snapshot, identified: false, candidates: [] };
+    }
+    const generation = runGenerationRef.current;
+    catchUpSeqRef.current += 1;
+    catchUpBusyRef.current = true;
+    // The optional access lives outside the try on purpose: the React Compiler
+    // cannot lower a conditional inside one and bails out of the whole hook.
+    let result: ScanWorkerOutcome | null = null;
+    try {
+      result = await processFrameVia(
+        "catchUp",
+        frame,
+        catchUpSeqRef.current,
+        (performance.now() - sessionStartRef.current) / 1000,
+      );
+    } catch (identifyError) {
+      console.log(`[scan] identify-now failed: ${errorMessage(identifyError, "unknown")}`);
+    }
+    catchUpBusyRef.current = false;
+    const outcome = result === null ? null : result.outcome;
+    if (!outcome || generation !== runGenerationRef.current) {
+      return { snapshot, identified: false, candidates: [] };
+    }
+    const verdict = catchUpVerdict(
+      outcome.winner,
+      DEFAULT_SESSION_OPTIONS.minInliers,
+      DEFAULT_SESSION_OPTIONS.margin,
+    );
+    console.log(
+      `[scan] identify-now: ${verdict}` +
+        `${outcome.winner ? ` ${outcome.winner.key} inliers ${outcome.winner.inliers} vs rival ${outcome.winner.rivalInliers}` : " nothing verified"}`,
+    );
+    if (verdict === "add" && outcome.winner) {
+      const winner = outcome.winner;
+      // The tap is the user asking for this card, so it bypasses the re-lock
+      // guard — but it still counts as an add, or the live pass would lock the
+      // same card again a moment later and add a copy nobody asked for.
+      relockRef.current.note(winner.artKey, performance.now());
+      navigator.vibrate?.(50);
+      eventsRef.current?.onLock?.({
+        key: winner.key,
+        artKey: winner.artKey,
+        label: describeKey(loaded?.labels ?? {}, winner.key),
+        resolved: false,
+        at: Date.now(),
+        lockSeconds: outcome.timings.total / 1000,
+        framesToLock: 1,
+        inliers: winner.inliers,
+      });
+      return { snapshot, identified: true, candidates: [] };
+    }
+    return { snapshot, identified: false, candidates: rankedArtworks(outcome.ranked).slice(0, 4) };
   }
 
   async function runFrame(): Promise<void> {
@@ -1019,6 +1150,9 @@ export function useCardScanner(
     cardInGuideRef.current =
       outcome.winner !== null ||
       (rankedTop !== undefined && rankedTop.distance <= idleGateRef.current);
+    // Before noteLock, so the guide emptying and this frame's lock are judged
+    // in the order they happened.
+    relockRef.current.observe(cardInGuideRef.current, performance.now());
     let aimAgeSeconds = 0;
     let aim: ScannerReadout["aim"] = null;
     if (rankedTop) {
@@ -1224,6 +1358,7 @@ export function useCardScanner(
     // rather than whatever the render loop happens to line up with.
     placementRef.current = createPlacementDetector();
     placementTallyRef.current = createPlacementTally();
+    relockRef.current.reset();
     settlingRef.current = { disturbed: false, at: 0 };
     if (video && settingsRef.current.mode !== "pan") {
       const watched = video;
@@ -1411,6 +1546,7 @@ export function useCardScanner(
     start,
     stop,
     capture,
+    identifyNow,
     clearHistory,
     /**
      * Cards the placement watcher saw land that neither the live pass nor the

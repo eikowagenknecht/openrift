@@ -3,6 +3,7 @@ import { getOrientation, legendDisplayName } from "@openrift/shared";
 import {
   CameraIcon,
   CameraOffIcon,
+  LayersIcon,
   ScanSearchIcon,
   Volume2Icon,
   VolumeXIcon,
@@ -54,6 +55,7 @@ import { ghostConfidence } from "@/lib/scan-confidence";
 import { playLockTick } from "@/lib/scan-feedback";
 import { guideRectIn, snapshotVideoRect } from "@/lib/scan-flight";
 import { buildScanPrintingIndex, resolveLock, sortForPicker } from "@/lib/scan-resolve";
+import type { ScannerMode } from "@/lib/scan-session";
 import { isTempCopyId } from "@/lib/temp-copy-id";
 import { cn } from "@/lib/utils";
 import { useScanPrefsStore } from "@/stores/scan-prefs-store";
@@ -67,6 +69,17 @@ import { useScanSessionStore } from "@/stores/scan-session-store";
  * that a stuck scan gets its escape hatch before frustration.
  */
 const AIM_SUGGEST_SECONDS = 3;
+
+/**
+ * Target-collection value for scanning without collecting: the card is
+ * recognised and logged in the tray, and nothing is written to the account.
+ * What you do when you want to know what a card is, or when you are checking
+ * the scanner itself.
+ */
+const NO_COLLECTION = "identify-only";
+
+/** Card-language value for a stack that is not all one language. */
+const ANY_LANGUAGE = "any";
 
 /**
  * The scanning page: aim a card in the guide, and every confident lock is
@@ -87,27 +100,34 @@ export function ScanPage() {
   const setStoredTargetId = useScanPrefsStore((state) => state.setTargetCollectionId);
   const cardLanguage = useScanPrefsStore((state) => state.cardLanguage);
   const setCardLanguage = useScanPrefsStore((state) => state.setCardLanguage);
+  const autoScan = useScanPrefsStore((state) => state.autoScan);
+  const setAutoScan = useScanPrefsStore((state) => state.setAutoScan);
   const languageLabels = useLanguageLabels();
 
+  // Recognise but do not collect. Distinct from "no target yet", which falls
+  // back to the inbox below.
+  const identifyOnly = storedTargetId === NO_COLLECTION;
   // The stored target may have been deleted since the last session; fall back
   // to the inbox, which every account has.
-  const target =
-    collections.find((collection) => collection.id === storedTargetId) ??
-    collections.find((collection) => collection.isInbox) ??
-    collections[0];
+  const target = identifyOnly
+    ? undefined
+    : (collections.find((collection) => collection.id === storedTargetId) ??
+      collections.find((collection) => collection.isInbox) ??
+      collections[0]);
   const targetId = target?.id ?? null;
-  const targetItems = collections.map((collection) => ({
-    value: collection.id,
-    label: collection.name,
-  }));
+  const targetItems = [
+    ...collections.map((collection) => ({ value: collection.id, label: collection.name })),
+    { value: NO_COLLECTION, label: "Just identify" },
+  ];
 
   // The catalog's printing languages, for the card-language preference. The
   // stored value is kept selectable even if no printing carries it (yet).
   const languageItems = [
-    ...new Set([...allPrintings.map((printing) => printing.language), cardLanguage]),
-  ]
-    .toSorted()
-    .map((code) => ({ value: code, label: languageLabels[code] ?? code }));
+    { value: ANY_LANGUAGE, label: "Any language" },
+    ...[...new Set([...allPrintings.map((printing) => printing.language), cardLanguage ?? "EN"])]
+      .toSorted()
+      .map((code) => ({ value: code, label: languageLabels[code] ?? code })),
+  ];
 
   // A scan session is one page visit: the tray is a log of what THIS sitting
   // added, so a leftover from an earlier visit must not linger.
@@ -164,6 +184,11 @@ export function ScanPage() {
   const flightSeqRef = useRef(0);
 
   async function addPrinting(printing: Printing) {
+    if (identifyOnly) {
+      // Named, logged, and that is the whole job — nothing reaches the account.
+      useScanSessionStore.getState().recordIdentified(printing);
+      return;
+    }
     if (!targetId) {
       return;
     }
@@ -182,7 +207,7 @@ export function ScanPage() {
     if (!index) {
       return;
     }
-    const resolution = resolveLock(lock, index, cardLanguage);
+    const resolution = resolveLock(lock, index, cardLanguage ?? undefined);
     if (resolution.kind === "unknown") {
       toast.error(`${lock.label} is not in the catalog yet`);
       return;
@@ -255,7 +280,7 @@ export function ScanPage() {
     const resolution = resolveLock(
       { key: update.key, artKey: update.artKey, resolved: true },
       index,
-      cardLanguage,
+      cardLanguage ?? undefined,
     );
     if (resolution.kind !== "auto") {
       return;
@@ -281,6 +306,7 @@ export function ScanPage() {
     start,
     stop,
     capture,
+    identifyNow,
     unidentified,
     dismissUnidentified,
   } = useCardScanner(loaded, settings, assets, {
@@ -316,21 +342,27 @@ export function ScanPage() {
     setAimHint(aimHintSmootherRef.current.update(derived, performance.now()));
   }, [active, readout]);
 
-  // Tap-to-scan IS the slow-device path (see the admin harness). This page
-  // has no mode selector, so the auto-switch is the only mode change.
+  // Tap-to-scan IS the slow-device path (see the admin harness) and outranks
+  // the toggle; otherwise auto-scan is what decides whether a card that stays
+  // in shot keeps counting. Both guide modes share one session plan, so this
+  // can change mid-run without rebuilding anything.
+  const mode: ScannerMode = deviceTooSlow ? "capture" : autoScan ? "auto" : "single";
   useEffect(() => {
-    if (deviceTooSlow) {
-      setSettings((previous) =>
-        previous.mode === "single" ? { ...previous, mode: "capture" } : previous,
-      );
-    }
-  }, [deviceTooSlow]);
+    setSettings((previous) => (previous.mode === mode ? previous : { ...previous, mode }));
+  }, [mode]);
 
   // The manual identify sheet and the automatic "Is it X?" chip both funnel
   // into handleLock with an unresolved lock, so the language preference, the
   // finish default and the printing picker all apply exactly as for a real
   // lock.
-  const [identifyCandidates, setIdentifyCandidates] = useState<IdentifyCandidate[] | null>(null);
+  const [identify, setIdentify] = useState<{
+    snapshot: string | null;
+    pending: boolean;
+    candidates: IdentifyCandidate[];
+  } | null>(null);
+  // Keyed so a sheet the user dismissed while it was still thinking cannot be
+  // reopened by the answer arriving afterwards.
+  const identifySeqRef = useRef(0);
   const [dismissedSuggestion, setDismissedSuggestion] = useState<string | null>(null);
 
   const aim = readout.aim;
@@ -350,7 +382,7 @@ export function ScanPage() {
     aim.seconds >= AIM_SUGGEST_SECONDS &&
     readout.winnerKey === null &&
     aim.artKey !== dismissedSuggestion &&
-    identifyCandidates === null
+    identify === null
       ? aim
       : null;
   const suggestionLabel = suggestion && loaded ? describeKey(loaded.labels, suggestion.key) : null;
@@ -376,30 +408,50 @@ export function ScanPage() {
     }
   }
 
-  function handleIdentifyNow() {
+  /**
+   * Identify (and, when the frame is convincing enough, add) whatever is in
+   * the guide at the moment of the tap. This is also how a second copy of the
+   * card still in hand is counted: the engine will not lock it twice on its
+   * own, and the tap is the user saying there really are two.
+   *
+   * @returns Nothing; the sheet and the tray carry the result.
+   */
+  async function handleIdentifyNow() {
     if (!loaded) {
       return;
     }
-    const seen = new Set<string>();
-    const candidates: IdentifyCandidate[] = [];
-    for (const entry of readout.ranked) {
-      const artKey = loaded.artKeys.get(entry.key) ?? entry.key;
-      if (seen.has(artKey)) {
-        continue;
+    const seq = ++identifySeqRef.current;
+    setIdentify({ snapshot: null, pending: true, candidates: [] });
+    const attempt = await identifyNow((snapshot) => {
+      if (identifySeqRef.current === seq) {
+        setIdentify((current) => (current === null ? null : { ...current, snapshot }));
       }
-      seen.add(artKey);
-      candidates.push({
-        key: entry.key,
-        artKey,
-        label: describeKey(loaded.labels, entry.key),
-        landscape: isLandscapeKey(loaded.labels, entry.key),
-      });
-    }
-    if (candidates.length === 0) {
-      toast.info("Nothing recognisable in the frame yet, aim at a card first");
+    });
+    if (identifySeqRef.current !== seq) {
       return;
     }
-    setIdentifyCandidates(candidates.slice(0, 4));
+    if (attempt.identified) {
+      // Reported through onLock already, so the tray, the flight and the
+      // printing picker have all had their turn.
+      setIdentify(null);
+      return;
+    }
+    setIdentify({
+      snapshot: attempt.snapshot,
+      pending: false,
+      candidates: attempt.candidates.map((candidate) => ({
+        key: candidate.key,
+        artKey: candidate.artKey,
+        label: describeKey(loaded.labels, candidate.key),
+        landscape: isLandscapeKey(loaded.labels, candidate.key),
+      })),
+    });
+  }
+
+  function handleIdentifyDismiss() {
+    identifySeqRef.current += 1;
+    setIdentify(null);
+    setAnsweringId(null);
   }
 
   // Which unidentified card the open identify sheet is answering, if any: the
@@ -407,7 +459,8 @@ export function ScanPage() {
   const [answeringId, setAnsweringId] = useState<string | null>(null);
 
   function handleIdentifyPick(candidate: IdentifyCandidate) {
-    setIdentifyCandidates(null);
+    identifySeqRef.current += 1;
+    setIdentify(null);
     if (answeringId !== null) {
       dismissUnidentified(answeringId);
       setAnsweringId(null);
@@ -436,15 +489,18 @@ export function ScanPage() {
       dismissUnidentified(id);
       return;
     }
+    identifySeqRef.current += 1;
     setAnsweringId(id);
-    setIdentifyCandidates(
-      card.candidates.map((candidate) => ({
+    setIdentify({
+      snapshot: card.thumbnail,
+      pending: false,
+      candidates: card.candidates.map((candidate) => ({
         key: candidate.key,
         artKey: candidate.artKey,
         label: describeKey(loaded.labels, candidate.key),
         landscape: isLandscapeKey(loaded.labels, candidate.key),
       })),
-    );
+    });
   }
 
   // The "Is it X?" chip is an escape hatch for a scan that is not converging,
@@ -508,6 +564,31 @@ export function ScanPage() {
 
   function handleAddOne(row: ScanSessionRow) {
     void addPrinting(row.printing);
+  }
+
+  /**
+   * Undo the session in one go: every copy it added leaves the collection and
+   * the log starts over. What a test run needs, and the only alternative to
+   * removing a long list of cards one at a time.
+   *
+   * @returns Nothing; the tray and the collection are updated.
+   */
+  async function handleRemoveAll() {
+    const rows = [...useScanSessionStore.getState().rows.values()];
+    const copyIds = rows.flatMap((row) => row.copyIds.filter((id) => !isTempCopyId(id)));
+    if (copyIds.length === 0) {
+      useScanSessionStore.getState().reset();
+      return;
+    }
+    try {
+      await disposeCopies.mutateAsync({ copyIds });
+      useScanSessionStore.getState().reset();
+      toast.success(`Removed ${copyIds.length} scanned ${copyIds.length === 1 ? "card" : "cards"}`);
+    } catch {
+      // The global mutation onError already toasted. The rows stay, because
+      // they are the only handle left on copies that are still in the
+      // collection.
+    }
   }
 
   // The row whose printing is being swapped via the full printing picker.
@@ -661,7 +742,7 @@ export function ScanPage() {
   const targetSelect = (
     <Select
       items={targetItems}
-      value={targetId ?? ""}
+      value={identifyOnly ? NO_COLLECTION : (targetId ?? "")}
       onValueChange={(value) => {
         if (value) {
           setStoredTargetId(value);
@@ -693,10 +774,32 @@ export function ScanPage() {
     </Button>
   );
 
+  // Hidden on a device slow enough to be tapping every shot: there is nothing
+  // continuous there for the toggle to change.
+  const autoScanButton = !deviceTooSlow && (
+    <Button
+      size="icon"
+      variant="ghost"
+      aria-pressed={autoScan}
+      className={cn(overVideo, autoScan && "text-primary")}
+      onClick={() => setAutoScan(!autoScan)}
+      aria-label={
+        autoScan
+          ? "Auto-scan is on: turn it off to count each card once"
+          : "Auto-scan is off: turn it on to count copies dealt past the camera"
+      }
+    >
+      <LayersIcon className="size-4" />
+    </Button>
+  );
+
   const chrome = (
     <>
       {targetSelect}
-      <div className="ml-auto">{muteButton}</div>
+      <div className="ml-auto flex items-center gap-1">
+        {autoScanButton}
+        {muteButton}
+      </div>
     </>
   );
 
@@ -712,7 +815,10 @@ export function ScanPage() {
               Scan card
             </Button>
           )}
-          <Button onClick={handleIdentifyNow} variant="secondary" className={overVideo}>
+          {/* The one control a user reaches for mid-scan without looking, and
+              the way a second copy of the card in hand gets counted, so it is
+              sized for a thumb. */}
+          <Button size="lg" className="h-11 px-6" onClick={() => void handleIdentifyNow()}>
             <ScanSearchIcon />
             Identify now
           </Button>
@@ -726,10 +832,10 @@ export function ScanPage() {
         {!immersive && <span className="text-muted-foreground text-sm">Card language</span>}
         <Select
           items={languageItems}
-          value={cardLanguage}
+          value={cardLanguage ?? ANY_LANGUAGE}
           onValueChange={(value) => {
             if (value) {
-              setCardLanguage(value);
+              setCardLanguage(value === ANY_LANGUAGE ? null : value);
             }
           }}
         >
@@ -755,7 +861,8 @@ export function ScanPage() {
       onAddOne={handleAddOne}
       onRemoveOne={handleRemoveOne}
       onChangePrinting={setSwapRow}
-      missedPlacements={readout.missedSinceNamed}
+      onRemoveAll={() => void handleRemoveAll()}
+      collecting={!identifyOnly}
       unidentified={unidentified}
       onIdentifyMissed={handleIdentifyMissed}
       onDismissMissed={dismissUnidentified}
@@ -771,6 +878,20 @@ export function ScanPage() {
             <PageTopBarTitle>Scan cards</PageTopBarTitle>
             <PageTopBarActions>
               {targetSelect}
+              {!deviceTooSlow && (
+                <PageTopBarIconButton
+                  aria-pressed={autoScan}
+                  className={cn(autoScan && "text-primary")}
+                  onClick={() => setAutoScan(!autoScan)}
+                  aria-label={
+                    autoScan
+                      ? "Auto-scan is on: turn it off to count each card once"
+                      : "Auto-scan is off: turn it on to count copies dealt past the camera"
+                  }
+                >
+                  <LayersIcon className="size-4" />
+                </PageTopBarIconButton>
+              )}
               <PageTopBarIconButton
                 onClick={() => setMuted(!muted)}
                 aria-label={muted ? "Unmute scan sounds" : "Mute scan sounds"}
@@ -812,12 +933,12 @@ export function ScanPage() {
         }
       />
       <ScanIdentifySheet
-        candidates={identifyCandidates}
+        open={identify !== null}
+        snapshot={identify?.snapshot ?? null}
+        pending={identify?.pending ?? false}
+        candidates={identify?.candidates ?? []}
         onPick={handleIdentifyPick}
-        onDismiss={() => {
-          setIdentifyCandidates(null);
-          setAnsweringId(null);
-        }}
+        onDismiss={handleIdentifyDismiss}
       />
     </>
   );

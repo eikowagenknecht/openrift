@@ -5,13 +5,14 @@ import type { ScanLayout } from "@/hooks/use-scan-layout";
 import { cn } from "@/lib/utils";
 
 /**
- * The peeking height of the portrait sheet: enough for the summary line and
- * the newest row *with its actions out*, so the last scan is both legible and
- * correctable without a drag. Sized against the parts (swipe handle 12px,
- * summary 20, row padding 16, thumbnail 56, actions 32, plus the gaps), which
- * is why it is not a round number of rows.
+ * The peeking height of the portrait sheet: enough for the newest row *with
+ * its actions out*, so the last scan is both legible and correctable without a
+ * drag. Sized against the parts (swipe handle 12px, row padding 16, thumbnail
+ * 56, then two 32px lines of actions plus their gaps), which is why it is not a
+ * round number of rows. Two lines because the actions wrap on a narrow phone,
+ * and a peek sized for one leaves the second half off the bottom of the screen.
  */
-const PEEK_SNAP_POINT = "10rem";
+const PEEK_SNAP_POINT = "11.5rem";
 
 /** Width of the landscape side panel, sized to fit a tray row without wrapping. */
 const LANDSCAPE_PANEL_WIDTH = "w-72";

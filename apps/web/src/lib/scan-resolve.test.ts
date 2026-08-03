@@ -191,9 +191,10 @@ describe("resolveLock", () => {
     expect(resolveLock(lock("img-en", false), index, "EN").kind).toBe("picker");
   });
 
-  it("does not shortcut a resolved lock that already names one printing", () => {
-    // The engine READ the language off the card; the preference must never
-    // override pixel evidence (a real SC card in an EN collection).
+  it("overrides a resolved lock's language with the stated one", () => {
+    // The engine read a language off a few rows of glyphs; the user said their
+    // cards are English. The user wins — a Simplified Chinese printing in an
+    // English collection is never what they meant.
     const shared = { shortCode: "OGN-010", cardId: "card-10" };
     const sc = withImage(stubPrinting({ id: "p-sc", language: "SC", ...shared }), "img-sc");
     const en = withImage(stubPrinting({ id: "p-en", language: "EN", ...shared }), "img-en");
@@ -204,8 +205,107 @@ describe("resolveLock", () => {
     const resolution = resolveLock(lock("img-sc", true), index, "EN");
     expect(resolution.kind).toBe("auto");
     if (resolution.kind === "auto") {
+      expect(resolution.printing.id).toBe("p-en");
+    }
+  });
+
+  it("keeps the engine's language read when no language is stated", () => {
+    // The mixed-stack setting: nobody said what language to expect, so the
+    // pixels decide.
+    const shared = { shortCode: "OGN-010", cardId: "card-10" };
+    const sc = withImage(stubPrinting({ id: "p-sc", language: "SC", ...shared }), "img-sc");
+    const en = withImage(stubPrinting({ id: "p-en", language: "EN", ...shared }), "img-en");
+    const index = buildScanPrintingIndex(
+      [sc, en],
+      stubBank({ "img-sc": "art-1", "img-en": "art-1" }),
+    );
+    const resolution = resolveLock(lock("img-sc", true), index);
+    expect(resolution.kind).toBe("auto");
+    if (resolution.kind === "auto") {
       expect(resolution.printing.id).toBe("p-sc");
     }
+  });
+
+  it("keeps the engine's pick when the stated language has no such printing", () => {
+    const shared = { shortCode: "OGN-011", cardId: "card-11" };
+    const sc = withImage(stubPrinting({ id: "p-sc", language: "SC", ...shared }), "img-sc");
+    const de = withImage(stubPrinting({ id: "p-de", language: "DE", ...shared }), "img-de");
+    const index = buildScanPrintingIndex(
+      [sc, de],
+      stubBank({ "img-sc": "art-1", "img-de": "art-1" }),
+    );
+    const resolution = resolveLock(lock("img-sc", true), index, "EN");
+    expect(resolution.kind).toBe("auto");
+    if (resolution.kind === "auto") {
+      expect(resolution.printing.id).toBe("p-sc");
+    }
+  });
+
+  it("auto-adds the unmarked printing when a promo stamp is the only other difference", () => {
+    // The reported case: normal, foil and foil-promo on one render always
+    // opened the picker. The stamp band reports a stamp when it sees one, so
+    // an abstention means there was none.
+    const shared = { shortCode: "OGN-012", cardId: "card-12" };
+    const normal = withImage(stubPrinting({ id: "p-normal", ...shared }), "img-a");
+    const foil = withImage(stubPrinting({ id: "p-foil", finish: "foil", ...shared }), "img-a");
+    const promo = withImage(
+      stubPrinting({
+        id: "p-promo",
+        finish: "foil",
+        markers: [{ id: "m-promo", slug: "promo", label: "Promo", description: null }],
+        ...shared,
+      }),
+      "img-a",
+    );
+    const index = buildScanPrintingIndex([normal, foil, promo], stubBank({ "img-a": "art-1" }));
+    const resolution = resolveLock(lock("img-a", false), index, "EN");
+    expect(resolution.kind).toBe("auto");
+    if (resolution.kind === "auto") {
+      expect(resolution.printing.id).toBe("p-normal");
+      expect(resolution.finishSiblings.map((sibling) => sibling.id)).toEqual(["p-foil"]);
+    }
+  });
+
+  it("settles markers and language together", () => {
+    const shared = { shortCode: "OGN-013", cardId: "card-13" };
+    const en = withImage(stubPrinting({ id: "p-en", language: "EN", ...shared }), "img-en");
+    const enPromo = withImage(
+      stubPrinting({
+        id: "p-en-promo",
+        language: "EN",
+        markers: [{ id: "m-promo", slug: "promo", label: "Promo", description: null }],
+        ...shared,
+      }),
+      "img-en",
+    );
+    const sc = withImage(stubPrinting({ id: "p-sc", language: "SC", ...shared }), "img-sc");
+    const index = buildScanPrintingIndex(
+      [en, enPromo, sc],
+      stubBank({ "img-en": "art-1", "img-sc": "art-1" }),
+    );
+    const resolution = resolveLock(lock("img-en", false), index, "EN");
+    expect(resolution.kind).toBe("auto");
+    if (resolution.kind === "auto") {
+      expect(resolution.printing.id).toBe("p-en");
+    }
+  });
+
+  it("still asks when the marked variant is from another set", () => {
+    const promo = withImage(
+      stubPrinting({
+        id: "p-promo",
+        shortCode: "PRM-001",
+        cardId: "card-14",
+        markers: [{ id: "m-promo", slug: "promo", label: "Promo", description: null }],
+      }),
+      "img-a",
+    );
+    const normal = withImage(
+      stubPrinting({ id: "p-normal", shortCode: "OGN-014", cardId: "card-14" }),
+      "img-a",
+    );
+    const index = buildScanPrintingIndex([promo, normal], stubBank({ "img-a": "art-1" }));
+    expect(resolveLock(lock("img-a", false), index, "EN").kind).toBe("picker");
   });
 
   it("auto-adds an unresolved lock whose artwork has only one printing anyway", () => {
