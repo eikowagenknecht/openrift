@@ -19,6 +19,7 @@ import { catalogMutationsRepo } from "./repositories/catalog-mutations.js";
 import { catalogRepo } from "./repositories/catalog.js";
 import { collectionDeckbuildingPrefsRepo } from "./repositories/collection-deckbuilding-prefs.js";
 import { collectionEventsRepo } from "./repositories/collection-events.js";
+import { collectionSidebarPrefsRepo } from "./repositories/collection-sidebar-prefs.js";
 import { collectionsRepo } from "./repositories/collections.js";
 import { copiesRepo } from "./repositories/copies.js";
 import { customTagCategoriesRepo } from "./repositories/custom-tag-categories.js";
@@ -121,6 +122,7 @@ export interface Repos {
   catalogMutations: ReturnType<typeof catalogMutationsRepo>;
   collections: ReturnType<typeof collectionsRepo>;
   collectionDeckbuildingPrefs: ReturnType<typeof collectionDeckbuildingPrefsRepo>;
+  collectionSidebarPrefs: ReturnType<typeof collectionSidebarPrefsRepo>;
   copies: ReturnType<typeof copiesRepo>;
   customTagCategories: ReturnType<typeof customTagCategoriesRepo>;
   customTags: ReturnType<typeof customTagsRepo>;
@@ -283,6 +285,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     catalogMutations: catalogMutationsRepo(db),
     collections: collectionsRepo(db),
     collectionDeckbuildingPrefs: collectionDeckbuildingPrefsRepo(db),
+    collectionSidebarPrefs: collectionSidebarPrefsRepo(db),
     copies: copiesRepo(db),
     customTagCategories: customTagCategoriesRepo(db),
     customTags: customTagsRepo(db),

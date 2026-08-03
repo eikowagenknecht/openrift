@@ -44,7 +44,8 @@ vi.mock("@/lib/copies-collection", () => ({
   useCopiesCollection: () => copiesCollectionHolder.current,
 }));
 
-const { useClearCollection, useReorderCollections } = await import("./use-collections");
+const { useClearCollection, useReorderCollections, useSetCollectionSidebarHidden } =
+  await import("./use-collections");
 
 function wrap(client: QueryClient) {
   return function Wrapper({ children }: { children: ReactNode }) {
@@ -72,6 +73,7 @@ function collection(id: string, sortOrder: number): CollectionsResponse["items"]
     name: id,
     description: null,
     availableForDeckbuilding: true,
+    sidebarHidden: false,
     isInbox: false,
     sortOrder,
     isPublic: false,
@@ -116,6 +118,51 @@ describe("useReorderCollections", () => {
 
     const { result } = renderHook(() => useReorderCollections(), { wrapper: wrap(client) });
     await result.current.mutateAsync({ orderedIds: ["col-2", "col-1"] }).catch(() => {});
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(client.getQueryData(["collections", "user-1"])).toEqual({ items });
+    expect(toast.error).toHaveBeenCalledWith(expect.any(String), PERSISTENT_ERROR_TOAST);
+  });
+});
+
+describe("useSetCollectionSidebarHidden", () => {
+  let errorSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    serverFnImpl.mockReset();
+    vi.mocked(toast.error).mockClear();
+    errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    errorSpy.mockRestore();
+  });
+
+  it("hides the row in the cache as soon as the menu item is picked", async () => {
+    serverFnImpl.mockResolvedValue(null);
+    const client = createQueryClient();
+    seedSession(client, "user-1");
+    client.setQueryData(["collections", "user-1"], {
+      items: [collection("col-1", 0), collection("col-2", 1)],
+    });
+
+    const { result } = renderHook(() => useSetCollectionSidebarHidden(), { wrapper: wrap(client) });
+    await result.current.mutateAsync({ id: "col-1", hidden: true });
+
+    const cached = client.getQueryData(["collections", "user-1"]) as CollectionsResponse;
+    expect(cached.items.map((col) => col.sidebarHidden)).toEqual([true, false]);
+  });
+
+  // Same replaced-default-onError reasoning as useReorderCollections above.
+  it("restores the previous visibility and toasts when the update fails", async () => {
+    serverFnImpl.mockRejectedValue(new Error("Service unavailable"));
+    const client = createQueryClient();
+    seedSession(client, "user-1");
+    const items = [collection("col-1", 0), collection("col-2", 1)];
+    client.setQueryData(["collections", "user-1"], { items });
+
+    const { result } = renderHook(() => useSetCollectionSidebarHidden(), { wrapper: wrap(client) });
+    await result.current.mutateAsync({ id: "col-1", hidden: true }).catch(() => {});
 
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(client.getQueryData(["collections", "user-1"])).toEqual({ items });

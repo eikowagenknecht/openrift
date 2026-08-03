@@ -38,6 +38,15 @@ export const setCollectionDeckbuildingSchema = z.object({
 });
 
 /**
+ * Pushes the collection behind the sidebar's "Show more" toggle for the
+ * caller. Per-viewer like the deck-building flag, so every member with access
+ * may set it for themselves without hiding a shared binder for the group.
+ */
+export const setCollectionSidebarHiddenSchema = z.object({
+  hidden: z.boolean(),
+});
+
+/**
  * Bulk reorder for the user's personal collections. The server re-numbers
  * `sort_order` so that the rows appear in the order given here on the next
  * fetch. Group-owned collections are not reorderable and are ignored if
@@ -53,6 +62,9 @@ export const collectionResponseSchema = z
     name: z.string(),
     description: z.string().nullable(),
     availableForDeckbuilding: z.boolean(),
+    // Per-viewer: true when the caller has pushed this collection behind the
+    // sidebar's "Show more" toggle.
+    sidebarHidden: z.boolean(),
     isInbox: z.boolean(),
     sortOrder: z.number(),
     isPublic: z.boolean(),
@@ -124,7 +136,7 @@ const TAG = "Collections";
  * `requireAuth`), so they share the `authedRoute` base (UNAUTHORIZED +
  * FORBIDDEN). Domain codes per route: `create` → NOT_FOUND (unknown group
  * slug); `get`, `update`, `copies`, `share`, `shareState`, `rotateShare`,
- * `unshare`, `groupShares`, `setDeckbuilding`, `clear` → NOT_FOUND
+ * `unshare`, `groupShares`, `setDeckbuilding`, `setSidebarHidden`, `clear` → NOT_FOUND
  * (inaccessible collection); `remove` → NOT_FOUND + CONFLICT (inbox guard,
  * non-empty shared collection); `resetAll` → CONFLICT (copies reserved in
  * trades or lent out).
@@ -210,6 +222,15 @@ export const collectionsContract = {
     })
     .errors({ NOT_FOUND: { message: "Collection not found" } })
     .input(withParams(idParamSchema, setCollectionDeckbuildingSchema)),
+  setSidebarHidden: authedRoute
+    .route({
+      method: "PUT",
+      path: "/api/v1/collections/{id}/sidebar",
+      tags: [TAG],
+      successStatus: 204,
+    })
+    .errors({ NOT_FOUND: { message: "Collection not found" } })
+    .input(withParams(idParamSchema, setCollectionSidebarHiddenSchema)),
 };
 
 export type CollectionsContract = typeof collectionsContract;

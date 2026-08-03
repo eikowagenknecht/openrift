@@ -43,7 +43,28 @@ describe("toCollection", () => {
       groupSlug: null,
       groupName: null,
       viewerCanAdmin: true,
+      sidebarHidden: false,
     });
+  });
+
+  it("presents the viewer's sidebar-hidden preference, defaulting to visible", () => {
+    const row = {
+      id: "col-1",
+      userId: "user-1",
+      groupId: null,
+      name: "Retired binder",
+      description: null,
+      availableForDeckbuilding: true,
+      isInbox: false,
+      sortOrder: 1,
+      isPublic: false,
+      shareToken: null,
+      createdAt: NOW,
+      updatedAt: LATER,
+    };
+    expect(toCollection({ ...row, sidebarHidden: true }).sidebarHidden).toBe(true);
+    // Callers that don't join the per-viewer prefs table leave it unset.
+    expect(toCollection(row).sidebarHidden).toBe(false);
   });
 
   it("excludes userId from the response", () => {

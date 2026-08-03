@@ -371,4 +371,19 @@ export const collectionsRouter = {
 
     await collectionDeckbuildingPrefs.set(userId, input.id, input.available);
   }),
+
+  // ── PUT /collections/:id/sidebar ──────────────────────────────────────────
+  // Pushes the collection behind the sidebar's "Show more" toggle for the
+  // caller only. Per-viewer like deck-building availability, so members of a
+  // shared group collection can each curate their own sidebar (not
+  // admin-gated).
+  setSidebarHidden: os.setSidebarHidden.handler(async ({ input, context }): Promise<void> => {
+    const { collections, collectionSidebarPrefs } = context.repos;
+    const userId = context.userId;
+
+    const access = await collections.getAccessForUser(input.id, userId);
+    assertFound(access, "Not found");
+
+    await collectionSidebarPrefs.set(userId, input.id, input.hidden);
+  }),
 };

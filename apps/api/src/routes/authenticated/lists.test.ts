@@ -97,6 +97,7 @@ const dbList = {
   defaultPriceAbsoluteCents: null,
   defaultTradeType: null,
   currency: null,
+  sidebarHidden: false,
   createdAt: now,
   updatedAt: now,
 };

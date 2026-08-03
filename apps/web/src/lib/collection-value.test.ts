@@ -13,6 +13,7 @@ function col(overrides: Partial<CollectionResponse> = {}): CollectionResponse {
     name: "Collection",
     description: null,
     availableForDeckbuilding: true,
+    sidebarHidden: false,
     isInbox: false,
     sortOrder: 0,
     isPublic: false,

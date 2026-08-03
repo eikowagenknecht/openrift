@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict c25u0eVf1s2rUjX2eeF3OBbrGci4ijnkHRW7b14EwHxaF7DjsEvB5PSaD0ZSWcc
+\restrict 6W2Kkjw9A0C6aGGNAblIESuf2D3AEH82ICkabKdg4GWHa66FOVxnPt0CX5p7nla
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -933,6 +933,17 @@ CREATE TABLE public.collection_events (
 
 
 --
+-- Name: collection_sidebar_prefs; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.collection_sidebar_prefs (
+    user_id text NOT NULL,
+    collection_id uuid NOT NULL,
+    hidden boolean NOT NULL
+);
+
+
+--
 -- Name: collections; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1606,6 +1617,7 @@ CREATE TABLE public.lists (
     sort_order integer DEFAULT 0 NOT NULL,
     rules jsonb DEFAULT '[]'::jsonb NOT NULL,
     rule_combine text,
+    sidebar_hidden boolean DEFAULT false NOT NULL,
     CONSTRAINT chk_lists_currency CHECK (((currency IS NULL) OR (currency = ANY (ARRAY['EUR'::text, 'USD'::text])))),
     CONSTRAINT chk_lists_default_absolute_positive CHECK (((default_price_absolute_cents IS NULL) OR (default_price_absolute_cents > 0))),
     CONSTRAINT chk_lists_default_absolute_shape CHECK (((default_price_pref = 'absolute'::text) = (default_price_absolute_cents IS NOT NULL))),
@@ -2725,6 +2737,14 @@ ALTER TABLE ONLY public.collection_deckbuilding_prefs
 
 ALTER TABLE ONLY public.collection_events
     ADD CONSTRAINT collection_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: collection_sidebar_prefs collection_sidebar_prefs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.collection_sidebar_prefs
+    ADD CONSTRAINT collection_sidebar_prefs_pkey PRIMARY KEY (user_id, collection_id);
 
 
 --
@@ -3862,6 +3882,13 @@ CREATE INDEX idx_collection_events_to_collection ON public.collection_events USI
 --
 
 CREATE INDEX idx_collection_events_user_created ON public.collection_events USING btree (user_id, created_at);
+
+
+--
+-- Name: idx_collection_sidebar_prefs_collection; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_collection_sidebar_prefs_collection ON public.collection_sidebar_prefs USING btree (collection_id);
 
 
 --
@@ -5537,6 +5564,22 @@ ALTER TABLE ONLY public.collection_deckbuilding_prefs
 
 
 --
+-- Name: collection_sidebar_prefs fk_collection_sidebar_prefs_collection; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.collection_sidebar_prefs
+    ADD CONSTRAINT fk_collection_sidebar_prefs_collection FOREIGN KEY (collection_id) REFERENCES public.collections(id) ON DELETE CASCADE;
+
+
+--
+-- Name: collection_sidebar_prefs fk_collection_sidebar_prefs_user; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.collection_sidebar_prefs
+    ADD CONSTRAINT fk_collection_sidebar_prefs_user FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
 -- Name: copies fk_copies_collection; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6188,5 +6231,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict c25u0eVf1s2rUjX2eeF3OBbrGci4ijnkHRW7b14EwHxaF7DjsEvB5PSaD0ZSWcc
+\unrestrict 6W2Kkjw9A0C6aGGNAblIESuf2D3AEH82ICkabKdg4GWHa66FOVxnPt0CX5p7nla
 

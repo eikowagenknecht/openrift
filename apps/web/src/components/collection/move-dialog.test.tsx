@@ -10,6 +10,7 @@ function stubCollection(overrides: Partial<CollectionResponse> = {}): Collection
     name: "Deckbox",
     description: null,
     availableForDeckbuilding: true,
+    sidebarHidden: false,
     isInbox: false,
     sortOrder: 0,
     isPublic: false,

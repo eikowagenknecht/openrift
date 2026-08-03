@@ -234,6 +234,13 @@ export default function CollectionsArticle() {
           <strong className="text-foreground">Activity</strong> (a log of all additions, moves, and
           removals).
         </p>
+        <p className="text-muted-foreground mt-2">
+          Right-click a collection or a list for its actions: rename, share, delete, and{" "}
+          <strong className="text-foreground">Hide behind Show more</strong>. Hidden entries move
+          behind a <strong className="text-foreground">Show more</strong> toggle at the foot of
+          their section, which keeps a long sidebar down to what you actually use. On a phone, press
+          and hold instead of right-clicking.
+        </p>
       </section>
     </div>
   );

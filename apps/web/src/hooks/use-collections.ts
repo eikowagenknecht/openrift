@@ -148,6 +148,61 @@ export function useSetCollectionDeckbuilding() {
   });
 }
 
+const setCollectionSidebarHiddenFn = createServerFn({ method: "POST" })
+  .validator((input: { id: string; hidden: boolean }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    await apiOrpcClient(collectionsContract, context.cookie).setSidebarHidden({
+      id: data.id,
+      hidden: data.hidden,
+    });
+  });
+
+/**
+ * Moves a collection behind the sidebar's "Show more" toggle, or back out of
+ * it. Per-viewer like deck-building availability, so a member of a shared
+ * group collection only curates their own sidebar. Optimistic because the row
+ * jumps groups the instant you pick the menu item.
+ *
+ * @returns A mutation taking `{ id, hidden }`.
+ */
+export function useSetCollectionSidebarHidden() {
+  const userId = useRequiredUserId();
+  const queryClient = useQueryClient();
+  return useMutation<
+    unknown,
+    Error,
+    { id: string; hidden: boolean },
+    { previous: CollectionsResponse | undefined }
+  >({
+    mutationFn: (variables) => setCollectionSidebarHiddenFn({ data: variables }),
+    onMutate: ({ id, hidden }) => {
+      const key = queryKeys.collections.all(userId);
+      const previous = queryClient.getQueryData<CollectionsResponse>(key);
+      if (previous) {
+        queryClient.setQueryData<CollectionsResponse>(key, {
+          ...previous,
+          items: previous.items.map((col) =>
+            col.id === id ? { ...col, sidebarHidden: hidden } : col,
+          ),
+        });
+      }
+      return { previous };
+    },
+    onError: (error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(queryKeys.collections.all(userId), context.previous);
+      }
+      // Declaring onError here replaces the QueryClient's default one, so the
+      // rollback would otherwise put the row back with nothing saying why.
+      reportMutationError(error, queryClient);
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.collections.all(userId) });
+    },
+  });
+}
+
 const reorderCollectionsFn = createServerFn({ method: "POST" })
   .validator((input: { orderedIds: string[] }) => input)
   .middleware([withCookies])

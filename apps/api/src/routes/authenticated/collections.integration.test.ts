@@ -189,6 +189,28 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       expect(json.availableForDeckbuilding).toBe(false);
     });
 
+    it("sets the viewer's sidebar visibility via PUT /sidebar", async () => {
+      const res = await app.fetch(
+        req("PUT", `/collections/${collectionId}/sidebar`, { hidden: true }),
+      );
+      expect(res.status).toBe(204);
+
+      const getRes = await app.fetch(req("GET", `/collections/${collectionId}`));
+      const json = (await readJson(getRes)) as CollectionResponse;
+      expect(json.sidebarHidden).toBe(true);
+
+      // Flipping it back clears the row's effect, so the collection returns to
+      // the visible part of the sidebar.
+      const restore = await app.fetch(
+        req("PUT", `/collections/${collectionId}/sidebar`, { hidden: false }),
+      );
+      expect(restore.status).toBe(204);
+      const restored = (await readJson(
+        await app.fetch(req("GET", `/collections/${collectionId}`)),
+      )) as CollectionResponse;
+      expect(restored.sidebarHidden).toBe(false);
+    });
+
     it("updates sortOrder", async () => {
       const res = await app.fetch(req("PATCH", `/collections/${collectionId}`, { sortOrder: 5 }));
       expect(res.status).toBe(200);

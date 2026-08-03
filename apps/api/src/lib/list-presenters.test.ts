@@ -37,6 +37,7 @@ describe("toList", () => {
       rules: [],
       ruleCombine: null,
       sortOrder: 0,
+      sidebarHidden: false,
     });
     expect(result).toEqual({
       id: "lst-1",
@@ -51,7 +52,31 @@ describe("toList", () => {
       tradeDefaults: { pricePref: null, priceAbsoluteCents: null, tradeType: null },
       currency: null,
       hasRule: false,
+      sidebarHidden: false,
     });
+  });
+
+  it("carries the sidebar-hidden flag so the sidebar can fold the list away", () => {
+    const result = toList({
+      id: "lst-1",
+      userId: "user-1",
+      name: "Old Piltover trades",
+      intent: "trade",
+      kind: "copy",
+      isPublic: false,
+      shareToken: null,
+      createdAt: NOW,
+      updatedAt: LATER,
+      defaultPricePref: null,
+      defaultPriceAbsoluteCents: null,
+      defaultTradeType: null,
+      currency: null,
+      rules: [],
+      ruleCombine: null,
+      sortOrder: 0,
+      sidebarHidden: true,
+    });
+    expect(result.sidebarHidden).toBe(true);
   });
 
   it("defaults entryCount to 0 when the caller doesn't supply one (e.g. after create)", () => {
@@ -72,6 +97,7 @@ describe("toList", () => {
       rules: [],
       ruleCombine: null,
       sortOrder: 0,
+      sidebarHidden: false,
     });
     expect(result.entryCount).toBe(0);
     expect(result.isPublic).toBe(true);
@@ -97,6 +123,7 @@ describe("toList", () => {
       rules: [],
       ruleCombine: null,
       sortOrder: 0,
+      sidebarHidden: false,
     });
     expect(result.tradeDefaults).toEqual({
       pricePref: "cm_lowest",
@@ -147,6 +174,7 @@ describe("toListDetail", () => {
       defaultTradeType: null,
       currency: "EUR",
       sortOrder: 0,
+      sidebarHidden: false,
       // The DB column is typed ListRules but arrives as a raw JSON string.
       rules: rulesJson as never,
       ruleCombine: null,
@@ -187,6 +215,7 @@ describe("toPublicList", () => {
       rules: [],
       ruleCombine: null,
       sortOrder: 0,
+      sidebarHidden: false,
     });
     expect(result).toEqual({
       id: "lst-1",

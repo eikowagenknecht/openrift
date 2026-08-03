@@ -18,6 +18,7 @@ function wishList(
       intent: "wish",
       kind,
       entryCount: entries.length,
+      sidebarHidden: false,
       isPublic: false,
       shareToken: null,
       createdAt: "",

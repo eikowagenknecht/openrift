@@ -435,6 +435,18 @@ interface CollectionDeckbuildingPrefsTable {
 }
 
 /**
+ * Per-viewer sidebar visibility override for a collection (migration 223). A
+ * row with `hidden = true` pushes the collection behind the sidebar's "Show
+ * more" toggle for that user only; absence means visible. Per-viewer because a
+ * group collection has many viewers and each curates their own sidebar.
+ */
+interface CollectionSidebarPrefsTable {
+  userId: string;
+  collectionId: string;
+  hidden: boolean;
+}
+
+/**
  * CHECK: action/collection presence —
  *   added → to_collection_id NOT NULL,
  *   removed → from_collection_id NOT NULL,
@@ -659,6 +671,12 @@ export interface ListsTable {
   /** Required for any 'absolute' default or override; ignored otherwise. */
   currency: Currency | null;
   sortOrder: Generated<number>;
+  /**
+   * Migration 223: pushes the list behind the sidebar's "Show more" toggle. A
+   * plain column (not a per-viewer table like collections use) because a list
+   * has exactly one viewer, its owner.
+   */
+  sidebarHidden: Generated<boolean>;
   /**
    * ADR-034 dynamic rules (jsonb array). Read back as a JSON string under
    * postgres.js (the repo parses it). The repo writes it through an explicit
@@ -1841,6 +1859,7 @@ export interface Database {
   collections: CollectionsTable;
   copies: CopiesTable;
   collectionDeckbuildingPrefs: CollectionDeckbuildingPrefsTable;
+  collectionSidebarPrefs: CollectionSidebarPrefsTable;
   collectionEvents: CollectionEventsTable;
 
   // Admin audit events (migration 201)

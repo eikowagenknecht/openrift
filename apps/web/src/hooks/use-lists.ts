@@ -120,6 +120,8 @@ export function useCreateList() {
 interface UpdateListInput {
   listId: string;
   name?: string;
+  /** Pushes the list behind the sidebar's "Show more" toggle. */
+  sidebarHidden?: boolean;
   tradeDefaults?: TradePreference;
   currency?: Currency | null;
   /** ADR-034: set/replace the dynamic rules. An empty array clears them. */
@@ -144,6 +146,50 @@ export function useUpdateList() {
       queryKeys.lists.all(userId),
       queryKeys.lists.detail(userId, variables.listId),
     ],
+  });
+}
+
+/**
+ * Moves a list behind the sidebar's "Show more" toggle, or back out of it.
+ * Optimistic because the row jumps groups the instant you pick the menu item —
+ * waiting a round-trip there reads as a menu that did nothing.
+ *
+ * @returns A mutation taking `{ listId, hidden }`.
+ */
+export function useSetListSidebarHidden() {
+  const userId = useRequiredUserId();
+  const queryClient = useQueryClient();
+  return useMutation<
+    ListResponse,
+    Error,
+    { listId: string; hidden: boolean },
+    { previous: ListListResponse | undefined }
+  >({
+    mutationFn: ({ listId, hidden }) => updateListFn({ data: { listId, sidebarHidden: hidden } }),
+    onMutate: ({ listId, hidden }) => {
+      const key = queryKeys.lists.all(userId);
+      const previous = queryClient.getQueryData<ListListResponse>(key);
+      if (previous) {
+        queryClient.setQueryData<ListListResponse>(key, {
+          ...previous,
+          items: previous.items.map((list) =>
+            list.id === listId ? { ...list, sidebarHidden: hidden } : list,
+          ),
+        });
+      }
+      return { previous };
+    },
+    onError: (error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(queryKeys.lists.all(userId), context.previous);
+      }
+      // Declaring onError here replaces the QueryClient's default one, so the
+      // rollback would otherwise put the row back with nothing saying why.
+      reportMutationError(error, queryClient);
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.lists.all(userId) });
+    },
   });
 }
 

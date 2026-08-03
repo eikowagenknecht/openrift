@@ -70,6 +70,7 @@ export function toList(row: Selectable<ListsTable> & { entryCount?: number }): L
     // The summary reports whether any dynamic rules exist (ADR-034); the rules
     // themselves ride only on detail responses (toListDetail).
     hasRule: parseListRules(row.rules).length > 0,
+    sidebarHidden: row.sidebarHidden,
   };
 }
 

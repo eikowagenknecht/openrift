@@ -11,6 +11,8 @@
 
 ### Other
 
+- feat(Collection): **Tidy the sidebar with Show more** — right-click any collection or list to push it behind a "Show more" toggle, so a long sidebar keeps only what you use often in view.
+- feat(Collection): **Right-click menu on sidebar rows** — renaming, sharing, deck-building availability and deleting are now reachable straight from the row, without opening the page first.
 - feat(Collection): **Export just the cards you filtered to** — exporting a wishlist or tradelist while filters are on now offers the cards on screen instead of the whole list, with a checkbox to take everything anyway.
 - feat(Collection): **Move a list's copies into a collection** — a tradelist or organize list can now file the cards behind it into another collection, all at once from the list's menu or per card by right-click, so a pile you sorted out with a dynamic rule can go straight to the bulk box.
 - feat(Collection): **Auto-scan for a phone on a stand** — scanning now counts each card once however long you hold it up, and a toggle switches to counting every copy dealt past a propped-up camera.

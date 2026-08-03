@@ -19,6 +19,12 @@ export interface AccessibleCollection extends CollectionWithCount {
    * are opt-in per member.
    */
   availableForDeckbuilding: boolean;
+  /**
+   * Whether the viewer has pushed this collection behind the sidebar's "Show
+   * more" toggle. Per-viewer like the deck-building flag, so hiding a shared
+   * group binder only affects the member who hid it.
+   */
+  sidebarHidden: boolean;
   /** True if viewer is the personal owner OR a group owner/admin. */
   viewerCanAdmin: boolean;
 }
@@ -30,6 +36,8 @@ export interface CollectionAccess {
     groupName: string | null;
     /** Viewer's effective deck-building availability (see {@link AccessibleCollection}). */
     availableForDeckbuilding: boolean;
+    /** Viewer's sidebar visibility choice (see {@link AccessibleCollection}). */
+    sidebarHidden: boolean;
   };
   viewerRole: FriendGroupRole | null;
   viewerCanAdmin: boolean;
@@ -77,6 +85,9 @@ export function collectionsRepo(db: Kysely<Database>) {
         .leftJoin("collectionDeckbuildingPrefs as pref", (join) =>
           join.onRef("pref.collectionId", "=", "c.id").on("pref.userId", "=", userId),
         )
+        .leftJoin("collectionSidebarPrefs as sidebar", (join) =>
+          join.onRef("sidebar.collectionId", "=", "c.id").on("sidebar.userId", "=", userId),
+        )
         .selectAll("c")
         .select([
           sql<number>`(select count(*)::int from copies where copies.collection_id = c.id)`.as(
@@ -85,6 +96,7 @@ export function collectionsRepo(db: Kysely<Database>) {
           "g.slug as groupSlug",
           "g.name as groupName",
           sql<boolean>`coalesce(pref.available, c.group_id is null)`.as("availableForDeckbuilding"),
+          sql<boolean>`coalesce(sidebar.hidden, false)`.as("sidebarHidden"),
           sql<boolean>`(c.user_id IS NOT NULL) OR (gm.role IN ('owner','admin'))`.as(
             "viewerCanAdmin",
           ),
@@ -123,12 +135,16 @@ export function collectionsRepo(db: Kysely<Database>) {
         .leftJoin("collectionDeckbuildingPrefs as pref", (join) =>
           join.onRef("pref.collectionId", "=", "c.id").on("pref.userId", "=", userId),
         )
+        .leftJoin("collectionSidebarPrefs as sidebar", (join) =>
+          join.onRef("sidebar.collectionId", "=", "c.id").on("sidebar.userId", "=", userId),
+        )
         .selectAll("c")
         .select([
           "g.slug as groupSlug",
           "g.name as groupName",
           "gm.role as viewerRole",
           sql<boolean>`coalesce(pref.available, c.group_id is null)`.as("availableForDeckbuilding"),
+          sql<boolean>`coalesce(sidebar.hidden, false)`.as("sidebarHidden"),
         ])
         .where("c.id", "=", id)
         .where((eb) => eb.or([eb("c.userId", "=", userId), eb("gm.userId", "=", userId)]))

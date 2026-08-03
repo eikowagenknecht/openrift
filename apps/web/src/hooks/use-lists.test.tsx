@@ -46,6 +46,7 @@ const {
   useDeleteList,
   useRemoveListEntry,
   useReorderLists,
+  useSetListSidebarHidden,
   useUpdateList,
   useUpdateListEntry,
 } = await import("./use-lists");
@@ -89,6 +90,7 @@ const LIST: ListResponse = {
   intent: "wish",
   kind: "card",
   entryCount: 0,
+  sidebarHidden: false,
   isPublic: false,
   shareToken: null,
   createdAt: "2026-05-17T00:00:00Z",
@@ -158,6 +160,23 @@ describe("useUpdateList", () => {
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: ["lists", "test-user-id", "lst-1"],
     });
+  });
+});
+
+describe("useSetListSidebarHidden", () => {
+  it("moves the row behind Show more in the cache before the server answers", async () => {
+    stubFetchJson({ ...LIST, sidebarHidden: true });
+    const { client } = makeClient();
+    const listsKey = ["lists", "test-user-id"];
+    client.setQueryData(listsKey, { items: [LIST, SECOND_LIST] });
+    const { result } = renderHook(() => useSetListSidebarHidden(), { wrapper: wrap(client) });
+
+    await act(async () => {
+      await result.current.mutateAsync({ listId: "lst-1", hidden: true });
+    });
+
+    const cached = client.getQueryData(listsKey) as { items: ListResponse[] };
+    expect(cached.items.map((list) => list.sidebarHidden)).toEqual([true, false]);
   });
 });
 
@@ -275,6 +294,22 @@ describe("optimistic rollbacks still report the failure", () => {
       await result.current
         .mutateAsync({ intent: "wish", orderedIds: ["lst-2", "lst-1"] })
         .catch(() => {});
+    });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(client.getQueryData(listsKey)).toEqual({ items: [LIST, SECOND_LIST] });
+    expect(toast.error).toHaveBeenCalledWith(expect.any(String), PERSISTENT_ERROR_TOAST);
+  });
+
+  it("useSetListSidebarHidden restores the previous visibility and toasts", async () => {
+    stubFetchFailure();
+    const client = makeAppClient();
+    const listsKey = ["lists", "test-user-id"];
+    client.setQueryData(listsKey, { items: [LIST, SECOND_LIST] });
+    const { result } = renderHook(() => useSetListSidebarHidden(), { wrapper: wrap(client) });
+
+    await act(async () => {
+      await result.current.mutateAsync({ listId: "lst-1", hidden: true }).catch(() => {});
     });
 
     await waitFor(() => expect(result.current.isError).toBe(true));

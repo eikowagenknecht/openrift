@@ -21,6 +21,12 @@ export type CollectionViewRow = Selectable<CollectionsTable> & {
    * collection — callers must supply it.
    */
   availableForDeckbuilding: boolean;
+  /**
+   * The viewer's sidebar visibility choice (`COALESCE(sidebar.hidden, false)`).
+   * Per-viewer like `availableForDeckbuilding`; callers that don't join the
+   * prefs table leave it unset and the collection presents as visible.
+   */
+  sidebarHidden?: boolean;
   copyCount?: number;
   groupSlug?: string | null;
   groupName?: string | null;
@@ -33,6 +39,7 @@ export function toCollection(row: CollectionViewRow, value?: CollectionValue): C
     name: row.name,
     description: row.description,
     availableForDeckbuilding: row.availableForDeckbuilding,
+    sidebarHidden: row.sidebarHidden ?? false,
     isInbox: row.isInbox,
     sortOrder: row.sortOrder,
     isPublic: row.isPublic,

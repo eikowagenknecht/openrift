@@ -107,6 +107,9 @@ export const createListSchema = z
 
 export const updateListSchema = z.object({
   name: z.string().min(1).max(200).optional(),
+  // Pushes the list behind the sidebar's "Show more" toggle. A list has one
+  // viewer (its owner), so this is a plain property of the list.
+  sidebarHidden: z.boolean().optional(),
   tradeDefaults: tradePreferenceInputSchema.optional(),
   currency: currencySchema.nullable().optional(),
   // Set/replace the dynamic rules (ADR-034). An empty array clears them. The
@@ -182,6 +185,8 @@ const listResponseShape = {
   currency: currencyResponseSchema.nullable(),
   // Whether this list carries a dynamic rule (ADR-034).
   hasRule: z.boolean(),
+  // True when the owner has pushed this list behind the sidebar's "Show more".
+  sidebarHidden: z.boolean(),
 };
 
 export const listResponseSchema = z.object(listResponseShape).openapi("ListResponse");
