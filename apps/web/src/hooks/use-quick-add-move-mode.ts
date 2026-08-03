@@ -170,7 +170,9 @@ export function useQuickAddMoveMode({
         `Moved 1× ${legendDisplayName(printing.card)} to ${collectionDisplayName(moveTo)}`,
         { id: `palette-move-${printing.id}` },
       );
-      onMoved?.();
+      if (onMoved) {
+        onMoved();
+      }
     } catch {
       // Roll the session history back; the global onError already toasted.
       setMoveHistory((prev) => prev.filter((entry) => entry !== record));
@@ -192,7 +194,9 @@ export function useQuickAddMoveMode({
         `Moved 1× ${legendDisplayName(printing.card)} back to ${collectionDisplayName(record.fromCollectionId)}`,
         { id: `palette-move-${printing.id}` },
       );
-      onMoved?.();
+      if (onMoved) {
+        onMoved();
+      }
     } catch {
       setMoveHistory((prev) => [...prev, record]);
     }

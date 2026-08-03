@@ -140,22 +140,22 @@ export function GenerateRoundControls({
   // may be dropping them after the final round. Matches the participants page,
   // which drops straight from its row menu (only Remove confirms).
   async function setDropped(player: PodPlayerResponse, dropped: boolean) {
+    // Resolved before the try: React Compiler cannot lower a conditional that
+    // sits inside a try/catch.
+    const action = dropped ? "drop" : "reactivate";
+    const message = dropped ? `Dropped ${player.displayName}` : `${player.displayName} is back in`;
+    // A dropped player can't be seated, so they can't hold a bye either. In
+    // 2v2 the server drops the whole team, so the teammate's bye goes too.
+    const goneIds =
+      teamMode && player.teamId !== null
+        ? players.filter((row) => row.teamId === player.teamId).map((row) => row.id)
+        : [player.id];
     try {
-      await participantAction.mutateAsync({
-        id,
-        participantId: player.id,
-        action: dropped ? "drop" : "reactivate",
-      });
+      await participantAction.mutateAsync({ id, participantId: player.id, action });
       if (dropped) {
-        // A dropped player can't be seated, so they can't hold a bye either. In
-        // 2v2 the server drops the whole team, so the teammate's bye goes too.
-        const goneIds =
-          teamMode && player.teamId !== null
-            ? players.filter((row) => row.teamId === player.teamId).map((row) => row.id)
-            : [player.id];
         setByeIds((current) => current.filter((byeId) => !goneIds.includes(byeId)));
       }
-      toast.success(dropped ? `Dropped ${player.displayName}` : `${player.displayName} is back in`);
+      toast.success(message);
     } catch {
       // Reported by the global mutation error toast (see reportMutationError).
     }

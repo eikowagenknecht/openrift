@@ -916,6 +916,26 @@ export function useCardScanner(
   }
 
   /**
+   * The artworks a frame's shortlist ranked, nearest first and one entry per
+   * artwork.
+   *
+   * @returns The deduped guesses, longest shortlists trimmed by the caller.
+   */
+  function rankedArtworks(ranked: readonly RankedEmbed[]): { key: string; artKey: string }[] {
+    const seen = new Set<string>();
+    const candidates: { key: string; artKey: string }[] = [];
+    for (const entry of ranked) {
+      const artKey = loaded?.artKeys.get(entry.key) ?? entry.key;
+      if (seen.has(artKey)) {
+        continue;
+      }
+      seen.add(artKey);
+      candidates.push({ key: entry.key, artKey });
+    }
+    return candidates;
+  }
+
+  /**
    * Give one queued frame a second look.
    *
    * Runs through its own session so the live one's runs stay intact, and that
@@ -998,26 +1018,6 @@ export function useCardScanner(
         at: entry.at,
       },
     ]);
-  }
-
-  /**
-   * The artworks a frame's shortlist ranked, nearest first and one entry per
-   * artwork.
-   *
-   * @returns The deduped guesses, longest shortlists trimmed by the caller.
-   */
-  function rankedArtworks(ranked: readonly RankedEmbed[]): { key: string; artKey: string }[] {
-    const seen = new Set<string>();
-    const candidates: { key: string; artKey: string }[] = [];
-    for (const entry of ranked) {
-      const artKey = loaded?.artKeys.get(entry.key) ?? entry.key;
-      if (seen.has(artKey)) {
-        continue;
-      }
-      seen.add(artKey);
-      candidates.push({ key: entry.key, artKey });
-    }
-    return candidates;
   }
 
   /**

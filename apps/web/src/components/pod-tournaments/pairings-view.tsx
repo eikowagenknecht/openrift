@@ -571,96 +571,6 @@ function PodCard({
     setSaving(false);
   }
 
-  return (
-    <Card className="gap-3">
-      <CardHeader className="gap-1">
-        <CardTitle className="flex items-center gap-2">
-          <IconChip
-            icon={isMatch ? SwordsIcon : UsersIcon}
-            tone={reported ? "green" : "neutral"}
-            size="sm"
-            shape="round"
-          />
-          <span>{teamMode ? `Match ${pod.podNumber}` : pairingLabel(pod.size, pod.podNumber)}</span>
-          <span className="ml-auto flex items-center gap-2">
-            {showPenalty && !warningsExpanded ? (
-              <WarningBadge warnings={warnings} nameById={nameById} regionLabel={regionLabel} />
-            ) : null}
-            <PodStatusBadge
-              reported={reported}
-              // A team shares one score, so reporting progress counts sides.
-              enteredCount={teamMode ? Math.floor(enteredCount / 2) : enteredCount}
-              size={teamMode ? 2 : pod.size}
-            />
-          </span>
-        </CardTitle>
-        {showPenalty && penaltySummary ? (
-          <p className="text-muted-foreground text-sm">{penaltySummary}</p>
-        ) : null}
-        {showPenalty && warningsExpanded ? (
-          <WarningList warnings={warnings} nameById={nameById} regionLabel={regionLabel} />
-        ) : null}
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3">
-        {editing ? (
-          isMatch ? (
-            <SwissResultForm
-              pod={pod}
-              teamMatch={teamMode}
-              matchFormat={matchFormat}
-              winPoints={winPoints}
-              drawPoints={drawPoints}
-              onSubmit={handleSubmit}
-              submitting={saving}
-              onCancel={() => setEditing(false)}
-            />
-          ) : (
-            <PodResultForm
-              pod={pod}
-              scheme={scheme}
-              onSubmit={handleSubmit}
-              submitting={saving}
-              onCancel={() => setEditing(false)}
-            />
-          )
-        ) : (
-          <>
-            <ul className="flex flex-col gap-1.5">
-              {(teamMode
-                ? groupPodMembersByTeam(pod.members)
-                : pod.members.map((member) => [member])
-              ).flatMap((group, groupIndex) => [
-                // A quiet divider between the two sides of a team match.
-                ...(teamMode && groupIndex > 0
-                  ? [
-                      <li
-                        key={`vs-${groupIndex}`}
-                        aria-hidden="true"
-                        className="text-muted-foreground/60 py-0.5 text-center text-xs font-medium tracking-wide uppercase"
-                      >
-                        vs
-                      </li>,
-                    ]
-                  : []),
-                sideRow(group),
-              ])}
-            </ul>
-            {canEnter ? (
-              <Button
-                variant={reported ? "destructive" : "secondary"}
-                size="sm"
-                className={cn("self-end")}
-                onClick={() => setEditing(true)}
-              >
-                {reported ? "Edit result" : selfEntry ? "Enter all scores" : "Enter result"}
-              </Button>
-            ) : null}
-          </>
-        )}
-      </CardContent>
-    </Card>
-  );
-
   // One row per side: a lone player in 1v1 and pods, the whole team in 2v2. A
   // team is one entity here — one name, one score, one points figure — and the
   // shared result lives on the side's first member (teammates mirror it).
@@ -766,6 +676,96 @@ function PodCard({
       </li>
     );
   }
+
+  return (
+    <Card className="gap-3">
+      <CardHeader className="gap-1">
+        <CardTitle className="flex items-center gap-2">
+          <IconChip
+            icon={isMatch ? SwordsIcon : UsersIcon}
+            tone={reported ? "green" : "neutral"}
+            size="sm"
+            shape="round"
+          />
+          <span>{teamMode ? `Match ${pod.podNumber}` : pairingLabel(pod.size, pod.podNumber)}</span>
+          <span className="ml-auto flex items-center gap-2">
+            {showPenalty && !warningsExpanded ? (
+              <WarningBadge warnings={warnings} nameById={nameById} regionLabel={regionLabel} />
+            ) : null}
+            <PodStatusBadge
+              reported={reported}
+              // A team shares one score, so reporting progress counts sides.
+              enteredCount={teamMode ? Math.floor(enteredCount / 2) : enteredCount}
+              size={teamMode ? 2 : pod.size}
+            />
+          </span>
+        </CardTitle>
+        {showPenalty && penaltySummary ? (
+          <p className="text-muted-foreground text-sm">{penaltySummary}</p>
+        ) : null}
+        {showPenalty && warningsExpanded ? (
+          <WarningList warnings={warnings} nameById={nameById} regionLabel={regionLabel} />
+        ) : null}
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        {editing ? (
+          isMatch ? (
+            <SwissResultForm
+              pod={pod}
+              teamMatch={teamMode}
+              matchFormat={matchFormat}
+              winPoints={winPoints}
+              drawPoints={drawPoints}
+              onSubmit={handleSubmit}
+              submitting={saving}
+              onCancel={() => setEditing(false)}
+            />
+          ) : (
+            <PodResultForm
+              pod={pod}
+              scheme={scheme}
+              onSubmit={handleSubmit}
+              submitting={saving}
+              onCancel={() => setEditing(false)}
+            />
+          )
+        ) : (
+          <>
+            <ul className="flex flex-col gap-1.5">
+              {(teamMode
+                ? groupPodMembersByTeam(pod.members)
+                : pod.members.map((member) => [member])
+              ).flatMap((group, groupIndex) => [
+                // A quiet divider between the two sides of a team match.
+                ...(teamMode && groupIndex > 0
+                  ? [
+                      <li
+                        key={`vs-${groupIndex}`}
+                        aria-hidden="true"
+                        className="text-muted-foreground/60 py-0.5 text-center text-xs font-medium tracking-wide uppercase"
+                      >
+                        vs
+                      </li>,
+                    ]
+                  : []),
+                sideRow(group),
+              ])}
+            </ul>
+            {canEnter ? (
+              <Button
+                variant={reported ? "destructive" : "secondary"}
+                size="sm"
+                className={cn("self-end")}
+                onClick={() => setEditing(true)}
+              >
+                {reported ? "Edit result" : selfEntry ? "Enter all scores" : "Enter result"}
+              </Button>
+            ) : null}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 
 /**

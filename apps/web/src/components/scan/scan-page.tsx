@@ -580,10 +580,12 @@ export function ScanPage() {
       useScanSessionStore.getState().reset();
       return;
     }
+    // Built before the try: React Compiler can't lower a conditional inside one.
+    const removedLabel = `${copyIds.length} scanned ${copyIds.length === 1 ? "card" : "cards"}`;
     try {
       await disposeCopies.mutateAsync({ copyIds });
       useScanSessionStore.getState().reset();
-      toast.success(`Removed ${copyIds.length} scanned ${copyIds.length === 1 ? "card" : "cards"}`);
+      toast.success(`Removed ${removedLabel}`);
     } catch {
       // The global mutation onError already toasted. The rows stay, because
       // they are the only handle left on copies that are still in the

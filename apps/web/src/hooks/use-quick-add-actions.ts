@@ -92,7 +92,9 @@ export function useQuickAddActions(
     }
     try {
       await disposeCopies.mutateAsync({ copyIds: [copy.id] });
-      onDisposed?.(printing);
+      if (onDisposed) {
+        onDisposed(printing);
+      }
     } catch {
       // Expected failures (e.g. trade-reserved) toast via the global mutation
       // onError handler; restore the session entry so a later undo still works.
@@ -158,7 +160,9 @@ export function useQuickAddActions(
           useAddModeStore.getState().recordUndo(printing.id);
           try {
             await disposeCopies.mutateAsync({ copyIds: [sessionCopyId] });
-            onDisposed?.(printing);
+            if (onDisposed) {
+              onDisposed(printing);
+            }
           } catch {
             useAddModeStore.getState().recordAdd(printing, sessionCopyId);
           }
@@ -181,7 +185,9 @@ export function useQuickAddActions(
         if (decision.kind === "dispose") {
           try {
             await disposeCopies.mutateAsync({ copyIds: [decision.copyId] });
-            onDisposed?.(printing);
+            if (onDisposed) {
+              onDisposed(printing);
+            }
           } catch {
             // The remove can fail for an expected reason (e.g. the copy is
             // reserved in an active trade). The error toast is fired by the
@@ -217,7 +223,9 @@ export function useQuickAddActions(
     }
     try {
       await disposeCopies.mutateAsync({ copyIds: [candidate.id] });
-      onDisposed?.(printing);
+      if (onDisposed) {
+        onDisposed(printing);
+      }
     } catch {
       // The remove can fail for an expected reason (e.g. the copy is reserved
       // in an active trade). The error toast is fired by the global mutation

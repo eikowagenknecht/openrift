@@ -83,8 +83,26 @@ interface CompilerLoggerEvent {
   reason?: string;
   detail?: {
     loc?: { start?: { line: number; column: number } } | null;
+    options?: { reason?: string; category?: string };
   };
 }
+
+// Files React Compiler is allowed to bail on, keyed by path relative to
+// apps/web. Every other bailout fails the build (see reactCompilerBailoutGuard).
+// Keep the reason with the entry, and delete the entry once the cause is gone.
+const ALLOWED_COMPILER_BAILOUTS: Record<string, string> = {
+  "src/components/admin/accepted-cards-table.tsx":
+    "IncompatibleLibrary: TanStack Table's useReactTable() returns unmemoizable functions",
+  "src/components/admin/admin-table.tsx":
+    "IncompatibleLibrary: TanStack Table's useReactTable() returns unmemoizable functions",
+  "src/components/admin/candidate-cards-table.tsx":
+    "IncompatibleLibrary: TanStack Table's useReactTable() returns unmemoizable functions",
+  "src/lib/virtualizer-fresh.ts":
+    'CompileSkip: carries "use no memo" on purpose (TanStack/virtual#736)',
+};
+
+// Unexpected bailouts seen so far in this build, keyed the same way.
+const compilerBailouts = new Map<string, string>();
 
 const compilerLogger = {
   logEvent(filename: string | null, event: CompilerLoggerEvent): void {
@@ -96,11 +114,15 @@ const compilerLogger = {
     ) {
       return;
     }
-    const short = filename ? filename.split("/").slice(-3).join("/") : "?";
+    const relative = filename ? path.relative(__dirname, filename) : "?";
     const loc = event.detail?.loc?.start;
     const at = loc ? `:${loc.line}:${loc.column}` : "";
-    // oxlint-disable no-console -- dev-only diagnostic printed to server terminal
-    console.log(`[react-compiler] ${event.kind} ${short}${at}`);
+    if (!(relative in ALLOWED_COMPILER_BAILOUTS)) {
+      const reason = event.detail?.options?.reason ?? event.reason ?? "no reason given";
+      compilerBailouts.set(relative, `${event.kind}${at}: ${reason}`);
+    }
+    // oxlint-disable no-console -- diagnostic printed to the server terminal
+    console.log(`[react-compiler] ${event.kind} ${relative}${at}`);
     if (event.detail) {
       // `console.dir` with unlimited depth surfaces `suggestions`, nested
       // `details`, and `SourceLocation` objects that `console.log`'s default
@@ -108,6 +130,33 @@ const compilerLogger = {
       console.dir(event.detail, { depth: null, colors: true });
     }
     // oxlint-enable no-console
+  },
+};
+
+// A bailed-out file ships uncompiled: no memoization, and the re-render bugs
+// the compiler was papering over come back. Nothing else in the toolchain
+// reports it — the eslint react-compiler rule stays silent on these "Todo"
+// bailouts, and the build otherwise succeeds — so the only thing standing
+// between a bailout and production is this check. Build only: dev keeps
+// running and just prints the diagnostic above.
+const reactCompilerBailoutGuard: Plugin = {
+  name: "react-compiler-bailout-guard",
+  apply: "build",
+  buildEnd() {
+    if (compilerBailouts.size === 0) {
+      return;
+    }
+    const listed = [...compilerBailouts].map(([file, summary]) => `  ${file}\n    ${summary}`);
+    compilerBailouts.clear();
+    throw new Error(
+      `React Compiler bailed on ${listed.length} file(s), which therefore ship unoptimized:\n` +
+        `${listed.join("\n")}\n\n` +
+        "Rewrite the flagged code. Common causes: a conditional, logical operator, " +
+        "optional call or loop inside a try/catch; a `finally` clause; a function " +
+        "declared after the component's return; a call to a function declared later " +
+        "in the same body. If the bailout is genuinely unavoidable, add the file to " +
+        "ALLOWED_COMPILER_BAILOUTS in apps/web/vite.config.ts with a reason.",
+    );
   },
 };
 
@@ -206,6 +255,7 @@ export default defineConfig(({ mode, command }) => {
       babel({
         presets: [withReactCompilerLogger(reactCompilerPreset())],
       }),
+      reactCompilerBailoutGuard,
       ...sentryPlugins,
       // Bundle treemap. Opt-in via `bun run analyze` (ANALYZE=1) to avoid the
       // ~few-second post-build overhead on every prod build. Writes the report

@@ -23,6 +23,28 @@ import { sessionQueryOptions } from "@/lib/auth-session";
 
 const RESET_CONFIRM_WORD = "reset";
 
+/**
+ * Both live outside the handlers below because React Compiler cannot lower a
+ * conditional (ternary, `??`, `?.`) that sits inside a try/catch — moving the
+ * branching into a plain function keeps the handler compilable.
+ * @returns The message for a completed reset.
+ */
+function resetSummaryMessage(summary: {
+  removedCopies: number;
+  removedCollections: number;
+}): string {
+  const copies = summary.removedCopies === 1 ? "card" : "cards";
+  const collections = summary.removedCollections === 1 ? "collection" : "collections";
+  return `Collections reset: removed ${summary.removedCopies} ${copies} and ${summary.removedCollections} ${collections}.`;
+}
+
+/**
+ * @returns The thrown value's message, or `fallback` when it isn't an Error.
+ */
+function errorMessage(thrown: unknown, fallback: string): string {
+  return thrown instanceof Error ? thrown.message : fallback;
+}
+
 function ResetCollectionsAction() {
   const [open, setOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
@@ -38,15 +60,9 @@ function ResetCollectionsAction() {
     try {
       const summary = await resetCollections.mutateAsync();
       setOpen(false);
-      toast.success(
-        `Collections reset: removed ${summary.removedCopies} ${
-          summary.removedCopies === 1 ? "card" : "cards"
-        } and ${summary.removedCollections} ${
-          summary.removedCollections === 1 ? "collection" : "collections"
-        }.`,
-      );
+      toast.success(resetSummaryMessage(summary));
     } catch (resetError) {
-      setError(resetError instanceof Error ? resetError.message : "Failed to reset collections.");
+      setError(errorMessage(resetError, "Failed to reset collections."));
     }
   }
 

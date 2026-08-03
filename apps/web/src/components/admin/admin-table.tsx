@@ -186,6 +186,15 @@ interface AdminTableProps<TData, TDraft = TData> {
 
 const ALIGN_CLASSES: Record<string, string> = { right: "text-right", center: "text-center" };
 
+/**
+ * Lives outside the handlers below because React Compiler cannot lower a
+ * conditional (ternary, `??`, `?.`) that sits inside a try/catch.
+ * @returns The thrown value's message, or `fallback` when it isn't an Error.
+ */
+function errorText(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
 function alignClass(align?: "left" | "center" | "right") {
   if (align) {
     return ALIGN_CLASSES[align];
@@ -334,7 +343,7 @@ export function AdminTable<TData, TDraft = TData>({
       cancelAdding();
       setAddPending(false);
     } catch (error) {
-      setAddError(error instanceof Error ? error.message : "Save failed");
+      setAddError(errorText(error, "Save failed"));
       setAddPending(false);
     }
   }
@@ -372,7 +381,7 @@ export function AdminTable<TData, TDraft = TData>({
       cancelEditing();
       setEditPending(false);
     } catch (error) {
-      setEditError(error instanceof Error ? error.message : "Save failed");
+      setEditError(errorText(error, "Save failed"));
       setEditPending(false);
     }
   }
@@ -693,14 +702,16 @@ function DeleteButton<TData>({
               }
               setDeleteError("");
               setDeletePending(true);
+              // React Compiler can lower neither a `finally` clause nor a
+              // conditional inside a try/catch, so the reset runs on both
+              // paths and the message comes from a plain helper.
               try {
                 await config.onDelete(row);
                 setOpen(false);
               } catch (error) {
-                setDeleteError(error instanceof Error ? error.message : "Delete failed");
-              } finally {
-                setDeletePending(false);
+                setDeleteError(errorText(error, "Delete failed"));
               }
+              setDeletePending(false);
             }}
           >
             <AlertDialogHeader>
@@ -728,7 +739,7 @@ function DeleteButton<TData>({
         try {
           await config.onDelete(row);
         } catch (error) {
-          setDeleteError(error instanceof Error ? error.message : "Delete failed");
+          setDeleteError(errorText(error, "Delete failed"));
         }
       }}
     >

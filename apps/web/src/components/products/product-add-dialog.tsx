@@ -21,7 +21,23 @@ import { Label } from "@/components/ui/label";
 import { useCollections, useCreateCollection } from "@/hooks/use-collections";
 import { useAddCopies } from "@/hooks/use-copies";
 import { useProductDetail } from "@/hooks/use-products";
+import type { ProductCopyRow } from "@/lib/product-copies";
 import { chunkProductCopies, expandProductContents, productCopyTotal } from "@/lib/product-copies";
+
+/**
+ * Sends the batches one after another, so the server never sees a later batch
+ * before an earlier one. Lives outside the component because React Compiler
+ * cannot lower a loop that sits inside a try/catch.
+ * @returns Nothing; it resolves once every batch has landed.
+ */
+async function addBatchesInOrder(
+  batches: ProductCopyRow[][],
+  addCopies: (input: { copies: ProductCopyRow[] }) => Promise<unknown>,
+): Promise<void> {
+  for (const batch of batches) {
+    await addCopies({ copies: batch });
+  }
+}
 
 interface ProductAddDialogProps {
   open: boolean;
@@ -97,25 +113,24 @@ function ProductAddBody({
       return;
     }
     setIsAdding(true);
+    // Every conditional is resolved up front: React Compiler cannot lower a
+    // ternary, `??`, `||` or `?.` that sits inside a try/catch.
+    const newCollectionName = newName.trim() || "Collection";
+    const cardNoun = totalCards === 1 ? "card" : "cards";
+    let targetId = selectedId;
+    let targetName =
+      collections.find((collection) => collection.id === selectedId)?.name ?? "your collection";
     try {
-      let targetId = selectedId;
-      let targetName = collections.find((collection) => collection.id === selectedId)?.name;
       if (selectedId === NEW_COLLECTION_OPTION) {
-        const created = await createCollection.mutateAsync({
-          name: newName.trim() || "Collection",
-        });
+        const created = await createCollection.mutateAsync({ name: newCollectionName });
         targetId = created.id;
         targetName = created.name;
       }
       const batches = chunkProductCopies(
         expandProductContents(data.contents, targetId, productCount),
       );
-      for (const batch of batches) {
-        await addCopies.mutateAsync({ copies: batch });
-      }
-      toast.success(
-        `Added ${totalCards} ${totalCards === 1 ? "card" : "cards"} to ${targetName ?? "your collection"}.`,
-      );
+      await addBatchesInOrder(batches, addCopies.mutateAsync);
+      toast.success(`Added ${totalCards} ${cardNoun} to ${targetName}.`);
       onClose();
     } catch {
       // Deliberately a SECOND toast on top of the global mutation error one:
