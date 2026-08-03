@@ -12,6 +12,7 @@ import { SectionHeading } from "@/components/ui/section-heading";
 import type { StatTileTone } from "@/components/ui/stat-tile";
 import { StatTile } from "@/components/ui/stat-tile";
 import { UserAvatarStack } from "@/components/user-avatar-stack";
+import { CAPPED_ROWS_LIMIT } from "@/hooks/use-capped-rows";
 import { useGroupTrades, useTradeActionCounts } from "@/hooks/use-card-trades";
 import { useCards } from "@/hooks/use-cards";
 import { useCollections } from "@/hooks/use-collections";
@@ -88,6 +89,16 @@ function TradesHub({ slug, data }: { slug: string; data: FriendGroupDetailRespon
   const needsAction = actionCount > 0;
   const { headline, sub } = tradesHubSummary(actionCount, matchCount, active.length);
 
+  // A member with dozens of open trades otherwise pushes the rest of the
+  // overview off the screen. There is no expand toggle here (the whole band is
+  // an anchor, so a nested button would be invalid HTML) — the sixth cell is a
+  // "+N more" tile, and following the band lands on the Trades page where every
+  // trade is grouped per member. Folding one lone row away saves nothing, since
+  // the tile takes the cell it freed.
+  const folded = active.length > CAPPED_ROWS_LIMIT + 1;
+  const shownActive = folded ? active.slice(0, CAPPED_ROWS_LIMIT) : active;
+  const hiddenActive = active.length - shownActive.length;
+
   // The whole band is one click target (like the stat tiles), so the
   // in-progress rows inside are plain divs — they all lead to the Trades page
   // anyway, and nested anchors are invalid HTML.
@@ -118,11 +129,19 @@ function TradesHub({ slug, data }: { slug: string; data: FriendGroupDetailRespon
     >
       {active.length > 0 ? (
         <ul className="grid gap-2 sm:grid-cols-2">
-          {active.map((trade) => (
+          {shownActive.map((trade) => (
             <li key={trade.id}>
               <InProgressTradeRow trade={trade} />
             </li>
           ))}
+          {hiddenActive > 0 ? (
+            <li>
+              <div className="text-muted-foreground group-hover/action-band:text-foreground flex items-center justify-center gap-1 rounded-lg border border-dashed px-2.5 py-2 text-sm transition-colors">
+                {hiddenActive} more in progress
+                <ChevronRightIcon className="size-4 transition-transform group-hover/action-band:translate-x-0.5" />
+              </div>
+            </li>
+          ) : null}
         </ul>
       ) : null}
     </ActionBand>

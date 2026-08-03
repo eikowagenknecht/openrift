@@ -11,6 +11,7 @@ import { IconChip } from "@/components/ui/icon-chip";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { UserAvatar } from "@/components/user-avatar";
+import { useCappedRows } from "@/hooks/use-capped-rows";
 import {
   useAcceptTrade,
   useApplyTradeSync,
@@ -44,6 +45,7 @@ import {
   TradeDirectionIcon,
   TradeEstimatedPrice,
   TradeExpiry,
+  TradeShowMoreRow,
   TradeStatusBadge,
   TradeValueSummary,
 } from "./trade-row-parts";
@@ -381,6 +383,9 @@ function CounterpartyTradeGroup({
   const prices = usePrices();
   const marketplace = useDisplayStore((state) => state.marketplaceOrder[0] ?? "cardtrader");
   const split = sumTradeValues(trades, (printingId) => prices.get(printingId, marketplace));
+  // The header count and the value summary stay over *all* their trades — the
+  // fold is a display cap, not a filter.
+  const fold = useCappedRows(trades);
 
   return (
     <Collapsible defaultOpen>
@@ -402,9 +407,10 @@ function CounterpartyTradeGroup({
       </div>
       <CollapsibleContent>
         <div className="mt-1 flex flex-col gap-2">
-          {trades.map((trade) => (
+          {fold.rows.map((trade) => (
             <TradeRow key={trade.id} trade={trade} />
           ))}
+          {fold.foldable ? <TradeShowMoreRow fold={fold} /> : null}
         </div>
       </CollapsibleContent>
     </Collapsible>

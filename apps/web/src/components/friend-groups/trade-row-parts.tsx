@@ -1,12 +1,22 @@
 import type { CardTradeStatus, Finish, Marketplace, Rarity } from "@openrift/shared";
 import { marketplaceLabel } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import { ArrowDownLeftIcon, ArrowUpRightIcon, BellIcon, CheckIcon, ClockIcon } from "lucide-react";
+import {
+  ArrowDownLeftIcon,
+  ArrowUpRightIcon,
+  BellIcon,
+  CheckIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  ClockIcon,
+} from "lucide-react";
 import type { ReactNode } from "react";
 
 import { FinishIcon } from "@/components/cards/finish-icon";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/user-avatar";
+import type { CappedRowsFold } from "@/hooks/use-capped-rows";
 import { usePrices } from "@/hooks/use-prices";
 import { compactFormatterForMarketplace, priceColorClass } from "@/lib/format";
 import { formatTimeRemaining } from "@/lib/format-relative-time";
@@ -315,5 +325,32 @@ export function CounterpartyChip({
       <UserAvatar image={image} name={name} gravatarHash={gravatarHash} size="sm" />
       {hideName ? null : <span className="text-sm">{name ?? "Member"}</span>}
     </Link>
+  );
+}
+
+/**
+ * The "Show N more" / "Show less" row closing a folded trade list — one member
+ * with dozens of open trades or suggestions otherwise buries everything below
+ * them. Drives {@link useCappedRows}; render it only when that reports the list
+ * foldable.
+ * @returns The toggle row.
+ */
+export function TradeShowMoreRow({
+  fold,
+  className,
+}: {
+  fold: CappedRowsFold;
+  className?: string;
+}) {
+  return (
+    <Button
+      variant="dashed"
+      size="sm"
+      className={cn("w-full justify-center", className)}
+      onClick={() => fold.toggle()}
+    >
+      {fold.expanded ? <ChevronUpIcon /> : <ChevronDownIcon />}
+      {fold.expanded ? "Show less" : `Show ${fold.hiddenCount} more`}
+    </Button>
   );
 }

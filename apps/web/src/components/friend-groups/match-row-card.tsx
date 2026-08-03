@@ -18,6 +18,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ExpandToggle } from "@/components/ui/expand-toggle";
 import { Pressable } from "@/components/ui/pressable";
 import { UserAvatar } from "@/components/user-avatar";
+import { useCappedRows } from "@/hooks/use-capped-rows";
 import { useCreateTrade, useDeclineTrade, useUserTrades } from "@/hooks/use-card-trades";
 import { useCards } from "@/hooks/use-cards";
 import { useEnumOrders } from "@/hooks/use-enums";
@@ -43,6 +44,7 @@ import {
   CounterpartyChip,
   TradeDirectionIcon,
   TradePerCopyPrice,
+  TradeShowMoreRow,
   TradeStatusBadge,
   TradeValueSummary,
 } from "./trade-row-parts";
@@ -766,6 +768,9 @@ function MatchCounterpartyGroup({
   const first = matches[0];
   const split = sumMatchValues(matches, prices, marketplace);
   const requestable = matches.filter((group) => isBulkRequestable(group));
+  // A display cap only: the header count, the value summary and "Request all"
+  // keep covering every suggestion, folded away or not.
+  const fold = useCappedRows(matches);
 
   function requestAll(): void {
     for (const group of requestable) {
@@ -813,7 +818,7 @@ function MatchCounterpartyGroup({
       </div>
       <CollapsibleContent>
         <div className="mt-1 flex flex-col gap-2">
-          {matches.map((group) => (
+          {fold.rows.map((group) => (
             <MatchGroupItem
               key={group.foldId}
               group={group}
@@ -823,6 +828,7 @@ function MatchCounterpartyGroup({
               liveTradeByKey={liveTradeByKey}
             />
           ))}
+          {fold.foldable ? <TradeShowMoreRow fold={fold} /> : null}
         </div>
       </CollapsibleContent>
     </Collapsible>

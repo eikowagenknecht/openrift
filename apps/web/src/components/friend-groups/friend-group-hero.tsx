@@ -1,6 +1,7 @@
 import type { FriendGroupDetailResponse } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { SettingsIcon } from "lucide-react";
+import { Fragment } from "react";
 
 import { CardFan, CardFanOutline } from "@/components/cards/card-fan";
 import { Eyebrow, Heading } from "@/components/heading";
@@ -15,6 +16,13 @@ import { distinctPrintingIds } from "@/lib/friend-group-activity";
 
 /** How many member avatars the hero stack shows before collapsing to "+N". */
 const HERO_AVATARS = 5;
+
+/** One count in the hero's meta line, linking to the page that owns it. */
+interface HeroStat {
+  key: string;
+  to: "/groups/$slug/members" | "/groups/$slug/shared" | "/groups/$slug/trades";
+  label: string;
+}
 
 // The band's backdrop, bottom layer up: a soft surface tint fading into the
 // page background, a faint violet under-tone, and the warm accent glow rising
@@ -54,15 +62,32 @@ export function FriendGroupHero({ slug, data }: { slug: string; data: FriendGrou
   const groupCollectionCount = collections.filter(
     (collection) => collection.groupId === data.group.id,
   ).length;
-  const meta = [
-    `${data.members.length} ${data.members.length === 1 ? "member" : "members"}`,
+  // Each count is the shortest route to the page that owns it, so the meta line
+  // doubles as the hero's navigation. All three targets take the same `slug`
+  // param, which is what lets them share one typed `to` union.
+  const meta: HeroStat[] = [
+    {
+      key: "members",
+      to: "/groups/$slug/members",
+      label: `${data.members.length} ${data.members.length === 1 ? "member" : "members"}`,
+    },
     ...(groupCollectionCount > 0
       ? [
-          `${groupCollectionCount} group ${groupCollectionCount === 1 ? "collection" : "collections"}`,
+          {
+            key: "collections",
+            to: "/groups/$slug/shared" as const,
+            label: `${groupCollectionCount} group ${groupCollectionCount === 1 ? "collection" : "collections"}`,
+          },
         ]
       : []),
     ...(data.cardsTradedCount > 0
-      ? [`${data.cardsTradedCount} ${data.cardsTradedCount === 1 ? "card" : "cards"} traded`]
+      ? [
+          {
+            key: "traded",
+            to: "/groups/$slug/trades" as const,
+            label: `${data.cardsTradedCount} ${data.cardsTradedCount === 1 ? "card" : "cards"} traded`,
+          },
+        ]
       : []),
   ];
 
@@ -95,7 +120,20 @@ export function FriendGroupHero({ slug, data }: { slug: string; data: FriendGrou
             {data.group.description ? (
               <PageDescription>{data.group.description}</PageDescription>
             ) : null}
-            <p className="text-muted-foreground text-sm">{meta.join(" · ")}</p>
+            <p className="text-muted-foreground text-sm">
+              {meta.map((stat, index) => (
+                <Fragment key={stat.key}>
+                  {index > 0 ? " · " : null}
+                  <Link
+                    to={stat.to}
+                    params={{ slug }}
+                    className="hover:text-foreground underline-offset-4 hover:underline"
+                  >
+                    {stat.label}
+                  </Link>
+                </Fragment>
+              ))}
+            </p>
             <UserAvatarStack
               members={shownMembers}
               totalCount={data.members.length}
