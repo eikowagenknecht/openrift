@@ -5,19 +5,16 @@ import type {
 } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
-  CheckIcon,
   EllipsisVerticalIcon,
   FolderIcon,
   ShieldIcon,
   Trash2Icon,
   UserPlusIcon,
-  XIcon,
   ZapIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
-import { ActionBand } from "@/components/ui/action-band";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -34,21 +31,19 @@ import { SectionHeading } from "@/components/ui/section-heading";
 import { UserAvatar } from "@/components/user-avatar";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import {
-  useAcceptFriendGroupInvite,
-  useDeclineFriendGroupInvite,
   useFriendGroupDetail,
   useKickFriendGroupMember,
   useUpdateFriendGroupRole,
 } from "@/hooks/use-friend-groups";
 import { useRequiredUserId } from "@/lib/auth-session";
 import { formatAbsoluteDate } from "@/lib/format-date";
-import { formatRelativeTime } from "@/lib/format-relative-time";
 import { getSiteUrl } from "@/lib/site-config";
 import { cn } from "@/lib/utils";
 
 import { ContactMethodChips } from "./contact-method-chips";
 import { isAdmin, ROLE_LABEL } from "./friend-group-shell";
 import { LIST_INTENT_ICON, LIST_INTENT_NOUN } from "./list-intent-meta";
+import { PendingRequestsBand } from "./pending-requests-band";
 
 /**
  * The Members page: pending join requests (admins only) as the page's action
@@ -122,73 +117,6 @@ export function MembersPageContent({
         </ul>
       </section>
     </div>
-  );
-}
-
-/**
- * The pending join requests as the page's accented action band (the overview's
- * trades-hub treatment): a headline count, then one row per request with
- * inline approve / deny. Only rendered for admins with requests waiting.
- * @returns The requests band.
- */
-function PendingRequestsBand({
-  slug,
-  requests,
-}: {
-  slug: string;
-  requests: FriendGroupDetailResponse["pendingRequests"];
-}) {
-  const acceptInvite = useAcceptFriendGroupInvite();
-  const declineInvite = useDeclineFriendGroupInvite();
-  return (
-    <ActionBand
-      icon={UserPlusIcon}
-      accent
-      label="Requests"
-      value={requests.length}
-      sub={`${requests.length === 1 ? "person" : "people"} waiting to join`}
-    >
-      <div className="flex flex-col gap-2">
-        {requests.map((req) => (
-          <div
-            key={req.id}
-            className="bg-muted/40 flex items-center gap-2.5 rounded-lg px-2.5 py-2"
-          >
-            <UserAvatar
-              image={req.userImage}
-              name={req.userName}
-              gravatarHash={req.gravatarHash}
-              size="sm"
-              className="size-7"
-            />
-            <span className="min-w-0 flex-1 truncate text-sm">
-              <span className="font-medium">{req.userName ?? "Unknown user"}</span>
-              <span className="text-muted-foreground">
-                {" "}
-                · requested {formatRelativeTime(req.createdAt)}
-              </span>
-            </span>
-            <Button
-              size="sm"
-              onClick={() => acceptInvite.mutate({ slug, userId: req.userId })}
-              disabled={acceptInvite.isPending}
-            >
-              <CheckIcon className="size-4" />
-              Approve
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => declineInvite.mutate({ slug, userId: req.userId })}
-              disabled={declineInvite.isPending}
-            >
-              <XIcon className="size-4" />
-              Deny
-            </Button>
-          </div>
-        ))}
-      </div>
-    </ActionBand>
   );
 }
 

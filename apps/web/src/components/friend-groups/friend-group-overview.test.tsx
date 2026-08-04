@@ -1,10 +1,13 @@
 import type { FriendGroupDetailResponse, TournamentSummaryResponse } from "@openrift/shared";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mutated per test before rendering; read lazily inside the mock factories.
 let currentTournaments: TournamentSummaryResponse[] = [];
+const acceptMutate = vi.fn();
+const declineMutate = vi.fn();
 
 vi.mock("@/hooks/use-card-trades", () => ({
   useGroupTrades: () => ({ data: { items: [] } }),
@@ -21,6 +24,8 @@ vi.mock("@/hooks/use-collections", () => ({
 }));
 
 vi.mock("@/hooks/use-friend-groups", () => ({
+  useAcceptFriendGroupInvite: () => ({ mutate: acceptMutate, isPending: false }),
+  useDeclineFriendGroupInvite: () => ({ mutate: declineMutate, isPending: false }),
   useFriendGroupMatches: () => ({
     data: { othersHaveYourWants: [], othersWantYourHaves: [] },
   }),
@@ -70,6 +75,7 @@ const { OverviewContent } = await import("./friend-group-overview");
 
 function makeDetail(
   viewerRole: FriendGroupDetailResponse["viewerRole"],
+  overrides: Partial<FriendGroupDetailResponse> = {},
 ): FriendGroupDetailResponse {
   return {
     group: {
@@ -90,11 +96,26 @@ function makeDetail(
     pendingRequests: [],
     cardsTradedCount: 0,
     cardsTradedByMember: {},
+    ...overrides,
   };
 }
 
-function renderOverview(viewerRole: FriendGroupDetailResponse["viewerRole"]) {
-  return render(<OverviewContent slug="bothfeld" data={makeDetail(viewerRole)} />);
+function makeRequest(userId: string): FriendGroupDetailResponse["pendingRequests"][number] {
+  return {
+    id: `req-${userId}`,
+    userId,
+    userName: `Requester ${userId}`,
+    userImage: null,
+    gravatarHash: "hash",
+    createdAt: "2026-07-14T12:00:00Z",
+  };
+}
+
+function renderOverview(
+  viewerRole: FriendGroupDetailResponse["viewerRole"],
+  overrides: Partial<FriendGroupDetailResponse> = {},
+) {
+  return render(<OverviewContent slug="bothfeld" data={makeDetail(viewerRole, overrides)} />);
 }
 
 function makeTournament(
@@ -229,5 +250,42 @@ describe("OverviewContent trades hub", () => {
   it("reads calm when nothing needs the viewer", () => {
     renderOverview("member");
     expect(screen.getByText("no open trades right now")).toBeInTheDocument();
+  });
+});
+
+describe("OverviewContent requests band", () => {
+  beforeEach(() => {
+    currentTournaments = [];
+    acceptMutate.mockClear();
+    declineMutate.mockClear();
+  });
+
+  // Regression: the groups index and the avatar badge advertise "N requests to
+  // review" and link here, but the overview only showed the Members tile hint,
+  // so an owner landing on the page saw nothing to act on.
+  it("shows the band to an owner and approves the right user", async () => {
+    const user = userEvent.setup();
+    renderOverview("owner", { pendingRequests: [makeRequest("u9")] });
+    expect(screen.getByText("Requests")).toBeInTheDocument();
+    expect(screen.getByText("Requester u9")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Approve/u }));
+    expect(acceptMutate).toHaveBeenCalledWith({ slug: "bothfeld", userId: "u9" });
+  });
+
+  it("denies from the band", async () => {
+    const user = userEvent.setup();
+    renderOverview("admin", { pendingRequests: [makeRequest("u9")] });
+    await user.click(screen.getByRole("button", { name: /Deny/u }));
+    expect(declineMutate).toHaveBeenCalledWith({ slug: "bothfeld", userId: "u9" });
+  });
+
+  it("hides the band from plain members even when requests exist", () => {
+    renderOverview("member", { pendingRequests: [makeRequest("u9")] });
+    expect(screen.queryByText("Requests")).not.toBeInTheDocument();
+  });
+
+  it("hides the band when nothing is waiting", () => {
+    renderOverview("owner");
+    expect(screen.queryByText("Requests")).not.toBeInTheDocument();
   });
 });

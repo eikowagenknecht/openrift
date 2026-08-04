@@ -38,18 +38,27 @@ import { isAdmin } from "./friend-group-shell";
 import { GroupSetupNudges } from "./group-setup-nudges";
 import { HOVER_ROW_CLASS } from "./hover-row";
 import { LIST_INTENT_ICON, LIST_INTENT_NOUN } from "./list-intent-meta";
+import { PendingRequestsBand } from "./pending-requests-band";
 import { TradeDirectionIcon, TradeExpiry, TradeStatusBadge } from "./trade-row-parts";
 
 /**
- * The group overview / dashboard: the trades hub (count, action state, and
- * in-progress trades in one surface), a row of tiles linking to the shared /
- * members / events pages, then the recent activity feed beside a rail with
- * the newest shares and the tournament nudge.
+ * The group overview / dashboard: pending join requests (admins only) as the
+ * page's first band, the trades hub (count, action state, and in-progress
+ * trades in one surface), a row of tiles linking to the shared / members /
+ * events pages, then the recent activity feed beside a rail with the newest
+ * shares and the tournament nudge.
+ *
+ * The requests band leads because the groups index and the avatar badge both
+ * advertise "N requests to review" and land here; without it the only trace on
+ * this page is the Members tile's hint, which reads as nothing to do.
  * @returns The overview-page content.
  */
 export function OverviewContent({ slug, data }: { slug: string; data: FriendGroupDetailResponse }) {
   return (
     <div className="flex flex-col gap-8">
+      {isAdmin(data.viewerRole) && data.pendingRequests.length > 0 ? (
+        <PendingRequestsBand slug={slug} requests={data.pendingRequests} />
+      ) : null}
       <GroupSetupNudges slug={slug} data={data} />
       <TradesHub slug={slug} data={data} />
       <ActionTiles slug={slug} data={data} />
@@ -317,11 +326,11 @@ function StatCard({
   return <StatTile render={<Link to={to} params={{ slug }} />} {...props} />;
 }
 
+// Pending requests are announced by the band at the top of the page, which
+// carries the count and the approve/deny actions, so the tile no longer
+// repeats them — one accent per page, and no second count to keep in step.
 function MembersCard({ slug, data }: { slug: string; data: FriendGroupDetailResponse }): ReactNode {
   const shown = data.members.slice(0, 5);
-  // `pendingRequests` is only populated for admins/owners, so the indicator
-  // hides itself for plain members.
-  const pendingRequestCount = data.pendingRequests.length;
   return (
     <StatCard
       to="/groups/$slug/members"
@@ -330,12 +339,6 @@ function MembersCard({ slug, data }: { slug: string; data: FriendGroupDetailResp
       tone="green"
       label="Members"
       value={data.members.length}
-      accent={pendingRequestCount > 0}
-      hint={
-        pendingRequestCount > 0
-          ? `${pendingRequestCount} ${pendingRequestCount === 1 ? "request" : "requests"} to review`
-          : undefined
-      }
     >
       <UserAvatarStack members={shown} totalCount={data.members.length} size="sm" />
     </StatCard>

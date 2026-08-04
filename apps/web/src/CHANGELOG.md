@@ -9,6 +9,7 @@
 
 ### Other
 
+- feat(Groups): **Approve join requests from the group page** — waiting requests now sit at the top of the group with Approve and Deny, instead of only on the members page.
 - feat(Collection): **More lists visible in the sidebar** — each section's create button moved up into its header, so the space goes to your collections and lists instead of to buttons.
 - feat(Trades): **Trades in set order** — possible trades and your open and completed trades now list by set and card number, the way the same cards read in the card browser and in a binder.
 - feat(Account): **Sharing all your lists lives in your profile** — the one link covering every wishlist and tradelist, its chat image and its binder QR sheet now sit at the top of your profile settings, and the sidebar entry is gone.
