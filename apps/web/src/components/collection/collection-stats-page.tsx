@@ -27,7 +27,6 @@ import { CompactFilterBar } from "@/components/filters/compact-filter-bar";
 import { PageTopBar, PageTopBarTitle } from "@/components/layout/page-top-bar";
 import { MarketplaceLink } from "@/components/marketplace-link";
 import { Button } from "@/components/ui/button";
-import { ButtonGroup } from "@/components/ui/button-group";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CardLink } from "@/components/ui/card-link";
 import type { ChartConfig } from "@/components/ui/chart";
@@ -44,6 +43,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { useSidebar } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useFilterValues } from "@/hooks/use-card-filters";
 import type {
@@ -813,35 +813,46 @@ export function CollectionStatsPage() {
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <CollectionSelector value={collectionScope} onChange={setCollectionScope} />
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          <ButtonGroup aria-label="Group by">
+          <ToggleGroup
+            variant="outline"
+            spacing={0}
+            value={[groupBy]}
+            onValueChange={([next]) => {
+              const option = GROUP_BY_OPTIONS.find((entry) => entry.value === next);
+              if (option) {
+                setGroupBy(option.value);
+              }
+            }}
+            aria-label="Group by"
+          >
             {GROUP_BY_OPTIONS.map((option) => (
-              <Button
-                key={option.value}
-                variant={groupBy === option.value ? "default" : "outline"}
-                onClick={() => setGroupBy(option.value)}
-              >
+              <ToggleGroupItem key={option.value} value={option.value}>
                 {option.label}
-              </Button>
+              </ToggleGroupItem>
             ))}
-          </ButtonGroup>
+          </ToggleGroup>
           <TooltipProvider>
-            <ButtonGroup aria-label="Count mode">
+            <ToggleGroup
+              variant="outline"
+              spacing={0}
+              value={[countMode]}
+              onValueChange={([next]) => {
+                const option = COUNT_MODE_OPTIONS.find((entry) => entry.value === next);
+                if (option) {
+                  setCountMode(option.value);
+                }
+              }}
+              aria-label="Count mode"
+            >
               {COUNT_MODE_OPTIONS.map((option) => (
                 <Tooltip key={option.value}>
-                  <TooltipTrigger
-                    render={
-                      <Button
-                        variant={countMode === option.value ? "default" : "outline"}
-                        onClick={() => setCountMode(option.value)}
-                      />
-                    }
-                  >
+                  <TooltipTrigger render={<ToggleGroupItem value={option.value} />}>
                     {option.label}
                   </TooltipTrigger>
                   <TooltipContent>{option.tooltip}</TooltipContent>
                 </Tooltip>
               ))}
-            </ButtonGroup>
+            </ToggleGroup>
           </TooltipProvider>
         </div>
       </div>

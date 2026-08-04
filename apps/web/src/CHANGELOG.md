@@ -8,6 +8,7 @@
 
 ### Other
 
+- fix(App): **Selected option in a button row** — the active choice (stats grouping, chart time range, price source) had its bottom-right corner clipped off, and now looks like the toggles used everywhere else.
 - fix(Collection): **Playset totals skip Runes and Other** — those cards have no playset to chase, so counting three of each pushed the completion percentage down for nothing.
 
 ## 2026-08-03

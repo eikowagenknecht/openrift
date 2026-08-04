@@ -4,10 +4,9 @@ import { Loader2Icon } from "lucide-react";
 import { useState } from "react";
 import { Area, CartesianGrid, ComposedChart, XAxis, YAxis } from "recharts";
 
-import { Button } from "@/components/ui/button";
-import { ButtonGroup } from "@/components/ui/button-group";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useCollectionValueHistory } from "@/hooks/use-collection-value-history";
 import { formatterForMarketplace } from "@/lib/format";
 import { useDisplayStore } from "@/stores/display-store";
@@ -85,33 +84,45 @@ export function CollectionValueChart({ collectionId, scope }: CollectionValueCha
     <div className="space-y-3">
       {/* Controls row */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <ButtonGroup aria-label="Time range">
+        <ToggleGroup
+          variant="outline"
+          size="sm"
+          spacing={0}
+          value={[range]}
+          onValueChange={([next]) => {
+            const match = TIME_RANGES.find((tr) => tr.value === next);
+            if (match) {
+              setRange(match.value);
+            }
+          }}
+          aria-label="Time range"
+        >
           {TIME_RANGES.map((tr) => (
-            <Button
-              key={tr.value}
-              variant={range === tr.value ? "default" : "outline"}
-              size="sm"
-              onClick={() => setRange(tr.value)}
-            >
+            <ToggleGroupItem key={tr.value} value={tr.value}>
               {tr.label}
-            </Button>
+            </ToggleGroupItem>
           ))}
-        </ButtonGroup>
-        <ButtonGroup aria-label="Price source" className="ml-auto">
-          {marketplaceOrder.map((mp) => {
-            const label = MARKETPLACE_SHORT_LABELS[mp];
-            return (
-              <Button
-                key={mp}
-                variant={marketplace === mp ? "default" : "outline"}
-                size="sm"
-                onClick={() => setMarketplace(mp)}
-              >
-                {label}
-              </Button>
-            );
-          })}
-        </ButtonGroup>
+        </ToggleGroup>
+        <ToggleGroup
+          variant="outline"
+          size="sm"
+          spacing={0}
+          value={[marketplace]}
+          onValueChange={([next]) => {
+            const match = marketplaceOrder.find((mp) => mp === next);
+            if (match) {
+              setMarketplace(match);
+            }
+          }}
+          aria-label="Price source"
+          className="ml-auto"
+        >
+          {marketplaceOrder.map((mp) => (
+            <ToggleGroupItem key={mp} value={mp}>
+              {MARKETPLACE_SHORT_LABELS[mp]}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
       </div>
 
       {/* Chart */}

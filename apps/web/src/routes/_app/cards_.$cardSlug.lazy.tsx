@@ -46,12 +46,11 @@ import {
 } from "@/components/layout/page-top-bar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { ButtonGroup } from "@/components/ui/button-group";
 import { Card as CardPanel } from "@/components/ui/card";
 import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { Pressable } from "@/components/ui/pressable";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { useDomainColors } from "@/hooks/use-domain-colors";
@@ -917,35 +916,48 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
 
       {/* Shared toolbar */}
       <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
-        <ButtonGroup aria-label="Time range">
+        <ToggleGroup
+          variant="outline"
+          size="sm"
+          spacing={0}
+          value={[effectiveRange]}
+          onValueChange={([next]) => {
+            const match = availableRanges.find((tr) => tr.value === next);
+            if (match) {
+              setRange(match.value);
+            }
+          }}
+          aria-label="Time range"
+        >
           {availableRanges.map((tr) => (
-            <Button
-              key={tr.value}
-              variant={effectiveRange === tr.value ? "default" : "outline"}
-              size="sm"
-              onClick={() => setRange(tr.value)}
-            >
+            <ToggleGroupItem key={tr.value} value={tr.value}>
               {tr.label}
-            </Button>
+            </ToggleGroupItem>
           ))}
-        </ButtonGroup>
-        <ButtonGroup aria-label="Price source" className="ml-auto">
+        </ToggleGroup>
+        <ToggleGroup
+          variant="outline"
+          size="sm"
+          spacing={0}
+          value={[source]}
+          onValueChange={([next]) => {
+            const match = marketplaceOrder.find((mp) => mp === next);
+            if (match) {
+              setSource(match);
+            }
+          }}
+          aria-label="Price source"
+          className="ml-auto"
+        >
           {marketplaceOrder.map((mp) => {
-            const label = MARKETPLACE_SHORT_LABELS[mp];
             const available = data?.[mp]?.available ?? false;
             return (
-              <Button
-                key={mp}
-                variant={source === mp ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSource(mp)}
-                disabled={!available && Boolean(data)}
-              >
-                {label}
-              </Button>
+              <ToggleGroupItem key={mp} value={mp} disabled={!available && Boolean(data)}>
+                {MARKETPLACE_SHORT_LABELS[mp]}
+              </ToggleGroupItem>
             );
           })}
-        </ButtonGroup>
+        </ToggleGroup>
       </div>
 
       {/* Chart + Table side by side */}

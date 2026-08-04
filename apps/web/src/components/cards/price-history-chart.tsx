@@ -6,9 +6,9 @@ import { Area, CartesianGrid, ComposedChart, Line, ReferenceLine, XAxis, YAxis }
 
 import { TIME_RANGES } from "@/components/cards/price-history-chart-constants";
 import { Button } from "@/components/ui/button";
-import { ButtonGroup } from "@/components/ui/button-group";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { usePriceHistory } from "@/hooks/use-price-history";
 import { formatterForMarketplace } from "@/lib/format";
 import { useDisplayStore } from "@/stores/display-store";
@@ -155,35 +155,48 @@ export function PriceHistoryChart({
       {/* Time range + source row */}
       {!hideControls && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <ButtonGroup aria-label="Time range">
+          <ToggleGroup
+            variant="outline"
+            size={btnSize}
+            spacing={0}
+            value={[effectiveRange]}
+            onValueChange={([next]) => {
+              const match = availableRanges.find((tr) => tr.value === next);
+              if (match) {
+                setRange(match.value);
+              }
+            }}
+            aria-label="Time range"
+          >
             {availableRanges.map((tr) => (
-              <Button
-                key={tr.value}
-                variant={effectiveRange === tr.value ? "default" : "outline"}
-                size={btnSize}
-                onClick={() => setRange(tr.value)}
-              >
+              <ToggleGroupItem key={tr.value} value={tr.value}>
                 {tr.label}
-              </Button>
+              </ToggleGroupItem>
             ))}
-          </ButtonGroup>
-          <ButtonGroup aria-label="Price source" className="ml-auto">
+          </ToggleGroup>
+          <ToggleGroup
+            variant="outline"
+            size={btnSize}
+            spacing={0}
+            value={[source]}
+            onValueChange={([next]) => {
+              const match = marketplaceOrder.find((s) => s === next);
+              if (match) {
+                setSource(match);
+              }
+            }}
+            aria-label="Price source"
+            className="ml-auto"
+          >
             {marketplaceOrder.map((s) => {
-              const label = MARKETPLACE_SHORT_LABELS[s];
               const available = data?.[s]?.available ?? false;
               return (
-                <Button
-                  key={s}
-                  variant={source === s ? "default" : "outline"}
-                  size={btnSize}
-                  onClick={() => setSource(s)}
-                  disabled={!available && Boolean(data)}
-                >
-                  {label}
-                </Button>
+                <ToggleGroupItem key={s} value={s} disabled={!available && Boolean(data)}>
+                  {MARKETPLACE_SHORT_LABELS[s]}
+                </ToggleGroupItem>
               );
             })}
-          </ButtonGroup>
+          </ToggleGroup>
           {onCollapse && (
             <Button variant="ghost" size="icon-sm" onClick={onCollapse}>
               <ChevronUpIcon className="size-3.5" />
