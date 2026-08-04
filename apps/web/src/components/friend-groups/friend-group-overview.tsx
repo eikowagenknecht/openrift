@@ -132,14 +132,16 @@ function TradesHub({ slug, data }: { slug: string; data: FriendGroupDetailRespon
       }
     >
       {active.length > 0 ? (
+        // min-w-0 on the items: a grid track sizes to its content's minimum by
+        // default, so one wide row would stretch the column past the viewport.
         <ul className="grid gap-2 sm:grid-cols-2">
           {shownActive.map((trade) => (
-            <li key={trade.id}>
+            <li key={trade.id} className="min-w-0">
               <InProgressTradeRow trade={trade} />
             </li>
           ))}
           {hiddenActive > 0 ? (
-            <li>
+            <li className="min-w-0">
               <div className="text-muted-foreground group-hover/action-band:text-foreground flex items-center justify-center gap-1 rounded-lg border border-dashed px-2.5 py-2 text-sm transition-colors">
                 {hiddenActive} more in progress
                 <ChevronRightIcon className="size-4 transition-transform group-hover/action-band:translate-x-0.5" />
@@ -173,23 +175,32 @@ function InProgressTradeRow({ trade }: { trade: CardTradeResponse }) {
     <div className="bg-muted/40 flex items-center gap-2.5 rounded-lg px-2.5 py-2">
       <TradeDirectionIcon incoming={incoming} />
       <CardArtThumb imageId={imageId} alt={cardName} className="w-7" loading="lazy" />
-      <span className="min-w-0 flex-1 truncate text-sm">
-        <span className="font-medium">
-          {trade.quantity}× {cardName}
-        </span>
-        {showCounterparty ? (
-          <span className="text-muted-foreground">
-            {" "}
-            · with {trade.counterparty.name ?? "a member"}
+      {/* On phones the badge and countdown drop to a second line under the card
+          name — inline, "Waiting for {name}" is a nowrap block that can't shrink
+          and would widen the whole page. From sm up the wrappers dissolve
+          (sm:contents) back into one horizontal row. */}
+      <div className="flex min-w-0 flex-1 flex-col gap-1 sm:contents">
+        <span className="min-w-0 flex-1 truncate text-sm">
+          <span className="font-medium">
+            {trade.quantity}× {cardName}
           </span>
-        ) : null}
-      </span>
-      <TradeStatusBadge
-        status={trade.status}
-        counterpartyName={trade.counterparty.name}
-        awaitingViewer={false}
-      />
-      <TradeExpiry status={trade.status} expiresAt={trade.expiresAt} />
+          {showCounterparty ? (
+            <span className="text-muted-foreground">
+              {" "}
+              · with {trade.counterparty.name ?? "a member"}
+            </span>
+          ) : null}
+        </span>
+        <div className="flex min-w-0 items-center gap-2 sm:contents">
+          <TradeStatusBadge
+            status={trade.status}
+            counterpartyName={trade.counterparty.name}
+            awaitingViewer={false}
+            className="min-w-0 shrink"
+          />
+          <TradeExpiry status={trade.status} expiresAt={trade.expiresAt} />
+        </div>
+      </div>
     </div>
   );
 }

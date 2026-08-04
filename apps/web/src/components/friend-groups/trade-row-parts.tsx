@@ -197,7 +197,13 @@ export function TradeValueSummary({
   }
   return (
     <span
-      className={cn("text-muted-foreground shrink-0 text-xs whitespace-nowrap", className)}
+      // The both-directions wording is wider than a phone, so it wraps below
+      // sm and every host stacks it onto its own line there. From sm up it
+      // stays one line, pinned right of whatever it sits next to.
+      className={cn(
+        "text-muted-foreground shrink-0 text-xs whitespace-normal sm:whitespace-nowrap",
+        className,
+      )}
       title={`Estimated value (${marketplaceLabel(marketplace)})`}
     >
       {text}
@@ -218,38 +224,45 @@ export function TradeStatusBadge({
   status,
   counterpartyName,
   awaitingViewer,
+  className,
 }: {
   status: CardTradeStatus;
   counterpartyName?: string | null;
   /** True when a pending trade is awaiting the viewer's accept/decline. */
   awaitingViewer?: boolean;
+  /**
+   * Extra badge classes. Pass `min-w-0 shrink` where the row must never widen
+   * its container — "Waiting for {name}" is as long as the member's name, and
+   * a badge that can't shrink pushes the whole page into horizontal scroll.
+   */
+  className?: string;
 }) {
   if (status === "pending") {
     if (awaitingViewer) {
       return (
-        <Badge variant="warning" className="shrink-0">
+        <Badge variant="warning" className={cn("shrink-0", className)}>
           <BellIcon />
           Your move
         </Badge>
       );
     }
     return (
-      <Badge variant="secondary" className="shrink-0">
+      <Badge variant="secondary" className={cn("shrink-0", className)}>
         <ClockIcon />
-        Waiting for {counterpartyName ?? "them"}
+        <span className="truncate">Waiting for {counterpartyName ?? "them"}</span>
       </Badge>
     );
   }
   if (status === "reserved") {
     return (
-      <Badge variant="success" className="shrink-0">
+      <Badge variant="success" className={cn("shrink-0", className)}>
         <CheckIcon />
         Ready to swap
       </Badge>
     );
   }
   return (
-    <Badge variant="secondary" className="shrink-0">
+    <Badge variant="secondary" className={cn("shrink-0", className)}>
       {tradeStatusLabel(status)}
     </Badge>
   );

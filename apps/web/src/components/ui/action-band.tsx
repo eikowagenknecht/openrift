@@ -76,7 +76,10 @@ function ActionBand({
           <>
             {/* On phones the header wraps and the supporting text takes its own
                 line; inline it would truncate to a couple of characters next to
-                the action. From sm up the row is single-line and sub truncates. */}
+                the action. It keeps the chip's indent there (pl-13 = the size-10
+                chip plus the gap-x-3), so the wrapped line stays under the label
+                instead of sliding back under the icon. From sm up the row is
+                single-line and sub truncates. */}
             <div className="flex min-w-0 items-center gap-x-3 gap-y-2 max-sm:flex-wrap">
               <IconChip icon={icon} tone={tone} />
               <span className="text-muted-foreground text-sm font-medium whitespace-nowrap">
@@ -84,7 +87,7 @@ function ActionBand({
               </span>
               <span className="font-heading text-3xl font-semibold tabular-nums">{value}</span>
               {sub ? (
-                <span className="text-muted-foreground min-w-0 text-xs max-sm:order-last max-sm:basis-full sm:truncate">
+                <span className="text-muted-foreground min-w-0 text-xs max-sm:order-last max-sm:basis-full max-sm:pl-13 sm:truncate">
                   {sub}
                 </span>
               ) : null}

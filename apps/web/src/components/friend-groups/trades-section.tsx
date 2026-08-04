@@ -135,6 +135,7 @@ function TradeRow({ trade }: { trade: CardTradeResponse }) {
           status={trade.status}
           counterpartyName={trade.counterparty.name}
           awaitingViewer={awaitingViewer}
+          className="min-w-0 shrink"
         />
 
         <TradeExpiry status={trade.status} expiresAt={trade.expiresAt} />
@@ -397,9 +398,16 @@ function CounterpartyTradeGroup({
             gravatarHash={counterparty.gravatarHash}
             size="sm"
           />
-          <span className="truncate">{counterparty.name ?? "Member"}</span>
-          <span className="text-muted-foreground shrink-0 text-xs">({trades.length})</span>
-          <TradeValueSummary split={split} marketplace={marketplace} className="ml-auto" />
+          {/* Narrow screens stack the value summary under the name — inline it
+              leaves the name a few characters wide. It wraps there too, since
+              the both-directions wording outruns a phone's width on its own. */}
+          <span className="flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-2">
+            <span className="flex min-w-0 items-center gap-2">
+              <span className="truncate">{counterparty.name ?? "Member"}</span>
+              <span className="text-muted-foreground shrink-0 text-xs">({trades.length})</span>
+            </span>
+            <TradeValueSummary split={split} marketplace={marketplace} className="sm:ml-auto" />
+          </span>
           <ChevronRightIcon className="text-muted-foreground size-4 shrink-0 transition-transform group-data-[panel-open]:rotate-90" />
         </CollapsibleTrigger>
         <CardmarketExportButton counterpartyName={counterparty.name} trades={trades} />
