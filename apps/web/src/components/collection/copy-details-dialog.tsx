@@ -44,7 +44,7 @@ import type { EnumLabels } from "@/hooks/use-enums";
 import { useConditionList, useEnumOrders, useGraderList } from "@/hooks/use-enums";
 import { formatCardId } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
-import { liveTradeStatus } from "@/lib/trade-status-labels";
+import { liveTradeStatus, tradeStatusTitle } from "@/lib/trade-status-labels";
 
 /** What the grid resolved from the right-clicked tile. */
 export interface CopyDetailsTarget {
@@ -278,7 +278,14 @@ function CopySummary({
     <span className="flex shrink-0 items-center gap-1.5">
       <ConditionBadge copy={copy} labels={labels} />
       {copy.onLoan && <SummaryIcon icon={HandHeartIcon} label="On loan" />}
-      {trade && <SummaryIcon icon={trade.icon} label={trade.label} />}
+      {/* The icon is the direction arrow, so the label spells the direction out
+          too: it is the only text a screen reader gets here. */}
+      {trade && (
+        <SummaryIcon
+          icon={trade.icon}
+          label={tradeStatusTitle({ label: trade.label, direction: trade.direction })}
+        />
+      )}
       {copyMarkers(copy).map((marker) => (
         <SummaryIcon
           key={marker.key}

@@ -117,7 +117,7 @@ describe("ListActionsCell trade status", () => {
     renderCell(wishRow, [
       annotation({ printingId: wishedSibling.id, role: "receiver", phase: "reserved" }),
     ]);
-    expect(screen.getByText("Coming to you")).toBeInTheDocument();
+    expect(screen.getByText("Reserved")).toBeInTheDocument();
   });
 
   it("names the phase on an incoming wish row that is only requested", () => {

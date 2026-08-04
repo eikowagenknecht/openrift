@@ -262,7 +262,7 @@ describe("CollectionGridCell live-trade chip", () => {
 
     renderStripCell({ stacked: true, mode: "browse" });
 
-    expect(screen.getByLabelText("Reserved · 1 copy")).toBeInTheDocument();
+    expect(screen.getByLabelText("Reserved (outgoing) · 1 copy")).toBeInTheDocument();
   });
 
   it("chips a stacked tile in select mode too", () => {
@@ -270,7 +270,7 @@ describe("CollectionGridCell live-trade chip", () => {
 
     renderStripCell({ stacked: true, mode: "select" });
 
-    expect(screen.getByLabelText("Reserved · 1 copy")).toBeInTheDocument();
+    expect(screen.getByLabelText("Reserved (outgoing) · 1 copy")).toBeInTheDocument();
   });
 
   it("leaves the tile alone when the live trade is on a different printing", () => {
@@ -290,7 +290,9 @@ describe("CollectionGridCell live-trade chip", () => {
 
     renderStripCell({ stacked: true, mode: "browse" });
 
-    expect(screen.getByLabelText("Asked for · 3 copies wanted, 1 available")).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Requested (outgoing) · 3 copies wanted, 1 available"),
+    ).toBeInTheDocument();
   });
 
   // The cell hands its whole copy set to the count, so a loaned copy is
@@ -302,7 +304,9 @@ describe("CollectionGridCell live-trade chip", () => {
 
     renderStripCell({ stacked: true, mode: "browse" });
 
-    expect(screen.getByLabelText("Asked for · 2 copies wanted, 0 available")).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Requested (outgoing) · 2 copies wanted, 0 available"),
+    ).toBeInTheDocument();
   });
 
   // A group "bulk box" holds the group's copies, and an annotation names only a
@@ -330,7 +334,7 @@ describe("CollectionGridCell live-trade chip", () => {
     });
 
     expect(
-      screen.getByLabelText("Reserved · 1 of this printing (3 across all printings)"),
+      screen.getByLabelText("Reserved (outgoing) · 1 of this printing (3 across all printings)"),
     ).toBeInTheDocument();
   });
 

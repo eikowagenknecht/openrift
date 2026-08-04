@@ -17,32 +17,53 @@ function annotation(overrides: Partial<CardTradeLiveAnnotation> = {}): CardTrade
 
 describe("TradeStatusChip", () => {
   it.each([
-    ["giver", "asked", "Asked for"],
-    ["giver", "offered", "Offered"],
-    ["giver", "reserved", "Reserved"],
-    ["giver", "traded", "Traded"],
-    ["receiver", "asked", "Requested"],
-    ["receiver", "offered", "Offered to you"],
-    ["receiver", "reserved", "Coming to you"],
-    ["receiver", "traded", "Ready to add"],
-  ] as [CardTradeRole, CardTradeLivePhase, string][])(
-    "spells out %s/%s as %s",
-    (role, phase, label) => {
+    ["giver", "asked", "Requested", "outgoing"],
+    ["giver", "offered", "Offered", "outgoing"],
+    ["giver", "reserved", "Reserved", "outgoing"],
+    ["giver", "traded", "Traded", "outgoing"],
+    ["receiver", "asked", "Requested", "incoming"],
+    ["receiver", "offered", "Offered", "incoming"],
+    ["receiver", "reserved", "Reserved", "incoming"],
+    ["receiver", "traded", "Traded", "incoming"],
+  ] as [CardTradeRole, CardTradeLivePhase, string, string][])(
+    "spells out %s/%s as %s (%s)",
+    (role, phase, label, direction) => {
       render(<TradeStatusChip detail="label" annotation={annotation({ role, phase })} />);
-      expect(screen.getByTitle(`${label} · 1 copy`)).toHaveTextContent(`${label}1`);
+      expect(screen.getByTitle(`${label} (${direction}) · 1 copy`)).toHaveTextContent(`${label}1`);
     },
   );
 
+  // The word is the same on both sides, so the arrow is what a reader has to
+  // go on. It must actually change with the side.
+  it("draws the two sides with opposite arrows", () => {
+    const { container: out } = render(
+      <TradeStatusChip
+        detail="label"
+        annotation={annotation({ role: "giver", phase: "reserved" })}
+      />,
+    );
+    const { container: incoming } = render(
+      <TradeStatusChip
+        detail="label"
+        annotation={annotation({ role: "receiver", phase: "reserved" })}
+      />,
+    );
+    const arrow = (root: HTMLElement) => root.querySelector("svg")?.getAttribute("class");
+    expect(arrow(out)).toBeTruthy();
+    expect(arrow(incoming)).toBeTruthy();
+    expect(out.querySelector("svg")?.innerHTML).not.toBe(incoming.querySelector("svg")?.innerHTML);
+  });
+
   it("keeps the wording in the tooltip in the strip default", () => {
     render(<TradeStatusChip annotation={annotation({ phase: "reserved", quantity: 2 })} />);
-    const chip = screen.getByTitle("Reserved · 2 copies");
+    const chip = screen.getByTitle("Reserved (outgoing) · 2 copies");
     expect(chip).toHaveTextContent("2");
     expect(chip).not.toHaveTextContent("Reserved");
   });
 
   it("drops the number in icon detail", () => {
     render(<TradeStatusChip detail="icon" annotation={annotation({ phase: "traded" })} />);
-    const chip = screen.getByTitle("Traded");
+    const chip = screen.getByTitle("Traded (outgoing)");
     expect(chip).not.toHaveTextContent("1");
   });
 
@@ -53,8 +74,8 @@ describe("TradeStatusChip", () => {
       <TradeStatusChip detail="word" annotation={annotation({ phase: "reserved", quantity: 2 })} />,
     );
     // Dropping the count also drops it from the tooltip, so the title is the
-    // bare word.
-    const chip = screen.getByTitle("Reserved");
+    // word and the direction alone.
+    const chip = screen.getByTitle("Reserved (outgoing)");
     expect(chip).toHaveTextContent("Reserved");
     expect(chip).not.toHaveTextContent("2");
   });
@@ -66,7 +87,9 @@ describe("TradeStatusChip", () => {
         totalCount={3}
       />,
     );
-    const chip = screen.getByTitle("Coming to you · 1 of this printing (3 across all printings)");
+    const chip = screen.getByTitle(
+      "Reserved (incoming) · 1 of this printing (3 across all printings)",
+    );
     expect(chip).toHaveTextContent("1(3)");
   });
 
@@ -74,7 +97,7 @@ describe("TradeStatusChip", () => {
     render(
       <TradeStatusChip annotation={annotation({ phase: "offered", quantity: 2 })} totalCount={2} />,
     );
-    const chip = screen.getByTitle("Offered · 2 copies");
+    const chip = screen.getByTitle("Offered (outgoing) · 2 copies");
     expect(chip).not.toHaveTextContent("(2)");
   });
 
@@ -83,7 +106,7 @@ describe("TradeStatusChip", () => {
       <TradeStatusChip annotation={annotation({ phase: "offered", quantity: 0 })} totalCount={4} />,
     );
     expect(
-      screen.getByTitle("Offered · 0 of this printing (4 across all printings)"),
+      screen.getByTitle("Offered (outgoing) · 0 of this printing (4 across all printings)"),
     ).toBeInTheDocument();
   });
 
@@ -95,9 +118,9 @@ describe("TradeStatusChip", () => {
   // Offered and Reserved both mean "do not promise this card again", so the
   // chip must not draw Offered as the weaker of the two. Only a bid is soft.
   it.each([
-    ["offered", "Offered · 1 copy"],
-    ["reserved", "Reserved · 1 copy"],
-    ["traded", "Traded · 1 copy"],
+    ["offered", "Offered (outgoing) · 1 copy"],
+    ["reserved", "Reserved (outgoing) · 1 copy"],
+    ["traded", "Traded (outgoing) · 1 copy"],
   ] as [CardTradeLivePhase, string][])("weights the committed %s state", (phase, title) => {
     render(<TradeStatusChip detail="label" annotation={annotation({ phase })} />);
     expect(screen.getByTitle(title)).toHaveClass("text-foreground", "font-semibold");
@@ -105,7 +128,7 @@ describe("TradeStatusChip", () => {
 
   it("leaves a bid muted", () => {
     render(<TradeStatusChip detail="label" annotation={annotation({ phase: "asked" })} />);
-    const chip = screen.getByTitle("Asked for · 1 copy");
+    const chip = screen.getByTitle("Requested (outgoing) · 1 copy");
     expect(chip).not.toHaveClass("text-foreground");
     expect(chip).toHaveClass("text-muted-foreground");
   });
@@ -115,6 +138,13 @@ describe("SharedTradeStatusChip", () => {
   it("says only that the copies are reserved", () => {
     render(<SharedTradeStatusChip />);
     expect(screen.getByTitle("Reserved")).toHaveTextContent("Reserved");
+  });
+
+  // "Outgoing" is relative to a side of the trade, and whoever opens a share
+  // link is on neither. The private chips spell it out; this one must not.
+  it("leaves the direction out of the tooltip", () => {
+    render(<SharedTradeStatusChip count={2} />);
+    expect(screen.queryByTitle(/outgoing/u)).toBeNull();
   });
 
   it("counts copies without naming anyone", () => {

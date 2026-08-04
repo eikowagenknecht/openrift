@@ -299,9 +299,9 @@ function buildStrip({
   supportsTradePrefs,
   tradeStatus,
 }: BuildStripArgs): ReactNode {
-  // The word ("Reserved", "Traded", "Offered to you", …) rather than the icon
-  // alone: Offered and Reserved share the handshake, so an icon-only chip
-  // can't tell a promised copy from a pinned one.
+  // The word ("Reserved", "Traded", "Offered", …) rather than the icon alone:
+  // the icon is the direction arrow, so an icon-only chip says which way the
+  // card is going but not whether it is promised or already pinned.
   //
   // A copy list's tile is one physical copy, so it drops the number: the
   // annotation counts the whole printing, and two reserved copies of it would
@@ -399,7 +399,7 @@ function buildStrip({
     // so it isn't hidden behind the context menu. It opens the keep-vs-sold
     // chooser rather than removing outright, since taking a copy off a tradelist
     // has two outcomes (kept vs sold). The trade-status chip (Reserved, Traded,
-    // Offered, Asked for) and the take-off button sit in the shell's edge zones,
+    // Offered, Requested) and the take-off button sit in the shell's edge zones,
     // whose equal flex widths keep the trade pill dead-centered even against an
     // uneven-width chip. `entry` is guaranteed non-null here.
     // A lent copy can't also be pinned to a trade (the claims exclude each

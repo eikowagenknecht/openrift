@@ -1,7 +1,7 @@
 import type { CardTradeLiveAnnotation, CopyResponse, Printing } from "@openrift/shared";
 
 import { collapseTradeAnnotations, groupTradeAnnotationsByPrinting } from "@/lib/trade-derivation";
-import { liveTradeStatusLabel, tradeStatusTitle } from "@/lib/trade-status-labels";
+import { liveTradeStatus, tradeStatusTitle } from "@/lib/trade-status-labels";
 
 // What a /collections tile shows about the live trades touching it. Kept out of
 // the cell component so the rules below are testable without rendering a grid.
@@ -22,7 +22,7 @@ export interface TileTradeStatus {
  * Every state but a giver-side `asked` defers to the shared summary, so a chip
  * reads the same here as anywhere else. `asked` is the one the annotation
  * cannot explain by itself: its number counts copies other people have bid
- * for, and nothing is promised yet, so a bare "Asked for 3" invites the
+ * for, and nothing is promised yet, so a bare "Requested 3" invites the
  * reading "3 of mine are spoken for". Naming the copies still free alongside
  * it settles that without a second chip.
  *
@@ -43,13 +43,13 @@ export function tradeChipTitle({
   totalCount?: number;
   availableCount: number;
 }): string {
-  const label = liveTradeStatusLabel(annotation);
+  const { label, direction } = liveTradeStatus(annotation);
   if (annotation.role !== "giver" || annotation.phase !== "asked") {
-    return tradeStatusTitle({ label, count: annotation.quantity, totalCount });
+    return tradeStatusTitle({ label, direction, count: annotation.quantity, totalCount });
   }
   const wanted =
     annotation.quantity === 1 ? "1 copy wanted" : `${annotation.quantity} copies wanted`;
-  return `${label} · ${wanted}, ${availableCount} available`;
+  return `${label} (${direction}) · ${wanted}, ${availableCount} available`;
 }
 
 /**
@@ -130,8 +130,8 @@ export function tileTradeStatus({
   // with no collection in it. On a group "bulk box" the tile's copies belong to
   // the group, so any annotation on this printing describes copies sitting in a
   // personal collection somewhere else, not these. Both roles are wrong there:
-  // "Coming to you" is a card arriving in the viewer's own collection, which is
-  // as misplaced on a group tile as "Reserved".
+  // an incoming card is one arriving in the viewer's own collection, which is
+  // as misplaced on a group tile as an outgoing one.
   if (isGroupCollection) {
     return null;
   }

@@ -20,15 +20,18 @@ import { cn } from "@/lib/utils";
  * physical copy. The count on an annotation belongs to the printing, so on a
  * per-copy row it is the wrong number: two reserved copies of one printing
  * would each read "Reserved 2" and look like four. `icon` cannot stand in for
- * it, because Offered and Reserved share an icon on purpose and the word is
- * the only thing separating them.
+ * it, because the icon is the direction arrow and every phase shares its side's
+ * arrow, so the word is the only thing naming the phase.
  */
 export type TradeChipDetail = "icon" | "count" | "label" | "word";
 
 /**
- * The chip body. Weight carries how binding the state is: a committed trade
- * takes the full foreground, a bid stays muted. Colour never does, so a card
- * with three chips on it doesn't turn into a traffic light.
+ * The chip body. The icon is the direction arrow, which is the only thing
+ * separating a card on its way out from one on its way in — the word names the
+ * phase and reads the same on both sides. Weight carries how binding the state
+ * is: a committed trade takes the full foreground, a bid stays muted. Colour
+ * never does, so a card with three chips on it doesn't turn into a traffic
+ * light.
  * @returns The chip element.
  */
 function TradeChip({
@@ -36,12 +39,14 @@ function TradeChip({
   count,
   totalCount,
   detail,
+  withDirection = true,
   title: titleOverride,
 }: {
   status: LiveTradeStatusDescriptor;
   count?: number;
   totalCount?: number;
   detail: TradeChipDetail;
+  withDirection?: boolean;
   title?: string;
 }) {
   const Icon = status.icon;
@@ -49,7 +54,14 @@ function TradeChip({
   // The override has to reach the pill itself. A `title` on a wrapper loses to
   // the innermost one on hover, and the pill's `aria-label` would still read
   // the computed text.
-  const title = titleOverride ?? tradeStatusTitle({ label: status.label, count, totalCount });
+  const title =
+    titleOverride ??
+    tradeStatusTitle({
+      label: status.label,
+      direction: withDirection ? status.direction : undefined,
+      count,
+      totalCount,
+    });
   return (
     <CountPill
       variant="ghost"
@@ -127,6 +139,10 @@ export function TradeStatusChip({
  * counterparty or a live negotiation onto a page with no session behind it. The
  * endpoint returns no names today; this keeps the component unable to show one
  * if that ever changes.
+ *
+ * The tooltip drops the direction the private chips spell out. "Outgoing" is
+ * relative to the viewer, and whoever opens a share link is not a side of the
+ * trade — the copies are simply not claimable.
  * @returns The chip element.
  */
 export function SharedTradeStatusChip({
@@ -141,6 +157,7 @@ export function SharedTradeStatusChip({
       status={liveTradeStatus(SHARED_RESERVED_STATUS)}
       count={detail === "icon" || detail === "word" ? undefined : count}
       detail={detail}
+      withDirection={false}
     />
   );
 }

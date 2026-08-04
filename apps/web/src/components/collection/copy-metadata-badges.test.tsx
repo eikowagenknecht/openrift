@@ -32,7 +32,7 @@ describe("CopyMetadataStrip live-trade marker", () => {
       />,
     );
 
-    expect(screen.getByLabelText("Reserved")).toBeInTheDocument();
+    expect(screen.getByLabelText("Reserved (outgoing)")).toBeInTheDocument();
   });
 
   // `reserved` stays true through the handover until the giver applies their
@@ -46,8 +46,8 @@ describe("CopyMetadataStrip live-trade marker", () => {
       />,
     );
 
-    expect(screen.getByLabelText("Traded")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Reserved")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Traded (outgoing)")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Reserved (outgoing)")).not.toBeInTheDocument();
   });
 
   // The annotation covers the printing, not this copy. It may belong to a
@@ -60,13 +60,13 @@ describe("CopyMetadataStrip live-trade marker", () => {
       />,
     );
 
-    expect(screen.queryByLabelText("Reserved")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Reserved (outgoing)")).not.toBeInTheDocument();
   });
 
   it("shows no marker when the annotations have not loaded yet", () => {
     render(<CopyMetadataStrip copy={stubCopy({ printingId: "p-1", reserved: true })} />);
 
-    expect(screen.queryByLabelText("Reserved")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Reserved (outgoing)")).not.toBeInTheDocument();
   });
 
   it("drops the count: a copies-view tile is one copy, so it would always read 1", () => {
@@ -78,7 +78,7 @@ describe("CopyMetadataStrip live-trade marker", () => {
       />,
     );
 
-    expect(screen.getByLabelText("Reserved")).not.toHaveTextContent("2");
+    expect(screen.getByLabelText("Reserved (outgoing)")).not.toHaveTextContent("2");
   });
 
   it("keeps the loan and trade markers side by side", () => {
@@ -90,6 +90,6 @@ describe("CopyMetadataStrip live-trade marker", () => {
     );
 
     expect(screen.getByLabelText("On loan")).toBeInTheDocument();
-    expect(screen.getByLabelText("Reserved")).toBeInTheDocument();
+    expect(screen.getByLabelText("Reserved (outgoing)")).toBeInTheDocument();
   });
 });

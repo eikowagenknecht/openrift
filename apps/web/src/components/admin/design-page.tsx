@@ -2122,11 +2122,11 @@ function CompositesSection() {
         <Demo
           name="TradeStatusChip"
           hint="Marks a printing the viewer has a live trade on. Ghost like OnLoanChip so the two share one strip; weight carries how binding the state is, never colour."
-          spec="Offered and Reserved are equally binding: same icon, same weight. Only a bid is muted."
+          spec="One word per phase on both sides; the arrow says which way the card is going. Offered and Reserved are equally binding, so only a bid is muted."
           className="sm:col-span-2 xl:col-span-3"
         >
           <div className="w-full space-y-3">
-            <TradeChipRow label='detail="label" · giver (their own copy is at stake)'>
+            <TradeChipRow label='detail="label" · giver (their own copy is at stake, arrow points out)'>
               {LIVE_TRADE_PHASES.map((phase) => (
                 <TradeStatusChip
                   key={phase}
@@ -2135,7 +2135,7 @@ function CompositesSection() {
                 />
               ))}
             </TradeChipRow>
-            <TradeChipRow label='detail="label" · receiver (a card coming to them)'>
+            <TradeChipRow label='detail="label" · receiver (a card on its way in, arrow points in)'>
               {LIVE_TRADE_PHASES.map((phase) => (
                 <TradeStatusChip
                   key={phase}

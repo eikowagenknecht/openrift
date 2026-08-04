@@ -28,7 +28,7 @@ describe("tradeChipTitle", () => {
         annotation: annotation({ phase: "reserved", quantity: 2 }),
         availableCount: 0,
       }),
-    ).toBe("Reserved · 2 copies");
+    ).toBe("Reserved (outgoing) · 2 copies");
   });
 
   it("keeps the shared summary's sibling breakdown when the totals diverge", () => {
@@ -38,7 +38,7 @@ describe("tradeChipTitle", () => {
         totalCount: 3,
         availableCount: 0,
       }),
-    ).toBe("Reserved · 1 of this printing (3 across all printings)");
+    ).toBe("Reserved (outgoing) · 1 of this printing (3 across all printings)");
   });
 
   // The product rule: an "asked" number counts other people's bids, so it must
@@ -49,7 +49,7 @@ describe("tradeChipTitle", () => {
         annotation: annotation({ phase: "asked", quantity: 3 }),
         availableCount: 1,
       }),
-    ).toBe("Asked for · 3 copies wanted, 1 available");
+    ).toBe("Requested (outgoing) · 3 copies wanted, 1 available");
   });
 
   // The bare number would read just as easily as a headcount of the people
@@ -69,7 +69,7 @@ describe("tradeChipTitle", () => {
         annotation: annotation({ phase: "asked", quantity: 1 }),
         availableCount: 2,
       }),
-    ).toBe("Asked for · 1 copy wanted, 2 available");
+    ).toBe("Requested (outgoing) · 1 copy wanted, 2 available");
   });
 
   it("still says so when every copy of an asked printing is already pinned", () => {
@@ -78,7 +78,7 @@ describe("tradeChipTitle", () => {
         annotation: annotation({ phase: "asked", quantity: 2 }),
         availableCount: 0,
       }),
-    ).toBe("Asked for · 2 copies wanted, 0 available");
+    ).toBe("Requested (outgoing) · 2 copies wanted, 0 available");
   });
 
   // "Requested" is the receiver's word for a card coming to them: nothing of
@@ -89,7 +89,7 @@ describe("tradeChipTitle", () => {
         annotation: annotation({ role: "receiver", phase: "asked", quantity: 2 }),
         availableCount: 5,
       }),
-    ).toBe("Requested · 2 copies");
+    ).toBe("Requested (incoming) · 2 copies");
   });
 });
 
@@ -167,7 +167,7 @@ describe("tileTradeStatus", () => {
       ],
       annotations: [annotation({ phase: "asked", quantity: 3 })],
     });
-    expect(status?.title).toBe("Asked for · 3 copies wanted, 1 available");
+    expect(status?.title).toBe("Requested (outgoing) · 3 copies wanted, 1 available");
   });
 
   // The case the server would refuse: the one unpinned copy is out on a loan,
@@ -181,7 +181,7 @@ describe("tileTradeStatus", () => {
       ],
       annotations: [annotation({ phase: "asked", quantity: 2 })],
     });
-    expect(status?.title).toBe("Asked for · 2 copies wanted, 0 available");
+    expect(status?.title).toBe("Requested (outgoing) · 2 copies wanted, 0 available");
   });
 
   // A group "bulk box" holds the group's copies. An annotation names a printing
@@ -208,7 +208,7 @@ describe("tileTradeStatus", () => {
       ],
     });
     expect(status?.totalCount).toBeUndefined();
-    expect(status?.title).toBe("Reserved · 1 copy");
+    expect(status?.title).toBe("Reserved (outgoing) · 1 copy");
   });
 
   it("sums the card-wide figure in cards view", () => {
@@ -222,7 +222,7 @@ describe("tileTradeStatus", () => {
       ],
     });
     expect(status?.totalCount).toBe(3);
-    expect(status?.title).toBe("Reserved · 1 of this printing (3 across all printings)");
+    expect(status?.title).toBe("Reserved (outgoing) · 1 of this printing (3 across all printings)");
   });
 
   // Summing across phases would put copies merely asked for behind the
