@@ -6,7 +6,8 @@ import type {
   ListRule,
   TradePreference,
 } from "@openrift/shared";
-import { CheckSquareIcon, LibraryBigIcon, ListIcon, Trash2Icon, XIcon } from "lucide-react";
+import { LibraryBigIcon, ListIcon, Trash2Icon, XIcon } from "lucide-react";
+import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 
 import { CardViewer } from "@/components/card-viewer";
@@ -16,6 +17,7 @@ import {
   CardBrowserFilterProvider,
 } from "@/components/cards/card-browser-filter-scaffold";
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
+import { SelectModeActions } from "@/components/cards/select-mode-actions";
 import { FloatingActionBar } from "@/components/collection/floating-action-bar";
 import { ListActionsCell } from "@/components/list/list-actions-cell";
 import { ListGridCell } from "@/components/list/list-grid-cell";
@@ -59,6 +61,13 @@ export interface ListEntryBrowserProps {
   /** The list's dynamic rules (ADR-034) — needed to compute the exclude PATCH. */
   rules: ListRule[];
   entries: ListEntryDetailResponse[];
+  /**
+   * Renders the page top bar. Select mode lives in this component but its
+   * buttons belong in the bar the page owns, so the page hands the assembly
+   * back as a callback: it gets the select cluster plus the current mode (to
+   * drop its browse-only actions while selecting) and returns the finished bar.
+   */
+  renderTopBar: (selectActions: ReactNode, mode: "browse" | "select") => ReactNode;
   /** True when the library toggle is on (catalog mode). Never true for copy-kind lists. */
   showLibrary: boolean;
   onToggleShowLibrary: () => void;
@@ -94,6 +103,7 @@ export function ListEntryBrowser({
   listCurrency,
   rules,
   entries,
+  renderTopBar,
   showLibrary,
   onToggleShowLibrary,
   onRemoveEntry,
@@ -159,10 +169,13 @@ export function ListEntryBrowser({
 
   const {
     mode,
-    selectMode,
     selected,
     clearSelection,
-    toggleSelectMode,
+    enterSelectMode,
+    exitSelectMode,
+    selectAll,
+    isAllSelected,
+    hasSelectableEntries,
     moveOpen,
     setMoveOpen,
     handleBulkMove,
@@ -273,19 +286,18 @@ export function ListEntryBrowser({
       </Toggle>
     );
 
-  // Select mode is only meaningful over the list's own entries — hide the
-  // toggle in library (catalog) mode where most tiles have no entry.
-  const selectButton = showLibrary ? null : (
-    <Toggle
-      variant="outline"
-      pressed={selectMode}
-      onPressedChange={toggleSelectMode}
-      className={activeToggleClass}
-      title={selectMode ? "Exit select mode" : "Select cards"}
-      aria-label={selectMode ? "Exit select mode" : "Select cards"}
-    >
-      <CheckSquareIcon className="size-4" />
-    </Toggle>
+  // Select mode is only meaningful over the list's own entries — no manage
+  // button in library (catalog) mode, where most tiles have no entry.
+  const selectActions = showLibrary ? null : (
+    <SelectModeActions
+      mode={mode}
+      view={view}
+      isAllSelected={isAllSelected}
+      hasSelectableItems={hasSelectableEntries}
+      onEnterSelect={enterSelectMode}
+      onExitSelect={exitSelectMode}
+      onSelectAll={selectAll}
+    />
   );
 
   const toolbar = (
@@ -298,12 +310,7 @@ export function ListEntryBrowser({
           : undefined
       }
       hideViewToggle
-      extras={
-        <>
-          {selectButton}
-          {showLibraryButton}
-        </>
-      }
+      extras={showLibraryButton}
     />
   );
 
@@ -329,6 +336,7 @@ export function ListEntryBrowser({
 
   return (
     <FilterSearchProvider value={{ ...filterSearch, view }}>
+      {renderTopBar(selectActions, mode)}
       <CardBrowserFilterProvider
         availableFilters={availableFilters}
         availableLanguages={availableLanguages}

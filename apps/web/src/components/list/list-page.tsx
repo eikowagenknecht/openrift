@@ -11,6 +11,7 @@ import {
   Trash2Icon,
   UploadIcon,
 } from "lucide-react";
+import type { ReactNode } from "react";
 import { use, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
@@ -134,72 +135,83 @@ export function ListPage({ listId }: ListPageProps) {
   // made of. Per-entry and per-selection moves live in the grid context menu.
   const allCopyIds = listCopyIds(data.entries);
 
-  const topBar = (
-    <ListHeader
-      list={data.list}
-      entries={data.entries}
-      attribution={{ kind: "none" }}
-      onToggleSidebar={toggleSidebar}
-      actions={
-        <>
-          <PageTopBarButton
-            onClick={() => setRuleOpen(true)}
-            className={cn(activeRuleCount > 0 && "text-primary")}
-          >
-            <SparklesIcon className="size-4" />
-            Dynamic rules
-            {activeRuleCount > 0 ? ` · ${activeRuleCount}` : null}
-          </PageTopBarButton>
-          <ListVisibilityButton
-            listId={data.list.id}
-            intent={data.list.intent}
-            onManageVisibility={() => setVisibilityOpen(true)}
-          />
-          <DropdownMenu>
-            <DropdownMenuTrigger render={<PageTopBarIconButton />}>
-              <EllipsisVerticalIcon className="size-4" />
-              <span className="sr-only">List actions</span>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setEditOpen(true)}>
-                <PencilIcon className="size-4" />
-                Edit
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setShareOpen(true)}>
-                <Share2Icon className="size-4" />
-                Share
-              </DropdownMenuItem>
-              {(data.list.kind === "card" || data.list.kind === "printing") && (
-                <DropdownMenuItem onClick={() => setImportOpen(true)}>
-                  <UploadIcon className="size-4" />
-                  Import
+  // The bar is assembled here (it belongs to the page) but rendered by the
+  // browser, which owns select mode — hence the callback. While selecting, the
+  // browse-only actions step aside so the bar keeps room for Select all / Done
+  // on a phone; the ⋮ menu stays reachable throughout.
+  const renderTopBar = (selectActions: ReactNode = null, mode: "browse" | "select" = "browse") => {
+    const topBar = (
+      <ListHeader
+        list={data.list}
+        entries={data.entries}
+        attribution={{ kind: "none" }}
+        onToggleSidebar={toggleSidebar}
+        actions={
+          <>
+            {mode === "browse" && (
+              <>
+                <PageTopBarButton
+                  onClick={() => setRuleOpen(true)}
+                  className={cn(activeRuleCount > 0 && "text-primary")}
+                >
+                  <SparklesIcon className="size-4" />
+                  Dynamic rules
+                  {activeRuleCount > 0 ? ` · ${activeRuleCount}` : null}
+                </PageTopBarButton>
+                <ListVisibilityButton
+                  listId={data.list.id}
+                  intent={data.list.intent}
+                  onManageVisibility={() => setVisibilityOpen(true)}
+                />
+              </>
+            )}
+            {selectActions}
+            <DropdownMenu>
+              <DropdownMenuTrigger render={<PageTopBarIconButton />}>
+                <EllipsisVerticalIcon className="size-4" />
+                <span className="sr-only">List actions</span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setEditOpen(true)}>
+                  <PencilIcon className="size-4" />
+                  Edit
                 </DropdownMenuItem>
-              )}
-              <DropdownMenuItem onClick={() => setExportOpen(true)}>
-                <DownloadIcon className="size-4" />
-                Export
-              </DropdownMenuItem>
-              {allCopyIds.length > 0 && (
-                <DropdownMenuItem onClick={() => setMoveAllOpen(true)}>
-                  <BookOpenIcon className="size-4" />
-                  Move all to collection
+                <DropdownMenuItem onClick={() => setShareOpen(true)}>
+                  <Share2Icon className="size-4" />
+                  Share
                 </DropdownMenuItem>
-              )}
-              <DropdownMenuItem
-                className="text-destructive focus:text-destructive"
-                onClick={() => setDeleteOpen(true)}
-              >
-                <Trash2Icon className="size-4" />
-                Delete list
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </>
-      }
-    />
-  );
+                {(data.list.kind === "card" || data.list.kind === "printing") && (
+                  <DropdownMenuItem onClick={() => setImportOpen(true)}>
+                    <UploadIcon className="size-4" />
+                    Import
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onClick={() => setExportOpen(true)}>
+                  <DownloadIcon className="size-4" />
+                  Export
+                </DropdownMenuItem>
+                {allCopyIds.length > 0 && (
+                  <DropdownMenuItem onClick={() => setMoveAllOpen(true)}>
+                    <BookOpenIcon className="size-4" />
+                    Move all to collection
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  <Trash2Icon className="size-4" />
+                  Delete list
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
+        }
+      />
+    );
 
-  const topBarPortal = topBarSlot && createPortal(topBar, topBarSlot);
+    return topBarSlot ? createPortal(topBar, topBarSlot) : null;
+  };
 
   const editDialog = (
     <ListEditDialog
@@ -309,7 +321,7 @@ export function ListPage({ listId }: ListPageProps) {
     const canShowLibrary = data.list.kind !== "copy";
     return (
       <>
-        {topBarPortal}
+        {renderTopBar()}
         <EmptyState
           className="flex-1"
           icon={KindIcon}
@@ -348,7 +360,6 @@ export function ListPage({ listId }: ListPageProps) {
 
   return (
     <>
-      {topBarPortal}
       <ListEntryBrowser
         listId={listId}
         kind={data.list.kind}
@@ -357,6 +368,7 @@ export function ListPage({ listId }: ListPageProps) {
         listCurrency={data.list.currency}
         rules={data.list.rules}
         entries={data.entries}
+        renderTopBar={renderTopBar}
         showLibrary={showLibraryActive}
         onToggleShowLibrary={() => setShowLibrary((prev) => !prev)}
         onRemoveEntry={handleRemoveEntry}

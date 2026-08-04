@@ -4,6 +4,7 @@
 
 ### Highlights
 
+- feat(Collection): **Manage cards on a list** — wishlists and tradelists get the same top-bar Manage button and Select all as a collection, so bulk move and remove no longer hide behind a small toolbar icon.
 - fix(Collection): **Statistics filters all work now** — chips set to exclude did nothing, and keywords, tags, custom tags, size and standard-printing were ignored outright; all of them now narrow completion, cost to complete and the value chart.
 
 ### Other

@@ -9,6 +9,7 @@ import {
   listCopyIds,
   resolveCopyMoveTarget,
   resolveEntryPrinting,
+  selectableEntryIds,
 } from "./list-entries";
 
 const entryBase = {
@@ -151,6 +152,46 @@ describe("listCopyIds", () => {
   it("returns nothing for lists without copies behind their entries", () => {
     expect(listCopyIds([cardEntry("e1", "ca"), printingEntry("e2", "pa")])).toEqual([]);
     expect(listCopyIds([])).toEqual([]);
+  });
+});
+
+describe("selectableEntryIds", () => {
+  const first = copyEntry("e1", "copy-1", "pa");
+  const ruleProduced = copyEntry(null, "copy-2", "pb");
+  const second = copyEntry("e3", "copy-3", "pc");
+
+  it("returns one id per tile, in display order", () => {
+    const items = [
+      { id: "e1", printing: stubPrinting({ id: "pa" }) },
+      { id: "e3", printing: stubPrinting({ id: "pc" }) },
+    ];
+    const entryByItemId = new Map([
+      ["e1", first],
+      ["e3", second],
+    ]);
+    expect(selectableEntryIds(items, entryByItemId)).toEqual(["e1", "e3"]);
+  });
+
+  it("skips rule-produced entries", () => {
+    const items = [
+      { id: "e1", printing: stubPrinting({ id: "pa" }) },
+      { id: "copy-2", printing: stubPrinting({ id: "pb" }) },
+    ];
+    const entryByItemId = new Map([
+      ["e1", first],
+      ["copy-2", ruleProduced],
+    ]);
+    expect(selectableEntryIds(items, entryByItemId)).toEqual(["e1"]);
+  });
+
+  it("skips tiles with no entry behind them", () => {
+    // Library (catalog) mode renders printings that aren't on the list at all.
+    const items = [{ id: "pz", printing: stubPrinting({ id: "pz" }) }];
+    expect(selectableEntryIds(items, new Map())).toEqual([]);
+  });
+
+  it("returns nothing for an empty grid", () => {
+    expect(selectableEntryIds([], new Map())).toEqual([]);
   });
 });
 

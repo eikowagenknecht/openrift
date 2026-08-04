@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
-import { resolveCopyMoveTarget } from "@/components/list/list-entries";
+import { resolveCopyMoveTarget, selectableEntryIds } from "@/components/list/list-entries";
 import { useCardSelection } from "@/hooks/use-card-selection";
 import { useCopyListMemberships, useDisposeCopies } from "@/hooks/use-copies";
 import {
@@ -92,6 +92,7 @@ export function useListEntryBrowserSelection({
   const {
     selected,
     toggleSelect,
+    toggleSelectAll,
     clearSelection,
     getLastSelectedItemId,
     setLastSelectedItemId,
@@ -247,14 +248,18 @@ export function useListEntryBrowserSelection({
   };
 
   // ── Select-mode handlers ─────────────────────────────────────────────
-  const toggleSelectMode = () => {
-    setSelectMode((prev) => {
-      if (prev) {
-        clearSelection();
-      }
-      return !prev;
-    });
+  const enterSelectMode = () => setSelectMode(true);
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    clearSelection();
   };
+
+  // Select all covers the tiles currently on screen, minus rule-produced
+  // entries (ADR-034) which have no row to act on. Same contract as the
+  // collection grid's filtered `selectableCopyIds`.
+  const selectableIds = selectableEntryIds(items, entryByItemId);
+  const selectAll = () => toggleSelectAll(selectableIds);
+  const isAllSelected = selectableIds.length > 0 && selected.size === selectableIds.length;
 
   // Shift-click range select: every entry between the last-clicked tile and
   // this one, in display order. One tile = one entry, so no stack expansion.
@@ -438,10 +443,13 @@ export function useListEntryBrowserSelection({
 
   return {
     mode,
-    selectMode,
     selected,
     clearSelection,
-    toggleSelectMode,
+    enterSelectMode,
+    exitSelectMode,
+    selectAll,
+    isAllSelected,
+    hasSelectableEntries: selectableIds.length > 0,
     moveOpen,
     setMoveOpen,
     handleBulkMove,

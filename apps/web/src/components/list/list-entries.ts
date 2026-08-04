@@ -155,6 +155,25 @@ export function buildItemsFromCatalog(sortedCards: Printing[]): {
 }
 
 /**
+ * The entry ids select mode can act on: one per visible tile, skipping
+ * rule-produced entries (null id, ADR-034) since they have no `list_entries`
+ * row to move or remove. Built from the grid's `items`, so "Select all" covers
+ * exactly the tiles the active filters left on screen — never a hidden entry.
+ * @param items - The grid items in display order.
+ * @param entryByItemId - The per-tile entry lookup that backs those items.
+ * @returns The selectable entry ids, in display order.
+ */
+export function selectableEntryIds(
+  items: readonly CardViewerItem[],
+  entryByItemId: ReadonlyMap<string, ListEntryDetailResponse>,
+): string[] {
+  return items.flatMap((item) => {
+    const entry = entryByItemId.get(item.id);
+    return entry && entry.id !== null ? [entry.id] : [];
+  });
+}
+
+/**
  * Every physical copy a copy-kind list points at, in list order. Card- and
  * printing-kind entries have no copy behind them and drop out, so this is empty
  * for those lists.

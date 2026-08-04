@@ -1,24 +1,21 @@
 import { Link } from "@tanstack/react-router";
 import {
   CameraIcon,
-  CheckIcon,
-  CheckSquareIcon,
   EllipsisVerticalIcon,
   LayersIcon,
   PencilIcon,
   Share2Icon,
   SquarePlusIcon,
   Trash2Icon,
-  XIcon,
 } from "lucide-react";
 
+import { SelectModeActions } from "@/components/cards/select-mode-actions";
 import { CollectionValueSummary } from "@/components/collection/collection-value-summary";
 import {
   PageTopBar,
   PageTopBarActions,
   PageTopBarButton,
   PageTopBarIconButton,
-  PageTopBarPrimaryButton,
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
 import {
@@ -127,43 +124,15 @@ export function CollectionTopBar({
               </PageTopBarButton>
             </>
           )}
-          {mode === "select" ? (
-            <>
-              <PageTopBarIconButton
-                onClick={onSelectAll}
-                aria-label={isAllSelected ? "Deselect all" : "Select all"}
-                className="sm:hidden"
-              >
-                <CheckIcon className="size-4" />
-              </PageTopBarIconButton>
-              <PageTopBarButton onClick={onSelectAll} className="hidden sm:flex">
-                <CheckIcon className="size-4" />
-                {isAllSelected ? "Deselect all" : "Select all"}
-              </PageTopBarButton>
-              <PageTopBarIconButton onClick={onExitSelect} aria-label="Done" className="sm:hidden">
-                <XIcon className="size-4" />
-              </PageTopBarIconButton>
-              <PageTopBarPrimaryButton onClick={onExitSelect} className="hidden sm:flex">
-                Done
-              </PageTopBarPrimaryButton>
-            </>
-          ) : (
-            hasCards && (
-              <>
-                <PageTopBarIconButton
-                  onClick={onEnterSelect}
-                  aria-label={`Manage ${view}`}
-                  className="sm:hidden"
-                >
-                  <CheckSquareIcon className="size-4" />
-                </PageTopBarIconButton>
-                <PageTopBarButton onClick={onEnterSelect} className="hidden sm:flex">
-                  <CheckSquareIcon className="size-4" />
-                  Manage {view}
-                </PageTopBarButton>
-              </>
-            )
-          )}
+          <SelectModeActions
+            mode={mode}
+            view={view}
+            isAllSelected={isAllSelected}
+            hasSelectableItems={hasCards}
+            onEnterSelect={onEnterSelect}
+            onExitSelect={onExitSelect}
+            onSelectAll={onSelectAll}
+          />
           {(canEdit || canDelete || canClearInbox || canShare || canToggleDeckbuilding) && (
             <DropdownMenu>
               <DropdownMenuTrigger render={<PageTopBarIconButton />}>

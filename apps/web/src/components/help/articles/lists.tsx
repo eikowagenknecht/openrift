@@ -175,7 +175,7 @@ export default function ListsArticle() {
           <FeatureCard
             icon={<ListPlusIcon className="size-4" />}
             title="From a collection"
-            description="Open the collection, select copies (Ctrl-click or the bulk-select toggle in the toolbar), and use Add to list in the floating action bar."
+            description="Open the collection, hit Manage cards in the top bar, pick the copies you want, and use Add to list in the floating action bar."
           />
           <FeatureCard
             icon={<TagIcon className="size-4" />}

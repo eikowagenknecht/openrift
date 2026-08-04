@@ -153,9 +153,14 @@ vi.mock("@/hooks/use-cards", () => ({
   }),
 }));
 
+// What the filter pipeline leaves on screen. Empty by default (the grid itself
+// is mocked out); the select-mode tests put a printing here so the list has a
+// tile to manage.
+let sortedCards: (typeof printingOnList)[] = [];
+
 vi.mock("@/hooks/use-card-data", () => ({
   useCardData: () => ({
-    sortedCards: [],
+    sortedCards,
     // List-scoped map: only the printing actually on the list survives.
     printingsByCardId: new Map([["card-1", [printingOnList]]]),
     priceRangeByCardId: undefined,
@@ -181,10 +186,12 @@ vi.mock("@/hooks/use-card-filters", () => ({
 }));
 
 const clearSelection = vi.fn();
+const toggleSelectAll = vi.fn();
 vi.mock("@/hooks/use-card-selection", () => ({
   useCardSelection: () => ({
     selected: new Set<string>(),
     toggleSelect: vi.fn(),
+    toggleSelectAll,
     clearSelection,
     getLastSelectedItemId: () => null,
     setLastSelectedItemId: vi.fn(),
@@ -325,6 +332,7 @@ describe("ListPage", () => {
       reset();
     }
     listDetail = cardKindListDetail;
+    sortedCards = [];
     document.body.innerHTML = "";
   });
 
@@ -361,6 +369,39 @@ describe("ListPage", () => {
       screen.queryByRole("menuitem", { name: "Move all to collection" }),
     ).not.toBeInTheDocument();
     await closeOpenMenu(user);
+  });
+
+  it("manages the selection from the top bar, like a collection does", async () => {
+    sortedCards = [printingOnList];
+    const user = userEvent.setup();
+    renderListPage();
+
+    // Browse mode: the manage button sits next to the list's own actions.
+    expect(screen.getAllByRole("button", { name: "Manage cards" })[0]).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Select all" })).not.toBeInTheDocument();
+
+    await user.click(screen.getAllByRole("button", { name: "Manage cards" })[0]);
+
+    // Select mode: select-all and done take over, browse-only actions step aside.
+    expect(screen.getAllByRole("button", { name: "Done" })[0]).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Manage cards" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Group visibility" })).not.toBeInTheDocument();
+
+    await user.click(screen.getAllByRole("button", { name: "Select all" })[0]);
+    expect(toggleSelectAll).toHaveBeenCalledWith(["entry-1"]);
+
+    await user.click(screen.getAllByRole("button", { name: "Done" })[0]);
+    expect(screen.getAllByRole("button", { name: "Manage cards" })[0]).toBeInTheDocument();
+  });
+
+  it("hides the manage button on a list whose entries all came from a dynamic rule", () => {
+    // Rule-produced entries have no list_entries row (ADR-034), so there is
+    // nothing select mode could act on.
+    listDetail = copyKindListDetail;
+    sortedCards = [printingOnList];
+    renderListPage();
+
+    expect(screen.queryByRole("button", { name: "Manage copies" })).not.toBeInTheDocument();
   });
 
   it("feeds the detail pane every catalog printing of a card on a printing-kind list", () => {
