@@ -42,8 +42,11 @@ import { MARKETPLACE_META } from "@/lib/marketplace-meta";
 import type { TradeCounterpartyGroup } from "@/lib/trade-derivation";
 import {
   bucketMemberTrades,
+  dominantTradeBadge,
   groupTradesByCounterparty,
+  sameTradeBadge,
   sumTradeValues,
+  tradeBadge,
   tradeSection,
 } from "@/lib/trade-derivation";
 import { useDisplayStore } from "@/stores/display-store";
@@ -63,10 +66,13 @@ import {
 } from "./trade-row-parts";
 
 /**
- * One trade as a wide row with a contextual action set.
+ * One trade as a wide row with a contextual action set. `hideBadge` is set by
+ * the counterparty group when this row's status is the one its header already
+ * carries, so a block of seven reserved trades doesn't print "Ready to swap"
+ * seven times; the odd row out keeps its badge and is the only chip in the list.
  * @returns The trade row element.
  */
-function TradeRow({ trade }: { trade: CardTradeResponse }) {
+function TradeRow({ trade, hideBadge }: { trade: CardTradeResponse; hideBadge?: boolean }) {
   const { cardsById, printingsById } = useCards();
   const { labels } = useEnumOrders();
   const acting = useTradeActionStore((state) => state.pending.has(trade.id));
@@ -105,8 +111,11 @@ function TradeRow({ trade }: { trade: CardTradeResponse }) {
     // On phones the row stacks: the card identity sits on top, and an action bar
     // below carries the status badge on the left and the buttons on the right.
     // From sm up both groups dissolve (sm:contents) back into one horizontal row.
-    <Card className="gap-2 p-2 sm:flex-row sm:items-center sm:gap-3">
-      <div className="flex min-w-0 items-center gap-3 sm:contents">
+    <Card className="relative gap-2 p-2 sm:flex-row sm:items-center sm:gap-3">
+      {/* pr-8 keeps the card name clear of the overflow menu, which is pinned to
+          the card's top-right corner on phones (see the trigger below). From sm
+          up this wrapper is display:contents, so the padding stops applying. */}
+      <div className="flex min-w-0 items-center gap-3 pr-8 sm:contents">
         <TradeDirectionIcon incoming={incoming} />
 
         <CardArtThumb imageId={imageId} alt={cardName} className="w-10" loading="lazy" />
@@ -134,11 +143,13 @@ function TradeRow({ trade }: { trade: CardTradeResponse }) {
         {/* Every row sits under a counterparty header that already carries the
             member's avatar and name, so the row itself never names them: no
             member chip, and the pending badge reads "Waiting for them". */}
-        <TradeStatusBadge
-          status={trade.status}
-          awaitingViewer={awaitingViewer}
-          className="min-w-0 shrink"
-        />
+        {hideBadge ? null : (
+          <TradeStatusBadge
+            status={trade.status}
+            awaitingViewer={awaitingViewer}
+            className="min-w-0 shrink"
+          />
+        )}
 
         <TradeExpiry status={trade.status} expiresAt={trade.expiresAt} />
 
@@ -188,11 +199,15 @@ function TradeRow({ trade }: { trade: CardTradeResponse }) {
               <DropdownMenu>
                 <DropdownMenuTrigger
                   render={
+                    // On phones the action bar is already carrying the primary
+                    // button, so the menu lifts out of it to the card's
+                    // top-right corner; from sm up it rejoins the button row.
                     <Button
                       size="icon-sm"
                       variant="ghost"
                       disabled={acting}
                       aria-label="More trade actions"
+                      className="absolute top-2 right-2 sm:static"
                     />
                   }
                 >
@@ -384,10 +399,15 @@ function CardmarketExportButton({
 }
 
 /**
- * One counterparty's trades under a collapsible header: avatar, name, count, and
- * the estimated get/give value, with the bulk action for the bucket next to it.
- * Default-open so the rows are visible, but collapsible so a big pile from one
- * person can be folded away.
+ * One counterparty's trades under a collapsible header: avatar, name, count, the
+ * status most of them share, and the estimated get/give value, with the bulk
+ * action for the bucket next to it. Default-open so the rows are visible, but
+ * collapsible so a big pile from one person can be folded away.
+ *
+ * The header's status badge is the block's summary: trades pile up per person in
+ * the same lifecycle state, so without it every row repeats the same chip. Rows
+ * matching it drop theirs, which also means the badge still reads correctly when
+ * the block is folded shut.
  * @returns The per-counterparty trade group.
  */
 function CounterpartyTradeGroup({
@@ -401,9 +421,10 @@ function CounterpartyTradeGroup({
   const prices = usePrices();
   const marketplace = useDisplayStore((state) => state.marketplaceOrder[0] ?? "cardtrader");
   const split = sumTradeValues(trades, (printingId) => prices.get(printingId, marketplace));
-  // The header count and the value summary stay over *all* their trades — the
-  // fold is a display cap, not a filter.
+  // The header count, the value summary and the shared status stay over *all*
+  // their trades — the fold is a display cap, not a filter.
   const fold = useCappedRows(trades);
+  const shared = dominantTradeBadge(trades);
 
   return (
     <Collapsible defaultOpen>
@@ -422,6 +443,13 @@ function CounterpartyTradeGroup({
             <span className="flex min-w-0 items-center gap-2">
               <span className="truncate">{counterparty.name ?? "Member"}</span>
               <span className="text-muted-foreground shrink-0 text-xs">({trades.length})</span>
+              {shared ? (
+                <TradeStatusBadge
+                  status={shared.status}
+                  awaitingViewer={shared.awaitingViewer}
+                  className="min-w-0 shrink"
+                />
+              ) : null}
             </span>
             <TradeValueSummary split={split} marketplace={marketplace} className="sm:ml-auto" />
           </span>
@@ -433,7 +461,11 @@ function CounterpartyTradeGroup({
       <CollapsibleContent>
         <div className="mt-1 flex flex-col gap-2">
           {fold.rows.map((trade) => (
-            <TradeRow key={trade.id} trade={trade} />
+            <TradeRow
+              key={trade.id}
+              trade={trade}
+              hideBadge={shared !== null && sameTradeBadge(tradeBadge(trade), shared)}
+            />
           ))}
           {fold.foldable ? <TradeShowMoreRow fold={fold} /> : null}
         </div>

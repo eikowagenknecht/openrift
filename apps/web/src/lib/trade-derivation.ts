@@ -456,3 +456,60 @@ export function sumTradeValues(
   }
   return split;
 }
+
+/** What a trade row's status badge says: its lifecycle status, plus whether a
+ * pending trade is the viewer's to answer ("Your move") rather than the other
+ * side's ("Waiting for them"). Two trades with the same badge render the same
+ * chip, which is what makes a column of them redundant. */
+export interface TradeBadge {
+  status: CardTradeResponse["status"];
+  awaitingViewer: boolean;
+}
+
+/**
+ * The badge a trade row would show.
+ * @param trade The trade.
+ * @returns Its badge identity.
+ */
+export function tradeBadge(trade: CardTradeResponse): TradeBadge {
+  return { status: trade.status, awaitingViewer: trade.actionNeeded === "accept-or-decline" };
+}
+
+/**
+ * Whether two badges render the same chip.
+ * @param a The first badge.
+ * @param b The second badge.
+ * @returns True when both status and awaiting-viewer match.
+ */
+export function sameTradeBadge(a: TradeBadge, b: TradeBadge): boolean {
+  return a.status === b.status && a.awaitingViewer === b.awaitingViewer;
+}
+
+/**
+ * The badge shared by a strict majority of a counterparty's trades, so the
+ * group header can carry it once instead of every row repeating it. Requires
+ * more than half: an evenly split group has no badge that describes it, and
+ * hoisting either half would mislabel the other. Rows that don't match keep
+ * their own badge, so the exceptions are the only chips left in the list.
+ * @param trades One counterparty's trades.
+ * @returns The majority badge, or null when no badge holds a majority.
+ */
+export function dominantTradeBadge(trades: readonly CardTradeResponse[]): TradeBadge | null {
+  const counts = new Map<string, { badge: TradeBadge; count: number }>();
+  for (const trade of trades) {
+    const badge = tradeBadge(trade);
+    const key = `${badge.status}\0${String(badge.awaitingViewer)}`;
+    const entry = counts.get(key);
+    if (entry) {
+      entry.count += 1;
+    } else {
+      counts.set(key, { badge, count: 1 });
+    }
+  }
+  for (const { badge, count } of counts.values()) {
+    if (count * 2 > trades.length) {
+      return badge;
+    }
+  }
+  return null;
+}

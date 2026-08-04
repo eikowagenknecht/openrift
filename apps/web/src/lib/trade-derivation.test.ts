@@ -7,13 +7,16 @@ import {
   collapseTradeAnnotations,
   countTradeSuggestions,
   describeViewerSource,
+  dominantTradeBadge,
   groupTradeAnnotationsByPrinting,
   groupTradesByCounterparty,
   matchCopyConditionLabel,
   matchSuggestionKey,
   maxTradeQuantity,
+  sameTradeBadge,
   summarizeMatchCopies,
   sumTradeValues,
+  tradeBadge,
   tradeSection,
   tradesHubSummary,
   tradeStatusLabel,
@@ -719,5 +722,73 @@ describe("collapseTradeAnnotations", () => {
     expect(collapseTradeAnnotations(map.get("printing-2") ?? [])).toEqual(
       annotation({ printingId: "printing-2", role: "receiver", phase: "offered", quantity: 6 }),
     );
+  });
+});
+
+describe("dominantTradeBadge", () => {
+  it("returns the badge every trade shares", () => {
+    const trades = [
+      stubTrade({ id: "t1", status: "reserved", actionNeeded: "complete" }),
+      stubTrade({ id: "t2", status: "reserved", actionNeeded: "complete" }),
+    ];
+
+    expect(dominantTradeBadge(trades)).toEqual({ status: "reserved", awaitingViewer: false });
+  });
+
+  it("returns the majority badge when a minority differs", () => {
+    const trades = [
+      stubTrade({ id: "t1", status: "reserved", actionNeeded: "complete" }),
+      stubTrade({ id: "t2", status: "reserved", actionNeeded: "complete" }),
+      stubTrade({ id: "t3", status: "pending", actionNeeded: "cancel" }),
+    ];
+
+    expect(dominantTradeBadge(trades)).toEqual({ status: "reserved", awaitingViewer: false });
+  });
+
+  it("returns null on an even split, where neither half describes the group", () => {
+    const trades = [
+      stubTrade({ id: "t1", status: "reserved", actionNeeded: "complete" }),
+      stubTrade({ id: "t2", status: "pending", actionNeeded: "cancel" }),
+    ];
+
+    expect(dominantTradeBadge(trades)).toBeNull();
+  });
+
+  it("separates a pending trade awaiting the viewer from one awaiting the other side", () => {
+    const trades = [
+      stubTrade({ id: "t1", status: "pending", actionNeeded: "accept-or-decline" }),
+      stubTrade({ id: "t2", status: "pending", actionNeeded: "cancel" }),
+    ];
+
+    expect(dominantTradeBadge(trades)).toBeNull();
+    expect(tradeBadge(trades[0])).toEqual({ status: "pending", awaitingViewer: true });
+    expect(tradeBadge(trades[1])).toEqual({ status: "pending", awaitingViewer: false });
+  });
+
+  it("returns null for no trades", () => {
+    expect(dominantTradeBadge([])).toBeNull();
+  });
+});
+
+describe("sameTradeBadge", () => {
+  it("matches on status and awaiting-viewer together", () => {
+    expect(
+      sameTradeBadge(
+        { status: "pending", awaitingViewer: true },
+        { status: "pending", awaitingViewer: true },
+      ),
+    ).toBe(true);
+    expect(
+      sameTradeBadge(
+        { status: "pending", awaitingViewer: true },
+        { status: "pending", awaitingViewer: false },
+      ),
+    ).toBe(false);
+    expect(
+      sameTradeBadge(
+        { status: "reserved", awaitingViewer: false },
+        { status: "completed", awaitingViewer: false },
+      ),
+    ).toBe(false);
   });
 });
